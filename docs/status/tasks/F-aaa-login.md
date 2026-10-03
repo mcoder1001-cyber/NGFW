@@ -13,7 +13,7 @@ User page: `docs/user/system/aaa.md`. Contract: `docs/status/tasks/F-aaa-login-c
   a local user's name is never taken over; a lower role than before bumps the credential generation; identity link
   in `aaa_external_identity`.
 - **Rate limiting**: the P06 per-client bucket plus a per-login-name bucket for external attempts
-  (`extlogin:<name>`, VRX_LOGIN_RATE_PER_MIN); external rejects of a known shadow user count toward the lockout; a
+  (`extlogin:<name>`, NGFW_LOGIN_RATE_PER_MIN); external rejects of a known shadow user count toward the lockout; a
   locked shadow user is not sent to the directory. OIDC start/callback and MFA verify share the per-client bucket.
 - **LDAP** (`features/aaa/ldap.ts`, new dep `ldapts@9.2.0`): service bind → RFC 4515-escaped filter → exactly one
   entry → user bind; empty password refused before any I/O; no clear-text bind.
@@ -46,8 +46,8 @@ Public (route-guard PUBLIC): `POST /auth/mfa/verify`, `POST /auth/mfa/enroll` (b
 `apps/api/src/db/schema.ts` (3 tables under `// wave-BC: F-aaa`), `apps/api/migrations/0007_f_aaa_mfa.sql` +
 meta (generated — regenerate on top of main at merge), `apps/api/src/auth/route-guard.test.ts` (PUBLIC/READONLY_MAY/
 ADMIN_ONLY), `packages/schema/src/domains/management.ts` (AuthMethod + one key line + 2 refines),
-`packages/proto/vrx/v1/dataplane.proto` (field 5 + `AaaOidc`), generated `apps/agent/gen`, `packages/proto/gen/ts`,
-`packages/yang/generated/vrx-management.yang`, `packages/api-client/src/generated/schema.d.ts`,
+`packages/proto/ngfw/v1/dataplane.proto` (field 5 + `AaaOidc`), generated `apps/agent/gen`, `packages/proto/gen/ts`,
+`packages/yang/generated/ngfw-management.yang`, `packages/api-client/src/generated/schema.d.ts`,
 `apps/api/package.json` + `pnpm-lock.yaml` (ldapts), web `router.tsx`/`nav/nav.ts`(+test)/`i18n.ts` under the F-aaa
 anchors, named hunks in `pages/LoginPage.tsx`, `pages/UsersPage.tsx`, `shell/UserMenu.tsx`, `auth/session.ts`,
 `apps/api/src/auth/dev-weak-warning.test.ts` (constructor arity).
@@ -83,7 +83,7 @@ gitleaks finds 5 generic-api-key hits, all in commits already on main, none in t
 2 HIGH config takeover: `CommitService.assertNoExternalUserCollision` (commit + validate) → 400 with
   `/management/users/<i>/username`; `pg-repo.syncUsers` upsert skips `source='external'` rows. Files outside
   files_owned (commit.service.ts, datastore/repo.ts, datastore/pg-repo.ts), approved by the review. e2e.
-3 MED-HIGH OIDC login CSRF: `vrx_oidc` httpOnly SameSite=Lax cookie (path /api/v1/auth/oidc, 10 min) whose hash is
+3 MED-HIGH OIDC login CSRF: `ngfw_oidc` httpOnly SameSite=Lax cookie (path /api/v1/auth/oidc, 10 min) whose hash is
   stored with the state; callback without / with another browser's cookie refused. e2e.
 4 MED TLS rule on mfa/verify, mfa/enroll, oidc/start, oidc/callback → 403 tls-required. e2e (remote peer).
 5 MED D-159 (LOG.md): admin-issued one-time enrolment tokens; one enrol attempt per challenge; rate-limited; web

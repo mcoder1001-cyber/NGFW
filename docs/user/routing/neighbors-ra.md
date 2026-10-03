@@ -56,7 +56,7 @@ In the interface drawer, the group *IPv6 RA, proxy ARP/ND* holds three fields (a
   SLAAC (A set) must be a /64. The interface needs an IPv6 address.
 - **Proxy ARP** (`proxyArp`): the interface answers ARP for the proxy-ARP ranges of its VRF. The ranges are set per VRF in
   `vrfs.<name>.proxyArpRanges` (`[{low, high}]`, IPv4, low ≤ high).
-- **Proxy ND addresses** (`proxyNd`) — **experimental, off by default**: only an agent started with `VRX_DF2_PROXY_ND=1`
+- **Proxy ND addresses** (`proxyNd`) — **experimental, off by default**: only an agent started with `NGFW_DF2_PROXY_ND=1`
   applies them (the shared VPP 26.06 aborted after the first `ip6nd_proxy_add_del`, docs/vpp-code-track.md V12); any
   other agent reports them as not applied.
 
@@ -113,16 +113,16 @@ curl -s -X POST -H "authorization: Bearer $T" 'http://127.0.0.1:3000/api/v1/conf
 Configuration uses the generic path commands (`docs/user/cli/reference.md`):
 
 ```text
-vrx merge routing '{"neighbors":{"static":[{"interface":"lan","ip":"10.1.1.50","mac":"02:00:00:00:01:50"}]}}'
-vrx merge interfaces lan ipv6Ra '{"suppress":false,"prefixes":{"2001:db8:1::/64":{}}}'
-vrx set interfaces lan proxyArp true
-vrx merge vrfs blue '{"proxyArpRanges":[{"low":"10.1.3.10","high":"10.1.3.20"}]}'
-vrx show configuration diff
-vrx commit comment "neighbours"
+ngfw merge routing '{"neighbors":{"static":[{"interface":"lan","ip":"10.1.1.50","mac":"02:00:00:00:01:50"}]}}'
+ngfw merge interfaces lan ipv6Ra '{"suppress":false,"prefixes":{"2001:db8:1::/64":{}}}'
+ngfw set interfaces lan proxyArp true
+ngfw merge vrfs blue '{"proxyArpRanges":[{"low":"10.1.3.10","high":"10.1.3.20"}]}'
+ngfw show configuration diff
+ngfw commit comment "neighbours"
 ```
 
 The live table and the flush have REST operations (`NeighborsRa_neighbors`, `NeighborsRa_arpFlush` in the CLI's generated
-operation table) but no `vrx` command in this release; use REST, the screen, or on the device itself the VPP CLI
+operation table) but no `ngfw` command in this release; use REST, the screen, or on the device itself the VPP CLI
 equivalents:
 
 ```text

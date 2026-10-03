@@ -37,7 +37,7 @@ never ready. IPv6 servers are applied but never count.
   `dns.name-server` Delete sends `dns_enable_disable(0)` first, and `Enable.Upstreams` makes a changed server set an
   update of the switch that re-enables it after the new servers were created. Fake-VPP model test
   `TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers` drives the real scheduler through server replacements.
-- The host test `TestDNSOnHost` needs `VRX_DNS_VPP_HOST=1` **and** `VRX_DF8_GLOBALS=1` (D-064: it can crash VPP).
+- The host test `TestDNSOnHost` needs `NGFW_DNS_VPP_HOST=1` **and** `NGFW_DF8_GLOBALS=1` (D-064: it can crash VPP).
 - `dns_resolve_name` replies only after the upstream answers or VPP's retries give up: pass a ctx with a deadline
   (a host run without one blocked for minutes against unreachable upstreams).
 - **VPP 26.06 crashes on any DNS request when no IPv4 name server was added since it started** (`is_enabled` does not
@@ -56,7 +56,7 @@ never ready. IPv6 servers are applied but never count.
 - Once enabled, VPP answers UDP 53 on every VPP address in every FIB (the ports are registered globally and stay
   registered after a disable); the plugin has no client ACL. The projection warns (`services.dns-vpp-cache-exposure`).
 - Ownership: servers have no tag; production owns the resolver. The singleton is VPP-global; nobody else on the
-  shared host uses VPP's resolver (Unbound is RF-3's), the host test is **opt-in** (`VRX_DF8_GLOBALS=1`,
+  shared host uses VPP's resolver (Unbound is RF-3's), the host test is **opt-in** (`NGFW_DF8_GLOBALS=1`,
   manager window): without a getter the previous state cannot be restored (review M3).
 
 ## Registration, ownership and restarts (D-069, D-071, D-074, D-076)

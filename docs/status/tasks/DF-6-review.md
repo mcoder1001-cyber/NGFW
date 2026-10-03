@@ -7,7 +7,7 @@ Reviewer: independent review agent · branch `task/DF-6` @ 82d0e65 · slot 11 ·
 - **CI:** I ran `tools/ci.sh --base main` in `/root/ngfw-wt/DF-6`. Result: `CI GATE PASSED` (quick, 0m44s; logs
   `/root/ngfw-wt/logs/ci/DF-6-20260924-010603-1141821`). No contract files changed. All 10 descriptor packages `ok`.
   This matches the pasted output. The gate ran against the branch's old base `af83adb`, and main has moved on since (see L1).
-- **Host tests:** I ran them myself on slot 11, one package at a time, with `VRX_INTEGRATION=1` and without the
+- **Host tests:** I ran them myself on slot 11, one package at a time, with `NGFW_INTEGRATION=1` and without the
   gtpu, LISP or l2tp-create opt-ins. `NRestarts` read 2 before and after every package.
   - gre, ipip, vxlan and vxlan_gpe passed. Each printed `re-apply plan … empty=true`.
   - sr: localsid, policy and steering passed, each with an empty re-apply plan.

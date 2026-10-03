@@ -13,7 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/subsystems/ruleexpiry"
 )
@@ -22,8 +22,8 @@ import (
 // document the rules reference and the FQDN answers of the running agent (nil: FQDN objects expand to
 // nothing).
 type Input struct {
-	ACL     *vrxv1.AclConfig
-	Objects *vrxv1.ObjectsConfig
+	ACL     *ngfwv1.AclConfig
+	Objects *ngfwv1.ObjectsConfig
 	FQDN    objects.FQDNLookup
 }
 
@@ -184,9 +184,9 @@ func Build(in Input) (*HostTable, []Issue) {
 }
 
 // hostConfig is the part of acl this renderer realises (the value's config, Retrieve's acl).
-func hostConfig(acl *vrxv1.AclConfig) *vrxv1.AclConfig {
-	src := &vrxv1.AclConfig{Host: acl.GetHost(), HostAttachments: acl.GetHostAttachments(), HostSettings: acl.GetHostSettings()}
-	return proto.Clone(src).(*vrxv1.AclConfig)
+func hostConfig(acl *ngfwv1.AclConfig) *ngfwv1.AclConfig {
+	src := &ngfwv1.AclConfig{Host: acl.GetHost(), HostAttachments: acl.GetHostAttachments(), HostSettings: acl.GetHostSettings()}
+	return proto.Clone(src).(*ngfwv1.AclConfig)
 }
 
 type builder struct {
@@ -271,7 +271,7 @@ type configRule struct {
 	list    string
 	index   int
 	pointer string
-	rule    *vrxv1.HostRule
+	rule    *ngfwv1.HostRule
 }
 
 // lists validates every host list (attached or not) and returns, per list, the nftables rules of its
@@ -461,9 +461,9 @@ func (r *nrule) text() string {
 	p = append(p, "counter")
 	switch {
 	case r.log && r.blockSet != "":
-		p = append(p, fmt.Sprintf(`log prefix "vrx:gb:%s "`, r.list))
+		p = append(p, fmt.Sprintf(`log prefix "ngfw:gb:%s "`, r.list))
 	case r.log:
-		p = append(p, fmt.Sprintf(`log prefix "vrx:%s:%d "`, r.list, r.seq))
+		p = append(p, fmt.Sprintf(`log prefix "ngfw:%s:%d "`, r.list, r.seq))
 	}
 	p = append(p, r.verdict)
 	return strings.Join(p, " ")
@@ -563,7 +563,7 @@ func (r *nrule) toRule() *Rule {
 	t := r.text()
 	sum := sha256.Sum256([]byte(t))
 	return &Rule{
-		Comment: fmt.Sprintf("vrx:%s/%d:%s", r.id, r.n, hex.EncodeToString(sum[:4])),
+		Comment: fmt.Sprintf("ngfw:%s/%d:%s", r.id, r.n, hex.EncodeToString(sum[:4])),
 		Text:    t, Kind: r.kind, List: r.list, Sequence: r.seq, Pointer: r.pointer, Verdict: r.verdict,
 	}
 }
@@ -732,7 +732,7 @@ type expansion struct {
 	err    error
 }
 
-func (b *builder) addr(m *vrxv1.AddressMatch, pt string) (addrMatch, bool) {
+func (b *builder) addr(m *ngfwv1.AddressMatch, pt string) (addrMatch, bool) {
 	switch m.GetKind() {
 	case "", "any":
 		return addrMatch{}, true
@@ -803,7 +803,7 @@ func (b *builder) expand(name, pt string) *expansion {
 	return e
 }
 
-func (b *builder) service(m *vrxv1.ServiceMatch, pt string) ([]svcGroup, bool) {
+func (b *builder) service(m *ngfwv1.ServiceMatch, pt string) ([]svcGroup, bool) {
 	var specs []objects.PortSpec
 	var err error
 	switch m.GetKind() {

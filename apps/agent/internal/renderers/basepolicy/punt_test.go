@@ -9,7 +9,7 @@ import (
 )
 
 func kernel(names []string) []byte {
-	b, _ := json.Marshal(map[string]any{"nftables": []any{map[string]any{"set": map[string]any{"family": "inet", "table": "vrx_base", "name": "dynamic_punt_interfaces", "type": "ifname", "elem": names}}}})
+	b, _ := json.Marshal(map[string]any{"nftables": []any{map[string]any{"set": map[string]any{"family": "inet", "table": "ngfw_base", "name": "dynamic_punt_interfaces", "type": "ifname", "elem": names}}}})
 	return b
 }
 func TestMembers(t *testing.T) {
@@ -38,8 +38,8 @@ func TestParse(t *testing.T) {
 		t.Fatal(err)
 	}
 	bad := [][]byte{[]byte(`{}`), []byte(`{"nftables":[{"table":{}}]}`), []byte(strings.Repeat("x", MaxJSON+1)), append(kernel(nil), []byte(` {}`)...), kernel([]string{"mgmt0"}), kernel([]string{"tap0", "tap0"})}
-	for _, replacement := range []string{"wrong", "inet vrx"} {
-		bad = append(bad, []byte(strings.Replace(string(kernel(nil)), "vrx_base", replacement, 1)))
+	for _, replacement := range []string{"wrong", "inet ngfw"} {
+		bad = append(bad, []byte(strings.Replace(string(kernel(nil)), "ngfw_base", replacement, 1)))
 	}
 	bad = append(bad, []byte(strings.Replace(string(kernel(nil)), `"ifname"`, `"ipv4_addr"`, 1)), []byte(strings.Replace(string(kernel(nil)), `"type":"ifname"`, `"type":"ifname","flags":["interval"]`, 1)))
 	for _, data := range bad {

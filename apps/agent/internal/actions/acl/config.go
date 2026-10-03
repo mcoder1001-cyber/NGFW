@@ -9,7 +9,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -42,30 +42,30 @@ var KeyConfigAttachments = scheduler.Join(NameConfig, configAttachments)
 var KeyConfigGlobalBlocking = scheduler.Join(NameConfig, configBlocking)
 
 // ConfigList is the acl.config value of list name.
-func ConfigList(name string, l *vrxv1.AclList) *vrxv1.AclConfig {
-	return &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{name: l}}
+func ConfigList(name string, l *ngfwv1.AclList) *ngfwv1.AclConfig {
+	return &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{name: l}}
 }
 
 // ConfigMacip is the acl.config value of MACIP list name.
-func ConfigMacip(name string, l *vrxv1.MacipList) *vrxv1.AclConfig {
-	return &vrxv1.AclConfig{Macip: map[string]*vrxv1.MacipList{name: l}}
+func ConfigMacip(name string, l *ngfwv1.MacipList) *ngfwv1.AclConfig {
+	return &ngfwv1.AclConfig{Macip: map[string]*ngfwv1.MacipList{name: l}}
 }
 
 // ConfigAttachments is the acl.config value of the attachments.
-func ConfigAttachments(a []*vrxv1.AclAttachment, m []*vrxv1.MacipAttachment) *vrxv1.AclConfig {
-	return &vrxv1.AclConfig{Attachments: a, MacipAttachments: m}
+func ConfigAttachments(a []*ngfwv1.AclAttachment, m []*ngfwv1.MacipAttachment) *ngfwv1.AclConfig {
+	return &ngfwv1.AclConfig{Attachments: a, MacipAttachments: m}
 }
 
 // ConfigGlobalBlocking is the acl.config value of acl.globalBlocking.
-func ConfigGlobalBlocking(g *vrxv1.GlobalBlocking) *vrxv1.AclConfig {
-	return &vrxv1.AclConfig{GlobalBlocking: g}
+func ConfigGlobalBlocking(g *ngfwv1.GlobalBlocking) *ngfwv1.AclConfig {
+	return &ngfwv1.AclConfig{GlobalBlocking: g}
 }
 
 var errConfigValue = errors.New("acl.config: value must hold exactly one list, one MACIP list, the attachments or the global blocking lists")
 
 // configKeyOf returns the key of an acl.config value and the pin key of its configuration.
 func configKeyOf(obj proto.Message) (scheduler.Key, string, error) {
-	c, ok := obj.(*vrxv1.AclConfig)
+	c, ok := obj.(*ngfwv1.AclConfig)
 	if !ok {
 		return "", "", fmt.Errorf("%w: %T", errConfigValue, obj)
 	}
@@ -92,7 +92,7 @@ func configKeyOf(obj proto.Message) (scheduler.Key, string, error) {
 
 // configEntry is one applied configuration object.
 type configEntry struct {
-	value *vrxv1.AclConfig
+	value *ngfwv1.AclConfig
 	hash  string // ConfigHash of the entry itself (the list / MACIP list / attachments config)
 }
 
@@ -105,7 +105,7 @@ type appliedStore struct {
 func newAppliedStore() *appliedStore { return &appliedStore{entries: map[scheduler.Key]configEntry{}} }
 
 // entryHash hashes the part of an acl.config value its record entries are keyed by.
-func entryHash(c *vrxv1.AclConfig) string {
+func entryHash(c *ngfwv1.AclConfig) string {
 	for _, l := range c.GetLists() {
 		return ConfigHash(l)
 	}
@@ -150,7 +150,7 @@ func (d *ConfigDescriptor) put(obj proto.Message) error {
 	if err != nil {
 		return err
 	}
-	v := proto.Clone(obj).(*vrxv1.AclConfig)
+	v := proto.Clone(obj).(*ngfwv1.AclConfig)
 	h := entryHash(v)
 	d.store.mu.Lock()
 	d.store.entries[k] = configEntry{value: v, hash: h}
@@ -199,7 +199,7 @@ func (d *ConfigDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 }
 
 // applied returns the applied value and its hash under key.
-func (s *appliedStore) applied(k scheduler.Key) (*vrxv1.AclConfig, string, bool) {
+func (s *appliedStore) applied(k scheduler.Key) (*ngfwv1.AclConfig, string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	e, ok := s.entries[k]

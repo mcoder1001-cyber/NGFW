@@ -69,7 +69,7 @@ func ProductPaths() Paths {
 		ConfDir:           "/etc/unbound",
 		ControlSocketPath: "/run/unbound.ctl",
 		PidFilePath:       "/run/unbound.pid",
-		PendingFile:       "/run/vrx/renderers/unbound.pending",
+		PendingFile:       "/run/ngfw/renderers/unbound.pending",
 		IdlePort:          53,
 		TrustAnchor:       "/var/lib/unbound/root.key",
 		RootKey:           "/usr/share/dns/root.key",
@@ -81,13 +81,13 @@ func ProductPaths() Paths {
 }
 
 // TestPaths are the test-scoped paths for slot prefix ("w6") and slot number: everything
-// under /run/vrx-test/<prefix>/unbound, loopback listeners only, idle port 3<slot>53.
+// under /run/ngfw-test/<prefix>/unbound, loopback listeners only, idle port 3<slot>53.
 func TestPaths(prefix string, slot int) Paths {
 	port := 3000 + slot*100 + 53
 	if slot > 12 { // slots 14–32 use the 10000+100·N block (D-156, docs/lab/shared-host-rules.md §1)
 		port = 10000 + slot*100 + 53
 	}
-	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "unbound"), uint32(port)) //nolint:gosec // slots 1–12, 14–32
+	return PathsUnder(filepath.Join("/run/ngfw-test", prefix, "unbound"), uint32(port)) //nolint:gosec // slots 1–12, 14–32
 }
 
 // PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance
@@ -97,7 +97,7 @@ func PathsUnder(base string, idlePort uint32) Paths {
 		ConfDir:           base,
 		ControlSocketPath: filepath.Join(base, "unbound.ctl"),
 		PidFilePath:       filepath.Join(base, "unbound.pid"),
-		PendingFile:       filepath.Join(base, "vrx.pending"),
+		PendingFile:       filepath.Join(base, "ngfw.pending"),
 		IdlePort:          idlePort,
 		TrustAnchor:       filepath.Join(base, "root.key"),
 		RootKey:           "/usr/share/dns/root.key",

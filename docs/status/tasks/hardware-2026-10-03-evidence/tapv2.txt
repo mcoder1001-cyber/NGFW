@@ -1,0 +1,7 @@
+=== RUN   TestTapOnHost
+2026/10/03 13:02:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-tap40 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:49: tapv2.tap: Retrieve == desired: tapv2.tap/w32-tap40 name:"w32-tap40" id:3240 host_if_name:"w32-tap40" host_ip6_prefix:"fd00:2:40::1/64" host_mtu:1400 rx_ring_size:512 tx_ring_size:256 gso:true (sw_if_index {SwIfIndex:2})
+2026/10/03 13:02:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- PASS: TestTapOnHost (0.15s)
+PASS
+ok  	ngfw/agent/internal/descriptors/tapv2	0.177s

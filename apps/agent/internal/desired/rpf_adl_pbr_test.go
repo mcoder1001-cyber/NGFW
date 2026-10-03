@@ -9,7 +9,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/abf"
 	"ngfw/agent/internal/descriptors/adl"
 	autosdl "ngfw/agent/internal/descriptors/auto_sdl"
@@ -67,9 +67,9 @@ func rpfVrfID(n string) (uint32, bool) {
 	return id, ok
 }
 
-func rpfParse(t *testing.T, js string) *vrxv1.DesiredState {
+func rpfParse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -312,12 +312,12 @@ func TestRpfAdlPbrAssemble(t *testing.T) {
 		{Key: "abf.attach/3999/loop302/ipv6", Value: &abf.Attach{PolicyId: 3999, Interface: "loop302", Priority: 5, Ipv6: true}},
 		{Key: "abf.attach/x/loop301/ipv4", Value: &abf.Attach{PolicyId: ids["via"], Interface: "loop301", Priority: 10}},
 	}
-	ds := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{
+	ds := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
 		"loop301": {Enabled: proto.Bool(true), Vrf: proto.String("red")},
 		"loop302": {Enabled: proto.Bool(true), Vrf: proto.String("default")},
 	}}
-	stored := map[string]*vrxv1.Interface{
-		"loop302": {Urpf: &vrxv1.UrpfConfig{Direction: proto.String("rx")}, Adl: &vrxv1.AdlConfig{DefaultAllow: proto.Bool(true)}},
+	stored := map[string]*ngfwv1.Interface{
+		"loop302": {Urpf: &ngfwv1.UrpfConfig{Direction: proto.String("rx")}, Adl: &ngfwv1.AdlConfig{DefaultAllow: proto.Bool(true)}},
 	}
 	names := map[uint32]string{0: "default", 3001: "red"}
 	RpfAdlPbrAssemble(ds, kvs, rpfAll, func(id uint32) string { return names[id] }, stored)
@@ -343,9 +343,9 @@ func TestRpfAdlPbrAssemble(t *testing.T) {
 		t.Fatalf("assembled:\n%s\nwant\n%s", protojson.Format(ds), protojson.Format(want))
 	}
 	// nothing of the feature: no pbr; services present (an implemented domain) and empty
-	empty := &vrxv1.DesiredState{}
+	empty := &ngfwv1.DesiredState{}
 	RpfAdlPbrAssemble(empty, nil, rpfAll, func(uint32) string { return "default" }, nil)
-	if !proto.Equal(empty, &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{}}) {
+	if !proto.Equal(empty, &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{}}) {
 		t.Fatalf("empty assemble = %s", protojson.Format(empty))
 	}
 }

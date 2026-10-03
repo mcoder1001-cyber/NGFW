@@ -1,3 +1,5 @@
+import { ipsecFakeState } from '../features/ipsec/fake.js';
+import { tunnelStateFake } from '../features/tunnels/fake.js';
 import {
   Server,
   ServerCredentials,
@@ -62,7 +64,7 @@ import { srv6FakeState } from '../features/srv6/fake.js'; // F-srv6 (P5)
 import { mplsSrmplsFake } from '../features/mpls-srmpls/fake.js';
 
 /**
- * In-process fake of the P03 `vrx.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
+ * In-process fake of the P03 `ngfw.v1.Dataplane` service (P05 is not merged — TASK ENVELOPE). It follows the
  * semantics of docs/contracts/proto.md that the API depends on: owner check, D-041 subsystem selection, txn_id
  * idempotency, one pending confirm at a time with a self-revert timer (CONFIRM_REVERTED + RECONCILE events), DryRun
  * without side effects, Retrieve of the applied state, 1 Hz-style StreamStats and StreamEvents with per-stream seq.
@@ -815,9 +817,22 @@ export class FakeAgent {
       health,
       systemIdentityState: (call, cb) => {
         if (!this.checkCommon('SystemIdentityState', call.request, cb)) return;
-        cb({ code: status.UNIMPLEMENTED, details: 'Operational system identity not configured in fake agent' }, null);
+        cb(
+          {
+            code: status.UNIMPLEMENTED,
+            details: 'Operational system identity not configured in fake agent',
+          },
+          null,
+        );
       },
       interfaceState,
+      ipsecState: ipsecFakeState(this),
+      tunnelState: tunnelStateFake({
+        owner: this.owner,
+        current: () => this.current,
+        record: (m, r) => this.record(m, r),
+        failWith: () => this.failAllWith,
+      }),
       // F-pppoe-client (unanchored)
       wanState: (call, cb) => {
         if (!this.checkCommon('WanState', call.request, cb)) return;
@@ -933,6 +948,8 @@ export class FakeAgent {
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-pki
+      pkiFileState: (_call: unknown, cb: (e: { code: number; details: string }) => void) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method PkiFileState' }),
       // wave-BC: F-ikev2-native
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip

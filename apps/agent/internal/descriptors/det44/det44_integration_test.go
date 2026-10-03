@@ -18,8 +18,8 @@ import (
 func TestDet44OnHost(t *testing.T) {
 	// D-064: this test's first host run crashed the shared VPP (det44_plugin_enable_disable
 	// with enable=0, VPP 26.06 bug — fixed here by never disabling det44). It stays opt-in.
-	if os.Getenv("VRX_DF3_DET44") != "1" {
-		t.Skip("det44 host test is opt-in (D-064): set VRX_DF3_DET44=1")
+	if os.Getenv("NGFW_DF3_DET44") != "1" {
+		t.Skip("det44 host test is opt-in (D-064): set NGFW_DF3_DET44=1")
 	}
 	c := nattest.Connect(t)
 	ctx := nattest.Ctx(t)
@@ -75,7 +75,7 @@ func TestDet44OnHost(t *testing.T) {
 		t.Logf("det44 sessions of %s: %d (shape only)", nattest.Addr4(t, 44, 1), len(sess))
 	}
 
-	nattest.Pause(t, "det44") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
+	nattest.Pause(t, "det44") // evidence hook (NGFW_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Map)
 	nattest.DeleteAll(ctx, t, p.Interface)
 }

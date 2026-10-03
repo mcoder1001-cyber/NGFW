@@ -1,0 +1,12 @@
+=== RUN   TestSentinelOnHost
+    sentinel_integration_test.go:49: classify_table_ids before: []
+    sentinel_integration_test.go:52: 1 EnsureSentinel: state=created pops=0 pops [] err <nil>
+    sentinel_integration_test.go:65: 2 sentinel: classify_table_info 0: nbuckets 1 match 1 skip 0 next -1 miss -1 sessions 0 mask "vrx-t0-sentinel!"
+    sentinel_integration_test.go:72: 3 EnsureSentinel again: state=present pops=0 err <nil>
+    sentinel_integration_test.go:83: 4 own sentinel deleted, EnsureSentinel: state=created pops=0 pops [] err <nil>
+    sentinel_integration_test.go:65: 4 recreated: classify_table_info 0: nbuckets 1 match 1 skip 0 next -1 miss -1 sessions 0 mask "vrx-t0-sentinel!"
+    sentinel_integration_test.go:88: classify_table_ids after: [0]
+    sentinel_integration_test.go:89: LEFT IN VPP ON PURPOSE: the table-0 sentinel (classify table 0, mask vrx-t0-sentinel!)
+--- PASS: TestSentinelOnHost (0.01s)
+PASS
+ok  	ngfw/agent/internal/vpp/ifsanitize	0.029s

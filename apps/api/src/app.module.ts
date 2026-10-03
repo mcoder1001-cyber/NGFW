@@ -22,6 +22,7 @@ import { HealthController } from './health/health.controller.js';
 import { Bus } from './infra/bus.js';
 import { createValkey, VALKEY, type Valkey } from './infra/valkey.js';
 import { SecretsController } from './secrets/secrets.controller.js';
+import { SecretDeliveryService } from './secrets/secret-delivery.service.js';
 import { SecretsService } from './secrets/secrets.service.js';
 import { LoginBannerController } from './state/login-banner.controller.js';
 import { StateController } from './state/state.controller.js';
@@ -36,8 +37,11 @@ import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
+import { pkiFeature } from './features/pki/index.js';
 // wave-BC: F-ikev2-native
+import { ipsecFeature } from './features/ipsec/index.js';
 // wave-BC: F-ospf
+import { ospfFeature } from './features/ospf/index.js';
 // wave-BC: F-isis-rip
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
@@ -118,7 +122,9 @@ import { keaDhcpRelayFeature } from './features/kea-dhcp-relay/index.js';
 // wave-A: F-unbound-chrony-syslog
 import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/index.js';
 
-const DB_HANDLE = Symbol('VRX_DB_HANDLE');
+import { notificationsFeature } from './features/notifications/index.js';
+
+const DB_HANDLE = Symbol('NGFW_DB_HANDLE');
 
 /** Closes the pool and the Valkey client when the application shuts down. */
 class Resources implements OnApplicationShutdown {
@@ -134,7 +140,7 @@ class Resources implements OnApplicationShutdown {
 }
 
 /**
- * The vrx-api application. `AppModule.forRoot(env)` wires everything from one parsed environment; nothing connects at
+ * The ngfw-api application. `AppModule.forRoot(env)` wires everything from one parsed environment; nothing connects at
  * construction (database, Valkey and agent are lazy), so the OpenAPI generator and the route-guard test build the
  * complete app offline. Global: AuthGuard on every route, AuditInterceptor on every mutation, problem+json filter.
  */
@@ -144,6 +150,7 @@ export class AppModule {
     return {
       module: AppModule,
       controllers: [
+        ...notificationsFeature.controllers,
         HealthController,
         AuthController,
         ConfigController,
@@ -161,8 +168,11 @@ export class AppModule {
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-pki
+        ...pkiFeature.controllers,
         // wave-BC: F-ikev2-native
+        ...ipsecFeature.controllers,
         // wave-BC: F-ospf
+        ...ospfFeature.controllers,
         // wave-BC: F-isis-rip
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
@@ -248,6 +258,7 @@ export class AppModule {
         { provide: DB, useFactory: (h: DbHandle) => h.db, inject: [DB_HANDLE] },
         { provide: VALKEY, useFactory: () => createValkey(env) },
         { provide: CONFIG_REPO, useClass: PgConfigRepo },
+        ...notificationsFeature.providers,
         Resources,
         Bus,
         AgentClient,
@@ -259,6 +270,7 @@ export class AppModule {
         ValidationService,
         CommitService,
         SecretsService,
+        SecretDeliveryService,
         RelayService,
         UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
@@ -269,7 +281,9 @@ export class AppModule {
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-pki
+        ...pkiFeature.providers,
         // wave-BC: F-ikev2-native
+        ...ipsecFeature.providers,
         // wave-BC: F-ospf
         // wave-BC: F-isis-rip
         // wave-BC: P14

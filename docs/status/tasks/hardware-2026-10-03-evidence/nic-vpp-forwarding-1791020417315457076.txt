@@ -1,0 +1,264 @@
+$ ip -o addr show dev ens193
+
+exit=0
+$ ip -o addr show dev ens256
+
+exit=0
+$ ip netns list
+
+exit=0
+$ ip netns list
+
+exit=0
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0
+$ ethtool -k ens256
+Features for ens256:
+rx-checksumming: on
+tx-checksumming: on
+	tx-checksum-ipv4: off [fixed]
+	tx-checksum-ip-generic: on
+	tx-checksum-ipv6: off [fixed]
+	tx-checksum-fcoe-crc: off [fixed]
+	tx-checksum-sctp: off [fixed]
+scatter-gather: on
+	tx-scatter-gather: on
+	tx-scatter-gather-fraglist: off [fixed]
+tcp-segmentation-offload: on
+	tx-tcp-segmentation: on
+	tx-tcp-ecn-segmentation: off [fixed]
+	tx-tcp-mangleid-segmentation: off
+	tx-tcp6-segmentation: on
+	tx-tcp-accecn-segmentation: off [fixed]
+generic-segmentation-offload: on
+generic-receive-offload: on
+large-receive-offload: off
+rx-vlan-offload: on
+tx-vlan-offload: on
+ntuple-filters: off [fixed]
+receive-hashing: on
+highdma: on
+rx-vlan-filter: on [fixed]
+vlan-challenged: off [fixed]
+tx-gso-robust: off [fixed]
+tx-fcoe-segmentation: off [fixed]
+tx-gre-segmentation: off [fixed]
+tx-gre-csum-segmentation: off [fixed]
+tx-ipxip4-segmentation: off [fixed]
+tx-ipxip6-segmentation: off [fixed]
+tx-udp_tnl-segmentation: off [fixed]
+tx-udp_tnl-csum-segmentation: off [fixed]
+tx-gso-partial: off [fixed]
+tx-tunnel-remcsum-segmentation: off [fixed]
+tx-sctp-segmentation: off [fixed]
+tx-esp-segmentation: off [fixed]
+tx-udp-segmentation: off [fixed]
+tx-gso-list: off [fixed]
+tx-nocache-copy: off
+loopback: off [fixed]
+rx-fcs: off [fixed]
+rx-all: off [fixed]
+tx-vlan-stag-hw-insert: off [fixed]
+rx-vlan-stag-hw-parse: off [fixed]
+rx-vlan-stag-filter: off [fixed]
+l2-fwd-offload: off [fixed]
+hw-tc-offload: off [fixed]
+esp-hw-offload: off [fixed]
+esp-tx-csum-hw-offload: off [fixed]
+rx-udp_tunnel-port-offload: off [fixed]
+tls-hw-tx-offload: off [fixed]
+tls-hw-rx-offload: off [fixed]
+rx-gro-hw: off [fixed]
+tls-hw-record: off [fixed]
+rx-gro-list: off
+macsec-hw-offload: off [fixed]
+rx-udp-gro-forwarding: off
+hsr-tag-ins-offload: off [fixed]
+hsr-tag-rm-offload: off [fixed]
+hsr-fwd-offload: off [fixed]
+hsr-dup-offload: off [fixed]
+
+exit=0
+$ ip netns add hw32-peer
+
+exit=0
+$ ip netns add hw32-lan
+
+exit=0
+$ ip link set ens256 netns hw32-peer
+
+exit=0
+$ ip -n hw32-peer link set lo up
+
+exit=0
+$ ip netns exec hw32-peer sysctl -qw net.ipv6.conf.ens256.disable_ipv6=1
+
+exit=0
+$ ip netns exec hw32-peer ethtool -K ens256 tx off
+Actual changes:
+tx-checksum-ip-generic: off
+tx-tcp-segmentation: off [not requested]
+tx-tcp6-segmentation: off [not requested]
+
+exit=0
+$ ip -n hw32-peer addr add 198.18.32.2/30 dev ens256
+
+exit=0
+$ ip -n hw32-peer link set ens256 up
+
+exit=0
+$ ip -n hw32-peer route add 198.18.33.0/30 via 198.18.32.1
+
+exit=0
+$ ip link add hw32l0 type veth peer name hw32l1
+
+exit=0
+$ ip link set hw32l1 netns hw32-lan
+
+exit=0
+$ ip -n hw32-lan link set lo up
+
+exit=0
+$ ip -n hw32-lan addr add 198.18.33.2/30 dev hw32l1
+
+exit=0
+$ ip -n hw32-lan link set hw32l1 up
+
+exit=0
+$ ip netns exec hw32-lan ethtool -K hw32l1 tx off
+Actual changes:
+tx-checksum-ip-generic: off
+tx-tcp-segmentation: off [not requested]
+tx-tcp-ecn-segmentation: off [not requested]
+tx-tcp-mangleid-segmentation: off [not requested]
+tx-tcp6-segmentation: off [not requested]
+tx-udp-segmentation: off [not requested]
+tx-checksum-sctp: off
+
+exit=0
+$ ip -n hw32-lan route add 198.18.32.0/30 via 198.18.33.1
+
+exit=0
+$ sysctl -qw net.ipv6.conf.ens193.disable_ipv6=1
+
+exit=0
+$ ip link set ens193 up
+
+exit=0
+$ sysctl -qw net.ipv6.conf.hw32l0.disable_ipv6=1
+
+exit=0
+$ ip link set hw32l0 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock create host-interface name ens193 tx-size 67584 tx-per-block 16 rx-size 2048 rx-per-block 8
+host-ens193
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip6 classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface state host-ens193 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mtu packet 1500 host-ens193
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface ip address host-ens193 198.18.32.1/30
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-ens193 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock create host-interface name hw32l0 tx-size 67584 tx-per-block 16 rx-size 2048 rx-per-block 8
+host-hw32l0
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip6 classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface state host-hw32l0 up
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface mtu packet 1500 host-hw32l0
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set interface ip address host-hw32l0 198.18.33.1/30
+
+exit=0
+$ timeout 10 vppctl -s /root/.codex/worktrees/bbd9/NGFW/.scratch/hardware-smoke/cli.sock set ip classify intfc host-hw32l0 table-index -1
+
+exit=0
+$ ip netns exec hw32-lan ping -n -c 3 -W 1 198.18.32.2
+PING 198.18.32.2 (198.18.32.2) 56(84) bytes of data.
+
+--- 198.18.32.2 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2049ms
+
+
+exit=1
+$ ip link set ens193 down
+
+exit=0
+$ ip link set hw32l0 down
+
+exit=0
+$ ip -n hw32-peer addr flush dev ens256
+
+exit=0
+$ ip -n hw32-peer link set ens256 down
+
+exit=0
+$ ip netns exec hw32-peer ethtool -K ens256 tx on
+Actual changes:
+tx-checksum-ipv4: off [requested on]
+tx-checksum-ip-generic: on
+tx-checksum-ipv6: off [requested on]
+tx-tcp-segmentation: on [not requested]
+tx-tcp6-segmentation: on [not requested]
+tx-checksum-fcoe-crc: off [requested on]
+tx-checksum-sctp: off [requested on]
+
+exit=0
+$ ip -n hw32-peer link set ens256 netns 186217
+
+exit=0
+$ ip netns del hw32-peer
+
+exit=0
+$ ip netns del hw32-lan
+
+exit=0
+$ ip link set ens193 down
+
+exit=0
+$ sysctl -qw net.ipv6.conf.ens193.disable_ipv6=0
+
+exit=0
+$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+ens161           DOWN           
+ens192           UP             172.30.126.195/24 fe80::250:56ff:fe9f:1e53/64 
+ens193           DOWN           
+ens224           DOWN           
+ens225           DOWN           
+ens256           DOWN           
+ens257           DOWN           
+virbr0           DOWN           192.168.122.1/24 
+hw32l0@if28      DOWN           
+
+exit=0
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0

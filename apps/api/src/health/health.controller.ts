@@ -7,7 +7,7 @@ import { ApiOut } from '../common/responses.js';
 /** The liveness answer — one Zod definition for the handler type and the OpenAPI response (TD-2 #3). */
 export const HealthOut = z.object({
   status: z.literal('ok'),
-  service: z.literal('vrx-api'),
+  service: z.literal('ngfw-api'),
   version: z.string(),
   time: z.string().describe('RFC 3339 timestamp of the answer'),
 });
@@ -24,8 +24,8 @@ export class HealthController {
   health(): HealthDto {
     return {
       status: 'ok',
-      service: 'vrx-api',
-      version: process.env['VRX_VERSION'] ?? '0.1.0-dev',
+      service: 'ngfw-api',
+      version: process.env['NGFW_VERSION'] ?? '0.1.0-dev',
       time: new Date().toISOString(),
     };
   }

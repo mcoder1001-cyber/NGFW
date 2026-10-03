@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/descriptors/lcp	1.426s
+ok  	ngfw/agent/internal/desired	33.086s

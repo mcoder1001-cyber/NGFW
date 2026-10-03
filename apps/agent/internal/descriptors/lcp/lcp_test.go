@@ -8,8 +8,13 @@ import (
 	"go.fd.io/govpp/adapter"
 	"go.fd.io/govpp/api"
 
+	"ngfw/agent/binapi/fib_types"
+	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/binapi/ip"
+	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/lcp"
+	"ngfw/agent/binapi/mfib_types"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/scheduler"
@@ -19,6 +24,73 @@ type model struct {
 	ns    string
 	pairs map[uint32]lcp.LcpItfPairDetails
 	next  uint32
+	// apiAccept: the API-sourced (*,224.0.0.0/24) Accept paths (sw_if_index → count, table 0)
+	apiAccept map[uint32]int
+	// lowAccept: linux-cp's plugin-low (*,224.0.0.0/24) Accepts; forwarded only while no API source
+	lowAccept map[uint32]bool
+	// noRouter: linux-cp has no router table here (a fresh VRF), so plugin-low has no local path and
+	// the entry exists only while some source has a path
+	noRouter bool
+	table    map[uint32]uint32 // sw_if_index → IPv4 table (default 0)
+	mlog     []string
+}
+
+// dumpLocal is the local (receive) path as ip_mroute_dump reports it: fib_api_path_encode gives type
+// LOCAL and sw_if_index ~0, and mfib_entry_encode finds no mfib interface for ~0, so no interface flag.
+var dumpLocal = mfib_types.MfibPath{Path: fib_types.FibPath{SwIfIndex: ^uint32(0), Weight: 1,
+	Type: fib_types.FIB_API_PATH_TYPE_LOCAL, Proto: fib_types.FIB_API_PATH_NH_PROTO_IP4}}
+
+// dump224 answers ip_mroute_dump with the model's (*,224.0.0.0/24): VPP shows the best source
+// only, API when present, else plugin-low (tests wrap it to hook a dump).
+func (m *model) dump224(api.Message) ([]api.Message, error) {
+	r := ip.IPMroute{Prefix: ip_types.Mprefix{Af: ip_types.ADDRESS_IP4, GrpAddressLength: 24,
+		GrpAddress: ip_types.AddressUnionIP4(ip_types.IP4Address{224, 0, 0, 0})}}
+	accept := func(i uint32) mfib_types.MfibPath {
+		return mfib_types.MfibPath{ItfFlags: mfib_types.MFIB_API_ITF_FLAG_ACCEPT, Path: fib_types.FibPath{SwIfIndex: i}}
+	}
+	if len(m.apiAccept) > 0 {
+		for i := range m.apiAccept {
+			if i == ^uint32(0) {
+				r.Paths = append(r.Paths, dumpLocal)
+			} else {
+				r.Paths = append(r.Paths, accept(i))
+			}
+		}
+	} else {
+		if !m.noRouter {
+			r.Paths = append(r.Paths, dumpLocal)
+		}
+		for i := range m.lowAccept {
+			r.Paths = append(r.Paths, accept(i))
+		}
+	}
+	if len(r.Paths) == 0 {
+		return nil, nil // no source left: VPP removed the entry
+	}
+	return []api.Message{&ip.IPMrouteDetails{Route: r}}, nil
+}
+
+// mroute applies an ip_mroute_add_del to the API source's paths (tests wrap it to hook a delete).
+// Removing a path the API source does not hold changes nothing, as in VPP.
+func (m *model) mroute(msg api.Message) ([]api.Message, error) {
+	r := msg.(*ip.IPMrouteAddDel)
+	if r.Route.Prefix.GrpAddressLength != 24 || !r.IsMultipath {
+		return nil, errors.New("unexpected mroute")
+	}
+	for _, p := range r.Route.Paths {
+		k := p.Path.SwIfIndex // ~0: the local Forward path
+		if (k == ^uint32(0)) != (p.ItfFlags == mfib_types.MFIB_API_ITF_FLAG_FORWARD) {
+			return nil, errors.New("unexpected path")
+		}
+		if r.IsAdd {
+			m.apiAccept[k] = 1 // a path update is idempotent
+			m.mlog = append(m.mlog, "mroute-add")
+		} else {
+			delete(m.apiAccept, k)
+			m.mlog = append(m.mlog, "mroute-del")
+		}
+	}
+	return []api.Message{&ip.IPMrouteAddDelReply{}}, nil
 }
 
 func newFake() (*dfkittest.FakeVPP, *model) {
@@ -27,7 +99,13 @@ func newFake() (*dfkittest.FakeVPP, *model) {
 		dfkittest.Iface{Index: 9, Name: "ens192"},
 		dfkittest.Iface{Index: 8, Name: "loop601", Tag: "w6:loop601"},
 	)
-	m := &model{pairs: map[uint32]lcp.LcpItfPairDetails{}, next: 20}
+	m := &model{pairs: map[uint32]lcp.LcpItfPairDetails{}, next: 20, apiAccept: map[uint32]int{}, lowAccept: map[uint32]bool{}, table: map[uint32]uint32{}}
+	f.On("ip_mroute_dump", m.dump224)
+	f.On("sw_interface_get_table", func(msg api.Message) ([]api.Message, error) {
+		idx := uint32(msg.(*interfaces.SwInterfaceGetTable).SwIfIndex)
+		return []api.Message{&interfaces.SwInterfaceGetTableReply{VrfID: m.table[idx]}}, nil
+	})
+	f.On("ip_mroute_add_del", m.mroute)
 	f.On("lcp_default_ns_set", func(msg api.Message) ([]api.Message, error) {
 		m.ns = msg.(*lcp.LcpDefaultNsSet).Netns
 		return []api.Message{&lcp.LcpDefaultNsSetReply{}}, nil
@@ -84,7 +162,7 @@ func TestItfPair(t *testing.T) {
 		t.Fatalf("deps %+v", deps)
 	}
 	meta, err := d.Create(ctx, v)
-	if err != nil || meta != (PairMeta{PhySwIfIndex: 7, HostSwIfIndex: 21, VifIndex: 121}) {
+	if err != nil || meta != (PairMeta{PhySwIfIndex: 7, HostSwIfIndex: 21, VifIndex: 121, APIAccept: true}) {
 		t.Fatalf("create %v %v", meta, err)
 	}
 	req := f.CallsNamed("lcp_itf_pair_add_del_v3")[0].(*lcp.LcpItfPairAddDelV3)

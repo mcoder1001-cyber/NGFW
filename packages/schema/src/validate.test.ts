@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { RootConfig } from './index.js';
 import { pointerIssues, validateConfig } from './validate.js';
 
-const ADMIN = { username: 'admin', role: 'admin', passwordHash: '$vrx-test$VRX_TEST_HASH_admin' };
+const ADMIN = { username: 'admin', role: 'admin', passwordHash: '$ngfw-test$NGFW_TEST_HASH_admin' };
 
 describe('validateConfig', () => {
   it('returns the parsed config (defaults filled) for a valid document', () => {

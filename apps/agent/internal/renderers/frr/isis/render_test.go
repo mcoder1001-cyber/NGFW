@@ -12,7 +12,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/isis"
@@ -49,9 +49,9 @@ func mapIf(n string) (string, bool) {
 	return "", false
 }
 
-func parse(t *testing.T, js string) *vrxv1.DesiredState {
+func parse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +88,7 @@ func TestRenderThroughFramework(t *testing.T) {
 
 func TestVRFAndEmpty(t *testing.T) {
 	lines, err := isis.Render(parse(t, `{"routing":{"isis":{"vrf":"red","level":"level-2","net":"49.0001.0000.0000.0001.00"}}}`).GetRouting().GetIsis())
-	if err != nil || strings.Join(lines, "|") != "router isis vrx vrf red| is-type level-2-only| net 49.0001.0000.0000.0001.00| metric-style wide|exit" {
+	if err != nil || strings.Join(lines, "|") != "router isis ngfw vrf red| is-type level-2-only| net 49.0001.0000.0000.0001.00|exit" {
 		t.Fatalf("%q %v", lines, err)
 	}
 	if lines, err := isis.Render(nil); lines != nil || err != nil {
@@ -139,7 +139,7 @@ func TestRenderErrors(t *testing.T) {
 }
 
 func TestParseNeighbors(t *testing.T) {
-	raw := `{"vrfs":[{"vrf":"default","areas":[{"area":"vrx","circuits":[
+	raw := `{"vrfs":[{"vrf":"default","areas":[{"area":"ngfw","circuits":[
 	   {"circuit":0,"adj":"r2","interface":"w8-l0","level":2,"state":"Up","expires-in":"28s"},
 	   {"circuit":1},
 	   {"circuit":2,"system-id":"0000.0000.0003","interface":"w8-l1","level":"1","adj-state":"Initializing"}]}]}]}`
@@ -148,10 +148,10 @@ func TestParseNeighbors(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(as) != 2 || as[0].SystemID != "0000.0000.0003" || as[0].State != "Initializing" || as[0].Level != "1" ||
-		as[1].SystemID != "r2" || as[1].Interface != "w8-l0" || as[1].Level != "2" || as[1].VRF != "default" || as[1].Area != "vrx" {
+		as[1].SystemID != "r2" || as[1].Interface != "w8-l0" || as[1].Level != "2" || as[1].VRF != "default" || as[1].Area != "ngfw" {
 		t.Fatalf("%+v", as)
 	}
-	single, err := isis.ParseNeighbors([]byte(`{"areas":[{"area":"vrx","circuits":[{"adj":"r9","interface":"e0","level":2,"state":"Up"}]}]}`))
+	single, err := isis.ParseNeighbors([]byte(`{"areas":[{"area":"ngfw","circuits":[{"adj":"r9","interface":"e0","level":2,"state":"Up"}]}]}`))
 	if err != nil || len(single) != 1 || single[0].VRF != "default" {
 		t.Fatalf("%+v %v", single, err)
 	}
@@ -162,7 +162,28 @@ func TestParseNeighbors(t *testing.T) {
 		t.Fatal("broken JSON accepted")
 	}
 	snap, err := isis.PollAdjacencies(context.Background(), func(context.Context, frr.ShowCommand) (json.RawMessage, error) { return json.RawMessage(raw), nil })
-	if err != nil || snap["default|vrx|r2|w8-l0|2"] != "Up" || len(snap) != 2 {
+	if err != nil || snap["default|ngfw|r2|w8-l0|2"] != "Up" || len(snap) != 2 {
 		t.Fatalf("poll %v %v", snap, err)
+	}
+}
+
+func TestFRRDefaultValuesAreCanonicalAndNonDefaultsRemain(t *testing.T) {
+	for _, metric := range []string{"10", "20"} {
+		ds := parse(t, `{"routing":{"isis":{"level":"level-1-2","net":"49.0001.0000.0000.0001.00","interfaces":{"w8-l0":{"metric":`+metric+`}}}}}`)
+		lines, err := isis.Render(ds.GetRouting().GetIsis())
+		if err != nil {
+			t.Fatal(err)
+		}
+		interfaces, err := isis.RenderInterfaces(ds.GetRouting().GetIsis(), frr.IdentityMapper)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg := strings.Join(append(lines, interfaces["w8-l0"]...), "\n")
+		if strings.Contains(cfg, "is-type level-1-2") || strings.Contains(cfg, "metric-style wide") {
+			t.Fatalf("default router lines emitted: %s", cfg)
+		}
+		if strings.Contains(cfg, "isis metric "+metric) != (metric == "20") {
+			t.Fatalf("metric %s: %s", metric, cfg)
+		}
 	}
 }

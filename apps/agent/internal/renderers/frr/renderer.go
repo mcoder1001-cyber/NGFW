@@ -111,7 +111,7 @@ func (r *Renderer) check() error {
 }
 
 // Render implements renderers.Renderer: the complete frr.conf (all sections) and vtysh.conf.
-// No I/O except the injected secret resolver. desired is a *vrxv1.DesiredState or (D-055
+// No I/O except the injected secret resolver. desired is a *ngfwv1.DesiredState or (D-055
 // stand-in) a *structpb.Struct holding the configuration document. When a section resolved a
 // secret, frr.conf is marked Secret (Files.Redacted hides it) and the value is remembered so
 // every later output of this renderer masks it.
@@ -240,6 +240,8 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 	if info, err := os.Stat(r.paths.ConfSubdir()); err != nil || !info.IsDir() {
 		return fmt.Errorf("frr: config directory %s is missing (packaging/harness creates it): %v", r.paths.ConfSubdir(), err)
 	}
+	previous, _ := os.ReadFile(r.paths.ConfFile()) // snapshot handles read failures below
+	removingISIS := strings.Contains(string(previous), "\nrouter isis ") && !strings.Contains(string(files[r.paths.ConfFile()].Content), "\nrouter isis ")
 	snap, err := renderers.TakeSnapshot(files.Paths()...)
 	if err != nil {
 		return err
@@ -248,6 +250,14 @@ func (r *Renderer) Apply(ctx context.Context, files renderers.Files) error {
 		return errors.Join(err, snap.Restore())
 	}
 	applyErr := r.reload(ctx)
+	// FRR 10.7 removes the circuit with "no ip router isis", then rejects
+	// redundant circuit-option removals. Only accept that removal when the
+	// complete desired configuration is independently observed to converge.
+	if applyErr != nil && removingISIS {
+		if diff, err := r.DryRun(ctx, files); err == nil && diff == "" {
+			return nil
+		}
+	}
 	if applyErr == nil {
 		diff, err := r.DryRun(ctx, files)
 		switch {

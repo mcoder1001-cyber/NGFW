@@ -61,6 +61,9 @@ const (
 
 // SAs returns the IKE SAs of every profile owned by owner, with their child SAs.
 func SAs(ctx context.Context, c vpp.Client, owner string) ([]SAState, error) {
+	if err := RequireSafeState(ctx, c); err != nil {
+		return nil, err
+	}
 	svc := ikev2.NewServiceClient(c)
 	stream, err := svc.Ikev2SaV3Dump(ctx, &ikev2.Ikev2SaV3Dump{})
 	if err != nil {

@@ -19,4 +19,4 @@ Merged in PR #56 (2026-09-27). In-container slice; the FRR section + FRR→VPP l
 - `frrsync/ldp`: read `show mpls ldp binding/neighbor json`, translate FEC+in-use bindings to `mpls-route.ldp` (its own
   scope), install via the scheduler through seam S1 with the LCP (Linux→VPP) mapping; PHP/ECMP; hold-down + flush.
 - The neighbour poller (up/down → `mpls-ldp.events`), and the live host session test.
-- Table 0 only under `VRX_DF7_GLOBALS` with the globals lock. Ingress imposition and LDP IPv6 remain out of scope.
+- Table 0 only under `NGFW_DF7_GLOBALS` with the globals lock. Ingress imposition and LDP IPv6 remain out of scope.

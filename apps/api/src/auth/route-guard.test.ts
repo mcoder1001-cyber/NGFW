@@ -55,8 +55,19 @@ const ADMIN_ONLY = new Set([
   // wave-BC: F-backup-restore
   'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
+  'POST /api/v1/actions/ipsec/ikev2/:tunnel/:operation',
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
+  // F-pki: certificate/key creation, signing, import and CRL secret refresh.
+  'POST /api/v1/actions/pki/ca',
+  'POST /api/v1/actions/pki/csr',
+  'POST /api/v1/actions/pki/sign',
+  'POST /api/v1/actions/pki/import',
+  'POST /api/v1/actions/pki/crl/refresh',
   'GET /api/v1/state/logs', // F-unbound-chrony-syslog (review M2: the host journal; no SY1 anchor seeded)
+  'POST /api/v1/actions/capture/:id/stop',
+  'POST /api/v1/actions/capture', // S-capture-file-safety (RV-C F-capture-trace R2 #3): VPP-global filter + plaintext
+  'GET /api/v1/state/captures/:id/file', // S-capture-file-safety: pcap download (audited)
+  'DELETE /api/v1/state/captures/:id', // S-capture-file-safety
 ]);
 
 function concrete(url: string): string {
@@ -81,7 +92,7 @@ describe('route guard', () => {
       order: ['local'],
       fallbackLocal: true,
       mfaRequired: 'none',
-      mfaIssuer: 'vrx',
+      mfaIssuer: 'ngfw',
     });
     const fastify = app.getHttpAdapter().getInstance() as unknown as FastifyInstance;
     await app.init();
@@ -124,7 +135,7 @@ describe('route guard', () => {
   it('rejects forged and garbage credentials the same way', async () => {
     for (const authorization of [
       'Bearer abc.def.ghi',
-      'ApiKey vrxk_nope',
+      'ApiKey ngfwk_nope',
       'Basic YWRtaW46YWRtaW4=',
       'Bearer',
     ]) {
@@ -175,7 +186,7 @@ describe('route guard', () => {
     });
     expect(ok.statusCode).toBe(200);
     expect(ok.json()).toHaveProperty('openapi', '3.1.0');
-    // both password routes publish the product rule, whatever VRX_DEV_WEAK_PASSWORDS says at runtime
+    // both password routes publish the product rule, whatever NGFW_DEV_WEAK_PASSWORDS says at runtime
     const paths = ok.json().paths;
     for (const p of ['/api/v1/auth/password', '/api/v1/users/{name}/password']) {
       const body = paths[p].post.requestBody.content['application/json'].schema;
@@ -197,7 +208,7 @@ describe('route guard', () => {
     const token = await app
       .get(TokensService)
       .signAccess({ id: 9001, username: 'ro-matrix', role: 'readonly' });
-    const cookie = { cookie: `vrx_docs=${token}` };
+    const cookie = { cookie: `ngfw_docs=${token}` };
     expect((await app.inject({ method: 'GET', url: '/api/docs-json' })).statusCode).toBe(401);
     // the Swagger UI page and its init script (which inlines the spec) — what a browser loads
     const page = await app.inject({ method: 'GET', url: '/api/docs', headers: cookie });
@@ -218,7 +229,7 @@ describe('route guard', () => {
         await app.inject({
           method: 'GET',
           url: '/api/docs',
-          headers: { cookie: 'vrx_docs=abc.def.ghi' },
+          headers: { cookie: 'ngfw_docs=abc.def.ghi' },
         })
       ).statusCode,
     ).toBe(401);

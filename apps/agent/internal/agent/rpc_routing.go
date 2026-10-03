@@ -11,13 +11,13 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
-// RoutingState implements vrx.v1.Dataplane/RoutingState.
-func (g *server) RoutingState(ctx context.Context, req *vrxv1.RoutingStateRequest) (*vrxv1.RoutingStateResponse, error) {
+// RoutingState implements ngfw.v1.Dataplane/RoutingState.
+func (g *server) RoutingState(ctx context.Context, req *ngfwv1.RoutingStateRequest) (*ngfwv1.RoutingStateResponse, error) {
 	s := g.svc
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
@@ -45,20 +45,20 @@ func (g *server) RoutingState(ctx context.Context, req *vrxv1.RoutingStateReques
 		}
 		return nil, status.Errorf(codes.Internal, "routing state: %v", err)
 	}
-	resp := &vrxv1.RoutingStateResponse{
+	resp := &ngfwv1.RoutingStateResponse{
 		Owner: s.owner, RetrievedAt: timestamppb.New(s.now()), FrrRunning: st.Running, FrrVersion: st.Version,
 		Error: st.Err, RibCounts: st.RIBCounts, Readers: st.Readers, Rib: st.RIB,
 	}
 	for _, in := range st.BGP {
-		bi := &vrxv1.BgpInstanceState{Vrf: in.VRF, Asn: in.ASN, RouterId: in.RouterID}
+		bi := &ngfwv1.BgpInstanceState{Vrf: in.VRF, Asn: in.ASN, RouterId: in.RouterID}
 		for _, n := range in.Neighbors {
-			bn := &vrxv1.BgpNeighborState{
+			bn := &ngfwv1.BgpNeighborState{
 				Address: n.Address, RemoteAs: n.RemoteAS, State: n.State, UptimeSec: n.UptimeSec,
 				PrefixesReceived: n.PrefixesReceived, PrefixesSent: n.PrefixesSent, Flaps: n.Flaps, Established: n.Established,
 				Description: n.Description, MessagesReceived: n.MessagesReceived, MessagesSent: n.MessagesSent,
 			}
 			for _, a := range n.AFIs {
-				bn.Afis = append(bn.Afis, &vrxv1.BgpNeighborAfiState{Afi: a.AFI, PrefixesReceived: a.PrefixesReceived, PrefixesSent: a.PrefixesSent})
+				bn.Afis = append(bn.Afis, &ngfwv1.BgpNeighborAfiState{Afi: a.AFI, PrefixesReceived: a.PrefixesReceived, PrefixesSent: a.PrefixesSent})
 			}
 			bi.Neighbors = append(bi.Neighbors, bn)
 		}

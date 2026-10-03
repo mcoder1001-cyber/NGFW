@@ -3,7 +3,7 @@
 State: review. Branch `claude/modest-keller-upaw4m`. Built on the F-ospf template.
 
 ## Done
-- Agent: `renderers/frr/isis` — `isis` section (470), `ip/ipv6 router isis vrx` + `isis …` interface lines (S2),
+- Agent: `renderers/frr/isis` — `isis` section (470), `ip/ipv6 router isis ngfw` + `isis …` interface lines (S2),
   state reader `isisNeighbors`, poller `isis-adjacencies`; golden, 16 error cases (NET, level/circuit-type
   compatibility, hostile names, …), adjacency parser + poller test. `renderers/frr/rip` — `rip` section (420), golden,
   13 error cases. References: `docs/agent/renderers/frr-{isis,rip}.md`.

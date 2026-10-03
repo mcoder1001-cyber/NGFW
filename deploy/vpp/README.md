@@ -6,10 +6,10 @@ one build script and a manifest that the packaging (P10) and the installer ISO (
 
 | file | purpose |
 |---|---|
-| `VERSION` | data (parsed, never sourced): upstream URL, branch, tag, **tag object + commit hash**, upstream Debian version, `VPP_LOCAL_REV`, the package set, what vrx-a runs, what the product ships |
+| `VERSION` | data (parsed, never sourced): upstream URL, branch, tag, **tag object + commit hash**, upstream Debian version, `VPP_LOCAL_REV`, the package set, what ngfw-a runs, what the product ships |
 | `patches/series`, `patches/*.patch` | product patch series (`Status: product`) — plus `Status: demo` patches that are applied only with `--demo` |
 | `patches/optional/*.patch` | applied only by a build option (`--trace-plugins core`) |
-| `build-patches/series`, `build-patches/*.patch` | build-infrastructure patches, always applied; may only touch `build/` (never product code); like any patch they force the `+vrx<N>` suffix (D-092) |
+| `build-patches/series`, `build-patches/*.patch` | build-infrastructure patches, always applied; may only touch `build/` (never product code); like any patch they force the `+ngfw<N>` suffix (D-092) |
 | `pydeps.lock` | the Python packages the build runs (DPDK's meson venv): exact versions + PyPI sha256 + file + URL |
 | `lib.sh` | shared helpers (VERSION parser, path guards, strict patch apply, apt check, pydeps) |
 | `build.sh` | the build (below) |
@@ -21,16 +21,15 @@ one build script and a manifest that the packaging (P10) and the installer ISO (
 
 | build | patches applied | Debian version | output dir |
 |---|---|---|---|
-| `build.sh` | build-patches only (the product series is empty today) | `26.06-release+vrx<N>` (D-092: the tree differs from upstream) | `.build/out/26.06-release+vrx<N>/` |
+| `build.sh` | build-patches and native IKEv2 product patch 0002 | `26.06-release+ngfw<N>` (D-092: the tree differs from upstream) | `.build/out/26.06-release+ngfw<N>/` |
 | — | none (byte-identical upstream tree) | `26.06-release` — only the upstream/host build; `build.sh` never produces it | — |
-| `build.sh --demo` | + `Status: demo` patches | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>-demo/` |
-| `build.sh --trace-plugins core` | + optional V18 patch | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>-trace-core/` |
-| once `patches/series` holds a product patch | product patches | `26.06-release+vrx<N>` | `.build/out/26.06-release+vrx<N>/` |
+| `build.sh --demo` | + `Status: demo` patches | `26.06-release+ngfw<N>` | `.build/out/26.06-release+ngfw<N>-demo/` |
+| `build.sh --trace-plugins core` | + optional V18 patch | `26.06-release+ngfw<N>` | `.build/out/26.06-release+ngfw<N>-trace-core/` |
 
 D-092: **any** change to the upstream source tree — build-patches included, because a different meson/pyelftools can
 change binaries — gets the suffix; a package claiming the host's `26.06-release` must be the host's (upstream) build.
 `N` is `VPP_LOCAL_REV` in `VERSION`: **bump it whenever any series (product or build) changes**, so each patched build set has a
-distinct, higher version (`dpkg --compare-versions 26.06-release+vrx1 gt 26.06-release` is true). Mechanism: after
+distinct, higher version (`dpkg --compare-versions 26.06-release+ngfw1 gt 26.06-release` is true). Mechanism: after
 patching, `build.sh` replaces `src/scripts/version` (upstream derives the version from `git describe`) with a script
 that prints the local version; the library soname prefix (`26.06`) is unchanged. A demo build and a product build with
 the same `N` would share a version — demo builds are never installed (install gate below), so that is harmless.
@@ -41,7 +40,7 @@ the same `N` would share a version — demo builds are never installed (install 
 deploy/vpp/verify.sh                                  # static gate + tests (~30 s)
 deploy/vpp/build.sh --prepare-only                    # clone/verify/patch/version/deps/pydeps only (~1 min once cloned)
 nohup deploy/vpp/build.sh > /root/ngfw-wt/logs/<id>-vpp-build.log 2>&1 &   # full build (20–45 min, 8 jobs) — poll the log
-deploy/vpp/build.sh --demo                            # the demo series (V16) → 26.06-release+vrx1, variant demo
+deploy/vpp/build.sh --demo                            # the demo series (V16) → 26.06-release+ngfw1, variant demo
 deploy/vpp/build.sh --trace-plugins core              # V18 variant
 deploy/vpp/build.sh --offline-reference               # no network: source from /root/vpp (read-only), wheels from the verified cache
 ```
@@ -50,7 +49,7 @@ In order (any mismatch aborts):
 
 1. **Path guards first**: `--build-dir` must resolve (realpath) inside `deploy/vpp/.build`, `--out` inside the build dir;
    `/`, `$HOME`, `/root`, `/root/vpp`, `/etc/vpp`, `/usr`, `/root/ngfw` and their subtrees are always refused. Every
-   `rm -rf` goes through `vrx_rm_rf`, which only deletes *strictly below* a root carrying the `.vrx-owned` marker; an
+   `rm -rf` goes through `ngfw_rm_rf`, which only deletes *strictly below* a root carrying the `.ngfw-owned` marker; an
    existing `--out` is emptied only if it holds nothing but build.sh artefacts.
 2. `verify.sh` static checks; `VERSION` parsed as data with a strict format per key.
 3. Source in `.build/src/vpp`: `git clone --reference-if-able /root/vpp --dissociate <VPP_UPSTREAM_URL>` (objects
@@ -73,10 +72,10 @@ In order (any mismatch aborts):
    (`~/Downloads`) is pointed at an empty dir. External *source tarballs* (DPDK, ipsec-mb, rdma-core, …) may be seeded
    from `/root/vpp/build/external/downloads` — upstream re-verifies their sha256 on every build.
 9. Free disk under the build dir ≥ 40 GB.
-10. `make pkg-deb` with the flags the vrx-a host build used — upstream defaults (`CMAKE_BUILD_TYPE=release`, LTO, all
+10. `make pkg-deb` with the flags the ngfw-a host build used — upstream defaults (`CMAKE_BUILD_TYPE=release`, LTO, all
     plugins; read from `/root/vpp/build-root/build-vpp-native/vpp/CMakeCache.txt`). `build-patches/0001` makes the
     DPDK meson venv (inside the build tree, never system-wide) install **only** via
-    `pip3 install --require-hashes --no-index --find-links $VRX_PYDEPS_DIR -r $VRX_PYDEPS_LOCK` (fails closed if unset).
+    `pip3 install --require-hashes --no-index --find-links $NGFW_PYDEPS_DIR -r $NGFW_PYDEPS_LOCK` (fails closed if unset).
     The same wheelhouse serves the PEP 517 build of `python3-vpp-api` (`setuptools>=61` in build isolation): the
     whole make runs with `PIP_NO_INDEX=1 PIP_FIND_LINKS=<wheelhouse> PIP_NO_CACHE_DIR=1`, so no pip in the build can
     reach PyPI, `~/.cache/pip` or `~/Downloads` (round 1 silently fetched an unpinned setuptools there).
@@ -115,13 +114,13 @@ components to `vpp-plugin-core`) is used when F-capture-trace starts.
 
 ## Output and how P10 / P14 consume it
 
-`manifest.json` (schema `vrx.vpp-debs.manifest/v2`):
+`manifest.json` (schema `ngfw.vpp-debs.manifest/v2`):
 
 ```json
 {
-  "schema": "vrx.vpp-debs.manifest/v2",
+  "schema": "ngfw.vpp-debs.manifest/v2",
   "upstream": { "url": "…", "branch": "stable/2606", "tag": "v26.06", "tag_object": "29c5…", "commit": "c320…", "describe": "…" },
-  "version": "26.06-release+vrx1", "upstream_version": "26.06-release", "local_rev": 1, "variant": "demo",
+  "version": "26.06-release+ngfw1", "upstream_version": "26.06-release", "local_rev": 1, "variant": "demo",
   "patches": [ { "name": "patches/0001-DEMO-….patch", "sha256": "…", "kind": "demo" } ],
   "options": { "trace_plugins": "devtools", "demo": true },
   "build": { "source": "upstream", "builder_commit": "…", "builder_dirty": false,
@@ -129,8 +128,8 @@ components to `vpp-plugin-core`) is used when F-capture-trace starts.
              "inputs": { "python": [ { "name": "meson", "version": "0.57.2", "sha256": "…", "file": "…", "url": "…" } ],
                          "dpdk_meson_venv": [ "meson==0.57.2", "…" ] },
              "jobs": 8, "seconds": 0, "source_date_epoch": 0, "os": "Ubuntu 26.04.1 LTS", "missing_build_deps": [] },
-  "packages": [ { "package": "vpp", "version": "26.06-release+vrx1", "architecture": "amd64", "file": "vpp_…_amd64.deb",
-                  "size": 0, "sha256": "…", "ship": true, "installed_on_vrx_a": true } ]
+  "packages": [ { "package": "vpp", "version": "26.06-release+ngfw1", "architecture": "amd64", "file": "vpp_…_amd64.deb",
+                  "size": 0, "sha256": "…", "ship": true, "installed_on_ngfw_a": true } ]
 }
 ```
 
@@ -140,32 +139,42 @@ components to `vpp-plugin-core`) is used when F-capture-trace starts.
 * `SHA256SUMS` and `manifest.json` are **unsigned**: they detect corruption, not tampering by someone who can write the
   directory. Signing is P10's job (APT `Release` signing).
 * **P10**: select packages by `package` with `ship: true` (D-089: the 7 runtime packages; never `vpp-dbg`, `vpp-dev`,
-  `libvppinfra-dev`, `vpp-plugin-devtools`); pin `vrx-meta`'s `Depends: vpp (= <manifest.version>)`.
+  `libvppinfra-dev`, `vpp-plugin-devtools`); pin `ngfw-meta`'s `Depends: vpp (= <manifest.version>)`.
 * **P14**: copies the same files into the ISO pool and records `upstream.commit`, `patches[].sha256` and
   `build.inputs` in the image build info.
 * **Storage (D-089)**: artefacts never go into git. After a build the manager publishes the output directory as-is to
-  `/srv/vrx-artifacts/vpp/<version>[-<variant>]/` (`cp -a`, then `verify.sh --require-files` on the copy); P10 decides
+  `/srv/ngfw-artifacts/vpp/<version>[-<variant>]/` (`cp -a`, then `verify.sh --require-files` on the copy); P10 decides
   the APT repository.
 
-## Installing on vrx-a (manager only, only after `handover: done`)
+## Installing on ngfw-a (manager only, only after `handover: done`)
 
-Only a suffixed `+vrx<N>` build without demo patches is ever installed (every `build.sh` output is suffixed, D-092;
+Only a suffixed `+ngfw<N>` build without demo patches is ever installed (every `build.sh` output is suffixed, D-092;
 an unsuffixed `26.06-release` package is by definition the upstream/host build), and a demo build is never installed. `verify.sh --install-gate` enforces both (and refuses a build from an uncommitted builder).
 
 ```bash
-exec 9>/run/lock/vrx-lab.lock; flock -x 9                               # barrier: no integration test is running
-OUT=/srv/vrx-artifacts/vpp/26.06-release+vrx<N>                          # never "-demo", never unsuffixed
+exec 9>/run/lock/ngfw-lab.lock; flock -x 9                               # barrier: no integration test is running
+OUT=/srv/ngfw-artifacts/vpp/26.06-release+ngfw<N>                          # never "-demo", never unsuffixed
 deploy/vpp/verify.sh --require-files "$OUT" --install-gate || exit 1
 (cd "$OUT" && sha256sum -c SHA256SUMS) || exit 1
-B=/var/backups/vrx-vpp-$(date +%Y%m%d-%H%M%S); mkdir -p "$B"
+B=/var/backups/ngfw-vpp-$(date +%Y%m%d-%H%M%S); mkdir -p "$B"
 cp -a /etc/vpp "$B/etc-vpp"; dpkg -l | grep -i vpp > "$B/dpkg-before.txt"; vppctl show version > "$B/version-before.txt"
 cp /root/vpp/build-root/{vpp,vpp-plugin-core,vpp-plugin-dpdk,vpp-drivers,vpp-crypto-engines,libvppinfra,python3-vpp-api}_26.06-release_amd64.deb "$B/"
 dpkg -i $(python3 -c 'import json,sys; m=json.load(open(sys.argv[1]+"/manifest.json")); print(" ".join(sys.argv[1]+"/"+p["file"] for p in m["packages"] if p["ship"]))' "$OUT")
 systemctl restart vpp && sleep 5
-systemctl is-active vpp && vppctl show version && ls /run/vpp/api.sock      # expect the +vrx<N> version string
-# then: agent reconcile check (restart vrx-agent, Retrieve == desired), tools/ci.sh full on main
+systemctl is-active vpp && vppctl show version && ls /run/vpp/api.sock      # expect the +ngfw<N> version string
+# then: agent reconcile check (restart ngfw-agent, Retrieve == desired), tools/ci.sh full on main
 flock -u 9
 ```
 
-Rollback (any check fails): `dpkg -i "$B"/*.deb` (a downgrade from `+vrx<N>` to `26.06-release`; dpkg warns and
+Rollback (any check fails): `dpkg -i "$B"/*.deb` (a downgrade from `+ngfw<N>` to `26.06-release`; dpkg warns and
 proceeds), `cp -a "$B/etc-vpp/." /etc/vpp/`, `systemctl restart vpp`, re-run the checks, record it in `docs/decisions/LOG.md`.
+
+## Native route-based IKEv2 capability
+
+Product patch `0002-ikev2-safe-native-state.patch` is required by the native module. It safely skips SAs without an allocated profile during v2/v3 state dumps, converts action SPIs from network byte order, and advertises plugin API major 1 with minor `0x56525801`. The agent requires that exact pair before using native state. An upstream plugin is refused because polling incomplete negotiation can crash it.
+
+The patch was exercised only in disposable VPP instances, including protected packets and production API/agent PSK lifecycle. No patched package or plugin was installed on the shared host. The ordinary product build applies this patch; the demonstration patch remains opt-in via `--demo`.
+
+## LCP multicast lifecycle
+
+Product patch `0003-lcp-multicast-reconcile.patch` repairs Linux-NL multicast acceptance across LCP pair recreation and IPv4/IPv6 address/link lifecycle. It preserves other interface paths and avoids API-source overlays. Independent review, stock-failure/patched-lifecycle comparisons and strict full ISIS/RIP restart recovery passed in disposable VPP. Product revision is 3; no shared appliance installation occurred.

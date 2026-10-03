@@ -72,7 +72,7 @@ func TestMapOnHost(t *testing.T) {
 	}
 	t.Log("map params required only, unchanged (D-071)")
 
-	nattest.Pause(t, "map") // evidence hook (VRX_EVIDENCE_DIR), no-op otherwise
+	nattest.Pause(t, "map") // evidence hook (NGFW_EVIDENCE_DIR), no-op otherwise
 	nattest.DeleteAll(ctx, t, p.Interface)
 	nattest.DeleteAll(ctx, t, p.Rule)
 	nattest.DeleteAll(ctx, t, p.Domain)

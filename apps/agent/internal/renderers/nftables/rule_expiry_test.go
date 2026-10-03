@@ -34,7 +34,7 @@ func TestHostRuleExpiry(t *testing.T) {
 	if len(expired) != 1 || expired[0].Pointer != "/acl/host/local-in/rules/5" || !expired[0].Warning {
 		t.Fatalf("issues %+v", issues)
 	}
-	text, err := RenderText("vrx_w9", v)
+	text, err := RenderText("ngfw_w9", v)
 	if err != nil {
 		t.Fatal(err)
 	}

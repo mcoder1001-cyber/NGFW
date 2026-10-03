@@ -10,10 +10,10 @@ break scenarios ran from a scratch copy of the harness in `/tmp/g-td6r/x`, outsi
 
 | check | result |
 |---|---|
-| V1–V4 + V8 against **main's** script: `VRX_TEST_APPLY_SCRIPT=<git show main:deploy/vpp/apply-startup.sh> VRX_TEST_ONLY="32 33 34 35 36 40"` | **4 passed, 13 failed**, wall 472 s, load 102 → 18. 32: the second apply committed, then run 1's late dead-man reverted it (`finished=[rolled-back] live==orig=y`, X4 reproduced). 33/34: `finished=[] vpp=inactive locks-free=n timer-cancelled=n`. 35: `finished=[] locks-free=n` for both the transient and the persistent `show` failure. 36: `committed` with `unit.restart: … MainPID=1051 NRestarts=1`. 40: the fe80 nudge check fails. **But 40's `bounded` check passes on main's script: `ok bounded: 26s (limit 27s … at load 17.86)`** (see F2) |
+| V1–V4 + V8 against **main's** script: `NGFW_TEST_APPLY_SCRIPT=<git show main:deploy/vpp/apply-startup.sh> NGFW_TEST_ONLY="32 33 34 35 36 40"` | **4 passed, 13 failed**, wall 472 s, load 102 → 18. 32: the second apply committed, then run 1's late dead-man reverted it (`finished=[rolled-back] live==orig=y`, X4 reproduced). 33/34: `finished=[] vpp=inactive locks-free=n timer-cancelled=n`. 35: `finished=[] locks-free=n` for both the transient and the persistent `show` failure. 36: `committed` with `unit.restart: … MainPID=1051 NRestarts=1`. 40: the fe80 nudge check fails. **But 40's `bounded` check passes on main's script: `ok bounded: 26s (limit 27s … at load 17.86)`** (see F2) |
 | the same scenarios against the **branch** script | **17 passed, 0 failed**, wall 553 s, load 44 → 15. States: 32 `superseded`, VPP untouched. 33 `console-needed`, `vpp=active`, never stopped. 34 `console-needed`, VPP started again. 35 `committed` / `rolled-back`. 36 `rolled-back`. 40: `bounded: 7s` |
-| `TMPDIR=/tmp/g-td6r VRX_CI_CACHE_DIR=/tmp/g-td6r/cache tools/ci.sh --base main` | **CI GATE PASSED**, rc 0, quick, wall 19m45s (load 44 at the start, peaks above 100 from other agents, 18 at the end), logs `/root/ngfw-wt/logs/ci/TD-6-20260924-152748-706813`. The harness really ran: `green (4 shards; 128 checks passed in the parallel run)`, 7m35s, the same 128 as the pasted run. In this run scenario 40's limit was `28s … at load 19.14`, above main's measured 26 s |
-| harness cache | The key of this tree (`018b7837…`) equals the entry that the worker's 15:14 run left in `~/.cache/vrx-ci/apply-startup/`. A plain `tools/ci.sh --base main` would therefore **skip** the harness, so I ran with a fresh `VRX_CI_CACHE_DIR`. The key really is content-only: `go version -m` shows no `vcs.*` stamp, and a scratch build gave the same key. The manager's premise "runs only when deploy/vpp changes" holds, apart from F3 |
+| `TMPDIR=/tmp/g-td6r NGFW_CI_CACHE_DIR=/tmp/g-td6r/cache tools/ci.sh --base main` | **CI GATE PASSED**, rc 0, quick, wall 19m45s (load 44 at the start, peaks above 100 from other agents, 18 at the end), logs `/root/ngfw-wt/logs/ci/TD-6-20260924-152748-706813`. The harness really ran: `green (4 shards; 128 checks passed in the parallel run)`, 7m35s, the same 128 as the pasted run. In this run scenario 40's limit was `28s … at load 19.14`, above main's measured 26 s |
+| harness cache | The key of this tree (`018b7837…`) equals the entry that the worker's 15:14 run left in `~/.cache/ngfw-ci/apply-startup/`. A plain `tools/ci.sh --base main` would therefore **skip** the harness, so I ran with a fresh `NGFW_CI_CACHE_DIR`. The key really is content-only: `go version -m` shows no `vcs.*` stamp, and a scratch build gave the same key. The manager's premise "runs only when deploy/vpp changes" holds, apart from F3 |
 | pasted CI in TD-6.md (at 85a6ed5) | matches `/root/ngfw-wt/logs/ci/TD-6-20260924-150235-607258`: shard results 25 + 21 + 33 + 49 = 128 passed, 0 failed |
 | shellcheck 0.11.0 | `deploy/vpp/*.sh` (`-x -P SCRIPTDIR`): all 5 clean. `tools/ci.sh`: 12 info-level SC2001/SC2015 findings, the same count as on main. All of them are on pre-existing lines, and none falls in `do_deploy_vpp` (504–573) |
 | scope / contract | `git diff --name-only main...task/TD-6`: the two scripts, `docs/agent/renderers/vppstartup.md`, `docs/status/tasks/TD-6*` and `tools/ci.sh`. In `tools/ci.sh` the changes are one header comment line, `do_deploy_vpp` and its call. `v19_preflight` is untouched. There are no hits under `packages/schema`, `packages/proto`, the generated code, `apps/agent/binapi` or `tools/binapi-gen.sh` |
@@ -28,7 +28,7 @@ break scenarios ran from a scratch copy of the harness in `/tmp/g-td6r/x`, outsi
 | V1 | **Fixed.** Both the planner (`:1027-1031`) and the run under the locks (`:868-869`) refuse while an installed work dir has no result. `claim_current` (`:664-678`) records `current` and disarms dead-men that never installed. `not_ours` (`:679-689`) makes a stale dead-man write `superseded`/`console-needed` without touching VPP. Main fails scenario 32 and the branch passes it. The recovery path that the refusal prescribes is racy → F1 |
 | V2 | **Fixed.** Both files are staged in the same directory before the install (`:897-899`), so install and restore are renames. If the old file cannot be staged, VPP is not stopped (`:720-731`). If the rename and the copy both fail, VPP is started again anyway (`:736-752`). `rollback_steps \|\| true` (`:709`) turns errexit off, so the tail (`:711-714`: marker, timer, locks) always runs. Main fails 33 and 34; the branch passes both |
 | V3 | **Fixed.** `read_unit_restart` (`:212-227`) makes 3 tries, and a failure means an immediate rollback. The `run_exit` trap (`:839-851`) covers other unexpected exits after the install. I audited the post-install path of `stage_run` (`:919-960`) and found no other unguarded command. Main fails 35; the branch passes it |
-| V4 | **Fixed.** The tuple must be complete, `NRestarts=0` and `MainPID≠0` (`:220-226`). On vrx-a `systemctl show vpp` gives `Restart=always RestartUSec=100ms NRestarts=0`, which is consistent with the reset-on-explicit-restart premise. Main fails 36; the branch passes it |
+| V4 | **Fixed.** The tuple must be complete, `NRestarts=0` and `MainPID≠0` (`:220-226`). On ngfw-a `systemctl show vpp` gives `Restart=always RestartUSec=100ms NRestarts=0`, which is consistent with the reset-on-explicit-restart premise. Main fails 36; the branch passes it |
 | V5 | **Fixed, with a residual (F5).** `secure_locks` (`:504-518`) is shared by the run's rollback and the dead-man |
 | V6 | **Fixed** for what the verify review showed (`realpath -m`; root `/` refused; real startup.conf, sysfs and systemctl refused). The guard is still incomplete for mutating tools (F4) |
 | V7 | **Fixed.** `hold-until` (`:891`, `:495-501`). Scenario 39 |
@@ -43,7 +43,7 @@ break scenarios ran from a scratch copy of the harness in `/tmp/g-td6r/x`, outsi
 `docs/agent/renderers/vppstartup.md:155` tell the operator to "finish it now with … `--stage rollback --work <dir>`"
 while that work dir's dead-man timer is still armed.
 
-The failure: the operator follows the refusal late in the dead-man window (≈30–60 min on vrx-a), and the timer fires
+The failure: the operator follows the refusal late in the dead-man window (≈30–60 min on ngfw-a), and the timer fires
 while the manual rollback runs (RB_BUDGET is several minutes). With the holder alive, both processes log "lock holder …
 still owns the locks" and continue. With the holder gone, the second waits `--deadman-lock-timeout` for its twin, then
 goes **FORCED** and continues without the locks. Both processes stop VPP, rename or copy the backup, and start VPP. On
@@ -81,19 +81,19 @@ comment and in `vppstartup.md`.
 ### F3 — LOW: the harness cache key misses the harness's fixtures
 `tools/ci.sh:528` hashes `deploy/vpp/*` and the generator binary. The harness also reads `FIX =
 apps/agent/internal/renderers/vppstartup/testdata` (`test-apply-startup.sh:29`: `host-startup.conf`,
-`plugins-vrx-a.txt`, `cases/six-nic-sample.json`). These files are not embedded in the binary (`go:embed` covers only
+`plugins-ngfw-a.txt`, `cases/six-nic-sample.json`). These files are not embedded in the binary (`go:embed` covers only
 `templates/*.tmpl`). A branch that edits them gets "unchanged since a green run — skipped", and because the cache is
 shared by every worktree, so does main. Fix: add `find apps/agent/internal/renderers/vppstartup/testdata -type f` to the
 hashed list, or hash exactly the three files.
 
 ### F4 — LOW: the V6 guard still lets real mutating tools run under a test root
 `apply-startup.sh:121` requires startup.conf, sysfs, systemctl, systemd-run, ip, the state dir and the locks to be
-inside `VRX_TEST_ROOT`. It does not cover `VRX_DRIVERCTL`, `VRX_IFUP`, `VRX_NETWORKCTL` and `VRX_NETPLAN`, whose
+inside `NGFW_TEST_ROOT`. It does not cover `NGFW_DRIVERCTL`, `NGFW_IFUP`, `NGFW_NETWORKCTL` and `NGFW_NETPLAN`, whose
 defaults are the real tools, and the host has `/usr/sbin/driverctl`, `/usr/sbin/ifup` and `/usr/bin/networkctl`. The
 harness sets all four to fakes, so nothing is exposed today. But a future scenario or ad-hoc test that forgets one gets
-a real `driverctl unset-override 0000:0b:00.0` (the fixture uses vrx-a's real management PCI address) or a real
+a real `driverctl unset-override 0000:0b:00.0` (the fixture uses ngfw-a's real management PCI address) or a real
 `ifup --force ens192` from `rebind_drivers`/`restore_mgmt` as soon as the fake `ip` reports the interface broken. Fix:
-add those four (and `VRX_ETC`) to the loop. A value that resolves to a missing file inside the root, such as the
+add those four (and `NGFW_ETC`) to the loop. A value that resolves to a missing file inside the root, such as the
 harness's `netplan.absent`, still passes.
 
 ### F5 — LOW (V5 residual): after 60 s the run's holder-gone rollback is FORCED under a running integration test

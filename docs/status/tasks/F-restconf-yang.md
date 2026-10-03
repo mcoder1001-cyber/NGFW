@@ -7,7 +7,7 @@ Merged in PR #50 (2026-09-27). Complete in-container; no host follow-up.
 - **`packages/yang`** — a deterministic Zod→YANG 1.1 generator (via the JSON Schema), one module per root key,
   checked in under `generated/` with a golden drift test, wired into `pnpm gen`.
 - **RESTCONF (RFC 8040)** — `apps/api/src/features/restconf-yang`: data GET/PUT/PATCH/DELETE and
-  `operations/vrx:commit|confirm|rollback` over the candidate/commit engine; running/candidate reads; secret
+  `operations/ngfw:commit|confirm|rollback` over the candidate/commit engine; running/candidate reads; secret
   redaction; `ietf-restconf:errors` bodies; host-meta, API resource, ietf-yang-library. Excluded from OpenAPI; a
   `/api/v1/system/yang` read surface backs the web download card.
 - **Web** — `System › RESTCONF / YANG` download card (en/fa).
@@ -15,8 +15,8 @@ Merged in PR #50 (2026-09-27). Complete in-container; no host follow-up.
 
 ## Decisions (documented defaults for the prompt's open questions)
 
-- Namespace `urn:vrx:<key>`, organization `VRX`.
-- Writes require an explicit `vrx:commit` (like `/api/v1`), not auto-commit.
+- Namespace `urn:ngfw:<key>`, organization `NGFW`.
+- Writes require an explicit `ngfw:commit` (like `/api/v1`), not auto-commit.
 - RESTCONF is not in the OpenAPI document (`@ApiExcludeController`).
 - `/.well-known/host-meta` is guarded like every other route.
 

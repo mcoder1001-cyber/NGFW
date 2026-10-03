@@ -24,7 +24,7 @@ for (const u of USERS) PW[u] = runSecret();
 function cookieOf(headers: Record<string, unknown>): string {
   const raw = [headers['set-cookie']]
     .flat()
-    .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
   return raw.split(';')[0]!;
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -38,10 +38,10 @@ describe('TD-2 review fixes e2e', () => {
 
   beforeAll(async () => {
     h = await startHarness({
-      VRX_AGENT_TIMEOUT_MS: '800',
-      VRX_PASSWORD_RATE_PER_MIN: '1000',
-      VRX_LOGIN_RATE_PER_MIN: '5000',
-      VRX_LOGIN_MAX_FAILURES: '3',
+      NGFW_AGENT_TIMEOUT_MS: '800',
+      NGFW_PASSWORD_RATE_PER_MIN: '1000',
+      NGFW_LOGIN_RATE_PER_MIN: '5000',
+      NGFW_LOGIN_MAX_FAILURES: '3',
     });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(
@@ -386,10 +386,10 @@ describe('TD-2 review fixes e2e', () => {
 
   // ------------------------------------------------------------------------------------------------ WS
   it('a reset closes the target’s WebSockets (4403)', async () => {
-    await h.app.listen({ port: h.env.VRX_HTTP_PORT, host: '127.0.0.1' });
+    await h.app.listen({ port: h.env.NGFW_HTTP_PORT, host: '127.0.0.1' });
     const tok = (await login('wsuser')).body.accessToken as string;
-    const ws = new WebSocket(`ws://127.0.0.1:${h.env.VRX_HTTP_PORT}/api/v1/stream`, [
-      'vrx.v1',
+    const ws = new WebSocket(`ws://127.0.0.1:${h.env.NGFW_HTTP_PORT}/api/v1/stream`, [
+      'ngfw.v1',
       `bearer.${tok}`,
     ]);
     await new Promise<void>((resolve, reject) => {

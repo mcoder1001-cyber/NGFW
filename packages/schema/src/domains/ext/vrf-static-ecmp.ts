@@ -8,7 +8,7 @@ import { withUi } from '../../ui.js';
  * their `wave-A: F-vrf-static-ecmp` anchor; the shapes live here. Cross-object rules are in `../../semantic/vrf-static-ecmp.ts`.
  */
 
-/** `x-vrx-ui` group of every field this feature adds (group = task slug, C1). */
+/** `x-ngfw-ui` group of every field this feature adds (group = task slug, C1). */
 const GROUP = 'vrf-static-ecmp';
 
 /**

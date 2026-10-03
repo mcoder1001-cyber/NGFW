@@ -79,7 +79,7 @@ never "next free".
    - `nsim.config` is **global**: only the globals owner sets it (D-071); non-owners skip it with a warning. Plus `nsim.cross-connect` and
      `nsim.output`. All nsim objects are write-only.
    - Wire DF-7 `lldp`/`span` into the projection. `services.lldp` globals are applied only on the globals owner. Slot agents
-     (`VRX_GLOBALS_OWNER=0`) project `lldp.interface` only and warn for the globals.
+     (`NGFW_GLOBALS_OWNER=0`) project `lldp.interface` only and warn for the globals.
    - **`services` domain:** it becomes "implemented" as soon as one feature puts it in `subsystems.Domains`. From then on, every
      non-empty `services.*` leaf that no descriptor handles must produce `agent.unsupported-field` (dhcp, dns, snmp, ipfix, ntp, qos, …).
      Otherwise it is silently dropped and shows up as drift, because the API's drift view skips only reported pointers.
@@ -94,7 +94,7 @@ never "next free".
    - ERSPAN evidence: the fixture creates a slot-prefixed ERSPAN GRE tunnel with DF-6's `gre` descriptor directly (the `tunnels` domain
      belongs to F-tunnels). The config mirrors to it by name.
    - nsim host evidence: `nsim_configure2` has no getter, so a test cannot restore the previous value (shared-host-rules §7). Keep the nsim
-     host test opt-in (`VRX_NSIM_HOST=1`, globals lock exclusive), to run only in a manager VPP window. The default gate evidence for nsim
+     host test opt-in (`NGFW_NSIM_HOST=1`, globals lock exclusive), to run only in a manager VPP window. The default gate evidence for nsim
      is the fake client; say so.
 3. **API**:
    - config via the pointer routes;
@@ -128,7 +128,7 @@ never "next free".
 **Shared hotspots: insert only under your `wave-A: F-loopback-bvi-gso-lldp-span` anchor, and name each hunk in the task's status file:**
 - agent: `apps/agent/internal/subsystems/subsystems.go` (a new `Domains["services"]` entry), `apps/agent/internal/agent/projection.go`
 - schema: `packages/schema/src/domains/{interfaces,services}.ts`, `packages/schema/src/index.ts`, `packages/schema/src/semantic/index.ts`
-- proto: `packages/proto/vrx/v1/dataplane.proto`, `docs/contracts/proto.md`
+- proto: `packages/proto/ngfw/v1/dataplane.proto`, `docs/contracts/proto.md`
 - API: `apps/api/src/app.module.ts`, `apps/api/src/agent/agent.client.ts`, `apps/api/src/testing/fake-agent.ts`
 - web: `router.tsx`, `nav/nav.ts`, `nav/nav.test.ts`, `i18n.ts`
 - docs: `docs/user/interfaces/basics.md` (end), `docs/vpp-code-track.md` (append)

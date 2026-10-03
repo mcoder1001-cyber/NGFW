@@ -1,6 +1,6 @@
 # TD-2 — WIP (API follow-ups: admin password set, api-client types, /health schema, control chars, per-key candidates)
 
-Slot 7 (`w7`, port 3700, DB `vrx_w7`, Valkey db 7). Base `main@b36b91c`.
+Slot 7 (`w7`, port 3700, DB `ngfw_w7`, Valkey db 7). Base `main@b36b91c`.
 
 Rounds: initial (items 1–6) done · fix round 1 (review cc70629, D-097) done, CI green @2d0bccb · **fix round 2 (verify ae52906, D-102) done**.
 

@@ -16,10 +16,10 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// Integration test against the VPP on this host (docs/lab/shared-host-rules.md): VRX_INTEGRATION=1,
+// Integration test against the VPP on this host (docs/lab/shared-host-rules.md): NGFW_INTEGRATION=1,
 // shared lab lock, relays only in this slot's table range, clients only on this slot's tagged
 // loopback, cleanup in t.Cleanup. The DUID is a VPP-global without getter or reset: its host
-// check runs only with VRX_DF8_DUID=1.
+// check runs only with NGFW_DF8_DUID=1.
 func TestDHCPOnHost(t *testing.T) {
 	h := dfkittest.ConnectHost(t)
 	h.LockGlobals(t)
@@ -146,8 +146,8 @@ func TestDHCPOnHost(t *testing.T) {
 	})
 
 	t.Run("dhcp6 duid", func(t *testing.T) {
-		if os.Getenv("VRX_DF8_DUID") != "1" {
-			t.Skip("dhcp6_duid_ll_set changes a VPP-global without getter or reset; set VRX_DF8_DUID=1 to run")
+		if os.Getenv("NGFW_DF8_DUID") != "1" {
+			t.Skip("dhcp6_duid_ll_set changes a VPP-global without getter or reset; set NGFW_DF8_DUID=1 to run")
 		}
 		d := NewDHCP6DUID(c, dfkit.GlobalsOwner(true))
 		v := DHCP6DUID{DUIDLL: fmt.Sprintf("00:03:00:01:02:00:00:%02x:00:01", slot)}.Proto()

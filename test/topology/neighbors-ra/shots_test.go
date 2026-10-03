@@ -16,13 +16,13 @@ import (
 // (apps/web/dist) on the slot web port, while a headless browser (an external node script: playwright-core + Chrome
 // from env paths, nothing installed, nothing committed — the P07a/P07b/P08 approach) takes the screenshots.
 //
-//	VRX_NRA_SHOTS=<node script> VRX_NRA_SHOTS_OUT=<dir> run.sh -run TestNeighborsRaScreenshots
+//	NGFW_NRA_SHOTS=<node script> NGFW_NRA_SHOTS_OUT=<dir> run.sh -run TestNeighborsRaScreenshots
 //
 // The script is called as: node <script> <baseUrl> <outDir> <adminPasswordFile> <lan interface>.
 func TestNeighborsRaScreenshots(t *testing.T) {
-	script, out := os.Getenv("VRX_NRA_SHOTS"), os.Getenv("VRX_NRA_SHOTS_OUT")
-	if os.Getenv("VRX_INTEGRATION") != "1" || script == "" || out == "" {
-		t.Skip("screenshot evidence run: set VRX_INTEGRATION=1, VRX_NRA_SHOTS (node script) and VRX_NRA_SHOTS_OUT")
+	script, out := os.Getenv("NGFW_NRA_SHOTS"), os.Getenv("NGFW_NRA_SHOTS_OUT")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || script == "" || out == "" {
+		t.Skip("screenshot evidence run: set NGFW_INTEGRATION=1, NGFW_NRA_SHOTS (node script) and NGFW_NRA_SHOTS_OUT")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -38,15 +38,15 @@ func TestNeighborsRaScreenshots(t *testing.T) {
 	a := st.api
 	t.Cleanup(func() { cleanup(t, a, conn, nm) })
 
-	webPort := os.Getenv("VRX_WEB_PORT")
+	webPort := os.Getenv("NGFW_WEB_PORT")
 	if webPort == "" {
-		t.Fatal("VRX_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
+		t.Fatal("NGFW_WEB_PORT unset (eval \"$(tools/lab env <slot>)\")")
 	}
 	web := filepath.Join(s.repo, "apps", "web")
 	if _, err := os.Stat(filepath.Join(web, "dist", "index.html")); err != nil {
 		t.Fatalf("apps/web/dist missing — build the web app first: %v", err)
 	}
-	env := append(os.Environ(), "VRX_HTTP_PORT="+s.httpPort, "VRX_WEB_PORT="+webPort)
+	env := append(os.Environ(), "NGFW_HTTP_PORT="+s.httpPort, "NGFW_WEB_PORT="+webPort)
 	pv := start(t, "vite-preview", filepath.Join(s.runDir, "nra", "vite.log"), env, filepath.Join(web, "node_modules", ".bin", "vite"), "preview", web)
 	t.Cleanup(func() { pv.stop(t) })
 

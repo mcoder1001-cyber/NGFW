@@ -26,7 +26,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/mpls"
@@ -36,7 +36,7 @@ import (
 
 // MplsNeedsTableZero reports whether m needs the default MPLS table 0 in VPP: MPLS-enabled
 // interfaces, label bindings, SR-MPLS policies (their BSIDs live there) or a label route of table 0.
-func MplsNeedsTableZero(m *vrxv1.MplsConfig) bool {
+func MplsNeedsTableZero(m *ngfwv1.MplsConfig) bool {
 	if len(m.GetInterfaces()) > 0 || len(m.GetIpBindings()) > 0 || len(m.GetSr().GetPolicies()) > 0 {
 		return true
 	}
@@ -57,7 +57,7 @@ func SteeringKey(table uint32, prefix string) scheduler.Key {
 
 // MplsPayload is the EOS payload of a label route: payload when set, else ip6 when a path has an
 // IPv6 next hop, else ip4 (the schema's documented default; the assembler omits it when equal).
-func MplsPayload(payload string, paths []*vrxv1.MplsPath) string {
+func MplsPayload(payload string, paths []*ngfwv1.MplsPath) string {
 	if payload != "" {
 		return payload
 	}
@@ -71,7 +71,7 @@ func MplsPayload(payload string, paths []*vrxv1.MplsPath) string {
 
 // MplsSrmpls projects `routing.mpls` of ds when the routing domain is in the transaction. vrfID
 // resolves a VRF name to its table id.
-func MplsSrmpls(s Sink, ds *vrxv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
+func MplsSrmpls(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(string) (uint32, bool)) {
 	if !in["routing"] {
 		return
 	}
@@ -221,7 +221,7 @@ func lessSegmentList(a, b *srmpls.SegmentList) bool {
 // mplsPaths converts document paths to DF-7's canonical paths. payload is the EOS payload of a label
 // route ("" for non-EOS routes and tunnels): a path without a next hop carries it as its protocol
 // (an IPv6 lookup, an ethernet pseudowire), so VPP resolves it in the right family.
-func mplsPaths(s Sink, in []*vrxv1.MplsPath, payload string, vrfID func(string) (uint32, bool), at string) ([]df7.Path, bool) {
+func mplsPaths(s Sink, in []*ngfwv1.MplsPath, payload string, vrfID func(string) (uint32, bool), at string) ([]df7.Path, bool) {
 	out := make([]df7.Path, 0, len(in))
 	ok := true
 	for j, p := range in {
@@ -273,17 +273,17 @@ func mplsPaths(s Sink, in []*vrxv1.MplsPath, payload string, vrfID func(string) 
 // interfaces sorted, tables without table 0, label routes by table, label and end-of-stack first,
 // tunnels by name. ipBindings and sr are write-only in VPP 26.06 and never assembled (D-063).
 // nameOf maps an IP table id to its VRF name. ds.Routing must be set.
-func AssembleMplsSrmpls(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(uint32) string) {
-	m := &vrxv1.MplsConfig{}
+func AssembleMplsSrmpls(ds *ngfwv1.DesiredState, kvs []scheduler.KV, nameOf func(uint32) string) {
+	m := &ngfwv1.MplsConfig{}
 	var routes []mpls.Route
 	for _, kv := range kvs {
 		switch kv.Key.Descriptor() {
 		case mpls.NameTable:
 			if t, err := df7.Decode[mpls.Table](kv.Value); err == nil && t.ID != 0 {
 				if m.Tables == nil {
-					m.Tables = map[string]*vrxv1.MplsTable{}
+					m.Tables = map[string]*ngfwv1.MplsTable{}
 				}
-				m.Tables[strconv.FormatUint(uint64(t.ID), 10)] = &vrxv1.MplsTable{}
+				m.Tables[strconv.FormatUint(uint64(t.ID), 10)] = &ngfwv1.MplsTable{}
 			}
 		case mpls.NameInterface:
 			if i, err := df7.Decode[mpls.Interface](kv.Value); err == nil {
@@ -296,9 +296,9 @@ func AssembleMplsSrmpls(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(
 		case mpls.NameTunnel:
 			if t, err := df7.Decode[mpls.Tunnel](kv.Value); err == nil {
 				if m.Tunnels == nil {
-					m.Tunnels = map[string]*vrxv1.MplsTunnel{}
+					m.Tunnels = map[string]*ngfwv1.MplsTunnel{}
 				}
-				m.Tunnels[t.Name] = &vrxv1.MplsTunnel{Paths: docPaths(t.Paths, nameOf), L2Only: proto.Bool(t.L2Only)}
+				m.Tunnels[t.Name] = &ngfwv1.MplsTunnel{Paths: docPaths(t.Paths, nameOf), L2Only: proto.Bool(t.L2Only)}
 			}
 		}
 	}
@@ -314,7 +314,7 @@ func AssembleMplsSrmpls(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(
 		return x.EOS && !y.EOS
 	})
 	for _, r := range routes {
-		lr := &vrxv1.MplsLabelRoute{Table: proto.Uint32(r.Table), Label: proto.Uint32(r.Label), Eos: proto.Bool(r.EOS), Paths: docPaths(r.Paths, nameOf)}
+		lr := &ngfwv1.MplsLabelRoute{Table: proto.Uint32(r.Table), Label: proto.Uint32(r.Label), Eos: proto.Bool(r.EOS), Paths: docPaths(r.Paths, nameOf)}
 		if r.EOS && r.EOSProto != MplsPayload("", lr.GetPaths()) {
 			lr.Payload = proto.String(r.EOSProto)
 		}
@@ -324,17 +324,17 @@ func AssembleMplsSrmpls(ds *vrxv1.DesiredState, kvs []scheduler.KV, nameOf func(
 		return
 	}
 	if ds.Routing == nil {
-		ds.Routing = &vrxv1.RoutingConfig{}
+		ds.Routing = &ngfwv1.RoutingConfig{}
 	}
 	ds.Routing.Mpls = m
 }
 
 // docPaths converts DF-7 paths back to document paths: a path with neither next hop nor interface
 // that resolves in an IP table is a pop-and-lookup path of that table's VRF.
-func docPaths(paths []df7.Path, nameOf func(uint32) string) []*vrxv1.MplsPath {
-	out := make([]*vrxv1.MplsPath, 0, len(paths))
+func docPaths(paths []df7.Path, nameOf func(uint32) string) []*ngfwv1.MplsPath {
+	out := make([]*ngfwv1.MplsPath, 0, len(paths))
 	for _, p := range paths {
-		mp := &vrxv1.MplsPath{Weight: proto.Uint32(uint32(p.Weight))}
+		mp := &ngfwv1.MplsPath{Weight: proto.Uint32(uint32(p.Weight))}
 		if p.NextHop != "" {
 			mp.NextHop = proto.String(p.NextHop)
 		}

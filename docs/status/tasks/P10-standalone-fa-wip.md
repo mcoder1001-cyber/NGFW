@@ -1,0 +1,16 @@
+# P10 standalone Persian operator summary — bounded documentation correction
+
+Branch `codex/p10-standalone-20261003`; own isolated `NGFW-p10-standalone`.
+Local prior frozen source `3d9ff1e0b4e5b82585b40a68a8cfa7cb3028ac46`, tree `6a66708a0fcd6fddcda9b1fbd3aa6c67f75740ff`; published exact-tree counterpart `ae1c6470aa1a78a17fc4c61fbad13d711783255c` (PR #105, root acknowledgement). Final documentation-only checkpoint SHA is obtained after this commit; root publishes its exact tree.
+Owned for this correction ONLY `docs/user/install/bundle.md` and this unique WIP. No product, helper inventory, command, gate, authentication, signing or host-privilege changes; no original/main/other-worktree edits. P10 product source remains byte-identical to frozen 3d9.
+
+Fresh independent review `/root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/review-p10-final-r7/report.txt` approved R7 source/evidence and raised one optional R6 MINOR: English-only recipient safety/usage. The new concise Persian summary addresses that finding: independently authenticate launcher BEFORE execution; externally trusted raw helper-report SHA256 before parsing; trusted runtime manifest/report OUTSIDE package delivery; actual Python>=3.12/Bash/dpkg/APT/Git/patch/coreutils/text tools, standard tar restoration and optional shellcheck; read-only default versus explicitly authorized root --install on fresh Ubuntu26.04 amd64. It references the canonical command without introducing divergent command copies or invented OpenSSL/gpg dependencies.
+
+Preserved release gaps: bootstrap signing/distribution ownership/security provenance policy, genuine package build provenance, signed release, clean-target install/remove/reinstall, firstboot and hardware acceptance remain outstanding. No whole-P10-DONE claim.
+
+Frozen-review coordination: root reported R8 finished APPROVE with four focused tests PASS76.393s, no skips, source clean at3d9; only then authorized this doc commit. These are independently reported results, NOT this documentation worker's test execution. R7 report independently records source-head hosted quick37114694446 and provisioning37114694442 SUCCESS on ae1; no future integration-tree pass is inferred. Historical 3d9 local quick failures remain recorded in the older WIP. Separately scoped Go fixture correction has remote PR #107 per root; final integration candidate #110 gates remain pending per root.
+
+Actual validation for this doc correction: read R7/R6 report; compare safety terminology and prerequisites with existing English instructions and actual helper CLI/constants. Unchanged `tools/ci.sh check --base 3d9ff1e0b4e5b82585b40a68a8cfa7cb3028ac46` PASSED (0m09s), raw log `/tmp/p10-standalone-fa-check.log`; `git diff --check` PASS. Compare every existing fenced command block with git-show of frozen3d9: PASS, "All existing canonical command blocks unchanged". No redundant code tests added or product tests changed for prose-only scope.
+
+Remaining: root connector-publication acknowledgement; fresh focused R6 recheck; unchanged exact-final-integration-tree gates and independent merge review. Developer neither self-reviews nor merges.
+Next command: `git rev-parse HEAD && git rev-parse HEAD^{tree}`; root publish exact checkpoint and request R6 focused recheck of the Persian summary.

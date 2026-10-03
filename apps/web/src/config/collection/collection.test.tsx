@@ -136,7 +136,7 @@ describe('CollectionView — map collection (vrfs)', () => {
     withVrfs(api);
     api.on('PATCH /api/v1/config/vrfs', {
       status: 400,
-      body: { type: 'https://vrx.dev/problems/validation', title: 'Validation failed', status: 400, errors: [{ pointer: '/vrfs/red/id', message: 'table 11 is used by vrf blue' }] },
+      body: { type: 'https://ngfw.dev/problems/validation', title: 'Validation failed', status: 400, errors: [{ pointer: '/vrfs/red/id', message: 'table 11 is used by vrf blue' }] },
     });
     await signIn();
     render(app(<VrfsScreen />));

@@ -1,14 +1,14 @@
 # P03b — questions / decisions for the manager (worker kept going; nothing is parked)
 
-1. **Where the factories' leaf messages live (D-055): `packages/proto/vrx/model/<family>/v1`, proto packages
-   `vrx.model.{acl,nat,iface}.v1`, Go only.** They are the scheduler Value types (VPP terms: table ids, address ranges,
+1. **Where the factories' leaf messages live (D-055): `packages/proto/ngfw/model/<family>/v1`, proto packages
+   `ngfw.model.{acl,nat,iface}.v1`, Go only.** They are the scheduler Value types (VPP terms: table ids, address ranges,
    protocol numbers), not the document shape, so they are *not* added to `DesiredState` (the document-level
    `AclConfig`/`NatConfig` messages already exist there and are what the API sends). `dataplane.proto` does not import
-   them (test `TestModelStaysAgentInternal`), ts-proto does not generate them (`buf.gen.yaml` restricted to `vrx/v1`,
-   new `buf.gen.model.yaml`). Alternative considered: add them to `vrx.v1` — rejected, it would put agent-internal VPP
+   them (test `TestModelStaysAgentInternal`), ts-proto does not generate them (`buf.gen.yaml` restricted to `ngfw/v1`,
+   new `buf.gen.model.yaml`). Alternative considered: add them to `ngfw.v1` — rejected, it would put agent-internal VPP
    objects into the API↔agent contract and the TS package. Say so if you prefer another package name (renaming is
    free until a factory imports them).
-2. **Implicit presence in `vrx.model.*` (deliberate exception to D-039).** D-039 exists for the JSON running-vs-actual
+2. **Implicit presence in `ngfw.model.*` (deliberate exception to D-039).** D-039 exists for the JSON running-vs-actual
    diff; these values are diffed with `proto.Equal` and the typed specs always carry every field (zero = canonical
    "not set"). Mirroring the specs 1:1 keeps the factories' adaptation mechanical. The drift guard only walks
    `DesiredState`, so it does not flag them.
@@ -16,7 +16,7 @@
    (`Endpoint`, `Timeouts`, `InterfaceFeature`, `OutputFeature`, `Forwarding`, `IdentityMapping`); everything else is
    plugin-prefixed (`Nat44EdStaticMapping`, `Nat64StaticBib`, …). A descriptor's `KeyOf` still type-asserts its own
    Value, sharing a type across descriptors is fine for the scheduler.
-4. **DF-3 is not merged.** `vrx.model.nat.v1` mirrors `task/DF-3@08d0af4`. If DF-3's review changes a spec before merge,
+4. **DF-3 is not merged.** `ngfw.model.nat.v1` mirrors `task/DF-3@08d0af4`. If DF-3's review changes a spec before merge,
    the model must follow (additive only after that). The mirror check used here (scratch test: spec JSON → strict
    protojson → back, key- and value-equal; evidence in `P03b.md`) can be repeated in minutes; I suggest DF-3's adaptation
    commit ports it into its own package test once it imports `natv1`.

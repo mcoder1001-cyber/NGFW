@@ -8,7 +8,7 @@ import { RootConfig, ROOT_KEYS, type RootKey } from '@ngfw/schema';
  *
  *   strictObject (properties)         -> container
  *   record (additionalProperties=schema) -> list, key "name"  (the map key becomes the `name` key leaf)
- *   array of objects (x-vrx-ui.itemKey) -> list keyed by those leaves
+ *   array of objects (x-ngfw-ui.itemKey) -> list keyed by those leaves
  *   array of objects (no itemKey)     -> keyless list + a documented deviation comment (YANG needs a key for config)
  *   array of scalars                  -> leaf-list
  *   enum                              -> type enumeration
@@ -21,9 +21,9 @@ import { RootConfig, ROOT_KEYS, type RootKey } from '@ngfw/schema';
  * The output is deterministic and checked in (`generated/*.yang`); a golden test fails CI on drift.
  */
 
-export const ORG = 'VRX';
-export const CONTACT = 'https://vrx.dev';
-export const NS_BASE = 'urn:vrx';
+export const ORG = 'NGFW';
+export const CONTACT = 'https://ngfw.dev';
+export const NS_BASE = 'urn:ngfw';
 export const REVISION = '2026-01-01';
 
 type Json = Record<string, unknown>;
@@ -60,7 +60,7 @@ class Writer {
 }
 
 function description(node: Json): string | undefined {
-  const ui = isObject(node['x-vrx-ui']) ? (node['x-vrx-ui'] as Json) : {};
+  const ui = isObject(node['x-ngfw-ui']) ? (node['x-ngfw-ui'] as Json) : {};
   const parts = [node['description'], ui['title'], ui['help']].filter(
     (x): x is string => typeof x === 'string' && x.length > 0,
   );
@@ -109,6 +109,21 @@ function emitType(w: Writer, node: Json): void {
   if (Array.isArray(node['enum'])) {
     w.open('type enumeration');
     for (const v of node['enum'] as unknown[]) w.line(`enum ${qstr(String(v))};`);
+    w.close();
+    return;
+  }
+  // Zod numeric literals use JSON Schema number+const, even for integers.
+  // Preserve the literal before the general number branch can widen it.
+  const literal = node['const'];
+  if (typeof literal === 'number') {
+    if (!Number.isSafeInteger(literal)) {
+      throw new Error(`YANG numeric literal must be a safe integer: ${literal}`);
+    }
+    const base = literal >= 0
+      ? (literal > 0xffffffff ? 'uint64' : 'uint32')
+      : (literal < -0x80000000 ? 'int64' : 'int32');
+    w.open(`type ${base}`);
+    w.line(`range ${qstr(String(literal))};`);
     w.close();
     return;
   }
@@ -192,7 +207,7 @@ function recordValue(node: Json): Json | undefined {
 }
 
 function itemKey(node: Json): string[] {
-  const ui = isObject(node['x-vrx-ui']) ? (node['x-vrx-ui'] as Json) : {};
+  const ui = isObject(node['x-ngfw-ui']) ? (node['x-ngfw-ui'] as Json) : {};
   const k = ui['itemKey'];
   return Array.isArray(k) ? (k as unknown[]).filter((x): x is string => typeof x === 'string') : [];
 }
@@ -294,7 +309,7 @@ const anySecret = (json: string): boolean => json.includes('"writeOnly":true');
 /** Generate the YANG module text for one root key. */
 export function generateModule(key: RootKey): string {
   const schema = z.toJSONSchema(RootConfig.shape[key], { target: 'draft-2020-12', io: 'input' }) as Json;
-  const moduleName = `vrx-${key}`;
+  const moduleName = `ngfw-${key}`;
   const w = new Writer();
   w.open(`module ${moduleName}`);
   w.line('yang-version 1.1;');
@@ -311,11 +326,11 @@ export function generateModule(key: RootKey): string {
   w.line(`organization ${qstr(ORG)};`);
   w.line(`contact ${qstr(CONTACT)};`);
   w.line(
-    `description ${qstr(`Configuration of the '${key}' domain, generated from the VRX Zod schema (F-restconf-yang).`)};`,
+    `description ${qstr(`Configuration of the '${key}' domain, generated from the NGFW Zod schema (F-restconf-yang).`)};`,
   );
   w.line('');
   w.open(`revision ${REVISION}`);
-  w.line(`description ${qstr('Generated from the VRX schema.')};`);
+  w.line(`description ${qstr('Generated from the NGFW schema.')};`);
   w.close();
   w.line('');
   // top-level container mirrors the root key
@@ -324,17 +339,17 @@ export function generateModule(key: RootKey): string {
   return w.toString() + '\n';
 }
 
-/** All modules, keyed by module name (`vrx-<key>`). Deterministic in ROOT_KEYS order. */
+/** All modules, keyed by module name (`ngfw-<key>`). Deterministic in ROOT_KEYS order. */
 export function generateModules(): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const key of ROOT_KEYS) out[`vrx-${key}`] = generateModule(key);
+  for (const key of ROOT_KEYS) out[`ngfw-${key}`] = generateModule(key);
   return out;
 }
 
 /** The ietf-yang-library module-set list content (RFC 8525), as data for the RESTCONF endpoint. */
 export function moduleList(): { name: string; namespace: string; revision: string }[] {
   return ROOT_KEYS.map((key) => ({
-    name: `vrx-${key}`,
+    name: `ngfw-${key}`,
     namespace: `${NS_BASE}:${key}`,
     revision: REVISION,
   }));

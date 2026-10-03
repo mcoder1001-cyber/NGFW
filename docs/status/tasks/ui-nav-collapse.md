@@ -54,14 +54,14 @@ An earlier full run at load average ~100 (other sessions' workers) had 7 tests t
 (App.test nav tests, flows, review-fixes); the same files re-run alone passed (12/12, 11/11) and the full run above is 78/78.
 
 ### Browser E2E against a real stack (slot 11, torn down afterwards)
-vrx-agent from this tree (owner `w11`, socket `/run/vrx-test/w11/agent.sock`, host VPP), API from this tree on 127.0.0.1:4100
-(db `vrx_w11`, Valkey db 11 prefix `vrx:w11:`), `vite preview` of this tree's build on 127.0.0.1:6100. Headless
+ngfw-agent from this tree (owner `w11`, socket `/run/ngfw-test/w11/agent.sock`, host VPP), API from this tree on 127.0.0.1:4100
+(db `ngfw_w11`, Valkey db 11 prefix `ngfw:w11:`), `vite preview` of this tree's build on 127.0.0.1:6100. Headless
 Chrome-for-Testing 153.0.8010.12 (`chrome-headless-shell`, npmmirror, libs unpacked into scratch — nothing installed) and
-playwright-core 1.63 from the npx cache. Ran under `flock -s /run/lock/vrx-lab.lock` (only for the run). No af_packet /
+playwright-core 1.63 from the npx cache. Ran under `flock -s /run/lock/ngfw-lab.lock` (only for the run). No af_packet /
 host-interface created; VPP NRestarts 0 before and after. Final run after the verify round, on a fresh database: 43 checks
 (the 41 of the P07b flow + the two new collapsed-group lines).
 ```
-$ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots <scratch>     # fresh db vrx_w11; long "confirmed" lines cut at 230 chars […]
+$ node apps/web/test/e2e/flow.e2e.mjs --langs en,fa --shots <scratch>     # fresh db ngfw_w11; long "confirmed" lines cut at 230 chars […]
 ok   [en] protected route redirects to /login?next=%2Fsystem%2Fusers
 shot 01-login-en.png  (ltr/en)  /login?next=%2Fsystem%2Fusers
 ok   [en] signed in as admin, returned to /system/users
@@ -128,8 +128,8 @@ ok   [fa] readonly: all 5 rollback buttons disabled
 E2E PASSED (43 checks)
 EXIT:0
 ```
-Teardown: agent/API/web stopped; `pg-test.sh drop w11` → "nothing named vrx_w11 / vrx_w11 remains"; Valkey `vrx:w11:*` keys left: 0;
-`/run/vrx-test/w11` removed; ports 4100/6100/9211 closed.
+Teardown: agent/API/web stopped; `pg-test.sh drop w11` → "nothing named ngfw_w11 / ngfw_w11 remains"; Valkey `ngfw:w11:*` keys left: 0;
+`/run/ngfw-test/w11` removed; ports 4100/6100/9211 closed.
 
 ### Screenshots (`ui-nav-collapse-screens/`, 1366×860, light, same stack, signed in as admin)
 ```

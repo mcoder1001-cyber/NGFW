@@ -20,11 +20,11 @@ pending).
 
 **How the runs were made:**
 - one Go package at a time
-- under `flock -s /run/lock/vrx-lab.lock`
-- with `VRX_INTEGRATION=1` and `eval "$(tools/lab env N)"`
+- under `flock -s /run/lock/ngfw-lab.lock`
+- with `NGFW_INTEGRATION=1` and `eval "$(tools/lab env N)"`
 
 Logs are in the reviewer scratchpad `…/a859b866-…/scratchpad/reruns/`; the agent log of the last topology run is in
-`/run/vrx-test/w1/p08/`.
+`/run/ngfw-test/w1/p08/`.
 
 | run | tree | slot | result | NRestarts |
 |---|---|---|---|---|
@@ -42,7 +42,7 @@ Logs are in the reviewer scratchpad `…/a859b866-…/scratchpad/reruns/`; the a
 - **`internal/agent` TestAgentOnHost + TestAgentProcessOnHost: P08 regression (N1).** Deterministic: it failed in the CI run at 13:41
   and in my re-run at 14:05, and passes on main.
 - **`renderers/frr` (4 tests), `frrtest` TestHarnessSlotLockSerialises, `renderers/chrony`: environmental (D-106).** tools/app's
-  umask 077 created `/run/vrx-test` as 0700 at 13:50, so frr/_chrony got EACCES. **But see N2:** P08's own test, and main's
+  umask 077 created `/run/ngfw-test` as 0700 at 13:50, so frr/_chrony got EACCES. **But see N2:** P08's own test, and main's
   `pg-test.sh`, still reset the slot dir to 0700.
 - **`df2/idempotency` TestApplyTwiceEmptyPlan: pre-existing timing flake, not P08.**
   - It also fails on main (1 of 6 runs).
@@ -62,7 +62,7 @@ Logs are in the reviewer scratchpad `…/a859b866-…/scratchpad/reruns/`; the a
    `create failed … context canceled` → ROLLED_BACK → 504/502 to the test.
 
 **Evidence the VPP stall is not P08's:**
-- The independent tools/app agent (owner `vrx`, `/var/log/vrx-app/agent.log`) logs the **same stalls at the same moments**. That
+- The independent tools/app agent (owner `ngfw`, `/var/log/ngfw-app/agent.log`) logs the **same stalls at the same moments**. That
   includes 14:14:01–14:14:11, before P08's agent had started, while only `tools/lab rig up` and the test's binapi hand-over were
   creating and deleting af_packet interfaces.
 - At present **every af_packet create or delete on this VPP stalls its API for seconds**, for every client. P08's green runs at
@@ -86,10 +86,10 @@ stall is understood (I6).
   - The canonical `want` of both tests lacks those fields, so `waitConverged` gives up after 30 s: `agent_integration_test.go:235`
     and `:398` "not converged within 30 s", got loop101 `enabled:false`.
   - P08 updated the fake-VPP twins in `service_test.go` (4 canonical docs gained `enabled/promiscuous`) but not this
-    VRX_INTEGRATION-only file. The branch's CI evidence is quick mode, where these tests skip.
+    NGFW_INTEGRATION-only file. The branch's CI evidence is quick mode, where these tests skip.
 - **Consequence after merge:** main's `tools/ci.sh full` is red, and the gate never reaches `test/topology/interfaces`.
 - **Fix:** add `"enabled": false, "promiscuous": false` to both loopbacks in `hostDoc`'s `canon` (lines 71-72). Then run
-  `VRX_INTEGRATION=1 go test ./internal/agent/` on slot 1 and `tools/ci.sh full` (after merging main), and paste both in P08.md.
+  `NGFW_INTEGRATION=1 go test ./internal/agent/` on slot 1 and `tools/ci.sh full` (after merging main), and paste both in P08.md.
 
 ### F1 — MEDIUM. `/state/interfaces` changed the meaning of `items[].config` (manager decision: keep `config` = Retrieve view, add a new field for running)
 - **Where:** `apps/api/src/state/state.controller.ts:264-265`. Reader: `apps/cli/internal/cli/cmd_op.go:184-221`.
@@ -115,14 +115,14 @@ stall is understood (I6).
 - **Where:**
   - `test/topology/interfaces/run.sh:13`: `install -d -m 0700 "$RUN"`. `install -d -m` also re-modes an *existing* directory
     (checked in scratch: 0755 → 0700).
-  - `test/topology/interfaces/interfaces_test.go:134`: `os.MkdirAll(s.runDir, 0o700)`. If `/run/vrx-test` is missing, it creates
+  - `test/topology/interfaces/interfaces_test.go:134`: `os.MkdirAll(s.runDir, 0o700)`. If `/run/ngfw-test` is missing, it creates
     that directory as 0700 too.
-- **Failure scenario:** after a P08 run, `/run/vrx-test/w<N>` is 0700 root. frr/_chrony, which drop privileges, cannot traverse it.
+- **Failure scenario:** after a P08 run, `/run/ngfw-test/w<N>` is 0700 root. frr/_chrony, which drop privileges, cannot traverse it.
   Slot N's FRR and chrony integration tests then fail with EACCES, which is the 13:54 pattern. On CI slot 12 it breaks the next
   `ci.sh full`.
 - **Main has the same problem:** my topology runs (direct `go test`, no run.sh) still flipped w1 to 0700. The cause is main's
   `deploy/dev/pg-test.sh:38` (`install -d -m 0700 "$dir"`), which the test calls. I restored 0755 after each run; it is 0755 now.
-- **Fix (P08):** create `/run/vrx-test/<prefix>` as 0o755 (as `frrtest/harness.go:120` does) and keep 0700 only for `p08/`.
+- **Fix (P08):** create `/run/ngfw-test/<prefix>` as 0o755 (as `frrtest/harness.go:120` does) and keep 0700 only for `p08/`.
 - **Fix (manager, main):** the same at `pg-test.sh:38`. `pg.env` itself is already 0600 via umask 077. This completes D-106.
 
 ### F5 — LOW-MEDIUM (settled). `defaultTolerant.Update` can leave VPP changed while it reports ROLLED_BACK
@@ -233,12 +233,12 @@ stall is understood (I6).
     - on a create retry, look up the interface by `host_if_name`
     - consider a less aggressive health-check threshold on a shared, loaded host
 - **I6 — this VPP instance currently stalls for seconds around every af_packet create or delete, for all API clients.** tools/app's
-  agent sees it too (`/var/log/vrx-app/agent.log` 14:11:07–22, 14:14:01–11, 14:14:25–28). Nothing is known to have changed:
+  agent sees it too (`/var/log/ngfw-app/agent.log` 14:11:07–22, 14:14:01–11, 14:14:25–28). Nothing is known to have changed:
   `startup.conf` has not changed since 00:21, and VPP has been up since 13:03. This blocks every af_packet topology test, not only
   P08's. It needs a manager look (possibly with I1) before the P08 re-review re-runs the topology test.
-- **I3 — the integrated agent becomes the globals owner.** tools/app starts it with `VRX_OWNER=vrx` and no `VRX_GLOBALS_OWNER`
+- **I3 — the integrated agent becomes the globals owner.** tools/app starts it with `NGFW_OWNER=ngfw` and no `NGFW_GLOBALS_OWNER`
   (`tools/app:108`). With P08's `ConfigFromEnv` (`agent.go:65-74`), that agent becomes globals owner on the shared host. Harmless
-  now, since no global descriptor is registered. Set `VRX_GLOBALS_OWNER=0` before P11 registers ipsec/ikev2 `WithGlobalsOwner`.
+  now, since no global descriptor is registered. Set `NGFW_GLOBALS_OWNER=0` before P11 registers ipsec/ikev2 `WithGlobalsOwner`.
 - **I4 — edits outside the owned file list.** P08 edited `apps/agent/internal/descriptors/core/coretest/{fakevpp.go,ifext.go}`
   (additive fake-VPP support), which is outside its exclusive file list (`P08.envelope.md:18`). Harmless; list it in P08.md.
 - **I5 — the Errors column includes drops.** `InterfacesPage.tsx:58` sums `errors + drops` under "Errors" (`col.errors`). Rename it
@@ -261,9 +261,9 @@ stall is understood (I6).
 
 **Cleanup by the reviewer:**
 - `ci-main` detached at main 52682c3, as instructed
-- `/run/vrx-test/w1` restored to 0755
+- `/run/ngfw-test/w1` restored to 0755
 - rig w1 down; no w1 objects in VPP; no w1 veths or netns
-- `vrx_w1` dropped by the test cleanups
+- `ngfw_w1` dropped by the test cleanups
 - the reviewer's CI build outputs (`apps/agent/bin`, `apps/{api,web}/dist`, gitignored) removed
 - no process left running
 

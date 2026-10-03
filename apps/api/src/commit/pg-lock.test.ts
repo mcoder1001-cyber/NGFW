@@ -22,7 +22,7 @@ import { ValidationService } from './validation.service.js';
 
 /**
  * TD-10a fix round 1, review H1: the advisory lock is held on a pool client that stays checked out for a whole section
- * (up to the agent Apply). A PostgreSQL restart or a dropped connection in that window must not crash vrx-api: the
+ * (up to the agent Apply). A PostgreSQL restart or a dropped connection in that window must not crash ngfw-api: the
  * section finishes, the client is destroyed, and the loss is reported. No host database: a minimal PostgreSQL wire
  * server that answers every query with one row `ok = t` and drops the connection `dropAfterMs` after its first query.
  */
@@ -151,12 +151,12 @@ describe('H1: losing the lock connection mid-section', { timeout: 20_000 }, () =
   }
 
   it('CommitService: a commit whose lock connection drops completes; running is marked UNKNOWN and reconciled', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'vrx-td10a-h1-'));
+    const dir = mkdtempSync(join(tmpdir(), 'ngfw-td10a-h1-'));
     const socket = join(dir, 'agent.sock');
     const env = testEnv({
-      VRX_AGENT_SOCKET: socket,
-      VRX_AGENT_OWNER: 'w1',
-      VRX_AGENT_TIMEOUT_MS: '5000',
+      NGFW_AGENT_SOCKET: socket,
+      NGFW_AGENT_OWNER: 'w1',
+      NGFW_AGENT_TIMEOUT_MS: '5000',
     });
     const fake = new FakeAgent({ owner: 'w1' });
     await fake.start(socket);

@@ -7,12 +7,12 @@ merged deps you can rely on: P08, DF-3, F-nat44-ed-sessions
   - P08: desired/ (Sink, interface/<name> aliases), subsystems.Register/Domains, Wiring.KeyedClaims("nat"), Env.GlobalsOwner, projection.go
   - DF-3: descriptors/{nat44ei,nat64,nat66} (nat44ei Users/UserSessions/DeleteSession, nat64 Sessions, ErrOtherVariant) + natcommon (AppliedRecord, WithGlobalsOwner, WithClaims) + natcommon/nattest (EnsurePlugin, SlotLock, Addr6/Prefix6/Table)
   - F-nat44-ed-sessions: desired/nat.go (the `nat` builder), NatSessions RPC + NatSessionKillAction (oneof 5), natTabs registry, NAT API module
-  - also on main: TD-3 (V19 sanitizer + cmd/vrx-vpp-preflight), TD-2
+  - also on main: TD-3 (V19 sanitizer + cmd/ngfw-vpp-preflight), TD-2
 read first: prompts/features/F-nat44-ei-64-66-nptv6.md · docs/status/wave-A-hotspots.md (§0 rules, A1 A2 A4 A7 C4–C7 P1 P4 P5 W3) · docs/agent/descriptors/nat-common.md (first), nat44-ei.md, nat64.md, nat66.md · docs/status/tasks/F-nat44-ed-sessions.md + F-nat44-ed-sessions-contract.md · docs/status/tasks/DF-3.md · docs/decisions/LOG.md D-060, D-062, D-063, D-064, D-071, D-076, D-080, D-082, D-095, D-101
-slot: 4 → VRX_SLOT=4 VRX_TEST_PREFIX=w4 VRX_HTTP_PORT=3000+100·4 VRX_WEB_PORT=5000+100·4 VRX_METRICS_PORT=9100+10·4+1 VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock VRX_PG_DATABASE=vrx_w4 VRX_VALKEY_DB=4 VRX_VPP_TABLE_BASE=4000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 4 → NGFW_SLOT=4 NGFW_TEST_PREFIX=w4 NGFW_HTTP_PORT=3000+100·4 NGFW_WEB_PORT=5000+100·4 NGFW_METRICS_PORT=9100+10·4+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w4/agent.sock NGFW_PG_DATABASE=ngfw_w4 NGFW_VALKEY_DB=4 NGFW_VPP_TABLE_BASE=4000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 4)"`
   - rig prefix w4 → 10.4.{1,2}.0/24 (IPv4 only); IPv6 only inside fd00:<SLOT hex>::/32 (natcommon.Scope)
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
@@ -42,7 +42,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A4 variant dispatch: in F-nat44-ed-sessions' NatSessions handler (apps/agent/internal/agent/rpc_nat44_ed*.go) and in the nat_session_kill case of server.go Action
   - the natTabs registry file in apps/web/src/domains/firewall/nat44-ed-sessions/: your tabs under your ED-seeded anchor (F-det44-map-dslite-cnat has its own)
   - A7 docs/vpp-code-track.md: `### V-new (F-nat44-ei-64-66-nptv6)` for npt66_binding_dump; the manager numbers it
-  - C5 packages/proto/vrx/v1/dataplane.proto: the variant enum and fields are appended to F-nat44-ed-sessions' NatSessions*/NatSessionKillAction messages (after their current max, nothing renamed); new messages go in a `// ----- F-nat44-ei-64-66-nptv6 -----` section. No other numbers are allocated to you: ask the manager first
+  - C5 packages/proto/ngfw/v1/dataplane.proto: the variant enum and fields are appended to F-nat44-ed-sessions' NatSessions*/NatSessionKillAction messages (after their current max, nothing renamed); new messages go in a `// ----- F-nat44-ei-64-66-nptv6 -----` section. No other numbers are allocated to you: ask the manager first
   - C4 packages/schema/examples/ + packages/proto/test/fixtures/: new files only (e.g. nat44-ei-*.json, nat64-*.json); existing nat-*.json are read-only
   - C6 docs/contracts/proto.md: `### F-nat44-ei-64-66-nptv6: NAT session variants`
   - C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
@@ -58,19 +58,19 @@ files you must not touch:
   - packages/schema/src/{domains,semantic}/nat.ts (P02b's)
 host rules:
   - VPP SAFETY: npt66 has never been exercised on this VPP (enabled 2026-09-24, D-060). Run each new message on its own first, with `systemctl show vpp -p NRestarts` before and after. On a crash, disable the test behind an opt-in env var at once and record the message (D-064, A7)
-  - V19 SAFETY (D-095): before ANY packet through the rig, `go -C apps/agent run ./cmd/vrx-vpp-preflight` must exit 0 (TD-3). Stop if NRestarts rises
+  - V19 SAFETY (D-095): before ANY packet through the rig, `go -C apps/agent run ./cmd/ngfw-vpp-preflight` must exit 0 (TD-3). Stop if NRestarts rises
   - delete order: npt66 bindings, NAT interface features and pools before the interfaces they sit on (D-095c)
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
   - IPv6 on the rig: add it yourself inside fd00:<SLOT hex>::/32 on ns-w4-lan/wan and your rig interfaces, and remove it in t.Cleanup
   - the NAT64 prefix is a slot /96 in a slot VRF (DF-3 nat64_integration_test.go), never 64:ff9b::/96 in the shared default table
-  - nattest.SlotLock(t, "nat44") in every NAT44 host test; with VRX_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
+  - nattest.SlotLock(t, "nat44") in every NAT44 host test; with NGFW_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
 coordination: starts after F-nat44-ed-sessions has merged (board dep) — build on its merged builder, RPC, kill action and tabs · F-det44-map-dslite-cnat (wave B) appends to the same builder/tabs after you · F-ha-state-sync (wave C) owns nat44_ei_ha
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL, EI/NAT64/NAT66/NPTv6 tabs) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-nat44-ei-64-66-nptv6.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-nat44-ei-64-66-nptv6-wip.md current
-CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-nat44-ei-64-66-nptv6.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w4 dropped · no w4 NAT/npt66 objects or IPv6 rig addresses left (dump pasted) · plugins left as the fixtures found them · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · ngfw_w4 dropped · no w4 NAT/npt66 objects or IPv6 rig addresses left (dump pasted) · plugins left as the fixtures found them · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-nat44-ei-64-66-nptv6-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
 

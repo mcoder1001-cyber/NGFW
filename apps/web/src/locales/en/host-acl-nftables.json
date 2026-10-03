@@ -1,7 +1,7 @@
 {
   "nav": "Host ACL",
   "title": "Host ACL",
-  "intro": "Access lists that protect the appliance itself (SSH, the web UI and API, SNMP, routing sessions, DNS and NTP served by the box). The agent renders them into the nftables table inet vrx: one chain per attachment, established connections first, then the anti-lockout rule, then your rules, each with a counter.",
+  "intro": "Access lists that protect the appliance itself (SSH, the web UI and API, SNMP, routing sessions, DNS and NTP served by the box). The agent renders them into the nftables table inet ngfw: one chain per attachment, established connections first, then the anti-lockout rule, then your rules, each with a counter.",
   "tabsLabel": "Host ACL sections",
   "tabs": {
     "lists": "Lists",
@@ -177,7 +177,7 @@
     },
     "log": {
       "title": "Log",
-      "help": "Log matches with the prefix vrx:<list>:<sequence>"
+      "help": "Log matches with the prefix ngfw:<list>:<sequence>"
     },
     "tags": {
       "title": "Tags",

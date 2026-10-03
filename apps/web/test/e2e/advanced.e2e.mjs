@@ -2,16 +2,16 @@
 /**
  * UI-domain-editor screenshot pass: /config/interfaces and /config/system, en + fa/RTL, light + dark, 0 page errors.
  * Same playwright-core/Chrome-for-Testing approach as apps/web/test/e2e/flow.e2e.mjs (no WEB-3 harness on main yet),
- * but against ONLY the web + API stack — no vrx-agent, no VPP, no af_packet host-interfaces (manager instruction,
+ * but against ONLY the web + API stack — no ngfw-agent, no VPP, no af_packet host-interfaces (manager instruction,
  * 2026-09-25: the slot agent must create no interfaces until TD-25 lands). The advanced editor's reads/writes
  * (GET/PATCH /api/v1/config/candidate/{path}) never call the agent, so this is a faithful, honest exercise of the
  * screen — nothing about it is mocked.
  *
  * Environment:
- *   VRX_E2E_BASE                  web origin (vite dev on the slot port, proxying /api to the slot API)
- *   VRX_E2E_ADMIN_USER            default "admin"
- *   VRX_E2E_ADMIN_PASSWORD_FILE   file holding the bootstrap admin password
- *   VRX_PLAYWRIGHT_CORE, VRX_CHROME
+ *   NGFW_E2E_BASE                  web origin (vite dev on the slot port, proxying /api to the slot API)
+ *   NGFW_E2E_ADMIN_USER            default "admin"
+ *   NGFW_E2E_ADMIN_PASSWORD_FILE   file holding the bootstrap admin password
+ *   NGFW_PLAYWRIGHT_CORE, NGFW_CHROME
  * Options: --shots <dir>  --langs en,fa  --themes light,dark
  */
 import { readFileSync, mkdirSync, readdirSync } from 'node:fs';
@@ -29,11 +29,11 @@ const opt = (name, dflt) => {
 const LANGS = opt('langs', 'en,fa').split(',');
 const THEMES = opt('themes', 'light,dark').split(',');
 const SHOTS = opt('shots', '');
-const BASE = process.env.VRX_E2E_BASE ?? 'http://127.0.0.1:6100';
-const ADMIN = process.env.VRX_E2E_ADMIN_USER ?? 'admin';
-const ADMIN_PW = readFileSync(process.env.VRX_E2E_ADMIN_PASSWORD_FILE ?? '/run/vrx-test/w11/admin.pw', 'utf8').trim();
+const BASE = process.env.NGFW_E2E_BASE ?? 'http://127.0.0.1:6100';
+const ADMIN = process.env.NGFW_E2E_ADMIN_USER ?? 'admin';
+const ADMIN_PW = readFileSync(process.env.NGFW_E2E_ADMIN_PASSWORD_FILE ?? '/run/ngfw-test/w11/admin.pw', 'utf8').trim();
 const require = createRequire(import.meta.url);
-const { chromium } = require(process.env.VRX_PLAYWRIGHT_CORE ?? 'playwright-core');
+const { chromium } = require(process.env.NGFW_PLAYWRIGHT_CORE ?? 'playwright-core');
 
 function loadLocales(lang) {
   const dir = join(webRoot, 'src/locales', lang);
@@ -68,7 +68,7 @@ async function shot(page, name) {
 
 async function newPage(browser, lang, mode) {
   const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 }, deviceScaleFactor: 1 });
-  await ctx.addInitScript((s) => localStorage.setItem('vrx.ui.settings', JSON.stringify(s)), { mode, lang, persianDigits: false, dense: true });
+  await ctx.addInitScript((s) => localStorage.setItem('ngfw.ui.settings', JSON.stringify(s)), { mode, lang, persianDigits: false, dense: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e)));
@@ -106,7 +106,7 @@ async function pass(browser, lang, mode, index) {
   await ctx.close();
 }
 
-const browser = await chromium.launch({ executablePath: process.env.VRX_CHROME, headless: true });
+const browser = await chromium.launch({ executablePath: process.env.NGFW_CHROME, headless: true });
 try {
   let i = 0;
   for (const lang of LANGS) {

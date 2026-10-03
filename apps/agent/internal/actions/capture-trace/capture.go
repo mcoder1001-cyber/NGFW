@@ -2,8 +2,16 @@
 // built-in dispatch capture (DF-8 descriptors pcap.capture, pcap.filter-function and
 // trace.bpf-filter), driven by the Action RPC — not a config domain. The agent keeps the files:
 // VPP writes /tmp/<owner>-….pcap world-readable (0664); after pcap_trace_off the file is moved to
-// the capture directory (default /var/lib/vrx/captures), chmod 0600, hashed and counted, and a
+// the capture directory (default /var/lib/ngfw/captures), chmod 0600, hashed and counted, and a
 // retention policy (count and bytes caps, oldest first) is applied.
+//
+// File safety (S-capture-file-safety, RV-C R2 #1): VPP opens /tmp/<name> with O_CREAT|O_TRUNC and
+// no O_EXCL/O_NOFOLLOW, so a local user who can predict the name may plant a symlink (root would
+// then chmod and serve the target) or a pre-created readable file. The id therefore carries 96
+// bits from crypto/rand, and the file is taken over only through openVPPFile: Lstat (no symlink),
+// open O_RDONLY|O_NOFOLLOW, fstat regular / nlink 1 / owned by root or this process / same
+// dev+inode as the Lstat, fchmod 0600 on that fd, then hash + count + copy from the same fd. Anything
+// else is refused as ErrForeignFile: the record becomes state "error" and the file is left alone.
 //
 // One capture per VPP: a second one is ErrBusy (this agent's own, or another owner's —
 // pcap.ErrCaptureBusy). Another owner's capture is never stopped (pcap.capture's Delete only
@@ -15,7 +23,9 @@
 package capturetrace
 
 import (
+	"bufio"
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -23,19 +33,22 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/pcap"
 	"ngfw/agent/internal/descriptors/trace"
+	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -46,7 +59,14 @@ var (
 	ErrGlobals  = errors.New("a BPF filter needs the globals-owner agent (D-071)")          // FAILED_PRECONDITION
 	ErrNotFound = errors.New("no such capture")                                             // NOT_FOUND
 	ErrRunning  = errors.New("the capture is running: cancel its action stream to stop it") // FAILED_PRECONDITION
+	// ErrForeignFile: the file at VPP's path is not a plain file VPP wrote (symlink, hard link, another
+	// uid, replaced while opening). It is never chmod'ed, moved or served; the record says state "error".
+	ErrForeignFile = errors.New("foreign file: refusing the capture file VPP was to write")
 )
+
+// idRandomBytes is the crypto/rand part of a capture id (96 bits; the name VPP writes under /tmp
+// must not be guessable, RV-C R2 #1).
+const idRandomBytes = 12
 
 // Reasons shown for trace / PG (CaptureListResponse).
 const (
@@ -98,7 +118,7 @@ func nameOK(v string, extra string) bool {
 
 // Validate checks a CaptureAction and fills the defaults. Error text starts with the field name
 // ("bpf: …"), which the API turns into a problem pointer.
-func Validate(a *vrxv1.CaptureAction) (Plan, error) {
+func Validate(a *ngfwv1.CaptureAction) (Plan, error) {
 	p := Plan{Interface: a.GetInterface(), BPF: strings.TrimSpace(a.GetBpf()), ErrorFilter: a.GetErrorFilter(),
 		MaxPackets: a.GetMaxPackets(), Seconds: a.GetSeconds(), Snaplen: a.GetSnaplen(), Drop: a.GetDrop()}
 	switch {
@@ -108,13 +128,13 @@ func Validate(a *vrxv1.CaptureAction) (Plan, error) {
 		return p, invalid("interface", "%q is not an interface name", p.Interface)
 	}
 	switch a.GetDirection() {
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_RX:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_RX:
 		p.Rx = true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_TX:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_TX:
 		p.Tx = true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_BOTH:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_BOTH:
 		p.Rx, p.Tx = true, true
-	case vrxv1.CaptureDirection_CAPTURE_DIRECTION_UNSPECIFIED:
+	case ngfwv1.CaptureDirection_CAPTURE_DIRECTION_UNSPECIFIED:
 		p.Rx, p.Tx = !p.Drop, !p.Drop // drop alone = only drops
 	default:
 		return p, invalid("direction", "unknown value %d", a.GetDirection())
@@ -170,10 +190,11 @@ func (p Plan) Direction() string {
 
 // Config configures a Manager.
 type Config struct {
+	Logger       *slog.Logger
 	Client       vpp.Client
 	Owner        string
 	GlobalsOwner bool
-	// Dir keeps the files and their records (0700). Default /var/lib/vrx/captures.
+	// Dir keeps the files and their records (0700). Default /var/lib/ngfw/captures.
 	Dir string
 	// VPPDir is where VPP writes capture files (pcap.FileDir; tests: a temp dir).
 	VPPDir string
@@ -184,6 +205,10 @@ type Config struct {
 	Now      func() time.Time
 	// Tick is the progress-line interval (default 1 s).
 	Tick time.Duration
+	// OwnedFilter returns the config-owned trace.bpf-filter expression and pcap.filter-function name
+	// ("" = the config owns none). After a capture with a BPF filter the manager restores these
+	// instead of blindly deleting the globals ([R4] RV-C R2 #8). nil = nothing config-owned.
+	OwnedFilter func(ctx context.Context) (bpf, filterFunction string)
 }
 
 // Record is the stored metadata of one capture (Dir/<id>.json).
@@ -211,14 +236,13 @@ type Manager struct {
 
 	mu        sync.Mutex
 	running   *Record
-	seq       int
 	recovered bool
 }
 
 // New returns a Manager; it creates Dir (0700).
 func New(c Config) (*Manager, error) {
 	if c.Dir == "" {
-		c.Dir = "/var/lib/vrx/captures"
+		c.Dir = "/var/lib/ngfw/captures"
 	}
 	if c.VPPDir == "" {
 		c.VPPDir = pcap.FileDir
@@ -294,7 +318,7 @@ func (m *Manager) captureSpec(p Plan, file string) pcap.Capture {
 }
 
 func (m *Manager) setFilter(ctx context.Context, expr string) error {
-	g := dfkit.GlobalsOwner(true)
+	g := dfkit.GlobalsOwner(m.c.GlobalsOwner)
 	if _, err := trace.NewBPFFilter(m.c.Client, g).Create(ctx, trace.BPFFilter{Expression: expr}.Proto()); err != nil {
 		return fmt.Errorf("%w: bpf: %v", ErrInvalid, err)
 	}
@@ -303,15 +327,53 @@ func (m *Manager) setFilter(ctx context.Context, expr string) error {
 	return err
 }
 
+// clearFilter puts the two VPP globals back to what the config owns (Config.OwnedFilter): the
+// config-owned values are re-applied, an unowned one is deleted (bpf program removed, filter
+// function back to the classifier default). The filter function goes first so no packet is
+// classified through a program that is being replaced.
 func (m *Manager) clearFilter(ctx context.Context) error {
-	g := dfkit.GlobalsOwner(true)
-	err := pcap.NewFilterFunction(m.c.Client, pcap.WithGlobals(g)).Delete(ctx, nil, nil)
-	return errors.Join(err, trace.NewBPFFilter(m.c.Client, g).Delete(ctx, nil, nil))
+	g := dfkit.GlobalsOwner(m.c.GlobalsOwner)
+	var bpf, fn string
+	if m.c.OwnedFilter != nil {
+		bpf, fn = m.c.OwnedFilter(ctx)
+	}
+	ff := pcap.NewFilterFunction(m.c.Client, pcap.WithGlobals(g))
+	var err error
+	if fn != "" {
+		_, err = ff.Create(ctx, pcap.FilterFunction{Name: fn}.Proto())
+	} else {
+		err = ff.Delete(ctx, nil, nil)
+	}
+	bf := trace.NewBPFFilter(m.c.Client, g)
+	if bpf != "" {
+		_, berr := bf.Create(ctx, trace.BPFFilter{Expression: bpf}.Proto())
+		return errors.Join(err, berr)
+	}
+	return errors.Join(err, bf.Delete(ctx, nil, nil))
+}
+
+// newID builds "<owner>-<UTC time>-<24 hex>": readable, sortable and unguessable (96 random bits).
+func newID(owner string, now time.Time) (string, error) {
+	var b [idRandomBytes]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return "", fmt.Errorf("capture id: %w", err)
+	}
+	return fmt.Sprintf("%s-%s-%s", owner, now.Format("20060102T150405"), hex.EncodeToString(b[:])), nil
 }
 
 // Run starts one capture, streams progress lines, stops it on timeout or ctx cancellation, keeps
 // the file and ends with a done. The first line is "capture <id> started".
-func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput) error) error {
+func (m *Manager) Run(ctx context.Context, p Plan, send func(*ngfwv1.ActionOutput) error) error {
+	snaplen := p.Snaplen
+	if snaplen == 0 {
+		snaplen = 9000
+	}
+	if m.c.MaxBytes < 24 {
+		return invalid("maxPackets", "capture plan exceeds retained byte limit")
+	}
+	if uint64(p.MaxPackets) > (uint64(m.c.MaxBytes)-24)/(uint64(snaplen)+16) {
+		return invalid("maxPackets", "capture plan exceeds retained byte limit")
+	}
 	if err := m.Recover(ctx); err != nil {
 		return err
 	}
@@ -320,19 +382,26 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 	}
 	m.mu.Lock()
 	if m.running != nil {
+		id := m.running.ID // read under mu: the running Run clears m.running concurrently
 		m.mu.Unlock()
-		return fmt.Errorf("%w (capture %s)", ErrBusy, m.running.ID)
+		return fmt.Errorf("%w (capture %s)", ErrBusy, id)
 	}
 	now := m.c.Now().UTC()
-	m.seq++
-	r := &Record{ID: fmt.Sprintf("%s-%s-%d", m.c.Owner, now.Format("20060102T150405"), m.seq), State: "running",
+	id, err := newID(m.c.Owner, now)
+	if err != nil {
+		m.mu.Unlock()
+		return err
+	}
+	r := &Record{ID: id, State: "running",
 		Interface: p.Interface, Direction: p.Direction(), BPF: p.BPF, StartedAt: now,
 		MaxPackets: p.MaxPackets, Seconds: p.Seconds, Snaplen: p.Snaplen}
 	m.running = r
 	m.mu.Unlock()
 	release := func() {
 		m.mu.Lock()
-		m.running = nil
+		if m.running == r {
+			m.running = nil
+		}
 		m.mu.Unlock()
 	}
 	if len(r.ID)+len(".pcap") > 63 {
@@ -368,7 +437,7 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 	}
 
 	reason := "timeout"
-	if err := send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: "capture " + r.ID + " started"}}); err != nil {
+	if err := send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: "capture " + r.ID + " started"}}); err != nil {
 		reason = "cancelled"
 	}
 	timer := time.NewTimer(time.Duration(p.Seconds) * time.Second)
@@ -379,7 +448,7 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 			reason = "cancelled"
 		case <-tick.C:
 			line := fmt.Sprintf("capturing %s: %ds / %ds", r.ID, int(m.c.Now().Sub(r.StartedAt).Seconds()), p.Seconds)
-			if send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Line{Line: line}}) != nil {
+			if send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Line{Line: line}}) != nil {
 				reason = "cancelled"
 			}
 			continue
@@ -392,21 +461,29 @@ func (m *Manager) Run(ctx context.Context, p Plan, send func(*vrxv1.ActionOutput
 
 	stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 	defer cancel()
-	stopErr := m.capture.Delete(stopCtx, nil, nil)
-	if p.BPF != "" {
-		stopErr = errors.Join(stopErr, m.clearFilter(stopCtx))
+	if stopErr := m.stopCapture(stopCtx, r); stopErr != nil {
+		// Preserve both the running record and slot until a later recovery confirms stop.
+		m.mu.Lock()
+		m.recovered = false
+		m.mu.Unlock()
+		return stopErr
 	}
 	finErr := m.finish(r, reason)
+	if finErr != nil {
+		m.mu.Lock()
+		m.recovered = false
+		m.mu.Unlock()
+	}
 	release()
 	m.retain()
-	if err := errors.Join(stopErr, finErr); err != nil {
+	if err := finErr; err != nil {
 		return err
 	}
 	code := int32(0)
 	if reason == "cancelled" {
 		code = 1
 	}
-	_ = send(&vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{
+	_ = send(&ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{
 		Summary:  fmt.Sprintf("capture %s: %d packets, %d bytes (%s)", r.ID, r.Packets, r.Size, reason),
 		ExitCode: code,
 		Stats: map[string]string{"id": r.ID, "packets": fmt.Sprint(r.Packets), "bytes": fmt.Sprint(r.Size),
@@ -425,69 +502,197 @@ func (m *Manager) finish(r *Record, reason string) error {
 	}
 	src := filepath.Join(m.c.VPPDir, r.ID+".pcap")
 	dst := m.path(r.ID, ".pcap")
-	if err := moveFile(src, dst); err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			return errors.Join(err, m.save(r))
-		}
-		if r.State == "done" {
-			r.State = "empty"
-		}
-		return m.save(r)
-	}
-	size, pkts, sum, err := inspect(dst)
+	f, err := openVPPFile(src)
 	if err != nil {
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			// A crash may occur after moving the file but before committing metadata.
+			if kept, keptErr := openVPPFile(dst); keptErr == nil {
+				defer func() { _ = kept.Close() }()
+				size, packets, sum, inspectErr := inspect(kept)
+				if inspectErr != nil {
+					return inspectErr
+				}
+				r.Size, r.Packets, r.Sha256 = size, packets, sum
+				return m.save(r)
+			} else if errors.Is(keptErr, ErrForeignFile) {
+				// Recovery must commit a terminal record before treating refusal
+				// as handled, just as for a foreign VPP source file below.
+				r.State, r.Reason = "error", keptErr.Error()
+				if m.c.Logger != nil {
+					m.c.Logger.Warn("capture file refused", "path", dst, "error", keptErr)
+				}
+				if saveErr := m.save(r); saveErr != nil {
+					return fmt.Errorf("save refused capture record: %w", saveErr)
+				}
+				return keptErr
+			} else if !errors.Is(keptErr, os.ErrNotExist) {
+				return keptErr
+			}
+			if r.State == "done" {
+				r.State = "empty"
+			}
+			return m.save(r)
+		case errors.Is(err, ErrForeignFile):
+			// not ours: never chmod, move or serve it; leave it where it is (RV-C R2 #1)
+			r.State, r.Reason = "error", err.Error()
+			if m.c.Logger != nil {
+				m.c.Logger.Warn("capture file refused", "path", src, "error", err)
+			}
+			if saveErr := m.save(r); saveErr != nil {
+				return fmt.Errorf("save refused capture record: %w", saveErr)
+			}
+			return err
+		}
+		r.State, r.Reason = "error", "capture file: "+err.Error()
+		return errors.Join(err, m.save(r))
+	}
+	defer func() { _ = f.Close() }()
+	if err := moveFile(f, src, dst); err != nil {
+		r.State, r.Reason = "error", "capture file: "+err.Error()
+		return errors.Join(err, m.save(r))
+	}
+	size, pkts, sum, err := inspect(f)
+	if err != nil {
+		r.State, r.Reason = "error", "capture file: "+err.Error()
 		return errors.Join(err, m.save(r))
 	}
 	r.Size, r.Packets, r.Sha256 = size, pkts, sum
 	return m.save(r)
 }
 
-// moveFile renames src to dst (copy + remove across file systems) and leaves dst at 0600.
-func moveFile(src, dst string) error {
-	if _, err := os.Lstat(src); err != nil {
+func foreign(path, why string) error {
+	return fmt.Errorf("%w: %s %s", ErrForeignFile, filepath.Base(path), why)
+}
+
+// openVPPFile opens the file VPP wrote without following symlinks and proves it is a plain file
+// VPP (root) or this process wrote: regular, one link, same dev+inode as the Lstat, then makes it
+// 0600 through the fd. It returns os.ErrNotExist when VPP wrote nothing.
+func openVPPFile(path string) (*os.File, error) {
+	li, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if li.Mode()&os.ModeSymlink != 0 {
+		return nil, foreign(path, "is a symlink")
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0) //nolint:gosec // name built by the agent
+	if err != nil {
+		if errors.Is(err, syscall.ELOOP) {
+			return nil, foreign(path, "is a symlink")
+		}
+		return nil, err
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	if why := foreignReason(fi, li); why != "" {
+		_ = f.Close()
+		return nil, foreign(path, why)
+	}
+	if err := f.Chmod(0o600); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+// foreignReason compares the opened file (fstat) with the path (Lstat) and says why the file is
+// not one VPP wrote; "" = fine.
+func foreignReason(opened, linked os.FileInfo) string {
+	if !opened.Mode().IsRegular() {
+		return "is not a regular file"
+	}
+	st, ok := opened.Sys().(*syscall.Stat_t)
+	if !ok {
+		return "has no inode information"
+	}
+	switch {
+	case st.Nlink != 1:
+		return fmt.Sprintf("has %d links", st.Nlink)
+	case st.Uid != 0 && st.Uid != uint32(os.Geteuid()): //nolint:gosec // a uid fits
+		return fmt.Sprintf("is owned by uid %d", st.Uid)
+	case !os.SameFile(opened, linked):
+		return "was replaced while opening"
+	}
+	return ""
+}
+
+// moveFile moves the already-open, verified src to dst: a rename, or a copy from the fd (dst
+// created O_EXCL|O_NOFOLLOW, 0600) plus unlink across file systems. After a rename it checks that
+// dst is the inode the fd refers to.
+func moveFile(f *os.File, src, dst string) error {
+	fi, err := f.Stat()
+	if err != nil {
 		return err
 	}
-	if err := os.Rename(src, dst); err != nil {
-		in, err := os.Open(src) //nolint:gosec // VPP's capture file, name built by the agent
+	if err := os.Rename(src, dst); err == nil {
+		li, err := os.Lstat(dst)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = in.Close() }()
-		out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // agent dir
-		if err != nil {
-			return err
+		if !os.SameFile(fi, li) {
+			return foreign(dst, "is not the file that was verified")
 		}
-		if _, err := io.Copy(out, in); err != nil {
-			_ = out.Close()
-			return err
-		}
-		if err := out.Close(); err != nil {
-			return err
-		}
-		if err := os.Remove(src); err != nil {
-			return err
-		}
+		return nil
 	}
-	return os.Chmod(dst, 0o600)
+	return copyFile(f, src, dst)
 }
 
-// inspect returns size, pcap record count and hex sha256 of a pcap file.
-func inspect(path string) (uint64, uint64, string, error) {
-	b, err := os.ReadFile(path) //nolint:gosec // the agent's own file
+// copyFile is moveFile's cross-file-system path: dst is created new (O_EXCL, never through a
+// link) at 0600, filled from the verified fd, then src is unlinked.
+func copyFile(f *os.File, src, dst string) error {
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0o600) //nolint:gosec // agent dir
 	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, f); err != nil {
+		_ = out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+	return os.Remove(src)
+}
+
+// inspect returns size, pcap record count and hex sha256 of the open file, read from its start
+// in one streaming pass (no whole-file buffer).
+func inspect(f *os.File) (uint64, uint64, string, error) {
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return 0, 0, "", err
 	}
-	sum := sha256.Sum256(b)
-	return uint64(len(b)), countPackets(b), hex.EncodeToString(sum[:]), nil
+	h := sha256.New()
+	cr := &countingReader{r: io.TeeReader(f, h)}
+	pkts := countPackets(bufio.NewReaderSize(cr, chunkSize))
+	if _, err := io.Copy(io.Discard, cr); err != nil { // the rest (a truncated record): still hashed and sized
+		return 0, 0, "", err
+	}
+	return cr.n, pkts, hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// countPackets walks the classic pcap records (either byte order); 0 for anything else.
-func countPackets(b []byte) uint64 {
-	if len(b) < 24 {
+type countingReader struct {
+	r io.Reader
+	n uint64
+}
+
+func (c *countingReader) Read(p []byte) (int, error) {
+	n, err := c.r.Read(p)
+	c.n += uint64(n) //nolint:gosec // n >= 0
+	return n, err
+}
+
+// countPackets walks the classic pcap records (either byte order) of a stream; 0 for anything
+// else. It stops at the first truncated record.
+func countPackets(r *bufio.Reader) uint64 {
+	var hdr [24]byte
+	if _, err := io.ReadFull(r, hdr[:]); err != nil {
 		return 0
 	}
 	var bo binary.ByteOrder
-	switch binary.LittleEndian.Uint32(b) {
+	switch binary.LittleEndian.Uint32(hdr[:]) {
 	case 0xa1b2c3d4, 0xa1b23c4d:
 		bo = binary.LittleEndian
 	case 0xd4c3b2a1, 0x4d3cb2a1:
@@ -496,14 +701,17 @@ func countPackets(b []byte) uint64 {
 		return 0
 	}
 	var n uint64
-	for off := 24; off+16 <= len(b); n++ {
-		incl := int(bo.Uint32(b[off+8:]))
-		if incl < 0 || off+16+incl > len(b) {
-			break
+	var rec [16]byte
+	for {
+		if _, err := io.ReadFull(r, rec[:]); err != nil {
+			return n
 		}
-		off += 16 + incl
+		incl := int64(bo.Uint32(rec[8:]))
+		if _, err := io.CopyN(io.Discard, r, incl); err != nil {
+			return n
+		}
+		n++
 	}
-	return n
 }
 
 // retain removes the oldest kept files beyond MaxFiles / MaxBytes (never the running capture).
@@ -520,11 +728,44 @@ func (m *Manager) retain() {
 		}
 		files++
 		bytes += int64(r.Size) //nolint:gosec // file sizes
-		if files > m.c.MaxFiles || bytes > m.c.MaxBytes {
+		if files > 1 && (files > m.c.MaxFiles || bytes > m.c.MaxBytes) {
 			_ = os.Remove(m.path(r.ID, ".pcap"))
 			_ = os.Remove(m.path(r.ID, ".json"))
 		}
 	}
+}
+
+// stopCapture preserves a boot-bound filter restoration record before stopping
+// pcap, whose own boot record is removed by Delete. Failed restoration remains
+// retryable after agent restart without touching globals on a different VPP boot.
+func (m *Manager) stopCapture(ctx context.Context, r *Record) error {
+	const pending scheduler.Key = "pcap.capture-filter-restore"
+	if r.BPF != "" && m.c.GlobalsOwner {
+		if capture, ok := m.c.Boot.Get(string(pcap.KeyCapture)); ok {
+			capture.Key = string(pending)
+			if err := m.c.Boot.Put(capture); err != nil {
+				return err
+			}
+		}
+	}
+	if err := m.capture.Delete(ctx, nil, nil); err != nil {
+		return err
+	}
+	if r.BPF != "" && m.c.GlobalsOwner {
+		sameBoot, err := dfkit.StartedThisBoot(ctx, m.c.Client, m.c.Boot, pending)
+		if err != nil {
+			return err
+		}
+		if sameBoot {
+			if err := m.clearFilter(ctx); err != nil {
+				return err
+			}
+		}
+		if err := m.c.Boot.Delete(string(pending)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Recover runs once per process: a record still "running" was left by a previous agent process
@@ -549,26 +790,31 @@ func (m *Manager) Recover(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		if !started && r.BPF != "" && m.c.GlobalsOwner {
+			started, err = dfkit.StartedThisBoot(ctx, m.c.Client, m.c.Boot, scheduler.Key("pcap.capture-filter-restore"))
+			if err != nil {
+				return err
+			}
+		}
 		reason := "vpp-restart"
 		if started {
 			reason = "agent-restart"
 		}
-		if err := m.capture.Delete(ctx, nil, nil); err != nil {
+		if err := m.stopCapture(ctx, r); err != nil {
 			return err
 		}
-		if r.BPF != "" && m.c.GlobalsOwner && started {
-			_ = m.clearFilter(ctx)
-		}
-		if err := m.finish(r, reason); err != nil {
+		if err := m.finish(r, reason); err != nil && !errors.Is(err, ErrForeignFile) {
 			return err
 		}
 	}
+	m.running = nil
 	m.recovered = true
+	m.retain()
 	return nil
 }
 
-func (r *Record) proto() *vrxv1.CaptureFile {
-	f := &vrxv1.CaptureFile{Id: r.ID, State: r.State, Interface: r.Interface, Direction: r.Direction, Bpf: r.BPF,
+func (r *Record) proto() *ngfwv1.CaptureFile {
+	f := &ngfwv1.CaptureFile{Id: r.ID, State: r.State, Interface: r.Interface, Direction: r.Direction, Bpf: r.BPF,
 		StartedAt: timestamppb.New(r.StartedAt), Size: r.Size, Packets: r.Packets, Sha256: r.Sha256,
 		MaxPackets: r.MaxPackets, Seconds: r.Seconds, Snaplen: r.Snaplen, Reason: r.Reason}
 	if !r.StoppedAt.IsZero() {
@@ -578,7 +824,7 @@ func (r *Record) proto() *vrxv1.CaptureFile {
 }
 
 // List returns the running capture (first) and the kept files, newest first.
-func (m *Manager) List(ctx context.Context) (*vrxv1.CaptureListResponse, error) {
+func (m *Manager) List(ctx context.Context) (*ngfwv1.CaptureListResponse, error) {
 	if err := m.Recover(ctx); err != nil {
 		return nil, err
 	}
@@ -586,7 +832,7 @@ func (m *Manager) List(ctx context.Context) (*vrxv1.CaptureListResponse, error) 
 	if err != nil {
 		return nil, err
 	}
-	out := &vrxv1.CaptureListResponse{MaxFiles: uint32(m.c.MaxFiles), MaxBytes: uint64(m.c.MaxBytes), //nolint:gosec // positive caps
+	out := &ngfwv1.CaptureListResponse{MaxFiles: uint32(m.c.MaxFiles), MaxBytes: uint64(m.c.MaxBytes), //nolint:gosec // positive caps
 		TraceReason: TraceReason, PgReason: PGReason}
 	sort.SliceStable(recs, func(i, j int) bool { return recs[i].State == "running" && recs[j].State != "running" })
 	for _, r := range recs {
@@ -611,7 +857,12 @@ func (m *Manager) get(id string) (*Record, error) {
 }
 
 // Read streams a kept file in chunks.
-func (m *Manager) Read(id string, send func(*vrxv1.CaptureChunk) error) error {
+func (m *Manager) Read(id string, send func(*ngfwv1.CaptureChunk) error) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := m.Recover(ctx); err != nil {
+		return err
+	}
 	r, err := m.get(id)
 	if err != nil {
 		return err
@@ -619,16 +870,21 @@ func (m *Manager) Read(id string, send func(*vrxv1.CaptureChunk) error) error {
 	if r.State == "running" {
 		return ErrRunning
 	}
-	f, err := os.Open(m.path(id, ".pcap"))
+	// O_NOFOLLOW + regular-file check: Dir is the agent's own 0700 directory, but a kept file is never
+	// served through a link (RV-C R2 #1).
+	f, err := os.OpenFile(m.path(id, ".pcap"), os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		return fmt.Errorf("%w: %s has no file (%s)", ErrNotFound, id, r.State)
 	}
 	defer func() { _ = f.Close() }()
+	if fi, err := f.Stat(); err != nil || !fi.Mode().IsRegular() {
+		return fmt.Errorf("%w: %s has no regular file", ErrNotFound, id)
+	}
 	buf := make([]byte, chunkSize)
 	for {
 		n, err := f.Read(buf)
 		if n > 0 {
-			if serr := send(&vrxv1.CaptureChunk{Data: append([]byte(nil), buf[:n]...)}); serr != nil {
+			if serr := send(&ngfwv1.CaptureChunk{Data: append([]byte(nil), buf[:n]...)}); serr != nil {
 				return serr
 			}
 		}
@@ -643,6 +899,11 @@ func (m *Manager) Read(id string, send func(*vrxv1.CaptureChunk) error) error {
 
 // Delete removes a kept file and its record; returns the bytes freed.
 func (m *Manager) Delete(id string) (uint64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := m.Recover(ctx); err != nil {
+		return 0, err
+	}
 	r, err := m.get(id)
 	if err != nil {
 		return 0, err

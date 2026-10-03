@@ -19,7 +19,7 @@ export class HostAclNftablesController {
   @Protected(501, 502, 503)
   @ApiOperation({
     summary:
-      'Host firewall (nftables table inet vrx): sets, chains and rules with packet/byte counters, mode and in-sync flag',
+      'Host firewall (nftables table inet ngfw): sets, chains and rules with packet/byte counters, mode and in-sync flag',
   })
   @ApiOkResponse({ schema: openapi(HostAclStateOut, 'output') })
   async hostAcl() {

@@ -14,7 +14,7 @@ const PW = { op: runSecret(), ro: runSecret(), op3: runSecret(), admin2: runSecr
 function cookieOf(headers: Record<string, unknown>): string {
   const raw = [headers['set-cookie']]
     .flat()
-    .find((c) => String(c).startsWith('vrx_refresh=')) as string;
+    .find((c) => String(c).startsWith('ngfw_refresh=')) as string;
   return raw.split(';')[0]!;
 }
 
@@ -25,7 +25,7 @@ describe('TD-2 e2e', () => {
   const IF = () => `loop${slot()}01`;
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_PASSWORD_RATE_PER_MIN: '30', VRX_LOGIN_RATE_PER_MIN: '200' });
+    h = await startHarness({ NGFW_PASSWORD_RATE_PER_MIN: '30', NGFW_LOGIN_RATE_PER_MIN: '200' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'op1', role: 'operator', password: PW.op },
@@ -208,7 +208,7 @@ describe('TD-2 e2e', () => {
         payload: { password: next },
       });
       expect(res.statusCode).toBe(403);
-      expect(res.json()).toMatchObject({ type: 'https://vrx.dev/problems/tls-required' });
+      expect(res.json()).toMatchObject({ type: 'https://ngfw.dev/problems/tls-required' });
       await h.login('op1', PW.op); // unchanged
     });
 

@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { VrxWsClient, type VrxWsClientOptions, type WsStatus } from './client.js';
+import { NgfwWsClient, type NgfwWsClientOptions, type WsStatus } from './client.js';
 
-const WsContext = createContext<VrxWsClient | null>(null);
+const WsContext = createContext<NgfwWsClient | null>(null);
 
 export interface WsProviderProps {
   /** Either a ready client (tests) or the options to build the single app-wide client. */
-  client?: VrxWsClient;
-  options?: VrxWsClientOptions;
+  client?: NgfwWsClient;
+  options?: NgfwWsClientOptions;
   children: ReactNode;
 }
 
@@ -15,7 +15,7 @@ export function WsProvider({ client, options, children }: WsProviderProps) {
   const value = useMemo(() => {
     if (client) return client;
     if (!options) throw new Error('WsProvider needs `client` or `options`');
-    return new VrxWsClient(options);
+    return new NgfwWsClient(options);
   }, [client, options]);
   // An injected client belongs to its creator; only a client built here is closed on unmount.
   useEffect(() => {
@@ -25,7 +25,7 @@ export function WsProvider({ client, options, children }: WsProviderProps) {
   return <WsContext.Provider value={value}>{children}</WsContext.Provider>;
 }
 
-export function useWsClient(): VrxWsClient {
+export function useWsClient(): NgfwWsClient {
   const c = useContext(WsContext);
   if (!c) throw new Error('useWsClient must be used inside <WsProvider>');
   return c;

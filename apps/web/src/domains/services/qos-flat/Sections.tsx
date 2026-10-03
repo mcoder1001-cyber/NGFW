@@ -25,7 +25,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import type { Theme } from '@mui/material/styles';
-import { StatusChip, useFormatters, type VrxStatus } from '@ngfw/ui-kit';
+import { StatusChip, useFormatters, type NgfwStatus } from '@ngfw/ui-kit';
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePermissions } from '../../../auth/AuthProvider';
@@ -59,12 +59,12 @@ import {
 } from './queries';
 import { SchemaDialog, type EditTarget } from './SchemaDialog';
 
-const MONO = { fontFamily: (th: Theme) => th.vrx.monoFontFamily, fontSize: 13 } as const;
+const MONO = { fontFamily: (th: Theme) => th.ngfw.monoFontFamily, fontSize: 13 } as const;
 
 // Non-UI literals (statuses, document paths) live here, outside JSX (i18next/no-literal-string).
-const ST_UP: VrxStatus = 'up';
-const ST_DOWN: VrxStatus = 'down';
-const ST_DEGRADED: VrxStatus = 'degraded';
+const ST_UP: NgfwStatus = 'up';
+const ST_DOWN: NgfwStatus = 'down';
+const ST_DEGRADED: NgfwStatus = 'degraded';
 const POLICERS = 'policers';
 const SHAPERS = 'shapers';
 const MAPS = 'maps';

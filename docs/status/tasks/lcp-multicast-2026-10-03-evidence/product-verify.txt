@@ -1,0 +1,6 @@
+ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+vrx3), 11 packages, ship 7
+ok   series: patches 3 · build-patches 1 (build/ only) · optional optional/trace-plugins-core.patch
+ok   pydeps.lock: meson==0.57.2 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0 packaging==26.3 (sha256-pinned)
+ok   scripts parse + shellcheck; no .deb/.whl/.build in git; .gitignore covers deploy/vpp/.build and *.deb
+ok   tests/run.sh: 66 passed, 0 failed
+verify.sh: OK

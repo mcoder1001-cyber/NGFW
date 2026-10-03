@@ -14,9 +14,9 @@ sampling. Reference: TNSR "IPFIX / flow export"; VPP plugins `flowprobe`, `sflow
 - `docs/vpp-code-track.md` **V16** (ipfix classify dumps broken → `ipfix.classify-*` write-only, D-063) and **V17** (`sflow_interface_details`
   has only hw_if_index → descriptor learns hw→sw in Create; after an agent restart the first resync re-creates once)
 - D-071/D-082: exporter 0, flowprobe params and sflow global are VPP-globals — set only by the globals owner (`ipfix.RegisterGlobals`,
-  `flowprobe.RegisterGlobals`, `sflow.RegisterGlobals` only when `Env.GlobalsOwner`); slot agents (`VRX_GLOBALS_OWNER=0`) only *require* them.
+  `flowprobe.RegisterGlobals`, `sflow.RegisterGlobals` only when `Env.GlobalsOwner`); slot agents (`NGFW_GLOBALS_OWNER=0`) only *require* them.
   The collector evidence below needs exporter 0 pointed at your slot collector = a VPP-global change: only behind your own opt-in env var
-  (`VRX_IPFIX_GLOBALS=1`) holding `flock -x /run/lock/vrx-globals.lock`, saving and restoring exactly the previous exporter-0/flowprobe/sflow
+  (`NGFW_IPFIX_GLOBALS=1`) holding `flock -x /run/lock/ngfw-globals.lock`, saving and restoring exactly the previous exporter-0/flowprobe/sflow
   values (never VPP defaults), in a manager window; without it the test skips with that reason
 - `ipfix.Register` needs DF-2's classify store (`Wiring.ClassifyStore()`, P08) for the write-only `ipfix.classify-*` types
 - host facts (checked 2026-09-24): `hsflowd`, `nc` and `socat` are **not installed** → collectors are tiny Go UDP listeners in the test

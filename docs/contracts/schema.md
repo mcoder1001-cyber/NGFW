@@ -1,6 +1,6 @@
 # Configuration schema contract (`packages/schema`) — index
 
-The whole VRX configuration is **one JSON document** validated by **one root schema** (`RootConfig`, Zod 4) and stored as
+The whole NGFW configuration is **one JSON document** validated by **one root schema** (`RootConfig`, Zod 4) and stored as
 `config_revision.payload` (docs/04-api-datamodel.md). `pnpm gen` derives from it the TypeScript types, one JSON Schema
 2020-12 per top-level key (`dist/json-schema/<key>.json`, consumed by the UI form renderer) and the OpenAPI 3.1
 components (`dist/openapi-components.json`: `RootConfig`, `SystemConfig`, `InterfacesConfig`, …). One definition, three
@@ -40,12 +40,12 @@ Per-group detail documents (one table per modelled key):
   so Go/Python can reuse them.
 - **No control characters** in free text that reaches a daemon config, a terminal or a log line (D-049): single-line
   fields reject C0/C1/DEL, banners allow LF/TAB only, the BGP AS-path regex is restricted to the FRR regex alphabet.
-- **UI hints.** Every field is wrapped in `withUi()` → `title`, `description` and `x-vrx-ui: { widget, group, order,
+- **UI hints.** Every field is wrapped in `withUi()` → `title`, `description` and `x-ngfw-ui: { widget, group, order,
   help, secret, itemKey }` (D-019). `withUi` **merges** with the hints already on the wrapped schema (also through
   `.optional()`/`.default()`), so re-wrapping a hinted primitive keeps its `widget`/`help` (D-043, P02b review H1).
-  Domain schemas carry `x-vrx-ui.order` = navigation order (vdom.md guardrail #4).
+  Domain schemas carry `x-ngfw-ui.order` = navigation order (vdom.md guardrail #4).
 - **Secrets** never sit inline: `secretRef` points into the secret store; `passwordHash` is `writeOnly` (never returned
-  by GET). Fixtures use `$vrx-test$VRX_TEST_HASH_<id>`; valid `examples/*.json` carry no secret leaf at all (they are
+  by GET). Fixtures use `$ngfw-test$NGFW_TEST_HASH_<id>`; valid `examples/*.json` carry no secret leaf at all (they are
   the protobuf drift corpus, D-040).
 - **Secret round-trip rule (D-046).** Every document that leaves the write path (GET, `GET /config/diff` — diff the
   redacted documents —, revisions, export, `audit_log.before/after`, `DesiredState`) goes through `redactSecrets()`.
@@ -59,7 +59,7 @@ Per-group detail documents (one table per modelled key):
   address, IGP interfaces by name, OSPF areas by id, redistribution by source protocol, prefix lists, route maps) is
   a JSON object, so PATCH pointers are stable and duplicates are impossible. Ordered lists stay arrays.
 - **Arrays are diff leaves** (D-021): `diff()` reports a changed list as one `replace`; arrays of objects declare
-  `x-vrx-ui.itemKey` so the UI can pair items, and the owning domain has a semantic rule that the key is unique
+  `x-ngfw-ui.itemKey` so the UI can pair items, and the owning domain has a semantic rule that the key is unique
   (canonical addresses/prefixes: `2001:DB8::1` = `2001:db8::1`, D-049).
 
 ## Validation and editing API (`@ngfw/schema`)
@@ -72,7 +72,7 @@ Per-group detail documents (one table per modelled key):
 | `validateSemantics(config, domains?)`, `SEMANTIC_VALIDATORS`, `semanticRegistry` | named validators `<domain>.<rule>` returning `{ pointer, message }[]` |
 | `mergePatch(target, patch)`, `mergePatchAt(doc, pointer, patch)` | RFC 7386, whole document or at `PATCH /api/v1/config/{path}`; throws `MergePatchError { pointer }` (→ 400) on `__proto__`/`constructor`/`prototype` keys (`FORBIDDEN_KEYS`, D-049) or a bad array index |
 | `diff(a, b)` | `{ op: add\|remove\|replace, pointer, from?, to? }[]`, deterministic (sorted keys); two parameters only — options come as a third later |
-| `redactSecrets(doc)`, `secretPointers(doc)` | remove / list secret leaves (`x-vrx-ui.secret`, `writeOnly`) — D-046 |
+| `redactSecrets(doc)`, `secretPointers(doc)` | remove / list secret leaves (`x-ngfw-ui.secret`, `writeOnly`) — D-046 |
 | `canonicalIp`, `canonicalPrefix`, `ipKey`, `prefixKey`, `parseCidr`, `ipFamily`, … (`ip.ts`) | address arithmetic shared with groups (b)/(c) |
 | `jsonPointer(...segments)`, `parsePointer(p)` | RFC 6901 helpers |
 | `generateSchemas()` | what `pnpm gen` writes, as data |
@@ -81,7 +81,7 @@ Per-group detail documents (one table per modelled key):
 
 | field | type | default | notes |
 |---|---|---|---|
-| `hostname` | `hostname` | `vrx` | RFC 1123, ≤ 253 chars, last label not all digits |
+| `hostname` | `hostname` | `ngfw` | RFC 1123, ≤ 253 chars, last label not all digits |
 | `timezone` | `timezone` | `UTC` | IANA name, existence checked with ICU |
 | `banner.login` | `multilineText(4096)` | — | pre-login banner (SSH issue, web login); printable + LF/TAB |
 | `banner.motd` | `multilineText(4096)` | — | after login |

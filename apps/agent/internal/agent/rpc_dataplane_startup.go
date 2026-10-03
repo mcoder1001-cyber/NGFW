@@ -21,25 +21,25 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/vppstartup"
 )
 
 // startupSources are the paths the two RPCs read. Overridable for tests and lab slots:
-// VRX_VPP_STARTUP_CONF (installed file), VRX_VPP_PLUGIN_DIR, VRX_SYS_ROOT (prefix of /sys and /proc).
+// NGFW_VPP_STARTUP_CONF (installed file), NGFW_VPP_PLUGIN_DIR, NGFW_SYS_ROOT (prefix of /sys and /proc).
 type startupSources struct {
 	conf, pluginDir, sysRoot string
 }
 
 func startupSourcesFromEnv() startupSources {
 	s := startupSources{conf: vppstartup.DefaultConfPath, pluginDir: vppstartup.DefaultPluginDir, sysRoot: "/"}
-	if v := os.Getenv("VRX_VPP_STARTUP_CONF"); v != "" {
+	if v := os.Getenv("NGFW_VPP_STARTUP_CONF"); v != "" {
 		s.conf = v
 	}
-	if v := os.Getenv("VRX_VPP_PLUGIN_DIR"); v != "" {
+	if v := os.Getenv("NGFW_VPP_PLUGIN_DIR"); v != "" {
 		s.pluginDir = v
 	}
-	if v := os.Getenv("VRX_SYS_ROOT"); v != "" {
+	if v := os.Getenv("NGFW_SYS_ROOT"); v != "" {
 		s.sysRoot = v
 	}
 	return s
@@ -63,15 +63,15 @@ func readStartup(path string) ([]byte, bool, error) {
 }
 
 // DataplaneStartupState implements the DataplaneStartupState RPC.
-func (g *server) DataplaneStartupState(_ context.Context, req *vrxv1.DataplaneStartupStateRequest) (*vrxv1.DataplaneStartupStateResponse, error) {
+func (g *server) DataplaneStartupState(_ context.Context, req *ngfwv1.DataplaneStartupStateRequest) (*ngfwv1.DataplaneStartupStateResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
 	return startupState(startupSourcesFromEnv()), nil
 }
 
-func startupState(src startupSources) *vrxv1.DataplaneStartupStateResponse {
-	out := &vrxv1.DataplaneStartupStateResponse{StartupPath: src.conf, Plugins: map[string]bool{}, RetrievedAt: timestamppb.Now()}
+func startupState(src startupSources) *ngfwv1.DataplaneStartupStateResponse {
+	out := &ngfwv1.DataplaneStartupStateResponse{StartupPath: src.conf, Plugins: map[string]bool{}, RetrievedAt: timestamppb.Now()}
 	var errs []string
 	b, present, err := readStartup(src.conf)
 	out.StartupPresent = present
@@ -98,7 +98,7 @@ func startupState(src startupSources) *vrxv1.DataplaneStartupStateResponse {
 }
 
 // fillFromStartup copies the cpu and plugins sections of an installed start-up file.
-func fillFromStartup(out *vrxv1.DataplaneStartupStateResponse, b []byte) error {
+func fillFromStartup(out *ngfwv1.DataplaneStartupStateResponse, b []byte) error {
 	root, err := vppstartup.Parse(b)
 	if err != nil {
 		return err
@@ -158,14 +158,14 @@ func hugepages(meminfo string) (total, free uint64) {
 }
 
 // DataplaneStartupPreview implements the DataplaneStartupPreview RPC.
-func (g *server) DataplaneStartupPreview(_ context.Context, req *vrxv1.DataplaneStartupPreviewRequest) (*vrxv1.DataplaneStartupPreviewResponse, error) {
+func (g *server) DataplaneStartupPreview(_ context.Context, req *ngfwv1.DataplaneStartupPreviewRequest) (*ngfwv1.DataplaneStartupPreviewResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
 	return startupPreview(startupSourcesFromEnv(), req.GetDataplane())
 }
 
-func startupPreview(src startupSources, dp *vrxv1.DataplaneConfig) (*vrxv1.DataplaneStartupPreviewResponse, error) {
+func startupPreview(src startupSources, dp *ngfwv1.DataplaneConfig) (*ngfwv1.DataplaneStartupPreviewResponse, error) {
 	existing, present, err := readStartup(src.conf)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "installed start-up file: %v", err)
@@ -179,7 +179,7 @@ func startupPreview(src startupSources, dp *vrxv1.DataplaneConfig) (*vrxv1.Datap
 		return nil, status.Errorf(codes.FailedPrecondition, "host facts: %v", err)
 	}
 	if dp == nil {
-		dp = &vrxv1.DataplaneConfig{}
+		dp = &ngfwv1.DataplaneConfig{}
 	}
 	rendered, model, err := vppstartup.Generate(dp, host, vppstartup.DefaultSettings())
 	switch {
@@ -189,7 +189,7 @@ func startupPreview(src startupSources, dp *vrxv1.DataplaneConfig) (*vrxv1.Datap
 		return nil, status.Errorf(codes.FailedPrecondition, "%v", err)
 	}
 	sum := sha256.Sum256(rendered)
-	out := &vrxv1.DataplaneStartupPreviewResponse{
+	out := &ngfwv1.DataplaneStartupPreviewResponse{
 		Rendered: string(rendered), StartupPath: src.conf, Warnings: model.Warnings, Sha256: hex.EncodeToString(sum[:]),
 	}
 	if !present {

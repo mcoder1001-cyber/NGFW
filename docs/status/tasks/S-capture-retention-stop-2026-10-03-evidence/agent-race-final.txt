@@ -1,0 +1,7 @@
+Stable-source final validation; both commands exited 0.
+
+tools/heavy.sh go -C apps/agent test -race ./internal/actions/capture-trace -count=1
+ok  	ngfw/agent/internal/actions/capture-trace	13.697s
+
+tools/heavy.sh go -C apps/agent test -race ./internal/agent -run '^TestCapture' -count=1
+ok  	ngfw/agent/internal/agent	1.370s

@@ -2,12 +2,12 @@
 id: F-images   branch: task/F-images   worktree: /root/ngfw-wt/F-images   base: main@<BASE>   started: <STARTED>
 title: S5 system (day 16-18): VM and cloud image builds (qcow2, ova, vhdx + AWS/Azure/GCP profiles)
 prompt: prompts/features/F-images.md   (template: prompts/FEATURE-TEMPLATE.md; refreshed on task/prep-rest against main@11a175b: host tools, `dpdk { no-pci }`, per-task loop-device checks)   wbs: D11.2, D11.1
-scope: `deploy/image/vm/build.sh` (debootstrap → raw sparse image with the §7 layout → vrx-meta from the published repo → GRUB UEFI+BIOS, cloud-init NoCloud/ConfigDrive, serial console, no default password, empty machine-id, no SSH host keys), conversions (qcow2, vmdk/ova, vhdx) with SHA256SUMS + manifest, cloud overlays + documented (not executed) import commands, offline inspection, docs. Booting and cloud import are deferred
+scope: `deploy/image/vm/build.sh` (debootstrap → raw sparse image with the §7 layout → ngfw-meta from the published repo → GRUB UEFI+BIOS, cloud-init NoCloud/ConfigDrive, serial console, no default password, empty machine-id, no SSH host keys), conversions (qcow2, vmdk/ova, vhdx) with SHA256SUMS + manifest, cloud overlays + documented (not executed) import commands, offline inspection, docs. Booting and cloud import are deferred
 merged deps you can rely on: P10, P14 (+ F-vpp-debs, F-startup-gen)
-  - P10: packages + the repo the manager published to `/srv/vrx-artifacts/apt/`, firstboot (startup.conf via `vrx-startupgen` → `dpdk { no-pci }`), `inet vrx_base`
-  - P14: `deploy/image/common/` (package list, first-boot banner, bootstrap password), partition labels (`VRX-EFI`, `vrx-rootA`, `vrx-rootB`, `vrx-log`, `vrx-pg`, `vrx-data`), appliance marker, kernel cmdline defaults
+  - P10: packages + the repo the manager published to `/srv/ngfw-artifacts/apt/`, firstboot (startup.conf via `ngfw-startupgen` → `dpdk { no-pci }`), `inet ngfw_base`
+  - P14: `deploy/image/common/` (package list, first-boot banner, bootstrap password), partition labels (`NGFW-EFI`, `ngfw-rootA`, `ngfw-rootB`, `ngfw-log`, `ngfw-pg`, `ngfw-data`), appliance marker, kernel cmdline defaults
 read first: prompts/features/F-images.md · docs/status/wave-BC-numbers.md (section "S5 system": SY7, SY9 + "P14", "F-images") · docs/09-os-packages.md §4/§7 · docs/install/iso.md + docs/install/bare-metal.md · deploy/vpp/README.md · docs/decisions/LOG.md D-001, D-002, D-059, D-092
-slot: <SLOT> → VRX_SLOT=<SLOT> VRX_TEST_PREFIX=w<SLOT> VRX_HTTP_PORT=3000+100·<SLOT> VRX_WEB_PORT=5000+100·<SLOT> VRX_METRICS_PORT=9100+10·<SLOT>+1 VRX_AGENT_SOCKET=/run/vrx-test/w<SLOT>/agent.sock VRX_PG_DATABASE=vrx_w<SLOT> VRX_VALKEY_DB=<SLOT> VRX_VPP_TABLE_BASE=<SLOT>000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: <SLOT> → NGFW_SLOT=<SLOT> NGFW_TEST_PREFIX=w<SLOT> NGFW_HTTP_PORT=3000+100·<SLOT> NGFW_WEB_PORT=5000+100·<SLOT> NGFW_METRICS_PORT=9100+10·<SLOT>+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w<SLOT>/agent.sock NGFW_PG_DATABASE=ngfw_w<SLOT> NGFW_VALKEY_DB=<SLOT> NGFW_VPP_TABLE_BASE=<SLOT>000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env <SLOT>)"`
   - raw images, mounts, the build chroot and outputs live under /root/ngfw-wt/F-images/.scratch/ (names carry w<SLOT>); loop devices only on your own `.scratch/` files; nspawn machine name `w<SLOT>-img`, always `--private-network`
   - long builds (> 8 min): `nohup … > /root/ngfw-wt/logs/F-images-build.log 2>&1 &`, polled
@@ -23,7 +23,7 @@ obligations:
 files you own exclusively:
   - deploy/image/vm/** (builder, conversion, OVF template), deploy/image/cloud/** (aws/azure/gcp overlays + import notes)
   - docs/install/images.md
-  - test/topology/images/** (offline inspection tests; root/loop parts behind `VRX_INTEGRATION=1`, skipped in unit mode)
+  - test/topology/images/** (offline inspection tests; root/loop parts behind `NGFW_INTEGRATION=1`, skipped in unit mode)
   - docs/status/tasks/F-images*
 shared hotspots (append-only, conflicts resolved by the manager at merge; ids from docs/status/wave-BC-numbers.md "S5 system"):
   - protocol: docs/status/wave-A-hotspots.md §0. List every hunk under "Shared hunks" in docs/status/tasks/F-images.md
@@ -44,10 +44,10 @@ coordination:
   - F-ab-upgrade (parallel): same layout and labels; rootB stays reserved in your images
   - F-hardening-lite (parallel): its baseline is not applied by you; if it merges first, a follow-up applies it to the images (note it)
   - P14: a missing piece in `deploy/image/common/` → questions file, never a copy
-evidence: `ls -l`, `qemu-img info`/`check` for every output, SHA256SUMS + manifest (package versions incl. VPP), offline inspection (partition table, fstab, `dpkg-query --admindir` for vrx-meta + VPP, cloud-init datasources, grub.cfg, units present, no host keys, empty machine-id), host-unchanged listings (`findmnt | grep F-images` empty, `losetup -a` filtered to `.scratch/`, grubenv sha256), the deferred boot/import test plan
+evidence: `ls -l`, `qemu-img info`/`check` for every output, SHA256SUMS + manifest (package versions incl. VPP), offline inspection (partition table, fstab, `dpkg-query --admindir` for ngfw-meta + VPP, cloud-init datasources, grub.cfg, units present, no host keys, empty machine-id), host-unchanged listings (`findmnt | grep F-images` empty, `losetup -a` filtered to `.scratch/`, grubenv sha256), the deferred boot/import test plan
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-images.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-images-wip.md current
-CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-images.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup: no mounts or loop devices of yours, no `w<SLOT>-img` container, build chroot and raw intermediates deleted, final artefacts listed with paths + sha256 in F-images.md (they stay in `.scratch/` for the manager), processes stopped by PID
 questions: docs/status/tasks/F-images-questions.md — write and keep going; never wait for a human

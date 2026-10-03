@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): gitleaks dir docs/status/tasks --no-banner --redact --exit-code 1 --report-format json --report-path .scratch/task-closures-evidence-gitleaks.json
+heavy: slot 1 after 270s
+5:07PM INF scanned ~26336601 bytes (26.34 MB) in 5.21s
+5:07PM INF no leaks found

@@ -149,7 +149,7 @@ func (d *ClientDescriptor) Delete(ctx context.Context, obj proto.Message, meta a
 	}
 	m := ClientMeta{SwIfIndex: tg.Index}
 	if s.Hostname == "" {
-		s.Hostname = "vrx"
+		s.Hostname = "ngfw"
 	}
 	// D-074: delete only what still exists (and is still on the same interface)
 	if _, exists, rerr := d.retrieveOne(ctx, m.SwIfIndex); rerr != nil {

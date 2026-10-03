@@ -48,9 +48,9 @@
         }
       },
       "certificates": {
-        "vrx-a": {
-          "certificateRef": "cert/vrx-a",
-          "privateKeyRef": "key/vrx-a",
+        "ngfw-a": {
+          "certificateRef": "cert/ngfw-a",
+          "privateKeyRef": "key/ngfw-a",
           "ca": "corp-ca"
         },
         "public-web": {
@@ -65,7 +65,7 @@
         "localId": "vpn.lab.example",
         "vrf": "default",
         "auth": "eap-mschapv2",
-        "certificate": "vrx-a",
+        "certificate": "ngfw-a",
         "proposal": "ike2-aes256gcm",
         "pools": [{ "name": "pool4", "prefix": "10.250.0.0/24", "dns": ["192.168.10.1"] }],
         "splitTunnel": ["192.168.10.0/24"],

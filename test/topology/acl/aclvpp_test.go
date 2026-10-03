@@ -285,7 +285,7 @@ func setCounters(t *testing.T, conn vppapi.Connection, on bool) {
 }
 
 // countersScope makes the test rely on the VPP-wide ACL counters flag under the globals lock (shared-host rules §7,
-// D-082) until t ends: with change (opt-in VRX_ACL_STATS_GLOBALS=1) it takes flock -x, saves the current value and
+// D-082) until t ends: with change (opt-in NGFW_ACL_STATS_GLOBALS=1) it takes flock -x, saves the current value and
 // switches the counters on, then holds flock -s while the test relies on them; at the end it takes flock -x again and
 // restores EXACTLY the saved value (off only if it was off), then unlocks. Without change it holds flock -s. It returns
 // whether the counters are on for the test.
@@ -325,7 +325,7 @@ func countersScope(t *testing.T, conn vppapi.Connection, change bool) bool {
 	return on
 }
 
-const globalsLockPath = "/run/lock/vrx-globals.lock"
+const globalsLockPath = "/run/lock/ngfw-globals.lock"
 
 // showOwnACLs keeps the blocks of `vppctl show acl-plugin acl` whose tag starts with one of the prefixes (the command
 // prints every owner's ACLs).

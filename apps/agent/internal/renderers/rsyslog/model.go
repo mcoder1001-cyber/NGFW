@@ -10,7 +10,7 @@ import (
 	"slices"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rfkit"
 )
 
@@ -19,7 +19,7 @@ var ErrInput = errors.New("rsyslog: invalid desired state")
 
 // Fixed template set (never a user-provided template string).
 const (
-	TemplateRFC5424 = "vrx_rfc5424"
+	TemplateRFC5424 = "ngfw_rfc5424"
 	TemplateRFC3164 = "RSYSLOG_TraditionalForwardFormat"
 )
 
@@ -28,7 +28,7 @@ const MaxTargets = 16
 
 // Model is the validated, resolved view of management.syslog.
 type Model struct {
-	// Input is the base64 render input embedded as `# vrx-input:` ("" = empty export).
+	// Input is the base64 render input embedded as `# ngfw-input:` ("" = empty export).
 	Input      string
 	Standalone *Standalone
 	StatsFile  string
@@ -41,7 +41,7 @@ type Model struct {
 // Target is one export: a ruleset with one omfwd action, called from the main flow under
 // its facility/severity filter.
 type Target struct {
-	// Name is the ruleset and action name (the impstats key): vrx_export_<i>_<hash>, where the
+	// Name is the ruleset and action name (the impstats key): ngfw_export_<i>_<hash>, where the
 	// hash covers the target's settings, so a changed target reports under a new name and the
 	// post-restart convergence check can tell the new configuration from the old one.
 	Name      string
@@ -90,7 +90,7 @@ type TLSFile struct {
 }
 
 // BuildModel validates management.syslog (+ stand-ins, D-055) and resolves TLS material.
-func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Paths) (*Model, []TLSFile, error) {
+func BuildModel(ds *ngfwv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, p Paths) (*Model, []TLSFile, error) {
 	m := &Model{Standalone: p.Standalone, StatsFile: p.StatsFile}
 	list := ds.GetManagement().GetSyslog()
 	if len(list) > MaxTargets {
@@ -134,7 +134,7 @@ type tlsIn struct {
 	peers                            []string
 }
 
-func standInsFromProto(s *vrxv1.SyslogTarget) standIns {
+func standInsFromProto(s *ngfwv1.SyslogTarget) standIns {
 	si := standIns{facilities: s.GetFacilities(), format: s.Format, queueSize: s.QueueSize}
 	if t := s.GetTls(); t != nil {
 		si.tls = &tlsIn{caRef: t.CaRef, certRef: t.CertRef, keyRef: t.KeyRef, authMode: t.AuthMode, peers: t.GetPermittedPeers()}
@@ -190,7 +190,7 @@ func standInsFromExt(x *rfkit.Ext) (standIns, error) {
 	return si, nil
 }
 
-func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
+func buildTarget(i int, s *ngfwv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets, p Paths, path string) (*Target, []TLSFile, error) {
 	if vrf := s.GetVrf(); vrf != "" && vrf != "default" {
 		return nil, nil, fmt.Errorf("%w: %s.vrf %q: syslog export runs in the default VRF only (F-logging)", ErrInput, path, vrf)
 	}
@@ -275,7 +275,7 @@ func buildTarget(i int, s *vrxv1.SyslogTarget, x *rfkit.Ext, sec *rfkit.Secrets,
 	return buildTLS(t, i, si.tls, sec, p, path)
 }
 
-// actionName is vrx_export_<i>_<fnv32a of the rendered settings> (TLS material is not part of
+// actionName is ngfw_export_<i>_<fnv32a of the rendered settings> (TLS material is not part of
 // the hash: it is secret; a rotated key keeps the name).
 func actionName(i int, t *Target) string {
 	h := fnv.New32a()
@@ -283,7 +283,7 @@ func actionName(i int, t *Target) string {
 	if t.TLS != nil {
 		_, _ = fmt.Fprintf(h, "|%s|%s|%s|%s|%s", t.TLS.AuthMode, strings.Join(t.TLS.Peers, ","), t.TLS.CAFile, t.TLS.CertFile, t.TLS.KeyFile)
 	}
-	return fmt.Sprintf("vrx_export_%d_%08x", i, h.Sum32())
+	return fmt.Sprintf("ngfw_export_%d_%08x", i, h.Sum32())
 }
 
 func checkExtKeys(x *rfkit.Ext) error {

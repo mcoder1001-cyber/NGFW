@@ -49,8 +49,8 @@ P05's shared helpers when they land.
 - **Models.** Agent-internal protos next to each package (`model.proto` → `model.pb.go`, `go generate ./internal/descriptors/df6`),
   until P03b adds the leaf messages (D-055).
 - **Tests.** Unit: `df6test.FakeVPP` (interface table, tags, loopbacks, `SetBoot` for VPP restarts) + per-plugin
-  stateful fakes that count requests the real VPP would crash on and model duplicate adds / stacked features. Host: `df6test.Connect` (VRX_INTEGRATION=1, shared lab lock, slot prefix),
-  prefixed fixtures cleaned in `t.Cleanup`, `Host.AssertEmptyPlan` (re-apply → empty plan), `VRX_DF6_HOLD=<s>`
+  stateful fakes that count requests the real VPP would crash on and model duplicate adds / stacked features. Host: `df6test.Connect` (NGFW_INTEGRATION=1, shared lab lock, slot prefix),
+  prefixed fixtures cleaned in `t.Cleanup`, `Host.AssertEmptyPlan` (re-apply → empty plan), `NGFW_DF6_HOLD=<s>`
   pauses while objects exist (evidence capture).
 
 ## Write-only / partial object types (Retrieve → `ErrRetrieveUnsupported`)

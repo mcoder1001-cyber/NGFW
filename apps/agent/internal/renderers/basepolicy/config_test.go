@@ -8,12 +8,12 @@ import (
 )
 
 func TestConfigNoShellOrDuplicateAssignments(t *testing.T) {
-	valid := "VRX_BOOTSTRAP_MGMT_IF=mgmt0\nVRX_BOOTSTRAP_PUNT_IFS=tap2,tap1\n"
+	valid := "NGFW_BOOTSTRAP_MGMT_IF=mgmt0\nNGFW_BOOTSTRAP_PUNT_IFS=tap2,tap1\n"
 	got, err := ParseConfig([]byte(valid))
 	if err != nil || got.Management != "mgmt0" || strings.Join(got.Permanent, ",") != "tap1,tap2" {
 		t.Fatalf("%v %v", got, err)
 	}
-	for _, data := range []string{valid + "VRX_BOOTSTRAP_MGMT_IF=\n", strings.Replace(valid, "mgmt0", "$(touch /tmp/x)", 1), strings.Replace(valid, "tap2,tap1", "mgmt0", 1), strings.Replace(valid, "tap2,tap1", "\"tap1\"", 1), "VRX_BOOTSTRAP_MGMT_IF=mgmt0\n", valid + "OTHER=1\n", strings.Repeat("x", maxConfig+1)} {
+	for _, data := range []string{valid + "NGFW_BOOTSTRAP_MGMT_IF=\n", strings.Replace(valid, "mgmt0", "$(touch /tmp/x)", 1), strings.Replace(valid, "tap2,tap1", "mgmt0", 1), strings.Replace(valid, "tap2,tap1", "\"tap1\"", 1), "NGFW_BOOTSTRAP_MGMT_IF=mgmt0\n", valid + "OTHER=1\n", strings.Repeat("x", maxConfig+1)} {
 		if _, err := ParseConfig([]byte(data)); err == nil {
 			t.Fatal("accepted unsafe config")
 		}
@@ -22,7 +22,7 @@ func TestConfigNoShellOrDuplicateAssignments(t *testing.T) {
 func TestConfigRejectsSymlinkAndNonRegular(t *testing.T) {
 	dir := t.TempDir()
 	regular := filepath.Join(dir, "env")
-	if err := os.WriteFile(regular, []byte("VRX_BOOTSTRAP_MGMT_IF=mgmt0\nVRX_BOOTSTRAP_PUNT_IFS=\n"), 0600); err != nil {
+	if err := os.WriteFile(regular, []byte("NGFW_BOOTSTRAP_MGMT_IF=mgmt0\nNGFW_BOOTSTRAP_PUNT_IFS=\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(dir, "link")

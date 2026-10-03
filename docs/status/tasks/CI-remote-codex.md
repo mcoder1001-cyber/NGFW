@@ -67,7 +67,7 @@ ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
 ok: no Dockerfile/compose files
 ok: no kill-by-pattern in scripts
 ok: no secret-shaped strings
-ok: vrxtestsecrets only in test code
+ok: ngfwtestsecrets only in test code
 ok: gitleaks — scanned ~25412 bytes (25.41 KB) in 230ms no leaks found 
 
 == packet-trace ban on the shared VPP (D-128) ==
@@ -81,11 +81,11 @@ check PASSED (0m03s)
 Baseline source SHA: `01bbee3d` (documentation-only changes over `5561d041`). The first baseline used Node 24.19.0, not the later installed pinned Node 22.23.2; it is not asserted as an exact pinned full-gate pass. Actual baseline output:
 
 ```text
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 worktree  /workspace/scratch/96b8b6fbc8a7/NGFW
 branch    main @ 01bbee3d   (base: origin/main)
 tools     node v24.19.0 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
-caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
 logs      /tmp/ngfw-baseline-ci/NGFW-20261001-153507-6
 
 == contract guard: HEAD vs origin/main ==
@@ -106,11 +106,11 @@ clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-clien
 Pinned runtime Unix-socket reproduction:
 
 ```text
-@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/vrx-td10a-h1-Zn48dL/agent.sock]
-@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/vrx-td23-CmvJir/agent.sock]
-@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/vrx-td23-CmvJir/agent.sock]
-@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/vrx-td23-CmvJir/agent.sock]
-@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/vrx-td23-CmvJir/agent.sock]
+@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/ngfw-td10a-h1-Zn48dL/agent.sock]
+@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/ngfw-td23-CmvJir/agent.sock]
+@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/ngfw-td23-CmvJir/agent.sock]
+@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/ngfw-td23-CmvJir/agent.sock]
+@ngfw/api:test:      → No address added out of total 1 resolved errors: [listen EPERM: operation not permitted /tmp/ngfw-td23-CmvJir/agent.sock]
 ```
 
 The preceding lines are the baseline API failure; no quick-gate success is claimed. A separate minimal Node 22.23.2 Unix listener also fails as recorded below.
@@ -138,7 +138,7 @@ Error: Test timed out in 30000ms.
 Tests 1 failed | 89 passed (90)
 ```
 
-The wrapper now sets VRX_CI_TASK_CONCURRENCY=2. tools/ci.sh accepts this optional integer (1..64) and passes it to Turbo --concurrency; when unset the original default is preserved. Every original task/test/assertion and timeout stays the same. This changes scheduling only, preventing Turbo's default ten simultaneous tasks from oversubscribing a two-core runner. Hosted rerun is required.
+The wrapper now sets NGFW_CI_TASK_CONCURRENCY=2. tools/ci.sh accepts this optional integer (1..64) and passes it to Turbo --concurrency; when unset the original default is preserved. Every original task/test/assertion and timeout stays the same. This changes scheduling only, preventing Turbo's default ten simultaneous tasks from oversubscribing a two-core runner. Hosted rerun is required.
 
 Local verification of this scheduling change:
 ```text

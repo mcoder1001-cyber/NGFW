@@ -73,7 +73,7 @@ func TestIPFIXOnHost(t *testing.T) {
 }
 
 // The classify stream is a getter-less VPP-global (its dump is broken, V16) and VPP refuses
-// classify tables before it is set: this host check is opt-in (VRX_DF8_GLOBALS=1, manager window,
+// classify tables before it is set: this host check is opt-in (NGFW_DF8_GLOBALS=1, manager window,
 // review M3). The table is DF-2's, created by name through classify.TableDescriptor (H2).
 func TestIPFIXClassifyOnHost(t *testing.T) {
 	dfkittest.SkipUnlessGlobals(t, "set_ipfix_classify_stream")

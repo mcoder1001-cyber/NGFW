@@ -5,7 +5,7 @@ address**; IPv4 clients connect to that address and the router translates every 
 SIIT, RFC 7915, 1:1). On the IPv6 side a client appears as an address inside the **client prefix**, a /96 that embeds
 the client's IPv4 address in its last 32 bits (RFC 6052) — so the server's logs and firewall still see each client.
 
-**UI:** *Firewall → NAT*, tab **NAT46** (after NPTv6). **CLI:** `vrx merge nat …` (below). **REST:** the generic
+**UI:** *Firewall → NAT*, tab **NAT46** (after NPTv6). **CLI:** `ngfw merge nat …` (below). **REST:** the generic
 `/api/v1/config/nat` routes, plus two read-only routes.
 
 > Stateless 1:1 only. A pool of IPv4 addresses shared by many IPv6 servers (stateful NAT46) is not available: the
@@ -56,8 +56,8 @@ There is no session table: stateless translation keeps no state.
 ## CLI
 
 ```text
-vrx merge nat '{"nat46":{"clientPrefix":"2001:db8:46::/96","interfaces":["lan0","wan0"],"mappings":[{"name":"web","ipv4":"198.51.100.80","ipv6":"2001:db8:10::80"}]}}'
-vrx show configuration diff
-vrx commit comment "nat46 web"
-vrx show configuration nat
+ngfw merge nat '{"nat46":{"clientPrefix":"2001:db8:46::/96","interfaces":["lan0","wan0"],"mappings":[{"name":"web","ipv4":"198.51.100.80","ipv6":"2001:db8:10::80"}]}}'
+ngfw show configuration diff
+ngfw commit comment "nat46 web"
+ngfw show configuration nat
 ```

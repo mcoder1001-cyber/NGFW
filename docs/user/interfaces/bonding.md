@@ -1,6 +1,6 @@
 # Bond interfaces (link aggregation, LACP)
 
-A bond combines several NICs into one logical interface, `BondEthernet<id>`, for more bandwidth and for redundancy. VRX
+A bond combines several NICs into one logical interface, `BondEthernet<id>`, for more bandwidth and for redundancy. NGFW
 builds it with VPP's bond and LACP plugins. Reference behaviour: TNSR "Bond interfaces / LACP".
 
 | mode | what it does | `loadBalance` | member options |
@@ -86,7 +86,7 @@ whether the candidate changes it (`live: false` when the agent does not report l
 ## The same with the CLI
 
 ```
-vrx configure
+ngfw configure
 edit interfaces
 merge BondEthernet0 '{"enabled":true,"ipv4":["192.0.2.1/24"],"bond":{"mode":"lacp","loadBalance":"l34"}}'
 set TenGigabitEthernet0/0/0 enabled true
@@ -98,9 +98,9 @@ set BondEthernet1 bond members TenGigabitEthernet0/0/2 weight 150   # a weight c
 compare
 commit comment "bonds"
 exit
-vrx show interfaces BondEthernet0          # the bond as an interface (addresses, admin/link, counters)
-vrx show configuration interfaces BondEthernet0 bond
-vrx rollback <rev>                          # removes bonds and memberships; the NICs stay plain interfaces
+ngfw show interfaces BondEthernet0          # the bond as an interface (addresses, admin/link, counters)
+ngfw show configuration interfaces BondEthernet0 bond
+ngfw rollback <rev>                          # removes bonds and memberships; the NICs stay plain interfaces
 ```
 
 The live bond/LACP table has no `show` command in this release; read it with `GET /api/v1/state/interfaces/bonds`.

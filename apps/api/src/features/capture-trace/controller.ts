@@ -12,7 +12,7 @@ import type { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { AuditService } from '../../audit/audit.service.js';
 import { MinRole } from '../../auth/decorators.js';
-import { sourceIp, type VrxRequest } from '../../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../../common/principal.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
@@ -46,6 +46,7 @@ export class CaptureTraceController {
   ) {}
 
   @Post('actions/capture')
+  @MinRole('admin')
   @HttpCode(202)
   @Protected(400, 409, 501, 502, 503)
   @ApiOperation({
@@ -56,7 +57,7 @@ export class CaptureTraceController {
   @ApiOkResponse({ schema: openapi(CaptureStarted, 'output') })
   async start(
     @Body(new ZodPipe(CaptureBody)) body: z.output<typeof CaptureBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `captures/${body.interface}`, before: body };
     try {
@@ -77,11 +78,28 @@ export class CaptureTraceController {
     }
   }
 
+  @Post('actions/capture/:id/stop')
+  @MinRole('admin')
+  @HttpCode(202)
+  @Protected(403, 404, 409, 502, 503)
+  @ApiParam({ name: 'id', schema: { type: 'string' } })
+  @ApiOperation({
+    summary: 'Stop a capture running in this API process; poll state until it finishes',
+  })
+  @ApiOkResponse({ schema: openapi(CaptureStarted, 'output') })
+  async stop(@Param('id') id: string, @Req() req: NgfwRequest) {
+    checkId(id);
+    req.audit = { resource: `captures/${id}` };
+    await this.agent.stopCapture(id);
+    req.audit.after = { stopRequested: true };
+    return { id };
+  }
+
   @Get('state/captures')
   @Protected(501, 502, 503)
   @ApiOperation({
     summary:
-      'Captures kept by the agent (and the running one), retention caps, trace / PG availability',
+      'Unpaged capture list bounded by maxFiles (plus the running capture), retention caps, trace / PG availability',
   })
   @ApiOkResponse({ schema: openapi(CapturesOut, 'output') })
   async list() {
@@ -99,7 +117,7 @@ export class CaptureTraceController {
   })
   async file(
     @Param('id') id: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
     checkId(id);
@@ -142,7 +160,7 @@ export class CaptureTraceController {
   @Protected(403, 404, 409, 501, 502, 503)
   @ApiParam({ name: 'id', schema: { type: 'string' } })
   @ApiOperation({ summary: 'Delete one kept capture file (409 while it is running)' })
-  async remove(@Param('id') id: string, @Req() req: VrxRequest) {
+  async remove(@Param('id') id: string, @Req() req: NgfwRequest) {
     checkId(id);
     req.audit = { resource: `captures/${id}` };
     try {

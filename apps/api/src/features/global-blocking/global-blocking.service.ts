@@ -1,7 +1,9 @@
+import { Bus } from '../../infra/bus.js';
 import {
   Inject,
   Injectable,
   Logger,
+  Optional,
   type OnModuleDestroy,
   type OnModuleInit,
 } from '@nestjs/common';
@@ -107,10 +109,11 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
     @Inject(DB) private readonly db: Db,
     @Inject(VALKEY) private readonly kv: Valkey,
     @Inject(CONFIG_REPO) private readonly repo: ConfigRepo,
+    @Optional() private readonly notificationBus?: Bus,
   ) {}
 
   onModuleInit(): void {
-    const sec = this.env.VRX_GLOBAL_BLOCKING_CHECK_SEC;
+    const sec = this.env.NGFW_GLOBAL_BLOCKING_CHECK_SEC;
     if (sec <= 0) return;
     this.timer = setInterval(
       () => void this.refreshDue().catch((e: unknown) => this.log.warn(`refresh: ${String(e)}`)),
@@ -364,7 +367,7 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
     if (list === undefined)
       throw problems.notFound(`block list '${name}' does not exist in ${source}`);
     const e = entriesOf(list);
-    return `# vrx block list ${name} (${source}, ${e.length} entries)\n${e.join('\n')}${e.length ? '\n' : ''}`;
+    return `# ngfw block list ${name} (${source}, ${e.length} entries)\n${e.join('\n')}${e.length ? '\n' : ''}`;
   }
 
   /** Why a downloaded file must not replace the list (null = acceptable). */
@@ -421,6 +424,10 @@ export class GlobalBlockingService implements OnModuleInit, OnModuleDestroy {
       lastFetchAt: this.now().toISOString(),
       lastResult: 'failed',
       lastError: why,
+    });
+    this.notificationBus?.publish('security.events', {
+      type: 'global-blocking-fetch-failed',
+      list: name,
     });
     await this.events.record(
       'warning',

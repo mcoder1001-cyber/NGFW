@@ -10,7 +10,7 @@ import { domainSchemas } from '../../schema/registry';
  *   - `map`:  an object keyed by name (`interfaces.<name>`, `vrfs.<name>`, `objects.addresses.<name>`); the key rules come
  *             from the JSON Schema's `propertyNames`;
  *   - `list`: an array whose items carry their own key (`management.users[]` keyed by `username`, `routing.static[]` by
- *             `vrf`+`prefix`); the key members come from the array's `x-vrx-ui.itemKey` hint.
+ *             `vrf`+`prefix`); the key members come from the array's `x-ngfw-ui.itemKey` hint.
  * Everything here is derived from `packages/schema` (00-CONTEXT rule 5) — no per-domain code.
  */
 export interface CollectionSpec {
@@ -70,9 +70,9 @@ export function schemaAt(root: JsonSchema, path: readonly string[]): JsonSchema 
 /** Shape and item schema of a collection node, from the schema alone. */
 export function shapeOf(node: JsonSchema, root: JsonSchema): { shape: CollectionShape; itemSchema: JsonSchema } {
   if (node.type === 'array' || node.items) {
-    const itemKey = node['x-vrx-ui']?.itemKey;
+    const itemKey = node['x-ngfw-ui']?.itemKey;
     if (!Array.isArray(itemKey) || itemKey.length === 0 || !itemKey.every((k) => typeof k === 'string')) {
-      throw new Error('a list collection needs x-vrx-ui.itemKey on its array schema');
+      throw new Error('a list collection needs x-ngfw-ui.itemKey on its array schema');
     }
     if (!node.items) throw new Error('array schema without items');
     return { shape: { kind: 'list', itemKey: itemKey as string[] }, itemSchema: resolveRef(node.items, root) };
@@ -284,7 +284,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
   const props = schema.properties ?? {};
   const out: Record<string, JsonSchema> = {};
   for (const [name, prop] of Object.entries(props)) {
-    const hints = prop['x-vrx-ui'] ?? {};
+    const hints = prop['x-ngfw-ui'] ?? {};
     const help = t(`field.${name}.help`, { defaultValue: '' });
     const enumLabels = Array.isArray(prop.enum)
       ? Object.fromEntries(prop.enum.filter((v) => v !== null).map((v) => [String(v), t(`field.${name}.enum.${String(v)}`, { defaultValue: String(v) })]))
@@ -292,7 +292,7 @@ export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
     out[name] = {
       ...prop,
       title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
-      'x-vrx-ui': {
+      'x-ngfw-ui': {
         ...hints,
         ...(help ? { help } : {}),
         ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}),

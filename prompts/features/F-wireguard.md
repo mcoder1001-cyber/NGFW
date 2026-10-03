@@ -41,7 +41,7 @@ private key. Reference: TNSR "WireGuard"; VPP plugin `wireguard` (WBS D6.5 in `p
    `subsystems/wireguard.go` with `WithKeyer(Wiring.VPNKeyer())`, `WithGlobalsOwner(env.GlobalsOwner)` and the secret resolver; resolve
    `key/<name>` → the DF-5 `x25519:` reference through the agent secret resolver (it does not exist yet — open questions). Wire
    `peer.Events()` into StreamEvents (handshake up/dead; subsystems has no event sink yet — add one field to `subsystems.Env`, or use
-   the one a wave-A task added). ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects, slot ports).
+   the one a wave-A task added). ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, prefixed objects, slot ports).
 3. **API**: config via pointer routes; `GET /api/v1/state/vpn/wireguard` (per peer: last handshake, established/dead, rx/tx bytes, endpoint
    learnt); `POST /api/v1/actions/vpn/wireguard/keypair` → generates a key pair, stores the private key as a secret (`POST /secrets` path)
    and returns `{ref, publicKey}` only. OpenAPI; regenerate `packages/api-client`.
@@ -78,5 +78,5 @@ DF-5 Q3 (dependency on the address carrying `listenAddress`) — pick (a) no dep
 Whether allowed-IPs should auto-install routes by default (TNSR does not) — default off, flag it.
 **Secret channel (blocking for the product path):** the agent cannot get a WireGuard private key or PSK today (see Inputs). Use the
 channel P11 (or a manager-designated row) provides if it is on main when you start; otherwise build everything else, run the host check
-with a slot-local `vpn.MapResolver` fixture (keys = `VRX_TEST_PSK_<id>`-derived test vectors), keep the end-to-end step open and write it
+with a slot-local `vpn.MapResolver` fixture (keys = `NGFW_TEST_PSK_<id>`-derived test vectors), keep the end-to-end step open and write it
 in the questions file — never put key material into `DesiredState`, a status file or a log.

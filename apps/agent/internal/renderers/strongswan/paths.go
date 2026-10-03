@@ -21,7 +21,7 @@ func Binaries() []string { return []string{SwanctlBin} }
 type Paths struct {
 	// StrongswanConf is the daemon config (charon reads it at start; STRONGSWAN_CONF in tests).
 	StrongswanConf string
-	// SwanctlDir is the swanctl directory: conf.d/vrx.conf and conf.d/vrx-secrets.conf are
+	// SwanctlDir is the swanctl directory: conf.d/ngfw.conf and conf.d/ngfw-secrets.conf are
 	// rendered below it; x509/, x509ca/ and pubkey/ hold certificate files (F-pki-basic).
 	// The packaged <SwanctlDir>/swanctl.conf (`include conf.d/*.conf`) loads them at boot.
 	SwanctlDir string
@@ -31,9 +31,9 @@ type Paths struct {
 	LogFile string
 	// FileOwner is the owner of the rendered files ("root:root" in the product, "" in tests).
 	FileOwner string
-	// ConfMode is the mode of strongswan.conf and vrx.conf (0640).
+	// ConfMode is the mode of strongswan.conf and ngfw.conf (0640).
 	ConfMode os.FileMode
-	// SecretMode is the mode of vrx-secrets.conf (0600; never world- or group-readable).
+	// SecretMode is the mode of ngfw-secrets.conf (0600; never world- or group-readable).
 	SecretMode os.FileMode
 	// BootRecord persists the charon start time the agent last acknowledged (AckRestart), so a
 	// charon restart is detected even across agent restarts (RF-2 review M3). "" disables it.
@@ -41,7 +41,7 @@ type Paths struct {
 }
 
 // ProductPaths are the paths of the packaged strongSwan on Ubuntu 26.04 (and of the P11
-// vrx-strongswan package, which keeps them).
+// ngfw-strongswan package, which keeps them).
 func ProductPaths() Paths {
 	return Paths{
 		StrongswanConf: "/etc/strongswan.conf",
@@ -50,14 +50,14 @@ func ProductPaths() Paths {
 		FileOwner:      "root:root",
 		ConfMode:       0o640,
 		SecretMode:     0o600,
-		BootRecord:     "/var/lib/vrx/agent/strongswan-charon-boot",
+		BootRecord:     "/var/lib/ngfw/agent/strongswan-charon-boot",
 	}
 }
 
 // TestPaths are the test-scoped paths for slot prefix ("w3") and daemon instance ("a"):
-// everything under /run/vrx-test/<prefix>/swan/<instance>, files owned by the test process.
+// everything under /run/ngfw-test/<prefix>/swan/<instance>, files owned by the test process.
 func TestPaths(prefix, instance string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "swan", instance)
+	base := filepath.Join("/run/ngfw-test", prefix, "swan", instance)
 	return Paths{
 		StrongswanConf: filepath.Join(base, "strongswan.conf"),
 		SwanctlDir:     filepath.Join(base, "swanctl"),
@@ -70,10 +70,12 @@ func TestPaths(prefix, instance string) Paths {
 }
 
 // ConnsFile is the rendered connections file.
-func (p Paths) ConnsFile() string { return filepath.Join(p.SwanctlDir, "conf.d", "vrx.conf") }
+func (p Paths) ConnsFile() string { return filepath.Join(p.SwanctlDir, "conf.d", "ngfw.conf") }
 
 // SecretsFile is the rendered secrets file (mode SecretMode).
-func (p Paths) SecretsFile() string { return filepath.Join(p.SwanctlDir, "conf.d", "vrx-secrets.conf") }
+func (p Paths) SecretsFile() string {
+	return filepath.Join(p.SwanctlDir, "conf.d", "ngfw-secrets.conf")
+}
 
 // SwanctlConf is the packaged top-level swanctl.conf (`include conf.d/*.conf`); not rendered.
 func (p Paths) SwanctlConf() string { return filepath.Join(p.SwanctlDir, "swanctl.conf") }

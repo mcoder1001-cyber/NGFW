@@ -45,7 +45,7 @@ Linux netdev is up is the suspected cause of the shared-VPP SIGSEGV at 2026-09-2
 - **This lowers the V24 risk; it does not remove the double close.** VPP still logs `vlib_file_update: epoll_ctl() failed …
   errno 9` on every delete with the netdev down (P08 review I1, D-107; TD-5's host run too), and fd numbers are reused across
   interfaces. Only the VPP fix (V24: move `close()` after the rx-queue free) removes it.
-- The product agent needs **`CAP_NET_ADMIN`** for the link-down (the vrx-agent systemd unit, P10); without it every af_packet
+- The product agent needs **`CAP_NET_ADMIN`** for the link-down (the ngfw-agent systemd unit, P10); without it every af_packet
   Delete fails closed with EPERM. af_packet is lab-only (the product data path is DPDK).
 - The agent must run in **VPP's network namespace** (review N3): VPP resolves `host_if_name` in its own netns
   (`af_packet.c:663`), the quiesce in the agent's. In another netns the quiesce would miss the device (ENODEV → "gone, go

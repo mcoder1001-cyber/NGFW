@@ -35,20 +35,20 @@ type Paths struct {
 func ProductPaths() Paths {
 	return Paths{
 		ConfFile:     "/etc/snmp/snmpd.conf",
-		AgentXSocket: "/run/vrx/snmpd/agentx.sock",
-		PendingFile:  "/run/vrx/renderers/snmpd.pending",
+		AgentXSocket: "/run/ngfw/snmpd/agentx.sock",
+		PendingFile:  "/run/ngfw/renderers/snmpd.pending",
 		FileOwner:    "root:root",
 		FileMode:     0o600,
 	}
 }
 
-// TestPaths are the test-scoped paths for a slot prefix ("w8"): /run/vrx-test/<prefix>/snmpd.
+// TestPaths are the test-scoped paths for a slot prefix ("w8"): /run/ngfw-test/<prefix>/snmpd.
 func TestPaths(prefix string) Paths {
-	base := filepath.Join("/run/vrx-test", prefix, "snmpd")
+	base := filepath.Join("/run/ngfw-test", prefix, "snmpd")
 	return Paths{
 		ConfFile:     filepath.Join(base, "snmpd.conf"),
 		AgentXSocket: filepath.Join(base, "agentx.sock"),
-		PendingFile:  filepath.Join(base, "vrx.pending"),
+		PendingFile:  filepath.Join(base, "ngfw.pending"),
 		FileMode:     0o600,
 	}
 }

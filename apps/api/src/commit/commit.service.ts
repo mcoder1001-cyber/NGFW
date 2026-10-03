@@ -134,7 +134,7 @@ const REVERT_GRACE_MS = 1500;
 const RECONCILE_RETRY_MS = [1000, 2000, 5000, 10_000, 30_000];
 
 /** The API applies `management.users` itself (app_user), so changes there count as applied (review M4). */
-const API_APPLIED = ['/management/users'];
+const API_APPLIED = ['/management/users', '/management/notifications'];
 
 /**
  * Changed top-level keys between two documents that the agent does not implement (review M4). A domain whose only
@@ -398,6 +398,12 @@ export class CommitService implements OnApplicationShutdown {
           {
             txnId,
             desiredState: ValidationService.desiredState(doc),
+            secretBundle: (
+              await this.agent.resolveSecrets?.(
+                ValidationService.desiredState(doc),
+                running?.secretVersions ?? {},
+              )
+            )?.bundle,
             subsystems: (await this.validation.implemented()).subsystems,
             confirmTimeoutSec: 0,
             confirmTxnId: '',
@@ -544,7 +550,7 @@ export class CommitService implements OnApplicationShutdown {
     return this.userSection(async () => {
       await this.assertNoPending();
       const c = await this.repo.candidate();
-      checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
+      checkLock(c, user, new Date(), this.env.NGFW_LOCK_TTL_SEC);
       if (c.payload === null)
         return {
           status: 'unchanged',
@@ -608,7 +614,7 @@ export class CommitService implements OnApplicationShutdown {
       const target = await this.repo.revision(rev);
       if (target === null) throw problems.notFound(`revision ${rev} does not exist`);
       const c = await this.repo.candidate();
-      checkLock(c, user, new Date(), this.env.VRX_LOCK_TTL_SEC);
+      checkLock(c, user, new Date(), this.env.NGFW_LOCK_TTL_SEC);
       if (c.payload !== null) {
         throw problems.conflict(
           'candidate-dirty',
@@ -808,6 +814,7 @@ export class CommitService implements OnApplicationShutdown {
     const v = await this.validation.validate(doc, txnId, {
       dryRunMs: this.budget.dryRunMs,
       ...(opts.kind === 'commit' ? { running: runningDoc } : {}),
+      secretVersions: opts.restoreSecrets,
     });
     if (!v.ok || v.config === undefined || v.desired === undefined) {
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
@@ -824,7 +831,9 @@ export class CommitService implements OnApplicationShutdown {
       comment: opts.comment ?? '',
       kind: opts.kind,
       clearPending: false,
-      ...(opts.restoreSecrets ? { restoreSecrets: opts.restoreSecrets } : {}),
+      ...(opts.restoreSecrets || Object.keys(v.secretVersions ?? {}).length > 0
+        ? { restoreSecrets: { ...v.secretVersions, ...opts.restoreSecrets } }
+        : {}),
     };
     let res: ApplyResponse;
     this.remember(txnId);
@@ -833,6 +842,7 @@ export class CommitService implements OnApplicationShutdown {
         {
           txnId,
           desiredState: v.desired,
+          secretBundle: v.secretBundle,
           subsystems: v.subsystems,
           confirmTimeoutSec: confirmSec,
           confirmTxnId: '',
@@ -925,7 +935,7 @@ export class CommitService implements OnApplicationShutdown {
           parentId: opts.parentId,
           kind: opts.kind,
           deadline,
-          restoreSecrets: opts.restoreSecrets ?? null,
+          restoreSecrets: meta.restoreSecrets ?? null,
           warnings: v.warnings,
         }),
       );

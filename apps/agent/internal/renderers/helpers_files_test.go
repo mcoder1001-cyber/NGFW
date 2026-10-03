@@ -78,7 +78,7 @@ func TestWriteFileAtomicReplacesAndSetsMode(t *testing.T) {
 	if err := WriteFileAtomic(filepath.Join(dir, "nodir", "x"), File{Mode: 0o644}); err == nil {
 		t.Fatal("missing parent directory must fail")
 	}
-	if err := WriteFileAtomic(path, File{Mode: 0o644, Owner: "no-such-user-vrx"}); err == nil {
+	if err := WriteFileAtomic(path, File{Mode: 0o644, Owner: "no-such-user-ngfw"}); err == nil {
 		t.Fatal("unknown owner must fail")
 	}
 	if got, _ := os.ReadFile(path); string(got) != "new" { //nolint:gosec // test-controlled path
@@ -137,9 +137,9 @@ func TestWriteFilesAndSnapshotRestore(t *testing.T) {
 
 func TestStage(t *testing.T) {
 	files := Files{
-		"/etc/frr/frr.conf":    {Mode: 0o640, Owner: "no-such-user-vrx", Content: []byte("frr")},
+		"/etc/frr/frr.conf":    {Mode: 0o640, Owner: "no-such-user-ngfw", Content: []byte("frr")},
 		"/etc/frr/daemons":     {Mode: 0o644, Content: []byte("bgpd=yes\n")},
-		"/etc/swanctl/secrets": {Mode: 0o600, Secret: true, Content: []byte("VRX_TEST_PSK_x")},
+		"/etc/swanctl/secrets": {Mode: 0o600, Secret: true, Content: []byte("NGFW_TEST_PSK_x")},
 	}
 	st, err := Stage(files)
 	if err != nil {
@@ -188,7 +188,7 @@ func TestLookupOwner(t *testing.T) {
 	if uid, gid, err = lookupOwner("0:0"); err != nil || uid != 0 || gid != 0 {
 		t.Fatalf("numeric 0:0 -> %d:%d, %v", uid, gid, err)
 	}
-	for _, bad := range []string{"", ":root", "root:", "no-such-user-vrx", "root:no-such-group-vrx"} {
+	for _, bad := range []string{"", ":root", "root:", "no-such-user-ngfw", "root:no-such-group-ngfw"} {
 		if _, _, err := lookupOwner(bad); err == nil {
 			t.Errorf("lookupOwner(%q) succeeded", bad)
 		}

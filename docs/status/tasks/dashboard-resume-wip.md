@@ -100,7 +100,7 @@ Time:    12m3.434s
 Failed:    @ngfw/api#test, @ngfw/web#test
 ```
 
-API failures are the existing licensing CLI temporary signing-key tests (first keygen refused, then dependent files missing under `/tmp/vrx-lic-cli-*`). Manager independently diagnosed the environment's Git ancestor guard; this worker did not alter the guard or claim a local full pass. Web failures were unchanged App schema-demo and readonly-flow 30-second timeouts during concurrent gate workloads. MPLS regression passed 7/7, including Persian settings/RTL. Downstream complete agent Go and test-module gates were not reached.
+API failures are the existing licensing CLI temporary signing-key tests (first keygen refused, then dependent files missing under `/tmp/ngfw-lic-cli-*`). Manager independently diagnosed the environment's Git ancestor guard; this worker did not alter the guard or claim a local full pass. Web failures were unchanged App schema-demo and readonly-flow 30-second timeouts during concurrent gate workloads. MPLS regression passed 7/7, including Persian settings/RTL. Downstream complete agent Go and test-module gates were not reached.
 
 Focused unchanged replay of the two timed-out files, with one worker and existing deadlines:
 

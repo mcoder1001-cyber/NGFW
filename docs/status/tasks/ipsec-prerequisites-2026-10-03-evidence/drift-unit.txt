@@ -1,0 +1,15 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/api exec vitest run src/features/rpf-adl-pbr/drift.test.ts src/features/host-stack/drift.test.ts src/features/default-vpp-nics/drift.test.ts src/state/drift-defaults.test.ts
+heavy: slot 2 after 40s
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/api
+
+ ✓ src/features/default-vpp-nics/drift.test.ts (1 test) 10ms
+ ✓ src/features/host-stack/drift.test.ts (1 test) 11ms
+ ✓ src/features/rpf-adl-pbr/drift.test.ts (3 tests) 18ms
+ ✓ src/state/drift-defaults.test.ts (4 tests) 152ms
+
+ Test Files  4 passed (4)
+      Tests  9 passed (9)
+   Start at  14:20:49
+   Duration  14.01s (transform 9.22s, setup 0ms, collect 50.89s, tests 191ms, environment 2ms, prepare 939ms)
+

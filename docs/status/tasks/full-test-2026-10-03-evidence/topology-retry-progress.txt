@@ -1,0 +1,20 @@
+START topology-retry bridge-l2
+END topology-retry bridge-l2 exit 0
+START topology-retry host-acl-nftables
+END topology-retry host-acl-nftables exit 1
+START topology-retry loopback-bvi-gso-lldp-span
+END topology-retry loopback-bvi-gso-lldp-span exit 1
+START topology-retry nat44-ed-sessions
+END topology-retry nat44-ed-sessions exit 0
+START topology-retry nat44-ei-64-66-nptv6
+END topology-retry nat44-ei-64-66-nptv6 exit 0
+START topology-retry object-model
+END topology-retry object-model exit 1
+START topology-retry vlan-qinq
+END topology-retry vlan-qinq exit 1
+START topology-retry bonding
+END topology-retry bonding exit 1
+START topology-retry neighbors-ra
+END topology-retry neighbors-ra exit 1
+START topology-retry kea-dhcp-relay
+END topology-retry kea-dhcp-relay exit 1

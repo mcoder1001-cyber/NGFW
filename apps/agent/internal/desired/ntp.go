@@ -1,6 +1,6 @@
 package desired
 
-// F-unbound-chrony-syslog: services.ntp (D-050: NTP lives only here) → chrony.config/vrx, Value =
+// F-unbound-chrony-syslog: services.ntp (D-050: NTP lives only here) → chrony.config/ngfw, Value =
 // chrony.Input(services.ntp), while services.ntp is enabled. Disabled: no object — the reconciler deletes a previous
 // one (chrony gets the disabled rendering) — and a note so /state/drift does not compare the disabled defaults.
 // Symmetric keys (servers[].keyRef) need the API→agent secret channel, which does not exist yet
@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/chrony"
 	"ngfw/agent/internal/scheduler"
 )
@@ -24,7 +24,7 @@ func init() {
 const RuleSecretChannel = "agent.secret-channel-pending"
 
 // NTP projects services.ntp (see the file comment).
-func NTP(s Sink, ds *vrxv1.DesiredState) {
+func NTP(s Sink, ds *ngfwv1.DesiredState) {
 	ntp := ds.GetServices().GetNtp()
 	if ntp == nil {
 		return
@@ -55,9 +55,9 @@ func NTP(s Sink, ds *vrxv1.DesiredState) {
 }
 
 // AssembleNTP adds the NTP service of a retrieved chrony object to ds.
-func AssembleNTP(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleNTP(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
-		if in, ok := kv.Value.(*vrxv1.NtpService); ok && kv.Key == chrony.Key {
+		if in, ok := kv.Value.(*ngfwv1.NtpService); ok && kv.Key == chrony.Key {
 			servicesOf(ds).Ntp = in
 		}
 	}

@@ -8,7 +8,14 @@ import {
   type StatsBatch,
   type ValidationIssue,
 } from '@ngfw/proto';
-import { deepEqual, diff, isPlainObject, parsePointer, type Change } from '@ngfw/schema';
+import {
+  deepEqual,
+  diff,
+  isPlainObject,
+  parsePointer,
+  RootConfig,
+  type Change,
+} from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../agent/agent.client.js';
 import { SystemEventsService } from '../audit/system-events.service.js';
@@ -18,7 +25,6 @@ import { ZodPipe } from '../common/zod.js';
 import { CommitService } from '../commit/commit.service.js';
 import { ValidationService } from '../commit/validation.service.js';
 import { DatastoreService } from '../datastore/datastore.service.js';
-import { redact } from '../datastore/documents.js';
 import { RelayService } from '../telemetry/relay.service.js';
 
 const startedAt = new Date();
@@ -219,7 +225,7 @@ export class StateController {
     ]);
     return {
       api: {
-        version: process.env['VRX_VERSION'] ?? '0.1.0-dev',
+        version: process.env['NGFW_VERSION'] ?? '0.1.0-dev',
         startedAt: startedAt.toISOString(),
         wsClients: this.relay.clientCount,
       },
@@ -361,15 +367,15 @@ export class StateController {
       this.agent.retrieve([]),
       this.validation.implemented(),
     ]);
-    const desired = DesiredState.fromJSON(redact(running.doc));
+    const desired = ValidationService.desiredState(running.doc);
     // the agent's own statement of what it does not manage (DryRun of running: no side effects, proto.md §3)
     const report = await this.agent.dryRun({
       txnId: `drift-${Date.now()}`,
       desiredState: desired,
       subsystems: impl.subsystems,
     });
-    const expected = DesiredState.toJSON(desired) as Json;
-    const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
+    const expected = canonicalDriftDocument(desired);
+    const actual = canonicalDriftDocument(r.desiredState ?? DesiredState.fromPartial({}));
     const pick = (d: Json) => Object.fromEntries(r.subsystems.map((s) => [s, d[s]]));
     return driftOf(diff(pick(expected), pick(actual)), report.errors, r.subsystems);
   }
@@ -385,6 +391,18 @@ export class StateController {
   events(@Query(new ZodPipe(PageQuery)) q: z.output<typeof PageQuery>) {
     return this.sysEvents.list(q.limit, q.offset);
   }
+}
+
+/** Retrieve is sparse: disabled/default configurations need no scheduler object. Compare both
+ * sides with schema defaults, then project through protobuf to exclude API-only secret leaves.
+ * Invalid retrieved data stays visible rather than being discarded or replaced with defaults.
+ */
+export function canonicalDriftDocument(state: DesiredState): Json {
+  const sparse = DesiredState.toJSON(state) as Json;
+  const parsed = RootConfig.safeParse(sparse);
+  return parsed.success
+    ? (DesiredState.toJSON(DesiredState.fromJSON(parsed.data)) as Json)
+    : sparse;
 }
 
 const COVERAGE_RULES = new Set([

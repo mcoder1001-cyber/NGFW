@@ -9,7 +9,7 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// Host test: egress map ids from this slot's range (VRX_VPP_TABLE_BASE+1…), record/store/mark on
+// Host test: egress map ids from this slot's range (NGFW_VPP_TABLE_BASE+1…), record/store/mark on
 // this slot's loopbacks (loop<slot>20…); Retrieve only reports this owner's objects.
 func TestQoSOnHost(t *testing.T) {
 	h := df7test.StartHost(t)

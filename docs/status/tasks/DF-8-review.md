@@ -8,8 +8,8 @@ vpp-code-track V16–V18. Paths below are relative to `apps/agent/internal/descr
 
 - `tools/ci.sh --base main` on a1a34be: **CI GATE PASSED** (quick, 0m56s, logs `/root/ngfw-wt/logs/ci/DF-8-20260924-013047-1386901`).
   The pasted CI output (5c61b1b) is consistent with this run.
-- Host integration, slot 5 (`eval "$(tools/lab env 5)"`, `VRX_INTEGRATION=1`), **one package at a time**, without
-  `VRX_DF8_HTTP_STATIC`/`VRX_DF8_DUID`: dfkit, dns, dhcp (dhcp6_duid SKIP, opt-in), ipfix, flowprobe, sflow, prom
+- Host integration, slot 5 (`eval "$(tools/lab env 5)"`, `NGFW_INTEGRATION=1`), **one package at a time**, without
+  `NGFW_DF8_HTTP_STATIC`/`NGFW_DF8_DUID`: dfkit, dns, dhcp (dhcp6_duid SKIP, opt-in), ipfix, flowprobe, sflow, prom
   (TestHTTPStaticOnHost SKIP, opt-in), pcap, trace, lcp (3/3 subtests ran, **including `replace helpers`**), dfkit/restarttest: all PASS.
   `systemctl show vpp -p NRestarts` = 2 before and after every package.
 - Leftovers afterwards (read-only `vppctl show`): no lcp pair, default netns unset, no dhcp proxy/client, flowprobe feature
@@ -92,7 +92,7 @@ that desired state wants enabled, and never probe on an index owned by someone e
   `pcap/integration_test.go:29-31` (sets the filter function, and Cleanup forces `vnet_is_packet_traced`; this happens
   *before* the busy check at :47, so it also runs when another capture is active), `ipfix/integration_test.go:71-81`
   (classify stream reset to 0). None of these globals has a getter, so "restore previous values, never VPP defaults" (D-071)
-  is impossible. By the D-064 / Q3 / Q4 precedent they must be opt-in (`VRX_DF8_GLOBALS=1`, run in a manager window).
+  is impossible. By the D-064 / Q3 / Q4 precedent they must be opt-in (`NGFW_DF8_GLOBALS=1`, run in a manager window).
 - `dfkittest/host.go:123-146` `LockGlobals` is **slot-local**. The read-first checks (lcp default netns
   `lcp/integration_test.go:66-72`, flowprobe params, sflow globals, IPFIX exporter 0) are check-then-act between slots.
   While slot 5 holds `lcp default netns = ns-w5-lcp` (a namespace that does not exist), any other slot's pair with netns ""
@@ -102,7 +102,7 @@ that desired state wants enabled, and never probe on an index owned by someone e
   `ReplaceEnd`.
 
 **Fix:** make the getter-less global tests opt-in. Run the read-first global tests under an exclusive **lab-wide** lock
-(`flock -x` on the lab lock or a shared `/run/lock/vrx-globals.lock`, which is a manager decision). Test the replace helpers
+(`flock -x` on the lab lock or a shared `/run/lock/ngfw-globals.lock`, which is a manager decision). Test the replace helpers
 with the fake only, or make them opt-in.
 
 ### M4 — The default in-memory BootStore locks the owner out of its own pcap capture / http_static after an agent restart; the tests claim to simulate the restart but do not
@@ -119,7 +119,7 @@ Do the same for `iface.SetClaimStore` in `restarttest`.
 ### M5 — `prom.http-static-server` is left over from the prom exporter that D-077 dropped, and its validation lets VPP serve any directory on any address, irreversibly
 `prom/prom.go:71-96,139-184`, `docs/agent/descriptors/prom.md`. The package's only object is http_static, the listener for the
 prom page that D-077 dropped. It cannot be disabled or reconfigured. `Validate` accepts any absolute `www_root` (`/`, `/etc`,
-`/var/lib/vrx`) and any listen IP (`tcp://0.0.0.0/80`). Once P06/P08 map config onto it, a config value makes VPP (root)
+`/var/lib/ngfw`) and any listen IP (`tcp://0.0.0.0/80`). Once P06/P08 map config onto it, a config value makes VPP (root)
 serve the host filesystem on data-plane addresses until the next VPP restart.
 **Fix (manager's choice):** (a) drop the package and hand http_static to F-dashboard-prom-alarms together with prom (preferred,
 consistent with D-077). Or (b) keep it but restrict `www_root` to an agent-owned directory (for example
@@ -177,7 +177,7 @@ per (rx VRF, family) in desired-state validation, or key the source per rx VRF.
 ### L7 — The VPP identity is the main-thread PID
 `dfkit/boot.go:163-182` via `iface.VPPIdentity`. In a PID namespace (VPP in a container, where it can be PID 1 every time) the
 identity repeats across restarts. Boot records then look current, and the pcap capture / http_static is never re-added. This
-is fine on vrx-a. Record it for F-startup-gen / packaging (for example, add the stats-segment epoch or `vpe_pid` together
+is fine on ngfw-a. Record it for F-startup-gen / packaging (for example, add the stats-segment epoch or `vpe_pid` together
 with a start timestamp).
 
 ## Things checked and found correct

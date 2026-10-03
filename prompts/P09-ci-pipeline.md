@@ -7,9 +7,9 @@ every worker's worktree before merge and on `main` after merge. Make it complete
 ## Build exactly this
 1. `tools/ci.sh quick` (default, unit-only, < 6 min): `pnpm install --frozen-lockfile --prefer-offline` → `pnpm gen` → **fail if generated
    paths are dirty** (`packages/proto/gen`, `apps/agent/gen`, `packages/schema/dist`, `packages/api-client/src/generated` — not the whole tree)
-   → lint → typecheck → unit tests (TS + Go, `VRX_INTEGRATION` unset) → build → `make lint test build` in `apps/agent`.
-2. `tools/ci.sh full`: quick + integration: takes `flock -x /run/lock/vrx-lab.lock`, exports the slot from `tools/lab env 12` (the CI slot),
-   `tools/lab rig up w12`, runs Go/TS integration suites with `VRX_INTEGRATION=1`, `rig down`, releases the lock. Never restarts VPP.
+   → lint → typecheck → unit tests (TS + Go, `NGFW_INTEGRATION` unset) → build → `make lint test build` in `apps/agent`.
+2. `tools/ci.sh full`: quick + integration: takes `flock -x /run/lock/ngfw-lab.lock`, exports the slot from `tools/lab env 12` (the CI slot),
+   `tools/lab rig up w12`, runs Go/TS integration suites with `NGFW_INTEGRATION=1`, `rig down`, releases the lock. Never restarts VPP.
 3. `tools/ci.sh --base <ref>`: contract guard (contract files changed ⇒ a `contract(` commit subject on the branch, else fail) and
    forbidden-pattern grep (shell exec in control plane, Dockerfiles/compose, `pkill`/`killall` in scripts, secrets patterns).
 4. `golangci-lint` installed (binary from GitHub releases to `/usr/local/bin`; `make lint` uses it) and `gitleaks` if downloadable;

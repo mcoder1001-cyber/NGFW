@@ -3,6 +3,8 @@
 # Blank lines and '#' comments are ignored. Every patch file needs a header: Subject, Track (V-item in
 # docs/vpp-code-track.md or "build"), Status (demo|product|upstreamed), Upstream (gerrit change or "not submitted").
 #
-# DEMONSTRATION ONLY (F-vpp-debs): proves the mechanism; never installed on vrx-a. The product owner funds real
-# V7…V18 fixes (docs/vpp-code-track.md) — each becomes one more line here.
+# Status: demo entries are opt-in; Status: product entries are required in the product build.
+# Native IKEv2 patch 0002 is tested in disposable VPP and has not been installed on ngfw-a.
 0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch
+0002-ikev2-safe-native-state.patch
+0003-lcp-multicast-reconcile.patch

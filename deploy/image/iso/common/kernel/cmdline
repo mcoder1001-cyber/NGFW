@@ -1,0 +1,24 @@
+# Kernel command line defaults of a NGFW appliance (P14; F-images reuses this file read-only).
+# Source: scripts/30-tune-dataplane.sh and docs/09-os-packages.md §4, reduced to what is safe on ANY machine the image
+# may boot on. ngfw-image-setup writes them to /etc/default/grub.d/90-ngfw-dataplane.cfg (appended to
+# GRUB_CMDLINE_LINUX_DEFAULT) and the installer runs update-grub in the target.
+#
+# Deliberately NOT here — hardware dependent, chosen later by the startup.conf generator / hardware wizard (D0.6):
+#   isolcpus= nohz_full= rcu_nocbs=   30-tune's "2-9" assumes a 16-core box; on a 4-vCPU VM it would isolate cores
+#                                     that do not exist or starve the control plane
+#   1 GiB hugepages                   30-tune reserves 16 x 1G: needs the pdpe1gb CPU flag and >= 32 GiB RAM
+# Hugepages: 1024 x 2 MiB (2 GiB) reserved on the command line — the PENDING-vpp-host-hardening option B form, the
+# same amount the vpp package's /etc/sysctl.d/80-vpp.conf asks for at runtime (so that sysctl becomes a no-op and the
+# reservation cannot fail late under memory pressure). 1G-vs-2M is recorded in P14-questions.md Q4.
+#
+# One argument per line; comments and blank lines are ignored.
+default_hugepagesz=2M
+hugepagesz=2M
+hugepages=1024
+intel_iommu=on
+iommu=pt
+intel_pstate=disable
+processor.max_cstate=1
+intel_idle.max_cstate=0
+pcie_aspm=off
+mce=ignore_ce

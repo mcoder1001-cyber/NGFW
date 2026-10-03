@@ -10,15 +10,15 @@
   {
    "table": {
     "family": "inet",
-    "name": "vrx_w9",
+    "name": "ngfw_w9",
     "handle": 2,
-    "comment": "vrx-agent host firewall"
+    "comment": "ngfw-agent host firewall"
    }
   },
   {
    "chain": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "name": "in_local-in",
     "handle": 1,
     "type": "filter",
@@ -30,7 +30,7 @@
   {
    "chain": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "name": "out_egress",
     "handle": 2,
     "type": "filter",
@@ -42,7 +42,7 @@
   {
    "chain": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "name": "fwd_transit",
     "handle": 3,
     "type": "filter",
@@ -55,7 +55,7 @@
    "set": {
     "family": "inet",
     "name": "a4_backup",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "type": "ipv4_addr",
     "handle": 4,
     "flags": [
@@ -88,7 +88,7 @@
    "set": {
     "family": "inet",
     "name": "a4_noc",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "type": "ipv4_addr",
     "handle": 5,
     "flags": [
@@ -103,7 +103,7 @@
    "set": {
     "family": "inet",
     "name": "a4_portal",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "type": "ipv4_addr",
     "handle": 6,
     "flags": [
@@ -118,7 +118,7 @@
    "set": {
     "family": "inet",
     "name": "a6_noc",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "type": "ipv6_addr",
     "handle": 7,
     "flags": [
@@ -138,7 +138,7 @@
    "set": {
     "family": "inet",
     "name": "a6_portal",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "type": "ipv6_addr",
     "handle": 8,
     "flags": [
@@ -152,10 +152,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 9,
-    "comment": "vrx:@established/0:c77fde03",
+    "comment": "ngfw:@established/0:c77fde03",
     "expr": [
      {
       "match": {
@@ -186,10 +186,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 10,
-    "comment": "vrx:@loopback/0:ad72b3be",
+    "comment": "ngfw:@loopback/0:ad72b3be",
     "expr": [
      {
       "match": {
@@ -217,10 +217,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 12,
-    "comment": "vrx:@icmp/0:1057fca7",
+    "comment": "ngfw:@icmp/0:1057fca7",
     "expr": [
      {
       "match": {
@@ -256,10 +256,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 15,
-    "comment": "vrx:@anti-lockout/0:31a9d399",
+    "comment": "ngfw:@anti-lockout/0:31a9d399",
     "expr": [
      {
       "match": {
@@ -327,10 +327,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 18,
-    "comment": "vrx:@anti-lockout/1:88f67901",
+    "comment": "ngfw:@anti-lockout/1:88f67901",
     "expr": [
      {
       "match": {
@@ -398,10 +398,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 19,
-    "comment": "vrx:local-in:5/0:9826da00",
+    "comment": "ngfw:local-in:5/0:afa6ac3e",
     "expr": [
      {
       "match": {
@@ -447,7 +447,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -459,10 +459,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 20,
-    "comment": "vrx:local-in:5/1:71519531",
+    "comment": "ngfw:local-in:5/1:57993819",
     "expr": [
      {
       "match": {
@@ -496,7 +496,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -508,10 +508,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 21,
-    "comment": "vrx:local-in:5/2:7c9f2573",
+    "comment": "ngfw:local-in:5/2:08d507ce",
     "expr": [
      {
       "match": {
@@ -545,7 +545,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -557,10 +557,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 22,
-    "comment": "vrx:local-in:5/3:4ee860bc",
+    "comment": "ngfw:local-in:5/3:f963e4b7",
     "expr": [
      {
       "match": {
@@ -593,7 +593,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -605,10 +605,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 23,
-    "comment": "vrx:local-in:5/4:2e932782",
+    "comment": "ngfw:local-in:5/4:3bdfbee5",
     "expr": [
      {
       "match": {
@@ -642,7 +642,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -654,10 +654,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 24,
-    "comment": "vrx:local-in:5/5:c54e11e6",
+    "comment": "ngfw:local-in:5/5:4fcd8d83",
     "expr": [
      {
       "match": {
@@ -691,7 +691,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -703,10 +703,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 25,
-    "comment": "vrx:local-in:5/6:0591bb0a",
+    "comment": "ngfw:local-in:5/6:45287dd0",
     "expr": [
      {
       "match": {
@@ -740,7 +740,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -752,10 +752,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 26,
-    "comment": "vrx:local-in:5/7:86eb8a54",
+    "comment": "ngfw:local-in:5/7:823c0055",
     "expr": [
      {
       "match": {
@@ -788,7 +788,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -800,10 +800,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 27,
-    "comment": "vrx:local-in:5/8:811015cc",
+    "comment": "ngfw:local-in:5/8:51b50eeb",
     "expr": [
      {
       "match": {
@@ -837,7 +837,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -849,10 +849,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 28,
-    "comment": "vrx:local-in:5/9:9a5e7f69",
+    "comment": "ngfw:local-in:5/9:93c83f32",
     "expr": [
      {
       "match": {
@@ -886,7 +886,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:5 "
+       "prefix": "ngfw:local-in:5 "
       }
      },
      {
@@ -898,10 +898,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 30,
-    "comment": "vrx:local-in:10/0:b763eec9",
+    "comment": "ngfw:local-in:10/0:b763eec9",
     "expr": [
      {
       "match": {
@@ -980,10 +980,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 31,
-    "comment": "vrx:local-in:15/0:d5a7dfc0",
+    "comment": "ngfw:local-in:15/0:d5a7dfc0",
     "expr": [
      {
       "match": {
@@ -1046,10 +1046,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 32,
-    "comment": "vrx:local-in:15/1:89d1f9a6",
+    "comment": "ngfw:local-in:15/1:89d1f9a6",
     "expr": [
      {
       "match": {
@@ -1112,10 +1112,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 33,
-    "comment": "vrx:local-in:20/0:60a0256c",
+    "comment": "ngfw:local-in:20/0:60a0256c",
     "expr": [
      {
       "match": {
@@ -1163,10 +1163,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 34,
-    "comment": "vrx:local-in:30/0:79fa0217",
+    "comment": "ngfw:local-in:30/0:79fa0217",
     "expr": [
      {
       "match": {
@@ -1207,10 +1207,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "in_local-in",
     "handle": 35,
-    "comment": "vrx:local-in:1000/0:54750c03",
+    "comment": "ngfw:local-in:1000/0:bc9146ef",
     "expr": [
      {
       "counter": {
@@ -1220,7 +1220,7 @@
      },
      {
       "log": {
-       "prefix": "vrx:local-in:1000 "
+       "prefix": "ngfw:local-in:1000 "
       }
      },
      {
@@ -1232,10 +1232,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "out_egress",
     "handle": 36,
-    "comment": "vrx:@established/0:c77fde03",
+    "comment": "ngfw:@established/0:c77fde03",
     "expr": [
      {
       "match": {
@@ -1266,10 +1266,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "out_egress",
     "handle": 37,
-    "comment": "vrx:@loopback/0:c07eaa46",
+    "comment": "ngfw:@loopback/0:c07eaa46",
     "expr": [
      {
       "match": {
@@ -1297,10 +1297,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "out_egress",
     "handle": 38,
-    "comment": "vrx:egress:10/0:eec9200f",
+    "comment": "ngfw:egress:10/0:eec9200f",
     "expr": [
      {
       "match": {
@@ -1334,10 +1334,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "fwd_transit",
     "handle": 39,
-    "comment": "vrx:@established/0:c77fde03",
+    "comment": "ngfw:@established/0:c77fde03",
     "expr": [
      {
       "match": {
@@ -1368,10 +1368,10 @@
   {
    "rule": {
     "family": "inet",
-    "table": "vrx_w9",
+    "table": "ngfw_w9",
     "chain": "fwd_transit",
     "handle": 40,
-    "comment": "vrx:transit:10/0:49aa56b7",
+    "comment": "ngfw:transit:10/0:49aa56b7",
     "expr": [
      {
       "match": {

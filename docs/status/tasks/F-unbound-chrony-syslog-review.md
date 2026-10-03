@@ -62,10 +62,10 @@ F-vrf-static-ecmp and TD-23 are in §5.
 | `dns_lookup` answers 409 unless this agent is the globals owner and enabled the cache with an upstream | **partly.** Non-owners are refused before any VPP call (`rpc_dns.go:95` → `lookup.go:49`, 409 in the host run). For the owner, "enabled" means "the stored document says enabled" (**H2**) and "an upstream" includes IPv6-only upstreams (**H1**). |
 | DF-8 `ResolveName`/`ResolveIP` take `Ready` and send nothing without it | yes (`dns.go:269-275`, `293-296`; `TestResolveHelpersRefuseWithoutReady`). Callers of `Ready` state it themselves, so the flag is only as good as the caller's proof (H2). Across every worktree, only DF-8's own package and this action use the dns binapi. |
 | a name-server delete disables the switch first | yes (`dns.go:231-236`, owner only). `Enable.Upstreams` turns a changed set into an update that re-enables the switch after the creates. `TestUpstreamChangesNeverLeaveAnEnabledResolverWithoutServers` drives the real scheduler through a replacement of the last server, and I re-ran it with `-race`. Disable-first also clears pending cache entries (`dns_cache_clear`), so no retry timer later sends to a stale server. |
-| DF-8 host test opt-in (`VRX_DNS_VPP_HOST=1`) | yes (`integration_test.go:27-29`), and also `VRX_DF8_GLOBALS=1` and the exclusive globals lock. Nothing in `tools/`, `deploy/` or `test/` sets either variable. Until this merges, main and every other worktree still carry the old DF-8 test, gated only by `VRX_DF8_GLOBALS=1`: the manager should not open a DF-8 window before the merge. |
+| DF-8 host test opt-in (`NGFW_DNS_VPP_HOST=1`) | yes (`integration_test.go:27-29`), and also `NGFW_DF8_GLOBALS=1` and the exclusive globals lock. Nothing in `tools/`, `deploy/` or `test/` sets either variable. Until this merges, main and every other worktree still carry the old DF-8 test, gated only by `NGFW_DF8_GLOBALS=1`: the manager should not open a DF-8 window before the merge. |
 | the V-item is correct | **no (M1).** The crash condition is misstated, and IPv6-only servers and the CLI crash are missing. |
 | any other dns.api message that crashes the same way | **yes: `dns_resolve_ip`** (`dns.c:1515` → the same `vnet_dns_resolve_name`; already guarded by `Ready`). **`dns_name_server_add_del` does not crash** in any state: it only does vector operations (`dns.c:131-217`). **`dns_enable_disable` does not crash**: disabling a never-enabled plugin returns early in `dns_cache_clear` (`dns.c:49`), and enabling without servers is refused with `NO_NAME_SERVERS` (`dns.c:79-81`). The same NULL dereference is also reachable by: an IPv4 UDP-53 request to any VPP address while enabled (`request_node.c:160,234`, which checks only `is_enabled`); **IPv6-only name servers** (H1); and the CLI `show dns servers` with IPv6-only servers (`dns.c:2244-2246` formats `ip4_name_servers + i`). |
-| can the product agent or a slot agent still send it | **Slot agents and tools/app (`VRX_GLOBALS_OWNER=0`, `tools/app:108`): no.** The lookup is refused, and the dns.* descriptors run in require mode (`subsystems/dns.go:18-20`; `Require(nil)` returns `ErrNotGlobalsOwner` and sends nothing, `dfkit/globals.go:37-39`; `Delete` is a no-op, `dns.go:139-142,196-199`). **The globals owner: yes**, through H1 (deterministic, reachable from the data plane) and H2 (a lookup after a VPP restart, or while DEGRADED). An agent started on the dev host with the default owner `vrx` and no `VRX_GLOBALS_OWNER=0` would be the globals owner (`agent.go:73-79`). That is the same exposure D-071 accepted; see Q8. |
+| can the product agent or a slot agent still send it | **Slot agents and tools/app (`NGFW_GLOBALS_OWNER=0`, `tools/app:108`): no.** The lookup is refused, and the dns.* descriptors run in require mode (`subsystems/dns.go:18-20`; `Require(nil)` returns `ErrNotGlobalsOwner` and sends nothing, `dfkit/globals.go:37-39`; `Delete` is a no-op, `dns.go:139-142,196-199`). **The globals owner: yes**, through H1 (deterministic, reachable from the data plane) and H2 (a lookup after a VPP restart, or while DEGRADED). An agent started on the dev host with the default owner `ngfw` and no `NGFW_GLOBALS_OWNER=0` would be the globals owner (`agent.go:73-79`). That is the same exposure D-071 accepted; see Q8. |
 
 The exact crash condition, read from the source. `vnet_send_dns_request` (`dns.c:576-624`) starts every cache entry
 with `server_af = 0`. When there is no IPv4 server, it falls through to
@@ -89,7 +89,7 @@ Three more defects that do not crash:
 
 - **Embedded-input Retrieve (F-kea pattern): I ratify it as a real Retrieve.**
   - What it does: `unbound/descriptor.go:134-157`, `chrony/descriptor.go:127-161` and
-    `rsyslog/descriptor.go:128-161` read the file the daemon loads and decode `# vrx-input:` (base64, deterministic
+    `rsyslog/descriptor.go:128-161` read the file the daemon loads and decode `# ngfw-input:` (base64, deterministic
     protobuf). They re-render it and byte-compare every file in the set.
   - How drift shows: a hand edit, a deleted file or a renderer change gives a drift Value (`structpb`), which never
     equals a desired Value, so the reconciler re-applies. The host run proved the deletion case: files deleted while
@@ -256,7 +256,7 @@ Three more defects that do not crash:
 | L8 | L | `docs/vpp-code-track.md` | The item is titled "V-new", under the table rather than in it. F-wireguard and F-vrf-static-ecmp edit the same file (merge-tree conflict). | The merger numbers it as a table row. |
 | L9 | L | `agent/projection_test.go:44` | Blanket exemption for `agent.secret-channel-pending` on valid schema examples. | Add a TODO naming PENDING-secret-channel, and remove the exemption when the channel lands. |
 | L10 | L | status evidence | The host run predates `96c02fd4` and the main merge. | Re-run the topology test on the fix-round SHA after TD-25. It sends no VPP DNS call. |
-| L11 | L | `/run/vrx-test/w10/ucs/` | Left over from the run: 0700 root, with a test JWT/secret file (the worker's rm was refused). Also left by this review: gitignored `dist/` in `apps/api` and `packages/{schema,proto,api-client,ui-kit}`, and `/tmp/g-rv10`, because my `rm -rf` was refused too. | The manager deletes them. |
+| L11 | L | `/run/ngfw-test/w10/ucs/` | Left over from the run: 0700 root, with a test JWT/secret file (the worker's rm was refused). Also left by this review: gitignored `dist/` in `apps/api` and `packages/{schema,proto,api-client,ui-kit}`, and `/tmp/g-rv10`, because my `rm -rf` was refused too. | The manager deletes them. |
 
 ## Questions Q2–Q8: recommendations
 
@@ -266,8 +266,8 @@ Three more defects that do not crash:
   > "`dns_resolve_name`/`dns_resolve_ip` — and enabling the dns plugin at all — are allowed only on the globals
   > owner, after it added at least one **IPv4** name server and `dns_enable_disable(1)` succeeded **in the current VPP
   > boot**. Readiness is a DF-8 boot-scoped fact, never derived from the stored document. IPv6-only upstreams are
-  > refused until the V-item lands. A server delete disables first. DF-8 host tests need `VRX_DNS_VPP_HOST=1` and
-  > `VRX_DF8_GLOBALS=1`, in a manager window only."
+  > refused until the V-item lands. A server delete disables first. DF-8 host tests need `NGFW_DNS_VPP_HOST=1` and
+  > `NGFW_DF8_GLOBALS=1`, in a manager window only."
 
   The slot owners were told in the 09:25 status. No further action.
 - **Q3 (log explorer source).** Ratify (a), journald through a fixed argv. Reject (b), omfile in RF-4, which breaks
@@ -313,13 +313,13 @@ Three more defects that do not crash:
   4. `management.ts`, one import and one spread: wave-BC-numbers SY4 assigns the `SyslogTargetSchema` line to this
      task.
 - **Q8 (whose daemons).** **I ratify (a): the globals owner is the box owner, for the host daemons too.**
-  - Why it is safe: the default owner `vrx` is the owner (`agent.go:73-79`), so P10's unit needs no new setting.
-    tools/app sets `VRX_GLOBALS_OWNER=0` (`tools/app:108`, D-107/D-136) and so never touches the host's rsyslog,
+  - Why it is safe: the default owner `ngfw` is the owner (`agent.go:73-79`), so P10's unit needs no new setting.
+    tools/app sets `NGFW_GLOBALS_OWNER=0` (`tools/app:108`, D-107/D-136) and so never touches the host's rsyslog,
     chrony or `/etc/unbound`.
   - Record it in the LOG as an extension of D-071: "host daemons (unbound, chrony, rsyslog, and every later renderer
-    of a box-wide daemon) follow the globals-owner role; non-owners render into `/run/vrx-test/<owner>` and never
+    of a box-wide daemon) follow the globals-owner role; non-owners render into `/run/ngfw-test/<owner>` and never
     start, restart or signal a daemon".
-  - Add one line to shared-host-rules §3: never start an agent on the dev host without `VRX_GLOBALS_OWNER=0` or a
+  - Add one line to shared-host-rules §3: never start an agent on the dev host without `NGFW_GLOBALS_OWNER=0` or a
     slot owner.
   - The product-side executor for pending requests is M4.
 

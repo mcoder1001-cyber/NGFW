@@ -19,7 +19,7 @@ package contracttest
 //
 // The JSON Schema is generated, not committed: CI (tools/ci.sh) runs `pnpm gen` before `make -C
 // apps/agent test`, so under CI a missing file is a failure; outside CI the test skips with the command
-// to run. VRX_DRIFT_SCHEMA=<file> points the guard at another schema (used to demonstrate a failure).
+// to run. NGFW_DRIFT_SCHEMA=<file> points the guard at another schema (used to demonstrate a failure).
 
 import (
 	"encoding/json"
@@ -35,7 +35,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // generatedSchema is written by `pnpm gen` (packages/schema/src/gen.ts).
@@ -72,6 +72,15 @@ func (c *driftChecker) add(dir, path, format string, args ...any) {
 // "<direction> <path>". Every entry must still occur (a stale entry is a finding), and only
 // proto→schema supersets may be accepted — a schema leaf without a proto field never is.
 var acceptedDrift = map[string]string{
+	// Native route based IPsec deliberately rejects legacy per-profile DPD and
+	// unsupported IKE/packet lifetimes. Their wire tags stay reserved to existing
+	// fields for compatibility; IpsecRekey is also shared with remote access.
+	// These exact native paths are proto supersets only: API validation rejects
+	// them before projection (vpn.test.ts), and stale entries still fail below.
+	protoToSchema + " /vpn/ipsec/tunnels/{}/dpd":              "legacy per-profile DPD wire field; native liveness is global and schema rejects this setting",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/espPackets": "shared IpsecRekey wire field; native CHILD packet limits are unsupported and rejected",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/ikeSec":     "shared IpsecRekey wire field; native IKE lifetimes are unsupported and rejected",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/reauth":     "shared IpsecRekey wire field; native IKE reauthentication is unsupported and rejected",
 	// One shared Redistribute message serves bgp/ospf/isis/rip (P02a sync, D-045). The schema's record
 	// omits the protocol's own key ("a protocol cannot redistribute into itself"), so the proto is a
 	// superset by exactly one field per protocol; the API's Zod validation runs before fromJSON, so the
@@ -226,7 +235,7 @@ func isSecretNode(alts []jsonNode) bool {
 		if a["writeOnly"] == true {
 			return true
 		}
-		if ui, ok := a["x-vrx-ui"].(jsonNode); ok && ui["secret"] == true {
+		if ui, ok := a["x-ngfw-ui"].(jsonNode); ok && ui["secret"] == true {
 			return true
 		}
 	}
@@ -443,7 +452,7 @@ func kindNames(ks []protoreflect.Kind) string {
 func loadGeneratedSchema(t *testing.T) jsonNode {
 	t.Helper()
 	path := generatedSchema
-	if p := os.Getenv("VRX_DRIFT_SCHEMA"); p != "" {
+	if p := os.Getenv("NGFW_DRIFT_SCHEMA"); p != "" {
 		path = p
 	}
 	b, err := os.ReadFile(path) //nolint:gosec // fixed repository path or an explicit test override
@@ -468,7 +477,7 @@ func reportFindings(t *testing.T, c *driftChecker) {
 		t.Errorf("%s", f)
 	}
 	if len(c.findings) > 0 {
-		t.Errorf("schema/proto drift: %d finding(s) — %d %s, %d %s. Fix packages/proto/vrx/v1/dataplane.proto "+
+		t.Errorf("schema/proto drift: %d finding(s) — %d %s, %d %s. Fix packages/proto/ngfw/v1/dataplane.proto "+
 			"(contract(proto): commit, pnpm gen) or, for a schema gap, the schema owner.",
 			len(c.findings), byDir[schemaToProto], schemaToProto, byDir[protoToSchema], protoToSchema)
 	}
@@ -478,7 +487,7 @@ func reportFindings(t *testing.T, c *driftChecker) {
 // must describe the same tree.
 func TestSchemaProtoDrift(t *testing.T) {
 	root := loadGeneratedSchema(t)
-	c := checkDrift(root, (&vrxv1.DesiredState{}).ProtoReflect().Descriptor(), acceptedDrift)
+	c := checkDrift(root, (&ngfwv1.DesiredState{}).ProtoReflect().Descriptor(), acceptedDrift)
 	reportFindings(t, c)
 	for _, f := range c.accepted {
 		t.Logf("accepted: %s (%s)", f, acceptedDrift[f.dir+" "+f.path])
@@ -503,17 +512,17 @@ func TestSchemaProtoDriftDetectsBreakage(t *testing.T) {
 	system := props(root, "properties", "system", "properties")
 	system["bogusLeaf"] = jsonNode{"type": "string"}                                       // schema-only leaf
 	delete(system, "hostname")                                                             // proto-only field
-	system["timezone"] = jsonNode{"type": "string", "x-vrx-ui": jsonNode{"secret": true}}  // secret with a field
+	system["timezone"] = jsonNode{"type": "string", "x-ngfw-ui": jsonNode{"secret": true}} // secret with a field
 	props(root, "properties", "interfaces", "additionalProperties", "properties")["mtu"] = // retyped leaf
 		jsonNode{"type": "string"}
 	props(root, "properties", "vrfs", "additionalProperties", "properties")["id"] = // width: needs uint64
 		jsonNode{"type": "integer", "minimum": float64(0), "maximum": float64(1 << 40)}
 	props(root, "properties", "routing", "properties")["static"] = jsonNode{"type": "object"} // array → object
 
-	c := checkDrift(root, (&vrxv1.DesiredState{}).ProtoReflect().Descriptor(), acceptedDrift)
+	c := checkDrift(root, (&ngfwv1.DesiredState{}).ProtoReflect().Descriptor(), acceptedDrift)
 	want := []string{
-		"schema→proto /system/bogusLeaf: schema leaf has no field in vrx.v1.SystemConfig",
-		"proto→schema /system/hostname: proto field vrx.v1.SystemConfig.hostname = 1 has no schema leaf",
+		"schema→proto /system/bogusLeaf: schema leaf has no field in ngfw.v1.SystemConfig",
+		"proto→schema /system/hostname: proto field ngfw.v1.SystemConfig.hostname = 1 has no schema leaf",
 		"schema→proto /system/timezone: secret-flagged leaf has proto field timezone",
 		"schema→proto /interfaces/{}/mtu: schema string but proto type is uint32",
 		"schema→proto /vrfs/{}/id: schema integer [0, 1.099511627776e+12] but proto type is uint32 (want uint64)",
@@ -565,14 +574,14 @@ func TestSchemaProtoDriftDetectsImplicitPresence(t *testing.T) {
 	}
 }
 
-// TestModelStaysAgentInternal: the reconciler object model (packages/proto/vrx/model, D-055) is
+// TestModelStaysAgentInternal: the reconciler object model (packages/proto/ngfw/model, D-055) is
 // agent-internal — the API↔agent contract file must not import it, so it can never leak onto the
 // wire or into the TS stubs.
 func TestModelStaysAgentInternal(t *testing.T) {
-	imports := vrxv1.File_vrx_v1_dataplane_proto.Imports()
+	imports := ngfwv1.File_ngfw_v1_dataplane_proto.Imports()
 	for i := 0; i < imports.Len(); i++ {
-		if p := imports.Get(i).Path(); strings.HasPrefix(p, "vrx/model/") {
-			t.Errorf("vrx/v1/dataplane.proto imports %s — the object model must stay agent-internal", p)
+		if p := imports.Get(i).Path(); strings.HasPrefix(p, "ngfw/model/") {
+			t.Errorf("ngfw/v1/dataplane.proto imports %s — the object model must stay agent-internal", p)
 		}
 	}
 }

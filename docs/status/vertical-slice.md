@@ -4,7 +4,7 @@ What the first feature through every layer proved, on the real host VPP 26.06 th
 (`path: af_packet`, D-010), slot 1, 2026-09-24. Full evidence: `docs/status/tasks/P08.md`.
 
 ```
-Browser (React, /interfaces)  ──REST──▶  vrx-api  ──gRPC──▶  vrx-agent  ──binapi──▶  VPP 26.06
+Browser (React, /interfaces)  ──REST──▶  ngfw-api  ──gRPC──▶  ngfw-agent  ──binapi──▶  VPP 26.06
   ServerDataGrid + drawer              config/**  (candidate → diff → commit → rollback)
   SchemaForm (one schema)              state/interfaces = InterfaceState RPC + Retrieve + running/candidate
   WS iface.counters → rates            WS relay of StreamStats

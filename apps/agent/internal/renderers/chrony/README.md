@@ -5,8 +5,8 @@ control).
 
 | step | how |
 |---|---|
-| Render | `services.ntp` → `templates/{chrony.conf,vrx.sources,chrony.keys}.tmpl`. `chrony.conf` holds the instance directives and `sourcedir <conf>/sources.d`; `sources.d/vrx.sources` the `server`/`pool` lines; `chrony.keys` the symmetric keys (`Secret: true`, 0600 `_chrony:_chrony`). |
-| Validate | `chronyd -p -f <staged chrony.conf>` and `chronyd -p -f <staged vrx.sources>` (server/pool lines are valid chrony.conf directives). `chrony.keys` has no checker: structural check (`<id> SHA256 HEX:<hex>`), and its content never reaches an error message. |
+| Render | `services.ntp` → `templates/{chrony.conf,ngfw.sources,chrony.keys}.tmpl`. `chrony.conf` holds the instance directives and `sourcedir <conf>/sources.d`; `sources.d/ngfw.sources` the `server`/`pool` lines; `chrony.keys` the symmetric keys (`Secret: true`, 0600 `_chrony:_chrony`). |
+| Validate | `chronyd -p -f <staged chrony.conf>` and `chronyd -p -f <staged ngfw.sources>` (server/pool lines are valid chrony.conf directives). `chrony.keys` has no checker: structural check (`<id> SHA256 HEX:<hex>`), and its content never reaches an error message. |
 | Apply | snapshot → atomic write → chronyd not running: disabled → nothing, enabled → `*ActionRequired{Action: start}`; chrony.conf changed → `*ActionRequired{Action: restart}` (chrony reloads nothing else at run time), persisted in `Paths.PendingFile` and returned by every later Apply until chronyd's process (pidfile → `/proc/<pid>/stat` start time, or a new pid in the same tick) started after the request (D-079, review M2); otherwise `chronyc -h <sock> rekey` (keys changed) and `chronyc -h <sock> reload sources` (sources changed). chronyc failure → restore + repeat with the old files. |
 | Retrieve | `chronyc -h <sock> -c tracking | sources | sourcestats | serverstats` (CSV → typed `Tracking`, `Source`, `SourceStats`, serverstats map) → `structpb.Struct`. |
 | Events | poll `tracking` + `sources` at 1 Hz: running, stratum, leap, reference, per-source state. |
@@ -17,7 +17,7 @@ control).
 FNV-32a of the reference (1..2³²−1; stable when other keys are added — review L6; a collision is refused); the value is written hex-encoded (`HEX:`), so no escaping issue
 exists. Errors name the reference only (a resolver error is not wrapped, it could quote the
 value); `Files.Redacted()` hides the keys file; tests assert that no encoding of a key appears in
-`chrony.conf` or `vrx.sources`. chrony.keys is not stored as a golden file.
+`chrony.conf` or `ngfw.sources`. chrony.keys is not stored as a golden file.
 
 ## Mapping decisions
 
@@ -37,9 +37,9 @@ value); `Files.Redacted()` hides the keys file; tests assert that no encoding of
 
 ## Tests
 
-Goldens for chrony.conf / vrx.sources (client with keys + NTS + pool, server mode with
+Goldens for chrony.conf / ngfw.sources (client with keys + NTS + pool, server mode with
 allow/deny/ratelimit/orphan, product paths, local-only, test source port), hostile strings in
 every field, secret-leak tests, argv, Apply decisions with a recording runner. Integration
-(`VRX_INTEGRATION=1`): two `chronyd -f <cfg> -n -x` children (server: local stratum 10 on
+(`NGFW_INTEGRATION=1`): two `chronyd -f <cfg> -n -x` children (server: local stratum 10 on
 127.0.0.1:3<slot>23; client: port 0) — client selects the server (stratum 11), reload sources +
 rekey without restart, conf change → restart request → child restarted, rollback.

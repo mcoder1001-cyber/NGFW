@@ -21,7 +21,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/bond"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
@@ -105,7 +105,7 @@ func BondLBName(lb bond.LoadBalance) string {
 // API (interfaces.bonding-*) are the first line; the builder repeats the checks the agent cannot do without
 // (a name that encodes the id, a known mode, members that exist in the document, mode-dependent options), so a
 // document that reached the agent some other way fails validation instead of VPP.
-func Bonds(s Sink, ifs map[string]*vrxv1.Interface) {
+func Bonds(s Sink, ifs map[string]*ngfwv1.Interface) {
 	member := map[string]string{} // member → bond, for "at most one bond"
 	for _, name := range sortedKeys(ifs) {
 		b := ifs[name].GetBond()
@@ -193,14 +193,14 @@ func Bonds(s Sink, ifs map[string]*vrxv1.Interface) {
 // (disabled, not promiscuous, VRF of table 0). Canonical form (D-039, proto.md §11 F-bonding): mode, numa_only,
 // every member's passive/long_timeout are always set; load_balance for xor/lacp bonds when the stored document sets
 // it or VPP's value is not l2; id only when the stored document sets it; weight when VPP reports one.
-func AssembleBonds(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string]*vrxv1.Interface, tableName func(uint32) string) {
-	bonds := map[string]*vrxv1.Bond{}
+func AssembleBonds(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, tableName func(uint32) string) {
+	bonds := map[string]*ngfwv1.Bond{}
 	var members []*bond.Member
 	weights := map[[2]string]uint32{}
 	for _, kv := range kvs {
 		switch v := kv.Value.(type) {
 		case *bond.Bond:
-			b := &vrxv1.Bond{Mode: proto.String(BondModeName(v.GetMode())), NumaOnly: proto.Bool(v.GetNumaOnly())}
+			b := &ngfwv1.Bond{Mode: proto.String(BondModeName(v.GetMode())), NumaOnly: proto.Bool(v.GetNumaOnly())}
 			sb := stored[v.GetName()].GetBond() // nil when the stored document has no such bond
 			if _, forced := forcedLB[v.GetMode()]; !forced && ((sb != nil && sb.LoadBalance != nil) || v.GetLb() != bond.LoadBalance_LOAD_BALANCE_L2) {
 				b.LoadBalance = proto.String(BondLBName(v.GetLb()))
@@ -229,21 +229,21 @@ func AssembleBonds(ds *vrxv1.DesiredState, kvs []scheduler.KV, stored map[string
 			continue
 		}
 		if b.Members == nil {
-			b.Members = map[string]*vrxv1.BondMember{}
+			b.Members = map[string]*ngfwv1.BondMember{}
 		}
-		bm := &vrxv1.BondMember{Passive: proto.Bool(m.GetPassive()), LongTimeout: proto.Bool(m.GetLongTimeout())}
+		bm := &ngfwv1.BondMember{Passive: proto.Bool(m.GetPassive()), LongTimeout: proto.Bool(m.GetLongTimeout())}
 		if w, ok := weights[[2]string{bn, mn}]; ok {
 			bm.Weight = proto.Uint32(w)
 		}
 		b.Members[mn] = bm
 	}
 	if ds.Interfaces == nil {
-		ds.Interfaces = map[string]*vrxv1.Interface{}
+		ds.Interfaces = map[string]*ngfwv1.Interface{}
 	}
 	for name, b := range bonds {
 		itf, ok := ds.Interfaces[name]
 		if !ok {
-			itf = &vrxv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
+			itf = &ngfwv1.Interface{Enabled: proto.Bool(false), Promiscuous: proto.Bool(false), Vrf: proto.String(tableName(0))}
 			if st, ok := stored[name]; ok && st != nil {
 				itf.Description = st.Description
 			}

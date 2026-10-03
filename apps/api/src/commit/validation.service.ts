@@ -27,6 +27,8 @@ export interface ValidationOutcome {
   /** Parsed, hydrated document (carries password hashes — never returned, never logged). */
   config?: Doc;
   desired?: DesiredState;
+  secretBundle?: { values: Record<string, Buffer> } | undefined;
+  secretVersions?: Record<string, number> | undefined;
   /** Subsystems sent to the agent (implemented by it, HealthResponse.subsystems). */
   subsystems: string[];
   /** Top-level keys this agent build does not implement: committed to running, not applied (yet). */
@@ -65,7 +67,12 @@ export class ValidationService {
 
   /** The agent's DesiredState for a parsed document: protobuf JSON projection without secret leaves (D-040). */
   static desiredState(config: Doc): DesiredState {
-    return DesiredState.fromJSON(redact(config));
+    const doc = redact(config);
+    const management = doc['management'];
+    if (management && typeof management === 'object' && !Array.isArray(management)) {
+      delete (management as Record<string, unknown>)['notifications'];
+    }
+    return DesiredState.fromJSON(doc);
   }
 
   /** Subsystems the agent implements (Health) and the top-level keys it does not. */
@@ -82,7 +89,12 @@ export class ValidationService {
   async validate(
     doc: Doc,
     txnId: string,
-    opts: { dryRunMs?: number; running?: Doc; now?: Date } = {},
+    opts: {
+      dryRunMs?: number;
+      running?: Doc;
+      now?: Date;
+      secretVersions?: Record<string, number> | undefined;
+    } = {},
   ): Promise<ValidationOutcome> {
     const base = {
       warnings: [] as ProblemIssue[],
@@ -104,7 +116,8 @@ export class ValidationService {
       return { ...base, ok: false, tier: 'semantic', errors: missing, config };
     // F-management-ui (unanchored): the API TLS certificate/key pair must load before it is committed
     const tlsIssues = this.mgmtTls ? await this.mgmtTls.validate(config) : [];
-    if (tlsIssues.length > 0) return { ...base, ok: false, tier: 'semantic', errors: tlsIssues, config };
+    if (tlsIssues.length > 0)
+      return { ...base, ok: false, tier: 'semantic', errors: tlsIssues, config };
 
     // F-rule-expiry (unanchored): a new rule or a changed expiry already in the past (needs running to tell)
     if (opts.running !== undefined) {
@@ -121,8 +134,9 @@ export class ValidationService {
     const subsystems = ROOT_KEYS.filter((k) => implemented.has(k));
     const notApplied = ROOT_KEYS.filter((k) => !implemented.has(k));
     const desired = ValidationService.desiredState(config);
+    const delivery = await this.agent.resolveSecrets?.(desired, opts.secretVersions);
     const report = await this.agent.dryRun(
-      { txnId, desiredState: desired, subsystems },
+      { txnId, desiredState: desired, subsystems, secretBundle: delivery?.bundle },
       opts.dryRunMs,
     );
     const errors = report.errors
@@ -137,6 +151,8 @@ export class ValidationService {
       notApplied,
       config,
       desired,
+      secretBundle: delivery?.bundle,
+      secretVersions: delivery?.versions,
       plan: report.plan.map(planEntry),
     };
     if (!report.ok || errors.length > 0) return { ...outcome, ok: false, tier: 'agent', errors };

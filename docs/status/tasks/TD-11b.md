@@ -168,8 +168,8 @@ $ go test -count=1 -v -run 'TestClaimRefresh|TestRegisterGuards|TestRequirePersi
 ok  	ngfw/agent/internal/subsystems	5.599s
 ```
 
-## Host proof (slot w1, real vrx-agent binary, real VPP; no trace commands, D-128)
-Run as `eval "$(tools/lab env 1)"; VRX_INTEGRATION=1 go test -count=1 -v -run TestUntaggedClaimsSurviveAgentRestartOnHost ./internal/agent/`, under the shared lab lock.
+## Host proof (slot w1, real ngfw-agent binary, real VPP; no trace commands, D-128)
+Run as `eval "$(tools/lab env 1)"; NGFW_INTEGRATION=1 go test -count=1 -v -run TestUntaggedClaimsSurviveAgentRestartOnHost ./internal/agent/`, under the shared lab lock.
 
 What the test does:
 - It creates an untagged `tap173` directly through the binary API (the stand-in for a DPDK NIC, as in the DF-1 alias host test).

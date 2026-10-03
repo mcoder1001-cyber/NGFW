@@ -14,7 +14,7 @@
    of `tools/ci.sh`, so it cannot break the gate, but it is the P02 acceptance criterion — say so if a per-group threshold is preferred.
 5. **First admin bootstrap (P06).** Because `management.admin-exists` always fires, the API's initial revision must contain one admin
    (or P06 seeds it from the install-time credentials before the first commit). `examples/minimal.json` shows the shape;
-   `passwordHash` accepts `$vrx-test$VRX_TEST_HASH_<id>` placeholders in fixtures (underscore added to the pattern).
+   `passwordHash` accepts `$ngfw-test$NGFW_TEST_HASH_<id>` placeholders in fixtures (underscore added to the pattern).
 6. **Contract guard on a `task/` branch** — same as P02s #3: `contract(schema): …` commit subjects on `task/P02a`; rename to
    `contract/P02a` if wanted.
 7. **BGP per-VRF instances** are not modelled (single `routing.bgp` with a `vrf` field, matching docs/04). FRR's
@@ -53,7 +53,7 @@
 | 2026-09-23 | D-a5 | `routing.{bgp,ospf,isis,rip,bfd}` are `.optional()` objects — absent = protocol disabled | (a) always-present object with `enabled` (b) optional object | (b) `{}` stays a complete routing section; renderers key on presence | low | P02a, P05 |
 | 2026-09-23 | D-a6 | `management.users[].scope` is the literal `'*'` with default `'*'` (vdom.md #3) | (a) free string + semantic rule (b) literal | (b) JSON Schema `const`, no rule to maintain; widening to an enum later is additive | trivial | P02a, P06 |
 | 2026-09-23 | D-a7 | **superseded by D-048** — `management.admin-exists` (an enabled admin with password or SSH key) always fires — the empty document is schema-valid but not committable | (a) skip the rule when `users` is empty (b) always enforce | (b) is the prompt's rule and prevents locking oneself out; bootstrap seeds one admin | low | P02a, P06 |
-| 2026-09-23 | D-a8 | Arrays remain diff leaves for contracts-v1 (D-021 kept); arrays of objects declare `x-vrx-ui.itemKey` | (a) keyed element-wise diff now (b) leaves + itemKey hint | (b) no schema-aware diff needed yet; UI can pair items by key; adding an option later is additive | low | P02a, P06, P07* |
+| 2026-09-23 | D-a8 | Arrays remain diff leaves for contracts-v1 (D-021 kept); arrays of objects declare `x-ngfw-ui.itemKey` | (a) keyed element-wise diff now (b) leaves + itemKey hint | (b) no schema-aware diff needed yet; UI can pair items by key; adding an option later is additive | low | P02a, P06, P07* |
 | 2026-09-23 | D-a9 | `interfaces` record keys are parent names only; sub-interfaces nest under `subinterfaces` keyed by decimal sub-id, referenced elsewhere as `<parent>.<id>` | (a) flat record incl. dotted names (b) nested per docs/04 | (b) matches docs/04; parent/child relation explicit; `interfaceNames()` gives the referenceable set | low | P02a/b/c, P04 |
 | 2026-09-23 | D-a10 | `descriptionText` rejects C0/C1 control characters (TAB allowed); `hostname` pattern has no lookaround; `passwordHash` allows `_` | (a) keep permissive patterns (b) tighten/portable | (b) descriptions reach CLI/log output; patterns are reused by Go/Python consumers | trivial | P02a |
 | 2026-09-23 | D-a11 | Duplicate `(vrf, prefix)` static routes are an error (`routing.static-unique`), not merged | (a) merge next hops (b) error | (b) explicit ECMP via `nextHops[]`; no hidden merging in the commit path | trivial | P02a, P05 |

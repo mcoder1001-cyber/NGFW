@@ -1,0 +1,25 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py bash -c cleanup() { apps/cli/test/devstack.sh stop; deploy/dev/pg-test.sh drop "$VRX_TEST_PREFIX"; }; trap cleanup EXIT; deploy/dev/pg-test.sh create "$VRX_TEST_PREFIX" && apps/cli/test/devstack.sh start && python3 test/topology/hardware-smoke/reachability-live.py
+heavy: slot 3 after 20s
+DISPOSABLE_VPP pid=587588 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-587586
+create role vrx_w5
+create database vrx_w5 (owner vrx_w5)
+check  vrx_w5 as vrx_w5 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w5/pg.env (0600) · DSN <database-dsn-redacted>
+agent  pid 587810 owner w5 socket /run/vrx-test/w5/agent.sock
+api    pid 587836 http://127.0.0.1:3500 (admin password in /run/vrx-test/w5/admin.pw)
+{"Time":"2026-10-03T13:49:31.215316503+03:30","Action":"start","Package":"ngfw/test/integration/reachability"}
+{"Time":"2026-10-03T13:49:31.284264579+03:30","Action":"run","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback"}
+{"Time":"2026-10-03T13:49:31.284441246+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Output":"=== RUN   TestReachabilityLoopback\n"}
+{"Time":"2026-10-03T13:49:32.518851043+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Output":"    reachability_test.go:121: /interfaces/loop599: Retrieve() != desired after commit: [remove /management remove /nat remove /services/ipfix remove /services/snmp remove /vpn]\n"}
+{"Time":"2026-10-03T13:49:32.898493953+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Output":"--- FAIL: TestReachabilityLoopback (1.61s)\n"}
+{"Time":"2026-10-03T13:49:32.898636272+03:30","Action":"fail","Package":"ngfw/test/integration/reachability","Test":"TestReachabilityLoopback","Elapsed":1.61}
+{"Time":"2026-10-03T13:49:32.898698167+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Output":"FAIL\n"}
+{"Time":"2026-10-03T13:49:32.91284615+03:30","Action":"output","Package":"ngfw/test/integration/reachability","Output":"FAIL\tngfw/test/integration/reachability\t1.697s\n"}
+{"Time":"2026-10-03T13:49:32.912937142+03:30","Action":"fail","Package":"ngfw/test/integration/reachability","Elapsed":1.698}
+api stopped (pid 587836)
+agent stopped (pid 587810)
+removed slot secrets and logs from /run/vrx-test/w5 (use stop --keep to keep them)
+drop   database vrx_w5
+drop   role vrx_w5
+ok     nothing named vrx_w5 / vrx_w5 remains
+DISPOSABLE_VPP_STOPPED pid=587588

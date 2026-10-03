@@ -4,7 +4,7 @@ title: Descriptors: ipsec, ikev2, wireguard
 prompt: prompts/factories/DF-5.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D6.1, D6.3, D6.5
 scope: ipsec, ikev2, wireguard
 merged deps you can rely on: P05a, P04
-slot: 4 → VRX_TEST_PREFIX=w4  VRX_HTTP_PORT=3400  VRX_WEB_PORT=5400  VRX_METRICS_PORT=9141  VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock  VRX_PG_DATABASE=vrx_w4  VRX_VPP_TABLE_BASE=4000
+slot: 4 → NGFW_TEST_PREFIX=w4  NGFW_HTTP_PORT=3400  NGFW_WEB_PORT=5400  NGFW_METRICS_PORT=9141  NGFW_AGENT_SOCKET=/run/ngfw-test/w4/agent.sock  NGFW_PG_DATABASE=ngfw_w4  NGFW_VPP_TABLE_BASE=4000
 daemon-owner: none
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-5>/** docs/agent/descriptors/<plugins>.md
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

@@ -18,7 +18,7 @@ func WriteMetrics(w io.Writer) {
 	p := func(name, help string, v int64) {
 		_, _ = fmt.Fprintf(w, "# HELP %s %s\n# TYPE %s counter\n%s %d\n", name, help, name, name, v)
 	}
-	p("vrx_agent_objects_store_corrupt_total", "Corrupt objects store files moved aside at start (the store starts empty, the next resync re-applies).", storeCorrupt.Load())
-	p("vrx_agent_objects_store_persist_errors_total", "Failed writes of the objects store (the applied objects stay in memory).", storePersistErrors.Load())
-	p("vrx_agent_objects_fqdn_stale_expired_total", "Last-good FQDN answers dropped after the maximum staleness (the object expands to nothing).", fqdnExpired.Load())
+	p("ngfw_agent_objects_store_corrupt_total", "Corrupt objects store files moved aside at start (the store starts empty, the next resync re-applies).", storeCorrupt.Load())
+	p("ngfw_agent_objects_store_persist_errors_total", "Failed writes of the objects store (the applied objects stay in memory).", storePersistErrors.Load())
+	p("ngfw_agent_objects_fqdn_stale_expired_total", "Last-good FQDN answers dropped after the maximum staleness (the object expands to nothing).", fqdnExpired.Load())
 }

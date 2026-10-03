@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
@@ -86,10 +86,10 @@ func onlyReads(t *testing.T, v *coretest.VPP) {
 }
 
 // validatorFindings returns "pointer|message" of every agent.validator issue, sorted.
-func validatorFindings(rep *vrxv1.ValidationReport) []string {
+func validatorFindings(rep *ngfwv1.ValidationReport) []string {
 	var out []string
 	for _, e := range rep.GetErrors() {
-		if e.GetRule() == "agent.validator" && e.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if e.GetRule() == "agent.validator" && e.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			out = append(out, e.GetPointer()+"|"+e.GetMessage())
 		}
 	}
@@ -120,7 +120,7 @@ func TestDryRunAndApplyReportValidatorFindings(t *testing.T) {
 		"/interfaces/loop702|interface.loopback/loop702: validator: checker: rejected",
 	}
 
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: ds})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: ds})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,17 +137,17 @@ func TestDryRunAndApplyReportValidatorFindings(t *testing.T) {
 	}
 	onlyReads(t, v)
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: ds})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: ds})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	if got := validatorFindings(resp.GetValidation()); strings.Join(got, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("Apply validation findings:\n%s", strings.Join(got, "\n"))
 	}
-	codes := map[string]vrxv1.ObjectResultCode{}
+	codes := map[string]ngfwv1.ObjectResultCode{}
 	for _, r := range resp.GetResults() {
 		codes[r.GetKey()] = r.GetCode()
 	}
 	for _, k := range []string{"interface.loopback/loop701", "interface.loopback/loop702"} {
-		if codes[k] != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_INVALID {
+		if codes[k] != ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_INVALID {
 			t.Fatalf("result of %s: %v (all %v)", k, codes[k], resp.GetResults())
 		}
 	}

@@ -4,7 +4,7 @@ Branch `task/F-host-acl-nftables` (P08 pattern: the contract commit sits on the 
 `contract(proto): host acl state`.
 
 ## What
-- `packages/proto/vrx/v1/dataplane.proto`
+- `packages/proto/ngfw/v1/dataplane.proto`
   - `service Dataplane`: `rpc HostAclState(HostAclStateRequest) returns (HostAclStateResponse);` under the
     `// wave-A: F-host-acl-nftables` anchor (framed by blank lines, C5).
   - `AclConfig`: `HostAclSettings host_settings = 8;` under the `// wave-A: F-host-acl-nftables` anchor — the **config gap**
@@ -28,7 +28,7 @@ Branch `task/F-host-acl-nftables` (P08 pattern: the contract commit sits on the 
   - `src/index.ts`: `export * from './domains/ext/host-acl-nftables.js'` under the C3 anchor.
 - Fixtures (C4, new files only): `packages/proto/test/fixtures/host-acl-nftables-basic.json` (joins the DesiredState and
   parsed-document corpora); unit test `packages/schema/src/semantic/host-acl-nftables.test.ts`.
-- Regenerated (C7, never hand-edited): `apps/agent/gen/vrx/v1/dataplane{,_grpc}.pb.go`, `packages/proto/gen/ts/vrx/v1/dataplane.ts`,
+- Regenerated (C7, never hand-edited): `apps/agent/gen/ngfw/v1/dataplane{,_grpc}.pb.go`, `packages/proto/gen/ts/ngfw/v1/dataplane.ts`,
   `packages/api-client/src/generated/schema.d.ts` (the new `acl.hostSettings` component). `make -C apps/cli gen docs`: no change
   (no route yet).
 - `apps/api/src/testing/fake-agent.ts` (P5): the UNIMPLEMENTED stub handler under the anchor; the task's real fake behaviour

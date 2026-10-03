@@ -1,0 +1,183 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c pnpm --filter @ngfw/api test && pnpm --filter @ngfw/api typecheck
+heavy: slot 1 after 260s
+$ vitest run
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/api
+
+[Nest] 1089651  - 10/03/2026, 3:45:18 PM     LOG [Licensing] licence LIC-TEST-0001 installed (valid)
+[Nest] 1089651  - 10/03/2026, 3:45:18 PM     LOG [Licensing] licence LIC-TEST-0001 installed (valid)
+[Nest] 1089651  - 10/03/2026, 3:45:18 PM     LOG [Licensing] licence LIC-TEST-0001 installed (valid)
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM    WARN [SeedDefaultNics] no management NIC identified on the host; not seeding (will retry on agent connect)
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM   DEBUG [SeedDefaultNics] no management NIC identified on the host; not seeding (will retry on agent connect)
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM     LOG [SeedDefaultNics] seeded 1 dataplane NIC(s) as revision 1
+[Nest] 1089651  - 10/03/2026, 3:45:18 PM     LOG [Licensing] licence LIC-TEST-0001 installed (valid)
+ ✓ src/features/licensing/licensing.test.ts (20 tests) 729ms
+   ✓ LicensingService + commit validation stage > commit with an unlicensed feature → 403 problem+json with the pointer; licensed → passes to DryRun  313ms
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM    WARN [SeedDefaultNics] host NIC inventory unavailable, will retry: agent unreachable
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM     LOG [SeedDefaultNics] seeded 1 dataplane NIC(s) as revision 1
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM    WARN [SeedDefaultNics] seed deferred (a commit is waiting for confirmation); will retry
+[Nest] 1089654  - 10/03/2026, 3:45:18 PM     LOG [SeedDefaultNics] seeded 1 dataplane NIC(s) as revision 1
+ ✓ src/features/default-vpp-nics/seed.service.test.ts (10 tests) 303ms
+[Nest] 1089677  - 10/03/2026, 3:45:22 PM    WARN [Commit] commit 99a3bc99-d7fa-4af8-bb4c-eefaa01314aa was not confirmed and has been reverted by the agent (health)
+[Nest] 1089665  - 10/03/2026, 3:45:22 PM    WARN [Commit] commit ad14f5e2-1846-4b66-8a42-82b8fb22cf77 was not confirmed and has been reverted by the agent (confirm)
+[Nest] 1089677  - 10/03/2026, 3:45:22 PM    WARN [Commit] commit b19eca72-869e-48ae-b528-0c87b8c975bc was not confirmed and has been reverted by the agent (event)
+ ✓ src/commit/commit.service.test.ts (24 tests) 6124ms
+   ✓ CommitService (fake agent over gRPC) > applies the candidate, persists a revision and promotes it to running  530ms
+   ✓ CommitService (fake agent over gRPC) > unconfirmed commit: the agent reverts and the API drops the pending commit (Health path)  2650ms
+   ✓ CommitService (fake agent over gRPC) > M3: a lost Apply answer marks running UNKNOWN; reconcile finds the txn applied and saves the revision  739ms
+   ✓ CommitService (fake agent over gRPC) > M3: DEGRADED is never "running unchanged": sync degraded, reconcile re-applies running  436ms
+   ✓ CommitService (fake agent over gRPC) > M3: revision save failure after APPLIED → UNKNOWN, then the revision is saved by the reconcile  443ms
+[Nest] 1092921  - 10/03/2026, 3:45:27 PM   ERROR [Commit] commit lock connection lost during a section: Connection terminated unexpectedly
+ ✓ src/commit/pg-lock.test.ts (3 tests) 3978ms
+   ✓ H1: losing the lock connection mid-section > run: the process survives, the section finishes, the loss is reported, the next section works  1022ms
+   ✓ H1: losing the lock connection mid-section > tryRun: the process survives, the section finishes, the loss is reported, the next section works  977ms
+   ✓ H1: losing the lock connection mid-section > CommitService: a commit whose lock connection drops completes; running is marked UNKNOWN and reconciled  1973ms
+ ✓ src/auth/route-guard.test.ts (8 tests) 1682ms
+ ✓ src/health/health.controller.test.ts (2 tests) 1260ms
+ ✓ src/features/mpls-srmpls/mpls-srmpls.test.ts (7 tests) 1516ms
+ ✓ src/features/lisp/lisp.test.ts (3 tests) 694ms
+   ✓ F-lisp (fake agent over gRPC) > commits the full example: the agent receives tunnels.lisp; GET state/lisp reports it  580ms
+ ✓ src/users/commit-busy.test.ts (4 tests) 971ms
+   ✓ withinCommitLock > lock held longer than the wait → 409 commit-busy after ~the wait, and the queued section never runs  605ms
+   ✓ withinCommitLock > a section that started before the deadline is awaited to its end (never abandoned half-way)  301ms
+ ✓ src/datastore/datastore.service.test.ts (21 tests) 827ms
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM    WARN [mgmt-tls] management.tls of revision 7 not applied: the certificate secret cert/a cannot be read from the secret store; the private key secret key/a cannot be read from the secret store
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=b.vrx.test (sha256 5A:92:09:25:A1:F1:7E:68:8E:99:04:28:14:91:D0:F3:4E:0D:E8:92:DD:29:DD:39:F0:2E:E9:C4:43:D5:7D:4D)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=b.vrx.test (sha256 5A:92:09:25:A1:F1:7E:68:8E:99:04:28:14:91:D0:F3:4E:0D:E8:92:DD:29:DD:39:F0:2E:E9:C4:43:D5:7D:4D)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM    WARN [mgmt-tls] management.tls of revision 9 not applied: the private key does not match the certificate
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=b.vrx.test (sha256 5A:92:09:25:A1:F1:7E:68:8E:99:04:28:14:91:D0:F3:4E:0D:E8:92:DD:29:DD:39:F0:2E:E9:C4:43:D5:7D:4D)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM    WARN [mgmt-tls] an HTTPS port is configured but management.tls has no usable certificate: the HTTPS listener starts once one is committed
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] HTTPS listener on 127.0.0.1:34419 (certificate from management.tls)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS listener on 127.0.0.1:42519 failed: EADDRINUSE; retry 1 of 8 in 5 s
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] HTTPS listener on 127.0.0.1:42519 (certificate from management.tls)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS listener on 127.0.0.1:37211 failed: EADDRINUSE; retry 1 of 2 in 5 s
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS listener on 127.0.0.1:37211 failed: EADDRINUSE; retry 2 of 2 in 15 s
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS listener on 127.0.0.1:37211 failed: EADDRINUSE; automatic retries exhausted: the next applied commit or an API restart retries
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] HTTPS listener on 127.0.0.1:37211 (certificate from management.tls)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS listener on 127.0.0.1:37211: EMFILE
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM    WARN [mgmt-tls] an HTTPS port is configured but management.tls has no usable certificate: the HTTPS listener starts once one is committed
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] HTTPS listener on 127.0.0.1:43185 (certificate from management.tls)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM   ERROR [mgmt-tls] HTTPS port 3999 equals the HTTP port: HTTPS listener not started
+[Nest] 1096986  - 10/03/2026, 3:45:42 PM     LOG [mgmt-tls] management.tls applied: CN=a.vrx.test (sha256 2D:62:5E:7C:41:24:CE:7C:35:1C:8C:B1:DB:B5:09:5B:2C:46:9C:36:B8:70:2B:45:55:91:55:A2:67:F4:86:06)
+ ✓ src/commit/commit.engine.test.ts (22 tests) 24230ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > 2.1 a confirm is decided by Health.last_txn_id (confirmed ≠ reverted) > a confirm whose answer is lost is looked up at once: 200 confirmed, revision saved  1024ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > 2.1 a confirm is decided by Health.last_txn_id (confirmed ≠ reverted) > the deadline watcher saves a transaction the agent confirmed instead of dropping it  2654ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > 2.2 a confirmed rollback restores the secret versions of its target > also when the confirm is found through Health (watcher) by a restarted API  2685ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > 2.5 agent warnings reach every caller > the running-unknown problem carries them  338ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > 2.4a explicit server time budget, no queue > a commit while another is in flight is 409 commit-busy at once  5069ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > ARCH-01 API half: Health.last_txn_id is compared with running > RECONCILE_DONE from an agent resync with another last_txn_id → running re-applied  676ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > ARCH-01 API half: Health.last_txn_id is compared with running > RECONCILE_DONE with a matching last_txn_id changes nothing  849ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > ARCH-01 API half: Health.last_txn_id is compared with running > boot (resumeSync): an agent whose last_txn_id is not running’s is put back on running  349ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > ARCH-01 API half: Health.last_txn_id is compared with running > boot: the re-apply txn of a reconcile (config_sync, newer than the revision) is what the agent must have  1136ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > ARCH-01 API half: Health.last_txn_id is compared with running > agent reconnect: an agent that comes back with another last_txn_id is put back on running  671ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > TD-9 review M4 / L8 > L8: the reconcile waits while the agent still finishes the lost Apply, then saves it (no re-apply over it)  2646ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > fix round 1 (TD-10a-review.md) > M2: a secret delete during a commit is 409 commit-busy after the lock wait, not queued  4060ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > fix round 1 (TD-10a-review.md) > L1: a second API process does not undo the first one’s lost-answer recovery (sync re-read from the DB)  693ms
+   ✓ TD-10a commit engine (fake agent over gRPC) > fix round 1 (TD-10a-review.md) > L4: confirm with no answer and no Health → running-unknown; the reconcile finds it confirmed and saves it  653ms
+ ✓ src/features/mgmt-tls/mgmt-tls.test.ts (23 tests) 764ms
+   ✓ management.tls (F-management-ui) > ValidationService wiring (management.tls hunk) > expired + unchanged: a user commit passes with the warning; a rollback (no running) too; a change is refused  421ms
+ ✓ src/features/tunnels/tunnels.test.ts (3 tests) 842ms
+   ✓ S-tunnels-contract (fake agent over gRPC) > commits every kind; GET state/tunnels lists them with engine names  748ms
+ ✓ src/features/host-metrics/host-metrics.test.ts (5 tests) 641ms
+   ✓ host metrics (WEB-dashboard, D-154) > keeps a bounded history and reports a snapshot  623ms
+ ✓ src/features/det44-map-dslite-cnat/det44-map-dslite-cnat.test.ts (5 tests) 720ms
+   ✓ F-det44-map-dslite-cnat (fake agent over gRPC) > commits DET44 + CNAT + PNAT: the agent receives nat.det44 / cnat / pnat  570ms
+ ✓ src/features/ipfix-sflow/ipfix-sflow.test.ts (3 tests) 786ms
+   ✓ ipfix-sflow (fake agent over gRPC) > flowprobe interfaces without an enabled exporter are a 400 with a pointer  338ms
+   ✓ ipfix-sflow (fake agent over gRPC) > commits exporters, flowprobe and sFlow; GET /state/ipfix reports them  392ms
+ ✓ src/features/host-stack/host-stack.test.ts (4 tests) 534ms
+   ✓ F-host-stack API (fake agent over gRPC, in-memory datastore) > accepts the host stack via the pointer route  335ms
+ ✓ src/features/licensing/wiring.test.ts (1 test) 536ms
+ ✓ src/features/licensing/cli.test.ts (4 tests) 538ms
+ ✓ src/datastore/documents.test.ts (8 tests) 574ms
+ ✓ src/features/aaa/radius.test.ts (4 tests) 362ms
+   ✓ RADIUS PAP client > reports unreachable when no server answers  302ms
+ ✓ src/features/global-blocking/fetch.test.ts (3 tests) 323ms
+ ✓ src/auth/transport.test.ts (12 tests) 264ms
+ ✓ src/features/auth/login-banner.test.ts (6 tests) 309ms
+ ✓ src/secrets/secret-delivery.service.test.ts (5 tests) 291ms
+ ✓ src/testing/fake-agent-action.test.ts (5 tests) 223ms
+ ✓ src/features/dataplane/dataplane.test.ts (11 tests) 198ms
+ ✓ src/features/srv6/srv6.controller.test.ts (5 tests) 187ms
+[Nest] 1101556  - 10/03/2026, 3:46:05 PM     LOG [Tokens] JWT key ring reloaded: 2 key(s), signing key rotated
+stdout | src/auth/tokens.keyring.test.ts > JWT key ring (VRX_JWT_KEY_FILE) > review M1: root rotates the PRODUCT layout — a 0600 ring owned by the API user — keeping owner and mode; foreign owners and group/other bits are still refused
+M1: rotate as root, file owned by the API user → {"keys":2,"uid":65534,"mode":"600"}
+
+[Nest] 1101556  - 10/03/2026, 3:46:06 PM   ERROR [Tokens] JWT key ring NOT reloaded, the previous keys stay: key file /tmp/vrx-td10b-ring-agiFQ9/ring3: mode 0640 lets group/others access it; chmod 0600
+[Nest] 1101556  - 10/03/2026, 3:46:00 PM   ERROR [Tokens] session revoked in this process, but Valkey could not be updated (simulated Valkey outage); its access tokens would be accepted again after an API restart within 905s
+ ✓ src/auth/tokens.keyring.test.ts (8 tests) 183ms
+ ✓ src/features/acl/rules.test.ts (6 tests) 163ms
+ ✓ src/state/drift-defaults.test.ts (4 tests) 171ms
+ ✓ src/agent/secret-delivery.test.ts (2 tests) 168ms
+ ✓ src/features/qos-flat/model.test.ts (4 tests) 60ms
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 2 active alarm(s) from the database
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 1 active alarm(s) from the database
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 1 active alarm(s) from the database
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 3 active alarm(s) from the database
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 1 active alarm(s) from the database
+[Nest] 1102244  - 10/03/2026, 3:46:04 PM     LOG [alarms] rebuilt 1 active alarm(s) from the database
+ ✓ src/features/dashboard-prom-alarms/alarms.service.test.ts (6 tests) 118ms
+[Nest] 1102769  - 10/03/2026, 3:46:05 PM   ERROR [Tokens] user 9: sessions revoked in this process and by the database generation 5, but Valkey could not be updated (simulated Valkey outage); old access tokens would be accepted again after an API restart within 905s
+ ✓ src/auth/tokens.service.test.ts (3 tests) 45ms
+ ✓ src/features/host-acl-nftables/model.test.ts (4 tests) 64ms
+ ✓ src/users/password-policy.test.ts (5 tests) 62ms
+ ✓ src/common/text.test.ts (19 tests) 38ms
+ ✓ src/config.test.ts (5 tests) 43ms
+ ✓ src/auth/apikey-mfa.test.ts (4 tests) 41ms
+ ✓ src/auth/dev-weak-warning.test.ts (2 tests) 39ms
+ ✓ src/features/capture-trace/capture-trace.test.ts (4 tests) 45ms
+ ✓ src/features/neighbors-ra/neighbors-ra.controller.test.ts (7 tests) 66ms
+ ✓ src/auth/break-glass-cli.test.ts (4 tests) 34ms
+ ✓ src/features/aaa/oidc.test.ts (5 tests) 24ms
+ ✓ src/features/snmp/snmp.test.ts (2 tests) 29ms
+ ✓ src/features/loopback-bvi-gso-lldp-span/nsim-gate.test.ts (3 tests) 23ms
+[Nest] 1105367  - 09/25/2026, 3:50:00 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 09/25/2026, 3:50:00 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 09/25/2026, 3:50:00 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 09/25/2026, 3:50:00 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 09/25/2026, 3:50:00 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 09/25/2026, 3:51:01 AM   ERROR [Audit] audit write failed for POST /api/v1/config/commit: insert refused
+[Nest] 1105367  - 10/03/2026, 3:46:16 PM   ERROR [Audit] audit write failed for POST /api/v1/auth/api-keys: insert refused
+ ✓ src/audit/audit.service.test.ts (4 tests) 49ms
+ ✓ src/features/auto-block/engine.test.ts (18 tests) 34ms
+ ✓ src/auth/mfa-fail-closed.test.ts (3 tests) 34ms
+ ✓ src/features/object-model/usage.test.ts (4 tests) 24ms
+ ✓ src/common/json.test.ts (5 tests) 11ms
+ ✓ src/features/ikev2-native/ikev2-native.controller.test.ts (2 tests) 42ms
+ ✓ src/features/nat46/nat46.test.ts (3 tests) 27ms
+ ✓ src/features/wireguard/wireguard.controller.test.ts (3 tests) 36ms
+ ✓ src/auth/key-file.swap.test.ts (1 test) 25ms
+ ✓ src/features/aaa/totp.test.ts (3 tests) 20ms
+ ✓ src/config/path.test.ts (8 tests) 14ms
+ ✓ src/features/bgp/routes.test.ts (3 tests) 22ms
+ ✓ src/features/nat44-ei-64-66-nptv6/nat44-ei-64-66-nptv6.test.ts (4 tests) 25ms
+ ✓ src/features/dashboard-prom-alarms/engine.test.ts (6 tests) 13ms
+ ✓ src/features/rule-expiry/expiry.test.ts (3 tests) 23ms
+ ✓ src/features/nat44-ed-sessions/nat44-ed-sessions.test.ts (4 tests) 22ms
+ ✓ src/features/ipsec/ipsec.controller.test.ts (4 tests) 18ms
+ ✓ src/features/rpf-adl-pbr/drift.test.ts (3 tests) 18ms
+ ✓ src/features/aaa/ldap.test.ts (6 tests) 26ms
+ ✓ src/features/aaa/mfa-guard.test.ts (4 tests) 15ms
+ ✓ src/secrets/secrets.masterkey.test.ts (3 tests) 23ms
+ ✓ src/features/aaa/mfa-reset.test.ts (2 tests) 13ms
+ ✓ src/features/rpf-adl-pbr/pbr-state.test.ts (3 tests) 20ms
+ ✓ src/features/lb/lb.test.ts (3 tests) 15ms
+ ✓ src/features/host-stack/drift.test.ts (1 test) 7ms
+ ✓ src/features/default-vpp-nics/drift.test.ts (1 test) 11ms
+ ✓ src/features/aaa/policy.test.ts (3 tests) 8ms
+
+ Test Files  74 passed (74)
+      Tests  435 passed (435)
+   Start at  15:45:04
+   Duration  94.14s (transform 18.91s, setup 0ms, collect 249.24s, tests 52.41s, environment 44ms, prepare 16.32s)
+
+$ tsc -p tsconfig.json

@@ -17,18 +17,18 @@ import (
 	lispapi "ngfw/agent/binapi/lisp"
 	gpeapi "ngfw/agent/binapi/lisp_gpe"
 	"ngfw/agent/binapi/lisp_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/vpp"
 )
 
-// LispState implements vrx.v1.Dataplane.
-func (g *server) LispState(ctx context.Context, req *vrxv1.LispStateRequest) (*vrxv1.LispStateResponse, error) {
+// LispState implements ngfw.v1.Dataplane.
+func (g *server) LispState(ctx context.Context, req *ngfwv1.LispStateRequest) (*ngfwv1.LispStateResponse, error) {
 	return g.svc.LispState(ctx, req)
 }
 
 // LispState dumps the LISP state (see rpc_lisp.go).
-func (s *Service) LispState(ctx context.Context, req *vrxv1.LispStateRequest) (*vrxv1.LispStateResponse, error) {
+func (s *Service) LispState(ctx context.Context, req *ngfwv1.LispStateRequest) (*ngfwv1.LispStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (s *Service) LispState(ctx context.Context, req *vrxv1.LispStateRequest) (*
 	case errors.Is(err, vpp.ErrDisconnected):
 		return nil, status.Error(codes.Unavailable, err.Error())
 	case errors.Is(df6.PluginError("lisp", err), df6.ErrPluginNotLoaded):
-		resp = &vrxv1.LispStateResponse{}
+		resp = &ngfwv1.LispStateResponse{}
 	default:
 		return nil, status.Errorf(codes.Internal, "lisp state: %v", err)
 	}
@@ -66,13 +66,13 @@ func lispEID(e lisp_types.Eid) string {
 
 var lispActionNames = []string{"no-action", "natively-forward", "send-map-request", "drop"}
 
-func lispState(ctx context.Context, c vpp.Client, owner string) (*vrxv1.LispStateResponse, error) {
+func lispState(ctx context.Context, c vpp.Client, owner string) (*ngfwv1.LispStateResponse, error) {
 	svc := lispapi.NewServiceClient(c)
 	st, err := svc.ShowLispStatus(ctx, &lispapi.ShowLispStatus{})
 	if err != nil {
 		return nil, err
 	}
-	out := &vrxv1.LispStateResponse{Enabled: st.IsLispEnabled, GpeEnabled: st.IsGpeEnabled}
+	out := &ngfwv1.LispStateResponse{Enabled: st.IsLispEnabled, GpeEnabled: st.IsGpeEnabled}
 	if st.IsGpeEnabled {
 		vr, err := gpeapi.NewServiceClient(c).GpeFwdEntryVnisGet(ctx, &gpeapi.GpeFwdEntryVnisGet{})
 		if err != nil {
@@ -122,9 +122,9 @@ func lispState(ctx context.Context, c vpp.Client, owner string) (*vrxv1.LispStat
 		if err != nil {
 			return nil, err
 		}
-		s := &vrxv1.LispStateLocatorSet{Name: d.LsName}
+		s := &ngfwv1.LispStateLocatorSet{Name: d.LsName}
 		for _, l := range locs {
-			s.Locators = append(s.Locators, &vrxv1.LispStateLocator{Interface: names[uint32(l.SwIfIndex)], SwIfIndex: uint32(l.SwIfIndex), Priority: uint32(l.Priority), Weight: uint32(l.Weight)})
+			s.Locators = append(s.Locators, &ngfwv1.LispStateLocator{Interface: names[uint32(l.SwIfIndex)], SwIfIndex: uint32(l.SwIfIndex), Priority: uint32(l.Priority), Weight: uint32(l.Weight)})
 		}
 		out.LocatorSets = append(out.LocatorSets, s)
 	}
@@ -143,7 +143,7 @@ func lispState(ctx context.Context, c vpp.Client, owner string) (*vrxv1.LispStat
 		if r.IsSrcDst {
 			continue
 		}
-		m := &vrxv1.LispStateMapping{Vni: r.Vni, Eid: lispEID(r.Seid), Local: r.IsLocal, Ttl: r.TTL, Authoritative: r.Authoritative != 0}
+		m := &ngfwv1.LispStateMapping{Vni: r.Vni, Eid: lispEID(r.Seid), Local: r.IsLocal, Ttl: r.TTL, Authoritative: r.Authoritative != 0}
 		if int(r.Action) < len(lispActionNames) {
 			m.Action = lispActionNames[r.Action]
 		}
@@ -182,7 +182,7 @@ func lispState(ctx context.Context, c vpp.Client, owner string) (*vrxv1.LispStat
 			return nil, err
 		}
 		for _, a := range rep.Adjacencies {
-			out.Adjacencies = append(out.Adjacencies, &vrxv1.LispStateAdjacency{Vni: v, Reid: lispEID(a.Reid), Leid: lispEID(a.Leid)})
+			out.Adjacencies = append(out.Adjacencies, &ngfwv1.LispStateAdjacency{Vni: v, Reid: lispEID(a.Reid), Leid: lispEID(a.Leid)})
 		}
 	}
 	for _, l2 := range []bool{false, true} {
@@ -198,7 +198,7 @@ func lispState(ctx context.Context, c vpp.Client, owner string) (*vrxv1.LispStat
 			if m.Vni == 0 {
 				continue // the implicit default instance
 			}
-			out.EidTables = append(out.EidTables, &vrxv1.LispStateEidTable{Vni: m.Vni, DpTable: m.DpTable, IsL2: l2})
+			out.EidTables = append(out.EidTables, &ngfwv1.LispStateEidTable{Vni: m.Vni, DpTable: m.DpTable, IsL2: l2})
 		}
 	}
 	sort.Slice(out.EidTables, func(a, b int) bool { return out.EidTables[a].GetVni() < out.EidTables[b].GetVni() })

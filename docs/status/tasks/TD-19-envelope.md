@@ -26,7 +26,7 @@ VPP/nft operation, key download or privileged lab change during this task run.
 Original deploy/vpp/verify.sh --require-files ARTIFACTDIR --install-gate remains
 mandatory and unchanged. Seven ship:true runtimes are selected from validated
 manifest/v2, never a filename glob or floating upstream repository. Version is
-26.06-release+vrxN per original VERSION. Preflight can run without root and has
+26.06-release+ngfwN per original VERSION. Preflight can run without root and has
 no host mutations; root install/repo paths must reject missing/invalid product
 artifacts before APT/network. Consumer profile is Ubuntu26.04; Node22/PG18 are
 already runtime contract inputs, not invented package availability claims.

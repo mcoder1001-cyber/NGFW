@@ -10,7 +10,7 @@ package desired
 //	  track[]                           → vrrp.vr-track-interface/<if>/<vrid>/<af>/<tracked>
 //	  enabled (default true)            → vrrp.vr-state/<if>/<vrid>/<af>             (started; absent = stopped)
 //	  name, description, vrf            → vrrp.meta/<if>/<vrid>/<af>                 (agent-local: VPP holds no name)
-//	ha.vrrp.<name> (engine keepalived)  → keepalived.config/vrx                      (one singleton: every keepalived instance
+//	ha.vrrp.<name> (engine keepalived)  → keepalived.config/ngfw                      (one singleton: every keepalived instance
 //	                                                                                  with a linux-cp pair, plus those pairs)
 //
 // A keepalived instance whose interface has no linux-cp pair (interfaces.<if>.lcp) is skipped with an
@@ -31,7 +31,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vrrp"
@@ -49,21 +49,36 @@ const (
 	vrrpRule         = "ha.vrrp"
 	vrrpRuleNoLcp    = "ha.vrrp-keepalived-no-lcp"
 	vrrpRuleDup      = "ha.vrrp-duplicate-vrid"
+	vrrpRuleVPPOff   = "ha.vrrp-vpp-disabled"
+	vrrpRuleKeepOff  = "ha.vrrp-keepalived-disabled"
 	vrrpEngineVPP    = "vpp"
 	vrrpEngineKeepal = "keepalived"
 )
 
+// VrrpOptions gates the two ha.vrrp engines on the shared host (RV-A R4 M1/M2, V22b). Both are
+// resolved once at registration (subsystems.VrrpEnv) from NGFW_VRRP_VPP / NGFW_KEEPALIVED,
+// NGFW_TEST_PREFIX and NGFW_VPP_ID_RANGE=all — never from the owner name. When an engine is off, an
+// instance of that engine is reported as configured-but-not-applied (a warning), never written to the
+// shared VPP nor staged to keepalived.
+type VrrpOptions struct {
+	// VPPEngine allows the VPP VRRP engine (vrrp_vr_* on /run/vpp/api.sock).
+	VPPEngine bool
+	// Keepalived allows the keepalived renderer stage (a system/daemon config write + reload).
+	Keepalived bool
+}
+
 // KeepalivedKey is the single key of the keepalived stage.
-var KeepalivedKey = scheduler.Join(KeepalivedConfigName, "vrx")
+var KeepalivedKey = scheduler.Join(KeepalivedConfigName, "ngfw")
 
 // ---- vrrp.meta ----------------------------------------------------------------------------------
 
 // VrrpMetaSpec is one vrrp.meta entry; ID is "<interface>/<vrid>/<ipv4|ipv6>".
 type VrrpMetaSpec struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Vrf         string `json:"vrf,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Vrf         string   `json:"vrf,omitempty"`
+	Addresses   []string `json:"addresses,omitempty"`
 }
 
 func vrrpID(v vrrp.VR) string {
@@ -183,19 +198,28 @@ func canonAddrs(in []string) ([]string, error) {
 	return df7.SortedAddrs(out)
 }
 
-func vrrpEngine(v *vrxv1.VrrpInstance) string {
+func vrrpEngine(v *ngfwv1.VrrpInstance) string {
 	if v.Engine == nil {
 		return vrrpEngineVPP
 	}
 	return v.GetEngine()
 }
 
-// Vrrp projects ha.vrrp (both engines). in is the set of authoritative domains of the transaction.
-func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
+// Vrrp projects ha.vrrp (both engines). in is the set of authoritative domains of the transaction;
+// opts gates the two engines (VrrpOptions).
+func Vrrp(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, opts VrrpOptions) {
 	if !in["ha"] {
 		return
 	}
 	ha := ds.GetHa()
+	// RV-A R3 M1: `ha` is now a registered domain, so agent.unimplemented-domain no longer fires for it
+	// and desired.Vrrp never applies ha.cluster. Without this an ha.cluster{enabled,configSync} commit
+	// validates clean and applies nothing, breaking the projection contract (an unimplemented leaf must
+	// surface as agent.unsupported-field). The D9.2 config-sync engine is not built (F-config-sync).
+	if ha.GetCluster() != nil {
+		s.Warnf(Ptr("ha", "cluster"), "agent.unsupported-field",
+			"ha.cluster (config sync and cluster state) is not applied by this agent build: the D9.2 config-sync engine is not built yet")
+	}
 	names := make([]string, 0, len(ha.GetVrrp()))
 	for n := range ha.GetVrrp() {
 		names = append(names, n)
@@ -203,8 +227,8 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 	sort.Strings(names)
 	seen := map[string]string{}
 	lcp := lcpmap.FromDesired(ds)
-	keep := map[string]*vrxv1.VrrpInstance{}
-	pairs := map[string]*vrxv1.Interface{}
+	keep := map[string]*ngfwv1.VrrpInstance{}
+	pairs := map[string]*ngfwv1.Interface{}
 	for _, name := range names {
 		v := ha.GetVrrp()[name]
 		pt := Ptr("ha", "vrrp", name)
@@ -220,6 +244,11 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 		seen[vrrpID(vr)] = name
 		switch vrrpEngine(v) {
 		case vrrpEngineKeepal:
+			if !opts.Keepalived {
+				s.Warnf(Ptr("ha", "vrrp", name, "engine"), vrrpRuleKeepOff,
+					"keepalived instance %s is not applied: the keepalived engine is disabled on this agent (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all) — shared-host safety (RV-A R4 M2)", name)
+				continue
+			}
 			if f := v.GetVrf(); f != "" && f != "default" {
 				s.Warnf(Ptr("ha", "vrrp", name, "vrf"), "ha.vrrp-keepalived-vrf", "keepalived instance %s is skipped: the keepalived engine supports only the default VRF (got %q)", name, f)
 				continue
@@ -230,23 +259,28 @@ func Vrrp(s Sink, ds *vrxv1.DesiredState, in map[string]bool) {
 				continue
 			}
 			keep[name] = v
-			pairs[v.GetInterface()] = &vrxv1.Interface{Lcp: ds.GetInterfaces()[v.GetInterface()].GetLcp()}
+			pairs[v.GetInterface()] = &ngfwv1.Interface{Lcp: ds.GetInterfaces()[v.GetInterface()].GetLcp()}
 		case vrrpEngineVPP:
+			if !opts.VPPEngine {
+				s.Warnf(Ptr("ha", "vrrp", name, "engine"), vrrpRuleVPPOff,
+					"virtual router %s is not applied: the VPP VRRP engine is disabled on this agent (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all) — VPP-engine VRRP runs only on the product box or in a manager window with VPP idle (RV-A R4 M1, V22b)", name)
+				continue
+			}
 			vrrpVPP(s, pt, name, vr, v)
 		default:
 			s.Errorf(Ptr("ha", "vrrp", name, "engine"), vrrpRule, "unknown engine %q (vpp | keepalived)", v.GetEngine())
 		}
 	}
 	if len(keep) > 0 {
-		val := &vrxv1.DesiredState{Ha: &vrxv1.HaConfig{Vrrp: keep}, Interfaces: pairs}
+		val := &ngfwv1.DesiredState{Ha: &ngfwv1.HaConfig{Vrrp: keep}, Interfaces: pairs}
 		if h := ds.GetSystem().GetHostname(); h != "" {
-			val.System = &vrxv1.SystemConfig{Hostname: proto.String(h)}
+			val.System = &ngfwv1.SystemConfig{Hostname: proto.String(h)}
 		}
 		s.Add(KeepalivedKey, val, Ptr("ha", "vrrp"))
 	}
 }
 
-func vrrpVPP(s Sink, pt, name string, vr vrrp.VR, v *vrxv1.VrrpInstance) {
+func vrrpVPP(s Sink, pt, name string, vr vrrp.VR, v *ngfwv1.VrrpInstance) {
 	addrs, err := canonAddrs(v.GetAddresses())
 	if err != nil || len(addrs) == 0 {
 		s.Errorf(Ptr("ha", "vrrp", name, "addresses"), vrrpRule, "virtual addresses: %v", err)
@@ -297,7 +331,7 @@ func vrrpVPP(s Sink, pt, name string, vr vrrp.VR, v *vrxv1.VrrpInstance) {
 	if boolOr(v.Enabled, true) {
 		s.Add(vrrp.KeyState(vr), df7.Encode(vrrp.State{VR: vr, Running: true}), Ptr("ha", "vrrp", name, "enabled"))
 	}
-	s.Add(VrrpMetaKey(vrrpID(vr)), dfkit.Encode(VrrpMetaSpec{ID: vrrpID(vr), Name: name, Description: v.GetDescription(), Vrf: v.GetVrf()}), pt)
+	s.Add(VrrpMetaKey(vrrpID(vr)), dfkit.Encode(VrrpMetaSpec{ID: vrrpID(vr), Name: name, Description: v.GetDescription(), Vrf: v.GetVrf(), Addresses: append([]string(nil), v.GetAddresses()...)}), pt)
 }
 
 // ---- assembler ----------------------------------------------------------------------------------
@@ -312,7 +346,7 @@ func vrrpFallbackName(vr vrrp.VR) string {
 
 // AssembleVrrp adds ha.vrrp to the assembled document from the retrieved vrrp.*, vrrp.meta and
 // keepalived.config objects.
-func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool) {
+func AssembleVrrp(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool) {
 	if !in["ha"] {
 		return
 	}
@@ -324,7 +358,7 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 	}
 	vrs := map[string]*acc{}
 	meta := map[string]VrrpMetaSpec{}
-	out := map[string]*vrxv1.VrrpInstance{}
+	out := map[string]*ngfwv1.VrrpInstance{}
 	for _, kv := range kvs {
 		switch kv.Key.Descriptor() {
 		case vrrp.NameVR:
@@ -336,9 +370,9 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 				meta[m.ID] = m
 			}
 		case KeepalivedConfigName:
-			if k, ok := kv.Value.(*vrxv1.DesiredState); ok {
+			if k, ok := kv.Value.(*ngfwv1.DesiredState); ok {
 				for n, v := range k.GetHa().GetVrrp() {
-					out[n] = proto.Clone(v).(*vrxv1.VrrpInstance)
+					out[n] = proto.Clone(v).(*ngfwv1.VrrpInstance)
 				}
 			}
 		}
@@ -365,21 +399,24 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 		if sp.IPv6 {
 			af = "ipv6"
 		}
-		inst := &vrxv1.VrrpInstance{
+		inst := &ngfwv1.VrrpInstance{
 			Enabled: proto.Bool(a.running), Interface: proto.String(sp.Interface), VrId: proto.Uint32(uint32(sp.VRID)),
 			AddressFamily: proto.String(af), Priority: proto.Uint32(uint32(sp.Priority)),
 			AdvertisementIntervalMs: proto.Uint32(uint32(sp.Interval) * 10), Preempt: proto.Bool(sp.Preempt),
 			AcceptMode: proto.Bool(sp.Accept), Addresses: append([]string(nil), sp.Addresses...), Engine: proto.String(vrrpEngineVPP),
 		}
 		if sp.Unicast {
-			inst.Unicast = &vrxv1.VrrpInstance_Unicast{Peers: a.peers}
+			inst.Unicast = &ngfwv1.VrrpInstance_Unicast{Peers: a.peers}
 		}
 		sort.Slice(a.track, func(i, j int) bool { return a.track[i].Tracked < a.track[j].Tracked })
 		for _, t := range a.track {
-			inst.Track = append(inst.Track, &vrxv1.VrrpInstance_Track{Interface: proto.String(t.Tracked), PriorityDecrement: proto.Uint32(uint32(t.Priority))})
+			inst.Track = append(inst.Track, &ngfwv1.VrrpInstance_Track{Interface: proto.String(t.Tracked), PriorityDecrement: proto.Uint32(uint32(t.Priority))})
 		}
 		name := vrrpFallbackName(sp.VR)
 		if m, ok := meta[id]; ok {
+			if sameAddressSet(m.Addresses, sp.Addresses) {
+				inst.Addresses = append([]string(nil), m.Addresses...)
+			}
 			name = m.Name
 			if m.Description != "" {
 				inst.Description = proto.String(m.Description)
@@ -394,7 +431,25 @@ func AssembleVrrp(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool
 		return
 	}
 	if ds.Ha == nil {
-		ds.Ha = &vrxv1.HaConfig{}
+		ds.Ha = &ngfwv1.HaConfig{}
 	}
 	ds.Ha.Vrrp = out
+}
+
+// Preserve presentation order only when live membership still equals the saved desired set.
+func sameAddressSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	set := map[string]int{}
+	for _, value := range a {
+		set[value]++
+	}
+	for _, value := range b {
+		set[value]--
+		if set[value] < 0 {
+			return false
+		}
+	}
+	return true
 }

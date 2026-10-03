@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	ucsaction "ngfw/agent/internal/actions/unbound-chrony-syslog"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
@@ -48,20 +48,20 @@ func needHostTools(t *testing.T) {
 
 func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 	needHostTools(t)
-	base := t.TempDir()
-	t.Setenv(subsystems.EnvHostServicesDir, base)
+	stateDir := t.TempDir()
+	base := hostDirOf(t, stateDir) // newSvc selects this same private host-service directory.
 	ctx := context.Background()
-	s := newSvc(t, coretest.New(), t.TempDir())
+	s := newSvc(t, coretest.New(), stateDir)
 	g := &server{svc: s}
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1", DesiredState: doc(t, hostServicesDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	for _, f := range []string{"unbound/unbound.conf", "chrony/agent/chrony.conf", "chrony/agent/sources.d/vrx.sources", "rsyslog/rsyslog.conf"} {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "h1", DesiredState: doc(t, hostServicesDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	for _, f := range []string{"unbound/unbound.conf", "chrony/agent/chrony.conf", "chrony/agent/sources.d/ngfw.sources", "rsyslog/rsyslog.conf"} {
 		if _, err := os.Stat(filepath.Join(base, f)); err != nil {
 			t.Fatalf("not rendered: %v", err)
 		}
 	}
-	got, err := s.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"services", "management"}})
+	got, err := s.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"services", "management"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,34 +72,37 @@ func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 		t.Fatalf("retrieve != desired:\n%v", got.GetDesiredState())
 	}
 	// nothing runs: every daemon has a start request, none of them is an error
-	dnsSt, err := g.DnsState(ctx, &vrxv1.DnsStateRequest{})
+	dnsSt, err := g.DnsState(ctx, &ngfwv1.DnsStateRequest{})
 	if err != nil || dnsSt.GetRunning() || len(dnsSt.GetPendingActions()) != 1 || dnsSt.GetPendingActions()[0].GetAction() != "start" ||
 		dnsSt.GetConfigPath() != filepath.Join(base, "unbound/unbound.conf") || dnsSt.GetVppCache().GetConfigured() {
 		t.Fatalf("dns state %v %v", dnsSt, err)
 	}
-	ntpSt, err := g.NtpState(ctx, &vrxv1.NtpStateRequest{})
+	ntpSt, err := g.NtpState(ctx, &ngfwv1.NtpStateRequest{})
 	if err != nil || ntpSt.GetRunning() || len(ntpSt.GetPendingActions()) != 1 {
 		t.Fatalf("ntp state %v %v", ntpSt, err)
 	}
-	sysSt, err := g.SyslogState(ctx, &vrxv1.SyslogStateRequest{})
+	sysSt, err := g.SyslogState(ctx, &ngfwv1.SyslogStateRequest{})
 	if err != nil || len(sysSt.GetTargets()) != 1 || sysSt.GetTargets()[0].GetReported() || len(sysSt.GetPendingActions()) != 1 {
 		t.Fatalf("syslog state %v %v", sysSt, err)
 	}
-	if _, err := g.DnsState(ctx, &vrxv1.DnsStateRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.DnsState(ctx, &ngfwv1.DnsStateRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner: %v", err)
 	}
 
 	// idempotent: the same document again plans nothing
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "h2", DesiredState: doc(t, hostServicesDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "h2", DesiredState: doc(t, hostServicesDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n := len(resp.GetResults()); n != 0 {
 		t.Fatalf("re-apply changed %d objects: %v", n, resp.GetResults())
 	}
 	// removal (rollback of the feature): empty services/management → idle / disabled / empty renderings
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "h3", DesiredState: doc(t, `{"services": {}, "management": {}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err = s.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"services", "management"}})
-	if err != nil || got.GetDesiredState().GetServices() != nil || got.GetDesiredState().GetManagement() != nil {
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "h3", DesiredState: doc(t, `{"services": {}, "management": {}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err = s.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"services", "management"}})
+	// Empty DHCP and QoS containers are always assembled for the services domain;
+	// every configured service, including DNS/NTP, must still be absent.
+	emptyServices := &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{}, Qos: &ngfwv1.QosService{}}
+	if err != nil || !proto.Equal(got.GetDesiredState().GetServices(), emptyServices) || got.GetDesiredState().GetManagement() != nil {
 		t.Fatalf("after removal: %v %v", got.GetDesiredState(), err)
 	}
 	conf, _ := os.ReadFile(filepath.Join(base, "unbound/unbound.conf")) //nolint:gosec // the test's own temp dir
@@ -111,7 +114,7 @@ func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 func TestHostServicesRefusedAtDryRun(t *testing.T) {
 	t.Setenv(subsystems.EnvHostServicesDir, t.TempDir())
 	s := newSvc(t, coretest.New(), t.TempDir())
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{"management": {"syslog": [
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: doc(t, `{"management": {"syslog": [
 	  {"address": "192.0.2.1", "protocol": "tls", "tls": {"caRef": "cert/ca"}}]}}`)})
 	if err != nil || rep.GetOk() {
 		t.Fatalf("dry run %v %v", rep, err)
@@ -130,24 +133,24 @@ func TestSyslogEntriesRPC(t *testing.T) {
 	prev := journalRunner
 	journalRunner = rr
 	t.Cleanup(func() { journalRunner = prev })
-	resp, err := g.SyslogEntries(context.Background(), &vrxv1.SyslogEntriesRequest{Severity: "info", Query: "SERVICE"})
+	resp, err := g.SyslogEntries(context.Background(), &ngfwv1.SyslogEntriesRequest{Severity: "info", Query: "SERVICE"})
 	if err != nil || resp.GetTotal() != 1 || resp.GetEntries()[0].GetIdentifier() != "unbound" || resp.GetOwner() != testOwner {
 		t.Fatalf("entries %v %v", resp, err)
 	}
-	if _, err := g.SyslogEntries(context.Background(), &vrxv1.SyslogEntriesRequest{Severity: "loud"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.SyslogEntries(context.Background(), &ngfwv1.SyslogEntriesRequest{Severity: "loud"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("bad severity: %v", err)
 	}
 }
 
-// dnsActionStream is a minimal grpc.ServerStreamingServer[vrxv1.ActionOutput].
+// dnsActionStream is a minimal grpc.ServerStreamingServer[ngfwv1.ActionOutput].
 type dnsActionStream struct {
 	grpc.ServerStream
 	ctx context.Context
-	out []*vrxv1.ActionOutput
+	out []*ngfwv1.ActionOutput
 }
 
-func (s *dnsActionStream) Context() context.Context         { return s.ctx }
-func (s *dnsActionStream) Send(o *vrxv1.ActionOutput) error { s.out = append(s.out, o); return nil }
+func (s *dnsActionStream) Context() context.Context          { return s.ctx }
+func (s *dnsActionStream) Send(o *ngfwv1.ActionOutput) error { s.out = append(s.out, o); return nil }
 
 // newOwnerSvc is newSvc as the globals owner (the product agent): DF-8's dns.* descriptors are registered for real.
 func newOwnerSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
@@ -185,7 +188,7 @@ func TestDNSLookupReadinessIsLiveNotStored(t *testing.T) {
 			v.Reset()
 			g := &server{svc: s, log: s.log}
 			st := &dnsActionStream{ctx: context.Background()}
-			err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_DnsLookup{DnsLookup: &vrxv1.DnsLookupAction{Name: "gw.lab.example"}}}, st)
+			err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_DnsLookup{DnsLookup: &ngfwv1.DnsLookupAction{Name: "gw.lab.example"}}}, st)
 			if grpcCode(err) != codes.FailedPrecondition || len(st.out) != 0 {
 				t.Fatalf("want FailedPrecondition and no output, got %v %v", err, st.out)
 			}
@@ -194,7 +197,7 @@ func TestDNSLookupReadinessIsLiveNotStored(t *testing.T) {
 					t.Fatalf("%s reached VPP", n)
 				}
 			}
-			dnsSt, err := g.DnsState(context.Background(), &vrxv1.DnsStateRequest{})
+			dnsSt, err := g.DnsState(context.Background(), &ngfwv1.DnsStateRequest{})
 			if err != nil || !dnsSt.GetVppCache().GetConfigured() || dnsSt.GetVppCache().GetAppliedByThisAgent() {
 				t.Fatalf("vppCache state %v %v", dnsSt.GetVppCache(), err)
 			}
@@ -218,20 +221,20 @@ func TestStateWalksAreSerialised(t *testing.T) {
 		var callErr error
 		switch name {
 		case "dns":
-			_, callErr = g.DnsState(context.Background(), &vrxv1.DnsStateRequest{})
+			_, callErr = g.DnsState(context.Background(), &ngfwv1.DnsStateRequest{})
 		case "ntp":
-			_, callErr = g.NtpState(context.Background(), &vrxv1.NtpStateRequest{})
+			_, callErr = g.NtpState(context.Background(), &ngfwv1.NtpStateRequest{})
 		case "syslog":
-			_, callErr = g.SyslogState(context.Background(), &vrxv1.SyslogStateRequest{})
+			_, callErr = g.SyslogState(context.Background(), &ngfwv1.SyslogStateRequest{})
 		case "journal":
-			_, callErr = g.SyslogEntries(context.Background(), &vrxv1.SyslogEntriesRequest{})
+			_, callErr = g.SyslogEntries(context.Background(), &ngfwv1.SyslogEntriesRequest{})
 		}
 		release()
 		if grpcCode(callErr) != codes.Unavailable {
 			t.Fatalf("%s: a second walk while one is in flight: %v", name, callErr)
 		}
 	}
-	if _, err := g.DnsState(context.Background(), &vrxv1.DnsStateRequest{}); err != nil {
+	if _, err := g.DnsState(context.Background(), &ngfwv1.DnsStateRequest{}); err != nil {
 		t.Fatalf("after the release: %v", err)
 	}
 }

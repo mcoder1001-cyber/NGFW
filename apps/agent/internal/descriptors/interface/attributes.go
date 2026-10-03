@@ -6,7 +6,7 @@ package iface
 // yield an object) are documented per descriptor and in docs/agent/descriptors/interface.md:
 //
 //	admin-state  present ⇔ IF_STATUS_API_FLAG_ADMIN_UP          Delete → admin down
-//	mtu          present ⇔ MTUs differ from the creation default Delete → creation default ({link_mtu,0,0,0}; sub-if {0,0,0,0})
+//	mtu          present ⇔ MTUs differ from the creation default Delete → creation default ({link_mtu,0,0,0}; sub-if {0,0,0,0}; LinkMtu=0 {9000,0,0,0})
 //	mac-address  present ⇔ this process set it                   Delete → no-op (VPP has no "unset MAC")
 //	promisc      present ⇔ this process switched it on          Delete → off  (not readable back from VPP)
 //	rx-mode      present ⇔ a queue differs from the class default Delete → class default (polling; af-packet interrupt)
@@ -245,7 +245,9 @@ func (d *AdminStateDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, er
 // per-protocol MTUs inherit L3) and a sub-interface with {0, 0, 0, 0} (VPP then falls back to
 // 9000, interface_funcs.h vnet_sw_interface_get_mtu); both verified on the host. That creation
 // default is "no object": Retrieve omits it and Delete restores it — never {0,0,0,0} on a
-// hardware interface, which would silently turn its L3 MTU into the 9000 fallback. The desired
+// hardware interface, which would silently turn its L3 MTU into the 9000 fallback. An interface
+// without a hardware link MTU (LinkMtu=0: tunnels, wireguard) has two defaults, {9000,0,0,0} and
+// {0,0,0,0}, depending on its class (IsDefaultMtu; Delete restores {9000,0,0,0}). The desired
 // L3 MTU (field mtu) must be non-zero (Create/Update return ErrZeroMtu): 0 is not an MTU and on
 // a sub-interface such an object would be indistinguishable from the default.
 type MtuDescriptor struct{ base }
@@ -254,16 +256,44 @@ type MtuDescriptor struct{ base }
 var ErrZeroMtu = errors.New("iface: interface.mtu needs a non-zero L3 mtu")
 
 // ErrMtuDefault is returned for a desired interface.mtu equal to the interface's creation default
-// ({link_mtu,0,0,0}): such an object is invisible to Retrieve and would be re-created on every
+// (IsDefaultMtu: {link_mtu,0,0,0}, …): such an object is invisible to Retrieve and would be re-created on every
 // resync (review M4) — remove it from the desired state instead.
 var ErrMtuDefault = errors.New("iface: interface.mtu equals the interface's default; remove the object instead")
 
-// defaultMtu is VPP's creation default for d: {link_mtu, 0, 0, 0}, {0, 0, 0, 0} for a sub-interface.
-func defaultMtu(d *ifapi.SwInterfaceDetails) [4]uint32 {
+// noLinkMtuL3 is the L3 MTU that interface classes without a hardware link MTU (LinkMtu=0) set
+// themselves at creation when they set one: mpls_tunnel, gre, ipip and ipsec_itf write sw mtu 9000
+// (host-probed "mpls-tunnel0 LinkMtu=0 Mtu=[9000 0 0 0]", D-170). The dump reports the raw sw mtu[]
+// vector, so this is a value VPP stored, not vnet_sw_interface_get_mtu's read-time fallback.
+const noLinkMtuL3 = 9000
+
+// DefaultMtu is the MTU vector Delete restores on d: VPP's creation default {link_mtu, 0, 0, 0},
+// {0, 0, 0, 0} for a sub-interface, and {9000, 0, 0, 0} for a non-sub-interface without a link MTU
+// (LinkMtu=0; the L3 MTU VPP uses for it either way — see IsDefaultMtu for what counts as default).
+func DefaultMtu(d *ifapi.SwInterfaceDetails) [4]uint32 {
 	if Kind(d) == SubinterfaceName {
 		return [4]uint32{}
 	}
+	device := strings.TrimRight(d.InterfaceDevType, "\x00")
+	// VPP's GRE/IPIP software interface starts at 9000 although hardware LinkMtu
+	// describes the outer payload limit (65512/65516), not the creation MTU.
+	if d.LinkMtu == 0 || device == "IPIP tunnel device" || device == "GRE tunnel device" {
+		return [4]uint32{noLinkMtuL3, 0, 0, 0}
+	}
 	return [4]uint32{uint32(d.LinkMtu), 0, 0, 0}
+}
+
+// IsDefaultMtu reports whether m is d's creation default, i.e. "no interface.mtu object". For a
+// non-sub-interface with LinkMtu=0 two vectors are defaults: {9000,0,0,0} (classes that store 9000
+// at creation: mpls_tunnel, gre, ipip, ipsec_itf) and {0,0,0,0} (classes that store nothing, e.g.
+// wireguard). Accepting only {link_mtu,0,0,0} = {0,0,0,0} made Retrieve report a stray
+// interface.mtu for every MPLS tunnel and post-apply verify roll the apply back (D-170,
+// F-mpls-srmpls-host HQ1); accepting only {9000,…} would do the same for wireguard (D-189). The
+// descriptor (Create/Update/Retrieve) and subsystems' default-tolerant wrapper share this predicate.
+func IsDefaultMtu(d *ifapi.SwInterfaceDetails, m [4]uint32) bool {
+	if Kind(d) != SubinterfaceName && d.LinkMtu == 0 && m == ([4]uint32{}) {
+		return true
+	}
+	return m == DefaultMtu(d)
 }
 
 func mtuOf(d *ifapi.SwInterfaceDetails) [4]uint32 {
@@ -309,7 +339,7 @@ func (d *MtuDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	if err != nil {
 		return nil, err
 	}
-	if mtuArr(o) == defaultMtu(det) {
+	if IsDefaultMtu(det, mtuArr(o)) {
 		return nil, ErrMtuDefault
 	}
 	undo, err := d.claimFirst(ctx, t, idx, MtuName)
@@ -341,13 +371,13 @@ func (d *MtuDescriptor) Update(ctx context.Context, oldObj, newObj proto.Message
 	if err != nil {
 		return nil, err
 	}
-	if mtuArr(newObj.(*Mtu)) == defaultMtu(det) {
+	if IsDefaultMtu(det, mtuArr(newObj.(*Mtu))) {
 		return nil, ErrMtuDefault
 	}
 	return m, d.set(ctx, m.SwIfIndex, mtuArr(newObj.(*Mtu)))
 }
 
-// Delete restores VPP's creation default {link_mtu, 0, 0, 0}; a vanished interface is a no-op.
+// Delete restores VPP's creation default (DefaultMtu); a vanished interface is a no-op.
 func (d *MtuDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) (err error) {
 	m, err := MetaOf(meta)
 	if err != nil {
@@ -362,7 +392,7 @@ func (d *MtuDescriptor) Delete(ctx context.Context, obj proto.Message, meta any)
 	if err != nil || !ok {
 		return err
 	}
-	return d.set(ctx, m.SwIfIndex, defaultMtu(det))
+	return d.set(ctx, m.SwIfIndex, DefaultMtu(det))
 }
 
 // Retrieve implements scheduler.Descriptor.
@@ -379,7 +409,7 @@ func (d *MtuDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		}
 		det := t.byIndex[idx]
 		mtu := mtuOf(det)
-		if mtu == defaultMtu(det) {
+		if IsDefaultMtu(det, mtu) {
 			continue
 		}
 		out = append(out, scheduler.KV{

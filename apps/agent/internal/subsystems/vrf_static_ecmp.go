@@ -6,7 +6,7 @@ package subsystems
 import (
 	"sync"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/svs"
 	"ngfw/agent/internal/renderers/frr"
@@ -42,13 +42,13 @@ func RegisterStaticSelector() {
 
 // ViaFrr is the D-072 selector: routing.static[i] belongs to FRR (staticd) when it carries `viaFrr: true` (or RF-1's
 // renderer-side stand-in flag, so the FRR renderer's own tests keep working); the agent never programs such a route.
-func ViaFrr(i int, sr *vrxv1.StaticRoute, ext *frr.Extensions) bool {
+func ViaFrr(i int, sr *ngfwv1.StaticRoute, ext *frr.Extensions) bool {
 	return sr.GetViaFrr() || frr.FlaggedStatic(i, sr, ext)
 }
 
 // SvsRange is the id range source-VRF-select tables are allocated from, derived from the agent's VPP id scope (TD-8,
-// fail closed): the top 100 ids of the slot's or reserved range with VRX_VPP_TABLE_BASE (shared-host rules §1, §12),
-// svs.DefaultRange (just below 2^32-1) with VRX_VPP_ID_RANGE=all (the product agent on a box of its own), and the empty
+// fail closed): the top 100 ids of the slot's or reserved range with NGFW_VPP_TABLE_BASE (shared-host rules §1, §12),
+// svs.DefaultRange (just below 2^32-1) with NGFW_VPP_ID_RANGE=all (the product agent on a box of its own), and the empty
 // range when neither is set or the setting is malformed or contradictory — the projection then fails loudly on the first
 // sourceSelect entry instead of allocating ids the agent does not own (it needs no id otherwise).
 //

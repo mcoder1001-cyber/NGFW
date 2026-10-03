@@ -9,15 +9,15 @@ Mapping table: `docs/agent/renderers/keepalived.md`.
 
 | | product (`ProductPaths`) | tests (`TestPaths("w8", binDir, "ns-w8-a")`) |
 |---|---|---|
-| config | `/etc/keepalived/keepalived.conf`, `root:root 0640` (`Secret` when it carries a PASS key) | `/run/vrx-test/w8/keepalived/keepalived.conf` |
-| state files | `/run/vrx/keepalived/<instance>.state` | `/run/vrx-test/w8/keepalived/state/` |
-| notify helper | `/usr/libexec/vrx/vrx-keepalived-notify` (P10 packages `cmd/vrx-keepalived-notify`) | built by the test into `binDir` |
-| checks | `/usr/libexec/vrx/checks/<name>` (shipped only; empty until F-vrrp) | `binDir/checks/vrx-check-ok` |
-| JSON dump | `$TMPDIR/keepalived.json` = `/tmp` (see P10 note) | `/run/vrx-test/w8/keepalived/tmp` |
+| config | `/etc/keepalived/keepalived.conf`, `root:root 0640` (`Secret` when it carries a PASS key) | `/run/ngfw-test/w8/keepalived/keepalived.conf` |
+| state files | `/run/ngfw/keepalived/<instance>.state` | `/run/ngfw-test/w8/keepalived/state/` |
+| notify helper | `/usr/libexec/ngfw/ngfw-keepalived-notify` (P10 packages `cmd/ngfw-keepalived-notify`) | built by the test into `binDir` |
+| checks | `/usr/libexec/ngfw/checks/<name>` (shipped only; empty until F-vrrp) | `binDir/checks/ngfw-check-ok` |
+| JSON dump | `$TMPDIR/keepalived.json` = `/tmp` (see P10 note) | `/run/ngfw-test/w8/keepalived/tmp` |
 | netns | — | `ns-w8-a` (`keepalived -t -s ns-w8-a`) |
 | control channel | `systemctl reload keepalived`, `systemctl kill --kill-whom=main --signal=<JSON> keepalived` | SIGHUP / SIGJSON to the child PID |
 
-`/run` is mounted `noexec` on this host: executables (helper, checks) cannot live under `/run/vrx-test`; tests use
+`/run` is mounted `noexec` on this host: executables (helper, checks) cannot live under `/run/ngfw-test`; tests use
 a root-owned 0755 temp dir under `/tmp` (keepalived's script security accepts it and rejects group/world-writable
 paths).
 
@@ -77,8 +77,8 @@ rules (above) — not rendered, recorded in RF-4-questions.md for F-vrrp.
 
 ## P10 packaging notes
 
-- Ship `vrx-keepalived-notify` at `/usr/libexec/vrx/`, root-owned, not group/world-writable (script security).
-- Set `TMPDIR` for keepalived.service to a private directory (e.g. `/run/keepalived-vrx`, 0700): the dump files
+- Ship `ngfw-keepalived-notify` at `/usr/libexec/ngfw/`, root-owned, not group/world-writable (script security).
+- Set `TMPDIR` for keepalived.service to a private directory (e.g. `/run/keepalived-ngfw`, 0700): the dump files
   (0600, containing `auth_data`) otherwise land in `/tmp` until the agent deletes them; change `DumpDir` with it.
 
 ## Integration test
@@ -90,3 +90,5 @@ and rejects a missing interface; vi1 reaches MASTER (state file) and the VIP `10
 second commit (priority change, VRRPv2 instance with a PASS key, sync group) is applied with SIGHUP, same PID,
 convergence from the dump; a reload that never reaches keepalived is refused and rolled back; SIGTERM writes STOP
 for every instance (events) and removes the VIP; the key appears in no file but `keepalived.conf`, no dump is left.
+
+In slot mode the harness starts and stops keepalived in its namespace; the agent does not own that lifetime. `CheckRunning` reads the controller's main PID without starting or signaling a daemon. The stage checks it during DryRun and before Apply writes/reloads configuration. A stopped daemon produces a clear finding identifying the harness responsibility. Product daemon-start privileges remain an owner decision.

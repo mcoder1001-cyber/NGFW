@@ -3,13 +3,13 @@
 # Sourced, never executed. No function here installs anything or touches anything outside the paths it is given.
 
 # Trees nobody in this pipeline may ever write to or delete, whatever the arguments say (D-012, envelope).
-VRX_PROTECTED_TREES=(/root/vpp /etc/vpp /usr /var/lib/dpkg /boot /root/ngfw)
-VRX_OWNED_MARKER=.vrx-owned
+NGFW_PROTECTED_TREES=(/root/vpp /etc/vpp /usr /var/lib/dpkg /boot /root/ngfw)
+NGFW_OWNED_MARKER=.ngfw-owned
 
 # ------------------------------------------------------------------ VERSION: data, never sourced (review L2)
-# vrx_parse_version <file>: validates every line against a strict per-key format and sets the VPP_* globals via
+# ngfw_parse_version <file>: validates every line against a strict per-key format and sets the VPP_* globals via
 # printf -v (no evaluation). Returns 1 (with messages on stderr) at the first problem, before any value is used.
-vrx_parse_version() {
+ngfw_parse_version() {
   local file=$1 line k v pat n=0
   local pkgs='^[a-z0-9][a-z0-9.+-]*( [a-z0-9][a-z0-9.+-]*)*$'
   declare -A seen=()
@@ -49,42 +49,42 @@ vrx_parse_version() {
   return 0
 }
 
-# vrx_local_version <base> <rev> <n-applied-patches>: D-089 — patched builds are <base>+vrx<rev>
-vrx_local_version() { if (($3 > 0)); then printf '%s+vrx%s\n' "$1" "$2"; else printf '%s\n' "$1"; fi; }
+# ngfw_local_version <base> <rev> <n-applied-patches>: D-089 — patched builds are <base>+ngfw<rev>
+ngfw_local_version() { if (($3 > 0)); then printf '%s+ngfw%s\n' "$1" "$2"; else printf '%s\n' "$1"; fi; }
 
 # ------------------------------------------------------------------ path guards (review M2)
-vrx_realpath() { realpath -m -- "$1"; }
-# vrx_is_under <path> <root>: path (resolved) equals root or lies below it
-vrx_is_under() {
-  local p r; p=$(vrx_realpath "$1"); r=$(vrx_realpath "$2")
+ngfw_realpath() { realpath -m -- "$1"; }
+# ngfw_is_under <path> <root>: path (resolved) equals root or lies below it
+ngfw_is_under() {
+  local p r; p=$(ngfw_realpath "$1"); r=$(ngfw_realpath "$2")
   [[ $p == "$r" || $p == "$r"/* ]]
 }
-# vrx_is_protected <path>: path is /, $HOME, or equal to/inside/an ancestor of a protected tree
-vrx_is_protected() {
-  local p t; p=$(vrx_realpath "$1")
-  [[ $p == / || $p == "$(vrx_realpath "${HOME:-/root}")" ]] && return 0
-  for t in "${VRX_PROTECTED_TREES[@]}"; do
+# ngfw_is_protected <path>: path is /, $HOME, or equal to/inside/an ancestor of a protected tree
+ngfw_is_protected() {
+  local p t; p=$(ngfw_realpath "$1")
+  [[ $p == / || $p == "$(ngfw_realpath "${HOME:-/root}")" ]] && return 0
+  for t in "${NGFW_PROTECTED_TREES[@]}"; do
     [[ $p == "$t" || $p == "$t"/* || $t == "$p"/* ]] && return 0
   done
   return 1
 }
-# vrx_guard_dir <path> <allowed-root> <label>: prints the resolved path, or fails when it is outside the allowed root
-vrx_guard_dir() {
-  local p; p=$(vrx_realpath "$1")
-  if vrx_is_protected "$p"; then echo "$3: $p is a protected path — refusing" >&2; return 1; fi
-  if ! vrx_is_under "$p" "$2"; then echo "$3: $p is outside $(vrx_realpath "$2") — refusing" >&2; return 1; fi
+# ngfw_guard_dir <path> <allowed-root> <label>: prints the resolved path, or fails when it is outside the allowed root
+ngfw_guard_dir() {
+  local p; p=$(ngfw_realpath "$1")
+  if ngfw_is_protected "$p"; then echo "$3: $p is a protected path — refusing" >&2; return 1; fi
+  if ! ngfw_is_under "$p" "$2"; then echo "$3: $p is outside $(ngfw_realpath "$2") — refusing" >&2; return 1; fi
   printf '%s\n' "$p"
 }
-# vrx_rm_rf <path> <owned-root>: rm -rf only strictly below a root that carries our ownership marker
-vrx_rm_rf() {
-  local p r; p=$(vrx_realpath "$1"); r=$(vrx_realpath "$2")
+# ngfw_rm_rf <path> <owned-root>: rm -rf only strictly below a root that carries our ownership marker
+ngfw_rm_rf() {
+  local p r; p=$(ngfw_realpath "$1"); r=$(ngfw_realpath "$2")
   [[ -e $p ]] || return 0
-  if vrx_is_protected "$p" || [[ $p == "$r" || $p != "$r"/* ]]; then echo "rm -rf $p refused: not strictly below $r" >&2; return 1; fi
-  [[ -f $r/$VRX_OWNED_MARKER ]] || { echo "rm -rf $p refused: $r has no $VRX_OWNED_MARKER marker" >&2; return 1; }
+  if ngfw_is_protected "$p" || [[ $p == "$r" || $p != "$r"/* ]]; then echo "rm -rf $p refused: not strictly below $r" >&2; return 1; fi
+  [[ -f $r/$NGFW_OWNED_MARKER ]] || { echo "rm -rf $p refused: $r has no $NGFW_OWNED_MARKER marker" >&2; return 1; }
   rm -rf -- "$p"
 }
-# vrx_out_dir_is_ours <dir>: empty/nonexistent, or contains only artefacts build.sh writes
-vrx_out_dir_is_ours() {
+# ngfw_out_dir_is_ours <dir>: empty/nonexistent, or contains only artefacts build.sh writes
+ngfw_out_dir_is_ours() {
   local f
   [[ -d $1 ]] || return 0
   for f in "$1"/* "$1"/.[!.]*; do
@@ -94,15 +94,15 @@ vrx_out_dir_is_ours() {
 }
 
 # ------------------------------------------------------------------ patches (review M1): strict, no fuzz
-# vrx_apply_patch <src-git-tree> <patch-file> [-pN]: `git apply --check` then `git apply` (exact context, no fuzz)
-vrx_apply_patch() {
+# ngfw_apply_patch <src-git-tree> <patch-file> [-pN]: `git apply --check` then `git apply` (exact context, no fuzz)
+ngfw_apply_patch() {
   local src=$1 f p=${3:--p1}
-  f=$(vrx_realpath "$2")
+  f=$(ngfw_realpath "$2")
   git -C "$src" apply --check "$p" -- "$f" || { echo "patch ${2##*/} does not apply exactly (git apply --check)" >&2; return 1; }
   git -C "$src" apply "$p" -- "$f"
 }
-# vrx_series <series-file>: prints "name -pN" per entry (comments/blank ignored)
-vrx_series() {
+# ngfw_series <series-file>: prints "name -pN" per entry (comments/blank ignored)
+ngfw_series() {
   local line name popt
   while IFS= read -r line || [[ -n $line ]]; do
     line=${line%%#*}; read -r name popt _ <<<"$line" || true
@@ -110,11 +110,11 @@ vrx_series() {
     printf '%s %s\n' "$name" "${popt:--p1}"
   done <"$1"
 }
-# vrx_patch_status <patch-file>: the value of its "Status:" header
-vrx_patch_status() { sed -nE 's/^Status: ([a-z]+).*/\1/p' "$1" | head -1; }
+# ngfw_patch_status <patch-file>: the value of its "Status:" header
+ngfw_patch_status() { sed -nE 's/^Status: ([a-z]+).*/\1/p' "$1" | head -1; }
 
-# vrx_write_version_script <src> <version>: replace src/scripts/version so cmake/debian use the local version
-vrx_write_version_script() {
+# ngfw_write_version_script <src> <version>: replace src/scripts/version so cmake/debian use the local version
+ngfw_write_version_script() {
   cat >"$1/src/scripts/version" <<EOF
 #!/usr/bin/env bash
 # generated by deploy/vpp/build.sh (D-089): local version of a patched build — the upstream script is replaced
@@ -128,8 +128,8 @@ EOF
 }
 
 # ------------------------------------------------------------------ build dependencies (review M3)
-# vrx_apt_missing <pkg...>: prints the packages apt would install; returns 2 (message on stderr) when apt itself fails
-vrx_apt_missing() {
+# ngfw_apt_missing <pkg...>: prints the packages apt would install; returns 2 (message on stderr) when apt itself fails
+ngfw_apt_missing() {
   local out rc=0
   out=$(apt-get install -s -qq "$@" 2>&1) || rc=$?
   if ((rc != 0)); then
@@ -140,8 +140,8 @@ vrx_apt_missing() {
 }
 
 # ------------------------------------------------------------------ Python build deps (review H1)
-# vrx_pydeps_parse <lock>: prints "name version sha256 file url" per entry; fails on any malformed line
-vrx_pydeps_parse() {
+# ngfw_pydeps_parse <lock>: prints "name version sha256 file url" per entry; fails on any malformed line
+ngfw_pydeps_parse() {
   local line n=0 re='^([A-Za-z0-9._-]+)==([A-Za-z0-9.+!-]+) --hash=sha256:([0-9a-f]{64})[[:space:]]+#[[:space:]]+([A-Za-z0-9._+-]+\.(whl|tar\.gz))[[:space:]]+(https://files\.pythonhosted\.org/[A-Za-z0-9._/+-]+)$'
   while IFS= read -r line || [[ -n $line ]]; do
     n=$((n + 1))
@@ -151,39 +151,59 @@ vrx_pydeps_parse() {
     printf '%s %s %s %s %s\n' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[4]}" "${BASH_REMATCH[6]}"
   done <"$1"
 }
-vrx_sha256() { sha256sum -- "$1" | cut -d' ' -f1; }
-# vrx_pydeps_prepare <lock> <wheelhouse> <owned-root> <offline 0|1>: the wheelhouse ends up holding exactly the locked
+ngfw_sha256() { sha256sum -- "$1" | cut -d' ' -f1; }
+# ngfw_pydeps_prepare <lock> <wheelhouse> <owned-root> <offline 0|1>: the wheelhouse ends up holding exactly the locked
 # files, each sha256-verified; missing ones are fetched over https (never from /root/vpp or ~/Downloads) unless offline.
 # Prints "fetched|cached <file>" per entry.
-vrx_pydeps_prepare() {
+ngfw_pydeps_prepare() {
   local lock=$1 wh=$2 root=$3 offline=$4 entries sha file url f keep
-  entries=$(vrx_pydeps_parse "$lock") || return 1
+  entries=$(ngfw_pydeps_parse "$lock") || return 1
   mkdir -p "$wh"
   for f in "$wh"/* "$wh"/.[!.]*; do                           # drop anything not in the lock (stale/foreign files)
     [[ -e $f ]] || continue
     keep=0
     while read -r _ _ _ file _; do [[ ${f##*/} == "$file" ]] && keep=1; done <<<"$entries"
-    ((keep)) || vrx_rm_rf "$f" "$root" || return 1
+    ((keep)) || ngfw_rm_rf "$f" "$root" || return 1
   done
   while read -r _ _ sha file url; do
     f=$wh/$file
-    if [[ -f $f && $(vrx_sha256 "$f") == "$sha" ]]; then echo "cached $file"; continue; fi
-    [[ -e $f ]] && { vrx_rm_rf "$f" "$root" || return 1; }
+    if [[ -f $f && $(ngfw_sha256 "$f") == "$sha" ]]; then echo "cached $file"; continue; fi
+    [[ -e $f ]] && { ngfw_rm_rf "$f" "$root" || return 1; }
     if ((offline)); then echo "$file missing/mismatched in $wh and offline — cannot fetch" >&2; return 1; fi
     curl -fsSL --proto '=https' --retry 3 --connect-timeout 15 --max-time 300 -o "$f.part" "$url" \
       || { rm -f -- "$f.part"; echo "download failed: $url" >&2; return 1; }
-    if [[ $(vrx_sha256 "$f.part") != "$sha" ]]; then rm -f -- "$f.part"; echo "sha256 mismatch for $url" >&2; return 1; fi
+    if [[ $(ngfw_sha256 "$f.part") != "$sha" ]]; then rm -f -- "$f.part"; echo "sha256 mismatch for $url" >&2; return 1; fi
     mv -- "$f.part" "$f"; echo "fetched $file"
   done <<<"$entries"
 }
-# vrx_pydeps_verify <lock> <wheelhouse>: every locked file present with the locked hash, nothing else
-vrx_pydeps_verify() {
+# ngfw_pydeps_verify <lock> <wheelhouse>: every locked file present with the locked hash, nothing else
+ngfw_pydeps_verify() {
   local entries sha file n=0 f
-  entries=$(vrx_pydeps_parse "$1") || return 1
+  entries=$(ngfw_pydeps_parse "$1") || return 1
   while read -r _ _ sha file _; do
-    [[ -f $2/$file && $(vrx_sha256 "$2/$file") == "$sha" ]] || { echo "pydeps: $file missing or hash mismatch in $2" >&2; return 1; }
+    [[ -f $2/$file && $(ngfw_sha256 "$2/$file") == "$sha" ]] || { echo "pydeps: $file missing or hash mismatch in $2" >&2; return 1; }
     n=$((n + 1))
   done <<<"$entries"
   for f in "$2"/*; do [[ -e $f ]] && n=$((n - 1)); done
   ((n == 0)) || { echo "pydeps: $2 holds files that are not in the lock" >&2; return 1; }
+}
+
+# Select up to JOBS CPUs from this process's inherited Linux affinity, never
+# from the host CPU count. Explicit IDs keep sparse masks valid for taskset.
+# Python is already mandatory for the hash-locked build dependency checks.
+ngfw_build_cpus() {
+  python3 - "$1" <<'PYCPU'
+import os, sys
+
+jobs = sys.argv[1]
+if not jobs.isascii() or not jobs.isdecimal() or not 1 <= int(jobs) <= 8:
+    sys.exit("CPU selection: jobs must be 1..8")
+try:
+    allowed = sorted(os.sched_getaffinity(0))
+except OSError as exc:
+    sys.exit(f"CPU selection: cannot read process affinity: {exc}")
+if not allowed:
+    sys.exit("CPU selection: empty process affinity")
+print(",".join(str(cpu) for cpu in allowed[-int(jobs):]))
+PYCPU
 }

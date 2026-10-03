@@ -10,6 +10,7 @@ import { HttpAdapterHost, ModuleRef } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { createServer, type Server } from 'node:https';
+import type { Duplex } from 'node:stream';
 import type { SecureContextOptions } from 'node:tls';
 import type { ProblemIssue } from '../../common/problem.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
@@ -50,9 +51,9 @@ function tlsOf(doc: unknown): TlsConfig {
   return m?.tls ?? {};
 }
 
-/** Optional HTTPS listener port (`VRX_HTTPS_PORT`); unset = the API keeps plain HTTP only. */
+/** Optional HTTPS listener port (`NGFW_HTTPS_PORT`); unset = the API keeps plain HTTP only. */
 export function httpsPortFromEnv(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = env['VRX_HTTPS_PORT'];
+  const raw = env['NGFW_HTTPS_PORT'];
   if (raw === undefined || raw === '') return null;
   const n = Number(raw);
   return Number.isInteger(n) && n >= 1 && n <= 65535 ? n : null;
@@ -70,6 +71,10 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   private context: SecureContextOptions | null = null;
   private current: Omit<MgmtTlsState, 'listener'> | null = null;
   private server: Server | null = null;
+  private readonly upgradedSockets = new Set<Duplex>();
+  private reloadQueue: Promise<void> = Promise.resolve();
+  private bootstrapped = false;
+  private shuttingDown = false;
   private unsubscribe: (() => void) | null = null;
   readonly httpsPort = httpsPortFromEnv();
   /** Clock (tests move it). */
@@ -110,25 +115,56 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   async onApplicationBootstrap(): Promise<void> {
     if (this.httpsPort === null) return;
     await this.reload();
+    this.bootstrapped = true;
+    await this.ensureListener();
+  }
+
+  private async ensureListener(): Promise<void> {
+    if (!this.bootstrapped || this.shuttingDown || this.httpsPort === null || this.server) return;
     const fastify = this.host.httpAdapter.getInstance() as unknown as FastifyInstance;
     // without a configured certificate the listener stays down (no self-signed fallback is generated here)
     if (this.context === null) {
       this.log.warn(
-        'VRX_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started',
+        'NGFW_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started',
       );
       return;
     }
     this.server = createServer(this.context, (req, res) => fastify.routing(req, res));
-    const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
-    this.server.listen(this.httpsPort, hostName, () =>
-      this.log.log(
-        `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
-      ),
-    );
+    // Reuse Fastify's existing upgrade handler: it runs stream authentication and route hooks.
+    // Preserve the TLS socket and upgrade head; never create a second websocket/auth stack.
+    this.server.on('upgrade', (req, socket, head) => {
+      if (this.shuttingDown) {
+        socket.destroy();
+        return;
+      }
+      // HTTPS close leaves upgraded connections open; retain only our listener's sockets for shutdown.
+      this.upgradedSockets.add(socket);
+      socket.once('close', () => this.upgradedSockets.delete(socket));
+      if (!fastify.server.emit('upgrade', req, socket, head)) socket.destroy();
+    });
+    const hostName = process.env['NGFW_HTTP_HOST'] ?? '127.0.0.1';
+    const server = this.server;
+    await new Promise<void>((resolve, reject) => {
+      const onError = (error: Error) => {
+        if (this.server === server) this.server = null;
+        reject(error);
+      };
+      server.once('error', onError);
+      server.listen(this.httpsPort!, hostName, () => {
+        server.off('error', onError);
+        this.log.log(
+          `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
+        );
+        resolve();
+      });
+    });
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.shuttingDown = true;
     this.unsubscribe?.();
+    await this.reloadQueue;
+    for (const socket of this.upgradedSockets) socket.destroy();
     await new Promise<void>((r) => (this.server ? this.server.close(() => r()) : r()));
   }
 
@@ -173,7 +209,13 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   }
 
   /** Re-reads running and swaps the secure context. A bad pair keeps the previous context and records the error. */
-  async reload(): Promise<void> {
+  reload(): Promise<void> {
+    // One running read/secret resolution/apply at a time: slow older reads cannot overwrite newer commits.
+    this.reloadQueue = this.reloadQueue.then(() => this.reloadRunning());
+    return this.reloadQueue;
+  }
+
+  private async reloadRunning(): Promise<void> {
     try {
       const running = await this.ds.getRunning();
       const tls = tlsOf(running.doc);
@@ -185,8 +227,18 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       } as const;
       if (!tls.certificateRef || !tls.privateKeyRef) {
         // the running listener keeps its last certificate until the API restarts (it cannot serve without one)
-        this.context = null;
-        this.current = { ...base, configured: false, active: null, error: null };
+        if (this.server?.listening && this.current) {
+          // Retention is the existing policy: report the certificate still served, not an empty context.
+          this.current = {
+            ...this.current,
+            configured: false,
+            certificateRef: base.certificateRef,
+            error: null,
+          };
+        } else {
+          this.context = null;
+          this.current = { ...base, configured: false, active: null, error: null };
+        }
         return;
       }
       const res = await this.check(tls);
@@ -200,6 +252,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       // hot reload: new handshakes use the new certificate and protocol floor, open connections are kept
       this.server?.setSecureContext(res.options);
       this.current = { ...base, configured: true, active: this.withDays(res.info), error: null };
+      await this.ensureListener();
       this.log.log(
         `management.tls applied: ${res.info.subject} (sha256 ${res.info.fingerprintSha256})`,
       );
@@ -223,7 +276,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     return {
       ...cur,
       active: cur.active ? this.withDays(cur.active) : null,
-      listener: { enabled: this.httpsPort !== null, port: this.httpsPort },
+      listener: { enabled: this.server?.listening ?? false, port: this.httpsPort },
     };
   }
 }

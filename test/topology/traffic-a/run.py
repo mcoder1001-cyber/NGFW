@@ -22,7 +22,7 @@ def main():
         validate_environment(os.environ, arguments.slot)
         # Refuse incomplete source before locks, host reads or any command.
         require_implemented()
-        validate_lease(Path(f'/run/vrx-test/w{arguments.slot}/traffic-a-lease.json'),
+        validate_lease(Path(f'/run/ngfw-test/w{arguments.slot}/traffic-a-lease.json'),
                        arguments.slot, Path('/proc/sys/kernel/random/boot_id').read_text().strip())
         raise Refused('NOTIMPLEMENTED: locked composed transaction/capture lifecycle')
     except (Refused, OSError, ValueError) as error:

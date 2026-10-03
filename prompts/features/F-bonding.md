@@ -70,7 +70,7 @@ Never reshape existing fields.
      `interface/<bond name>`. Test that.
    - Retrieve covers bonds, members and weights. Unit tests with the fake client; an agent-level fake extension, if you need one, goes in
      `descriptors/core/coretest/bonding.go`.
-   - ONE integration check on host VPP (`VRX_INTEGRATION=1`, lab lock shared): Retrieve == desired, `vppctl show bond details` shows it,
+   - ONE integration check on host VPP (`NGFW_INTEGRATION=1`, lab lock shared): Retrieve == desired, `vppctl show bond details` shows it,
      rollback leaves nothing, the agent-restart simulation recreates it.
    - Members: through the config the agent creates only `loop<N>` and `host-<netdev>` interfaces. So the topology-test members are either
      af_packet host-interfaces on slot-prefixed veths (bring the veth down before any af_packet delete, D-101) or slot-prefixed taps made
@@ -87,7 +87,7 @@ Never reshape existing fields.
      restructure P08's `InterfacesPage.tsx`.
    - The nav label key lives in your `bonding` namespace.
    - List + SchemaForm (member picker filtered to eligible NICs) + a live member/LACP state column; en + fa.
-   - P08's drawer form is generated from `InterfaceSchema`, so `bond` shows up there under its `x-vrx-ui` group. Only if that breaks the
+   - P08's drawer form is generated from `InterfaceSchema`, so `bond` shows up there under its `x-ngfw-ui` group. Only if that breaks the
      drawer, exclude it with one named line in `apps/web/src/domains/interfaces/model.ts`.
 5. **Docs**: `docs/user/interfaces/bonding.md` (LACP with 2 members, active-backup; CLI equivalent). Add one see-also line at the end of
    `docs/user/interfaces/basics.md`. Do not edit its "Not in this release" line; the manager updates it after the wave.
@@ -106,7 +106,7 @@ Never reshape existing fields.
 - agent: `apps/agent/internal/desired/interfaces.go` (the kind only), `apps/agent/internal/subsystems/subsystems.go`,
   `apps/agent/internal/agent/projection.go`
 - schema: `packages/schema/src/domains/interfaces.ts`, `packages/schema/src/index.ts`, `packages/schema/src/semantic/index.ts`
-- proto: `packages/proto/vrx/v1/dataplane.proto`, `docs/contracts/proto.md`
+- proto: `packages/proto/ngfw/v1/dataplane.proto`, `docs/contracts/proto.md`
 - API: `apps/api/src/app.module.ts`, `apps/api/src/agent/agent.client.ts`, `apps/api/src/testing/fake-agent.ts`
 - web: `router.tsx`, `nav/nav.ts`, `nav/nav.test.ts`, `i18n.ts`
 - docs: `docs/user/interfaces/basics.md` (end)

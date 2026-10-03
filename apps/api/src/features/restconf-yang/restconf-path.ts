@@ -3,17 +3,17 @@ import { problems } from '../../common/problem.js';
 
 /**
  * F-restconf-yang: translate a RESTCONF data-resource path (RFC 8040 §3.5.3) to the document's JSON pointer, and wrap
- * results with module-qualified names (RFC 8040 §3.5.3.1 / §4.8.7). The module for root key `k` is `vrx-<k>` and its
- * one top data node is `<k>`, so `vrx-interfaces:interfaces=eth0/mtu` -> pointer `/interfaces/eth0/mtu`.
+ * results with module-qualified names (RFC 8040 §3.5.3.1 / §4.8.7). The module for root key `k` is `ngfw-<k>` and its
+ * one top data node is `<k>`, so `ngfw-interfaces:interfaces=eth0/mtu` -> pointer `/interfaces/eth0/mtu`.
  *
  * List keys use the RFC 8040 `=` form (`interfaces=eth0`); a plain segment is a container/leaf name. Our lists are all
  * single-key (`name`, or one `itemKey`), so a comma-joined multi-key is passed through verbatim as one pointer segment
  * — documented as a deviation for the (currently none) multi-key lists.
  */
 
-const MODULE_PREFIX = 'vrx-';
+const MODULE_PREFIX = 'ngfw-';
 
-/** `vrx-interfaces` -> `interfaces`, validated against the real root keys. */
+/** `ngfw-interfaces` -> `interfaces`, validated against the real root keys. */
 function rootKeyOfModule(module: string): RootKey {
   if (!module.startsWith(MODULE_PREFIX)) {
     throw problems.badRequest(`unknown YANG module '${module}'`);
@@ -52,7 +52,7 @@ export function parseDataPath(rest: string): RestconfTarget | null {
   const colon = first.indexOf(':');
   if (colon < 0) {
     throw problems.badRequest(
-      `the first RESTCONF path segment must be module-qualified, e.g. vrx-interfaces:interfaces`,
+      `the first RESTCONF path segment must be module-qualified, e.g. ngfw-interfaces:interfaces`,
     );
   }
   const module = first.slice(0, colon);

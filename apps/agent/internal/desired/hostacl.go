@@ -4,7 +4,7 @@ package desired
 // host firewall is ONE scheduler object of the agent-local descriptor host-acl.nftables
 // (internal/renderers/nftables):
 //
-//	acl.host, acl.hostAttachments, acl.hostSettings  →  host-acl.nftables/vrx   pointer /acl
+//	acl.host, acl.hostAttachments, acl.hostSettings  →  host-acl.nftables/ngfw   pointer /acl
 //	                                                     value: nftables.HostTable{config, sets, chains}
 //
 // The value is built by nftables.Build from the document's host lists and the expanded address and
@@ -18,7 +18,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/renderers/nftables"
 	"ngfw/agent/internal/scheduler"
@@ -28,7 +28,7 @@ import (
 // objects runtime and the applied objects document (for transactions that do not carry `objects`).
 type HostACLEnv struct {
 	FQDN    objects.FQDNLookup
-	Applied func() *vrxv1.ObjectsConfig
+	Applied func() *ngfwv1.ObjectsConfig
 }
 
 // hostACLEnv is set by subsystems when the family is wired (one agent per process; the projection has
@@ -40,7 +40,7 @@ func SetHostACLEnv(e *HostACLEnv) { hostACLEnv.Store(e) }
 
 // HostACL emits the host firewall object of acl. objs is the transaction's objects document; when
 // objectsInTxn is false the running agent's applied objects document is used instead (if it has one).
-func HostACL(s Sink, acl *vrxv1.AclConfig, objs *vrxv1.ObjectsConfig, objectsInTxn bool) {
+func HostACL(s Sink, acl *ngfwv1.AclConfig, objs *ngfwv1.ObjectsConfig, objectsInTxn bool) {
 	if acl == nil {
 		return
 	}
@@ -75,15 +75,15 @@ func HostACL(s Sink, acl *vrxv1.AclConfig, objs *vrxv1.ObjectsConfig, objectsInT
 // AssembleHostACL adds the applied host firewall configuration (acl.host, acl.hostAttachments,
 // acl.hostSettings of the retrieved host-acl.nftables value) to into, which may already hold other acl
 // leaves; nil stays nil when there is no host firewall.
-func AssembleHostACL(kvs []scheduler.KV, into *vrxv1.AclConfig) *vrxv1.AclConfig {
+func AssembleHostACL(kvs []scheduler.KV, into *ngfwv1.AclConfig) *ngfwv1.AclConfig {
 	for _, kv := range kvs {
 		v, ok := kv.Value.(*nftables.HostTable)
 		if !ok || kv.Key != nftables.Key || v.GetConfig() == nil {
 			continue
 		}
-		c := proto.Clone(v.GetConfig()).(*vrxv1.AclConfig)
+		c := proto.Clone(v.GetConfig()).(*ngfwv1.AclConfig)
 		if into == nil {
-			into = &vrxv1.AclConfig{}
+			into = &ngfwv1.AclConfig{}
 		}
 		into.Host, into.HostAttachments, into.HostSettings = c.GetHost(), c.GetHostAttachments(), c.GetHostSettings()
 	}

@@ -7,7 +7,7 @@
 //	                  address; before B a duplicate (dot1ad, vlanId, innerVlanId) is refused with a 400 problem+json whose
 //	                  pointer names the second entry. Evidence: the VPP API rows (tags, sub_if_flags, owner tag),
 //	                  Retrieve (/state/interfaces `config`) == desired, `vppctl show interface` / `show interface address`
-//	  packets         opt-in (VRX_QINQ_PACKETS=1, manager rule D-126/D-128; V19 guard + pre-flight first): Linux VLAN
+//	  packets         opt-in (NGFW_QINQ_PACKETS=1, manager rule D-126/D-128; V19 guard + pre-flight first): Linux VLAN
 //	                  devices in ns-<p>-wan ping VPP over the dot1q and the dot1q-in-dot1q stack; the proof is the answered
 //	                  ping plus the rx/tx packet counters of exactly the pinged sub-interface (`vppctl show interface
 //	                  <sub>` deltas, never a clear). No VPP packet trace on the shared VPP (D-128): VPP's trace formatter
@@ -21,7 +21,7 @@
 //	                  no sub-interface; VPP has no host-<p>w0.<id>
 //	  cleanup         the parent deleted through the API; nothing of ours with the prefix remains
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process it
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; every process it
 // starts is stopped by PID; the slot database is created and dropped by deploy/dev/pg-test.sh. VPP is never restarted
 // (D-012); NRestarts is checked before and after.
 package vlanqinq
@@ -29,6 +29,7 @@ package vlanqinq
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -146,7 +147,7 @@ func qinqSubs(slotNum int) []sub {
 	}
 }
 
-// stack is the product stack of this test: vrx-agent (owner = prefix) + vrx-api on the slot ports and database.
+// stack is the product stack of this test: ngfw-agent (owner = prefix) + ngfw-api on the slot ports and database.
 type stack struct {
 	s        slot
 	work     string
@@ -164,12 +165,12 @@ type stack struct {
 
 func newStack(t *testing.T, s slot) *stack {
 	t.Helper()
-	bin := os.Getenv("VRX_QINQ_AGENT_BIN")
+	bin := os.Getenv("NGFW_QINQ_AGENT_BIN")
 	if bin == "" { // tools/ci.sh full: build the agent from this tree (run.sh passes a prebuilt one)
-		bin = filepath.Join(t.TempDir(), "vrx-agent")
-		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-agent")
+		bin = filepath.Join(t.TempDir(), "ngfw-agent")
+		out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-agent")
 		if err != nil {
-			t.Fatalf("go build vrx-agent: %v\n%s", err, out)
+			t.Fatalf("go build ngfw-agent: %v\n%s", err, out)
 		}
 	}
 	apiMain := filepath.Join(s.repo, "apps", "api", "dist", "main.js")
@@ -199,19 +200,20 @@ func newStack(t *testing.T, s slot) *stack {
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
-		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info")
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num),
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: test slots never own globals
+		"NGFW_AGENT_STATE_DIR="+st.stateDir, "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info")
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 
 	adminPW := secret()
 	apiEnv := append(append([]string{}, base...),
-		"NODE_ENV=production", "VRX_HTTP_PORT="+s.httpPort, "VRX_HTTP_HOST=127.0.0.1",
-		"VRX_PG_DSN="+pg["VRX_PG_DSN"], "VRX_VALKEY_DB="+s.valkeyDB, "VRX_VALKEY_PREFIX=vrx:"+s.prefix+":qinq:"+secret()[:6]+":",
-		"VRX_AGENT_SOCKET="+s.socket, "VRX_AGENT_OWNER="+s.prefix, "VRX_AGENT_TIMEOUT_MS=60000",
-		"VRX_JWT_SECRET="+secret()+secret(), "VRX_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
-		"VRX_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "VRX_COOKIE_SECURE=0", "VRX_LOG_LEVEL=warn")
-	st.apiProc = start(t, "vrx-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
+		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":qinq:"+secret()[:6]+":",
+		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
+		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(work, "secret.key"),
+		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	st.apiProc = start(t, "ngfw-api", filepath.Join(work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
 	if !waitFor(60*time.Second, func() bool {
@@ -221,7 +223,7 @@ func newStack(t *testing.T, s slot) *stack {
 		return st.api.call("GET", "/api/v1/health", nil).status == 200
 	}) || st.apiProc.exited() {
 		raw, _ := os.ReadFile(filepath.Join(work, "api.log")) //nolint:gosec // our own log
-		t.Fatalf("vrx-api did not come up on %s:\n%s", s.httpPort, raw)
+		t.Fatalf("ngfw-api did not come up on %s:\n%s", s.httpPort, raw)
 	}
 	st.api.login("admin", adminPW)
 	st.adminPW = adminPW
@@ -230,24 +232,42 @@ func newStack(t *testing.T, s slot) *stack {
 
 func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
-	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
+	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
-		_, err := os.Stat(st.s.socket)
-		return err == nil || st.agent.exited()
+		if st.agent.exited() {
+			return true
+		}
+		c, err := net.DialTimeout("unix", st.s.socket, time.Second)
+		if err == nil {
+			_ = c.Close()
+		}
+		return err == nil
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
-		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
+	}
+	// The API keeps its gRPC channel across agent restarts. A listening socket does
+	// not imply that channel has left reconnect backoff yet. Wait on a read-only
+	// RPC before issuing commits; never retry a mutation to mask an outage.
+	if st.api != nil && !waitFor(15*time.Second, func() bool {
+		return st.agent.exited() || st.api.call("GET", "/api/v1/state/drift", nil).status == 200
+	}) {
+		t.Fatal("API channel did not reconnect to the restarted agent within 15 s")
+	}
+	if st.agent.exited() {
+		raw, _ := os.ReadFile(st.agentLog)
+		t.Fatalf("ngfw-agent exited during readiness check:\n%s", raw)
 	}
 }
 
-// cli runs one vrx CLI command against the slot API as admin (built once from apps/cli; password from a 0600 file in
+// cli runs one ngfw CLI command against the slot API as admin (built once from apps/cli; password from a 0600 file in
 // the test's 0700 work dir; no session file).
 func (st *stack) cli(t *testing.T, args ...string) string {
 	t.Helper()
 	if st.cliBin == "" {
-		bin := filepath.Join(t.TempDir(), "vrx") // not in /run (noexec)
-		if out, err := run(t, "go", "build", "-C", filepath.Join(st.s.repo, "apps", "cli"), "-o", bin, "./cmd/vrx"); err != nil {
-			t.Fatalf("go build vrx (CLI): %v\n%s", err, out)
+		bin := filepath.Join(t.TempDir(), "ngfw") // not in /run (noexec)
+		if out, err := run(t, "go", "build", "-C", filepath.Join(st.s.repo, "apps", "cli"), "-o", bin, "./cmd/ngfw"); err != nil {
+			t.Fatalf("go build ngfw (CLI): %v\n%s", err, out)
 		}
 		st.cliBin = bin
 		t.Cleanup(func() { st.cliBin = "" }) // the temp dir goes with the (sub)test
@@ -263,7 +283,7 @@ func (st *stack) cli(t *testing.T, args ...string) string {
 	full := append([]string{"--api", "http://127.0.0.1:" + st.s.httpPort, "--user", "admin", "--password-file", st.cliPW, "--no-session"}, args...)
 	out, err := run(t, st.cliBin, full...)
 	if err != nil {
-		t.Fatalf("vrx %s: %v\n%s", strings.Join(args, " "), err, out)
+		t.Fatalf("ngfw %s: %v\n%s", strings.Join(args, " "), err, out)
 	}
 	return strings.TrimRight(out, "\n")
 }
@@ -300,8 +320,8 @@ func setup(t *testing.T) (slot, rig, vppapi.Connection, *stack) {
 }
 
 func TestVlanQinqTopology(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-vlan-qinq topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-vlan-qinq topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -335,7 +355,7 @@ func TestVlanQinqTopology(t *testing.T) {
 		rsp := a.call("POST", "/api/v1/config/commit?comment=qinq-duplicate", nil)
 		t.Logf("commit with a duplicate tag stack → %d content-type problem+json; body %s", rsp.status, rsp.raw)
 		want := `"pointer":"/interfaces/` + W + `/subinterfaces/201/vlanId"`
-		if rsp.status != 400 || rsp.body["type"] != "https://vrx.dev/problems/validation" || !strings.Contains(js(rsp.body["errors"]), want) {
+		if rsp.status != 400 || rsp.body["type"] != "https://ngfw.dev/problems/validation" || !strings.Contains(js(rsp.body["errors"]), want) {
 			t.Fatalf("duplicate stack: want 400 validation problem with %s", want)
 		}
 		a.must(200, "DELETE", "/api/v1/config/interfaces/"+W+"/subinterfaces/201", nil)
@@ -391,7 +411,7 @@ func TestVlanQinqTopology(t *testing.T) {
 			{"configure", "show", "interfaces", W, "subinterfaces", "set"},
 			{"show", "interfaces", subs[1].name(W)},
 		} {
-			t.Logf("$ vrx %s\n%s", strings.Join(args, " "), st.cli(t, args...))
+			t.Logf("$ ngfw %s\n%s", strings.Join(args, " "), st.cli(t, args...))
 		}
 	})
 	if t.Failed() {
@@ -400,8 +420,8 @@ func TestVlanQinqTopology(t *testing.T) {
 
 	t.Run("packets", func(t *testing.T) {
 		a.t = t
-		if os.Getenv("VRX_QINQ_PACKETS") != "1" {
-			t.Skip("packet phase is opt-in: VRX_QINQ_PACKETS=1 (D-126/D-128)")
+		if os.Getenv("NGFW_QINQ_PACKETS") != "1" {
+			t.Skip("packet phase is opt-in: NGFW_QINQ_PACKETS=1 (D-126/D-128)")
 		}
 		// V19: no packet before a dump proves no classify/ACL/SPD binding on these indices (+ the ci pre-flight)
 		idx := waitIfs(t, conn, append([]string{W}, names...)...)
@@ -481,7 +501,7 @@ func TestVlanQinqTopology(t *testing.T) {
 		var tStart, tResync time.Time
 		for i, l := range lines {
 			switch {
-			case l.Msg == "vrx-agent starting" && tStart.IsZero():
+			case l.Msg == "ngfw-agent starting" && tStart.IsZero():
 				tStart = l.Time
 				t.Log("agent log: " + raw[i])
 			case l.Msg == "resync finished" && tResync.IsZero():
@@ -492,7 +512,7 @@ func TestVlanQinqTopology(t *testing.T) {
 			}
 		}
 		if tStart.IsZero() || tResync.IsZero() {
-			t.Fatal("agent log lacks 'vrx-agent starting' / 'resync finished'")
+			t.Fatal("agent log lacks 'ngfw-agent starting' / 'resync finished'")
 		}
 		t.Logf("reconcile after simulated loss: %s → %s = %.3fs (agent log timestamps)", tStart.Format(time.RFC3339Nano), tResync.Format(time.RFC3339Nano), tResync.Sub(tStart).Seconds())
 		if tResync.Sub(tStart) > 30*time.Second {
@@ -629,12 +649,12 @@ func pingFromWan(t *testing.T, r rig, dst string, count, size int) (string, bool
 // preflight runs TD-3's read-only V19 pre-flight (the one tools/ci.sh full runs) and fails on a crash vector.
 func preflight(t *testing.T, s slot) {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "vrx-vpp-preflight")
-	if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/vrx-vpp-preflight"); err != nil {
-		t.Fatalf("build vrx-vpp-preflight: %v\n%s", err, out)
+	bin := filepath.Join(t.TempDir(), "ngfw-vpp-preflight")
+	if out, err := run(t, "go", "build", "-C", filepath.Join(s.repo, "apps", "agent"), "-o", bin, "./cmd/ngfw-vpp-preflight"); err != nil {
+		t.Fatalf("build ngfw-vpp-preflight: %v\n%s", err, out)
 	}
 	out, err := run(t, bin)
-	t.Logf("vrx-vpp-preflight: exit %v\n%s", err, strings.TrimSpace(out))
+	t.Logf("ngfw-vpp-preflight: exit %v\n%s", err, strings.TrimSpace(out))
 	if err != nil {
 		t.Fatal("V19 pre-flight found a crash vector (or VPP is unreachable): no packets")
 	}
@@ -748,7 +768,7 @@ func parseIfCounters(out string) map[string]map[string]uint64 {
 	return res
 }
 
-// TestParseIfCounters is the unit check of the counter parser (runs without VRX_INTEGRATION): vppctl's CRLF output, a
+// TestParseIfCounters is the unit check of the counter parser (runs without NGFW_INTEGRATION): vppctl's CRLF output, a
 // header, an interface without counters, one with several.
 func TestParseIfCounters(t *testing.T) {
 	out := "              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     \r\n" +

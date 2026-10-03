@@ -1,6 +1,6 @@
-// Package agent wires the vrx-agent process together: configuration, the VPP connection,
+// Package agent wires the ngfw-agent process together: configuration, the VPP connection,
 // the reconciler with the core descriptors, the persisted desired state (resync on start and on
-// VPP reconnect, confirm timer), the vrx.v1.Dataplane gRPC server on a unix socket, and the
+// VPP reconnect, confirm timer), the ngfw.v1.Dataplane gRPC server on a unix socket, and the
 // Prometheus metrics endpoint.
 package agent
 
@@ -22,44 +22,45 @@ import (
 
 	"google.golang.org/grpc"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
 // Config is read once from environment variables (systemd EnvironmentFile).
 type Config struct {
-	// Socket is the unix socket the gRPC server listens on (VRX_AGENT_SOCKET).
+	// Socket is the unix socket the gRPC server listens on (NGFW_AGENT_SOCKET).
 	Socket string
-	// SocketGroup owns the socket (VRX_SOCKET_GROUP); missing group → primary group + warning.
+	// SocketGroup owns the socket (NGFW_SOCKET_GROUP); missing group → primary group + warning.
 	SocketGroup string
-	// VPPAPISocket is VPP's binary API socket (VRX_AGENT_VPP_API_SOCKET).
+	// VPPAPISocket is VPP's binary API socket (NGFW_AGENT_VPP_API_SOCKET).
 	VPPAPISocket string
-	// VPPStatsSocket is VPP's stats segment socket (VRX_AGENT_VPP_STATS_SOCKET).
+	// VPPStatsSocket is VPP's stats segment socket (NGFW_AGENT_VPP_STATS_SOCKET).
 	VPPStatsSocket string
-	// StateDir holds desired.pb & co (VRX_AGENT_STATE_DIR).
+	// StateDir holds desired.pb & co (NGFW_AGENT_STATE_DIR).
 	StateDir string
-	// Owner stamped on every object (VRX_OWNER; tests: their VRX_TEST_PREFIX).
+	// Owner stamped on every object (NGFW_OWNER; tests: their NGFW_TEST_PREFIX).
 	Owner string
-	// MetricsAddr is the Prometheus listen address (VRX_METRICS_ADDR, or 127.0.0.1:$VRX_METRICS_PORT);
+	// MetricsAddr is the Prometheus listen address (NGFW_METRICS_ADDR, or 127.0.0.1:$NGFW_METRICS_PORT);
 	// "" or "off" disables it. /metrics is unauthenticated: a non-loopback address needs MetricsAllowRemote.
 	MetricsAddr string
-	// MetricsAllowRemote (VRX_METRICS_ALLOW_REMOTE=1) permits a non-loopback MetricsAddr (TD-9, review 1.5e).
+	// MetricsAllowRemote (NGFW_METRICS_ALLOW_REMOTE=1) permits a non-loopback MetricsAddr (TD-9, review 1.5e).
 	MetricsAllowRemote bool
-	// LogLevel: debug, info, warn, error (VRX_LOG_LEVEL); anything else refuses to start (TD-9, review 1.5c).
+	// LogLevel: debug, info, warn, error (NGFW_LOG_LEVEL); anything else refuses to start (TD-9, review 1.5c).
 	LogLevel string
-	// VPPReplyTimeout bounds each VPP reply (VRX_AGENT_VPP_REPLY_TIMEOUT: seconds or a Go duration;
+	// VPPReplyTimeout bounds each VPP reply (NGFW_AGENT_VPP_REPLY_TIMEOUT: seconds or a Go duration;
 	// 0 = vpp.DefaultReplyTimeout, 30 s; TD-9, review 1.1).
 	VPPReplyTimeout time.Duration
-	// replyErr is a malformed VRX_AGENT_VPP_REPLY_TIMEOUT (Validate refuses to start).
+	// replyErr is a malformed NGFW_AGENT_VPP_REPLY_TIMEOUT (Validate refuses to start).
 	replyErr error
-	// GlobalsOwner (VRX_GLOBALS_OWNER, D-071): true only for the product agent on a real box (the
-	// default for the production owner "vrx"); test slots on the shared host are never the owner.
+	// GlobalsOwner (NGFW_GLOBALS_OWNER, D-071): true only for the product agent on a real box (the
+	// default for the production owner "ngfw"); test slots on the shared host are never the owner.
 	GlobalsOwner bool
 	// IDs is the VPP numeric id range the families may allocate (TD-8, subsystems.ResolveIDScope:
-	// VRX_VPP_TABLE_BASE or VRX_VPP_ID_RANGE=all). ConfigFromEnv without either refuses to start
+	// NGFW_VPP_TABLE_BASE or NGFW_VPP_ID_RANGE=all). ConfigFromEnv without either refuses to start
 	// (TD-8b, D-129 Q3); the zero value of a Config built in code owns no id (fail closed), so a family
 	// that allocates ids refuses to register.
 	IDs subsystems.IDScope
@@ -76,38 +77,38 @@ func env(key, def string) string {
 
 // ConfigFromEnv returns the configuration with production defaults.
 func ConfigFromEnv() Config {
-	metrics := env("VRX_METRICS_ADDR", "")
+	metrics := env("NGFW_METRICS_ADDR", "")
 	if metrics == "" {
-		metrics = "127.0.0.1:" + env("VRX_METRICS_PORT", "9101")
+		metrics = "127.0.0.1:" + env("NGFW_METRICS_PORT", "9101")
 	}
-	owner := env("VRX_OWNER", "vrx")
-	globals := owner == "vrx"
-	switch strings.ToLower(os.Getenv("VRX_GLOBALS_OWNER")) {
+	owner := env("NGFW_OWNER", "ngfw")
+	globals := owner == "ngfw"
+	switch strings.ToLower(os.Getenv("NGFW_GLOBALS_OWNER")) {
 	case "1", "true", "yes":
 		globals = true
 	case "0", "false", "no":
 		globals = false
 	}
 	ids, idsErr := subsystems.ResolveIDScope() // none set: ErrNoIDRange, start-up refused (TD-8b, D-129 Q3)
-	reply, replyErr := parseTimeout(os.Getenv("VRX_AGENT_VPP_REPLY_TIMEOUT"))
+	reply, replyErr := parseTimeout(os.Getenv("NGFW_AGENT_VPP_REPLY_TIMEOUT"))
 	if replyErr != nil {
-		replyErr = fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT: %w", replyErr)
+		replyErr = fmt.Errorf("invalid NGFW_AGENT_VPP_REPLY_TIMEOUT: %w", replyErr)
 	}
 	return Config{
 		IDs:                ids,
 		idsErr:             idsErr,
 		VPPReplyTimeout:    reply,
 		replyErr:           replyErr,
-		MetricsAllowRemote: os.Getenv("VRX_METRICS_ALLOW_REMOTE") == "1",
+		MetricsAllowRemote: os.Getenv("NGFW_METRICS_ALLOW_REMOTE") == "1",
 		GlobalsOwner:       globals,
-		Socket:             env("VRX_AGENT_SOCKET", "/run/vrx/agent.sock"),
-		SocketGroup:        env("VRX_SOCKET_GROUP", "vrx"),
-		VPPAPISocket:       env("VRX_AGENT_VPP_API_SOCKET", "/run/vpp/api.sock"),
-		VPPStatsSocket:     env("VRX_AGENT_VPP_STATS_SOCKET", "/run/vpp/stats.sock"),
-		StateDir:           env("VRX_AGENT_STATE_DIR", "/var/lib/vrx/agent"),
+		Socket:             env("NGFW_AGENT_SOCKET", "/run/ngfw/agent.sock"),
+		SocketGroup:        env("NGFW_SOCKET_GROUP", "ngfw"),
+		VPPAPISocket:       env("NGFW_AGENT_VPP_API_SOCKET", "/run/vpp/api.sock"),
+		VPPStatsSocket:     env("NGFW_AGENT_VPP_STATS_SOCKET", "/run/vpp/stats.sock"),
+		StateDir:           env("NGFW_AGENT_STATE_DIR", "/var/lib/ngfw/agent"),
 		Owner:              owner,
 		MetricsAddr:        metrics,
-		LogLevel:           env("VRX_LOG_LEVEL", "info"),
+		LogLevel:           env("NGFW_LOG_LEVEL", "info"),
 	}
 }
 
@@ -115,17 +116,17 @@ func ConfigFromEnv() Config {
 func (c Config) Validate() error {
 	switch {
 	case c.Owner == "" || strings.ContainsAny(c.Owner, ":/\\ \x00\r\n"):
-		return fmt.Errorf("invalid VRX_OWNER %q", c.Owner)
+		return fmt.Errorf("invalid NGFW_OWNER %q", c.Owner)
 	case c.Socket == "":
-		return errors.New("VRX_AGENT_SOCKET is empty")
+		return errors.New("NGFW_AGENT_SOCKET is empty")
 	case c.StateDir == "":
-		return errors.New("VRX_AGENT_STATE_DIR is empty")
+		return errors.New("NGFW_AGENT_STATE_DIR is empty")
 	case c.idsErr != nil:
 		return c.idsErr
 	case c.replyErr != nil:
 		return c.replyErr
 	case c.VPPReplyTimeout < 0 || (c.VPPReplyTimeout > 0 && c.VPPReplyTimeout < MinVPPReplyTimeout):
-		return fmt.Errorf("invalid VRX_AGENT_VPP_REPLY_TIMEOUT %s: at least %s (govpp's health-check window)", c.VPPReplyTimeout, MinVPPReplyTimeout)
+		return fmt.Errorf("invalid NGFW_AGENT_VPP_REPLY_TIMEOUT %s: at least %s (govpp's health-check window)", c.VPPReplyTimeout, MinVPPReplyTimeout)
 	}
 	if _, err := ParseLogLevel(c.LogLevel); err != nil {
 		return err
@@ -133,13 +134,13 @@ func (c Config) Validate() error {
 	return c.checkMetricsAddr()
 }
 
-// MinVPPReplyTimeout is the least VRX_AGENT_VPP_REPLY_TIMEOUT (review L6): govpp's health check (a probe
+// MinVPPReplyTimeout is the least NGFW_AGENT_VPP_REPLY_TIMEOUT (review L6): govpp's health check (a probe
 // every 1 s, 2 s reply timeout, 5 misses — vpp/conn.go) reconnects a dead or hung VPP within about 15 s,
 // which drops late replies. A shorter reply timeout would return a channel id to govpp's pool while VPP may
 // still answer on it, and govpp's Invoke does not check which message a reply answers.
 const MinVPPReplyTimeout = 15 * time.Second
 
-// ParseLogLevel parses VRX_LOG_LEVEL (debug, info, warn, error; "" = info). An unknown level is an
+// ParseLogLevel parses NGFW_LOG_LEVEL (debug, info, warn, error; "" = info). An unknown level is an
 // error: the agent refuses to start rather than run at a level nobody asked for (TD-9, review 1.5c).
 func ParseLogLevel(s string) (slog.Level, error) {
 	level := slog.LevelInfo
@@ -147,20 +148,20 @@ func ParseLogLevel(s string) (slog.Level, error) {
 		return level, nil
 	}
 	if err := level.UnmarshalText([]byte(s)); err != nil {
-		return slog.LevelInfo, fmt.Errorf("invalid VRX_LOG_LEVEL %q (debug, info, warn or error)", s)
+		return slog.LevelInfo, fmt.Errorf("invalid NGFW_LOG_LEVEL %q (debug, info, warn or error)", s)
 	}
 	return level, nil
 }
 
 // checkMetricsAddr refuses a /metrics address other than loopback — the endpoint has no
-// authentication — unless VRX_METRICS_ALLOW_REMOTE=1 says it is meant (TD-9, review 1.5e).
+// authentication — unless NGFW_METRICS_ALLOW_REMOTE=1 says it is meant (TD-9, review 1.5e).
 func (c Config) checkMetricsAddr() error {
 	if c.MetricsAddr == "" || c.MetricsAddr == "off" {
 		return nil
 	}
 	host, _, err := net.SplitHostPort(c.MetricsAddr)
 	if err != nil {
-		return fmt.Errorf("invalid VRX_METRICS_ADDR %q: %w", c.MetricsAddr, err)
+		return fmt.Errorf("invalid NGFW_METRICS_ADDR %q: %w", c.MetricsAddr, err)
 	}
 	if c.MetricsAllowRemote || host == "localhost" {
 		return nil
@@ -168,7 +169,7 @@ func (c Config) checkMetricsAddr() error {
 	if ip, err := netip.ParseAddr(host); err == nil && ip.IsLoopback() {
 		return nil
 	}
-	return fmt.Errorf("VRX_METRICS_ADDR %q is not a loopback address: /metrics is unauthenticated, set VRX_METRICS_ALLOW_REMOTE=1 to serve it there anyway", c.MetricsAddr)
+	return fmt.Errorf("NGFW_METRICS_ADDR %q is not a loopback address: /metrics is unauthenticated, set NGFW_METRICS_ALLOW_REMOTE=1 to serve it there anyway", c.MetricsAddr)
 }
 
 // parseTimeout parses seconds ("30") or a Go duration ("1m30s"); "" = 0 (the default).
@@ -256,9 +257,20 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	if cfg.IDs == (subsystems.IDScope{}) {
 		log.Warn("no VPP id range: families that allocate numeric ids refuse to register", "why", subsystems.ErrNoIDRange)
 	}
+	cache, err := secretchannel.Open(cfg.StateDir, cfg.Owner)
+	if err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
+	if err = subsystems.SetIKEv2Secrets(cfg.Owner, cache, cache.Ref); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
+	svc, err := NewService(ServiceConfig{CaptureBoot: wiring.BootStore(), GlobalsOwner: cfg.GlobalsOwner, SecretCache: cache, Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
 		Events: events, Sources: wiring.DynamicSources(),
 		RequestResync: func() { requestResync(resyncs) }}) // TD-9: the owed resync takes the Env.Resync path
 	if err != nil {
@@ -275,7 +287,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, fmt.Errorf("listen %s: %w", cfg.Socket, err)
 	}
 	a.grpc = newGRPCServer(log, m) // TD-9: panic recovery interceptors
-	vrxv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log})
+	ngfwv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log})
 
 	if cfg.MetricsAddr != "" && cfg.MetricsAddr != "off" {
 		ml, err := net.Listen("tcp", cfg.MetricsAddr)
@@ -311,7 +323,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		defer a.wg.Done()
 		a.watchDrift(rctx)
 	}()
-	log.Info("vrx-agent listening", "socket", cfg.Socket, "metrics", cfg.MetricsAddr, "state_dir", cfg.StateDir, "vpp_api", cfg.VPPAPISocket)
+	log.Info("ngfw-agent listening", "socket", cfg.Socket, "metrics", cfg.MetricsAddr, "state_dir", cfg.StateDir, "vpp_api", cfg.VPPAPISocket)
 	return a, nil
 }
 
@@ -366,7 +378,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 				if st.Err != nil {
 					msg += ": " + st.Err.Error()
 				}
-				a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_DISCONNECTED, Message: msg})
+				a.svc.events().publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_VPP_DISCONNECTED, Message: msg})
 				continue
 			}
 			vctx, vcancel := context.WithTimeout(ctx, 5*time.Second)
@@ -376,7 +388,7 @@ func (a *Agent) watchVPP(ctx context.Context) {
 				a.log.Warn("show_version", "err", err)
 			}
 			a.svc.SetVPPVersion(v)
-			a.svc.events().publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
+			a.svc.events().publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_VPP_CONNECTED, Message: "VPP " + v})
 			if a.wiring != nil {
 				// P08: D-080 boot identity for the stores, DF-8 Reconnected(); its ControlPing gets a
 				// deadline of its own (TD-9)
@@ -386,6 +398,14 @@ func (a *Agent) watchVPP(ctx context.Context) {
 					a.wiring.Connected(cctx)
 				})
 			}
+			// wave-BC: S-capture-retention-stop
+			a.safely("capture recovery", func() {
+				cctx, cancel := context.WithTimeout(ctx, connectHookTimeout)
+				defer cancel()
+				if err := a.svc.recoverCaptures(cctx); err != nil {
+					a.log.Error("capture recovery failed", "error", err)
+				}
+			})
 			a.fullResync(ctx, "connect")
 			if !sourcesStarted {
 				sourcesStarted = true
@@ -556,7 +576,7 @@ func (a *Agent) Stop() {
 	a.stats.close()
 	a.conn.Close()
 	_ = os.Remove(a.cfg.Socket)
-	a.log.Info("vrx-agent stopped")
+	a.log.Info("ngfw-agent stopped")
 }
 
 // Run starts the agent and blocks until ctx is cancelled.

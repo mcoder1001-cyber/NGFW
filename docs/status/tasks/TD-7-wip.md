@@ -13,6 +13,6 @@ Never `--apply` for real; fake-host harness only. Scope: F1 and F2 of `TD-6-revi
 Host load at start: 182 (1-min), other agents' CI.
 
 Continued 2026-09-24 16:53 after the usage-limit stop (CONTINUE-quota.md). The 16:35 comparison logs of the stopped worker ran
-scenarios 1–31 only (misconfigured); redone with the new harness + `VRX_TEST_APPLY_SCRIPT`, logs in /tmp/g-td7/runs.
+scenarios 1–31 only (misconfigured); redone with the new harness + `NGFW_TEST_APPLY_SCRIPT`, logs in /tmp/g-td7/runs.
 Manager scope addition (vppstartup.md scenario-40 sentence; two pre-existing tech-debt items noted in TD-7.md): done.
 Finished 17:45 — see TD-7.md.

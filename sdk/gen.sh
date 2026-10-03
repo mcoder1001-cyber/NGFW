@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # sdk/gen.sh — regenerate the automation clients from the API's OpenAPI document.
 #   sdk/gen.sh                  build @ngfw/api (+ deps), export OpenAPI → sdk/openapi.json (git-ignored), regenerate
-#                               sdk/python/vrx/_generated/* and sdk/terraform/internal/provider/zz_*_gen.go
+#                               sdk/python/ngfw/_generated/* and sdk/terraform/internal/provider/zz_*_gen.go
 #   sdk/gen.sh --check          same, then fail if the committed generated files differ (the "generated output is clean" gate)
 #   sdk/gen.sh --openapi <f>    use an existing OpenAPI JSON instead of building the API (fast; e.g. packages/api-client/openapi.json after `pnpm gen`)
 # Not hooked into tools/ci.sh (not owned by this task; the API build takes ~1 min) — run it with sdk/test.sh before
@@ -27,15 +27,15 @@ if [[ -z $SPEC ]]; then
   SPEC="$SDK/openapi.json"
 fi
 
-python3 "$SDK/python/tools/gen.py" "$SPEC" "$SDK/python/vrx/_generated"
+python3 "$SDK/python/tools/gen.py" "$SPEC" "$SDK/python/ngfw/_generated"
 go -C "$SDK/terraform" run ./tools/genschema -openapi "$SPEC" -out internal/provider
 
 if ((CHECK)); then
-  dirty=$(git -C "$ROOT" status --porcelain -- sdk/python/vrx/_generated 'sdk/terraform/internal/provider/zz_*_gen.go')
+  dirty=$(git -C "$ROOT" status --porcelain -- sdk/python/ngfw/_generated 'sdk/terraform/internal/provider/zz_*_gen.go')
   if [[ -n $dirty ]]; then
     echo "gen: generated SDK files are not up to date with the OpenAPI document — commit them:" >&2
     echo "$dirty" >&2
     exit 1
   fi
-  echo "gen: clean — sdk/python/vrx/_generated sdk/terraform/internal/provider/zz_*_gen.go"
+  echo "gen: clean — sdk/python/ngfw/_generated sdk/terraform/internal/provider/zz_*_gen.go"
 fi

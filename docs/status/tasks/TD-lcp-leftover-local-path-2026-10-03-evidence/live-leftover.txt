@@ -1,0 +1,49 @@
+DISPOSABLE_VPP pid=1206932 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1206913
+=== RUN   TestLeftoverLocalClearedOnHost
+    leftover_integration_test.go:23: plugin linux_cp loaded: 3 message(s) compatible
+    leftover_integration_test.go:33: created loop590 sw_if_index 1 tag "w5:loop590"
+    leftover_integration_test.go:52: loop590 (sw_if_index 1) in table 5224; empty table: w5:lcp-leftover, fib_index:1 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+         fib:1 index:8 locks:1
+          src:Default Route flags:none locks:1:  flags:Drop,
+            Extensions:
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+    leftover_integration_test.go:65: ip_mroute_dump table 5224 (*,224.0.0.0/24) before: [{ItfFlags:MFIB_API_ITF_FLAG_NONE Path:{SwIfIndex:4294967295 TableID:0 RpfID:0 Weight:1 Preference:0 Type:FIB_API_PATH_TYPE_LOCAL Flags:FIB_API_PATH_FLAG_NONE Proto:FIB_API_PATH_NH_PROTO_IP4 Nh:{Address:{XXX_UnionData:[0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]} ViaLabel:0 ObjID:0 ClassifyTableIndex:0} NLabels:0 LabelStack:[{IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0} {IsUniform:0 Label:0 TTL:0 Exp:0}]}}]
+    leftover_integration_test.go:67: before: w5:lcp-leftover, fib_index:1 flags:none
+        (*, 224.0.0.0/24): 
+         fib:1 index:11 locks:1
+          src:API flags:none locks:1: 
+            path-list:[20] locks:2 flags:no-uRPF, uRPF-list: None
+              path:[20] pl-index:20 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+                [@0]: dpo-receive
+            Extensions:
+             path:20 flags:Forward,
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:8 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+2026/10/03 16:06:13 INFO lcp: (*,224.0.0.0/24) held a local path and no Accept: deleted the API local path before adding a default-namespace pair (a leftover of S-lcp-netns-224-accept Q2) descriptor=lcp.itf-pair interface=loop590 table=5224 entry_gone=true
+2026/10/03 16:06:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=w5-lcp90 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    leftover_integration_test.go:79: pair loop590 ↔ w5-lcp90 created: {PhySwIfIndex:1 HostSwIfIndex:2 VifIndex:316 APIAccept:false}
+    leftover_integration_test.go:81: after: w5:lcp-leftover, fib_index:1 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+         fib:1 index:8 locks:1
+          src:Default Route flags:none locks:1:  flags:Drop,
+            Extensions:
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+2026/10/03 16:06:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=w5-lcp90 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:06:13 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- PASS: TestLeftoverLocalClearedOnHost (0.62s)
+PASS
+ok  	ngfw/agent/internal/descriptors/lcp	0.645s
+DISPOSABLE_VPP_STOPPED pid=1206932

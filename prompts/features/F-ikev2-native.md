@@ -1,4 +1,8 @@
-# Task: F-ikev2-native — VPP native IKEv2 responder path   (prepend 00-CONTEXT.md)
+# Task: F-ikev2-native — route-based IPsec module (VPP native IKEv2)   (prepend 00-CONTEXT.md)
+
+## Current scope — 2026-10-03
+
+The product owner requires **route-based IPsec only**. This is the sole IPsec implementation path; read [DEC-ipsec-route-based](../../docs/decisions/DEC-ipsec-route-based.md). No policy-based fallback or NGFW-side strongSwan/kernel-vpp packaging. Use the existing `routeBased.ipipInterface` contract; defer a second standalone `ipsec<N>` interface form unless separately authorised. Complete route/FIB, interface protection, native state/API/CLI/UI and packet proof under the same module. Plugin-negotiated SAs must not compete with agent-created SAs. The decision overrides conflicting historical P11 instructions and ownership restrictions for the narrow native wiring.
 
 ## Goal
 Implement **IPsec tunnels negotiated by VPP's own IKEv2 plugin** (no strongSwan) end to end in FAST MODE: a tunnel with
@@ -24,7 +28,7 @@ initiator = one explicit action. Reference: TNSR "IPsec (native IKE)"; VPP plugi
 - `docs/lab/shared-host-rules.md` (slot prefix, ports: ipsec-over-udp 20000+100·slot+1/+2), VPP docs https://s3-docs.fd.io/vpp/26.06/ → IKEv2
 
 ## Scope — build exactly this
-1. **Schema**: semantic rules — `engine: vpp-ikev2` requires `routeBased.ipipInterface` or an `ipsec<N>` tunnel interface (native path is
+1. **Schema**: semantic rules — `engine: vpp-ikev2` requires `routeBased.ipipInterface` (native path is
    route-based only); `auth.method` psk|cert (cert needs `vpn.pki.certificates.<name>` → key path on the host, F-pki provides the file);
    ip-type ids with an inner zero octet (10.4.0.1) rejected with the DF-5 reason (govpp NUL truncation) — suggest an fqdn id; proposal
    transforms limited to what the plugin supports (map table from `ikev2.go`). Missing fields → `contract(schema|proto): …` commits on your
@@ -34,7 +38,7 @@ initiator = one explicit action. Reference: TNSR "IPsec (native IKE)"; VPP plugi
    through `Wiring.IKEv2Options()` and the agent secret resolver, never the plaintext into Value/logs.
    Globals (`ikev2.liveness`, `ikev2.local-key`, sleep interval) only when the agent is the globals owner (D-071). State: `SAs()` →
    IKE/child SAs with SPIs, transforms, bytes, uptime (derived keys are zeroed by DF-5 — keep it so). Actions: initiate, rekey child,
-   delete IKE SA. ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, prefixed objects).
+   delete IKE SA. ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, prefixed objects).
 3. **API**: config via pointer routes; `GET /api/v1/state/ipsec/ikev2/sas`; `POST /api/v1/actions/ipsec/ikev2/{tunnel}/{initiate|rekey|delete-sa}`.
    OpenAPI; regenerate `packages/api-client`.
 4. **UI**: the IPsec tunnel form shows an engine selector; native tunnels get a status column + SA drawer (SPI, transforms, counters,
@@ -49,8 +53,9 @@ Shared files: one-line appends only (app.module.ts, router/nav, agent registry);
 - **VPP dns crash rule (D-137/D-139/D-140, 2026-09-25):** the ikev2 plugin calls the dns plugin's resolver when `ikev2_initiate_sa_init` runs on a profile with a responder HOSTNAME, and VPP 26.06 crashes (NULL deref in ip4_sas) unless an IPv4 name server was added since VPP started. Accept a responder hostname only while the agent's `dns.Readiness` fact holds, or resolve the name in the agent and send an address; refuse otherwise at build time with a pointer. Never call dns.api directly.
 
 ## Acceptance (paste the evidence)
+- [ ] All route-based acceptance checks in `test/topology/ipsec/README.md`: bidirectional ICMP/TCP, route withdrawal/recovery, rekey, peer recovery, protected-interface and FIB proof.
 - [ ] Packet-level (path recorded: `af_packet` rig): a stock strongSwan initiator in `ns-<p>-wan` (debs unpacked under
-      `/run/vrx-test/<p>/`, D-083 — never installed) negotiates with VPP's responder;
+      `/run/ngfw-test/<p>/`, D-083 — never installed) negotiates with VPP's responder;
       ping from the peer's inner network to a host behind `ns-<p>-lan`; `tcpdump` on the inter-namespace veth shows **ESP only**;
       `vppctl show ikev2 sa` + `show ipsec sa` show the SA with counters increasing (PSK redacted from the pasted output)
 - [ ] `Retrieve()` == desired for `ikev2.profile`; write-only objects re-applied once per VPP boot identity (D-076/D-080), not per resync

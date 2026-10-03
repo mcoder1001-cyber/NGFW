@@ -22,7 +22,7 @@ held = []
 while True:
     c, _ = s.accept()
     try:
-        c.sendall(b"vrx-nat-ok\n")
+        c.sendall(b"ngfw-nat-ok\n")
     except OSError:
         pass
     held.append(c)
@@ -58,7 +58,7 @@ for i in range(n):
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.bind((src, base + i))
-    s.sendto(b"vrx-nat-flow", (dst, dport))
+    s.sendto(b"ngfw-nat-flow", (dst, dport))
     s.close()
 print("sent", n)
 `

@@ -1,10 +1,10 @@
-# `vrx.v1.Dataplane` — the agent↔API gRPC contract
+# `ngfw.v1.Dataplane` — the agent↔API gRPC contract
 
-Source: `packages/proto/vrx/v1/dataplane.proto`. Generated stubs: Go `apps/agent/gen/vrx/v1` (module path
-`ngfw/agent/gen/vrx/v1`, package `vrxv1`), TypeScript `packages/proto/gen/ts` (`@ngfw/proto`, ts-proto v2 with
+Source: `packages/proto/ngfw/v1/dataplane.proto`. Generated stubs: Go `apps/agent/gen/ngfw/v1` (module path
+`ngfw/agent/gen/ngfw/v1`, package `ngfwv1`), TypeScript `packages/proto/gen/ts` (`@ngfw/proto`, ts-proto v2 with
 `@grpc/grpc-js` service stubs — D-005). Regenerate with `pnpm gen`; CI fails on dirty output. The same module also
-holds the agent-internal reconciler object model `vrx.model.*.v1` (§10), generated for Go only
-(`buf.gen.model.yaml`); `buf.gen.yaml` is restricted to `vrx/v1`.
+holds the agent-internal reconciler object model `ngfw.model.*.v1` (§10), generated for Go only
+(`buf.gen.model.yaml`); `buf.gen.yaml` is restricted to `ngfw/v1`.
 
 **Changing this contract requires a `contract(proto): …` commit** (`tools/ci.sh --base main` contract guard) and
 `buf breaking --against "../../.git#branch=main,subdir=packages/proto"` (run from `packages/proto`; in a worktree `.git`
@@ -13,8 +13,8 @@ renamed or retyped after `contracts-v1` — only added, and removed fields becom
 is buf `STANDARD` minus `SERVICE_SUFFIX` (D-008) and `RPC_RESPONSE_STANDARD_NAME` (stream element types and the DryRun
 report keep their docs/04 names). Review fixes before the tag: `docs/status/tasks/P03-contract.md` (D-039…D-042).
 
-Transport: gRPC over the unix socket `/run/vrx/agent.sock` (0660, group `VRX_SOCKET_GROUP`); tests use their slot's
-`VRX_AGENT_SOCKET`. Only `vrx-api` talks to the agent (00-CONTEXT rule 1). No TLS, no auth on the socket — the file
+Transport: gRPC over the unix socket `/run/ngfw/agent.sock` (0660, group `NGFW_SOCKET_GROUP`); tests use their slot's
+`NGFW_AGENT_SOCKET`. Only `ngfw-api` talks to the agent (00-CONTEXT rule 1). No TLS, no auth on the socket — the file
 mode is the boundary.
 
 ## 1. DesiredState — the configuration document as protobuf
@@ -93,7 +93,7 @@ every protocol, while `routing.<p>.redistribute` rejects the protocol's own key 
 schema→proto gap is never accepted. `TestSchemaProtoDriftDetectsBreakage` feeds the guard a deliberately broken schema
 (extra leaf, removed leaf, retyped leaf, widened integer, secret leaf with a field, array → object) and requires every
 finding, so a guard that passes everything cannot go unnoticed. Outside CI, a missing generated schema skips the Go
-guard with the command to run (`pnpm --filter @ngfw/schema gen`); under `CI` it fails. `VRX_DRIFT_SCHEMA=<file>`
+guard with the command to run (`pnpm --filter @ngfw/schema gen`); under `CI` it fails. `NGFW_DRIFT_SCHEMA=<file>`
 points the guard at another schema (used to demonstrate a failure, `docs/status/tasks/P03b.md`).
 
 **Adding a schema leaf** therefore means, in the same branch: the Zod change, the proto field (next free number,
@@ -115,7 +115,7 @@ validate (every selected KV has a descriptor; mandatory dependencies present)
   → plan (diff desired vs Retrieve(): Create / Update / Recreate / Delete, topological order)
   → apply (creates/updates in order, deletes in reverse order; daemons after VPP, risky backends last — AD-4)
   → verify (re-Retrieve, compare)
-  → persist desired state (/var/lib/vrx/agent/desired.pb) → confirmed, or start the confirm timer
+  → persist desired state (/var/lib/ngfw/agent/desired.pb) → confirmed, or start the confirm timer
 ```
 
 Request forms: **apply** (`txn_id` + `desired_state` [+ `subsystems`, `confirm_timeout_sec`]), **confirm**
@@ -135,7 +135,7 @@ applied). Any other combination is `INVALID_ARGUMENT`. A confirm-and-apply while
 3. Transactions are serialised: one at a time per agent. A second `Apply` while one is running blocks until it finishes
    (bounded by the caller's deadline), it is never interleaved. **The caller's deadline and cancel bound only that wait
    (TD-9).** Once a transaction holds the lock it runs to its end on the agent's own clock, whether or not the caller is
-   still there: every VPP reply is bounded by `VRX_AGENT_VPP_REPLY_TIMEOUT` (default 30 s, at least 15 s — govpp's
+   still there: every VPP reply is bounded by `NGFW_AGENT_VPP_REPLY_TIMEOUT` (default 30 s, at least 15 s — govpp's
    health-check window; one request/reply, or one message of a dump), the transaction by 5 min and its rollback by 2 min. A caller that gave up retries with the same
    `txn_id`: it waits for the lock and gets the stored response (item 2). **An outcome in which a timeout took part is
    never stored** — a VPP call that did not answer in time, in the plan, an operation (the request may have been
@@ -177,7 +177,7 @@ extension). `DryRun` applies the same table when planning.
 | — | confirm of a txn that is not pending; new apply while another txn is pending confirmation (§4) | `FAILED_PRECONDITION` |
 | — | `txn_id` reused with different content | `ABORTED` |
 | — | VPP disconnected | `UNAVAILABLE` |
-| — | an agent bug: a handler panicked (logged with its stack, `vrx_agent_panics_total`); a panic inside a transaction also reloads the agent's state from disk and leaves it `DEGRADED` with a resync owed | `INTERNAL` |
+| — | an agent bug: a handler panicked (logged with its stack, `ngfw_agent_panics_total`); a panic inside a transaction also reloads the agent's state from disk and leaves it `DEGRADED` with a resync owed | `INTERNAL` |
 
 `validation` carries the errors of a `FAILED` answer; an `APPLIED` or `ROLLED_BACK` answer carries the projection's
 warnings in it (`ok = true`: `agent.unimplemented-domain`, `agent.unsupported-field`, …) when there are any, the same
@@ -257,8 +257,8 @@ diff" — and uses it in the integration proof "after commit, `Retrieve()` equal
 
 ## 6. Ownership scoping
 
-An agent process serves **exactly one owner** (`VRX_OWNER`, product default `vrx`; tests use their slot's
-`VRX_TEST_PREFIX`, e.g. `w7`). Every object it creates is stamped — interface tag `<owner>:<id>` via
+An agent process serves **exactly one owner** (`NGFW_OWNER`, product default `ngfw`; tests use their slot's
+`NGFW_TEST_PREFIX`, e.g. `w7`). Every object it creates is stamped — interface tag `<owner>:<id>` via
 `sw_interface_tag_add_del`, owner-prefixed names or the owner table in the state dir for objects without tags (D-030,
 `internal/vpp.OwnerTag`). Plan, rollback, resync and Retrieve act **only on owned objects**; two agents with different
 owners on one VPP never touch each other's objects.
@@ -334,9 +334,9 @@ DPDK NICs — never another owner's, never `local0`), sorted by logical name: `n
 - `google.protobuf.Timestamp` is a `Date` in TypeScript and `*timestamppb.Timestamp` in Go; all times are agent clock,
   UTC.
 
-## 10. Reconciler object model (`vrx.model.*.v1`, agent-internal, D-055)
+## 10. Reconciler object model (`ngfw.model.*.v1`, agent-internal, D-055)
 
-`packages/proto/vrx/model/**` holds the **Value types of the scheduler's descriptors** — one message per VPP object
+`packages/proto/ngfw/model/**` holds the **Value types of the scheduler's descriptors** — one message per VPP object
 kind, in VPP terms (table ids, address ranges, protocol numbers, logical interface names), i.e. what the desired-state
 builder (P08) produces from `DesiredState` and what `Retrieve()` decodes VPP dumps into. They are not part of the
 API↔agent wire contract: `dataplane.proto` does not import them (pinned by `TestModelStaysAgentInternal`) and no
@@ -345,9 +345,9 @@ cover them and the factories stop carrying `*structpb.Struct` stand-ins.
 
 | package (Go import) | mirrors | messages |
 |---|---|---|
-| `vrx.model.acl.v1` (`ngfw/agent/gen/vrx/model/acl/v1`, `aclv1`) | DF-4 typed specs, `apps/agent/internal/descriptors/acl/spec.go` (structpb field names) | `Acl`, `AclRule`, `MacipAcl`, `MacipRule`, `InterfaceBinding`, `EtypeWhitelist`, `MacipBinding`, `StatsEnable` |
-| `vrx.model.nat.v1` (`…/model/nat/v1`, `natv1`) | DF-3 typed specs (`task/DF-3@08d0af4`, json tags) of nat44-ed, nat44-ei, nat64, nat66, det44, map, cnat, pnat | shared `Endpoint`, `Timeouts`, `InterfaceFeature`, `OutputFeature`, `Forwarding`, `IdentityMapping`; per plugin `Nat44Ed*`, `Nat44Ei*`, `Nat64*`, `Nat66*`, `Det44*`, `Map*`, `Cnat*`, `Pnat*` |
-| `vrx.model.iface.v1` (`…/model/iface/v1`, `ifacev1`) | DF-1's descriptor-local `iface_model.proto` (identical names, numbers, types, enum values) | `AdminState`, `Mtu`, `MacAddress`, `Promisc`, `RxMode` (+`RxModeKind`), `RxPlacement`, `Subinterface`, `InterfaceAlias` |
+| `ngfw.model.acl.v1` (`ngfw/agent/gen/ngfw/model/acl/v1`, `aclv1`) | DF-4 typed specs, `apps/agent/internal/descriptors/acl/spec.go` (structpb field names) | `Acl`, `AclRule`, `MacipAcl`, `MacipRule`, `InterfaceBinding`, `EtypeWhitelist`, `MacipBinding`, `StatsEnable` |
+| `ngfw.model.nat.v1` (`…/model/nat/v1`, `natv1`) | DF-3 typed specs (`task/DF-3@08d0af4`, json tags) of nat44-ed, nat44-ei, nat64, nat66, det44, map, cnat, pnat | shared `Endpoint`, `Timeouts`, `InterfaceFeature`, `OutputFeature`, `Forwarding`, `IdentityMapping`; per plugin `Nat44Ed*`, `Nat44Ei*`, `Nat64*`, `Nat66*`, `Det44*`, `Map*`, `Cnat*`, `Pnat*` |
+| `ngfw.model.iface.v1` (`…/model/iface/v1`, `ifacev1`) | DF-1's descriptor-local `iface_model.proto` (identical names, numbers, types, enum values) | `AdminState`, `Mtu`, `MacAddress`, `Promisc`, `RxMode` (+`RxModeKind`), `RxPlacement`, `Subinterface`, `InterfaceAlias` |
 
 Rules that differ from `DesiredState` on purpose:
 
@@ -362,7 +362,7 @@ Rules that differ from `DesiredState` on purpose:
 Adaptation (not done here — descriptor code belongs to the factories): each factory switches its Value type in a
 small follow-up commit on its next task (D-055); DF-1 then deletes its local `iface_model.proto`. Until then both
 copies exist; the P03b evidence shows them field-for-field identical. New descriptor families add their messages here
-under `vrx/model/<family>/v1` with a `contract(proto):` commit.
+under `ngfw/model/<family>/v1` with a `contract(proto):` commit.
 
 ## 11. Feature RPCs
 
@@ -542,11 +542,11 @@ and never appear in `Retrieve`. Read-only; never mutates.
 
 `HostAclState(HostAclStateRequest{owner}) → HostAclStateResponse{owner, retrieved_at, table, mode, present, in_sync, sets[],
 chains[]}` is the **state RPC** §5 points to for the host firewall the agent renders from `acl.host`, `acl.hostAttachments`
-and `acl.hostSettings` into one nftables table (`inet vrx`; test slots `inet vrx_<owner>` inside their own network namespace).
+and `acl.hostSettings` into one nftables table (`inet ngfw`; test slots `inet ngfw_<owner>` inside their own network namespace).
 It reads the kernel (`nft -j list table inet <table>`, no VPP round trip) and annotates each rule with what the agent rendered:
 `kind` (`established` | `loopback` | `icmp` | `anti-lockout` | `rule` | `unknown`), `list` + `sequence` + `pointer` (into the
 applied document) for `rule`, `text` (the rendered nftables rule without its counter), `verdict`, `comment` (the rule's identity
-`vrx:<list>:<sequence>/<n>:<hash>`) and the counter's `packets`/`bytes`. `present` = the table exists; `in_sync` = the kernel
+`ngfw:<list>:<sequence>/<n>:<hash>`) and the counter's `packets`/`bytes`. `present` = the table exists; `in_sync` = the kernel
 table equals the applied rendering (false = drift, re-rendered by the next Apply or resync); `mode` = `apply` (root netns),
 `netns` (a slot namespace) or `check` (validated with `nft -c` only, never loaded). Sets are the expanded address objects
 (`a4_<object>` / `a6_<object>`, elements as canonical prefixes). Counters never appear in `Retrieve` (§5): the `acl` domain it
@@ -707,7 +707,7 @@ startup.conf for the given `DataplaneConfig` with the F-startup-gen renderer (in
 host's facts and returns `rendered`, a unified `diff` against the installed file, `changed`, `warnings`, `sha256`.
 Document errors → `INVALID_ARGUMENT`; unreadable host facts or installed file → `FAILED_PRECONDITION`. Both are
 read-only: nothing is written, VPP is never restarted (installing is apply-startup.sh, gated by TD-17). Paths:
-`VRX_VPP_STARTUP_CONF`, `VRX_VPP_PLUGIN_DIR`, `VRX_SYS_ROOT` (test/slot overrides).
+`NGFW_VPP_STARTUP_CONF`, `NGFW_VPP_PLUGIN_DIR`, `NGFW_SYS_ROOT` (test/slot overrides).
 
 <!-- F-snmp (unanchored: no wave-BC anchor in this list) -->
 ### F-snmp: SnmpState
@@ -715,7 +715,7 @@ read-only: nothing is written, VPP is never restarted (installing is apply-start
 `rpc SnmpState(SnmpStateRequest) returns (SnmpStateResponse)` — read-only state of the snmpd renderer stage: daemon
 state read back over SNMP (`configured`, `reachable`, `endpoint`, `credential` by name, `sys_*`, `error` redacted),
 `engine_id`, `pending_action` (D-079 restart/start request the agent waits for; it never restarts snmpd itself) and
-the VRX-MIB AgentX subagent (`subagent_registered`, `subagent_registrations`, `subagent_error`). Owner check as
+the NGFW-MIB AgentX subagent (`subagent_registered`, `subagent_registrations`, `subagent_error`). Owner check as
 Retrieve (`INVALID_ARGUMENT` on mismatch); `UNAVAILABLE` when the agent build has no snmpd stage. No credential
 value is ever part of the response. Additive fields of `services.snmp` (D-086): see
 docs/status/tasks/F-snmp-contract.md.
@@ -878,10 +878,18 @@ Configuration is `RoutingConfig.mpls = 15` (`MplsConfig`; field 10 is F-mpls-ldp
 `Action{capture}` runs one pcap capture (one per VPP; busy → `ABORTED`, invalid → `INVALID_ARGUMENT` with
 `<field>: …`, BPF without the globals owner → `FAILED_PRECONDITION`). It streams `line`s, the first is
 `capture <id> started`, then one `done` (`stats`: id, packets, bytes, sha256, state, reason). No `pcap_chunk` is sent:
-the agent keeps the file (0600, `VRX_CAPTURE_DIR`, retention by count and bytes). `CaptureAction.drop = 7`,
+the agent keeps the file (0600, `NGFW_CAPTURE_DIR`, retention by count and bytes). `CaptureAction.drop = 7`,
 `error_filter = 8`. `CaptureList` returns the kept files plus the running capture, with `trace_available`/`pg_available`
 (false on this build, with reasons). `CaptureRead` streams one file. `CaptureDelete` removes one (`NOT_FOUND`; running →
-`FAILED_PRECONDITION`).
+`FAILED_PRECONDITION`). Snaplen 0 defaults to 9000. Plans whose worst-case pcap size
+`maxPackets × (snaplen + 16) + 24` exceeds the retained byte cap fail before capture starts.
+The newest retained capture is protected from byte-cap eviction. Agent connection initializes
+recovery before any RPC; Read/Delete also recover interrupted records. Capture stop is an
+API-side cancellation, `POST /api/v1/actions/capture/{id}/stop` (admin/audited, 202;
+unknown id 404, stream not held by this API process 409), with no new protobuf RPC.
+Failed stop/filter restoration stays recoverable and boot-bound; it is never reported done.
+The list is unpaged and bounded by retention plus a running capture. No binary packet-count
+getter exists in this pinned API, so the agent finishes on timeout or explicit cancellation.
 
 
 ### F-system-identity: SystemIdentityState
@@ -894,3 +902,66 @@ are returned. A non-globals slot never reads host kernel hostname or resolver ru
 `unavailable`, or `slot-only`: file observation is not daemon health or restart completion. No banner, secret, config mutation,
 privilege escalation or daemon restart is included. Existing `/state/system` REST health fields remain; `identity` is null
 when this RPC is unavailable. Public configured banner is a separate narrowly bounded API-only route.
+
+### F-default-vpp-nics: HostNics (+ Interface.physical 24)
+
+`Interface.physical = 24` (`InterfacePhysical { pci = 1, owner = 2, built_in = 3 }`) mirrors
+`interfaces.<name>.physical`: present = a physical NIC seeded from the host inventory (built-in, non-deletable;
+`owner` `"dataplane"` | `"host"`, Zod default `"dataplane"`; `built_in` Zod default true). The agent treats a
+`physical` row whose name is still a hardware kernel netdev (rtnetlink kind empty) as **not bound**: it projects no
+objects for it (no alias, attributes or linux-cp pair) and reports `agent.nic-not-bound` (WARNING, pointer
+`/interfaces/<name>`) — never an error; Retrieve has no such interface. A linux-cp tap of the same name is not the NIC.
+A row released to the host (`owner: "host"`) is never projected and gets an INFO `agent.nic-released`. The API
+counts both rules as coverage notes, so these rows are not drift (`GET /state/drift`).
+
+`HostNics(HostNicsRequest{owner}) → HostNicsResponse{nics, owner, retrieved_at, management_notes}` is read-only: it
+binds nothing, never touches `/etc/vpp` and never restarts VPP (D-012). One `HostNic{netdev, pci, driver, mac,
+is_management, bound_to_dpdk, link_up}` per network PCI function, sorted by `pci`:
+- every `/sys/class/net/<if>` whose `device` is a PCI address (NICs without one — virtio-mmio, USB — are not
+  enumerated, D-177), plus every PCI function of class `0x02xxxx` bound to a DPDK driver (`vfio-pci`,
+  `uio_pci_generic`, `igb_uio`), which has no netdev (`netdev` empty);
+- `is_management`: the start-up generator's decision (`vppstartup.ReadHost`): default-route NIC(s), the NIC of an
+  established sshd/control connection (`/proc/net/tcp{,6}`; unreadable → route fallback with a note), plus
+  `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`;
+- `bound_to_dpdk`: the PCI function's driver is a DPDK driver, or a live VPP interface of type `dpdk` has the NIC's
+  MAC (bifurcated drivers);
+- `management_notes` give the reason class only (never a peer address).
+Errors: an unreadable host fact → `vppstartup.ErrHost` (the API retries). The API seeds the default document from this
+answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/D-192).
+
+## Native route-based IPsec additions (2026-10-03)
+
+`ApplyRequest.secret_bundle` (field 7) and `DryRunRequest.secret_bundle` (field 5)
+carry a separate `SecretBundle.values` map of reference to raw UTF-8 bytes over the
+existing permission-controlled agent socket. They are outside DesiredState and are
+never returned by Retrieve, validation reports, events or errors. The API currently
+resolves only PSKs of enabled native VPP IKEv2 tunnels, including revision-pinned
+versions for rollback. Other secret consumers remain pending.
+
+An absent bundle keeps the current selection; a present empty bundle clears it.
+Apply seals a snapshot before changing the dataplane; agent metadata stores only
+keyed snapshot identifiers. Current and confirmed snapshots survive restart and
+rollback. Cache files and their local key are private (0600); cache authentication
+or missing material fails closed. DryRun uses a transient snapshot without writing
+it to disk. Request buffers are cleared after processing. Idempotency includes the
+secret snapshot identity, so changing a PSK under an existing transaction ID fails.
+
+`ActionRequest.ikev2` (oneof field 11) carries `Ikev2Action`: tunnel name (1),
+operation (2: initiate, rekey, delete-sa), IKE SPI (3, uint64) and CHILD SPI
+(4, uint32). These operations are restricted to owned native profiles. The existing
+IpsecState RPC reports native state without exposing authentication material.
+
+
+### Native route based IPsec compatibility fields
+
+The current `/vpn/ipsec/tunnels` schema rejects per-profile `dpd` and
+`rekey.espPackets`, `rekey.ikeSec`, `rekey.reauth`; native VPP IKEv2 implements
+CHILD seconds/bytes lifetimes and global liveness instead. The historical wire
+field `IpsecTunnel.dpd = 15` remains present for compatibility. `IpsecRekey`
+is shared with remote-access configuration, which retains its complete shape;
+its field numbers cannot be deleted or reused to narrow just the native path.
+The schema/proto guard therefore accepts exactly these four proto-to-schema
+supersets under `/vpn/ipsec/tunnels/{}`. API validation rejects them before
+protobuf projection. Schema-only gaps, other mismatches, stale exception entries
+and all deliberate breakage regressions still fail the guard. This does not
+expose unsupported native settings or introduce a policy/daemon fallback.

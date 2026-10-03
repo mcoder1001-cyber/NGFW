@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
-import { VrxThemeProvider } from '@ngfw/ui-kit';
+import { NgfwThemeProvider } from '@ngfw/ui-kit';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import i18n from '../../../i18n';
 import type { InterfaceItem, SubinterfaceConfig } from '../model';
@@ -81,9 +81,9 @@ function renderTable(p: Partial<SubinterfaceTableProps> = {}, dir: 'ltr' | 'rtl'
     ...p,
   };
   render(
-    <VrxThemeProvider mode="light" lang={dir === 'rtl' ? 'fa' : 'en'} dir={dir}>
+    <NgfwThemeProvider mode="light" lang={dir === 'rtl' ? 'fa' : 'en'} dir={dir}>
       <SubinterfaceTable {...props} />
-    </VrxThemeProvider>,
+    </NgfwThemeProvider>,
   );
   return props;
 }
@@ -170,9 +170,9 @@ describe('SubinterfaceTable', () => {
     expect(screen.getByRole('button', { name: 'Add sub-interface' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Remove sub-interface 100' })).toBeDisabled();
     render(
-      <VrxThemeProvider mode="light" lang="en" dir="ltr">
+      <NgfwThemeProvider mode="light" lang="en" dir="ltr">
         <SubinterfaceTable {...p} readOnly={false} canAdd={false} subs={[]} />
-      </VrxThemeProvider>,
+      </NgfwThemeProvider>,
     );
     expect(screen.getAllByRole('button', { name: 'Add sub-interface' })[1]).toBeDisabled();
     expect(screen.getByText('No sub-interfaces.')).toBeInTheDocument();

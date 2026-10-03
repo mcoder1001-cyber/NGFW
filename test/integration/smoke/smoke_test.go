@@ -4,8 +4,8 @@
 // LAN namespace to the WAN namespace, the rx counters of both host-interfaces (stats segment) increase, and
 // `rig down` leaves no object carrying the prefix behind.
 //
-// Runs only with VRX_INTEGRATION=1 (00-CONTEXT: unit runs must not touch VPP), as root, under the shared lab lock
-// (docs/lab/shared-host-rules.md §1b). Every object carries VRX_TEST_PREFIX. Path recorded: af_packet (D-010).
+// Runs only with NGFW_INTEGRATION=1 (00-CONTEXT: unit runs must not touch VPP), as root, under the shared lab lock
+// (docs/lab/shared-host-rules.md §1b). Every object carries NGFW_TEST_PREFIX. Path recorded: af_packet (D-010).
 package smoke
 
 import (
@@ -34,18 +34,18 @@ import (
 const (
 	apiSocket   = "/run/vpp/api.sock"
 	statsSocket = "/run/vpp/stats.sock"
-	labLock     = "/run/lock/vrx-lab.lock"
+	labLock     = "/run/lock/ngfw-lab.lock"
 	wantVersion = "26.06"
 	dataPath    = "af_packet"
 )
 
 func TestPingThroughVPPOverAfPacketRig(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("integration test: set VRX_INTEGRATION=1 to run against the host VPP (path af_packet)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("integration test: set NGFW_INTEGRATION=1 to run against the host VPP (path af_packet)")
 	}
-	prefix := os.Getenv("VRX_TEST_PREFIX")
+	prefix := os.Getenv("NGFW_TEST_PREFIX")
 	if prefix == "" {
-		t.Fatal("VRX_TEST_PREFIX must be set (your slot prefix, e.g. w3): every rig object carries it")
+		t.Fatal("NGFW_TEST_PREFIX must be set (your slot prefix, e.g. w3): every rig object carries it")
 	}
 	if os.Geteuid() != 0 {
 		t.Fatal("must run as root: netns/veth creation and the VPP sockets (root:vpp) need it")
@@ -270,7 +270,7 @@ func leftovers(ctx context.Context, t *testing.T, conn api.Connection, prefix st
 	return left
 }
 
-// TestRigObjectMatchIsAnchored is a pure unit test (no VPP; runs without VRX_INTEGRATION): the leftover check must see
+// TestRigObjectMatchIsAnchored is a pure unit test (no VPP; runs without NGFW_INTEGRATION): the leftover check must see
 // exactly its own prefix's objects. Regression for review F1 (`rig gc w1` deleted slot 11's host-w11l0/host-w11w0).
 func TestRigObjectMatchIsAnchored(t *testing.T) {
 	w1 := rigObjectsFor("w1")

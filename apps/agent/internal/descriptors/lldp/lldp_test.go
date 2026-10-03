@@ -47,14 +47,14 @@ func fakeLLDP(hwOf map[uint32]uint32) (*df7test.Fake, map[uint32]bool) {
 func TestGlobal(t *testing.T) {
 	f, _ := fakeLLDP(nil)
 	d := NewGlobal(f, df7test.Owner)
-	v := df7.Encode(Global{SystemName: "w0-vrx", TxHold: 5, TxInterval: 20})
+	v := df7.Encode(Global{SystemName: "w0-ngfw", TxHold: 5, TxInterval: 20})
 	if d.KeyOf(v) != "lldp.global/global" || d.Dependencies(v) != nil {
 		t.Fatal("key/deps")
 	}
 	if _, err := d.Create(t.Context(), v); err != nil {
 		t.Fatal(err)
 	}
-	if r := df7test.Last[*lldp.LldpConfig](t, f, "lldp_config"); r.SystemName != "w0-vrx" || r.TxHold != 5 || r.TxInterval != 20 {
+	if r := df7test.Last[*lldp.LldpConfig](t, f, "lldp_config"); r.SystemName != "w0-ngfw" || r.TxHold != 5 || r.TxInterval != 20 {
 		t.Fatalf("%+v", r)
 	}
 	if _, err := d.Update(t.Context(), v, df7.Encode(Global{TxHold: 6}), nil); err != nil {

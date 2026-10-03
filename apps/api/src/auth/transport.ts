@@ -13,7 +13,7 @@ export function isLoopback(ip: string | undefined): boolean {
  * terminates TLS. A password is accepted when the CLIENT reached us over TLS or is itself on this host; a remote
  * client on plain HTTP is refused. The body has been parsed by then — the check refuses to ACT on a password that
  * crossed the network in clear.
- * TD-10b (review 2.3b): the client and its protocol come from the trusted proxy (VRX_TRUST_PROXY, default loopback) —
+ * TD-10b (review 2.3b): the client and its protocol come from the trusted proxy (NGFW_TRUST_PROXY, default loopback) —
  * `sourceIp` and `requestProtocol` resolve the same hop, so the rate limit, the lockout, the audit row and this rule
  * see one client. Before, every relayed request looked like a loopback peer and counted as TLS (D-100 (1)'s
  * assumption); now a trusted proxy must SAY `X-Forwarded-Proto: https` (P10's nginx sets it) — a relay of plain

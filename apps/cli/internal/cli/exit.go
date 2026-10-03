@@ -12,7 +12,7 @@ import (
 	"ngfw/cli/internal/safe"
 )
 
-// Exit codes of vrx (documented in docs/user/cli/reference.md, generated from ExitCodes).
+// Exit codes of ngfw (documented in docs/user/cli/reference.md, generated from ExitCodes).
 const (
 	ExitOK             = 0
 	ExitError          = 1   // unexpected/internal error
@@ -159,7 +159,7 @@ func humanMessage(e *ExitErr) string {
 	switch e.Code {
 	case ExitAuth:
 		if e.Status == http.StatusUnauthorized {
-			return e.Error() + " — log in with `vrx login` or use an API key (VRX_API_KEY / --api-key-file)"
+			return e.Error() + " — log in with `ngfw login` or use an API key (NGFW_API_KEY / --api-key-file)"
 		}
 	case ExitForbidden:
 		return e.Error() + " — your role does not allow this"

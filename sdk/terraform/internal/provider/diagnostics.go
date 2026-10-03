@@ -23,10 +23,10 @@ func addAPIError(d *diag.Diagnostics, what string, err error) {
 		if len(ae.Lock) > 0 && string(ae.Lock) != "null" {
 			detail += "\n  candidate lock: " + string(ae.Lock)
 		}
-		d.AddError(fmt.Sprintf("VRX API refused to %s", what), detail)
+		d.AddError(fmt.Sprintf("NGFW API refused to %s", what), detail)
 		return
 	}
-	d.AddError(fmt.Sprintf("VRX: %s failed", what), err.Error())
+	d.AddError(fmt.Sprintf("NGFW: %s failed", what), err.Error())
 }
 
 func orRoot(p string) string {

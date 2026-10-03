@@ -24,8 +24,8 @@ dead technology") — keep it thin: correct, restart-safe, documented limits. Re
 - `docs/vpp-code-track.md` **V13** (gpe fwd-entry path dump replies with the wrong id → `lisp-gpe.fwd-entry` write-only with an existence
   probe) and **V14** (each enable/disable leaks a `<remote-N>` locator set and `lisp_gpe*` interfaces no API deletes → host test opt-in,
   never on the shared VPP); DF-6 doc numbers these V9/V10 locally — use the code-track ids. The DF-6 host test's opt-in is
-  `VRX_DF6_LISP_HOST=1` (stage limiter `VRX_DF6_LISP_UPTO`)
-- `docs/decisions/LOG.md` D-063/D-076/D-080 (write-only + boot identity), D-064 (host test opt-in `VRX_DF6_LISP_HOST=1`, not run on the
+  `NGFW_DF6_LISP_HOST=1` (stage limiter `NGFW_DF6_LISP_UPTO`)
+- `docs/decisions/LOG.md` D-063/D-076/D-080 (write-only + boot identity), D-064 (host test opt-in `NGFW_DF6_LISP_HOST=1`, not run on the
   shared VPP), D-071 (LISP enable is a global: globals owner only; never disabled while any owner has LISP objects), D-074, D-082
 
 ## Scope — build exactly this
@@ -33,7 +33,7 @@ dead technology") — keep it thin: correct, restart-safe, documented limits. Re
    family consistent; each VNI with local EIDs has an eid-table mapping; `gpe` requires `enabled`.
 2. **Agent**: projection → DF-6 lisp descriptors; the enable globals are emitted only on the globals owner, other agents use the
    "require" variants (fail clearly if LISP is off). Retrieve covers every non-write-only object. Unit tests with the fake cover the full
-   set; the host integration check (`VRX_INTEGRATION=1`) is **opt-in only** and runs in a manager VPP window (V14) — say so in status.
+   set; the host integration check (`NGFW_INTEGRATION=1`) is **opt-in only** and runs in a manager VPP window (V14) — say so in status.
 3. **API**: config via pointer routes; `GET /api/v1/state/lisp` (status, map-cache/adjacencies from the dumps) through the `LispState`
    RPC. OpenAPI; regenerate `packages/api-client`.
 4. **UI**: one LISP tab on the VPN page (`vpnTabs` registry, W-seed shell; "advanced") with sub-tabs (Locators / EIDs / Mappings /

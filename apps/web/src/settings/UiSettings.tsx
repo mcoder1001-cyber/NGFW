@@ -1,4 +1,4 @@
-import { directionFor, FormatterSettingsProvider, VrxThemeProvider } from '@ngfw/ui-kit';
+import { directionFor, FormatterSettingsProvider, NgfwThemeProvider } from '@ngfw/ui-kit';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -12,7 +12,7 @@ interface UiSettingsContextValue {
 
 const UiSettingsContext = createContext<UiSettingsContextValue | null>(null);
 
-/** Theme mode, language (→ `<html dir lang>` via VrxThemeProvider), Persian digits and density, persisted locally. */
+/** Theme mode, language (→ `<html dir lang>` via NgfwThemeProvider), Persian digits and density, persisted locally. */
 export function UiSettingsProvider({ children, initial }: { children: ReactNode; initial?: UiSettings }) {
   const { i18n } = useTranslation();
   const [settings, setSettings] = useState<UiSettings>(() => initial ?? loadSettings());
@@ -35,9 +35,9 @@ export function UiSettingsProvider({ children, initial }: { children: ReactNode;
 
   return (
     <UiSettingsContext.Provider value={value}>
-      <VrxThemeProvider mode={resolvedMode} lang={settings.lang} dir={directionFor(settings.lang)} dense={settings.dense}>
+      <NgfwThemeProvider mode={resolvedMode} lang={settings.lang} dir={directionFor(settings.lang)} dense={settings.dense}>
         <FormatterSettingsProvider value={formatterSettings}>{children}</FormatterSettingsProvider>
-      </VrxThemeProvider>
+      </NgfwThemeProvider>
     </UiSettingsContext.Provider>
   );
 }

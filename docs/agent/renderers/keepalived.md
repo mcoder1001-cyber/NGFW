@@ -11,7 +11,7 @@ Stand-ins (D-055): `ha.keepalived.*` and `ha.vrrp.<name>.keepalived.*` (RF-4-que
 | desired state (JSON path) | rendered | validation |
 |---|---|---|
 | — | `global_defs { enable_script_security; script_user root; vrrp_version 3 }` | fixed |
-| `ha.keepalived.routerId` *(stand-in)* / `system.hostname` | `router_id <id>` (default `vrx`) | `[A-Za-z0-9_.-]{1,32}` |
+| `ha.keepalived.routerId` *(stand-in)* / `system.hostname` | `router_id <id>` (default `ngfw`) | `[A-Za-z0-9_.-]{1,32}` |
 | `ha.keepalived.garpMasterRefresh` *(stand-in)* | `vrrp_garp_master_refresh <s>` | 1–86400 |
 | `ha.keepalived.scripts.<name>.{check,interval,weight,fall,rise}` *(stand-in)* | `vrrp_script <name> { script "<ChecksDir>/<check>" interval … weight … fall … rise … }` | `check` ∈ shipped allow-list (`WithChecks`); never a path or script text; interval 1–3600, weight −253…253, fall/rise 1–255 |
 | `ha.vrrp.<name>` | `vrrp_instance <name> { … }` | name `[A-Za-z0-9_.-]{1,32}` |
@@ -41,12 +41,40 @@ Never rendered: `vrrp_strict`, `use_vmac`, `no_accept`, `include`, `$VAR`, `@…
 
 ## Wired by F-vrrp-config-sync
 
-`internal/subsystems/keepalived.go` registers the renderer as the singleton stage `keepalived.config/vrx` (domain
+`internal/subsystems/keepalived.go` registers the renderer as the singleton stage `keepalived.config/ngfw` (domain
 `ha`, pattern of F-snmp's `snmpd.config`). The projection (`internal/desired/vrrp.go`) puts every `engine: keepalived`
 instance whose interface has a linux-cp pair (`interfaces.<if>.lcp`, P12) into the stage's value together with those
 pairs; the stage sets P12's `lcpmap.Mapper` from that value before every render, so the renderer's `InterfaceMapper`
 is the linux-cp mapping (no longer `NoMapper`). An instance without a pair is skipped with the DryRun warning
-`ha.vrrp-keepalived-no-lcp`; one in a non-default VRF with `ha.vrrp-keepalived-vrf`. With `VRX_TEST_PREFIX` the stage uses
-`TestPaths(prefix, $VRX_KEEPALIVED_BIN_DIR, $VRX_KEEPALIVED_NETNS)` and a pidfile controller
+`ha.vrrp-keepalived-no-lcp`; one in a non-default VRF with `ha.vrrp-keepalived-vrf`. With `NGFW_TEST_PREFIX` the stage uses
+`TestPaths(prefix, $NGFW_KEEPALIVED_BIN_DIR, $NGFW_KEEPALIVED_NETNS)` and a pidfile controller
 (`<conf dir>/keepalived.pid`). No secret resolver is passed (no API→agent secret channel; the D-086 stand-ins are not
 contract fields yet). No change to the renderer package itself.
+
+contract fields yet). The renderer exposes the read-only daemon readiness check used by the stage.
+
+## Shared-host engine gates (S-rva-agent-gates, RV-A R4 M1/M2)
+
+Both ha.vrrp engines are gated in `internal/subsystems/vrrp.go` (`vrrpVPPGate`, `keepalivedGate`), resolved once at
+registration and handed to the projection through `subsystems.VrrpEnv()`. The owner name is never used: `NGFW_OWNER`
+defaults to `ngfw`, which is also the tools/app agent on the shared host.
+
+| variable | values | unset | effect when off |
+|---|---|---|---|
+| `NGFW_VRRP_VPP` | `on` \| `off` | on only with `NGFW_VPP_ID_RANGE=all` | the vrrp VPP descriptors and vrrp.meta are not registered (nothing dumps or writes `vrrp_vr_*`); each `engine: vpp` instance → WARNING `ha.vrrp-vpp-disabled` at `/ha/vrrp/<n>/engine` |
+| `NGFW_KEEPALIVED` | `on` \| `off` | on with `NGFW_TEST_PREFIX` (TestPaths + pidfile controller) or `NGFW_VPP_ID_RANGE=all` (ProductPaths + `keepalived.service`) | the stage is not registered; each `engine: keepalived` instance → WARNING `ha.vrrp-keepalived-disabled` |
+
+`NGFW_KEEPALIVED=on` without a slot prefix and without `NGFW_VPP_ID_RANGE=all` is refused with a start-up warning (the
+engine stays off): only the product agent on a box of its own ever writes `/etc/keepalived` or reloads the unit.
+`NGFW_VRRP_VPP=on` is the explicit opt-in of a manager window (VPP idle, V22b). `tools/app` sets both to `off`.
+
+Turning an engine from on to off does **not** remove what it already applied: with the VPP engine off the vrrp
+descriptors are not registered, so VRs created earlier stay in VPP (and vrrp-meta keeps their names) until the engine is
+on again and a commit without them deletes them — or the product owner removes them by hand. Likewise a keepalived.conf
+written earlier stays in place. Switch an engine off only on an agent with no VRs of that engine.
+
+## Daemon readiness and slot lifetime
+
+TD-13 Validator: `keepalived -t` on a staged copy with `dynamic_interfaces`; Stage = daemon.
+
+In slot mode, the harness owns the daemon's lifetime and starts it before DryRun or Apply, using the slot namespace and pidfile. The stage reads daemon readiness without starting or signaling it. If no process is running, it reports: `keepalived is not running for this agent; slot harnesses start it`. Apply checks readiness before writing configuration or requesting reload. Whether the product agent may start a daemon remains the owner decision in `docs/decisions/PENDING-agent-privileges.md`.

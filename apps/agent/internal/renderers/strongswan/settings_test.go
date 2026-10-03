@@ -66,8 +66,8 @@ func TestParseSettingsRejects(t *testing.T) {
 		}
 	}
 	// Errors never quote line content (the secrets file goes through the same parser).
-	_, err := RoundTrip("vrx-secrets.conf", []byte("secrets {\n\tike-a {\n\t\tsecret = VRX_TEST_PSK_RF2 leaked\n\t}\n}\n"))
-	if err == nil || strings.Contains(err.Error(), "VRX_TEST_PSK") {
+	_, err := RoundTrip("ngfw-secrets.conf", []byte("secrets {\n\tike-a {\n\t\tsecret = NGFW_TEST_PSK_RF2 leaked\n\t}\n}\n"))
+	if err == nil || strings.Contains(err.Error(), "NGFW_TEST_PSK") {
 		t.Errorf("parse error leaks content: %v", err)
 	}
 }
@@ -113,7 +113,7 @@ func TestValidateRejectsTamperedFiles(t *testing.T) {
 		"secret ids mismatch":  edit(p.SecretsFile(), "id-remote = \"10.3.250.2\"", "id-remote = \"10.3.250.9\""),
 		"orphan secret":        edit(p.SecretsFile(), "ike-w3-site-a {", "ike-w3-other {"),
 		"log level 4":          edit(p.StrongswanConf, "default = 1", "default = 4"),
-		"foreign vici socket":  edit(p.StrongswanConf, "socket = unix:///run/vrx-test/w3/swan/a/charon.vici\n\t\t}", "socket = unix:///var/run/charon.vici\n\t\t}"),
+		"foreign vici socket":  edit(p.StrongswanConf, "socket = unix:///run/ngfw-test/w3/swan/a/charon.vici\n\t\t}", "socket = unix:///var/run/charon.vici\n\t\t}"),
 		"plugin list w/o vici": edit(p.StrongswanConf, " vici\"", "\""),
 		"not canonical":        edit(p.ConnsFile(), "\t\tversion = 2\n", "\t\tversion  = 2\n"),
 	}

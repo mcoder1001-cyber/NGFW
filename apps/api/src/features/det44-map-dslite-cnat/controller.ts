@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Query, Req } from '@nestjs/commo
 import { ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { z } from 'zod';
 import { MinRole } from '../../auth/decorators.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
 import {
@@ -70,7 +70,7 @@ export class Det44MapDsliteCnatController {
   @ApiOkResponse({ schema: openapi(DoneOut, 'output') })
   async det44Close(
     @Body(new ZodPipe(Det44CloseBody)) b: z.output<typeof Det44CloseBody>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = {
       resource: `nat/det44/sessions/${b.direction}/${b.address}:${b.port}/${b.externalAddress}:${b.externalPort}`,
@@ -104,7 +104,7 @@ export class Det44MapDsliteCnatController {
       'Purge the whole CNAT session table (admin; the table is a VPP global — the agent refuses unless it is the globals owner)',
   })
   @ApiOkResponse({ schema: openapi(DoneOut, 'output') })
-  async cnatPurge(@Req() req: VrxRequest) {
+  async cnatPurge(@Req() req: NgfwRequest) {
     req.audit = { resource: 'nat/cnat/sessions' };
     const out = await this.svc.cnatPurge();
     req.audit.after = { purged: true };

@@ -15,7 +15,7 @@ import (
 //
 //   - a test slot owner "w<N>" owns IPv4 addresses in 10.<N>.0.0/16, IPv6 addresses in
 //     fd00:<N>::/32, VRF/table ids N000–N999 and interfaces tagged "w<N>:…";
-//   - any other owner (the production agent, VRX_OWNER=vrx) owns everything on the VPP —
+//   - any other owner (the production agent, NGFW_OWNER=ngfw) owns everything on the VPP —
 //     there is exactly one agent per data plane.
 //
 // Objects that do carry a tag (nat44 static/identity/lb mappings, map domains) use the

@@ -13,17 +13,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	"ngfw/agent/internal/vpp"
 )
 
-func (g *server) AclState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) { //nolint:revive // the generated gRPC method name
+func (g *server) AclState(ctx context.Context, req *ngfwv1.AclStateRequest) (*ngfwv1.AclStateResponse, error) { //nolint:revive // the generated gRPC method name
 	return g.svc.ACLState(ctx, req)
 }
 
 // ACLState implements the AclState RPC.
-func (s *Service) ACLState(ctx context.Context, req *vrxv1.AclStateRequest) (*vrxv1.AclStateResponse, error) {
+func (s *Service) ACLState(ctx context.Context, req *ngfwv1.AclStateRequest) (*ngfwv1.AclStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}

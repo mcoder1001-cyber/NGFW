@@ -18,7 +18,7 @@ import (
 	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
-// Real VPP 26.06 output captured on vrx-a during TestV19InheritanceClearedOnHost (loop292 with an
+// Real VPP 26.06 output captured on ngfw-a during TestV19InheritanceClearedOnHost (loop292 with an
 // inherited ip classify binding to table 0).
 const fibWithClassify = `ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]
 0.0.0.0/0

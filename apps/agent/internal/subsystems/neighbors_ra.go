@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
 	"ngfw/agent/binapi/ip_neighbor"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	neighborsra "ngfw/agent/internal/actions/neighbors-ra"
 	"ngfw/agent/internal/descriptors/arp"
 	"ngfw/agent/internal/descriptors/df2"
@@ -27,7 +28,7 @@ import (
 
 // Descriptor names of the F-neighbors-ra families, one per Domains line (subsystems.go): RA and proxy per interface →
 // interfaces, proxy-ARP ranges → vrfs, static neighbours / limits / DAD → routing. The conditional ones
-// (ip-neighbor.config and ip6-nd.dad for the globals owner, ip6-nd.proxy with VRX_DF2_PROXY_ND=1) are listed
+// (ip-neighbor.config and ip6-nd.dad for the globals owner, ip6-nd.proxy with NGFW_DF2_PROXY_ND=1) are listed
 // unconditionally: a scope entry without a registered descriptor manages nothing.
 const (
 	neighborsRaRaConfig   = ip6nd.RaConfigName
@@ -60,7 +61,12 @@ func (w *Wiring) registerNeighborsRa(r scheduler.Registry) error {
 	tables := ids.DF2()
 	c, owner, opt := w.env.Client, w.env.Owner, df2.WithClaims(claims)
 	ipneighbor.Register(r, c, owner, opt)
-	ip6nd.Register(r, c, owner, opt)
+	raLifetimes, err := ip6nd.OpenLifetimeStore(filepath.Join(w.env.StateDir, "ra-prefix-lifetimes-"+owner+".json"))
+	if err != nil {
+		return fmt.Errorf("RA prefix lifetimes: %w", err)
+	}
+	r.Register(ip6nd.NewRaConfig(c, owner, opt))
+	r.Register(ip6nd.NewRaPrefix(c, owner, opt).WithLifetimeStore(raLifetimes))
 	arp.Register(r, c, owner, tables, opt)
 	proxyNd := desired.ProxyNdEnabled()
 	if proxyNd {
@@ -123,7 +129,7 @@ func (nw *neighborWatch) stopLocked() {
 type NeighborWatchConfig struct {
 	Client  vpp.Client
 	Owner   string
-	Publish func(*vrxv1.Event)
+	Publish func(*ngfwv1.Event)
 	Log     *slog.Logger
 	// Tick is the coalescing period (default 1 s: at most one event per interface per second).
 	Tick time.Duration

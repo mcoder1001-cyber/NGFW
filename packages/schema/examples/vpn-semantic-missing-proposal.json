@@ -1,7 +1,13 @@
 {
   "vrfs": {
-    "default": { "id": 0, "description": "global routing table" },
-    "customer-a": { "id": 10, "description": "customer A" }
+    "default": {
+      "id": 0,
+      "description": "global routing table"
+    },
+    "customer-a": {
+      "id": 10,
+      "description": "customer A"
+    }
   },
   "interfaces": {
     "TenGigabitEthernet0/0/0": {
@@ -37,11 +43,31 @@
         "site-b": {
           "localAddr": "198.51.100.2",
           "remoteAddr": "203.0.113.10",
-          "auth": { "method": "psk", "secretRef": "psk/site-b" },
+          "auth": {
+            "method": "psk",
+            "secretRef": "psk/site-b"
+          },
           "proposal": "does-not-exist",
           "localTs": ["192.168.10.0/24"],
-          "remoteTs": ["10.99.0.0/16"]
+          "remoteTs": ["10.99.0.0/16"],
+          "engine": "vpp-ikev2",
+          "startAction": "none",
+          "localId": "@local.example",
+          "remoteId": "@peer.example",
+          "routeBased": {
+            "ipipInterface": "site"
+          }
         }
+      }
+    }
+  },
+  "tunnels": {
+    "ipip": {
+      "site": {
+        "instance": 1,
+        "src": "198.51.100.2",
+        "dst": "203.0.113.10",
+        "ipv4": ["10.255.0.1/30"]
       }
     }
   }

@@ -1,0 +1,20 @@
+[
+  {
+    "phase": "test-license",
+    "feature": "ipsec",
+    "limit": 1,
+    "signed": true,
+    "isolatedTrustRoot": true
+  },
+  {
+    "phase": "unexpected-response",
+    "method": "POST",
+    "path": "/config/commit?comment=native-api-v1",
+    "status": 422,
+    "problem": "https://vrx.dev/problems/apply-failed",
+    "detail": "the agent answered rolled_back: verify: actual state differs from desired: interface.mtu/ipip6001 still present; the data plane was rolled back, running is unchanged",
+    "title": "Apply failed",
+    "rules": [null],
+    "pointers": [""]
+  }
+]

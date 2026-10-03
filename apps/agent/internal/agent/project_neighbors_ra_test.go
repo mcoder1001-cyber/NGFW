@@ -15,7 +15,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip6_nd"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/df2"
 	"ngfw/agent/internal/ownertable"
@@ -96,16 +96,16 @@ const nraAgentBare = `{
   "routing": {}
 }`
 
-func retrieveNra(t *testing.T, s *Service) *vrxv1.DesiredState {
+func retrieveNra(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got.GetDesiredState()
 }
 
-func sameDoc(t *testing.T, what string, got *vrxv1.DesiredState, want string) {
+func sameDoc(t *testing.T, what string, got *ngfwv1.DesiredState, want string) {
 	t.Helper()
 	if !proto.Equal(got, doc(t, want)) {
 		t.Fatalf("%s:\n%s", what, protojson.Format(got))
@@ -116,8 +116,8 @@ func TestNeighborsRaApplyRetrieveRollback(t *testing.T) {
 	v := coretest.New()
 	m := coretest.NeighborsRaOf(v)
 	s := newSvcGlobals(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, nraAgentDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n1", DesiredState: doc(t, nraAgentDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	sameDoc(t, "Retrieve after apply", retrieveNra(t, s), nraAgentCanonical)
 	// the model shows what VPP would
 	if sup, pf, ok := m.RaSuppressed(v, "loop701"); !ok || sup || pf != 1 {
@@ -136,14 +136,14 @@ func TestNeighborsRaApplyRetrieveRollback(t *testing.T) {
 		t.Fatalf("ranges %v", got)
 	}
 	// idempotent: the same document again plans nothing
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, nraAgentDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n2", DesiredState: doc(t, nraAgentDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if sm := resp.GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
 		t.Fatalf("second apply changed %v", sm)
 	}
 	// rollback: the feature leaves removed, the interfaces stay
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, nraAgentBare)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "n3", DesiredState: doc(t, nraAgentBare)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got := retrieveNra(t, s)
 	js := protojson.Format(got)
 	for _, leaf := range []string{"ipv6Ra", "proxyArp", "proxyArpRanges", "neighbors"} {
@@ -169,7 +169,7 @@ func TestNeighborsRaRestartSimulation(t *testing.T) {
 	m := coretest.NeighborsRaOf(v)
 	dir := t.TempDir()
 	s := newSvcGlobals(t, v, dir, false)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, nraAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, nraAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	s.Close()
 	ctx := context.Background()
 	lo, _ := v.InterfaceByName("loop701")
@@ -186,7 +186,7 @@ func TestNeighborsRaRestartSimulation(t *testing.T) {
 	}
 	s2 := newSvcGlobals(t, v, dir, false)
 	resp := s2.Resync(ctx)
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if resp.GetSummary().GetCreated()+resp.GetSummary().GetUpdated() == 0 {
 		t.Fatalf("resync recreated nothing: %v", resp.GetSummary())
 	}
@@ -198,39 +198,39 @@ func TestNeighborsRaGlobalsOnlyForTheOwner(t *testing.T) {
 	// a slot agent (not the globals owner): warnings, nothing applied, VPP untouched
 	v := coretest.New()
 	s := newSvcGlobals(t, v, t.TempDir(), false)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, withGlobals)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, withGlobals)})
 	if err != nil {
 		t.Fatal(err)
 	}
 	var warned []string
 	for _, is := range rep.GetErrors() { // all findings; warnings carry ISSUE_SEVERITY_WARNING
-		if is.GetRule() == "agent.unsupported-field" && is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_WARNING && strings.HasPrefix(is.GetPointer(), "/routing/neighbors/") {
+		if is.GetRule() == "agent.unsupported-field" && is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_WARNING && strings.HasPrefix(is.GetPointer(), "/routing/neighbors/") {
 			warned = append(warned, is.GetPointer())
 		}
 	}
 	if strings.Join(warned, ",") != "/routing/neighbors/dad,/routing/neighbors/ipv6Limits" {
 		t.Fatalf("findings %v", rep.GetErrors())
 	}
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "g0", DesiredState: doc(t, withGlobals)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g0", DesiredState: doc(t, withGlobals)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(v.CallsNamed("ip_neighbor_config")) != 0 || len(v.CallsNamed("ip6_dad_enable_disable")) != 0 {
 		t.Fatal("a non-owner changed a VPP-wide setting")
 	}
 	// the globals owner (product agent): applied, retrieved, converged
 	v = coretest.New()
 	g := newSvcGlobals(t, v, t.TempDir(), true)
-	mustStatus(t, apply(t, g, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, withGlobals)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, err := g.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	mustStatus(t, apply(t, g, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, withGlobals)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, err := g.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	sameDoc(t, "globals owner Retrieve", got.GetDesiredState(), `{"routing": {"neighbors": {"ipv6Limits": {"maxNumber": 20000, "maxAgeSec": 60, "recycle": true}, "dad": {"transmits": 3, "delayMs": 250}}}}`)
-	resp := apply(t, g, &vrxv1.ApplyRequest{TxnId: "g2", DesiredState: doc(t, withGlobals)})
+	resp := apply(t, g, &ngfwv1.ApplyRequest{TxnId: "g2", DesiredState: doc(t, withGlobals)})
 	if sm := resp.GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
 		t.Fatalf("not converged: %v", sm)
 	}
 	// removing them restores VPP's defaults (limits) and disables DAD
-	mustStatus(t, apply(t, g, &vrxv1.ApplyRequest{TxnId: "g3", DesiredState: doc(t, `{"routing": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	got, _ = g.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"routing"}})
+	mustStatus(t, apply(t, g, &ngfwv1.ApplyRequest{TxnId: "g3", DesiredState: doc(t, `{"routing": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	got, _ = g.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 	sameDoc(t, "after removal", got.GetDesiredState(), `{"routing": {}}`)
 	// leave the process-wide projection options at the slot default for the next test
 	newSvcGlobals(t, v, t.TempDir(), false)
@@ -240,19 +240,19 @@ func TestNeighborsRaProxyNdOptIn(t *testing.T) {
 	const nd = `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7:1::1/64"], "proxyNd": ["2001:db8:7:1::99"]}}}`
 	v := coretest.New()
 	s := newSvcGlobals(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "p0", DesiredState: doc(t, nd)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p0", DesiredState: doc(t, nd)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(v.CallsNamed("ip6nd_proxy_add_del")) != 0 {
 		t.Fatal("proxy ND applied without the opt-in (V12)")
 	}
-	t.Setenv("VRX_DF2_PROXY_ND", "1")
+	t.Setenv("NGFW_DF2_PROXY_ND", "1")
 	v = coretest.New()
 	s = newSvcGlobals(t, v, t.TempDir(), false)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, nd)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, nd)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(v.CallsNamed("ip6nd_proxy_add_del")) != 1 {
 		t.Fatal("opt-in proxy ND not applied")
 	}
-	got, _ := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
+	got, _ := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
 	if !strings.Contains(protojson.Format(got.GetDesiredState()), `"2001:db8:7:1::99"`) {
 		t.Fatalf("retrieve %s", protojson.Format(got.GetDesiredState()))
 	}
@@ -262,12 +262,12 @@ func TestNeighborsRaValidationFailureRollsBack(t *testing.T) {
 	// the second RA prefix is not IPv6 → projection error with a pointer; nothing applied
 	v := coretest.New()
 	s := newSvcGlobals(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7:1::1/64"],
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "v1", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv6": ["2001:db8:7:1::1/64"],
 	  "ipv6Ra": {"suppress": false, "prefixes": {"10.0.0.0/24": {}}}}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_FAILED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_FAILED)
 	var ptrs []string
 	for _, is := range resp.GetValidation().GetErrors() {
-		if is.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if is.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			ptrs = append(ptrs, is.GetPointer())
 		}
 	}
@@ -291,19 +291,19 @@ func mustPrefix(t *testing.T, s string) ip_types.Prefix {
 // ---- RPCs
 
 type nraActionStream struct {
-	grpc.ServerStreamingServer[vrxv1.ActionOutput]
+	grpc.ServerStreamingServer[ngfwv1.ActionOutput]
 	ctx context.Context
-	out []*vrxv1.ActionOutput
+	out []*ngfwv1.ActionOutput
 }
 
-func (a *nraActionStream) Context() context.Context         { return a.ctx }
-func (a *nraActionStream) Send(o *vrxv1.ActionOutput) error { a.out = append(a.out, o); return nil }
+func (a *nraActionStream) Context() context.Context          { return a.ctx }
+func (a *nraActionStream) Send(o *ngfwv1.ActionOutput) error { a.out = append(a.out, o); return nil }
 
 func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	v := coretest.New()
 	m := coretest.NeighborsRaOf(v)
 	s := newSvcGlobals(t, v, t.TempDir(), false)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, nraAgentDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, nraAgentDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	v.AddInterface("loop301", "Loopback", "w3:loop301")
 	m.Learn(v, "loop701", "10.7.1.77", "02:00:00:00:07:77", 3)
 	m.Learn(v, "host-w7l0.100", "2001:db8:7:100::7", "02:00:00:00:71:07", 4)
@@ -311,7 +311,7 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	g := &server{svc: s, log: s.log}
 	ctx := context.Background()
 
-	resp, err := g.ListNeighbors(ctx, &vrxv1.ListNeighborsRequest{Owner: testOwner})
+	resp, err := g.ListNeighbors(ctx, &ngfwv1.ListNeighborsRequest{Owner: testOwner})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -323,20 +323,20 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	if strings.Join(rows, "|") != want || resp.GetTotal() != 4 || resp.GetOwner() != testOwner {
 		t.Fatalf("list %v total %d", rows, resp.GetTotal())
 	}
-	resp, _ = g.ListNeighbors(ctx, &vrxv1.ListNeighborsRequest{Vrf: "red", State: "dynamic"})
+	resp, _ = g.ListNeighbors(ctx, &ngfwv1.ListNeighborsRequest{Vrf: "red", State: "dynamic"})
 	if len(resp.GetNeighbors()) != 1 || resp.GetNeighbors()[0].GetMac() != "02:00:00:00:07:77" || resp.GetNeighbors()[0].GetTableId() != 7001 {
 		t.Fatalf("filtered %v", resp.GetNeighbors())
 	}
-	if _, err := g.ListNeighbors(ctx, &vrxv1.ListNeighborsRequest{Family: "ipx"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.ListNeighbors(ctx, &ngfwv1.ListNeighborsRequest{Family: "ipx"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("bad family: %v", err)
 	}
-	if _, err := g.ListNeighbors(ctx, &vrxv1.ListNeighborsRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := g.ListNeighbors(ctx, &ngfwv1.ListNeighborsRequest{Owner: "w3"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner: %v", err)
 	}
 
 	// flush one interface: learned entries go, the configured static entry stays
 	st := &nraActionStream{ctx: ctx}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop701"}}}, st); err != nil {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_ArpFlush{ArpFlush: &ngfwv1.ArpFlushAction{Interface: "loop701"}}}, st); err != nil {
 		t.Fatal(err)
 	}
 	last := st.out[len(st.out)-1].GetDone()
@@ -348,7 +348,7 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	}
 	// flush everything configured: the sub-interface too, never another owner's interface
 	st = &nraActionStream{ctx: ctx}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{}}}, st); err != nil {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_ArpFlush{ArpFlush: &ngfwv1.ArpFlushAction{}}}, st); err != nil {
 		t.Fatal(err)
 	}
 	if d := st.out[len(st.out)-1].GetDone(); d.GetStats()["deleted"] != "1" || d.GetStats()["interfaces"] != "3" {
@@ -358,7 +358,7 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 		t.Fatal("flush all touched the wrong interfaces")
 	}
 	// a foreign interface is refused
-	err = g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop301"}}}, &nraActionStream{ctx: ctx})
+	err = g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_ArpFlush{ArpFlush: &ngfwv1.ArpFlushAction{Interface: "loop301"}}}, &nraActionStream{ctx: ctx})
 	if grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign flush: %v", err)
 	}
@@ -371,7 +371,7 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	// refused too, and nothing on it is deleted
 	v.AddInterface("loop555", "Loopback", "")
 	m.Learn(v, "loop555", "10.5.5.5", "02:00:00:00:55:55", 1)
-	err = g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop555"}}}, &nraActionStream{ctx: ctx})
+	err = g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_ArpFlush{ArpFlush: &ngfwv1.ArpFlushAction{Interface: "loop555"}}}, &nraActionStream{ctx: ctx})
 	if grpcCode(err) != codes.InvalidArgument || !strings.Contains(err.Error(), `"loop555" is not an interface of this configuration`) {
 		t.Fatalf("unconfigured untagged flush: %v", err)
 	}
@@ -382,7 +382,7 @@ func TestListNeighborsAndArpFlushRPCs(t *testing.T) {
 	v.AddInterface("loop777", "Loopback", testOwner+":loop777")
 	m.Learn(v, "loop777", "10.7.7.7", "02:00:00:00:77:77", 1)
 	st = &nraActionStream{ctx: ctx}
-	if err := g.Action(&vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_ArpFlush{ArpFlush: &vrxv1.ArpFlushAction{Interface: "loop777"}}}, st); err != nil {
+	if err := g.Action(&ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_ArpFlush{ArpFlush: &ngfwv1.ArpFlushAction{Interface: "loop777"}}}, st); err != nil {
 		t.Fatalf("own-tagged flush: %v", err)
 	}
 	if got := m.Neighbors(v, "loop777"); len(got) != 0 {

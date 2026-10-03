@@ -10,6 +10,7 @@ import (
 	"ngfw/agent/binapi/lcp"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
+	"ngfw/agent/internal/vpp/ifsanitize"
 )
 
 // Integration test against the host VPP (linux_cp loaded since D-060; skip-unless-plugin-loaded
@@ -70,13 +71,17 @@ func TestLCPOnHost(t *testing.T) {
 		// through the raw API stands in for a pair of the operator / another owner
 		ifName, idx := h.UntaggedLoopback(t, 97)
 		svc := lcp.NewServiceClient(c)
-		if _, err := svc.LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(idx),
-			HostIfName: h.Owner + "-for0", HostIfType: lcp.LCP_API_ITF_HOST_TAP}); err != nil {
+		prep, err := svc.LcpItfPairAddDelV3(ctx, &lcp.LcpItfPairAddDelV3{IsAdd: true, SwIfIndex: interface_types.InterfaceIndex(idx),
+			HostIfName: h.Owner + "-for0", HostIfType: lcp.LCP_API_ITF_HOST_TAP})
+		if err != nil {
 			t.Fatalf("raw foreign pair: %v", err)
 		}
 		t.Cleanup(func() {
-			_, _ = svc.LcpItfPairAddDelV3(context.Background(), &lcp.LcpItfPairAddDelV3{SwIfIndex: interface_types.InterfaceIndex(idx)})
+			_, _ = svc.LcpItfPairAddDelV3(context.Background(), &lcp.LcpItfPairAddDelV3{IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx)})
 		})
+		if _, err := ifsanitize.Sanitize(ctx, c, uint32(prep.HostSwIfIndex), h.Owner+"-for0"); err != nil { // Sanitize the freshly created fixture before it can acquire addresses.
+			t.Fatalf("sanitize the foreign pair's host tap: %v", err)
+		}
 		for _, v := range []ItfPair{
 			{Interface: ifName, HostIfName: h.Owner + "-lcp9", HostIfType: "tap"},
 			{Interface: ifName, HostIfName: h.Owner + "-for0", HostIfType: "tap"},
@@ -129,8 +134,8 @@ func TestLCPOnHost(t *testing.T) {
 	})
 
 	t.Run("replace helpers", func(t *testing.T) {
-		if os.Getenv("VRX_DF8_LCP_REPLACE") != "1" {
-			t.Skip("replace_begin/end can delete pairs other slots create meanwhile; VRX_DF8_LCP_REPLACE=1 in a manager window (unit-tested with the fake)")
+		if os.Getenv("NGFW_DF8_LCP_REPLACE") != "1" {
+			t.Skip("replace_begin/end can delete pairs other slots create meanwhile; NGFW_DF8_LCP_REPLACE=1 in a manager window (unit-tested with the fake)")
 		}
 		// begin marks every existing pair stale and end deletes the stale ones — of every owner.
 		// Run the round trip only while no pair exists at all (pairs made after begin are fresh).

@@ -4,9 +4,9 @@ Branch `task/TD-3` @ d001e5f, reviewed against `main`. VPP source checked read-o
 
 ## What I ran (slot 2, on the host, no packets, VPP never restarted)
 - `tools/ci.sh --base main` → **CI GATE PASSED** (mode quick, 3m41s, logs `/root/ngfw-wt/logs/ci/TD-3-20260924-052653-3036188`); matches the status file.
-- `VRX_INTEGRATION=1 tools/lab lock shared go test -p 1 ./internal/vpp/ifsanitize -run OnHost` → `TestV19InheritanceClearedOnHost` PASS
+- `NGFW_INTEGRATION=1 tools/lab lock shared go test -p 1 ./internal/vpp/ifsanitize -run OnHost` → `TestV19InheritanceClearedOnHost` PASS
   (the inherited `ip4-classify:[0]:table:1` DPO on `10.2.91.1/32` appears, and is gone after Sanitize). `NRestarts` 5 → 5.
-- `vrx-vpp-preflight` against the live VPP, before and after: `V19 pre-flight ok … (0 warning(s))`.
+- `ngfw-vpp-preflight` against the live VPP, before and after: `V19 pre-flight ok … (0 warning(s))`.
 - Contract guard: no changes under schema/proto/gen/api-client; `apps/agent/binapi/` and `tools/binapi-gen.sh` untouched.
 
 ## The key question: can a binding to an already-freed table really not be removed, and is it really dormant?
@@ -43,7 +43,7 @@ Branch `task/TD-3` @ d001e5f, reviewed against `main`. VPP source checked read-o
   the others) and require ~0.
 - c) If (b) fails: **quarantine, don't report created** — keep the interface admin-down with tag `<owner>:quarantine:<idx>`, never use it,
   create the requested interface again (it gets a fresh index because the quarantined one holds T's index), expose a gauge
-  `vrx_agent_iface_quarantined`, and fail Create if no clean index is obtained. A quarantined interface is released only when (b) later
+  `ngfw_agent_iface_quarantined`, and fail Create if no clean index is obtained. A quarantined interface is released only when (b) later
   succeeds.
 
 ## Findings (by severity)
@@ -120,7 +120,7 @@ everything else as FAIL, so both apply one rule.
   (tap's tag is in the create message, but a failed Sanitize deletes the tap).
 
 ### L1 — Metrics
-`sanitize.go:378-381`: `BeforeDelete` goes through `Sanitize` and is counted in `vrx_agent_iface_sanitize_total/inherited_total`
+`sanitize.go:378-381`: `BeforeDelete` goes through `Sanitize` and is counted in `ngfw_agent_iface_sanitize_total/inherited_total`
 (a before-delete run always "finds" the interface's own bindings). Count it separately (`phase="create|delete"`). Add a gauge for
 currently tainted/quarantined interfaces — counters alone cannot drive an alert on current state.
 

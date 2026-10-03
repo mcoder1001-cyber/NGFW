@@ -21,7 +21,7 @@ describe('TD-10b PENDING-session-revocation option 1: demotion and deletion end 
       password: PW[u],
     });
     expect(r.status).toBe(200);
-    return { token: r.body.accessToken as string, cookie: cookieOf(r.headers, 'vrx_refresh')! };
+    return { token: r.body.accessToken as string, cookie: cookieOf(r.headers, 'ngfw_refresh')! };
   };
   const me = async (tok: string) => (await h.call(tok, 'GET', '/api/v1/auth/me')).status;
   const refresh = (cookie: string) =>
@@ -34,7 +34,7 @@ describe('TD-10b PENDING-session-revocation option 1: demotion and deletion end 
     expect((await h.call(admin, 'POST', '/api/v1/config/commit?comment=td10b')).status).toBe(200);
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_LOGIN_RATE_PER_MIN: '1000' });
+    h = await startHarness({ NGFW_LOGIN_RATE_PER_MIN: '1000' });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [
       { username: 'demo', role: 'operator', password: PW['demo']! },

@@ -38,11 +38,11 @@ class InstallTests(unittest.TestCase):
         for name in sorted(VERIFY.runtime_roots()):
             self.archive(name, self.delivery / (name + '.deb'))
         vpp = self.delivery / 'vpp/vpp.deb'
-        self.archive('vpp', vpp, '26.06-release+vrx1')
+        self.archive('vpp', vpp, '26.06-release+ngfw1')
         metadata = VERIFY.metadata(vpp)
         (self.delivery / 'vpp/manifest.json').write_text(json.dumps({'packages': [
             {'package': 'vpp', 'file': 'vpp.deb', 'ship': True,
-             'version': '26.06-release+vrx1', 'architecture': 'amd64',
+             'version': '26.06-release+ngfw1', 'architecture': 'amd64',
              'sha256': metadata['sha256'], 'size': metadata['size']}]}))
         (self.delivery / 'vpp/SHA256SUMS').write_text('synthetic boundary fixture\n')
         self.plan = VERIFY.verify(self.delivery)
@@ -68,8 +68,8 @@ class InstallTests(unittest.TestCase):
     def test_snapshot_independent_private_and_cleanup(self):
         with INSTALL.prepared(self.delivery, self.manifest) as (private, snapshot, plan):
             self.assertEqual(private.stat().st_mode & 0o777, 0o700)
-            self.assertEqual((snapshot / 'vrx-agent.deb').stat().st_mode & 0o777, 0o600)
-            (self.delivery / 'vrx-agent.deb').write_bytes(b'replaced source')
+            self.assertEqual((snapshot / 'ngfw-agent.deb').stat().st_mode & 0o777, 0o600)
+            (self.delivery / 'ngfw-agent.deb').write_bytes(b'replaced source')
             INSTALL.check_archives(snapshot, plan)
             self.assertEqual(plan, self.plan)
         self.assertFalse(private.exists())
@@ -88,7 +88,7 @@ class InstallTests(unittest.TestCase):
                 self.fail('mismatch accepted')
 
     def test_symlink_and_size_bound_fail_closed(self):
-        (self.delivery / 'alias.deb').symlink_to(self.delivery / 'vrx-agent.deb')
+        (self.delivery / 'alias.deb').symlink_to(self.delivery / 'ngfw-agent.deb')
         with self.assertRaises(INSTALL.InvalidBundle):
             with INSTALL.prepared(self.delivery, self.manifest):
                 self.fail('symlink accepted')
@@ -106,7 +106,7 @@ class InstallTests(unittest.TestCase):
             result = original(fd, amount)
             if result and not changed:
                 changed = True
-                (self.delivery / 'vrx-agent.deb').write_bytes(b'replacement')
+                (self.delivery / 'ngfw-agent.deb').write_bytes(b'replacement')
             return result
         with patch.object(INSTALL.os, 'read', mutate):
             with self.assertRaises(INSTALL.InvalidBundle):
@@ -181,7 +181,8 @@ class InstallTests(unittest.TestCase):
             with INSTALL.prepared(self.delivery, self.manifest) as (private, _, _):
                 self.assertEqual(private.parent, Path('/var/tmp'))
                 self.assertEqual(dict(os.environ), {
-                    'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
+                    'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C',
+                    'HOME': '/nonexistent'})
             self.assertEqual(os.environ['PATH'], str(malicious))
         self.assertFalse(marker.exists())
 
@@ -200,7 +201,7 @@ class InstallTests(unittest.TestCase):
 
     def test_private_archive_mutation_rejected_before_apt(self):
         with INSTALL.prepared(self.delivery, self.manifest) as (private, snapshot, plan):
-            archive = snapshot / 'vrx-agent.deb'
+            archive = snapshot / 'ngfw-agent.deb'
             content = archive.read_bytes()
             archive.write_bytes(content[:-1] + bytes([content[-1] ^ 1]))
             with patch.object(INSTALL.subprocess, 'run') as run:

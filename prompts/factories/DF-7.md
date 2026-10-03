@@ -12,7 +12,7 @@ VRRP (D9.1), IGMP (D2.9) and core MPLS (D2.8) — against the scheduler interfac
 - `apps/agent/binapi/policer/`, `binapi/policer_types/`, `binapi/qos/`, `binapi/lb/`, `binapi/lb_types/`, `binapi/span/`, `binapi/lldp/`, `binapi/bfd/`, `binapi/vrrp/`,
   `binapi/igmp/`, `binapi/mpls/`, `binapi/fib_types/` — **the only source of message names and fields**; verify every name below, never guess
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (policer, qos, lb, span, lldp, bfd, vrrp, igmp, mpls)
-- `docs/lab/host-vrx-a.md` — all plugins above are loaded; **no workers** on the host → `policer_bind` to a worker index gets an integration test
+- `docs/lab/host-ngfw-a.md` — all plugins above are loaded; **no workers** on the host → `policer_bind` to a worker index gets an integration test
   marked `skip: no workers on host`
 - `docs/lab/shared-host-rules.md` — prefix `w<N>`, tables/labels/VR ids from your slot range, addresses `10.<N>.0.0/16`; BFD/VRRP/IGMP only on prefixed loopbacks
 
@@ -37,7 +37,7 @@ Enumerate the object types in `docs/status/tasks/DF-7.md` first, then build (est
 - **lldp** (`binapi/lldp`): `lldp-global` (lldp_config: system name `w<N>-…`, tx hold, tx interval — global singleton; read-only against the shared VPP unless
   unset), `lldp-interface` (sw_interface_set_lldp: port description, mgmt ip4/ip6/oid, enable). Retrieve: if binapi has no lldp dump, mark `partial`,
   name it in `DF-7-questions.md`; never fake Retrieve from desired state.
-- **bfd** (`binapi/bfd`): `bfd-auth-key` (bfd_auth_set_key: conf key id, auth type, key = secret → `VRX_TEST_PSK_<id>`-style fixtures, never logged; bfd_auth_del_key),
+- **bfd** (`binapi/bfd`): `bfd-auth-key` (bfd_auth_set_key: conf key id, auth type, key = secret → `NGFW_TEST_PSK_<id>`-style fixtures, never logged; bfd_auth_del_key),
   `bfd-udp-session` (bfd_udp_add / bfd_udp_mod / bfd_udp_del: interface, local/peer addr, desired min tx/rx, detect mult, auth key + bfd key id; flags via
   bfd_udp_session_set_flags admin up/down; bfd_udp_auth_activate/deactivate), `bfd-echo-source` (bfd_udp_set_echo_source / bfd_udp_del_echo_source; Retrieve
   bfd_udp_get_echo_source). Retrieve: bfd_udp_session_dump (or v2 with state), bfd_auth_keys_dump. Events: want_bfd_events → session state → `StreamEvents`.
@@ -68,8 +68,8 @@ interface · mpls-route → mpls-table (+ next-hop interfaces, Optional) · mpls
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding; event decoding
    for bfd/vrrp/igmp).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions filter
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions filter
    by your prefix (other workers' objects exist on the same VPP). Use prefixed loopbacks/tables; never touch `local0` or anything unprefixed; clean up in
    `t.Cleanup`. BFD sessions stay `down` (no peer) and VRRP VRs may be started on a loopback (adverts never leave the host) — assert configuration and
    state shape, not protocol behaviour. Globals (lb-conf, lldp-global) are read, restored if touched.

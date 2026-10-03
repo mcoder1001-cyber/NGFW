@@ -27,8 +27,8 @@ LSP, MPLS-over-Ethernet, basic L3VPN, SR-MPLS; T2).
 - **MPLS descriptors** (DF-7, merged: `docs/agent/descriptors/mpls.md`): `mpls-table/<id>`, `mpls-interface/<if>`,
   `mpls-route/<t>/<label>/<eos>`, `mpls-ip-bind` (write-only, D-063/D-076), `mpls-tunnel/<name>`.
   - **MPLS table 0 is VPP-global**, so only the globals owner declares `mpls-table/0` (D-071).
-  - On the shared host (no table 0 exists), the enable/bind parts run only with `VRX_DF7_GLOBALS=1` under
-    `flock -x /run/lock/vrx-globals.lock` (D-082), in a manager window.
+  - On the shared host (no table 0 exists), the enable/bind parts run only with `NGFW_DF7_GLOBALS=1` under
+    `flock -x /run/lock/ngfw-globals.lock` (D-082), in a manager window.
   - VPP 26.06 source (`lcp_mpls_sync.c`): enabling MPLS on an interface with an LCP pair also enables it on the host tap and writes
     `net.mpls.conf.<tap>.input` — do not enable MPLS on LCP-paired interfaces in tests (no kernel MPLS on this host).
 - **SR-MPLS** (DF-6, on main): `docs/agent/descriptors/sr_mpls.md` — `sr-mpls.policy/<bsid>`, `sr-mpls.steering`,

@@ -54,7 +54,7 @@ export function FqdnCell({ item, applied, unavailable }: { item: FqdnItem | unde
   return (
     <Stack gap={0.25}>
       {item.addresses.length > 0 && (
-        <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12, textAlign: 'start' }}>
+        <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12, textAlign: 'start' }}>
           {item.addresses.join(' ')}
         </Box>
       )}
@@ -125,7 +125,7 @@ function UsageBody({ name, onClose }: { name: string; onClose: () => void }) {
                   <ListItemText
                     primary={t(`usage.kind.${r.kind}`)}
                     secondary={
-                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12, display: 'block', textAlign: 'start' }}>
+                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12, display: 'block', textAlign: 'start' }}>
                         {r.pointer}
                       </Box>
                     }

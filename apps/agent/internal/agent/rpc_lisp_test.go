@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
@@ -77,16 +77,16 @@ const lispRetrieved = `{
   "pitr": "w11-rloc"
 }`
 
-func lispRetrieve(t *testing.T, s *Service) *vrxv1.LispConfig {
+func lispRetrieve(t *testing.T, s *Service) *ngfwv1.LispConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"tunnels"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"tunnels"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return got.GetDesiredState().GetTunnels().GetLisp()
 }
 
-func changes(r *vrxv1.ApplyResponse) uint32 {
+func changes(r *ngfwv1.ApplyResponse) uint32 {
 	s := r.GetSummary()
 	return s.GetCreated() + s.GetUpdated() + s.GetDeleted() + s.GetFailed()
 }
@@ -107,8 +107,8 @@ func TestLispFullExampleApplyRetrieveResyncRollback(t *testing.T) {
 	dir := t.TempDir()
 	s := newLispSvc(t, v, dir, true)
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, lispDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l1", DesiredState: doc(t, lispDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var keys []string
 	for _, r := range resp.GetResults() {
 		if strings.HasPrefix(r.GetKey(), "lisp") {
@@ -124,8 +124,8 @@ func TestLispFullExampleApplyRetrieveResyncRollback(t *testing.T) {
 	}
 
 	// Second plan empty.
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "l2", DesiredState: doc(t, lispDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "l2", DesiredState: doc(t, lispDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if changes(resp) != 0 {
 		t.Fatalf("second apply changed something: %v", resp.GetSummary())
 	}
@@ -137,7 +137,7 @@ func TestLispFullExampleApplyRetrieveResyncRollback(t *testing.T) {
 	start := time.Now()
 	s2 := newLispSvc(t, v, dir, true)
 	resp = s2.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	t.Logf("restart resync: %s in %v, summary %v", resp.GetStatus(), time.Since(start), resp.GetSummary())
 	// The write-only entry is re-asserted from the claim of this VPP boot (counted as created, nothing sent).
 	mutating := 0
@@ -158,14 +158,14 @@ func TestLispFullExampleApplyRetrieveResyncRollback(t *testing.T) {
 	}
 
 	// Rollback: an empty lisp removes adjacencies → mappings → EIDs → sets → EID-table maps.
-	resp = apply(t, s2, &vrxv1.ApplyRequest{TxnId: "l3", DesiredState: doc(t, `{"vrfs": {"overlay": {"id": 1100}},
+	resp = apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "l3", DesiredState: doc(t, `{"vrfs": {"overlay": {"id": 1100}},
 	  "interfaces": {"loop1101": {"ipv4": ["10.11.1.1/24"]}, "loop1100": {"vrf": "overlay", "ipv4": ["10.11.100.1/24"]}},
 	  "tunnels": {}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	pos := map[string]int{}
 	var dels []string
 	for i, r := range resp.GetResults() {
-		if r.GetOp() == vrxv1.ApplyOperation_APPLY_OPERATION_DELETE {
+		if r.GetOp() == ngfwv1.ApplyOperation_APPLY_OPERATION_DELETE {
 			d := strings.SplitN(r.GetKey(), "/", 2)[0]
 			if _, seen := pos[d]; !seen {
 				pos[d] = i
@@ -201,10 +201,10 @@ func TestLispGpeEntryReappliedAfterVPPRestart(t *testing.T) {
 	v := coretest.New()
 	l := v.InstallLisp()
 	s := newLispSvc(t, v, t.TempDir(), true)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, lispDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, lispDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	l.ForgetGpe()
 	resp := s.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, _, _, _, fwd := l.State(); fwd != 1 {
 		t.Fatalf("GPE entry not re-applied by the resync: %d entries, summary %v", fwd, resp.GetSummary())
 	}
@@ -215,8 +215,8 @@ func TestLispRequiresGlobalsOnSlotAgents(t *testing.T) {
 	v := coretest.New()
 	l := v.InstallLisp()
 	s := newLispSvc(t, v, t.TempDir(), false)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, lispDoc)})
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, lispDoc)})
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatal("applied with LISP off on a non-globals-owner agent")
 	}
 	if !strings.Contains(protojson.Format(resp), "globals owner") {
@@ -227,9 +227,9 @@ func TestLispRequiresGlobalsOnSlotAgents(t *testing.T) {
 	}
 	// With LISP (and GPE, PITR) set by the globals owner the same document applies.
 	l.Enabled, l.GpeOn = true, true
-	pitr := apply(t, newLispSvc(t, v, t.TempDir(), true), &vrxv1.ApplyRequest{TxnId: "r0", DesiredState: doc(t, `{"interfaces": {"loop1101": {"ipv4": ["10.11.1.1/24"]}},
+	pitr := apply(t, newLispSvc(t, v, t.TempDir(), true), &ngfwv1.ApplyRequest{TxnId: "r0", DesiredState: doc(t, `{"interfaces": {"loop1101": {"ipv4": ["10.11.1.1/24"]}},
 	  "tunnels": {"lisp": {"enabled": true, "gpe": true, "locatorSets": {"w11-rloc": {}}, "pitr": "w11-rloc"}}}`)})
-	mustStatus(t, pitr, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, pitr, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 }
 
 func TestLispProjectionWarnsForTunnelKindsNotWired(t *testing.T) {
@@ -264,8 +264,8 @@ func TestLispStateRPC(t *testing.T) {
 	v := coretest.New()
 	v.InstallLisp()
 	s := newLispSvc(t, v, t.TempDir(), true)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, lispDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	st, err := s.LispState(context.Background(), &vrxv1.LispStateRequest{Owner: testOwner})
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "s1", DesiredState: doc(t, lispDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	st, err := s.LispState(context.Background(), &ngfwv1.LispStateRequest{Owner: testOwner})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -279,14 +279,14 @@ func TestLispStateRPC(t *testing.T) {
 	if st.GetMappings()[0].GetLocal() != true || st.GetMappings()[1].GetRlocs()[0] != "10.11.1.2" {
 		t.Fatalf("mappings %v", st.GetMappings())
 	}
-	if _, err := s.LispState(context.Background(), &vrxv1.LispStateRequest{Owner: "other"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.LispState(context.Background(), &ngfwv1.LispStateRequest{Owner: "other"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("foreign owner: %v", err)
 	}
 }
 
-func mustLisp(t *testing.T, js string) *vrxv1.LispConfig {
+func mustLisp(t *testing.T, js string) *ngfwv1.LispConfig {
 	t.Helper()
-	l := &vrxv1.LispConfig{}
+	l := &ngfwv1.LispConfig{}
 	if err := protojson.Unmarshal([]byte(js), l); err != nil {
 		t.Fatal(err)
 	}

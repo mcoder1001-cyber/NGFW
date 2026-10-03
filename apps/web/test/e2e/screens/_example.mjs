@@ -49,7 +49,7 @@ export default async function example(ctx) {
 
   // 5. The runtime toggles (lib/theme.mjs) exist so a screen with expensive setup can be shot in every combination
   //    inside one signed-in session — prove they actually do something, don't just trust the click (review M2):
-  //    `VrxThemeProvider` (packages/ui-kit) keeps `document.documentElement.style.colorScheme` equal to the
+  //    `NgfwThemeProvider` (packages/ui-kit) keeps `document.documentElement.style.colorScheme` equal to the
   //    resolved theme mode, so that is the ground truth for "did setTheme(...) really take effect". Toggle to
   //    whichever mode is NOT already active — with `--themes light,dark` this function also runs once already
   //    in 'dark' (shots.mjs sets it before calling us), so hardcoding a target here would be a no-op on that pass.

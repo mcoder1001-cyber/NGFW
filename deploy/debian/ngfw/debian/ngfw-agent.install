@@ -1,0 +1,5 @@
+stage/usr/sbin/ngfw-agent usr/sbin/
+stage/usr/sbin/ngfw-startupgen usr/lib/ngfw/bin/
+stage/usr/sbin/ngfw-vppcheck usr/lib/ngfw/bin/
+stage/usr/lib/ngfw/apply-startup.sh usr/lib/ngfw/
+stage/usr/lib/systemd/system/ngfw-agent.service usr/lib/systemd/system/

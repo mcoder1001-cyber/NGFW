@@ -14,7 +14,7 @@ import (
 
 	"ngfw/agent/binapi/acl_types"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/core/coretest"
@@ -105,9 +105,9 @@ func newACLSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) (*Servic
 	return svc, rt
 }
 
-func retrieveACL(t *testing.T, s *Service) *vrxv1.AclConfig {
+func retrieveACL(t *testing.T, s *Service) *ngfwv1.AclConfig {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"acl"}})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"acl"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestACLDomainOnFake(t *testing.T) {
 	want := doc(t, aclJSON)
 
 	// DryRun first: the log flag is reported (VPP cannot log per rule); nothing is applied
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: want})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: want})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
 	}
@@ -163,8 +163,8 @@ func TestACLDomainOnFake(t *testing.T) {
 	}
 
 	// a foreign owner's ACL is already on the interface once it exists (D-066): created with the loopback
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a1", DesiredState: want})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a1", DesiredState: want})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	ptrs := map[string]string{}
 	for _, r := range resp.GetResults() {
 		ptrs[r.GetKey()] = r.GetPointer()
@@ -205,13 +205,13 @@ func TestACLDomainOnFake(t *testing.T) {
 	if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
 		t.Fatalf("Retrieve != desired:\n%s\nwant\n%s", protojson.Format(got), protojson.Format(want.GetAcl()))
 	}
-	again := apply(t, s, &vrxv1.ApplyRequest{TxnId: "a2", DesiredState: want})
+	again := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a2", DesiredState: want})
 	if sm := again.GetSummary(); sm.GetCreated()+sm.GetUpdated()+sm.GetDeleted() != 0 {
 		t.Fatalf("second apply not empty: %v", sm)
 	}
 
 	// AclState: counters off in VPP → unavailable with a reason; per-rule mapping known
-	st, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "web-in", Limit: 3})
+	st, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "web-in", Limit: 3})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,8 +220,8 @@ func TestACLDomainOnFake(t *testing.T) {
 		t.Fatalf("AclState: %s", protojson.Format(st))
 	}
 	r := st.GetRules()
-	if r[0].GetSequence() != 10 || r[0].GetVppRules() != 2 || r[0].GetStatus() != vrxv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED ||
-		r[1].GetSequence() != 20 || r[1].GetStatus() != vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED ||
+	if r[0].GetSequence() != 10 || r[0].GetVppRules() != 2 || r[0].GetStatus() != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_APPLIED ||
+		r[1].GetSequence() != 20 || r[1].GetStatus() != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED ||
 		r[2].GetSequence() != 30 || r[2].GetFirstVppRule() != 2 {
 		t.Fatalf("rule page: %s", protojson.Format(st))
 	}
@@ -231,26 +231,26 @@ func TestACLDomainOnFake(t *testing.T) {
 	v.ACL().SetHits(idx, 0, 3, 300)
 	v.ACL().SetHits(idx, 1, 2, 200)
 	v.ACL().SetHits(idx, 4, 7, 700)
-	st, err = s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "web-in", Offset: 1, Limit: 10, Filter: &vrxv1.AclStateFilter{Sequences: []uint32{10, 50, 60}}})
+	st, err = s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "web-in", Offset: 1, Limit: 10, Filter: &ngfwv1.AclStateFilter{Sequences: []uint32{10, 50, 60}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !st.GetCountersAvailable() || st.GetTotal() != 3 || len(st.GetRules()) != 2 || st.GetRules()[0].GetSequence() != 50 ||
-		st.GetRules()[0].GetStatus() != vrxv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE || st.GetRules()[1].GetPackets() != 7 ||
+		st.GetRules()[0].GetStatus() != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE || st.GetRules()[1].GetPackets() != 7 ||
 		st.GetLists()[0].GetPackets() != 12 || st.GetLists()[0].GetBytes() != 1200 {
 		t.Fatalf("counters page: %s", protojson.Format(st))
 	}
-	st, _ = s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "web-in", Filter: &vrxv1.AclStateFilter{HitsOnly: true}})
+	st, _ = s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "web-in", Filter: &ngfwv1.AclStateFilter{HitsOnly: true}})
 	if st.GetTotal() != 2 || st.GetRules()[0].GetSequence() != 10 || st.GetRules()[0].GetPackets() != 5 || st.GetRules()[0].GetBytes() != 500 {
 		t.Fatalf("hits only: %s", protojson.Format(st))
 	}
-	if _, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "nope"}); grpcCode(err) != codes.NotFound {
+	if _, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "nope"}); grpcCode(err) != codes.NotFound {
 		t.Fatalf("unknown list: %v", err)
 	}
-	if _, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{Limit: 1001}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("limit: %v", err)
 	}
-	if _, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
+	if _, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{Owner: "w9"}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("owner: %v", err)
 	}
 
@@ -259,13 +259,13 @@ func TestACLDomainOnFake(t *testing.T) {
 	lo := loopIndex(t, v, "loop701")
 	foreign := v.ACL().AddACL("w9:foreign", acl_types.ACLRule{IsPermit: acl_types.ACL_ACTION_API_PERMIT})
 	v.ACL().Bind(lo, 2, foreign, idx)
-	changed := proto.Clone(want).(*vrxv1.DesiredState)
+	changed := proto.Clone(want).(*ngfwv1.DesiredState)
 	changed.Acl.Lists["web-in"].Rules[5].Action = proto.String("permit")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "a3", DesiredState: changed}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "a3", DesiredState: changed}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if n, acls := v.ACL().Binding(lo); n != 2 || len(acls) != 2 || acls[0] != foreign || acls[1] != idx {
 		t.Fatalf("binding after update: n_input %d %v (foreign %d, ours %d)", n, acls, foreign, idx)
 	}
-	st, err = s.ACLState(context.Background(), &vrxv1.AclStateRequest{IncludeInterfaces: true})
+	st, err = s.ACLState(context.Background(), &ngfwv1.AclStateRequest{IncludeInterfaces: true})
 	if err != nil || len(st.GetInterfaces()) != 1 {
 		t.Fatalf("interfaces: %v %v", err, st)
 	}
@@ -283,7 +283,7 @@ func TestACLDomainOnFake(t *testing.T) {
 		t.Fatal("delete behind the back")
 	}
 	s2, _ := newACLSvc(t, v, dir, false)
-	if r := s2.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
+	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetCreated() == 0 {
 		t.Fatalf("resync after loss: %v", r)
 	}
 	idx2 := ownedACL(t, v, "web-in")
@@ -295,7 +295,7 @@ func TestACLDomainOnFake(t *testing.T) {
 	}
 
 	// rollback to "no ACLs": ours are unbound and deleted, the foreign ACL and its binding stay
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "a4", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}}, "objects": {}, "acl": {}}`)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "a4", DesiredState: doc(t, `{"interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}}, "objects": {}, "acl": {}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if got := retrieveACL(t, s2); got != nil {
 		t.Fatalf("acl left after rollback: %s", protojson.Format(got))
 	}
@@ -314,32 +314,32 @@ func TestACLDomainOnFake(t *testing.T) {
 // expansion above the per-rule cap (sources × destinations), unknown schedule.
 func TestACLDryRunFindings(t *testing.T) {
 	s, _ := newACLSvc(t, coretest.New(), t.TempDir(), false)
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{Subsystems: []string{"acl"}, DesiredState: doc(t, `{"acl": {"lists": {"x": {"rules": [
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{Subsystems: []string{"acl"}, DesiredState: doc(t, `{"acl": {"lists": {"x": {"rules": [
 	  {"sequence": 1, "action": "permit", "source": {"kind": "object", "name": "web"}}]}}}}`)})
 	if err != nil || rep.GetOk() || !hasIssue(rep, "/acl/lists/x/rules/0/source/name", "acl.objects-required") {
 		t.Fatalf("objects-required: %v %v", err, rep)
 	}
 	// 101 × 100 non-adjacent hosts: 10 100 VPP rules for one configuration rule
 	var a, b []string
-	addrs := map[string]*vrxv1.AddressObject{}
+	addrs := map[string]*ngfwv1.AddressObject{}
 	for i := 0; i < 101; i++ {
 		n := "a" + itoa3(i)
-		addrs[n] = &vrxv1.AddressObject{Type: proto.String("host"), Address: proto.String("10.1." + strconv.Itoa(i) + ".1")}
+		addrs[n] = &ngfwv1.AddressObject{Type: proto.String("host"), Address: proto.String("10.1." + strconv.Itoa(i) + ".1")}
 		a = append(a, n)
 		if i < 100 {
 			m := "b" + itoa3(i)
-			addrs[m] = &vrxv1.AddressObject{Type: proto.String("host"), Address: proto.String("10.2." + strconv.Itoa(i) + ".1")}
+			addrs[m] = &ngfwv1.AddressObject{Type: proto.String("host"), Address: proto.String("10.2." + strconv.Itoa(i) + ".1")}
 			b = append(b, m)
 		}
 	}
-	ds := &vrxv1.DesiredState{
-		Objects: &vrxv1.ObjectsConfig{Addresses: addrs, AddressGroups: map[string]*vrxv1.AddressGroup{"ga": {Members: a}, "gb": {Members: b}}},
-		Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{"big": {Rules: []*vrxv1.AclRule{
-			{Sequence: proto.Uint32(1), Action: proto.String("permit"), Source: &vrxv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("ga")}, Destination: &vrxv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("gb")}},
+	ds := &ngfwv1.DesiredState{
+		Objects: &ngfwv1.ObjectsConfig{Addresses: addrs, AddressGroups: map[string]*ngfwv1.AddressGroup{"ga": {Members: a}, "gb": {Members: b}}},
+		Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"big": {Rules: []*ngfwv1.AclRule{
+			{Sequence: proto.Uint32(1), Action: proto.String("permit"), Source: &ngfwv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("ga")}, Destination: &ngfwv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("gb")}},
 			{Sequence: proto.Uint32(2), Action: proto.String("permit"), Schedule: proto.String("missing")},
 		}}}},
 	}
-	rep, err = s.DryRun(context.Background(), &vrxv1.DryRunRequest{Subsystems: []string{"objects", "acl"}, DesiredState: ds})
+	rep, err = s.DryRun(context.Background(), &ngfwv1.DryRunRequest{Subsystems: []string{"objects", "acl"}, DesiredState: ds})
 	if err != nil || rep.GetOk() || !hasIssue(rep, "/acl/lists/big/rules/0", "acl.expansion-limit") || !hasIssue(rep, "/acl/lists/big/rules/1/schedule", "acl.rule-references") {
 		t.Fatalf("expansion limit / schedule: %v %v", err, rep)
 	}
@@ -349,8 +349,8 @@ func TestACLDryRunFindings(t *testing.T) {
 func TestACLStatsEnableGlobalsOwner(t *testing.T) {
 	v := coretest.New()
 	s, _ := newACLSvc(t, v, t.TempDir(), true)
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, `{"acl": {"lists": {"x": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}}}}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, `{"acl": {"lists": {"x": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}}}}`)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	var got bool
 	for _, r := range resp.GetResults() {
 		if r.GetKey() == string(descacl.KeyStatsEnable) && r.GetPointer() == "/acl" {
@@ -360,13 +360,13 @@ func TestACLStatsEnableGlobalsOwner(t *testing.T) {
 	if !got || !v.ACL().CountersEnabled() {
 		t.Fatalf("stats-enable not applied (results %v)", resp.GetResults())
 	}
-	st, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{})
+	st, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{})
 	if err != nil || !st.GetCountersAvailable() {
 		t.Fatalf("counters: %v %v", err, st)
 	}
 }
 
-func hasIssue(rep *vrxv1.ValidationReport, pointer, rule string) bool {
+func hasIssue(rep *ngfwv1.ValidationReport, pointer, rule string) bool {
 	for _, e := range rep.GetErrors() {
 		if e.GetPointer() == pointer && e.GetRule() == rule {
 			return true
@@ -392,7 +392,7 @@ const h1Applied = `{
 // h1Candidate has exactly the same VPP content as h1Applied (same rules in the same order, same
 // binding) but a different configuration: renumbered rules, another description, another attachment
 // sequence.
-func h1Candidate(t *testing.T) *vrxv1.DesiredState {
+func h1Candidate(t *testing.T) *ngfwv1.DesiredState {
 	ds := doc(t, h1Applied)
 	l := ds.Acl.Lists["l"]
 	l.Description = proto.String("candidate")
@@ -410,7 +410,7 @@ func TestACLDryRunAndRollbackDoNotChangeTheAppliedView(t *testing.T) {
 	v := coretest.New()
 	s, rt := newACLSvc(t, v, t.TempDir(), false)
 	want := doc(t, h1Applied)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1-a", DesiredState: want}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "h1-a", DesiredState: want}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	idx := ownedACL(t, v, "l")
 	v.ACL().SetCountersEnabled(true)
 	rt.ForgetCountersFlag()
@@ -421,17 +421,17 @@ func TestACLDryRunAndRollbackDoNotChangeTheAppliedView(t *testing.T) {
 		if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
 			t.Fatalf("%s: Retrieve != the APPLIED configuration (false drift):\n%s", stage, protojson.Format(got))
 		}
-		st, err := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "l", Filter: &vrxv1.AclStateFilter{Sequences: []uint32{10, 20}}})
+		st, err := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "l", Filter: &ngfwv1.AclStateFilter{Sequences: []uint32{10, 20}}})
 		if err != nil || st.GetTotal() != 2 || st.GetRules()[0].GetPackets() != 4 || st.GetRules()[1].GetPackets() != 6 || !st.GetLists()[0].GetMappingKnown() {
 			t.Fatalf("%s: counters no longer map to the running rules 10/20: %v %v", stage, err, st)
 		}
-		if st, _ := s.ACLState(context.Background(), &vrxv1.AclStateRequest{List: "l", Filter: &vrxv1.AclStateFilter{Sequences: []uint32{100, 200}}}); st.GetTotal() != 0 {
+		if st, _ := s.ACLState(context.Background(), &ngfwv1.AclStateRequest{List: "l", Filter: &ngfwv1.AclStateFilter{Sequences: []uint32{100, 200}}}); st.GetTotal() != 0 {
 			t.Fatalf("%s: the candidate's rules got the counters: %v", stage, st)
 		}
 	}
 	check("after apply")
 
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: h1Candidate(t)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: h1Candidate(t)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
 	}
@@ -439,9 +439,9 @@ func TestACLDryRunAndRollbackDoNotChangeTheAppliedView(t *testing.T) {
 
 	// the same candidate plus a new list whose creation fails in VPP: the Apply rolls back
 	cand := h1Candidate(t)
-	cand.Acl.Lists["m"] = &vrxv1.AclList{Rules: []*vrxv1.AclRule{{Sequence: proto.Uint32(1), Action: proto.String("deny"), IpVersion: proto.String("ipv6")}}}
+	cand.Acl.Lists["m"] = &ngfwv1.AclList{Rules: []*ngfwv1.AclRule{{Sequence: proto.Uint32(1), Action: proto.String("deny"), IpVersion: proto.String("ipv6")}}}
 	v.ACL().FailNext("acl_add_replace", coretest.RetvalInvalidValue)
-	if r := apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1-b", DesiredState: cand}); r.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if r := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "h1-b", DesiredState: cand}); r.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("the failing apply was applied: %v", r)
 	}
 	check("after a rolled-back Apply of the candidate")
@@ -454,7 +454,7 @@ func TestACLDryRunAndRollbackDoNotChangeTheAppliedView(t *testing.T) {
 	if len(got.GetRules()) != 1 || got.GetRules()[0].GetSequence() != 10 || got.GetRules()[0].GetAction() != "permit" || got.GetDescription() != "" {
 		t.Fatalf("a hand-edited ACL must be reported as VPP holds it: %s", protojson.Format(got))
 	}
-	if r := s.Resync(context.Background()); r.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetUpdated() == 0 {
+	if r := s.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || r.GetSummary().GetUpdated() == 0 {
 		t.Fatalf("resync: %v", r)
 	}
 	if got := retrieveACL(t, s); !proto.Equal(got, want.GetAcl()) {
@@ -474,17 +474,17 @@ func TestACLBindingAndInterfaceRemovedInOneCommit(t *testing.T) {
 	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}},
 	          "attachments": [{"list": "l", "target": {"kind": "interface", "interface": "loop702"}, "direction": "out", "sequence": 1}]}
 	}`
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, withBinding)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r1", DesiredState: doc(t, withBinding)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	lo := loopIndex(t, v, "loop702")
 	if _, acls := v.ACL().Binding(lo); len(acls) != 1 {
 		t.Fatalf("binding on loop702: %v", acls)
 	}
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "r2", DesiredState: doc(t, `{
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "r2", DesiredState: doc(t, `{
 	  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}},
 	  "objects": {},
 	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}}}
 	}`)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	pos := map[string]int{}
 	for i, r := range resp.GetResults() {
 		pos[r.GetKey()] = i
@@ -497,7 +497,7 @@ func TestACLBindingAndInterfaceRemovedInOneCommit(t *testing.T) {
 	if _, acls := v.ACL().Binding(lo); len(acls) != 0 {
 		t.Fatalf("an ACL is still bound to the deleted sw_if_index %d: %v", lo, acls)
 	}
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{DesiredState: doc(t, `{
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: doc(t, `{
 	  "interfaces": {"loop701": {"ipv4": ["10.7.1.1/24"]}},
 	  "objects": {},
 	  "acl": {"lists": {"l": {"rules": [{"sequence": 1, "action": "deny", "ipVersion": "ipv4"}]}},

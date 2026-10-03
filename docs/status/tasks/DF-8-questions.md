@@ -26,10 +26,10 @@ reconnect hook (review M6).
 
 ## Q9 — lab-wide lock for read-first VPP-global tests (review M3)
 Tests that read a VPP-global with a getter (flowprobe params, sflow globals, IPFIX exporter 0), skip when someone else
-holds it and otherwise set and restore it now take an exclusive flock on `/run/lock/vrx-globals.lock` for the whole
+holds it and otherwise set and restore it now take an exclusive flock on `/run/lock/ngfw-globals.lock` for the whole
 test. Getter-less globals (DNS, BPF filter, pcap filter function, IPFIX classify stream, lcp default netns) and the lcp
-replace transaction are opt-in only (`VRX_DF8_GLOBALS=1`, `VRX_DF8_LCP_REPLACE=1`, manager window). Options:
-(a) adopt `/run/lock/vrx-globals.lock` for every factory's global tests (add it to shared-host-rules.md);
+replace transaction are opt-in only (`NGFW_DF8_GLOBALS=1`, `NGFW_DF8_LCP_REPLACE=1`, manager window). Options:
+(a) adopt `/run/lock/ngfw-globals.lock` for every factory's global tests (add it to shared-host-rules.md);
 (b) use the lab lock exclusively instead. Recommendation (a).
 
 ## Q10 — follow-ups from the review (not done in DF-8)

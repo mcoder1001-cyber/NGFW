@@ -17,7 +17,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/descriptors/pnat"
 	"ngfw/agent/internal/scheduler"
@@ -49,7 +49,7 @@ func pnatPort(s Sink, v *uint32, pointer string) (uint32, bool) {
 	return *v, true
 }
 
-func pnatBinding(s Sink, b *vrxv1.PnatBinding, pt string) (pnat.BindingSpec, bool) {
+func pnatBinding(s Sink, b *ngfwv1.PnatBinding, pt string) (pnat.BindingSpec, bool) {
 	var spec pnat.BindingSpec
 	m, r := b.GetMatch(), b.GetRewrite()
 	ok := true
@@ -99,7 +99,7 @@ func pnatBinding(s Sink, b *vrxv1.PnatBinding, pt string) (pnat.BindingSpec, boo
 	return spec, true
 }
 
-func pnatBuild(s Sink, p *vrxv1.PnatConfig) {
+func pnatBuild(s Sink, p *ngfwv1.PnatConfig) {
 	if p == nil {
 		return
 	}
@@ -180,7 +180,7 @@ func optPort(v uint32) *uint32 {
 }
 
 // assemblePnat rebuilds nat.pnat from the retrieved bindings (Extra = 0 only) and attachments.
-func assemblePnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
+func assemblePnat(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 	var (
 		bs  []pnat.BindingSpec
 		ats []pnat.AttachmentSpec
@@ -201,16 +201,16 @@ func assemblePnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		return
 	}
 	sort.Slice(bs, func(a, b int) bool { return pnat.BindingID(bs[a]) < pnat.BindingID(bs[b]) })
-	p := &vrxv1.PnatConfig{}
+	p := &ngfwv1.PnatConfig{}
 	names := map[string]string{}
 	for i, b := range bs {
 		name := "pnat-" + strconv.Itoa(i+1)
 		names[pnat.BindingID(b)] = name
-		pb := &vrxv1.PnatBinding{
+		pb := &ngfwv1.PnatBinding{
 			Name: proto.String(name),
-			Match: &vrxv1.PnatMatch{Proto: optStr(b.Match.Proto), Src: optStr(b.Match.Src), Sport: optPort(b.Match.SrcPort),
+			Match: &ngfwv1.PnatMatch{Proto: optStr(b.Match.Proto), Src: optStr(b.Match.Src), Sport: optPort(b.Match.SrcPort),
 				Dst: optStr(b.Match.Dst), Dport: optPort(b.Match.DstPort)},
-			Rewrite: &vrxv1.PnatRewrite{Src: optStr(b.Rewrite.Src), Sport: optPort(b.Rewrite.SrcPort),
+			Rewrite: &ngfwv1.PnatRewrite{Src: optStr(b.Rewrite.Src), Sport: optPort(b.Rewrite.SrcPort),
 				Dst: optStr(b.Rewrite.Dst), Dport: optPort(b.Rewrite.DstPort)},
 		}
 		p.Bindings = append(p.Bindings, pb)
@@ -230,7 +230,7 @@ func assemblePnat(out *vrxv1.NatConfig, kvs []scheduler.KV) {
 		if !ok {
 			name = a.Binding // binding not retrieved (foreign or gone): keep the id so the drift is visible
 		}
-		p.Attachments = append(p.Attachments, &vrxv1.PnatAttachment{Binding: proto.String(name), Interface: proto.String(a.Interface), Point: proto.String(a.Point)})
+		p.Attachments = append(p.Attachments, &ngfwv1.PnatAttachment{Binding: proto.String(name), Interface: proto.String(a.Interface), Point: proto.String(a.Point)})
 	}
 	out.Pnat = p
 }
@@ -242,7 +242,7 @@ func (discardSink) Errorf(string, string, string, ...any)    {}
 func (discardSink) Warnf(string, string, string, ...any)     {}
 
 // pnatID is the binding id (match tuple) of a document binding; ok false when it does not project.
-func pnatID(b *vrxv1.PnatBinding) (string, bool) {
+func pnatID(b *ngfwv1.PnatBinding) (string, bool) {
 	spec, ok := pnatBinding(discardSink{}, b, "")
 	if !ok {
 		return "", false
@@ -253,7 +253,7 @@ func pnatID(b *vrxv1.PnatBinding) (string, bool) {
 // RelabelPnat gives a retrieved nat.pnat the binding names and the binding / attachment order of ref (the last
 // applied document), matched by binding id (the match tuple), so Retrieve equals the applied document and drift stays
 // empty. Retrieved bindings ref does not have keep their pnat-<n> names and follow the matched ones.
-func RelabelPnat(got, ref *vrxv1.PnatConfig) {
+func RelabelPnat(got, ref *ngfwv1.PnatConfig) {
 	if got == nil || ref == nil {
 		return
 	}
@@ -305,10 +305,10 @@ func RelabelPnat(got, ref *vrxv1.PnatConfig) {
 	for i, a := range ref.GetAttachments() {
 		refA[a.GetInterface()+"/"+a.GetPoint()+"/"+refNameID[a.GetBinding()]] = i
 	}
-	aKey := func(a *vrxv1.PnatAttachment) string {
+	aKey := func(a *ngfwv1.PnatAttachment) string {
 		return a.GetInterface() + "/" + a.GetPoint() + "/" + gotID[a.GetBinding()]
 	}
-	aRank := func(a *vrxv1.PnatAttachment) int {
+	aRank := func(a *ngfwv1.PnatAttachment) int {
 		if i, ok := refA[aKey(a)]; ok {
 			return i
 		}

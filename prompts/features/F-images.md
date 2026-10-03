@@ -1,19 +1,19 @@
 # Task: F-images — VM and cloud image builds   (prepend 00-CONTEXT.md)
 
 ## Goal
-Produce VRX appliance disk images for hypervisors and clouds (WBS D11.2 T1: KVM/VMware/Hyper-V/Proxmox images + SR-IOV/PCI-passthrough notes;
+Produce NGFW appliance disk images for hypervisors and clouds (WBS D11.2 T1: KVM/VMware/Hyper-V/Proxmox images + SR-IOV/PCI-passthrough notes;
 D11.1 T2: AWS/Azure/GCP images, cloud-init, ENA/Hyper-V drivers) from the same package set as the installer ISO. FAST MODE: **build and
 validate the artefacts offline**; booting them needs KVM or cloud accounts, which this host does not have (D-002) — that part is deferred.
 
 ## Inputs to read first
 - `prompts/P14-iso-installer.md` — autoinstall `user-data`, partition layout, first-boot banner, offline pool; reuse its package list/pool, do not fork it
-- `prompts/P10-packaging-deb.md` — `vrx-meta` and the local APT repo; `prompts/features/F-vpp-debs.md` — our VPP debs + `manifest.json`
+- `prompts/P10-packaging-deb.md` — `ngfw-meta` and the local APT repo; `prompts/features/F-vpp-debs.md` — our VPP debs + `manifest.json`
 - `docs/09-os-packages.md` §4 (kernel cmdline, hugepages) and §7 (partition layout incl. rootA/rootB for F-ab-upgrade)
 - `docs/decisions/LOG.md` D-001 (Ubuntu 26.04, our VPP debs), D-002 (no Docker, no libvirt/nested KVM), D-059
-- `docs/agent/renderers/vppstartup.md` (F-startup-gen, merged) — P10's firstboot renders startup.conf with `vrx-startupgen`; with no devices
+- `docs/agent/renderers/vppstartup.md` (F-startup-gen, merged) — P10's firstboot renders startup.conf with `ngfw-startupgen`; with no devices
   VPP boots `dpdk { no-pci }` until the hardware wizard binds NICs, as in P14 (there is no `dpdk { disable }` stanza)
 - P14's merged `deploy/image/common/` (package list, first-boot banner, bootstrap password) and P10's published repo under
-  `/srv/vrx-artifacts/apt/` — reuse, do not fork
+  `/srv/ngfw-artifacts/apt/` — reuse, do not fork
 - Host facts (verified 2026-09-24; no host package installs): present — debootstrap (`resolute`), qemu-img (qcow2/vmdk/vhdx), sfdisk,
   losetup, mkfs.ext4, grub-install (**x86_64-efi only**), zstd, gpg; absent — mmdebstrap, virt-inspector/guestfish, mkfs.vfat/mtools,
   GRUB i386-pc (BIOS), cloud-init, ovftool → run them inside a build chroot under `.scratch/` (installed there from the mirror
@@ -23,7 +23,7 @@ validate the artefacts offline**; booting them needs KVM or cloud accounts, whic
 ## Scope — build exactly this
 1. **Builder** `deploy/image/vm/build.sh`: debootstrap (or `mmdebstrap`) Ubuntu 26.04 into a raw sparse image with the §7 layout (GPT, EFI, rootA,
    rootB reserved, /var/log, /var/lib/postgresql, /data) on a loop device under `/root/ngfw-wt/F-images/.scratch/` (git-ignored, cleaned up),
-   install `vrx-meta` from the local repo, install GRUB for UEFI + BIOS, cloud-init with the NoCloud + ConfigDrive datasources, serial console
+   install `ngfw-meta` from the local repo, install GRUB for UEFI + BIOS, cloud-init with the NoCloud + ConfigDrive datasources, serial console
    enabled, no default password (bootstrap password printed once as in P14), machine-id emptied, SSH host keys regenerated on first boot.
 2. **Formats**: `qemu-img convert` → `qcow2` (KVM/Proxmox), `vmdk` streamOptimized + `.ovf/.ova` (VMware, vmxnet3), `vhdx` (Hyper-V); each with
    SHA256 + manifest (package versions incl. VPP). Long builds (> 8 min) via `nohup … > /root/ngfw-wt/logs/F-images-build.log 2>&1 &`, polled.
@@ -38,11 +38,11 @@ validate the artefacts offline**; booting them needs KVM or cloud accounts, whic
 
 Files you own: `deploy/image/vm/**`, `deploy/image/cloud/**`, `docs/install/images.md`, `test/topology/images/**`. Shared files: none — P14's
 `deploy/image/iso/**`, `deploy/image/common/**` and `deploy/image/build-iso.sh` are read-only for you (a needed change to common → questions
-file). Image builds as root only behind `VRX_INTEGRATION=1`; ci.sh runs `test/**` Go modules in unit mode, where they must skip.
+file). Image builds as root only behind `NGFW_INTEGRATION=1`; ci.sh runs `test/**` Go modules in unit mode, where they must skip.
 
 ## Acceptance (paste the evidence)
 - [ ] One full build producing qcow2 + ova + vhdx with SHA256SUMS and manifest (pasted `ls -l`, `qemu-img info`)
-- [ ] Offline inspection output: partition table, fstab, `vrx-meta` + VPP 26.06 versions, cloud-init datasources, no `/etc/ssh/ssh_host_*`, empty machine-id
+- [ ] Offline inspection output: partition table, fstab, `ngfw-meta` + VPP 26.06 versions, cloud-init datasources, no `/etc/ssh/ssh_host_*`, empty machine-id
 - [ ] This host unchanged: none of your loop devices left (`losetup -a` filtered to your `.scratch/` backing files — P14/F-ab-upgrade may
       hold their own at the same time), no mounts left (`findmnt | grep F-images` empty), `/boot` untouched (sha256 of `grubenv` before/after)
 - [ ] Boot on KVM/VMware/Hyper-V and cloud import **deferred** with an exact test plan in `docs/status/tasks/F-images.md`

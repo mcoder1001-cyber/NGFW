@@ -13,7 +13,7 @@ import (
 	"ngfw/cli/internal/api/opgen"
 )
 
-// The committed table must be what vrx-opgen makes of the current OpenAPI document (written by `pnpm gen`; the
+// The committed table must be what ngfw-opgen makes of the current OpenAPI document (written by `pnpm gen`; the
 // test skips when it has not been generated in this checkout).
 func TestOperationsTableMatchesOpenAPI(t *testing.T) {
 	doc, err := os.ReadFile("../../../../packages/api-client/openapi.json")
@@ -46,6 +46,23 @@ func TestGenerateFromFixture(t *testing.T) {
 		if !strings.Contains(string(src), want) {
 			t.Errorf("generated source lacks %s:\n%s", want, src)
 		}
+	}
+}
+
+func TestPkiPublicExportSelection(t *testing.T) {
+	c, err := New("http://127.0.0.1:3000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"certificate", "ca", "crl"} {
+		u, _, err := c.URL(Call{Op: "Pki_export", Params: map[string]string{"name": "issuer"}, Query: url.Values{"kind": {kind}}})
+		want := "http://127.0.0.1:3000/api/v1/actions/pki/export/issuer?kind=" + kind
+		if err != nil || u != want {
+			t.Errorf("public %s export URL = %q, %v; want %q", kind, u, err, want)
+		}
+	}
+	if _, _, err := c.URL(Call{Op: "Pki_export", Params: map[string]string{"name": "issuer"}, Query: url.Values{"force": {"true"}}}); err == nil {
+		t.Error("undocumented export query parameter must be refused")
 	}
 }
 
@@ -94,16 +111,16 @@ func TestProblemAndCredentialsNotLogged(t *testing.T) {
 	c, _ := New(srv.URL)
 	var dbg bytes.Buffer
 	c.Debug = &dbg
-	c.Cred = Key("vrxk_" + strings.Repeat("s", 20))
+	c.Cred = Key("ngfwk_" + strings.Repeat("s", 20))
 	_, err := c.Do(context.Background(), Call{Op: "Config_validate"})
 	ae, ok := err.(*Error)
 	if !ok || ae.Status != 400 || ae.Problem == nil || ae.Problem.Errors[0].Pointer != "/interfaces/x/mtu" {
 		t.Fatalf("problem not decoded: %#v", err)
 	}
-	if gotAuth != "ApiKey vrxk_"+strings.Repeat("s", 20) {
+	if gotAuth != "ApiKey ngfwk_"+strings.Repeat("s", 20) {
 		t.Errorf("Authorization header %q", gotAuth)
 	}
-	if strings.Contains(dbg.String(), "vrxk_") || !strings.Contains(dbg.String(), "POST /api/v1/config/validate → 400") {
+	if strings.Contains(dbg.String(), "ngfwk_") || !strings.Contains(dbg.String(), "POST /api/v1/config/validate → 400") {
 		t.Errorf("debug output: %q", dbg.String())
 	}
 }

@@ -2,7 +2,7 @@
 
 Branch `task/F-startup-apply` @ 00315f4, base main. Run on the host, read-only: `apply-startup.sh` was **never** run with
 `--apply` against real paths; VPP was not restarted; no NIC was bound or unbound; nothing was written under `/etc`. Probes
-reused the fake-host harness from a scratch copy (outside the repo). The only real-host actions: `vrx-vppcheck` read-only
+reused the fake-host harness from a scratch copy (outside the repo). The only real-host actions: `ngfw-vppcheck` read-only
 calls, `ip -j addr/route` reads, one `ping` to the gateway, and one throwaway transient unit (`systemd-run
 --unit=review-nrestarts-<pid> /bin/sh -c 'sleep 0.3; exit 1'`, stopped and collected) to check NRestarts semantics.
 
@@ -13,9 +13,9 @@ calls, `ip -j addr/route` reads, one `ping` to the gateway, and one throwaway tr
 | `tools/ci.sh --base main` | **CI GATE PASSED** (quick, wall 3m22s, logs `/root/ngfw-wt/logs/ci/F-startup-apply-20260924-034940-2573389`) — matches the pasted run |
 | `shellcheck deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh` | clean (exit 0) |
 | `deploy/vpp/test-apply-startup.sh` (builds the generator) | `72 passed, 0 failed` (4m05s) — matches |
-| `vrx-vppcheck` against the real VPP | `version` → `vpp 26.06-release` 0; `ifaces local0` → present 0; `ifaces local0 wan` → `missing: wan` 1; `ifaces loc` → `missing: loc` 1 (exact match, not substring); `plugins` → 87 rows; `--socket /run/vpp/cli.sock --timeout 2s version` → exit 2 after 2.02 s |
+| `ngfw-vppcheck` against the real VPP | `version` → `vpp 26.06-release` 0; `ifaces local0` → present 0; `ifaces local0 wan` → `missing: wan` 1; `ifaces loc` → `missing: loc` 1 (exact match, not substring); `plugins` → 87 rows; `--socket /run/vpp/cli.sock --timeout 2s version` → exit 2 after 2.02 s |
 | contract / binapi | no diff under `packages/schema`, `packages/proto`, generated code, `apps/agent/binapi`, `tools/binapi-gen.sh`; the checker uses only generated bindings (`vpe.ShowVersion`, `vlib.CliInband`, `interface.SwInterfaceDump`) |
-| security grep | no `exec.Command` in `vrx-vppcheck`; no `eval` in the script; settings loaded with `printf -v`; restore plan token-checked before use |
+| security grep | no `exec.Command` in `ngfw-vppcheck`; no `eval` in the script; settings loaded with `printf -v`; restore plan token-checked before use |
 | committed `.pyc` / `vpp-iface-check.py` | gone (`git ls-files deploy/vpp` = the two scripts) |
 | scope | only owned files touched |
 
@@ -24,8 +24,8 @@ calls, `ip -j addr/route` reads, one `ping` to the gateway, and one throwaway tr
 | # | verdict | evidence |
 |---|---|---|
 | N1 hung VPP / no timeouts | **FIXED** | every call through `tmo`/`svc`/`vppcheck` (`apply-startup.sh:141-145`) with lock fds closed; checker has ctx deadline + hard `os.Exit` backstop (`main.go:114-121`); dead-man kills the run (`:550-566`), bounded lock wait, rolls back. Fake scenarios 5, 15, 16, 17, 20 pass. But the "rolls back without the lock" choice creates M1 |
-| N2 ifupdown mgmt restore | **FIXED** (restore) | exact `ip addr/route replace` plan from `ip -j` snapshot (`:194-218, 358-389`), then `ifup --force` / `networkctl reconfigure` / `netplan apply`; scenarios 8–11, 25. The *verification* of the path that follows the restore is broken on vrx-a — H2 |
-| N3 checker cannot run on vrx-a | **FIXED** | Go binary on the agent's client; real read-only run above; preflight `ifaces local0` in the dry run and inside the lock (`:272, 493`) |
+| N2 ifupdown mgmt restore | **FIXED** (restore) | exact `ip addr/route replace` plan from `ip -j` snapshot (`:194-218, 358-389`), then `ifup --force` / `networkctl reconfigure` / `netplan apply`; scenarios 8–11, 25. The *verification* of the path that follows the restore is broken on ngfw-a — H2 |
+| N3 checker cannot run on ngfw-a | **FIXED** | Go binary on the agent's client; real read-only run above; preflight `ifaces local0` in the dry run and inside the lock (`:272, 493`) |
 | N4 mgmt = default route only | **PARTIAL** | script side done: v4+v6 defaults, route to `$SSH_CONNECTION`/`--mgmt-peer`, `--mgmt-if`, device-less taps skipped (`:165-178`). Generator side (`hostfacts.go`) not in this task's files — still open; L2 |
 | N5 rendering not pinned | **FIXED** | `--expect-new-sha256` compared inside the lock (`:490-492`); generator, checker, script and doc copied into `<work>/bin` (`:452-460`); scenario 4 |
 | N6 D-084 omission rolled back | **FIXED** | exemption `:333-335`; scenario 13 |
@@ -38,12 +38,12 @@ calls, `ip -j addr/route` reads, one `ping` to the gateway, and one throwaway tr
 
 ## New findings (by severity)
 
-### H1 — HIGH (blocking): every apply on vrx-a rolls back — `systemctl restart` resets `NRestarts`
+### H1 — HIGH (blocking): every apply on ngfw-a rolls back — `systemctl restart` resets `NRestarts`
 `deploy/vpp/apply-startup.sh:504` (recorded before the restart), `:323` (compared after)
 
 `NRestarts` is recorded **before** `systemctl restart vpp` and must stay equal afterwards. systemd resets `NRestarts` to 0
 on an explicit start/restart job. Verified on this host with a throwaway transient unit (`Restart=always`, exits 1):
-`NRestarts` 4 → `systemctl restart` → **0**. vrx-a's `vpp.service` has `NRestarts=4` today (D-087 crashes). So the first
+`NRestarts` 4 → `systemctl restart` → **0**. ngfw-a's `vpp.service` has `NRestarts=4` today (D-087 crashes). So the first
 `check_health` after a perfectly healthy restart reports "restarted by itself (NRestarts 4 → 0)" and rolls back (two VPP
 restarts for nothing). Reproduced in the fake harness by modelling the reset (`echo 4 > nrestarts`; restart hook writes 0):
 ```
@@ -54,10 +54,10 @@ The harness keeps NRestarts constant across `restart`, which is why scenario 6 p
 `svc restart vpp` returns (before `wait_api`), or compare `ExecMainPID`/`ExecMainStartTimestampMonotonic` against the
 values read right after the restart; model the reset in the fake `systemctl` and add the scenario.
 
-### H2 — HIGH (blocking): the gateway on vrx-a does not answer ping → every apply rolls back, and the rollback ends "incomplete"
+### H2 — HIGH (blocking): the gateway on ngfw-a does not answer ping → every apply rolls back, and the rollback ends "incomplete"
 `apply-startup.sh:315-318` (`check_mgmt`), used by `check_health` (`:342`) **and** the rollback verdict (`:412`)
 
-A management interface is healthy only if `ping -c 1 -W 2 -I <dev> <gw>` answers. On vrx-a the gateway 172.30.126.1 does
+A management interface is healthy only if `ping -c 1 -W 2 -I <dev> <gw>` answers. On ngfw-a the gateway 172.30.126.1 does
 not answer ICMP (3/3 lost, `ip neigh` = `REACHABLE`, SSH works). Consequence on the real host: healthy apply → "gateway
 does not answer" → rollback → rollback verification uses the same check → `rollback-incomplete` (dead-man left armed) →
 the dead-man fires later, kills nothing, rolls back **again** (a third VPP restart), again "incomplete", and the manager is
@@ -138,7 +138,7 @@ Add it in `dry_run` too.
 - Flag abuse: M2. Temp files/permissions: work dir 0750, doc 0640, root-owned; L3 tmp leak. Injection: none found.
 - `set -euo pipefail`: health/rollback checks run in `if`/`$(…)` contexts with explicit returns; no swallowed error found that
   hides a failure, only `|| true` on best-effort restore steps (intended).
-- vrx-vppcheck: healthy = `show_version` answers, `show plugins` has ≥1 row, every name exact-matches `sw_interface_dump`;
+- ngfw-vppcheck: healthy = `show_version` answers, `show plugins` has ≥1 row, every name exact-matches `sw_interface_dump`;
   deadline on connect + requests + hard exit. Hang *after* connect is not unit-tested (acknowledged), backstop covers it.
 
 **BLOCK**

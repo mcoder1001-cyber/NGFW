@@ -7,8 +7,12 @@ import type { DomainTab } from '../DomainTabsPage';
  * (nav/nav.ts) in the same change. Empty: the page renders the domain placeholder (W-seed shell).
  */
 export const vpnTabs: readonly DomainTab[] = [
-  // wave-BC: F-pki
   // wave-BC: F-ikev2-native
+  {
+    id: 'ipsec',
+    labelKey: 'ipsec:tab',
+    Component: lazy(() => import('./ipsec/IpsecPage').then((m) => ({ default: m.IpsecPage }))),
+  },
   // wave-BC: F-srv6
   {
     id: 'srv6',
@@ -25,6 +29,14 @@ export const vpnTabs: readonly DomainTab[] = [
     labelKey: 'wireguard:tab',
     Component: lazy(() =>
       import('./wireguard/WireguardPage').then((m) => ({ default: m.WireguardPage })),
+    ),
+  },
+  // wave-BC: F-pki
+  {
+    id: 'pki',
+    labelKey: 'pkiInventory:title',
+    Component: lazy(() =>
+      import('./pki/PkiInventoryPanel').then((m) => ({ default: m.PkiInventoryPanel })),
     ),
   },
 ];

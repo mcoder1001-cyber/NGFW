@@ -60,6 +60,15 @@ export function useStartCapture() {
   });
 }
 
+export function useStopCapture() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) =>
+      call(api.POST('/api/v1/actions/capture/{id}/stop', { params: { path: { id } } })),
+    onSettled: () => qc.invalidateQueries({ queryKey: KEY }),
+  });
+}
+
 export function useDeleteCapture() {
   const qc = useQueryClient();
   return useMutation({

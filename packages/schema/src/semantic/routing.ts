@@ -1,3 +1,4 @@
+import { interfaceIndex } from './tunnels-common.js';
 import { interfaceNames } from '../domains/interfaces.js';
 import {
   BGP_AFIS,
@@ -23,6 +24,10 @@ type Path = readonly (string | number)[];
 type Protocol = 'bgp' | 'ospf' | 'isis' | 'rip';
 const PROTOCOLS: readonly Protocol[] = ['bgp', 'ospf', 'isis', 'rip'];
 const IGPS = ['ospf', 'isis', 'rip'] as const;
+
+function routingInterfaceNames(config: RootConfig): Set<string> {
+  return new Set(interfaceIndex(config, true).keys());
+}
 
 /** Collects `{ pointer, message }` for references that do not resolve. */
 class Refs {
@@ -91,9 +96,9 @@ export const routingValidators: readonly ValidatorDefinition[] = [
   },
   {
     name: 'routing.static-nexthop-interface-exists',
-    domains: ['routing', 'interfaces'],
+    domains: ['routing', 'interfaces', 'tunnels'],
     validate: (config) => {
-      const names = interfaceNames(config.interfaces);
+      const names = routingInterfaceNames(config);
       const refs = new Refs('interface', (name) => names.has(name));
       for (const [i, route] of config.routing.static.entries()) {
         for (const [j, hop] of route.nextHops.entries()) {

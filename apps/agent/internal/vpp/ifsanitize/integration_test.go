@@ -494,7 +494,7 @@ func TestV19FreedTableOnHost(t *testing.T) {
 	if _, err := fmt.Sscanf(holder.InterfaceName, "loop%d", &hinst); err != nil || hinst < ifsanitize.QuarantineInstanceMin || hinst > ifsanitize.QuarantineInstanceMax {
 		t.Errorf("quarantine holder %q is not in the reserved range loop%d–loop%d", holder.InterfaceName, ifsanitize.QuarantineInstanceMin, ifsanitize.QuarantineInstanceMax)
 	}
-	t.Logf("quarantine: %s created on fresh sw_if_index %d; dirty %d held by %s (tag %q, admin-down); gauge vrx_agent_iface_quarantined=%d",
+	t.Logf("quarantine: %s created on fresh sw_if_index %d; dirty %d held by %s (tag %q, admin-down); gauge ngfw_agent_iface_quarantined=%d",
 		obj2.Name, idx2, c, holder.InterfaceName, holder.Tag, ifsanitize.Snapshot().Quarantined)
 	findings, err := ifsanitize.Preflight(h.ctx, h.c)
 	h.must("Preflight", err)

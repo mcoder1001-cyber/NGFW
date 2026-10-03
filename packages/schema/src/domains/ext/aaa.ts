@@ -92,7 +92,7 @@ export const AaaMfaSchema = z.strictObject({
       .string()
       .max(64)
       .regex(/^[\x20-\x7e]+$/, 'printable ASCII')
-      .default('vrx'),
+      .default('ngfw'),
     {
       title: 'Issuer',
       help: 'label shown in the authenticator app',

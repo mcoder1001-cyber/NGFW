@@ -13,5 +13,5 @@ Model `l2tp.Tunnel`: `name`, `client_address`, `our_address` (IPv6), `local_sess
 `local_cookie`, `remote_cookie`, `l2_sublayer_present`, `encap_vrf_id`.
 
 Limitations: VPP 26.06 has **no L2TPv3 tunnel delete message** — Delete returns `df6.ErrNoDelete`; a created tunnel
-lives until VPP restarts, so the host test creates one only with `VRX_DF6_L2TP_CREATE=1`. The lookup key is global and
+lives until VPP restarts, so the host test creates one only with `NGFW_DF6_L2TP_CREATE=1`. The lookup key is global and
 has no getter (tests never change it). DF-6-questions Q2.

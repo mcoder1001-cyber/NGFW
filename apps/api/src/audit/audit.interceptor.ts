@@ -10,7 +10,7 @@ import { ApiResponse } from '@nestjs/swagger';
 import { MergePatchError } from '@ngfw/schema';
 import { catchError, from, mergeMap, type Observable, throwError } from 'rxjs';
 import { NO_AUDIT_KEY } from '../auth/decorators.js';
-import { sourceIp, type VrxRequest } from '../common/principal.js';
+import { sourceIp, type NgfwRequest } from '../common/principal.js';
 import { ProblemError } from '../common/problem.js';
 import { ref } from '../common/zod.js';
 import { AuditService, type AuditEntry } from './audit.service.js';
@@ -30,6 +30,12 @@ export const PRIVILEGED_ROUTES: ReadonlySet<string> = new Set([
   'DELETE /api/v1/auth/api-keys/:id',
   'POST /api/v1/secrets',
   'DELETE /api/v1/secrets/:kind/:name',
+  // F-pki: these actions create or replace encrypted secret material.
+  'POST /api/v1/actions/pki/ca',
+  'POST /api/v1/actions/pki/csr',
+  'POST /api/v1/actions/pki/sign',
+  'POST /api/v1/actions/pki/import',
+  'POST /api/v1/actions/pki/crl/refresh',
 ]);
 
 /** 503 `audit-unavailable`: a privileged change refused because its audit row could not be written first. */
@@ -70,7 +76,7 @@ export class AuditInterceptor implements NestInterceptor {
   ) {}
 
   intercept(ctx: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const req = ctx.switchToHttp().getRequest<VrxRequest>();
+    const req = ctx.switchToHttp().getRequest<NgfwRequest>();
     if (
       !MUTATING.has(req.method) ||
       this.reflector.getAllAndOverride<boolean>(NO_AUDIT_KEY, [ctx.getHandler(), ctx.getClass()])

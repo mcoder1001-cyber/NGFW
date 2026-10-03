@@ -11,31 +11,31 @@ import { runSecret, startHarness, type Harness } from '../support/harness.js';
 const PW = { ro: runSecret() };
 
 /**
- * P06 §10 agent e2e against the REAL agent (P05) and the real VPP on this host. Runs only with VRX_INTEGRATION=1,
+ * P06 §10 agent e2e against the REAL agent (P05) and the real VPP on this host. Runs only with NGFW_INTEGRATION=1,
  * under the shared lab lock (tools/ci.sh full holds it; by hand: `tools/lab lock shared pnpm test:integration`), and
- * only when the agent binary (VRX_AGENT_BIN, else apps/agent/bin/vrx-agent) actually serves `vrx.v1.Dataplane`: the
- * probe below starts it as VRX_OWNER=<prefix> on the slot socket and calls Health. Before P05 merges, main's binary is
+ * only when the agent binary (NGFW_AGENT_BIN, else apps/agent/bin/ngfw-agent) actually serves `ngfw.v1.Dataplane`: the
+ * probe below starts it as NGFW_OWNER=<prefix> on the slot socket and calls Health. Before P05 merges, main's binary is
  * a skeleton that never opens the socket → the suite is skipped with that reason (the fake-agent e2e covers the API
  * side meanwhile). Objects: loop<slot>xx / 10.<slot>.0.0/16 (shared-host rules).
  */
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
-const BIN = process.env['VRX_AGENT_BIN'] ?? resolve(REPO, 'apps/agent/bin/vrx-agent');
-const PREFIX = process.env['VRX_TEST_PREFIX'] ?? 'w1';
-const SOCKET = process.env['VRX_AGENT_SOCKET'] ?? `/run/vrx-test/${PREFIX}/agent.sock`;
-const STATE_DIR = process.env['VRX_AGENT_STATE_DIR'] ?? `${dirname(SOCKET)}/agent-state`;
+const BIN = process.env['NGFW_AGENT_BIN'] ?? resolve(REPO, 'apps/agent/bin/ngfw-agent');
+const PREFIX = process.env['NGFW_TEST_PREFIX'] ?? 'w1';
+const SOCKET = process.env['NGFW_AGENT_SOCKET'] ?? `/run/ngfw-test/${PREFIX}/agent.sock`;
+const STATE_DIR = process.env['NGFW_AGENT_STATE_DIR'] ?? `${dirname(SOCKET)}/agent-state`;
 const SLOT = Number(/(\d+)$/.exec(PREFIX)?.[1] ?? '1');
 
 function startAgent(): ChildProcess {
   rmSync(SOCKET, { force: true });
   mkdirSync(dirname(SOCKET), { recursive: true });
-  return spawn(BIN, (process.env['VRX_AGENT_ARGS'] ?? '').split(' ').filter(Boolean), {
+  return spawn(BIN, (process.env['NGFW_AGENT_ARGS'] ?? '').split(' ').filter(Boolean), {
     env: {
       ...process.env,
-      VRX_OWNER: PREFIX,
-      VRX_AGENT_SOCKET: SOCKET,
-      // slot-scoped state and metrics (shared-host rules): never /var/lib/vrx/agent or :9101
-      VRX_AGENT_STATE_DIR: STATE_DIR,
-      VRX_METRICS_PORT: process.env['VRX_METRICS_PORT'] ?? String(9100 + 10 * SLOT + 1),
+      NGFW_OWNER: PREFIX,
+      NGFW_AGENT_SOCKET: SOCKET,
+      // slot-scoped state and metrics (shared-host rules): never /var/lib/ngfw/agent or :9101
+      NGFW_AGENT_STATE_DIR: STATE_DIR,
+      NGFW_METRICS_PORT: process.env['NGFW_METRICS_PORT'] ?? String(9100 + 10 * SLOT + 1),
     },
     stdio: ['ignore', 'inherit', 'inherit'],
   });
@@ -50,14 +50,14 @@ async function waitForSocket(ms: number): Promise<boolean> {
 
 /** Why the suite cannot run, or undefined when a real agent answered Health on the slot socket. */
 async function probe(): Promise<string | undefined> {
-  if (process.env['VRX_INTEGRATION'] !== '1') return 'VRX_INTEGRATION is not 1';
-  if (!existsSync(BIN)) return `no agent binary at ${BIN} (set VRX_AGENT_BIN)`;
+  if (process.env['NGFW_INTEGRATION'] !== '1') return 'NGFW_INTEGRATION is not 1';
+  if (!existsSync(BIN)) return `no agent binary at ${BIN} (set NGFW_AGENT_BIN)`;
   const child = startAgent();
   try {
     if (!(await waitForSocket(10_000))) {
-      return `${BIN} did not open ${SOCKET} within 10 s — not a vrx.v1.Dataplane server yet (P05 not merged)`;
+      return `${BIN} did not open ${SOCKET} within 10 s — not a ngfw.v1.Dataplane server yet (P05 not merged)`;
     }
-    const client = new AgentClient(loadEnv({ VRX_AGENT_SOCKET: SOCKET, VRX_AGENT_OWNER: PREFIX }));
+    const client = new AgentClient(loadEnv({ NGFW_AGENT_SOCKET: SOCKET, NGFW_AGENT_OWNER: PREFIX }));
     try {
       const h = await client.health(3000);
       return h.owner === PREFIX
@@ -78,7 +78,7 @@ const reason = await probe();
 const enabled = reason === undefined;
 if (!enabled) console.warn(`agent integration test skipped: ${reason}`);
 
-describe.skipIf(!enabled)('agent integration (real vrx-agent + VPP)', () => {
+describe.skipIf(!enabled)('agent integration (real ngfw-agent + VPP)', () => {
   let h: Harness;
   let agent: ChildProcess | undefined;
   let admin: string;
@@ -96,7 +96,7 @@ describe.skipIf(!enabled)('agent integration (real vrx-agent + VPP)', () => {
       timeout: 20_000,
       interval: 200,
     });
-    h = await startHarness({ VRX_AGENT_SOCKET: socket, VRX_AGENT_OWNER: prefix });
+    h = await startHarness({ NGFW_AGENT_SOCKET: socket, NGFW_AGENT_OWNER: prefix });
     admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [{ username: 'ro9', role: 'readonly', password: PW.ro }]);
     ro = await h.login('ro9', PW.ro);

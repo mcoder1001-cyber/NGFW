@@ -17,5 +17,5 @@ Projection (`internal/desired/gso.go`): `interfaces.<if>.gso: true` → `gso.int
 `gso: true`, and `gso: false` where the stored document sets the key and VPP has no GSO.
 
 Unit tests (`gso_test.go`, a fake modelling the stacking enable and the out-of-range read-back): `TestGSOAppliedOnce`.
-Host evidence (`VRX_INTEGRATION=1`): `TestGSOOnHost` (three Creates then ONE Delete leaves it off — not stacked; Retrieve ==
+Host evidence (`NGFW_INTEGRATION=1`): `TestGSOOnHost` (three Creates then ONE Delete leaves it off — not stacked; Retrieve ==
 desired; loss behind the agent's back restored once) and `TestGSONotInheritedOnHost`.

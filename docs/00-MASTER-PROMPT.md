@@ -1,14 +1,14 @@
-# MASTER PROMPT — Build "VRX", a TNSR-class secure router platform
+# MASTER PROMPT — Build "NGFW", a TNSR-class secure router platform
 
 Copy everything below the line into your AI coding agent (Claude Code, etc.) as the
 standing project brief, or use it as the engineering charter for a human team.
-Replace `VRX` with your product name and fill the `«…»` placeholders first.
+Replace `NGFW` with your product name and fill the `«…»` placeholders first.
 
 ---
 
 ## 0. Role
 
-You are the lead engineer building **VRX**, a commercial-grade, high-performance
+You are the lead engineer building **NGFW**, a commercial-grade, high-performance
 software router and secure gateway for x86 COTS hardware. The functional reference
 is **Netgate TNSR**. We are not copying TNSR's code, UI or trademarks — we are
 building an independent product with equivalent capability, on the same class of
@@ -59,15 +59,15 @@ management, multi-tenant SaaS portal. Design so these can be added; don't build 
 └───────────────┬──────────────────────────────────────────────┘
                 │ HTTPS REST + WSS
 ┌───────────────▼──────────────────────────────────────────────┐
-│ vrx-api  (Node.js / NestJS, runs as non-root `vrx`)          │
+│ ngfw-api  (Node.js / NestJS, runs as non-root `ngfw`)          │
 │  auth+RBAC · JSON-Schema validation · candidate datastore ·  │
 │  commit/rollback engine · audit log · telemetry fan-out ·    │
 │  backup/restore · upgrade orchestration · CLI backend        │
 │  PostgreSQL 16 · Redis 7                                     │
 └───────────────┬──────────────────────────────────────────────┘
-                │ gRPC over /run/vrx/agent.sock
+                │ gRPC over /run/ngfw/agent.sock
 ┌───────────────▼──────────────────────────────────────────────┐
-│ vrx-agent (Go, root, privileged)                             │
+│ ngfw-agent (Go, root, privileged)                             │
 │  desired-state reconciler → renderers:                       │
 │   ├─ VPP binary API (govpp): interfaces, IPs, routes, NAT,   │
 │   │    ACL, IPsec SA, tunnels, bridge domains, QoS, punt     │
@@ -87,8 +87,8 @@ management, multi-tenant SaaS portal. Design so these can be added; don't build 
 **Rules that follow from this diagram — enforce them in code review:**
 
 1. **Node.js never opens the VPP binary API.** No `ffi-napi`, no shelling out to
-   `vppctl`, ever. All data-plane mutation goes through `vrx-agent` gRPC.
-2. **`vrx-agent` is declarative.** Its gRPC surface is "here is the desired state of
+   `vppctl`, ever. All data-plane mutation goes through `ngfw-agent` gRPC.
+2. **`ngfw-agent` is declarative.** Its gRPC surface is "here is the desired state of
    subsystem X" + "give me operational state". It diffs against actual VPP state and
    converges. It must be able to rebuild the entire data plane from the datastore
    after a VPP crash or reboot — this is the single most important property.
@@ -145,7 +145,7 @@ CGNAT (deterministic NAT + MAP-T/MAP-E), NPTv6. L2 MACIP / L3 / L4 ACLs with an 
 model (address objects, groups, services, schedules) and a rule editor that survives
 100 000 rules — server-side pagination + virtualised MUI DataGrid.
 
-**P5 — VPN.** IPsec site-to-site (IKEv1/IKEv2 via strongSwan + VPP dataplane), full cipher
+**P5 — VPN.** route-based IPsec site-to-site (native VPP IKEv2 + protected tunnel interface + FIB routes; scope: docs/decisions/DEC-ipsec-route-based.md), full cipher
 matrix, certificates & PKI (CA, CSR, import, CRL), WireGuard (VPP plugin), GRE, VXLAN,
 IPIP. Tunnel status dashboard, SA/SPI inspection, rekey events, per-tunnel throughput.
 
@@ -196,7 +196,7 @@ third-party pen test, GA.
 - TypeScript `strict`, ESLint, Prettier; Go `vet` + `golangci-lint`; zero warnings.
 - Unit tests: Vitest (UI + API), Go `testing`. ≥ 80% on business logic.
 - API integration tests against a real Postgres + a real VPP in a container (`testcontainers`).
-- **Topology/E2E lab:** QEMU or containerlab topology (VRX + 2 FRR peers + traffic hosts),
+- **Topology/E2E lab:** QEMU or containerlab topology (NGFW + 2 FRR peers + traffic hosts),
   driven by Robot Framework or pytest; runs nightly. Tests must assert *packets*, not APIs.
 - Perf CI: TRex or `pktgen-dpdk`, tracked per-commit; regressions > 5% fail the build.
 - UI E2E: Playwright against a real backend, including the commit/rollback flow.
@@ -204,7 +204,7 @@ third-party pen test, GA.
 
 ## 9. Security requirements
 
-- `vrx-api` runs unprivileged; only `vrx-agent` is root, with a minimal gRPC surface and
+- `ngfw-api` runs unprivileged; only `ngfw-agent` is root, with a minimal gRPC surface and
   per-method authorisation. Treat the agent socket as a privilege boundary.
 - No shell interpolation of user input anywhere — render config files from templates with
   strict escaping, and validate the result before reload.

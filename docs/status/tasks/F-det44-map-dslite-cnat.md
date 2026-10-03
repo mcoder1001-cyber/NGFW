@@ -2,7 +2,7 @@
 
 Branch `task/F-det44-map-dslite-cnat`, base `origin/main@5966f618`. Cloud container: **no VPP host** — all evidence is
 from the fake VPP (coretest models); real-VPP integration tests (`*_integration_test.go`) skip without
-`VRX_INTEGRATION` and none were run. Questions: `F-det44-map-dslite-cnat-questions.md`.
+`NGFW_INTEGRATION` and none were run. Questions: `F-det44-map-dslite-cnat-questions.md`.
 
 ## What (built)
 
@@ -63,8 +63,8 @@ tools/ci.sh check → check PASSED (gitleaks: no leaks found)
 ## Not built (remaining — for the host / later)
 
 - **Host evidence** (every acceptance packet line, `show map domain`, `show cnat translation`, `show dslite …`,
-  NRestarts before/after): needs a VPP host / manager window (`VRX_FDET44_DET44_HOST=1`, `VRX_FDET44_GLOBALS=1`).
-  `test/topology/det44-map-dslite-cnat/` not written. Real-VPP integration tests skip without `VRX_INTEGRATION`.
+  NRestarts before/after): needs a VPP host / manager window (`NGFW_FDET44_DET44_HOST=1`, `NGFW_FDET44_GLOBALS=1`).
+  `test/topology/det44-map-dslite-cnat/` not written. Real-VPP integration tests skip without `NGFW_INTEGRATION`.
 - **e2e on PostgreSQL**: `pnpm --filter @ngfw/api test:e2e test/e2e/det44-map-dslite-cnat.e2e.test.ts` on the host.
 - **UI screenshot** (acceptance line) and localized field titles of the schema forms (fa shows the schema's English titles).
 - `actions/det44-map-dslite-cnat/**` directory not used: the actions live in `agent/rpc_{det44,cnat}.go` like F-nat44-ed-sessions.
@@ -106,4 +106,4 @@ See "Gates" (pasted in the final commit of this file).
 - `tools/ci.sh check`: stops at gitleaks on 5 `generic-api-key` hits in commits already on `origin/main`
   (4e595289, 5b33b153, 5a2d88d8, 3bd18dd2 — e2e/test files of other tasks); none in this branch's 5 commits.
   The later stages did not run.
-- Real-VPP integration tests: skipped (no `VRX_INTEGRATION`, no VPP host).
+- Real-VPP integration tests: skipped (no `NGFW_INTEGRATION`, no VPP host).

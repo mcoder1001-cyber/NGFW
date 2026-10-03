@@ -108,13 +108,13 @@ export function SchemaFormDemoPage() {
         <Typography component="h3" variant="subtitle1">
           {t('dev:schemaForm.submitted')}
         </Typography>
-        <Box component="pre" sx={{ m: 0, p: 2, overflow: 'auto', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1, fontFamily: theme.vrx.monoFontFamily, fontSize: 12 }}>
+        <Box component="pre" sx={{ m: 0, p: 2, overflow: 'auto', bgcolor: 'background.paper', border: 1, borderColor: 'divider', borderRadius: 1, fontFamily: theme.ngfw.monoFontFamily, fontSize: 12 }}>
           {submitted === undefined ? t('dev:schemaForm.none') : JSON.stringify(submitted, null, 2)}
         </Box>
         <Accordion disableGutters>
           <AccordionSummary>{t('dev:schemaForm.source')}</AccordionSummary>
           <AccordionDetails>
-            <Box component="pre" sx={{ m: 0, overflow: 'auto', fontFamily: theme.vrx.monoFontFamily, fontSize: 12 }}>
+            <Box component="pre" sx={{ m: 0, overflow: 'auto', fontFamily: theme.ngfw.monoFontFamily, fontSize: 12 }}>
               {JSON.stringify(selected.schema, null, 2)}
             </Box>
           </AccordionDetails>

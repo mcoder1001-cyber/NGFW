@@ -1,8 +1,8 @@
-// Package snmpagent is the VRX-MIB AgentX subagent (F-snmp, WBS D7.5): a pure-Go implementation of the
+// Package snmpagent is the NGFW-MIB AgentX subagent (F-snmp, WBS D7.5): a pure-Go implementation of the
 // RFC 2741 subset a read-only subagent needs (Open, Register, Get, GetNext, GetBulk, Response, Ping,
-// Close), serving VPP interface counters and agent health under the VRX-MIB subtree. No cgo, no
+// Close), serving VPP interface counters and agent health under the NGFW-MIB subtree. No cgo, no
 // net-snmp linking (the GPL/BSD boundary stays at the AgentX socket). SET PDUs are answered notWritable.
-// The MIB text is deploy/snmp/VRX-MIB.txt.
+// The MIB text is deploy/snmp/NGFW-MIB.txt.
 package snmpagent
 
 import (

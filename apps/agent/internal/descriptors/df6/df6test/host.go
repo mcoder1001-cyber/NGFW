@@ -24,7 +24,7 @@ import (
 )
 
 // EnvSocket overrides the VPP API socket for integration tests (default socketclient's).
-const EnvSocket = "VRX_VPP_API_SOCKET"
+const EnvSocket = "NGFW_VPP_API_SOCKET"
 
 // hostClient wraps *core.Connection as a vpp.Client until P05's client exists.
 type hostClient struct {
@@ -45,7 +45,7 @@ type Host struct {
 	Ctx    context.Context
 }
 
-// Connect skips unless VRX_INTEGRATION=1, takes the shared lab lock and connects to the host
+// Connect skips unless NGFW_INTEGRATION=1, takes the shared lab lock and connects to the host
 // VPP. Everything the test creates must carry the slot prefix / ranges from Scope.
 func Connect(t testing.TB) *Host {
 	t.Helper()
@@ -183,9 +183,9 @@ func (h *Host) Invoke(req, reply api.Message) error { return h.Client.Invoke(h.C
 
 // EnvHold makes Hold pause (seconds) so the operator can run `vppctl show …` while the test's
 // objects exist (evidence for the status file). Unset = no pause.
-const EnvHold = "VRX_DF6_HOLD"
+const EnvHold = "NGFW_DF6_HOLD"
 
-// Hold pauses for VRX_DF6_HOLD seconds when set.
+// Hold pauses for NGFW_DF6_HOLD seconds when set.
 func (h *Host) Hold() {
 	if s := os.Getenv(EnvHold); s != "" {
 		if d, err := time.ParseDuration(s + "s"); err == nil {

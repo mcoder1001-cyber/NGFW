@@ -16,7 +16,7 @@ function routes(api: FakeApi) {
   api.on('GET /api/v1/state/syslog', {
     body: {
       running: true,
-      configPath: '/etc/rsyslog.d/50-vrx-export.conf',
+      configPath: '/etc/rsyslog.d/50-ngfw-export.conf',
       targets: [],
       pendingActions: [],
     },

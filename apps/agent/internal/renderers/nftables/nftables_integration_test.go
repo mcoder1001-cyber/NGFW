@@ -11,13 +11,13 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/nftables"
 	"ngfw/agent/internal/renderers/nftables/nftest"
 	"ngfw/agent/internal/scheduler"
 )
 
-// Integration (VRX_INTEGRATION=1, lab lock shared): the host firewall in the slot's own namespace
+// Integration (NGFW_INTEGRATION=1, lab lock shared): the host firewall in the slot's own namespace
 // ns-<prefix>-hacl through the real scheduler and nft 1.1.6 — never the root netns (nftest compares the
 // root `nft list tables` before and after). Covers: apply → the kernel table (pasted into the log) and
 // Retrieve == desired; packets from the veth peer: an allowed port connects, a dropped port times out and
@@ -29,7 +29,7 @@ var counterRe = regexp.MustCompile(`counter packets \d+ bytes \d+`)
 
 func normalise(listing string) string { return counterRe.ReplaceAllString(listing, "counter") }
 
-func hostDoc(t *testing.T, peer string, extra string) *vrxv1.DesiredState {
+func hostDoc(t *testing.T, peer string, extra string) *ngfwv1.DesiredState {
 	t.Helper()
 	js := fmt.Sprintf(`{
 	  "objects": {"addresses": {"peer": {"type": "host", "address": %q}}},
@@ -43,14 +43,14 @@ func hostDoc(t *testing.T, peer string, extra string) *vrxv1.DesiredState {
 	    "hostSettings": {"antiLockout": {"enabled": true, "sources": [%q], "ports": [22]}}
 	  }
 	}`, peer, extra, peer+"/32")
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
 	return ds
 }
 
-func value(t *testing.T, ds *vrxv1.DesiredState) *nftables.HostTable {
+func value(t *testing.T, ds *ngfwv1.DesiredState) *nftables.HostTable {
 	t.Helper()
 	v, issues := nftables.Build(nftables.Input{ACL: ds.GetAcl(), Objects: ds.GetObjects()})
 	for _, is := range issues {

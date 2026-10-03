@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Document corpora, relative to this package (apps/agent/internal/contracttest).
@@ -81,7 +81,7 @@ func sortedKeys(m map[string][]byte) []string {
 
 // TestDesiredStateMirrorsRootKeys pins field numbers 1..13 to the documented root keys.
 func TestDesiredStateMirrorsRootKeys(t *testing.T) {
-	fields := (&vrxv1.DesiredState{}).ProtoReflect().Descriptor().Fields()
+	fields := (&ngfwv1.DesiredState{}).ProtoReflect().Descriptor().Fields()
 	if fields.Len() != len(rootKeys) {
 		t.Fatalf("DesiredState has %d fields, want %d root keys", fields.Len(), len(rootKeys))
 	}
@@ -101,7 +101,7 @@ func TestStrictDecodeOfEveryDocument(t *testing.T) {
 	for _, name := range sortedKeys(docs) {
 		doc := docs[name]
 		t.Run(name, func(t *testing.T) {
-			var ds vrxv1.DesiredState
+			var ds ngfwv1.DesiredState
 			if err := strict.Unmarshal(doc, &ds); err != nil {
 				t.Fatalf("strict protojson.Unmarshal: %v", err)
 			}
@@ -109,7 +109,7 @@ func TestStrictDecodeOfEveryDocument(t *testing.T) {
 			if err != nil {
 				t.Fatalf("proto.Marshal: %v", err)
 			}
-			var back vrxv1.DesiredState
+			var back ngfwv1.DesiredState
 			if err := proto.Unmarshal(wire, &back); err != nil {
 				t.Fatalf("proto.Unmarshal: %v", err)
 			}
@@ -120,7 +120,7 @@ func TestStrictDecodeOfEveryDocument(t *testing.T) {
 			if err != nil {
 				t.Fatalf("protojson.Marshal: %v", err)
 			}
-			var again vrxv1.DesiredState
+			var again ngfwv1.DesiredState
 			if err := strict.Unmarshal(js, &again); err != nil {
 				t.Fatalf("protojson re-Unmarshal: %v", err)
 			}
@@ -179,14 +179,14 @@ func TestStrictDecodeRejectsUnknownFields(t *testing.T) {
 	}
 	cases := map[string][]byte{
 		"invalid-unknown-root-key.json": bad,
-		"nested unknown leaf":           []byte(`{"system":{"hostname":"vrx-a","bogusField":1}}`),
+		"nested unknown leaf":           []byte(`{"system":{"hostname":"ngfw-a","bogusField":1}}`),
 		"removed password_hash (D-040)": []byte(`{"management":{"users":[{"username":"a","role":"admin","scope":"*","passwordHash":"$6$x"}]}}`),
 		"old corelist string (F2)":      []byte(`{"dataplane":{"corelist":"2-5,8"}}`),
 		"old banner string (F2)":        []byte(`{"system":{"banner":"hello"}}`),
 	}
 	for name, doc := range cases {
 		t.Run(name, func(t *testing.T) {
-			var ds vrxv1.DesiredState
+			var ds ngfwv1.DesiredState
 			if err := strict.Unmarshal(doc, &ds); err == nil {
 				t.Fatalf("strict decode accepted %s", doc)
 			}
@@ -201,7 +201,7 @@ func TestExplicitPresenceSurvivesJSON(t *testing.T) {
 	doc := []byte(`{"vrfs":{"default":{"id":0}},` +
 		`"interfaces":{"x":{"enabled":false,"vrf":"default","rxMode":"polling"}},` +
 		`"acl":{"lists":{"l":{"rules":[{"sequence":1,"enabled":false,"action":"permit","ipVersion":"any"}]}}}}`)
-	var ds vrxv1.DesiredState
+	var ds ngfwv1.DesiredState
 	if err := strict.Unmarshal(doc, &ds); err != nil {
 		t.Fatal(err)
 	}
@@ -279,11 +279,11 @@ func TestNoSecretLeaves(t *testing.T) {
 			}
 		}
 	}
-	walk((&vrxv1.DesiredState{}).ProtoReflect().Descriptor(), "DesiredState")
-	if _, has := seen["vrx.v1.ManagementUser"]; !has {
+	walk((&ngfwv1.DesiredState{}).ProtoReflect().Descriptor(), "DesiredState")
+	if _, has := seen["ngfw.v1.ManagementUser"]; !has {
 		t.Fatal("walk did not reach ManagementUser")
 	}
-	if f := (&vrxv1.ManagementUser{}).ProtoReflect().Descriptor().Fields().ByNumber(4); f != nil {
+	if f := (&ngfwv1.ManagementUser{}).ProtoReflect().Descriptor().Fields().ByNumber(4); f != nil {
 		t.Errorf("ManagementUser field 4 must stay reserved (was password_hash), found %s", f.Name())
 	}
 }
@@ -320,7 +320,7 @@ func TestExplicitPresenceEverywhere(t *testing.T) {
 			}
 		}
 	}
-	walk((&vrxv1.DesiredState{}).ProtoReflect().Descriptor(), "DesiredState")
+	walk((&ngfwv1.DesiredState{}).ProtoReflect().Descriptor(), "DesiredState")
 	if len(seen) < 100 {
 		t.Fatalf("walk covered only %d messages", len(seen))
 	}
@@ -328,11 +328,11 @@ func TestExplicitPresenceEverywhere(t *testing.T) {
 
 // TestTwoInterfacesExampleValues checks that the example's values land in the typed fields.
 func TestTwoInterfacesExampleValues(t *testing.T) {
-	var ds vrxv1.DesiredState
+	var ds ngfwv1.DesiredState
 	if err := strict.Unmarshal(corpus(t)["examples/two-interfaces.json"], &ds); err != nil {
 		t.Fatal(err)
 	}
-	if got := ds.GetSystem().GetHostname(); got != "vrx-a" {
+	if got := ds.GetSystem().GetHostname(); got != "ngfw-a" {
 		t.Errorf("system.hostname = %q", got)
 	}
 	if got := ds.GetSystem().GetTimezone(); got != "UTC" {
@@ -389,7 +389,7 @@ func TestTwoInterfacesExampleValues(t *testing.T) {
 // proto-local fixture: banner object, corelist array, optional rx_mode, interface-only next hop,
 // user without password material.
 func TestAllDomainsFixtureValues(t *testing.T) {
-	var ds vrxv1.DesiredState
+	var ds ngfwv1.DesiredState
 	if err := strict.Unmarshal(corpus(t)["fixtures/all-domains.json"], &ds); err != nil {
 		t.Fatal(err)
 	}
@@ -410,7 +410,7 @@ func TestAllDomainsFixtureValues(t *testing.T) {
 	if !sub.GetDot1Ad() || sub.GetInnerVlanId() != 20 {
 		t.Errorf("qinq sub: %v", sub)
 	}
-	var ifaceRoute *vrxv1.StaticRoute
+	var ifaceRoute *ngfwv1.StaticRoute
 	for _, r := range ds.GetRouting().GetStatic() {
 		if r.GetPrefix() == "192.0.2.0/24" {
 			ifaceRoute = r
@@ -438,42 +438,42 @@ func TestAllDomainsFixtureValues(t *testing.T) {
 // shape descriptor factories and the API mapper use). Explicit presence means scalars are pointers
 // in Go (proto.String/Bool/Uint32 helpers); accessors (Get*) hide that for readers.
 func TestTypedConstruction(t *testing.T) {
-	ds := &vrxv1.DesiredState{
-		System: &vrxv1.SystemConfig{Hostname: proto.String("vrx-a"), Timezone: proto.String("UTC"),
-			Banner: &vrxv1.SystemBanner{Login: proto.String("authorised access only")}, Dns: &vrxv1.SystemDns{}},
-		Dataplane: &vrxv1.DataplaneConfig{Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, PciWhitelist: []string{"0000:0b:00.0"}},
-		Interfaces: map[string]*vrxv1.Interface{
+	ds := &ngfwv1.DesiredState{
+		System: &ngfwv1.SystemConfig{Hostname: proto.String("ngfw-a"), Timezone: proto.String("UTC"),
+			Banner: &ngfwv1.SystemBanner{Login: proto.String("authorised access only")}, Dns: &ngfwv1.SystemDns{}},
+		Dataplane: &ngfwv1.DataplaneConfig{Workers: proto.Uint32(2), Corelist: []uint32{2, 3}, PciWhitelist: []string{"0000:0b:00.0"}},
+		Interfaces: map[string]*ngfwv1.Interface{
 			"loop700": {Enabled: proto.Bool(true), Description: proto.String("loopback for tests"), Mtu: proto.Uint32(1500), Ipv4: []string{"10.7.0.1/24"},
 				Vrf: proto.String("default"), RxMode: proto.String("polling"),
-				Subinterfaces: map[string]*vrxv1.Subinterface{"10": {VlanId: proto.Uint32(10), Enabled: proto.Bool(true), Vrf: proto.String("default")}}},
+				Subinterfaces: map[string]*ngfwv1.Subinterface{"10": {VlanId: proto.Uint32(10), Enabled: proto.Bool(true), Vrf: proto.String("default")}}},
 		},
-		Vrfs: map[string]*vrxv1.Vrf{"default": {Id: proto.Uint32(0)}, "w7-a": {Id: proto.Uint32(7001), Description: proto.String("slot 7")}},
-		Routing: &vrxv1.RoutingConfig{Static: []*vrxv1.StaticRoute{{Prefix: proto.String("10.70.0.0/16"), Vrf: proto.String("w7-a"),
-			NextHops: []*vrxv1.NextHop{{Address: proto.String("10.7.0.254"), Weight: proto.Uint32(1)}}}}, Bgp: &vrxv1.BgpConfig{}},
-		Nat: &vrxv1.NatConfig{Enabled: proto.Bool(true), Mode: proto.String("ed"), Inside: []string{"loop700"},
-			Pools: []*vrxv1.NatPool{{Name: proto.String("p1"), Range: proto.String("10.7.1.1-10.7.1.10")}},
-			StaticMappings: []*vrxv1.NatStaticMapping{{Name: proto.String("web"), Protocol: proto.String("tcp"),
-				Local:    &vrxv1.NatStaticMapping_Local{Ip: proto.String("10.7.0.10"), Port: proto.Uint32(80)},
-				External: &vrxv1.NatStaticMapping_External{Ip: proto.String("10.7.1.1"), Port: proto.Uint32(8080)}}}},
-		Objects: &vrxv1.ObjectsConfig{Addresses: map[string]*vrxv1.AddressObject{"h1": {Type: proto.String("host"), Address: proto.String("10.7.0.10")}},
-			Services: map[string]*vrxv1.ServiceObject{"https": {Protocol: proto.String("tcp"), DestinationPorts: []string{"443"}}}},
-		Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{"in": {Rules: []*vrxv1.AclRule{{Sequence: proto.Uint32(10), Enabled: proto.Bool(true),
+		Vrfs: map[string]*ngfwv1.Vrf{"default": {Id: proto.Uint32(0)}, "w7-a": {Id: proto.Uint32(7001), Description: proto.String("slot 7")}},
+		Routing: &ngfwv1.RoutingConfig{Static: []*ngfwv1.StaticRoute{{Prefix: proto.String("10.70.0.0/16"), Vrf: proto.String("w7-a"),
+			NextHops: []*ngfwv1.NextHop{{Address: proto.String("10.7.0.254"), Weight: proto.Uint32(1)}}}}, Bgp: &ngfwv1.BgpConfig{}},
+		Nat: &ngfwv1.NatConfig{Enabled: proto.Bool(true), Mode: proto.String("ed"), Inside: []string{"loop700"},
+			Pools: []*ngfwv1.NatPool{{Name: proto.String("p1"), Range: proto.String("10.7.1.1-10.7.1.10")}},
+			StaticMappings: []*ngfwv1.NatStaticMapping{{Name: proto.String("web"), Protocol: proto.String("tcp"),
+				Local:    &ngfwv1.NatStaticMapping_Local{Ip: proto.String("10.7.0.10"), Port: proto.Uint32(80)},
+				External: &ngfwv1.NatStaticMapping_External{Ip: proto.String("10.7.1.1"), Port: proto.Uint32(8080)}}}},
+		Objects: &ngfwv1.ObjectsConfig{Addresses: map[string]*ngfwv1.AddressObject{"h1": {Type: proto.String("host"), Address: proto.String("10.7.0.10")}},
+			Services: map[string]*ngfwv1.ServiceObject{"https": {Protocol: proto.String("tcp"), DestinationPorts: []string{"443"}}}},
+		Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"in": {Rules: []*ngfwv1.AclRule{{Sequence: proto.Uint32(10), Enabled: proto.Bool(true),
 			Action: proto.String("permit"), IpVersion: proto.String("any"),
-			Source:  &vrxv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("h1")},
-			Service: &vrxv1.ServiceMatch{Kind: proto.String("object"), Name: proto.String("https")}}}}},
-			Attachments: []*vrxv1.AclAttachment{{List: proto.String("in"), Target: &vrxv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop700")},
+			Source:  &ngfwv1.AddressMatch{Kind: proto.String("object"), Name: proto.String("h1")},
+			Service: &ngfwv1.ServiceMatch{Kind: proto.String("object"), Name: proto.String("https")}}}}},
+			Attachments: []*ngfwv1.AclAttachment{{List: proto.String("in"), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop700")},
 				Direction: proto.String("in"), Sequence: proto.Uint32(1), Enabled: proto.Bool(true)}}},
-		Vpn: &vrxv1.VpnConfig{Ipsec: &vrxv1.IpsecConfig{Tunnels: map[string]*vrxv1.IpsecTunnel{"site-b": {Enabled: proto.Bool(true), Engine: proto.String("strongswan"),
+		Vpn: &ngfwv1.VpnConfig{Ipsec: &ngfwv1.IpsecConfig{Tunnels: map[string]*ngfwv1.IpsecTunnel{"site-b": {Enabled: proto.Bool(true), Engine: proto.String("strongswan"),
 			IkeVersion: proto.Uint32(2), Mode: proto.String("tunnel"), Protocol: proto.String("esp"), LocalAddr: proto.String("10.7.0.1"), RemoteAddr: proto.String("192.0.2.1"),
-			Auth:     &vrxv1.IpsecAuth{Method: proto.String("psk"), SecretRef: proto.String("psk/site-b")},
-			Proposal: proto.String("default"), Vrf: proto.String("default"), Rekey: &vrxv1.IpsecRekey{EspBytes: proto.Uint64(1 << 40)}}}}},
-		Tunnels:    &vrxv1.TunnelsConfig{Gre: map[string]*vrxv1.GreTunnel{"gre0": {}}},
-		Services:   &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{}},
-		Ha:         &vrxv1.HaConfig{Vrrp: map[string]*vrxv1.VrrpInstance{"lan": {}}},
-		Management: &vrxv1.ManagementConfig{Users: []*vrxv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin"), Scope: proto.String("*"), SshKeys: []string{"ssh-ed25519 AAAAC3 test"}}}},
-		Security: &vrxv1.SecurityConfig{AutoBlock: &vrxv1.AutoBlock{Enabled: proto.Bool(true), MaxEntries: proto.Uint32(10000),
+			Auth:     &ngfwv1.IpsecAuth{Method: proto.String("psk"), SecretRef: proto.String("psk/site-b")},
+			Proposal: proto.String("default"), Vrf: proto.String("default"), Rekey: &ngfwv1.IpsecRekey{EspBytes: proto.Uint64(1 << 40)}}}}},
+		Tunnels:    &ngfwv1.TunnelsConfig{Gre: map[string]*ngfwv1.GreTunnel{"gre0": {}}},
+		Services:   &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{}},
+		Ha:         &ngfwv1.HaConfig{Vrrp: map[string]*ngfwv1.VrrpInstance{"lan": {}}},
+		Management: &ngfwv1.ManagementConfig{Users: []*ngfwv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin"), Scope: proto.String("*"), SshKeys: []string{"ssh-ed25519 AAAAC3 test"}}}},
+		Security: &ngfwv1.SecurityConfig{AutoBlock: &ngfwv1.AutoBlock{Enabled: proto.Bool(true), MaxEntries: proto.Uint32(10000),
 			Allowlist: []string{"10.0.0.0/8"},
-			Rules: []*vrxv1.AutoBlockRule{{Source: proto.String("webLogin"), Enabled: proto.Bool(true), Threshold: proto.Uint32(5),
+			Rules: []*ngfwv1.AutoBlockRule{{Source: proto.String("webLogin"), Enabled: proto.Bool(true), Threshold: proto.Uint32(5),
 				WindowSec: proto.Uint32(60), BlockSec: proto.Uint32(900), Escalate: proto.Bool(true), MaxBlockSec: proto.Uint32(86400)}}}},
 	}
 	// Every root key is populated in this literal.
@@ -495,24 +495,24 @@ func TestTypedConstruction(t *testing.T) {
 		}
 	}
 	// Envelope messages compile and carry the documented shapes (renamed enums, F10).
-	req := &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: ds, Subsystems: []string{"interfaces", "vrfs"}, ConfirmTimeoutSec: 120, Owner: "w7"}
+	req := &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: ds, Subsystems: []string{"interfaces", "vrfs"}, ConfirmTimeoutSec: 120, Owner: "w7"}
 	if req.GetDesiredState().GetInterfaces()["loop700"].GetMtu() != 1500 {
 		t.Fatal("apply request does not carry the state")
 	}
-	res := &vrxv1.ObjectResult{Key: "interface/loop700", Op: vrxv1.ApplyOperation_APPLY_OPERATION_CREATE, Code: vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_OK}
-	issue := &vrxv1.ValidationIssue{Pointer: "/interfaces/loop700/vrf", Severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: "interfaces.vrf-exists"}
-	if res.GetOp() != vrxv1.ApplyOperation_APPLY_OPERATION_CREATE || issue.GetSeverity() != vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+	res := &ngfwv1.ObjectResult{Key: "interface/loop700", Op: ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE, Code: ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_OK}
+	issue := &ngfwv1.ValidationIssue{Pointer: "/interfaces/loop700/vrf", Severity: ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: "interfaces.vrf-exists"}
+	if res.GetOp() != ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE || issue.GetSeverity() != ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 		t.Fatal("enum accessors")
 	}
-	ev := &vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_LINK_UP, Interface: proto.String("loop700")}
-	if ev.Interface == nil || (&vrxv1.Event{}).Interface != nil {
+	ev := &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_LINK_UP, Interface: proto.String("loop700")}
+	if ev.Interface == nil || (&ngfwv1.Event{}).Interface != nil {
 		t.Fatal("Event.interface presence")
 	}
-	act := &vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Ping{Ping: &vrxv1.PingAction{Target: "10.7.0.254", Count: 3}}}
+	act := &ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Ping{Ping: &ngfwv1.PingAction{Target: "10.7.0.254", Count: 3}}}
 	if act.GetPing().GetCount() != 3 {
 		t.Fatal("oneof accessor")
 	}
-	out := &vrxv1.ActionOutput{Output: &vrxv1.ActionOutput_Done{Done: &vrxv1.ActionDone{Summary: "ok"}}}
+	out := &ngfwv1.ActionOutput{Output: &ngfwv1.ActionOutput_Done{Done: &ngfwv1.ActionDone{Summary: "ok"}}}
 	if out.GetDone().GetSummary() != "ok" {
 		t.Fatal("done accessor")
 	}

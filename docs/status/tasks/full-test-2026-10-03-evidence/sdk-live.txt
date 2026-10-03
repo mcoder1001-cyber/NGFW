@@ -1,0 +1,106 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py test/topology/sdk-terraform-ansible/live.sh run bash -c sdk/python/.venv/bin/pytest -s sdk/python/tests/test_live.py; python_result=$?; go -C sdk/terraform test -count=1 -v -run TestLive ./internal/provider; terraform_result=$?; if [ "$python_result" != 0 ] || [ "$terraform_result" != 0 ]; then exit 1; fi
+heavy: slot 2 after 70s
+DISPOSABLE_VPP pid=517259 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-517216
+create role vrx_w7
+create database vrx_w7 (owner vrx_w7)
+check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w7/pg.env (0600) · DSN <database-dsn-redacted>
+live: agent up (pid 517929, owner w7, socket /run/vrx-test/w7/agent.sock)
+live: api up (pid 518031, http://127.0.0.1:3700)
+live: API key 'sdk-live' role=admin id=99c98d5c-ad3a-4973-9ec0-99d71ad5f626 → /run/vrx-test/w7/sdk-apikey (0600, not printed)
+
+[live] VrxSession(url='http://127.0.0.1:3700', verify=True) · API 0.1.0-dev · agent owner w7
+[live] diff: [('add', '/interfaces/loop711', {'vrf': 'default', 'ipv4': ['10.7.111.1/24'], 'ipv6': [], 'enabled': True, 'promiscuous': False, 'subinterfaces': {}})]
+[live] commit → status=confirmed revision=1 txn=b7a46dee-cdae-433f-a63b-5a23dd2f9843
+[live] /state/interfaces loop711: config={'enabled': True, 'ipv4': ['10.7.111.1/24'], 'vrf': 'default', 'promiscuous': False} swIfIndex=1
+[live] vppctl show int addr:
+loop711 (up):
+  L3 10.7.111.1/24
+[live] commit → status=confirmed revision=2
+[live] rollback/1 → pending → confirm → confirmed revision=3
+[live] /state/interfaces loop711 after rollback: config={'enabled': True, 'ipv4': ['10.7.111.1/24'], 'vrf': 'default', 'promiscuous': False}
+[live] vppctl show int addr:
+loop711 (up):
+  L3 10.7.111.1/24
+[live] invalid edit → BadRequest pointer=/interfaces/loop711/ipv4/0 (Invalid IPv4 range)
+[live] delete → confirmed; in running: False; in state: False
+[live] vppctl show int addr:
+(no loop711 in `vppctl show int addr`)
+[live] 41 SDK log records, API key present in them: False
+.
+1 passed in 3.34s
+=== RUN   TestLive
+$ terraform plan   (vrx_config)
+  # vrx_config will be create
+  + resource "vrx_config" {
+      + id                       = (known after apply)
+      + pointer                  = "/interfaces/loop721"
+      + revision                 = (known after apply)
+      + sensitive_value          = (write-only attribute)
+      + value                    = "{\"enabled\":true,\"ipv4\":[\"10.7.121.1/24\"]}"
+    }
+[tf-live] apply → revision 5
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+$ terraform plan   (vrx_config)
+  # vrx_config will be update in-place
+  ~ resource "vrx_config" {
+      ~ revision                 = 5 -> (known after apply)
+      ~ value                    = "{\"enabled\":true,\"ipv4\":[\"10.7.121.1/24\"]}" -> "{\"enabled\":true,\"ipv4\":[\"10.7.121.2/24\"]}"
+    }
+[tf-live] apply → revision 6
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] data.vrx_state interfaces: loop721 config=map[enabled:true ipv4:[10.7.121.2/24] promiscuous:false vrf:default]
+[tf-live] vppctl show int addr: loop721 (up): L3 10.7.121.2/24
+[tf-live] import /interfaces/loop721 → value={"enabled":true,"ipv4":["10.7.121.2/24"],"ipv6":[],"promiscuous":false,"subinterfaces":{},"vrf":"default"}
+$ terraform plan   (vrx_interface)
+  # vrx_interface will be create
+  + resource "vrx_interface" {
+      + description              = "terraform w7"
+      + enabled                  = true
+      + id                       = (known after apply)
+      + ipv4                     = ["10.7.122.1/24"]
+      + ipv6                     = []
+      + mtu                      = 1500
+      + name                     = "loop722"
+      + promiscuous              = false
+      + revision                 = (known after apply)
+      + subinterfaces            = {}
+      + vrf                      = "default"
+    }
+[tf-live] apply → revision 7
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+$ terraform plan   (vrx_interface)
+  # vrx_interface will be update in-place
+  ~ resource "vrx_interface" {
+      ~ mtu                      = 1500 -> 9000
+      ~ revision                 = 7 -> (known after apply)
+    }
+[tf-live] apply → revision 8
+$ terraform plan   (again, after refresh)
+No changes. Your infrastructure matches the configuration.
+[tf-live] vppctl show int addr: loop722 (up): L3 10.7.122.1/24
+$ terraform plan   (vrx_config)
+  # vrx_config will be update in-place
+  ~ resource "vrx_config" {
+      ~ revision                 = 0 -> (known after apply)
+      ~ sensitive_value_version  = null -> 1
+      ~ value                    = "[]" -> "[{\"username\":\"admin\",\"role\":\"admin\"},{\"username\":\"w7tf\",\"role\":\"operator\"}]"
+    }
+[tf-live] apply → revision 9
+    live_test.go:179: refresh: VRX API refused to read /management/users: read /management/users → HTTP 401 Unauthorized: authentication required
+    live_test.go:105: cleanup /interfaces/loop721: post-commit check failed: GET /api/v1/state/system → 401 Unauthorized: authentication required
+    live_test.go:105: cleanup /interfaces/loop722: post-commit check failed: GET /api/v1/state/system → 401 Unauthorized: authentication required
+--- FAIL: TestLive (2.67s)
+FAIL
+FAIL	ngfw/sdk/terraform/internal/provider	2.718s
+FAIL
+live: api stopped (pid 518031)
+live: agent stopped (pid 517929)
+live: deleted 4 Valkey keys vrx:w7:sdk:* in db 7
+drop   database vrx_w7
+drop   role vrx_w7
+ok     nothing named vrx_w7 / vrx_w7 remains
+DISPOSABLE_VPP_STOPPED pid=517259

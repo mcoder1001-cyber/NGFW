@@ -10,7 +10,7 @@ describe('SEC-auth e2e: API-key lifetime', () => {
   const pw = runSecret();
 
   beforeAll(async () => {
-    h = await startHarness({ VRX_PASSWORD_RATE_PER_MIN: '1000' });
+    h = await startHarness({ NGFW_PASSWORD_RATE_PER_MIN: '1000' });
     const admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [{ username: 'keysec', role: 'operator', password: pw }]);
   });

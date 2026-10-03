@@ -5,13 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"testing"
 
 	"ngfw/agent/internal/descriptors/vpn"
 )
 
-// Test vectors (00-CONTEXT: fixtures use the literal VRX_TEST_PSK_<id>): every key is the SHA-256
-// of a "VRX_TEST_PSK_DF5_wg_…" label, so it is reproducible from this file and is not real
+// Test vectors (00-CONTEXT: fixtures use the literal NGFW_TEST_PSK_<id>): every key is the SHA-256
+// of a "NGFW_TEST_PSK_DF5_wg_…" label, so it is reproducible from this file and is not real
 // material. The slot is part of the label because VPP requires peer public keys to be unique
 // VPP-wide and several workers share the host VPP.
 type vectors struct {
@@ -23,7 +24,7 @@ type vectors struct {
 }
 
 func vector(label string) []byte {
-	s := sha256.Sum256([]byte("VRX_TEST_PSK_DF5_wg_" + label))
+	s := sha256.Sum256([]byte("NGFW_TEST_PSK_DF5_wg_" + label))
 	return s[:]
 }
 
@@ -37,6 +38,8 @@ func slotVectors(t testing.TB, slot int) (vectors, string) {
 		}
 		v.peerPub = append(v.peerPub, base64.StdEncoding.EncodeToString(priv.PublicKey().Bytes()))
 	}
+	// Keep fixture peer order aligned with the documented canonical key order.
+	sort.Strings(v.peerPub)
 	itfRef, err := v.resolver.AddX25519(v.itfPriv)
 	if err != nil {
 		t.Fatal(err)

@@ -25,7 +25,10 @@ def safe_environment():
     # loader, Python/Bash startup, proxy, APT_CONFIG or temporary-directory values.
     previous = dict(os.environ)
     os.environ.clear()
-    os.environ.update({'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
+    # VPP's unchanged path-guard tests require HOME under `set -u`. Use a fixed
+    # nonexistent location, never the caller's home or startup configuration.
+    os.environ.update({'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C',
+                       'HOME': '/nonexistent'})
     try:
         yield
     finally:
@@ -112,7 +115,7 @@ def expected_manifest(path, source):
 @contextlib.contextmanager
 def prepared(source, manifest):
     expected = expected_manifest(manifest, source)
-    with safe_environment(), tempfile.TemporaryDirectory(prefix='vrx-offline-', dir='/var/tmp') as directory:
+    with safe_environment(), tempfile.TemporaryDirectory(prefix='ngfw-offline-', dir='/var/tmp') as directory:
         private = Path(directory)
         snapshot = private / 'delivery'
         snapshot.mkdir(mode=0o700)

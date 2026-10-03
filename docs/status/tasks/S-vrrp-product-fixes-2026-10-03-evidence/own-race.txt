@@ -1,0 +1,9 @@
+ok  	ngfw/agent/internal/descriptors/vrrp	1.149s
+ok  	ngfw/agent/internal/descriptors/core	1.391s
+ok  	ngfw/agent/internal/descriptors/core/coretest	1.176s
+ok  	ngfw/agent/internal/desired	30.230s
+ok  	ngfw/agent/internal/subsystems	25.976s
+ok  	ngfw/agent/internal/subsystems/ruleexpiry	1.382s
+ok  	ngfw/agent/internal/subsystems/wanmon	1.122s
+ok  	ngfw/agent/internal/renderers/keepalived	3.573s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/vrx-keepalived-notify	1.100s

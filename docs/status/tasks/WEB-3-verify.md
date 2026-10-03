@@ -25,13 +25,13 @@ new dependency. `flow.e2e.mjs`: empty diff — confirmed untouched, as claimed.
   the real vite listener is a **child** of `$WEB_PID`.
 - Teardown block now does:
   ```bash
-  WEB_LISTEN_PID=$(ss -ltnp "sport = :$VRX_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
+  WEB_LISTEN_PID=$(ss -ltnp "sport = :$NGFW_WEB_PORT" | grep -oP 'pid=\K[0-9]+' | head -1)
   [ -n "$WEB_LISTEN_PID" ] && kill "$WEB_LISTEN_PID"
   kill "$WEB_PID" 2>/dev/null   # the pnpm wrapper, if it's still around
   ```
   finds the actual PID bound to the slot's web port and kills that specific PID — no `pkill`/`killall` anywhere,
   matching `docs/lab/shared-host-rules.md`.
-- Adds a verify step right after teardown: `ss -ltn "sport = :$VRX_WEB_PORT" | grep -q LISTEN && echo WARNING ...
+- Adds a verify step right after teardown: `ss -ltn "sport = :$NGFW_WEB_PORT" | grep -q LISTEN && echo WARNING ...
   || echo port closed`.
 - "Rules this harness follows" updated to match (no longer says just `kill $WEB_PID`).
 
@@ -45,8 +45,8 @@ that PID, then `ss -ltnp` on 4100/6100/9211 confirmed empty. This is exactly the
 - Reads `document.documentElement.style.colorScheme` before/after `setTheme(target)` and `check()`s it changed to
   the target and differs from before. `target` is picked as "whichever mode is not already active" rather than a
   hardcoded `'dark'` — correctly avoiding a no-op on the `--themes light,dark` pass that starts in `dark` already.
-  Confirmed `document.documentElement.style.colorScheme` really is set by `VrxThemeProvider`
-  (`packages/ui-kit/src/theme/VrxThemeProvider.tsx:31`, untouched, pre-existing product code) — a legitimate
+  Confirmed `document.documentElement.style.colorScheme` really is set by `NgfwThemeProvider`
+  (`packages/ui-kit/src/theme/NgfwThemeProvider.tsx:31`, untouched, pre-existing product code) — a legitimate
   ground-truth signal, not an invented one.
 - Reads `document.documentElement.dir` before/after `setLanguage(otherLang)` and `check()`s it flipped, then
   restores the original language.
@@ -82,7 +82,7 @@ This internal arithmetic consistency is strong evidence the pasted log is a real
 ## Live evidence — judged, no rerun performed (per instructions)
 
 `docs/status/tasks/WEB-3.md`'s "Fix round 1" section pastes a full real-stack run on slot 11 (same procedure as
-the original proof: agent+API owner `w11`, `vite preview` on `127.0.0.1:6100`, `flock -s /run/lock/vrx-lab.lock`,
+the original proof: agent+API owner `w11`, `vite preview` on `127.0.0.1:6100`, `flock -s /run/lock/ngfw-lab.lock`,
 no `show trace`/`trace add`, slot checked free before starting). Judged as credible: internally consistent check
 math (44 = 22+10+12, 16 shots, see above), consistent with the code changes actually present in the diff (every
 assertion in the log has a corresponding `check()` call in the diff that could produce that exact message string),

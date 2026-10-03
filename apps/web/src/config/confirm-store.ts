@@ -47,7 +47,7 @@ export interface ConfirmState {
   outcome: { kind: CommitOutcomeKind; txnId: string; revision?: number | undefined; summary?: ApplySummary | undefined } | null;
 }
 
-const KEY = 'vrx.confirm';
+const KEY = 'ngfw.confirm';
 const listeners = new Set<() => void>();
 
 function load(): ConfirmState {

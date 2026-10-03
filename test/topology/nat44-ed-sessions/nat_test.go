@@ -1,10 +1,10 @@
 // Package nat44edsessions is F-nat44-ed-sessions' topology test: NAT44-ED end to end against the REAL host VPP
-// through the af_packet veth/netns rig (path: af_packet, D-010), with the real vrx-agent and vrx-api of the slot.
+// through the af_packet veth/netns rig (path: af_packet, D-010), with the real ngfw-agent and ngfw-api of the slot.
 //
 //	TestNat44EdSessions
 //	  config        interfaces (rev 1) → overlapping / adjacent pools rejected 400 + pointer → NAT (rev 2): inside,
 //	                outside, a PAT pool, a port forward, a 1:1 mapping → Retrieve(nat) == canonical desired, vppctl
-//	  packets       V19 guard + vrx-vpp-preflight → outbound PAT (tcpdump in the wan netns sees the pool address; the
+//	  packets       V19 guard + ngfw-vpp-preflight → outbound PAT (tcpdump in the wan netns sees the pool address; the
 //	                same 5-tuple in vppctl and GET /state/nat/sessions) → port forward wan→external:8080 reaches the lan
 //	                host on :80 (the static session in vppctl and the API) → 1:1 both directions → ≥ 2 000 sessions: pageSize=100 never
 //	                returns more than 100, bounded gRPC messages → summary → kill through the API (gone from vppctl,
@@ -13,7 +13,7 @@
 //	                → start the agent → NAT back within 30 s (agent log); sessions are lost (documented)
 //	  rollback      to rev 1 → Retrieve has no NAT object, VPP has none of ours, the plugin stays enabled (D-071)
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix, under flock -s on the lab lock, the slot's nat44
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix, under flock -s on the lab lock, the slot's nat44
 // lock (ED/EI exclusive) and the globals lock shared (D-082); the plugin is a fixture (enabled only if off, disabled
 // again only if this test enabled it and nat44-ed is empty). NRestarts is checked before and after. VPP is never
 // restarted; every process is stopped by PID.
@@ -39,33 +39,33 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/nat44_ed"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
-func dialAgent(t *testing.T, sock string) vrxv1.DataplaneClient {
+func dialAgent(t *testing.T, sock string) ngfwv1.DataplaneClient {
 	t.Helper()
 	cc, err := grpc.NewClient("unix://"+sock, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = cc.Close() })
-	return vrxv1.NewDataplaneClient(cc)
+	return ngfwv1.NewDataplaneClient(cc)
 }
 
-func retrieveNat(t *testing.T, c vrxv1.DataplaneClient) (*vrxv1.NatConfig, error) {
+func retrieveNat(t *testing.T, c ngfwv1.DataplaneClient) (*ngfwv1.NatConfig, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	r, err := c.Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"nat"}})
+	r, err := c.Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"nat"}})
 	if err != nil {
 		return nil, err
 	}
 	return r.GetDesiredState().GetNat(), nil
 }
 
-func natJSON(t *testing.T, js string) *vrxv1.NatConfig {
+func natJSON(t *testing.T, js string) *ngfwv1.NatConfig {
 	t.Helper()
-	n := &vrxv1.NatConfig{}
+	n := &ngfwv1.NatConfig{}
 	if err := protojson.Unmarshal([]byte(js), n); err != nil {
 		t.Fatalf("nat json: %v", err)
 	}
@@ -91,9 +91,9 @@ type fixture struct {
 	r       rig
 	st      *stack
 	a       *api
-	c       vrxv1.DataplaneClient
+	c       ngfwv1.DataplaneClient
 	natCfg  map[string]any
-	canon   *vrxv1.NatConfig
+	canon   *ngfwv1.NatConfig
 	ifIdx   map[uint32]string
 	slotNet netip.Prefix
 	conn    vppapi.Connection
@@ -101,8 +101,8 @@ type fixture struct {
 }
 
 func TestNat44EdSessions(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-nat44-ed-sessions topology test: set VRX_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-nat44-ed-sessions topology test: set NGFW_INTEGRATION=1 (host VPP, rig, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (netns, veth, VPP API socket)")
@@ -232,11 +232,11 @@ func TestNat44EdSessions(t *testing.T) {
 		for _, l := range v19Guard(t, conn, idx) {
 			t.Log("V19 guard: " + l)
 		}
-		if bin := os.Getenv("VRX_PREFLIGHT_BIN"); bin != "" {
+		if bin := os.Getenv("NGFW_PREFLIGHT_BIN"); bin != "" {
 			out, err := run(t, bin)
-			t.Logf("vrx-vpp-preflight: %v\n%s", err, strings.TrimSpace(out))
+			t.Logf("ngfw-vpp-preflight: %v\n%s", err, strings.TrimSpace(out))
 			if err != nil {
-				t.Fatal("vrx-vpp-preflight did not exit 0 — no packet may cross the rig (D-095)")
+				t.Fatal("ngfw-vpp-preflight did not exit 0 — no packet may cross the rig (D-095)")
 			}
 		}
 		r.peers(t, true)
@@ -293,10 +293,10 @@ func TestNat44EdSessions(t *testing.T) {
 
 // sessionRow finds the API row of one inside endpoint.
 // TestNat44EdGC removes this slot's NAT44-ED objects from VPP (pool addresses in 10.N/16, mappings tagged
-// "<prefix>:", features on the rig interfaces) after an aborted run: VRX_NAT_GC=1 run.sh -run TestNat44EdGC.
+// "<prefix>:", features on the rig interfaces) after an aborted run: NGFW_NAT_GC=1 run.sh -run TestNat44EdGC.
 func TestNat44EdGC(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" || os.Getenv("VRX_NAT_GC") != "1" {
-		t.Skip("slot NAT gc: set VRX_INTEGRATION=1 and VRX_NAT_GC=1")
+	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_NAT_GC") != "1" {
+		t.Skip("slot NAT gc: set NGFW_INTEGRATION=1 and NGFW_NAT_GC=1")
 	}
 	s := slotFromEnv(t)
 	sharedLock(t)
@@ -320,7 +320,7 @@ func TestNat44EdGC(t *testing.T) {
 	t.Log("no NAT44-ED object of the slot is left")
 	// restore "disabled" after aborted runs left the plugin on (the fixture of an aborted run never got to its
 	// restore): exclusive fixture lock, all-owner emptiness, then disable — never while anyone holds an object
-	if os.Getenv("VRX_NAT_GC_DISABLE_IF_EMPTY") == "1" {
+	if os.Getenv("NGFW_NAT_GC_DISABLE_IF_EMPTY") == "1" {
 		f := flock(t, fixtureLock, syscall.LOCK_EX)
 		defer func() { _ = f.Close() }()
 		o := dumpNat(t, conn)
@@ -350,10 +350,10 @@ func (f *fixture) sessionRow(t *testing.T, query string) map[string]any {
 
 func (f *fixture) packets(t *testing.T) {
 	r, a := f.r, f.a
-	if hold := os.Getenv("VRX_NAT_HOLD_ON_FAIL"); hold != "" { // debugging only: keep the stack for a look
+	if hold := os.Getenv("NGFW_NAT_HOLD_ON_FAIL"); hold != "" { // debugging only: keep the stack for a look
 		t.Cleanup(func() {
 			if d, err := time.ParseDuration(hold); err == nil && t.Failed() {
-				t.Logf("holding the failed stack for %s (VRX_NAT_HOLD_ON_FAIL)", d)
+				t.Logf("holding the failed stack for %s (NGFW_NAT_HOLD_ON_FAIL)", d)
 				time.Sleep(d)
 			}
 		})
@@ -409,7 +409,7 @@ func (f *fixture) packets(t *testing.T) {
 	capL := startCapture(t, "tcpdump-lan-fwd", logs, r.lanNS, r.lanPeer, "tcp", "port", "80")
 	out, err := inNS(t, r.wanNS, "python3", once, r.wanIP, "41001", r.addr(2, 110), "8080")
 	t.Logf("wan %s:41001 → %s:8080: %v %s", r.wanIP, r.addr(2, 110), err, strings.TrimSpace(out))
-	if err != nil || !strings.Contains(out, "vrx-nat-ok") {
+	if err != nil || !strings.Contains(out, "ngfw-nat-ok") {
 		t.Fatal("the port forward did not reach the lan host")
 	}
 	lanLines := capL.lines(t)
@@ -433,7 +433,7 @@ func (f *fixture) packets(t *testing.T) {
 	// ---- 1:1 both directions
 	capW = startCapture(t, "tcpdump-wan-1to1", logs, r.wanNS, r.wanPeer, "tcp", "port", "8000", "and", "src", "host", r.addr(2, 111))
 	out, err = inNS(t, r.lanNS, "python3", once, r.addr(1, 3), "42001", r.wanIP, "8000")
-	if err != nil || !strings.Contains(out, "vrx-nat-ok") {
+	if err != nil || !strings.Contains(out, "ngfw-nat-ok") {
 		t.Fatalf("1:1 outbound from %s failed: %v %s", r.addr(1, 3), err, out)
 	}
 	lines = capW.lines(t)
@@ -445,7 +445,7 @@ func (f *fixture) packets(t *testing.T) {
 	time.Sleep(500 * time.Millisecond)
 	out, err = inNS(t, r.wanNS, "python3", once, r.wanIP, "43001", r.addr(2, 111), "9000")
 	t.Logf("1:1 inbound %s:43001 → %s:9000 (lan %s:9000): %v %s", r.wanIP, r.addr(2, 111), r.addr(1, 3), err, strings.TrimSpace(out))
-	if err != nil || !strings.Contains(out, "vrx-nat-ok") {
+	if err != nil || !strings.Contains(out, "ngfw-nat-ok") {
 		t.Fatal("1:1 inbound did not reach the lan host")
 	}
 
@@ -477,7 +477,7 @@ func (f *fixture) packets(t *testing.T) {
 	}
 	for _, limit := range []uint32{100, 1000} {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		resp, err := f.c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Limit: limit})
+		resp, err := f.c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Limit: limit})
 		cancel()
 		if err != nil {
 			t.Fatal(err)
@@ -488,7 +488,7 @@ func (f *fixture) packets(t *testing.T) {
 		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	_, err = f.c.NatSessions(ctx, &vrxv1.NatSessionsRequest{Limit: 1001})
+	_, err = f.c.NatSessions(ctx, &ngfwv1.NatSessionsRequest{Limit: 1001})
 	cancel()
 	t.Logf("gRPC NatSessions limit=1001 → %v", err)
 	if status.Code(err) != codes.InvalidArgument {
@@ -548,7 +548,7 @@ func (f *fixture) restart(t *testing.T) {
 	t0 := time.Now()
 	st.startAgent(t)
 	// f.c (dialled by the parent test) reconnects to the restarted agent on its own
-	var got *vrxv1.NatConfig
+	var got *ngfwv1.NatConfig
 	ok := waitFor(30*time.Second, func() bool {
 		n, err := retrieveNat(t, f.c)
 		if err != nil {
@@ -562,7 +562,7 @@ func (f *fixture) restart(t *testing.T) {
 	var tStart, tResync time.Time
 	for i, l := range lines {
 		switch {
-		case l.Msg == "vrx-agent starting" && tStart.IsZero():
+		case l.Msg == "ngfw-agent starting" && tStart.IsZero():
 			tStart = l.Time
 			t.Log("agent log: " + raw[i])
 		case l.Msg == "resync finished" && tResync.IsZero():

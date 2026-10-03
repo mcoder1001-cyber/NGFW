@@ -10,7 +10,7 @@ No PR61 mutation, capability changes, broad /etc writes or public schema.
 Explicit appliance activation will load bounded root-owned non-symlink
 base-policy.env, preserve permanent admin punt entries, and union only owned
 root-namespace desired LCP interfaces with maximum 64 and management excluded.
-The distinct renderer owns only inet vrx_base / punt_interfaces. Commands use
+The distinct renderer owns only inet ngfw_base / punt_interfaces. Commands use
 fixed nft executable/argv, atomic typed stdin and bounded strict JSON readback.
 No shell, wildcard, foreign table mutation, or namespace inference from an
 empty pair field alone. Named/default namespaces must be accounted for.
@@ -69,7 +69,7 @@ P10-scheduler-uncertainty-review.md. No target host nft/VPP tests performed.
 
 ## First product integration checkpoint
 
-Explicit VRX_BASE_POLICY=1 requires vrx globals owner, loads protected bootstrap
+Explicit NGFW_BASE_POLICY=1 requires ngfw globals owner, loads protected bootstrap
 inputs and registers the per-host descriptor. Product unit enables this flag and
 requires/starts after nftables. Apply, dry-run and drift/resync projections now
 use the same augmentation hook; disabled agents make no namespace/nft calls.

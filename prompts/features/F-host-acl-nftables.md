@@ -3,7 +3,7 @@
 ## Goal
 Protect the appliance's own host stack (SSH, HTTPS UI/API, SNMP, BGP/OSPF sessions punted to Linux, DNS/NTP served by the box)
 with host ACLs rendered to **nftables** by a new agent renderer. This renderer is the single source of the host firewall
-(D-057): F-hardening-lite consumes it, and the static base policy P10 ships in `vrx-meta` becomes its bootstrap default.
+(D-057): F-hardening-lite consumes it, and the static base policy P10 ships in `ngfw-meta` becomes its bootstrap default.
 Reference: TNSR "host ACLs"; WBS D5.3 in `plan/wbs.csv`.
 
 ## Inputs to read first
@@ -13,13 +13,13 @@ Reference: TNSR "host ACLs"; WBS D5.3 in `plan/wbs.csv`.
 - `apps/agent/internal/objects` (F-object-model) — expansion of address/service objects and groups (nft sets are built from it)
 - `apps/agent/internal/renderers/{renderer.go,README.md,ALLOWLIST.md,helpers_*.go}` and a merged renderer as the pattern
   (`renderers/chrony` for restart/convergence, `renderers/frr` for escaping + DryRun)
-- `prompts/P10-packaging-deb.md` §5 (static nftables base policy in `vrx-meta`) and `prompts/features/F-hardening-lite.md` (consumer)
+- `prompts/P10-packaging-deb.md` §5 (static nftables base policy in `ngfw-meta`) and `prompts/features/F-hardening-lite.md` (consumer)
 - `docs/lab/shared-host-rules.md` — the host is shared and reached over SSH on ens192: **never load a ruleset into the host's root
   netns in tests**. Host facts: `/usr/sbin/nft` is nftables 1.1.6; `nftables.service` is inactive and disabled. Leave it that way.
 - **Agent integration fact (P05/P08):** the agent's Apply/DryRun/Retrieve/Resync path runs only the descriptor scheduler. No renderer
   is called anywhere in the agent yet (`apps/agent/internal/agent/service.go` `applyLocked`); P11 was planned as the first daemon
   renderer. Pick the smaller path and log it as a decision with options:
-  - (a) wrap the renderer in one singleton scheduler descriptor (e.g. `host-acl.nftables/vrx`: Create/Update = Render → Validate →
+  - (a) wrap the renderer in one singleton scheduler descriptor (e.g. `host-acl.nftables/ngfw`: Create/Update = Render → Validate →
     Apply, Delete = remove the table, Retrieve = normalised `nft -j list table`), registered under `Domains["acl"]`, with no change to
     the agent core;
   - (b) add a renderer step to `service.go`, which P11/P12 would reuse later. The agent core is read-only in wave A
@@ -49,13 +49,13 @@ methods, if any), `apps/api/src/features/host-acl-nftables/**`, `apps/api/test/e
 Shared, minimal hunks only (state each in the PR; protocol in `docs/status/wave-A-hotspots.md`): `renderers/ALLOWLIST.md` (row for
 `/usr/sbin/nft`), `subsystems.go` (registration + `Domains["acl"]`), `projection.go`, `apps/api/src/agent/agent.client.ts`,
 `apps/api/src/testing/fake-agent.ts`, `app.module.ts`, router/nav, `apps/web/src/i18n.ts`, regenerated `packages/api-client`.
-1. **Renderer** `renderers/nftables`: renders ONE table `table inet vrx` (never `flush ruleset`, never touches other tables — P10's
+1. **Renderer** `renderers/nftables`: renders ONE table `table inet ngfw` (never `flush ruleset`, never touches other tables — P10's
    base policy and foreign tables survive); chains per attachment (`type filter hook <chain> priority <n>`), named sets for expanded
    objects, `ct state established,related accept` first, an **anti-lockout rule** (management SSH/HTTPS from the configured source
-   cannot be dropped by a commit — DryRun error otherwise), counters on every rule, `log prefix "vrx:<list>:<seq> "` when `log`.
+   cannot be dropped by a commit — DryRun error otherwise), counters on every rule, `log prefix "ngfw:<list>:<seq> "` when `log`.
    Validate with `nft -c -f <staged>`; apply atomically with one `nft -f` file (`add table` + `delete table` + full table body in one
-   transaction); Retrieve = `nft -j list table inet vrx` normalised; restart safety = re-render on agent start.
-2. **Test isolation**: product paths vs `TestPaths(slot)`; tests render `table inet vrx_<slot>` and apply only inside a slot netns
+   transaction); Retrieve = `nft -j list table inet ngfw` normalised; restart safety = re-render on agent start.
+2. **Test isolation**: product paths vs `TestPaths(slot)`; tests render `table inet ngfw_<slot>` and apply only inside a slot netns
    created by a test-only harness (the frrtest pattern; `ip` stays test-only in ALLOWLIST) — never the host root netns. This
    includes the slot **agent** in stack/topology runs: give it the slot's TestPaths so it enters the slot netns before it runs `nft`
    (e.g. `setns` on a locked OS thread, the `strongswan/swantest` pattern; never `ip netns exec` in product code), or run it in
@@ -68,7 +68,7 @@ Shared, minimal hunks only (state each in the PR; protocol in `docs/status/wave-
 
 ## Acceptance (paste the evidence)
 - [ ] Golden + hostile-input tests (quote/brace/newline injection in descriptions and interface names) green
-- [ ] In the slot netns: after apply `nft list table inet vrx_<slot>` shows the rules (pasted); a blocked port from a veth peer is
+- [ ] In the slot netns: after apply `nft list table inet ngfw_<slot>` shows the rules (pasted); a blocked port from a veth peer is
       dropped and the counter increments; an allowed port connects
 - [ ] Agent-restart simulation → table re-rendered identically (diff empty)
 - [ ] Rollback → table content equals the previous revision (Retrieve, not assumption); other tables untouched (`nft list tables` before/after)

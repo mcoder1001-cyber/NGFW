@@ -5,7 +5,7 @@ import {
   status as GrpcStatus,
   type ServiceError,
 } from '@grpc/grpc-js';
-import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
 import {
   type ApplyRequest,
   type ApplyResponse,
@@ -125,8 +125,10 @@ import {
   type SyslogEntriesRequest,
   type SyslogEntriesResponse,
   type SyslogStateResponse,
+  type IpsecStateResponse,
 } from '@ngfw/proto';
 import type { ClientReadableStream } from '@grpc/grpc-js';
+import { SecretDeliveryService } from '../secrets/secret-delivery.service.js';
 import { ENV, type Env } from '../config.js';
 import { ProblemError } from '../common/problem.js';
 
@@ -138,21 +140,30 @@ import { ProblemError } from '../common/problem.js';
 @Injectable()
 export class AgentClient implements OnModuleDestroy {
   private client: DataplaneClient | undefined;
+  private readonly captureCalls = new Map<string, ClientReadableStream<ActionOutput>>();
+  private readonly captureLog = new Logger('Captures');
 
-  constructor(@Inject(ENV) private readonly env: Env) {}
+  constructor(
+    @Inject(ENV) private readonly env: Env,
+    @Optional() private readonly secretDelivery?: SecretDeliveryService,
+  ) {}
+
+  async resolveSecrets(desired: DesiredState, versions?: Readonly<Record<string, number>>) {
+    return this.secretDelivery?.resolveVersioned(desired, versions);
+  }
 
   get socket(): string {
-    return this.env.VRX_AGENT_SOCKET;
+    return this.env.NGFW_AGENT_SOCKET;
   }
 
   /** Owner stated on every request (proto.md §6): a request that reaches a foreign agent fails loudly. */
   get owner(): string {
-    return this.env.VRX_AGENT_OWNER;
+    return this.env.NGFW_AGENT_OWNER;
   }
 
   private get c(): DataplaneClient {
     this.client ??= new DataplaneClient(
-      `unix:${this.env.VRX_AGENT_SOCKET}`,
+      `unix:${this.env.NGFW_AGENT_SOCKET}`,
       credentials.createInsecure(),
       {
         // reconnect fast after an agent restart (the default backoff grows to 2 min)
@@ -198,7 +209,7 @@ export class AgentClient implements OnModuleDestroy {
       cb: (err: ServiceError | null, res: Res) => void,
     ) => unknown,
     req: Req,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<Res> {
     return new Promise((resolve, reject) => {
       call.call(
@@ -212,18 +223,28 @@ export class AgentClient implements OnModuleDestroy {
   }
 
   /** `timeoutMs`: the commit engine's budget for this call (TD-10a, commit/budget.ts). */
-  apply(
-    req: Omit<ApplyRequest, 'owner'>,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  async apply(
+    req: Omit<ApplyRequest, 'owner' | 'secretBundle'> & {
+      secretBundle?: ApplyRequest['secretBundle'];
+    },
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ApplyResponse> {
-    return this.unary(this.c.apply, { ...req, owner: this.owner }, timeoutMs);
+    const secretBundle =
+      req.secretBundle ??
+      (req.desiredState ? await this.secretDelivery?.resolve(req.desiredState) : undefined);
+    return this.unary(this.c.apply, { ...req, secretBundle, owner: this.owner }, timeoutMs);
   }
 
-  dryRun(
-    req: Omit<DryRunRequest, 'owner'>,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+  async dryRun(
+    req: Omit<DryRunRequest, 'owner' | 'secretBundle'> & {
+      secretBundle?: DryRunRequest['secretBundle'];
+    },
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ValidationReport> {
-    return this.unary(this.c.dryRun, { ...req, owner: this.owner }, timeoutMs);
+    const secretBundle =
+      req.secretBundle ??
+      (req.desiredState ? await this.secretDelivery?.resolve(req.desiredState) : undefined);
+    return this.unary(this.c.dryRun, { ...req, secretBundle, owner: this.owner }, timeoutMs);
   }
 
   retrieve(subsystems: string[] = []): Promise<RetrieveResponse> {
@@ -291,7 +312,7 @@ export class AgentClient implements OnModuleDestroy {
     return this.cgnatDone({ cnatSessionPurge: {} });
   }
   private async cgnatDone(req: ActionRequest): Promise<ActionDone> {
-    const r = await this.runAction(req, this.env.VRX_AGENT_TIMEOUT_MS);
+    const r = await this.runAction(req, this.env.NGFW_AGENT_TIMEOUT_MS);
     if (r.done === undefined)
       throw new ProblemError(
         502,
@@ -371,6 +392,7 @@ export class AgentClient implements OnModuleDestroy {
   startCapture(req: CaptureAction, timeoutMs = 700_000): Promise<string> {
     return new Promise((resolve, reject) => {
       let started = false;
+      let captureId = '';
       const call = this.c.action({ capture: req }, new Metadata(), {
         deadline: new Date(Date.now() + timeoutMs),
       });
@@ -378,13 +400,23 @@ export class AgentClient implements OnModuleDestroy {
         const m = /^capture (\S+) started$/.exec(o.line ?? '');
         if (!started && m?.[1]) {
           started = true;
-          resolve(m[1]);
+          captureId = m[1];
+          this.captureCalls.set(captureId, call);
+          resolve(captureId);
         }
       });
       call.on('error', (e: ServiceError) => {
+        this.captureCalls.delete(captureId);
         if (!started) reject(agentProblem(e));
+        else if (e.code !== GrpcStatus.CANCELLED)
+          this.captureLog.warn({
+            captureId,
+            grpcCode: e.code,
+            message: 'Capture stream failed after start',
+          });
       });
       call.on('end', () => {
+        this.captureCalls.delete(captureId);
         if (!started)
           reject(
             new ProblemError(
@@ -396,6 +428,23 @@ export class AgentClient implements OnModuleDestroy {
           );
       });
     });
+  }
+  /** Cancel only a capture stream held by this API process. */
+  async stopCapture(id: string): Promise<void> {
+    const call = this.captureCalls.get(id);
+    if (call) {
+      this.captureCalls.delete(id);
+      call.cancel();
+      return;
+    }
+    const entry = (await this.captureList()).captures.find((capture) => capture.id === id);
+    if (!entry) throw new ProblemError(404, 'not-found', 'Not found', 'no such capture');
+    throw new ProblemError(
+      409,
+      'capture-not-running',
+      'Conflict',
+      'capture is not running in this API process',
+    );
   }
   // wave-BC: F-srv6
   /** F-srv6: live SRv6 state (proto.md §11); callers do not poll faster than every 30 s (D-132). */
@@ -476,7 +525,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-neighbors-ra: run the arp_flush action (ActionRequest 4) and collect its lines and `done`. */
   arpFlush(
     req: ArpFlushAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<{ lines: string[]; done: NeighborsRaActionDone | undefined }> {
     return new Promise((resolve, reject) => {
       const call = this.c.action({ arpFlush: req }, new Metadata(), {
@@ -522,7 +571,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-nat44-ed-sessions: the NatSessionKillAction through the Action stream; resolves with its `done`. */
   natSessionKill(
     a: NatSessionKillAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ActionDone> {
     return new Promise((resolve, reject) => {
       const call = this.c.action({ natSessionKill: a }, new Metadata(), {
@@ -602,7 +651,7 @@ export class AgentClient implements OnModuleDestroy {
   /** F-unbound-chrony-syslog: ActionRequest.dns_lookup; collects the whole (short) output stream. */
   dnsLookup(
     req: DnsLookupAction,
-    timeoutMs = this.env.VRX_AGENT_TIMEOUT_MS,
+    timeoutMs = this.env.NGFW_AGENT_TIMEOUT_MS,
   ): Promise<ActionOutput[]> {
     return new Promise((resolve, reject) => {
       const out: ActionOutput[] = [];
@@ -616,12 +665,17 @@ export class AgentClient implements OnModuleDestroy {
   }
 
   close(): void {
+    for (const call of this.captureCalls.values()) call.cancel();
+    this.captureCalls.clear();
     this.client?.close();
     this.client = undefined;
   }
 
   onModuleDestroy(): void {
     this.close();
+  }
+  ipsecState(tunnels: string[] = [], offset = 0, limit = 0): Promise<IpsecStateResponse> {
+    return this.unary(this.c.ipsecState, { tunnels, owner: this.owner, offset, limit });
   }
 }
 

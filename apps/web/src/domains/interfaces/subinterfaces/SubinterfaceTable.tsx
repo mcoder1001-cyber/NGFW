@@ -37,7 +37,7 @@ export interface SubinterfaceTableProps {
 }
 
 const CELLS = { '& .MuiTableCell-root': { px: 0.75 } } as const;
-const MONO = { fontFamily: (th: Theme) => th.vrx.monoFontFamily, fontSize: 12 } as const;
+const MONO = { fontFamily: (th: Theme) => th.ngfw.monoFontFamily, fontSize: 12 } as const;
 
 /**
  * The sub-interfaces of one parent in the interface drawer (F-vlan-qinq; extracted from P08's drawer). One row per

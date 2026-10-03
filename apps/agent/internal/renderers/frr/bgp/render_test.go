@@ -12,7 +12,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/bgp"
@@ -72,9 +72,9 @@ func (rc) MapInterface(n string) (string, bool) {
 	return "", false
 }
 
-func parse(t *testing.T, js string) *vrxv1.DesiredState {
+func parse(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func golden(t *testing.T, name, got string) {
 
 func TestRenderGolden(t *testing.T) {
 	ds := parse(t, fullDoc)
-	lines, err := bgp.Render(ds.GetRouting().GetBgp(), rc{secrets: map[string]string{"password/p12-peer": "VRX_TEST_PSK_P12_1"}}) //nolint:gosec // G101: test fixture literal
+	lines, err := bgp.Render(ds.GetRouting().GetBgp(), rc{secrets: map[string]string{"password/p12-peer": "NGFW_TEST_PSK_P12_1"}}) //nolint:gosec // G101: test fixture literal
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestRenderThroughFramework(t *testing.T) {
 	ds := parse(t, fullDoc)
 	r := frr.New(renderers.NewRecordingRunner(), frr.WithPaths(frr.TestPaths("w8")), frr.WithSections(bgp.Section{}, policy.Section{}),
 		frr.WithInterfaceMapper(rc{}.MapInterface), frr.WithInterfaceLines(),
-		frr.WithSecretResolver(frr.SecretResolverFunc(func(context.Context, string) (string, error) { return "VRX_TEST_PSK_P12_1", nil })))
+		frr.WithSecretResolver(frr.SecretResolverFunc(func(context.Context, string) (string, error) { return "NGFW_TEST_PSK_P12_1", nil })))
 	files, err := r.Render(context.Background(), ds)
 	if err != nil {
 		t.Fatal(err)
@@ -125,7 +125,7 @@ func TestRenderThroughFramework(t *testing.T) {
 		t.Fatalf("frr.conf with a password must be Secret 0640: %+v", conf.Mode)
 	}
 	red := string(files.Redacted()[r.Paths().ConfFile()].Content)
-	if strings.Contains(red, "VRX_TEST_PSK") {
+	if strings.Contains(red, "NGFW_TEST_PSK") {
 		t.Fatal("redacted files hold the password")
 	}
 	s := string(conf.Content)
@@ -183,7 +183,7 @@ func TestPolicyErrors(t *testing.T) {
 		"prepend as 0":    {`{"routeMaps":{"r":{"entries":[{"seq":1,"action":"permit","set":{"asPathPrepend":[0]}}]}}}`, "AS 0"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			pol := &vrxv1.RoutingPolicy{}
+			pol := &ngfwv1.RoutingPolicy{}
 			if err := protojson.Unmarshal([]byte(tc.doc), pol); err != nil {
 				t.Fatal(err)
 			}

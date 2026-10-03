@@ -40,7 +40,7 @@ management identity or upgrade migration.
 
 ## Repository findings
 
-`vrx-startupgen` currently renders only explicit devices; an empty configuration emits
+`ngfw-startupgen` currently renders only explicit devices; an empty configuration emits
 `no-pci`. Appliance installation/firstboot units are not implemented. A fresh agent has
 empty desired state and replays only persisted domains. Existing validation requires
 explicit `interfaces.<name>.lcp`; hiding its web controls does not implement automatic

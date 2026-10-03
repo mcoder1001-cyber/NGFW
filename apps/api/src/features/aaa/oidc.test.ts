@@ -4,7 +4,7 @@ import { allowedUrl, authorizationUrl, identityOf, jwksFor, pkce } from './oidc.
 
 const cfg = {
   issuer: 'https://idp.example.net',
-  clientId: 'vrx',
+  clientId: 'ngfw',
   redirectUri: 'https://fw/api/v1/auth/oidc/callback',
   scopes: ['openid', 'profile'],
   usernameClaim: 'preferred_username',
@@ -40,7 +40,7 @@ describe('oidc helpers', () => {
     );
     expect(Object.fromEntries(u.searchParams)).toEqual({
       response_type: 'code',
-      client_id: 'vrx',
+      client_id: 'ngfw',
       redirect_uri: cfg.redirectUri,
       scope: 'openid profile',
       state: 's',

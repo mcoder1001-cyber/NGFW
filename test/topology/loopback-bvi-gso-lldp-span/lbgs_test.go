@@ -18,7 +18,7 @@
 //	                  first revision → the loopbacks are gone
 //	  cleanup         the fixture is deleted; nothing with the slot prefix remains (dump)
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
 // checked before and after. Build and run: test/topology/loopback-bvi-gso-lldp-span/run.sh.
 package lbgs
 
@@ -38,13 +38,14 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	spanapi "ngfw/agent/binapi/span"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 type names struct {
 	prefix   string
 	slot     int
 	bvi, mon string
+	underlay string
 	gre      string
 	greInst  uint32
 	bd       string
@@ -56,8 +57,9 @@ type names struct {
 func newNames(s slot) names {
 	return names{
 		prefix: s.prefix, slot: s.num,
-		bvi: "loop" + strconv.Itoa(s.num*100+75), mon: "loop" + strconv.Itoa(s.num*100+76),
-		greInst: uint32(s.num*100 + 78), gre: "gre" + strconv.Itoa(s.num*100+78), //nolint:gosec // slot 1–12
+		underlay: "loop" + strconv.Itoa(s.num*100+74),
+		bvi:      "loop" + strconv.Itoa(s.num*100+75), mon: "loop" + strconv.Itoa(s.num*100+76),
+		greInst: uint32(s.num*1000 + 78), gre: "gre" + strconv.Itoa(s.num*1000+78), //nolint:gosec // slot 1–12
 		bd: s.prefix + "-lan", bdID: uint32(s.num*1000 + 750), //nolint:gosec // the slot's id range
 	}
 }
@@ -65,12 +67,12 @@ func newNames(s slot) names {
 func (n names) greSrc() string { return fmt.Sprintf("10.%d.78.1", n.slot) }
 func (n names) greDst() string { return fmt.Sprintf("10.%d.78.2", n.slot) }
 
-// loopbacksDoc is revision A: the loopbacks, the bridge domain with the BVI, the fixture tunnel named (not created).
+// loopbacksDoc is revision A: the loopbacks, bridge domain/BVI and the fixture tunnel's underlay source.
 func (n names) loopbacksDoc() (ifs map[string]any, routing map[string]any) {
 	ifs = map[string]any{
-		n.bvi: map[string]any{"enabled": true, "ipv4": []string{fmt.Sprintf("10.%d.75.1/24", n.slot)}, "l2": map[string]any{"bridgeDomain": n.bd, "bvi": true}},
-		n.mon: map[string]any{"enabled": true},
-		n.gre: map[string]any{},
+		n.underlay: map[string]any{"enabled": true, "ipv4": []string{n.greSrc() + "/32"}},
+		n.bvi:      map[string]any{"enabled": true, "ipv4": []string{fmt.Sprintf("10.%d.75.1/24", n.slot)}, "l2": map[string]any{"bridgeDomain": n.bd, "bvi": true}},
+		n.mon:      map[string]any{"enabled": true},
 	}
 	if n.lldp != "" {
 		ifs[n.lldp] = map[string]any{"enabled": true}
@@ -89,8 +91,8 @@ func (n names) featuresPatch() map[string]any {
 }
 
 func TestLoopbackBviGsoLldpSpanOnHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-loopback-bvi-gso-lldp-span topology test: set VRX_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-loopback-bvi-gso-lldp-span topology test: set NGFW_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (VPP API socket)")
@@ -121,11 +123,32 @@ func TestLoopbackBviGsoLldpSpanOnHost(t *testing.T) {
 
 	st := newStack(t, s)
 	a := st.api
-	// revision 0: only the fixture tunnel named (the rollback target of the loopbacks)
-	a.patch("/interfaces", map[string]any{n.gre: map[string]any{}})
+	// Keep the owned fixture in desired state. Naming only its interface makes
+	// the tunnels family correctly delete it as an undesired owned tunnel.
+	t.Cleanup(func() {
+		a.t = t
+		a.call("POST", "/api/v1/config/discard", nil)
+		remove := map[string]any{n.underlay: nil, n.gre: nil, n.bvi: nil, n.mon: nil}
+		if n.lldp != "" {
+			remove[n.lldp] = nil
+		}
+		a.patch("/interfaces", remove)
+		a.patch("/tunnels/gre", map[string]any{n.gre: nil})
+		a.patch("/routing/l2/bridgeDomains", map[string]any{n.bd: nil})
+		a.patch("/services/lldp", map[string]any{"enabled": false})
+		a.commit("lbgs-cleanup")
+	})
+	// Revision 0 keeps only the ERSPAN tunnel and its underlay source.
+	a.patch("/interfaces", map[string]any{
+		n.underlay: map[string]any{"enabled": true, "ipv4": []string{n.greSrc() + "/32"}},
+	})
+	a.patch("/tunnels/gre", map[string]any{n.gre: map[string]any{
+		"instance": n.greInst, "src": n.greSrc(), "dst": n.greDst(),
+		"type": "erspan", "sessionId": 7, "underlayVrf": "default", "vrf": "default",
+	}})
 	c0 := a.commit("lbgs-rev0-fixture-named")
 	first := int(c0["revision"].(map[string]any)["id"].(float64))
-	t.Logf("commit rev 0 (the ERSPAN fixture %s named, nothing else) → %v revision %d", n.gre, c0["status"], first)
+	t.Logf("commit rev 0 (ERSPAN fixture %s and its underlay source retained) → %v revision %d", n.gre, c0["status"], first)
 
 	ok := t.Run("validation", func(t *testing.T) {
 		a.t = t
@@ -225,7 +248,7 @@ func TestLoopbackBviGsoLldpSpanOnHost(t *testing.T) {
 		var tStart, tResync time.Time
 		for i, l := range lines {
 			switch {
-			case l.Msg == "vrx-agent starting" && tStart.IsZero():
+			case l.Msg == "ngfw-agent starting" && tStart.IsZero():
 				tStart = l.Time
 				t.Log("agent log: " + raw[i])
 			case l.Msg == "resync finished" && tResync.IsZero():
@@ -361,7 +384,7 @@ func assertFeatures(t *testing.T, a *api, conn vppConn, n names, socket string, 
 }
 
 // retrieve asks the slot's agent for Retrieve over its unix socket.
-func retrieve(t *testing.T, socket string) *vrxv1.DesiredState {
+func retrieve(t *testing.T, socket string) *ngfwv1.DesiredState {
 	t.Helper()
 	cc, err := grpc.NewClient("unix:"+socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -370,7 +393,7 @@ func retrieve(t *testing.T, socket string) *vrxv1.DesiredState {
 	defer cc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r, err := vrxv1.NewDataplaneClient(cc).Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "services"}})
+	r, err := ngfwv1.NewDataplaneClient(cc).Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "services"}})
 	if err != nil {
 		t.Fatalf("agent Retrieve: %v", err)
 	}
@@ -381,7 +404,7 @@ func retrieve(t *testing.T, socket string) *vrxv1.DesiredState {
 // probes and their holder (tagged or not), the fixture tunnel, the bridge domain.
 func leftovers(t *testing.T, conn vppConn, n *names) {
 	t.Helper()
-	mine := map[string]bool{n.bvi: true, n.mon: true, n.gre: true}
+	mine := map[string]bool{n.underlay: true, n.bvi: true, n.mon: true, n.gre: true}
 	for i := 80; i <= 89; i++ {
 		mine[fmt.Sprintf("loop%d", n.slot*100+i)] = true
 	}

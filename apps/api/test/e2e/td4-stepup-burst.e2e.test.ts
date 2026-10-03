@@ -7,7 +7,7 @@ import { runSecret, startHarness, type Harness } from '../support/harness.js';
  * TD-4 fix round 1, review H1 — the key-creation step-up (D-100 (2)) under concurrency, on the host PostgreSQL + Valkey:
  * one stolen JWT sends BURST key creations at once, each with another `current`, the right one among them. Every
  * request reads `locked_until` before any failure lands, so without a throttle each guess reaches argon2 and the
- * lockout bounds nothing. Expected: a per-account budget (VRX_PASSWORD_RATE_PER_MIN, shared with password changes)
+ * lockout bounds nothing. Expected: a per-account budget (NGFW_PASSWORD_RATE_PER_MIN, shared with password changes)
  * stands in front of argon2 — at most that many checks per minute window, 429 for the rest — and every `locked` answer
  * has ONE body, so no answer tells a checked guess from an unchecked one. No api_key row unless the right guess got 201.
  * Every argon2 verification the API makes is counted through a pass-through wrapper of `verifyPassword`.
@@ -26,18 +26,18 @@ vi.mock('../../src/auth/password.js', async (importOriginal) => {
 
 const BURST = 30;
 const RIGHT_AT = 20;
-const RATE = 5; // VRX_PASSWORD_RATE_PER_MIN (the default)
+const RATE = 5; // NGFW_PASSWORD_RATE_PER_MIN (the default)
 const MAX_FAILURES = 3;
 const PW = runSecret();
-const P = 'https://vrx.dev/problems/';
+const P = 'https://ngfw.dev/problems/';
 
 describe('TD-4 step-up burst (review H1)', () => {
   let h: Harness;
   beforeAll(async () => {
     h = await startHarness({
-      VRX_LOGIN_MAX_FAILURES: String(MAX_FAILURES),
-      VRX_LOGIN_RATE_PER_MIN: '1000',
-      VRX_PASSWORD_RATE_PER_MIN: String(RATE),
+      NGFW_LOGIN_MAX_FAILURES: String(MAX_FAILURES),
+      NGFW_LOGIN_RATE_PER_MIN: '1000',
+      NGFW_PASSWORD_RATE_PER_MIN: String(RATE),
     });
     const admin = await h.login('admin', h.adminPassword);
     await h.createUsers(admin, [{ username: 'burst', role: 'operator', password: PW }]);
@@ -69,7 +69,7 @@ describe('TD-4 step-up burst (review H1)', () => {
       groups.set(k, [...(groups.get(k) ?? []), i]);
     });
     console.log(
-      `H1 step-up burst (right guess at #${RIGHT_AT}, MAX_FAILURES ${MAX_FAILURES}, VRX_PASSWORD_RATE_PER_MIN ${RATE}, ${windows} minute window(s)):\n` +
+      `H1 step-up burst (right guess at #${RIGHT_AT}, MAX_FAILURES ${MAX_FAILURES}, NGFW_PASSWORD_RATE_PER_MIN ${RATE}, ${windows} minute window(s)):\n` +
         [...groups].map(([k, ix]) => `  ${ix.length}× ${k}  ← #${ix.join(',')}`).join('\n'),
     );
     const locked = answers.filter((r, i) => r.status === 403 && slug(i) === 'locked');

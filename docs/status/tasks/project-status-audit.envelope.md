@@ -1,0 +1,3 @@
+# Status integration envelope
+
+Root is the sole developer; native_ipsec, drift and restart_socket are read-only reviewers. Branch codex/project-status-merge-20261003; isolated .scratch/status-integration; do not edit main or reviewers' product files. Use original heavy wrapper for checks. Owned tool/test/status files listed in WIP. Dependency PR135 actually merged as a0922c7e9 after exact-head complete CI and three independent approvals. Close only seven reviewed scoped rows; native certificate/events remain running. Preserve PR102 history in archive refs before one-commit current-main integration. No hardware or daemon operations. Publish each checkpoint through authorized GitHub tools.

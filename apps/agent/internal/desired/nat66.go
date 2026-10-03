@@ -17,13 +17,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/nat66"
 	"ngfw/agent/internal/descriptors/natcommon"
 	"ngfw/agent/internal/scheduler"
 )
 
-func nat66Build(s Sink, n *vrxv1.Nat66Config, vrfID func(string) (uint32, bool)) {
+func nat66Build(s Sink, n *ngfwv1.Nat66Config, vrfID func(string) (uint32, bool)) {
 	if n == nil || !n.GetEnabled() {
 		return
 	}
@@ -60,7 +60,7 @@ func nat66Build(s Sink, n *vrxv1.Nat66Config, vrfID func(string) (uint32, bool))
 }
 
 // assembleNat66 builds `nat.nat66`: `enabled` when any nat66 object exists (VPP holds none while disabled).
-func assembleNat66(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
+func assembleNat66(out *ngfwv1.NatConfig, kvs []scheduler.KV, tableName func(uint32) string) {
 	var (
 		any66           bool
 		inside, outside []string
@@ -89,7 +89,7 @@ func assembleNat66(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 	if !any66 {
 		return
 	}
-	n := &vrxv1.Nat66Config{Enabled: proto.Bool(true)}
+	n := &ngfwv1.Nat66Config{Enabled: proto.Bool(true)}
 	sort.Strings(inside)
 	sort.Strings(outside)
 	n.Inside, n.Outside = inside, outside
@@ -100,7 +100,7 @@ func assembleNat66(out *vrxv1.NatConfig, kvs []scheduler.KV, tableName func(uint
 		return natAddrLess(maps[a].Local, maps[b].Local)
 	})
 	for _, m := range maps {
-		n.StaticMappings = append(n.StaticMappings, &vrxv1.Nat66Config_StaticMapping{Local: proto.String(m.Local), External: proto.String(m.External), Vrf: natVRFName(m.VRF, tableName)})
+		n.StaticMappings = append(n.StaticMappings, &ngfwv1.Nat66Config_StaticMapping{Local: proto.String(m.Local), External: proto.String(m.External), Vrf: natVRFName(m.VRF, tableName)})
 	}
 	out.Nat66 = n
 }

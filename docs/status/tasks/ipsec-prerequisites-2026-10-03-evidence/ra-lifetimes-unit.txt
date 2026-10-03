@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/descriptors/ip6_nd	1.126s
+ok  	ngfw/agent/internal/subsystems	2.624s

@@ -38,7 +38,7 @@ describe('group-(c) shared primitives (domains/_shared, not re-exported — D-05
   it.each([
     'psk/site-b',
     'key/wg0',
-    'cert/vrx-a.2026',
+    'cert/ngfw-a.2026',
     'password/alice',
     'token/acme-eab',
     `psk/${'A'.repeat(63)}`,
@@ -141,46 +141,51 @@ const tunnel = (extra: Record<string, unknown> = {}): Record<string, unknown> =>
   remoteAddr: '203.0.113.10',
   auth: { method: 'psk', secretRef: 'psk/site-b' },
   proposal: 'p',
+  localId: '@local.example',
+  remoteId: '@peer.example',
+  routeBased: { ipipInterface: 'ipip0' },
   localTs: ['192.168.10.0/24'],
   remoteTs: ['10.99.0.0/16'],
   ...extra,
 });
 
 describe('IpsecTunnelSchema', () => {
-  it('accepts a policy-based PSK tunnel and fills defaults', () => {
+  it('accepts a native route-based PSK tunnel and fills defaults', () => {
     const t = IpsecTunnelSchema.parse(tunnel());
     expect(t).toMatchObject({
       enabled: true,
-      engine: 'strongswan',
+      engine: 'vpp-ikev2',
       ikeVersion: 2,
       mode: 'tunnel',
       protocol: 'esp',
       natT: true,
-      startAction: 'start',
+      startAction: 'none',
       closeAction: 'none',
       vrf: 'default',
       underlayVrf: 'default',
       esn: false,
       antiReplay: true,
-      dpd: { enabled: true, delaySec: 30, timeoutSec: 150, action: 'restart' },
-      rekey: { ikeSec: 14400, espSec: 3600, reauth: false },
+      rekey: { espSec: 3600 },
     });
+    expect(t).not.toHaveProperty('dpd');
+    expect(t.rekey).not.toHaveProperty('ikeSec');
+    expect(t.rekey).not.toHaveProperty('reauth');
+    expect(t.rekey).not.toHaveProperty('espPackets');
   });
-  it('accepts a route-based tunnel without traffic selectors, %any responder and hostname peers', () => {
+  it('accepts a route-based tunnel without traffic selectors and IPv6 peers', () => {
     expect(
       ok(
         IpsecTunnelSchema,
         tunnel({ localTs: [], remoteTs: [], routeBased: { ipipInterface: 'ipip0' } }),
       ),
     ).toBe(true);
-    expect(ok(IpsecTunnelSchema, tunnel({ remoteAddr: '%any', startAction: 'trap' }))).toBe(true);
     expect(ok(IpsecTunnelSchema, tunnel({ remoteAddr: 'vpn.peer.example' }))).toBe(true);
     expect(
       ok(IpsecTunnelSchema, tunnel({ localAddr: '2001:db8::2', remoteAddr: '2001:db8:1::2' })),
     ).toBe(true);
   });
   it.each([
-    ['inline PSK', tunnel({ auth: { method: 'psk', psk: 'VRX_TEST_PSK_x' } }), 'auth.psk'],
+    ['inline PSK', tunnel({ auth: { method: 'psk', psk: 'NGFW_TEST_PSK_x' } }), 'auth.psk'],
     ['PSK without secretRef', tunnel({ auth: { method: 'psk' } }), 'auth.secretRef'],
     [
       'PEM in secretRef',
@@ -189,7 +194,7 @@ describe('IpsecTunnelSchema', () => {
     ],
     [
       'PSK pasted as reference',
-      tunnel({ auth: { method: 'psk', secretRef: 'VRX_TEST_PSK_P02c' } }),
+      tunnel({ auth: { method: 'psk', secretRef: 'NGFW_TEST_PSK_P02c' } }),
       'auth.secretRef',
     ],
     [
@@ -206,17 +211,25 @@ describe('IpsecTunnelSchema', () => {
       tunnel({ mode: 'transport', routeBased: { ipipInterface: 'ipip0' } }),
       'routeBased',
     ],
-    ['policy-based without selectors', tunnel({ localTs: [], remoteTs: [] }), 'localTs'],
-    ['policy-based with only remote selectors', tunnel({ localTs: [] }), 'localTs'],
-    ['%any cannot be started', tunnel({ remoteAddr: '%any' }), 'startAction'],
+    ['policy-based without binding', tunnel({ routeBased: undefined }), 'routeBased'],
+    ['legacy strongSwan engine', tunnel({ engine: 'strongswan' }), 'engine'],
+    ['%any unsupported', tunnel({ remoteAddr: '%any' }), 'remoteAddr'],
     ['remote equals local', tunnel({ remoteAddr: '198.51.100.2' }), 'remoteAddr'],
     ['mixed families', tunnel({ remoteAddr: '2001:db8::1' }), 'remoteAddr'],
     ['ikeVersion 3', tunnel({ ikeVersion: 3 }), 'ikeVersion'],
     ['proposal name with spaces', tunnel({ proposal: 'a b' }), 'proposal'],
     ['bad traffic selector', tunnel({ localTs: ['192.168.10.0'] }), 'localTs.0'],
-    ['dpd delay 0', tunnel({ dpd: { delaySec: 0 } }), 'dpd.delaySec'],
+    ['unsupported per-profile DPD', tunnel({ dpd: { delaySec: 30 } }), 'dpd'],
+    ['unsupported IKE lifetime', tunnel({ rekey: { ikeSec: 14400 } }), 'rekey.ikeSec'],
+    ['unsupported IKE reauthentication', tunnel({ rekey: { reauth: true } }), 'rekey.reauth'],
+    ['unsupported CHILD packet limit', tunnel({ rekey: { espPackets: 1000 } }), 'rekey.espPackets'],
     ['rekey shorter than 60 s', tunnel({ rekey: { espSec: 30 } }), 'rekey.espSec'],
     ['identity with double quote', tunnel({ localId: 'C=CH, CN="x"' }), 'localId'],
+    [
+      'native certificate capability unavailable',
+      tunnel({ auth: { method: 'cert', certificate: 'c1' } }),
+      'auth.method',
+    ],
     ['cert auth without certificate', tunnel({ auth: { method: 'cert' } }), 'auth.certificate'],
   ])('rejects %s', (_label, value, path) => {
     expect(errorPaths(IpsecTunnelSchema, value)).toContain(path);
@@ -249,7 +262,7 @@ describe('WireguardInterfaceSchema', () => {
     });
   });
   it.each([
-    ['inline private key', wg({ privateKey: 'VRX_TEST_PSK_P02c_wg' }), 'privateKey'],
+    ['inline private key', wg({ privateKey: 'NGFW_TEST_PSK_P02c_wg' }), 'privateKey'],
     ['missing private key reference', { ...wg(), privateKeyRef: undefined }, 'privateKeyRef'],
     [
       'inline preshared key on a peer',
@@ -327,7 +340,7 @@ describe('PKI and remote access', () => {
   });
   const profile = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     localAddr: '198.51.100.2',
-    certificate: 'vrx-a',
+    certificate: 'ngfw-a',
     proposal: 'p',
     pools: [{ name: 'p4', prefix: '10.250.0.0/24' }],
     users: [{ username: 'alice', passwordRef: 'password/alice' }],

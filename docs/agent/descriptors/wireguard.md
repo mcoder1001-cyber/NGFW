@@ -86,11 +86,11 @@ after the descriptor name.
   (now another peer) untouched, peers refused on foreign / untagged wg interfaces, globals roles.
 * Host: `TestWireguardOnHost` runs through **P05's reconciler** (`vpntest.Agent`): events
   subscription, `wg<base+1>` with slot keys (test vectors = SHA-256 of
-  `VRX_TEST_PSK_DF5_wg_<label>_<slot>`), two peers (with/without PSK) applied → Retrieve ==
+  `NGFW_TEST_PSK_DF5_wg_<label>_<slot>`), two peers (with/without PSK) applied → Retrieve ==
   desired → same desired state = empty plan → **restart simulation** (fresh connection +
   descriptors) = empty plan → peer removed via the API → plan = exactly its create → re-applied →
   empty → non-owner async mode refused → the empty desired state deletes all of ours.
-  `VRX_DF5_PAUSE=<s>` holds the objects for `vppctl show wireguard interface` / `show wireguard
+  `NGFW_DF5_PAUSE=<s>` holds the objects for `vppctl show wireguard interface` / `show wireguard
   peer` — the former prints the private key in base64 **and** hex plus the mac-key: evidence goes
   through a redaction filter.
 
@@ -115,8 +115,8 @@ after the descriptor name.
   secret store; the descriptors resolve the DF-5 references through the same store. Without material (the product agent
   until PENDING-secret-channel) the projection warns `agent.secret-unavailable` and emits `unavailable:<D-051 ref>`, which
   `Interface.Create` / `Peer.Create` refuse with `wireguard.ErrSecretUnavailable` — the transaction fails loudly; a peer is
-  never created without its preshared key. Test builds only (`-tags vrxtestsecrets`) can fill the store from a slot-local
-  0600 fixture file (`VRX_TEST_WG_SECRETS`).
+  never created without its preshared key. Test builds only (`-tags ngfwtestsecrets`) can fill the store from a slot-local
+  0600 fixture file (`NGFW_TEST_WG_SECRETS`).
 * **Events (DF-5 Q8):** `Wiring.Connected` (re)starts a watcher on every VPP connect that runs `peer.Events` and publishes
   each `PeerEvent` through TD-8's `Env.Publish` as `EVENT_KIND_WIREGUARD_PEER_CHANGED` (13; `interface` = `wg<N>`,
   attributes `public_key`, `peer_index`, `established`, `dead`). It re-subscribes with backoff; without an event sink
@@ -127,6 +127,6 @@ after the descriptor name.
 * **State** (`DumpState`, the `WireguardState` RPC): `sw_interface_dump`, `wireguard_interface_dump`
   (`show_private_key=false`), `wireguard_peers_dump` (v1: no preshared key), one walk at a time (D-132).
 * **Host checks** (`internal/agent/rpc_wireguard_integration_test.go`): owner `<prefix>wg`, instances/tables
-  `base+51…60`, ports `20000+100·slot+10/+11`. `TestWireguardHandshakeOnHost` (`VRX_WG_HANDSHAKE=1`) peers `wg<base+60>` with
+  `base+51…60`, ports `20000+100·slot+10/+11`. `TestWireguardHandshakeOnHost` (`NGFW_WG_HANDSHAKE=1`) peers `wg<base+60>` with
   a kernel WireGuard interface in `ns-<prefix>wh` through a tap (no af_packet). Two VPP wg interfaces cannot peer over
   local addresses: `ip4-local` drops the handshake as a spoofed local-address packet.

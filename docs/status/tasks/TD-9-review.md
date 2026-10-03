@@ -21,7 +21,7 @@ The design is right and most of the scope is done well:
 
 Three defects in TD-9's own files break the outcome contract that TD-9 itself wrote into proto.md §2. Each fix is small and needs a test:
 
-- **M1**: setting `VRX_AGENT_VPP_REPLY_TIMEOUT` above 30 s silently caps Invoke at 30 s. A timeout there is then classified as certain, so the answer is ROLLED_BACK and it is stored.
+- **M1**: setting `NGFW_AGENT_VPP_REPLY_TIMEOUT` above 30 s silently caps Invoke at 30 s. A timeout there is then classified as certain, so the answer is ROLLED_BACK and it is stored.
 - **M2**: an outcome decided by a timeout in the plan, verify or rollback phase is still stored under the txn_id.
 - **M3**: an Apply that supersedes an owed revert without covering every managed domain leaves the agent DEGRADED with nothing retrying.
 
@@ -37,8 +37,8 @@ After the fixes, a focused re-verify is enough: the M1–M3 diffs, their tests, 
 | M2 | M | `agent/service.go:471` against proto.md §2 item 3 | See "M2 in detail" below. | Widen `retryable` in the code (see below). Retries are safe because Apply is declarative. |
 | M3 | M (latent) | `agent/service.go:486-494`, `:495`, `:512-514`, `:632-633` | See "M3 in detail" below. | Arm the owed resync when a narrower Apply supersedes the revert, and add a test (see below). |
 | M4 | M (API) | main `apps/api/src/commit/commit.service.ts:586-591`; TD-9 `service.go:472-477` | See "M4 in detail" below. | Manager's decision (see below). |
-| L1 | L | main `packages/proto/vrx/v1/dataplane.proto:194` (branch `:172`) | The comment on the validation field is stale: "Validation issues when status is FAILED … (empty otherwise)". The wire format is unchanged, and proto.md §2 is the authoritative description. The actual damage of the stale semantics is M4. | The next `contract(proto)` commit on any branch takes the Q3 wording, which is fine. Track it in tech-debt. |
-| L2 | L | `agent/agent.go:415` | `safely()` counts panics in wiring hooks and in the link watcher as `vrx_agent_panics_total{where="transaction"}`. They are not transaction panics. | Give them a fourth label (for example `hook`) and update the HELP text. |
+| L1 | L | main `packages/proto/ngfw/v1/dataplane.proto:194` (branch `:172`) | The comment on the validation field is stale: "Validation issues when status is FAILED … (empty otherwise)". The wire format is unchanged, and proto.md §2 is the authoritative description. The actual damage of the stale semantics is M4. | The next `contract(proto)` commit on any branch takes the Q3 wording, which is fine. Track it in tech-debt. |
+| L2 | L | `agent/agent.go:415` | `safely()` counts panics in wiring hooks and in the link watcher as `ngfw_agent_panics_total{where="transaction"}`. They are not transaction panics. | Give them a fourth label (for example `hook`) and update the HELP text. |
 | L3 | L | `agent/service.go:531-536` | See "L3 in detail" below. | Optional now. Coordinate with TD-11c. |
 | L4 | L | `service.go:632-642`, `:752`; `agent.go:456` | See "L4 in detail" below. | Record this exemption in the D-entry (text below). No code change. |
 | L5 | L | `service.go:826-846` | `CheckDrift` holds the txn lock for a whole Plan, with the 5-min transaction deadline as its only bound. With a slow VPP, an Apply can wait minutes behind a drift walk. | Optional: bound the drift Plan more tightly, for example to 60 s. |
@@ -51,7 +51,7 @@ After the fixes, a focused re-verify is enough: the M1–M3 diffs, their tests, 
 
 **What happens.** `init` sets govpp's global `core.DefaultReplyTimeout = 30 s`. `Conn.Invoke` calls govpp's `Connection.Invoke`, which opens its stream with that global (govpp `core/stream.go:53`). `ConnOptions.ReplyTimeout` reaches only `NewStream` and the outer `invokeWithin` ctx.
 
-With `VRX_AGENT_VPP_REPLY_TIMEOUT` at 60 s:
+With `NGFW_AGENT_VPP_REPLY_TIMEOUT` at 60 s:
 - govpp's own 30 s timer fires first and returns `core.ErrReplyTimeout` ("no reply received within the timeout period 30s").
 - `invokeWithin` maps only the expiry of its own ctx (`tctx.Err()` is still nil at 30 s), so the error is neither `ErrTimeout` nor `context.DeadlineExceeded`.
 - So `uncertain()` returns false, the transaction answers **ROLLED_BACK** while VPP may hold the effect, and that answer is **stored** under the txn_id.
@@ -156,7 +156,7 @@ The drift check complies: every 5 min (`driftInterval`), under the txn lock, ski
 
 After a reply timeout, govpp returns the channel ID to its pool. Its `Invoke` decodes whatever reply arrives on that channel without checking the message ID, so a late reply can land on a later call.
 
-With the default settings this is mitigated: govpp's health check (2 s × 5, about 10–15 s) reconnects the socket before the 30 s reply timeout fires, and that drops late replies. The risk becomes reachable only if `VRX_AGENT_VPP_REPLY_TIMEOUT` is set below the health-check window.
+With the default settings this is mitigated: govpp's health check (2 s × 5, about 10–15 s) reconnects the socket before the 30 s reply timeout fires, and that drops late replies. The risk becomes reachable only if `NGFW_AGENT_VPP_REPLY_TIMEOUT` is set below the health-check window.
 
 ### L7 in detail
 
@@ -165,7 +165,7 @@ With the default settings this is mitigated: govpp's health check (2 s × 5, abo
 
 ### L8 in detail
 
-The caller's deadline no longer cuts the transaction (1.4). An Apply that outlives the API's `VRX_AGENT_TIMEOUT_MS` (default 60 s) is therefore finished by the agent. The API's reconcile then re-applies running over it:
+The caller's deadline no longer cuts the transaction (1.4). An Apply that outlives the API's `NGFW_AGENT_TIMEOUT_MS` (default 60 s) is therefore finished by the agent. The API's reconcile then re-applies running over it:
 - The end state is consistent.
 - But the user's commit is lost instead of promoted.
 
@@ -237,7 +237,7 @@ The worst case for one Apply is 5 + 2 min, and 5 + 2 + 2 min when `applySources`
 
 **proto.md compared with the code:**
 - §2 item 3's "never stored": M2.
-- "bounded by `VRX_AGENT_VPP_REPLY_TIMEOUT`": M1 above 30 s.
+- "bounded by `NGFW_AGENT_VPP_REPLY_TIMEOUT`": M1 above 30 s.
 - The DEGRADED row's retry promise: M3.
 - Everything else matches: UNAVAILABLE before the confirm half (1.3); INTERNAL on a panic; warnings on APPLIED and ROLLED_BACK only.
 
@@ -299,7 +299,7 @@ tools/ci.sh --base main
 
 ### 7. Tests
 
-- **Branch** (`df4e4340`): `env -u VRX_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/scheduler/... ./internal/vpp/... ./internal/descriptors/...` gives **71 packages ok, 0 FAIL** (agent 20.5 s, scheduler 1.9 s, vpp 2.2 s, dfkit 1.1 s).
+- **Branch** (`df4e4340`): `env -u NGFW_INTEGRATION go test -race -count=1 ./internal/agent/... ./internal/scheduler/... ./internal/vpp/... ./internal/descriptors/...` gives **71 packages ok, 0 FAIL** (agent 20.5 s, scheduler 1.9 s, vpp 2.2 s, dfkit 1.1 s).
 - **The base-first method is sound:**
   - The new API is reached only through the `*_td9_helpers_test.go` shims, and the shims encode the base's real behaviour.
   - The quoted failures are behaviour failures: the panic propagates; "did not return within 5.3s"; ROLLED_BACK instead of DEGRADED.
@@ -328,7 +328,7 @@ The corrections to the drafts in TD-9.md:
 Scope: TD-9, review 1.1/1.1b/1.1e/1.4 and ARCH-01 (agent half). It amends proto.md §2 item 3, the Outcomes table, and AD-4 step 4.
 
 **Bounds**
-- One VPP reply: 30 s (`VRX_AGENT_VPP_REPLY_TIMEOUT`, in seconds or as a Go duration; an invalid value refuses to start).
+- One VPP reply: 30 s (`NGFW_AGENT_VPP_REPLY_TIMEOUT`, in seconds or as a Go duration; an invalid value refuses to start).
   - It applies to a request/reply round trip and to each message of a dump.
   - govpp's global default is set to the same value, so no govpp path waits forever.
   - Keep the value above govpp's health-check window (2 s × 5).
@@ -362,7 +362,7 @@ Scope: TD-9, review 1.1/1.1b/1.1e/1.4 and ARCH-01 (agent half). It amends proto.
 
 **Drift check**
 - A Plan of the stored desired state, every 5 min, under the transaction lock. It is skipped while a transaction runs, so there is one walk at a time.
-- It is reported as `vrx_agent_drift_objects` and as an ERROR event with `reason=drift` when the count changes.
+- It is reported as `ngfw_agent_drift_objects` and as an ERROR event with `reason=drift` when the count changes.
 - It never corrects anything. Auto-correction would be a product decision.
 
 **AD-4 step 4**
@@ -390,11 +390,11 @@ Confirmed as the worker drafted it:
 ### (c) Agent start-up refuses invalid settings
 
 Scope: TD-9, review 1.5c/1.5e. The agent exits with status 1 instead of running on a default nobody asked for when:
-- `VRX_LOG_LEVEL` is anything other than debug, info, warn or error;
-- `VRX_AGENT_VPP_REPLY_TIMEOUT` is invalid;
-- `VRX_METRICS_ADDR` is not a loopback address and `VRX_METRICS_ALLOW_REMOTE=1` is not set, because /metrics is unauthenticated.
+- `NGFW_LOG_LEVEL` is anything other than debug, info, warn or error;
+- `NGFW_AGENT_VPP_REPLY_TIMEOUT` is invalid;
+- `NGFW_METRICS_ADDR` is not a loopback address and `NGFW_METRICS_ALLOW_REMOTE=1` is not set, because /metrics is unauthenticated.
 
-Every current caller uses `VRX_METRICS_PORT` (tools/app, the topology harnesses, devstack), which means 127.0.0.1, so nothing breaks. A future F-dashboard or remote Prometheus must set the opt-in explicitly.
+Every current caller uses `NGFW_METRICS_PORT` (tools/app, the topology harnesses, devstack), which means 127.0.0.1, so nothing breaks. A future F-dashboard or remote Prometheus must set the opt-in explicitly.
 
 ## Probes
 

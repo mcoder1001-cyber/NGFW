@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // startupRoot is a minimal /sys + /proc tree (ens192 = 0000:0b:00.0 carries the default route) with an
@@ -63,7 +63,7 @@ func TestDataplaneStartupState(t *testing.T) {
 func TestDataplaneStartupPreview(t *testing.T) {
 	src := startupRoot(t)
 	w := uint32(4)
-	out, err := startupPreview(src, &vrxv1.DataplaneConfig{Workers: &w})
+	out, err := startupPreview(src, &ngfwv1.DataplaneConfig{Workers: &w})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestDataplaneStartupPreview(t *testing.T) {
 	}
 	// a document error is INVALID_ARGUMENT
 	bad := "not-a-plugin"
-	_, err = startupPreview(src, &vrxv1.DataplaneConfig{Plugins: &vrxv1.PluginSet{Switches: map[string]bool{bad: true}}})
+	_, err = startupPreview(src, &ngfwv1.DataplaneConfig{Plugins: &ngfwv1.PluginSet{Switches: map[string]bool{bad: true}}})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("err = %v", err)
 	}

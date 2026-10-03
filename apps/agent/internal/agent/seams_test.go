@@ -23,7 +23,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/ownertable"
@@ -63,13 +63,13 @@ func TestStartWiresFeatureEventsAndResync(t *testing.T) {
 	cfg := testConfig(t)
 	cfg.IDs = subsystems.IDScope{Range: &subsystems.IDRange{Lo: 7000, Hi: 7999}}
 	a, fc := startFake(t, cfg)
-	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{})
+	sub := a.svc.events().subscribe(&ngfwv1.StreamEventsRequest{})
 
 	// Env.Publish → the service's bus → every StreamEvents subscriber, as a copy with its own seq.
-	ev := &vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_LINK_UP, Interface: proto.String("loop701"), Message: "feature", Seq: 99, Attributes: map[string]string{"k": "v"}}
+	ev := &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_LINK_UP, Interface: proto.String("loop701"), Message: "feature", Seq: 99, Attributes: map[string]string{"k": "v"}}
 	a.wiring.Publish(ev)
 	ev.Message = "changed after publish"
-	a.wiring.Publish(&vrxv1.Event{Message: "unspecified kind is dropped"})
+	a.wiring.Publish(&ngfwv1.Event{Message: "unspecified kind is dropped"})
 	a.wiring.Publish(nil)
 	got := collect(t, sub, 1)
 	if len(got) != 1 || got[0].GetMessage() != "feature" || got[0].GetSeq() != 1 || got[0].GetTs() == nil || got[0].GetInterface() != "loop701" || got[0].GetAttributes()["k"] != "v" {
@@ -143,6 +143,7 @@ func TestMetricsCollectors(t *testing.T) {
 	collectorTimeout = 200 * time.Millisecond
 	t.Cleanup(func() { collectorTimeout = old })
 	a, _ := startFake(t, testConfig(t))
+	m, w := a.metrics, a.wiring
 	// Production now installs the dashboard collector. Check that wiring, then
 	// isolate this seam test's collectors so the empty-list and error accounting
 	// assertions stay independent of production stats socket availability.
@@ -164,7 +165,7 @@ func TestMetricsCollectors(t *testing.T) {
 	}
 	scrape := func() string {
 		rec := httptest.NewRecorder()
-		a.metrics.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+		m.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("scrape: %d", rec.Code)
 		}
@@ -180,51 +181,51 @@ func TestMetricsCollectors(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "zeta", Collect: func(_ context.Context, w io.Writer) error {
-		_, err := io.WriteString(w, "# HELP vrx_zeta_up Test.\n# TYPE vrx_zeta_up gauge\nvrx_zeta_up 1") // no trailing newline
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "zeta", Collect: func(_ context.Context, w io.Writer) error {
+		_, err := io.WriteString(w, "# HELP ngfw_zeta_up Test.\n# TYPE ngfw_zeta_up gauge\nngfw_zeta_up 1") // no trailing newline
 		return err
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "alpha", Collect: func(_ context.Context, w io.Writer) error {
-		_, _ = io.WriteString(w, "vrx_alpha_partial 1\n")
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "alpha", Collect: func(_ context.Context, w io.Writer) error {
+		_, _ = io.WriteString(w, "ngfw_alpha_partial 1\n")
 		if fail {
 			return errors.New("stats segment unavailable")
 		}
 		return nil
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "slow", Collect: func(ctx context.Context, w io.Writer) error {
-		_, _ = io.WriteString(w, "vrx_slow_partial 1\n")
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "slow", Collect: func(ctx context.Context, w io.Writer) error {
+		_, _ = io.WriteString(w, "ngfw_slow_partial 1\n")
 		<-ctx.Done() // honours its deadline: the scrape's context ends first here
 		return ctx.Err()
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "boom", Collect: func(context.Context, io.Writer) error {
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "boom", Collect: func(context.Context, io.Writer) error {
 		panic("collector bug") // R3: contained, counted as an error
 	}}))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // the scraper went away: slow is dropped, the others still run
 	var b strings.Builder
-	a.metrics.writeCtx(ctx, &b)
+	m.writeCtx(ctx, &b)
 	out := b.String()
 	if !strings.HasPrefix(out, base) {
 		t.Fatal("the agent's families changed")
 	}
 	for _, want := range []string{
-		"vrx_zeta_up 1\n# HELP vrx_agent_metrics_collector_errors_total",
-		`vrx_agent_metrics_collector_errors_total{collector="alpha"} 1`,
-		`vrx_agent_metrics_collector_errors_total{collector="boom"} 1`,
-		`vrx_agent_metrics_collector_errors_total{collector="slow"} 1`,
-		`vrx_agent_metrics_collector_errors_total{collector="zeta"} 0`,
+		"ngfw_zeta_up 1\n# HELP ngfw_agent_metrics_collector_errors_total",
+		`ngfw_agent_metrics_collector_errors_total{collector="alpha"} 1`,
+		`ngfw_agent_metrics_collector_errors_total{collector="boom"} 1`,
+		`ngfw_agent_metrics_collector_errors_total{collector="slow"} 1`,
+		`ngfw_agent_metrics_collector_errors_total{collector="zeta"} 0`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in\n%s", want, out)
 		}
 	}
-	if strings.Contains(out, "vrx_alpha_partial") || strings.Contains(out, "vrx_slow_partial") {
+	if strings.Contains(out, "ngfw_alpha_partial") || strings.Contains(out, "ngfw_slow_partial") {
 		t.Fatalf("a failed collector's output was served\n%s", out)
 	}
 	fail = false
 	out = scrape() // through the HTTP handler: "slow" runs into collectorTimeout
-	if !strings.Contains(out, "vrx_alpha_partial 1\n") || !strings.Contains(out, `vrx_agent_metrics_collector_errors_total{collector="alpha"} 1`) ||
-		!strings.Contains(out, `vrx_agent_metrics_collector_errors_total{collector="slow"} 2`) || strings.Contains(out, "vrx_slow_partial") {
+	if !strings.Contains(out, "ngfw_alpha_partial 1\n") || !strings.Contains(out, `ngfw_agent_metrics_collector_errors_total{collector="alpha"} 1`) ||
+		!strings.Contains(out, `ngfw_agent_metrics_collector_errors_total{collector="slow"} 2`) || strings.Contains(out, "ngfw_slow_partial") {
 		t.Fatalf("second scrape\n%s", out)
 	}
 }
@@ -334,7 +335,7 @@ type learnedSource struct {
 	mu        sync.Mutex
 	learned   map[string]bool
 	extra     []scheduler.KV // a buggy source: keys it must not produce
-	views     []*vrxv1.DesiredState
+	views     []*ngfwv1.DesiredState
 	panicNow  bool   // a buggy source: Desired panics
 	onDesired func() // called by Desired before it takes mu (a source that calls sync from Desired)
 }
@@ -348,7 +349,7 @@ func (s *learnedSource) set(names ...string) {
 	}
 }
 
-func (s *learnedSource) desired(doc *vrxv1.DesiredState) []scheduler.KV {
+func (s *learnedSource) desired(doc *ngfwv1.DesiredState) []scheduler.KV {
 	s.mu.Lock()
 	hook := s.onDesired
 	s.mu.Unlock()
@@ -370,7 +371,7 @@ func (s *learnedSource) desired(doc *vrxv1.DesiredState) []scheduler.KV {
 	return append(out, s.extra...)
 }
 
-func (s *learnedSource) lastView() *vrxv1.DesiredState {
+func (s *learnedSource) lastView() *ngfwv1.DesiredState {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.views[len(s.views)-1]
@@ -424,8 +425,8 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 		t.Fatalf("first sync: %v %q", err, md.list())
 	}
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701,loop702" {
 		t.Fatalf("dynamic objects after the config apply: %q", md.list())
 	}
@@ -439,12 +440,12 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 		t.Fatal("Desired did not get a copy of the post-transaction document")
 	}
 	// Retrieve is the configuration only.
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{})
 	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
 		t.Fatalf("retrieve: %v", err)
 	}
 	// Idempotent: nothing to do on a repeat.
-	resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, sampleDoc)})
+	resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: doc(t, sampleDoc)})
 	if len(resp.GetResults()) != 0 {
 		t.Fatalf("repeat apply: %v", resp.GetResults())
 	}
@@ -453,18 +454,18 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 	// (without the merge, the dynamic object would block the loopback's delete).
 	noLoop702 := doc(t, sampleDoc)
 	delete(noLoop702.Interfaces, "loop702")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: noLoop702}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: noLoop702}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701" {
 		t.Fatalf("after removing loop702: %q", md.list())
 	}
 	// An Apply authoritative for another domain still carries the dynamic objects (never deleted).
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t4", Subsystems: []string{"routing"}, DesiredState: noLoop702}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t4", Subsystems: []string{"routing"}, DesiredState: noLoop702}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701" {
 		t.Fatalf("after a routing-only apply: %q", md.list())
 	}
 
 	// DryRun plans what Apply would do, dynamic objects included.
-	rep, err := s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, sampleDoc)})
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, sampleDoc)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
 	}
@@ -478,12 +479,12 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 
 	// Resync repairs a lost dynamic object (VPP restart).
 	md.drop("loop701")
-	mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701" {
 		t.Fatalf("after resync: %q", md.list())
 	}
 	// Confirm revert re-merges the source against the confirmed baseline.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 60}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, sampleDoc), ConfirmTimeoutSec: 60}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701,loop702" {
 		t.Fatalf("pending: %q", md.list())
 	}
@@ -496,14 +497,14 @@ func TestDynamicSourceMergedIntoEveryTransaction(t *testing.T) {
 func TestDynamicSourceSyncIsScoped(t *testing.T) {
 	v := coretest.New()
 	s, md, src := newSrcSvc(t, v, nil)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "" {
 		t.Fatalf("nothing learned yet: %q", md.list())
 	}
 	stored := proto.Clone(s.st.desired)
 	last := s.Health().GetLastTxnId()
 	sync := s.sourceSync("test-sync")
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{})
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{})
 
 	src.set("loop701")
 	if err := sync(context.Background()); err != nil {
@@ -531,7 +532,7 @@ func TestDynamicSourceSyncIsScoped(t *testing.T) {
 		t.Fatal("a source sync repaired a configuration object")
 	}
 	// A sync with nothing to do emits no event and counts no reconcile (R7).
-	quiet := s.events().subscribe(&vrxv1.StreamEventsRequest{})
+	quiet := s.events().subscribe(&ngfwv1.StreamEventsRequest{})
 	var before strings.Builder
 	s.metrics.write(&before)
 	if err := sync(context.Background()); err != nil {
@@ -546,7 +547,7 @@ func TestDynamicSourceSyncIsScoped(t *testing.T) {
 	if !proto.Equal(s.st.desired, stored) || s.Health().GetLastTxnId() != last {
 		t.Fatal("a source sync changed the stored document or the last transaction")
 	}
-	mustStatus(t, s.Resync(context.Background()), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, s.Resync(context.Background()), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop702"); !ok || md.list() != "loop701" {
 		t.Fatalf("resync: loop702 %v, dynamic %q", ok, md.list())
 	}
@@ -576,15 +577,15 @@ func TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut(t *testing.T) {
 	src.mu.Lock()
 	src.extra = []scheduler.KV{{Key: bad, Value: wrapperspb.String("x")}}
 	src.mu.Unlock()
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_ERROR}})
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_ERROR}})
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
 		t.Fatalf("after the commit: loop703 %v, dynamic %q", ok, md.list())
 	}
 	last := resp.GetResults()[len(resp.GetResults())-1]
-	if last.GetKey() != string(bad) || last.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(last.GetMessage(), "outside its descriptors") || last.GetPointer() != "" {
+	if last.GetKey() != string(bad) || last.GetCode() != ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(last.GetMessage(), "outside its descriptors") || last.GetPointer() != "" {
 		t.Fatalf("the left-out source is not reported: %v", last)
 	}
 	if ev := collect(t, sub, 1)[0]; ev.GetAttributes()["source"] != "test-sync" || ev.GetAttributes()["reason"] != "invalid" || ev.GetAttributes()["key"] != string(bad) {
@@ -599,7 +600,7 @@ func TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut(t *testing.T) {
 	}
 	var b strings.Builder
 	s.metrics.write(&b)
-	for _, want := range []string{`vrx_agent_dynamic_source_errors_total{source="test-sync",reason="invalid"} 2`, `vrx_agent_dynamic_source_errors_total{source="test-sync",reason="panic"} 0`} {
+	for _, want := range []string{`ngfw_agent_dynamic_source_errors_total{source="test-sync",reason="invalid"} 2`, `ngfw_agent_dynamic_source_errors_total{source="test-sync",reason="panic"} 0`} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("missing %q in\n%s", want, b.String())
 		}
@@ -607,7 +608,7 @@ func TestDynamicSourceKeyOutsideItsDescriptorsIsLeftOut(t *testing.T) {
 }
 
 func TestNewServiceRefusesUnregisteredSourceDescriptor(t *testing.T) {
-	desired := func(*vrxv1.DesiredState) []scheduler.KV { return nil }
+	desired := func(*ngfwv1.DesiredState) []scheduler.KV { return nil }
 	for _, srcs := range [][]subsystems.DynamicSource{
 		{{Name: "a", Descriptors: []string{"not.registered"}, Desired: desired}},
 		{{Name: "b", Descriptors: []string{core.LoopbackName}}}, // no Desired
@@ -639,7 +640,7 @@ func TestDynamicSourceRunLifecycle(t *testing.T) {
 		mu.Unlock()
 	}
 	s, md, src := newSrcSvc(t, v, run)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	src.set("loop702")
 	fc := &fakeConn{VPP: v, states: make(chan vpp.ConnState, 4)}
 	a := &Agent{log: s.log, conn: fc, svc: s, metrics: s.metrics}
@@ -683,10 +684,10 @@ func errString(err error) string {
 const errLabelInUse = "VPP: label already in use (-1)"
 
 // withLoop703 is sampleDoc plus the loopback loop703.
-func withLoop703(t *testing.T) *vrxv1.DesiredState {
+func withLoop703(t *testing.T) *ngfwv1.DesiredState {
 	t.Helper()
 	ds := doc(t, sampleDoc)
-	ds.Interfaces["loop703"] = &vrxv1.Interface{}
+	ds.Interfaces["loop703"] = &ngfwv1.Interface{}
 	return ds
 }
 
@@ -694,7 +695,7 @@ func withLoop703(t *testing.T) *vrxv1.DesiredState {
 func syncedSrcSvc(t *testing.T, v *coretest.VPP, names ...string) (*Service, *memDesc, *learnedSource) {
 	t.Helper()
 	s, md, src := newSrcSvc(t, v, nil)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	src.set(names...)
 	if err := s.sourceSync("test-sync")(context.Background()); err != nil {
 		t.Fatal(err)
@@ -713,20 +714,20 @@ func TestDynamicSourceFailureDoesNotFailTheCommit(t *testing.T) {
 	s, md, src := syncedSrcSvc(t, v, "loop701")
 	md.failOn("loop703", errors.New(errLabelInUse))
 	src.set("loop701", "loop703")
-	sub := s.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_ERROR}})
+	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_ERROR}})
 
-	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)})
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
 		t.Fatalf("after the commit: loop703 %v, dynamic objects %q (want the commit applied, the source left alone)", ok, md.list())
 	}
-	var skipped *vrxv1.ObjectResult
+	var skipped *ngfwv1.ObjectResult
 	for _, r := range resp.GetResults() {
 		if r.GetKey() == dynDesc+"/loop703" {
 			skipped = r
 		}
 	}
-	if skipped == nil || skipped.GetCode() != vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(skipped.GetMessage(), "test-sync") ||
+	if skipped == nil || skipped.GetCode() != ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED || !strings.Contains(skipped.GetMessage(), "test-sync") ||
 		!strings.Contains(skipped.GetMessage(), errLabelInUse) || skipped.GetPointer() != "" || skipped.GetSubsystem() != "" {
 		t.Fatalf("the skipped dynamic object is not reported: %v", resp.GetResults())
 	}
@@ -759,7 +760,7 @@ func TestDynamicSourceFailureDoesNotFailTheCommit(t *testing.T) {
 		t.Fatalf("sync with nothing quarantined: %v", err)
 	}
 	// In sync again, the source rides in config transactions: removing loop703 deletes both at once.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701" {
 		t.Fatalf("after removing loop703: %q", md.list())
 	}
@@ -780,11 +781,11 @@ func TestDynamicSourceFailureDoesNotRollBackTheResync(t *testing.T) {
 	md.failOn("loop702", errors.New(errLabelInUse)) // ... and VPP now rejects one dynamic object
 
 	resp := s.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if s.Health().GetDegraded() {
 		t.Fatal("degraded after a resync whose only failure was a dynamic object")
 	}
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{})
 	if err != nil || !proto.Equal(got.GetDesiredState(), doc(t, canonicalDoc)) {
 		t.Fatalf("the configuration was not rebuilt: %v", err)
 	}
@@ -818,16 +819,16 @@ func TestDynamicSourcePanicIsContained(t *testing.T) {
 	src.panicNow = true
 	src.mu.Unlock()
 
-	var resp *vrxv1.ApplyResponse
-	noPanic(t, "Apply", func() { resp = apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}) })
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	var resp *ngfwv1.ApplyResponse
+	noPanic(t, "Apply", func() { resp = apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}) })
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if _, ok := v.InterfaceByName("loop703"); !ok || md.list() != "loop701" {
 		t.Fatalf("after the commit: loop703 %v, dynamic %q", ok, md.list())
 	}
-	var rep *vrxv1.ValidationReport
+	var rep *ngfwv1.ValidationReport
 	var err error
 	noPanic(t, "DryRun", func() {
-		rep, err = s.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
+		rep, err = s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
 	})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
@@ -837,9 +838,9 @@ func TestDynamicSourcePanicIsContained(t *testing.T) {
 		t.Fatalf("sync of a panicking source: %v", err)
 	}
 	noPanic(t, "Resync", func() { resp = s.Resync(context.Background()) })
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	// The transaction lock is free again.
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 }
 
 // Probe D (R6): sync called from inside Desired, or from a descriptor call, would wait for the
@@ -847,7 +848,7 @@ func TestDynamicSourcePanicIsContained(t *testing.T) {
 func TestDynamicSourceSyncInsideATransactionRefused(t *testing.T) {
 	v := coretest.New()
 	s, md, src := newSrcSvc(t, v, nil)
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	sync := s.sourceSync("test-sync")
 	var inner error
 	var took time.Duration
@@ -903,7 +904,7 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 	dir := t.TempDir()
 	md := &memDesc{objs: map[string]bool{}}
 	s1, src1 := newSrcSvcIn(t, v, dir, md, nil)
-	mustStatus(t, apply(t, s1, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s1, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	src1.set("loop701", "loop702")
 	if err := s1.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop702" {
 		t.Fatalf("first process: %v %q", err, md.list())
@@ -912,11 +913,11 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 
 	s2, src2 := newSrcSvcIn(t, v, dir, md, nil) // the new process: its source cache is empty
 	resp := s2.Resync(context.Background())
-	mustStatus(t, resp, vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if resp.GetSummary().GetDeleted() != 0 || md.list() != "loop701,loop702" {
 		t.Fatalf("first resync after an agent restart: summary %v, dynamic %q (want nothing deleted)", resp.GetSummary(), md.list())
 	}
-	rep, err := s2.DryRun(context.Background(), &vrxv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
+	rep, err := s2.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: withLoop703(t)})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %v", err, rep)
 	}
@@ -925,7 +926,7 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 			t.Fatalf("dry run before the first sync plans a dynamic object: %v", op)
 		}
 	}
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701,loop702" {
 		t.Fatalf("a commit before the first sync touched dynamic objects: %q", md.list())
 	}
@@ -934,7 +935,7 @@ func TestDynamicSourceAgentRestartKeepsDynamicObjects(t *testing.T) {
 	if err := s2.sourceSync("test-sync")(context.Background()); err != nil || md.list() != "loop701,loop703" {
 		t.Fatalf("first sync: %v, dynamic %q", err, md.list())
 	}
-	mustStatus(t, apply(t, s2, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s2, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if md.list() != "loop701" {
 		t.Fatalf("removing loop703 after the first sync: %q", md.list())
 	}
@@ -949,7 +950,7 @@ func TestDynamicSourceLeftOutRejoinsThroughTheRetry(t *testing.T) {
 	s.retryMin, s.retryMax = 20*time.Millisecond, 40*time.Millisecond
 	md.failOn("loop703", errors.New(errLabelInUse))
 	src.set("loop701", "loop703")
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if !s.source("test-sync").inSync.Load() || len(quarantinedKeys(s, "test-sync")) != 1 {
 		t.Fatalf("after the commit: in sync %v, quarantined %v (want in sync, loop703 quarantined)", s.source("test-sync").inSync.Load(), quarantinedKeys(s, "test-sync"))
 	}
@@ -967,7 +968,7 @@ func TestDynamicSourceLeftOutRejoinsThroughTheRetry(t *testing.T) {
 	src.mu.Lock()
 	src.extra = []scheduler.KV{{Key: bad, Value: wrapperspb.String("x")}}
 	src.mu.Unlock()
-	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t3", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t3", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if s.source("test-sync").inSync.Load() || md.list() != "loop701,loop703" {
 		t.Fatalf("an invalid source: in sync %v, dynamic %q (want out of sync, objects left as they are)", s.source("test-sync").inSync.Load(), md.list())
 	}
@@ -998,7 +999,7 @@ func TestDynamicSourceStartAndRunFailure(t *testing.T) {
 		t.Helper()
 		v := coretest.New()
 		s, md, src := newSrcSvc(t, v, run)
-		mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 		src.set("loop701")
 		a := &Agent{log: s.log, svc: s, metrics: s.metrics}
 		ctx, cancel := context.WithCancel(context.Background())
@@ -1039,13 +1040,13 @@ func TestDynamicSourceStartAndRunFailure(t *testing.T) {
 			}
 			// Out of sync: a commit leaves its objects alone, and a stray sync is refused.
 			src.set("loop702")
-			mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+			mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t2", DesiredState: withLoop703(t)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 			if err := s.sourceSync("test-sync")(context.Background()); grpcCode(err) != codes.FailedPrecondition || md.list() != "loop701" || s.source("test-sync").inSync.Load() {
 				t.Fatalf("a stopped source: sync %v, dynamic %q", err, md.list())
 			}
 			var b strings.Builder
 			s.metrics.write(&b)
-			if want := `vrx_agent_dynamic_source_errors_total{source="test-sync",reason="` + tc.reason + `"} 1`; !strings.Contains(b.String(), want) {
+			if want := `ngfw_agent_dynamic_source_errors_total{source="test-sync",reason="` + tc.reason + `"} 1`; !strings.Contains(b.String(), want) {
 				t.Fatalf("missing %q in\n%s", want, b.String())
 			}
 		})
@@ -1066,7 +1067,7 @@ func TestRequestedResyncsAreRateLimited(t *testing.T) {
 	resyncMinInterval = 500 * time.Millisecond
 	t.Cleanup(func() { resyncMinInterval = old })
 	a, fc := startFake(t, testConfig(t))
-	sub := a.svc.events().subscribe(&vrxv1.StreamEventsRequest{Kinds: []vrxv1.EventKind{vrxv1.EventKind_EVENT_KIND_RECONCILE_START}})
+	sub := a.svc.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_START}})
 	fc.states <- vpp.ConnState{Connected: true}
 	collect(t, sub, 1) // the connect resync
 	a.wiring.RequestResync()

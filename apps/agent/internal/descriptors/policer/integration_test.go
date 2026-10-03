@@ -15,8 +15,8 @@ import (
 	"ngfw/agent/internal/vpp"
 )
 
-// Integration test against the VPP on this host (VRX_INTEGRATION=1, shared lab lock): policers
-// are named "<VRX_TEST_PREFIX>:…", attachments sit on this slot's loopbacks (loop<slot>10…),
+// Integration test against the VPP on this host (NGFW_INTEGRATION=1, shared lab lock): policers
+// are named "<NGFW_TEST_PREFIX>:…", attachments sit on this slot's loopbacks (loop<slot>10…),
 // everything is removed in t.Cleanup. Retrieve assertions only see this owner's policers.
 func TestPolicerOnHost(t *testing.T) {
 	h := df7test.StartHost(t)

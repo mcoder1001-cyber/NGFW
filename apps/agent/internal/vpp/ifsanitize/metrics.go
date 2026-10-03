@@ -96,8 +96,8 @@ func Snapshot() Stats {
 		Freed: cp(stats.Freed), Unclearable: cp(stats.Unclearable), Capped: cp(stats.Capped), Placeholders: cp(stats.Placeholders), Quarantined: stats.Quarantined, QuarantineTotal: stats.QuarantineTotal}
 }
 
-// WriteMetrics renders the counters in the Prometheus text format (vrx_agent_iface_sanitize_*,
-// vrx_agent_iface_quarantined).
+// WriteMetrics renders the counters in the Prometheus text format (ngfw_agent_iface_sanitize_*,
+// ngfw_agent_iface_quarantined).
 func WriteMetrics(w io.Writer) {
 	s := Snapshot()
 	p := func(format string, a ...any) { _, _ = fmt.Fprintf(w, format, a...) }
@@ -114,16 +114,16 @@ func WriteMetrics(w io.Writer) {
 			p("%s{phase=%q,state=%q} %d\n", name, phase, state, m[k])
 		}
 	}
-	byPhase("vrx_agent_iface_sanitize_total", "Interfaces sanitized (create: new sw_if_index; delete: before the interface is deleted), VPP V19/V21.", s.Runs)
-	byPhase("vrx_agent_iface_sanitize_errors_total", "Sanitize runs that failed.", s.Errors)
-	byPhase("vrx_agent_iface_sanitize_inherited_total", "Sanitize runs that found bindings.", s.Inherited)
-	byPhase("vrx_agent_iface_sanitize_capped_total", "Sanitize runs that reached the placeholder cap before a freed classify table index a binding names came back (the binding is unclearable; create: the index is quarantined).", s.Capped)
-	byPhase("vrx_agent_iface_sanitize_placeholders_total", "Placeholder classify tables made: one probe table per run plus the free-list pops that brought back a freed index a binding names.", s.Placeholders)
-	byState("vrx_agent_iface_sanitize_cleared_total", "Bindings removed, by state.", s.Cleared)
-	byState("vrx_agent_iface_sanitize_freed_table_total", "Bindings to deleted classify tables removed through a resurrected placeholder, by state.", s.Freed)
-	byState("vrx_agent_iface_sanitize_unclearable_total", "Bindings to deleted classify tables that could not be removed, by state.", s.Unclearable)
-	p("# HELP vrx_agent_iface_quarantined sw_if_indexes held in quarantine by this process (admin-down, tag quarantine:<owner>).\n# TYPE vrx_agent_iface_quarantined gauge\nvrx_agent_iface_quarantined %d\n", s.Quarantined)
-	p("# HELP vrx_agent_iface_quarantine_total Quarantines.\n# TYPE vrx_agent_iface_quarantine_total counter\nvrx_agent_iface_quarantine_total %d\n", s.QuarantineTotal)
+	byPhase("ngfw_agent_iface_sanitize_total", "Interfaces sanitized (create: new sw_if_index; delete: before the interface is deleted), VPP V19/V21.", s.Runs)
+	byPhase("ngfw_agent_iface_sanitize_errors_total", "Sanitize runs that failed.", s.Errors)
+	byPhase("ngfw_agent_iface_sanitize_inherited_total", "Sanitize runs that found bindings.", s.Inherited)
+	byPhase("ngfw_agent_iface_sanitize_capped_total", "Sanitize runs that reached the placeholder cap before a freed classify table index a binding names came back (the binding is unclearable; create: the index is quarantined).", s.Capped)
+	byPhase("ngfw_agent_iface_sanitize_placeholders_total", "Placeholder classify tables made: one probe table per run plus the free-list pops that brought back a freed index a binding names.", s.Placeholders)
+	byState("ngfw_agent_iface_sanitize_cleared_total", "Bindings removed, by state.", s.Cleared)
+	byState("ngfw_agent_iface_sanitize_freed_table_total", "Bindings to deleted classify tables removed through a resurrected placeholder, by state.", s.Freed)
+	byState("ngfw_agent_iface_sanitize_unclearable_total", "Bindings to deleted classify tables that could not be removed, by state.", s.Unclearable)
+	p("# HELP ngfw_agent_iface_quarantined sw_if_indexes held in quarantine by this process (admin-down, tag quarantine:<owner>).\n# TYPE ngfw_agent_iface_quarantined gauge\nngfw_agent_iface_quarantined %d\n", s.Quarantined)
+	p("# HELP ngfw_agent_iface_quarantine_total Quarantines.\n# TYPE ngfw_agent_iface_quarantine_total counter\nngfw_agent_iface_quarantine_total %d\n", s.QuarantineTotal)
 }
 
 func sortedKeys(m map[string]int64) []string {

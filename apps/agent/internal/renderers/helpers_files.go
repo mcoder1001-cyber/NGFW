@@ -231,7 +231,7 @@ func Stage(files Files) (*Staging, error) {
 	if err := files.Validate(); err != nil {
 		return nil, err
 	}
-	dir, err := os.MkdirTemp("", "vrx-render-")
+	dir, err := os.MkdirTemp("", "ngfw-render-")
 	if err != nil {
 		return nil, fmt.Errorf("renderers: staging dir: %w", err)
 	}

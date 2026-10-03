@@ -44,7 +44,7 @@ type reachEntry struct {
 
 // maxPending is the size of the pending allowlist. Lower it when you wire a package; never raise it
 // without a board row that wires the new package (TD-11a, D-125).
-const maxPending = 15
+const maxPending = 10
 
 var descriptorReach = map[string]reachEntry{
 	"abf":                 {wired, "F-rpf-adl-pbr"},
@@ -70,9 +70,9 @@ var descriptorReach = map[string]reachEntry{
 	"dslite":              {wired, "F-det44-map-dslite-cnat"},
 	"flowprobe":           {wired, "F-ipfix-sflow"},
 	"gre":                 {wired, "F-tunnels"},
-	"gtpu":                {pending, "F-tunnels"},
+	"gtpu":                {wired, "S-tunnels-contract"},
 	"igmp":                {pending, "F-igmp-mfib"},
-	"ikev2":               {pending, "F-ikev2-native"},
+	"ikev2":               {wired, "F-ikev2-native"},
 	"hoststack":           {wired, "F-host-stack"},
 	"interface":           {wired, "P08"},
 	"ip6_nd":              {wired, "F-neighbors-ra"},
@@ -82,7 +82,7 @@ var descriptorReach = map[string]reachEntry{
 	"ipip":                {wired, "F-tunnels"},
 	"ipsec":               {pending, "P11"},
 	"l2":                  {wired, "F-bridge-l2"},
-	"l2tp":                {pending, "F-tunnels"},
+	"l2tp":                {wired, "S-tunnels-contract"},
 	"l3xc":                {wired, "F-bridge-l2"},
 	"lb":                  {wired, "F-lb"},
 	"lcp":                 {wired, "P12"},
@@ -103,7 +103,7 @@ var descriptorReach = map[string]reachEntry{
 	"pcap":                {pending, "F-capture-trace"},
 	"pnat":                {wired, "F-det44-map-dslite-cnat"},
 	"policer":             {wired, "F-qos-flat"},
-	"pppoe":               {pending, "F-tunnels"},
+	"pppoe":               {wired, "S-tunnels-contract"},
 	"qos":                 {wired, "F-qos-flat"},
 	"sflow":               {wired, "F-ipfix-sflow"},
 	"span":                {wired, "F-loopback-bvi-gso-lldp-span"},
@@ -116,7 +116,7 @@ var descriptorReach = map[string]reachEntry{
 	"vpn":                 {library, "DF-5 shared types, secret contract, keyer"},
 	"vrrp":                {wired, "F-vrrp-config-sync"},
 	"vxlan":               {wired, "F-tunnels"},
-	"vxlan_gpe":           {pending, "F-tunnels"},
+	"vxlan_gpe":           {wired, "S-tunnels-contract"},
 	"wireguard":           {wired, "F-wireguard"},
 }
 
@@ -134,7 +134,7 @@ var rendererReach = map[string]reachEntry{
 	"strongswan": {pending, "P11"},
 	"sysident":   {wired, "F-system-identity"},
 	"unbound":    {wired, "F-unbound-chrony-syslog"},
-	"vppstartup": {library, "startup.conf generator: cmd/vrx-startupgen (F-startup-gen), not an agent registry item"},
+	"vppstartup": {library, "startup.conf generator: cmd/ngfw-startupgen (F-startup-gen), not an agent registry item"},
 }
 
 // libraryPins is the exact library set; change it only with a reason in the entry (and a D-entry for
@@ -234,13 +234,33 @@ func boardRows(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
+	rows := parseBoardRows(string(b))
+	if len(rows) == 0 {
+		t.Fatal("board has no task IDs")
+	}
+	return rows
+}
+
+func parseBoardRows(text string) map[string]bool {
 	rows := map[string]bool{}
-	for _, l := range strings.Split(string(b), "\n") {
-		if id, ok := strings.CutPrefix(l, "- id: "); ok {
+	for _, line := range strings.Split(text, "\n") {
+		if id, ok := strings.CutPrefix(strings.TrimSpace(line), "- id: "); ok {
 			rows[strings.TrimSpace(id)] = true
 		}
 	}
 	return rows
+}
+
+func TestBoardRowsAcceptYAMLIndentation(t *testing.T) {
+	for _, text := range []string{
+		"tasks:\n- id: P11\n  state: running\n- id: F-capture-trace\n  state: merged\n",
+		"tasks:\n  - id: P11\n    state: running\n  - id: F-capture-trace\n    state: merged\n",
+	} {
+		rows := parseBoardRows(text)
+		if len(rows) != 2 || !rows["P11"] || !rows["F-capture-trace"] || rows["missing-row"] {
+			t.Fatalf("valid YAML task indentation changed row identity: %v", rows)
+		}
+	}
 }
 
 // importsOf maps the local names of a file's imports under internal/<sub>/ to their top-level package

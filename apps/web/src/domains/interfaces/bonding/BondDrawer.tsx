@@ -143,7 +143,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
   return (
     <Box sx={{ p: 2 }} role="region" aria-label={t('drawer.label', { name })}>
       <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-        <Typography component="h3" variant="h6" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, flex: 1, textAlign: 'start' }}>
+        <Typography component="h3" variant="h6" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}>
           {name}
         </Typography>
         {status && <StatusChip size="small" status={status} label={t(`status.${status}`)} />}
@@ -246,7 +246,7 @@ function DrawerBody({ name, onClose }: { name: string; onClose: () => void }) {
               .join(', ');
             return (
               <TableRow key={m} hover sx={{ cursor: readOnly ? 'default' : 'pointer' }} onClick={() => !readOnly && setMemberDialog({ name: m, value: mc })}>
-                <TableCell dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+                <TableCell dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                   {m}
                 </TableCell>
                 <TableCell>{lm ? <StatusChip size="small" status={memberStatus(lm)} label={t(`memberStatus.${memberStatus(lm)}`)} /> : t('notInVpp')}</TableCell>

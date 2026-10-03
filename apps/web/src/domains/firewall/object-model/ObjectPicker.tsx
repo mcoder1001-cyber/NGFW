@@ -7,7 +7,7 @@ import { useCandidateObjects } from './queries';
 /**
  * The `object-picker` / `tag-picker` custom widget of `<SchemaForm widgets>` (P08 pattern; not a ui-kit built-in).
  * It offers the names of the candidate's objects of the kinds the field may reference — `pickerKinds()`: an explicit
- * `x-vrx-ui.objectKinds`, the kinds its schema help names (`objects.addresses or objects.addressGroups`), or its
+ * `x-ngfw-ui.objectKinds`, the kinds its schema help names (`objects.addresses or objects.addressGroups`), or its
  * property name (`zone`, `schedule`, `tags`) — labelled with their kind and value. A string field becomes a select, an
  * array (group members, tags) a multi-select; validation stays the form's (the schema of the whole document).
  *
@@ -28,7 +28,7 @@ export const ObjectPicker: WidgetComponent = (props: WidgetProps) => {
   const parentName = props.name.includes('.') ? props.name.slice(0, props.name.lastIndexOf('.')) : props.name;
   return (
     <SchemaField
-      schema={{ ...schema, 'x-vrx-ui': hints }}
+      schema={{ ...schema, 'x-ngfw-ui': hints }}
       name={props.name}
       propPath={props.propPath}
       parentName={parentName}

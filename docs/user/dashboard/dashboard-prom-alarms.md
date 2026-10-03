@@ -19,24 +19,24 @@ Scrape config:
 
 ```yaml
 scrape_configs:
-  - job_name: vrx
+  - job_name: ngfw
     static_configs: [{ targets: ["<appliance>:9101"] }]
 ```
 
-The real govpp source publishes `vrx_interface_rx_bytes_total`, `vrx_interface_tx_bytes_total`,
-`vrx_interface_rx_packets_total`, `vrx_interface_tx_packets_total`, `vrx_interface_rx_errors_total`,
-`vrx_interface_tx_errors_total` and `vrx_interface_drops_total` (`interface`). VPP's stats segment only
+The real govpp source publishes `ngfw_interface_rx_bytes_total`, `ngfw_interface_tx_bytes_total`,
+`ngfw_interface_rx_packets_total`, `ngfw_interface_tx_packets_total`, `ngfw_interface_rx_errors_total`,
+`ngfw_interface_tx_errors_total` and `ngfw_interface_drops_total` (`interface`). VPP's stats segment only
 provides aggregate interface drops: directional drop samples and admin/link gauges are omitted rather than
 reported as zero. Link events used by the API alarm engine continue through the existing agent event stream.
-`vrx_worker_vectors_per_call` and `vrx_worker_clocks_per_vector` (`worker`) are cumulative node-counter
+`ngfw_worker_vectors_per_call` and `ngfw_worker_clocks_per_vector` (`worker`) are cumulative node-counter
 ratios for each stats thread (`vpp_main`, `vpp_worker_1`, …), not CPU utilization percentages.
-`vrx_buffer_used`, `vrx_buffer_available`, `vrx_buffer_used_percent` (`pool`) and `vrx_node_errors_total`
+`ngfw_buffer_used`, `ngfw_buffer_available`, `ngfw_buffer_used_percent` (`pool`) and `ngfw_node_errors_total`
 (`node`, `reason`, top-N) come from the same dedicated stats connection. Failed reads discard the mapping;
-the next scrape reconnects. The loopback endpoint also includes the agent's `vrx_agent_*` families.
+the next scrape reconnects. The loopback endpoint also includes the agent's `ngfw_agent_*` families.
 The configurable external listener exposes dataplane families and enforces its CIDR allow-list, including
 updates on the same address; disabling or rolling back its singleton closes the owned socket.
 
-Import `deploy/grafana/vrx-overview.json` into Grafana (pick your Prometheus data source). VPP's `prom_plugin.so`
+Import `deploy/grafana/ngfw-overview.json` into Grafana (pick your Prometheus data source). VPP's `prom_plugin.so`
 is an alternative exporter enabled through a `prom { … }` stanza in the startup configuration (a manager step); the
 agent exporter above needs no VPP change.
 
@@ -46,7 +46,7 @@ Alarm rules and notification targets live in **Config → Management → Alarms*
 ```
 management.alarms:
   targets:
-    ops:   { kind: webhook, url: "https://hooks.example.net/vrx", secretRef: "token/ops-hook" }
+    ops:   { kind: webhook, url: "https://hooks.example.net/ngfw", secretRef: "token/ops-hook" }
   rules:
     wan-down:  { metric: interface_link_down, op: ge, threshold: 1, severity: critical, interface: TenGigabitEthernet0/0/0, targets: [ops] }
     rx-drops:  { metric: interface_rx_drops, op: gt, threshold: 100, forSec: 30, severity: warning, targets: [ops] }

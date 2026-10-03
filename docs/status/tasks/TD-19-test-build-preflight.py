@@ -19,9 +19,9 @@ class BuildPreflight(unittest.TestCase):
                 stub.write_text('#!/bin/sh\nprintf "%s\\n" "$0" >> "$CALL_LOG"\nexit 91\n')
                 stub.chmod(0o755)
             env = dict(os.environ, PATH=f'{root}:/usr/bin:/bin', CALL_LOG=str(log))
-            env.pop('VRX_GO_SHA256', None)
+            env.pop('NGFW_GO_SHA256', None)
             if digest is not None:
-                env['VRX_GO_SHA256'] = digest
+                env['NGFW_GO_SHA256'] = digest
             result = subprocess.run(['bash', str(ROOT / 'scripts/20-install-build.sh'), *args],
                                     env=env, text=True, capture_output=True)
             return result, log.read_text() if log.exists() else ''
@@ -31,7 +31,7 @@ class BuildPreflight(unittest.TestCase):
             with self.subTest(digest=digest):
                 result, calls = self.run_check(digest)
                 self.assertNotEqual(result.returncode, 0)
-                self.assertIn('VRX_GO_SHA256', result.stderr)
+                self.assertIn('NGFW_GO_SHA256', result.stderr)
                 self.assertEqual(calls, '')
 
     def test_valid_configuration_uses_repository_pins(self):

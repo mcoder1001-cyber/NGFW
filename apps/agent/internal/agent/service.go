@@ -19,10 +19,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	capturetrace "ngfw/agent/internal/actions/capture-trace"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
@@ -38,26 +41,29 @@ const (
 	modeRevert             // confirm timeout
 )
 
-// Service implements the vrx.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
+// Service implements the ngfw.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
+	captureConfig capturetrace.Config
 	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
-	netdevKind desired.NetdevKind
-	owner      string
-	version    string
-	log        *slog.Logger
-	vpp        vpp.Client
-	sched      *scheduler.Scheduler
-	st         *state
-	bus        *bus
-	metrics    *metrics
-	now        func() time.Time
-	claimsTxn  func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
+	netdevKind        desired.NetdevKind
+	owner             string
+	version           string
+	log               *slog.Logger
+	vpp               vpp.Client
+	sched             *scheduler.Scheduler
+	st                *state
+	secrets           *secretchannel.Store
+	candidateSecretID string
+	bus               *bus
+	metrics           *metrics
+	now               func() time.Time
+	claimsTxn         func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
 	timer    *time.Timer
-	lastResp *vrxv1.ApplyResponse // last applyLocked result (guarded by txn)
+	lastResp *ngfwv1.ApplyResponse // last applyLocked result (guarded by txn)
 	// owed-revert retry (guarded by txn)
 	retryTimer         *time.Timer
 	retryDelay         time.Duration
@@ -77,12 +83,12 @@ type Service struct {
 	reconciling     bool
 	lastReconcileAt time.Time
 	vppVersion      string
-	vrfIDs          map[string]uint32           // VRF name → table id of the stored desired state
-	vrfDesc         map[string]string           // VRF name → description (D-073b)
-	pnatRef         *vrxv1.PnatConfig           // F-det44-map-dslite-cnat: stored nat.pnat (binding names/order for Retrieve)
-	routeDesc       map[string]string           // "<vrf>|<prefix>" → description (D-073b)
-	storedIfs       map[string]*vrxv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
-	storedDoc       *vrxv1.DesiredState         // stored desired state for DryRun's dynamic sources (TD-8; only with sources)
+	vrfIDs          map[string]uint32            // VRF name → table id of the stored desired state
+	vrfDesc         map[string]string            // VRF name → description (D-073b)
+	pnatRef         *ngfwv1.PnatConfig           // F-det44-map-dslite-cnat: stored nat.pnat (binding names/order for Retrieve)
+	routeDesc       map[string]string            // "<vrf>|<prefix>" → description (D-073b)
+	storedIfs       map[string]*ngfwv1.Interface // stored desired `interfaces` (P08: descriptions, named NICs)
+	storedDoc       *ngfwv1.DesiredState         // stored desired state for DryRun's dynamic sources (TD-8; only with sources)
 	beforeTxn       func()
 	pendingTxn      string
 	deadline        time.Time
@@ -100,14 +106,17 @@ type Service struct {
 
 // ServiceConfig builds a Service.
 type ServiceConfig struct {
-	Owner     string
-	Version   string
-	Logger    *slog.Logger
-	VPP       vpp.Client
-	Scheduler *scheduler.Scheduler
-	StateDir  string
-	Metrics   *metrics
-	Now       func() time.Time
+	CaptureBoot  dfkit.BootStore
+	GlobalsOwner bool
+	SecretCache  *secretchannel.Store
+	Owner        string
+	Version      string
+	Logger       *slog.Logger
+	VPP          vpp.Client
+	Scheduler    *scheduler.Scheduler
+	StateDir     string
+	Metrics      *metrics
+	Now          func() time.Time
 	// BeforeTxn runs at the start of every transaction (P08: subsystems.Wiring.BeforeTxn).
 	BeforeTxn func()
 	// NetdevKind is the Linux netdev lookup of the af_packet veth rule (D-105; subsystems.Wiring.NetdevKind).
@@ -160,6 +169,19 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 		txnTimeout: cfg.TxnTimeout, requestResync: cfg.RequestResync,
+	}
+	s.captureConfig = capturetrace.Config{Client: cfg.VPP, Owner: cfg.Owner, GlobalsOwner: cfg.GlobalsOwner, Boot: cfg.CaptureBoot}
+	if cfg.StateDir != "/var/lib/ngfw/agent" {
+		s.captureConfig.Dir = cfg.StateDir + "/captures"
+	}
+	s.secrets = cfg.SecretCache
+	if s.secrets == nil && (st.meta.SecretBundle != "" || st.meta.ConfirmedSecretBundle != "") {
+		return nil, errors.New("persisted secret bindings require an available secret cache")
+	}
+	if s.secrets != nil {
+		if err := s.secrets.Activate(st.meta.SecretBundle); err != nil {
+			return nil, fmt.Errorf("load secret snapshot: %w", err)
+		}
 	}
 	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
@@ -215,6 +237,11 @@ func (s *Service) containLocked(what string, errp *error) {
 	s.metrics.panicked("transaction")
 	if st, err := loadState(s.st.dir, s.owner); err == nil {
 		s.st = st
+		if s.secrets != nil {
+			if e := s.secrets.Activate(st.meta.SecretBundle); e != nil {
+				s.log.Error("secret snapshot unavailable after state reload")
+			}
+		}
 	} else {
 		s.log.Error("reload state after a panic", "err", err)
 	}
@@ -253,13 +280,13 @@ func (s *Service) refreshSnapshotLocked() {
 			routeDesc[vrf+"|"+p] = r.GetDescription()
 		}
 	}
-	ifs := map[string]*vrxv1.Interface{}
+	ifs := map[string]*ngfwv1.Interface{}
 	for name, itf := range s.st.desired.GetInterfaces() {
-		ifs[name] = proto.Clone(itf).(*vrxv1.Interface)
+		ifs[name] = proto.Clone(itf).(*ngfwv1.Interface)
 	}
-	var pnatRef *vrxv1.PnatConfig
+	var pnatRef *ngfwv1.PnatConfig
 	if p := s.st.desired.GetNat().GetPnat(); p != nil {
-		pnatRef = proto.Clone(p).(*vrxv1.PnatConfig)
+		pnatRef = proto.Clone(p).(*ngfwv1.PnatConfig)
 	}
 	s.mu.Lock()
 	s.vrfDesc, s.routeDesc = vrfDesc, routeDesc
@@ -277,7 +304,7 @@ func (s *Service) refreshSnapshotLocked() {
 	desired.SetIpfixExporterNames(s.st.desired.GetServices()) // F-ipfix-sflow: names from the stored state only
 	desired.SetNat46Owners(s.st.desired.GetNat())             // F-nat46: shared map-t interface owners, stored state only
 	if len(s.sources) > 0 {
-		doc := proto.Clone(s.st.desired).(*vrxv1.DesiredState)
+		doc := proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
 		s.mu.Lock()
 		s.storedDoc = doc
 		s.mu.Unlock()
@@ -316,7 +343,7 @@ func checkSubsystems(subsystems []string) error {
 }
 
 // authoritative returns the domains a transaction manages (D-041, contract §2 table).
-func authoritative(ds *vrxv1.DesiredState, subsystems []string) []string {
+func authoritative(ds *ngfwv1.DesiredState, subsystems []string) []string {
 	if len(subsystems) > 0 {
 		return union(subsystems, nil)
 	}
@@ -329,7 +356,7 @@ func authoritative(ds *vrxv1.DesiredState, subsystems []string) []string {
 	return out
 }
 
-func fingerprint(ds *vrxv1.DesiredState, subsystems []string) string {
+func fingerprint(ds *ngfwv1.DesiredState, subsystems []string) string {
 	b, _ := proto.MarshalOptions{Deterministic: true}.Marshal(ds)
 	h := sha256.New()
 	h.Write(b)
@@ -343,7 +370,8 @@ func fingerprint(ds *vrxv1.DesiredState, subsystems []string) string {
 // ---- Apply --------------------------------------------------------------------------------
 
 // Apply implements the Apply RPC.
-func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (resp *vrxv1.ApplyResponse, err error) {
+func (s *Service) Apply(ctx context.Context, req *ngfwv1.ApplyRequest) (resp *ngfwv1.ApplyResponse, err error) {
+	defer clearSecretBundle(req.GetSecretBundle())
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -370,8 +398,23 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (resp *vrx
 	defer cancel()
 
 	var fp string
+	s.candidateSecretID = s.st.meta.SecretBundle
+	if req.GetSecretBundle() != nil {
+		if !hasApply || s.secrets == nil {
+			return nil, status.Error(codes.FailedPrecondition, "secret bundle requires an apply and an available secret cache")
+		}
+		id, e := s.secrets.ID(req.GetSecretBundle().GetValues())
+		if e != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid secret bundle")
+		}
+		s.candidateSecretID = id
+	}
+	defer s.restoreSecretSelection()
 	if hasApply {
 		fp = fingerprint(req.GetDesiredState(), req.GetSubsystems())
+		if req.GetSecretBundle() != nil {
+			fp += "|" + s.candidateSecretID
+		}
 		if prev, resp, ok := s.st.recall(req.GetTxnId()); ok {
 			if prev != fp {
 				return nil, status.Errorf(codes.Aborted, "txn_id %q was already used with a different desired state", req.GetTxnId())
@@ -383,6 +426,14 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (resp *vrx
 		// and an owed revert is not touched.
 		if !s.vpp.Connected() {
 			return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
+		}
+	}
+	if req.GetSecretBundle() != nil {
+		if _, e := s.secrets.Stage(req.GetSecretBundle().GetValues()); e != nil {
+			return nil, status.Error(codes.Internal, "cannot seal secret snapshot")
+		}
+		if e := s.secrets.Activate(s.candidateSecretID); e != nil {
+			return nil, status.Error(codes.Internal, "cannot activate secret snapshot")
 		}
 	}
 	if hasConfirm {
@@ -398,7 +449,7 @@ func (s *Service) Apply(ctx context.Context, req *vrxv1.ApplyRequest) (resp *vrx
 			return nil, status.Errorf(codes.Internal, "confirm: %v", err)
 		}
 		if !hasApply {
-			return &vrxv1.ApplyResponse{TxnId: req.GetConfirmTxnId(), Status: vrxv1.ApplyStatus_APPLY_STATUS_CONFIRMED, AppliedAt: timestamppb.New(s.now())}, nil
+			return &ngfwv1.ApplyResponse{TxnId: req.GetConfirmTxnId(), Status: ngfwv1.ApplyStatus_APPLY_STATUS_CONFIRMED, AppliedAt: timestamppb.New(s.now())}, nil
 		}
 	} else if s.st.meta.PendingTxnID != "" && !s.st.meta.Reverting {
 		return nil, status.Errorf(codes.FailedPrecondition, "transaction %q is pending confirmation: confirm it (confirm_txn_id) or let it revert", s.st.meta.PendingTxnID)
@@ -428,7 +479,8 @@ func (s *Service) confirmLocked() error {
 		s.timer = nil
 	}
 	txn := s.st.meta.PendingTxnID
-	s.st.confirm = proto.Clone(s.st.desired).(*vrxv1.DesiredState)
+	s.st.confirm = proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
+	s.st.meta.ConfirmedSecretBundle = s.st.meta.SecretBundle
 	s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 	s.st.meta.LastTxnID = txn
 	s.st.meta.PendingTxnID = ""
@@ -441,20 +493,20 @@ func (s *Service) confirmLocked() error {
 // applyLocked runs one transaction (caller holds txn) on ctx, the transaction's own context. retryable
 // reports an outcome that must not be stored under the txn_id (review 1.4): an operation's outcome is
 // unknown (TxnResult.Uncertain), the transaction ran out of time, or the state could not be saved.
-func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrxv1.DesiredState, domains []string, confirmSec uint32) (*vrxv1.ApplyResponse, bool) {
+func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngfwv1.DesiredState, domains []string, confirmSec uint32) (*ngfwv1.ApplyResponse, bool) {
 	if ds == nil {
-		ds = &vrxv1.DesiredState{}
+		ds = &ngfwv1.DesiredState{}
 	}
 	start := s.now()
 	s.setReconciling(true)
 	defer s.setReconciling(false)
-	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_START, TxnId: txnID, Message: fmt.Sprintf("%s %v", modeName(m), domains)})
+	s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_RECONCILE_START, TxnId: txnID, Message: fmt.Sprintf("%s %v", modeName(m), domains)})
 	log := s.log.With("txn_id", txnID, "mode", modeName(m), "domains", domains)
 	log.Info("reconcile start")
 	flushClaims, endClaims := s.claimsBatch() // TD-11c: one keyed-claim batch per transaction
 	defer endClaims()
 
-	resp := &vrxv1.ApplyResponse{TxnId: txnID}
+	resp := &ngfwv1.ApplyResponse{TxnId: txnID}
 	if s.beforeTxn != nil {
 		s.beforeTxn()
 	}
@@ -462,10 +514,10 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	var res *scheduler.TxnResult
 	retryable := false
 	if pj.hasErrors() {
-		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_FAILED
+		resp.Status = ngfwv1.ApplyStatus_APPLY_STATUS_FAILED
 		resp.Validation = report(txnID, pj, nil)
 		resp.Message = "validation failed"
-		resp.Summary = &vrxv1.ApplySummary{}
+		resp.Summary = &ngfwv1.ApplySummary{}
 	} else {
 		// S1 (TD-8): the sources in sync join the transaction; one that makes it fail is left out.
 		view := ds // resync and revert apply the stored document itself
@@ -484,11 +536,11 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		}
 		// Not stored (proto.md §2 item 3): an unknown outcome, one in which a VPP reply timeout took part
 		// anywhere — plan, an operation, verify, the rollback (review M2) — or a transaction the deadline cut.
-		retryable = res.Uncertain || timedOut(res) || (ctx.Err() != nil && resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
+		retryable = res.Uncertain || timedOut(res) || (ctx.Err() != nil && resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 		// Review 1.2: the projection's warnings (unimplemented domains, unsupported fields) reach an
 		// APPLIED or ROLLED_BACK answer too, not only DryRun.
 		if st := resp.GetStatus(); resp.Validation == nil && len(pj.issues) > 0 &&
-			(st == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || st == vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK) {
+			(st == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || st == ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK) {
 			resp.Validation = report(txnID, pj, nil)
 		}
 	}
@@ -505,7 +557,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		retryable = true // TD-9 × TD-11c (verify X1): a claims failure is never stored under the txn_id
 	}
 	switch resp.Status {
-	case vrxv1.ApplyStatus_APPLY_STATUS_APPLIED:
+	case ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED:
 		switch m {
 		case modeTxn:
 			if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.Reverting {
@@ -519,6 +571,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 			}
 			covers := len(minus(implementedOnly(s.st.meta.Managed), domains)) == 0
 			s.st.desired = mergeDomains(s.st.desired, ds, domains)
+			s.st.meta.SecretBundle = s.candidateSecretID
 			s.st.meta.Managed = union(s.st.meta.Managed, domains)
 			if confirmSec > 0 {
 				// Review 1.5b: the window starts when the transaction was applied (proto.md §4: applied_at
@@ -529,7 +582,8 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 				s.st.meta.ConfirmDeadline = &deadline
 				s.armTimerLocked(txnID, deadline)
 			} else {
-				s.st.confirm = proto.Clone(s.st.desired).(*vrxv1.DesiredState)
+				s.st.confirm = proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
+				s.st.meta.ConfirmedSecretBundle = s.st.meta.SecretBundle
 				s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 				s.st.meta.LastTxnID = txnID
 			}
@@ -551,7 +605,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 		default:
 			s.setDegraded(false, "")
 		}
-	case vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED:
+	case ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED:
 		s.setDegraded(true, resp.GetMessage())
 	}
 	if claimsErr != nil { // a rolled-back or refused transaction keeps its status, the agent is DEGRADED
@@ -574,7 +628,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 	s.mu.Lock()
 	s.lastReconcileAt = s.now()
 	s.mu.Unlock()
-	s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_RECONCILE_DONE, TxnId: txnID, Summary: resp.GetSummary(), Message: resp.GetStatus().String()})
+	s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE, TxnId: txnID, Summary: resp.GetSummary(), Message: resp.GetStatus().String()})
 	var reapplied int
 	if res != nil {
 		reapplied = res.Reapplied
@@ -587,11 +641,11 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *vrx
 // notSavedLocked turns an APPLIED resp into DEGRADED (ARCH-01, agent half): the data plane has the new
 // state but the agent's record of it is not durable (or its claims are not), so a restart would converge
 // back to the old one. It reports whether it changed resp.
-func (s *Service) notSavedLocked(resp *vrxv1.ApplyResponse, why string) bool {
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+func (s *Service) notSavedLocked(resp *ngfwv1.ApplyResponse, why string) bool {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		return false
 	}
-	resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED
+	resp.Status = ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED
 	resp.Message = "applied to the data plane, but " + why
 	s.setDegraded(true, resp.Message)
 	return true
@@ -660,7 +714,7 @@ func (s *Service) setDegraded(v bool, why string) {
 	s.mu.Unlock()
 	s.metrics.setDegraded(v)
 	if v && !was {
-		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_DEGRADED, Message: why})
+		s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_DEGRADED, Message: why})
 		s.log.Error("agent degraded", "why", why)
 	}
 	if v {
@@ -761,7 +815,15 @@ func (s *Service) revertLocked(ctx context.Context, txnID string) {
 	// H3: make the revert durable BEFORE attempting it: from now on the stored desired state is the
 	// confirmed baseline and the transaction stays pending with "revert owed", so a failed attempt
 	// (VPP down, rollback) is retried by every resync and nothing re-applies the unconfirmed config.
-	s.st.desired = proto.Clone(s.st.confirm).(*vrxv1.DesiredState)
+	s.st.desired = proto.Clone(s.st.confirm).(*ngfwv1.DesiredState)
+	s.st.meta.SecretBundle = s.st.meta.ConfirmedSecretBundle
+	if s.secrets != nil {
+		if e := s.secrets.Activate(s.st.meta.SecretBundle); e != nil {
+			s.log.Error("confirmed secret snapshot unavailable")
+			s.setDegraded(true, "confirmed secrets unavailable")
+			return
+		}
+	}
 	s.st.meta.Managed = union(s.st.meta.Managed, s.st.meta.ConfirmedManaged)
 	s.st.meta.Reverting = true
 	s.refreshSnapshotLocked()
@@ -770,7 +832,7 @@ func (s *Service) revertLocked(ctx context.Context, txnID string) {
 	}
 	if first {
 		s.log.Warn("confirm timeout: reverting to the last confirmed state", "txn_id", txnID)
-		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, TxnId: txnID, Message: "confirm timeout expired; reverting to the last confirmed state"})
+		s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, TxnId: txnID, Message: "confirm timeout expired; reverting to the last confirmed state"})
 		s.metrics.reverts.Add(1)
 	} else {
 		s.log.Warn("retrying the owed confirm revert", "txn_id", txnID)
@@ -784,7 +846,7 @@ func (s *Service) revertLocked(ctx context.Context, txnID string) {
 	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
 	defer cancel()
 	resp, _ := s.applyLocked(tctx, modeRevert, "", s.st.desired, domains, 0)
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		d := s.scheduleRetryLocked(txnID)
 		s.setDegraded(true, fmt.Sprintf("confirm revert of %s failed, retrying in %v (and on every resync; a new Apply supersedes it): %s", txnID, d, resp.GetMessage()))
 	} else {
@@ -829,7 +891,7 @@ func (s *Service) stopRetryLocked() {
 // reconnect, a requested or owed resync), then resumes or fires a pending confirm timer. It emits
 // RECONCILE_START/DONE with an empty txn_id. ctx bounds the wait for the lock and carries the agent's
 // stop; the resync itself runs on the agent's own deadline (TD-9).
-func (s *Service) Resync(ctx context.Context) (resp *vrxv1.ApplyResponse) {
+func (s *Service) Resync(ctx context.Context) (resp *ngfwv1.ApplyResponse) {
 	if err := s.lock(ctx); err != nil {
 		return nil
 	}
@@ -838,7 +900,9 @@ func (s *Service) Resync(ctx context.Context) (resp *vrxv1.ApplyResponse) {
 	return s.resyncLocked(ctx)
 }
 
-func (s *Service) resyncLocked(ctx context.Context) *vrxv1.ApplyResponse {
+func (s *Service) resyncLocked(ctx context.Context) *ngfwv1.ApplyResponse {
+	defer s.restoreSecretSelection()
+
 	// A pending transaction whose deadline passed (while the agent was down, or whose revert is
 	// owed): converge straight to the confirmed baseline, never re-apply the unconfirmed config.
 	if p := s.st.meta.PendingTxnID; p != "" && (s.st.meta.Reverting || (s.st.meta.ConfirmDeadline != nil && !s.st.meta.ConfirmDeadline.After(s.now()))) {
@@ -854,7 +918,7 @@ func (s *Service) resyncLocked(ctx context.Context) *vrxv1.ApplyResponse {
 	tctx, cancel := context.WithTimeout(ctx, s.txnTimeout)
 	defer cancel()
 	resp, _ := s.applyLocked(tctx, modeResync, "", s.st.desired, domains, 0)
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		s.setDegraded(true, "resync failed: "+resp.GetMessage()) // retried with backoff (review 1.1b)
 	}
 	if p := s.st.meta.PendingTxnID; p != "" && s.st.meta.ConfirmDeadline != nil && s.timer == nil {
@@ -869,7 +933,7 @@ var driftPlanTimeout = 60 * time.Second
 
 // CheckDrift is the periodic drift check (TD-9, review 1.1b): a Plan — never an apply — of the stored
 // desired state of every managed domain against VPP. Its count of objects that differ is the
-// vrx_agent_drift_objects gauge; when it becomes non-zero or changes, an ERROR event (attributes
+// ngfw_agent_drift_objects gauge; when it becomes non-zero or changes, an ERROR event (attributes
 // reason=drift, objects=N) and a log line say so. The check never waits for a running transaction.
 // Correcting drift on its own is not the agent's call (a resync or an Apply does it).
 func (s *Service) CheckDrift(ctx context.Context) {
@@ -922,7 +986,7 @@ func (s *Service) CheckDrift(ctx context.Context) {
 		}
 		msg := fmt.Sprintf("drift: %d objects differ from the stored desired state (a resync or an Apply corrects them)", n)
 		s.log.Warn(msg, "first", keys)
-		s.bus.publish(&vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ERROR, Message: msg, Attributes: map[string]string{"reason": "drift", "objects": strconv.Itoa(n)}})
+		s.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_ERROR, Message: msg, Attributes: map[string]string{"reason": "drift", "objects": strconv.Itoa(n)}})
 	case n == 0 && prev > 0:
 		s.log.Info("drift check: VPP matches the stored desired state again")
 	}
@@ -931,7 +995,7 @@ func (s *Service) CheckDrift(ctx context.Context) {
 // ---- Retrieve / DryRun / Health -------------------------------------------------------------
 
 // Retrieve implements the Retrieve RPC.
-func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vrxv1.RetrieveResponse, error) {
+func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*ngfwv1.RetrieveResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -946,7 +1010,14 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	// Always dump the VRFs too: they name the tables of interface bindings and routes.
-	kvs, err := s.sched.Retrieve(ctx, scopeOf(union(domains, []string{"vrfs"})))
+	retrieveDomains := union(domains, []string{"vrfs"})
+	for _, domain := range domains {
+		if domain == subsystems.Routing {
+			retrieveDomains = union(retrieveDomains, []string{"tunnels"})
+			break
+		}
+	}
+	kvs, err := s.sched.Retrieve(ctx, scopeOf(retrieveDomains))
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
 			return nil, status.Error(codes.Unavailable, err.Error())
@@ -978,7 +1049,7 @@ func (s *Service) Retrieve(ctx context.Context, req *vrxv1.RetrieveRequest) (*vr
 		return "", false
 	}, stored, live)
 	s.addDescriptions(ds)
-	return &vrxv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
+	return &ngfwv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
 }
 
 func contains(list []string, v string) bool {
@@ -992,7 +1063,7 @@ func contains(list []string, v string) bool {
 
 // addDescriptions fills VRF and static-route descriptions — VPP cannot store them (D-073b) —
 // from the stored desired state for objects that actually exist.
-func (s *Service) addDescriptions(ds *vrxv1.DesiredState) {
+func (s *Service) addDescriptions(ds *ngfwv1.DesiredState) {
 	s.mu.Lock()
 	vrfDesc, routeDesc, pnatRef := s.vrfDesc, s.routeDesc, s.pnatRef
 	s.mu.Unlock()
@@ -1010,7 +1081,8 @@ func (s *Service) addDescriptions(ds *vrxv1.DesiredState) {
 }
 
 // DryRun implements the DryRun RPC: validation + plan, nothing applied, no events.
-func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.ValidationReport, error) {
+func (s *Service) DryRun(ctx context.Context, req *ngfwv1.DryRunRequest) (*ngfwv1.ValidationReport, error) {
+	defer clearSecretBundle(req.GetSecretBundle())
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -1020,6 +1092,25 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 	if !s.vpp.Connected() {
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
+	if err := s.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.unlock()
+	if req.GetSecretBundle() != nil {
+		if s.secrets == nil {
+			return nil, status.Error(codes.FailedPrecondition, "secret cache unavailable")
+		}
+		id, e := s.secrets.Transient(req.GetSecretBundle().GetValues())
+		if e != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid secret bundle")
+		}
+		old := s.secrets.Active()
+		if e = s.secrets.Activate(id); e != nil {
+			return nil, status.Error(codes.Internal, "cannot activate validation secrets")
+		}
+		defer func() { _ = s.secrets.Activate(old); s.secrets.DiscardTransient(id) }()
+	}
+
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
 	pj := s.projectWithBasePolicy(ctx, req.GetDesiredState(), domains)
 	if pj.hasErrors() {
@@ -1036,10 +1127,10 @@ func (s *Service) DryRun(ctx context.Context, req *vrxv1.DryRunRequest) (*vrxv1.
 }
 
 // Health implements the Health RPC (no VPP round trip).
-func (s *Service) Health() *vrxv1.HealthResponse {
+func (s *Service) Health() *ngfwv1.HealthResponse {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	h := &vrxv1.HealthResponse{
+	h := &ngfwv1.HealthResponse{
 		AgentVersion: s.version, VppConnected: s.vpp.Connected(), Owner: s.owner,
 		Subsystems: implementedDomains(), LastTxnId: s.lastTxn, PendingConfirmTxnId: s.pendingTxn,
 		Degraded: s.degraded, ReconcileInProgress: s.reconciling,
@@ -1068,6 +1159,7 @@ func (s *Service) events() *bus { return s.bus }
 
 // Close stops the confirm timer (the pending state stays persisted; a restart resumes it).
 func (s *Service) Close() {
+	captureManagers.Delete(s)
 	_ = s.lock(context.Background())
 	defer s.unlock()
 	if s.timer != nil {
@@ -1084,38 +1176,38 @@ func (s *Service) Close() {
 
 // ---- response building ------------------------------------------------------------------------
 
-var opPB = map[string]vrxv1.ApplyOperation{
-	scheduler.OpCreate:   vrxv1.ApplyOperation_APPLY_OPERATION_CREATE,
-	scheduler.OpUpdate:   vrxv1.ApplyOperation_APPLY_OPERATION_UPDATE,
-	scheduler.OpDelete:   vrxv1.ApplyOperation_APPLY_OPERATION_DELETE,
-	scheduler.OpRecreate: vrxv1.ApplyOperation_APPLY_OPERATION_RECREATE,
+var opPB = map[string]ngfwv1.ApplyOperation{
+	scheduler.OpCreate:   ngfwv1.ApplyOperation_APPLY_OPERATION_CREATE,
+	scheduler.OpUpdate:   ngfwv1.ApplyOperation_APPLY_OPERATION_UPDATE,
+	scheduler.OpDelete:   ngfwv1.ApplyOperation_APPLY_OPERATION_DELETE,
+	scheduler.OpRecreate: ngfwv1.ApplyOperation_APPLY_OPERATION_RECREATE,
 }
 
-var codePB = map[scheduler.ResultCode]vrxv1.ObjectResultCode{
-	scheduler.CodeOK:                vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_OK,
-	scheduler.CodeFailed:            vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_FAILED,
-	scheduler.CodeSkipped:           vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED,
-	scheduler.CodeReverted:          vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_REVERTED,
-	scheduler.CodeRevertFailed:      vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_REVERT_FAILED,
-	scheduler.CodeDependencyMissing: vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_DEPENDENCY_MISSING,
-	scheduler.CodeInvalid:           vrxv1.ObjectResultCode_OBJECT_RESULT_CODE_INVALID,
+var codePB = map[scheduler.ResultCode]ngfwv1.ObjectResultCode{
+	scheduler.CodeOK:                ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_OK,
+	scheduler.CodeFailed:            ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_FAILED,
+	scheduler.CodeSkipped:           ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_SKIPPED,
+	scheduler.CodeReverted:          ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_REVERTED,
+	scheduler.CodeRevertFailed:      ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_REVERT_FAILED,
+	scheduler.CodeDependencyMissing: ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_DEPENDENCY_MISSING,
+	scheduler.CodeInvalid:           ngfwv1.ObjectResultCode_OBJECT_RESULT_CODE_INVALID,
 }
 
-var statusPB = map[scheduler.Outcome]vrxv1.ApplyStatus{
-	scheduler.OutcomeApplied:    vrxv1.ApplyStatus_APPLY_STATUS_APPLIED,
-	scheduler.OutcomeFailed:     vrxv1.ApplyStatus_APPLY_STATUS_FAILED,
-	scheduler.OutcomeRolledBack: vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK,
-	scheduler.OutcomeDegraded:   vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED,
+var statusPB = map[scheduler.Outcome]ngfwv1.ApplyStatus{
+	scheduler.OutcomeApplied:    ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED,
+	scheduler.OutcomeFailed:     ngfwv1.ApplyStatus_APPLY_STATUS_FAILED,
+	scheduler.OutcomeRolledBack: ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK,
+	scheduler.OutcomeDegraded:   ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED,
 }
 
-func fillResponse(resp *vrxv1.ApplyResponse, res *scheduler.TxnResult, pj *projected) {
+func fillResponse(resp *ngfwv1.ApplyResponse, res *scheduler.TxnResult, pj *projected) {
 	resp.Status = statusPB[res.Outcome]
 	resp.Summary = summaryPB(res.Summary)
 	if res.Err != nil {
 		resp.Message = res.Err.Error()
 	}
 	for _, r := range res.Results {
-		or := &vrxv1.ObjectResult{Key: string(r.Key), Op: opPB[r.Op], Code: codePB[r.Code], Pointer: pj.pointers[r.Key], Subsystem: domainOf(r.Key.Descriptor())}
+		or := &ngfwv1.ObjectResult{Key: string(r.Key), Op: opPB[r.Op], Code: codePB[r.Code], Pointer: pj.pointers[r.Key], Subsystem: domainOf(r.Key.Descriptor())}
 		if r.Err != nil {
 			or.Message = r.Err.Error()
 		}
@@ -1127,10 +1219,10 @@ func fillResponse(resp *vrxv1.ApplyResponse, res *scheduler.TxnResult, pj *proje
 }
 
 // report builds a ValidationReport from projection issues and (optionally) a plan.
-func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *vrxv1.ValidationReport {
-	rep := &vrxv1.ValidationReport{TxnId: txnID, Summary: &vrxv1.ApplySummary{}}
+func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *ngfwv1.ValidationReport {
+	rep := &ngfwv1.ValidationReport{TxnId: txnID, Summary: &ngfwv1.ApplySummary{}}
 	for _, is := range pj.issues {
-		rep.Errors = append(rep.Errors, &vrxv1.ValidationIssue{Pointer: is.pointer, Message: is.message, Severity: is.severity, Rule: is.rule})
+		rep.Errors = append(rep.Errors, &ngfwv1.ValidationIssue{Pointer: is.pointer, Message: is.message, Severity: is.severity, Rule: is.rule})
 	}
 	if plan != nil {
 		for _, is := range plan.Issues {
@@ -1145,12 +1237,12 @@ func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *vrxv1.Validat
 			if is.Pointer != "" {
 				pointer = is.Pointer
 			}
-			rep.Errors = append(rep.Errors, &vrxv1.ValidationIssue{Pointer: pointer, Message: is.String(), Severity: vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: rule})
+			rep.Errors = append(rep.Errors, &ngfwv1.ValidationIssue{Pointer: pointer, Message: is.String(), Severity: ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR, Rule: rule})
 		}
 	}
 	sort.SliceStable(rep.Errors, func(i, j int) bool {
 		a, b := rep.Errors[i], rep.Errors[j]
-		ea, eb := a.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR, b.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR
+		ea, eb := a.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR, b.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR
 		if ea != eb {
 			return ea
 		}
@@ -1158,13 +1250,13 @@ func report(txnID string, pj *projected, plan *scheduler.TxnPlan) *vrxv1.Validat
 	})
 	rep.Ok = true
 	for _, e := range rep.Errors {
-		if e.GetSeverity() == vrxv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
+		if e.GetSeverity() == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR {
 			rep.Ok = false
 		}
 	}
 	if plan != nil && rep.Ok {
 		for _, op := range plan.Ops {
-			rep.Plan = append(rep.Plan, &vrxv1.ObjectResult{Key: string(op.Key), Op: opPB[op.Op], Pointer: pj.pointers[op.Key], Subsystem: domainOf(op.Key.Descriptor())})
+			rep.Plan = append(rep.Plan, &ngfwv1.ObjectResult{Key: string(op.Key), Op: opPB[op.Op], Pointer: pj.pointers[op.Key], Subsystem: domainOf(op.Key.Descriptor())})
 		}
 		rep.Summary = summaryPB(plan.Summary())
 	}
@@ -1193,10 +1285,10 @@ func (s *Service) claimsBatch() (end func() error, cleanup func()) {
 // claimsNotPersisted records a failed end of the claim batch in resp (review F2): APPLIED becomes
 // DEGRADED — the caller must not record the outcome as applied — and the message says why. The
 // records stay in memory and in the journal; the next transaction end writes them.
-func claimsNotPersisted(resp *vrxv1.ApplyResponse, err error) {
+func claimsNotPersisted(resp *ngfwv1.ApplyResponse, err error) {
 	msg := "claim stores not persisted: " + err.Error()
-	if resp.GetStatus() == vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		resp.Status = vrxv1.ApplyStatus_APPLY_STATUS_DEGRADED
+	if resp.GetStatus() == ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		resp.Status = ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED
 	}
 	if resp.GetMessage() != "" {
 		msg = resp.GetMessage() + "; " + msg
@@ -1204,8 +1296,8 @@ func claimsNotPersisted(resp *vrxv1.ApplyResponse, err error) {
 	resp.Message = msg
 }
 
-func (s *Service) projectWithBasePolicy(ctx context.Context, ds *vrxv1.DesiredState, domains []string) *projected {
-	projection := project(ds, domains, s.resolveVRF, s.netdevKind)
+func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredState, domains []string) *projected {
+	projection := project(s.routingProjectionState(ds, domains), domains, s.resolveVRF, s.netdevKind)
 	for _, domain := range domains {
 		if domain == "interfaces" {
 			subsystems.ProjectBasePolicy(ctx, s.owner, projection, projection.kvs)
@@ -1213,4 +1305,20 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *vrxv1.DesiredSt
 		}
 	}
 	return projection
+}
+
+// Resolve existing logical tunnel references for direct routing-only requests.
+// The added context is projected for names only; selected domains still govern mutations.
+func (s *Service) routingProjectionState(ds *ngfwv1.DesiredState, domains []string) *ngfwv1.DesiredState {
+	if ds == nil || ds.Tunnels != nil || s.st.desired.GetTunnels() == nil {
+		return ds
+	}
+	for _, domain := range domains {
+		if domain == subsystems.Routing {
+			view := proto.Clone(ds).(*ngfwv1.DesiredState)
+			view.Tunnels = proto.Clone(s.st.desired.Tunnels).(*ngfwv1.TunnelsConfig)
+			return view
+		}
+	}
+	return ds
 }

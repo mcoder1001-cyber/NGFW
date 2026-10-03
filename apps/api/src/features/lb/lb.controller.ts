@@ -5,7 +5,7 @@ import { isPlainObject } from '@ngfw/schema';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
 import { problems } from '../../common/problem.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../../common/zod.js';
 import { DatastoreService } from '../../datastore/datastore.service.js';
@@ -152,7 +152,7 @@ export class LbController {
       'Flush the sticky flow table of a load-balancer VIP (lb_flush_vip): established flows are re-hashed over the current servers. 409 unless the VIP is applied and has a server in use',
   })
   @ApiOkResponse({ schema: openapi(FlushOut, 'output') })
-  async flush(@Param('name', new SafeParamPipe('name', 63)) name: string, @Req() req: VrxRequest) {
+  async flush(@Param('name', new SafeParamPipe('name', 63)) name: string, @Req() req: NgfwRequest) {
     req.audit = { resource: `services/lb/vips/${name}`, after: { action: 'flush' } };
     const running = await this.ds.getRunning();
     if (!lbVipsOf(running.doc).has(name))

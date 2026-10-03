@@ -77,6 +77,46 @@ jobs:
             args+=(--base origin/main)
           fi
           tools/ci.sh "${args[@]}"
+      - name: Capture actual notification contract outputs
+        id: notification_capture
+        if: failure()
+        shell: bash
+        run: |
+          set -euo pipefail
+          pnpm gen
+          make -C apps/cli gen
+          gofmt -w apps/agent/internal/contracttest/desiredstate_test.go
+          mkdir -p "$RUNNER_TEMP/notification-generated/packages/api-client/src/generated"
+          cp packages/api-client/src/generated/schema.d.ts "$RUNNER_TEMP/notification-generated/packages/api-client/src/generated/schema.d.ts"
+          mkdir -p "$RUNNER_TEMP/notification-generated/packages/api-client"
+          cp packages/api-client/openapi.json "$RUNNER_TEMP/notification-generated/packages/api-client/openapi.json"
+          mkdir -p "$RUNNER_TEMP/notification-generated/apps/cli/internal/api"
+          cp apps/cli/internal/api/operations_gen.go "$RUNNER_TEMP/notification-generated/apps/cli/internal/api/operations_gen.go"
+          mkdir -p "$RUNNER_TEMP/notification-generated/packages/yang/generated"
+          cp packages/yang/generated/vrx-management.yang "$RUNNER_TEMP/notification-generated/packages/yang/generated/vrx-management.yang"
+          mkdir -p "$RUNNER_TEMP/notification-generated/apps/agent/gen/vrx/v1"
+          cp apps/agent/gen/vrx/v1/dataplane.pb.go "$RUNNER_TEMP/notification-generated/apps/agent/gen/vrx/v1/dataplane.pb.go"
+          mkdir -p "$RUNNER_TEMP/notification-generated/packages/proto/gen/ts/vrx/v1"
+          cp packages/proto/gen/ts/vrx/v1/dataplane.ts "$RUNNER_TEMP/notification-generated/packages/proto/gen/ts/vrx/v1/dataplane.ts"
+          mkdir -p "$RUNNER_TEMP/notification-generated/apps/agent/internal/contracttest"
+          cp apps/agent/internal/contracttest/desiredstate_test.go "$RUNNER_TEMP/notification-generated/apps/agent/internal/contracttest/desiredstate_test.go"
+      - name: Validate unchanged contract guard and strict Go roundtrip
+        if: failure() && steps.notification_capture.outcome == 'success'
+        working-directory: apps/agent
+        shell: bash
+        run: go test -race -count=1 ./internal/contracttest
+      - name: Validate strict TypeScript notification roundtrip
+        if: failure() && steps.notification_capture.outcome == 'success'
+        shell: bash
+        run: pnpm --filter @ngfw/proto exec vitest run test/desired-state.test.ts test/parsed-documents.test.ts
+      - name: Upload actual notification contract recovery files
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: notification-contract-generated-${{ github.run_id }}
+          path: ${{ runner.temp }}/notification-generated
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload gate logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

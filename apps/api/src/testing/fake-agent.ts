@@ -1,3 +1,5 @@
+import { ipsecFakeState } from '../features/ipsec/fake.js';
+import { tunnelStateFake } from '../features/tunnels/fake.js';
 import {
   Server,
   ServerCredentials,
@@ -815,9 +817,22 @@ export class FakeAgent {
       health,
       systemIdentityState: (call, cb) => {
         if (!this.checkCommon('SystemIdentityState', call.request, cb)) return;
-        cb({ code: status.UNIMPLEMENTED, details: 'Operational system identity not configured in fake agent' }, null);
+        cb(
+          {
+            code: status.UNIMPLEMENTED,
+            details: 'Operational system identity not configured in fake agent',
+          },
+          null,
+        );
       },
       interfaceState,
+      ipsecState: ipsecFakeState(this),
+      tunnelState: tunnelStateFake({
+        owner: this.owner,
+        current: () => this.current,
+        record: (m, r) => this.record(m, r),
+        failWith: () => this.failAllWith,
+      }),
       // F-pppoe-client (unanchored)
       wanState: (call, cb) => {
         if (!this.checkCommon('WanState', call.request, cb)) return;

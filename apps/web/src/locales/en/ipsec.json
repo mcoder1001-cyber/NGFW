@@ -1,0 +1,253 @@
+{
+  "tab": "IPsec",
+  "title": "IPsec site-to-site tunnels",
+  "live": {
+    "on": "Live updates on",
+    "off": "Live updates off",
+    "hint": "On while the agent is subscribed to the IKE daemon's SA events; the list then refreshes as soon as an SA changes."
+  },
+  "refresh": "Refresh",
+  "refreshHint": "The state is read from the IKE daemon on demand and every 15 s.",
+  "pskNotice": "Tunnels with a pre-shared key are refused at commit until secrets can be delivered to the data-plane agent. Certificate authentication needs certificates from the PKI screen.",
+  "restarted": "The IKE daemon restarted since the last reconciliation; its leftover security associations are removed at the next apply.",
+  "pendingRestart": "The IKE daemon must be restarted to load the new configuration. Until then, tunnels keep running with the previous settings.",
+  "tunnels": "Tunnels",
+  "proposals": "Proposals",
+  "addTunnel": "Add tunnel",
+  "addProposal": "Add proposal",
+  "emptyTunnels": "No IPsec tunnel is configured.",
+  "emptyProposals": "No proposal is configured. Tunnels reference a proposal by name.",
+  "edit": "Edit",
+  "delete": "Delete",
+  "cancel": "Cancel",
+  "inspect": "Inspect security associations",
+  "save": "Save to candidate",
+  "close": "Close",
+  "name": "Name",
+  "nameHintTunnel": "Letters, digits, '.', '_' and '-'; up to 60 characters",
+  "nameHintProposal": "Letters, digits, '.', '_' and '-'; up to 63 characters",
+  "nameTaken": "This name is already used",
+  "editTitle": "Edit {{name}}",
+  "ikeV": "IKEv{{v}}",
+  "confirmDelete": {
+    "title": "Delete from the candidate?",
+    "tunnels": "Tunnel {{name}} is removed from the candidate configuration; it goes down when you commit.",
+    "proposals": "Proposal {{name}} is removed from the candidate configuration. Tunnels that still use it fail validation."
+  },
+  "col": {
+    "name": "Name",
+    "status": "Status",
+    "peer": "Peer",
+    "proposal": "Proposal",
+    "ikeVersion": "IKE"
+  },
+  "status": {
+    "up": "Up",
+    "connecting": "Connecting",
+    "down": "Down",
+    "unknown": "Unknown",
+    "notApplied": "Not applied"
+  },
+  "sa": {
+    "title": "Security associations — {{name}}",
+    "none": "No security association is established for this tunnel.",
+    "ike": "IKE #{{id}}",
+    "child": "{{proto}} #{{id}}",
+    "natt": "NAT-T",
+    "crypto": "Algorithms: {{crypto}}",
+    "spi": "SPI in {{in}} / out {{out}}",
+    "rekeyIn": "Rekey in {{s}} s",
+    "traffic": "{{rx}} B in / {{tx}} B out",
+    "state": {
+      "ESTABLISHED": "Established",
+      "CONNECTING": "Connecting",
+      "DELETING": "Deleting",
+      "REKEYING": "Rekeying",
+      "REKEYED": "Rekeyed",
+      "INSTALLED": "Installed",
+      "INSTALLING": "Installing",
+      "CREATED": "Created",
+      "PASSIVE": "Passive",
+      "DESTROYING": "Destroying"
+    }
+  },
+  "group": {
+    "dpd": "Dead peer detection",
+    "rekey": "Rekeying",
+    "ike": "IKE (phase 1)",
+    "esp": "ESP (phase 2)"
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "engine": {
+      "title": "IKE engine",
+      "help": "Route-based IPsec with IKEv2"
+    },
+    "ikeVersion": {
+      "title": "IKE version"
+    },
+    "mode": {
+      "title": "Mode"
+    },
+    "protocol": {
+      "title": "Protocol"
+    },
+    "localAddr": {
+      "title": "Local address",
+      "help": "Must be configured on an interface in the underlay VRF"
+    },
+    "remoteAddr": {
+      "title": "Remote address",
+      "help": "The peer's IP address, or %any for a responder-only tunnel"
+    },
+    "localId": {
+      "title": "Local identity",
+      "help": "FQDN, e-mail, IP address, @keyid or X.509 DN; default: the local address"
+    },
+    "remoteId": {
+      "title": "Remote identity",
+      "help": "FQDN, e-mail, IP address, @keyid or X.509 DN; default: the remote address"
+    },
+    "auth": {
+      "title": "Authentication",
+      "method": {
+        "title": "Method"
+      },
+      "secretRef": {
+        "title": "Pre-shared key (reference)",
+        "help": "psk/<name> of a stored secret; the key itself is never part of the configuration"
+      },
+      "certificate": {
+        "title": "Local certificate",
+        "help": "Name of a certificate from the PKI screen"
+      },
+      "remoteCa": {
+        "title": "Remote CA",
+        "help": "Name of the CA trusted for the peer certificate"
+      }
+    },
+    "proposal": {
+      "title": "Proposal",
+      "help": "Name of a proposal below"
+    },
+    "localTs": {
+      "title": "Local traffic selectors",
+      "help": "One local network; empty selects all traffic in this address family"
+    },
+    "remoteTs": {
+      "title": "Remote traffic selectors",
+      "help": "One peer network; empty selects all traffic in this address family"
+    },
+    "dpd": {
+      "title": "Dead peer detection",
+      "enabled": {
+        "title": "Enabled"
+      },
+      "delaySec": {
+        "title": "Delay (s)"
+      },
+      "timeoutSec": {
+        "title": "Timeout (s)",
+        "help": "IKEv1 only; IKEv2 uses the retransmission timeout"
+      },
+      "action": {
+        "title": "Action"
+      }
+    },
+    "natT": {
+      "title": "NAT traversal (UDP encapsulation)"
+    },
+    "mobike": {
+      "title": "MOBIKE",
+      "help": "IKEv2 only; unset = the engine's default"
+    },
+    "fragmentation": {
+      "title": "IKE fragmentation"
+    },
+    "rekey": {
+      "title": "Rekeying",
+      "ikeSec": {
+        "title": "IKE SA lifetime (s)"
+      },
+      "espSec": {
+        "title": "Child SA lifetime (s)"
+      },
+      "espBytes": {
+        "title": "Child SA lifetime (bytes)"
+      },
+      "espPackets": {
+        "title": "Child SA lifetime (packets)"
+      },
+      "reauth": {
+        "title": "Re-authenticate instead of rekeying the IKE SA"
+      }
+    },
+    "startAction": {
+      "title": "Start action"
+    },
+    "closeAction": {
+      "title": "Close action"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "Overlay: the routing table the traffic selectors apply to"
+    },
+    "underlayVrf": {
+      "title": "Underlay VRF",
+      "help": "Routing table IKE and ESP run in; the local address must be configured in it"
+    },
+    "routeBased": {
+      "title": "Route-based",
+      "ipipInterface": {
+        "title": "IPIP tunnel",
+        "help": "Not supported with the IPsec service: such tunnels are refused at commit"
+      }
+    },
+    "esn": {
+      "title": "Extended sequence numbers"
+    },
+    "antiReplay": {
+      "title": "Anti-replay"
+    },
+    "ike": {
+      "title": "IKE (phase 1)",
+      "encr": {
+        "title": "Encryption"
+      },
+      "integ": {
+        "title": "Integrity"
+      },
+      "prf": {
+        "title": "PRF",
+        "help": "Defaults to the PRF matching the integrity algorithm"
+      },
+      "dh": {
+        "title": "DH group"
+      }
+    },
+    "esp": {
+      "title": "ESP (phase 2)",
+      "encr": {
+        "title": "Encryption"
+      },
+      "integ": {
+        "title": "Integrity"
+      },
+      "dh": {
+        "title": "PFS DH group",
+        "help": "Perfect forward secrecy for child SA rekeying; omit to disable"
+      }
+    }
+  },
+  "nativeActions": {
+    "rekey": "Rekey CHILD SA",
+    "deleteSA": "Disconnect IKE SA",
+    "peerRekey": "The peer initiates rekey for responder tunnels",
+    "initiate": "Connect tunnel"
+  }
+}

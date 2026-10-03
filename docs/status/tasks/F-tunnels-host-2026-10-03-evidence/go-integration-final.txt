@@ -1,0 +1,141 @@
+DISPOSABLE_VPP pid=1812749 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1812736
+=== RUN   TestTunnelsOnDisposableVPP
+2026/10/03 17:29:09 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w6tu component=subsystems
+2026/10/03 17:29:09 INFO VPP binary API connected owner=w6tu component=vpp socket=/run/vpp/api.sock
+2026/10/03 17:29:09 WARN MPLS: no VPP id range; this agent creates no MPLS table owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 INFO pppoe client wired owner=w6tu component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 17:29:09 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w6tu component=subsystems
+2026/10/03 17:29:09 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w6tu component=subsystems
+2026/10/03 17:29:09 INFO fqdn state reloaded owner=w6tu component=subsystems family=objects file=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/objects-fqdn-w6tu.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 17:29:09 INFO objects domain wired owner=w6tu component=subsystems store=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/objects-w6tu.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 17:29:09 INFO acl domain wired owner=w6tu component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/03 17:29:09 INFO host firewall wired owner=w6tu component=subsystems table="inet vrx_w6tu" mode=check netns="" rules_file=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/host-acl-w6tu.nft
+2026/10/03 17:29:09 INFO strongSwan not driven by this agent owner=w6tu component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 17:29:09 WARN DHCP relay owns no VRF: the agent has no VPP id range owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 INFO kea wired owner=w6tu component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 17:29:09 INFO host services wired owner=w6tu component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/vrx-agent-test-1907823537/unbound/unbound.conf chrony_conf=/tmp/vrx-agent-test-1907823537/chrony/agent/chrony.conf rsyslog_conf=/tmp/vrx-agent-test-1907823537/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 17:29:09 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 INFO system identity wired owner=w6tu component=subsystems product_paths=false mechanism=files issue_file=/tmp/vrx-agent-test-1907823537/sysident/etc/issue.d/vrx.issue
+2026/10/03 17:29:09 INFO subsystems wired owner=w6tu domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state: claims-iface-w6tu.json, boot-w6tu.json; globals owner false" vpp_ids="none (fail closed)"
+2026/10/03 17:29:09 WARN no VPP id range: families that allocate numeric ids refuse to register owner=w6tu why="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:09 INFO vrx-agent listening owner=w6tu socket=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state vpp_api=/run/vpp/api.sock
+2026/10/03 17:29:09 INFO VPP boot identity owner=w6tu component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1812749/1689297 complete=true expired_claims=0
+2026/10/03 17:29:09 WARN neighbour events: interface dump owner=w6tu component=subsystems err="sw_interface_dump: context canceled"
+2026/10/03 17:29:09 INFO reconcile start owner=w6tu txn_id="" mode=resync domains=[]
+2026/10/03 17:29:09 INFO reconcile done owner=w6tu txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=70.25607ms err=""
+2026/10/03 17:29:09 INFO resync finished owner=w6tu why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/03 17:29:09 INFO reconcile start owner=w6tu txn_id=w6tu-first mode=apply domains="[interfaces vrfs tunnels]"
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=vrf/6100
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop6071 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.loopback/loop6071
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/loop6071
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/loop6071/10.6.7.1/24
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=gre.tunnel/gre6001 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=gre.tunnel/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip.table/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/gre6001/10.6.251.1/30
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.mtu/gre6001
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=ipip.tunnel/ipip6002 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=ipip.tunnel/ipip6002
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/ipip6002
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/ipip6002/fd00:6:252::1/64
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/ipip6002
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=vxlan.tunnel/vxlan_tunnel6003 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=vxlan.tunnel/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/vxlan_tunnel6003/fd00:6:253::1/64
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=tunnels.meta/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=tunnels.meta/ipip6002
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=tunnels.meta/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO reconcile done owner=w6tu txn_id=w6tu-first mode=apply domains="[interfaces vrfs tunnels]" status=APPLY_STATUS_APPLIED summary=created:21 reapplied=0 duration=311.31857ms err=""
+    tunnels_integration_test.go:99: gre [0] instance 6001 src 10.6.7.1 dst 10.6.7.2 fib-idx 0 sw-if-idx 2 payload L3 point-to-point 
+        
+    tunnels_integration_test.go:99: ipip [0] instance 6002 src 10.6.7.1 dst 10.6.7.3 table-ID 0 sw-if-idx 3 flags [none] dscp AF11
+        
+    tunnels_integration_test.go:99: vxlan [0] instance 6003 src 10.6.7.1 dst 10.6.7.4 src_port 4789 dst_port 4789 vni 6003 fib-idx 0 sw-if-idx 4 encap-dpo-idx 0 
+        
+2026/10/03 17:29:10 INFO reconcile start owner=w6tu txn_id=w6tu-unchanged mode=apply domains="[interfaces vrfs tunnels]"
+2026/10/03 17:29:10 INFO reconcile done owner=w6tu txn_id=w6tu-unchanged mode=apply domains="[interfaces vrfs tunnels]" status=APPLY_STATUS_APPLIED summary=unchanged:21 reapplied=0 duration=106.161863ms err=""
+2026/10/03 17:29:10 INFO vrx-agent stopped owner=w6tu
+    tunnels_integration_test.go:111: deleted exactly owned GRE/IPIP/VXLAN via binary API
+        
+2026/10/03 17:29:10 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w6tu component=subsystems
+2026/10/03 17:29:10 WARN MPLS: no VPP id range; this agent creates no MPLS table owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 INFO pppoe client wired owner=w6tu component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 17:29:10 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w6tu component=subsystems
+2026/10/03 17:29:10 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w6tu component=subsystems
+2026/10/03 17:29:10 INFO fqdn state reloaded owner=w6tu component=subsystems family=objects file=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/objects-fqdn-w6tu.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 17:29:10 INFO VPP binary API connected owner=w6tu component=vpp socket=/run/vpp/api.sock
+2026/10/03 17:29:10 INFO objects domain wired owner=w6tu component=subsystems store=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/objects-w6tu.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 17:29:10 INFO acl domain wired owner=w6tu component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/03 17:29:10 INFO host firewall wired owner=w6tu component=subsystems table="inet vrx_w6tu" mode=check netns="" rules_file=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state/host-acl-w6tu.nft
+2026/10/03 17:29:10 INFO strongSwan not driven by this agent owner=w6tu component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 17:29:10 WARN DHCP relay owns no VRF: the agent has no VPP id range owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 INFO kea wired owner=w6tu component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 17:29:10 INFO host services wired owner=w6tu component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/vrx-agent-test-1907823537/unbound/unbound.conf chrony_conf=/tmp/vrx-agent-test-1907823537/chrony/agent/chrony.conf rsyslog_conf=/tmp/vrx-agent-test-1907823537/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 17:29:10 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created owner=w6tu component=subsystems err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 INFO system identity wired owner=w6tu component=subsystems product_paths=false mechanism=files issue_file=/tmp/vrx-agent-test-1907823537/sysident/etc/issue.d/vrx.issue
+2026/10/03 17:29:10 INFO subsystems wired owner=w6tu domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state: claims-iface-w6tu.json, boot-w6tu.json; globals owner false" vpp_ids="none (fail closed)"
+2026/10/03 17:29:10 WARN no VPP id range: families that allocate numeric ids refuse to register owner=w6tu why="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 17:29:10 INFO vrx-agent listening owner=w6tu socket=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestTunnelsOnDisposableVPP965891142/001/state vpp_api=/run/vpp/api.sock
+2026/10/03 17:29:10 INFO VPP boot identity owner=w6tu component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1812749/1689297 complete=true expired_claims=0
+2026/10/03 17:29:10 WARN neighbour events: interface dump owner=w6tu component=subsystems err="sw_interface_dump: context canceled"
+2026/10/03 17:29:10 INFO reconcile start owner=w6tu txn_id="" mode=resync domains="[interfaces vrfs tunnels]"
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=gre.tunnel/gre6001 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=gre.tunnel/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip.table/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/gre6001/10.6.251.1/30
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/gre6001
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.mtu/gre6001
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=ipip.tunnel/ipip6002 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=ipip.tunnel/ipip6002
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/ipip6002
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/ipip6002/fd00:6:252::1/64
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/ipip6002
+2026/10/03 17:29:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=vxlan.tunnel/vxlan_tunnel6003 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=vxlan.tunnel/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface-ip/vxlan_tunnel6003/fd00:6:253::1/64
+2026/10/03 17:29:10 INFO created owner=w6tu component=scheduler key=interface.admin-state/vxlan_tunnel6003
+2026/10/03 17:29:10 INFO reconcile done owner=w6tu txn_id="" mode=resync domains="[interfaces vrfs tunnels]" status=APPLY_STATUS_APPLIED summary="created:14  unchanged:7" reapplied=1 duration=235.555993ms err=""
+2026/10/03 17:29:10 INFO resync finished owner=w6tu why=connect status=APPLY_STATUS_APPLIED summary="created:14  unchanged:7"
+    tunnels_integration_test.go:129: restart recovery 351.842697ms
+2026/10/03 17:29:10 INFO reconcile start owner=w6tu txn_id=w6tu-restart-unchanged mode=apply domains="[interfaces vrfs tunnels]"
+2026/10/03 17:29:10 INFO reconcile done owner=w6tu txn_id=w6tu-restart-unchanged mode=apply domains="[interfaces vrfs tunnels]" status=APPLY_STATUS_APPLIED summary=unchanged:21 reapplied=0 duration=92.17517ms err=""
+2026/10/03 17:29:10 INFO reconcile start owner=w6tu txn_id=w6tu-rollback mode=apply domains="[interfaces vrfs tunnels]"
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=tunnels.meta/vxlan_tunnel6003
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=tunnels.meta/ipip6002
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=tunnels.meta/gre6001
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface.admin-state/vxlan_tunnel6003
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface-ip/vxlan_tunnel6003/fd00:6:253::1/64
+2026/10/03 17:29:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=vxlan.tunnel/vxlan_tunnel6003 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=vxlan.tunnel/vxlan_tunnel6003
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface.admin-state/ipip6002
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface-ip/ipip6002/fd00:6:252::1/64
+2026/10/03 17:29:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=ipip.tunnel/ipip6002 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=ipip.tunnel/ipip6002
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface.mtu/gre6001
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface.admin-state/gre6001
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface-ip/gre6001/10.6.251.1/30
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface-ip.table/gre6001
+2026/10/03 17:29:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=gre.tunnel/gre6001 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=gre.tunnel/gre6001
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface-ip/loop6071/10.6.7.1/24
+2026/10/03 17:29:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop6071 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=interface.loopback/loop6071
+2026/10/03 17:29:11 INFO deleted owner=w6tu component=scheduler key=vrf/6100
+2026/10/03 17:29:11 INFO reconcile done owner=w6tu txn_id=w6tu-rollback mode=apply domains="[interfaces vrfs tunnels]" status=APPLY_STATUS_APPLIED summary=deleted:17 reapplied=0 duration=205.812899ms err=""
+    tunnels_integration_test.go:154: persisted tunnels.meta entries=0
+2026/10/03 17:29:11 INFO vrx-agent stopped owner=w6tu
+--- PASS: TestTunnelsOnDisposableVPP (1.53s)
+PASS
+ok  	ngfw/agent/internal/agent	1.638s
+DISPOSABLE_VPP_STOPPED pid=1812749

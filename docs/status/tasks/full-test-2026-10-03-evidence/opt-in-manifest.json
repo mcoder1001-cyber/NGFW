@@ -1,0 +1,602 @@
+[
+  {
+    "label": "wireguard",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "^TestWireguardHandshakeOnHost$",
+      "./internal/agent"
+    ],
+    "exit": 0,
+    "elapsed": 53.03,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "srv6-globals",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "^TestSrv6GlobalsOnHost$",
+      "./internal/agent"
+    ],
+    "exit": 0,
+    "elapsed": 9.77,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "mpls-globals",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "^TestMplsOnHost$",
+      "./internal/agent"
+    ],
+    "exit": 0,
+    "elapsed": 16.66,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "lb",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "^TestLb(OnHost|GarbageCollectOnHost)$",
+      "./internal/agent"
+    ],
+    "exit": 1,
+    "elapsed": 10.73,
+    "tests": {
+      "pass": 1,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "label": "ospf-fib",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "OSPF.*Topology|Ospf.*Topology",
+      "./internal/agent"
+    ],
+    "exit": 1,
+    "elapsed": 11.33,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "label": "bgp-fib",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "P12.*Topology",
+      "./internal/agent"
+    ],
+    "exit": 1,
+    "elapsed": 11.03,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "label": "igmp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "OnHost",
+      "./internal/descriptors/igmp"
+    ],
+    "exit": 1,
+    "elapsed": 33.85,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "label": "vrrp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "OnHost",
+      "./internal/descriptors/vrrp"
+    ],
+    "exit": 0,
+    "elapsed": 5.65,
+    "tests": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "dns",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "OnHost",
+      "./internal/descriptors/dns"
+    ],
+    "exit": 0,
+    "elapsed": 7.26,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "gtpu",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/gtpu"
+    ],
+    "exit": 0,
+    "elapsed": 5.14,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "l2tp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/l2tp"
+    ],
+    "exit": 0,
+    "elapsed": 4.94,
+    "tests": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "lisp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/lisp"
+    ],
+    "exit": 0,
+    "elapsed": 5.7,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "det44",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/det44"
+    ],
+    "exit": 0,
+    "elapsed": 5.29,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "pppoe-cp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/pppoe"
+    ],
+    "exit": 0,
+    "elapsed": 5.14,
+    "tests": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "label": "globals-df5",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/ikev2"
+    ],
+    "exit": 0,
+    "elapsed": 6.5,
+    "tests": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-dhcp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/dhcp"
+    ],
+    "exit": 0,
+    "elapsed": 5.5,
+    "tests": {
+      "pass": 5,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-lcp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/lcp"
+    ],
+    "exit": 0,
+    "elapsed": 6.5,
+    "tests": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-ipfix",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/ipfix"
+    ],
+    "exit": 0,
+    "elapsed": 5.35,
+    "tests": {
+      "pass": 4,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-sflow",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/sflow"
+    ],
+    "exit": 0,
+    "elapsed": 5.29,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-flowprobe",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/flowprobe"
+    ],
+    "exit": 0,
+    "elapsed": 96.13,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "globals-pcap",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/pcap"
+    ],
+    "exit": 0,
+    "elapsed": 5.24,
+    "tests": {
+      "pass": 2,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "proxy-nd",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/ip6_nd"
+    ],
+    "exit": 1,
+    "elapsed": 23.95,
+    "tests": {
+      "pass": 1,
+      "fail": 2,
+      "skip": 0
+    }
+  },
+  {
+    "label": "nsim",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/nsim"
+    ],
+    "exit": 0,
+    "elapsed": 5.4,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "auto-sdl",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Host",
+      "./internal/descriptors/auto_sdl"
+    ],
+    "exit": 0,
+    "elapsed": 4.99,
+    "tests": {
+      "pass": 0,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "label": "strongswan-stock",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "6m",
+      "-run",
+      "Integration",
+      "./internal/renderers/strongswan"
+    ],
+    "exit": 0,
+    "elapsed": 10.12,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  }
+]

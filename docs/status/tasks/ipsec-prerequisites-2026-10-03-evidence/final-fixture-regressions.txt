@@ -1,0 +1,72 @@
+=== RUN   TestP12ProjectionWithoutFRR
+2026/10/03 15:01:21 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/03 15:01:21 INFO keepalived engine off (VRX_KEEPALIVED=off, or neither a lab slot prefix nor VRX_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/03 15:01:21 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 15:01:21 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/03 15:01:21 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/03 15:01:21 INFO fqdn state reloaded family=objects file=/root/.cache/go-tmp/TestP12ProjectionWithoutFRR285354528/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 15:01:21 INFO objects domain wired store=/root/.cache/go-tmp/TestP12ProjectionWithoutFRR285354528/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 15:01:21 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/03 15:01:21 INFO host firewall wired table="inet vrx_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestP12ProjectionWithoutFRR285354528/001/host-acl-w7.nft
+2026/10/03 15:01:21 INFO strongSwan not driven by this agent component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 15:01:21 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 15:01:21 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/vrx-host-2480193554/unbound/unbound.conf chrony_conf=/tmp/vrx-host-2480193554/chrony/agent/chrony.conf rsyslog_conf=/tmp/vrx-host-2480193554/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 15:01:21 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO system identity wired product_paths=false mechanism=files issue_file=/tmp/vrx-host-2480193554/sysident/etc/issue.d/vrx.issue
+2026/10/03 15:01:21 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/03 15:01:21 INFO reconcile start txn_id=l1 mode=apply domains="[interfaces vrfs]"
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop821 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop822 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=w8-l21 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop822 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO reconcile done txn_id=l1 mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=created:12 reapplied=0 duration=55.163747ms err=""
+2026/10/03 15:01:21 INFO reconcile start txn_id=l2 mode=apply domains="[interfaces vrfs]"
+2026/10/03 15:01:21 INFO reconcile done txn_id=l2 mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=unchanged:12 reapplied=0 duration=29.421862ms err=""
+2026/10/03 15:01:21 INFO reconcile start txn_id=l3 mode=apply domains="[interfaces vrfs]"
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop822 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO reconcile done txn_id=l3 mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:11" reapplied=0 duration=52.098072ms err=""
+2026/10/03 15:01:21 INFO reconcile start txn_id=l4 mode=apply domains="[interfaces vrfs]"
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=w8-l21 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO reconcile done txn_id=l4 mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:10" reapplied=0 duration=25.599494ms err=""
+--- PASS: TestP12ProjectionWithoutFRR (0.31s)
+=== RUN   TestProjectSchemaExamples
+    projection_test.go:83: projected 15 example documents
+--- PASS: TestProjectSchemaExamples (0.32s)
+=== RUN   TestSixrdSourceAndUnderlayRoundTrip
+--- PASS: TestSixrdSourceAndUnderlayRoundTrip (0.00s)
+=== RUN   TestTunnelsT1SixrdRoundTrip
+2026/10/03 15:01:21 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/03 15:01:21 INFO keepalived engine off (VRX_KEEPALIVED=off, or neither a lab slot prefix nor VRX_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/03 15:01:21 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 15:01:21 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/03 15:01:21 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/03 15:01:21 INFO fqdn state reloaded family=objects file=/root/.cache/go-tmp/TestTunnelsT1SixrdRoundTrip3428763557/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 15:01:21 INFO objects domain wired store=/root/.cache/go-tmp/TestTunnelsT1SixrdRoundTrip3428763557/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 15:01:21 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/03 15:01:21 INFO host firewall wired table="inet vrx_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestTunnelsT1SixrdRoundTrip3428763557/001/host-acl-w7.nft
+2026/10/03 15:01:21 INFO strongSwan not driven by this agent component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 15:01:21 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 15:01:21 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/vrx-agent-test-3532170829/unbound/unbound.conf chrony_conf=/tmp/vrx-agent-test-3532170829/chrony/agent/chrony.conf rsyslog_conf=/tmp/vrx-agent-test-3532170829/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 15:01:21 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/03 15:01:21 INFO system identity wired product_paths=false mechanism=files issue_file=/tmp/vrx-agent-test-3532170829/sysident/etc/issue.d/vrx.issue
+2026/10/03 15:01:21 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/03 15:01:21 INFO reconcile start txn_id=r1 mode=apply domains="[interfaces tunnels]"
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop7001 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:21 INFO interface sanitized (VPP V19/V21 inherited state) interface=ipip.sixrd/rd sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:22 INFO reconcile done txn_id=r1 mode=apply domains="[interfaces tunnels]" status=APPLY_STATUS_APPLIED summary=created:7 reapplied=0 duration=46.020729ms err=""
+2026/10/03 15:01:22 INFO reconcile start txn_id=r2 mode=apply domains="[interfaces tunnels]"
+2026/10/03 15:01:22 INFO interface sanitized (VPP V19/V21 inherited state) interface=ipip.sixrd/rd sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 15:01:22 INFO reconcile done txn_id=r2 mode=apply domains="[interfaces tunnels]" status=APPLY_STATUS_APPLIED summary="deleted:3  unchanged:3" reapplied=0 duration=46.394174ms err=""
+--- PASS: TestTunnelsT1SixrdRoundTrip (0.15s)
+=== RUN   TestMetricsCollectors
+--- PASS: TestMetricsCollectors (0.21s)
+PASS
+ok  	ngfw/agent/internal/agent	2.390s

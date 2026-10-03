@@ -1,0 +1,28 @@
+DISPOSABLE_VPP pid=574381 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-574379
+create role vrx_w4
+create database vrx_w4 (owner vrx_w4)
+check  vrx_w4 as vrx_w4 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w4/pg.env (0600) · DSN <database-dsn-redacted>
+agent  pid 574446 owner w4 socket /run/vrx-test/w4/agent.sock
+api    pid 574465 http://127.0.0.1:3400 (admin password in /run/vrx-test/w4/admin.pw)
+{"Time":"2026-10-03T13:44:26.418694398+03:30","Action":"start","Package":"ngfw/cli/test/e2e"}
+{"Time":"2026-10-03T13:44:26.465257204+03:30","Action":"run","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC"}
+{"Time":"2026-10-03T13:44:26.46546438+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Output":"=== RUN   TestREPLConfirmedCommitAutoRevertAndRBAC\n"}
+{"Time":"2026-10-03T13:44:41.696434092+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Output":"--- PASS: TestREPLConfirmedCommitAutoRevertAndRBAC (15.23s)\n"}
+{"Time":"2026-10-03T13:44:41.696575763+03:30","Action":"pass","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Elapsed":15.23}
+{"Time":"2026-10-03T13:44:41.696615649+03:30","Action":"run","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack"}
+{"Time":"2026-10-03T13:44:41.696629652+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"=== RUN   TestReviewFixesOnTheRealStack\n"}
+{"Time":"2026-10-03T13:44:43.944835735+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"    review_e2e_test.go:36: commit: 7 error: 400 invalid query\n"}
+{"Time":"2026-10-03T13:44:43.944932438+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"          at /comment (comment): control characters (C0/C1, DEL), line/paragraph separators (U+2028/U+2029) and bidi overrides (U+202A–U+202E, U+2066–U+2069) are not allowed\n"}
+{"Time":"2026-10-03T13:44:43.962488985+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"--- FAIL: TestReviewFixesOnTheRealStack (2.27s)\n"}
+{"Time":"2026-10-03T13:44:43.962594323+03:30","Action":"fail","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Elapsed":2.27}
+{"Time":"2026-10-03T13:44:43.96264372+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Output":"FAIL\n"}
+{"Time":"2026-10-03T13:44:43.98364629+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Output":"FAIL\tngfw/cli/test/e2e\t17.564s\n"}
+{"Time":"2026-10-03T13:44:43.983829071+03:30","Action":"fail","Package":"ngfw/cli/test/e2e","Elapsed":17.565}
+api stopped (pid 574465)
+agent stopped (pid 574446)
+removed slot secrets and logs from /run/vrx-test/w4 (use stop --keep to keep them)
+drop   database vrx_w4
+drop   role vrx_w4
+ok     nothing named vrx_w4 / vrx_w4 remains
+DISPOSABLE_VPP_STOPPED pid=574381

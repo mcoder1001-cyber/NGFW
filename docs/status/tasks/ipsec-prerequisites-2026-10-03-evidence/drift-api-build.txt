@@ -1,0 +1,3 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/api build
+heavy: slot 1 after 10s
+$ tsc -p tsconfig.build.json

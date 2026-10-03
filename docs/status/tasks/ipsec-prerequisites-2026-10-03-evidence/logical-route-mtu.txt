@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c cd apps/agent && go test ./internal/agent ./internal/descriptors/interface -run "TestLogicalTunnelStaticRouteRoundTrip|TestIPIPCreationMTUWithNonzeroLinkMTU|TestProjectSchemaExamples" -count=1
+heavy: slot 2 after 10s
+ok  	ngfw/agent/internal/agent	0.241s
+ok  	ngfw/agent/internal/descriptors/interface	0.026s

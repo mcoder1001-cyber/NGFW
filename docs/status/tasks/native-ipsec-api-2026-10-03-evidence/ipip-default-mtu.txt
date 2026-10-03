@@ -1,0 +1,14 @@
+DISPOSABLE_VPP pid=906339 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-906337
+loop6002
+
+ipip6001
+creation {"linkMtu":65516,"mtu":[9000,0,0,0],"name":"ipip6001","swIfIndex":2}
+
+
+after-ipv4 {"linkMtu":65516,"mtu":[9000,0,0,0],"name":"ipip6001","swIfIndex":2}
+
+ikev2 profile: parse error: 'set w6-site tunnel ipip6001'
+after-profile-binding {"linkMtu":65516,"mtu":[9000,0,0,0],"name":"ipip6001","swIfIndex":2}
+Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+ipip6001                          2      up          9000/0/0/0
+DISPOSABLE_VPP_STOPPED pid=906339

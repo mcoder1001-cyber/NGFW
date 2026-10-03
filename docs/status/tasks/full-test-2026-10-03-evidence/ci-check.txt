@@ -1,0 +1,22 @@
+
+== forbidden patterns (+ gitleaks) ==
+WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: vrxtestsecrets only in test code
+ok: gitleaks — scanned ~9274570 bytes (9.27 MB) in 4.89s no leaks found 
+
+== packet-trace ban on the shared VPP (D-128) ==
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+
+== ip classify reset after every shell interface create (D-185) ==
+ok: every shell interface create is followed by an ip4/ip6 classify reset
+
+== slot resource scheme (1..32, no collisions) ==
+ok: 30 developer slots + CI slot 12; 1057 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+check PASSED (0m15s)

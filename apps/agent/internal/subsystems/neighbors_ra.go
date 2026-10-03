@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -60,7 +61,12 @@ func (w *Wiring) registerNeighborsRa(r scheduler.Registry) error {
 	tables := ids.DF2()
 	c, owner, opt := w.env.Client, w.env.Owner, df2.WithClaims(claims)
 	ipneighbor.Register(r, c, owner, opt)
-	ip6nd.Register(r, c, owner, opt)
+	raLifetimes, err := ip6nd.OpenLifetimeStore(filepath.Join(w.env.StateDir, "ra-prefix-lifetimes-"+owner+".json"))
+	if err != nil {
+		return fmt.Errorf("RA prefix lifetimes: %w", err)
+	}
+	r.Register(ip6nd.NewRaConfig(c, owner, opt))
+	r.Register(ip6nd.NewRaPrefix(c, owner, opt).WithLifetimeStore(raLifetimes))
 	arp.Register(r, c, owner, tables, opt)
 	proxyNd := desired.ProxyNdEnabled()
 	if proxyNd {

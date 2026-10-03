@@ -184,11 +184,10 @@ module ngfw-vpn {
         }
         leaf engine {
           type enumeration {
-            enum "strongswan";
             enum "vpp-ikev2";
           }
-          default "strongswan";
-          description "strongSwan (kernel-vpp) or the native engine IKEv2 plugin (D6.3, IKEv2 only)";
+          default "vpp-ikev2";
+          description "Route-based IPsec with native IKEv2";
         }
         leaf ikeVersion {
           type union {
@@ -281,7 +280,7 @@ module ngfw-vpn {
               pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
             }
           }
-          description "Policy-based tunnels: at least one; route-based: defaults to 0.0.0.0/0 and ::/0";
+          description "One local network; empty uses the wildcard selector of the address family";
         }
         leaf-list remoteTs {
           type union {
@@ -291,33 +290,6 @@ module ngfw-vpn {
             type string {
               pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
             }
-          }
-        }
-        container dpd {
-          leaf enabled {
-            type boolean;
-            default "true";
-          }
-          leaf delaySec {
-            type uint32 {
-              range "1..86400";
-            }
-            default "30";
-          }
-          leaf timeoutSec {
-            type uint32 {
-              range "1..86400";
-            }
-            default "150";
-            description "IKEv1 only; IKEv2 uses the retransmission timeout";
-          }
-          leaf action {
-            type enumeration {
-              enum "clear";
-              enum "trap";
-              enum "restart";
-            }
-            default "restart";
           }
         }
         leaf natT {
@@ -337,12 +309,6 @@ module ngfw-vpn {
           }
         }
         container rekey {
-          leaf ikeSec {
-            type uint32 {
-              range "60..604800";
-            }
-            default "14400";
-          }
           leaf espSec {
             type uint32 {
               range "60..604800";
@@ -354,15 +320,6 @@ module ngfw-vpn {
               range "1..9007199254740991";
             }
           }
-          leaf espPackets {
-            type uint64 {
-              range "1..9007199254740991";
-            }
-          }
-          leaf reauth {
-            type boolean;
-            default "false";
-          }
         }
         leaf startAction {
           type enumeration {
@@ -370,7 +327,7 @@ module ngfw-vpn {
             enum "start";
             enum "trap";
           }
-          default "start";
+          default "none";
         }
         leaf closeAction {
           type enumeration {

@@ -34,6 +34,12 @@ export function diffPointerLabel(pointer: string): string {
 /** Only actual engine enums may receive implementation-independent value labels. */
 function scalarLabel(value: unknown, path: readonly string[], language: string): unknown {
   if (typeof value !== 'string' || path.at(-1) !== 'engine') return value;
+  // A historical revision may contain the retired engine. Label it for display
+  // without accepting it in current configuration or changing arbitrary strings.
+  if (value === 'strongswan' && path.length === 5 && path[0] === 'vpn' &&
+      path[1] === 'ipsec' && path[2] === 'tunnels') {
+    return productEngineLabels(language)[value] ?? value;
+  }
   const schema = schemaAt(rootSchema, jsonPointer(...path));
   return Array.isArray(schema?.enum) && schema.enum.includes(value)
     ? (productEngineLabels(language)[value] ?? value)

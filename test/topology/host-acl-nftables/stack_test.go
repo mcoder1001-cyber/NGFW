@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -30,6 +31,7 @@ import (
 const labLock = "/run/lock/ngfw-lab.lock"
 
 type slot struct {
+	num                                              int
 	prefix, httpPort, metricsPort, valkeyDB, webPort string
 	runDir, socket, repo                             string
 }
@@ -49,6 +51,7 @@ func slotFromEnv(t *testing.T) slot {
 		return def
 	}
 	s := slot{
+		num:         n,
 		prefix:      p,
 		httpPort:    env("NGFW_HTTP_PORT", strconv.Itoa(3000+100*n)),
 		webPort:     env("NGFW_WEB_PORT", strconv.Itoa(5000+100*n)),
@@ -254,6 +257,7 @@ func newStack(t *testing.T, s slot, hostNS string) *stack {
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
+		"NGFW_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num),
 		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_OWNER="+s.prefix, "NGFW_GLOBALS_OWNER=0", // D-071: test slots never own globals
 		"NGFW_AGENT_STATE_DIR="+st.stateDir, "NGFW_METRICS_PORT="+s.metricsPort, "NGFW_SOCKET_GROUP=root", "NGFW_LOG_LEVEL=info",
 		"NGFW_OBJECTS_DNS_SERVERS=127.0.0.1:9", // no FQDN object here; never the host's resolver
@@ -285,11 +289,29 @@ func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
 	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
-		_, err := os.Stat(st.s.socket)
-		return err == nil || st.agent.exited()
+		if st.agent.exited() {
+			return true
+		}
+		c, err := net.DialTimeout("unix", st.s.socket, time.Second)
+		if err == nil {
+			_ = c.Close()
+		}
+		return err == nil
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
 		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
+	}
+	// The API keeps its gRPC channel across agent restarts. A listening socket does
+	// not imply that channel has left reconnect backoff yet. Wait on a read-only
+	// RPC before issuing commits; never retry a mutation to mask an outage.
+	if st.api != nil && !waitFor(15*time.Second, func() bool {
+		return st.agent.exited() || st.api.call("GET", "/api/v1/state/drift", nil).status == 200
+	}) {
+		t.Fatal("API channel did not reconnect to the restarted agent within 15 s")
+	}
+	if st.agent.exited() {
+		raw, _ := os.ReadFile(st.agentLog)
+		t.Fatalf("ngfw-agent exited during readiness check:\n%s", raw)
 	}
 }
 

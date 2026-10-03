@@ -1,0 +1,150 @@
+DISPOSABLE_VPP pid=1226343 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1226330
+run.sh: 2026-10-03T16:09:40 compile internal/renderers/frr/rip + overlay rip_host_integration_test.go (tools/heavy.sh)
+heavy: all 3 heavy slots busy, waiting (0s): go test -c -overlay /root/.codex/worktrees/bbd9/NGFW/test/topology/isis-rip/.bin/overlay-live-rip.json -o /root/.codex/worktrees/bbd9/NGFW/test/topology/isis-rip/.bin/live-rip.test ./internal/renderers/frr/rip
+heavy: slot 2 after 10s
+run.sh: 2026-10-03T16:09:53 VPP NRestarts=0 before live-rip
+=== RUN   TestRIPHostLive
+    rip_host_integration_test.go:172: vrx ns-w6-frr (pathspace w6, pids map[mgmtd:1227907 ripd:1228396 staticd:1228227 zebra:1228013]), peer ns-w6-p1 (pathspace w6p1, pids map[mgmtd:1228448 ripd:1228626 staticd:1228579 zebra:1228535]), veth w6v0 10.6.9.1 ↔ w6v1 10.6.9.2, dummy w6d0 10.6.8.0/24
+    rip_host_integration_test.go:175: show version: FRRouting 10.7.1 (ubuntu-26.04) on Linux(7.0.0-31-generic).
+    rip_host_integration_test.go:198: golden: fullDoc rendered with w6-l0/-lo == testdata/full.golden (w8- → w6-):
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        router rip
+         version 2
+         default-metric 2
+         network 10.8.0.0/16
+         network 192.0.2.0/24
+         network w6-l0
+         network w6-lo
+         passive-interface w6-lo
+         redistribute connected metric 3
+         redistribute static
+         redistribute bgp route-map rm-in
+        exit
+        !
+        end
+    rip_host_integration_test.go:199: golden: Apply converged
+    rip_host_integration_test.go:204: golden: frr-reload --test of the applied golden: no diff (FRR 10.7.1 holds it in canonical form)
+    rip_host_integration_test.go:210: golden: 11 rendered rip lines found verbatim in show running-config:
+        Building configuration...
+        
+        Current configuration:
+        !
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        router rip
+         default-metric 2
+         network 10.8.0.0/16
+         network 192.0.2.0/24
+         network w6-l0
+         network w6-lo
+         passive-interface w6-lo
+         redistribute bgp route-map rm-in
+         redistribute static
+         redistribute connected metric 3
+         version 2
+        exit
+        !
+        end
+    rip_host_integration_test.go:237: peer: Apply converged
+    rip_host_integration_test.go:238: vrx live: Apply converged
+    rip_host_integration_test.go:240: vrx rendered /run/vrx-test/w6/frr/etc/w6/frr.conf:
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        router rip
+         version 2
+         default-metric 2
+         network w6d0
+         network w6v0
+         passive-interface w6d0
+         redistribute connected metric 3
+        exit
+        !
+        end
+    rip_host_integration_test.go:247: frr-reload --test of the applied live configs (vrx, peer): no diff
+    rip_host_integration_test.go:256: 7 rendered rip lines found verbatim in show running-config
+    rip_host_integration_test.go:262: the peer's 20 prefixes as rip routes on the VRX side after 100ms (20 of 20)
+    rip_host_integration_test.go:267: VRX's connected 10.6.8.0/24 as a rip route on the peer after 20.4s (10.6.8.0/24)
+    rip_host_integration_test.go:269: VRX show ip route 10.6.64.0/24:
+        Routing entry for 10.6.64.0/24
+          Known via "rip", distance 120, metric 2, best
+          Last update 00:00:21 ago
+          Flags: Selected 
+          Status: Installed 
+          * 10.6.9.2, via w6v0, weight 1
+        
+    rip_host_integration_test.go:272: VRX show ip rip status (text):
+        Routing Protocol is "rip"
+          Sending updates every 30 seconds with +/-50%, next due in 29 seconds
+          Timeout after 180 seconds, garbage collect after 120 seconds
+          Outgoing update filter list for all interface is not set
+          Incoming update filter list for all interface is not set
+          Default redistribution metric is 2
+          Redistributing: connected
+          Default version control: send version 2, receive version 2 
+            Interface        Send  Recv   Key-chain
+            w6d0             2     2      
+            w6v0             2     2      
+          Routing for Networks:
+            w6d0
+            w6v0
+          Passive Interface(s):
+            w6d0
+          Routing Information Sources:
+            Gateway          BadPackets BadRoutes  Distance Last Update
+            10.6.9.2                  0         0       120    00:00:21
+          Distance: (default is 120)
+    rip_host_integration_test.go:277: VRX show ip rip (text, first lines):
+        Codes: K - kernel route, C - connected, L - local, S - static,
+               R - RIP, O - OSPF, I - IS-IS, B - BGP, E - EIGRP, N - NHRP,
+               T - Table, v - VNC, V - VNC-Direct, A - Babel, F - PBR,
+               f - OpenFabric, t - Table-Direct
+        Sub-codes:
+              (n) - normal, (s) - static, (d) - default, (r) - redistribute,
+              (i) - interface
+        
+             Network            Next Hop         Metric From            Tag Time
+        C(i) 10.6.8.0/24        0.0.0.0               1 self              0
+        C(i) 10.6.9.0/24        0.0.0.0               1 self              0
+        R(n) 10.6.64.0/24       10.6.9.2              2 10.6.9.2          0 02:38
+        … (19 more lines)
+    rip_host_integration_test.go:282: show ip rip json → frr: daemon error: vtysh --command "show ip rip json": % Unknown command: show ip rip json
+    rip_host_integration_test.go:282: show ip rip status json → frr: daemon error: vtysh --command "show ip rip status json": % Unknown command: show ip rip status json
+    rip_host_integration_test.go:289: peer withdraws: Apply converged
+    rip_host_integration_test.go:294: 0 of the peer's prefixes on the VRX side after the withdrawal after 100ms (0 of 20) — acceptance: withdrawn within 200 s: true
+    rip_host_integration_test.go:297: vrx removal: Apply converged
+    rip_host_integration_test.go:312: after removal, rendered /run/vrx-test/w6/frr/etc/w6/frr.conf:
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        
+        show running-config:
+        Building configuration...
+        
+        Current configuration:
+        !
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        end
+--- PASS: TestRIPHostLive (48.05s)
+PASS
+run.sh: 2026-10-03T16:10:41 VPP NRestarts=0 after live-rip, exit 0
+run.sh: /tmp/g-w6 not empty: lic vrrp-bin 
+DISPOSABLE_VPP_STOPPED pid=1226343

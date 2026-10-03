@@ -1,0 +1,401 @@
+[
+  {
+    "label": "test_integration_reachability",
+    "command": [
+      "go",
+      "-C",
+      "test/integration/reachability",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 256.72
+  },
+  {
+    "label": "test_integration_smoke",
+    "command": [
+      "go",
+      "-C",
+      "test/integration/smoke",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 8.91
+  },
+  {
+    "label": "test_topology_acl",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/acl",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 119.02
+  },
+  {
+    "label": "test_topology_bonding",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/bonding",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 4.54
+  },
+  {
+    "label": "test_topology_bridge-l2",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/bridge-l2",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 10.57
+  },
+  {
+    "label": "test_topology_det44",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/det44",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 55.91
+  },
+  {
+    "label": "test_topology_host-acl-nftables",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/host-acl-nftables",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 7.05
+  },
+  {
+    "label": "test_topology_interfaces",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/interfaces",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 53.14
+  },
+  {
+    "label": "test_topology_ipfix-sflow",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/ipfix-sflow",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 4.75
+  },
+  {
+    "label": "test_topology_kea-dhcp-relay",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/kea-dhcp-relay",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 19.37
+  },
+  {
+    "label": "test_topology_loopback-bvi-gso-lldp-span",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/loopback-bvi-gso-lldp-span",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 9.87
+  },
+  {
+    "label": "test_topology_nat44-ed-sessions",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/nat44-ed-sessions",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 13.49
+  },
+  {
+    "label": "test_topology_nat44-ei-64-66-nptv6",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/nat44-ei-64-66-nptv6",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 13.09
+  },
+  {
+    "label": "test_topology_neighbors-ra",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/neighbors-ra",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 20.84
+  },
+  {
+    "label": "test_topology_object-model",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/object-model",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 7.92
+  },
+  {
+    "label": "test_topology_packaging",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/packaging",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 4.64
+  },
+  {
+    "label": "test_topology_qos-flat",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/qos-flat",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 12.53
+  },
+  {
+    "label": "test_topology_system-identity",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/system-identity",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 0,
+    "elapsed": 23.84
+  },
+  {
+    "label": "test_topology_unbound-chrony-syslog",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/unbound-chrony-syslog",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 76.97
+  },
+  {
+    "label": "test_topology_vlan-qinq",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/vlan-qinq",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 11.98
+  },
+  {
+    "label": "test_topology_vrf-static-ecmp",
+    "command": [
+      "go",
+      "-C",
+      "test/topology/vrf-static-ecmp",
+      "test",
+      "-json",
+      "-count=1",
+      "-race",
+      "-p",
+      "1",
+      "-timeout",
+      "12m",
+      "./..."
+    ],
+    "exit": 1,
+    "elapsed": 54.25
+  }
+]

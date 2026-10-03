@@ -1,0 +1,97 @@
+=== RUN   TestVRRPOnHost
+    integration_test.go:20: created loop670 sw_if_index 1 (tagged true, up true)
+    integration_test.go:21: created loop671 sw_if_index 2 (tagged true, up true)
+    integration_test.go:40: created vrrp.vr/loop670/6/ipv4 (meta {SwIfIndex:1 Index:0 HasIndex:true})
+    integration_test.go:40: created vrrp.vr/loop670/7/ipv4 (meta {SwIfIndex:1 Index:1 HasIndex:true})
+    integration_test.go:41: created vrrp.vr-peers/loop670/7/ipv4 (meta {SwIfIndex:1 Index:0 HasIndex:false})
+    integration_test.go:42: created vrrp.vr-track-interface/loop670/6/ipv4/loop671 (meta {SwIfIndex:1 Tracked:2})
+    integration_test.go:43: created vrrp.vr-state/loop670/6/ipv4 (meta {SwIfIndex:1 Index:0 HasIndex:false})
+    integration_test.go:43: created vrrp.vr-state/loop670/7/ipv4 (meta {SwIfIndex:1 Index:0 HasIndex:false})
+    integration_test.go:44: vrrp.vr: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:45: vrrp.vr-peers: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:46: vrrp.vr-track-interface: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:47: vrrp.vr-state: re-apply plan for 2 desired object(s):
+          (empty plan)
+=== RUN   TestVRRPOnHost/events
+    integration_test.go:52: vrrp event: {Key:vrrp.vr/loop670/6/ipv4 VR:{Interface:loop670 VRID:6 IPv6:false} OldState:init NewState:backup}
+=== RUN   TestVRRPOnHost/peers_update_on_a_running_VR
+=== NAME  TestVRRPOnHost
+    integration_test.go:63: vrrp.vr-peers: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:64: vrrp.vr-state: re-apply plan for 2 desired object(s):
+          (empty plan)
+=== RUN   TestVRRPOnHost/track_priority_update
+=== NAME  TestVRRPOnHost
+    integration_test.go:72: vrrp.vr-track-interface: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:77: live state: [{Key:vrrp.vr/loop670/6/ipv4 State:backup Priority:70 MasterAdvCS:100} {Key:vrrp.vr/loop670/7/ipv4 State:backup Priority:50 MasterAdvCS:200}]
+=== RUN   TestVRRPOnHost/restart_simulation_+_update_without_a_pool_index
+=== NAME  TestVRRPOnHost
+    integration_test.go:83: vrrp.vr: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:84: vrrp.vr-peers: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:85: vrrp.vr-track-interface: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:86: vrrp.vr-state: re-apply plan for 2 desired object(s):
+          (empty plan)
+=== NAME  TestVRRPOnHost/restart_simulation_+_update_without_a_pool_index
+    integration_test.go:96: pool index found by the walk: {SwIfIndex:1 Index:0 HasIndex:true} (Create returned {SwIfIndex:1 Index:0 HasIndex:true})
+=== NAME  TestVRRPOnHost
+    integration_test.go:101: vrrp.vr: re-apply plan for 2 desired object(s):
+          (empty plan)
+=== RUN   TestVRRPOnHost/restart_simulation_with_loss_(state,_tracking)
+=== NAME  TestVRRPOnHost
+    integration_test.go:105: restart simulation (vrrp.vr-state): fresh connection, fresh descriptor
+    integration_test.go:105: vrrp.vr-state: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:105: vrrp.vr-state: plan after simulated loss of 2 object(s):
+          create vrrp.vr-state/loop670/6/ipv4
+          create vrrp.vr-state/loop670/7/ipv4
+    integration_test.go:105: vrrp.vr-state: recreated 2 object(s)
+    integration_test.go:105: vrrp.vr-state: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:106: restart simulation (vrrp.vr-track-interface): fresh connection, fresh descriptor
+    integration_test.go:106: vrrp.vr-track-interface: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:106: vrrp.vr-track-interface: plan after simulated loss of 1 object(s):
+          create vrrp.vr-track-interface/loop670/6/ipv4/loop671
+    integration_test.go:106: vrrp.vr-track-interface: recreated 1 object(s)
+    integration_test.go:106: vrrp.vr-track-interface: re-apply plan for 1 desired object(s):
+          (empty plan)
+    integration_test.go:109: deleted vrrp.vr-state/loop670/7/ipv4
+    integration_test.go:109: deleted vrrp.vr-state/loop670/6/ipv4
+    integration_test.go:110: vrrp.vr-state: Retrieve after delete: nothing of ours
+    integration_test.go:111: deleted vrrp.vr-track-interface/loop670/6/ipv4/loop671
+    integration_test.go:112: deleted vrrp.vr-peers/loop670/7/ipv4
+=== RUN   TestVRRPOnHost/restart_simulation_with_loss_(VRs,_after_their_children_are_gone)
+=== NAME  TestVRRPOnHost
+    integration_test.go:115: restart simulation (vrrp.vr): fresh connection, fresh descriptor
+    integration_test.go:115: vrrp.vr: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:115: vrrp.vr: plan after simulated loss of 2 object(s):
+          create vrrp.vr/loop670/6/ipv4
+          create vrrp.vr/loop670/7/ipv4
+    integration_test.go:115: vrrp.vr: recreated 2 object(s)
+    integration_test.go:115: vrrp.vr: re-apply plan for 2 desired object(s):
+          (empty plan)
+    integration_test.go:117: deleted vrrp.vr/loop670/7/ipv4
+    integration_test.go:117: deleted vrrp.vr/loop670/6/ipv4
+    integration_test.go:119: vrrp.vr-track-interface: Retrieve after delete: nothing of ours
+    integration_test.go:119: vrrp.vr-peers: Retrieve after delete: nothing of ours
+    integration_test.go:119: vrrp.vr: Retrieve after delete: nothing of ours
+2026/10/03 13:41:03 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:41:03 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+time="2026-10-03T13:41:03+03:30" level=warning msg="Unable to process request" chanId=170 connId=1 error="not connected to VPP, ignoring the request" isMulti=false msgCrc=c5e2af94 msgName=want_vrrp_vr_events seqNum=32
+--- PASS: TestVRRPOnHost (0.25s)
+    --- PASS: TestVRRPOnHost/events (0.00s)
+    --- PASS: TestVRRPOnHost/peers_update_on_a_running_VR (0.00s)
+    --- PASS: TestVRRPOnHost/track_priority_update (0.00s)
+    --- PASS: TestVRRPOnHost/restart_simulation_+_update_without_a_pool_index (0.02s)
+    --- PASS: TestVRRPOnHost/restart_simulation_with_loss_(state,_tracking) (0.02s)
+    --- PASS: TestVRRPOnHost/restart_simulation_with_loss_(VRs,_after_their_children_are_gone) (0.01s)
+PASS
+ok  	ngfw/agent/internal/descriptors/vrrp	0.282s

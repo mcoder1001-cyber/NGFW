@@ -3,6 +3,7 @@ package ip6nd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -40,14 +41,22 @@ func NormalizeRaPrefix(p *RaPrefix) *RaPrefix {
 
 // RaPrefixDescriptor manages advertised prefixes (sw_interface_ip6nd_ra_prefix).
 type RaPrefixDescriptor struct {
-	client vpp.Client
-	owner  string
-	opts   df2.Options
+	client    vpp.Client
+	owner     string
+	opts      df2.Options
+	lifetimes *LifetimeStore
 }
 
 // NewRaPrefix returns the descriptor for the given owner.
 func NewRaPrefix(c vpp.Client, owner string, opts ...df2.Option) *RaPrefixDescriptor {
-	return &RaPrefixDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...)}
+	store, _ := OpenLifetimeStore("")
+	return &RaPrefixDescriptor{client: c, owner: owner, opts: df2.BuildOptions(opts...), lifetimes: store}
+}
+
+// WithLifetimeStore sets the durable configured-timer snapshots used across agent restarts.
+func (d *RaPrefixDescriptor) WithLifetimeStore(store *LifetimeStore) *RaPrefixDescriptor {
+	d.lifetimes = store
+	return d
 }
 
 // Name implements scheduler.Descriptor.
@@ -95,10 +104,41 @@ func (d *RaPrefixDescriptor) set(ctx context.Context, p *RaPrefix, idx interface
 		ValLifetime:  p.GetValidLifetime(),
 		PrefLifetime: p.GetPreferredLifetime(),
 	}
+	setStart := time.Now()
 	if _, err := ip6_nd.NewServiceClient(d.client).SwInterfaceIP6ndRaPrefix(ctx, req); err != nil {
 		return fmt.Errorf("sw_interface_ip6nd_ra_prefix: %w", err)
 	}
-	return nil
+	setEnd := time.Now()
+	if isNo {
+		return d.lifetimes.save(d.KeyOf(p), nil)
+	}
+	start := time.Now()
+	details, err := dumpRa(ctx, d.client)
+	end := time.Now()
+	if err != nil {
+		return fmt.Errorf("capture RA prefix expiry: %w", err)
+	}
+	for _, det := range details {
+		if det.SwIfIndex != idx {
+			continue
+		}
+		for _, live := range det.Prefixes {
+			if df2.FromPrefix(live.Prefix).String() != pf.String() {
+				continue
+			}
+			if !live.DecrementLifetimeFlag {
+				return d.lifetimes.save(d.KeyOf(p), nil)
+			}
+			if !initialExpiryMatches(p.GetValidLifetime(), live.ValLifetime, live.ValidLifetimeExpires, setStart, setEnd, start, end) ||
+				!initialExpiryMatches(p.GetPreferredLifetime(), live.PrefLifetime, live.PrefLifetimeExpires, setStart, setEnd, start, end) {
+				return fmt.Errorf("RA prefix expiry changed while capturing configured timers")
+			}
+			record := &lifetimeRecord{Index: uint32(idx), Valid: p.GetValidLifetime(), Preferred: p.GetPreferredLifetime(),
+				ValidExpiry: expiry(live.ValidLifetimeExpires, start, end), PreferredExpiry: expiry(live.PrefLifetimeExpires, start, end)}
+			return d.lifetimes.save(d.KeyOf(p), record)
+		}
+	}
+	return fmt.Errorf("configured RA prefix missing from VPP expiry dump")
 }
 
 // Create implements scheduler.Descriptor.
@@ -146,6 +186,9 @@ func (d *RaPrefixDescriptor) Delete(ctx context.Context, obj proto.Message, meta
 	if skip, err := df2.SkipDelete(ctx, d.client, d.owner, m.SwIfIndex, obj.(df2.Named), d.KeyOf(obj), d.opts.Claims); err != nil {
 		return err
 	} else if skip {
+		if err := d.lifetimes.save(d.KeyOf(obj), nil); err != nil {
+			return err
+		}
 		return df2.Release(d.opts.Claims, d.KeyOf(obj)) // interface gone or index reused: nothing of ours to remove
 	}
 	if err := d.set(ctx, NormalizeRaPrefix(obj.(*RaPrefix)), interface_types.InterfaceIndex(m.SwIfIndex), true); err != nil {
@@ -160,7 +203,9 @@ func (d *RaPrefixDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	if err != nil {
 		return nil, err
 	}
+	start := time.Now()
 	details, err := dumpRa(ctx, d.client)
+	end := time.Now()
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +228,7 @@ func (d *RaPrefixDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 			if !ifs.OwnsObject(uint32(det.SwIfIndex), d.KeyOf(v), d.opts.Claims) {
 				continue
 			}
+			d.lifetimes.restore(d.KeyOf(v), uint32(det.SwIfIndex), p, v, start, end)
 			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: RaMeta{SwIfIndex: uint32(det.SwIfIndex)}})
 		}
 	}

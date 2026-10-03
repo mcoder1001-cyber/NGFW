@@ -915,6 +915,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/ipsec/tunnels': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** IPsec tunnels: the loaded strongSwan connections with an up/connecting/down status */
+    get: operations['Ipsec_tunnels'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ipsec/sas': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** IPsec security associations: IKE_SAs and their CHILD_SAs with SPIs, algorithms, byte/packet counters and rekey timers (no keys) */
+    get: operations['Ipsec_sas'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ipsec/ikev2/sas': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Native route-based IPsec SAs, scoped to owned profiles; no keys */
+    get: operations['Ikev2Native_sas'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/ipsec/ikev2/{tunnel}/{operation}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Initiate, rekey an owned CHILD SA, or delete an owned IKE SA */
+    post: operations['Ikev2Native_action'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/ospf': {
     parameters: {
       query?: never;
@@ -1156,6 +1224,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/actions/capture/{id}/stop': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stop a capture running in this API process; poll state until it finishes */
+    post: operations['CaptureTrace_stop'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/captures': {
     parameters: {
       query?: never;
@@ -1163,7 +1248,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Captures kept by the agent (and the running one), retention caps, trace / PG availability */
+    /** Unpaged capture list bounded by maxFiles (plus the running capture), retention caps, trace / PG availability */
     get: operations['CaptureTrace_list'];
     put?: never;
     post?: never;
@@ -6626,10 +6711,10 @@ export interface components {
             description?: string;
             /**
              * IKE engine
-             * @default strongswan
+             * @default vpp-ikev2
              * @enum {string}
              */
-            engine: 'strongswan' | 'vpp-ikev2';
+            engine: 'vpp-ikev2';
             /**
              * IKE version
              * @default 2
@@ -6684,33 +6769,6 @@ export interface components {
              */
             remoteTs: string[];
             /**
-             * Dead peer detection
-             * @default {}
-             */
-            dpd: {
-              /**
-               * Enabled
-               * @default true
-               */
-              enabled: boolean;
-              /**
-               * DPD delay (s)
-               * @default 30
-               */
-              delaySec: number;
-              /**
-               * DPD timeout (s)
-               * @default 150
-               */
-              timeoutSec: number;
-              /**
-               * DPD action
-               * @default restart
-               * @enum {string}
-               */
-              action: 'clear' | 'trap' | 'restart';
-            };
-            /**
              * NAT traversal (UDP encapsulation)
              * @default true
              */
@@ -6728,28 +6786,16 @@ export interface components {
              */
             rekey: {
               /**
-               * IKE SA lifetime (s)
-               * @default 14400
-               */
-              ikeSec: number;
-              /**
                * CHILD SA lifetime (s)
                * @default 3600
                */
               espSec: number;
               /** CHILD SA lifetime (bytes) */
               espBytes?: number;
-              /** CHILD SA lifetime (packets) */
-              espPackets?: number;
-              /**
-               * Re-authenticate instead of rekeying the IKE SA
-               * @default false
-               */
-              reauth: boolean;
             };
             /**
              * Start action
-             * @default start
+             * @default none
              * @enum {string}
              */
             startAction: 'none' | 'start' | 'trap';
@@ -6769,8 +6815,8 @@ export interface components {
              * @default default
              */
             underlayVrf: string;
-            /** Route-based (VTI) */
-            routeBased?: {
+            /** Protected tunnel interface */
+            routeBased: {
               /** IPIP tunnel */
               ipipInterface: string;
             };
@@ -7194,7 +7240,7 @@ export interface components {
     };
     /**
      * Tunnels
-     * @description GRE (L3, L2, ERSPAN), VXLAN and IPIP tunnels keyed by name.
+     * @description GRE (L3, L2, ERSPAN), VXLAN, IPIP (+ 6RD), VXLAN-GPE, GTP-U, L2TPv3 and PPPoE tunnels keyed by name.
      * @default {}
      */
     TunnelsConfig: {
@@ -7357,6 +7403,26 @@ export interface components {
           ipv6: string[];
           /** Bridge domain */
           bridgeDomain?: number;
+          /** 6RD */
+          sixrd?: {
+            /**
+             * 6RD IPv6 prefix
+             * Format: cidrv6
+             */
+            ip6Prefix: string;
+            /**
+             * 6RD IPv4 prefix
+             * Format: cidrv4
+             */
+            ip4Prefix: string;
+            /**
+             * Security check
+             * @default false
+             */
+            securityCheck: boolean;
+            /** Outer TOS */
+            tcTos?: number;
+          };
           /**
            * Mode
            * @default p2p
@@ -7367,6 +7433,227 @@ export interface components {
           dst?: string;
           /** Outer DSCP */
           dscp?: number;
+        };
+      };
+      /**
+       * VXLAN-GPE tunnels
+       * @default {}
+       */
+      vxlanGpe: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Source address */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /** Destination address */
+          dst: string;
+          /** VNI */
+          vni: number;
+          /**
+           * Source UDP port
+           * @default 4790
+           */
+          srcPort: number;
+          /**
+           * Destination UDP port
+           * @default 4790
+           */
+          dstPort: number;
+          /** Multicast interface */
+          mcastInterface?: string;
+          /**
+           * Next protocol
+           * @default ethernet
+           * @enum {string}
+           */
+          protocol: 'ip4' | 'ip6' | 'ethernet' | 'nsh';
+        };
+      };
+      /**
+       * GTP-U tunnels
+       * @default {}
+       */
+      gtpu: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Source address */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /** Destination address */
+          dst: string;
+          /** Multicast interface */
+          mcastInterface?: string;
+          /** TEID */
+          teid: number;
+          /** Transmit TEID */
+          tteid?: number;
+          /**
+           * Decapsulation
+           * @default ip4
+           * @enum {string}
+           */
+          decap: 'drop' | 'l2' | 'ip4' | 'ip6';
+          /**
+           * PDU session container
+           * @default false
+           */
+          pduExtension: boolean;
+          /** QFI */
+          qfi?: number;
+        };
+      };
+      /**
+       * L2TPv3 tunnels
+       * @default {}
+       */
+      l2tpv3: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /**
+           * Local address
+           * Format: ipv6
+           */
+          src: string;
+          /**
+           * Underlay VRF
+           * @default default
+           */
+          underlayVrf: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
+          /**
+           * IPv4 addresses
+           * @default []
+           */
+          ipv4: string[];
+          /**
+           * IPv6 addresses
+           * @default []
+           */
+          ipv6: string[];
+          /** Bridge domain */
+          bridgeDomain?: number;
+          /**
+           * Client address
+           * Format: ipv6
+           */
+          dst: string;
+          /** Local session id */
+          localSessionId: number;
+          /** Remote session id */
+          remoteSessionId: number;
+          /**
+           * Local cookie
+           * @default 0
+           */
+          localCookie: number;
+          /**
+           * Remote cookie
+           * @default 0
+           */
+          remoteCookie: number;
+          /**
+           * L2-specific sublayer
+           * @default false
+           */
+          l2Sublayer: boolean;
+        };
+      };
+      /**
+       * PPPoE sessions
+       * @default {}
+       */
+      pppoe: {
+        [key: string]: {
+          /**
+           * Enabled
+           * @default true
+           */
+          enabled: boolean;
+          /** Description */
+          description?: string;
+          /** Session id */
+          sessionId: number;
+          /** Client MAC */
+          clientMac: string;
+          /** Client IP address */
+          clientIp: string;
+          /**
+           * VRF
+           * @default default
+           */
+          vrf: string;
+          /** MTU */
+          mtu?: number;
         };
       };
       /**
@@ -14525,6 +14812,492 @@ export interface operations {
       };
     };
   };
+  Ipsec_tunnels: {
+    parameters: {
+      query?: {
+        tunnel?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            eventsActive: boolean;
+            charonRestarted: boolean;
+            daemonVersion: string;
+            pendingAction: string;
+            tunnels: {
+              /** @description document tunnel name */
+              tunnel: string;
+              /** @description charon connection (section) name */
+              conn: string;
+              /**
+               * @description up = an IKE_SA is ESTABLISHED with an INSTALLED CHILD_SA
+               * @enum {string}
+               */
+              status: 'up' | 'connecting' | 'down';
+              version: string;
+              localAddrs: string[];
+              remoteAddrs: string[];
+              localId: string;
+              remoteId: string;
+              localAuth: string;
+              remoteAuth: string;
+              rekeySec: number;
+              reauthSec: number;
+              children: {
+                name: string;
+                mode: string;
+                rekeySec: number;
+                localTs: string[];
+                remoteTs: string[];
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ipsec_sas: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+        tunnel?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            eventsActive: boolean;
+            /** @description charon restarted since the last acknowledgement (orphaned SAs may exist until reconcile) */
+            charonRestarted: boolean;
+            daemonVersion: string;
+            /** @description IKE_SAs charon counts that belong to no owned connection */
+            unlistedSas: number;
+            /** @description IKE_SAs matching the query before offset/limit */
+            total: number;
+            /** @description a charon action the last commit could not take itself ("" = none) */
+            pendingAction: string;
+            sas: {
+              /** @description connection name */
+              name: string;
+              /** @description document tunnel name */
+              tunnel: string;
+              uniqueId: string;
+              version: string;
+              /** @description ESTABLISHED, CONNECTING, DELETING, … */
+              state: string;
+              localHost: string;
+              localPort: number;
+              localId: string;
+              remoteHost: string;
+              remotePort: number;
+              remoteId: string;
+              initiator: boolean;
+              natAny: boolean;
+              encrAlg: string;
+              encrKeysize: number;
+              integAlg: string;
+              prfAlg: string;
+              dhGroup: string;
+              establishedSec: number;
+              rekeySec: number;
+              reauthSec: number;
+              children: {
+                name: string;
+                uniqueId: string;
+                reqId: number;
+                /** @description INSTALLED, REKEYING, DELETING, … */
+                state: string;
+                mode: string;
+                /** @description ESP or AH */
+                protocol: string;
+                /** @description UDP-encapsulated (NAT-T) */
+                encap: boolean;
+                spiIn: string;
+                spiOut: string;
+                encrAlg: string;
+                /** @description bits; 0 when charon reports none */
+                encrKeysize: number;
+                integAlg: string;
+                dhGroup: string;
+                esn: boolean;
+                bytesIn: number;
+                packetsIn: number;
+                bytesOut: number;
+                packetsOut: number;
+                /** @description seconds until scheduled rekey */
+                rekeySec: number;
+                lifeSec: number;
+                installSec: number;
+                localTs: string[];
+                remoteTs: string[];
+                /** @description route-based (kernel-vpp) tunnel id; "" for policy-based */
+                ifIdIn: string;
+                ifIdOut: string;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not implemented */
+      501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ikev2Native_sas: {
+    parameters: {
+      query?: {
+        tunnel?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            eventsActive: boolean;
+            /** @description charon restarted since the last acknowledgement (orphaned SAs may exist until reconcile) */
+            charonRestarted: boolean;
+            daemonVersion: string;
+            /** @description IKE_SAs charon counts that belong to no owned connection */
+            unlistedSas: number;
+            /** @description IKE_SAs matching the query before offset/limit */
+            total: number;
+            /** @description a charon action the last commit could not take itself ("" = none) */
+            pendingAction: string;
+            sas: {
+              /** @description connection name */
+              name: string;
+              /** @description document tunnel name */
+              tunnel: string;
+              uniqueId: string;
+              version: string;
+              /** @description ESTABLISHED, CONNECTING, DELETING, … */
+              state: string;
+              localHost: string;
+              localPort: number;
+              localId: string;
+              remoteHost: string;
+              remotePort: number;
+              remoteId: string;
+              initiator: boolean;
+              natAny: boolean;
+              encrAlg: string;
+              encrKeysize: number;
+              integAlg: string;
+              prfAlg: string;
+              dhGroup: string;
+              establishedSec: number;
+              rekeySec: number;
+              reauthSec: number;
+              children: {
+                name: string;
+                uniqueId: string;
+                reqId: number;
+                /** @description INSTALLED, REKEYING, DELETING, … */
+                state: string;
+                mode: string;
+                /** @description ESP or AH */
+                protocol: string;
+                /** @description UDP-encapsulated (NAT-T) */
+                encap: boolean;
+                spiIn: string;
+                spiOut: string;
+                encrAlg: string;
+                /** @description bits; 0 when charon reports none */
+                encrKeysize: number;
+                integAlg: string;
+                dhGroup: string;
+                esn: boolean;
+                bytesIn: number;
+                packetsIn: number;
+                bytesOut: number;
+                packetsOut: number;
+                /** @description seconds until scheduled rekey */
+                rekeySec: number;
+                lifeSec: number;
+                installSec: number;
+                localTs: string[];
+                remoteTs: string[];
+                /** @description route-based (kernel-vpp) tunnel id; "" for policy-based */
+                ifIdIn: string;
+                ifIdOut: string;
+              }[];
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ikev2Native_action: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        tunnel: string;
+        operation: 'initiate' | 'rekey' | 'delete-sa';
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default 0 */
+          ikeSpi?: string;
+          /** @default 0 */
+          childSpi?: number;
+        };
+      };
+    };
+    responses: {
+      /** @description Native IKE runtime action accepted */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   Ospf_state: {
     parameters: {
       query?: never;
@@ -15833,6 +16606,87 @@ export interface operations {
       };
       /** @description Not implemented */
       501: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  CaptureTrace_stop: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            id: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

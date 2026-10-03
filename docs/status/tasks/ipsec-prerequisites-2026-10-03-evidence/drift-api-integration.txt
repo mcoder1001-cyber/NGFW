@@ -1,0 +1,101 @@
+DISPOSABLE_VPP pid=709989 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-709985
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/api
+
+create role vrx_w5
+create database vrx_w5 (owner vrx_w5)
+check  vrx_w5 as vrx_w5 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/vrx-test/w5/pg.env (0600) · DSN <redacted-dsn>
+{"time":"2026-10-03T14:20:32.20918019+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":710830,"owner":"w5","socket":"/run/vrx-test/w5/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.210867833+03:30","level":"INFO","msg":"VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.212208314+03:30","level":"INFO","msg":"pppoe client wired","owner":"w5","component":"subsystems","feature":"pppoe-client","globals_owner":false,"product_paths":false}
+{"time":"2026-10-03T14:20:32.212904273+03:30","level":"INFO","msg":"not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.213103053+03:30","level":"INFO","msg":"services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.22347996+03:30","level":"INFO","msg":"VPP binary API connected","owner":"w5","component":"vpp","socket":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.226971813+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"w5","component":"subsystems","family":"objects","file":"/run/vrx-test/w5/agent-state/objects-fqdn-w5.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-03T14:20:32.227844183+03:30","level":"INFO","msg":"objects domain wired","owner":"w5","component":"subsystems","store":"/run/vrx-test/w5/agent-state/objects-w5.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-03T14:20:32.228078898+03:30","level":"INFO","msg":"acl domain wired","owner":"w5","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+{"time":"2026-10-03T14:20:32.228179521+03:30","level":"INFO","msg":"host firewall wired","owner":"w5","component":"subsystems","table":"inet vrx_w5","mode":"check","netns":"","rules_file":"/run/vrx-test/w5/agent-state/host-acl-w5.nft"}
+{"time":"2026-10-03T14:20:32.228782959+03:30","level":"INFO","msg":"strongSwan not driven by this agent","owner":"w5","component":"subsystems","component":"strongswan","reason":"no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"}
+{"time":"2026-10-03T14:20:32.230055816+03:30","level":"INFO","msg":"kea wired","owner":"w5","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+{"time":"2026-10-03T14:20:32.230579822+03:30","level":"INFO","msg":"host services wired","owner":"w5","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":false,"unbound_conf":"/run/vrx-test/w5/unbound/unbound.conf","chrony_conf":"/run/vrx-test/w5/chrony/agent/chrony.conf","rsyslog_conf":"/run/vrx-test/w5/rsyslog/rsyslog.conf","vpp_dns_cache":"required only"}
+{"time":"2026-10-03T14:20:32.230826881+03:30","level":"INFO","msg":"system identity wired","owner":"w5","component":"subsystems","product_paths":false,"mechanism":"files","issue_file":"/run/vrx-test/w5/sysident/etc/issue.d/vrx.issue"}
+{"time":"2026-10-03T14:20:32.232765425+03:30","level":"INFO","msg":"subsystems wired","owner":"w5","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"wiring":"stores in /run/vrx-test/w5/agent-state: claims-iface-w5.json, boot-w5.json; globals owner false","vpp_ids":"5000-5999"}
+{"time":"2026-10-03T14:20:32.234332281+03:30","level":"WARN","msg":"socket group does not exist; using the process's primary group","owner":"w5","group":"vrx","gid":0}
+{"time":"2026-10-03T14:20:32.235439957+03:30","level":"INFO","msg":"vrx-agent listening","owner":"w5","socket":"/run/vrx-test/w5/agent.sock","metrics":"127.0.0.1:9151","state_dir":"/run/vrx-test/w5/agent-state","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.23729502+03:30","level":"INFO","msg":"VPP boot identity","owner":"w5","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/709989/556321","complete":true,"expired_claims":0}
+{"time":"2026-10-03T14:20:32.237573556+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"","mode":"resync","domains":null}
+{"time":"2026-10-03T14:20:32.238040753+03:30","level":"WARN","msg":"neighbour events: interface dump","owner":"w5","component":"subsystems","err":"sw_interface_dump: context canceled"}
+{"time":"2026-10-03T14:20:32.302057553+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":64396235,"err":""}
+{"time":"2026-10-03T14:20:32.302170567+03:30","level":"INFO","msg":"resync finished","owner":"w5","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+{"time":"2026-10-03T14:20:32.445148937+03:30","level":"INFO","msg":"vrx-agent stopped","owner":"w5"}
+{"time":"2026-10-03T14:20:32.642051264+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":710847,"owner":"w5","socket":"/run/vrx-test/w5/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.643497918+03:30","level":"INFO","msg":"VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.645124777+03:30","level":"INFO","msg":"pppoe client wired","owner":"w5","component":"subsystems","feature":"pppoe-client","globals_owner":false,"product_paths":false}
+{"time":"2026-10-03T14:20:32.646335368+03:30","level":"INFO","msg":"not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.646644056+03:30","level":"INFO","msg":"services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)","owner":"w5","component":"subsystems"}
+{"time":"2026-10-03T14:20:32.651580178+03:30","level":"INFO","msg":"VPP binary API connected","owner":"w5","component":"vpp","socket":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.656485505+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"w5","component":"subsystems","family":"objects","file":"/run/vrx-test/w5/agent-state/objects-fqdn-w5.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-03T14:20:32.657368156+03:30","level":"INFO","msg":"objects domain wired","owner":"w5","component":"subsystems","store":"/run/vrx-test/w5/agent-state/objects-w5.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-03T14:20:32.657838094+03:30","level":"INFO","msg":"acl domain wired","owner":"w5","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+{"time":"2026-10-03T14:20:32.657995486+03:30","level":"INFO","msg":"host firewall wired","owner":"w5","component":"subsystems","table":"inet vrx_w5","mode":"check","netns":"","rules_file":"/run/vrx-test/w5/agent-state/host-acl-w5.nft"}
+{"time":"2026-10-03T14:20:32.65835646+03:30","level":"INFO","msg":"strongSwan not driven by this agent","owner":"w5","component":"subsystems","component":"strongswan","reason":"no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"}
+{"time":"2026-10-03T14:20:32.659132285+03:30","level":"INFO","msg":"kea wired","owner":"w5","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+{"time":"2026-10-03T14:20:32.659771652+03:30","level":"INFO","msg":"host services wired","owner":"w5","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":false,"unbound_conf":"/run/vrx-test/w5/unbound/unbound.conf","chrony_conf":"/run/vrx-test/w5/chrony/agent/chrony.conf","rsyslog_conf":"/run/vrx-test/w5/rsyslog/rsyslog.conf","vpp_dns_cache":"required only"}
+{"time":"2026-10-03T14:20:32.659956692+03:30","level":"INFO","msg":"system identity wired","owner":"w5","component":"subsystems","product_paths":false,"mechanism":"files","issue_file":"/run/vrx-test/w5/sysident/etc/issue.d/vrx.issue"}
+{"time":"2026-10-03T14:20:32.660994053+03:30","level":"INFO","msg":"subsystems wired","owner":"w5","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"wiring":"stores in /run/vrx-test/w5/agent-state: claims-iface-w5.json, boot-w5.json; globals owner false","vpp_ids":"5000-5999"}
+{"time":"2026-10-03T14:20:32.666527343+03:30","level":"WARN","msg":"socket group does not exist; using the process's primary group","owner":"w5","group":"vrx","gid":0}
+{"time":"2026-10-03T14:20:32.669526737+03:30","level":"INFO","msg":"vrx-agent listening","owner":"w5","socket":"/run/vrx-test/w5/agent.sock","metrics":"127.0.0.1:9151","state_dir":"/run/vrx-test/w5/agent-state","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T14:20:32.672009865+03:30","level":"INFO","msg":"VPP boot identity","owner":"w5","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/709989/556321","complete":true,"expired_claims":0}
+{"time":"2026-10-03T14:20:32.672417593+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"","mode":"resync","domains":null}
+{"time":"2026-10-03T14:20:32.672689011+03:30","level":"WARN","msg":"neighbour events: interface dump","owner":"w5","component":"subsystems","err":"sw_interface_dump: context canceled"}
+{"time":"2026-10-03T14:20:32.751694686+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":79125698,"err":""}
+{"time":"2026-10-03T14:20:32.751855429+03:30","level":"INFO","msg":"resync finished","owner":"w5","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+{"time":"2026-10-03T14:20:35.136621045+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"814b0e9f-3d77-4a9a-91ce-6bcee26c7836","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:35.194121362+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"814b0e9f-3d77-4a9a-91ce-6bcee26c7836","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":57524192,"err":""}
+{"time":"2026-10-03T14:20:35.653316501+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"beaa9023-4a0b-45b1-a57f-23c9e889a2d2","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:35.801580493+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"loop501","sw_if_index":1,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6"],"skipped":null}
+{"time":"2026-10-03T14:20:35.801928638+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface.loopback/loop501"}
+{"time":"2026-10-03T14:20:35.80262419+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface/loop501"}
+{"time":"2026-10-03T14:20:35.804028715+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:35.805904963+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface.admin-state/loop501"}
+{"time":"2026-10-03T14:20:35.870424446+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"beaa9023-4a0b-45b1-a57f-23c9e889a2d2","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:4  unchanged:1","reapplied":0,"duration":217072491,"err":""}
+{"time":"2026-10-03T14:20:36.123825061+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"2203c73d-e436-4d15-8682-cf81daff7c99","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:36.194980434+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:36.19565486+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.2/24"}
+{"time":"2026-10-03T14:20:36.259539989+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"2203c73d-e436-4d15-8682-cf81daff7c99","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  deleted:1  unchanged:4","reapplied":0,"duration":135764817,"err":""}
+{"time":"2026-10-03T14:20:36.560048403+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"b9fc964f-a286-42c0-8867-22c5f287154d","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:36.634518588+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.2/24"}
+{"time":"2026-10-03T14:20:36.63570037+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:36.702234109+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"b9fc964f-a286-42c0-8867-22c5f287154d","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  deleted:1  unchanged:4","reapplied":0,"duration":142237270,"err":""}
+{"time":"2026-10-03T14:20:37.355058201+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"3154131e-ebf3-4b72-a69d-404fb71f8339","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:37.421111248+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:37.422051377+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.3/24"}
+{"time":"2026-10-03T14:20:37.479289645+03:30","level":"INFO","msg":"confirm timer armed","owner":"w5","txn_id":"3154131e-ebf3-4b72-a69d-404fb71f8339","deadline":"2026-10-03T10:50:42Z","in":4999680640}
+{"time":"2026-10-03T14:20:37.481959828+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"3154131e-ebf3-4b72-a69d-404fb71f8339","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  deleted:1  unchanged:4","reapplied":0,"duration":126879562,"err":""}
+{"time":"2026-10-03T14:20:42.482602719+03:30","level":"WARN","msg":"confirm timeout: reverting to the last confirmed state","owner":"w5","txn_id":"3154131e-ebf3-4b72-a69d-404fb71f8339"}
+{"time":"2026-10-03T14:20:42.483137625+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"","mode":"revert","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:42.550477439+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.3/24"}
+{"time":"2026-10-03T14:20:42.551583893+03:30","level":"INFO","msg":"created","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:42.617934397+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"","mode":"revert","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  deleted:1  unchanged:4","reapplied":0,"duration":134797099,"err":""}
+{"time":"2026-10-03T14:20:42.850243843+03:30","level":"INFO","msg":"reconcile start","owner":"w5","txn_id":"f7047d55-83c3-4cc7-99b5-47a5491668e0","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T14:20:42.915466518+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface.admin-state/loop501"}
+{"time":"2026-10-03T14:20:42.917440899+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface-ip/loop501/10.5.101.1/24"}
+{"time":"2026-10-03T14:20:42.926227368+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"loop501","sw_if_index":1,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6"],"skipped":null}
+{"time":"2026-10-03T14:20:42.927251146+03:30","level":"INFO","msg":"deleted","owner":"w5","component":"scheduler","key":"interface.loopback/loop501"}
+{"time":"2026-10-03T14:20:42.985023116+03:30","level":"INFO","msg":"reconcile done","owner":"w5","txn_id":"f7047d55-83c3-4cc7-99b5-47a5491668e0","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:3  unchanged:1","reapplied":0,"duration":134884650,"err":""}
+{"time":"2026-10-03T14:20:43.088784594+03:30","level":"INFO","msg":"vrx-agent stopped","owner":"w5"}
+ ✓ test/integration/agent.int.test.ts (3 tests) 10611ms
+   ✓ agent integration (real vrx-agent + VPP) > patch → diff → commit → Retrieve + vppctl → rollback → reverted  1743ms
+   ✓ agent integration (real vrx-agent + VPP) > commit ?confirm=5 without confirm is reverted after 5 s  5394ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  14:20:10
+   Duration  33.35s (transform 12.03s, setup 0ms, collect 20.03s, tests 10.61s, environment 0ms, prepare 199ms)
+
+e2e teardown: deleted 7 Valkey keys vrx:w5:e2e:* in db 5
+drop   database vrx_w5
+drop   role vrx_w5
+ok     nothing named vrx_w5 / vrx_w5 remains
+DISPOSABLE_VPP_STOPPED pid=709989

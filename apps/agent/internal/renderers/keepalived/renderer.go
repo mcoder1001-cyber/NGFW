@@ -154,17 +154,28 @@ func funcs() template.FuncMap {
 
 // Render implements renderers.Renderer: keepalived.conf for the enabled ha.vrrp instances
 // whose engine is "keepalived" (the "vpp" ones belong to the VPP vrrp descriptor, DF-7).
-// No I/O except the secret resolver.
+// No I/O except the secret resolver. The renderer's InterfaceMapper translates.
 func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers.Files, error) {
+	return r.RenderWith(ctx, desired, r.mapper)
+}
+
+// RenderWith is Render with a call-local InterfaceMapper (nil: the renderer's). A caller whose
+// mapping is a function of the value it renders (the keepalived stage: the value's own linux-cp
+// pairs) passes it here instead of mutating a shared mapper, so concurrent renders — a TD-13
+// Validate next to a Retrieve — never see each other's mapping. Safe for concurrent use.
+func (r *Renderer) RenderWith(ctx context.Context, desired proto.Message, mapper InterfaceMapper) (renderers.Files, error) {
 	if err := r.check(); err != nil {
 		return nil, err
+	}
+	if mapper == nil {
+		mapper = r.mapper
 	}
 	ds, ext, err := rfkit.Decode(desired)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", ErrInput, err)
 	}
 	sec := &rfkit.Secrets{Ctx: ctx, Resolver: r.resolver}
-	model, err := BuildModel(ds, ext, sec, Options{Paths: r.paths, Mapper: r.mapper, Checks: r.checks})
+	model, err := BuildModel(ds, ext, sec, Options{Paths: r.paths, Mapper: mapper, Checks: r.checks})
 	r.red.Add(sec.Values()...)
 	if err != nil {
 		return nil, r.red.Error(err)
@@ -193,6 +204,26 @@ func (r *Renderer) checkFiles(files renderers.Files) error {
 // `-s <netns>` when keepalived runs in a namespace: -t checks that the interfaces exist, and
 // that the notify helper and check scripts are present and secure). Never the live file.
 func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
+	return r.Check(ctx, files, CheckOptions{})
+}
+
+// CheckOptions tunes Check; Validate is Check with the zero options.
+type CheckOptions struct {
+	// DynamicInterfaces adds `dynamic_interfaces` to the global_defs of the staged copy (only
+	// there — the rendering itself is untouched), so `keepalived -t` (exit 5, "Non-existent
+	// interface specified in configuration") accepts an interface that does not exist yet. The
+	// TD-13 validator needs it: it runs before the VPP stage of the same transaction creates
+	// the linux-cp pair. Create's own Validate re-runs the exact rendering after that stage.
+	DynamicInterfaces bool
+}
+
+// dynamicInterfaces is spliced into the staged copy after the global_defs opening line.
+const dynamicInterfaces = "global_defs {\n    dynamic_interfaces\n"
+
+// Check runs `keepalived -t` on a staged copy of files in a private temp dir that is removed
+// again before it returns. Read only: no daemon file, no reload, no signal. Safe for
+// concurrent use (TD-13 Validator contract).
+func (r *Renderer) Check(ctx context.Context, files renderers.Files, opts CheckOptions) error {
 	if err := r.check(); err != nil {
 		return err
 	}
@@ -200,6 +231,15 @@ func (r *Renderer) Validate(ctx context.Context, files renderers.Files) error {
 		return err
 	}
 	r.red.Add(parseRendered(files[r.paths.ConfFile].Content).secrets...)
+	if opts.DynamicInterfaces {
+		f := files[r.paths.ConfFile]
+		content := bytes.Replace(f.Content, []byte("global_defs {\n"), []byte(dynamicInterfaces), 1)
+		if bytes.Equal(content, f.Content) {
+			return fmt.Errorf("%w: keepalived.conf has no global_defs block", renderers.ErrInvalidFiles)
+		}
+		f.Content = content
+		files = renderers.Files{r.paths.ConfFile: f}
+	}
 	st, err := renderers.Stage(files)
 	if err != nil {
 		return err
@@ -287,4 +327,18 @@ func (r *Renderer) pruneStateFiles(want rendered) {
 			_ = os.Remove(filepath.Join(r.paths.StateDir, e.Name()))
 		}
 	}
+}
+
+// CheckRunning verifies the harness/product daemon exists without starting or signaling it.
+func (r *Renderer) CheckRunning(ctx context.Context) error {
+	if ctl, ok := r.ctl.(rfkit.MainPID); ok {
+		pid, err := ctl.MainPID(ctx)
+		if err != nil {
+			return err
+		}
+		if pid <= 0 {
+			return rfkit.ErrNotRunning
+		}
+	}
+	return nil
 }

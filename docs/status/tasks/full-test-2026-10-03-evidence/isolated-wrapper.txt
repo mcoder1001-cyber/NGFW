@@ -1,0 +1,25 @@
+DISPOSABLE_VPP pid=609041 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-609038
+{"time":"2026-10-03T13:58:54.415146323+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":609092,"owner":"vrx","socket":"/run/vrx/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:58:54.418202103+03:30","level":"INFO","msg":"pppoe client wired","owner":"vrx","component":"subsystems","feature":"pppoe-client","globals_owner":true,"product_paths":true}
+{"time":"2026-10-03T13:58:54.418999249+03:30","level":"INFO","msg":"nsim (lab tool) is off: set VRX_NSIM=lab to apply services.nsim","owner":"vrx","component":"subsystems"}
+{"time":"2026-10-03T13:58:54.42839398+03:30","level":"INFO","msg":"VPP binary API connected","owner":"vrx","component":"vpp","socket":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:58:54.434506819+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"vrx","component":"subsystems","family":"objects","file":"/var/lib/vrx/agent/objects-fqdn-vrx.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-03T13:58:54.5061665+03:30","level":"INFO","msg":"objects domain wired","owner":"vrx","component":"subsystems","store":"/var/lib/vrx/agent/objects-vrx.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-03T13:58:54.506406268+03:30","level":"INFO","msg":"acl domain wired","owner":"vrx","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":true,"resync_hook":true}
+{"time":"2026-10-03T13:58:54.506558621+03:30","level":"INFO","msg":"host firewall wired","owner":"vrx","component":"subsystems","table":"inet vrx","mode":"apply","netns":"","rules_file":"/var/lib/vrx/agent/host-acl-vrx.nft"}
+{"time":"2026-10-03T13:58:54.511208238+03:30","level":"INFO","msg":"strongSwan wired","owner":"vrx","component":"subsystems","component":"strongswan","conf":"/etc/strongswan.d/vrx.conf","vici":"/var/run/charon.vici","plugins":["random","nonce","openssl","pem","pkcs1","pkcs8","x509","pubkey","revocation","constraints","kernel-vpp","socket-default","vici"],"ike_port":0,"natt_port":0}
+{"time":"2026-10-03T13:58:54.511885419+03:30","level":"INFO","msg":"kea wired","owner":"vrx","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+{"time":"2026-10-03T13:58:54.51350793+03:30","level":"INFO","msg":"host services wired","owner":"vrx","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":true,"unbound_conf":"/etc/unbound/unbound.conf","chrony_conf":"/etc/chrony/chrony.conf","rsyslog_conf":"/etc/rsyslog.d/50-vrx-export.conf","vpp_dns_cache":"applied (globals owner)"}
+{"time":"2026-10-03T13:58:54.513667578+03:30","level":"INFO","msg":"system identity wired","owner":"vrx","component":"subsystems","product_paths":true,"mechanism":"dbus","issue_file":"/etc/issue.d/vrx.issue"}
+{"time":"2026-10-03T13:58:54.515123399+03:30","level":"INFO","msg":"subsystems wired","owner":"vrx","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"wiring":"stores in /var/lib/vrx/agent: claims-iface-vrx.json, boot-vrx.json; globals owner true","vpp_ids":"all"}
+{"time":"2026-10-03T13:58:54.516752645+03:30","level":"WARN","msg":"socket group does not exist; using the process's primary group","owner":"vrx","group":"vrx","gid":0}
+{"time":"2026-10-03T13:58:54.517746932+03:30","level":"INFO","msg":"vrx-agent listening","owner":"vrx","socket":"/run/vrx/agent.sock","metrics":"127.0.0.1:9101","state_dir":"/var/lib/vrx/agent","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:58:54.520367565+03:30","level":"INFO","msg":"classify table sentinel created at index 0 (INC-vpp-classify-crash M2)","owner":"vrx","component":"subsystems","family":"classify-sentinel","state":"created","left":null,"report":"state=created pops=0"}
+{"time":"2026-10-03T13:58:54.521209947+03:30","level":"INFO","msg":"VPP boot identity","owner":"vrx","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/609041/428869","complete":true,"expired_claims":0}
+{"time":"2026-10-03T13:58:54.521415204+03:30","level":"INFO","msg":"reconcile start","owner":"vrx","txn_id":"","mode":"resync","domains":null}
+{"time":"2026-10-03T13:58:54.52179171+03:30","level":"WARN","msg":"neighbour events: interface dump","owner":"vrx","component":"subsystems","err":"sw_interface_dump: context canceled"}
+{"time":"2026-10-03T13:58:54.636950455+03:30","level":"INFO","msg":"reconcile done","owner":"vrx","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":114245285,"err":""}
+{"time":"2026-10-03T13:58:54.637391999+03:30","level":"INFO","msg":"resync finished","owner":"vrx","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+{"time":"2026-10-03T13:59:46.10638288+03:30","level":"INFO","msg":"vrx-agent stopped","owner":"vrx"}
+DISPOSABLE_VPP_STOPPED pid=609041
+requires the private VPP mount from isolated-vpp.py

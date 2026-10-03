@@ -1,0 +1,10 @@
+DISPOSABLE_VPP pid=1268364 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1268353
+=== RUN   TestVRRPProductFixesOnDisposableVPP
+2026/10/03 16:23:49 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop570 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    product_fixes_integration_test.go:61: invalid spec: vrrp addresses must be canonical and sorted ([10.5.70.253 10.5.70.254])
+2026/10/03 16:23:49 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop570 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- FAIL: TestVRRPProductFixesOnDisposableVPP (0.15s)
+FAIL
+FAIL	ngfw/agent/internal/descriptors/vrrp	0.239s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=1268364

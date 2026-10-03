@@ -1,0 +1,46 @@
+{
+  "ports": {
+    "ens161": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:46:f2",
+      "ethtool": "Settings for ens161:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    },
+    "ens193": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:4b:c6",
+      "ethtool": "Settings for ens193:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    },
+    "ens224": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:32:8c",
+      "ethtool": "Settings for ens224:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    },
+    "ens225": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:85:ce",
+      "ethtool": "Settings for ens225:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    },
+    "ens256": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:73:f8",
+      "ethtool": "Settings for ens256:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    },
+    "ens257": {
+      "carrier": "1",
+      "mac": "00:50:56:9f:cd:88",
+      "ethtool": "Settings for ens257:\n\tSupported ports: [ TP ]\n\tSupported link modes:   1000baseT/Full\n\t                        10000baseT/Full\n\tSupported pause frame use: No\n\tSupports auto-negotiation: No\n\tSupported FEC modes: Not reported\n\tAdvertised link modes:  Not reported\n\tAdvertised pause frame use: No\n\tAdvertised auto-negotiation: No\n\tAdvertised FEC modes: Not reported\n\tSpeed: 10000Mb/s\n\tDuplex: Full\n\tAuto-negotiation: off\n\tPort: Twisted Pair\n\tPHYAD: 0\n\tTransceiver: internal\n\tMDI-X: Unknown\n\tSupports Wake-on: uag\n\tWake-on: d\n\tLink detected: yes\n"
+    }
+  },
+  "received": [
+    {
+      "ingress": "ens256",
+      "source_mac": "00:50:56:9f:4b:c6",
+      "marker": "VRX-HW-20261003-ens193"
+    },
+    {
+      "ingress": "ens193",
+      "source_mac": "00:50:56:9f:73:f8",
+      "marker": "VRX-HW-20261003-ens256"
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+Sat Oct  3 13:41:57 2026: Starting Keepalived v2.3.4 (06/10,2025)
+Sat Oct  3 13:41:57 2026: Running on Linux 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 (built for Linux 6.17.1)
+Sat Oct  3 13:41:57 2026: Command line: '/usr/sbin/keepalived' '-n' '-l' '-P' '-G' '-D' '-f'
+Sat Oct  3 13:41:57 2026:               '/run/vrx-test/w6/keepalived/keepalived.conf' '-p'
+Sat Oct  3 13:41:57 2026:               '/run/vrx-test/w6/keepalived/keepalived.pid' '-r' '/run/vrx-test/w6/keepalived/vrrp.pid'
+Sat Oct  3 13:41:57 2026:               '-c' '/run/vrx-test/w6/keepalived/checkers.pid'
+Sat Oct  3 13:41:57 2026: Opening file '/run/vrx-test/w6/keepalived/keepalived.conf'.
+Sat Oct  3 13:41:57 2026: Configuration file /run/vrx-test/w6/keepalived/keepalived.conf
+Sat Oct  3 13:41:57 2026: NOTICE: setting config option max_auto_priority should result in better keepalived performance
+Sat Oct  3 13:41:57 2026: Warning - keepalived has no configuration to run
+Sat Oct  3 13:41:59 2026: Reloading ...
+Sat Oct  3 13:41:59 2026: Opening file '/run/vrx-test/w6/keepalived/keepalived.conf'.
+Sat Oct  3 13:41:59 2026: Configuration file /run/vrx-test/w6/keepalived/keepalived.conf
+Sat Oct  3 13:41:59 2026: Starting VRRP child process, pid=567751
+Sat Oct  3 13:41:59 2026: Registering Kernel netlink reflector
+Sat Oct  3 13:41:59 2026: Registering Kernel netlink command channel
+Sat Oct  3 13:41:59 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:41:59 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:41:59 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:41:59 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:41:59 2026: Assigned address 10.6.71.2 for interface w6-ka0
+Sat Oct  3 13:41:59 2026: Assigned address fe80::dcad:ff:fe00:b7 for interface w6-ka0
+Sat Oct  3 13:41:59 2026: Registering gratuitous ARP shared channel
+Sat Oct  3 13:41:59 2026: (ka) removing VIPs.
+Sat Oct  3 13:41:59 2026: Startup complete
+Sat Oct  3 13:41:59 2026: (ka) removing VIPs.
+Sat Oct  3 13:41:59 2026: (ka) Entering BACKUP STATE (init)
+Sat Oct  3 13:41:59 2026: VRRP sockpool: [ifindex(  3), family(IPv4), proto(112), fd(13,14) multicast, address(224.0.0.18)]
+Sat Oct  3 13:42:00 2026: Reloading ...
+Sat Oct  3 13:42:00 2026: Opening file '/run/vrx-test/w6/keepalived/keepalived.conf'.
+Sat Oct  3 13:42:00 2026: Configuration file /run/vrx-test/w6/keepalived/keepalived.conf
+Sat Oct  3 13:42:00 2026: Reloading
+Sat Oct  3 13:42:00 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:42:00 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:42:00 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:42:00 2026: Script /tmp/g-w6/vrrp-bin/vrx-keepalived-notify cannot be accessed - No such file or directory
+Sat Oct  3 13:42:00 2026: Assigned address 10.6.71.2 for interface w6-ka0
+Sat Oct  3 13:42:00 2026: Assigned address fe80::dcad:ff:fe00:b7 for interface w6-ka0
+Sat Oct  3 13:42:00 2026: Reload complete
+Sat Oct  3 13:42:00 2026: (ka) removing VIPs.
+Sat Oct  3 13:42:00 2026: VRRP sockpool: [ifindex(  3), family(IPv4), proto(112), fd(13,14) multicast, address(224.0.0.18)]
+Sat Oct  3 13:42:02 2026: (ka) Receive advertisement timeout
+Sat Oct  3 13:42:02 2026: (ka) Entering MASTER STATE
+Sat Oct  3 13:42:02 2026: (ka) setting VIPs.
+Sat Oct  3 13:42:02 2026: (ka) Sending/queueing gratuitous ARPs on w6-ka0 for 10.6.71.254
+Sat Oct  3 13:42:02 2026: Sending gratuitous ARP on w6-ka0 for 10.6.71.254
+Sat Oct  3 13:42:02 2026: Sending gratuitous ARP on w6-ka0 for 10.6.71.254
+Sat Oct  3 13:42:02 2026: Sending gratuitous ARP on w6-ka0 for 10.6.71.254
+Sat Oct  3 13:42:02 2026: Sending gratuitous ARP on w6-ka0 for 10.6.71.254
+Sat Oct  3 13:42:02 2026: Sending gratuitous ARP on w6-ka0 for 10.6.71.254

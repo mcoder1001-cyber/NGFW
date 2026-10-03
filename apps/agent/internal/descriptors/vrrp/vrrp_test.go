@@ -3,6 +3,8 @@ package vrrp
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,8 +15,43 @@ import (
 	"ngfw/agent/binapi/vrrp"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/df7/df7test"
+	"ngfw/agent/internal/descriptors/dfkit"
+	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
 )
+
+// failClaims is an iface.ClaimStore that can refuse to record (RV-A R4 M3 claim-first test).
+type failClaims struct {
+	mu   sync.Mutex
+	m    map[[2]string]bool
+	fail error
+}
+
+func (c *failClaims) Claim(n, h string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.fail != nil {
+		return c.fail
+	}
+	if c.m == nil {
+		c.m = map[[2]string]bool{}
+	}
+	c.m[[2]string{n, h}] = true
+	return nil
+}
+
+func (c *failClaims) Release(n, h string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.m, [2]string{n, h})
+	return nil
+}
+
+func (c *failClaims) Claimed(n, h string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.m[[2]string{n, h}]
+}
 
 type vr struct {
 	det    *vrrp.VrrpVrDetails
@@ -39,6 +76,9 @@ func fakeVRRP() (*df7test.Fake, map[uint32]*vr) {
 		r := m.(*vrrp.VrrpVrUpdate)
 		conf := vrrp.VrrpVrConf{SwIfIndex: r.SwIfIndex, VrID: r.VrID, Priority: r.Priority, Interval: r.Interval, Flags: r.Flags}
 		if r.VrrpIndex == df7.NoIndex {
+			if _, x := find(r.SwIfIndex, r.VrID, r.Flags&vrrp.VRRP_API_VR_IPV6 != 0); x != nil {
+				return []api.Message{&vrrp.VrrpVrUpdateReply{Retval: int32(api.ENTRY_ALREADY_EXISTS)}}, nil // as VPP
+			}
 			idx := uint32(len(pool)) + 3 //nolint:gosec // test pool; leave holes at the start of the pool
 			pool[idx] = &vr{det: &vrrp.VrrpVrDetails{Config: conf, Addrs: r.Addrs, NAddrs: r.NAddrs}}
 			return []api.Message{&vrrp.VrrpVrUpdateReply{VrrpIndex: idx}}, nil
@@ -349,5 +389,115 @@ func TestVRExistsNoClaim(t *testing.T) {
 	}
 	if err := d.Delete(ctx, v, nil); err != nil || pool[50] == nil {
 		t.Fatal("never delete a VR that is not ours", err)
+	}
+}
+
+// TestVRClaimFirst (RV-A R4 M3, D-133): the claim precedes the VPP add. A claim that cannot be
+// recorded fails the Create with nothing written; an ENTRY_ALREADY_EXISTS is adopted only when the
+// claim existed before this Create (the crash-between-add-and-resync recovery).
+func TestVRClaimFirst(t *testing.T) {
+	spec := VRSpec{VR: VR{Interface: "eth0", VRID: 9}, Priority: 100, Interval: 100, Addresses: []string{"10.0.0.254"}}
+
+	t.Run("refused claim writes nothing", func(t *testing.T) {
+		f, _ := fakeVRRP()
+		const owner = "w7fc"
+		iface.SetClaimStore(owner, &failClaims{fail: errors.New("claim store: no identity")})
+		t.Cleanup(func() { iface.SetClaimStore(owner, nil) })
+		d := NewVR(f, owner)
+		if _, err := d.Create(t.Context(), df7.Encode(spec)); err == nil || !strings.Contains(err.Error(), "claim store") {
+			t.Fatalf("want the claim error, got %v", err)
+		}
+		if calls := f.CallsNamed("vrrp_vr_update"); len(calls) != 0 {
+			t.Fatalf("a refused claim must not write to VPP, got %d vrrp_vr_update calls", len(calls))
+		}
+	})
+
+	t.Run("already-exists with a prior claim is adopted and converged", func(t *testing.T) {
+		f, pool := fakeVRRP()
+		const owner = "w7ad"
+		iface.SetClaimStore(owner, nil) // a fresh in-memory store
+		t.Cleanup(func() { iface.SetClaimStore(owner, nil) })
+		d := NewVR(f, owner)
+		if _, err := d.Create(t.Context(), df7.Encode(spec)); err != nil { // records the claim first
+			t.Fatal(err)
+		}
+		// a resync re-creates while the VR (from an earlier attempt, other priority) is still live in VPP:
+		// the add answers ENTRY_ALREADY_EXISTS, the prior claim adopts it and Update converges it
+		want := spec
+		want.Priority = 150
+		meta, err := d.Create(t.Context(), df7.Encode(want))
+		if err != nil {
+			t.Fatalf("a prior claim must adopt the existing VR: %v", err)
+		}
+		m, ok := meta.(Meta)
+		if !ok || !m.HasIndex || pool[m.Index] == nil || pool[m.Index].det.Config.Priority != 150 || len(pool) != 1 {
+			t.Fatalf("adopted VR not converged: meta %+v pool %d", meta, len(pool))
+		}
+	})
+
+	t.Run("failed add releases only a claim this Create made (Undo)", func(t *testing.T) {
+		f, _ := fakeVRRP()
+		const owner = "w7un"
+		iface.SetClaimStore(owner, nil)
+		t.Cleanup(func() { iface.SetClaimStore(owner, nil) })
+		d := NewVR(f, owner)
+		holder := string(d.KeyOf(df7.Encode(spec)))
+		f.Reply("vrrp_vr_update", &vrrp.VrrpVrUpdateReply{Retval: int32(api.INVALID_VALUE)})
+		if _, err := d.Create(t.Context(), df7.Encode(spec)); !df7.IsVPPError(err, api.INVALID_VALUE) {
+			t.Fatalf("want the add error, got %v", err)
+		}
+		if df7test.Claimed(t.Context(), f, owner, "eth0", holder) {
+			t.Fatal("a failed add must release the claim this Create made")
+		}
+		// a claim that existed before the Create survives a failed add
+		tg, err := dfkit.ResolveTarget(t.Context(), f, "eth0", owner, holder)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := tg.Claim(); err != nil {
+			t.Fatal(err)
+		}
+		if !df7test.Claimed(t.Context(), f, owner, "eth0", holder) {
+			t.Fatal("setup: the prior claim is not visible")
+		}
+		if _, err := d.Create(t.Context(), df7.Encode(spec)); err == nil {
+			t.Fatal("want the add error")
+		}
+		if !df7test.Claimed(t.Context(), f, owner, "eth0", holder) {
+			t.Fatal("Undo released a claim that existed before this Create")
+		}
+	})
+}
+
+func TestVRDeleteAfterInterfaceVanishedDropsClaimWithoutVPPDelete(t *testing.T) {
+	f, pool := fakeVRRP()
+	ctx := t.Context()
+	d := NewVR(f, df7test.Owner)
+	spec := VRSpec{VR: VR{Interface: "eth0", VRID: 7}, Priority: 100, Interval: 100, Addresses: []string{"10.0.0.254"}}
+	meta, err := d.Create(ctx, df7.Encode(spec))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := dfkit.ResolveTarget(ctx, f, "eth0", df7test.Owner, string(KeyVR(spec.VR)))
+	if err != nil || !target.Claimed() {
+		t.Fatalf("claim before deletion: %v %v", target, err)
+	}
+	f.RemoveIf(4)
+	f.On("vrrp_vr_add_del", func(api.Message) ([]api.Message, error) {
+		t.Fatal("sent delete to vanished sw_if_index")
+		return nil, nil
+	})
+	if err := d.Delete(ctx, df7.Encode(spec), meta); err != nil {
+		t.Fatal(err)
+	}
+	if target.Claimed() {
+		t.Fatal("agent kept vanished interface VR claim")
+	}
+	kvs, err := d.Retrieve(ctx)
+	if err != nil || len(kvs) != 0 {
+		t.Fatalf("orphan VR causes delete churn: %v %v", kvs, err)
+	}
+	if len(pool) != 1 {
+		t.Fatal("silently claimed VPP residue was deleted")
 	}
 }

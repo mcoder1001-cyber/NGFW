@@ -490,3 +490,18 @@ describe('routing.ospf-area-exists', () => {
     ]);
   });
 });
+
+it('static routes accept declared logical IPIP names and refuse undeclared runtime names', () => {
+  const doc = {
+    tunnels: { ipip: { site: { src: '198.51.100.2', dst: '203.0.113.2' } } },
+    routing: { static: [{ prefix: '10.20.0.0/16', nextHops: [{ interface: 'site' }] }] },
+  };
+  expect(run('routing.static-nexthop-interface-exists', doc)).toEqual([]);
+  doc.routing.static[0]!.nextHops[0]!.interface = 'ipip6001';
+  expect(run('routing.static-nexthop-interface-exists', doc)).toEqual([
+    {
+      pointer: '/routing/static/0/nextHops/0/interface',
+      message: "interface 'ipip6001' does not exist",
+    },
+  ]);
+});

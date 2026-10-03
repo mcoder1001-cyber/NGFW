@@ -268,6 +268,20 @@ func TestWatchResync(t *testing.T) {
 	if !subscribed {
 		t.Fatal("Watch never subscribed")
 	}
+	// Forwarding a harmless event proves that Watch finished its initial SA
+	// baseline. Subscription alone happens earlier and could absorb the new SA.
+	f.push(vici.Event{Name: "ike-updown", Message: msg("up", "yes", "w3-site-a", msg("uniqueid", "1", "state", "ESTABLISHED"))})
+	readyCtx, readyCancel := context.WithDeadline(ctx, subDeadline)
+	defer readyCancel()
+	ready := false
+	for !ready {
+		select {
+		case e := <-out:
+			ready = e.Kind == "ike-updown" && e.Conn == "w3-site-a" && e.Up
+		case <-readyCtx.Done():
+			t.Fatal("Watch never completed its initial baseline")
+		}
+	}
 	// Stalled consumer: flood more events than the buffer holds.
 	for i := 0; i < 400; i++ {
 		f.push(vici.Event{Name: "ike-updown", Message: msg("up", "yes", "w3-site-a", msg("uniqueid", "1", "state", "ESTABLISHED"))})

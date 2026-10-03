@@ -86,7 +86,7 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `login [<user>]` | Log in (password prompted without echo); one-shot use stores the 15-min access token in a 0600 session file | `POST /api/v1/auth/login` · *operational* |
 | `logout` | Revoke the refresh token (interactive) and remove the session file | `POST /api/v1/auth/logout` · *operational* |
 | `merge <path> <json-object>` | RFC 7386 merge patch at a path (null deletes a member); the merged result is schema-checked first | `PATCH /api/v1/config/{path}`<br>`PATCH /api/v1/config`<br>`GET /api/v1/config/candidate/{path}`<br>`GET /api/v1/config/candidate` · *both* |
-| `ping <host>` | Ping from the data plane (the API answers 501 until the agent implements actions) | `POST /api/v1/actions/{action}` · *operational* |
+| `ping <address>` | Ping an IPv4/IPv6 address from the data plane (default VRF only) | `POST /api/v1/actions/{action}` · *operational* |
 | `rollback <rev> [confirm <sec>] [comment <text>]` | Apply an old revision as a new revision | `POST /api/v1/config/rollback/{rev}` · *both* |
 | `set <path> <value>` | Set the value at a path in the candidate (value checked against the schema first); on a list of scalars it appends | `PUT /api/v1/config/{path}`<br>`GET /api/v1/config/candidate/{path}` · *both* |
 | `show bgp summary` | BGP neighbour summary | no REST endpoint yet: the API has no BGP state route (FRR state arrives with P12) — exits 10 · *operational* |
@@ -104,7 +104,7 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `show revisions [<count>]` | Commit history, newest first | `GET /api/v1/config/revisions` · *operational* |
 | `show system` | API and agent health, running revision, pending commit, running↔data-plane sync state | `GET /api/v1/state/system` · *operational* |
 | `show whoami` | The authenticated user, effective role and credential type | `GET /api/v1/auth/me` · *operational* |
-| `traceroute <host>` | Traceroute from the data plane (the API answers 501 until the agent implements actions) | `POST /api/v1/actions/{action}` · *operational* |
+| `traceroute <address>` | Traceroute an IPv4/IPv6 address (the agent currently answers 501) | `POST /api/v1/actions/{action}` · *operational* |
 | `validate` | Three-tier validation of the candidate (schema → semantic → agent dry-run); nothing is applied | `POST /api/v1/config/validate` · *both* |
 
 ## Configuration-mode commands
@@ -145,4 +145,10 @@ Commands available in both modes are listed under *Operational commands*. Words 
 - Login-shell / SSH wiring and a local unix-socket transport with peer-credential check (P13 out of scope; the API
   listens on TCP only today): the CLI authenticates with a login or an API key.
 - `show bgp summary` exists but exits 10: the API has no BGP summary endpoint yet.
-- `ping` / `traceroute` call `POST /api/v1/actions/{action}`, which answers 501 until the agent implements actions.
+- `traceroute` calls `POST /api/v1/actions/traceroute` with an IPv4/IPv6 target; the agent currently answers 501 (no VPP traceroute API).
+
+## Ping
+
+`ping <address>` sends an IPv4 or IPv6 address to `POST /api/v1/actions/ping`. Hostnames are not resolved.
+The agent runs ping in the default VRF with the API defaults (5 requests, 1000 ms interval);
+VPP worker threads cause HTTP 409, and another active ping causes HTTP 503.

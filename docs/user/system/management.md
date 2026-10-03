@@ -43,7 +43,11 @@ fingerprint and the revision it was loaded from. The private key is never return
 The API serves HTTPS with this certificate only when `VRX_HTTPS_PORT` is set in its environment (same bind address as
 `VRX_HTTP_HOST`). Without it, the certificate is still checked and loaded, and the tab says that HTTPS is not being
 served. If no certificate is configured, the HTTPS listener does not start. No self-signed certificate is generated in
-this release. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
+this release. If the first valid certificate is committed after startup, the listener starts then without
+restarting the API. The listener status reports whether the server is actually listening, rather than whether a
+port was requested. Reloads run in sequence so slow earlier secret reads cannot overwrite later committed certificates.
+Removing the certificate references still leaves an existing listener using its previous certificate until restart;
+that removal behavior remains an open lifecycle issue. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
 stream authentication and subscription handlers. Missing or invalid credentials are refused before the WebSocket
 upgrade. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
 

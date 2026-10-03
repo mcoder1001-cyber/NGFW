@@ -270,6 +270,85 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       }
     });
 
+    it('starts HTTPS when a certificate is configured after an empty bootstrap and reports actual listening state', async () => {
+      vi.stubEnv('VRX_HTTPS_PORT', '3202'); // slot 2 test sub-port
+      vi.stubEnv('VRX_HTTP_HOST', '127.0.0.1');
+      const fastify = Fastify();
+      fastify.get('/w2-health', async () => ({ ok: true }));
+      await fastify.ready();
+      const { svc, holder } = service({}, { 'cert/a': a.cert, 'key/a': a.key });
+      Object.assign(svc, { host: { httpAdapter: { getInstance: () => fastify } } });
+      try {
+        await svc.onApplicationBootstrap();
+        expect((await svc.state()).listener).toEqual({ enabled: false, port: 3202 });
+        holder.doc = tlsDoc('cert/a', 'key/a');
+        await svc.reload();
+        expect((await svc.state()).listener).toEqual({ enabled: true, port: 3202 });
+        const peer = await new Promise<string | undefined>((resolve, reject) => {
+          const req = request(
+            {
+              hostname: '127.0.0.1',
+              port: 3202,
+              path: '/w2-health',
+              agent: false,
+              rejectUnauthorized: false,
+            },
+            (res) => {
+              const subject = (res.socket as TLSSocket).getPeerX509Certificate()?.subject;
+              res.resume();
+              res.on('end', () => resolve(subject));
+            },
+          );
+          req.on('error', reject);
+          req.end();
+        });
+        expect(peer).toBe('CN=a.vrx.test');
+        await svc.onApplicationShutdown();
+        expect((await svc.state()).listener.enabled).toBe(false);
+      } finally {
+        await svc.onApplicationShutdown();
+        await fastify.close();
+        vi.unstubAllEnvs();
+      }
+    });
+
+    it('serializes a slow previous reload before applying the newer running certificate', async () => {
+      const { svc, holder } = service(tlsDoc('cert/a', 'key/a'), {});
+      let release!: () => void;
+      let started!: () => void;
+      const blocked = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const reading = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      svc.secretReader = async (ref) => {
+        if (ref === 'cert/a') {
+          started();
+          await blocked;
+        }
+        return (
+          (
+            { 'cert/a': a.cert, 'key/a': a.key, 'cert/b': b.cert, 'key/b': b.key } as Record<
+              string,
+              string
+            >
+          )[ref] ?? null
+        );
+      };
+      const oldReload = svc.reload();
+      await reading;
+      holder.doc = tlsDoc('cert/b', 'key/b');
+      holder.revision = 8;
+      const newReload = svc.reload();
+      release();
+      await Promise.all([oldReload, newReload]);
+      expect(await svc.state()).toMatchObject({
+        loadedRevision: 8,
+        active: { subject: 'CN=b.vrx.test' },
+      });
+    });
+
     it('no refs → no certificate, honest state', async () => {
       const { svc } = service({}, {});
       const s = await svc.state();

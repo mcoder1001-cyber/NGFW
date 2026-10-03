@@ -70,6 +70,9 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   private context: SecureContextOptions | null = null;
   private current: Omit<MgmtTlsState, 'listener'> | null = null;
   private server: Server | null = null;
+  private reloadQueue: Promise<void> = Promise.resolve();
+  private bootstrapped = false;
+  private shuttingDown = false;
   private unsubscribe: (() => void) | null = null;
   readonly httpsPort = httpsPortFromEnv();
   /** Clock (tests move it). */
@@ -110,6 +113,12 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   async onApplicationBootstrap(): Promise<void> {
     if (this.httpsPort === null) return;
     await this.reload();
+    this.bootstrapped = true;
+    await this.ensureListener();
+  }
+
+  private async ensureListener(): Promise<void> {
+    if (!this.bootstrapped || this.shuttingDown || this.httpsPort === null || this.server) return;
     const fastify = this.host.httpAdapter.getInstance() as unknown as FastifyInstance;
     // without a configured certificate the listener stays down (no self-signed fallback is generated here)
     if (this.context === null) {
@@ -127,9 +136,13 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     const hostName = process.env['VRX_HTTP_HOST'] ?? '127.0.0.1';
     const server = this.server;
     await new Promise<void>((resolve, reject) => {
-      server.once('error', reject);
+      const onError = (error: Error) => {
+        if (this.server === server) this.server = null;
+        reject(error);
+      };
+      server.once('error', onError);
       server.listen(this.httpsPort!, hostName, () => {
-        server.off('error', reject);
+        server.off('error', onError);
         this.log.log(
           `HTTPS listener on ${hostName}:${this.httpsPort} (certificate from management.tls)`,
         );
@@ -139,7 +152,9 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   }
 
   async onApplicationShutdown(): Promise<void> {
+    this.shuttingDown = true;
     this.unsubscribe?.();
+    await this.reloadQueue;
     await new Promise<void>((r) => (this.server ? this.server.close(() => r()) : r()));
   }
 
@@ -184,7 +199,13 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   }
 
   /** Re-reads running and swaps the secure context. A bad pair keeps the previous context and records the error. */
-  async reload(): Promise<void> {
+  reload(): Promise<void> {
+    // One running read/secret resolution/apply at a time: slow older reads cannot overwrite newer commits.
+    this.reloadQueue = this.reloadQueue.then(() => this.reloadRunning());
+    return this.reloadQueue;
+  }
+
+  private async reloadRunning(): Promise<void> {
     try {
       const running = await this.ds.getRunning();
       const tls = tlsOf(running.doc);
@@ -211,6 +232,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
       // hot reload: new handshakes use the new certificate and protocol floor, open connections are kept
       this.server?.setSecureContext(res.options);
       this.current = { ...base, configured: true, active: this.withDays(res.info), error: null };
+      await this.ensureListener();
       this.log.log(
         `management.tls applied: ${res.info.subject} (sha256 ${res.info.fingerprintSha256})`,
       );
@@ -234,7 +256,7 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     return {
       ...cur,
       active: cur.active ? this.withDays(cur.active) : null,
-      listener: { enabled: this.httpsPort !== null, port: this.httpsPort },
+      listener: { enabled: this.server?.listening ?? false, port: this.httpsPort },
     };
   }
 }

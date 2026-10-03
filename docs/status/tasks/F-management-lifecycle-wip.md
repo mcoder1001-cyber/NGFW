@@ -5,3 +5,5 @@ Validation: schema build PASS; tools/ci.sh check --base7b57a284 PASS (0m09s); fo
 Remaining: certificate removal still retains old servingcertificate by unchanged policy; state now reflects retainedcertificate. DB/browser/lab acceptance NOT RUN; freshreview missing.
 Exact nextcommand: pnpm --filter @ngfw/api exec vitest run src/features/mgmt-tls/mgmt-tls.test.ts
 First checkpoint localf848f956 remote1ec23f15f186b198520a80fb66cf3215bfa0f30b. Final source frozen in next commit/published exacttree; independent review and hostedgate required. No managementcompletion claimed.
+
+Inherited PR99 strict optional-subject testtyping corrected identically: omit subject property when undefined. No productionchange/compilerconfig weakening. Focus13/13PASS (13.30s). Initial APItypecheck found unbuilt @ngfw/proto/@ngfw/yang; dependencies built, then `pnpm --filter @ngfw/api typecheck` exited0. Appended correction fastforwards prior remote163872a; mandatoryquick and independent correctionrecheck remain required.

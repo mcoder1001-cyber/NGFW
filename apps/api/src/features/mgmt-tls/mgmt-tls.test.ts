@@ -237,7 +237,11 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
             const subject = (socket as TLSSocket).getPeerX509Certificate()?.subject;
             const received = (data: Buffer) => {
               socket.destroy();
-              resolve({ status: res.statusCode!, body: data.toString(), subject });
+              resolve({
+                status: res.statusCode!,
+                body: data.toString(),
+                ...(subject === undefined ? {} : { subject }),
+              });
             };
             if (head.length > 0) received(head);
             else socket.once('data', received);

@@ -24,3 +24,8 @@ override_dh_gencontrol:
 
 override_dh_installsystemd:
 	dh_installsystemd --no-enable --no-start
+
+# CGO_ENABLED=0 Go binaries have compressed DWARF that dwz cannot optimize.
+# Keep dwz processing enabled for all other native package contents.
+override_dh_dwz:
+	dh_dwz -Xngfw-agent -Xngfw-startupgen -Xngfw-vppcheck

@@ -1,4 +1,4 @@
-"""`VrxSession` — the thin hand-written layer over the generated operations: API-key auth, TLS verification on by
+"""`NgfwSession` — the thin hand-written layer over the generated operations: API-key auth, TLS verification on by
 default, problem+json → typed exceptions, and the candidate → commit(confirm) → confirm/rollback workflow."""
 from __future__ import annotations
 
@@ -21,14 +21,14 @@ from .errors import (
     NotEnforcedWarning,
     NotInSync,
     Unavailable,
-    VrxError,
+    NgfwError,
     error_for,
 )
 from .pointer import normalize, to_url_path
 from .redact import redact
 from .transport import HttpResponse, Transport, UrllibTransport
 
-log = logging.getLogger("vrx")
+log = logging.getLogger("ngfw")
 
 _NO_BODY: Any = object()
 # request bodies of these operations are never logged, even with log_bodies=True (passwords, secret values, keys)
@@ -52,15 +52,15 @@ class _Secret:
     __str__ = __repr__
 
 
-class VrxSession(Operations):
-    """A connection to one VRX appliance.
+class NgfwSession(Operations):
+    """A connection to one NGFW appliance.
 
-    >>> s = VrxSession("https://vrx-a.example:443", api_key_file="/run/secrets/vrx-key")
+    >>> s = NgfwSession("https://ngfw-a.example:443", api_key_file="/run/secrets/ngfw-key")
     >>> with s.transaction(confirm=60, comment="add loop1") as tx:
     ...     tx.set("/interfaces/loop1", {"enabled": True, "ipv4": ["192.0.2.1/32"]})
     >>> tx.result["status"]   # 'confirmed'
 
-    The API key comes from `api_key`, `api_key_file` or `$VRX_API_KEY` (in that order) and is sent as
+    The API key comes from `api_key`, `api_key_file` or `$NGFW_API_KEY` (in that order) and is sent as
     `Authorization: ApiKey <key>`. It is never logged and never part of `repr()`.
     """
 
@@ -86,15 +86,15 @@ class VrxSession(Operations):
             if not allow_http:
                 raise ValueError(f"refusing plain http:// to {parts.hostname}: the API key would cross the network in clear "
                                  "— use https:// (or allow_http=True for an isolated lab)")
-            warnings.warn("vrx: plain http:// — the API key is sent without TLS", stacklevel=2)
+            warnings.warn("ngfw: plain http:// — the API key is sent without TLS", stacklevel=2)
         self.url = f"{parts.scheme}://{parts.netloc}{parts.path.rstrip('/')}"
         if api_key is None and api_key_file:
             with open(api_key_file, encoding="utf-8") as f:
                 api_key = f.read().strip()
         if api_key is None:
-            api_key = os.environ.get("VRX_API_KEY") or None
+            api_key = os.environ.get("NGFW_API_KEY") or None
         if not api_key:
-            raise ValueError("no API key: pass api_key / api_key_file or set VRX_API_KEY")
+            raise ValueError("no API key: pass api_key / api_key_file or set NGFW_API_KEY")
         self._key = _Secret(api_key)
         self.verify = verify
         self.timeout = timeout
@@ -102,7 +102,7 @@ class VrxSession(Operations):
         self._transport: Transport = transport or UrllibTransport(verify=verify, ca_file=ca_file)
 
     def __repr__(self) -> str:
-        return f"VrxSession(url={self.url!r}, verify={self.verify})"
+        return f"NgfwSession(url={self.url!r}, verify={self.verify})"
 
     # ------------------------------------------------------------------ HTTP core
 
@@ -112,7 +112,7 @@ class VrxSession(Operations):
         q = {k: ("true" if v is True else "false" if v is False else v) for k, v in (query or {}).items() if v is not None}
         target = self.url + path + (f"?{urlencode(q)}" if q else "")
         headers = {"authorization": f"ApiKey {self._key.get()}", "accept": "application/json, application/problem+json",
-                   "user-agent": "vrx-python-sdk/0.1.0"}
+                   "user-agent": "ngfw-python-sdk/0.1.0"}
         data = None
         if body is not _NO_BODY:
             data = json.dumps(body, separators=(",", ":")).encode()
@@ -208,7 +208,7 @@ class VrxSession(Operations):
         return list(self.config_revisions(limit=limit, offset=offset).get("items") or [])
 
     def commit_confirmed(self, *, confirm: int = 60, comment: str | None = None,
-                         check: Callable[[VrxSession], object] | None = None,
+                         check: Callable[[NgfwSession], object] | None = None,
                          allow_unsynced: bool = False, require_enforced: bool = False) -> dict[str, Any]:
         """Commit with `?confirm=<sec>`, run `check(session)` (default: `/state/system` answers and reports sync
         `in-sync`), then confirm. If the check fails the commit is NOT confirmed and the agent reverts it at the
@@ -227,14 +227,14 @@ class VrxSession(Operations):
             raise ConfirmError(_not_confirmed(f"post-commit check failed: {e}", deadline), r) from e
         try:
             c = self.confirm()
-        except VrxError as e:
+        except NgfwError as e:
             raise ConfirmError(_not_confirmed(f"confirm failed: {e}", deadline), r) from e
         c["notApplied"] = list(dict.fromkeys([*(c.get("notApplied") or []), *(r.get("notApplied") or [])]))
         return _enforced(c, require_enforced)
 
     @contextmanager
     def transaction(self, *, confirm: int | None = 60, comment: str | None = None,
-                    check: Callable[[VrxSession], object] | None = None,
+                    check: Callable[[NgfwSession], object] | None = None,
                     allow_dirty: bool = False, allow_unsynced: bool = False,
                     require_enforced: bool = False) -> Iterator[Transaction]:
         """Edit the candidate inside the block; on exit commit (confirmed when `confirm` is set).
@@ -252,7 +252,7 @@ class VrxSession(Operations):
             pending_changes = self.diff()
             if pending_changes:
                 owner = self.lock().get("owner")
-                raise VrxError(f"the candidate already has {len(pending_changes)} uncommitted change(s) "
+                raise NgfwError(f"the candidate already has {len(pending_changes)} uncommitted change(s) "
                                f"(lock owner: {owner}); commit or discard them first, or pass allow_dirty=True")
         tx = Transaction(self)
         try:
@@ -277,7 +277,7 @@ class VrxSession(Operations):
             raise
         except Unavailable:
             raise  # outcome unknown (running-unknown): the API reconciles and may still promote the candidate
-        except VrxError:
+        except NgfwError:
             _discard_if_own(self, tx.pointers)  # running is untouched (commit is atomic)
             raise
 
@@ -293,10 +293,10 @@ class VrxSession(Operations):
 
 
 class Transaction:
-    """The candidate edits of one `VrxSession.transaction()` block. `result` holds the commit answer afterwards
+    """The candidate edits of one `NgfwSession.transaction()` block. `result` holds the commit answer afterwards
     (including `notApplied`); `pointers` are the subtrees this transaction edited."""
 
-    def __init__(self, session: VrxSession):
+    def __init__(self, session: NgfwSession):
         self.session = session
         self.result: dict[str, Any] | None = None
         self.pointers: list[str] = []
@@ -352,7 +352,7 @@ def _within(p: str, root: str) -> bool:
     return p == root or (root != "" and p.startswith(root + "/")) or root == ""
 
 
-def _synced(s: VrxSession, allow_unsynced: bool, *, pending_ok: bool) -> None:
+def _synced(s: NgfwSession, allow_unsynced: bool, *, pending_ok: bool) -> None:
     st = s.state("system")
     sync = (st.get("sync") or {}) if isinstance(st, dict) else {}
     if not allow_unsynced and sync.get("state", "in-sync") != "in-sync":
@@ -364,7 +364,7 @@ def _synced(s: VrxSession, allow_unsynced: bool, *, pending_ok: bool) -> None:
 
 def _not_confirmed(why: str, deadline: Any) -> str:
     return (f"commit NOT confirmed ({why}) — the appliance reverts it at {deadline}. Afterwards the candidate still "
-            "holds the edit: discard it (VrxSession.discard()) before the next transaction")
+            "holds the edit: discard it (NgfwSession.discard()) before the next transaction")
 
 
 def _enforced(r: dict[str, Any], require: bool) -> dict[str, Any]:
@@ -378,11 +378,11 @@ def _enforced(r: dict[str, Any], require: bool) -> dict[str, Any]:
     return r
 
 
-def _discard_if_own(s: VrxSession, pointers: list[str]) -> None:
+def _discard_if_own(s: NgfwSession, pointers: list[str]) -> None:
     """Discard only a candidate that holds nothing but this transaction's changes (never another run's edits)."""
     try:
         changes = s.diff()
         if changes and pointers and all(any(_within(c.get("pointer", ""), p) for p in pointers) for c in changes):
             s.discard()
-    except VrxError as e:
+    except NgfwError as e:
         log.warning("discard after a failed transaction: %s", e)

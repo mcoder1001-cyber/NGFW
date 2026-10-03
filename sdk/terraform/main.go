@@ -1,7 +1,7 @@
-// Command terraform-provider-vrx is the Terraform provider of the VRX appliance (not published to any registry).
+// Command terraform-provider-ngfw is the Terraform provider of the NGFW appliance (not published to any registry).
 //
-// Local use: build it (`go build -o terraform-provider-vrx`) and point Terraform at it with a dev_overrides block
-// for `registry.terraform.io/vrx/vrx` (docs/user/system/sdk-terraform-ansible.md).
+// Local use: build it (`go build -o terraform-provider-ngfw`) and point Terraform at it with a dev_overrides block
+// for `registry.terraform.io/ngfw/ngfw` (docs/user/system/sdk-terraform-ansible.md).
 package main
 
 import (
@@ -21,7 +21,7 @@ func main() {
 	flag.BoolVar(&debug, "debug", false, "run with support for debuggers like delve")
 	flag.Parse()
 	err := providerserver.Serve(context.Background(), provider.New(version), providerserver.ServeOpts{
-		Address: "registry.terraform.io/vrx/vrx",
+		Address: "registry.terraform.io/ngfw/ngfw",
 		Debug:   debug,
 	})
 	if err != nil {

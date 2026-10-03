@@ -47,9 +47,9 @@ func topLevel(t *testing.T, src []byte) []string {
 }
 
 func TestHostileSpecCannotInjectCode(t *testing.T) {
-	title := "VRX\n*/ func init() { panic(\"pwned\") } /*\n// "
+	title := "NGFW\n*/ func init() { panic(\"pwned\") } /*\n// "
 	props := map[string]any{
-		"description": map[string]any{"type": "string", "title": "x\" + panic(1) + \"", "x-vrx-ui": map[string]any{"help": "`\n}\nfunc evil() {}\n"}},
+		"description": map[string]any{"type": "string", "title": "x\" + panic(1) + \"", "x-ngfw-ui": map[string]any{"help": "`\n}\nfunc evil() {}\n"}},
 		"enabled":     map[string]any{"type": "boolean", "default": false},
 	}
 	iface, secrets, _, err := generate(spec(title, props))
@@ -74,7 +74,7 @@ func TestHostileSpecCannotInjectCode(t *testing.T) {
 
 func TestHostilePropertyNameFailsGeneration(t *testing.T) {
 	for _, key := range []string{"a\"}; func evil() {}; var _ = map[string]int{\"", "ü-x", "x y", "9lives"} {
-		_, _, _, err := generate(spec("VRX", map[string]any{key: map[string]any{"type": "object", "properties": map[string]any{"a": map[string]any{"type": "string"}}}}))
+		_, _, _, err := generate(spec("NGFW", map[string]any{key: map[string]any{"type": "object", "properties": map[string]any{"a": map[string]any{"type": "string"}}}}))
 		if err == nil {
 			t.Errorf("property %q accepted", key)
 		}

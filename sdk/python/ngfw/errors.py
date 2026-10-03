@@ -6,11 +6,11 @@ from dataclasses import dataclass
 from typing import Any
 
 
-class VrxError(Exception):
+class NgfwError(Exception):
     """Base class of everything the SDK raises."""
 
 
-class TransportError(VrxError):
+class TransportError(NgfwError):
     """The request never produced an HTTP answer (DNS, TCP, TLS, timeout)."""
 
 
@@ -26,7 +26,7 @@ class FieldError:
         return f"{self.pointer or '/'}: {self.message}" + (f" [{self.rule}]" if self.rule else "")
 
 
-class ApiError(VrxError):
+class ApiError(NgfwError):
     """A problem+json answer. `errors` carries the pointers; `problem` the whole (server-redacted) document."""
 
     def __init__(self, status: int, problem: dict[str, Any] | None, method: str, url_path: str):
@@ -101,17 +101,17 @@ class Unavailable(ApiError):
         return s if isinstance(s, dict) else None
 
 
-class NotInSync(VrxError):
+class NotInSync(NgfwError):
     """/state/system says running and the data plane do not agree (`unknown`/`degraded`) or a confirmed commit is
     pending — nothing was edited. Wait for the API's reconcile, or pass allow_unsynced=True."""
 
 
-class ConcurrentEdit(VrxError):
+class ConcurrentEdit(NgfwError):
     """The candidate (per USER, D-093) holds changes this session did not make — another run of the same user is
     editing. Nothing was committed and the candidate was left untouched. Use one service user per pipeline."""
 
 
-class NotEnforced(VrxError):
+class NotEnforced(NgfwError):
     """The commit was stored but the agent does not (fully) enforce it (`partially-applied`/`not-applied`,
     `notApplied` names the domains). Raised with require_enforced=True; `result` is the commit answer."""
 
@@ -124,7 +124,7 @@ class NotEnforcedWarning(UserWarning):
     """Warning variant of NotEnforced (the default)."""
 
 
-class ConfirmError(VrxError):
+class ConfirmError(NgfwError):
     """A confirmed commit could not be confirmed; the agent reverts it at the deadline."""
 
     def __init__(self, message: str, commit: dict[str, Any] | None = None):

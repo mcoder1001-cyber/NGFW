@@ -6,10 +6,10 @@ from dataclasses import dataclass
 from typing import Any, Callable
 from urllib.parse import parse_qsl, urlsplit
 
-from vrx.transport import HttpResponse
+from ngfw.transport import HttpResponse
 
 # a stand-in credential: the literal marker the repository's secret scanner allows in fixtures
-FAKE_KEY = "VRX_TEST_PSK_sdk"
+FAKE_KEY = "NGFW_TEST_PSK_sdk"
 
 
 @dataclass

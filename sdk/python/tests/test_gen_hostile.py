@@ -20,7 +20,7 @@ def run_gen(tmp: Path, doc: dict) -> subprocess.CompletedProcess[str]:
 def hostile(marker: Path, **over: object) -> dict:
     payload = f"__import__('pathlib').Path({str(marker)!r}).touch()"
     doc = {
-        "info": {"title": f"VRX\n{payload}\n#", "version": "1\\"},
+        "info": {"title": f"NGFW\n{payload}\n#", "version": "1\\"},
         "components": {"schemas": {"RootConfig": {"type": "object", "properties": {
             "x": {"type": "string", "description": f'"""\n{payload}\n"""', "writeOnly": True}}}}},
         "paths": {f'/x"""+str({payload})+"""\\': {"get": {

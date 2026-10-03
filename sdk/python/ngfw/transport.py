@@ -33,7 +33,7 @@ class UrllibTransport:
         if verify:
             self._ctx = ssl.create_default_context(cafile=ca_file)
         else:
-            warnings.warn("vrx: TLS certificate verification is DISABLED (verify=False)", stacklevel=3)
+            warnings.warn("ngfw: TLS certificate verification is DISABLED (verify=False)", stacklevel=3)
             self._ctx = ssl.create_default_context()
             self._ctx.check_hostname = False
             self._ctx.verify_mode = ssl.CERT_NONE

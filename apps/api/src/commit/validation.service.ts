@@ -65,7 +65,12 @@ export class ValidationService {
 
   /** The agent's DesiredState for a parsed document: protobuf JSON projection without secret leaves (D-040). */
   static desiredState(config: Doc): DesiredState {
-    return DesiredState.fromJSON(redact(config));
+    const doc = redact(config);
+    const management = doc['management'];
+    if (management && typeof management === 'object' && !Array.isArray(management)) {
+      delete (management as Record<string, unknown>)['notifications'];
+    }
+    return DesiredState.fromJSON(doc);
   }
 
   /** Subsystems the agent implements (Health) and the top-level keys it does not. */

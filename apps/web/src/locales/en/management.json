@@ -6,7 +6,8 @@
     "users": "Users",
     "aaa": "AAA",
     "tls": "API TLS",
-    "syslog": "Remote syslog"
+    "syslog": "Remote syslog",
+    "notifications": "Notifications"
   },
   "aaa": {
     "notAvailable": "RADIUS and TACACS+ login are not built yet (F-aaa). Only local users can log in today."
@@ -43,6 +44,125 @@
       "minVersion": {
         "title": "Minimum TLS version"
       }
+    },
+    "notifications": {
+      "channels": {
+        "name": {
+          "title": "name"
+        },
+        "enabled": {
+          "title": "enabled"
+        },
+        "type": {
+          "title": "type",
+          "enum": {
+            "email": "Email",
+            "webhook": "Webhook"
+          }
+        },
+        "title": "channels",
+        "email": {
+          "smtpHost": {
+            "title": "smtpHost"
+          },
+          "port": {
+            "title": "port"
+          },
+          "tls": {
+            "title": "tls",
+            "enum": {
+              "starttls": "STARTTLS",
+              "tls": "TLS"
+            }
+          },
+          "username": {
+            "title": "username"
+          },
+          "passwordRef": {
+            "title": "passwordRef"
+          },
+          "from": {
+            "title": "from"
+          },
+          "to": {
+            "title": "to"
+          },
+          "title": "email"
+        },
+        "webhook": {
+          "url": {
+            "title": "url"
+          },
+          "secretRef": {
+            "title": "secretRef"
+          },
+          "title": "webhook"
+        },
+        "vrf": {
+          "title": "VRF",
+          "help": "Only default routing is supported."
+        }
+      },
+      "rules": {
+        "name": {
+          "title": "name"
+        },
+        "enabled": {
+          "title": "enabled"
+        },
+        "events": {
+          "title": "events",
+          "enum": {
+            "alarm": "Alarm",
+            "commit": "Commit",
+            "link": "Link state",
+            "vpn": "VPN state",
+            "global-blocking": "Block-list fetch failure"
+          }
+        },
+        "minSeverity": {
+          "title": "minSeverity",
+          "enum": {
+            "info": "Info",
+            "warning": "Warning",
+            "critical": "Critical"
+          }
+        },
+        "channels": {
+          "title": "channels"
+        },
+        "throttleSec": {
+          "title": "throttleSec"
+        },
+        "title": "rules"
+      }
     }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Configure SMTP email and signed HTTPS webhooks. Changes are staged; commit to activate.",
+    "deliveryTitle": "Delivery history",
+    "degraded": "Dispatcher unavailable",
+    "queue": "Queued: {{count}}",
+    "runningOnly": "Tests use enabled channels in the running configuration. Commit new channels before testing.",
+    "test": "Send test: {{name}}",
+    "testLabel": "Test",
+    "testQueued": "Test queued. Check delivery history for the actual result.",
+    "result": {
+      "sent": "Sent",
+      "failed": "Failed",
+      "discarded": "Discarded"
+    },
+    "columns": {
+      "channel": "Channel",
+      "rule": "Rule",
+      "at": "Time",
+      "result": "Result",
+      "error": "Error"
+    },
+    "empty": "No deliveries yet.",
+    "loadingCandidate": "Loading notification candidate configuration",
+    "loadingRunning": "Loading active notification channels",
+    "loadingState": "Loading notification delivery history"
   }
 }

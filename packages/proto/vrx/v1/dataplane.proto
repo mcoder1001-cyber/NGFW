@@ -2729,7 +2729,52 @@ message ManagementConfig {
   ManagementPrometheus prometheus = 5;
   // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
   ManagementAlarms alarms = 6;
+  // API-owned email/webhook configuration, mirrored for schema drift validation.
+  ManagementNotifications notifications = 7;
   // wave-BC: F-backup-restore
+}
+
+// ManagementNotifications mirrors management.notifications; the API dispatches deliveries.
+message ManagementNotifications {
+  repeated NotificationChannel channels = 1;
+  repeated NotificationRule rules = 2;
+}
+
+// NotificationChannel mirrors a named email or webhook channel; secret values are never carried.
+message NotificationChannel {
+  optional string name = 1;
+  optional bool enabled = 2;
+  optional string vrf = 3;
+  optional string type = 4;
+  NotificationEmail email = 5;
+  NotificationWebhook webhook = 6;
+}
+
+// NotificationEmail mirrors SMTP settings and encrypted secret references.
+message NotificationEmail {
+  optional string smtp_host = 1;
+  optional uint32 port = 2;
+  optional string tls = 3;
+  optional string username = 4;
+  optional string password_ref = 5;
+  optional string from = 6;
+  repeated string to = 7;
+}
+
+// NotificationWebhook mirrors signed HTTPS webhook settings.
+message NotificationWebhook {
+  optional string url = 1;
+  optional string secret_ref = 2;
+}
+
+// NotificationRule mirrors routing, minimum severity and per-rule throttle.
+message NotificationRule {
+  optional string name = 1;
+  optional bool enabled = 2;
+  repeated string events = 3;
+  optional string min_severity = 4;
+  repeated string channels = 5;
+  optional uint32 throttle_sec = 6;
 }
 
 // ----- security (F-bruteforce-block, mirrors packages/schema/src/domains/security.ts) -----

@@ -13,8 +13,8 @@ RUN_BASE="${NGFW_RUN_DIR:-/run/ngfw-test}"
 die() { echo "pg-test: $*" >&2; exit 1; }
 valid() { [[ "${1:-}" =~ ^[a-z][a-z0-9_]{0,15}$ ]] || die "name '${1:-}' must match ^[a-z][a-z0-9_]{0,15}\$ (e.g. w3)"; }
 # admin access = peer auth as the postgres OS user (root → runuser). Non-root callers need their own superuser role.
-if [[ $EUID -eq 0 ]]; then adm() { (cd / && runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -qAt "$@"); }
-else adm() { psql -X -v ON_ERROR_STOP=1 -qAt "$@"; }; fi
+if [[ $EUID -eq 0 ]]; then adm() { (cd / && runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -qAt); }
+else adm() { psql -X -v ON_ERROR_STOP=1 -qAt; }; fi
 # SQL goes to psql on stdin, never in argv: a password in `-c` is visible in ps/proc to every local user (review 5.7c)
 sql() { adm <<<"$1"; }
 

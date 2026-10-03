@@ -29,6 +29,8 @@ class HandoffTests(unittest.TestCase):
         self.env = os.environ.copy()
         self.env.pop('NGFW_HEAVY_HELD', None)
         self.env.pop('NGFW_INTEGRATION', None)
+        self.env.pop('VRX_HEAVY_HELD', None)
+        self.env.pop('VRX_INTEGRATION', None)
         self.env['NGFW_TEST_LOCK_DIR'] = str(self.locks)
         self.env['NGFW_FAST_TIMEOUT_SECONDS'] = '30'
 
@@ -102,6 +104,23 @@ class HandoffTests(unittest.TestCase):
         direct = subprocess.run([str(TOOLS / 'test-fast.sh'), 'true'], env=self.env,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(direct.returncode, 2)
+
+    def test_legacy_inherited_flags_cannot_enable_host_tests_or_bypass_locks(self):
+        flags = ('NGFW_INTEGRATION', 'VRX_INTEGRATION',
+                 'NGFW_HEAVY_HELD', 'VRX_HEAVY_HELD')
+        for flag in flags:
+            with self.subTest(flag=flag):
+                env = dict(self.env, **{flag: '1'})
+                direct = subprocess.run([str(TOOLS / 'test-fast.sh'), 'true'], env=env,
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                self.assertEqual(direct.returncode, 2)
+        self.env.update({flag: '1' for flag in flags})
+        blocked = ('NGFW_INTEGRATION', 'VRX_INTEGRATION', 'VRX_HEAVY_HELD')
+        command = ('import os; flags=' + repr(blocked) +
+                   '; assert not any(flag in os.environ for flag in flags); '
+                   'assert os.environ.get("NGFW_HEAVY_HELD") == "3"')
+        result = self.worker([sys.executable, '-c', command])
+        self.assertEqual(result['state'], 'passed')
 
     def cleanup_mutator(self, mutation, **worker_options):
         # The child signals readiness before the successful parent exits. It

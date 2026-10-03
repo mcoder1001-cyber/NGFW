@@ -27,3 +27,27 @@ review/full unchanged CI gate. New real binary/ISO builds and migration/install
 acceptance NOT RUN. No host install, restart or privilege changes performed.
 Next: consume coordinated product tree in separate integration worktree and
 rerun failed packaging test without weakening it. Publish checkpoints via root.
+
+Follow-up validation:
+- Bundle discover suite: 52 tests in 270.974s, OK (including helpers).
+- Separate integration worktree consumed exact contract 1b27363f690c2baab005f34c91bdc92b68f0e8ec
+  and Go fdeaf461865d56668575f188d8f711eceabffa2d on rename checkpoint b4f1f4d8.
+  Integration HEAD 91ef91f9fe9e3f436b00166beb649b004a6032f1,
+  tree ca3b812ccb9e01427384bd2c60664cf17a995720. Only unique incoming WIP
+  modify/delete conflict retained; no product conflict. The previously failing
+  Packaging.test_units_preserve_privilege_boundary: 1 test, 0.001s, OK.
+- Standalone tools/ci.sh check --base 0d174caf fails closed on old Go fixture
+  placeholders; integrated consumer tree is required. No gate waiver claimed.
+- Unfiltered shellcheck diagnostic codes for ci/lab/app are identical to
+  prerequisite d72ce01e (17 informational/style items).
+- Full 38-script warning/error shellcheck found pre-existing firstboot SC1087
+  and pg-test SC2120; fixed braces in regex expansion and unused internal
+  helper argument forwarding. No operational behavior changed.
+- Firstboot suite after braces fix: 6 tests in 18.359s, OK.
+- Legacy inherited integration/nested-worker controls are stripped by handoff
+  and rejected by direct fast lane; current and historical flags covered by
+  meaningful subprocess regression. Targeted 2 tests in 1.161s, OK.
+- tools/README.md documents semaphore namespace switch requires quiescent old
+  workers; source edits migrate no host locks or running processes.
+- All VPP VERSION non-comment values equal prerequisite checkpoint; dependency
+  pydeps.lock bytes equal. Python syntax 35 files PASS; license Node syntax PASS.

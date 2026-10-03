@@ -7,3 +7,14 @@ Ports/host: `NGFW_APP_HOST`, `NGFW_APP_WEB_PORT`, `NGFW_APP_API_HOST`, `NGFW_APP
 `tools/app reset-admin [<user>]` asks for a new password and sets it directly in the database (ends the user's sessions, clears lockouts, creates the admin if missing). `tools/app reset-db [--yes] [--no-start] [--no-agent]` drops the whole `ngfw_app` database and the `ngfw:app:*` Valkey keys, generates a new first-admin password and starts the stack again (tables are recreated by the API's migrations at boot; the new password is printed).
 
 `tools/slot-check.py` proves the shared-host slot scheme (slots 1–11 and 14–32 developers, 12 CI; D-156) has no port, id-range or database collision and that `tools/lab env` matches it; `tools/ci.sh check` and `quick` run it.
+
+### Renamed scheduling boundary
+
+NGFW tools use `/run/lock/ngfw-heavy-*` and `NGFW_*` controls. Finish all workers
+using the older lock namespace before switching the scheduler; old and new
+semaphores do not coordinate concurrent workers. This source change does not
+migrate host locks or change running processes. The fast lane rejects inherited
+legacy integration/nested-worker flags and handoff removes them before launching
+a job, so an older checkout cannot accidentally enable laboratory execution or
+bypass its semaphore from a renamed scheduler. These legacy flags are safety
+refusals/sanitization only, not supported configuration aliases.

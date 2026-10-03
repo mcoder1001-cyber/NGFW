@@ -52,7 +52,7 @@ if any(line.split('=', 1)[0] not in allowed for line in lines):
 PYENV
 [[ -z ${NGFW_JWT_KEY_FILE:-} ]] || { echo 'bootstrap JWT key-file override is unsupported' >&2; exit 1; }
 for VARIABLE in NGFW_DATABASE_URL NGFW_SECRET_KEY_FILE; do
-  COUNT=$(grep -Ec "^[[:space:]]*$VARIABLE[[:space:]]*=" /etc/ngfw/api.env || true)
+  COUNT=$(grep -Ec "^[[:space:]]*${VARIABLE}[[:space:]]*=" /etc/ngfw/api.env || true)
   [[ $COUNT == 1 ]] || { echo 'invalid persisted API environment assignment count' >&2; exit 1; }
 done
 grep -Fxq 'NGFW_DATABASE_URL=postgresql:///ngfw?host=/var/run/postgresql&user=ngfw' /etc/ngfw/api.env || { echo 'API database configuration requires manual review' >&2; exit 1; }

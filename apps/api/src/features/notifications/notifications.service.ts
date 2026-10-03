@@ -69,6 +69,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
   private retryTimer: NodeJS.Timeout | undefined;
   private active: AbortController | undefined;
   private runtimeError: string | null = null;
+  private deliveryTimedOut = false;
   private pendingCommit: { severity: Severity; transition: string } | null = null;
   private readonly offPublish: () => void;
   private readonly offAgent: () => void;
@@ -168,7 +169,9 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     return {
       queued: this.queue.length,
       busy: this.workerBusy,
-      error: this.reloadBusy ? 'configuration-loading' : this.runtimeError,
+      error: this.reloadBusy
+        ? 'configuration-loading'
+        : (this.runtimeError ?? (this.deliveryTimedOut ? 'delivery-timeout' : null)),
       configuredChannels: this.config.channels.length,
       deliveries: [...this.history].reverse(),
     };
@@ -232,7 +235,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
       );
   }
   emit(kind: Kind, severity: Severity, source: string, transition: string): void {
-    if (this.stopped || this.runtimeError || this.reloadBusy) return;
+    if (this.stopped || this.runtimeError || this.deliveryTimedOut || this.reloadBusy) return;
     const at = this.now();
     const notice: Notice = {
       kind,
@@ -263,7 +266,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     this.wake();
   }
   test(name: string): { queued: true } {
-    if (this.runtimeError || this.reloadBusy)
+    if (this.runtimeError || this.deliveryTimedOut || this.reloadBusy)
       throw problems.unavailable('notification configuration unavailable');
     if (!this.channel(name))
       throw problems.notFound('enabled running notification channel not found');
@@ -306,7 +309,14 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     );
   }
   private wake(): void {
-    if (this.workerBusy || this.stopped || this.runtimeError || this.reloadBusy) return;
+    if (
+      this.workerBusy ||
+      this.stopped ||
+      this.runtimeError ||
+      this.deliveryTimedOut ||
+      this.reloadBusy
+    )
+      return;
     clearTimeout(this.timer);
     const next = this.queue.reduce((n, j) => Math.min(n, j.due), Infinity);
     if (!Number.isFinite(next)) return;
@@ -314,7 +324,14 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     this.timer.unref();
   }
   async run(): Promise<void> {
-    if (this.workerBusy || this.stopped || this.runtimeError || this.reloadBusy) return;
+    if (
+      this.workerBusy ||
+      this.stopped ||
+      this.runtimeError ||
+      this.deliveryTimedOut ||
+      this.reloadBusy
+    )
+      return;
     const index = this.queue.findIndex((j) => j.due <= this.now());
     if (index < 0) {
       this.wake();
@@ -331,7 +348,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     this.active = controller;
     const timer = setTimeout(() => {
       controller.abort();
-      this.runtimeError = 'delivery-timeout';
+      this.deliveryTimedOut = true;
     }, 10000);
     timer.unref();
     try {
@@ -371,7 +388,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
       clearTimeout(timer);
       this.active = undefined;
       this.workerBusy = false;
-      if (this.runtimeError === 'delivery-timeout') this.runtimeError = null;
+      this.deliveryTimedOut = false;
       this.wake();
     }
   }

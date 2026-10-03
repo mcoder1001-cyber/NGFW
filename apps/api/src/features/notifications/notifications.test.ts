@@ -168,6 +168,69 @@ describe('notification dispatcher', () => {
     expect(s.state().queued).toBe(0);
     expect(s.deliver).toHaveBeenCalledTimes(1);
   });
+  it.each(['resolve', 'reject'] as const)(
+    'preserves failed reload health after timed-out delivery settles with %s',
+    async (settlement) => {
+      vi.useFakeTimers();
+      const read = vi.fn().mockRejectedValue(new Error('database unavailable'));
+      const { s } = service({ getRunning: read });
+      let finish!: () => void;
+      let fail!: (error: Error) => void;
+      s.deliver = vi.fn(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            finish = resolve;
+            fail = reject;
+          }),
+      );
+      s.emit('alarm', 'warning', 'cpu', 'raised');
+      s.test('sink'); // Keep a second job ready throughout the failed reload.
+      const sending = s.run();
+      await s.reload();
+      expect(vi.mocked(s.deliver).mock.calls[0]![3].aborted).toBe(true);
+      expect(s.state().error).toBe('configuration-unavailable');
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(s.state().error).toBe('configuration-unavailable');
+      if (settlement === 'resolve') finish();
+      else fail(new DeliveryError('delivery-timeout'));
+      await sending;
+      expect(s.state().error).toBe('configuration-unavailable');
+      expect(() => s.test('sink')).toThrow('notification configuration unavailable');
+      s.emit('link', 'warning', 'eth0', 'down');
+      await s.run();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(s.deliver).toHaveBeenCalledTimes(1);
+      expect(s.state().queued).toBeGreaterThan(0);
+      // Only a successful configuration reload may release the queued jobs.
+      read.mockResolvedValue({ doc: { management: { notifications: config() } } });
+      s.deliver = vi.fn(async () => undefined);
+      await s.reload();
+      expect(s.state().error).toBeNull();
+      await vi.advanceTimersByTimeAsync(1100);
+      expect(s.deliver).toHaveBeenCalled();
+      expect(s.state().queued).toBe(0);
+    },
+  );
+  it('clears an isolated delivery timeout after settlement without requiring configuration reload', async () => {
+    vi.useFakeTimers();
+    const { s } = service();
+    let finish!: () => void;
+    s.deliver = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    s.emit('alarm', 'warning', 'cpu', 'raised');
+    const sending = s.run();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(s.state().error).toBe('delivery-timeout');
+    expect(() => s.test('sink')).toThrow('notification configuration unavailable');
+    finish();
+    await sending;
+    expect(s.state().error).toBeNull();
+    expect(s.test('sink')).toEqual({ queued: true });
+  });
   it('preserves config while excluding API-owned notifications from agent desired state', () => {
     const doc = {
       management: {

@@ -48,10 +48,10 @@ func needHostTools(t *testing.T) {
 
 func TestHostServicesApplyRetrieveRollback(t *testing.T) {
 	needHostTools(t)
-	base := t.TempDir()
-	t.Setenv(subsystems.EnvHostServicesDir, base)
+	stateDir := t.TempDir()
+	base := hostDirOf(t, stateDir) // newSvc selects this same private host-service directory.
 	ctx := context.Background()
-	s := newSvc(t, coretest.New(), t.TempDir())
+	s := newSvc(t, coretest.New(), stateDir)
 	g := &server{svc: s}
 
 	resp := apply(t, s, &vrxv1.ApplyRequest{TxnId: "h1", DesiredState: doc(t, hostServicesDoc)})

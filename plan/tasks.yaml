@@ -1104,7 +1104,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 16
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D4.4
@@ -1116,12 +1116,14 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-10-03'
   notes: 'prompts-s4: suggested deps +F-nat44-ed-sessions (NAT page tab hook); consider splitting CNAT+PNAT into its own task — docs/status/tasks/prompts-s4.md | cloud 2026-09-27: agent layer merged (review
     BLOCK→fixed: nat46- name guard in map builder, lw4o6 needs rules). Follow-ups: contract nat.pnat + Det44Sessions/Det44Lookup/CnatSessions RPCs + ActionRequest 9/10, PNAT projection, rpc_det44/rpc_cnat
     actions, API + e2e, UI tabs en/fa, test/topology; host: DET44 enable + globals windows, packet paths, vppctl show, NRestarts; Q3 schema-vs-VPP defaults, Q4 derived cnat interface feature | cloud 2026-09-27
     part B merged (contract nat.pnat=27, RPCs, PNAT wired, rpc_det44/rpc_cnat, API 5 routes, UI 4 tabs en/fa; review fixes: PNAT names/order recovered by BindingID, CNAT sessions owner-scoped). Remaining
-    = host evidence only (packet paths, vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology)'
+    = host evidence only (packet paths, vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology) | 2026-10-03 reconciliation: Reviewed scoped source integrated; packet/readback/restart acceptance
+    deferred.'
+  worker_status: source-complete; acceptance deferred
 - id: F-nat46
   title: 'Wave B (day 10-12): NAT46 — IPv4 clients to IPv6-only servers (stateless SIIT / stateful NAT46)'
   prompt: prompts/features/F-nat46.md
@@ -1135,7 +1137,7 @@ tasks:
   - F-vrf-static-ecmp
   priority: 4
   est_hours: 16
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D4.5
@@ -1145,12 +1147,14 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
+  finished: '2026-10-03'
   notes: 'cloud 2026-09-27: library+spike merged (review APPROVE, D-157 reviewer). VPP 26.06 has no NAT46 plugin: stateless 1:1 via MAP-T /32↔/128 domains; stateful NAT46 out of scope (Q1 needs a D-entry).
     NOT wired: schema/proto nat.nat46, desired builder, API, UI, docs are a follow-up row (Q2); collision guard nat46- prefix vs nat.map must be enforced in wiring (Q3); host evidence owed (TestNat46OnHost)
     | UPDATE 2026-10-01 (re-recorded; the 2026-09-27 part-B note was lost in a main merge): part B merged 1252727b/3d5fd946 — wired end to end: schema nat.nat46, proto NatConfig 28, agent builder (shared
     MAP-T interface ownership from stored desired state, nat46- name guard both ways, /32 overlap vs nat.map), API state routes, UI tab, docs; D-160 stateful NAT46 out of scope. Remaining = host evidence
-    only: TestNat46OnHost (does VPP 26.06 accept /32<->/128 MAP-T ea_bits 0), packet test, vppctl show map domain, API e2e on PostgreSQL, screenshot'
+    only: TestNat46OnHost (does VPP 26.06 accept /32<->/128 MAP-T ea_bits 0), packet test, vppctl show map domain, API e2e on PostgreSQL, screenshot | 2026-10-03 reconciliation: Reviewed stateless source
+    integrated; host acceptance deferred. Stateful NAT46 outside this increment.'
+  worker_status: source-complete; acceptance deferred
 - id: F-system-identity
   title: 'Wave B: system identity — hostname, timezone, login/MOTD banners, DNS client + System screen'
   prompt: prompts/features/F-system-identity.md
@@ -1175,7 +1179,8 @@ tasks:
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 board correction: code merged in PR #70 (30fccd767e1e25a247659dc24808a2587d69c5e5); appliance/browser/restart acceptance NOT RUN and owner-deferred.'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 board correction: code merged in PR #70 (30fccd767e1e25a247659dc24808a2587d69c5e5);
+    appliance/browser/restart acceptance NOT RUN and owner-deferred.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -1202,6 +1207,7 @@ tasks:
   notes: 'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen and a read-only preview
     route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it. Removes the "soon" chip from the Dataplane nav
     entry. | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-management-ui
   title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
   prompt: prompts/features/F-management-ui.md
@@ -1229,6 +1235,7 @@ tasks:
   notes: 'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies `management.tls` (grep
     apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry. | Integrated partial scope, remaining code in review-lab-audit.md;
     lab alone no merge blocker.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: WEB-dashboard
   title: 'Dashboard: status banner, device CPU/memory/storage gauges and history, throughput, traffic chart, packet engine (hugepages, threads), interface donut, busiest interfaces, events'
   prompt: ''
@@ -1286,6 +1293,7 @@ tasks:
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
     since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
     any VPP write) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -1364,6 +1372,7 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining code in review-lab-audit.md; lab alone
     no merge blocker.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-pki
   title: 'Wave B (day 10-12): CA, CSR, import/export, CRL/OCSP, expiry alerts'
   prompt: prompts/features/F-pki.md
@@ -1375,7 +1384,7 @@ tasks:
   - W-seed-BC
   priority: 4
   est_hours: 10
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D6.4
@@ -1387,7 +1396,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: ''
+  notes: ' | 2026-10-03 reconciliation: Partial API/crypto/inventory UI/RPC/expiry source merged via PR116/123/124. Agent materializer and mutation UI remain source work.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: P12
   title: 'Wave B (day 10-12): FRR + linux-cp framework, BGP'
   prompt: prompts/P12-frr-linuxcp.md
@@ -1448,7 +1458,9 @@ tasks:
   owner: cloud session modest-keller
   started: '2026-09-27'
   finished: ''
-  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+  notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03: PR127 bounded neighbor API merged; OSPFv3/authentication/EventKind20/live-neighbor
+    UI remain source work.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-isis-rip
   title: 'Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR'
   prompt: prompts/features/F-isis-rip.md
@@ -1473,6 +1485,7 @@ tasks:
   started: '2026-09-27'
   finished: ''
   notes: ' | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-bfd-redistribution
   title: 'Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX'
   prompt: prompts/features/F-bfd-redistribution.md
@@ -1904,6 +1917,7 @@ tasks:
   finished: ''
   notes: 'prompts-s4: suggested deps +P12 (keepalived path needs linux-cp pairs); consider splitting config sync + cluster UI (D9.2/D9.5) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining
     code in review-lab-audit.md; lab alone no merge blocker.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: P13
   title: CLI basic
   prompt: prompts/P13-cli-basic.md
@@ -2086,6 +2100,7 @@ tasks:
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
     security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
     DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114)'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md
@@ -2096,7 +2111,7 @@ tasks:
   - W-seed-BC
   priority: 5
   est_hours: 10
-  state: todo
+  state: merged
   parked_on: ''
   wbs:
   - D0.3
@@ -2106,8 +2121,9 @@ tasks:
   worktree: ''
   owner: ''
   started: ''
-  finished: ''
-  notes: ''
+  finished: '2026-10-03'
+  notes: ' | 2026-10-03 reconciliation: Reviewed offline installer source merged via PR112/117/122/125. Signed image closure, real ISO build and VM installation acceptance NOTRUN/deferred.'
+  worker_status: source-complete; acceptance deferred
 - id: F-ab-upgrade
   title: A/B image upgrade with rollback
   prompt: prompts/features/F-ab-upgrade.md
@@ -3170,7 +3186,7 @@ tasks:
   - P10
   priority: 1
   est_hours: 3.5
-  state: todo
+  state: running
   parked_on: ''
   wbs:
   - D0.4
@@ -3184,7 +3200,9 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: 'D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision vrx-b|vrx-c --apply`'
+  notes: 'D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision vrx-b|vrx-c --apply` | 2026-10-03 reconciliation: Partial pinned
+    installer/provisioning source integrated. Authoritative FRR fourth signer and Node key-source pins remain source gaps. Real installation/boot NOTRUN.'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: SEC-auth
   title: Auth security review, moved forward from SECURITY-REVIEW (read-only, 3 lenses + adversarial verify)
   prompt: ''
@@ -3265,7 +3283,8 @@ tasks:
   owner: ''
   started: ''
   finished: ''
-  notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
+  notes: 'D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate) | 2026-10-03: fixture foundation only; composed execution/rollback/lifecycle/capture/correlation/packet
+    proof remain source work, not merely lab acceptance.'
 - id: TEST-traffic-B
   title: Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns
   prompt: ''
@@ -3610,13 +3629,13 @@ tasks:
   finished: '2026-09-27'
   notes: promoted from the threat-feed/blocklist backlog idea by the product owner (2026-09-26) | product owner asked for URL download + per-interface selection (est 14 → 20)
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-lb-host
@@ -3675,7 +3694,7 @@ tasks:
   finished: '2026-09-27'
   notes: promoted from backlog BL-NET-03 by the product owner (2026-09-26)
 - id: F-notifications
-  title: 'Notifications: email (SMTP), Telegram and webhook for alarms, commits and link/VPN state'
+  title: 'Notifications: SMTP email and webhook for alarms, commits and link/VPN state'
   prompt: prompts/features/F-notifications.md
   template: prompts/FEATURE-TEMPLATE.md
   stage: S4
@@ -3684,7 +3703,7 @@ tasks:
   - F-management-ui
   priority: 3
   est_hours: 10
-  state: running
+  state: merged
   parked_on: ''
   wbs: []
   scope: see prompt
@@ -3693,17 +3712,19 @@ tasks:
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-notifications
   owner: notifications_build
   started: '2026-10-01T20:33:27.076593+00:00'
-  finished: ''
+  finished: '2026-10-03'
   notes: 'promoted from backlog BL-OPS-06 by the product owner (2026-09-26) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
-    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build'
+    used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned notifications_build | 2026-10-03 reconciliation: Reviewed SMTP/webhook source merged via PR114/121; Telegram removed.
+    Live delivery/browser/restart acceptance deferred, not PASS.'
+  worker_status: source-complete; acceptance deferred
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-srv6-host
@@ -3717,13 +3738,13 @@ tasks:
   files_owned: docs/status/tasks/F-srv6-host*
   notes: steps of F-srv6.md Pending host steps; NRestarts before/after
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-mpls-srmpls-host
@@ -3761,6 +3782,7 @@ tasks:
   finished: ''
   notes: 'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies
     used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned setup_build'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-rule-expiry
   title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
   prompt: prompts/features/F-rule-expiry.md
@@ -3846,13 +3868,13 @@ tasks:
   files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
   notes: ''
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-rule-expiry-host
@@ -3866,13 +3888,13 @@ tasks:
   files_owned: docs/status/tasks/F-rule-expiry-host*
   notes: topology test on a slot; NRestarts before/after
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-global-blocking-host
@@ -3887,13 +3909,13 @@ tasks:
   files_owned: docs/status/tasks/F-global-blocking*
   notes: follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here
 - template: ''
-  parked_on: ''
+  parked_on: lab topology/host acceptance prerequisite; NOTRUN
   branch: ''
   worktree: ''
   owner: ''
   started: ''
   finished: ''
-  state: ready
+  state: parked
   wbs: []
   prompt: ''
   id: F-pppoe-client-host
@@ -3930,7 +3952,8 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03 board correction: code integrated in PR #62 (c76774e8d2e04abee8ea7a301e64acbb3f794373); PR #58 closed unmerged and superseded; live VPP/browser/restart acceptance NOT RUN and owner-deferred.'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03
+    board correction: code integrated in PR #62 (c76774e8d2e04abee8ea7a301e64acbb3f794373); PR #58 closed unmerged and superseded; live VPP/browser/restart acceptance NOT RUN and owner-deferred.'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex
@@ -3953,6 +3976,7 @@ tasks:
   files_owned: docs/status/tasks/F-multiwan*
   notes: 'follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance
     remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish'
+  worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
 - id: F-aaa-login
   title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
   stage: S4

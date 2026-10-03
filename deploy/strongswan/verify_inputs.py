@@ -102,6 +102,8 @@ def _release_members(raw, prefix, required):
 
 
 def verify(vpp_output, source, version, digest):
+    if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+        raise InvalidInputs('separately trusted source SHA-256 is required')
     # Keep the historical tested version; this is intake, never release approval.
     if version != '5.9.6':
         raise InvalidInputs('this intake profile requires historical strongSwan 5.9.6')

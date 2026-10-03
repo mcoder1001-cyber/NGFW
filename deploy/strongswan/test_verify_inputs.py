@@ -89,6 +89,12 @@ class IntakeTests(unittest.TestCase):
     def test_hash_version_and_metadata_mismatch(self):
         with self.assertRaises(INPUT.InvalidInputs): self.verify('0' * 64)
         with self.assertRaises(INPUT.InvalidInputs): self.verify('bad')
+        for missing in (None, '', 123):
+            with self.assertRaises(INPUT.InvalidInputs):
+                INPUT.verify(self.vpp, self.source, '5.9.6', missing)
+        with contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(INPUT.main(['--vpp-output', str(self.vpp), '--source', str(self.source),
+                '--source-version', '5.9.6', '--source-sha256', '']), 1)
         with self.assertRaises(INPUT.InvalidInputs): self.verify(version='6.0.0')
         for key, value in (('sha256', '0' * 64), ('version', '26.06-release'), ('architecture', 'arm64')):
             original = self.entries[0][key]

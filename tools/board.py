@@ -54,7 +54,7 @@ for s in stages:
     ts = [t for t in tasks if t["stage"] == s]
     th = sum(t["est_hours"] for t in ts); dh = sum(t["est_hours"] for t in ts if t["state"] == "merged")
     lines.append(f"| {s} | {dh} / {th} | {pct(dh, th)} | {sum(1 for t in ts if t['state']=='merged')}/{len(ts)} | {sum(1 for t in ts if t['state']=='running')} | {sum(1 for t in ts if t['state']=='ready')} | {sum(1 for t in ts if t['state']=='parked')} |")
-lines += ["", "## Running / review", ""] + [f"- {t['id']} — {t['title']} ({t['state']}, {t.get('owner') or 'unassigned'})" for t in tasks if t["state"] in ("running","review")] or ["- none"]
+lines += ["", "Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.", "", "## Remaining implementation / review", ""] + [f"- {t['id']} — {t['title']} ({t['state']}, {t.get('owner') or 'unassigned'}; {t.get('worker_status') or 'worker activity unverified'})" for t in tasks if t["state"] in ("running","review")] or ["- none"]
 lines += ["", "## Parked", ""] + ([f"- {t['id']} — parked_on: {t.get('parked_on')}" for t in tasks if t["state"] == "parked"] or ["- none"])
 prog = ROOT / "docs" / "status" / "PROGRESS.md"
 body = "\n".join(lines) + "\n"

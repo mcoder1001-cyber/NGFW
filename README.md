@@ -16,6 +16,10 @@ pnpm install && pnpm gen && pnpm lint && pnpm typecheck && pnpm test && pnpm bui
 cd apps/agent && make lint test build
 pnpm dev      # web :5173, api :3000
 ```
+The API development command compiles with TypeScript before starting Node's
+watch mode, then recompiles source changes. This preserves the decorator
+metadata required for Nest dependency injection; run it through `pnpm` rather
+than running `src/main.ts` directly with `tsx`.
 Dev host: `root@172.30.126.195:/root/ngfw` (also router ngfw-a). VPP is built from `/root/vpp`;
 VPP bring-up is owned by a separate agent — do not modify `/root/vpp`, `/etc/vpp` or the vpp service.
 

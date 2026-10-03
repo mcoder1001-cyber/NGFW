@@ -16,6 +16,8 @@ type MonitorConfig struct {
 
 // CheckResult is the outcome of one health check (a small batch of probes).
 type CheckResult struct {
+	// Unavailable is a local probe-policy limitation, not packet loss.
+	Unavailable    bool
 	Sent, Received int
 	// AvgLatencyMs over the received probes; 0 when none were received.
 	AvgLatencyMs int
@@ -23,7 +25,7 @@ type CheckResult struct {
 
 // Healthy reports whether one check passed the monitor's thresholds.
 func (c MonitorConfig) Healthy(r CheckResult) bool {
-	if r.Sent == 0 || r.Received == 0 {
+	if r.Unavailable || r.Sent == 0 || r.Received == 0 {
 		return false
 	}
 	loss := (r.Sent - r.Received) * 100 / r.Sent

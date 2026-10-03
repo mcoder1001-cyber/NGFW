@@ -23,6 +23,16 @@ class IntakeTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        # Keep production's fixed /var/tmp policy; sandbox fixtures use their owned root.
+        for name in ('TemporaryDirectory', 'TemporaryFile'):
+            original = getattr(tempfile, name)
+            def owned_temp(*args, _original=original, **kwargs):
+                if kwargs.get('dir') == '/var/tmp':
+                    kwargs['dir'] = self.root
+                return _original(*args, **kwargs)
+            redirect = patch.object(tempfile, name, owned_temp)
+            redirect.start()
+            self.addCleanup(redirect.stop)
         self.vpp = self.root / 'vpp'
         self.vpp.mkdir()
         self.source = self.root / 'source.tar.bz2'

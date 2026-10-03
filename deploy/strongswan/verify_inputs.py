@@ -2,6 +2,7 @@
 """Read-only P11 build intake; no download, extraction, compilation or installation."""
 import argparse
 import bz2
+import contextlib
 import hashlib
 import importlib.util
 import json
@@ -101,7 +102,9 @@ def _release_members(raw, prefix, required):
         raise InvalidInputs('release archive lacks pregenerated configure/parser')
 
 
-def verify(vpp_output, source, version, digest):
+@contextlib.contextmanager
+def verified_snapshot(vpp_output, source, version, digest):
+    """Yield the report and exact checked private paths, valid only within this scope."""
     if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
         raise InvalidInputs('separately trusted source SHA-256 is required')
     # Keep the historical tested version; this is intake, never release approval.
@@ -153,10 +156,16 @@ def verify(vpp_output, source, version, digest):
         tarball = private / 'source.tar.bz2'
         source_report = source_snapshot(source, tarball, digest, limit=MAX_SOURCE)
         release_contents(tarball, version)
-        return {'format': 1, 'mode': 'read-only-build-intake', 'vpp_version': manifest['version'],
+        report = {'format': 1, 'mode': 'read-only-build-intake', 'vpp_version': manifest['version'],
                 'staging_packages': selected, 'source': {'version': version,
                 'expected_origin': 'https://download.strongswan.org/strongswan-' + version + '.tar.bz2',
                 **source_report}, 'release_approved': False}
+        yield report, snapshot, tarball
+
+
+def verify(vpp_output, source, version, digest):
+    with verified_snapshot(vpp_output, source, version, digest) as (report, _, __):
+        return report
 
 
 def main(argv=None):

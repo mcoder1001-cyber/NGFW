@@ -56,3 +56,65 @@ a separate negative fixture runs the real gate and rejects those fake inputs.
 کنید. ابزار فقط ورودی‌ها را بررسی می‌کند؛ هیچ فایل سورسی استخراج یا اجرا نمی‌شود
 و هیچ بسته‌ای روی میزبان نصب نمی‌شود. خروجی موفق، تأیید انتشار یا امنیت محصول
 نیست. ساخت بستهٔ واقعی، رفع مشکلات پلاگین و آزمون سخت‌افزار هنوز انجام نشده است.
+
+## Materialised prerequisites (builder remains unfinished)
+
+`prepare_stage.py` consumes the same complete intake checks and their private
+snapshots, including the unchanged `--require-files --install-gate` VPP verifier
+with tests enabled. `verify()` remains read-only; its scoped `verified_snapshot()`
+API keeps the checked bytes alive until the consumer finishes. No original input
+path is reopened for extraction.
+
+```sh
+python3 deploy/strongswan/prepare_stage.py \
+  --vpp-output /owned/verified-product-vpp-output \
+  --source /owned/strongswan-5.9.6.tar.bz2 \
+  --source-version 5.9.6 \
+  --source-sha256 EXPECTED_SHA256_FROM_SEPARATELY_TRUSTED_CHANNEL \
+  --output /private-owned-parent/new-stage
+```
+
+The Python `prepare(vpp_output, source, version, digest, output)` API also requires
+64 lowercase hexadecimal digest characters before creating output or invoking
+intake. The caller must obtain that digest separately through a trusted channel;
+this tool cannot establish that trust for the caller.
+
+The parent must already exist, belong to the effective user, and prohibit group
+and other writes. The output must be new. Linux `renameat2(RENAME_NOREPLACE)`
+publishes the complete private tree atomically and refuses even an output created
+concurrently. Every parent component is opened without following symlinks; operations use a
+pinned directory descriptor. Destination identity is checked before and after
+publication, with rollback of the owned output on a changed parent. Destinations
+inside the VPP input tree or at the source path are rejected. Snapshots and
+partial trees are removed on errors; publication follows successful snapshot
+cleanup. Private directories are mode 0700 and files 0600 (0700 for source/archive
+files carrying executable bits). Archived owners, setuid bits and permissions
+are never restored. This protects against other users; processes running as the
+same user/root remain within the trusted host boundary.
+
+Output contains actual source bytes under `source/strongswan-5.9.6`, decoded
+headers and other development payloads under separate `vpp-dev/vpp-dev` and
+`vpp-dev/libvppinfra-dev` roots, and `intake.json`. Runtime archives are verified
+as part of the quartet but are not extracted. The separate roots avoid silently
+overwriting shared payload paths. `dpkg-deb --fsys-tarfile` only decodes archive
+data; no maintainer script, source script, configure, compiler or installer runs.
+
+Extraction rejects traversal, absolute paths, empty/dot components (except the
+standard Debian `./` prefix/root), duplicates, links, devices and other special
+files. It refuses file overwrite and file/directory collisions. Limits are
+128 MiB per file, 50,000 members per archive, 1 GiB decoded tar per archive and
+1 GiB aggregate decoded tar and regular-file payload across source and both dev
+packages. The existing stricter intake source bounds also apply. Decoder output
+is streamed to bounded temporary files with a 120-second deadline. Tar metadata
+is bounded before parsing. Conservative rejection can refuse upstream/package
+archives containing ordinary symlinks; support requires a separately reviewed
+change.
+
+Focused fixtures: `python3 deploy/strongswan/test_verify_inputs.py` and
+`python3 deploy/strongswan/test_prepare_stage.py`. They build real small Debian
+archives and bzip2 source archives; positive VPP provenance is explicitly stubbed.
+Negative fixtures call the real complete gate and reject synthetic builds.
+Materialisation is a useful prerequisite, **not** a working builder: actual build,
+compiler/ABI compatibility, identifier allocation, plugin/agent wiring,
+security/licensing and old-source release approval remain unfinished. Reports
+retain `release_approved: false` and add `builder_ready: false`.

@@ -244,20 +244,40 @@ func TestWatchResync(t *testing.T) {
 	if err := r.Apply(context.Background(), renderApply(t, r, onlySiteA(t))); err != nil {
 		t.Fatal(err)
 	}
+	// Bounds below are host-load-tolerant (TD-12): a starved Watch goroutine that hasn't even
+	// subscribed yet before the flood below runs would otherwise miss it entirely (fake charon's
+	// push is non-blocking and drops events with no subscriber), so the wait for subscription and
+	// the overall deadline both need real margin under a busy shared host.
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
-	out := make(chan Event) // unbuffered: a stalled consumer after readiness
+	out := make(chan Event) // unbuffered: a stalled consumer
 	go func() { _ = r.Watch(ctx, out) }()
-	// Subscription precedes the initial list-sas baseline. Wait for the first
-	// periodic resync, which can only occur after that baseline, before changing
-	// SAs; waiting for subscription alone can absorb the change into the baseline.
-	readyCtx, readyCancel := context.WithTimeout(ctx, 15*time.Second)
+	subDeadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(subDeadline) {
+		f.mu.Lock()
+		n := len(f.subscribers)
+		f.mu.Unlock()
+		if n > 0 {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	f.mu.Lock()
+	subscribed := len(f.subscribers) > 0
+	f.mu.Unlock()
+	if !subscribed {
+		t.Fatal("Watch never subscribed")
+	}
+	// Forwarding a harmless event proves that Watch finished its initial SA
+	// baseline. Subscription alone happens earlier and could absorb the new SA.
+	f.push(vici.Event{Name: "ike-updown", Message: msg("up", "yes", "w3-site-a", msg("uniqueid", "1", "state", "ESTABLISHED"))})
+	readyCtx, readyCancel := context.WithDeadline(ctx, subDeadline)
 	defer readyCancel()
 	ready := false
 	for !ready {
 		select {
 		case e := <-out:
-			ready = e.Kind == KindResync
+			ready = e.Kind == "ike-updown" && e.Conn == "w3-site-a" && e.Up
 		case <-readyCtx.Done():
 			t.Fatal("Watch never completed its initial baseline")
 		}

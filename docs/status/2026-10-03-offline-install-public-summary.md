@@ -1,13 +1,9 @@
-# Offline packaging progress — 2026-10-03
+# Sequential development checkpoint — 2026-10-03
 
-Three bounded increments merged sequentially after independent applicable reviews and unchanged hosted gates:
+Verified merges: PR #91 trusted offline installer (809625c8), #92 bounded native :any dependency validation (e0e1e1b8), #93 portable export (b7a3155c), and #75 hardware installation priority/progress reconciliation (19aa88a5). Exact reviewed trees and merge parents verified. Required unchanged hosted quick gates passed before all merges; post-main quick and provisioning gates for runtime changes passed, and PR #75 post-main quick 37094986085 passed.
 
-- PR91 trusted offline installer: merge809625c8; fullquick37089446034 and provisioning37089446107 SUCCESS. Post-main37090442585/37090442607 SUCCESS.
-- PR92 direct native :any dependencies: mergee0e1e1b8; fullquick37091001247 and provisioning37091001230 SUCCESS. Post-main37092042866/37092044128 SUCCESS.
-- PR93 portable export from already verified trusted archives: mergeb7a3155c414b23276699f1cccdfbde3d30efd640; fullquick37092617354 and provisioning37092617368 SUCCESS. 43 targeted fixtures PASS zero skips. Fresh main and expected-head checks verified exact reviewed merge tree5a584122; post-main provisioning37093623733 SUCCESS, quick37093623742 pending.
+The board records 114/156 merged, 13 running, 10 ready, 2 parked and 17 todo. P10 remains running. A complete signed portable hardware bundle and actual Ubuntu installation/reboot/traffic acceptance remain incomplete. Existing builder prerequisites include the unchanged 40 GiB free-space requirement, missing build tools and unavailable mirror access from this environment. No gates were weakened or host services changed.
 
-Next single existing task is PR75 hardware-installation priority reconciliation onto fresh main, including correction of historical identity/dashboard board rows. No new transfer tooling is started.
+The next existing development task is notifications, resumed sequentially on main 19aa88a5. Telegram is excluded. SMTP/webhook contracts and bounded dispatcher/UI/event-adapter recovery are checkpointed on codex/notifications-contract-checkpoint-20261003 and codex/notifications-consumer-checkpoint-20261003. These checkpoints are not final approvals. Nondefault management VRF delivery is explicitly rejected and remains a code gap. Local loopback SMTP TLS/STARTTLS and HTTPS sink tests are progressing; live hardware/browser/routing acceptance is not claimed.
 
-Whole P10 remains incomplete. Actual complete signed artifacts, clean Ubuntu26 install/lifecycle and hardware acceptance are unverified. Builder prerequisites are unavailable: workspace21GiBfree versus unchanged VPP40GiBminimum, missingbuildtools and corporate-mirror connection timeout. No host package installation, unsigned substitute or disk-gate relaxation occurred.
-
-Board reconciliation checkpoint114/156 merged does not count these bounded increments as completion of the whole P10. Board running rows do not represent live agents. Development proceeds one task at a time, independent reviews parallel.
+Draft PR #94 is temporary generator recovery only and MUST NOT MERGE. It runs the unchanged repository gate first, then captures actual generated files after failure. The final product must exclude its workflow changes and pass the complete unchanged hosted gate after independent review. Unrelated old WAN/protobuf changes and private recovery history are excluded from public product checkpoints.

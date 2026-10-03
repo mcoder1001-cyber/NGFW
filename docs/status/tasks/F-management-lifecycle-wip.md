@@ -1,0 +1,9 @@
+# Management TLS lifecycle WIP
+
+Branch codex/management-lifecycle-parallel-20261003; base local7b57a284/tree of remotePR99. Dependency99 unmerged; draft candidate only. Owned mgmt-tls service/tests, user management doc, dedicated F-management-lifecycle-* docs. Code: sequential reload queue; late first-valid-certificate listener startup; enabled uses actual server.listening; shutdown gates queued startup. Tests added real HTTPS late start/actualstate and overlapping reload finalcertificate.
+Validation: schema build PASS; tools/ci.sh check --base7b57a284 PASS (0m09s); focused ESLint PASS (existing module-type warning only); pnpm --filter @ngfw/api exec vitest run src/features/mgmt-tls/mgmt-tls.test.ts:1filePASS13testsPASS (9.40s). Real handshake before/after removal reports actual retained certificate; emptybootstrap/delayedstart/actualenabled/shutdown, occupiedport retry and slow-oldreload/newcert ordering covered. No full localquick run to avoid excesshostload; mandatory hostedquick still required.
+Remaining: certificate removal still retains old servingcertificate by unchanged policy; state now reflects retainedcertificate. DB/browser/lab acceptance NOT RUN; freshreview missing.
+Exact nextcommand: pnpm --filter @ngfw/api exec vitest run src/features/mgmt-tls/mgmt-tls.test.ts
+First checkpoint localf848f956 remote1ec23f15f186b198520a80fb66cf3215bfa0f30b. Final source frozen in next commit/published exacttree; independent review and hostedgate required. No managementcompletion claimed.
+
+Inherited PR99 strict optional-subject testtyping corrected identically: omit subject property when undefined. No productionchange/compilerconfig weakening. Focus13/13PASS (13.30s). Initial APItypecheck found unbuilt @ngfw/proto/@ngfw/yang; dependencies built, then `pnpm --filter @ngfw/api typecheck` exited0. Appended correction fastforwards prior remote163872a; mandatoryquick and independent correctionrecheck remain required.

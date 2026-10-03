@@ -25,7 +25,10 @@ import (
 func TestCaptureInterruptedRecoveryOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	socket := os.Getenv("NGFW_CAPTURE_DEDICATED_VPP_SOCKET")
-	if socket == "" || socket == "/run/vpp/api.sock" {
+	if socket == "" {
+		t.Skip("dedicated per-slot VPP not provisioned: capture host acceptance NOT RUN")
+	}
+	if socket == "/run/vpp/api.sock" {
 		t.Fatal("capture requires NGFW_CAPTURE_DEDICATED_VPP_SOCKET for a dedicated per-slot VPP; shared VPP dispatch capture is banned")
 	}
 	vpptest.LockLab(t)

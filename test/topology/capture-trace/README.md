@@ -7,14 +7,14 @@ These checks distinguish transport verification from real dataplane evidence. Un
 On a provisioned worker slot with PostgreSQL and Valkey, run:
 
 ```bash
-NGFW_INTEGRATION=1 pnpm --filter @ngfw/api exec vitest run -c vitest.e2e.config.ts test/e2e/capture-trace.e2e.test.ts
+NGFW_TEST_PREFIX=w5 NGFW_VALKEY_DB=5 NGFW_INTEGRATION=1 pnpm --filter @ngfw/api exec vitest run -c vitest.e2e.config.ts test/e2e/capture-trace.e2e.test.ts
 ```
 
 The shared API harness uses the slot database and its fake agent. It tests real guards, audit persistence and binary gRPC/HTTP download; the pcap itself is fake.
 
 ## Persisted recovery on VPP
 
-Dispatch capture is banned on shared VPP (D-128). Provision a dedicated per-slot VPP and run one host package at a time:
+Without the dedicated socket opt-in, the host test explicitly skips (NOT RUN); configuring the shared socket fails. Dispatch capture is banned on shared VPP (D-128). Provision a dedicated per-slot VPP and run one host package at a time:
 
 ```bash
 NGFW_TEST_PREFIX=w5 NGFW_CAPTURE_DEDICATED_VPP_SOCKET=/run/ngfw-test/w5/vpp/api.sock NGFW_INTEGRATION=1 go -C apps/agent test -v -count=1 ./internal/agent -run '^TestCaptureInterruptedRecoveryOnHost$'

@@ -147,7 +147,8 @@ var noResurrect bool
 const dumpEveryIndex interface_types.InterfaceIndex = 0
 
 // placeholderMask is the signature of Sanitize's own throwaway classify tables.
-var placeholderMask = []byte("ngfw-td3-v19-hold")
+// MatchNVectors=1 requires exactly 16 bytes in the pinned VPP classify API.
+var placeholderMask = []byte("ngfw-td3-v19-hld")
 
 // State names used in reports, logs and the metric label.
 const (

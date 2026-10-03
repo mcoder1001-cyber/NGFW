@@ -223,7 +223,7 @@ vrx_nspawn "$CHROOT" --bind-ro="$T/nocloud:/nocloud" -- cloud-init schema --conf
 cp "$T/nocloud/user-data" "$OUT/user-data"
 
 mkdir -p "$T/vrx/installer" "$T/vrx/common" "$T/vrx/ssh" "$T/boot/grub"
-install -m 0755 "$HERE/installer/vrx-early.sh" "$HERE/installer/vrx-late.sh" "$HERE/installer/vrx-disk-guard.sh" "$T/vrx/installer/"
+install -m 0755 "$HERE/installer/vrx-early.sh" "$HERE/installer/vrx-late.sh" "$HERE/installer/vrx-disk-guard.sh" "$HERE/installer/vrx-size-guard.py" "$T/vrx/installer/"
 cp -a "$COMMON/." "$T/vrx/common/"
 echo iso > "$T/vrx/profile"; echo "$HOST" > "$T/vrx/hostname"
 ((LUKS)) && echo 1 > "$T/vrx/luks"

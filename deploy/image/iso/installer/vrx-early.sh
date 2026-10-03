@@ -33,10 +33,8 @@ if ! vrx_check_reinstall "$cmdline"; then
   stop "disk safety verification failed (inventory unavailable or prior VRX installation found); see /var/log/vrx-early.log"
 fi
 
-min=$((96 * 1024 * 1024 * 1024))
-largest=$(lsblk -bdnro SIZE,TYPE,RM 2>/dev/null | awk '$2 == "disk" && $3 == 0 { if ($1 > m) m = $1 } END { print m + 0 }')
-if ((largest < min)); then
-  stop "the largest fixed disk has $((largest / 1024 / 1024 / 1024)) GiB; the VRX layout needs at least 96 GiB"
+if ! python3 "$HERE/vrx-size-guard.py"; then
+  stop "disk size inventory unavailable, invalid or below 96 GiB; see /var/log/vrx-early.log"
 fi
 
 if [[ ! -d /sys/firmware/efi ]]; then

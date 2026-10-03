@@ -52,3 +52,22 @@ def test_hostile_identifiers_fail_generation(tmp_path: Path) -> None:
         doc["paths"][path]["get"]["operationId"] = bad
         r = run_gen(tmp_path, doc)
         assert r.returncode != 0 and "not a safe Python identifier" in r.stderr, (bad, r.stderr)
+
+
+def test_generated_comments_have_no_trailing_whitespace(tmp_path: Path) -> None:
+    # Truncation can itself leave a trailing space, even when the source text
+    # continues. Sanitized control characters can also become spaces.
+    for description in ("a" * 109 + " continuing description", "description \t\\"):
+        doc = {
+            "info": {"title": "NGFW", "version": "1"},
+            "components": {"schemas": {"RootConfig": {
+                "type": "object", "description": description,
+                "properties": {"enabled": {"type": "boolean"}},
+            }}},
+            "paths": {},
+        }
+        result = run_gen(tmp_path, doc)
+        assert result.returncode == 0, result.stderr
+        models = (tmp_path / "pkg" / "models.py").read_text()
+        assert "RootConfig = TypedDict" in models
+        assert all(line == line.rstrip() for line in models.splitlines())

@@ -43,3 +43,18 @@ deploy/vpp/build.sh --strict-deps --jobs 2
 ```
 
 This rechecks the pinned source/patches and verifies downloads before compiling; it does not install host packages. After genuine VPP output verification and actual app compilation/quick CI, use `deploy/debian/vrx/prepare.sh VERIFIED_VPP_OUTPUT NEW_OUTPUT_DIRECTORY` from a clean committed source checkout, then `dpkg-buildpackage -us -uc -b` inside that prepared output. Do not skip clean-source, VPP install/provenance, licensing or privilege gates to get an archive.
+
+## Affinity portability repair, 2026-10-03 (supersedes earlier input blockers)
+
+- Branch/local HEAD: codex/debian-real-build-20261003 at ae23d2dca4b69b93b99a76d36e3e55409b1d1397; no new local commit. Root reports published checkpoint 76cf3a6915dcd62a89f21f63266d2473fc3e6c23; worker did not independently verify publication.
+- Owned changed files: deploy/vpp/build.sh, deploy/vpp/lib.sh, deploy/vpp/tests/run.sh, docs/status/tasks/debian-real-build-envelope.md and this WIP.
+- Actual root log /tmp/debian-real-build-root-vpp.log confirms all five locked Python inputs installed with hashes, then taskset 124-127 failed. Current process affinity is 0-31 despite nproc --all reporting 128. Coordinator reports frozen pnpm install and actual application build succeeded; worker did not rerun them.
+- Completed code: bounded helper reads os.sched_getaffinity(0), selects the highest min(JOBS, allowed count) explicit CPU IDs, rejects jobs outside 1..8 and fails closed on affinity-read failure. Builder retains taskset, nice 10, unchanged job cap and all source/input/output verification. Python helper is in lib.sh so tests exercise the actual selection without expensive build preparation.
+- Meaningful regressions: actual inherited affinity for 1/8 jobs, restricted sparse mask, restricted singleton with 8 requested jobs, invalid 0/9 job requests. Selected IDs and actual taskset child affinity must match and remain subsets of the inherited real mask. Only spawned child affinity changes.
+- Actual deploy/vpp/verify.sh: exit 0, 72 passed / 0 failed (original 66 plus six); scripts parse and shellcheck pass. Log /tmp/debian-real-build-affinity-vpp.log.
+- Actual python3 -m unittest discover -s deploy/debian/vrx/tests -p 'test_*.py': exit 0, 30 tests in 35.042s, OK (skipped=1). Signing remains unverified. Log /tmp/debian-real-build-affinity-packaging.log.
+- Actual tools/ci.sh check --base HEAD: exit 0, check PASSED (0m09s). This is lightweight check only, not mandatory full quick CI. Log /tmp/debian-real-build-affinity-check.log. git diff --check passed.
+- Commit attempt: git add of exactly the five owned files failed exit 128: /root/NGFW/.git/worktrees/NGFW-debian-real-build/index.lock is read-only. No bypass, commit or publication performed. Root must commit these exact files; suggested subject: fix(vpp): select build CPUs from process allowed affinity.
+- Remaining: root commits/publishes, obtains independent applicable reviews and full mandatory quick/current-main integration checks, freezes source then reruns actual compiler. No costly compilation executed in this worker turn; no product .deb claimed.
+- Exact next command (coordinator with authorized Git write): git add deploy/vpp/build.sh deploy/vpp/lib.sh deploy/vpp/tests/run.sh docs/status/tasks/debian-real-build-envelope.md docs/status/tasks/debian-real-build-wip.md
+- After committing and source freeze, coordinator rerun: deploy/vpp/build.sh --offline-reference --strict-deps --jobs 4

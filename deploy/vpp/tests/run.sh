@@ -21,6 +21,42 @@ refuses() { ! "$@"; }                    # the command must fail
 out_has() { grep -qE -- "$1" "$T/last.run"; }
 run_capture() { "$@" >"$T/last.run" 2>&1; }
 
+# ---------------------------------------------------------------- actual inherited CPU affinity (no compile)
+# Restrict only a child we spawn; prove both helper output and taskset's actual
+# child affinity. Sparse IDs are derived from the real mask, not nproc counts.
+cat >"$T/affinity.py" <<'PYCPU'
+import os, re, subprocess, sys
+
+lib, mode, jobs = sys.argv[1], sys.argv[2], int(sys.argv[3])
+original = sorted(os.sched_getaffinity(0))
+assert original
+if mode == "sparse":
+    mask = set(original[::2])
+elif mode == "single":
+    mask = {original[-1]}
+else:
+    mask = set(original)
+os.sched_setaffinity(0, mask)
+cpulist = subprocess.check_output(
+    ["bash", "-c", 'source "$1"; vrx_build_cpus "$2"', "test", lib, str(jobs)],
+    text=True).strip()
+assert re.fullmatch(r"[0-9]+(,[0-9]+)*", cpulist), cpulist
+selected = [int(cpu) for cpu in cpulist.split(",")]
+assert len(selected) == len(set(selected)) == min(jobs, len(mask))
+assert set(selected) <= mask <= set(original)
+assert selected == sorted(mask)[-jobs:]
+actual = subprocess.check_output(
+    ["taskset", "-c", cpulist, sys.executable, "-c",
+     'import os; print(",".join(map(str, sorted(os.sched_getaffinity(0)))))'], text=True).strip()
+assert actual == cpulist, (actual, cpulist)
+PYCPU
+check "CPU selection: one job is inside actual allowed affinity" python3 "$T/affinity.py" "$HERE/lib.sh" live 1
+check "CPU selection: eight jobs respect actual allowed affinity" python3 "$T/affinity.py" "$HERE/lib.sh" live 8
+check "CPU selection: sparse inherited mask works with taskset" python3 "$T/affinity.py" "$HERE/lib.sh" sparse 2
+check "CPU selection: jobs exceeding allowed count retain valid affinity" python3 "$T/affinity.py" "$HERE/lib.sh" single 8
+check "CPU selection: zero jobs rejected" refuses vrx_build_cpus 0
+check "CPU selection: jobs above shared-host cap rejected" refuses vrx_build_cpus 9
+
 # ---------------------------------------------------------------- VERSION parsed as data (L2)
 check "real VERSION parses" vrx_parse_version "$HERE/VERSION"
 mkv() { grep -v "^$1=" "$HERE/VERSION" >"$T/V"; printf '%s\n' "$2" >>"$T/V"; }

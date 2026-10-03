@@ -227,7 +227,11 @@ check "python: VPP manifest completeness and archive parity" env PYTHONDONTWRITE
 
 # ---------------------------------------------------------------- shellcheck
 if command -v shellcheck >/dev/null; then
-  check "shellcheck: all P14 shell code" shellcheck -x -P SCRIPTDIR "$ISO/build-iso.sh" "$ISO"/lib/*.sh "$ISO"/installer/*.sh "$C"/bin/* "$HERE/run.sh"
+  if shellcheck -x -P SCRIPTDIR "$ISO/build-iso.sh" "$ISO"/lib/*.sh "$ISO"/installer/*.sh "$C"/bin/* "$HERE/run.sh"; then
+    ok "shellcheck: all P14 shell code"
+  else
+    bad "shellcheck: all P14 shell code"
+  fi
 fi
 check "python: render.py compiles" env PYTHONPYCACHEPREFIX="$TMP/pycache" python3 -m py_compile "$ISO/lib/render.py"
 

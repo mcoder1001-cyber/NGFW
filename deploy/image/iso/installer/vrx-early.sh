@@ -17,7 +17,9 @@ say() { echo "vrx-early: $*"; }
 stop() { # print the reason on every console and power off (never wipes anything)
   local c
   for c in /dev/console /dev/tty1 /dev/ttyS0; do
-    [[ -w $c ]] && printf '\n\n*** VRX installer stopped: %s ***\n*** The machine powers off in 60 s. ***\n\n' "$*" > "$c" 2>/dev/null || true
+    if [[ -w $c ]]; then
+      printf '\n\n*** VRX installer stopped: %s ***\n*** The machine powers off in 60 s. ***\n\n' "$*" > "$c" 2>/dev/null || true
+    fi
   done
   say "STOP: $*"; sleep 60; systemctl poweroff --force || poweroff -f
   exit 1

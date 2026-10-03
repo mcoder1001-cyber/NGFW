@@ -19,10 +19,10 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-PRODUCT = {'vrx-agent', 'vrx-api', 'vrx-web', 'vrx-meta'}
+PRODUCT = {'ngfw-agent', 'ngfw-api', 'ngfw-web', 'ngfw-meta'}
 # The portable full-runtime profile needs P11's product plugin package even
-# while vrx-meta only Recommends it. Upstream strongSwan is not a substitute.
-REQUIRED_VPN = {'vrx-strongswan'}
+# while ngfw-meta only Recommends it. Upstream strongSwan is not a substitute.
+REQUIRED_VPN = {'ngfw-strongswan'}
 TERM = re.compile(r'([a-z0-9][a-z0-9+.-]+(?::any)?)'
                   r'(?:\s*\((<<|<=|=|>=|>>)\s*([^()\s]+)\))?')
 MAX_PACKAGES = 4096

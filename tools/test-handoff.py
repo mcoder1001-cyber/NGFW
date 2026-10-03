@@ -81,9 +81,9 @@ def run(path):
             return
         wrapper = TOOLS / ('test-fast.sh' if job['lane'] == 'fast' else 'heavy.sh')
         env = os.environ.copy()
-        env.pop('VRX_HEAVY_HELD', None)
+        env.pop('NGFW_HEAVY_HELD', None)
         # Host tests belong to the exclusive laboratory queue, never this worker.
-        env.pop('VRX_INTEGRATION', None)
+        env.pop('NGFW_INTEGRATION', None)
         job['state'] = 'queued_or_running'
         save(path, job)
         with open(job['log'], 'w') as log:

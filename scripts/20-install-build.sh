@@ -29,8 +29,8 @@ PROTOC_GRPC_VER=v1.6.2
 GOVPP_VER=v0.13.0
 # Official https://go.dev/dl/ go1.26.0 linux-amd64, checked 2026-10-02.
 GO_SHA256=aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235
-[[ ${VRX_GO_SHA256-$GO_SHA256} == "$GO_SHA256" ]] || {
-  echo "REFUSED: VRX_GO_SHA256 override differs from the pinned official Go archive" >&2
+[[ ${NGFW_GO_SHA256-$GO_SHA256} == "$GO_SHA256" ]] || {
+  echo "REFUSED: NGFW_GO_SHA256 override differs from the pinned official Go archive" >&2
   exit 1
 }
 [[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || { echo "only linux-amd64 build bootstrap is supported" >&2; exit 1; }
@@ -59,7 +59,7 @@ apt-get install -y "${BUILD[@]}" "${VPPDEP[@]}" "${SSWAN[@]}" "${GO[@]}" "${NODE
 
 # Go from the official tarball - the distro package lags and govpp tracks new releases.
 if [[ ! -x /usr/local/go/bin/go ]] || [[ "$(/usr/local/go/bin/go version)" != "go version go${GO_VER} linux/amd64" ]]; then
-  go_archive=$(mktemp /tmp/vrx-go.XXXXXXXX.tar.gz)
+  go_archive=$(mktemp /tmp/ngfw-go.XXXXXXXX.tar.gz)
   trap 'rm -f -- "$go_archive"' EXIT
   curl -fsSL "https://go.dev/dl/go${GO_VER}.linux-amd64.tar.gz" -o "$go_archive"
   printf '%s  %s\n' "$GO_SHA256" "$go_archive" | sha256sum --check --status

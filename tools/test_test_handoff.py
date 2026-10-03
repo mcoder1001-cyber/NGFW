@@ -25,12 +25,12 @@ class HandoffTests(unittest.TestCase):
         self.head = subprocess.check_output(['git', '-C', str(self.repo), 'rev-parse', 'HEAD'], text=True).strip()
         self.locks = self.root / 'locks'
         self.locks.mkdir()
-        (self.locks / 'vrx-heavy-max').write_text('2\n')
+        (self.locks / 'ngfw-heavy-max').write_text('2\n')
         self.env = os.environ.copy()
-        self.env.pop('VRX_HEAVY_HELD', None)
-        self.env.pop('VRX_INTEGRATION', None)
-        self.env['VRX_TEST_LOCK_DIR'] = str(self.locks)
-        self.env['VRX_FAST_TIMEOUT_SECONDS'] = '30'
+        self.env.pop('NGFW_HEAVY_HELD', None)
+        self.env.pop('NGFW_INTEGRATION', None)
+        self.env['NGFW_TEST_LOCK_DIR'] = str(self.locks)
+        self.env['NGFW_FAST_TIMEOUT_SECONDS'] = '30'
 
     def tearDown(self):
         self.temp.cleanup()
@@ -67,7 +67,7 @@ class HandoffTests(unittest.TestCase):
         return json.loads(path.read_text())
 
     def test_fast_can_run_while_two_long_slots_locked(self):
-        with open(self.locks / 'vrx-heavy-1.lock', 'w') as one, open(self.locks / 'vrx-heavy-2.lock', 'w') as two:
+        with open(self.locks / 'ngfw-heavy-1.lock', 'w') as one, open(self.locks / 'ngfw-heavy-2.lock', 'w') as two:
             fcntl.flock(one, fcntl.LOCK_EX)
             fcntl.flock(two, fcntl.LOCK_EX)
             result = self.worker([sys.executable, '-c', 'print("done")'])
@@ -94,11 +94,11 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(result['state'], 'stale')
 
     def test_emergency_cap_and_live_integration_are_refused(self):
-        (self.locks / 'vrx-heavy-max').write_text('1\n')
+        (self.locks / 'ngfw-heavy-max').write_text('1\n')
         result = self.worker([sys.executable, '-c', 'pass'])
         self.assertEqual((result['state'], result['exit_code']), ('failed', 2))
-        (self.locks / 'vrx-heavy-max').write_text('2\n')
-        self.env['VRX_INTEGRATION'] = '1'
+        (self.locks / 'ngfw-heavy-max').write_text('2\n')
+        self.env['NGFW_INTEGRATION'] = '1'
         direct = subprocess.run([str(TOOLS / 'test-fast.sh'), 'true'], env=self.env,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(direct.returncode, 2)
@@ -132,7 +132,7 @@ class HandoffTests(unittest.TestCase):
         stat = Path(f'/proc/{pid}/stat')
         if stat.exists():
             self.assertEqual(stat.read_text().split()[2], 'Z', 'cleanup descendant must be dead')
-        with open(self.locks / 'vrx-heavy-3.lock', 'w') as slot:
+        with open(self.locks / 'ngfw-heavy-3.lock', 'w') as slot:
             fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
         return result
 
@@ -168,7 +168,7 @@ class HandoffTests(unittest.TestCase):
         stat = Path(f'/proc/{pid}/stat')
         if stat.exists():
             self.assertEqual(stat.read_text().split()[2], 'Z', 'descendant must be dead')
-        with open(self.locks / 'vrx-heavy-3.lock', 'w') as slot:
+        with open(self.locks / 'ngfw-heavy-3.lock', 'w') as slot:
             fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 

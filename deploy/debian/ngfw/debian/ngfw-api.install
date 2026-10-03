@@ -1,0 +1,4 @@
+stage/usr/lib/ngfw/api usr/lib/ngfw/
+stage/usr/lib/systemd/system/ngfw-api.service usr/lib/systemd/system/
+assets/bootstrap-db.mjs usr/lib/ngfw/api/
+assets/provision-api-storage.py usr/lib/ngfw/

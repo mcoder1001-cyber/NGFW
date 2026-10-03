@@ -1,6 +1,6 @@
 Subject: [PATCH] ipfix-export: add REPLY_MSG_ID_BASE to classify stream/table details (DEMO)
 Track: V16 (docs/vpp-code-track.md)
-Status: demo — F-vpp-debs demonstration of the patch series; not applied to the vrx-a host packages
+Status: demo — F-vpp-debs demonstration of the patch series; not applied to the ngfw-a host packages
 Upstream: not submitted
 
 ipfix_classify_stream_details and ipfix_classify_table_details are sent with the

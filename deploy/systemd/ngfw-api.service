@@ -1,0 +1,39 @@
+[Unit]
+Description=NGFW management API
+Requires=ngfw-agent.service ngfw-firstboot.service
+After=ngfw-agent.service ngfw-firstboot.service postgresql.service valkey-server.service
+ConditionPathExists=/var/lib/ngfw/firstboot-complete
+
+[Service]
+Type=simple
+User=ngfw
+Group=ngfw
+WorkingDirectory=/usr/lib/ngfw/api
+ExecStart=/usr/bin/node dist/main.js
+Environment=NODE_ENV=production NGFW_HTTP_HOST=127.0.0.1 NGFW_HTTP_PORT=3000 NGFW_COOKIE_SECURE=1
+EnvironmentFile=/etc/ngfw/api.env
+Restart=always
+RestartSec=3
+UMask=0077
+PrivateTmp=yes
+ProtectHome=yes
+ProtectSystem=strict
+NoNewPrivileges=yes
+PrivateDevices=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/ngfw /data
+
+[Install]
+WantedBy=multi-user.target

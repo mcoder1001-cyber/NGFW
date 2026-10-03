@@ -1,4 +1,4 @@
-# VRX installer ISO
+# NGFW installer ISO
 
 This directory contains the P14 installer builder and its offline unit checks. A complete ISO and an unattended VM installation have not yet been validated.
 
@@ -7,7 +7,7 @@ This directory contains the P14 installer builder and its offline unit checks. A
 Required inputs:
 
 - Ubuntu 26.04 live-server amd64 ISO with adjacent `SHA256SUMS` and `SHA256SUMS.gpg`. The builder verifies the pinned Ubuntu CD signer before accepting the media.
-- Signed VRX APT repository containing `vrx-meta` and source-built VPP packages, together with the independently trusted VRX signer fingerprint.
+- Signed NGFW APT repository containing `ngfw-meta` and source-built VPP packages, together with the independently trusted NGFW signer fingerprint.
 - Matching VPP package manifest supplied with `--vpp-manifest`.
 - Ubuntu and FRR public archive keyrings. Public signer fingerprints are trust pins, not credentials.
 - A build chroot with cloud-init, squashfs-tools and the packages listed by the builder's `--make-chroot` path.
@@ -28,7 +28,7 @@ The installer exposes destructive disk-install and explicit reinstall GRUB entri
 
 The early installer refuses disk inventory errors before disk changes, including
 failed lsblk commands with partial output. Explicit reinstall permits a known
-existing VRX installation but does not override unreadable disk inventory.
+existing NGFW installation but does not override unreadable disk inventory.
 The read-only guard has five offline stub-lsblk regression cases; the aggregate
 suite includes them. Tests create only scratch files and never enumerate or
 modify the host's actual disks.

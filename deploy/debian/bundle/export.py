@@ -152,7 +152,7 @@ def export(source, manifest, output):
     if parent_stat.st_uid != os.geteuid() or parent_stat.st_mode & 0o022:
         os.close(parent_fd)
         raise InvalidBundle('output directory must be owned by caller and not group/other writable')
-    temporary = '.vrx-export-' + secrets.token_hex(16)
+    temporary = '.ngfw-export-' + secrets.token_hex(16)
     created = False
     published = False
     try:

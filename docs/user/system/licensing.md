@@ -105,6 +105,24 @@ The customer uploads `example.vrxlic` on **System → Licence**.
 
 ### Bash shortcut
 
+For the easiest full-feature licence, run:
+
+```bash
+bash tools/license/generate-license.sh
+# Optional customer name and output path:
+bash tools/license/generate-license.sh all "Example Ltd" example.vrxlic
+```
+
+This creates keys on first use, reuses them on later runs, enables all six
+features with unlimited counts, and verifies the output. It defaults to 365 days
+(override with `VRX_LICENSE_DAYS`). Existing output files are never overwritten.
+The generated `license.vrxlic.api.env` contains a public-key setting compatible
+with shell and systemd: put its line in `/etc/vrx/api.env`, replacing any existing
+`VRX_LICENSE_PUBLIC_KEYS` entry, restart `vrx-api`, and upload `license.vrxlic`
+in **System → Licence**. This changes the API's trusted product keys; keep an
+existing signing pair if licences already in use must continue verifying.
+No API settings or services are changed by the generator itself.
+
 `tools/license/generate-license.sh` provides editable defaults: keys under
 `$HOME/.config/vrx/license-keys`, a 365-day duration, and all six licensed features
 with no limits. It uses the same Node issuer and signature format as above.

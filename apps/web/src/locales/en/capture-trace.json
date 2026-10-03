@@ -48,5 +48,15 @@
   },
   "download": "Download",
   "delete": "Delete",
-  "adminOnly": "Only administrators can download or delete capture files."
+  "adminOnly": "Only administrators can start captures and download or delete capture files.",
+  "engine": "the engine",
+  "stop": "Stop capture",
+  "stopConfirm": "Stop this capture and keep the packets already collected?",
+  "cancel": "Cancel",
+  "trace": {
+    "reasonBanned": "Packet tracing is unavailable on this appliance."
+  },
+  "pg": {
+    "reasonNoApi": "Packet generation is unavailable on this appliance."
+  }
 }

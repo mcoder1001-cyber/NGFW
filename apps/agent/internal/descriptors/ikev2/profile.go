@@ -14,6 +14,7 @@ import (
 
 	"ngfw/agent/binapi/ikev2"
 	"ngfw/agent/binapi/ikev2_types"
+	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
@@ -91,6 +92,22 @@ func (d *Profile) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if err := validate(o); err != nil {
 		return nil, err
 	}
+	// A newly created route-based IPIP must never forward plaintext while IKE
+	// negotiates. The plugin raises this interface only when it installs ESP
+	// tunnel protection, and lowers it before removing the negotiated protection.
+	if o.GetTunnelInterface() != "" {
+		interfaces, err := vpn.DumpInterfaces(ctx, d.cfg.Client, d.cfg.Owner)
+		if err != nil {
+			return nil, err
+		}
+		idx, err := interfaces.ResolveOwn(o.GetTunnelInterface())
+		if err != nil {
+			return nil, err
+		}
+		if _, err = ifapi.NewServiceClient(d.cfg.Client).SwInterfaceSetFlags(ctx, &ifapi.SwInterfaceSetFlags{SwIfIndex: idx}); err != nil {
+			return nil, fmt.Errorf("native IPsec fail-closed interface initialization: %w", err)
+		}
+	}
 	svc := ikev2.NewServiceClient(d.cfg.Client)
 	if _, err := svc.Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: true}); err != nil {
 		return nil, fmt.Errorf("ikev2_profile_add_del (%s): %w", name, err)
@@ -150,6 +167,20 @@ func (d *Profile) Delete(ctx context.Context, obj proto.Message, meta any) error
 		return err
 	}
 	if exists {
+		// Delete negotiated SAs through the IKE plugin before deleting the profile;
+		// it owns both CHILD SAs and the tunnel protection. Manual SAD deletes
+		// would race rekey and leave plugin state referring to released keys.
+		sas, err := SAs(ctx, d.cfg.Client, d.cfg.Owner)
+		if err != nil {
+			return err
+		}
+		for _, sa := range sas {
+			if sa.Profile == o.GetName() {
+				if err := DeleteIKESA(ctx, d.cfg.Client, sa.ISPI); err != nil {
+					return err
+				}
+			}
+		}
 		if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileAddDel(ctx, &ikev2.Ikev2ProfileAddDel{Name: name, IsAdd: false}); err != nil {
 			return fmt.Errorf("ikev2_profile_add_del (%s, del): %w", name, err)
 		}
@@ -239,6 +270,9 @@ func (d *Profile) checkName(n string) (string, error) {
 }
 
 // validate checks everything that can be checked without VPP.
+// ValidateProfile checks native API representability before a transaction mutates VPP.
+func ValidateProfile(o *vpnpb.Ikev2Profile) error { return validate(o) }
+
 func validate(o *vpnpb.Ikev2Profile) error {
 	if a := o.GetAuth(); a != nil {
 		switch a.GetMethod() {
@@ -664,3 +698,6 @@ func sortKVs(kvs []scheduler.KV) []scheduler.KV {
 	sort.SliceStable(kvs, func(i, j int) bool { return kvs[i].Key < kvs[j].Key })
 	return dfkit.Dedupe(kvs)
 }
+
+// RecordsNoOwnership: ownership is encoded in the persisted VPP profile name.
+func (*Profile) RecordsNoOwnership() {}

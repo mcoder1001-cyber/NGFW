@@ -15,7 +15,7 @@
 | Component | Role | License |
 |---|---|---|
 | **FRRouting** | BGP, OSPFv2/v3, IS-IS, RIP, BFD, PIM | GPL-2.0 |
-| **strongSwan** (+ `kernel-vpp`, `socket-vpp`) | IKEv1/IKEv2, certificates | GPL-2.0 |
+| **strongSwan** | interoperability peer / existing separately scoped daemon work; route-based IPsec on VRX uses VPP native IKEv2 | GPL-2.0 |
 | **WireGuard** | modern VPN — native VPP plugin | Apache-2.0 (VPP plugin) |
 | **ISC Kea** | DHCPv4/v6 server, relay, lease DB | MPL-2.0 |
 | **Unbound** | validating DNS resolver/forwarder | BSD-3 |

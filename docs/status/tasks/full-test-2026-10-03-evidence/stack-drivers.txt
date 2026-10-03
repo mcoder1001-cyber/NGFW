@@ -1,0 +1,65 @@
+DISPOSABLE_VPP pid=573320 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-573318
+13:43:49 VPP NRestarts=0 before
+$ tsc -p tsconfig.build.json
+$ tsc -p tsconfig.json --noEmit && vite build && node scripts/bundle-budget.mjs && node scripts/check-no-dev-routes.mjs
+../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js (74:0): A comment
+
+"/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+ * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+ * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+
+in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js (400:0): A comment
+
+"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle."
+
+in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+13:46:09 agent pid 579429, API :3570 up; health: {"status":"ok"}
+V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+{"ref":"key/w5wg-site","created":true,"version":1}
+{"ref":"psk/w5wg-k","created":true,"version":1}
+13:46:10 keypair action: {"ref":"key/w5wg-spare","publicKey":"dQ3sykCJBVKNTsWBHTryKiqFHsRqiU4xvwlFkzpqSlY=","version":1}
+13:46:11 baseline commit: {"status":"applied","revision":1}
+13:46:11 commit: {"status":403,"revision":null,"errors":[{"pointer":"/vpn/wireguard/interfaces/site","message":"WireGuard is not covered by the licence (feature \"wireguard\")","rule":"license.feature.wireguard"},{"pointer":"/vpn/wireguard/interfaces/site","message":"WireGuard interfaces: 1 configured, the licence allows 0 (limit \"wireguardInterfaces\")","rule":"license.limit.wireguardInterfaces"}]}
+13:46:35 state: {"retrievedAt":"2026-10-03T10:16:34.752Z","eventsActive":false,"interfaces":[]}
+13:46:39 ping through the tunnel: 3 packets transmitted, 0 received, 100% packet loss, time 2028ms  
+13:46:42 VPP NRestarts=0 before
+$ tsc -p tsconfig.build.json
+13:47:18 agent pid 582488, API :3560 up; health: {"status":"ok"}
+13:47:20 baseline commit: {"status":"applied","revision":1}
+13:47:20 candidate diff: [{"op":"add","pointer":"/routing/srv6"}]
+13:47:20 commit: {"status":"applied","revision":2,"errors":null}
+13:47:20 GET /api/v1/state/srv6: {"retrievedAt":"2026-10-03T10:17:20.914Z","localSids":[{"sid":"fd00:5:ff::1","behavior":"end","psp":true,"vrf":"default","table":0,"interface":null,"nextHop":null,"lookupVrf":null,"lookupTable":null,"goodPackets":0,"goodBytes":0,"badPackets":0,"badBytes":0,"configured":true},{"sid":"fd00:5:ff::2","behavior":"end.x","psp":false,"vrf":"default","table":0,"interface":"loop560","nextHop":"fd00:5:1::2","lookupVrf":null,"lookupTable":null,"goodPackets":0,"goodBytes":0,"badPackets":0,"badBytes":0,"configured":true},{"sid":"fd00:5:ff::a","behavior":"end.dt4","psp":false,"vrf":"default","table":0,"interface":null,"nextHop":null,"lookupVrf":"w5sr-cust","lookupTable":5060,"goodPackets":0,"goodBytes":0,"badPackets":0,"badBytes":0,"configured":true},{"sid":"fd00:5:ff::b","behavior":"end.dt6","psp":false,"vrf":"w5sr-cust","table":5060,"interface":null,"nextHop":null,"lookupVrf":"w5sr-cust","lookupTable":5060,"goodPackets":0,"goodBytes":0,"badPackets":0,"badBytes":0,"configured":true},{"sid":"fd00:5:ff::c","behavior":"end.dx2","psp":false,"vrf":"default","table":0,"interface":"loop561","nextHop":null,"lookupVrf":null,"lookupTable":null,"goodPackets":0,"goodBytes":0,"badPackets":0,"badBytes":0,"configured":true}],"policies":[{"bsid":"fd00:5:bb::1","type":"default","encap":true,"vrf":"default","table":0,"encapSource":"fd00:5::1","sidLists":[{"sids":["fd00:5:ee::1","fd00:5:ee::a"],"weight":1},{"sids":["fd00:5:ee::2","fd00:5:ee::a"],"weight":3}],"configured":true},{"bsid":"fd00:5:bb::2","type":"spray","encap":false,"vrf":"w5sr-cust","table":5060,"encapSource":null,"sidLists":[{"sids":["fd00:5:ee::3"],"weight":1}],"configured":true}],"steering":[{"type":"l3","trafficType":"ipv4","prefix":"10.5.160.0/24","vrf":"w5sr-cust","table":5060,"interface":null,"bsid":"fd00:5:bb::1","configured":true},{"type":"l3","trafficType":"ipv6","prefix":"fd00:5:160::/48","vrf":"w5sr-cust","table":5060,"interface":null,"bsid":"fd00:5:bb::2","configured":true},{"type":"l2","trafficType":"l2","prefix":null,"vrf":null,"table":null,"interface":"loop561","bsid":"fd00:5:bb::1","configured":true}]}
+13:47:21 drift (/routing): {"changes":[],"ignored":[]}
+13:47:21 encap policy without source: 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic","warnings":[],"detail":"semantic validation failed","instance":"/api/v1/config/commit","errors":[{"pointer":"/routing/srv6/policies/fd00:5:bb::9/encapSource","message":"an encapsulating policy needs an outer source address: set encapSource here or routing.srv6.encapSource (VPP’s global default cannot be read back, D-074)"}]}
+13:47:25 restart: {"localSids":5,"policies":2,"steering":3} after 1.95 s (agent pid 582756)
+13:47:26 drift after restart (/routing): []
+13:47:26 rollback to 1 (srv6-stack-base): {"status":"applied","revision":{"id":3,"kind":"rollback"},"results":["sr.steering/l2/loop561","sr.steering/ipv6/5060/fd00:5:160::/48","sr.steering/ipv4/5060/10.5.160.0/24","sr.policy/fd00:5:bb::2","sr.policy/fd00:5:bb::1","sr.localsid/fd00:5:ff::c","sr.localsid/fd00:5:ff::b","sr.localsid/fd00:5:ff::a","sr.localsid/fd00:5:ff::2","sr.localsid/fd00:5:ff::1"]}
+13:47:26 after rollback: state {"localSids":[],"policies":[],"steering":[]}
+13:47:26 done
+13:47:26 cleanup
+{"status":"applied","revision":4}
+13:47:30 VPP NRestarts=0 after
+13:47:31 === rig: w5, path af_packet ===
+13:47:31 server fd00:5:46::a05:2e0a (IPv4 service 10.5.46.10 in the last 32 bits), client prefix fd00:5:4646::/96
+13:47:32 apply: {"status":"APPLY_STATUS_APPLIED","results":["af-packet.host-interface/host-w5l0","af-packet.host-interface/host-w5w0","interface/host-w5l0","interface-ip/host-w5l0/10.5.1.1/24","interface.admin-state/host-w5l0","interface/host-w5w0","interface-ip/host-w5w0/fd00:5:2::1/64","interface.admin-state/host-w5w0","map.domain/nat46-web","map.interface/host-w5l0/map-t","map.interface/host-w5w0/map-t"]}
+13:47:32 Retrieve nat: {"nat46":{"clientPrefix":"fd00:5:4646::/96","interfaces":["host-w5l0","host-w5w0"],"mappings":[{"ipv4":"10.5.46.10","ipv6":"fd00:5:46::a05:2e0a","name":"web"}]}}
+13:47:32 vppctl show map domain (ours):
+[0] tag {w5:nat46-web} ip4-pfx 10.5.46.10/32 ip6-pfx fd00:5:46::/64 ip6-src fd00:5:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 0 
+13:47:33 === packets: IPv4 10.5.1.2 → 10.5.46.10 ⇒ IPv6 [fd00:5:46::a05:2e0a] and back ===
+13:47:33 ping:
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 1.614/2.130/2.981/0.606 ms
+server6: connection from fd00:5:4646::a05:102
+13:47:35 tcp: client4: read vrx-nat46-ok
+13:47:36 vppctl show map domain index 0 counters:
+[0] tag {w5:nat46-web} ip4-pfx 10.5.46.10/32 ip6-pfx fd00:5:46::/64 ip6-src fd00:5:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 0   TX: 7/468  RX: 7/341
+13:47:36 === cleanup ===
+13:47:37 left: map domains 0 · vpp ifs 0 · route 0
+DRIVER_RESULTS wireguard=1 srv6=0 nat46=0
+DISPOSABLE_VPP_STOPPED pid=573320

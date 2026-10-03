@@ -45,6 +45,8 @@ import faHa from './locales/fa/ha.json';
 import enPkiInventory from './locales/en/pki-inventory.json';
 import faPkiInventory from './locales/fa/pki-inventory.json';
 // wave-BC: F-ikev2-native
+import enIpsec from './locales/en/ipsec.json';
+import faIpsec from './locales/fa/ipsec.json';
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
 // wave-BC: P14
@@ -198,6 +200,7 @@ export const NAMESPACES = [
   // wave-BC: F-pki
   'pkiInventory',
   // wave-BC: F-ikev2-native
+  'ipsec',
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: P14
@@ -308,6 +311,7 @@ const en = {
   // wave-BC: F-pki
   pkiInventory: enPkiInventory,
   // wave-BC: F-ikev2-native
+  ipsec: enIpsec,
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: P14
@@ -415,6 +419,7 @@ const fa = {
   // wave-BC: F-pki
   pkiInventory: faPkiInventory,
   // wave-BC: F-ikev2-native
+  ipsec: faIpsec,
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: P14

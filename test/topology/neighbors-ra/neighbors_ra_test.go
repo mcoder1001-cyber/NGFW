@@ -150,6 +150,7 @@ func TestNeighborsRaHost(t *testing.T) {
 			"dad": map[string]any{"transmits": 1, "delayMs": 1000},
 		}},
 	})
+	appliedAt := time.Now()
 	res := a.commit("nra-feature")
 	t.Logf("commit nra-feature: revision %d, warnings %s", revisionOf(t, res), js(res["warnings"]))
 	if !strings.Contains(js(res["warnings"]), "/routing/neighbors/dad") {
@@ -159,7 +160,7 @@ func TestNeighborsRaHost(t *testing.T) {
 	// ---- verify: Retrieve == desired, vppctl
 	got, gotJS := retrieve(t, s, nm)
 	t.Logf("agent Retrieve (our objects):\n%s", gotJS)
-	checkApplied(t, got, nm)
+	checkApplied(t, got, nm, appliedAt)
 	drift := a.must(200, "GET", "/api/v1/state/drift", nil)
 	for _, ch := range asList(drift.body["changes"]) {
 		p, _ := ch.(map[string]any)["pointer"].(string)
@@ -265,7 +266,7 @@ func TestNeighborsRaHost(t *testing.T) {
 	}
 	t.Logf("restart safety: everything back %.2f s after the agent start (no config API call)", took.Seconds())
 	got, _ = retrieve(t, s, nm)
-	checkApplied(t, got, nm)
+	checkApplied(t, got, nm, appliedAt)
 
 	// ---- rollback to the base revision
 	rb := a.must(200, "POST", fmt.Sprintf("/api/v1/config/rollback/%d?comment=nra-rollback", base), nil)
@@ -288,14 +289,22 @@ func TestNeighborsRaHost(t *testing.T) {
 }
 
 // checkApplied asserts Retrieve carries every committed leaf in canonical form.
-func checkApplied(t *testing.T, got *vrxv1.DesiredState, nm names) {
+func checkApplied(t *testing.T, got *vrxv1.DesiredState, nm names, appliedAt time.Time) {
 	t.Helper()
 	l1 := got.GetInterfaces()[nm.lo1]
 	ra := l1.GetIpv6Ra()
+	// VPP returns remaining RA prefix lifetimes, not the original configuration.
+	// Bound the countdown by actual elapsed time since the apply began, plus one
+	// second for VPP's integer-second quantization. A wrong configured lifetime
+	// above the target or decaying faster than real time still fails.
+	elapsed := uint32((time.Since(appliedAt)+time.Second-1)/time.Second + 1)
+	validLifetime := func(got, want uint32) bool {
+		return got <= want && want-got <= elapsed
+	}
 	switch {
 	case ra == nil || ra.GetSuppress() || !ra.GetManaged() || !ra.GetOther() || ra.GetLifetimeSec() != 1800 || ra.GetMaxIntervalSec() != 600 || ra.GetMinIntervalSec() != 200:
 		t.Fatalf("Retrieve ipv6Ra %v", ra)
-	case ra.GetPrefixes()[nm.v6a+"::/64"].GetValidSec() != 86400 || ra.GetPrefixes()[nm.v6a+"::/64"].GetPreferredSec() != 14400:
+	case !validLifetime(ra.GetPrefixes()[nm.v6a+"::/64"].GetValidSec(), 86400) || !validLifetime(ra.GetPrefixes()[nm.v6a+"::/64"].GetPreferredSec(), 14400):
 		t.Fatalf("Retrieve RA prefix %v", ra.GetPrefixes())
 	case !l1.GetProxyArp():
 		t.Fatal("Retrieve proxyArp")

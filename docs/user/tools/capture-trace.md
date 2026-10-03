@@ -1,6 +1,10 @@
 # Packet capture (Tools → Packet capture)
 
-Capture packets on a VPP interface and download a `.pcap` file you can open in Wireshark or with `tcpdump -r`.
+Capture packets on an engine interface and download a `.pcap` file you can open in Wireshark or with `tcpdump -r`.
+
+**Administrators only.** Starting or stopping a capture, downloading a file and deleting a file all need the admin role (the
+capture sets the engine-wide BPF filter, holds the single capture slot for up to 10 minutes and records packet
+contents). Operators and read-only users can see the list of captures.
 
 ## Start a capture
 1. Open **Tools → Packet capture**, tab **Capture**.
@@ -14,7 +18,18 @@ Capture packets on a VPP interface and download a `.pcap` file you can open in W
 6. **Start capture**. A progress bar shows the running capture. The capture stops after the time limit (VPP stops
    recording by itself at the packet limit).
 
-Only one capture runs per VPP. A second start answers **409 `capture-busy`**.
+Use **Stop capture** on the running row and confirm to end it early and keep collected packets.
+A capture is finalized after the engine confirms stop. If stop fails, the agent preserves the
+running record and retries recovery rather than reporting success.
+
+An API restart cancels the capture streams held by that API process. A capture from another
+API process cannot be stopped by the current one; the action reports a conflict.
+
+Plans whose maximum estimated file size exceeds the retained byte limit are rejected with
+the packet-count field highlighted before capture starts. The newest kept capture survives
+a byte-cap reduction.
+
+Only one capture runs per engine. A second start answers **409 `capture-busy`**.
 
 ## Files
 VPP writes the file under `/tmp`, readable by everyone. The agent moves it to `/var/lib/vrx/captures/` with mode 0600
@@ -26,8 +41,8 @@ and records its size, packet count and sha256. It keeps the 10 newest files and 
 tcpdump -nr vrx-20260927T100000-1.pcap
 ```
 
-If the agent restarts during a capture, the capture is stopped the next time the capture list is read. It is then
-shown as **Interrupted**, and the file is kept if VPP wrote one.
+If the agent restarts during a capture, the capture is stopped when the agent connects to the engine, before any capture request. It is then
+shown as **Interrupted**, and the file is kept if the engine wrote one.
 
 ## Trace and packet generator
 These tabs say **Not available on this build**:

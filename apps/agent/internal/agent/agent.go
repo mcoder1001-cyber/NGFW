@@ -25,6 +25,7 @@ import (
 	vrxv1 "ngfw/agent/gen/vrx/v1"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
@@ -256,9 +257,20 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 	if cfg.IDs == (subsystems.IDScope{}) {
 		log.Warn("no VPP id range: families that allocate numeric ids refuse to register", "why", subsystems.ErrNoIDRange)
 	}
+	cache, err := secretchannel.Open(cfg.StateDir, cfg.Owner)
+	if err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
+	if err = subsystems.SetIKEv2Secrets(cfg.Owner, cache, cache.Ref); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
+	svc, err := NewService(ServiceConfig{CaptureBoot: wiring.BootStore(), GlobalsOwner: cfg.GlobalsOwner, SecretCache: cache, Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
 		Events: events, Sources: wiring.DynamicSources(),
 		RequestResync: func() { requestResync(resyncs) }}) // TD-9: the owed resync takes the Env.Resync path
 	if err != nil {
@@ -386,6 +398,14 @@ func (a *Agent) watchVPP(ctx context.Context) {
 					a.wiring.Connected(cctx)
 				})
 			}
+			// wave-BC: S-capture-retention-stop
+			a.safely("capture recovery", func() {
+				cctx, cancel := context.WithTimeout(ctx, connectHookTimeout)
+				defer cancel()
+				if err := a.svc.recoverCaptures(cctx); err != nil {
+					a.log.Error("capture recovery failed", "error", err)
+				}
+			})
 			a.fullResync(ctx, "connect")
 			if !sourcesStarted {
 				sourcesStarted = true

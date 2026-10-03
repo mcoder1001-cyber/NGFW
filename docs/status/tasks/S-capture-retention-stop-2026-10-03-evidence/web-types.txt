@@ -1,0 +1,22 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c pnpm --filter @ngfw/web exec vitest run src/domains/tools/capture-trace && pnpm --filter @ngfw/web typecheck && pnpm --filter @ngfw/api typecheck
+heavy: slot 1 after 20s
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/web
+
+stdout | src/domains/tools/capture-trace/CapturePage.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stderr | src/domains/tools/capture-trace/CapturePage.test.tsx > Tools → Packet capture (F-capture-trace) > requires confirmation before stopping an active capture
+No `HydrateFallback` element provided to render during initial hydration
+
+ ✓ src/domains/tools/capture-trace/CapturePage.test.tsx (3 tests) 5621ms
+   ✓ Tools → Packet capture (F-capture-trace) > requires confirmation before stopping an active capture  3000ms
+   ✓ Tools → Packet capture (F-capture-trace) > lists kept files, shows trace/PG as unavailable, starts a capture and maps a server pointer  2584ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  16:20:41
+   Duration  16.88s (transform 4.03s, setup 539ms, collect 8.51s, tests 5.62s, environment 1.19s, prepare 189ms)
+
+$ tsc -p tsconfig.json --noEmit
+$ tsc -p tsconfig.json

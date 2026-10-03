@@ -235,6 +235,7 @@ type api struct {
 
 type resp struct {
 	status int
+	ctype  string // Content-Type (application/problem+json on a refusal)
 	body   map[string]any
 	raw    string
 }
@@ -262,7 +263,7 @@ func (a *api) call(method, path string, body any, headers ...string) resp {
 	}
 	defer func() { _ = res.Body.Close() }()
 	raw, _ := io.ReadAll(res.Body)
-	r := resp{status: res.StatusCode, raw: string(raw)}
+	r := resp{status: res.StatusCode, ctype: res.Header.Get("content-type"), raw: string(raw)}
 	_ = json.Unmarshal(raw, &r.body)
 	return r
 }

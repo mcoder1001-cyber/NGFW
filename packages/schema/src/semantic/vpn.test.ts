@@ -12,6 +12,9 @@ const tunnel = (extra: Record<string, unknown> = {}): Record<string, unknown> =>
   remoteAddr: '203.0.113.10',
   auth: { method: 'psk', secretRef: 'psk/x' },
   proposal: 'p',
+  localId: '@local.example',
+  remoteId: '@peer.example',
+  routeBased: { ipipInterface: 'ipip0' },
   localTs: ['192.168.10.0/24'],
   remoteTs: ['10.99.0.0/16'],
   ...extra,
@@ -214,18 +217,16 @@ describe('vpn.route-based-ipip', () => {
   });
   const rb = (ipipInterface: string, extra: Record<string, unknown> = {}) =>
     tunnel({ localTs: [], remoteTs: [], routeBased: { ipipInterface }, ...extra });
-  it('accepts a matching p2p IPIP and a p2mp IPIP for %any', () => {
+  it('accepts matching point-to-point IPIP tunnels', () => {
     const doc = withIpsec(
       {
         a: rb('i1'),
-        b: rb('hub', { remoteAddr: '%any', startAction: 'trap' }),
         c: rb('i2', { remoteAddr: 'peer.example' }),
       },
       {
         tunnels: {
           ipip: {
             i1: ipip(),
-            hub: ipip({ mode: 'p2mp', dst: undefined }),
             i2: ipip({ dst: '203.0.113.99' }),
           },
         },
@@ -252,12 +253,6 @@ describe('vpn.route-based-ipip', () => {
       { a: rb('i1', { vrf: 'customer-a' }) },
       { i1: ipip() },
       /VRF 'default' differs from the IPsec overlay VRF 'customer-a'/,
-    ],
-    [
-      '%any with a p2p IPIP',
-      { a: rb('i1', { remoteAddr: '%any', startAction: 'trap' }) },
-      { i1: ipip() },
-      /needs a point-to-multipoint/,
     ],
     [
       'fixed peer with a p2mp IPIP',
@@ -308,28 +303,10 @@ describe('vpn.ipsec-peer-unique', () => {
       },
     ]);
   });
-  it('several %any responders on one address are fine when their IDs or auth differ (F6)', () => {
-    const any = (extra: Record<string, unknown>) =>
-      tunnel({ remoteAddr: '%any', startAction: 'trap', ...extra });
-    const doc = withIpsec(
-      {
-        pskSpokes: any({
-          localId: 'hub.example',
-          auth: { method: 'psk', secretRef: 'psk/spokes' },
-        }),
-        certSpokes: any({ localId: 'hub.example', auth: { method: 'cert', certificate: 'c' } }),
-        partner: any({ remoteId: 'partner.example' }),
-        clash: any({ localId: 'hub.example', auth: { method: 'psk', secretRef: 'psk/other' } }),
-      },
-      {},
+  it('rejects wildcard responders before semantic validation', () => {
+    expect(RootConfig.safeParse(withIpsec({ a: tunnel({ remoteAddr: '%any' }) }, {})).success).toBe(
+      false,
     );
-    expect(run(doc, 'vpn.ipsec-peer-unique')).toEqual([
-      {
-        pointer: '/vpn/ipsec/tunnels/clash/remoteAddr',
-        message:
-          "tunnel 'pskSpokes' already accepts %any on 198.51.100.2 in VRF 'default' with the same localId/remoteId/auth method — indistinguishable responders",
-      },
-    ]);
   });
 });
 
@@ -361,8 +338,8 @@ describe('vpn.proposal-compatible (F14)', () => {
     expect(
       run(
         withProposals({
-          a: tunnel({ protocol: 'ah', proposal: 'ah' }),
-          b: tunnel({ ikeVersion: 1, proposal: 'classic', remoteAddr: '203.0.113.11' }),
+          a: tunnel({ proposal: 'classic' }),
+          b: tunnel({ proposal: 'classic', remoteAddr: '203.0.113.11' }),
           c: tunnel({ proposal: 'modern', remoteAddr: '203.0.113.12' }),
           d: tunnel({ proposal: 'gone', remoteAddr: '203.0.113.13' }),
         }),
@@ -370,35 +347,12 @@ describe('vpn.proposal-compatible (F14)', () => {
       ),
     ).toEqual([]);
   });
-  it('rejects encrypting AH, AEAD IKE SAs and IKEv2-only groups with IKEv1', () => {
-    expect(
-      run(
-        withProposals({
-          a: tunnel({ protocol: 'ah', proposal: 'classic' }),
-          b: tunnel({ ikeVersion: 1, proposal: 'p', remoteAddr: '203.0.113.11' }),
-          c: tunnel({ ikeVersion: 1, proposal: 'modern', remoteAddr: '203.0.113.12' }),
-        }),
-        'vpn.proposal-compatible',
-      ).map((i) => [i.pointer, i.message]),
-    ).toEqual([
-      [
-        '/vpn/ipsec/tunnels/a/proposal',
-        "AH does not encrypt: proposal 'classic' must use esp.encr 'null' with an integrity algorithm",
-      ],
-      [
-        '/vpn/ipsec/tunnels/b/proposal',
-        "IKEv1 has no AEAD IKE SAs: proposal 'p' uses ike.encr 'aes256gcm16'",
-      ],
-      [
-        '/vpn/ipsec/tunnels/c/proposal',
-        "curve25519 is defined for IKEv2 only: proposal 'modern' uses it in ike.dh",
-      ],
-      [
-        '/vpn/ipsec/tunnels/c/proposal',
-        "curve448 is defined for IKEv2 only: proposal 'modern' uses it in esp.dh",
-      ],
-    ]);
-  });
+  it.each([{ protocol: 'ah' }, { ikeVersion: 1 }])(
+    'rejects unsupported native protocol/version %j',
+    (extra) => {
+      expect(RootConfig.safeParse(withProposals({ a: tunnel(extra) })).success).toBe(false);
+    },
+  );
 });
 
 describe('vpn.wireguard-unique', () => {

@@ -306,7 +306,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	r.Register(&vethOnly{Descriptor: afpacket.New(c, owner), kind: env.NetdevKind}) // D-105: veth only
 	// DF-1, in iface.Register's order, with the MTU/rx-mode "value equal to the default" tolerance
 	r.Register(iface.NewSubinterface(c, owner))
-	r.Register(iface.NewAdminState(c, owner))
+	r.Register(&nativeAdminGuard{Descriptor: iface.NewAdminState(c, owner), owner: owner})
 	r.Register(newDefaultTolerant(iface.NewMtu(c, owner), iface.ErrMtuDefault, mtuInEffect(c, owner)))
 	r.Register(iface.NewMacAddress(c, owner))
 	r.Register(iface.NewPromisc(c, owner))
@@ -325,12 +325,16 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := registerTunnels(r, w); err != nil { // DF-6 gre/ipip/vxlan tunnels + tunnels.meta (tunnels.go)
 		return nil, err
 	}
+	registerTunnelsT1(r, w) // S-tunnels-contract: additional tunnel descriptors
 	// wave-BC: F-vrrp-config-sync
 	if err := registerVrrp(r, w); err != nil { // DF-7 vrrp family + vrrp.meta + keepalived stage (vrrp.go, keepalived.go)
 		return nil, err
 	}
 	// wave-BC: F-pki
 	// wave-BC: F-ikev2-native
+	if err := w.registerIKEv2(r); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-ospf
 	// wave-BC: F-isis-rip
 	// wave-BC: F-mpls-srmpls

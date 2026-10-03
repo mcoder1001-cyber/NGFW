@@ -1,0 +1,18 @@
+START extra bfd
+END extra bfd exit 0
+START extra lldp
+END extra lldp exit 0
+START extra mpls
+END extra mpls exit 1
+START extra lb-descriptor
+END extra lb-descriptor exit 0
+START extra trace
+END extra trace exit 0
+START extra workers-policer
+END extra workers-policer exit 0
+START extra workers-interface
+END extra workers-interface exit 1
+START extra objects-scale
+END extra objects-scale exit 0
+START extra scheduler-perf
+END extra scheduler-perf exit 0

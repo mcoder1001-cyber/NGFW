@@ -1,0 +1,57 @@
+=== RUN   TestHostInterfaceOnHost
+2026/10/03 13:01:59 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-af50 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:106: timing: Create af-packet.host-interface/w32-af50 took 156ms (err <nil>)
+    integration_test.go:122: timing: Retrieve took 1ms (err <nil>)
+    integration_test.go:130: af-packet.host-interface: Retrieve == desired: af-packet.host-interface/w32-af50 name:"w32-af50" host_if_name:"w32-af50"
+2026/10/03 13:02:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-af50p sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:106: timing: Create af-packet.host-interface/w32-af50p took 70ms (err <nil>)
+    integration_test.go:122: timing: Retrieve took 1ms (err <nil>)
+    integration_test.go:130: af-packet.host-interface: Retrieve == desired: af-packet.host-interface/w32-af50p name:"w32-af50p" host_if_name:"w32-af50p" mode:MODE_IP
+    integration_test.go:132: vppctl show interface (after Create):
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w32-af50p                    2     down          0/0/0/0       
+        host-w32-af50                     1     down         9000/0/0/0     
+    integration_test.go:133: vppctl show hardware-interfaces host-w32-af50 (D-108/D-113 rings):
+                      Name                Idx   Link  Hardware
+        host-w32-af50                      1     up   host-w32-af50
+          Link speed: unknown
+          RX Queues:
+            queue thread         mode      
+            0     main (0)       interrupt 
+          TX Queues:
+            TX Hash: [name: hash-eth-l34 priority: 50 description: Hash ethernet L34 headers]
+            queue shared thread(s)      
+            0     no     0
+          Ethernet address 02:fe:64:39:50:4f
+          Linux PACKET socket interface v3
+          FEATURES:
+          Host Interface Offload:
+            creation time:
+             rx checksum
+             tx checksum
+             tcp segmentation offload
+             generic segmentation offload
+            now:
+             rx checksum
+             tx checksum
+             tcp segmentation offload
+             generic segmentation offload
+          RX Queue 0:
+            block size:16384 nr:160  frame size:2048 nr:1280 next block:0
+          TX Queue 0:
+            block size:1081344 nr:1  frame size:67584 nr:16 next frame:0
+            available:16 request:0 sending:0 wrong:0 total:16
+2026/10/03 13:02:00 INFO af_packet quiesce: netdev down before af_packet_delete (D-101, VPP V24) netdev=w32-af50 descriptor=af-packet.host-interface ifindex=11 kind=veth
+2026/10/03 13:02:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-af50 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:138: timing: Delete af-packet.host-interface/w32-af50 took 266ms (err <nil>)
+    integration_test.go:145: after Delete af-packet.host-interface/w32-af50: netdev w32-af50 reads down (net.FlagUp clear)
+2026/10/03 13:02:00 INFO af_packet quiesce: netdev down before af_packet_delete (D-101, VPP V24) netdev=w32-af50p descriptor=af-packet.host-interface ifindex=10 kind=veth
+2026/10/03 13:02:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-af50p sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:138: timing: Delete af-packet.host-interface/w32-af50p took 261ms (err <nil>)
+    integration_test.go:145: after Delete af-packet.host-interface/w32-af50p: netdev w32-af50p reads down (net.FlagUp clear)
+    integration_test.go:147: timing: Retrieve took 1ms (err <nil>)
+    integration_test.go:162: after Delete: Retrieve has neither key; vppctl show interface has no host-w32-af50*:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+--- PASS: TestHostInterfaceOnHost (0.99s)
+PASS
+ok  	ngfw/agent/internal/descriptors/af_packet	1.018s

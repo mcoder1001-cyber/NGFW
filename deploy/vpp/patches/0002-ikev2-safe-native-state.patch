@@ -1,0 +1,70 @@
+Subject: [PATCH] ikev2: guard profile dumps and decode action SPIs
+Track: V26
+Status: product
+Upstream: not submitted
+
+SA_INIT has profile_index ~0 until IKE_AUTH selects an owned profile.
+V2/V3 dumps dereferenced that invalid index and crashed on normal monitoring.
+Advertise explicit VRX safe-state capability with existing version API.
+
+Decode action SPIs from network order before lookup (IKE delete and CHILD delete/rekey).
+
+--- a/src/plugins/ikev2/ikev2_api.c
++++ b/src/plugins/ikev2/ikev2_api.c
+@@ -293,6 +293,9 @@
+   int rv = 0;
+   ikev2_sa_transform_t *tr;
+   ikev2_profile_t *p;
++  /* SA_INIT has not selected a profile; an API dump must not dereference ~0. */
++  if (pool_is_free_index (km->profiles, sa->profile_index))
++    return;
+   p = pool_elt_at_index (km->profiles, sa->profile_index);
+ 
+   REPLY_MACRO2_ZERO (VL_API_IKEV2_SA_V2_DETAILS, {
+@@ -379,6 +382,9 @@
+   int rv = 0;
+   ikev2_sa_transform_t *tr;
+   ikev2_profile_t *p;
++  /* SA_INIT has not selected a profile; an API dump must not dereference ~0. */
++  if (pool_is_free_index (km->profiles, sa->profile_index))
++    return;
+   p = pool_elt_at_index (km->profiles, sa->profile_index);
+   vlib_main_t *vm = vlib_get_main ();
+ 
+@@ -686,7 +692,8 @@
+     ntohs (VL_API_IKEV2_PLUGIN_GET_VERSION_REPLY + im->msg_id_base);
+   rmp->context = mp->context;
+   rmp->major = htonl (IKEV2_PLUGIN_VERSION_MAJOR);
+-  rmp->minor = htonl (IKEV2_PLUGIN_VERSION_MINOR);
++  /* VRX safe-state capability revision 1: guarded IKE SA profile lookup. */
++  rmp->minor = htonl (0x56525801);
+ 
+   vl_api_send_msg (reg, (u8 *) rmp);
+ }
+@@ -1083,7 +1090,7 @@
+   vlib_main_t *vm = vlib_get_main ();
+   clib_error_t *error;
+ 
+-  error = ikev2_initiate_delete_ike_sa (vm, mp->ispi);
++  error = ikev2_initiate_delete_ike_sa (vm, clib_net_to_host_u64 (mp->ispi));
+   if (error)
+     {
+       log_err ("%U", format_clib_error, error);
+@@ -1102,7 +1109,7 @@
+   vlib_main_t *vm = vlib_get_main ();
+   clib_error_t *error;
+ 
+-  error = ikev2_initiate_delete_child_sa (vm, mp->ispi);
++  error = ikev2_initiate_delete_child_sa (vm, clib_net_to_host_u32 (mp->ispi));
+   if (error)
+     {
+       log_err ("%U", format_clib_error, error);
+@@ -1141,7 +1148,7 @@
+   vlib_main_t *vm = vlib_get_main ();
+   clib_error_t *error;
+ 
+-  error = ikev2_initiate_rekey_child_sa (vm, mp->ispi);
++  error = ikev2_initiate_rekey_child_sa (vm, clib_net_to_host_u32 (mp->ispi));
+   if (error)
+     {
+       log_err ("%U", format_clib_error, error);

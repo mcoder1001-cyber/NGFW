@@ -52,12 +52,14 @@ type txnRecord struct {
 
 // persisted is agent-state.json.
 type persisted struct {
-	Owner            string     `json:"owner"`
-	Managed          []string   `json:"managed"`
-	ConfirmedManaged []string   `json:"confirmed_managed"`
-	LastTxnID        string     `json:"last_txn_id,omitempty"`
-	PendingTxnID     string     `json:"pending_txn_id,omitempty"`
-	ConfirmDeadline  *time.Time `json:"confirm_deadline,omitempty"`
+	SecretBundle          string     `json:"secret_bundle,omitempty"`
+	ConfirmedSecretBundle string     `json:"confirmed_secret_bundle,omitempty"`
+	Owner                 string     `json:"owner"`
+	Managed               []string   `json:"managed"`
+	ConfirmedManaged      []string   `json:"confirmed_managed"`
+	LastTxnID             string     `json:"last_txn_id,omitempty"`
+	PendingTxnID          string     `json:"pending_txn_id,omitempty"`
+	ConfirmDeadline       *time.Time `json:"confirm_deadline,omitempty"`
 	// Reverting: the pending transaction's deadline passed and the revert to the confirmed baseline
 	// is owed (Desired already equals Confirmed); it is retried on every resync until it succeeds
 	// (review H3).

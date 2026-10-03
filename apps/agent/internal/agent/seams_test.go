@@ -143,6 +143,7 @@ func TestMetricsCollectors(t *testing.T) {
 	collectorTimeout = 200 * time.Millisecond
 	t.Cleanup(func() { collectorTimeout = old })
 	a, _ := startFake(t, testConfig(t))
+	m, w := a.metrics, a.wiring
 	// Production now installs the dashboard collector. Check that wiring, then
 	// isolate this seam test's collectors so the empty-list and error accounting
 	// assertions stay independent of production stats socket availability.
@@ -164,7 +165,7 @@ func TestMetricsCollectors(t *testing.T) {
 	}
 	scrape := func() string {
 		rec := httptest.NewRecorder()
-		a.metrics.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+		m.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 		if rec.Code != http.StatusOK {
 			t.Fatalf("scrape: %d", rec.Code)
 		}
@@ -180,29 +181,29 @@ func TestMetricsCollectors(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "zeta", Collect: func(_ context.Context, w io.Writer) error {
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "zeta", Collect: func(_ context.Context, w io.Writer) error {
 		_, err := io.WriteString(w, "# HELP vrx_zeta_up Test.\n# TYPE vrx_zeta_up gauge\nvrx_zeta_up 1") // no trailing newline
 		return err
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "alpha", Collect: func(_ context.Context, w io.Writer) error {
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "alpha", Collect: func(_ context.Context, w io.Writer) error {
 		_, _ = io.WriteString(w, "vrx_alpha_partial 1\n")
 		if fail {
 			return errors.New("stats segment unavailable")
 		}
 		return nil
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "slow", Collect: func(ctx context.Context, w io.Writer) error {
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "slow", Collect: func(ctx context.Context, w io.Writer) error {
 		_, _ = io.WriteString(w, "vrx_slow_partial 1\n")
 		<-ctx.Done() // honours its deadline: the scrape's context ends first here
 		return ctx.Err()
 	}}))
-	must(a.wiring.AddMetricsCollector(subsystems.MetricsCollector{Name: "boom", Collect: func(context.Context, io.Writer) error {
+	must(w.AddMetricsCollector(subsystems.MetricsCollector{Name: "boom", Collect: func(context.Context, io.Writer) error {
 		panic("collector bug") // R3: contained, counted as an error
 	}}))
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // the scraper went away: slow is dropped, the others still run
 	var b strings.Builder
-	a.metrics.writeCtx(ctx, &b)
+	m.writeCtx(ctx, &b)
 	out := b.String()
 	if !strings.HasPrefix(out, base) {
 		t.Fatal("the agent's families changed")

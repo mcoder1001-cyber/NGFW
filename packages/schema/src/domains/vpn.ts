@@ -19,7 +19,7 @@ import {
 } from './_shared/primitives.js';
 
 /**
- * `vpn` — VPN: IPsec (strongSwan IKE + VPP ESP, optional native VPP IKEv2), WireGuard, PKI and remote access.
+ * `vpn` — VPN: route-based IPsec (native VPP IKEv2 + ESP), WireGuard, PKI and remote access.
  *
  * Shape (docs/04-api-datamodel.md, prompts/P11-strongswan-vpp.md §2, WBS D6.1–D6.5, D6.9):
  *   ipsec { settings, proposals { name → { ike, esp } }, tunnels { name → … } }
@@ -233,6 +233,14 @@ export const IpsecRekeySchema = z.strictObject({
   }),
 });
 
+// Native VPP configures CHILD lifetimes; IKE lifetime, reauth and packet limits
+// have no supported per-profile setter. Keep historical schemas for other consumers.
+export const NativeIpsecRekeySchema = IpsecRekeySchema.omit({
+  ikeSec: true,
+  reauth: true,
+  espPackets: true,
+});
+
 const startAction = z.enum(['none', 'start', 'trap']);
 
 /** `%any` = accept any responder/initiator address (responder-only tunnels). */
@@ -242,10 +250,10 @@ export const IpsecTunnelSchema = z
   .strictObject({
     enabled: enabledFlag,
     description: descriptionField.optional(),
-    engine: withUi(z.enum(['strongswan', 'vpp-ikev2']).default('strongswan'), {
+    engine: withUi(z.enum(['vpp-ikev2']).default('vpp-ikev2'), {
       title: 'IKE engine',
       widget: 'select',
-      help: 'strongSwan (kernel-vpp) or the native engine IKEv2 plugin (D6.3, IKEv2 only)',
+      help: 'Route-based IPsec with native IKEv2',
     }),
     ikeVersion: withUi(z.union([z.literal(1), z.literal(2)]).default(2), {
       title: 'IKE version',
@@ -270,12 +278,11 @@ export const IpsecTunnelSchema = z
     proposal: withUi(objectName, { title: 'Proposal', help: 'Name in vpn.ipsec.proposals' }),
     localTs: withUi(z.array(ipv4OrIpv6Cidr).max(64).default([]), {
       title: 'Local traffic selectors',
-      help: 'Policy-based tunnels: at least one; route-based: defaults to 0.0.0.0/0 and ::/0',
+      help: 'One local network; empty uses the wildcard selector of the address family',
     }),
     remoteTs: withUi(z.array(ipv4OrIpv6Cidr).max(64).default([]), {
       title: 'Remote traffic selectors',
     }),
-    dpd: withUi(IpsecDpdSchema, { title: 'Dead peer detection', group: 'dpd' }).prefault({}),
     natT: withUi(z.boolean().default(true), {
       title: 'NAT traversal (UDP encapsulation)',
       widget: 'switch',
@@ -289,8 +296,8 @@ export const IpsecTunnelSchema = z
       title: 'IKE fragmentation',
       widget: 'select',
     }).optional(),
-    rekey: withUi(IpsecRekeySchema, { title: 'Rekeying', group: 'rekey' }).prefault({}),
-    startAction: withUi(startAction.default('start'), { title: 'Start action', widget: 'select' }),
+    rekey: withUi(NativeIpsecRekeySchema, { title: 'Rekeying', group: 'rekey' }).prefault({}),
+    startAction: withUi(startAction.default('none'), { title: 'Start action', widget: 'select' }),
     closeAction: withUi(startAction.default('none'), { title: 'Close action', widget: 'select' }),
     vrf: withUi(vrfRef, {
       title: 'VRF',
@@ -309,8 +316,8 @@ export const IpsecTunnelSchema = z
           help: 'Name in tunnels.ipip; the tunnel is protected (ipsec_tunnel_protect) and traffic is steered by routes',
         }),
       }),
-      { title: 'Route-based (VTI)' },
-    ).optional(),
+      { title: 'Protected tunnel interface' },
+    ),
     esn: withUi(z.boolean().default(false), {
       title: 'Extended sequence numbers',
       widget: 'switch',
@@ -321,6 +328,33 @@ export const IpsecTunnelSchema = z
     const issue = (path: string, message: string): void => {
       ctx.addIssue({ code: 'custom', path: [path], message });
     };
+    if (t.engine === 'vpp-ikev2') {
+      if (t.startAction !== 'none')
+        issue('startAction', 'native IPsec initiation is an explicit runtime action; use none');
+      if (t.routeBased === undefined)
+        issue('routeBased', 'native IPsec requires routeBased.ipipInterface');
+      if (t.mode !== 'tunnel') issue('mode', 'native IPsec supports tunnel mode only');
+      if (t.protocol !== 'esp') issue('protocol', 'native IPsec supports ESP only');
+      if (t.localTs.length > 1)
+        issue('localTs', 'native IPsec supports one selector per direction');
+      if (t.remoteTs.length > 1)
+        issue('remoteTs', 'native IPsec supports one selector per direction');
+      if (t.remoteAddr === IPSEC_ANY_PEER)
+        issue('remoteAddr', 'native route-based IPsec needs a fixed peer address');
+      for (const field of ['localId', 'remoteId'] as const) {
+        const id = t[field] ?? (field === 'localId' ? t.localAddr : t.remoteAddr);
+        if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(id)) {
+          const bytes = id.split('.').map(Number);
+          const firstZero = bytes.indexOf(0);
+          if (firstZero >= 0 && bytes.slice(firstZero).some((b) => b !== 0)) {
+            issue(
+              field,
+              'VPP identity read-back truncates at an embedded zero byte; use an FQDN identity',
+            );
+          }
+        }
+      }
+    }
     if (t.engine === 'vpp-ikev2' && t.ikeVersion !== 2) {
       issue('ikeVersion', 'the native VPP IKEv2 engine supports IKEv2 only');
     }
@@ -349,6 +383,8 @@ export const IpsecTunnelSchema = z
     }
   });
 
+export const ipsecObjectName = withUi(objectName.max(60), { title: 'Name' });
+
 export const IpsecSettingsSchema = z.strictObject({
   cryptoEngine: withUi(z.enum(['auto', 'native', 'ipsecmb', 'openssl']).default('auto'), {
     title: 'Crypto engine',
@@ -370,7 +406,7 @@ export const IpsecSchema = z.strictObject({
     title: 'Proposals',
     widget: 'record',
   }),
-  tunnels: withUi(z.record(objectName, IpsecTunnelSchema).default({}), {
+  tunnels: withUi(z.record(ipsecObjectName, IpsecTunnelSchema).default({}), {
     title: 'Tunnels',
     widget: 'record',
   }),
@@ -472,14 +508,29 @@ export const PkiKeySpecSchema = z
       ctx.addIssue({ code: 'custom', path: ['bits'], message: 'bits applies to RSA keys only' });
     }
     if (k.type === 'rsa' && k.curve !== undefined) {
-      ctx.addIssue({ code: 'custom', path: ['curve'], message: 'curve applies to ECDSA keys only' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['curve'],
+        message: 'curve applies to ECDSA keys only',
+      });
     }
   });
 
 /** Attribute types the PKI actions encode in a distinguished name (E = emailAddress). */
-export const PKI_DN_ATTRIBUTES = ['CN', 'O', 'OU', 'C', 'L', 'ST', 'DC', 'E', 'serialNumber'] as const;
+export const PKI_DN_ATTRIBUTES = [
+  'CN',
+  'O',
+  'OU',
+  'C',
+  'L',
+  'ST',
+  'DC',
+  'E',
+  'serialNumber',
+] as const;
 const pkiDnAttr = `(?:${PKI_DN_ATTRIBUTES.join('|')})`;
-const pkiDnValue = '[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f](?:[^,=+"\\\\<>;#\\x00-\\x1f\\x7f]*[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f])?';
+const pkiDnValue =
+  '[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f](?:[^,=+"\\\\<>;#\\x00-\\x1f\\x7f]*[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f])?';
 
 /**
  * A distinguished name in the RFC 4514 reading order, `CN=gw.example.com, O=Example, C=CH`: attributes from
@@ -556,42 +607,45 @@ function pkiValidityDays(issued: { notBefore: string; notAfter: string }): numbe
 
 // ----- end F-pki -----
 
-export const PkiCaSchema = z.strictObject({
-  description: descriptionField.optional(),
-  certificateRef: withUi(secretRefOf('cert'), {
-    title: 'CA certificate (reference)',
-    help: 'PEM stored through POST /api/v1/secrets (kind cert)',
-  }),
-  crl: withUi(
-    z.strictObject({
-      url: httpsUrl.optional(),
-      refreshIntervalSec: withUi(z.int().min(300).max(2592000).default(86400), {
-        title: 'CRL refresh (s)',
-        widget: 'number',
-      }),
+export const PkiCaSchema = z
+  .strictObject({
+    description: descriptionField.optional(),
+    certificateRef: withUi(secretRefOf('cert'), {
+      title: 'CA certificate (reference)',
+      help: 'PEM stored through POST /api/v1/secrets (kind cert)',
     }),
-    { title: 'CRL' },
-  ).optional(),
-  ocspUrl: withUi(httpsUrl, { title: 'OCSP responder URL' }).optional(),
-  // wave-BC: F-pki
-  keySpec: withUi(PkiKeySpecSchema, {
-    title: 'Key',
-    help: 'How the CA key pair was generated (POST /api/v1/actions/pki/ca)',
-  }).optional(),
-  issued: withUi(PkiIssuedSchema, {
-    title: 'Certificate facts',
-    help: 'Recorded by the PKI actions',
-  }).optional(),
-}).superRefine((c, ctx) => {
-  // F-pki: a CA certificate must be CA:TRUE (the import/generate actions record basicConstraints in issued.ca)
-  if (c.issued?.ca === false) {
-    ctx.addIssue({
-      code: 'custom',
-      path: ['issued', 'ca'],
-      message: 'a CA certificate must have basicConstraints CA:TRUE; import it as a certificate instead',
-    });
-  }
-});
+    crl: withUi(
+      z.strictObject({
+        url: httpsUrl.optional(),
+        refreshIntervalSec: withUi(z.int().min(300).max(2592000).default(86400), {
+          title: 'CRL refresh (s)',
+          widget: 'number',
+        }),
+      }),
+      { title: 'CRL' },
+    ).optional(),
+    ocspUrl: withUi(httpsUrl, { title: 'OCSP responder URL' }).optional(),
+    // wave-BC: F-pki
+    keySpec: withUi(PkiKeySpecSchema, {
+      title: 'Key',
+      help: 'How the CA key pair was generated (POST /api/v1/actions/pki/ca)',
+    }).optional(),
+    issued: withUi(PkiIssuedSchema, {
+      title: 'Certificate facts',
+      help: 'Recorded by the PKI actions',
+    }).optional(),
+  })
+  .superRefine((c, ctx) => {
+    // F-pki: a CA certificate must be CA:TRUE (the import/generate actions record basicConstraints in issued.ca)
+    if (c.issued?.ca === false) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['issued', 'ca'],
+        message:
+          'a CA certificate must have basicConstraints CA:TRUE; import it as a certificate instead',
+      });
+    }
+  });
 
 export const PkiCertificateSchema = z
   .strictObject({
@@ -646,46 +700,48 @@ export const PkiCertificateSchema = z
     }
   });
 
-export const PkiSchema = z.strictObject({
-  cas: withUi(z.record(objectName, PkiCaSchema).default({}), {
-    title: 'Certificate authorities',
-    widget: 'record',
-  }),
-  certificates: withUi(z.record(objectName, PkiCertificateSchema).default({}), {
-    title: 'Certificates',
-    widget: 'record',
-  }),
-  hsm: withUi(
-    z.strictObject({
-      enabled: withUi(z.boolean().default(false), { title: 'Enabled', widget: 'switch' }),
-      module: withUi(
-        z
-          .string()
-          .max(255)
-          .regex(/^\/[A-Za-z0-9_.+/-]*$/),
-        {
-          title: 'PKCS#11 module path',
-        },
-      ),
-      tokenLabel: withUi(z.string().min(1).max(32), { title: 'Token label' }).optional(),
-      pinRef: withUi(secretRefOf('password'), { title: 'PIN (reference)' }).optional(),
+export const PkiSchema = z
+  .strictObject({
+    cas: withUi(z.record(objectName, PkiCaSchema).default({}), {
+      title: 'Certificate authorities',
+      widget: 'record',
     }),
-    { title: 'PKCS#11 / HSM' },
-  ).optional(),
-}).superRefine((pki, ctx) => {
-  // F-pki: a certificate's `ca` must be the CA that issued it, when both facts are recorded
-  for (const [name, cert] of Object.entries(pki.certificates)) {
-    const ca = cert.ca === undefined ? undefined : pki.cas[cert.ca];
-    if (ca?.issued === undefined || cert.issued === undefined) continue;
-    if (cert.issued.issuer !== ca.issued.subject) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['certificates', name, 'ca'],
-        message: `certificate '${name}' was issued by '${cert.issued.issuer}', not by CA '${cert.ca}' ('${ca.issued.subject}')`,
-      });
+    certificates: withUi(z.record(objectName, PkiCertificateSchema).default({}), {
+      title: 'Certificates',
+      widget: 'record',
+    }),
+    hsm: withUi(
+      z.strictObject({
+        enabled: withUi(z.boolean().default(false), { title: 'Enabled', widget: 'switch' }),
+        module: withUi(
+          z
+            .string()
+            .max(255)
+            .regex(/^\/[A-Za-z0-9_.+/-]*$/),
+          {
+            title: 'PKCS#11 module path',
+          },
+        ),
+        tokenLabel: withUi(z.string().min(1).max(32), { title: 'Token label' }).optional(),
+        pinRef: withUi(secretRefOf('password'), { title: 'PIN (reference)' }).optional(),
+      }),
+      { title: 'PKCS#11 / HSM' },
+    ).optional(),
+  })
+  .superRefine((pki, ctx) => {
+    // F-pki: a certificate's `ca` must be the CA that issued it, when both facts are recorded
+    for (const [name, cert] of Object.entries(pki.certificates)) {
+      const ca = cert.ca === undefined ? undefined : pki.cas[cert.ca];
+      if (ca?.issued === undefined || cert.issued === undefined) continue;
+      if (cert.issued.issuer !== ca.issued.subject) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['certificates', name, 'ca'],
+          message: `certificate '${name}' was issued by '${cert.issued.issuer}', not by CA '${cert.ca}' ('${ca.issued.subject}')`,
+        });
+      }
     }
-  }
-});
+  });
 
 // ---------------------------------------------------------------------------------------------------------------
 // Remote-access VPN (D6.9): IKEv2 + EAP + client pools

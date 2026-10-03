@@ -9,7 +9,7 @@ Assumes a team of 6–9. A 2–3 person team can reach P5 but not GA parity in a
 | **P2 L3/static** | 17–22 | VRFs, static routes, ECMP, ARP/ND, FIB viewer, ping/traceroute | 3-router static topology forwards; VPP restart → config restored automatically |
 | **P3 Dynamic routing** | 23–34 | FRR + linux-cp: BGP/OSPF/IS-IS/RIP/BFD, route-maps, prefix-lists | full BGP table (≈1M routes) converges < 90 s; BFD failover < 300 ms |
 | **P4 NAT/ACL** | 35–44 | NAT44/1:1/port-forward/CGNAT/MAP-T, object model, ACLs to 100k rules | 1M NAT sessions sustained; 100k-rule ACL with no measurable pps loss |
-| **P5 VPN** | 45–58 | IPsec S2S (strongSwan+VPP), PKI, WireGuard, GRE/VXLAN/IPIP | 20 Gbps AES-GCM tunnel; interop with FortiGate/Cisco/strongSwan peers |
+| **P5 VPN** | 45–58 | route-based IPsec S2S (VPP native IKEv2), PKI, WireGuard, GRE/VXLAN/IPIP | 20 Gbps AES-GCM tunnel; interop with FortiGate/Cisco/strongSwan peers |
 | **P6 Services** | 59–66 | Kea DHCP, Unbound, chrony, LLDP, SNMP, IPFIX, syslog, Prometheus | DHCP leases visible in UI; IPFIX records land in a collector |
 | **P7 Observability/ops** | 67–76 | dashboard, packet capture, session browser, top talkers, backup/restore, upgrade | upgrade with auto-rollback proven by injecting a failure |
 | **P8 HA** | 77–86 | VRRP, config sync, state sync | pull the power on the master → < 1 s failover, sessions survive |

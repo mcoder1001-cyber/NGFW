@@ -1,0 +1,21 @@
+16:43:54 === F-isis-rip-host API 400 evidence: slot 6, owner w6, API :3600, agent socket /run/vrx-test/w6/isis-api/agent.sock ===
+16:43:54 VPP NRestarts=0 before
+16:44:01 agent pid 1396760 (VRX_FRR_PATHSPACE=w6 VRX_VPP_TABLE_BASE=6000), API pid 1396770 health {"status":"ok"}
+16:44:01 agent log: {"time":"2026-10-03T16:43:56.236275564+03:30","level":"INFO","msg":"VPP binary API connected","owner":"w6","component":"vpp","socket":"/run/vpp/api.sock"}
+16:44:01 === L1 IS with an L2 circuit: isis.level = level-1, interfaces.host-w6l0.circuitType = level-2 ===
+16:44:01 PATCH /config/routing (isis: net 49.0006.0000.0000.0001.00, level level-1, interfaces {host-w6l0: circuitType level-2}) → HTTP 200 application/json; charset=utf-8
+16:44:01 body: {"pointer":"/routing","before":{"policy":{"routeMaps":{},"prefixLists":{}},"static":[],"wanGroups":[]},"after":{"static":[],"policy":{"prefixLists":{},"routeMaps":{}},"isis":{"net":"49.0006.0000.0000.0001.00","level":"level-1","vrf":"default","interfaces":{"host-w6l0":{"passive":false,"circuitType":"level-2","bfd":false}},"redistribute":{}},"wanGroups":[]}}
+16:44:02 POST /config/validate → HTTP 400 application/problem+json; charset=utf-8
+16:44:02 body: {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"semantic validation failed","errors":[{"pointer":"/routing/isis/interfaces/host-w6l0/circuitType","message":"a level-1 IS-IS instance cannot run a level-2 circuit on interface 'host-w6l0'"}]}
+16:44:02 POST /config/commit → HTTP 400 application/problem+json; charset=utf-8
+16:44:02 body: {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"semantic validation failed","errors":[{"pointer":"/routing/isis/interfaces/host-w6l0/circuitType","message":"a level-1 IS-IS instance cannot run a level-2 circuit on interface 'host-w6l0'"}]}
+16:44:02 running config after the refused commit: routing.isis = null
+16:44:02 === control: the same IS at level-1-2 → validate ===
+16:44:02 PATCH level level-1-2 → HTTP 200 application/json; charset=utf-8
+16:44:03 POST /config/validate → HTTP 200 application/json; charset=utf-8
+16:44:03 body: {"status":null,"valid":null,"errors":[],"warnings":[{"pointer":"/management/aaa","code":null},{"pointer":"/management/tls","code":null},{"pointer":"/nat/ipfix","code":null},{"pointer":"/routing/isis","code":null},{"pointer":"/services/ipfix/flowprobe","code":null},{"pointer":"/services/lldp","code":null},{"pointer":"/services/ntp","code":null},{"pointer":"/vpn/ipsec","code":null}]}
+16:44:03 === cleanup ===
+16:44:03 candidate discarded
+16:44:03 stopped pids: 1396760 1396770
+16:44:04 database vrx_w6 dropped
+16:44:04 VPP NRestarts=0 after

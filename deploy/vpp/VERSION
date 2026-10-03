@@ -11,7 +11,7 @@ VPP_COMMIT=c3200b88dc46bd380f00a49ca3392a102cc1980b
 VPP_DEB_VERSION=26.06-release
 # D-089: any build with a non-empty applied patch series (product, --demo or optional patches) is versioned
 # "<VPP_DEB_VERSION>+vrx<VPP_LOCAL_REV>". Bump VPP_LOCAL_REV whenever the product series changes.
-VPP_LOCAL_REV=1
+VPP_LOCAL_REV=3
 # the package set `make pkg-deb` produces for this tag on Ubuntu 26.04 amd64 (same set as /root/vpp/build-root/*.deb on vrx-a)
 VPP_PACKAGES="libvppinfra libvppinfra-dev python3-vpp-api vpp vpp-crypto-engines vpp-dbg vpp-dev vpp-drivers vpp-plugin-core vpp-plugin-devtools vpp-plugin-dpdk"
 # the subset installed on vrx-a today (docs/lab/host-vrx-a.md); the rest are built but not installed

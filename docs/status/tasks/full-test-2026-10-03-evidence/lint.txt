@@ -1,0 +1,139 @@
+• turbo 2.11.2
+
+   • Packages in scope: @ngfw/api, @ngfw/api-client, @ngfw/proto, @ngfw/schema, @ngfw/ui-kit, @ngfw/web, @ngfw/yang
+   • Running lint in 7 packages
+   • Remote caching disabled, using shared worktree cache
+
+@ngfw/ui-kit:gen: cache bypass, force executing d4da46823afd8153
+@ngfw/schema:gen: cache bypass, force executing dcc7d7e13cb80514
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/ui-kit:gen: $ echo 'ui-kit: nothing to generate'
+@ngfw/ui-kit:gen: ui-kit: nothing to generate
+@ngfw/ui-kit:lint: cache miss, executing 3206aa431326e313
+@ngfw/ui-kit:lint: $ eslint src
+@ngfw/ui-kit:lint: (node:592928) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js is not specified and it doesn't parse as CommonJS.
+@ngfw/ui-kit:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/ui-kit:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/ui-kit:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/proto:gen: cache bypass, force executing 673c3db5805b6eba
+@ngfw/schema:lint: cache miss, executing f7ce1bbeb2839899
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/schema:lint: $ eslint src
+@ngfw/schema:lint: (node:593503) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js?mtime=1791019819733 is not specified and it doesn't parse as CommonJS.
+@ngfw/schema:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/schema:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/schema:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/yang:gen: cache bypass, force executing eaa9eefdbca1968b
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (vrx/v1 + vrx/model), TS → packages/proto/gen/ts (vrx/v1)
+@ngfw/proto:lint: cache miss, executing 1738635518c96801
+@ngfw/proto:lint: $ buf lint
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/api:gen: cache bypass, force executing 4a070682924ea867
+@ngfw/yang:lint: cache miss, executing 6334af2360e52efb
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/yang:lint: $ eslint src
+@ngfw/api-client:gen: cache bypass, force executing 7ce9c74741212a93
+@ngfw/api-client:gen: $ pnpm --filter "@ngfw/api^..." run build && pnpm --filter @ngfw/api openapi && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+@ngfw/api-client:gen: Scope: 3 of 8 workspace projects
+@ngfw/api-client:gen: ../schema build$ tsc -p tsconfig.json
+@ngfw/yang:lint: (node:594278) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js?mtime=1791019819733 is not specified and it doesn't parse as CommonJS.
+@ngfw/yang:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/yang:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/yang:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/api:lint: cache miss, executing ff37b8c3f07f1191
+@ngfw/api:lint: $ eslint src test
+@ngfw/api:lint: (node:594671) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js is not specified and it doesn't parse as CommonJS.
+@ngfw/api:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/api:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/api:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/api-client:gen: ../schema build: Done
+@ngfw/api-client:gen: ../proto build$ tsc -p tsconfig.build.json
+@ngfw/api-client:gen: ../yang build$ tsc -p tsconfig.json
+@ngfw/api-client:gen: ../yang build: Done
+@ngfw/api-client:gen: ../proto build: Done
+@ngfw/api-client:gen: $ tsc -p tsconfig.build.json && node dist/openapi.js ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: api: OpenAPI written to ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: ✨ openapi-typescript 7.13.0
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1state~1captures~1{id}/delete/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1start/get/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1callback/get/responses
+@ngfw/api-client:gen: 🚀 openapi.json → src/generated/schema.d.ts [2.1s]
+@ngfw/api-client:gen: src/generated/schema.d.ts 10972ms
+@ngfw/web:gen: cache bypass, force executing e1f775dda3ddd52e
+@ngfw/api-client:lint: cache miss, executing b61f9f6db7f044c0
+@ngfw/web:gen: $ echo 'web: nothing to generate'
+@ngfw/api-client:lint: $ eslint src && redocly lint openapi.json --config redocly.yaml
+@ngfw/web:gen: web: nothing to generate
+@ngfw/web:lint: cache miss, executing 225716fb7547c1cf
+@ngfw/web:lint: $ eslint src test/e2e && node scripts/check-logical-css.mjs
+@ngfw/api-client:lint: (node:596051) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js?mtime=1791019819733 is not specified and it doesn't parse as CommonJS.
+@ngfw/api-client:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/api-client:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/api-client:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/web:lint: (node:596173) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///root/.codex/worktrees/bbd9/NGFW/eslint.config.js is not specified and it doesn't parse as CommonJS.
+@ngfw/web:lint: Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+@ngfw/web:lint: To eliminate this warning, add "type": "module" to /root/.codex/worktrees/bbd9/NGFW/package.json.
+@ngfw/web:lint: (Use `node --trace-warnings ...` to show where the warning was created)
+@ngfw/api-client:lint: validating openapi.json...
+@ngfw/api-client:lint: [1] openapi.json:10400:9 at #/paths/~1api~1v1~1state~1captures~1{id}/delete/responses
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Operation must have at least one `2XX` response.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 10398 |   }
+@ngfw/api-client:lint: 10399 | ],
+@ngfw/api-client:lint: 10400 | "responses": {
+@ngfw/api-client:lint:       | ^^^^^^^^^^^
+@ngfw/api-client:lint: 10401 |   "401": {
+@ngfw/api-client:lint: 10402 |     "description": "Not authenticated",
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Warning was generated by the operation-2xx-response rule.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Reference: https://redocly.com/docs/cli/rules/oas/operation-2xx-response
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: [2] openapi.json:18397:9 at #/paths/~1api~1v1~1auth~1oidc~1start/get/responses
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Operation must have at least one `2XX` response.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 18395 | "operationId": "Oidc_start",
+@ngfw/api-client:lint: 18396 | "parameters": [],
+@ngfw/api-client:lint: 18397 | "responses": {
+@ngfw/api-client:lint:       | ^^^^^^^^^^^
+@ngfw/api-client:lint: 18398 |   "302": {
+@ngfw/api-client:lint: 18399 |     "description": "redirect to the IdP authorisation endpoint"
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Warning was generated by the operation-2xx-response rule.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Reference: https://redocly.com/docs/cli/rules/oas/operation-2xx-response
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: [3] openapi.json:18413:9 at #/paths/~1api~1v1~1auth~1oidc~1callback/get/responses
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Operation must have at least one `2XX` response.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 18411 | "operationId": "Oidc_callback",
+@ngfw/api-client:lint: 18412 | "parameters": [],
+@ngfw/api-client:lint: 18413 | "responses": {
+@ngfw/api-client:lint:       | ^^^^^^^^^^^
+@ngfw/api-client:lint: 18414 |   "302": {
+@ngfw/api-client:lint: 18415 |     "description": "redirect to the web UI"
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Warning was generated by the operation-2xx-response rule.
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Reference: https://redocly.com/docs/cli/rules/oas/operation-2xx-response
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: openapi.json: validated in 1221ms
+@ngfw/api-client:lint: 
+@ngfw/api-client:lint: Woohoo! Your API description is valid. 🎉
+@ngfw/api-client:lint: You have 3 warnings.
+@ngfw/api-client:lint: 
+@ngfw/web:lint: check-logical-css: OK (444 files, no physical left/right CSS)
+
+ Tasks:    14 successful, 14 total
+Cached:    0 cached, 14 total
+  Time:    2m32.017s 
+

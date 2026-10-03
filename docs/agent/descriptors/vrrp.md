@@ -48,7 +48,7 @@ window, with `NRestarts` checked before and after.
 `apps/agent/internal/subsystems/vrrp.go`): `vrrp.vr` (priority, `advertisementIntervalMs / 10`, preempt, accept,
 unicast flag, canonical sorted addresses), `vrrp.vr-peers` for unicast VRs, one `vrrp.vr-track-interface` per
 `track[]` entry, `vrrp.vr-state` while `enabled` (disabled = configured but stopped), and the agent-local
-`vrrp.meta` record (name, description, vrf — VPP holds no name; `<state dir>/vrrp-meta-<owner>.json`). The
+`vrrp.meta` record (name, description, vrf, original VIP order — VPP holds no name; `<state dir>/vrrp-meta-<owner>.json`). The
 assembler rebuilds `ha.vrrp` from them; a VR without a meta entry is named `vr-<if>-<vrid>-<af>`.
 
 TD-11b gap fix (`ownership.go`): `vrrp.vr` declares `CheckPersistent` (claims on untagged interfaces through the DF-1
@@ -56,3 +56,13 @@ claim store); peers/track/state declare `RecordsNoOwnership` (addressed through 
 `subsystems.Register` test (`TestRegisterGuardsEveryDescriptor` et al.) refused to start without it. VRRP allocates
 no VPP id, so the TD-8b id range does not apply. Retrieve is tolerant of a VPP without the vrrp plugin (as F-lisp).
 Unit model: `descriptors/core/coretest/vrrp.go`; agent test `internal/agent/rpc_vrrp_test.go`.
+
+## Product drift and vanished-interface handling
+
+For this owner's accept-mode Master VRs, the family registers a hook on `interface-ip` that excludes the runtime VIPs added by the VRRP plugin. It reads `vrrp_vr_dump` once per address Retrieve; Backup/disabled VRs and foreign VRs do not hide configured addresses. A failed dump prevents address classification instead of exposing plugin-owned VIPs for deletion.
+
+The persisted `vrrp.meta` entry additionally keeps the original VIP order. Assemble restores that order only when the saved and live address sets are equal. Changed live membership remains visible as drift.
+
+A VR whose interface vanished is omitted from Retrieve with one warning per orphan identity. Delete logs its key, releases the previous interface claim when deletion metadata is available, drops the applied record and returns success without calling VPP with the dead interface index. The independently scheduled metadata object can then be removed normally. A VR can remain in VPP's pool because `vrrp_vr_add_del` refuses a dead `sw_if_index`; this is residue, not successful VPP deletion.
+
+Manual cleanup requires the operator to inspect the residue and, in an authorized maintenance window, recreate a slot loopback at the former index, delete the stopped VR by its VRID/family, then remove that loopback. Confirm index identity before any delete; do not use a reused index belonging to another interface. Disposable verification destroys the private VPP instead. The agent does not reuse indexes or modify unrelated interfaces automatically.

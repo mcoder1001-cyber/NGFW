@@ -145,7 +145,7 @@ CGNAT (deterministic NAT + MAP-T/MAP-E), NPTv6. L2 MACIP / L3 / L4 ACLs with an 
 model (address objects, groups, services, schedules) and a rule editor that survives
 100 000 rules — server-side pagination + virtualised MUI DataGrid.
 
-**P5 — VPN.** IPsec site-to-site (IKEv1/IKEv2 via strongSwan + VPP dataplane), full cipher
+**P5 — VPN.** route-based IPsec site-to-site (native VPP IKEv2 + protected tunnel interface + FIB routes; scope: docs/decisions/DEC-ipsec-route-based.md), full cipher
 matrix, certificates & PKI (CA, CSR, import, CRL), WireGuard (VPP plugin), GRE, VXLAN,
 IPIP. Tunnel status dashboard, SA/SPI inspection, rekey events, per-tunnel throughput.
 

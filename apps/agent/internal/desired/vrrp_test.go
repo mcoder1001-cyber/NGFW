@@ -1,6 +1,9 @@
 package desired
 
 import (
+	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/vrrp"
+	"reflect"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -24,7 +27,7 @@ func TestVrrpKeepalivedStageValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := &sink{}
-	Vrrp(s, ds, map[string]bool{"ha": true})
+	Vrrp(s, ds, map[string]bool{"ha": true}, VrrpOptions{VPPEngine: true, Keepalived: true})
 	if len(s.errs) != 0 {
 		t.Fatal(s.errs)
 	}
@@ -42,8 +45,40 @@ func TestVrrpKeepalivedStageValue(t *testing.T) {
 	}
 	// not an authoritative domain: nothing
 	s2 := &sink{}
-	Vrrp(s2, ds, map[string]bool{"interfaces": true})
+	Vrrp(s2, ds, map[string]bool{"interfaces": true}, VrrpOptions{VPPEngine: true, Keepalived: true})
 	if len(s2.kvs) != 0 {
 		t.Fatalf("ha not in the transaction, got %v", s2.kvs)
+	}
+}
+
+func TestVrrpAddressOrderPreservedOnlyForEqualLiveSet(t *testing.T) {
+	ds := &vrxv1.DesiredState{}
+	if err := protojson.Unmarshal([]byte(`{"ha":{"vrrp":{"site":{"interface":"loop7301","vrId":20,"addresses":["10.7.4.254","10.7.4.1"]}}}}`), ds); err != nil {
+		t.Fatal(err)
+	}
+	s := &sink{}
+	Vrrp(s, ds, map[string]bool{"ha": true}, VrrpOptions{VPPEngine: true})
+	if len(s.errs) != 0 {
+		t.Fatal(s.errs)
+	}
+	out := &vrxv1.DesiredState{}
+	AssembleVrrp(out, s.kvs, map[string]bool{"ha": true})
+	if !reflect.DeepEqual(out.GetHa().GetVrrp()["site"].GetAddresses(), ds.GetHa().GetVrrp()["site"].GetAddresses()) {
+		t.Fatalf("address presentation order lost: %v", out)
+	}
+	for i, kv := range s.kvs {
+		if kv.Key.Descriptor() == vrrp.NameVR {
+			spec, err := df7.Decode[vrrp.VRSpec](kv.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			spec.Addresses = []string{"10.7.4.99"}
+			s.kvs[i].Value = df7.Encode(spec)
+		}
+	}
+	out = &vrxv1.DesiredState{}
+	AssembleVrrp(out, s.kvs, map[string]bool{"ha": true})
+	if !reflect.DeepEqual(out.GetHa().GetVrrp()["site"].GetAddresses(), []string{"10.7.4.99"}) {
+		t.Fatalf("saved metadata hid actual VIP drift: %v", out)
 	}
 }

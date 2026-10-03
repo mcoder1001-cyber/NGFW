@@ -398,6 +398,12 @@ export class CommitService implements OnApplicationShutdown {
           {
             txnId,
             desiredState: ValidationService.desiredState(doc),
+            secretBundle: (
+              await this.agent.resolveSecrets?.(
+                ValidationService.desiredState(doc),
+                running?.secretVersions ?? {},
+              )
+            )?.bundle,
             subsystems: (await this.validation.implemented()).subsystems,
             confirmTimeoutSec: 0,
             confirmTxnId: '',
@@ -808,6 +814,7 @@ export class CommitService implements OnApplicationShutdown {
     const v = await this.validation.validate(doc, txnId, {
       dryRunMs: this.budget.dryRunMs,
       ...(opts.kind === 'commit' ? { running: runningDoc } : {}),
+      secretVersions: opts.restoreSecrets,
     });
     if (!v.ok || v.config === undefined || v.desired === undefined) {
       throw problems.validation(v.errors, `${v.tier} validation failed`, {
@@ -824,7 +831,9 @@ export class CommitService implements OnApplicationShutdown {
       comment: opts.comment ?? '',
       kind: opts.kind,
       clearPending: false,
-      ...(opts.restoreSecrets ? { restoreSecrets: opts.restoreSecrets } : {}),
+      ...(opts.restoreSecrets || Object.keys(v.secretVersions ?? {}).length > 0
+        ? { restoreSecrets: { ...v.secretVersions, ...opts.restoreSecrets } }
+        : {}),
     };
     let res: ApplyResponse;
     this.remember(txnId);
@@ -833,6 +842,7 @@ export class CommitService implements OnApplicationShutdown {
         {
           txnId,
           desiredState: v.desired,
+          secretBundle: v.secretBundle,
           subsystems: v.subsystems,
           confirmTimeoutSec: confirmSec,
           confirmTxnId: '',
@@ -925,7 +935,7 @@ export class CommitService implements OnApplicationShutdown {
           parentId: opts.parentId,
           kind: opts.kind,
           deadline,
-          restoreSecrets: opts.restoreSecrets ?? null,
+          restoreSecrets: meta.restoreSecrets ?? null,
           warnings: v.warnings,
         }),
       );

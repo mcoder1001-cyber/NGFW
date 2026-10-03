@@ -23,7 +23,8 @@
 // further. See ApplyRequest.desired_state and docs/contracts/proto.md §2.
 //
 // Secrets (D-040, 00-CONTEXT rule 10): schema leaves flagged `secret: true` (password hashes,
-// keys, PSKs) have NO field here; only `*_ref` references cross this boundary.
+// keys, PSKs) have NO field in DesiredState; only `*_ref` references occur there.
+// Native PSK material travels separately in request-only SecretBundle, never read-back.
 syntax = "proto3";
 
 package vrx.v1;
@@ -36,6 +37,8 @@ option go_package = "ngfw/agent/gen/vrx/v1;vrxv1";
 // (/run/vrx/agent.sock in production, the slot's VRX_AGENT_SOCKET in tests). One agent process
 // serves exactly one owner (VRX_OWNER); see docs/contracts/proto.md "Ownership".
 service Dataplane {
+  rpc IpsecState(IpsecStateRequest) returns (IpsecStateResponse);
+  rpc TunnelState(TunnelStateRequest) returns (TunnelStateResponse);
   // Apply converges the data plane (VPP + daemons) to the desired state of the selected
   // subsystems inside one transaction: validate → plan → apply → verify; on any error the
   // operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
@@ -375,6 +378,10 @@ message ApplyRequest {
   // agent's owner. The field exists so that a request aimed at the wrong agent on the shared host
   // is rejected instead of silently applied.
   string owner = 6;
+  // Private API-to-agent secret channel. Not part of DesiredState; never logged or returned.
+  // A present empty bundle clears bindings; absence retains the existing snapshot.
+  SecretBundle secret_bundle = 7;
+
 }
 
 // ApplyStatus is the outcome of one transaction.
@@ -501,6 +508,17 @@ message DryRunRequest {
   repeated string subsystems = 3;
   // Same rules as ApplyRequest.owner.
   string owner = 4;
+  // Request-scoped validation secrets; never activated or persisted by DryRun.
+  SecretBundle secret_bundle = 5;
+
+}
+
+// SecretBundle crosses only the local protected agent socket, separately from configuration.
+// Values are raw UTF-8 secret-store material (WireGuard text keys retain their base64 form).
+// Agent seals snapshots locally before applying and binds snapshot IDs to durable txn state.
+// Neither keys nor values belong in logs, GET, error details or state/configuration persistence.
+message SecretBundle {
+  map<string, bytes> values = 1;
 }
 
 // IssueSeverity of a validation issue.
@@ -657,6 +675,7 @@ message StreamEventsRequest {
 // EventKind classifies an Event.
 enum EventKind {
   EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_IPSEC_SA_CHANGED = 12;
   // Interface link (or admin, see attributes) state went up; `interface` is set.
   EVENT_KIND_LINK_UP = 1;
   // Interface link state went down; `interface` is set.
@@ -766,6 +785,7 @@ message ActionRequest {
     CnatSessionPurgeAction cnat_session_purge = 10;
 
     // wave-BC: F-ikev2-native
+    Ikev2Action ikev2 = 11;
     // wave-BC: F-ra-vpn
     // wave-BC: F-ha-state-sync
     // wave-BC: F-backup-restore
@@ -785,6 +805,15 @@ message ActionRequest {
     // Resolve a name through VPP's caching DNS plugin (dns_resolve_name; F-unbound-chrony-syslog).
     DnsLookupAction dns_lookup = 7;
   }
+}
+
+// Ikev2Action operates only on a tunnel owned by this agent.
+message Ikev2Action {
+  string tunnel = 1;
+  // initiate, rekey or delete-sa.
+  string operation = 2;
+  uint64 ike_spi = 3;
+  uint32 child_spi = 4;
 }
 
 // PingAction sends ICMP echo requests from the data plane.
@@ -1826,6 +1855,10 @@ message TunnelsConfig {
   map<string, VxlanTunnel> vxlan = 2;
   // IPIP tunnels (ipip_add_tunnel), also the VTI of route-based IPsec.
   map<string, IpipTunnel> ipip = 3;
+  map<string, VxlanGpeTunnel> vxlan_gpe = 4;
+  map<string, GtpuTunnel> gtpu = 5;
+  map<string, L2tpv3Tunnel> l2tpv3 = 6;
+  map<string, PppoeSession> pppoe = 7;
 
   // wave-BC: F-tunnels
   // wave-BC: F-lisp
@@ -1930,6 +1963,7 @@ message IpipTunnel {
   optional uint32 dscp = 13;
 
   // wave-BC: F-tunnels
+  IpipSixrd sixrd = 14;
 }
 
 // ----- services (P02c, mirrors packages/schema/src/domains/services.ts) -----
@@ -7930,4 +7964,277 @@ message SystemIdentityStateResponse {
   string resolver_status = 9; // "observed" | "unavailable" | "slot-only"
   repeated string observed_name_servers = 10;
   repeated string errors = 11; // fixed field identifiers, no file contents
+}
+
+message IpsecStateRequest {
+  // Tunnel names (the document keys) to include; empty = every loaded connection of this owner.
+  repeated string tunnels = 1;
+  // Same rules as ApplyRequest.owner; native profile ownership scopes this view.
+  string owner = 2;
+  // Paging over the IKE_SAs (a %any responder can hold thousands): skip `offset` SAs in the reply's
+  // order, return at most `limit` (0 = the server default 1000; values above 1000 are clamped). Conns
+  // are never paged.
+  uint32 offset = 3;
+  uint32 limit = 4;
+}
+
+message IpsecStateResponse {
+  // Owned native IKEv2 profiles, sorted by name.
+  repeated IpsecConnState conns = 1;
+  // Native IKE/CHILD SAs of those profiles, sorted.
+  repeated IpsecIkeSa sas = 2;
+  // The owner whose view was returned.
+  string owner = 3;
+  // When the state was read (agent clock).
+  google.protobuf.Timestamp retrieved_at = 4;
+  // Whether live SA event publication is active (currently false for native polling).
+  bool events_active = 5;
+  // Legacy compatibility field; false for native VPP state.
+  bool charon_restarted = 6;
+  // Native engine version or capability identification.
+  string daemon_version = 7;
+  // Compatibility field; zero for native owned-profile state.
+  int64 unlisted_sas = 8;
+  // Number of IKE_SAs matching the request before offset/limit were applied.
+  uint32 total = 9;
+  // Required operator action, if any; empty when none is pending.
+  string pending_action = 10;
+}
+
+message IpsecConnState {
+  string name = 1;              // native profile name (owner-prefixed)
+  string tunnel = 2;            // document tunnel name
+  string version = 3;           // IKE version ("1"/"2")
+  repeated string local_addrs = 4;
+  repeated string remote_addrs = 5;
+  string local_id = 6;
+  string remote_id = 7;
+  string local_auth = 8;        // "psk"/"pubkey"
+  string remote_auth = 9;
+  int64 rekey_sec = 10;         // IKE_SA rekey interval (seconds; 0 = off)
+  int64 reauth_sec = 11;        // IKE_SA reauthentication interval (seconds; 0 = off)
+  repeated IpsecChildConn children = 12;
+}
+
+message IpsecChildConn {
+  string name = 1;
+  string mode = 2;              // "tunnel"/"transport"
+  int64 rekey_sec = 3;          // CHILD_SA rekey interval (seconds)
+  repeated string local_ts = 4;
+  repeated string remote_ts = 5;
+}
+
+message IpsecIkeSa {
+  string name = 1;              // connection name
+  string tunnel = 2;            // document tunnel name
+  string unique_id = 3;
+  string version = 4;
+  string state = 5;             // ESTABLISHED, CONNECTING, DELETING, …
+  string local_host = 6;
+  uint32 local_port = 7;
+  string local_id = 8;
+  string remote_host = 9;
+  uint32 remote_port = 10;
+  string remote_id = 11;
+  bool initiator = 12;
+  bool nat_any = 13;
+  string encr_alg = 14;
+  uint32 encr_keysize = 15;     // bits; 0 for AEAD ciphers without a separate size
+  string integ_alg = 16;
+  string prf_alg = 17;
+  string dh_group = 18;
+  int64 established_sec = 19;   // seconds since the IKE_SA was established
+  int64 rekey_sec = 20;         // seconds until scheduled rekey
+  int64 reauth_sec = 21;
+  repeated IpsecChildSa children = 22;
+}
+
+message IpsecChildSa {
+  string name = 1;
+  string unique_id = 2;
+  uint32 req_id = 3;
+  string state = 4;             // INSTALLED, REKEYING, DELETING, …
+  string mode = 5;
+  string protocol = 6;          // ESP/AH
+  bool encap = 7;               // UDP-encapsulated (NAT-T)
+  string spi_in = 8;
+  string spi_out = 9;
+  string encr_alg = 10;
+  uint32 encr_keysize = 11;
+  string integ_alg = 12;
+  string dh_group = 13;
+  bool esn = 14;
+  int64 bytes_in = 15;
+  int64 packets_in = 16;
+  int64 bytes_out = 17;
+  int64 packets_out = 18;
+  int64 rekey_sec = 19;
+  int64 life_sec = 20;
+  int64 install_sec = 21;
+  repeated string local_ts = 22;
+  repeated string remote_ts = 23;
+  string if_id_in = 24;         // route-based (kernel-vpp) tunnel ids; "" for policy-based
+  string if_id_out = 25;
+}
+
+message TunnelStateRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+message TunnelStateTunnel {
+  // Configuration name (tunnels.<kind>.<name>); the engine interface name when the agent holds no name for it.
+  string name = 1;
+  // Kind: "gre" | "ipip" | "vxlan" | "vxlanGpe" | "gtpu" | "l2tpv3" | "pppoe" (6RD tunnels report "ipip").
+  string kind = 2;
+  // Engine interface name (gre7001, vxlan_gpe_tunnel0 …).
+  string interface = 3;
+  uint32 sw_if_index = 4;
+  bool admin_up = 5;
+  bool link_up = 6;
+  // Interface MTU (L3) as VPP reports it.
+  uint32 mtu = 7;
+  // VPP's device class of the interface ("GRE tunnel device", "VXLAN_GPE" …).
+  string device_class = 8;
+}
+
+message TunnelStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  // Sorted by kind, then name.
+  repeated TunnelStateTunnel tunnels = 3;
+}
+
+
+message IpipSixrd {
+  // Delegated IPv6 prefix of the 6RD domain (CIDR).
+  optional string ip6_prefix = 1;
+  // Common IPv4 prefix of the 6RD domain (CIDR).
+  optional string ip4_prefix = 2;
+  // Drop packets whose IPv6 source does not embed the outer IPv4 source; Zod default false.
+  optional bool security_check = 3;
+  // Outer TOS 0–255; unset = 0.
+  optional uint32 tc_tos = 4;
+}
+
+
+message VxlanGpeTunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // Source address (configured on an interface in underlay_vrf).
+  optional string src = 3;
+  // FIB of the outer packets (encap).
+  optional string underlay_vrf = 4;
+  // FIB of the tunnel interface (overlay; decap FIB for ip4/ip6 payloads).
+  optional string vrf = 5;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 6;
+  // IPv4 interface addresses (CIDR); ip4/ip6 payloads only.
+  repeated string ipv4 = 7;
+  // IPv6 interface addresses (CIDR); ip4/ip6 payloads only.
+  repeated string ipv6 = 8;
+  // Bridge domain id (ethernet payload).
+  optional uint32 bridge_domain = 9;
+  // Unicast peer or multicast group.
+  optional string dst = 10;
+  // 24-bit VNI.
+  optional uint32 vni = 11;
+  // Source UDP port (default 4790).
+  optional uint32 src_port = 12;
+  // Destination UDP port (default 4790).
+  optional uint32 dst_port = 13;
+  // Interface joining the multicast group (multicast dst only).
+  optional string mcast_interface = 14;
+  // "ip4" | "ip6" | "ethernet" | "nsh".
+  optional string protocol = 15;
+}
+
+
+message GtpuTunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // Source address (configured on an interface in underlay_vrf).
+  optional string src = 3;
+  // FIB of the outer packets (encap).
+  optional string underlay_vrf = 4;
+  // FIB of the tunnel interface (overlay).
+  optional string vrf = 5;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 6;
+  // IPv4 interface addresses (CIDR); decap ip4/ip6 only.
+  repeated string ipv4 = 7;
+  // IPv6 interface addresses (CIDR); decap ip4/ip6 only.
+  repeated string ipv6 = 8;
+  // Bridge domain id (decap l2).
+  optional uint32 bridge_domain = 9;
+  // Unicast peer or multicast group.
+  optional string dst = 10;
+  // Interface joining the multicast group (multicast dst only).
+  optional string mcast_interface = 11;
+  // Local (receive) TEID.
+  optional uint32 teid = 12;
+  // Transmit TEID; unset = teid.
+  optional uint32 tteid = 13;
+  // "drop" | "l2" | "ip4" | "ip6".
+  optional string decap = 14;
+  // PDU session container extension header; Zod default false.
+  optional bool pdu_extension = 15;
+  // QFI 0–63 (needs pdu_extension).
+  optional uint32 qfi = 16;
+}
+
+
+message L2tpv3Tunnel {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // Our IPv6 address (configured on an interface in underlay_vrf).
+  optional string src = 3;
+  // FIB of the outer packets ("default" only in VPP 26.06).
+  optional string underlay_vrf = 4;
+  // FIB of the tunnel interface (kept for the common tunnel shape).
+  optional string vrf = 5;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 6;
+  // IPv4 interface addresses (never valid: L2 tunnel; kept for the common shape).
+  repeated string ipv4 = 7;
+  // IPv6 interface addresses (never valid: L2 tunnel; kept for the common shape).
+  repeated string ipv6 = 8;
+  // Bridge domain id.
+  optional uint32 bridge_domain = 9;
+  // Client (remote) IPv6 address.
+  optional string dst = 10;
+  // Local session id.
+  optional uint32 local_session_id = 11;
+  // Remote session id.
+  optional uint32 remote_session_id = 12;
+  // Local cookie (≤ 2^53−1); Zod default 0.
+  optional uint64 local_cookie = 13;
+  // Remote cookie (≤ 2^53−1); Zod default 0.
+  optional uint64 remote_cookie = 14;
+  // The peer sends the L2-specific sublayer; Zod default false.
+  optional bool l2_sublayer = 15;
+}
+
+
+message PppoeSession {
+  // Enabled.
+  optional bool enabled = 1;
+  // Free-text description.
+  optional string description = 2;
+  // PPPoE session id 1–65535.
+  optional uint32 session_id = 3;
+  // Client MAC address.
+  optional string client_mac = 4;
+  // Client IP address.
+  optional string client_ip = 5;
+  // FIB the decapsulated client traffic is routed in.
+  optional string vrf = 6;
+  // MTU; unset = VPP default.
+  optional uint32 mtu = 7;
 }

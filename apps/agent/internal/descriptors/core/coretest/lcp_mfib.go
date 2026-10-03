@@ -8,7 +8,9 @@ import (
 	"sort"
 
 	"go.fd.io/govpp/api"
+	"ngfw/agent/binapi/fib_types"
 	"ngfw/agent/binapi/ip"
+	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/mfib_types"
 )
 
@@ -20,6 +22,30 @@ func (v *VPP) installLcpAPIMfib() {
 		r := msg.(*ip.IPMrouteAddDel)
 		v.mu.Lock()
 		defer v.mu.Unlock()
+
+		if r.Route.Prefix.Af == ip_types.ADDRESS_IP4 && r.Route.Prefix.GrpAddressLength == 24 && [4]byte(r.Route.Prefix.GrpAddress.GetIP4()) == [4]byte{224, 0, 0, 0} {
+			if !r.IsMultipath {
+				return nil, fmt.Errorf("LCP multicast source requires multipath")
+			}
+			if _, ok := v.Tables[tableKey{r.Route.TableID, false}]; !ok {
+				return reply(&ip.IPMrouteAddDelReply{Retval: int32(api.NO_SUCH_FIB)})
+			}
+			for _, path := range r.Route.Paths {
+				if path.Path.SwIfIndex == ^uint32(0) {
+					if path.ItfFlags != mfib_types.MFIB_API_ITF_FLAG_FORWARD || path.Path.Type != fib_types.FIB_API_PATH_TYPE_LOCAL {
+						return nil, fmt.Errorf("invalid LCP multicast local path")
+					}
+				} else {
+					iface, ok := v.Ifaces[path.Path.SwIfIndex]
+					if !ok {
+						return reply(&ip.IPMrouteAddDelReply{Retval: int32(api.INVALID_SW_IF_INDEX)})
+					}
+					if iface.Table4 != r.Route.TableID || path.ItfFlags != mfib_types.MFIB_API_ITF_FLAG_ACCEPT {
+						return nil, fmt.Errorf("invalid LCP multicast accept path")
+					}
+				}
+			}
+		}
 		old := routes[r.Route.TableID]
 		old.TableID, old.Prefix = r.Route.TableID, r.Route.Prefix
 		if !r.IsMultipath {

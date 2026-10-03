@@ -39,13 +39,10 @@ func init() {
 		},
 	})
 	register(&Command{
-		Words: []string{"show", "ipsec", "sa"}, Where: inOp,
-		Summary: "IPsec security associations",
-		NoREST:  "no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10",
-		Run: func(context.Context, *App, []cpath.Token) error {
-			return notImplemented("show ipsec sa: the API has no IPsec SA state endpoint yet (P11)")
-		},
+		Words: []string{"show", "ipsec", "sa"}, Args: "[<tunnel>] [limit <1..1000>] [offset <0..1000000>]", Where: inOp,
+		Summary: "Native route-based IPsec SAs: SPIs, transforms and counters (no keys)", Ops: []string{"Ipsec_sas"}, Run: showNativeIPsec,
 	})
+	register(&Command{Words: []string{"show", "ipsec", "tunnels"}, Args: "[<tunnel>]", Where: inOp, Summary: "Native route-based IPsec tunnel state", Ops: []string{"Ipsec_tunnels"}, Run: showNativeIPsecTunnels})
 	register(&Command{
 		Words: []string{"show", "system"}, Where: inOp,
 		Summary: "API and agent health, running revision, pending commit, running↔data-plane sync state",

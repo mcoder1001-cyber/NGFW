@@ -1,0 +1,50 @@
+START opt-in wireguard
+END opt-in wireguard exit 0
+START opt-in srv6-globals
+END opt-in srv6-globals exit 0
+START opt-in mpls-globals
+END opt-in mpls-globals exit 0
+START opt-in lb
+END opt-in lb exit 1
+START opt-in ospf-fib
+END opt-in ospf-fib exit 1
+START opt-in bgp-fib
+END opt-in bgp-fib exit 1
+START opt-in igmp
+END opt-in igmp exit 1
+START opt-in vrrp
+END opt-in vrrp exit 0
+START opt-in dns
+END opt-in dns exit 0
+START opt-in gtpu
+END opt-in gtpu exit 0
+START opt-in l2tp
+END opt-in l2tp exit 0
+START opt-in lisp
+END opt-in lisp exit 0
+START opt-in det44
+END opt-in det44 exit 0
+START opt-in pppoe-cp
+END opt-in pppoe-cp exit 0
+START opt-in globals-df5
+END opt-in globals-df5 exit 0
+START opt-in globals-dhcp
+END opt-in globals-dhcp exit 0
+START opt-in globals-lcp
+END opt-in globals-lcp exit 0
+START opt-in globals-ipfix
+END opt-in globals-ipfix exit 0
+START opt-in globals-sflow
+END opt-in globals-sflow exit 0
+START opt-in globals-flowprobe
+END opt-in globals-flowprobe exit 0
+START opt-in globals-pcap
+END opt-in globals-pcap exit 0
+START opt-in proxy-nd
+END opt-in proxy-nd exit 1
+START opt-in nsim
+END opt-in nsim exit 0
+START opt-in auto-sdl
+END opt-in auto-sdl exit 0
+START opt-in strongswan-stock
+END opt-in strongswan-stock exit 0

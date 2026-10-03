@@ -1,0 +1,163 @@
+$ systemctl show vpp -p MainPID -p NRestarts
+MainPID=1014
+NRestarts=0
+
+exit=0
+$ ip netns exec ns-w32-lan ping -n -c 20 -i 0.05 -W 1 10.32.2.2
+PING 10.32.2.2 (10.32.2.2) 56(84) bytes of data.
+64 bytes from 10.32.2.2: icmp_seq=2 ttl=63 time=1.84 ms
+64 bytes from 10.32.2.2: icmp_seq=3 ttl=63 time=1.62 ms
+64 bytes from 10.32.2.2: icmp_seq=4 ttl=63 time=1.63 ms
+64 bytes from 10.32.2.2: icmp_seq=5 ttl=63 time=1.68 ms
+64 bytes from 10.32.2.2: icmp_seq=6 ttl=63 time=1.59 ms
+64 bytes from 10.32.2.2: icmp_seq=7 ttl=63 time=1.78 ms
+64 bytes from 10.32.2.2: icmp_seq=8 ttl=63 time=1.63 ms
+64 bytes from 10.32.2.2: icmp_seq=9 ttl=63 time=1.67 ms
+64 bytes from 10.32.2.2: icmp_seq=10 ttl=63 time=1.71 ms
+64 bytes from 10.32.2.2: icmp_seq=11 ttl=63 time=1.72 ms
+64 bytes from 10.32.2.2: icmp_seq=12 ttl=63 time=1.69 ms
+64 bytes from 10.32.2.2: icmp_seq=13 ttl=63 time=3.59 ms
+64 bytes from 10.32.2.2: icmp_seq=14 ttl=63 time=1.70 ms
+64 bytes from 10.32.2.2: icmp_seq=15 ttl=63 time=1.56 ms
+64 bytes from 10.32.2.2: icmp_seq=16 ttl=63 time=1.72 ms
+64 bytes from 10.32.2.2: icmp_seq=17 ttl=63 time=1.71 ms
+64 bytes from 10.32.2.2: icmp_seq=18 ttl=63 time=1.58 ms
+64 bytes from 10.32.2.2: icmp_seq=19 ttl=63 time=1.73 ms
+64 bytes from 10.32.2.2: icmp_seq=20 ttl=63 time=1.58 ms
+
+--- 10.32.2.2 ping statistics ---
+20 packets transmitted, 19 received, 5% packet loss, time 968ms
+rtt min/avg/max/mdev = 1.563/1.775/3.593/0.434 ms
+
+exit=0
+$ ip netns exec ns-w32-lan ping -n -c 5 -W 1 -M do -s 1472 10.32.2.2
+PING 10.32.2.2 (10.32.2.2) 1472(1500) bytes of data.
+1480 bytes from 10.32.2.2: icmp_seq=1 ttl=63 time=1.48 ms
+1480 bytes from 10.32.2.2: icmp_seq=2 ttl=63 time=1.52 ms
+1480 bytes from 10.32.2.2: icmp_seq=3 ttl=63 time=1.74 ms
+1480 bytes from 10.32.2.2: icmp_seq=4 ttl=63 time=1.86 ms
+1480 bytes from 10.32.2.2: icmp_seq=5 ttl=63 time=1.61 ms
+
+--- 10.32.2.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+rtt min/avg/max/mdev = 1.483/1.643/1.861/0.140 ms
+
+exit=0
+$ ip netns exec ns-w32-wan ping -n -c 20 -i 0.05 -W 1 10.32.1.2
+PING 10.32.1.2 (10.32.1.2) 56(84) bytes of data.
+64 bytes from 10.32.1.2: icmp_seq=1 ttl=63 time=1.77 ms
+64 bytes from 10.32.1.2: icmp_seq=2 ttl=63 time=1.56 ms
+64 bytes from 10.32.1.2: icmp_seq=3 ttl=63 time=1.61 ms
+64 bytes from 10.32.1.2: icmp_seq=4 ttl=63 time=1.64 ms
+64 bytes from 10.32.1.2: icmp_seq=5 ttl=63 time=1.75 ms
+64 bytes from 10.32.1.2: icmp_seq=6 ttl=63 time=1.57 ms
+64 bytes from 10.32.1.2: icmp_seq=7 ttl=63 time=3.60 ms
+64 bytes from 10.32.1.2: icmp_seq=8 ttl=63 time=1.68 ms
+64 bytes from 10.32.1.2: icmp_seq=9 ttl=63 time=1.69 ms
+64 bytes from 10.32.1.2: icmp_seq=10 ttl=63 time=1.73 ms
+64 bytes from 10.32.1.2: icmp_seq=11 ttl=63 time=1.52 ms
+64 bytes from 10.32.1.2: icmp_seq=12 ttl=63 time=1.68 ms
+64 bytes from 10.32.1.2: icmp_seq=13 ttl=63 time=1.67 ms
+64 bytes from 10.32.1.2: icmp_seq=14 ttl=63 time=1.56 ms
+64 bytes from 10.32.1.2: icmp_seq=15 ttl=63 time=1.68 ms
+64 bytes from 10.32.1.2: icmp_seq=16 ttl=63 time=1.67 ms
+64 bytes from 10.32.1.2: icmp_seq=17 ttl=63 time=1.62 ms
+64 bytes from 10.32.1.2: icmp_seq=18 ttl=63 time=1.65 ms
+64 bytes from 10.32.1.2: icmp_seq=19 ttl=63 time=1.58 ms
+64 bytes from 10.32.1.2: icmp_seq=20 ttl=63 time=1.57 ms
+
+--- 10.32.1.2 ping statistics ---
+20 packets transmitted, 20 received, 0% packet loss, time 969ms
+rtt min/avg/max/mdev = 1.520/1.740/3.595/0.430 ms
+
+exit=0
+$ ip netns exec ns-w32-wan ping -n -c 5 -W 1 -M do -s 1472 10.32.1.2
+PING 10.32.1.2 (10.32.1.2) 1472(1500) bytes of data.
+1480 bytes from 10.32.1.2: icmp_seq=1 ttl=63 time=1.56 ms
+1480 bytes from 10.32.1.2: icmp_seq=2 ttl=63 time=1.67 ms
+1480 bytes from 10.32.1.2: icmp_seq=3 ttl=63 time=1.69 ms
+1480 bytes from 10.32.1.2: icmp_seq=4 ttl=63 time=1.81 ms
+1480 bytes from 10.32.1.2: icmp_seq=5 ttl=63 time=1.82 ms
+
+--- 10.32.1.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+rtt min/avg/max/mdev = 1.557/1.707/1.815/0.097 ms
+
+exit=0
+$ ip netns exec ns-w32-lan python3 -c import socket; s=socket.create_connection(("10.32.2.2",8032),5); s.settimeout(5); b=bytes(range(256))*256; n=0
+for i in range(16):
+ s.sendall(b); got=b""
+ while len(got)<len(b):
+  part=s.recv(len(b)-len(got))
+  assert part, "early EOF"
+  got+=part
+ assert got==b
+ n+=len(got)
+s.close(); print("PASS TCP exact echo",n,"bytes")
+PASS TCP exact echo 1048576 bytes
+
+exit=0
+echoed 1048576
+$ timeout 10 vppctl set interface mtu packet 1400 host-w32w0
+
+exit=0
+$ ip netns exec ns-w32-lan ping -n -c 3 -W 1 -M do -s 1472 10.32.2.2
+PING 10.32.2.2 (10.32.2.2) 1472(1500) bytes of data.
+From 10.32.1.1 icmp_seq=1 Frag needed and DF set (mtu = 1400)
+ping: sendmsg: Message too long
+ping: sendmsg: Message too long
+
+--- 10.32.2.2 ping statistics ---
+3 packets transmitted, 0 received, +3 errors, 100% packet loss, time 2054ms
+
+
+exit=1
+$ timeout 10 vppctl set interface mtu packet 1500 host-w32w0
+
+exit=0
+$ ip netns exec ns-w32-lan ping -n -c 5 -W 1 -M do -s 1472 10.32.2.2
+PING 10.32.2.2 (10.32.2.2) 1472(1500) bytes of data.
+ping: sendmsg: Message too long
+ping: sendmsg: Message too long
+ping: sendmsg: Message too long
+ping: sendmsg: Message too long
+ping: sendmsg: Message too long
+
+--- 10.32.2.2 ping statistics ---
+5 packets transmitted, 0 received, +5 errors, 100% packet loss, time 4107ms
+
+
+exit=1
+$ tools/lab rig down w32
+rig down w32
+  delete vpp host-w32l0
+  delete netns ns-w32-lan (and its veth peer)
+  delete vpp host-w32w0
+  delete netns ns-w32-wan (and its veth peer)
+rig: down
+prefix: w32
+slot: 32
+path: af_packet
+lan_ns: ns-w32-lan
+lan_veth: w32l1
+lan_ip: 10.32.1.2/24
+lan_gw: 10.32.1.1
+vpp_lan_if: host-w32l0
+vpp_lan_addr: -
+wan_ns: ns-w32-wan
+wan_veth: w32w1
+wan_ip: 10.32.2.2/24
+wan_gw: 10.32.2.1
+vpp_wan_if: host-w32w0
+vpp_wan_addr: -
+ping: ip netns exec ns-w32-lan ping -c 3 10.32.2.2
+
+exit=0
+$ timeout 10 vppctl show interface
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+local0                            0     down          0/0/0/0       
+
+exit=0
+$ ip netns list
+
+exit=0

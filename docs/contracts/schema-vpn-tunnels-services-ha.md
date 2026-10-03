@@ -1,5 +1,7 @@
 # Schema contract — `vpn`, `tunnels`, `services`, `ha` (group (c), P02c)
 
+> Current IPsec implementation scope (2026-10-03): **route-based only**, VPP native IKEv2 with a protected tunnel interface and routes. See [DEC-ipsec-route-based](../decisions/DEC-ipsec-route-based.md). Native product validation requires routeBased binding and rejects unsupported modes. Historical low-level SPD/strongSwan descriptors do not authorise a product fallback.
+
 Part of the `packages/schema` contract (index: `docs/contracts/schema.md`, D-024). Source of truth:
 `packages/schema/src/domains/{vpn,tunnels,services,ha}.ts`; cross-object rules: `packages/schema/src/semantic/{vpn,tunnels,services,ha}.ts`.
 **Changing this package requires a `contract/<id>` branch with a `contract(schema): …` commit** (enforced by `tools/ci.sh --base main`);
@@ -46,25 +48,25 @@ renaming or reshaping an existing field is always a PENDING decision (`docs/deci
 | `ipsec.settings.cryptoEngine` | `auto\|native\|ipsecmb\|openssl` (auto) | VPP crypto engine (D6.1) |
 | `ipsec.settings.asyncCrypto` | boolean (false) | crypto workers / QAT |
 | `ipsec.proposals{name}` | `{ description?, ike, esp }` | referenced by tunnels and remote-access profiles |
-| `…ike` | `{ encr: IKE cipher, integ?: sha1\|sha256\|sha384\|sha512\|md5\|aesxcbc\|aescmac, prf?, dh: modp768…modp8192\|ecp192…ecp521\|modp*s*\|curve25519\|curve448 }` | `integ` required for classic ciphers, forbidden for AEAD (`aes*gcm*`, `chacha20poly1305`); strongSwan keywords |
+| `…ike` | `{ encr: IKE cipher, integ?: sha1\|sha256\|sha384\|sha512\|md5\|aesxcbc\|aescmac, prf?, dh: modp768…modp8192\|ecp192…ecp521\|modp*s*\|curve25519\|curve448 }` | `integ` required for classic ciphers, forbidden for AEAD (`aes*gcm*`, `chacha20poly1305`); native runtime validates supported transforms |
 | `…esp` | `{ encr: ESP cipher (adds `null`), integ?, dh? (PFS) }` | same AEAD rule |
-| `ipsec.tunnels{name}` | see below | P11 shape: `localAddr, remoteAddr, localId, remoteId, auth{psk(secretRef)\|cert}, proposal, localTs[], remoteTs[], ikeVersion, dpd, natT, mode, rekey, startAction, vrf, routeBased{ipipInterface}` |
+| `ipsec.tunnels{name}` | see below | P11 shape: `localAddr, remoteAddr, localId, remoteId, auth{psk(secretRef)\|cert}, proposal, localTs[], remoteTs[], ikeVersion, natT, mode, CHILD rekey, startAction, vrf, routeBased{ipipInterface}` |
 | `…enabled` / `description` | boolean (true) / ≤ 255 | |
-| `…engine` | `strongswan\|vpp-ikev2` (strongswan) | `vpp-ikev2` requires `ikeVersion: 2` |
-| `…ikeVersion` / `mode` / `protocol` | `1\|2` (2) / `tunnel\|transport` (tunnel) / `esp\|ah` (esp) | |
+| `…engine` | `vpp-ikev2` (vpp-ikev2) | native route-based only |
+| `…ikeVersion` / `mode` / `protocol` | `2` / `tunnel` / `esp` | other values fail native validation |
 | `…localAddr` | ipAddress | must be configured on an interface in `underlayVrf` (semantic) |
 | `…remoteAddr` | ipAddress \| hostname (not all-numeric) \| `%any` | `%any` = responder-only, `startAction` must not be `start`; same family as `localAddr`; ≠ `localAddr` |
 | `…localId` / `remoteId` | printable ASCII ≤ 255, no `"` | FQDN, e-mail, IP, `@keyid`, DN |
 | `…auth` | `{ method: 'psk', secretRef: psk/… }` \| `{ method: 'cert', certificate, remoteCa? }` | cert names → `pki.certificates` / `pki.cas` |
 | `…proposal` | objectName | must exist in `ipsec.proposals` |
-| `…localTs[]` / `remoteTs[]` | CIDR ≤ 64 each ([]) | policy-based: both non-empty; route-based: defaults to any |
-| `…dpd` | `{ enabled (true), delaySec 1–86400 (30), timeoutSec (150), action clear\|trap\|restart (restart) }` | |
+| `…localTs[]` / `remoteTs[]` | CIDR ≤ 64 each ([]) | native: at most one CIDR per direction; empty defaults to any in the address family |
+| `…dpd` | unavailable for native tunnels | explicit configuration rejected; VPP global liveness defaults apply |
 | `…natT` / `mobike?` / `fragmentation?` | boolean (true) / boolean / `yes\|no\|force\|accept` | MOBIKE needs IKEv2 |
-| `…rekey` | `{ ikeSec 60–604800 (14400), espSec (3600), espBytes?, espPackets?, reauth (false) }` | |
-| `…startAction` / `closeAction` | `none\|start\|trap` (start / none) | |
+| `…rekey` | `{ espSec 60–604800 (3600), espBytes? }` | CHILD lifetimes only; IKE lifetime, reauth and packet limits rejected |
+| `…startAction` / `closeAction` | `none` (none / none) | native initiation is an explicit runtime action |
 | `…vrf` | objectName (default) | **overlay**: FIB the traffic selectors apply to / the protected IPIP interface belongs to |
-| `…underlayVrf` | objectName (default) | FIB IKE and ESP run in; `localAddr` is configured in it (F4) |
-| `…routeBased?` | `{ ipipInterface: objectName }` | name in `tunnels.ipip`; tunnel mode only; semantic: IPIP `src` = `localAddr`, IPIP `underlayVrf` = `underlayVrf`, IPIP `vrf` = `vrf`, mode/dst agree, one IPsec tunnel per IPIP |
+| `…underlayVrf` | objectName (default) | native currently requires default underlay FIB; `localAddr` is configured in it (F4) |
+| `…routeBased` | `{ ipipInterface: objectName }` | name in `tunnels.ipip`; tunnel mode only; semantic: IPIP `src` = `localAddr`, IPIP `underlayVrf` = `underlayVrf`, IPIP `vrf` = `vrf`, mode/dst agree, one IPsec tunnel per IPIP |
 | `…esn` / `antiReplay` | boolean (false / true) | |
 | `wireguard.interfaces{name}` | `{ enabled, description?, instance u32, vrf, underlayVrf, listenAddress, listenPort (51820), privateKeyRef: key/…, address[] ≤ 32 (no overlap with other interfaces of `vrf`), mtu (1420), peers{} }` | VPP interface `wg<instance>`; `listenAddress` must be configured in `underlayVrf` |
 | `…peers{name}` | `{ description?, publicKey: wireguardKey, presharedKeyRef?: psk/…, endpoint? {address: host\|ip, port}, allowedIps[] 1–256, persistentKeepaliveSec 0–65535 (0) }` | public key unique per interface; an allowed prefix belongs to one peer |

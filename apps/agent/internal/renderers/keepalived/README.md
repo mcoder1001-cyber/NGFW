@@ -90,3 +90,5 @@ and rejects a missing interface; vi1 reaches MASTER (state file) and the VIP `10
 second commit (priority change, VRRPv2 instance with a PASS key, sync group) is applied with SIGHUP, same PID,
 convergence from the dump; a reload that never reaches keepalived is refused and rolled back; SIGTERM writes STOP
 for every instance (events) and removes the VIP; the key appears in no file but `keepalived.conf`, no dump is left.
+
+In slot mode the harness starts and stops keepalived in its namespace; the agent does not own that lifetime. `CheckRunning` reads the controller's main PID without starting or signaling a daemon. The stage checks it during DryRun and before Apply writes/reloads configuration. A stopped daemon produces a clear finding identifying the harness responsibility. Product daemon-start privileges remain an owner decision.

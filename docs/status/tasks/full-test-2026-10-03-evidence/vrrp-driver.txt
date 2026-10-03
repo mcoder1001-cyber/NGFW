@@ -1,0 +1,171 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py test/topology/vrrp/host.sh run /root/.codex/worktrees/bbd9/NGFW/docs/status/tasks/full-test-2026-10-03-evidence/vrrp-failover
+heavy: slot 2 after 220s
+DISPOSABLE_VPP pid=556770 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-556765
+13:40:59 window start 2026-10-03T13:40:59+03:30: flock -s vrx-lab.lock + flock -x vrx-globals.lock (D-167); VPP-engine VRRP steps inside
+13:40:59 === step 0: vrrp plugin, NRestarts baseline ===
+13:41:00 vppctl show plugins | grep -i vrrp:  84. vrrp_plugin.so                           26.06-release                    VRRP v3 (RFC 5798)
+13:41:00 vppctl show vrrp vr (before): ''
+13:41:00 NRestarts before: NRestarts=0
+13:41:00 === step 1: DF-7 TestVRRPOnHost alone (VRX_DF7_VRRP_HOST=1, D-090 one isolated run) ===
+13:41:03 go test ./internal/descriptors/vrrp -run TestVRRPOnHost → ok  	ngfw/agent/internal/descriptors/vrrp	0.282s (7 PASS lines; full output step1-df7-vrrp-host.txt)
+13:41:03 NRestarts after step 1: NRestarts=0
+13:41:03 === stack up (slot 6, owner w6, API :3600) ===
+install: No such file or directory
+13:41:12 agent pid 557426 (VRX_VRRP_VPP=on VRX_KEEPALIVED=on VRX_TEST_PREFIX=w6 netns ns-w6-ka), API :3600 health {"status":"ok"}
+13:41:12 licence: {"status":"valid","features":null}
+{"time":"2026-10-03T13:41:06.20692175+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":557426,"owner":"w6","socket":"/run/vrx-test/w6/vrrp/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:41:06.220862419+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"w6","component":"subsystems","family":"objects","file":"/run/vrx-test/w6/vrrp/agent-state/objects-fqdn-w6.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-03T13:41:06.221892268+03:30","level":"INFO","msg":"objects domain wired","owner":"w6","component":"subsystems","store":"/run/vrx-test/w6/vrrp/agent-state/objects-w6.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-03T13:41:06.22218468+03:30","level":"INFO","msg":"host firewall wired","owner":"w6","component":"subsystems","table":"inet vrx_w6","mode":"check","netns":"","rules_file":"/run/vrx-test/w6/vrrp/agent-state/host-acl-w6.nft"}
+{"time":"2026-10-03T13:41:06.226872655+03:30","level":"INFO","msg":"subsystems wired","owner":"w6","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"wiring":"stores in /run/vrx-test/w6/vrrp/agent-state: claims-iface-w6.json, boot-w6.json; globals owner false","vpp_ids":"6000-6999"}
+{"time":"2026-10-03T13:41:06.228169082+03:30","level":"INFO","msg":"vrx-agent listening","owner":"w6","socket":"/run/vrx-test/w6/vrrp/agent.sock","metrics":"off","state_dir":"/run/vrx-test/w6/vrrp/agent-state","vpp_api":"/run/vpp/api.sock"}
+13:41:12 === step 2: two VRs via the API → show vrrp vr == Retrieve ===
+13:41:13 baseline commit (interfaces): {"status":"applied","revision":1,"errors":[]}
+13:41:13 vppctl show interface addr host-w6l0: host-w6l0 (up): L3 10.6.1.1/24 
+13:41:14 commit ha.vrrp (2 VRs): {"status":"applied","revision":2,"errors":[]}
+--- vppctl show vrrp vr (after commit)
+[0] sw_if_index 2 VR ID 6 IPv4
+   state Master flags: preempt yes accept yes unicast no
+   priority: configured 200 adjusted 200
+   timers: adv interval 50 master adv 50 skew 10 master down 160
+   virtual MAC 00:00:5e:00:01:06
+   addresses 10.6.1.254 
+   peer addresses 
+   tracked interfaces 
+[1] sw_if_index 1 VR ID 7 IPv4
+   state Backup flags: preempt yes accept no unicast yes
+   priority: configured 100 adjusted 100
+   timers: adv interval 100 master adv 100 skew 60 master down 360
+   virtual MAC 00:00:5e:00:01:07
+   addresses 10.6.70.252 10.6.70.253 
+   peer addresses 10.6.70.2 
+   tracked interfaces sw_if_index 2 priority 20 
+jq: error (at <stdin>:0): Cannot iterate over null (null)
+13:41:16 GET /api/v1/config/running ha: 
+13:41:16 drift (Retrieve vs desired, /ha + /interfaces): {"changes":[{"op":"replace","pointer":"/ha/vrrp/loopb/addresses","from":["10.6.70.253","10.6.70.252"],"to":["10.6.70.252","10.6.70.253"]},{"op":"replace","pointer":"/interfaces/host-w6l0/ipv4","from":["10.6.1.1/24"],"to":["10.6.1.1/24","10.6.1.254/24"]}]}
+13:41:17 re-commit (no change) → {"status":"applied","revision":3,"errors":[]}
+{"time":"2026-10-03T13:41:14.124274169+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"ad0da049-9a7e-4d42-a95f-527cf82586d7","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:8  unchanged:9","reapplied":0,"
+{"time":"2026-10-03T13:41:17.054077594+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"d1562410-e01a-4f9f-9130-bb43d144a4a8","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:1  unchanged:17","reapplied":0,
+13:41:17 vrrp-meta store: [{"id":"host-w6l0/6/ipv4","name":"lan","vrf":"default"},{"id":"loop6070/7/ipv4","name":"loopb","vrf":"default"}]
+13:41:17 NRestarts after step 2: NRestarts=0
+13:41:17 === step 3: duplicate (interface, family, vrId) → 400 + pointer ===
+13:41:17 PATCH candidate with a duplicate VRID 6 on host-w6l0 → HTTP 200 {"type":null,"title":null,"status":null,"pointer":"/ha","errors":[]}
+13:41:17 POST commit → HTTP 400 content-type application/problem+json; charset=utf-8
+13:41:17 body: {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"pointer":null,"errors":[{"pointer":"/ha/vrrp/lan/vrId","message":"VRID 6 (ipv4) on host-w6l0 is already used by virtual router 'dup'","rule":null}]}
+13:41:17 candidate discarded; show vrrp vr still 2
+13:41:17 NRestarts after step 3: NRestarts=0
+13:41:17 === step 4: agent-restart simulation (VRs deleted behind the agent's back) ===
+13:41:19 agent 557426 stopped; deleting the two VRs with vppctl (vrrp proto stop + vrrp vr del = vrrp_vr_start_stop / vrrp_vr_add_del)
+13:41:19 simulated loss: show vrrp vr → '' (0 VRs)
+13:41:20 restart: 2 VRs back after 0.4 s (agent pid 562169)
+--- vppctl show vrrp vr (after agent restart)
+[0] sw_if_index 1 VR ID 7 IPv4
+   state Backup flags: preempt yes accept no unicast yes
+   priority: configured 100 adjusted 100
+   timers: adv interval 100 master adv 100 skew 60 master down 360
+   virtual MAC 00:00:5e:00:01:07
+   addresses 10.6.70.252 10.6.70.253 
+   peer addresses 10.6.70.2 
+   tracked interfaces sw_if_index 2 priority 20 
+[1] sw_if_index 2 VR ID 6 IPv4
+   state Backup flags: preempt yes accept yes unicast no
+   priority: configured 200 adjusted 200
+   timers: adv interval 50 master adv 50 skew 10 master down 160
+   virtual MAC 00:00:5e:00:01:06
+   addresses 10.6.1.254 
+   peer addresses 
+   tracked interfaces 
+{"time":"2026-10-03T13:41:20.151434044+03:30","level":"INFO","msg":"vrx-agent starting","version":"dev","pid":562169,"owner":"w6","socket":"/run/vrx-test/w6/vrrp/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:41:20.169333432+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"w6","component":"subsystems","family":"objects","file":"/run/vrx-test/w6/vrrp/agent-state/objects-fqdn-w6.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-03T13:41:20.169941886+03:30","level":"INFO","msg":"objects domain wired","owner":"w6","component":"subsystems","store":"/run/vrx-test/w6/vrrp/agent-state/objects-w6.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-03T13:41:20.17004929+03:30","level":"INFO","msg":"acl domain wired","owner":"w6","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+{"time":"2026-10-03T13:41:20.170127578+03:30","level":"INFO","msg":"host firewall wired","owner":"w6","component":"subsystems","table":"inet vrx_w6","mode":"check","netns":"","rules_file":"/run/vrx-test/w6/vrrp/agent-state/host-acl-w6.nft"}
+{"time":"2026-10-03T13:41:20.172611489+03:30","level":"INFO","msg":"subsystems wired","owner":"w6","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"wiring":"stores in /run/vrx-test/w6/vrrp/agent-state: claims-iface-w6.json, boot-w6.json; globals owner false","vpp_ids":"6000-6999"}
+{"time":"2026-10-03T13:41:20.180654824+03:30","level":"INFO","msg":"vrx-agent listening","owner":"w6","socket":"/run/vrx-test/w6/vrrp/agent.sock","metrics":"off","state_dir":"/run/vrx-test/w6/vrrp/agent-state","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-03T13:41:20.183884802+03:30","level":"INFO","msg":"reconcile start","owner":"w6","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"]}
+{"time":"2026-10-03T13:41:20.275773454+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr/host-w6l0/6/ipv4"}
+{"time":"2026-10-03T13:41:20.27742639+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr/loop6070/7/ipv4"}
+{"time":"2026-10-03T13:41:20.279060668+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr-peers/loop6070/7/ipv4"}
+{"time":"2026-10-03T13:41:20.280931163+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr-track-interface/loop6070/7/ipv4/host-w6l0"}
+{"time":"2026-10-03T13:41:20.282455974+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr-state/host-w6l0/6/ipv4"}
+{"time":"2026-10-03T13:41:20.284170064+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"vrrp.vr-state/loop6070/7/ipv4"}
+{"time":"2026-10-03T13:41:20.361116698+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:6  unchanged:11","reapplied":0,"duration":177485359,"err":""}
+{"time":"2026-10-03T13:41:20.361189558+03:30","level":"INFO","msg":"resync finished","owner":"w6","why":"connect","status":"APPLY_STATUS_APPLIED","summary":"created:6  unchanged:11"}
+13:41:21 drift after restart: {"changes":[{"op":"replace","pointer":"/ha/vrrp/loopb/addresses","from":["10.6.70.253","10.6.70.252"],"to":["10.6.70.252","10.6.70.253"]}]}
+13:41:21 NRestarts after step 4: NRestarts=0
+13:41:21 === step 5: packet failover, path: af_packet (host-w6l0 on veth w6l0 ↔ ns-w6-lan bridge w6br; peer ns-w6-kb:w6k1 10.6.1.3) ===
+13:41:24 node B keepalived pid 562635: Sat Oct  3 13:41:21 2026: (nodeB) Entering BACKUP STATE (init) 
+13:41:25 node A: [1] sw_if_index 2 VR ID 6 IPv4 state Master flags: preempt yes accept yes unicast no priority: configured 200 adjusted 200 
+13:41:28 steady state: 14 replies from 10.6.1.254 in 3 s; arp in ns-w6-lan: 10.6.1.254 dev w6br lladdr 00:00:5e:00:01:06 REACHABLE 
+13:41:28 A's MAC (host-w6l0): Ethernet address 02:fe:87:91:bd:eb; VRRP virtual MAC 00:00:5e:00:01:06
+13:41:28 attempt (finding F1): commit ha.vrrp.lan.enabled=false → {"status":"applied","revision":4,"errors":[]}
+13:41:30 A after the failed commit: [1] sw_if_index 2 VR ID 6 IPv4 state Initialize flags: preempt yes accept yes unicast no 
+13:41:30 T0 13:41:30.950: vppctl vrrp proto stop host-w6l0 vr_id 6 (simulated node-A failure, behind the agent's back)
+13:41:39 node B:  — after 8.33 s from T0
+13:41:42 A after stop: [1] sw_if_index 2 VR ID 6 IPv4 state Initialize flags: preempt yes accept yes unicast no 
+13:41:42 T1 13:41:42.516: commit (description change) → the agent re-applies vrrp.vr-state running (node A returns, priority 200 preempts)
+13:41:43 commit: {"status":"applied","revision":5,"errors":[]}
+13:41:51 node B:  — after 8.99 s from T1
+13:41:54 A after return: [1] sw_if_index 2 VR ID 6 IPv4 state Initialize flags: preempt yes accept yes unicast no 
+13:41:54 arp in ns-w6-lan now: 10.6.1.254 dev w6br lladdr d6:43:c7:27:69:fa REACHABLE  (B's MAC: link/ether d6:43:c7:27:69:fa)
+ping analysis: 142 replies, interval 0.2 s; reply gaps (start,end,lost) in seconds after T0 (A down; window T0-1 s..T1): []
+reply gaps in seconds after T1 (A back; window T1-1 s..T1+30 s): []
+longest outage after A down: 0.0 s (limit 3 s) → OK
+13:41:55 node B stopped (pid 562635); pidfile gone: yes
+13:41:55 NRestarts after step 5: NRestarts=0
+13:41:56 === step 6: keepalived stage in ns-w6-ka on the LCP pair of loop6071 (host w6-ka0) ===
+13:41:56 commit loop6071 + lcp pair: {"status":"applied","revision":6,"errors":[]}
+13:41:56 vppctl show lcp: itf-pair: [0] loop6071 tap4096 w6-ka0 3 type tap netns ns-w6-ka 
+13:41:56 ip -n ns-w6-ka link: 3: w6-ka0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 9000 qdisc mq state UNKNOWN mode DEFAULT group default qlen 1000\    li
+13:41:59 keepalived (stage daemon) pid 567430 in ns-w6-ka, pidfile 567430, conf /run/vrx-test/w6/keepalived/keepalived.conf (pre-start: global_defs only)
+13:41:59 commit ha.vrrp.ka (engine keepalived): {"status":"applied","revision":7,"errors":[]}
+{"time":"2026-10-03T13:41:59.573130138+03:30","level":"INFO","msg":"created","owner":"w6","component":"scheduler","key":"keepalived.config/vrx"}
+{"time":"2026-10-03T13:41:59.661437865+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"17aa11b4-216d-471e-8137-4f822a4b1e0c","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  unchanged:21","reapplied":0,
+--- /run/vrx-test/w6/keepalived/keepalived.conf (rendered by the stage; interface = LCP host name)
+    # Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+    global_defs {
+        router_id vrx
+        enable_script_security
+        script_user root
+        vrrp_version 3
+    }
+    
+    vrrp_instance ka {
+        state BACKUP
+        interface w6-ka0
+        virtual_router_id 8
+        priority 150
+        advert_int 0.5
+        virtual_ipaddress {
+            10.6.71.254/32 dev w6-ka0
+        }
+        notify_master "/tmp/g-w6/vrrp-bin/vrx-keepalived-notify /run/vrx-test/w6/keepalived/state INSTANCE ka MASTER"
+        notify_backup "/tmp/g-w6/vrrp-bin/vrx-keepalived-notify /run/vrx-test/w6/keepalived/state INSTANCE ka BACKUP"
+        notify_fault "/tmp/g-w6/vrrp-bin/vrx-keepalived-notify /run/vrx-test/w6/keepalived/state INSTANCE ka FAULT"
+        notify_stop "/tmp/g-w6/vrrp-bin/vrx-keepalived-notify /run/vrx-test/w6/keepalived/state INSTANCE ka STOP"
+    }
+13:41:59 pid after SIGHUP: 567430 (started as 567430) · keepalived log: Sat Oct  3 13:41:59 2026: Reloading ... Sat Oct  3 13:41:59 2026: Starting VRRP child process, pid=567751 Sat Oct  3 13:41:59 2026: (ka) Entering BACKUP STATE (init) 
+13:41:59 state file: 
+13:41:59 VIP on w6-ka0 in ns-w6-ka: 
+13:41:59 record: {"ka":{"engine":"keepalived","interface":"loop6071","priority":150}}
+13:42:00 drift: {"changes":[{"op":"replace","pointer":"/ha/vrrp/loopb/addresses","from":["10.6.70.253","10.6.70.252"],"to":["10.6.70.252","10.6.70.253"]}]}
+13:42:04 update priority 150→160: {"status":"applied","revision":8,"errors":[]}
+13:42:04 pid after 2nd SIGHUP: 567430 · conf priority line:  priority 160 · reloads: 3
+13:42:04 NRestarts after step 6: NRestarts=0
+13:42:04 === step 7: rollback to the baseline revision → nothing left ===
+13:42:04 rollback to 1 (vrrp-host-base): {"status":"applied","revision":{"id":9,"kind":"rollback"}}
+13:42:06 show vrrp vr after rollback: '' (0 VRs)
+13:42:06 keepalived record: removed · conf: 0 vrrp_instance · VIP on w6-ka0: 0
+13:42:06 vrrp-meta store: 0 entries · show lcp: 0
+{"time":"2026-10-03T13:42:04.88580281+03:30","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"1532c22d-b775-4062-beed-8ad8a5938ae2","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:12  unchanged:9","reapplied":0,"
+13:42:06 drift: {"changes":[]}
+13:42:07 stage keepalived stopped; pidfile gone: yes
+13:42:07 NRestarts after step 7: NRestarts=0
+13:42:07 done
+13:42:07 === cleanup ===
+13:42:07 cleanup commit: {"status":"applied","revision":10,"errors":[]}
+13:42:12 leftovers in VPP: 0 · show vrrp vr: 0
+13:42:12 ns: 0  links: 0
+13:42:12 NRestarts after cleanup: NRestarts=0
+13:42:12 window end 2026-10-03T13:42:12+03:30
+DISPOSABLE_VPP_STOPPED pid=556770

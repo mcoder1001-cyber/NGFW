@@ -12,7 +12,7 @@ module vrx-tunnels {
   }
 
   container tunnels {
-    description "GRE (L3, L2, ERSPAN), VXLAN and IPIP tunnels keyed by name.";
+    description "GRE (L3, L2, ERSPAN), VXLAN, IPIP (+ 6RD), VXLAN-GPE, GTP-U, L2TPv3 and PPPoE tunnels keyed by name.";
     list gre {
       key "name";
       leaf name {
@@ -302,6 +302,34 @@ module vrx-tunnels {
         }
         description "L2 tunnels only: bridge domain the tunnel interface is attached to";
       }
+      container sixrd {
+        description "Set to make this tunnel a 6RD border relay (dst and dscp do not apply)";
+        leaf ip6Prefix {
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+          }
+          mandatory true;
+          description "Delegated IPv6 prefix of the 6RD domain";
+        }
+        leaf ip4Prefix {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+          }
+          mandatory true;
+          description "Common IPv4 prefix of the 6RD domain (its length is dropped from the customer prefix)";
+        }
+        leaf securityCheck {
+          type boolean;
+          default "false";
+          description "Drop packets whose IPv6 source does not embed the outer IPv4 source";
+        }
+        leaf tcTos {
+          type uint32 {
+            range "0..255";
+          }
+          description "Traffic class copied to the outer IPv4 header; omit for 0";
+        }
+      }
       leaf mode {
         type enumeration {
           enum "p2p";
@@ -325,6 +353,396 @@ module vrx-tunnels {
           range "0..63";
         }
         description "Omit to copy the inner DSCP";
+      }
+    }
+    list vxlanGpe {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..255";
+        }
+      }
+      leaf src {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        mandatory true;
+        description "Must be configured on an interface in the underlay VRF";
+      }
+      leaf underlayVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB used to reach the tunnel destination; the source address must be configured on an interface in it";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB the tunnel interface belongs to (overlay)";
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
+      }
+      leaf-list ipv4 {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+        }
+        description "Addresses of the tunnel interface";
+      }
+      leaf-list ipv6 {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+        }
+      }
+      leaf bridgeDomain {
+        type uint32 {
+          range "0..4294967295";
+        }
+        description "L2 tunnels only: bridge domain the tunnel interface is attached to";
+      }
+      leaf dst {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        mandatory true;
+        description "Unicast peer, or a multicast group (then mcastInterface is required)";
+      }
+      leaf vni {
+        type uint32 {
+          range "0..16777215";
+        }
+        mandatory true;
+      }
+      leaf srcPort {
+        type uint32 {
+          range "1..65535";
+        }
+        default "4790";
+      }
+      leaf dstPort {
+        type uint32 {
+          range "1..65535";
+        }
+        default "4790";
+      }
+      leaf mcastInterface {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "Interface used to join the multicast group (multicast dst only)";
+      }
+      leaf protocol {
+        type enumeration {
+          enum "ip4";
+          enum "ip6";
+          enum "ethernet";
+          enum "nsh";
+        }
+        default "ethernet";
+        description "ethernet = bridge the inner frame (default); ip4/ip6 = route the inner packet in the tunnel VRF; nsh = network service header";
+      }
+    }
+    list gtpu {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      description "Advanced: mobile-core user-plane tunnels";
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..255";
+        }
+      }
+      leaf src {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        mandatory true;
+        description "Must be configured on an interface in the underlay VRF";
+      }
+      leaf underlayVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB used to reach the tunnel destination; the source address must be configured on an interface in it";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB the tunnel interface belongs to (overlay)";
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
+      }
+      leaf-list ipv4 {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+        }
+        description "Addresses of the tunnel interface";
+      }
+      leaf-list ipv6 {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+        }
+      }
+      leaf bridgeDomain {
+        type uint32 {
+          range "0..4294967295";
+        }
+        description "L2 tunnels only: bridge domain the tunnel interface is attached to";
+      }
+      leaf dst {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        mandatory true;
+        description "Unicast peer, or a multicast group (then mcastInterface is required)";
+      }
+      leaf mcastInterface {
+        type string {
+          pattern "[A-Za-z][A-Za-z0-9_-]*(/[0-9a-fA-F]+)*(\\.[0-9]+)?";
+          length "1..63";
+        }
+        description "Interface used to join the multicast group (multicast dst only)";
+      }
+      leaf teid {
+        type uint32 {
+          range "0..4294967295";
+        }
+        mandatory true;
+        description "Local (receive) tunnel endpoint id";
+      }
+      leaf tteid {
+        type uint32 {
+          range "1..4294967295";
+        }
+        description "Remote tunnel endpoint id; omit to use the TEID";
+      }
+      leaf decap {
+        type enumeration {
+          enum "drop";
+          enum "l2";
+          enum "ip4";
+          enum "ip6";
+        }
+        default "ip4";
+        description "ip4/ip6 route the inner packet in the tunnel VRF, l2 bridges it, drop discards it";
+      }
+      leaf pduExtension {
+        type boolean;
+        default "false";
+        description "Add the PDU session container extension header (5G) with the QFI";
+      }
+      leaf qfi {
+        type uint32 {
+          range "0..63";
+        }
+        description "QoS flow identifier of the PDU session container (needs pduExtension)";
+      }
+    }
+    list l2tpv3 {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      description "Advanced: L2 over IPv6; the engine cannot delete an L2TPv3 tunnel without a restart";
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..255";
+        }
+      }
+      leaf src {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+        }
+        mandatory true;
+        description "Our IPv6 address; must be configured on an interface in the underlay VRF";
+      }
+      leaf underlayVrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB used to reach the tunnel destination; the source address must be configured on an interface in it";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB the tunnel interface belongs to (overlay)";
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
+      }
+      leaf-list ipv4 {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])/([0-9]|[1-2][0-9]|3[0-2])";
+        }
+        description "Addresses of the tunnel interface";
+      }
+      leaf-list ipv6 {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+        }
+      }
+      leaf bridgeDomain {
+        type uint32 {
+          range "0..4294967295";
+        }
+        description "L2 tunnels only: bridge domain the tunnel interface is attached to";
+      }
+      leaf dst {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+        }
+        mandatory true;
+        description "Remote IPv6 address of the peer";
+      }
+      leaf localSessionId {
+        type uint32 {
+          range "0..4294967295";
+        }
+        mandatory true;
+      }
+      leaf remoteSessionId {
+        type uint32 {
+          range "0..4294967295";
+        }
+        mandatory true;
+      }
+      leaf localCookie {
+        type uint64 {
+          range "0..9007199254740991";
+        }
+        default "0";
+      }
+      leaf remoteCookie {
+        type uint64 {
+          range "0..9007199254740991";
+        }
+        default "0";
+      }
+      leaf l2Sublayer {
+        type boolean;
+        default "false";
+        description "The peer sends the L2-specific sublayer (RFC 3931 §4.6)";
+      }
+    }
+    list pppoe {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      description "Advanced: PPPoE server sessions (one interface per client)";
+      leaf enabled {
+        type boolean;
+        default "true";
+      }
+      leaf description {
+        type string {
+          // pattern dropped: not XSD-expressible
+          length "0..255";
+        }
+      }
+      leaf sessionId {
+        type uint32 {
+          range "1..65535";
+        }
+        mandatory true;
+        description "PPPoE session id negotiated with the client (PADS)";
+      }
+      leaf clientMac {
+        type string {
+          pattern "[0-9a-fA-F]{2}([:-])([0-9a-fA-F]{2}\\1){4}[0-9a-fA-F]{2}";
+        }
+        mandatory true;
+        description "The engine creates the session once it has seen this client in discovery";
+      }
+      leaf clientIp {
+        type union {
+          type string {
+            pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+          }
+          type string {
+            pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+          }
+        }
+        mandatory true;
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "FIB the decapsulated client traffic is routed in";
+      }
+      leaf mtu {
+        type uint32 {
+          range "68..9216";
+        }
       }
     }
     container lisp {

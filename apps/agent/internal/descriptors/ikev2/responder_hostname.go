@@ -10,6 +10,7 @@ import (
 
 	"ngfw/agent/binapi/ikev2"
 	"ngfw/agent/binapi/interface_types"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
 	"ngfw/agent/internal/scheduler"
@@ -117,4 +118,9 @@ func (d *ResponderHostname) Delete(_ context.Context, obj proto.Message, _ any) 
 // Retrieve implements scheduler.Descriptor: VPP does not dump the hostname (D-063, write-only).
 func (*ResponderHostname) Retrieve(context.Context) ([]scheduler.KV, error) {
 	return nil, fmt.Errorf("%s: %w", ResponderHostnameName, vpn.ErrRetrieveUnsupported)
+}
+
+// CheckPersistent requires hostname applied-once records to survive agent restarts.
+func (d *ResponderHostname) CheckPersistent() error {
+	return dfkit.CheckBoot(ResponderHostnameName, d.cfg.Boot)
 }

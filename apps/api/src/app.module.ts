@@ -22,6 +22,7 @@ import { HealthController } from './health/health.controller.js';
 import { Bus } from './infra/bus.js';
 import { createValkey, VALKEY, type Valkey } from './infra/valkey.js';
 import { SecretsController } from './secrets/secrets.controller.js';
+import { SecretDeliveryService } from './secrets/secret-delivery.service.js';
 import { SecretsService } from './secrets/secrets.service.js';
 import { LoginBannerController } from './state/login-banner.controller.js';
 import { StateController } from './state/state.controller.js';
@@ -38,6 +39,7 @@ import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored
 // wave-BC: F-pki
 import { pkiFeature } from './features/pki/index.js';
 // wave-BC: F-ikev2-native
+import { ipsecFeature } from './features/ipsec/index.js';
 // wave-BC: F-ospf
 import { ospfFeature } from './features/ospf/index.js';
 // wave-BC: F-isis-rip
@@ -168,6 +170,7 @@ export class AppModule {
         // wave-BC: F-pki
         ...pkiFeature.controllers,
         // wave-BC: F-ikev2-native
+        ...ipsecFeature.controllers,
         // wave-BC: F-ospf
         ...ospfFeature.controllers,
         // wave-BC: F-isis-rip
@@ -267,6 +270,7 @@ export class AppModule {
         ValidationService,
         CommitService,
         SecretsService,
+        SecretDeliveryService,
         RelayService,
         UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
@@ -279,6 +283,7 @@ export class AppModule {
         // wave-BC: F-pki
         ...pkiFeature.providers,
         // wave-BC: F-ikev2-native
+        ...ipsecFeature.providers,
         // wave-BC: F-ospf
         // wave-BC: F-isis-rip
         // wave-BC: P14

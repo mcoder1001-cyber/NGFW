@@ -1,0 +1,14 @@
+DISPOSABLE_VPP pid=1279522 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1279515
+2026/10/03 16:20:46 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/03 16:20:47 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+loop6002
+
+
+
+gre6001
+
+
+creation {"deviceClass":"GRE tunnel device","linkMtu":65512,"mtu":[9000,0,0,0],"name":"gre6001"}
+
+after-ipv4 {"deviceClass":"GRE tunnel device","linkMtu":65512,"mtu":[9000,0,0,0],"name":"gre6001"}
+DISPOSABLE_VPP_STOPPED pid=1279522

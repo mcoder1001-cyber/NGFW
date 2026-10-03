@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -424,6 +425,7 @@ func newStack(t *testing.T, s slot) *stack {
 
 	base := []string{"PATH=" + os.Getenv("PATH"), "HOME=" + os.Getenv("HOME")}
 	st.agentEnv = append(append([]string{}, base...),
+		"VRX_VPP_TABLE_BASE="+strconv.Itoa(1000*s.num),
 		"VRX_AGENT_SOCKET="+s.socket, "VRX_OWNER="+s.prefix, "VRX_GLOBALS_OWNER=0", // D-071: test slots never own globals
 		"VRX_AGENT_STATE_DIR="+st.stateDir, "VRX_METRICS_PORT="+s.metricsPort, "VRX_SOCKET_GROUP=root", "VRX_LOG_LEVEL=info")
 	st.startAgent(t)
@@ -457,10 +459,28 @@ func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
 	st.agent = start(t, "vrx-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
-		_, err := os.Stat(st.s.socket)
-		return err == nil || st.agent.exited()
+		if st.agent.exited() {
+			return true
+		}
+		c, err := net.DialTimeout("unix", st.s.socket, time.Second)
+		if err == nil {
+			_ = c.Close()
+		}
+		return err == nil
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
 		t.Fatalf("vrx-agent did not come up:\n%s", raw)
+	}
+	// The API keeps its gRPC channel across agent restarts. A listening socket does
+	// not imply that channel has left reconnect backoff yet. Wait on a read-only
+	// RPC before issuing commits; never retry a mutation to mask an outage.
+	if st.api != nil && !waitFor(15*time.Second, func() bool {
+		return st.agent.exited() || st.api.call("GET", "/api/v1/state/drift", nil).status == 200
+	}) {
+		t.Fatal("API channel did not reconnect to the restarted agent within 15 s")
+	}
+	if st.agent.exited() {
+		raw, _ := os.ReadFile(st.agentLog)
+		t.Fatalf("vrx-agent exited during readiness check:\n%s", raw)
 	}
 }

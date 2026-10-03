@@ -21,6 +21,7 @@ import { nat46Validators } from './nat46.js'; // F-nat46 (unanchored)
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
 // wave-BC: F-ikev2-native
+import { ipsecValidators } from './ipsec.js';
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
 // wave-BC: F-mpls-srmpls
@@ -104,6 +105,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
+  ...ipsecValidators,
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls

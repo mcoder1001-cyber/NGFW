@@ -1,8 +1,16 @@
 {
-  "system": { "hostname": "vrx-a" },
+  "system": {
+    "hostname": "vrx-a"
+  },
   "vrfs": {
-    "default": { "id": 0, "description": "global routing table" },
-    "customer-a": { "id": 10, "description": "customer A" }
+    "default": {
+      "id": 0,
+      "description": "global routing table"
+    },
+    "customer-a": {
+      "id": 10,
+      "description": "customer A"
+    }
   },
   "interfaces": {
     "TenGigabitEthernet0/0/0": {
@@ -41,28 +49,27 @@
         "underlayVrf": "default",
         "vrf": "default",
         "ipv4": ["10.255.0.1/30"]
-      },
-      "ipip-hub": {
-        "instance": 1,
-        "mode": "p2mp",
-        "src": "198.51.100.2",
-        "underlayVrf": "default",
-        "vrf": "default"
       }
     }
   },
   "vpn": {
     "ipsec": {
-      "settings": { "cryptoEngine": "auto", "asyncCrypto": false },
+      "settings": {
+        "cryptoEngine": "auto",
+        "asyncCrypto": false
+      },
       "proposals": {
         "ike2-aes256gcm": {
           "description": "IKEv2 AEAD suite",
-          "ike": { "encr": "aes256gcm16", "prf": "prfsha384", "dh": "ecp256" },
-          "esp": { "encr": "aes256gcm16", "dh": "ecp256" }
-        },
-        "legacy-aes256-sha256": {
-          "ike": { "encr": "aes256", "integ": "sha256", "dh": "modp2048" },
-          "esp": { "encr": "aes256", "integ": "sha256" }
+          "ike": {
+            "encr": "aes256",
+            "integ": "sha256",
+            "prf": "prfsha256",
+            "dh": "modp2048"
+          },
+          "esp": {
+            "encr": "aes256gcm16"
+          }
         }
       },
       "tunnels": {
@@ -71,39 +78,43 @@
           "ikeVersion": 2,
           "localAddr": "198.51.100.2",
           "remoteAddr": "203.0.113.10",
-          "localId": "vrx-a.lab.example",
-          "remoteId": "vrx-b.lab.example",
-          "auth": { "method": "psk", "secretRef": "psk/site-b" },
+          "localId": "@vrx-a.lab.example",
+          "remoteId": "@vrx-b.lab.example",
+          "auth": {
+            "method": "psk",
+            "secretRef": "psk/site-b"
+          },
           "proposal": "ike2-aes256gcm",
-          "dpd": { "enabled": true, "delaySec": 30, "action": "restart" },
-          "rekey": { "ikeSec": 14400, "espSec": 3600 },
-          "startAction": "start",
+          "startAction": "none",
           "vrf": "default",
-          "routeBased": { "ipipInterface": "ipip-site-b" }
-        },
-        "hub-any": {
-          "description": "responder-only, route-based, many spokes",
-          "localAddr": "198.51.100.2",
-          "remoteAddr": "%any",
-          "localId": "vrx-a.lab.example",
-          "auth": { "method": "psk", "secretRef": "psk/spokes" },
-          "proposal": "ike2-aes256gcm",
-          "startAction": "trap",
-          "vrf": "default",
-          "routeBased": { "ipipInterface": "ipip-hub" }
-        },
-        "legacy-policy": {
-          "ikeVersion": 1,
-          "localAddr": "198.51.100.2",
-          "remoteAddr": "203.0.113.11",
-          "auth": { "method": "psk", "secretRef": "psk/legacy" },
-          "proposal": "legacy-aes256-sha256",
-          "localTs": ["192.168.10.0/24"],
-          "remoteTs": ["10.99.0.0/16"],
-          "natT": true,
-          "vrf": "default"
+          "routeBased": {
+            "ipipInterface": "ipip-site-b"
+          },
+          "engine": "vpp-ikev2"
         }
       }
     }
+  },
+  "routing": {
+    "static": [
+      {
+        "prefix": "0.0.0.0/0",
+        "vrf": "default",
+        "nextHops": [
+          {
+            "address": "198.51.100.1"
+          }
+        ]
+      },
+      {
+        "prefix": "10.99.0.0/16",
+        "vrf": "default",
+        "nextHops": [
+          {
+            "interface": "ipip-site-b"
+          }
+        ]
+      }
+    ]
   }
 }

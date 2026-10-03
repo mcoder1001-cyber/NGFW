@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-03",
+  "validation": {
+    "full_capture_race_seconds": 13.697,
+    "capture_rpc_race_seconds": 1.37,
+    "focused_api_tests_passed": 12
+  },
+  "sha256": {
+    "apps/agent/internal/actions/capture-trace/capture.go": "2f38d4220c26a096597f6ad72b4652e4698809fc06b4ee79dcaf246ebe7fd12b",
+    "apps/agent/internal/actions/capture-trace/capture_test.go": "c69c77a0900c3d9f5e1489cf3ea2257b05a884ecfc3b41577126cb0c2744f8b9",
+    "apps/agent/internal/agent/rpc_capture_trace.go": "eb7043767c453ce733898db6fbd0b34a37ead0fe29d676d73e4dc074b7f6b143",
+    "apps/agent/internal/agent/rpc_capture_trace_test.go": "73f0198dbbb49d31caa9163f106b3b056be3093f1a3dbcf6830f39117eed78da",
+    "apps/agent/internal/agent/service.go": "6594760fc5fed9d4b26f9997e8da4b01b7e7a335e3bd0934310370c9b309533b",
+    "apps/agent/internal/agent/agent.go": "1dcc8ccfbb730200e96aad377e03783112ec16e1d7c161a6657a27154c1c9fcb",
+    "apps/api/src/agent/agent.client.ts": "0f1c7aeac9c5b14e085e8a223d77364439879372354b73174fbe38aad57b3542",
+    "apps/api/src/agent/capture-stream.test.ts": "84e9abcf5b58104383e1be1123fddac66fa677f3bca641227d21afc741bbaae6",
+    "apps/api/src/auth/route-guard.test.ts": "73337ebab5d85aeb14c2bceb75ec7c3d846f991b8fbaec15ee6901ee07f535d8",
+    "apps/api/src/features/capture-trace/controller.ts": "2553631a2ef54e68a63c86435634ac7ae0498c010a0960046d9fc451e3598151",
+    "apps/web/src/domains/tools/capture-trace/CapturePage.tsx": "15456c39e1e22d3416c792b4aa4c93794820797d9df2f736ff9a9b10eb2745dc",
+    "apps/web/src/domains/tools/capture-trace/queries.ts": "e6157a91ef02c23f05a061d72da55921c7634baf966936f4a6724fd254708633",
+    "apps/web/src/domains/tools/capture-trace/CapturePage.test.tsx": "7c9938aef8c1a5b1edd824545e41637dae571680bbb7e9429361b81a1d589a1d"
+  }
+}

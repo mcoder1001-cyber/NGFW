@@ -185,7 +185,7 @@ type vrfResolver func(name string) (uint32, bool)
 // project turns the authoritative domains of ds into KVs. resolve maps VRF names that are not in
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
 // netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
-func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind) *projected {
+func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, nativeEnv ...desired.IKEv2Env) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -316,8 +316,13 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	// wave-BC: F-tunnels
 	desired.Tunnels(p, ds.GetTunnels(), in, vrfID, subsystems.TunnelsIDSpan()) // tunnels.gre/ipip/vxlan (internal/desired/tunnels.go)
 	// wave-BC: F-vrrp-config-sync
-	desired.Vrrp(p, ds, in) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
+	desired.Vrrp(p, ds, in, subsystems.VrrpEnv()) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
 	// wave-BC: F-ikev2-native
+	native := subsystems.IKEv2Projection()
+	if len(nativeEnv) > 0 {
+		native = nativeEnv[0]
+	}
+	desired.IKEv2(p, ds, in, native)
 	// wave-BC: F-mpls-srmpls
 	desired.MplsSrmpls(p, ds, in, vrfID)
 	// wave-BC: F-srv6
@@ -400,6 +405,20 @@ func project(ds *vrxv1.DesiredState, domains []string, resolve vrfResolver, netd
 	if in["system"] {
 		desired.SystemIdentity(p, ds) // F-system-identity (unanchored)
 	}
+	suppressNativeIPsecAdmin(p, ds)
+	routeKVs := p.kvs
+	if in["routing"] && !in["tunnels"] && ds.GetTunnels() != nil {
+		// References still need deterministic runtime names when only routing is applied.
+		// Stage tunnel projection solely to read its metadata; do not apply tunnel objects.
+		references := &projected{pointers: map[scheduler.Key]string{}}
+		desired.Tunnels(references, ds.GetTunnels(), map[string]bool{"tunnels": true}, vrfID, subsystems.TunnelsIDSpan())
+		for _, kv := range references.kvs {
+			if kv.Key.Descriptor() == desired.TunnelMetaName {
+				routeKVs = append(routeKVs, kv)
+			}
+		}
+	}
+	resolveTunnelRouteInterfaces(routeKVs)
 	return p
 }
 
@@ -439,6 +458,7 @@ func isEmptyDomain(ds *vrxv1.DesiredState, key string) bool {
 // to VRF names for tables that are not among the retrieved VRFs (e.g. `vrfs` not requested); stored
 // is the agent's stored `interfaces` document and live the interface table (P08, desired.Assemble).
 func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (string, bool), stored map[string]*vrxv1.Interface, live desired.Live) *vrxv1.DesiredState {
+	tunnelNames := tunnelRouteNames(kvs)
 	ds := &vrxv1.DesiredState{}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -528,6 +548,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-BC: F-vrrp-config-sync
 	desired.AssembleVrrp(ds, kvs, in) // ha.vrrp from vrrp.*, vrrp.meta, keepalived.config
 	// wave-BC: F-ikev2-native
+	desired.AssembleIKEv2(ds, kvs)
 	// wave-BC: F-mpls-srmpls
 	if in["routing"] {
 		desired.AssembleMplsSrmpls(ds, kvs, nameOf)
@@ -612,6 +633,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	if in["system"] {
 		desired.AssembleSystemIdentity(ds, kvs) // F-system-identity (unanchored)
 	}
+	restoreTunnelRouteInterfaces(ds, tunnelNames)
 	return ds
 }
 
@@ -627,4 +649,48 @@ func sortedMapKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// Tunnel metadata bridges stable configuration names and allocated VPP interface names.
+func tunnelRouteNames(kvs []scheduler.KV) map[string]string {
+	names := map[string]string{}
+	for _, kv := range kvs {
+		if kv.Key.Descriptor() != desired.TunnelMetaName {
+			continue
+		}
+		meta, err := desired.DecodeTunnelMeta(kv.Value)
+		if err == nil && meta.Name != "" && meta.ID != "" {
+			names[meta.ID] = meta.Name
+		}
+	}
+	return names
+}
+
+func resolveTunnelRouteInterfaces(kvs []scheduler.KV) {
+	names := tunnelRouteNames(kvs)
+	runtime := map[string]string{}
+	for id, name := range names {
+		runtime[name] = id
+	}
+	for _, kv := range kvs {
+		route, ok := kv.Value.(*core.Route)
+		if !ok {
+			continue
+		}
+		for _, path := range route.Paths {
+			if id, ok := runtime[path.Interface]; ok {
+				path.Interface = id
+			}
+		}
+	}
+}
+
+func restoreTunnelRouteInterfaces(ds *vrxv1.DesiredState, names map[string]string) {
+	for _, route := range ds.GetRouting().GetStatic() {
+		for _, hop := range route.GetNextHops() {
+			if name, ok := names[hop.GetInterface()]; ok {
+				hop.Interface = proto.String(name)
+			}
+		}
+	}
 }

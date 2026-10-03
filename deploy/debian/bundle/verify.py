@@ -95,6 +95,31 @@ def validate_version(version):
     run(['dpkg', '--validate-version', version], MAX_CONTROL)
 
 
+def parse_control(control):
+    # Debian control field names are case-insensitive, including relationship
+    # fields. Normalize fields consumed by this verifier; retain unknown names
+    # for manifest compatibility while still rejecting duplicate spellings.
+    known = {name.lower(): name for name in (
+        'Package', 'Version', 'Architecture', 'Pre-Depends', 'Depends',
+        'Conflicts', 'Breaks', 'Provides', 'Multi-Arch')}
+    fields = {}
+    seen = set()
+    previous = None
+    for line in control.splitlines():
+        if line.startswith((' ', '\t')) and previous:
+            fields[previous] += ' ' + line.strip()
+        elif ':' in line:
+            key, value = line.split(':', 1)
+            folded = key.lower()
+            if folded in seen:
+                raise InvalidBundle(f'duplicate control field: {key}')
+            seen.add(folded)
+            key = known.get(folded, key)
+            fields[key] = value.strip()
+            previous = key
+    return fields
+
+
 def metadata(path):
     if path.is_symlink() or not path.is_file():
         raise InvalidBundle(f'archive must be a regular file: {path}')
@@ -133,17 +158,7 @@ def metadata(path):
                 raise InvalidBundle('source archive changed during inspection')
     finally:
         os.close(descriptor)
-    fields = {}
-    previous = None
-    for line in control.splitlines():
-        if line.startswith((' ', '\t')) and previous:
-            fields[previous] += ' ' + line.strip()
-        elif ':' in line:
-            key, value = line.split(':', 1)
-            if key in fields:
-                raise InvalidBundle(f'duplicate control field: {key}')
-            fields[key] = value.strip()
-            previous = key
+    fields = parse_control(control)
     for key in ('Package', 'Version', 'Architecture'):
         if not fields.get(key):
             raise InvalidBundle(f'missing {key}: {path}')

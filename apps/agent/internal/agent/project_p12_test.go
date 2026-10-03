@@ -67,6 +67,14 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 		t.Fatalf("netns warnings %v, want exactly /interfaces/loop821/lcp/netns (loop822 has none)", netnsWarn)
 	}
 
+	// D-217: one table cannot mix default and nondefault namespace pairs.
+	refused := apply(t, s, &vrxv1.ApplyRequest{TxnId: "mixed-ns", DesiredState: ds, Subsystems: []string{"interfaces"}})
+	mustStatus(t, refused, vrxv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+	if !strings.Contains(refused.String(), "one table must not mix both kinds") {
+		t.Fatalf("mixed namespaces unexpectedly accepted: %v", refused)
+	}
+	// Keep the lifecycle fixture in one namespace so API multicast ownership is coherent.
+	ds.Interfaces["loop822"].Lcp.Netns = proto.String("ns-w8-frr")
 	// the pairs reach VPP (the tap gate lets lcp_itf_pair_get through once a tap exists) and Retrieve reports them
 	mustStatus(t, apply(t, s, &vrxv1.ApplyRequest{TxnId: "l1", DesiredState: ds, Subsystems: []string{"interfaces"}}), vrxv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces"}})
@@ -75,7 +83,7 @@ func TestP12ProjectionWithoutFRR(t *testing.T) {
 	}
 	for name, want := range map[string]*vrxv1.InterfaceLcp{
 		"loop821": {HostIfName: proto.String("w8-l21"), HostIfType: proto.String("tap"), Netns: proto.String("ns-w8-frr")},
-		"loop822": {HostIfType: proto.String("tap")}, // hostIfName = the VPP name: canonical form leaves it out
+		"loop822": {HostIfType: proto.String("tap"), Netns: proto.String("ns-w8-frr")}, // hostIfName = the VPP name: canonical form leaves it out
 	} {
 		if l := got.GetDesiredState().GetInterfaces()[name].GetLcp(); !proto.Equal(l, want) {
 			t.Fatalf("Retrieve %s.lcp = %v, want %v", name, l, want)

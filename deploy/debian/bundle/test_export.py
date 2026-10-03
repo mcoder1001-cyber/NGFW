@@ -211,7 +211,15 @@ class ExportTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
+    # The existing hosted provisioning workflow invokes this entrypoint. Keep
+    # standalone delivery fixtures in that gate without weakening its no-skips
+    # result policy or adding a second workflow implementation.
+    from test_helpers import HelpersTests
+    suite = unittest.TestSuite([
+        unittest.defaultTestLoader.loadTestsFromTestCase(ExportTests),
+        unittest.defaultTestLoader.loadTestsFromTestCase(HelpersTests),
+    ])
     result = unittest.TextTestRunner(verbosity=2).run(
-        unittest.defaultTestLoader.loadTestsFromTestCase(ExportTests))
+        suite)
     sys.exit(0 if result.testsRun and result.wasSuccessful() and not result.skipped
              and not result.expectedFailures else 1)

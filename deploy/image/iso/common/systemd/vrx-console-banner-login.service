@@ -1,0 +1,21 @@
+# P14 deploy/image common (F-images reuses it): deletes the bootstrap password from the console banner once the
+# bootstrap admin has logged in (or changed its password). Started by vrx-console-banner-login.timer; disables the
+# timer when done. Reads app_user over PostgreSQL's local socket as user postgres (peer authentication, read only).
+[Unit]
+Description=VRX bootstrap password: remove it from the console after the first admin login
+After=postgresql.service vrx-firstboot.service
+ConditionPathExists=/var/lib/vrx-image/console/bootstrap-password
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/vrx-image/vrx-console-banner check-login
+StandardOutput=journal
+StandardError=journal
+ProtectSystem=strict
+# /run/agetty.reload: `agetty --reload` makes the running login prompts drop the password at once
+ReadWritePaths=/etc/issue.d /var/lib/vrx-image -/run/agetty.reload
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK

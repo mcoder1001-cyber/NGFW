@@ -220,6 +220,7 @@ mkdir -p "$VRX_ISO_SCRATCH/foreign"; rc=0; ( vrx_rm_rf "$VRX_ISO_SCRATCH/foreign
 check "guard: rm refuses a dir without the marker" test "$rc" != 0 -a -d "$VRX_ISO_SCRATCH/foreign"
 
 check "installer: failed inventory blocks destructive continuation" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_disk_guard.py"
+check "installer: uncertain size inventory fails closed" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_size_guard.py"
 
 check "python: renderer regression cases" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_render.py"
 check "python: uncertain console credential cleanup recovery" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_console_recovery.py"

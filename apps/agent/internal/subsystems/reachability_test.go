@@ -234,13 +234,33 @@ func boardRows(t *testing.T) map[string]bool {
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
+	rows := parseBoardRows(string(b))
+	if len(rows) == 0 {
+		t.Fatal("board has no task IDs")
+	}
+	return rows
+}
+
+func parseBoardRows(text string) map[string]bool {
 	rows := map[string]bool{}
-	for _, l := range strings.Split(string(b), "\n") {
-		if id, ok := strings.CutPrefix(l, "- id: "); ok {
+	for _, line := range strings.Split(text, "\n") {
+		if id, ok := strings.CutPrefix(strings.TrimSpace(line), "- id: "); ok {
 			rows[strings.TrimSpace(id)] = true
 		}
 	}
 	return rows
+}
+
+func TestBoardRowsAcceptYAMLIndentation(t *testing.T) {
+	for _, text := range []string{
+		"tasks:\n- id: P11\n  state: running\n- id: F-capture-trace\n  state: merged\n",
+		"tasks:\n  - id: P11\n    state: running\n  - id: F-capture-trace\n    state: merged\n",
+	} {
+		rows := parseBoardRows(text)
+		if len(rows) != 2 || !rows["P11"] || !rows["F-capture-trace"] || rows["missing-row"] {
+			t.Fatalf("valid YAML task indentation changed row identity: %v", rows)
+		}
+	}
 }
 
 // importsOf maps the local names of a file's imports under internal/<sub>/ to their top-level package

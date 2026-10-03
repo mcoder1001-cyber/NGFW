@@ -194,6 +194,7 @@ def main() -> None:
         models.alias(ident(pascal(name), "schema name"), comps[name])
 
     ops = []
+    method_names: dict[str, str] = {}
     for path in sorted(doc["paths"]):
         for method in ("get", "post", "put", "patch", "delete"):
             op = doc["paths"][path].get(method)
@@ -206,10 +207,19 @@ def main() -> None:
             resp = body_schema(op["responses"].get(ok)) if ok else None
             ident(oid, "operationId")  # the raw name, not a sanitised one: silent renames could collide
             base = ident(pascal(oid), "operationId")
-            ident(snake(oid), "operationId")
+            method_name = ident(snake(oid), "operationId")
+            if method_name in method_names:
+                raise GenError(f"operationId {oid!r} collides with {method_names[method_name]!r} as {method_name!r}")
+            method_names[method_name] = oid
+            argument_names = {"self"}
+            if req is not None:
+                argument_names.add("body")
             for prm in params:
                 ident(prm["name"], "parameter name")
-                ident(snake(prm["name"]), "parameter name")
+                argument_name = ident(snake(prm["name"]), "parameter name")
+                if argument_name in argument_names:
+                    raise GenError(f"parameter name {prm['name']!r} collides as {argument_name!r} in {oid!r}")
+                argument_names.add(argument_name)
             if method.upper() not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
                 raise GenError(f"method {method!r}")
             req_t = models.type_of(req, base + "Body") if req is not None else None

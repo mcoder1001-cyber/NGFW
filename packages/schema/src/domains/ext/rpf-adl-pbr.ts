@@ -18,7 +18,7 @@ import { DEFAULT_VRF } from '../vrfs.js';
  * attachments are unique) live in `../../semantic/rpf-adl-pbr.ts`.
  */
 
-/** `x-vrx-ui` group of every field of this feature (wave-A-hotspots C1: group = task slug). */
+/** `x-ngfw-ui` group of every field of this feature (wave-A-hotspots C1: group = task slug). */
 export const RPF_ADL_PBR_GROUP = 'rpf-adl-pbr';
 
 /* ------------------------------------------------------------------------------------------------------ uRPF */

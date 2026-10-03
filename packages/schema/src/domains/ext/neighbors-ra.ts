@@ -30,10 +30,10 @@ import { withUi } from '../../ui.js';
  * interval ordering, unique keys) live in `../../semantic/neighbors-ra.ts`.
  */
 
-/** UI group of every per-interface field of this feature (x-vrx-ui group = task slug, wave-A-hotspots C1). */
+/** UI group of every per-interface field of this feature (x-ngfw-ui group = task slug, wave-A-hotspots C1). */
 export const NEIGHBORS_RA_GROUP = 'neighbors-ra';
 
-/** VPP 26.06 RA defaults (ip6_ra.c; DF-2 verified them on vrx-a with sw_interface_ip6nd_ra_dump). */
+/** VPP 26.06 RA defaults (ip6_ra.c; DF-2 verified them on ngfw-a with sw_interface_ip6nd_ra_dump). */
 export const RA_DEFAULTS = {
   suppress: true,
   managed: false,
@@ -174,7 +174,7 @@ export const proxyArpField = withUi(z.boolean().optional(), {
 /** `interfaces.<if>.proxyNd`: IPv6 addresses this interface answers neighbour solicitations for (experimental, V12). */
 export const proxyNdField = withUi(z.array(ipv6Address).max(64).optional(), {
   title: 'Proxy ND addresses (experimental)',
-  help: 'experimental and off by default: applied only by an agent started with VRX_DF2_PROXY_ND=1 (V12)',
+  help: 'experimental and off by default: applied only by an agent started with NGFW_DF2_PROXY_ND=1 (V12)',
   group: NEIGHBORS_RA_GROUP,
   order: 41,
 });

@@ -17,7 +17,7 @@ import {
  * congestion control, event-queue segments) belongs to the start-up generator (F-startup-gen), not here.
  *
  * Secrets rule (D-051): a namespace secret is only a `key/<name>` reference. D-049: tags and namespace ids carry no
- * `..`, no control characters; `wwwRootPath` lies under `/var/lib/vrx/www/`. Cross-domain rules (VRFs and
+ * `..`, no control characters; `wwwRootPath` lies under `/var/lib/ngfw/www/`. Cross-domain rules (VRFs and
  * interfaces exist, rule namespaces exist, session rules vs. Auto-SDL) live in `semantic/host-stack.ts`.
  */
 
@@ -33,7 +33,7 @@ export const hostStackId = withUi(
 );
 
 /** Root of every http_static `www_root` (D-049, DF-8 review M5). */
-export const HOST_STACK_WWW_ROOT = '/var/lib/vrx/www/';
+export const HOST_STACK_WWW_ROOT = '/var/lib/ngfw/www/';
 
 export const hostStackWwwRootPath = withUi(
   z

@@ -69,6 +69,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
   private retryTimer: NodeJS.Timeout | undefined;
   private active: AbortController | undefined;
   private runtimeError: string | null = null;
+  private pendingCommit: { severity: Severity; transition: string } | null = null;
   private readonly offPublish: () => void;
   private readonly offAgent: () => void;
   now: () => number = () => Date.now();
@@ -109,6 +110,8 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
   async reload(): Promise<void> {
     this.generation++;
     this.reloadDirty = true;
+    this.active?.abort();
+    clearTimeout(this.timer);
     if (this.reloadBusy || this.stopped) return;
     this.reloadBusy = true;
     try {
@@ -143,6 +146,12 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
       }
     } finally {
       this.reloadBusy = false;
+      if (!this.stopped && !this.runtimeError) {
+        const pending = this.pendingCommit;
+        this.pendingCommit = null;
+        if (pending) this.emit('commit', pending.severity, 'configuration', pending.transition);
+        this.wake();
+      }
     }
   }
   configure(config: NotificationsConfig): void {
@@ -159,7 +168,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     return {
       queued: this.queue.length,
       busy: this.workerBusy,
-      error: this.runtimeError,
+      error: this.reloadBusy ? 'configuration-loading' : this.runtimeError,
       configuredChannels: this.config.channels.length,
       deliveries: [...this.history].reverse(),
     };
@@ -168,14 +177,14 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
   private message(m: BusMessage): void {
     const d = isPlainObject(m.data) ? m.data : {};
     if (m.topic === 'commit.events') {
-      void this.reload();
       if (['applied', 'confirmed', 'reverted', 'failed'].includes(String(d['type'])))
-        this.emit(
-          'commit',
-          d['type'] === 'failed' ? 'critical' : 'info',
-          'configuration',
-          scalar(d['type']),
-        );
+        this.pendingCommit = {
+          severity: d['type'] === 'failed' ? 'critical' : 'info',
+          transition: scalar(d['type']),
+        };
+      // Pause and abort sends immediately. Only the latest commit notice is
+      // dispatched after the latest running config read succeeds.
+      void this.reload();
     } else if (m.topic === 'security.events' && d['type'] === 'global-blocking-fetch-failed') {
       this.emit('global-blocking', 'warning', scalar(d['list']), 'fetch-failed');
     } else if (m.topic === 'alarm.events') {
@@ -197,13 +206,16 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
         e.kind === EventKind.EVENT_KIND_LINK_DOWN ? 'down' : 'up',
       );
     else if (
-      (e.kind === EventKind.EVENT_KIND_UNSPECIFIED || e.kind === EventKind.EVENT_KIND_ERROR) &&
+      e.kind ===
+        (e.attributes['event'] === 'daemon' && e.attributes['up'] === 'no'
+          ? EventKind.EVENT_KIND_ERROR
+          : EventKind.EVENT_KIND_UNSPECIFIED) &&
       e.attributes['source'] === 'strongswan' &&
       ['ike-updown', 'child-updown', 'ike-rekey', 'child-rekey', 'daemon', 'poll'].includes(
         e.attributes['event'] ?? '',
       ) &&
       ['yes', 'no'].includes(e.attributes['up'] ?? '') &&
-      (e.attributes['event'] === 'daemon' || !!e.attributes['tunnel'])
+      (e.attributes['event'] === 'daemon' || !!scalar(e.attributes['tunnel']))
     )
       this.emit(
         'vpn',
@@ -220,7 +232,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
       );
   }
   emit(kind: Kind, severity: Severity, source: string, transition: string): void {
-    if (this.stopped || this.runtimeError) return;
+    if (this.stopped || this.runtimeError || this.reloadBusy) return;
     const at = this.now();
     const notice: Notice = {
       kind,
@@ -251,7 +263,8 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     this.wake();
   }
   test(name: string): { queued: true } {
-    if (this.runtimeError) throw problems.unavailable('notification configuration unavailable');
+    if (this.runtimeError || this.reloadBusy)
+      throw problems.unavailable('notification configuration unavailable');
     if (!this.channel(name))
       throw problems.notFound('enabled running notification channel not found');
     if (this.queue.length >= 256)
@@ -293,7 +306,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     );
   }
   private wake(): void {
-    if (this.workerBusy || this.stopped || this.runtimeError) return;
+    if (this.workerBusy || this.stopped || this.runtimeError || this.reloadBusy) return;
     clearTimeout(this.timer);
     const next = this.queue.reduce((n, j) => Math.min(n, j.due), Infinity);
     if (!Number.isFinite(next)) return;
@@ -301,7 +314,7 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
     this.timer.unref();
   }
   async run(): Promise<void> {
-    if (this.workerBusy || this.stopped || this.runtimeError) return;
+    if (this.workerBusy || this.stopped || this.runtimeError || this.reloadBusy) return;
     const index = this.queue.findIndex((j) => j.due <= this.now());
     if (index < 0) {
       this.wake();
@@ -332,7 +345,23 @@ export class NotificationsService implements OnModuleDestroy, OnApplicationBoots
       if (!this.stopped) this.record(job, controller.signal.aborted ? 'discarded' : 'sent', null);
     } catch (e) {
       if (!this.stopped) {
-        this.record(job, 'failed', e instanceof DeliveryError ? e.reason : 'delivery-failed');
+        this.record(
+          job,
+          'failed',
+          e instanceof DeliveryError &&
+            (/^http-[1-5][0-9]{2}$/.test(e.reason) ||
+              [
+                'secret-unavailable',
+                'destination-rejected',
+                'delivery-timeout',
+                'transport-failed',
+                'channel-invalid',
+                'smtp-failed',
+                'management-vrf-unsupported',
+              ].includes(e.reason))
+            ? e.reason
+            : 'delivery-failed',
+        );
         if (this.valid(job) && job.tries < 3 && this.queue.length < 256) {
           job.due = this.now() + 1000 * 2 ** (job.tries - 1);
           this.queue.push(job);

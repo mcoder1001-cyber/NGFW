@@ -214,6 +214,138 @@ describe('notification dispatcher', () => {
     expect(s.deliver).toHaveBeenCalledTimes(3);
     expect(JSON.stringify(vi.mocked(s.deliver).mock.calls)).not.toContain('sensitive');
   });
+  it('maps strongSwan transition and recovered poll events without leaking attributes', async () => {
+    const { s, bus } = service();
+    let clock = 1000;
+    s.now = () => clock;
+    for (const event of [
+      'ike-updown',
+      'child-updown',
+      'ike-rekey',
+      'child-rekey',
+      'poll',
+      'daemon',
+    ]) {
+      bus.agentEvent(
+        Event.fromPartial({
+          kind: event === 'daemon' ? EventKind.EVENT_KIND_ERROR : EventKind.EVENT_KIND_UNSPECIFIED,
+          message: 'VRX_TEST_PSK_sensitive',
+          attributes: {
+            source: 'strongswan',
+            event,
+            tunnel: 'site-a',
+            up: 'no',
+            'private-key': 'VRX_TEST_PSK_sensitive',
+            'remote-id': 'VRX_TEST_PSK_sensitive',
+          },
+        }),
+      );
+      await s.run();
+      clock += 1001;
+    }
+    expect(s.deliver).toHaveBeenCalledTimes(6);
+    expect(JSON.stringify(vi.mocked(s.deliver).mock.calls)).not.toContain('sensitive');
+    const notices = vi.mocked(s.deliver).mock.calls.map((call) => JSON.parse(call[1]));
+    expect(notices.every((notice) => notice.kind === 'vpn' && notice.transition === 'down')).toBe(
+      true,
+    );
+    expect(notices.at(-1)?.source).toBe('strongswan-daemon');
+  });
+  it('ignores malformed strongSwan attributes and resync markers until real poll recovery', async () => {
+    const { s, bus } = service();
+    const base = { source: 'strongswan', event: 'poll', tunnel: 'site-a', up: 'yes' };
+    for (const attributes of [
+      { ...base, source: 'other' },
+      { ...base, up: '' },
+      { ...base, up: 'true' },
+      { ...base, tunnel: '' },
+      { ...base, event: 'resync' },
+      { ...base, event: 'unknown' },
+      {},
+    ])
+      bus.agentEvent(Event.fromPartial({ kind: EventKind.EVENT_KIND_UNSPECIFIED, attributes }));
+    bus.agentEvent(Event.fromPartial({ kind: EventKind.EVENT_KIND_ERROR, attributes: base }));
+    await s.run();
+    expect(s.deliver).not.toHaveBeenCalled();
+    bus.agentEvent(Event.fromPartial({ kind: EventKind.EVENT_KIND_UNSPECIFIED, attributes: base }));
+    await s.run();
+    expect(s.deliver).toHaveBeenCalledTimes(1);
+  });
+  it('pauses test and queued delivery while a committed routing configuration is being read', async () => {
+    let resolve!: (value: { doc: unknown }) => void;
+    const { s } = service({
+      getRunning: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    } as never);
+    s.emit('alarm', 'warning', 'cpu', 'raised');
+    const reading = s.reload();
+    expect(s.state().error).toBe('configuration-loading');
+    expect(() => s.test('sink')).toThrow();
+    await s.run();
+    expect(s.deliver).not.toHaveBeenCalled();
+    resolve({
+      doc: {
+        management: {
+          notifications: {
+            ...config(),
+            channels: [{ ...config().channels[0], vrf: 'management' }],
+          },
+        },
+      },
+    });
+    await reading;
+    expect(s.state().error).toBe('configuration-unavailable');
+    await s.run();
+    expect(s.deliver).not.toHaveBeenCalled();
+  });
+  it('aborts an active delivery immediately when commit reload begins', async () => {
+    let finish!: () => void;
+    let resolve!: (value: { doc: unknown }) => void;
+    const { s } = service({
+      getRunning: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    } as never);
+    s.deliver = vi.fn(
+      (_channel, _body, _secret, signal) =>
+        new Promise<void>((done) => {
+          finish = done;
+          expect(signal.aborted).toBe(false);
+        }),
+    );
+    s.emit('alarm', 'warning', 'cpu', 'raised');
+    const sending = s.run();
+    const reading = s.reload();
+    expect(vi.mocked(s.deliver).mock.calls[0]?.[3].aborted).toBe(true);
+    finish();
+    await sending;
+    expect(s.state().deliveries[0]?.result).toBe('discarded');
+    resolve({ doc: { management: { notifications: config() } } });
+    await reading;
+  });
+  it('commit notices use latest running configuration after successful reload', async () => {
+    const { s, bus } = service();
+    bus.publish('commit.events', { type: 'applied', secret: 'VRX_TEST_PSK_sensitive' });
+    await vi.waitFor(() => expect(s.deliver).toHaveBeenCalledTimes(1));
+    expect(JSON.stringify(vi.mocked(s.deliver).mock.calls)).not.toContain('sensitive');
+    expect(JSON.parse(vi.mocked(s.deliver).mock.calls[0]![1])).toMatchObject({
+      kind: 'commit',
+      transition: 'applied',
+    });
+  });
+  it('rejects arbitrary provider error reasons from delivery GET history', async () => {
+    const { s } = service();
+    s.deliver = vi.fn(async () => {
+      throw new DeliveryError('VRX_TEST_PSK_sensitive');
+    });
+    s.emit('alarm', 'warning', 'cpu', 'raised');
+    await s.run();
+    expect(s.state().deliveries[0]?.error).toBe('delivery-failed');
+    expect(JSON.stringify(s.state())).not.toContain('sensitive');
+  });
   it('one worker stays busy during a blocked delivery and cannot accumulate parallel sends', async () => {
     let resolve!: () => void;
     const { s } = service();

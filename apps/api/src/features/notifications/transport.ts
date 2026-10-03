@@ -73,13 +73,16 @@ export async function resolvePublic(host: string): Promise<{ address: string; fa
 async function webhook(
   url: string,
   body: string,
-  secret: string,
+  readSecret: (ref: string) => Promise<string>,
+  secretRef: string,
   signal: AbortSignal,
 ): Promise<void> {
   const u = new URL(url);
   if (u.protocol !== 'https:' || u.username || u.password || u.hash)
     throw new DeliveryError('destination-rejected');
   const pinned = await resolvePublic(u.hostname);
+  if (signal.aborted) throw new DeliveryError('delivery-timeout');
+  const secret = await readSecret(secretRef);
   if (signal.aborted) throw new DeliveryError('delivery-timeout');
   await new Promise<void>((resolve, reject) => {
     const req = https.request(
@@ -89,7 +92,8 @@ async function webhook(
         signal,
         agent: false,
         rejectUnauthorized: true,
-        lookup: (_host, _opts, cb) => cb(null, pinned.address, pinned.family),
+        lookup: (_host, options, cb) =>
+          options.all ? cb(null, [pinned]) : cb(null, pinned.address, pinned.family),
         headers: {
           'content-type': 'application/json',
           'content-length': Buffer.byteLength(body),
@@ -121,7 +125,7 @@ export async function sendNotification(
   // for an explicitly requested nondefault management VRF.
   if (channel.vrf !== DEFAULT_VRF) throw new DeliveryError('management-vrf-unsupported');
   if (channel.type === 'webhook' && channel.webhook) {
-    return webhook(channel.webhook.url, body, await readSecret(channel.webhook.secretRef), signal);
+    return webhook(channel.webhook.url, body, readSecret, channel.webhook.secretRef, signal);
   }
   const e = channel.email;
   if (channel.type !== 'email' || !e) throw new DeliveryError('channel-invalid');

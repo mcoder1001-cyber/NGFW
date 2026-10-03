@@ -223,8 +223,7 @@ avail_gb=$(( $(df --output=avail -k "$BUILD_DIR" | tail -1) / 1024 / 1024 ))
 log "free disk: ${avail_gb} GB (>= $MIN_FREE_GB)"
 
 # ------------------------------------------------------------------ 10. make pkg-deb (upstream flags, capped parallelism)
-ncpu=$(nproc --all)
-cpus="$((ncpu - JOBS))-$((ncpu - 1))"; ((ncpu > JOBS)) || cpus="0-$((ncpu - 1))"
+cpus=$(vrx_build_cpus "$JOBS") || die "could not select CPUs from process allowed affinity"
 SOURCE_DATE_EPOCH=$(git -C "$SRC" log -1 --format=%ct "$VPP_COMMIT")
 export SOURCE_DATE_EPOCH
 # Every pip the upstream build runs (DPDK meson venv via build-patches/0001; python3-vpp-api's PEP 517 build isolation,

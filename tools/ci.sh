@@ -4,8 +4,8 @@
 # after merging; workers run it before declaring done. Never weaken it — extend it (owner: P09).
 #
 #   tools/ci.sh [quick]                    unit-only gate (default). Budget: < 6 min, < 2 min on an unchanged tree
-#   tools/ci.sh full                       quick + integration: flock -x /run/lock/vrx-lab.lock (barrier) → held shared, CI slot 12,
-#                                          tools/lab rig up w12, Go/TS suites with VRX_INTEGRATION=1, rig down
+#   tools/ci.sh full                       quick + integration: flock -x /run/lock/ngfw-lab.lock (barrier) → held shared, CI slot 12,
+#                                          tools/lab rig up w12, Go/TS suites with NGFW_INTEGRATION=1, rig down
 #                                          (tools/lab absent = P04 not merged: loud WARNING, integration NOT RUN, gate still passes)
 #   tools/ci.sh [quick|full] --base <ref>  + contract guard and branch checks against <ref> (manager: --base main)
 #   tools/ci.sh gen-check                  only `pnpm gen` + the generated-output dirty gate (what `pnpm gen:check` runs)
@@ -17,8 +17,8 @@
 # Each step's output is captured to a log file; on failure the tail is printed. The very last line is exactly
 # `CI GATE PASSED`, otherwise the script exits non-zero after `CI GATE FAILED — <reason>`.
 # Order of quick: [contract guard] → tools → install → gen + dirty gate → forbidden patterns (+gitleaks)
-#                 → lint/typecheck/unit tests/build (turbo, VRX_INTEGRATION unset) → apps/agent make lint test build
-#                 → every Go module under test/ (gofmt, go vet, go test -count=1; integration tests skip without VRX_INTEGRATION)
+#                 → lint/typecheck/unit tests/build (turbo, NGFW_INTEGRATION unset) → apps/agent make lint test build
+#                 → every Go module under test/ (gofmt, go vet, go test -count=1; integration tests skip without NGFW_INTEGRATION)
 #                 → deploy/vpp: shellcheck + apply-startup fake-host harness (sharded; skipped when unchanged since a green run)
 set -euo pipefail
 
@@ -26,18 +26,18 @@ usage() {
   sed -n '2,/^set -euo pipefail/{/^set -euo pipefail/!p}' "$0" | sed -E 's/^# ?//'
   cat <<'EOF'
 environment (all optional):
-  VRX_CI_VERBOSE=1               stream every step's output (same as --verbose / -v)
-  VRX_CI_LOG_DIR=<dir>           step logs (default /root/ngfw-wt/logs/ci when writable, else $TMPDIR/vrx-ci)
-  VRX_CI_TOOLS_DIR=<dir>         where install-tools puts binaries (default /usr/local/bin; sudo used when needed)
-  VRX_CI_ALLOW_MISSING_TOOLS=1   warn instead of fail when golangci-lint/gitleaks are absent and cannot be downloaded
-  VRX_CI_LOCK=<file>             lab lock for `full` (default /run/lock/vrx-lab.lock)
-  VRX_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lab lock (the barrier before rig up; default 1800)
-  VRX_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
-  VRX_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
-  VRX_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
-  VRX_CI_TASK_CONCURRENCY=<n>    optional Turbo task concurrency (1..64); unset preserves Turbo's default
+  NGFW_CI_VERBOSE=1               stream every step's output (same as --verbose / -v)
+  NGFW_CI_LOG_DIR=<dir>           step logs (default /root/ngfw-wt/logs/ci when writable, else $TMPDIR/ngfw-ci)
+  NGFW_CI_TOOLS_DIR=<dir>         where install-tools puts binaries (default /usr/local/bin; sudo used when needed)
+  NGFW_CI_ALLOW_MISSING_TOOLS=1   warn instead of fail when golangci-lint/gitleaks are absent and cannot be downloaded
+  NGFW_CI_LOCK=<file>             lab lock for `full` (default /run/lock/ngfw-lab.lock)
+  NGFW_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lab lock (the barrier before rig up; default 1800)
+  NGFW_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
+  NGFW_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
+  NGFW_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
+  NGFW_CI_TASK_CONCURRENCY=<n>    optional Turbo task concurrency (1..64); unset preserves Turbo's default
   GOLANGCI_LINT_VERSION / GITLEAKS_VERSION   override the pinned tool versions for install-tools
-  TURBO_CACHE_DIR                shared turbo cache (default ~/.cache/vrx-turbo); GOCACHE: go's default (~/.cache/go-build)
+  TURBO_CACHE_DIR                shared turbo cache (default ~/.cache/ngfw-turbo); GOCACHE: go's default (~/.cache/go-build)
 EOF
 }
 
@@ -53,14 +53,14 @@ CONTRACT_PATHS=(packages/schema packages/proto apps/agent/gen packages/api-clien
 # the control plane: never shells out, never talks to VPP directly (00-CONTEXT rules 1 and 9)
 CONTROL_PLANE_PATHS=(apps/api/src apps/web/src 'packages/*/src')
 
-TIP="${VRX_CI_HEAD_REF:-HEAD}"    # the branch under test for --base: HEAD, or the branch being merged inside the pre-merge-commit hook
-LOCK_FILE="${VRX_CI_LOCK:-/run/lock/vrx-lab.lock}"
-LOCK_TIMEOUT="${VRX_CI_LOCK_TIMEOUT:-1800}"
-CI_SLOT="${VRX_CI_SLOT:-12}"
-TOOLS_DIR="${VRX_CI_TOOLS_DIR:-/usr/local/bin}"
+TIP="${NGFW_CI_HEAD_REF:-HEAD}"    # the branch under test for --base: HEAD, or the branch being merged inside the pre-merge-commit hook
+LOCK_FILE="${NGFW_CI_LOCK:-/run/lock/ngfw-lab.lock}"
+LOCK_TIMEOUT="${NGFW_CI_LOCK_TIMEOUT:-1800}"
+CI_SLOT="${NGFW_CI_SLOT:-12}"
+TOOLS_DIR="${NGFW_CI_TOOLS_DIR:-/usr/local/bin}"
 
 # ---------------------------------------------------------------- arguments (backward compatible: no arg = quick, --base <ref>)
-MODE=quick; BASE=""; VERBOSE="${VRX_CI_VERBOSE:-0}"; HOOK_REPO=""
+MODE=quick; BASE=""; VERBOSE="${NGFW_CI_VERBOSE:-0}"; HOOK_REPO=""
 while (($#)); do
   case "$1" in
     quick|full|gen-check|check|install-tools|install-hooks) MODE=$1 ;;
@@ -79,7 +79,7 @@ ROOT="$(git rev-parse --show-toplevel)"; cd "$ROOT"
 export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin:/usr/local/bin"
 export CI=1                                   # non-interactive everywhere (pnpm, vitest, turbo)
 export GOTOOLCHAIN=local                      # never auto-download a Go toolchain (dl.google.com is unreachable here)
-export TURBO_CACHE_DIR="${TURBO_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/vrx-turbo}"   # shared across worktrees
+export TURBO_CACHE_DIR="${TURBO_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/ngfw-turbo}"   # shared across worktrees
 export TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1
 SECONDS=0
 
@@ -138,9 +138,9 @@ cleanup() {
 trap cleanup EXIT
 
 init_logs() {
-  local base="${VRX_CI_LOG_DIR:-}"
+  local base="${NGFW_CI_LOG_DIR:-}"
   if [[ -z $base ]]; then
-    if [[ -d /root/ngfw-wt/logs && -w /root/ngfw-wt/logs ]]; then base=/root/ngfw-wt/logs/ci; else base="${TMPDIR:-/tmp}/vrx-ci"; fi
+    if [[ -d /root/ngfw-wt/logs && -w /root/ngfw-wt/logs ]]; then base=/root/ngfw-wt/logs/ci; else base="${TMPDIR:-/tmp}/ngfw-ci"; fi
   fi
   LOG_DIR="$base/$(basename "$ROOT")-$(date +%Y%m%d-%H%M%S)-$$"
   mkdir -p "$LOG_DIR"
@@ -218,7 +218,7 @@ EOF
   fi
   cat >"$f" <<'HOOK'
 #!/usr/bin/env bash
-# pre-merge-commit — installed by tools/ci.sh install-hooks (VRX). Runs the quick CI gate on the MERGED tree before
+# pre-merge-commit — installed by tools/ci.sh install-hooks (NGFW). Runs the quick CI gate on the MERGED tree before
 # git creates the merge commit; a red gate aborts the merge (the working tree keeps the merge result: fix, or
 # `git merge --abort`). Bypass only deliberately and log it: `git merge --no-verify`.
 set -euo pipefail
@@ -232,7 +232,7 @@ case "${GIT_REFLOG_ACTION:-}" in "merge "*) tip=${GIT_REFLOG_ACTION#merge }; tip
 if [[ -n $tip ]] && git rev-parse -q --verify "$tip^{commit}" >/dev/null 2>&1; then
   # the quick gate on the merged tree + the contract guard / gitleaks on the commits of the branch being merged
   echo "pre-merge-commit: tools/ci.sh quick --base HEAD on the merged tree; contract guard + gitleaks on '$tip' ($(git rev-parse --short "$tip")) (git merge --no-verify bypasses this)" >&2
-  VRX_CI_HEAD_REF=$tip exec tools/ci.sh quick --base HEAD
+  NGFW_CI_HEAD_REF=$tip exec tools/ci.sh quick --base HEAD
 fi
 echo "pre-merge-commit: cannot tell which ref is being merged (GIT_REFLOG_ACTION='${GIT_REFLOG_ACTION:-}') — running tools/ci.sh quick on the merged tree without the contract guard (git merge --no-verify bypasses this)" >&2
 exec tools/ci.sh quick
@@ -246,16 +246,16 @@ HOOK
 preflight() {
   local branch head
   branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '?'); head=$(git rev-parse --short HEAD 2>/dev/null || echo '?')
-  printf '%s== VRX CI gate: %s%s%s ==%s\n' "$B" "$N" "$MODE" "$B" "$N"
+  printf '%s== NGFW CI gate: %s%s%s ==%s\n' "$B" "$N" "$MODE" "$B" "$N"
   say "worktree  $ROOT"
-  say "branch    $branch @ $head${BASE:+   (base: $BASE)}${VRX_CI_HEAD_REF:+   (tip: $TIP)}"
+  say "branch    $branch @ $head${BASE:+   (base: $BASE)}${NGFW_CI_HEAD_REF:+   (tip: $TIP)}"
   say "tools     node $(tool_ver node) · pnpm $(tool_ver pnpm) · $(tool_ver go) · buf $(tool_ver buf) · golangci-lint ${GOLANGCI_LINT_VERSION} (pinned) · gitleaks ${GITLEAKS_VERSION} (pinned)"
   say "caches    pnpm store $(pnpm store path 2>/dev/null || echo '?') · turbo $TURBO_CACHE_DIR · go $(go env GOCACHE 2>/dev/null || echo '?')"
   say "logs      $LOG_DIR"
-  if [[ -n ${VRX_INTEGRATION:-} ]]; then warn "VRX_INTEGRATION was set in the environment — ignored: the quick gate is unit-only"; fi
-  unset VRX_INTEGRATION
+  if [[ -n ${NGFW_INTEGRATION:-} ]]; then warn "NGFW_INTEGRATION was set in the environment — ignored: the quick gate is unit-only"; fi
+  unset NGFW_INTEGRATION
   local gen_re dirty; gen_re=$(IFS='|'; echo "${GEN_PATHS[*]}")
-  if [[ -n ${VRX_CI_HEAD_REF:-} && $TIP != HEAD ]] || [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
+  if [[ -n ${NGFW_CI_HEAD_REF:-} && $TIP != HEAD ]] || [[ -f $(git rev-parse --git-path MERGE_HEAD) ]]; then
     say "merge     in progress: $TIP into $branch — the gate runs on the merged tree (pre-merge-commit hook)"
     dirty=""
   else
@@ -273,10 +273,10 @@ ensure_tools() {
   if ((${#missing[@]})); then
     say "missing: ${missing[*]} — installing the pinned versions into $TOOLS_DIR (GitHub releases)"
     if ! run install-tools install_tools "${missing[@]}"; then
-      if [[ ${VRX_CI_ALLOW_MISSING_TOOLS:-0} == 1 ]]; then
-        warn "could not install ${missing[*]} (VRX_CI_ALLOW_MISSING_TOOLS=1: continuing with reduced checks)"
+      if [[ ${NGFW_CI_ALLOW_MISSING_TOOLS:-0} == 1 ]]; then
+        warn "could not install ${missing[*]} (NGFW_CI_ALLOW_MISSING_TOOLS=1: continuing with reduced checks)"
       else
-        fail "${missing[*]} not installed and the download failed. Run 'tools/ci.sh install-tools' with network access, or set VRX_CI_ALLOW_MISSING_TOOLS=1 to run a reduced gate (not for merges)."
+        fail "${missing[*]} not installed and the download failed. Run 'tools/ci.sh install-tools' with network access, or set NGFW_CI_ALLOW_MISSING_TOOLS=1 to run a reduced gate (not for merges)."
       fi
     fi
   fi
@@ -320,7 +320,7 @@ do_gen_check() {
 do_contract_guard() {
   step "contract guard: $TIP vs $BASE"
   git rev-parse --verify -q "$BASE^{commit}" >/dev/null || fail "--base $BASE: no such ref in this repository"
-  git rev-parse --verify -q "$TIP^{commit}" >/dev/null || fail "VRX_CI_HEAD_REF=$TIP: no such ref in this repository"
+  git rev-parse --verify -q "$TIP^{commit}" >/dev/null || fail "NGFW_CI_HEAD_REF=$TIP: no such ref in this repository"
   local mb; mb=$(git merge-base "$BASE" "$TIP") || fail "no merge base between $BASE and $TIP"
   MERGE_BASE=$mb
   local n; n=$(git rev-list --count "$mb..$TIP")
@@ -356,7 +356,7 @@ do_forbidden() {
   hits=$(git grep -nIE --untracked -e "$pat" -- "${CONTROL_PLANE_PATHS[@]}" 2>/dev/null || true)
   allowed=$(grep 'ALLOW:' <<<"$hits" || true); hits=$(grep -v 'ALLOW:' <<<"$hits" || true)
   [[ -z $allowed ]] || warn "control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:\n$(sed 's/^/      /' <<<"$allowed")"
-  [[ -z $hits ]] || fail "shell execution / direct VPP access in the control plane (Node never talks to VPP; no user input reaches a shell — go through vrx-agent gRPC):\n$(sed 's/^/    /' <<<"$hits")"
+  [[ -z $hits ]] || fail "shell execution / direct VPP access in the control plane (Node never talks to VPP; no user input reaches a shell — go through ngfw-agent gRPC):\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no shell/VPP/FFI access in ${CONTROL_PLANE_PATHS[*]}"
 
   # 2. no Dockerfiles / compose files anywhere (D-002: VMware VMs, never Docker)
@@ -372,12 +372,12 @@ do_forbidden() {
   [[ -z $hits ]] || fail "kill-by-pattern found (p*kill / kill*all) — on the shared host you kill only PIDs you spawned (docs/lab/shared-host-rules.md §5):\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no kill-by-pattern in scripts"
 
-  # 4. secrets, built-in high-confidence shapes (gitleaks below does the broad scan). Fixtures use VRX_TEST_PSK_<id>; docs use <redacted>.
+  # 4. secrets, built-in high-confidence shapes (gitleaks below does the broad scan). Fixtures use NGFW_TEST_PSK_<id>; docs use <redacted>.
   pat='-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|gh[pousr]_[A-Za-z0-9]{36,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk_(live|test)_[0-9A-Za-z]{10,}|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}|(postgres(ql)?|redis|valkey|mysql|amqp|mongodb(\+srv)?)://[^:/@$<[:space:]]+:[^@$<[:space:]]+@'
-  hits=$(git grep -nIE --untracked -e "$pat" -- . ':(exclude)pnpm-lock.yaml' 2>/dev/null | grep -vE 'VRX_TEST_PSK_|<redacted>' || true)
-  [[ -z $hits ]] || fail "secret-shaped content in committed/working files (private key block, cloud/API token, JWT, URL with embedded password). Secrets never go into the repository — redact as <redacted>, fixtures use VRX_TEST_PSK_<id>:\n$(sed 's/^/    /' <<<"$hits")"
+  hits=$(git grep -nIE --untracked -e "$pat" -- . ':(exclude)pnpm-lock.yaml' 2>/dev/null | grep -vE 'NGFW_TEST_PSK_|<redacted>' || true)
+  [[ -z $hits ]] || fail "secret-shaped content in committed/working files (private key block, cloud/API token, JWT, URL with embedded password). Secrets never go into the repository — redact as <redacted>, fixtures use NGFW_TEST_PSK_<id>:\n$(sed 's/^/    /' <<<"$hits")"
   say "ok: no secret-shaped strings"
-  hits=$(git grep -nIw --untracked -e vrxtestsecrets -- . ':(exclude)*_test.go' ':(exclude)apps/agent/internal/subsystems/wireguard_fixture.go' ':(exclude)test' ':(exclude)docs' ':(exclude)*.md' ':(exclude)tools/ci.sh' 2>/dev/null || true); [[ -z $hits ]] || fail "the WireGuard test-secret build tag vrxtestsecrets outside its tagged file, tests, test/ and docs (F-wireguard review F2: product code must never use the fixture channel):\n$(sed 's/^/    /' <<<"$hits")"; say "ok: vrxtestsecrets only in test code"  # 4b (F-wireguard review F2)
+  hits=$(git grep -nIw --untracked -e ngfwtestsecrets -- . ':(exclude)*_test.go' ':(exclude)apps/agent/internal/subsystems/wireguard_fixture.go' ':(exclude)test' ':(exclude)docs' ':(exclude)*.md' ':(exclude)tools/ci.sh' 2>/dev/null || true); [[ -z $hits ]] || fail "the WireGuard test-secret build tag ngfwtestsecrets outside its tagged file, tests, test/ and docs (F-wireguard review F2: product code must never use the fixture channel):\n$(sed 's/^/    /' <<<"$hits")"; say "ok: ngfwtestsecrets only in test code"  # 4b (F-wireguard review F2)
 
   # 5. gitleaks over the commit history: the branch's commits with --base, otherwise HEAD's history (last 500 commits).
   #    Scoped explicitly — gitleaks' default is every ref, and a leak on some unmerged branch must not fail main.
@@ -432,10 +432,10 @@ do_trace_ban() {
 do_turbo() {
   step "lint · typecheck · unit tests · build (turbo)"
   local -a task_args=()
-  if [[ -n ${VRX_CI_TASK_CONCURRENCY:-} ]]; then
-    [[ $VRX_CI_TASK_CONCURRENCY =~ ^([1-9]|[1-5][0-9]|6[0-4])$ ]] \
-      || fail "VRX_CI_TASK_CONCURRENCY must be an integer from 1 to 64"
-    task_args+=(--concurrency "$VRX_CI_TASK_CONCURRENCY")
+  if [[ -n ${NGFW_CI_TASK_CONCURRENCY:-} ]]; then
+    [[ $NGFW_CI_TASK_CONCURRENCY =~ ^([1-9]|[1-5][0-9]|6[0-4])$ ]] \
+      || fail "NGFW_CI_TASK_CONCURRENCY must be an integer from 1 to 64"
+    task_args+=(--concurrency "$NGFW_CI_TASK_CONCURRENCY")
   fi
   run turbo pnpm turbo run lint typecheck test build --continue --output-logs=errors-only "${task_args[@]}" \
     || fail "lint / typecheck / unit tests / build failed — the failing task's output is above."
@@ -446,13 +446,13 @@ do_agent() {
   step "apps/agent: make lint test build"
   run agent make -C apps/agent lint test build || fail "apps/agent lint/test/build failed"
   if grep -q 'golangci-lint not installed' "$CUR_LOG"; then
-    if [[ ${VRX_CI_ALLOW_MISSING_TOOLS:-0} == 1 ]]; then warn "golangci-lint did not run (go vet only)"
+    if [[ ${NGFW_CI_ALLOW_MISSING_TOOLS:-0} == 1 ]]; then warn "golangci-lint did not run (go vet only)"
     else fail "golangci-lint did not run in apps/agent (Makefile fell back to go vet) — run 'tools/ci.sh install-tools'"; fi
   fi
   note "$(grep -E '^(ok|FAIL)\s' "$CUR_LOG" | head -n 12 | tr '\n' ';' | sed 's/;/; /g')"
 }
 
-# vrx CLI (P13): its own Go module, not a pnpm package. lint (gofmt, vet, golangci-lint, no-direct-VPP check) + unit tests +
+# ngfw CLI (P13): its own Go module, not a pnpm package. lint (gofmt, vet, golangci-lint, no-direct-VPP check) + unit tests +
 # build; TestOperationsTableMatchesOpenAPI catches a stale operations_gen.go after an API route change (P08 review F2).
 do_cli() {
   [[ -f apps/cli/go.mod ]] || return 0
@@ -462,7 +462,7 @@ do_cli() {
 }
 
 # every Go module under test/ (e.g. test/integration/smoke, its own module with `replace ngfw/agent => ../../../apps/agent`)
-# is compiled, vetted and run in unit mode: its integration tests t.Skip without VRX_INTEGRATION, but a gofmt/vet/compile
+# is compiled, vetted and run in unit mode: its integration tests t.Skip without NGFW_INTEGRATION, but a gofmt/vet/compile
 # regression or a stale go.sum ("missing go.sum entry" after apps/agent/go.mod grew) fails the gate here, not in someone's
 # integration run (P04 review F6). Nothing to do when test/ has no go.mod yet.
 do_test_modules() {
@@ -476,13 +476,13 @@ do_test_modules() {
     unformatted=$(gofmt -l "$mod" 2>/dev/null | grep -v '/node_modules/' || true)
     [[ -z $unformatted ]] || fail "gofmt: files in $mod are not formatted (run gofmt -w):\n$(sed 's/^/    /' <<<"$unformatted")"
     run "vet-${mod//\//_}" go -C "$mod" vet ./... || fail "go vet failed in $mod (a stale $mod/go.sum after apps/agent/go.mod changed? run 'go mod tidy' there and commit it)"
-    run "test-${mod//\//_}" env -u VRX_INTEGRATION go -C "$mod" test -count=1 ./... || fail "go test (unit mode) failed in $mod"
+    run "test-${mod//\//_}" env -u NGFW_INTEGRATION go -C "$mod" test -count=1 ./... || fail "go test (unit mode) failed in $mod"
     say "$mod: gofmt ok · go vet ok · $(grep -E '^(ok|FAIL|\?)\s' "$CUR_LOG" | head -n 3 | tr '\n' ';' | sed 's/;/; /g')"
   done
-  note "integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot"
+  note "integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot"
 }
 
-# export the VRX_* slot variables for slot $1: from `tools/lab env <slot>` when present and parseable (values are
+# export the NGFW_* slot variables for slot $1: from `tools/lab env <slot>` when present and parseable (values are
 # never eval'd), missing ones from the formulas in docs/lab/shared-host-rules.md §1 (as `tools/lab env` computes them)
 slot_env() {
   local n=$1 line k v
@@ -490,7 +490,7 @@ slot_env() {
   if [[ -x tools/lab ]]; then
     while IFS= read -r line; do
       line=${line#export }; line=${line%%#*}
-      [[ $line =~ ^[[:space:]]*(VRX_[A-Z0-9_]+)=(.*)$ ]] || continue
+      [[ $line =~ ^[[:space:]]*(NGFW_[A-Z0-9_]+)=(.*)$ ]] || continue
       k=${BASH_REMATCH[1]}; v=${BASH_REMATCH[2]}; v=${v%%[[:space:]]}; v=${v#[\"\']}; v=${v%[\"\']}
       [[ $v =~ ^[A-Za-z0-9_./:@-]*$ ]] || { warn "tools/lab env: ignoring unsafe value for $k"; continue; }
       export "$k=$v"; got[$k]=1
@@ -499,27 +499,27 @@ slot_env() {
   # same arithmetic as `tools/lab env` (D-025: metrics = 9100 + 10·N + 1, so slots 10–12 stay valid ports)
   # slots 14-32 (D-156): HTTP 10000 + 100*N, web 14000 + 100*N; 1-12 unchanged (tools/slot-check.py proves no collision)
   local hb=3000 wb=5000; (( n <= 12 )) || { hb=10000; wb=14000; }
-  declare -A def=([VRX_SLOT]=$n [VRX_TEST_PREFIX]=w$n [VRX_HTTP_PORT]=$((hb + n * 100)) [VRX_WEB_PORT]=$((wb + n * 100))
-                  [VRX_METRICS_PORT]=$((9100 + n * 10 + 1)) [VRX_AGENT_SOCKET]=/run/vrx-test/w$n/agent.sock
-                  [VRX_PG_DATABASE]=vrx_w$n [VRX_VALKEY_DB]=$n [VRX_VPP_TABLE_BASE]=$((n * 1000)))
+  declare -A def=([NGFW_SLOT]=$n [NGFW_TEST_PREFIX]=w$n [NGFW_HTTP_PORT]=$((hb + n * 100)) [NGFW_WEB_PORT]=$((wb + n * 100))
+                  [NGFW_METRICS_PORT]=$((9100 + n * 10 + 1)) [NGFW_AGENT_SOCKET]=/run/ngfw-test/w$n/agent.sock
+                  [NGFW_PG_DATABASE]=ngfw_w$n [NGFW_VALKEY_DB]=$n [NGFW_VPP_TABLE_BASE]=$((n * 1000)))
   for k in "${!def[@]}"; do [[ -n ${got[$k]:-} ]] || export "$k=${def[$k]}"; done
-  say "slot $n exports: $(env | grep '^VRX_' | sort | tr '\n' ' ')"
+  say "slot $n exports: $(env | grep '^NGFW_' | sort | tr '\n' ' ')"
 }
 
 # D-095 (d) / VPP V19: before any integration test (under the exclusive lock, so no other harness changes VPP while it
 # reads), again after the rig is up, and after the suites (before rig down: pollution this run made is found by this run,
 # not the next one) dump the interfaces and their classify / IPsec SPD bindings on the shared VPP and fail, naming the
 # interface, when a binding, a chained table or a classify DPO points at a classify table that no longer exists — the first
-# packet through it crashes VPP (vnet_classify_find_entry, 2026-09-24 04:50:27). Read-only (apps/agent/cmd/vrx-vpp-preflight);
+# packet through it crashes VPP (vnet_classify_find_entry, 2026-09-24 04:50:27). Read-only (apps/agent/cmd/ngfw-vpp-preflight);
 # warnings (dormant bindings of deleted interfaces, quarantined indices, stale SPD bindings) are printed, not fatal.
 # Returns 0 ok / 1 crash vector / 2 VPP unreachable or API error; v19_preflight_or_fail turns that into the gate's message.
 V19_PREFLIGHT_BIN=""
 v19_preflight() {
   local when=$1 rc=0
   if [[ -z $V19_PREFLIGHT_BIN ]]; then
-    V19_PREFLIGHT_BIN="$LOG_DIR/vrx-vpp-preflight"
-    run v19-preflight-build go -C apps/agent build -o "$V19_PREFLIGHT_BIN" ./cmd/vrx-vpp-preflight \
-      || fail "could not build apps/agent/cmd/vrx-vpp-preflight"
+    V19_PREFLIGHT_BIN="$LOG_DIR/ngfw-vpp-preflight"
+    run v19-preflight-build go -C apps/agent build -o "$V19_PREFLIGHT_BIN" ./cmd/ngfw-vpp-preflight \
+      || fail "could not build apps/agent/cmd/ngfw-vpp-preflight"
   fi
   say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the shared VPP"
   run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" || rc=$?
@@ -555,7 +555,7 @@ do_integration() {
   step "integration (slot $CI_SLOT, exclusive lab lock)"
   if [[ ! -x tools/lab ]]; then
     local msg="tools/lab is not present in this tree (P04 not merged yet) — the integration phase was NOT RUN; only the quick gate ran"
-    if [[ ${VRX_CI_REQUIRE_INTEGRATION:-0} == 1 ]]; then fail "$msg (VRX_CI_REQUIRE_INTEGRATION=1)"; fi
+    if [[ ${NGFW_CI_REQUIRE_INTEGRATION:-0} == 1 ]]; then fail "$msg (NGFW_CI_REQUIRE_INTEGRATION=1)"; fi
     warn "$msg"; INTEGRATION_STATUS="NOT RUN — tools/lab absent"; return 0
   fi
   mkdir -p "$(dirname "$LOCK_FILE")" 2>/dev/null || true
@@ -565,8 +565,8 @@ do_integration() {
   flock -x -w "$LOCK_TIMEOUT" 9 || fail "could not acquire the exclusive lab lock within ${LOCK_TIMEOUT}s; holders:\n$(lslocks 2>/dev/null | grep -F "$(basename "$LOCK_FILE")" || echo '  unknown')"
   say "exclusive lock held (waited $(fmt_dur $((SECONDS - t0)))) — barrier passed: no VPP restart and no harness is running right now"
   slot_env "$CI_SLOT"
-  unset VRX_INTEGRATION
-  RIG_PREFIX=$VRX_TEST_PREFIX
+  unset NGFW_INTEGRATION
+  RIG_PREFIX=$NGFW_TEST_PREFIX
   # while the lock is still exclusive: no harness can create/bind/delete tables underneath the reads (TD-3 review M3)
   v19_preflight_or_fail before-tests
   # From here on the gate holds the lock SHARED, like every integration harness (00-CONTEXT, shared-host-rules §1b), because
@@ -574,10 +574,10 @@ do_integration() {
   #  - the suites take their own `flock -s` on a fresh file description (P04's smoke_test.go does) — against our exclusive lock
   #    that would block until `go test` times out; flock is per open file description, the process tree does not matter.
   # Shared still gives the protection that matters: a VPP restart (exclusive) cannot start underneath the rig or the suites.
-  # Other harnesses may run beside the gate on their own prefixes. VRX_LAB_LOCK_HELD=1 / VRX_CI_FULL=1 tell tools/lab and the
+  # Other harnesses may run beside the gate on their own prefixes. NGFW_LAB_LOCK_HELD=1 / NGFW_CI_FULL=1 tell tools/lab and the
   # harnesses that the gate holds the lock for them.
   flock -s 9 || fail "could not convert the lab lock to shared"
-  export VRX_LAB_LOCK_HELD=1 VRX_CI_FULL=1
+  export NGFW_LAB_LOCK_HELD=1 NGFW_CI_FULL=1
   say "lab lock converted to shared for rig up → suites → rig down"
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
   local mod
@@ -592,12 +592,12 @@ do_integration() {
     fi
     say "go integration: $mod"
     # -p 1: one package at a time — packages share the CI slot's prefix/instance ranges on one VPP (D-087)
-    run "go-integration-${mod//\//_}" env VRX_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
+    run "go-integration-${mod//\//_}" env NGFW_INTEGRATION=1 go -C "$mod" test -p 1 -race -count=1 -timeout 30m ./... \
       || suite_failed "Go integration tests failed in $mod"
     grep -E '^(ok|FAIL)\s' "$CUR_LOG" | sed 's/^/  /' || true
   done < <(find apps/agent test -name go.mod -not -path '*/node_modules/*' 2>/dev/null | sort)
   say "ts integration: pnpm -r run test:integration (packages that define it)"
-  run ts-integration env VRX_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
+  run ts-integration env NGFW_INTEGRATION=1 pnpm -r --workspace-concurrency=1 --if-present run test:integration \
     || suite_failed "TS integration tests failed"
   # after the suites, before rig down: what this run left behind is found now (review M3); rig down runs either way
   local v19_after=0
@@ -607,21 +607,21 @@ do_integration() {
     RIG_UP=0
   fi
   ((v19_after == 0)) || fail "$(v19_message after-tests "$v19_after")"
-  unset VRX_LAB_LOCK_HELD VRX_CI_FULL
+  unset NGFW_LAB_LOCK_HELD NGFW_CI_FULL
   exec 9>&-
-  INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with VRX_INTEGRATION=1 → rig down"
+  INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with NGFW_INTEGRATION=1 → rig down"
 }
 
 # deploy/vpp host scripts (TD-6 L1, D-103): shellcheck of deploy/vpp/*.sh + the apply-startup.sh fake-host harness
 # (deploy/vpp/test-apply-startup.sh — fake systemctl/ip/sysfs/locks under a temp dir; never touches VPP, /etc or the real
-# locks). The harness runs in VRX_CI_APPLY_SHARDS parallel shards (default 4; ~8 min serial). A green run is remembered
-# under $VRX_CI_CACHE_DIR keyed by the sha256 of deploy/vpp/* and of the vrx-startupgen binary built from this tree, so
+# locks). The harness runs in NGFW_CI_APPLY_SHARDS parallel shards (default 4; ~8 min serial). A green run is remembered
+# under $NGFW_CI_CACHE_DIR keyed by the sha256 of deploy/vpp/* and of the ngfw-startupgen binary built from this tree, so
 # an unchanged tree skips the rerun. Self-contained: nothing else in this file depends on it.
 do_deploy_vpp() {
   step "deploy/vpp: shellcheck + apply-startup fake-host harness"
   command -v shellcheck >/dev/null 2>&1 || fail "shellcheck not installed (apt install shellcheck) — needed for deploy/vpp/*.sh"
-  local f pids=() rc=0 cache key gen shards="${VRX_CI_APPLY_SHARDS:-4}" i pfx nocache="" note=""
-  [[ $shards =~ ^[1-9][0-9]*$ ]] || fail "VRX_CI_APPLY_SHARDS must be a positive integer"
+  local f pids=() rc=0 cache key gen shards="${NGFW_CI_APPLY_SHARDS:-4}" i pfx nocache="" note=""
+  [[ $shards =~ ^[1-9][0-9]*$ ]] || fail "NGFW_CI_APPLY_SHARDS must be a positive integer"
   pfx="$LOG_DIR/$(printf '%02d' "$STEP_N")"
   # one shellcheck process per file, in parallel (up to ~1 min each on the big scripts)
   for f in deploy/vpp/*.sh; do
@@ -633,22 +633,22 @@ do_deploy_vpp() {
     fail "shellcheck found issues in deploy/vpp/*.sh"
   fi
   say "shellcheck ok: $(cd deploy/vpp && echo ./*.sh)"
-  cache="${VRX_CI_CACHE_DIR:-$HOME/.cache/vrx-ci}/apply-startup"; mkdir -p "$cache"
-  gen="$LOG_DIR/vrx-startupgen"
-  run build-startupgen go -C apps/agent build -o "$gen" ./cmd/vrx-startupgen || fail "go build ./cmd/vrx-startupgen failed"
+  cache="${NGFW_CI_CACHE_DIR:-$HOME/.cache/ngfw-ci}/apply-startup"; mkdir -p "$cache"
+  gen="$LOG_DIR/ngfw-startupgen"
+  run build-startupgen go -C apps/agent build -o "$gen" ./cmd/ngfw-startupgen || fail "go build ./cmd/ngfw-startupgen failed"
   key=$( { find deploy/vpp -type f -print0 | sort -z | xargs -0 sha256sum; sha256sum "$gen" | cut -d' ' -f1; } | sha256sum | cut -d' ' -f1)
-  # the harness's own selectors never leak in from the caller (an inherited VRX_TEST_ONLY would cache a partial run as
-  # green); VRX_TEST_APPLY_SCRIPT (exercise another copy of apply-startup.sh, e.g. to see this step fail) is honoured but
+  # the harness's own selectors never leak in from the caller (an inherited NGFW_TEST_ONLY would cache a partial run as
+  # green); NGFW_TEST_APPLY_SCRIPT (exercise another copy of apply-startup.sh, e.g. to see this step fail) is honoured but
   # never cached
-  if [[ -n ${VRX_TEST_APPLY_SCRIPT:-} ]]; then
-    nocache=1; warn "apply-startup harness: VRX_TEST_APPLY_SCRIPT=$VRX_TEST_APPLY_SCRIPT is exercised instead of deploy/vpp/apply-startup.sh — result not cached"
+  if [[ -n ${NGFW_TEST_APPLY_SCRIPT:-} ]]; then
+    nocache=1; warn "apply-startup harness: NGFW_TEST_APPLY_SCRIPT=$NGFW_TEST_APPLY_SCRIPT is exercised instead of deploy/vpp/apply-startup.sh — result not cached"
   elif [[ -e $cache/$key ]]; then
     say "apply-startup harness: unchanged since a green run ($(cat "$cache/$key")) — skipped (key ${key:0:12}; rm $cache/$key to force)"
     return 0
   fi
   pids=(); rc=0
   for ((i = 1; i <= shards; i++)); do
-    run "apply-startup-shard$i" env -u VRX_TEST_ONLY -u KEEP VRX_TEST_SHARD="$i/$shards" deploy/vpp/test-apply-startup.sh "$gen" & pids+=($!)
+    run "apply-startup-shard$i" env -u NGFW_TEST_ONLY -u KEEP NGFW_TEST_SHARD="$i/$shards" deploy/vpp/test-apply-startup.sh "$gen" & pids+=($!)
   done
   # a shard that failed a check exits 1 too — only a missing result line (or a non-zero exit with 0 failures) means it died
   local -a codes=(); local c
@@ -667,7 +667,7 @@ do_deploy_vpp() {
     again=$(awk '/^== [0-9]+\./ { n = $2; sub(/\.$/, "", n) } /^  FAIL / { print n }' "$pfx"-apply-startup-shard*.log | sort -nu | tr '\n' ' ')
     grep -h '^  FAIL ' "$pfx"-apply-startup-shard*.log || true
     say "apply-startup harness: $failn check(s) failed in scenario(s) ${again}— one serial rerun"
-    if [[ -n ${again// /} ]] && run apply-startup-rerun env -u VRX_TEST_SHARD -u KEEP VRX_TEST_ONLY="$again" deploy/vpp/test-apply-startup.sh "$gen"; then
+    if [[ -n ${again// /} ]] && run apply-startup-rerun env -u NGFW_TEST_SHARD -u KEEP NGFW_TEST_ONLY="$again" deploy/vpp/test-apply-startup.sh "$gen"; then
       warn "apply-startup harness: scenario(s) ${again}failed in the parallel run and passed on a serial rerun (host load?) — logs $pfx-apply-startup-*.log"
       say "rerun: $(grep -E '^apply-startup tests:' "$CUR_LOG" | tail -n 1)"
       failn=0 note="; scenario(s) ${again}green only on the serial rerun"

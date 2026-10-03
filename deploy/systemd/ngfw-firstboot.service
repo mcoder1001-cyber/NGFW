@@ -1,0 +1,16 @@
+[Unit]
+Description=NGFW initial appliance provisioning
+Requires=postgresql.service valkey-server.service nftables.service
+After=postgresql.service valkey-server.service nftables.service
+Before=vpp.service ngfw-agent.service ngfw-api.service nginx.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=-/etc/ngfw/bootstrap.env
+ExecStart=/usr/lib/ngfw/firstboot.sh
+RemainAfterExit=yes
+TimeoutStartSec=300
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

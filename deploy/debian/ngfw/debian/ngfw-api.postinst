@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    getent group ngfw >/dev/null || addgroup --system ngfw
+    getent passwd ngfw >/dev/null || adduser --system --ingroup ngfw --home /var/lib/ngfw --no-create-home ngfw
+    # wave-BC: F-backup-restore
+    # wave-BC: F-ab-upgrade
+    # Descriptor-relative setup refuses symlinks and never recurses into data.
+    /usr/bin/python3 /usr/lib/ngfw/provision-api-storage.py
+fi
+#DEBHELPER#

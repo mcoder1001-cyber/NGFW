@@ -22,7 +22,7 @@ def run_suite(suite, stream=None):
 def main():
     root = Path(__file__).resolve().parents[2]
     suite = unittest.defaultTestLoader.discover(
-        str(root / 'deploy/debian/vrx/tests'), pattern='test_*.py')
+        str(root / 'deploy/debian/ngfw/tests'), pattern='test_*.py')
     return run_suite(suite)
 
 

@@ -32,10 +32,10 @@ def web_port(n):
 
 def lab_env(n):
     return {
-        "VRX_SLOT": str(n), "VRX_TEST_PREFIX": f"w{n}", "VRX_HTTP_PORT": str(http_port(n)),
-        "VRX_WEB_PORT": str(web_port(n)), "VRX_METRICS_PORT": str(9100 + 10 * n + 1),
-        "VRX_AGENT_SOCKET": f"/run/vrx-test/w{n}/agent.sock", "VRX_PG_DATABASE": f"vrx_w{n}",
-        "VRX_VALKEY_DB": str(n), "VRX_VPP_TABLE_BASE": str(1000 * n),
+        "NGFW_SLOT": str(n), "NGFW_TEST_PREFIX": f"w{n}", "NGFW_HTTP_PORT": str(http_port(n)),
+        "NGFW_WEB_PORT": str(web_port(n)), "NGFW_METRICS_PORT": str(9100 + 10 * n + 1),
+        "NGFW_AGENT_SOCKET": f"/run/ngfw-test/w{n}/agent.sock", "NGFW_PG_DATABASE": f"ngfw_w{n}",
+        "NGFW_VALKEY_DB": str(n), "NGFW_VPP_TABLE_BASE": str(1000 * n),
     }
 
 
@@ -43,16 +43,16 @@ def ports(n):
     """every TCP/UDP port slot n may listen on, with where the formula lives"""
     p = {}
     h, w = http_port(n), web_port(n)
-    p[h] = "VRX_HTTP_PORT"
-    p[w] = "VRX_WEB_PORT"
-    p[9100 + 10 * n + 1] = "VRX_METRICS_PORT"
+    p[h] = "NGFW_HTTP_PORT"
+    p[w] = "NGFW_WEB_PORT"
+    p[9100 + 10 * n + 1] = "NGFW_METRICS_PORT"
     for off, where in ((60, "srv6 api"), (70, "wireguard api")):
         p[h + off] = where
     for off, where in ((60, "srv6 web"), (70, "wireguard web")):
         p[w + off] = where
     # daemon test sub-ports. Slots 1-12 keep their legacy formulas: numeric 3000 + 100*N + x (unbound 53, chrony 23,
     # ucs/system-identity 16/23/53/54) and string-built "3<N><xx>" (rsyslog 14-17, snmpd 61-63, ipfix 71, hoststack 90-99).
-    # Slots 14-32 take VRX_HTTP_PORT + x instead (vpptest.SubPort; the legacy formulas collide there).
+    # Slots 14-32 take NGFW_HTTP_PORT + x instead (vpptest.SubPort; the legacy formulas collide there).
     legacy_num, legacy_str = (16, 23, 53, 54), (14, 15, 16, 17, 61, 62, 63, 71) + tuple(range(90, 100))
     if n <= 12:
         for off in legacy_num:
@@ -61,7 +61,7 @@ def ports(n):
             p.setdefault(int(f"3{n}{off:02d}"), f'"3<N>{off:02d}"')
     else:
         for off in legacy_num + legacy_str:
-            p.setdefault(h + off, f"SubPort VRX_HTTP_PORT+{off}")
+            p.setdefault(h + off, f"SubPort NGFW_HTTP_PORT+{off}")
     for off in (10, 11):
         p[20000 + 100 * n + off] = f"wireguard 20000+100N+{off}"
     p.setdefault(4739 + n, "ipfix collector 4739+N")
@@ -103,7 +103,7 @@ def main():
     if os.access(lab, os.X_OK):
         for n in ALL_SLOTS:
             out = subprocess.run([lab, "env", str(n)], capture_output=True, text=True, check=False)
-            got = dict(re.findall(r"^export (VRX_[A-Z_]+)=(\S*)$", out.stdout, re.M))
+            got = dict(re.findall(r"^export (NGFW_[A-Z_]+)=(\S*)$", out.stdout, re.M))
             for k, v in lab_env(n).items():
                 if got.get(k) != v:
                     errs.append(f"tools/lab env {n}: {k}={got.get(k)!r}, expected {v!r}")

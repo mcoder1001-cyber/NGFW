@@ -32,7 +32,7 @@ VERIFY = HELPERS.EXPORT.VERIFY
 class HelpersTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.temporary = tempfile.TemporaryDirectory(prefix='vrx-helper-fixture-')
+        cls.temporary = tempfile.TemporaryDirectory(prefix='ngfw-helper-fixture-')
         cls.root = Path(cls.temporary.name)
         cls.delivery = cls.root / 'delivery'
         cls.delivery.mkdir()
@@ -45,14 +45,14 @@ class HelpersTests(unittest.TestCase):
         cls.launcher = cls.root / 'recipient.py'
         shutil.copyfile(Path(RECIPIENT.__file__), cls.launcher)
         values = subprocess.run(['/bin/bash', '-c',
-            'source "$1"; vrx_parse_version "$2"; '
+            'source "$1"; ngfw_parse_version "$2"; '
             'printf "%s\\n" "$VPP_UPSTREAM_URL" "$VPP_TAG" "$VPP_TAG_OBJECT" "$VPP_COMMIT" '
             '"$VPP_DEB_VERSION" "$VPP_LOCAL_REV" "$VPP_PACKAGES" "$VPP_PACKAGES_SHIP"; '
-            'vrx_pydeps_parse "$3"', 'fixture', str(HELPERS.ROOT / 'deploy/vpp/lib.sh'),
+            'ngfw_pydeps_parse "$3"', 'fixture', str(HELPERS.ROOT / 'deploy/vpp/lib.sh'),
             str(HELPERS.ROOT / 'deploy/vpp/VERSION'), str(HELPERS.ROOT / 'deploy/vpp/pydeps.lock')],
             check=True, capture_output=True, text=True).stdout.splitlines()
         url, tag, tag_object, commit, base, revision, packages, ship = values[:8]
-        version = base + '+vrx' + revision
+        version = base + '+ngfw' + revision
         for name in sorted(VERIFY.runtime_roots()):
             cls.deb(name, '1.0', cls.delivery / (name + '.deb'))
         entries = []
@@ -71,7 +71,7 @@ class HelpersTests(unittest.TestCase):
                     (HELPERS.ROOT / 'deploy/vpp' / name).read_bytes()).hexdigest()})
         python = [dict(zip(('name', 'version', 'sha256', 'file', 'url'), line.split()))
                   for line in values[8:]]
-        manifest = {'schema': 'vrx.vpp-debs.manifest/v2',
+        manifest = {'schema': 'ngfw.vpp-debs.manifest/v2',
                     'upstream': {'url': url, 'tag': tag, 'tag_object': tag_object, 'commit': commit},
                     'version': version, 'variant': 'default', 'patches': [], 'options': {'demo': False},
                     'build': {'builder_dirty': False, 'build_patches': build_patches,
@@ -145,7 +145,7 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(self.helpers.read_bytes(), output.read_bytes())
         with self.assertRaises(FileExistsError):
             HELPERS.export_helpers(output)
-        self.assertEqual(list(self.root.glob('.vrx-helpers-*')), [])
+        self.assertEqual(list(self.root.glob('.ngfw-helpers-*')), [])
 
     def test_modified_archive_and_modified_report_refuse_before_execution(self):
         modified = self.root / 'modified.tar'

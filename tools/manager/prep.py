@@ -20,7 +20,7 @@ title: {t['title']}
 prompt: {t['prompt']}   (template: {t.get('template') or '-'})   wbs: {', '.join(t.get('wbs') or [])}
 scope: {t.get('scope') or '-'}
 merged deps you can rely on: {', '.join(merged) or 'P01'}
-slot: {slot} → VRX_TEST_PREFIX=w{slot}  VRX_HTTP_PORT=3{slot}00  VRX_WEB_PORT=5{slot}00  VRX_METRICS_PORT=91{slot}1  VRX_AGENT_SOCKET=/run/vrx-test/w{slot}/agent.sock  VRX_PG_DATABASE=vrx_w{slot}  VRX_VPP_TABLE_BASE={slot}000
+slot: {slot} → NGFW_TEST_PREFIX=w{slot}  NGFW_HTTP_PORT=3{slot}00  NGFW_WEB_PORT=5{slot}00  NGFW_METRICS_PORT=91{slot}1  NGFW_AGENT_SOCKET=/run/ngfw-test/w{slot}/agent.sock  NGFW_PG_DATABASE=ngfw_w{slot}  NGFW_VPP_TABLE_BASE={slot}000
 daemon-owner: {daemon}
 files you own exclusively: {t.get('files_owned') or '(see prompt)'}
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

@@ -4,3 +4,5 @@ Mandatory fresh aspects: R1 correctness/tests, R2 security, R7 evidence/scope (a
 Independent root R2 APPROVE and T1focused44PASS recorded. OverallT1 remains pending unchanged complete hostedquick37110162496 and finaltree.
 Fresh R1 spawn rejected agentthreadlimit; root freshspawn separately same rejection; remaining mandatoryfreshpanel unfulfilled. Completedthreads counted by runtime. No substitute selfreview accepted.
 WholeP10 remains unfinished; install/signing/provenance/hostownership genuine gaps and actual applianceacceptance NOTRUN.
+
+Resume: final exact hosted quick37110162496 SUCCESS verified, source tree unchanged. Fresh tool R1/R8 launched after explicit owner resume; existing fresh R7 CLI APPROVE and root R2/T1 stand. R6 queued. Earlier cap/error evidence remains historical, not an active limitation.

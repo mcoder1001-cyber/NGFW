@@ -35,15 +35,35 @@ class HandoffTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def worker(self, command, deadline=15, before=None):
+    def worker(self, command, deadline=15, before=None, observe_cleanup=False, force_cleanup_timeout=False):
         path = self.root / 'job.json'
         path.write_text(json.dumps(dict(cwd=str(self.repo), head=self.head, lane='fast',
                                        command=command, deadline_seconds=deadline,
                                        state='submitted', log=str(self.root / 'job.log'))))
         if before:
             before()
-        subprocess.run([sys.executable, str(TOOLS / 'test-handoff.py'), '_run', str(path)],
-                       env=self.env, check=True, timeout=30)
+        worker_command = [sys.executable, str(TOOLS / 'test-handoff.py'), '_run', str(path)]
+        if observe_cleanup or force_cleanup_timeout:
+            # Observe the actual live child's state at final persistence, not
+            # merely after the worker has exited. Timeout probe fails closed.
+            runner = (
+                'import importlib.util,json; from pathlib import Path\n'
+                f's=importlib.util.spec_from_file_location("worker",{str(TOOLS / "test-handoff.py")!r})\n'
+                'm=importlib.util.module_from_spec(s); s.loader.exec_module(m)\n'
+                'original=m.save\n'
+                'def observed(path,data):\n'
+                '    if "finished" in data:\n'
+                f'        child=int(Path({str(self.root / "cleanup-child.pid")!r}).read_text())\n'
+                '        stat=Path(f"/proc/{child}/stat")\n'
+                '        data["child_state_at_final_save"]=stat.read_text().rsplit(")",1)[1].split()[0] if stat.exists() else "absent"\n'
+                '    original(path,data)\n'
+                'm.save=observed\n'
+            )
+            if force_cleanup_timeout:
+                runner += 'm.wait_group=lambda process, seconds: False\n'
+            runner += f'm.run(Path({str(path)!r}))\n'
+            worker_command = [sys.executable, '-c', runner]
+        subprocess.run(worker_command, env=self.env, check=True, timeout=30)
         return json.loads(path.read_text())
 
     def test_fast_can_run_while_two_long_slots_locked(self):
@@ -82,6 +102,61 @@ class HandoffTests(unittest.TestCase):
         direct = subprocess.run([str(TOOLS / 'test-fast.sh'), 'true'], env=self.env,
                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(direct.returncode, 2)
+
+    def cleanup_mutator(self, mutation, **worker_options):
+        # The child signals readiness before the successful parent exits. It
+        # mutates only on cleanup's TERM, after the worker's first clean check.
+        ready = self.root / 'cleanup-child.ready'
+        pidfile = self.root / 'cleanup-child.pid'
+        child = (
+            'import signal,time; from pathlib import Path\n'
+            'def cleanup(signum, frame):\n'
+            '    signal.signal(signal.SIGTERM, signal.SIG_IGN)\n'
+            f'    {mutation}\n'
+            'signal.signal(signal.SIGTERM, cleanup)\n'
+            f'Path({str(ready)!r}).write_text("ready")\n'
+            'while True: time.sleep(1)\n'
+        )
+        parent = (
+            'import subprocess,sys,time; from pathlib import Path\n'
+            f'p=subprocess.Popen([sys.executable,"-c",{child!r}])\n'
+            f'Path({str(pidfile)!r}).write_text(str(p.pid))\n'
+            'deadline=time.monotonic()+5\n'
+            f'while not Path({str(ready)!r}).exists():\n'
+            '    if p.poll() is not None or time.monotonic()>deadline: raise RuntimeError("child not ready")\n'
+            '    time.sleep(0.01)\n'
+        )
+        result = self.worker([sys.executable, '-c', parent], **worker_options)
+        self.assertEqual(result['exit_code'], 0)  # main validation succeeded
+        pid = int(pidfile.read_text())
+        stat = Path(f'/proc/{pid}/stat')
+        if stat.exists():
+            self.assertEqual(stat.read_text().split()[2], 'Z', 'cleanup descendant must be dead')
+        with open(self.locks / 'vrx-heavy-3.lock', 'w') as slot:
+            fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return result
+
+    def test_cleanup_descendant_mutation_invalidates_success(self):
+        result = self.cleanup_mutator('Path("source").write_text("changed during cleanup")')
+        self.assertEqual((self.repo / 'source').read_text(), 'changed during cleanup')
+        self.assertEqual(result['state'], 'stale')
+
+    def test_cleanup_verification_error_fails_closed(self):
+        result = self.cleanup_mutator('Path(".git").rename(".git-after-cleanup")')
+        self.assertFalse((self.repo / '.git').exists())
+        self.assertEqual(result['state'], 'failed')
+        self.assertIn('Final checkpoint verification failed', result['error'])
+
+    def test_success_is_saved_only_after_real_child_is_quiescent(self):
+        result = self.cleanup_mutator('pass', observe_cleanup=True)
+        self.assertEqual(result['state'], 'passed')
+        self.assertIn(result['child_state_at_final_save'], ('Z', 'X', 'absent'))
+
+    def test_cleanup_quiescence_timeout_cannot_seal_success(self):
+        result = self.cleanup_mutator('pass', force_cleanup_timeout=True)
+        self.assertEqual(result['state'], 'failed')
+        self.assertIn('Process cleanup verification failed', result['error'])
+        self.assertIn('quiescent', result['error'])
 
     def test_deadline_cleans_stubborn_descendant_and_releases_lock(self):
         pidfile = self.root / 'child.pid'

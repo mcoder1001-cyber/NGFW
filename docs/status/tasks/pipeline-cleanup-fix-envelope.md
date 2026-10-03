@@ -1,0 +1,3 @@
+# Pipeline cleanup checkpoint correction
+Branch codex/pipeline-cleanup-fix-20261003; isolated NGFW-pipeline-cleanup-fix; base454dd312.
+Own ONLY tools/test-handoff.py,tools/test_test_handoff.py and unique pipeline-cleanup-fix docs. Fix reported success becoming stale during owned descendant cleanup, preserving deadlines/host-lab flags/locks and all existing gate requirements. Reproduce RED with real TERM-resistant child modifying tracked source only during cleanup; fail closed if final Git verification fails. No host service/global lock/shared PID operations. No selfreview/merge; root publishes exact checkpoints and assigns fresh independent reviewers.

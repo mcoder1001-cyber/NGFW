@@ -15,7 +15,9 @@ func TestIPsecStateUsesRESTPagingAndPreservesJSON(t *testing.T) {
 			t.Errorf("wrong state selector/paging: %s", r.URL.RawQuery)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(sas))
+		if _, err := w.Write([]byte(sas)); err != nil {
+			t.Error(err)
+		}
 	}
 	result := f.ngfw(t, nil, "", "--json", "show", "ipsec", "sa", "branch", "offset", "50", "limit", "25")
 	if result.code != 0 || strings.TrimSpace(result.stdout) != sas {
@@ -26,7 +28,9 @@ func TestIPsecStateUsesRESTPagingAndPreservesJSON(t *testing.T) {
 			t.Errorf("missing tunnel selector")
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`{"tunnels":[{"tunnel":"branch","status":"up"}]}`))
+		if _, err := w.Write([]byte(`{"tunnels":[{"tunnel":"branch","status":"up"}]}`)); err != nil {
+			t.Error(err)
+		}
 	}
 	result = f.ngfw(t, nil, "", "show", "ipsec", "tunnels", "branch")
 	if result.code != 0 || !strings.Contains(result.stdout, `"status": "up"`) {
@@ -62,7 +66,7 @@ func TestIPsecInvalidPagingAndSPIHaveNoNetworkSideEffect(t *testing.T) {
 func TestIPsecActionsPreserveSPIWidthsAndAPIFailures(t *testing.T) {
 	f := newFake(t)
 	path := "POST /api/v1/actions/ipsec/ikev2/branch/rekey"
-	f.override[path] = func(w http.ResponseWriter, r *http.Request) {
+	f.override[path] = func(w http.ResponseWriter, _ *http.Request) {
 		var body struct {
 			ChildSPI uint32 `json:"childSpi"`
 		}
@@ -75,7 +79,7 @@ func TestIPsecActionsPreserveSPIWidthsAndAPIFailures(t *testing.T) {
 	if result.code != ExitForbidden || result.stdout != "" {
 		t.Fatalf("RBAC refusal: %d %s %s", result.code, result.stdout, result.stderr)
 	}
-	f.override["POST /api/v1/actions/ipsec/ikev2/branch/delete-sa"] = func(w http.ResponseWriter, r *http.Request) {
+	f.override["POST /api/v1/actions/ipsec/ikev2/branch/delete-sa"] = func(w http.ResponseWriter, _ *http.Request) {
 		var body struct {
 			IkeSPI string `json:"ikeSpi"`
 		}

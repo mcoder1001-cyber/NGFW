@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/url"
 	"ngfw/cli/internal/api"
 	"ngfw/cli/internal/cpath"
@@ -97,6 +98,9 @@ func nativeIPsecAction(ctx context.Context, a *App, operation string, args []cpa
 			return usagef("SPI must be a nonzero unsigned %d-bit decimal or 0x-prefixed hexadecimal number", bits)
 		}
 		if operation == "rekey" {
+			if spi > math.MaxUint32 {
+				return usagef("child SPI exceeds the unsigned 32-bit range")
+			}
 			body["childSpi"] = uint32(spi)
 		} else {
 			body["ikeSpi"] = strconv.FormatUint(spi, 10)

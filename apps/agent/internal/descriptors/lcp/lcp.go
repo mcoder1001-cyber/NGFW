@@ -553,15 +553,16 @@ func (d *ItfPairDescriptor) retrieve(ctx context.Context, drift bool) ([]schedul
 				}
 				gotDef = true
 			}
-			if s.Netns != def {
-				has, err := d.phyAccept(ctx, meta.PhySwIfIndex)
-				if err != nil {
-					return nil, err
-				}
-				meta.APIAccept = has
-				if !has && drift {
-					s.Drift = DriftAPIAcceptMissing
-				}
+			// Rebuild deletion metadata independently of today's default namespace.
+			// An API Accept can predate a default change to this pair's namespace;
+			// Retrieve must retain it just as the metadata returned by Create did.
+			has, err := d.phyAccept(ctx, meta.PhySwIfIndex)
+			if err != nil {
+				return nil, err
+			}
+			meta.APIAccept = has
+			if s.Netns != def && !has && drift {
+				s.Drift = DriftAPIAcceptMissing
 			}
 		}
 		out = append(out, scheduler.KV{Key: scheduler.Join(NameItfPair, name), Value: s.Proto(), Meta: meta})

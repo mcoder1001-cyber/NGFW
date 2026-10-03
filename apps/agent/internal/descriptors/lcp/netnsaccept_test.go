@@ -158,6 +158,30 @@ func TestNetnsPairDeleteAfterDefaultChange(t *testing.T) {
 	}
 }
 
+// Scheduler refreshes metadata through Retrieve, including after a default change.
+func TestNetnsPairDeleteAfterDefaultChangeAndRetrieve(t *testing.T) {
+	f, m := newFake()
+	d := NewItfPair(f, "w5")
+	v := ItfPair{Interface: "loop501", HostIfName: "w5-lcp0", HostIfType: "tap", Netns: "ns-w5"}.Proto()
+	if _, err := d.Create(context.Background(), v); err != nil {
+		t.Fatal(err)
+	}
+	m.ns = "ns-w5"
+	kvs, err := d.Retrieve(context.Background())
+	if err != nil || len(kvs) != 1 {
+		t.Fatalf("retrieve: %v, objects %d", err, len(kvs))
+	}
+	if !kvs[0].Meta.(PairMeta).APIAccept {
+		t.Fatal("Retrieve lost existing API Accept metadata")
+	}
+	if err := d.Delete(context.Background(), kvs[0].Value, kvs[0].Meta); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.apiAccept) != 0 {
+		t.Fatalf("API paths left after refreshed delete: %v", m.apiAccept)
+	}
+}
+
 // Without meta (after a restart) Delete removes the Accept VPP shows on the phy.
 func TestNetnsPairDeleteWithoutMeta(t *testing.T) {
 	f, m := newFake()

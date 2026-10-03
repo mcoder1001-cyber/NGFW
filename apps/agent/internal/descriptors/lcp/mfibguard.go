@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math"
 	"net"
 	"slices"
 	"strings"
@@ -151,7 +152,7 @@ func (netlinkFlusher) FlushIPv4(ifindex int, name string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("netlink socket: %w", err)
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }() // Closing our socket is best-effort cleanup.
 	if err := unix.Bind(fd, &unix.SockaddrNetlink{Family: unix.AF_NETLINK}); err != nil {
 		return 0, fmt.Errorf("netlink bind: %w", err)
 	}
@@ -172,15 +173,26 @@ func (netlinkFlusher) FlushIPv4(ifindex int, name string) (int, error) {
 
 func addrReq(fd int, typ, flags uint16, seq uint32, ifindex int, ip4 net.IP, plen int) error {
 	const hdr, ifa, rta = unix.SizeofNlMsghdr, unix.SizeofIfAddrmsg, 8 // rtattr 4 + IPv4 4
-	b := make([]byte, hdr+ifa+rta)
+	if plen < 0 || plen > 32 {
+		return fmt.Errorf("invalid IPv4 prefix length %d", plen)
+	}
+	index := int64(ifindex)
+	if index < 1 || index > math.MaxUint32 {
+		return fmt.Errorf("invalid interface index %d", ifindex)
+	}
+	if len(ip4) != net.IPv4len {
+		return fmt.Errorf("expected a four-byte IPv4 address")
+	}
+	const size = hdr + ifa + rta
+	b := make([]byte, size)
 	ne := binary.NativeEndian
-	ne.PutUint32(b[0:], uint32(len(b)))
+	ne.PutUint32(b[0:], size)
 	ne.PutUint16(b[4:], typ)
 	ne.PutUint16(b[6:], unix.NLM_F_REQUEST|unix.NLM_F_ACK|flags)
 	ne.PutUint32(b[8:], seq)
 	b[hdr] = unix.AF_INET
 	b[hdr+1] = byte(plen)
-	ne.PutUint32(b[hdr+4:], uint32(ifindex))
+	ne.PutUint32(b[hdr+4:], uint32(index))
 	ne.PutUint16(b[hdr+ifa:], 8)
 	ne.PutUint16(b[hdr+ifa+2:], unix.IFA_LOCAL)
 	copy(b[hdr+ifa+4:], ip4)
@@ -197,13 +209,33 @@ func addrReq(fd int, typ, flags uint16, seq uint32, ifindex int, ip4 net.IP, ple
 		return err
 	}
 	for _, m := range msgs {
-		if m.Header.Type == unix.NLMSG_ERROR && len(m.Data) >= 4 {
-			if e := int32(ne.Uint32(m.Data)); e != 0 && unix.Errno(-e) != unix.EADDRNOTAVAIL {
-				return unix.Errno(-e)
+		if m.Header.Type == unix.NLMSG_ERROR {
+			if err := netlinkAckError(m.Data); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
+}
+
+// netlinkAckError decodes Linux's signed 32-bit NLMSG_ERROR without narrowing
+// conversions. Negative errors are encoded in two's complement; zero is success.
+func netlinkAckError(data []byte) error {
+	if len(data) < 4 {
+		return fmt.Errorf("short netlink error acknowledgement")
+	}
+	code := binary.NativeEndian.Uint32(data)
+	if code == 0 {
+		return nil
+	}
+	if code&(1<<31) == 0 {
+		return fmt.Errorf("invalid positive netlink error code %d", code)
+	}
+	errno := unix.Errno(^code + 1)
+	if errno == unix.EADDRNOTAVAIL {
+		return nil // The address was already removed by another netlink listener.
+	}
+	return errno
 }
 
 // ---- S-lcp-netns-224-accept -----------------------------------------------------------------

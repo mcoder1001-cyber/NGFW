@@ -45,7 +45,7 @@ func TestMfibGuardOnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }() // Test-owned socket cleanup.
 	if err := unix.Bind(fd, &unix.SockaddrNetlink{Family: unix.AF_NETLINK}); err != nil {
 		t.Fatal(err)
 	}
@@ -62,8 +62,11 @@ func TestMfibGuardOnHost(t *testing.T) {
 }
 
 func setUp(ifindex int) error {
-	ifc, _ := net.InterfaceByIndex(ifindex)
-	return exec.Command("ip", "link", "set", ifc.Name, "up").Run() // test-only, fixed arguments
+	ifc, err := net.InterfaceByIndex(ifindex)
+	if err != nil {
+		return err
+	}
+	return exec.Command("ip", "link", "set", ifc.Name, "up").Run() //nolint:gosec // Test-only: fixed argv, kernel-resolved interface name, no shell.
 }
 
 func waitAccept(t *testing.T, c vpp.Client, idx uint32, want bool) {
@@ -82,7 +85,7 @@ func waitAccept(t *testing.T, c vpp.Client, idx uint32, want bool) {
 	}
 }
 
-func mfibShow(t *testing.T) string { return mfibShowIn(0) }
+func mfibShow(_ *testing.T) string { return mfibShowIn(0) }
 
 // mfibShowIn is `vppctl show ip mfib table <table> 224.0.0.0/24` (read-only, bounded by timeout).
 func mfibShowIn(table uint32) string {

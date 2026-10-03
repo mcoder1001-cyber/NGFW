@@ -347,7 +347,11 @@ export function missingSecretIssues(
 }
 
 /** Pointers an operator may not change (P06 §6: operator — no user/AAA changes). */
-export const ADMIN_ONLY_POINTERS = ['/management/users', '/management/aaa'] as const;
+export const ADMIN_ONLY_POINTERS = [
+  '/management/users',
+  '/management/aaa',
+  '/management/notifications',
+] as const;
 
 /**
  * The admin-only subtrees that differ between two documents. Compared unredacted (a new password hash is a user

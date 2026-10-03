@@ -2729,7 +2729,9 @@ message ManagementConfig {
   ManagementPrometheus prometheus = 5;
   // Threshold alarm rules and their notification targets (evaluated by the API; mirrored here for the drift guard).
   ManagementAlarms alarms = 6;
-  // wave-BC: F-backup-restore
+  // wave-BC: F-backup-restore (7 backup and 8 templates remain allocated).
+  // API-owned outbound notifications; complete schema mirror, not an agent sender capability.
+  ManagementNotifications notifications = 9;
 }
 
 // ----- security (F-bruteforce-block, mirrors packages/schema/src/domains/security.ts) -----
@@ -7783,4 +7785,48 @@ message SystemIdentityStateResponse {
   string resolver_status = 9; // "observed" | "unavailable" | "slot-only"
   repeated string observed_name_servers = 10;
   repeated string errors = 11; // fixed field identifiers, no file contents
+}
+
+// Complete management.notifications contract mirror. The API owns delivery and strips this
+// subtree from its agent DesiredState projection. No plaintext credentials are represented.
+message ManagementNotifications {
+  repeated NotificationChannel channels = 1;
+  repeated NotificationRule rules = 2;
+}
+
+// Selected email/webhook branch is validated by the authoritative schema.
+message NotificationChannel {
+  optional string name = 1;
+  optional bool enabled = 2;
+  // Current API transport accepts only "default"; no agent VRF binding is implied.
+  optional string vrf = 3;
+  optional string type = 4;
+  NotificationEmail email = 5;
+  NotificationWebhook webhook = 6;
+}
+
+message NotificationEmail {
+  optional string smtp_host = 1;
+  optional uint32 port = 2;
+  optional string tls = 3;
+  optional string username = 4;
+  // Encrypted-store reference only; never password bytes.
+  optional string password_ref = 5;
+  optional string from = 6;
+  repeated string to = 7;
+}
+
+message NotificationWebhook {
+  optional string url = 1;
+  // Encrypted-store reference only; never token bytes.
+  optional string secret_ref = 2;
+}
+
+message NotificationRule {
+  optional string name = 1;
+  optional bool enabled = 2;
+  repeated string events = 3;
+  optional string min_severity = 4;
+  repeated string channels = 5;
+  optional uint32 throttle_sec = 6;
 }

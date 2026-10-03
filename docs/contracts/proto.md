@@ -894,3 +894,7 @@ are returned. A non-globals slot never reads host kernel hostname or resolver ru
 `unavailable`, or `slot-only`: file observation is not daemon health or restart completion. No banner, secret, config mutation,
 privilege escalation or daemon restart is included. Existing `/state/system` REST health fields remain; `identity` is null
 when this RPC is unavailable. Public configured banner is a separate narrowly bounded API-only route.
+
+### API-owned notification mirror
+
+`ManagementConfig.notifications = 9` completely mirrors the SMTP/webhook notification schema. Fields 7 and 8 remain allocated to backup/templates. Like API-evaluated alarms, this is a legitimate contract mirror for strict schema drift checking; it adds no agent delivery implementation or privilege. The API deliberately omits notifications from its agent DesiredState projection and owns transport and encrypted-secret resolution. Credential fields contain store references only, never plaintext passwords or tokens. All scalar fields retain explicit presence; strict notification corpus roundtrips and unknown/plaintext-field rejection supplement the unchanged drift guard.

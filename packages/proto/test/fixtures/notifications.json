@@ -1,0 +1,43 @@
+{
+  "management": {
+    "notifications": {
+      "channels": [
+        {
+          "name": "relay",
+          "enabled": false,
+          "vrf": "default",
+          "type": "email",
+          "email": {
+            "smtpHost": "relay.example.test",
+            "port": 465,
+            "tls": "tls",
+            "username": "relay-user",
+            "passwordRef": "password/relay",
+            "from": "sender@example.test",
+            "to": ["recipient@example.test"]
+          }
+        },
+        {
+          "name": "hook",
+          "enabled": true,
+          "vrf": "default",
+          "type": "webhook",
+          "webhook": {
+            "url": "https://sink.example.test/hook",
+            "secretRef": "token/hook"
+          }
+        }
+      ],
+      "rules": [
+        {
+          "name": "events",
+          "enabled": false,
+          "events": ["alarm", "commit", "link", "vpn", "global-blocking"],
+          "minSeverity": "info",
+          "channels": ["relay", "hook"],
+          "throttleSec": 1
+        }
+      ]
+    }
+  }
+}

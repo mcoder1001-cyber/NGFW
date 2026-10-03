@@ -484,3 +484,7 @@ entry at rebase. `Ha` (F-vrrp-config-sync → F-ha-state-sync) and `vpn` (P11/F-
 
 **Next free (all packs):** ActionRequest 14 (after 19: 25) · EventKind 18 (after 19: 30) · RoutingConfig 20 · Interface 23 · ServicesConfig 12 ·
 ManagementConfig 9 · ManagementAaa 10 · ActionOutput 5 · NatConfig 28 · TunnelsConfig 8 · HaConfig 5 · HaCluster 11 · DhcpRelay 11.
+
+## F-notifications recovered contract allocation
+
+`ManagementConfig` field **9 `notifications`** (`ManagementNotifications`) is allocated to the complete API-owned SMTP/webhook schema mirror. Fields7backup/8templates retain their existing allocations. Notification delivery stays API-owned; no agent transport capability is introduced. Next free ManagementConfig field is10.

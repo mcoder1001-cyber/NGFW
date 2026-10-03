@@ -181,6 +181,9 @@ func TestStrictDecodeRejectsUnknownFields(t *testing.T) {
 		"invalid-unknown-root-key.json": bad,
 		"nested unknown leaf":           []byte(`{"system":{"hostname":"vrx-a","bogusField":1}}`),
 		"removed password_hash (D-040)": []byte(`{"management":{"users":[{"username":"a","role":"admin","scope":"*","passwordHash":"$6$x"}]}}`),
+		"notification unknown channel field": []byte(`{"management":{"notifications":{"channels":[{"bogusField":true}]}}}`),
+		"notification plaintext SMTP password": []byte(`{"management":{"notifications":{"channels":[{"email":{"password":"raw"}}]}}}`),
+		"notification plaintext webhook secret": []byte(`{"management":{"notifications":{"channels":[{"webhook":{"secret":"raw"}}]}}}`),
 		"old corelist string (F2)":      []byte(`{"dataplane":{"corelist":"2-5,8"}}`),
 		"old banner string (F2)":        []byte(`{"system":{"banner":"hello"}}`),
 	}

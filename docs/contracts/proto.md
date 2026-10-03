@@ -950,3 +950,18 @@ secret snapshot identity, so changing a PSK under an existing transaction ID fai
 operation (2: initiate, rekey, delete-sa), IKE SPI (3, uint64) and CHILD SPI
 (4, uint32). These operations are restricted to owned native profiles. The existing
 IpsecState RPC reports native state without exposing authentication material.
+
+
+### Native route based IPsec compatibility fields
+
+The current `/vpn/ipsec/tunnels` schema rejects per-profile `dpd` and
+`rekey.espPackets`, `rekey.ikeSec`, `rekey.reauth`; native VPP IKEv2 implements
+CHILD seconds/bytes lifetimes and global liveness instead. The historical wire
+field `IpsecTunnel.dpd = 15` remains present for compatibility. `IpsecRekey`
+is shared with remote-access configuration, which retains its complete shape;
+its field numbers cannot be deleted or reused to narrow just the native path.
+The schema/proto guard therefore accepts exactly these four proto-to-schema
+supersets under `/vpn/ipsec/tunnels/{}`. API validation rejects them before
+protobuf projection. Schema-only gaps, other mismatches, stale exception entries
+and all deliberate breakage regressions still fail the guard. This does not
+expose unsupported native settings or introduce a policy/daemon fallback.

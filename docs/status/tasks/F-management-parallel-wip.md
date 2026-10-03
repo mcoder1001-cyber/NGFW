@@ -16,3 +16,5 @@ Next command: independent frozen review and hosted CI inspection; do not merge f
 Remote/local SHA: see git HEAD; checkpoint publication follows each commit.
 
 Hosted PR97 gate failed gitleaks generic-api-key at mgmt-tls.test.ts219: fixed public RFC6455 handshake nonce, not an actual credential. Replaced with runtime randomBytes(16); no scanner exemptions. History remains on archival PR97; sanitized single-commit candidate is published on codex/management-reviewed-candidate-20261003 with origin/main parent. Focused ESLint exit0 (existing module-type warning).
+
+PR99 hosted quick run37110642313 correctly failed API typecheck: optional subject:string cannot receive an explicit undefined with exactOptionalPropertyTypes. Correction omits the property when no certificate subject is available; no productcode or compilerconfig changed. Focus10/10PASS (12.29s). First local typecheck found unbuilt @ngfw/proto only; built dependency then `pnpm --filter @ngfw/api typecheck` exited0 successfully. Narrow correction is appended to existing reviewed remote7f7b81eb with fast-forward publication; review and hostedquick rerun required.

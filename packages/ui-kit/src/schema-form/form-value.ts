@@ -172,7 +172,7 @@ export function toFormValue(raw: JsonSchema, value: unknown, root: JsonSchema): 
 }
 
 /**
- * Is the property hidden by its `x-vrx-ui.dependsOn`? Evaluated exactly like the UI gate: a sibling in the enclosing
+ * Is the property hidden by its `x-ngfw-ui.dependsOn`? Evaluated exactly like the UI gate: a sibling in the enclosing
  * object's form value, or an absolute `/path` located in the whole form value.
  */
 export function hiddenByDependsOn(

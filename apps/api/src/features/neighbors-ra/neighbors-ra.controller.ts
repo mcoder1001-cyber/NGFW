@@ -3,7 +3,7 @@ import { ApiBody, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs
 import type { NeighborEntry } from '@ngfw/proto';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { safeText } from '../../common/text.js';
@@ -151,7 +151,7 @@ export class NeighborsRaController {
   })
   @ApiOkResponse({ schema: openapi(ArpFlushOut, 'output') })
   async arpFlush(
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
     @Body(new ZodPipe(ArpFlushBody)) body: z.output<typeof ArpFlushBody>,
   ) {
     const target = { interface: body.interface ?? '', family: body.family ?? '' };

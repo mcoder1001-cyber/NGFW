@@ -14,7 +14,7 @@ import (
 	cnatapi "ngfw/agent/binapi/cnat"
 	"ngfw/agent/binapi/det44"
 	"ngfw/agent/binapi/ip_types"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
 
@@ -36,7 +36,7 @@ func det44Seed(v *coretest.VPP) netip.Addr {
 	return user
 }
 
-func actionRun(t *testing.T, c vrxv1.DataplaneClient, req *vrxv1.ActionRequest) ([]*vrxv1.ActionOutput, error) {
+func actionRun(t *testing.T, c ngfwv1.DataplaneClient, req *ngfwv1.ActionRequest) ([]*ngfwv1.ActionOutput, error) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -44,7 +44,7 @@ func actionRun(t *testing.T, c vrxv1.DataplaneClient, req *vrxv1.ActionRequest) 
 	if err != nil {
 		return nil, err
 	}
-	var out []*vrxv1.ActionOutput
+	var out []*ngfwv1.ActionOutput
 	for {
 		o, err := st.Recv()
 		if err == io.EOF {
@@ -57,8 +57,8 @@ func actionRun(t *testing.T, c vrxv1.DataplaneClient, req *vrxv1.ActionRequest) 
 	}
 }
 
-func closeReq(dir, addr string, port uint32) *vrxv1.ActionRequest {
-	return &vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_Det44SessionClose{Det44SessionClose: &vrxv1.Det44SessionCloseAction{
+func closeReq(dir, addr string, port uint32) *ngfwv1.ActionRequest {
+	return &ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_Det44SessionClose{Det44SessionClose: &ngfwv1.Det44SessionCloseAction{
 		Direction: dir, Address: addr, Port: port, ExternalAddress: "10.7.2.2", ExternalPort: 80}}}
 }
 
@@ -69,25 +69,25 @@ func TestDet44StateOnFake(t *testing.T) {
 	c := natServer(t, s)
 	ctx := context.Background()
 
-	r, err := c.Det44Sessions(ctx, &vrxv1.Det44SessionsRequest{User: "10.7.1.5", Limit: 2})
+	r, err := c.Det44Sessions(ctx, &ngfwv1.Det44SessionsRequest{User: "10.7.1.5", Limit: 2})
 	if err != nil || len(r.GetSessions()) != 2 || r.GetNextOffset() != 2 || r.GetTotalSessions() != 3 ||
 		r.GetOutsideAddress() != "10.7.2.200" || r.GetPortLo() != 6064 || r.GetPortHi() != 7071 ||
 		r.GetSessions()[0].GetState() != "tcp-established" || r.GetOwner() != testOwner {
 		t.Fatalf("page 1: %v %v", r, err)
 	}
-	r, err = c.Det44Sessions(ctx, &vrxv1.Det44SessionsRequest{User: "10.7.1.5", Offset: 2, Limit: 2})
+	r, err = c.Det44Sessions(ctx, &ngfwv1.Det44SessionsRequest{User: "10.7.1.5", Offset: 2, Limit: 2})
 	if err != nil || len(r.GetSessions()) != 1 || r.NextOffset != nil {
 		t.Fatalf("page 2: %v %v", r, err)
 	}
 	for _, tc := range []struct {
-		req  *vrxv1.Det44SessionsRequest
+		req  *ngfwv1.Det44SessionsRequest
 		code codes.Code
 	}{
-		{&vrxv1.Det44SessionsRequest{User: "10.7.1.5", Limit: 1001}, codes.InvalidArgument},
-		{&vrxv1.Det44SessionsRequest{User: "nope"}, codes.InvalidArgument},
-		{&vrxv1.Det44SessionsRequest{User: "10.9.1.5"}, codes.PermissionDenied},
-		{&vrxv1.Det44SessionsRequest{User: "10.7.9.9"}, codes.NotFound},
-		{&vrxv1.Det44SessionsRequest{User: "10.7.1.5", Owner: "w3"}, codes.InvalidArgument},
+		{&ngfwv1.Det44SessionsRequest{User: "10.7.1.5", Limit: 1001}, codes.InvalidArgument},
+		{&ngfwv1.Det44SessionsRequest{User: "nope"}, codes.InvalidArgument},
+		{&ngfwv1.Det44SessionsRequest{User: "10.9.1.5"}, codes.PermissionDenied},
+		{&ngfwv1.Det44SessionsRequest{User: "10.7.9.9"}, codes.NotFound},
+		{&ngfwv1.Det44SessionsRequest{User: "10.7.1.5", Owner: "w3"}, codes.InvalidArgument},
 	} {
 		if _, err := c.Det44Sessions(ctx, tc.req); grpcCode(err) != tc.code {
 			t.Errorf("%v: %v (want %s)", tc.req, err, tc.code)
@@ -95,15 +95,15 @@ func TestDet44StateOnFake(t *testing.T) {
 	}
 
 	// lookup both ways (CGNAT logging)
-	fw, err := c.Det44Lookup(ctx, &vrxv1.Det44LookupRequest{InsideAddress: proto.String("10.7.1.70")})
+	fw, err := c.Det44Lookup(ctx, &ngfwv1.Det44LookupRequest{InsideAddress: proto.String("10.7.1.70")})
 	if err != nil || fw.GetOutsideAddress() != "10.7.2.201" || fw.GetPortLo() != 1024+1008*6 || fw.GetPortHi() != 1024+1008*7-1 {
 		t.Fatalf("forward: %v %v", fw, err)
 	}
-	rv, err := c.Det44Lookup(ctx, &vrxv1.Det44LookupRequest{OutsideAddress: proto.String("10.7.2.201"), OutsidePort: proto.Uint32(fw.GetPortLo() + 7)})
+	rv, err := c.Det44Lookup(ctx, &ngfwv1.Det44LookupRequest{OutsideAddress: proto.String("10.7.2.201"), OutsidePort: proto.Uint32(fw.GetPortLo() + 7)})
 	if err != nil || rv.GetInsideAddress() != "10.7.1.70" {
 		t.Fatalf("reverse: %v %v", rv, err)
 	}
-	for _, req := range []*vrxv1.Det44LookupRequest{
+	for _, req := range []*ngfwv1.Det44LookupRequest{
 		{},
 		{InsideAddress: proto.String("10.7.1.5"), OutsideAddress: proto.String("10.7.2.200")},
 		{OutsideAddress: proto.String("10.7.2.200")},
@@ -160,11 +160,11 @@ func TestCnatStateOnFake(t *testing.T) {
 		cn.Sessions = append(cn.Sessions[:i], append([]cnatapi.CnatSession{foreign}, cn.Sessions[i:]...)...)
 	}
 	cn.Unlock()
-	t.Setenv("VRX_GLOBALS_OWNER", "0")
+	t.Setenv("NGFW_GLOBALS_OWNER", "0")
 	s := newSvc(t, v, t.TempDir())
 	c := natServer(t, s)
 	ctx := context.Background()
-	r, err := c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{Offset: 4, Limit: 2})
+	r, err := c.CnatSessions(ctx, &ngfwv1.CnatSessionsRequest{Offset: 4, Limit: 2})
 	if err != nil || len(r.GetSessions()) != 1 || r.NextOffset != nil || r.GetTotalSessions() != 5 || r.GetTruncated() {
 		t.Fatalf("page: %v %v", r, err)
 	}
@@ -172,12 +172,12 @@ func TestCnatStateOnFake(t *testing.T) {
 	if row.GetDstAddress() != "10.7.2.100" || row.GetDstPort() != 80 || row.GetSrcAddress() != "10.7.1.14" || row.GetProtocol() != "tcp" {
 		t.Fatalf("row %v", row)
 	}
-	if r, err = c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{Limit: 2}); err != nil || r.GetNextOffset() != 2 {
+	if r, err = c.CnatSessions(ctx, &ngfwv1.CnatSessionsRequest{Limit: 2}); err != nil || r.GetNextOffset() != 2 {
 		t.Fatalf("first page: %v %v", r, err)
 	}
 	old := cnatSessionCap
 	cnatSessionCap = 3
-	r, err = c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{})
+	r, err = c.CnatSessions(ctx, &ngfwv1.CnatSessionsRequest{})
 	cnatSessionCap = old
 	if err != nil || !r.GetTruncated() || r.GetTotalSessions() != 2 || len(r.GetSessions()) != 2 { // the cap counts rows looked at (one is foreign)
 		t.Fatalf("capped: %v %v", r, err)
@@ -188,21 +188,21 @@ func TestCnatStateOnFake(t *testing.T) {
 		}
 	}
 	// the globals owner sees the whole table
-	t.Setenv("VRX_GLOBALS_OWNER", "1")
-	if r, err = c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{}); err != nil || r.GetTotalSessions() != 7 {
+	t.Setenv("NGFW_GLOBALS_OWNER", "1")
+	if r, err = c.CnatSessions(ctx, &ngfwv1.CnatSessionsRequest{}); err != nil || r.GetTotalSessions() != 7 {
 		t.Fatalf("globals owner: %v %v", r, err)
 	}
-	t.Setenv("VRX_GLOBALS_OWNER", "0")
-	if _, err := c.CnatSessions(ctx, &vrxv1.CnatSessionsRequest{Limit: 5000}); grpcCode(err) != codes.InvalidArgument {
+	t.Setenv("NGFW_GLOBALS_OWNER", "0")
+	if _, err := c.CnatSessions(ctx, &ngfwv1.CnatSessionsRequest{Limit: 5000}); grpcCode(err) != codes.InvalidArgument {
 		t.Fatalf("limit: %v", err)
 	}
 
-	purge := &vrxv1.ActionRequest{Action: &vrxv1.ActionRequest_CnatSessionPurge{CnatSessionPurge: &vrxv1.CnatSessionPurgeAction{}}}
-	t.Setenv("VRX_GLOBALS_OWNER", "0")
+	purge := &ngfwv1.ActionRequest{Action: &ngfwv1.ActionRequest_CnatSessionPurge{CnatSessionPurge: &ngfwv1.CnatSessionPurgeAction{}}}
+	t.Setenv("NGFW_GLOBALS_OWNER", "0")
 	if _, err := actionRun(t, c, purge); grpcCode(err) != codes.PermissionDenied {
 		t.Fatalf("slot purge: %v", err)
 	}
-	t.Setenv("VRX_GLOBALS_OWNER", "1")
+	t.Setenv("NGFW_GLOBALS_OWNER", "1")
 	out, err := actionRun(t, c, purge)
 	if err != nil || len(out) != 1 || out[0].GetDone().GetExitCode() != 0 {
 		t.Fatalf("purge: %v %v", out, err)

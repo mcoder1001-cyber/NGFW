@@ -12,23 +12,23 @@ ran from a scratch copy of the fake-host harness outside the repo.
 |---|---|
 | `tools/ci.sh --base main` (slot 6) | **CI GATE PASSED**, quick, wall 3m40s, logs `/root/ngfw-wt/logs/ci/F-startup-apply-20260924-073553-3230429`. Matches the pasted run (3m46s). The only warning is about the reviewers' two `review(...)` subjects |
 | `shellcheck deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh` | exit 0 |
-| `go test -run TestBootID -v ./cmd/vrx-vppcheck` | PASS (an incomplete identity now exits 1) |
-| `deploy/vpp/test-apply-startup.sh <branch-built vrx-startupgen>` | **`apply-startup tests: 101 passed, 0 failed`**, wall 483 s. Matches the pasted 101 |
-| contract / binapi | `git diff --name-only main...HEAD` touches only owned files: the two scripts, `cmd/vrx-vppcheck`, the renderer doc and the status files. It touches none of `packages/schema`, `packages/proto`, the generated code, `apps/agent/binapi` or `tools/binapi-gen.sh` |
-| read-only dry run on vrx-a (branch binaries, `--i-have-product-owner-approval PENDING-handover`) | rc 0, wall 12 s. Output: ens192 ifupdown, exact restore plan (`addr replace 172.30.126.195/24 …`, `-4 route replace default via 172.30.126.1 dev ens192 onlink`), `will use: neigh (passes now)`, session with 172.30.126.196 shown as a signal only, preflight `present: local0`, identity `b7712a53-…/3181292/6750698`, and the gate line `REFUSED: … no D-row on main answering PENDING-handover names this rendering (sha256 e0b5945e…)`. The already-executed D-060 approval no longer covers a new change |
+| `go test -run TestBootID -v ./cmd/ngfw-vppcheck` | PASS (an incomplete identity now exits 1) |
+| `deploy/vpp/test-apply-startup.sh <branch-built ngfw-startupgen>` | **`apply-startup tests: 101 passed, 0 failed`**, wall 483 s. Matches the pasted 101 |
+| contract / binapi | `git diff --name-only main...HEAD` touches only owned files: the two scripts, `cmd/ngfw-vppcheck`, the renderer doc and the status files. It touches none of `packages/schema`, `packages/proto`, the generated code, `apps/agent/binapi` or `tools/binapi-gen.sh` |
+| read-only dry run on ngfw-a (branch binaries, `--i-have-product-owner-approval PENDING-handover`) | rc 0, wall 12 s. Output: ens192 ifupdown, exact restore plan (`addr replace 172.30.126.195/24 …`, `-4 route replace default via 172.30.126.1 dev ens192 onlink`), `will use: neigh (passes now)`, session with 172.30.126.196 shown as a signal only, preflight `present: local0`, identity `b7712a53-…/3181292/6750698`, and the gate line `REFUSED: … no D-row on main answering PENDING-handover names this rendering (sha256 e0b5945e…)`. The already-executed D-060 approval no longer covers a new change |
 | extra break scenarios X1–X5 (scratch harness, below) | 4 new holes reproduced (V1–V4) plus one design gap (V5) |
 
 ## Re-review findings
 
 | # | verdict | evidence |
 |---|---|---|
-| N1 ssh-peer → rollback loop + false "console needed" | **FIXED** | `ssh-peer` is gone. `auto` = `neigh`: every snapshotted default gateway must be REACHABLE after a nudge (`:269-281`). `session_signal` is informational only (`:306-312`). The rollback is one attempt; if it is not healthy → `console-needed`, the timer is cancelled and the locks are released (`:571-599`). The dead-man does nothing once any result marker exists (`:778,783`). Worst case per apply is 1 restart + 1 run rollback + at most 1 dead-man rollback (only if the run's rollback was interrupted). Scenario 11 (session closes → commits, 1 restart) and scenario 13 (path stays dead → 2 starts, late dead-man is a no-op) both pass. On vrx-a `neigh` passes now (ARP answered although ICMP is dropped) |
+| N1 ssh-peer → rollback loop + false "console needed" | **FIXED** | `ssh-peer` is gone. `auto` = `neigh`: every snapshotted default gateway must be REACHABLE after a nudge (`:269-281`). `session_signal` is informational only (`:306-312`). The rollback is one attempt; if it is not healthy → `console-needed`, the timer is cancelled and the locks are released (`:571-599`). The dead-man does nothing once any result marker exists (`:778,783`). Worst case per apply is 1 restart + 1 run rollback + at most 1 dead-man rollback (only if the run's rollback was interrupted). Scenario 11 (session closes → commits, 1 restart) and scenario 13 (path stays dead → 2 starts, late dead-man is a no-op) both pass. On ngfw-a `neigh` passes now (ARP answered although ICMP is dropped) |
 | N2 setsid fallback frees the locks | **FIXED** | No fallback. The run unit, the holder unit and the timer each need `systemd-run`, otherwise exit 3 before any change (`:421-424`, `:662-664`, `:718-721`, `:825`, dry run `:403`). The holder is a separate unit, so it is never among the run's descendants that `kill_run` walks. The holder's wait is `sleep 1 … \|\| true` (`:451`). Scenarios 25 and 26 pass |
 | N3 crash before the first identity read | **FIXED, with a narrow residual (V4) and a new `set -e` hole right after the restart (V3)** | `unit.restart` is read right after the restart job (`:732`). After the settle time the unit tuple must be unchanged and the identity new, complete and equal to MainPID (`:484-494`). Every window round compares against the same tuple (`:498`), with at least 2 reads (`:744`). Scenario 10a/10b pass |
 | N4 approval not bound to the change | **FIXED** | The decision column must *start* with the PENDING id (`:340-343`) **and** the row must contain `--expect-new-sha256` (`:344-345`). A committed work dir whose gate names the same PENDING and sum makes the approval spent (`:346-351`). A used work dir cannot be replayed (`:680`). The dry run evaluates the gate against its own rendering (`:401`). Scenario 4 (mention-only, other change, spent) and scenario 15 (replay) pass. Real host: `PENDING-handover` is refused. Acceptable by design: an approval stays usable after a *rolled-back* apply, and the gate is re-evaluated before the locks are taken, but `--expect-sha256` inside the lock stops a second concurrent planner |
 | N5 run never checks the holder | **FIXED** (residual → V5) | `holder_alive` runs before install (`:725`), in every round (`:496`) and before commit (`:752`). Scenario 27 passes |
 | N6 budgets / `--window 0` | **FIXED** (residual → V7) | Budgets scale with the drivers, interfaces, plan lines and gateways (`:602-616`). `WINDOW ≥ INTERVAL > 0` (`:157`) |
-| N7 lows | **FIXED** | Loopback or off-management TCP targets are refused (`:290-291`, scenario 2). `bootid` exits 1 when the identity is incomplete (TestBootID). The harness uses a fixture canonical repo (`VRX_TEST_ROOT`). The fixture guard has a hole → V6 |
+| N7 lows | **FIXED** | Loopback or off-management TCP targets are refused (`:290-291`, scenario 2). `bootid` exits 1 when the identity is incomplete (TestBootID). The harness uses a fixture canonical repo (`NGFW_TEST_ROOT`). The fixture guard has a hole → V6 |
 | L1 harness + shellcheck in `tools/ci.sh` | **OPEN** (manager-owned file) | `grep test-apply-startup tools/ci.sh` → nothing |
 
 ## New findings (ranked)
@@ -37,7 +37,7 @@ ran from a scratch copy of the fake-host harness outside the repo.
 `stage_rollback :779-801` (no check that the live file is still this work dir's install), `rollback :579`
 
 The failure: a run dies after `installed` (OOM, `systemctl stop` of the run unit, SIGKILL). Its holder keeps both locks,
-and its timer stays armed for `DEADMAN_AFTER` (≈1940 s ≈ 32 min with the defaults on vrx-a). An operator who "unsticks"
+and its timer stays armed for `DEADMAN_AFTER` (≈1940 s ≈ 32 min with the defaults on ngfw-a). An operator who "unsticks"
 the locks by stopping the holder unit and re-applies gets a commit. Then the old dead-man fires: it finds the locks free,
 "takes them exclusively", sees `installed` in *its* work dir, installs *its* `backup.conf` over the newer committed file
 and restarts VPP. The router silently reverts to the configuration from before both applies, and the log says
@@ -70,7 +70,7 @@ run rc=1 finished=[] vpp=inactive holder-alive=y locks-free=n timer-cancelled=n
 dead-man rc=1 finished=[] vpp=inactive holder-alive=y locks-free=n
 vpp start calls after the apply's restart: 0
 ```
-On vrx-a the management NIC stays kernel-owned, so SSH survives, but the data plane is down with no alarm.
+On ngfw-a the management NIC stays kernel-owned, so SSH survives, but the data plane is down with no alarm.
 
 Fix: guard the restore: `install … || cp … || restore_failed=1`. Always continue to `reset-failed` + `start`. If the
 restore failed, write `console-needed` naming it. `cancel_deadman` + `release_locks` must always run: an `ERR`/`EXIT` trap
@@ -107,14 +107,14 @@ run gets the lab lock, and the rollback stops and starts VPP under it. Reproduce
 roll back". Rolling back is right, but it should first take the locks the way the dead-man does (`:789-794`: exclusive
 and bounded; FORCED is logged only on a foreign holder). Reuse that block.
 
-### V6 — LOW: the `VRX_TEST_ROOT` guard is lexical, so a deliberate env setting points the gate at an arbitrary "canonical repo"
-`canon_root :113-120` checks `[[ $p == "$VRX_TEST_ROOT"/* ]]` without resolving paths. With `VRX_TEST_ROOT=/.` and
-`VRX_STARTUP_CONF=/./etc/vpp/startup.conf`, `VRX_SYSFS=/./sys`, `VRX_SYSTEMCTL=/./usr/bin/systemctl` and
-`VRX_SYSTEMD_RUN=/./usr/bin/systemd-run`, every real path passes: `canon_root → /./canon`. `/etc/..` works the same way;
+### V6 — LOW: the `NGFW_TEST_ROOT` guard is lexical, so a deliberate env setting points the gate at an arbitrary "canonical repo"
+`canon_root :113-120` checks `[[ $p == "$NGFW_TEST_ROOT"/* ]]` without resolving paths. With `NGFW_TEST_ROOT=/.` and
+`NGFW_STARTUP_CONF=/./etc/vpp/startup.conf`, `NGFW_SYSFS=/./sys`, `NGFW_SYSTEMCTL=/./usr/bin/systemctl` and
+`NGFW_SYSTEMD_RUN=/./usr/bin/systemd-run`, every real path passes: `canon_root → /./canon`. `/etc/..` works the same way;
 checked by sourcing the script and calling the function. The handover flag and PENDING/LOG are then read from `/canon`,
 and the planner-tree source is skipped when a test root is set (`:326`). It needs root and intent, so it is not an
 accident, but the gate is meant to be the one thing a worker cannot talk its way past. Fix: `realpath -m` every path and
-`VRX_TEST_ROOT` before the prefix test. Refuse a test root that resolves to `/`, and refuse when the resolved startup.conf
+`NGFW_TEST_ROOT` before the prefix test. Refuse a test root that resolves to `/`, and refuse when the resolved startup.conf
 is `/etc/vpp/startup.conf` or the resolved sysfs is `/sys`.
 
 ### V7 — LOW: the holder's `HOLD_MAX` uses the default counts, not this host's
@@ -131,7 +131,7 @@ on every loop.
   hosts the result is a refusal, or a false rollback followed by `console-needed`. Use `"$gw%$dev"` for `fe80::/10`.
 - `:274` bounds the poll by iteration count, not by time. If `ip neigh` hangs (rtnl contention), one gateway costs
   20 × (`CMD_TIMEOUT`+2) = 240 s, while `ITER` assumes 3 × 12 s. Use a `SECONDS` deadline.
-- Information: on vrx-a the gateway drops the SYN, so every health round spends the full `--cmd-timeout` (10 s) in the
+- Information: on ngfw-a the gateway drops the SYN, so every health round spends the full `--cmd-timeout` (10 s) in the
   nudge (the dry run took 12 s wall). That is within `ITER`, but the doc could say it.
 
 ### V9 — nit: the dry run exits 0 when the gate would refuse
@@ -153,7 +153,7 @@ cannot be spent twice, and the real `PENDING-handover` is refused. CI and the 10
 
 What remains is on rare paths, but on an unattended router they matter. V1 (a stale dead-man reverts a later commit) and
 V2 (a failed restore leaves VPP stopped with the locks held) are each a few lines, and V3/V4 are one line each. **They
-should land before the first real `--apply`.** None of this blocks merging, because nothing can apply on vrx-a until an
+should land before the first real `--apply`.** None of this blocks merging, because nothing can apply on ngfw-a until an
 approval that names a rendering exists (handover is pending, and D-060's approval is refused as shown).
 
 **APPROVE WITH CHANGES**

@@ -64,7 +64,7 @@ real-stack run in `docs/status/tasks/WEB-3.md` contains exactly 43 `ok   [...]` 
 - **Login/credential hygiene — PASS.** `lib/auth.mjs`'s `login()`/`signOut()` only ever `.fill()`/click; grepped
   every `console.log`/`ok(`/`check(` call in `auth.mjs`, `shots.mjs`, `flow.e2e.mjs` — no password value is ever
   interpolated into a message. The admin password is read from a file path (`--admin-password-file` /
-  `VRX_E2E_ADMIN_PASSWORD_FILE`), never passed as a literal CLI argument. The generated readonly-user password
+  `NGFW_E2E_ADMIN_PASSWORD_FILE`), never passed as a literal CLI argument. The generated readonly-user password
   (`RO_PW`, `flow.e2e.mjs`) stays in memory only.
 - **Ports — PASS.** `shots.mjs:35` and `flow.e2e.mjs:55` both default `BASE` to `http://127.0.0.1:5100`
   (pre-existing, unchanged), never 3000/8080/9101. `README.md:8` and `:12` explicitly call out never pointing
@@ -124,7 +124,7 @@ second look if future screens start growing their own ad hoc timeouts.
 - The optional real-stack rerun on slot 11 was not performed in this review: the harness's own sandbox denied
   starting the additional background stack (build + devstack + browser run) as "Interfere With Workloads",
   most likely because the host was already running several other sessions' concurrent CI jobs at review time.
-  No slot-11 resources were touched by the attempt (verified: ports 4100/6100 empty, `/run/vrx-test/w11`
+  No slot-11 resources were touched by the attempt (verified: ports 4100/6100 empty, `/run/ngfw-test/w11`
   absent, no stray processes). The review instead relies on: full static/diff review, `tools/ci.sh --base main`
   (PASSED), `pnpm --filter @ngfw/web test` (98/98) and lint (PASSED) run directly in the worktree, and the
   worker's own pasted real-stack evidence in `docs/status/tasks/WEB-3.md`, which is internally consistent

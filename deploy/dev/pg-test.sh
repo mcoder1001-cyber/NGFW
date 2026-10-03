@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # deploy/dev/pg-test.sh — throwaway per-slot databases on the localhost dev PostgreSQL (see deploy/dev/README.md).
-#   pg-test.sh create <name>   role vrx_<name> (LOGIN, random password) + database vrx_<name> owned by it;
-#                              writes /run/vrx-test/<name>/pg.env (0600: VRX_PG_HOST/PORT/USER/PASSWORD/DATABASE/DSN). Idempotent.
+#   pg-test.sh create <name>   role ngfw_<name> (LOGIN, random password) + database ngfw_<name> owned by it;
+#                              writes /run/ngfw-test/<name>/pg.env (0600: NGFW_PG_HOST/PORT/USER/PASSWORD/DATABASE/DSN). Idempotent.
 #   pg-test.sh drop <name>     terminates sessions, drops database + role, removes pg.env
 #   pg-test.sh dsn <name>      prints the DSN from pg.env (contains the password — for `export`, never for logs)
-#   pg-test.sh list            lists vrx_* databases with owners
-# <name> is the caller's VRX_TEST_PREFIX (w1..w12) or another short lowercase token — everything created carries it.
+#   pg-test.sh list            lists ngfw_* databases with owners
+# <name> is the caller's NGFW_TEST_PREFIX (w1..w12) or another short lowercase token — everything created carries it.
 # The password is generated at create time and lives only in /run (tmpfs), never in the repo (00-CONTEXT: no secrets in files).
 set -euo pipefail
-PG_HOST="${VRX_PG_HOST:-127.0.0.1}"; PG_PORT="${VRX_PG_PORT:-5432}"
-RUN_BASE="${VRX_RUN_DIR:-/run/vrx-test}"
+PG_HOST="${NGFW_PG_HOST:-127.0.0.1}"; PG_PORT="${NGFW_PG_PORT:-5432}"
+RUN_BASE="${NGFW_RUN_DIR:-/run/ngfw-test}"
 die() { echo "pg-test: $*" >&2; exit 1; }
 valid() { [[ "${1:-}" =~ ^[a-z][a-z0-9_]{0,15}$ ]] || die "name '${1:-}' must match ^[a-z][a-z0-9_]{0,15}\$ (e.g. w3)"; }
 # admin access = peer auth as the postgres OS user (root → runuser). Non-root callers need their own superuser role.
-if [[ $EUID -eq 0 ]]; then adm() { (cd / && runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -qAt "$@"); }
-else adm() { psql -X -v ON_ERROR_STOP=1 -qAt "$@"; }; fi
+if [[ $EUID -eq 0 ]]; then adm() { (cd / && runuser -u postgres -- psql -X -v ON_ERROR_STOP=1 -qAt); }
+else adm() { psql -X -v ON_ERROR_STOP=1 -qAt; }; fi
 # SQL goes to psql on stdin, never in argv: a password in `-c` is visible in ps/proc to every local user (review 5.7c)
 sql() { adm <<<"$1"; }
 
@@ -24,11 +24,11 @@ cmd="${1:-}"; name="${2:-}"
 
 case "$cmd" in
   create)
-    valid "$name"; db="vrx_$name"; role="vrx_$name"; dir="$RUN_BASE/$name"; envf="$dir/pg.env"
-    pw="${VRX_PG_PASSWORD:-}"; pw_src="VRX_PG_PASSWORD"
-    if [[ -z "$pw" && -r "$envf" ]]; then pw="$(sed -n 's/^VRX_PG_PASSWORD=//p' "$envf")"; pw_src="pg.env"; fi
+    valid "$name"; db="ngfw_$name"; role="ngfw_$name"; dir="$RUN_BASE/$name"; envf="$dir/pg.env"
+    pw="${NGFW_PG_PASSWORD:-}"; pw_src="NGFW_PG_PASSWORD"
+    if [[ -z "$pw" && -r "$envf" ]]; then pw="$(sed -n 's/^NGFW_PG_PASSWORD=//p' "$envf")"; pw_src="pg.env"; fi
     if [[ -z "$pw" ]]; then pw="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 24)"; pw_src="new"; fi
-    [[ "$pw" =~ ^[A-Za-z0-9_.-]+$ ]] || die "VRX_PG_PASSWORD may only contain [A-Za-z0-9_.-]"
+    [[ "$pw" =~ ^[A-Za-z0-9_.-]+$ ]] || die "NGFW_PG_PASSWORD may only contain [A-Za-z0-9_.-]"
     if [[ "$(sql "select 1 from pg_roles where rolname='$role'")" == 1 ]]; then
       # re-applying the same password keeps the role and pg.env in step; say so instead of claiming a refresh (review F7)
       sql "alter role $role with login password '$pw'" >/dev/null
@@ -39,12 +39,12 @@ case "$cmd" in
     else sql "create database $db owner $role" >/dev/null; echo "create database $db (owner $role)"; fi
     install -d -m 0755 "$dir"   # slot run dir: frr/_chrony test daemons must traverse it (D-106); pg.env itself is 0600
     ( umask 077; cat > "$envf" <<EOV
-VRX_PG_HOST=$PG_HOST
-VRX_PG_PORT=$PG_PORT
-VRX_PG_USER=$role
-VRX_PG_PASSWORD=$pw
-VRX_PG_DATABASE=$db
-VRX_PG_DSN=postgres://$role:$pw@$PG_HOST:$PG_PORT/$db?sslmode=disable
+NGFW_PG_HOST=$PG_HOST
+NGFW_PG_PORT=$PG_PORT
+NGFW_PG_USER=$role
+NGFW_PG_PASSWORD=$pw
+NGFW_PG_DATABASE=$db
+NGFW_PG_DSN=postgres://$role:$pw@$PG_HOST:$PG_PORT/$db?sslmode=disable
 EOV
     )
     who="$(PGPASSWORD="$pw" psql -X -h "$PG_HOST" -p "$PG_PORT" -U "$role" -d "$db" -qAtc "select current_database() || ' as ' || current_user || ' · ' || split_part(version(), ',', 1)")" \
@@ -52,7 +52,7 @@ EOV
     echo "check  $who"
     echo "ok     env $envf (0600) · DSN postgres://$role:<redacted>@$PG_HOST:$PG_PORT/$db" ;;
   drop)
-    valid "$name"; db="vrx_$name"; role="vrx_$name"; dir="$RUN_BASE/$name"
+    valid "$name"; db="ngfw_$name"; role="ngfw_$name"; dir="$RUN_BASE/$name"
     sql "select count(pg_terminate_backend(pid)) from pg_stat_activity where datname='$db' and pid<>pg_backend_pid()" >/dev/null
     sql "drop database if exists $db" >/dev/null && echo "drop   database $db"
     sql "drop role if exists $role" >/dev/null && echo "drop   role $role"
@@ -62,7 +62,7 @@ EOV
     echo "ok     nothing named $db / $role remains" ;;
   dsn)
     valid "$name"; f="$RUN_BASE/$name/pg.env"; [[ -r "$f" ]] || die "no $f — run: pg-test.sh create $name"
-    sed -n 's/^VRX_PG_DSN=//p' "$f" ;;
+    sed -n 's/^NGFW_PG_DSN=//p' "$f" ;;
   list)
-    sql "select d.datname || '  owner ' || r.rolname from pg_database d join pg_roles r on r.oid = d.datdba where d.datname like 'vrx\_%' order by 1" ;;
+    sql "select d.datname || '  owner ' || r.rolname from pg_database d join pg_roles r on r.oid = d.datdba where d.datname like 'ngfw\_%' order by 1" ;;
 esac

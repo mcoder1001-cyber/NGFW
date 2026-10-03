@@ -43,8 +43,8 @@ without a real traffic generator you cannot claim any performance number.
 1. `git init`, monorepo skeleton (see `06-repo-skeleton.md`), CI green on an empty build.
 2. A Vagrant/QEMU box that boots Ubuntu 24.04, installs VPP from the FD.io APT repo, and
    brings up two `virtio` interfaces bound to VPP. Commit the automation, not the notes.
-3. `vrx-agent` that connects via GoVPP, dumps interfaces, and serves one gRPC RPC.
-4. `vrx-api` that calls it and returns `GET /api/v1/state/interfaces`.
+3. `ngfw-agent` that connects via GoVPP, dumps interfaces, and serves one gRPC RPC.
+4. `ngfw-api` that calls it and returns `GET /api/v1/state/interfaces`.
 5. React page that lists interfaces with live counters.
 
 That vertical slice proves the entire architecture in week one. Everything after is volume.

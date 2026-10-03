@@ -117,7 +117,7 @@ func TestListOwnership(t *testing.T) {
 	if err != nil || w9.TotalSessions != 2 || len(w9.Rows) != 2 || w9.Rows[0].Inside.IP != "10.9.1.5" {
 		t.Fatalf("w9 view %+v %v", w9, err)
 	}
-	all, err := natsessions.List(ctx, p, natcommon.ScopeFor("vrx"), natsessions.Filter{}, 0, 100, natsessions.Caps{})
+	all, err := natsessions.List(ctx, p, natcommon.ScopeFor("ngfw"), natsessions.Filter{}, 0, 100, natsessions.Caps{})
 	if err != nil || all.TotalSessions != 8 || all.TotalUsers != 3 {
 		t.Fatalf("product view %+v %v", all, err)
 	}

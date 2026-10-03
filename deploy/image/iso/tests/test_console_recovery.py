@@ -13,19 +13,19 @@ class ConsoleRecoveryTests(unittest.TestCase):
         self.initialize_fixture()
 
     def initialize_fixture(self):
-        self.temp = tempfile.TemporaryDirectory(prefix='vrx-console-recovery-')
+        self.temp = tempfile.TemporaryDirectory(prefix='ngfw-console-recovery-')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name) / 'image'
         self.root.mkdir()
         self.query = Path(self.temp.name) / 'query'
-        self.env = {**os.environ, 'VRX_CONSOLE_BANNER_TEST_QUERY': str(self.query)}
-        self.run_script('vrx-bootstrap-password')
-        self.run_script('vrx-console-banner', 'render')
-        done = self.root / 'var/lib/vrx/firstboot.done'
+        self.env = {**os.environ, 'NGFW_CONSOLE_BANNER_TEST_QUERY': str(self.query)}
+        self.run_script('ngfw-bootstrap-password')
+        self.run_script('ngfw-console-banner', 'render')
+        done = self.root / 'var/lib/ngfw/firstboot.done'
         done.parent.mkdir(parents=True, exist_ok=True)
         done.touch()
-        self.password = self.root / 'var/lib/vrx-image/console/bootstrap-password'
-        self.issue = self.root / 'etc/issue.d/50-vrx-console.issue'
+        self.password = self.root / 'var/lib/ngfw-image/console/bootstrap-password'
+        self.issue = self.root / 'etc/issue.d/50-ngfw-console.issue'
         self.password_before = self.password.read_bytes()
         self.issue_before = self.issue.read_bytes()
         self.secret = self.password_before.decode().splitlines()[1]
@@ -42,21 +42,21 @@ class ConsoleRecoveryTests(unittest.TestCase):
 
     def assert_preserved_then_recover(self, output, status):
         self.reply(output, status)
-        result = self.run_script('vrx-console-banner', 'check-login')
+        result = self.run_script('ngfw-console-banner', 'check-login')
         self.assertEqual(self.password.read_bytes(), self.password_before)
         self.assertEqual(self.password.stat().st_mode & 0o777, 0o600)
         self.assertEqual(self.issue.read_bytes(), self.issue_before)
         self.assertEqual(self.issue.stat().st_mode & 0o777, 0o600)
         self.assertNotIn(self.secret, result.stdout + result.stderr)
         self.reply('0\n')
-        result = self.run_script('vrx-console-banner', 'check-login')
+        result = self.run_script('ngfw-console-banner', 'check-login')
         self.assertFalse(self.password.exists())
         self.assertNotIn(self.secret, self.issue.read_text())
         self.assertNotIn(self.secret, result.stdout + result.stderr)
         self.assertEqual(self.issue.stat().st_mode & 0o777, 0o644)
         self.assertIn('https://', self.issue.read_text())
         clean_issue = self.issue.read_bytes()
-        self.run_script('vrx-console-banner', 'check-login')
+        self.run_script('ngfw-console-banner', 'check-login')
         self.assertEqual(self.issue.read_bytes(), clean_issue)
 
     def test_partial_zero_from_failed_database_keeps_credentials_until_recovery(self):
@@ -70,7 +70,7 @@ class ConsoleRecoveryTests(unittest.TestCase):
 
     def test_decimal_zero_with_leading_zeros_permits_cleanup(self):
         self.reply('000\n')
-        self.run_script('vrx-console-banner', 'check-login')
+        self.run_script('ngfw-console-banner', 'check-login')
         self.assertFalse(self.password.exists())
         self.assertNotIn(self.secret, self.issue.read_text())
 

@@ -1,6 +1,6 @@
-# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+# Rendered by ngfw-agent (keepalived renderer). Do not edit: every commit overwrites this file.
 global_defs {
-    router_id vrx
+    router_id ngfw
     enable_script_security
     script_user root
     vrrp_version 3
@@ -17,8 +17,8 @@ vrrp_instance v6 {
         2001:db8:0:240::1/128 dev w0-a
         fe80::1/128 dev w0-a
     }
-    notify_master "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE v6 MASTER"
-    notify_backup "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE v6 BACKUP"
-    notify_fault "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE v6 FAULT"
-    notify_stop "/opt/vrx-test/bin/vrx-keepalived-notify /run/vrx-test/w0/keepalived/state INSTANCE v6 STOP"
+    notify_master "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE v6 MASTER"
+    notify_backup "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE v6 BACKUP"
+    notify_fault "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE v6 FAULT"
+    notify_stop "/opt/ngfw-test/bin/ngfw-keepalived-notify /run/ngfw-test/w0/keepalived/state INSTANCE v6 STOP"
 }

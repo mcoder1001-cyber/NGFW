@@ -15,12 +15,12 @@ describe('SecretsService master key file (SEC-auth L1)', () => {
   const svc = (file: string) =>
     new SecretsService(
       null as never,
-      { VRX_SECRET_KEY_FILE: file } as unknown as Env,
+      { NGFW_SECRET_KEY_FILE: file } as unknown as Env,
       null as never,
       null as never,
     ) as unknown as { masterKey(): Buffer };
   const dir = () => {
-    const d = mkdtempSync(join(tmpdir(), 'vrx-mk-'));
+    const d = mkdtempSync(join(tmpdir(), 'ngfw-mk-'));
     dirs.push(d);
     return d;
   };

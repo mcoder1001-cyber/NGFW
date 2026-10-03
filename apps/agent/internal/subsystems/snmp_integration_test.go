@@ -16,7 +16,7 @@ import (
 	"github.com/gosnmp/gosnmp"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/rfkit"
 	"ngfw/agent/internal/renderers/snmpd"
@@ -24,13 +24,13 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// TestSnmpStageIntegration (F-snmp acceptance, VRX_INTEGRATION=1, needs /usr/sbin/snmpd): the stage renders
+// TestSnmpStageIntegration (F-snmp acceptance, NGFW_INTEGRATION=1, needs /usr/sbin/snmpd): the stage renders
 // and applies services.snmp for a slot snmpd child (never the system unit, never /etc/snmp; loopback slot
 // ports only), a gosnmp TrapListener on 3<N>62 receives snmpd's coldStart, in-process gosnmp walks (v2c and
-// v3 authPriv) return sysName and the VRX-MIB interface table through the AgentX subagent, an snmpd restart
+// v3 authPriv) return sysName and the NGFW-MIB interface table through the AgentX subagent, an snmpd restart
 // is followed by re-registration within 30 s, an agent restart (fresh stage) re-renders the same file, and a
-// rolled-back community stops answering. Secrets: VRX_TEST_PSK_F-snmp_* literals only; walks log names, never
-// values. The VRX-MIB source is a fixed snapshot here (no VPP needed; the stats path is unit-tested).
+// rolled-back community stops answering. Secrets: NGFW_TEST_PSK_F-snmp_* literals only; walks log names, never
+// values. The NGFW-MIB source is a fixed snapshot here (no VPP needed; the stats path is unit-tested).
 func TestSnmpStageIntegration(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	if _, err := os.Stat(snmpd.SnmpdBin); err != nil {
@@ -68,15 +68,15 @@ func TestSnmpStageIntegration(t *testing.T) {
 	st := newStage()
 	t.Cleanup(st.Close)
 
-	v := &vrxv1.SnmpService{
+	v := &ngfwv1.SnmpService{
 		Enabled: proto.Bool(true), SysName: proto.String(prefix + "-snmp"),
-		Listen:      []*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port)}},
-		Communities: map[string]*vrxv1.SnmpService_Community{"ro": {SecretRef: proto.String("password/snmp-ro"), Sources: []string{"127.0.0.1/32"}}},
-		V3Users: map[string]*vrxv1.SnmpService_V3User{"noc": {
+		Listen:      []*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port)}},
+		Communities: map[string]*ngfwv1.SnmpService_Community{"ro": {SecretRef: proto.String("password/snmp-ro"), Sources: []string{"127.0.0.1/32"}}},
+		V3Users: map[string]*ngfwv1.SnmpService_V3User{"noc": {
 			SecurityLevel: proto.String("authPriv"), AuthProtocol: proto.String("sha"), AuthRef: proto.String("password/noc-auth"),
 			PrivProtocol: proto.String("aes"), PrivRef: proto.String("password/noc-priv"),
 		}},
-		TrapReceivers: []*vrxv1.SnmpService_TrapReceiver{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(trapPort), Version: proto.String("v2c"), Community: proto.String("ro")}},
+		TrapReceivers: []*ngfwv1.SnmpService_TrapReceiver{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(trapPort), Version: proto.String("v2c"), Community: proto.String("ro")}},
 	}
 	if _, err := st.Create(ctx, v); err != nil {
 		t.Fatal(err)
@@ -161,8 +161,8 @@ func TestSnmpStageIntegration(t *testing.T) {
 	t.Log("agent restart: snmpd.conf re-rendered identically, subagent registered again")
 
 	// rollback removes a community: add "other", roll back, walk with it fails
-	v2 := proto.Clone(v).(*vrxv1.SnmpService)
-	v2.Communities["other"] = &vrxv1.SnmpService_Community{SecretRef: proto.String("password/other"), Sources: []string{"127.0.0.1/32"}}
+	v2 := proto.Clone(v).(*ngfwv1.SnmpService)
+	v2.Communities["other"] = &ngfwv1.SnmpService_Community{SecretRef: proto.String("password/other"), Sources: []string{"127.0.0.1/32"}}
 	if _, err := st.Update(ctx, v, v2, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -198,11 +198,11 @@ func walk(t *testing.T, name string, c *gosnmp.GoSNMP, sysName string) {
 	if err != nil || len(r.Variables) != 1 || fmt.Sprint(string(r.Variables[0].Value.([]byte))) != sysName {
 		t.Fatalf("%s: sysName: %v %v", name, r, err)
 	}
-	pdus, err := c.BulkWalkAll(snmpagent.VRXMIBOID.String())
+	pdus, err := c.BulkWalkAll(snmpagent.NGFWMIBOID.String())
 	if err != nil || len(pdus) == 0 {
-		t.Fatalf("%s: VRX-MIB walk: %d %v", name, len(pdus), err)
+		t.Fatalf("%s: NGFW-MIB walk: %d %v", name, len(pdus), err)
 	}
-	t.Logf("%s: sysName.0 = %s; VRX-MIB walk returned %d varbinds:", name, sysName, len(pdus))
+	t.Logf("%s: sysName.0 = %s; NGFW-MIB walk returned %d varbinds:", name, sysName, len(pdus))
 	for _, p := range pdus {
 		t.Logf("  %s = %v", p.Name, printable(p))
 	}
@@ -239,7 +239,7 @@ func waitRegistered(t *testing.T, st *SnmpStage, n uint64, within time.Duration)
 
 func lockSlot(t *testing.T, base string) {
 	t.Helper()
-	if !strings.HasPrefix(base, "/run/vrx-test/") {
+	if !strings.HasPrefix(base, "/run/ngfw-test/") {
 		t.Fatalf("refusing to use %s", base)
 	}
 	if err := os.MkdirAll(filepath.Dir(base), 0o700); err != nil {

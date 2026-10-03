@@ -9,15 +9,15 @@ merged deps you can rely on: P08, DF-7, DF-6, W-seed (+ the wave-B/C anchor pass
   - P08: desired/ + subsystems/ + projection patterns, `Wiring.BootStore()` / `IfaceClaims()` (df6.WithClaims) / `df7.SetBootStore`, the `interface/<name>` alias (D-065/D-069); `subsystems.SlotIDRange()` (W-seed)
   - also on main: TD-2, TD-3 (V19 sanitizer + preflight), TD-5 if merged
 read first: prompts/features/F-mpls-srmpls.md · docs/status/wave-BC-numbers.md (Pack rules, section F-mpls-srmpls) · docs/status/wave-A-hotspots.md (§0 rules; ids A1 A2 A6 C1–C7 P1 P4 P5 W1–W3 A7) · docs/agent/descriptors/{mpls,sr_mpls,df6}.md · docs/status/tasks/{DF-7,DF-6}.md · docs/vpp-code-track.md V14, V15, V22 · docs/decisions/LOG.md D-063, D-064, D-071, D-074, D-076, D-080, D-082, D-085, D-087, D-094, D-095, D-101, D-109
-slot: 5 → VRX_SLOT=5 VRX_TEST_PREFIX=w5 VRX_HTTP_PORT=3000+100·5 VRX_WEB_PORT=5000+100·5 VRX_METRICS_PORT=9100+10·5+1 VRX_AGENT_SOCKET=/run/vrx-test/w5/agent.sock VRX_PG_DATABASE=vrx_w5 VRX_VALKEY_DB=5 VRX_VPP_TABLE_BASE=5000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 5 → NGFW_SLOT=5 NGFW_TEST_PREFIX=w5 NGFW_HTTP_PORT=3000+100·5 NGFW_WEB_PORT=5000+100·5 NGFW_METRICS_PORT=9100+10·5+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w5/agent.sock NGFW_PG_DATABASE=ngfw_w5 NGFW_VALKEY_DB=5 NGFW_VPP_TABLE_BASE=5000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 5)"`
   - rig prefix w5 → 10.5.{1,2}.0/24; MPLS tables, VRFs and any id in 5000–5999 (`df7.WithIDRange`); test labels and BSIDs from a slot band (e.g. 5×10000 … +9999, all ≥ 16)
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
   - D-104: use, do not rebuild — DF-7/DF-6 descriptors are gap-only (proven defect + named test); no new MPLS descriptor family
-  - D-071: MPLS table 0 is VPP-global — only the globals owner declares `mpls-table/0`; slot agents require it (clear error). On the shared host there is no table 0: `mpls-interface` enable, `mpls-ip-bind` and every SR-MPLS policy (depends on `mpls-table/0`) run only with `VRX_DF7_GLOBALS=1` under `flock -x /run/lock/vrx-globals.lock` (D-082) in a manager window — otherwise the host check covers slot tables + label routes + tunnels and the rest is fake-client evidence, said so in F-mpls-srmpls.md
+  - D-071: MPLS table 0 is VPP-global — only the globals owner declares `mpls-table/0`; slot agents require it (clear error). On the shared host there is no table 0: `mpls-interface` enable, `mpls-ip-bind` and every SR-MPLS policy (depends on `mpls-table/0`) run only with `NGFW_DF7_GLOBALS=1` under `flock -x /run/lock/ngfw-globals.lock` (D-082) in a manager window — otherwise the host check covers slot tables + label routes + tunnels and the rest is fake-client evidence, said so in F-mpls-srmpls.md
   - D-063/D-076/D-080: `mpls-ip-bind` and all `sr-mpls.*` are write-only — idempotent Create or an applied-once record keyed by the boot identity in a store from `Wiring` (never in-memory); never echo desired state from Retrieve
   - D-074: SR-MPLS segment lists kept sorted; every delete checks existence first (V8/V14 crash family)
   - V15 / V22a: label routes and steering before their tables on every delete path (reconciler order, rollback, restart simulation, test cleanup); never `ip_table_flush` / a table flush; prove "no stray entry" in `show mpls fib table <t>`
@@ -36,7 +36,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A1 apps/agent/internal/subsystems/subsystems.go: the mpls-* and sr-mpls.* descriptor names (package constants) into `Domains[Routing]`; one call into your subsystems/mpls_srmpls.go at the end of `Register()`
   - A2 apps/agent/internal/agent/projection.go: one builder call in project(), one assembler call in assemble()
   - C1 packages/schema/src/domains/routing.ts: `RoutingSchema.mpls` key line (sub-schema in ext/mpls-srmpls.ts) · C2 semantic/index.ts · C3 schema/src/index.ts · C4 new fixture files only
-  - C5 packages/proto/vrx/v1/dataplane.proto: `RoutingConfig` 15, the `MplsState` rpc under the service anchor; `MplsConfig` and every new message in `// ----- F-mpls-srmpls -----`
+  - C5 packages/proto/ngfw/v1/dataplane.proto: `RoutingConfig` 15, the `MplsState` rpc under the service anchor; `MplsConfig` and every new message in `// ----- F-mpls-srmpls -----`
   - C6 docs/contracts/proto.md (`### F-mpls-srmpls: MplsState`) · C7 generated, never hand-edited (apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md)
   - P1 apps/api/src/app.module.ts · P4 apps/api/src/agent/agent.client.ts · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub on the contract commit; real fake in features/mpls-srmpls/fake.ts)
   - W1 apps/web/src/router.tsx · W2 apps/web/src/nav/nav.ts + nav.test.ts (an MPLS NavItem in the routing group, labelKey in `mpls-srmpls:`) · W3 apps/web/src/i18n.ts
@@ -60,9 +60,9 @@ V19/V24 SAFETY (D-095, D-101): before ANY packet through the rig (optional label
 evidence: Playwright is not installed — use the headless Chrome approach from P07a/P07b/P08 (kept outside the product code) for screenshots (en + fa/RTL: MPLS interfaces, label routes, tunnels, SR policies/steering tabs); paste `vppctl show mpls fib table <t>`, `show mpls tunnel`, `show sr mpls policies` (globals window only)
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-mpls-srmpls.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-mpls-srmpls-wip.md current
-CI: `TMPDIR=/tmp/g-w5 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w5 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-mpls-srmpls.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · vrx_w5 dropped · no w5 MPLS tables/routes/tunnels/SR objects left (Retrieve + `show mpls fib table <t>` pasted; routes removed before tables) · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite) by PID · lab lock released · ngfw_w5 dropped · no w5 MPLS tables/routes/tunnels/SR objects left (Retrieve + `show mpls fib table <t>` pasted; routes removed before tables) · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-mpls-srmpls-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own
 

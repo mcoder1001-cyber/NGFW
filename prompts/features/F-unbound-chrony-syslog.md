@@ -27,7 +27,7 @@ Reference: TNSR "DNS resolver (Unbound)", "NTP", "Logging"; VPP plugin `dns`.
   the agent persists only implemented domains (`agent/state.go` `mergeDomains`).
 - **Agent integration fact (checked 2026-09-24):** no renderer is called anywhere in the agent (`agent/service.go` runs only the descriptor
   scheduler). Default (same as F-host-acl-nftables, log it as a decision with options): wrap each renderer in one singleton scheduler
-  descriptor (`unbound.config/vrx`, `chrony.config/vrx`, `rsyslog.config/vrx`: Create/Update = Render → Validate → Apply, Retrieve = the
+  descriptor (`unbound.config/ngfw`, `chrony.config/ngfw`, `rsyslog.config/ngfw`: Create/Update = Render → Validate → Apply, Retrieve = the
   renderer's Retrieve), registered under `Domains["services"]` / `["management"]` — no change to the agent core; use a shared renderer
   stage instead only if the manager has put one on main when you start. Secret-bearing leaves (syslog TLS key, chrony keys) need the
   API→agent secret channel, which does not exist yet: refuse them with a clear DryRun error until it lands and say so.
@@ -53,7 +53,7 @@ Shared files: registration hunks only, listed in your PR (`subsystems.go` `Domai
 `fake-agent.ts`, `app.module.ts`, `renderers/ALLOWLIST.md` rows, router/nav, `i18n.ts`, the services page's tab registry).
 1. **Schema** (only if missing): VPP cache and an Unbound resolver must not listen on the same address:port; syslog TLS requires a CA ref.
 2. **Agent**: project the three sections onto the renderers; `vppCache` → `dns.*` descriptors only in the globals owner (non-owners
-   *require*, never set — D-071; host test opt-in, holds `flock -x /run/lock/vrx-globals.lock`, D-082); surface the renderers' restart
+   *require*, never set — D-071; host test opt-in, holds `flock -x /run/lock/ngfw-globals.lock`, D-082); surface the renderers' restart
    requests as pending actions in `Retrieve`/health, never restart the system units from a test slot.
 3. **API**: config via pointer routes; `GET /api/v1/state/dns` (unbound `stats_noreset`, forwards, local zones), `GET /api/v1/state/ntp`
    (chronyc tracking/sources), `GET /api/v1/state/logs?since&severity&facility&q&page` (log explorer — paged, bounded, read-only; no

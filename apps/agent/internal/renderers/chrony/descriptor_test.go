@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -36,14 +36,14 @@ func TestDescriptorLifecycle(t *testing.T) {
 	p := tmpPaths(t)
 	rr := renderers.NewRecordingRunner().Succeed(ChronydBin, "").Succeed(ChronycBin, "200 OK")
 	d := NewDescriptor(New(rr, WithPaths(p), WithSecrets(resolver)), nil)
-	if d.Name() != Name || Key != "chrony.config/vrx" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
+	if d.Name() != Name || Key != "chrony.config/ngfw" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
 		t.Fatal("identity")
 	}
 	if v := retrieveOne(t, d); v != nil {
 		t.Fatalf("nothing written: %v", v)
 	}
 	in := Input(clientNTP())
-	if in == nil || Input(&vrxv1.NtpService{Enabled: proto.Bool(false)}) != nil {
+	if in == nil || Input(&ngfwv1.NtpService{Enabled: proto.Bool(false)}) != nil {
 		t.Fatal("Input: enabled only")
 	}
 	// not running: files written, start request (not an error)
@@ -56,7 +56,7 @@ func TestDescriptorLifecycle(t *testing.T) {
 	src, _ := os.ReadFile(p.Sources())
 	conf, _ := os.ReadFile(p.Conf())
 	if !strings.Contains(string(src), inputPrefix) || strings.Contains(string(conf), inputPrefix) {
-		t.Fatal("the input belongs in vrx.sources (reloadable), never in chrony.conf")
+		t.Fatal("the input belongs in ngfw.sources (reloadable), never in chrony.conf")
 	}
 	if pend := d.Pending(ctx); len(pend) != 1 || pend[0].Action != "start" || pend[0].Unit != "chrony" {
 		t.Fatalf("pending %v", pend)

@@ -9,7 +9,7 @@ daemon-owner: kea (slot-local test instance only; `kea-dhcp4-server`/`kea-dhcp6-
 | layer | what |
 |---|---|
 | contract | `rpc DhcpLeases` + `DhcpLeasesRequest/Response`, `DhcpLease`, `DhcpSubnetUsage`, `DhcpServerStatus`, `DhcpClientLease` (F-kea-dhcp-relay proto section; DhcpRelay 9–10 unused); four semantic rules in `packages/schema/src/semantic/kea-dhcp-relay.ts` — see `F-kea-dhcp-relay-contract.md` |
-| agent | `Domains["services"]`: `kea.dhcp4/vrx`, `kea.dhcp6/vrx` (RF-3's renderer as one singleton descriptor per daemon, D-109 d), `dhcp.proxy`, `dhcp.proxy-vss`, `dhcp.relay` (relay records); builders/assemblers `desired/kea.go`, `desired/dhcp_relay.go`; `subsystems/kea.go` (modes product/test/off, relay scope = the agent's id range (TD-8 seam), DHCP runtime); `agent/rpc_kea.go` (`DhcpLeases`); Kea `Status`/`LeasePage`; ownership declarations for the TD-11b guard; **TD-11b Q3**: `dhcp.client` claims before the VPP add |
+| agent | `Domains["services"]`: `kea.dhcp4/ngfw`, `kea.dhcp6/ngfw` (RF-3's renderer as one singleton descriptor per daemon, D-109 d), `dhcp.proxy`, `dhcp.proxy-vss`, `dhcp.relay` (relay records); builders/assemblers `desired/kea.go`, `desired/dhcp_relay.go`; `subsystems/kea.go` (modes product/test/off, relay scope = the agent's id range (TD-8 seam), DHCP runtime); `agent/rpc_kea.go` (`DhcpLeases`); Kea `Status`/`LeasePage`; ownership declarations for the TD-11b guard; **TD-11b Q3**: `dhcp.client` claims before the VPP add |
 | API | `GET /api/v1/state/dhcp/leases?server&family&page&pageSize&filter`, `GET /api/v1/state/dhcp/relays`, `GET /api/v1/state/interfaces/{name}/dhcp-client` (`features/kea-dhcp-relay`), fake `DhcpLeases`, e2e; OpenAPI → api-client, CLI operation table regenerated |
 | UI | Services → DHCP tab (Servers / Subnets & Pools / Reservations / Relays / Leases), schema-driven edit dialogs, pool utilisation bars, server-paged lease grid, Refresh button (D-132), en + fa |
 | docs | `docs/user/services/kea-dhcp-relay.md`, `docs/agent/renderers/kea.md`, `docs/agent/descriptors/dhcp.md`, `renderers/kea/README.md` |
@@ -19,16 +19,16 @@ daemon-owner: kea (slot-local test instance only; `kea-dhcp4-server`/`kea-dhcp6-
 
 Topology: `ns-w2-lan` (dhclient on `w2l1`) ↔ VPP `host-w2l0` 10.2.1.1/24 (VRF `w2-dhcp`, table 2001, the relay's client
 side) · VPP `host-w2w0` 10.2.2.1/24 (VRF `w2-dhcp`) ↔ `ns-w2-wan` `w2w1` 10.2.2.2/24 running the agent's `kea-dhcp4`
-(`/run/vrx-test/w2/kea`, own unix socket) · VPP `host-w2c0` (VRF `w2-cli`, table 2002) with VPP's DHCPv4 client. Agent
-env: `VRX_KEA_MODE=test VRX_KEA_NETNS=ns-w2-wan VRX_KEA_IFMAP=host-w2l0=w2w1 VRX_VPP_TABLE_BASE=2000`. Path: af_packet.
+(`/run/ngfw-test/w2/kea`, own unix socket) · VPP `host-w2c0` (VRF `w2-cli`, table 2002) with VPP's DHCPv4 client. Agent
+env: `NGFW_KEA_MODE=test NGFW_KEA_NETNS=ns-w2-wan NGFW_KEA_IFMAP=host-w2l0=w2w1 NGFW_VPP_TABLE_BASE=2000`. Path: af_packet.
 
 ```
 systemctl show vpp -p NRestarts (before) = 1
 commit kea-base → revision 1
 commit kea-dhcp → status applied revision 2 txn e3206467-6ca2-40f9-bc28-54deb1b30112
 GET /state/dhcp/leases (Kea not started) → servers=[{"actionRequired":"start","active":true,"error":"","family":"ipv4","reloadSec":0,"running":false,"subnets":[{"assigned":"0","declined":"0","prefix":"10.2.1.0/24","server":"lan","subnet":"lan","subnetId":1551922441,"total":"0"}]}]
-/run/vrx-test/w2/kea/etc/kea-dhcp4.conf (rendered by the agent, 2547 bytes, mode -rw-r-----)
-Kea config-get (own unix socket /run/vrx-test/w2/kea/run/kea4.sock, dir mode -rwxr-x---): subnet4=[10.2.1.0/24(id 1551922441)] user-context.vrx present=true
+/run/ngfw-test/w2/kea/etc/kea-dhcp4.conf (rendered by the agent, 2547 bytes, mode -rw-r-----)
+Kea config-get (own unix socket /run/ngfw-test/w2/kea/run/kea4.sock, dir mode -rwxr-x---): subnet4=[10.2.1.0/24(id 1551922441)] user-context.ngfw present=true
 GET /state/dhcp/leases (Kea started) → servers=[{"actionRequired":"","active":true,…,"running":true,"subnets":[{…"prefix":"10.2.1.0/24","server":"lan","subnet":"lan",…,"total":"51"}]}]
 GET /state/drift → {"subsystems":["interfaces","vrfs","routing","services"],"changes":[],"ignored":[… "/services/ipfix","/services/lldp","/services/ntp","/services/snmp" agent.unsupported-field …]}
 GET /state/dhcp/relays → {"items":[{"name":"to-kea","config":{…"servers":["10.2.2.2"],"sourceAddress":"10.2.2.1"},"retrieved":{…},"state":"applied"}]}
@@ -36,7 +36,7 @@ GET /state/dhcp/relays → {"items":[{"name":"to-kea","config":{…"servers":["1
 
 **V19/V24 safety before any DHCP packet** (D-095, D-101; no packet trace anywhere, D-128):
 ```
-V19 pre-flight (TD-3 vrx-vpp-preflight): V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+V19 pre-flight (TD-3 ngfw-vpp-preflight): V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
 V19 guard: classify_table_by_interface host-w2l0 sw_if_index=1 l2=~0 ip4=~0 ip6=~0 · acl_interface_list_dump host-w2l0: 0 ACLs
 V19 guard: classify_table_by_interface host-w2w0 sw_if_index=4 l2=~0 ip4=~0 ip6=~0 · acl_interface_list_dump host-w2w0: 0 ACLs
 V19 guard: classify_table_by_interface host-w2c0 sw_if_index=10 l2=~0 ip4=~0 ip6=~0 · acl_interface_list_dump host-w2c0: 0 ACLs
@@ -48,7 +48,7 @@ V19 guard: ipsec_spd_interface_dump: no SPD on the rig interfaces; write-only cl
 vppctl show dhcp proxy:
     RX FIB       Src Address  Servers FIB,Address
      2001         10.2.2.1    2001,10.2.2.2
-dhclient (ip netns exec ns-w2-lan dhclient -4 -1 -sf /bin/true -lf/-pf under /run/vrx-test/w2/kea-relay):
+dhclient (ip netns exec ns-w2-lan dhclient -4 -1 -sf /bin/true -lf/-pf under /run/ngfw-test/w2/kea-relay):
     DHCPOFFER of 10.2.1.100 from 10.2.1.1
     DHCPACK of 10.2.1.100 from 10.2.1.1 (xid=0x5d55302e)
     bound to 10.2.1.100 -- renewal in 262 seconds.
@@ -70,12 +70,12 @@ GET /state/interfaces/host-w2c0/dhcp-client → {"interface":"host-w2c0","config
 
 - [x] **Agent-restart simulation → Kea config re-applied, relay and client recreated within 30 s.**
 ```
-stopped vrx-agent
+stopped ngfw-agent
 simulated loss: dhcp_proxy_config rx_vrf=2001 server=10.2.2.2 is_add=0 → ok
 simulated loss: dhcp_client_config sw_if_index=10 (host-w2c0) is_add=0 → ok
 simulated loss: Kea config-set (idle configuration over its socket) → config-get subnet4=[]
 agent started at +0s: relay back at +0.41s, DHCP client at +0.20s, Kea configuration at +0.41s (no config API call)
-agent log: {"time":"2026-09-25T04:04:37.214752757+03:30","level":"INFO","msg":"kea wired","owner":"w2","mode":"test (netns ns-w2-wan, 1 mapped interfaces)","conf":"/run/vrx-test/w2/kea/etc","sockets":"/run/vrx-test/w2/kea/run"}
+agent log: {"time":"2026-09-25T04:04:37.214752757+03:30","level":"INFO","msg":"kea wired","owner":"w2","mode":"test (netns ns-w2-wan, 1 mapped interfaces)","conf":"/run/ngfw-test/w2/kea/etc","sockets":"/run/ngfw-test/w2/kea/run"}
 agent log: {"time":"2026-09-25T04:04:37.49665604+03:30","level":"INFO","msg":"reconcile done","mode":"resync","domains":["interfaces","vrfs","routing","services"],"status":"APPLY_STATUS_APPLIED","summary":"created:3 updated:1 unchanged:16",…}
 agent log: {"time":"2026-09-25T04:04:37.496803258+03:30","level":"INFO","msg":"resync finished","why":"connect","status":"APPLY_STATUS_APPLIED","summary":"created:3 updated:1 unchanged:16"}
 vppctl show dhcp proxy (after recovery): 2001  10.2.2.1  2001,10.2.2.2
@@ -89,13 +89,13 @@ lease after recovery: DHCPACK of 10.2.1.100 from 10.2.1.1 — bound (the whole p
 POST /config/rollback/1 → {"status":"applied",…,"kind":"rollback",…,"results":[{"key":"dhcp.relay/to-kea","op":"delete",…,"subsystem":"services","code":"ok"},{"key":"dhcp.proxy/2001/2001/10.2.2.2","op":"delete",…   (log line truncated by the test at 600 characters)
 GET /state/dhcp/relays after rollback → {"items":[]}
 vppctl show dhcp proxy (after rollback): (header only)      vppctl show dhcp client (after rollback): (empty)
-Kea config-get after rollback: subnet4=[] user-context.vrx present=false
+Kea config-get after rollback: subnet4=[] user-context.ngfw present=false
 GET /state/interfaces/host-w2c0/dhcp-client after rollback → {"configured":false,…,"config":null}
 ```
 
 - [x] **Pool outside its subnet → 400 problem+json with a pointer to the pool.**
 ```
-PATCH /config/services with a pool outside its subnet → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/services","errors":[{"pointer":"/services/dhcp/servers/bad/subnets/lan/pools/0/end","message":"10.99.0.20 is outside 10.2.1.0/24"},{"pointer":"/services/dhcp/servers/bad/subnets/lan/pools/0/start","message":"10.99.0.10 is outside 10.2.1.0/24"}]}
+PATCH /config/services with a pool outside its subnet → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/services","errors":[{"pointer":"/services/dhcp/servers/bad/subnets/lan/pools/0/end","message":"10.99.0.20 is outside 10.2.1.0/24"},{"pointer":"/services/dhcp/servers/bad/subnets/lan/pools/0/start","message":"10.99.0.10 is outside 10.2.1.0/24"}]}
 ```
 The semantic tier is in the API e2e (`apps/api/test/e2e/kea-dhcp-relay.e2e.test.ts`): reservation inside a pool →
 400 `…/reservations/inpool/ip` "lies inside pool 0"; DHCP client + static IPv4 → 400 `/interfaces/host-w1c0/ipv4`.
@@ -175,11 +175,11 @@ nothing installed); `vite preview` on port 5200 stopped by PID.
 
 ## Decisions taken (with options) — for the manager's LOG
 
-1. **Renderer in the agent = one singleton scheduler descriptor per Kea daemon** (`kea.dhcp4/vrx`, `kea.dhcp6/vrx`).
+1. **Renderer in the agent = one singleton scheduler descriptor per Kea daemon** (`kea.dhcp4/ngfw`, `kea.dhcp6/ngfw`).
    Options: (a) singleton descriptor (D-109 d default), (b) shared renderer stage in `service.go` (A5, not mine),
    (c) one descriptor per server (one daemon serves all servers of a family → artificial). Chose (a).
 2. **Kea Value and Retrieve**: the Value is the render input (`kea.Input`), embedded in the rendered config
-   (`user-context.vrx.input`); Retrieve reads it back from `config-get` (or the file when stopped), re-renders and
+   (`user-context.ngfw.input`); Retrieve reads it back from `config-get` (or the file when stopped), re-renders and
    checks `ConfigDrift`. Options: (a) echo cached input (D-063 forbids), (b) reverse-map `config-get` to `DhcpServer`
    (lossy: server settings are pushed down to subnets), (c) normalised config JSON as the Value (needs the renderer inside
    the projection). Chose the embedded input: derived from the daemon, exact, drift-checked.
@@ -201,7 +201,7 @@ nothing installed); `vite preview` on port 5200 stopped by PID.
 - `apps/agent/internal/agent/projection.go`: `desired.DHCP(p, ds, vrfID)` in `project()`, `desired.AssembleDHCP(ds, kvs)` in `assemble()`
 - `apps/agent/internal/agent/service_test.go` (no anchor): canonical doc gains `"services": {"dhcp": {}}`; the domain-list assertions compare with `implementedDomains()`
 - `apps/agent/internal/descriptors/core/coretest/fakevpp.go` (no anchor): one `v.installKeaDHCPRelay()` line
-- `packages/proto/vrx/v1/dataplane.proto`: `rpc DhcpLeases` + the messages in the `// ----- F-kea-dhcp-relay -----` section; `docs/contracts/proto.md` §11 section
+- `packages/proto/ngfw/v1/dataplane.proto`: `rpc DhcpLeases` + the messages in the `// ----- F-kea-dhcp-relay -----` section; `docs/contracts/proto.md` §11 section
 - `packages/schema/src/semantic/index.ts`: one import, one spread
 - `apps/api/src/app.module.ts` (import + controllers + providers), `apps/api/src/agent/agent.client.ts` (type imports + `dhcpLeases`), `apps/api/src/testing/fake-agent.ts` (`dhcpLeases: dhcpLeases(this)` + one import line, no anchor)
 - `apps/web/src/domains/services/tabs.ts` (the `dhcp` tab + `lazy` import), `apps/web/src/nav/nav.ts` + `nav.test.ts` (`'services'`), `apps/web/src/i18n.ts` (namespace ×4)
@@ -224,8 +224,8 @@ a DHCP-leased address would be deleted by the interface-ip reconcile), Q6 (Kea n
 | **M1** packaged `/etc/kea` file shown as active + "start" + error | `Status` reports a config without the agent's embedded render input (no file, idle, foreign or commented) as **not configured**: only `running`; the UI shows a "Not configured" chip instead of Stopped/Start required | `50dcd8a7` | `TestStatusForeignConfigNotConfigured` (old: `Active:true ActionRequired:start Err:"kea: configuration: invalid character '/'…"`); `DhcpPage.test.tsx` ("Unable to find … Not configured" on the old chip) |
 | **M2** every DhcpLeases call read up to 100 000 leases per family | per family one shared read in flight (singleflight) reused for `LeaseCacheTTL` = 10 s; an Apply drops the cache; errors not cached; each read still pages Kea with `LeasePageSize` (1000) per message | `00aa76d0` | `TestLeaseReadsSharedAndCached`: 8 concurrent calls → 3 `lease4-get-page` (one read), 5 calls in the TTL → 0, after the TTL / an Apply → one read each (it uses the new cache clock and TTL, so it cannot build against the old code; its request counts assert one shared read) |
 | **M3** no tests for `subsystems/kea.go` | `kea_test.go`: `TestRegisterKeaRelayScope` (zero `IDs` → a relay in table 5000 or 0 is neither retrieved nor created, nothing written; slot range inside/outside; `All`), `TestRegisterKeaModes` (default/product/off/test, bad mode, bad map pair, over-long Linux name, bad netns), `TestKeaTestModeMapper` | `4263af96` | mutation: with `rng = nil` on the IDRange error the two fail-closed cases fail ("retrieved 1 relays of table 5000, owns=false") |
-| **Q7** test mode reachable in the product binary | `VRX_KEA_MODE=test` refused when the owner is `vrx` or `IDs.All`; `ALLOWLIST.md` row for the lab-mode runner | `4263af96` | mutation: without the check the three refusal cases fail ("want error … refused for the product agent, got <nil>") |
-| tools/app | `VRX_KEA_MODE=off` on the agent's env line (that one line; tools/app not run) | `f63ef731` | — |
+| **Q7** test mode reachable in the product binary | `NGFW_KEA_MODE=test` refused when the owner is `ngfw` or `IDs.All`; `ALLOWLIST.md` row for the lab-mode runner | `4263af96` | mutation: without the check the three refusal cases fail ("want error … refused for the product agent, got <nil>") |
+| tools/app | `NGFW_KEA_MODE=off` on the agent's env line (that one line; tools/app not run) | `f63ef731` | — |
 | L1 | rule-file comment names what the agent re-checks | `3202aff2` (`contract(schema)`, comment only) | — |
 | L3 | relay store: fsync of file and directory; an unreadable file is treated as empty (re-creatable metadata) instead of failing every `services` transaction | `74b57889` | `TestFileRelayStoreCorruptFile` (old: Load returned the unmarshal error) |
 | L7 | user guide: known issue for a DHCP lease on a sub-interface / af_packet / loopback until the Q5 core row lands | `74b57889` | — |

@@ -35,7 +35,7 @@ var LockDir = "/run/lock"
 
 // EnsurePlugin enables p for the test when it is off and returns whether it was on before.
 // Re-review N4: every test using the plugin holds the host-wide lock
-// <LockDir>/vrx-nat-fixture-<plugin>.lock SHARED for its whole lifetime; the cleanup of the test
+// <LockDir>/ngfw-nat-fixture-<plugin>.lock SHARED for its whole lifetime; the cleanup of the test
 // that enabled the plugin converts it to EXCLUSIVE around the emptiness check and the disable,
 // so no other slot's test can add an object between the two (it holds the shared lock while it
 // uses the plugin). Cleanup (registered first, so it runs after every object cleanup) disables
@@ -43,7 +43,7 @@ var LockDir = "/run/lock"
 func EnsurePlugin(t testing.TB, p Plugin) (wasOn bool) {
 	t.Helper()
 	ctx := Ctx(t)
-	path := filepath.Join(LockDir, "vrx-nat-fixture-"+p.Name+".lock")
+	path := filepath.Join(LockDir, "ngfw-nat-fixture-"+p.Name+".lock")
 	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0o644) //nolint:gosec // fixed lock path
 	if err != nil {
 		t.Fatalf("fixture lock %s: %v", path, err)

@@ -7,7 +7,7 @@ Scope: `git diff fb83447..HEAD`. The DF-6 part is `407e074..HEAD`, 64 files. The
 
 - **Unit tests:** `go test -count=1 ./internal/descriptors/{df6,gre,ipip,vxlan,vxlan_gpe,gtpu,l2tp,pppoe,sr,sr_mpls,lisp}/...`
   All 11 packages `ok`. `go vet ./internal/descriptors/...` is clean.
-- **Host tests** (slot 11: `eval "$(tools/lab env 11)"`, `VRX_INTEGRATION=1`):
+- **Host tests** (slot 11: `eval "$(tools/lab env 11)"`, `NGFW_INTEGRATION=1`):
   - One package at a time, `-run OnHost`.
   - The gtpu, LISP and pppoe-cp opt-ins were **not** set.
   - `NRestarts=2` before every package and after the last one. VPP MainPID stayed 668679.
@@ -105,7 +105,7 @@ Scope: `git diff fb83447..HEAD`. The DF-6 part is `407e074..HEAD`, 64 files. The
 
 ### M2 — pppoe.cp global and its host test: FIXED (see N5)
 - `pppoe.cp` is now the singleton `pppoe.cp/global` under `df6.Global`.
-- `TestCpOnHost` is opt-in (`VRX_DF6_PPPOE_CP_HOST`). I did not run it.
+- `TestCpOnHost` is opt-in (`NGFW_DF6_PPPOE_CP_HOST`). I did not run it.
 - `gtpu.forward` is documented as one global per type.
 
 ### M3 — presence probes are not identity checks: FIXED

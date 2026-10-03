@@ -29,7 +29,7 @@ or fourth domain screen; it does not need to happen before this branch merges. N
   `subtree.test.ts` (ancestor/descendant/exact pointer matching, 5 tests, all pass).
 - Secrets: this task adds no secret-specific code; it inherits the existing pipeline (API redacts running/candidate
   documents before they leave the server — `apps/api/src/config/config.controller.ts:167` "document that leaves
-  here is redacted"; `SchemaForm` already renders `writeOnly`/`x-vrx-ui.secret` fields as write-only,
+  here is redacted"; `SchemaForm` already renders `writeOnly`/`x-ngfw-ui.secret` fields as write-only,
   `packages/ui-kit/src/schema-form/summary.ts:27`). `AdvancedEditorPage` never dumps a raw node value anywhere
   except into `<SchemaForm value>` and the client-side diff computation — both already redacted at the source.
   No echo path found.
@@ -174,7 +174,7 @@ identity churn resetting the form) check out by reading `withoutChildValues` (sc
   nothing from this task. Read-only command, no write, no lasting effect — but still a rule break exactly as
   described; noting it here per the envelope, not asking for anything further.
 - Screenshot-attempt teardown independently reverified: `ss -ltn` shows neither 4100 nor 6100 listening,
-  `/run/vrx-test/w11` does not exist, no `vrx_w11` database present. Matches the claimed teardown.
+  `/run/ngfw-test/w11` does not exist, no `ngfw_w11` database present. Matches the claimed teardown.
 
 ## 7. Hands-off files — untouched, confirmed
 

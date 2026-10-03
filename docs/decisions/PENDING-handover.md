@@ -1,11 +1,11 @@
 # PENDING: handover
 
 - raised: 2026-09-23 by manager (cycle 1)
-- decision: **option 2** — product owner, 2026-09-24 00:40 (D-060). Executed by the host manager: plugins block added to `/etc/vpp/startup.conf` (backup `startup.conf.bak-2026-09-24`), one VPP restart under `flock -x /run/lock/vrx-lab.lock`. `handover` stays **pending**. Still open: NIC → port-group mapping (the `dpdk { dev }` lines need a second restart once it is known).
+- decision: **option 2** — product owner, 2026-09-24 00:40 (D-060). Executed by the host manager: plugins block added to `/etc/vpp/startup.conf` (backup `startup.conf.bak-2026-09-24`), one VPP restart under `flock -x /run/lock/ngfw-lab.lock`. `handover` stays **pending**. Still open: NIC → port-group mapping (the `dpdk { dev }` lines need a second restart once it is known).
 - parked tasks: P12 (FRR/linux-cp), the NPTv6 part of F-nat44-ei-64-66-nptv6; and (since 13:17) binding the six new data NICs to DPDK
 
 ## Context
-VPP 26.06 on the host was brought up by a separate agent. `docs/lab/host-vrx-a.md` says `handover: pending`, so nobody
+VPP 26.06 on the host was brought up by a separate agent. `docs/lab/host-ngfw-a.md` says `handover: pending`, so nobody
 edits `/etc/vpp/startup.conf`, packages or `vpp.service`, and nobody restarts VPP (D-012). Two planned features need plugins
 that are on disk but not loaded: `linux_cp_plugin.so` + `linux_nl_plugin.so` (P12) and `npt66_plugin.so` (NPTv6).
 

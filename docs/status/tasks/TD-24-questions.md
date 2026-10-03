@@ -28,7 +28,7 @@
   spec: hostname is empty`. The whole commit is rolled back.
 - Found while writing `internal/agent/dhcplease_test.go` (the first version used `dhcpClient: {}`). The F-kea
   topology test always sets a hostname, so it never hit this.
-- **Fix:** the projection fills the system hostname (or `vrx`) when the hostname is absent. The assembler must then
+- **Fix:** the projection fills the system hostname (or `ngfw`) when the hostname is absent. The assembler must then
   leave it out again when it equals that default, or Retrieve will show drift.
 - **Owner:** the P08 successor or F-kea.
 

@@ -1,8 +1,8 @@
-{{- /* snmpd.conf — rendered by the vrx-agent snmpd renderer (RF-4). Every user string passes
+{{- /* snmpd.conf — rendered by the ngfw-agent snmpd renderer (RF-4). Every user string passes
        exactly one helper: tok (one word), text (rest of line), oid, community, pass (quoted
        passphrase), transport, host, path. Values were validated by BuildModel already; the
        helpers re-check them (defence in depth). */ -}}
-# Rendered by vrx-agent (snmpd renderer). Do not edit: every commit overwrites this file.
+# Rendered by ngfw-agent (snmpd renderer). Do not edit: every commit overwrites this file.
 # Holds SNMP communities and USM passphrases: mode 0600.
 {{- if not .Enabled}}
 # services.snmp is disabled: the agent listens on a private unix socket only and grants no access.

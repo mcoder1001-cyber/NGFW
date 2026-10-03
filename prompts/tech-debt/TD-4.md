@@ -73,7 +73,7 @@ tightens behaviour on purpose (D-100). If `make -C apps/cli gen docs` or `sdk/ge
       reason `tls-required`, and no password appears in `audit_log`. Loopback login → 200 (unchanged).
 - [ ] **(2) Step-up.** e2e covers each case:
   - JWT without `current` → 400 with pointer `/current`;
-  - wrong `current` → 403, `failed_logins` +1, and after `VRX_LOGIN_MAX_FAILURES` → 403 `locked` with no new `api_key` row;
+  - wrong `current` → 403, `failed_logins` +1, and after `NGFW_LOGIN_MAX_FAILURES` → 403 `locked` with no new `api_key` row;
   - right `current` → 200, and the key authenticates;
   - ApiKey caller without `current` → 200, audited `via: 'apikey'`;
   - plain-HTTP remote JWT caller → 403 `tls-required`;
@@ -95,7 +95,7 @@ tightens behaviour on purpose (D-100). If `make -C apps/cli gen docs` or `sdk/ge
   eval "$(tools/lab env <slot>)"
   tools/lab lock shared pnpm --filter @ngfw/api test:integration
   ```
-  Paste the output: TD-2's 61 tests plus yours pass, and the 3 agent-int tests skip. The teardown ends with `nothing named vrx_w<slot> … remains`.
+  Paste the output: TD-2's 61 tests plus yours pass, and the 3 agent-int tests skip. The teardown ends with `nothing named ngfw_w<slot> … remains`.
 - [ ] Generated outputs:
   - `pnpm gen`, then `git status --porcelain packages/api-client/src/generated` → a contract commit;
   - `make -C apps/cli gen docs lint test` → green, and the generated files are unchanged or committed;
@@ -107,7 +107,7 @@ tightens behaviour on purpose (D-100). If `make -C apps/cli gen docs` or `sdk/ge
   deploy/dev/pg-test.sh drop w<slot>
   ```
   Paste the output, and NRestarts before and after (the stack's agent creates `loop<slot>01`).
-- [ ] `tools/ci.sh --base main` green (under the CI lock named in your envelope). Every process you started is stopped by PID. The slot DB and Valkey keys are gone (`valkey-cli -n <slot> --scan --pattern 'vrx:w<slot>:*' | wc -l` → 0).
+- [ ] `tools/ci.sh --base main` green (under the CI lock named in your envelope). Every process you started is stopped by PID. The slot DB and Valkey keys are gone (`valkey-cli -n <slot> --scan --pattern 'ngfw:w<slot>:*' | wc -l` → 0).
 
 ## Out of scope (do not build)
 - The product nginx rule "`/api` is never proxied from plain :80" (D-100 (1)) belongs to P10. Only mention it in TD-4.md.

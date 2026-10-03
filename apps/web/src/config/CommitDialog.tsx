@@ -156,7 +156,7 @@ export function CommitDialog({ open, onClose, changes }: { open: boolean; onClos
                       <Box
                         component="code"
                         dir="ltr"
-                        sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}
+                        sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}
                       >
                         {diffPointerLabel(w.pointer || '/')}
                       </Box>

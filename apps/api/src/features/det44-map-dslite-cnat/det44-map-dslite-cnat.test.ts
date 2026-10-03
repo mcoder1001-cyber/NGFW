@@ -27,12 +27,12 @@ import { det44PortsPerHost, Det44MapDsliteCnatService } from './service.js';
  * RBAC, audit) is test/e2e/det44-map-dslite-cnat.e2e.test.ts. Slot 8 names and addresses (10.8.0.0/16).
  */
 describe('F-det44-map-dslite-cnat (fake agent over gRPC)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-det44-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-det44-'));
   const socket = join(dir, 'agent.sock');
   const env = testEnv({
-    VRX_AGENT_SOCKET: socket,
-    VRX_AGENT_OWNER: 'w8',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: socket,
+    NGFW_AGENT_OWNER: 'w8',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;

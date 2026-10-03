@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	afpacket "ngfw/agent/internal/descriptors/af_packet"
 	"ngfw/agent/internal/descriptors/classify"
 	"ngfw/agent/internal/descriptors/core"
@@ -227,7 +227,7 @@ func DomainOf(descriptor string) string {
 type Env struct {
 	Client vpp.Client
 	Owner  string
-	// StateDir holds the persisted stores (the agent's VRX_AGENT_STATE_DIR).
+	// StateDir holds the persisted stores (the agent's NGFW_AGENT_STATE_DIR).
 	StateDir string
 	// Owned is the route owner table (P05 core).
 	Owned ownertable.Set
@@ -240,7 +240,7 @@ type Env struct {
 	// Publish is the agent's event sink (A5 seam): families that observe asynchronous changes
 	// (neighbours, FQDN objects, IPsec SAs, WireGuard peers, routing) publish through
 	// Wiring.Publish. nil = events are dropped (the default).
-	Publish func(*vrxv1.Event)
+	Publish func(*ngfwv1.Event)
 	// Resync asks the agent for a full resync of its stored desired state (A5 seam, F-acl);
 	// Wiring.RequestResync calls it. nil = no-op (the default).
 	Resync func()

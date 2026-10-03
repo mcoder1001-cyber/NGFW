@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from 'pg';
 import type { Held, ProcessLock } from '../common/mutex.js';
 
-/** Advisory-lock key of the commit engine: (0x56525841 'VRXA', 1). Every vrx-api process on one database uses it. */
+/** Advisory-lock key of the commit engine: (0x56525841 'NGFWA', 1). Every ngfw-api process on one database uses it. */
 const KEY = [0x56525841, 1];
 const POLL_MS = 100;
 
@@ -15,7 +15,7 @@ const POLL_MS = 100;
  * Review H1: the client stays CHECKED OUT for the whole section (up to the agent Apply), and pg-pool removes its idle
  * `error` listener on checkout — so this code keeps its own listener on the client from checkout to release. A
  * PostgreSQL restart or a dropped connection then marks the lock `lost()` (the section finishes; `CommitLock` reports
- * it) instead of an unhandled `error` event that would kill vrx-api. A lost client is destroyed, never re-pooled.
+ * it) instead of an unhandled `error` event that would kill ngfw-api. A lost client is destroyed, never re-pooled.
  */
 export class PgAdvisoryLock implements ProcessLock {
   constructor(private readonly pool: Pool) {}

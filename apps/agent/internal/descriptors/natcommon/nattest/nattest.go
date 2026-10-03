@@ -31,7 +31,7 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// APISocket is VPP's binary API socket on the host (VRX_VPP_API_SOCKET overrides).
+// APISocket is VPP's binary API socket on the host (NGFW_VPP_API_SOCKET overrides).
 const APISocket = "/run/vpp/api.sock"
 
 // Conn is a vpp.Client over a live *core.Connection.
@@ -45,7 +45,7 @@ var _ vpp.Client = (*Conn)(nil)
 func (c *Conn) Connected() bool { return c.Connection != nil }
 
 // CheckCompatiblity implements natcommon.CompatChecker through a short-lived API channel:
-// it fails for a plugin that startup.conf does not load (npt66 on vrx-a).
+// it fails for a plugin that startup.conf does not load (npt66 on ngfw-a).
 func (c *Conn) CheckCompatiblity(msgs ...api.Message) error {
 	ch, err := c.NewAPIChannel()
 	if err != nil {
@@ -58,13 +58,13 @@ func (c *Conn) CheckCompatiblity(msgs ...api.Message) error {
 // PluginLoaded reports whether every message is known to this VPP.
 func (c *Conn) PluginLoaded(msgs ...api.Message) bool { return c.CheckCompatiblity(msgs...) == nil }
 
-// Connect gates on VRX_INTEGRATION, takes the shared lab lock and connects to VPP; the
+// Connect gates on NGFW_INTEGRATION, takes the shared lab lock and connects to VPP; the
 // connection is closed in t.Cleanup.
 func Connect(t testing.TB) *Conn {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
-	sock := os.Getenv("VRX_VPP_API_SOCKET")
+	sock := os.Getenv("NGFW_VPP_API_SOCKET")
 	if sock == "" {
 		sock = APISocket
 	}
@@ -84,12 +84,12 @@ func Ctx(t testing.TB) context.Context {
 	return ctx
 }
 
-// SlotLock takes an exclusive lock private to this slot (/run/vrx-test/w<N>/<name>.lock) so
+// SlotLock takes an exclusive lock private to this slot (/run/ngfw-test/w<N>/<name>.lock) so
 // that this slot's own test packages, which `go test ./...` runs in parallel, do not race
 // on a global NAT singleton (nat44 ED and EI are mutually exclusive). Released in Cleanup.
 func SlotLock(t testing.TB, name string) {
 	t.Helper()
-	dir := filepath.Join("/run/vrx-test", vpptest.Prefix(t))
+	dir := filepath.Join("/run/ngfw-test", vpptest.Prefix(t))
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		t.Fatalf("mkdir %s: %v", dir, err)
 	}
@@ -225,13 +225,13 @@ func AddAddress(t testing.TB, c vpp.Client, swIfIndex uint32, prefix string) {
 	})
 }
 
-// Pause is an evidence hook for the task report: when VRX_EVIDENCE_DIR is set it writes
+// Pause is an evidence hook for the task report: when NGFW_EVIDENCE_DIR is set it writes
 // <dir>/<label>.ready and waits (≤ 120 s) for <dir>/<label>.go, so an operator can run
 // read-only VPP CLI show commands while the test's objects exist. Without the variable it is a
 // no-op; it never runs anything itself.
 func Pause(t testing.TB, label string) {
 	t.Helper()
-	dir := os.Getenv("VRX_EVIDENCE_DIR")
+	dir := os.Getenv("NGFW_EVIDENCE_DIR")
 	if dir == "" {
 		return
 	}

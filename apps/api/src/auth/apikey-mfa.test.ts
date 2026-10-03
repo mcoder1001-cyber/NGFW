@@ -4,7 +4,7 @@ import type { Db } from '../db/db.js';
 import { AuthService } from './auth.service.js';
 
 /** F-aaa-hardening: an API key minted without MFA does not bypass a policy raised since (refuse-at-use). */
-const TOKEN = `vrxk_${'A'.repeat(43)}`;
+const TOKEN = `ngfwk_${'A'.repeat(43)}`;
 
 function service(policy: () => Promise<unknown>, role: string, mfaVerified: boolean) {
   const row = {

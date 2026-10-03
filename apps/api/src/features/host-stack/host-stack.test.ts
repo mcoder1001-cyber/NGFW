@@ -38,11 +38,11 @@ const HS = {
 };
 
 describe('F-host-stack API (fake agent over gRPC, in-memory datastore)', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'vrx-hs-'));
+  const dir = mkdtempSync(join(tmpdir(), 'ngfw-hs-'));
   const env = testEnv({
-    VRX_AGENT_SOCKET: join(dir, 'agent.sock'),
-    VRX_AGENT_OWNER: 'w1',
-    VRX_AGENT_TIMEOUT_MS: '5000',
+    NGFW_AGENT_SOCKET: join(dir, 'agent.sock'),
+    NGFW_AGENT_OWNER: 'w1',
+    NGFW_AGENT_TIMEOUT_MS: '5000',
   });
   let fake: FakeAgent;
   let agent: AgentClient;
@@ -50,7 +50,7 @@ describe('F-host-stack API (fake agent over gRPC, in-memory datastore)', () => {
 
   beforeAll(async () => {
     fake = new FakeAgent({ owner: 'w1' });
-    await fake.start(env.VRX_AGENT_SOCKET);
+    await fake.start(env.NGFW_AGENT_SOCKET);
     agent = new AgentClient(env);
     const repo = new MemoryConfigRepo();
     repo.addUser('admin', 'admin', TEST_HASH);
@@ -101,7 +101,7 @@ describe('F-host-stack API (fake agent over gRPC, in-memory datastore)', () => {
         ...HS,
         httpStatic: {
           enabled: true,
-          wwwRootPath: '/var/lib/vrx/www/../../etc',
+          wwwRootPath: '/var/lib/ngfw/www/../../etc',
           uri: 'tcp://10.1.1.1/80',
         },
       }),

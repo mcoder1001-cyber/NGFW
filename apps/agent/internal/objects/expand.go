@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Kind names one record of the objects document by its configuration (JSON) name; it is also the
@@ -120,7 +120,7 @@ func (a Addresses) All() []netip.Prefix {
 // unresolved → nothing, listed in Unresolved), group → the union of its members, recursively. The
 // result is deterministic (aggregated, sorted, v4/v6 split); an empty group expands to nothing.
 // Errors: ErrUnknownObject, ErrCycle, ErrInvalid, *LimitError (more than MaxEntries prefixes).
-func Expand(doc *vrxv1.ObjectsConfig, ref string, opts ...Option) (Addresses, error) {
+func Expand(doc *ngfwv1.ObjectsConfig, ref string, opts ...Option) (Addresses, error) {
 	e := &addrExpander{doc: doc, o: optionsOf(opts), memo: map[string][]netip.Prefix{}, visiting: map[string]bool{}, unresolved: map[string]bool{}}
 	ps, err := e.expand(ref)
 	if err != nil {
@@ -145,7 +145,7 @@ func Expand(doc *vrxv1.ObjectsConfig, ref string, opts ...Option) (Addresses, er
 }
 
 type addrExpander struct {
-	doc        *vrxv1.ObjectsConfig
+	doc        *ngfwv1.ObjectsConfig
 	o          options
 	memo       map[string][]netip.Prefix
 	visiting   map[string]bool
@@ -196,7 +196,7 @@ func cyclePath(stack []string, ref string) string {
 	return ref
 }
 
-func (e *addrExpander) leaf(name string, a *vrxv1.AddressObject) ([]netip.Prefix, error) {
+func (e *addrExpander) leaf(name string, a *ngfwv1.AddressObject) ([]netip.Prefix, error) {
 	switch a.GetType() {
 	case "host":
 		addr, err := parseAddr(a.GetAddress())
@@ -361,7 +361,7 @@ func siblings(a, b netip.Prefix) (netip.Prefix, bool) {
 }
 
 // ZoneInterfaces returns the interfaces of zone (sorted), or ErrUnknownObject.
-func ZoneInterfaces(doc *vrxv1.ObjectsConfig, zone string) ([]string, error) {
+func ZoneInterfaces(doc *ngfwv1.ObjectsConfig, zone string) ([]string, error) {
 	z, ok := doc.GetZones()[zone]
 	if !ok {
 		return nil, fmt.Errorf("%w: %q is not a zone", ErrUnknownObject, zone)

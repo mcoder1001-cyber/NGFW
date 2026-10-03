@@ -14,7 +14,7 @@ do I name objects, how do I test without touching other workers' objects*.
 apps/agent/internal/descriptors/<plugin>/          one Go package per VPP plugin / api file
   <object>.go                                      type <Object>Descriptor struct{ client vpp.Client; owner string }
   <object>_test.go                                 unit tests with internal/vpp/fake
-  <object>_integration_test.go                     VRX_INTEGRATION=1 tests against the host VPP
+  <object>_integration_test.go                     NGFW_INTEGRATION=1 tests against the host VPP
   register.go                                      func Register(r scheduler.Registry, c vpp.Client, owner string)
 docs/agent/descriptors/<plugin>.md                 table: object type ↔ VPP messages ↔ notes/limitations
 ```
@@ -46,14 +46,14 @@ descriptors another task owns.
 
 The host VPP is shared by up to 12 workers' tests and, in production, by one agent. Every
 object you create is stamped with the **owner** the descriptor was constructed with
-(`VRX_OWNER`, default `vrx`; tests pass their `VRX_TEST_PREFIX`, e.g. `w2`):
+(`NGFW_OWNER`, default `ngfw`; tests pass their `NGFW_TEST_PREFIX`, e.g. `w2`):
 
 - Interfaces: `sw_interface_tag_add_del` with `vpp.OwnerTag(owner, key.ID())` →
   `"w2:loop200"` (≤ 63 bytes). `Retrieve` keeps only dumps whose tag parses with
   `vpp.ParseOwnerTag(tag, owner)`.
 - Objects without a tag (tables, routes, NAT pools, ACLs): use the owner-prefixed name/tag
   field where the API has one (`ip_table_add_del.name`, `acl_add_replace.tag`), otherwise the
-  slot's numeric range (tables `VRX_VPP_TABLE_BASE..+999`, NAT pools `10.<slot>.0.0/16`) and
+  slot's numeric range (tables `NGFW_VPP_TABLE_BASE..+999`, NAT pools `10.<slot>.0.0/16`) and
   an owner table P05 keeps in the state dir. State the mechanism in your plugin doc.
 
 `Retrieve` must return **all** owned objects, including ones not in the desired state — that is
@@ -72,7 +72,7 @@ that is how two agents coexist. `local0` and anything unprefixed are never yours
    (link state, counters) in the Value.
 4. Fill `Meta` exactly as `Create` would (`sw_if_index`, …). Meta is not persisted; after a
    restart the scheduler only has what Retrieve returns.
-5. If the plugin is not loaded on this host (`docs/lab/host-vrx-a.md`: `linux_cp`, `linux_nl`,
+5. If the plugin is not loaded on this host (`docs/lab/host-ngfw-a.md`: `linux_cp`, `linux_nl`,
    `npt66`), return a typed error the integration test recognises and `t.Skip`s on.
 
 `Update` changes what VPP can change in place and returns `scheduler.ErrRecreate` for anything
@@ -97,13 +97,13 @@ ordering (`Dependencies` output), VPP errors (`Retval != 0`, `vpp.ErrDisconnecte
 handlers (closures that keep a map of "VPP" objects) make a dump reflect earlier creates — see
 the example test.
 
-**Integration** (`VRX_INTEGRATION=1`, on the host, under the shared lab lock) —
+**Integration** (`NGFW_INTEGRATION=1`, on the host, under the shared lab lock) —
 `docs/lab/shared-host-rules.md` is mandatory:
 
 ```go
 func TestLoopbackOnHost(t *testing.T) {
     vpptest.SkipUnlessIntegration(t)
-    vpptest.LockLab(t)                               // flock -s /run/lock/vrx-lab.lock
+    vpptest.LockLab(t)                               // flock -s /run/lock/ngfw-lab.lock
     owner := vpptest.Prefix(t)                       // "w2"
     inst := vpptest.LoopbackInstance(t, 1)           // 201 → loop201
     vrf := vpptest.TableBase(t) + 1                  // 2001

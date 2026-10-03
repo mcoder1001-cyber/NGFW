@@ -5,24 +5,24 @@
 # root under the work dir, so no host apt configuration, list, cache, lock or dpkg database is read or written.
 # Its dpkg status is the ISO's base layer (var/lib/dpkg/status of the squashfs the installer lays down), so apt
 # resolves exactly what the target is missing. This is the only networked step (mirror, deb.frrouting.org); the
-# VRX repository is a local file: source. Trust: the Ubuntu archive key and the FRR key are pinned by fingerprint,
-# the VRX key by --vrx-key-fpr (D-202: never taken from the repo itself).
+# NGFW repository is a local file: source. Trust: the Ubuntu archive key and the FRR key are pinned by fingerprint,
+# the NGFW key by --ngfw-key-fpr (D-202: never taken from the repo itself).
 
 UBUNTU_ARCHIVE_FPRS=(F6ECB3762474EDA9D21B7022871920D1991BC93C)   # Ubuntu Archive Automatic Signing Key (2018)
 FRR_SIGNER_FPR=4A56C7738BB3F81595A805D2A832769908F13ED1              # docs/install/bare-metal.md (pinned there too)
 POOL_SUITE=resolute
 
-# pool_apt_root <aptroot> <base-status> <vrx-repo> <vrx-keyring> <mirror> <frr-uri> <ubuntu-keyring> <frr-keyring>
+# pool_apt_root <aptroot> <base-status> <ngfw-repo> <ngfw-keyring> <mirror> <frr-uri> <ubuntu-keyring> <frr-keyring>
 pool_apt_root() {
-  local A=$1 status=$2 repo=$3 vrxk=$4 mirror=$5 frr=$6 ubk=$7 frrk=$8 f
-  vrx_owned_dir "$A"
+  local A=$1 status=$2 repo=$3 ngfwk=$4 mirror=$5 frr=$6 ubk=$7 frrk=$8 f
+  ngfw_owned_dir "$A"
   mkdir -p "$A"/etc/apt/{apt.conf.d,sources.list.d,preferences.d,trusted.gpg.d} "$A"/var/lib/apt/lists/partial \
     "$A"/var/cache/apt/archives/partial "$A"/var/lib/dpkg "$A"/var/log/apt "$A"/keys
   cp -f -- "$status" "$A/var/lib/dpkg/status"
-  for f in "${UBUNTU_ARCHIVE_FPRS[@]}"; do vrx_fprs "$ubk" | grep -qx "$f" || die "$ubk lacks the Ubuntu archive key $f"; done
-  vrx_pinned_keyring "$ubk" "${UBUNTU_ARCHIVE_FPRS[0]}" "$A/keys/ubuntu.gpg"
-  vrx_pinned_keyring "$frrk" "$FRR_SIGNER_FPR" "$A/keys/frr.gpg"
-  cp -f -- "$vrxk" "$A/keys/vrx.gpg"
+  for f in "${UBUNTU_ARCHIVE_FPRS[@]}"; do ngfw_fprs "$ubk" | grep -qx "$f" || die "$ubk lacks the Ubuntu archive key $f"; done
+  ngfw_pinned_keyring "$ubk" "${UBUNTU_ARCHIVE_FPRS[0]}" "$A/keys/ubuntu.gpg"
+  ngfw_pinned_keyring "$frrk" "$FRR_SIGNER_FPR" "$A/keys/frr.gpg"
+  cp -f -- "$ngfwk" "$A/keys/ngfw.gpg"
   cat > "$A/apt.conf" <<EOF
 Dir "$A/";
 Dir::State::status "$A/var/lib/dpkg/status";
@@ -37,7 +37,7 @@ EOF
       echo "deb [signed-by=$A/keys/ubuntu.gpg] $mirror $p main restricted universe multiverse"
     done
     echo "deb [signed-by=$A/keys/frr.gpg] $frr $POOL_SUITE frr-stable"
-    echo "deb [signed-by=$A/keys/vrx.gpg] file:$repo $POOL_SUITE main"
+    echo "deb [signed-by=$A/keys/ngfw.gpg] file:$repo $POOL_SUITE main"
   } > "$A/etc/apt/sources.list"
 }
 
@@ -77,9 +77,9 @@ pool_manifest() {
     origin=$(APT_CONFIG="$A/apt.conf" apt-cache madison "$pkg" 2>/dev/null |
       awk -F' [|] ' -v v="$ver" '$2 == v { split($3, a, " "); print a[1]; exit }')
     case $origin in
-      file:*) origin=vrx ;; *frrouting*) origin=frr ;; '') origin=unknown ;; *) origin=ubuntu ;;
+      file:*) origin=ngfw ;; *frrouting*) origin=frr ;; '') origin=unknown ;; *) origin=ubuntu ;;
     esac
-    printf '%s %s %s %s %s %s %s\n' "$pkg" "$ver" "$arch" "$(vrx_sha256 "$d")" "$(stat -c %s "$d")" "$origin" "$(basename "$d")" >> "$out.tmp"
+    printf '%s %s %s %s %s %s %s\n' "$pkg" "$ver" "$arch" "$(ngfw_sha256 "$d")" "$(stat -c %s "$d")" "$origin" "$(basename "$d")" >> "$out.tmp"
   done
   LC_ALL=C sort "$out.tmp" > "$out"; rm -f "$out.tmp"
 }
@@ -93,15 +93,15 @@ pool_repo() {
     dir=$R/pool/main/$b/$pkg; mkdir -p "$dir"; cp -f -- "$d" "$dir/"
   done
   ( cd "$R" && dpkg-scanpackages --multiversion pool /dev/null 2>/dev/null ) > "$R/dists/$POOL_SUITE/main/binary-amd64/Packages"
-  vrx_gzip_n "$R/dists/$POOL_SUITE/main/binary-amd64/Packages" "$R/dists/$POOL_SUITE/main/binary-amd64/Packages.gz"
-  printf 'Archive: %s\nComponent: main\nOrigin: VRX\nLabel: VRX ISO pool\nArchitecture: amd64\n' "$POOL_SUITE" \
+  ngfw_gzip_n "$R/dists/$POOL_SUITE/main/binary-amd64/Packages" "$R/dists/$POOL_SUITE/main/binary-amd64/Packages.gz"
+  printf 'Archive: %s\nComponent: main\nOrigin: NGFW\nLabel: NGFW ISO pool\nArchitecture: amd64\n' "$POOL_SUITE" \
     > "$R/dists/$POOL_SUITE/main/binary-amd64/Release"
   ( cd "$R/dists/$POOL_SUITE" && {
-      printf 'Origin: VRX\nLabel: VRX ISO pool\nSuite: %s\nCodename: %s\nDate: %s\nArchitectures: amd64\nComponents: main\n' \
+      printf 'Origin: NGFW\nLabel: NGFW ISO pool\nSuite: %s\nCodename: %s\nDate: %s\nArchitectures: amd64\nComponents: main\n' \
         "$POOL_SUITE" "$POOL_SUITE" "$(LC_ALL=C date -u -d "@$epoch" '+%a, %d %b %Y %H:%M:%S UTC')"
-      printf 'Description: offline pool of the VRX installer ISO (vrx-meta and its dependency closure)\nSHA256:\n'
+      printf 'Description: offline pool of the NGFW installer ISO (ngfw-meta and its dependency closure)\nSHA256:\n'
       for f in main/binary-amd64/Packages main/binary-amd64/Packages.gz main/binary-amd64/Release; do
-        printf ' %s %s %s\n' "$(vrx_sha256 "$f")" "$(stat -c %s "$f")" "$f"
+        printf ' %s %s %s\n' "$(ngfw_sha256 "$f")" "$(stat -c %s "$f")" "$f"
       done
     } > Release )
 }

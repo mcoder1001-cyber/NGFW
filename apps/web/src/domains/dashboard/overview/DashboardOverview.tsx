@@ -114,9 +114,9 @@ function levelColour(
   normal: string,
 ): string {
   return level === 'critical'
-    ? theme.vrx.status.down
+    ? theme.ngfw.status.down
     : level === 'warning'
-      ? theme.vrx.status.degraded
+      ? theme.ngfw.status.degraded
       : normal;
 }
 
@@ -468,7 +468,7 @@ export function DashboardOverview() {
                       variant="body2"
                       fontWeight={600}
                       noWrap
-                      sx={{ fontFamily: theme.vrx.monoFontFamily }}
+                      sx={{ fontFamily: theme.ngfw.monoFontFamily }}
                     >
                       {d.mount}
                     </Typography>
@@ -676,7 +676,7 @@ export function DashboardOverview() {
               segments={LINK_STATES.map((k) => ({
                 key: k,
                 value: links[k],
-                color: theme.vrx.status[k],
+                color: theme.ngfw.status[k],
               }))}
               ariaLabel={t('interfaces.breakdown', {
                 up: links.up,
@@ -706,7 +706,7 @@ export function DashboardOverview() {
                       inlineSize: 10,
                       blockSize: 10,
                       borderRadius: '50%',
-                      bgcolor: theme.vrx.status[k],
+                      bgcolor: theme.ngfw.status[k],
                     }}
                   />
                   <Typography variant="body2">{t(`status.${k}`, { ns: UI_KIT_NS })}</Typography>
@@ -756,7 +756,7 @@ export function DashboardOverview() {
                         <Typography
                           variant="body2"
                           noWrap
-                          sx={{ fontFamily: theme.vrx.monoFontFamily }}
+                          sx={{ fontFamily: theme.ngfw.monoFontFamily }}
                         >
                           {logicalName.get(name) ?? name}
                         </Typography>

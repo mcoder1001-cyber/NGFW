@@ -1,6 +1,6 @@
 import type { paths } from '@ngfw/api-client';
 import { canonicalPrefix, type WireguardInterface, type WireguardPeer } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
 
@@ -59,14 +59,14 @@ export function peerFormSchema(): JsonSchema {
 }
 
 /** Semantic chip status of an interface (missing from the data plane = down). */
-export function ifaceChip(st: WgInterfaceState | undefined): VrxStatus {
+export function ifaceChip(st: WgInterfaceState | undefined): NgfwStatus {
   if (!st) return 'down';
   if (!st.adminUp) return 'adminDown';
   return st.linkUp ? 'up' : 'down';
 }
 
 /** Semantic chip status of a peer. */
-export function peerChip(s: WgPeerStatus | undefined): VrxStatus {
+export function peerChip(s: WgPeerStatus | undefined): NgfwStatus {
   switch (s) {
     case 'established':
       return 'up';

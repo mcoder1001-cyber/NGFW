@@ -6,12 +6,12 @@ scope: glue only on top of DF-3 + P08: the `nat` domain builder (mode ed), a pag
 merged deps you can rely on: P08, DF-3
   - P08: desired/ (Sink, interface/<name> aliases), subsystems.Register/Domains, Wiring.KeyedClaims("nat"), Env.GlobalsOwner, projection.go, InterfaceState state-RPC pattern, test/topology/interfaces
   - DF-3: descriptors/nat44ed (nat44ed.Register/New, Users/UserSessions/DeleteSession) + natcommon (WithGlobalsOwner, WithClaims, Encode) + natcommon/nattest (EnsurePlugin, SlotLock)
-  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight), TD-2 (API auth/users follow-ups)
+  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/ngfw-vpp-preflight), TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-nat44-ed-sessions.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 A4 C2 C4–C7 P1 P3 P4 P5 W1–W3) · docs/agent/descriptors/nat-common.md (first) + nat44-ed.md · docs/status/tasks/DF-3.md · docs/status/vertical-slice.md · docs/decisions/LOG.md D-060, D-062, D-064, D-071, D-080, D-082, D-095, D-101, D-104
-slot: 4 → VRX_SLOT=4 VRX_TEST_PREFIX=w4 VRX_HTTP_PORT=3000+100·4 VRX_WEB_PORT=5000+100·4 VRX_METRICS_PORT=9100+10·4+1 VRX_AGENT_SOCKET=/run/vrx-test/w4/agent.sock VRX_PG_DATABASE=vrx_w4 VRX_VALKEY_DB=4 VRX_VPP_TABLE_BASE=4000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 4 → NGFW_SLOT=4 NGFW_TEST_PREFIX=w4 NGFW_HTTP_PORT=3000+100·4 NGFW_WEB_PORT=5000+100·4 NGFW_METRICS_PORT=9100+10·4+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w4/agent.sock NGFW_PG_DATABASE=ngfw_w4 NGFW_VALKEY_DB=4 NGFW_VPP_TABLE_BASE=4000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 4)"`
   - rig prefix w4 → 10.4.{1,2}.0/24; NAT pools and every address you use only inside 10.4.0.0/16
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
@@ -44,7 +44,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A4 apps/agent/internal/agent/server.go: the NatSessionKillAction case in Action, which F-vrf-static-ecmp and F-neighbors-ra also extend. If you merge first, turn Action into a type switch with a default Unimplemented
   - C2 packages/schema/src/semantic/index.ts: one spread line (only with the adjacent-pool rule) · C3 packages/schema/src/index.ts if you export anything
   - C4 packages/schema/examples/ + packages/proto/test/fixtures/: new files only (e.g. nat44-ed-*.json); existing nat-*.json are read-only
-  - C5 packages/proto/vrx/v1/dataplane.proto: NatSessions (+ NatSummary) under the service anchor; messages in a `// ----- F-nat44-ed-sessions -----` section at the end
+  - C5 packages/proto/ngfw/v1/dataplane.proto: NatSessions (+ NatSummary) under the service anchor; messages in a `// ----- F-nat44-ed-sessions -----` section at the end
   - allocated numbers (wave-A-hotspots §2, a merge blocker if reused): ActionRequest.action oneof **5 `nat_session_kill`**; NatConfig 25–26 only if needed; nothing else
   - C6 docs/contracts/proto.md: `### F-nat44-ed-sessions: NatSessions`
   - C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
@@ -59,18 +59,18 @@ files you must not touch:
   - apps/agent/internal/descriptors/natcommon/** (read-only, shared with the sibling NAT tasks → questions file) and every other NAT descriptor package
   - packages/schema/src/{domains,semantic}/nat.ts (P02b's; C1/C2 own-file rule), apps/api/src/actions/actions.controller.ts (F-vrf-static-ecmp), apps/api/src/state/** (P08)
 host rules:
-  - V19 SAFETY (D-095, crash on first packet): before ANY packet through the rig, `go -C apps/agent run ./cmd/vrx-vpp-preflight` must exit 0 (TD-3). Stop if it does not
+  - V19 SAFETY (D-095, crash on first packet): before ANY packet through the rig, `go -C apps/agent run ./cmd/ngfw-vpp-preflight` must exit 0 (TD-3). Stop if it does not
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises
   - delete order (tests, restart simulation, rollback): mappings, pools and interface features before the interfaces they sit on (D-095c)
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
   - ≥ 2 000 sessions: generate the flows only from ns-w4-lan to your own 10.4.0.0/16 addresses
-  - nattest.SlotLock(t, "nat44") in every NAT host test; with VRX_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
+  - nattest.SlotLock(t, "nat44") in every NAT host test; with NGFW_INTEGRATION=1, one Go package at a time; hold `flock -s` on the lab lock only during a run (D-094)
 coordination: F-nat44-ei-64-66-nptv6 starts only after you merge (board dep; ED and EI are mutually exclusive on one VPP). It will add a variant to NatSessions/NatSessionKillAction and append tabs to natTabs, so keep both small and appendable · F-det44-map-dslite-cnat (wave B) appends to the same builder and tabs · F-vrf-static-ecmp and F-neighbors-ra share the A4 Action switch
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL, sessions tab with ≥ 2 000 sessions) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-nat44-ed-sessions.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-nat44-ed-sessions-wip.md current
-CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w4 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-nat44-ed-sessions.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · vrx_w4 dropped · no w4 NAT objects left in VPP (dump pasted) · nat44-ed left as the fixture found it · rig down · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite), by PID · lab lock released · ngfw_w4 dropped · no w4 NAT objects left in VPP (dump pasted) · nat44-ed left as the fixture found it · rig down · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-nat44-ed-sessions-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

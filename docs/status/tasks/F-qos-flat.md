@@ -23,7 +23,7 @@ Host runs on the shared VPP are **closed until TD-25 merges** (manager addendum,
 `/run/vpp/api.sock`, no VPP object was created, `NRestarts` untouched by this task. The acceptance items are proven on the
 coretest VPP model (it models VPP 26.06's behaviour: feature stacking on a repeated apply, the out-of-bounds un-apply,
 binding by pool index, reference-counted record/store, ip-only store) and on the fake agent + real PostgreSQL; the host
-proof is `test/topology/qos-flat/run.sh` (written, compiles, skips without `VRX_INTEGRATION`; see "Pending").
+proof is `test/topology/qos-flat/run.sh` (written, compiles, skips without `NGFW_INTEGRATION`; see "Pending").
 
 | acceptance item | status | evidence |
 |---|---|---|
@@ -66,8 +66,8 @@ $ (apps/api) eval "$(tools/lab env 1)"; vitest run -c vitest.e2e.config.ts test/
  ✓ an agent without the RPCs answers 501 (no fake data)
  ✓ rollback to the revision before QoS empties services.qos on the agent
       Tests  8 passed (8)
-e2e teardown: deleted 10 Valkey keys vrx:w1:e2e:* in db 1
-ok     nothing named vrx_w1 / vrx_w1 remains
+e2e teardown: deleted 10 Valkey keys ngfw:w1:e2e:* in db 1
+ok     nothing named ngfw_w1 / ngfw_w1 remains
 ```
 
 **Every new test fails on the base.** The new files reference symbols, routes and files that do not exist on `main`
@@ -144,7 +144,7 @@ CI GATE PASSED
 | (A5 test) | `apps/agent/internal/agent/service_test.go` | canonicalDoc `services.qos`, `implementedDomains()` ×2, `policer_dump_v2` ×3 | not in the envelope — Q8 |
 | C2 | `packages/schema/src/semantic/index.ts` | import + `...qosFlatValidators` | **unanchored** (Q1) |
 | C4 | `packages/proto/test/fixtures/qos-flat-full.json` | new file | — |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | 2 RPCs | `// wave-BC: F-qos-flat` (service) |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | 2 RPCs | `// wave-BC: F-qos-flat` (service) |
 | C5 | same | 6 messages | `// ----- F-qos-flat -----` section |
 | C6 | `docs/contracts/proto.md` | `### F-qos-flat: QosPolicerState, QosPolicerReset` | **unanchored**, end of §11 (Q1) |
 | C7 | generated | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go` (`docs/user/cli/reference.md` unchanged) | regen |
@@ -180,6 +180,6 @@ CI GATE PASSED
 ## Cleanup
 
 No process of this task is running (the API e2e harness and the sub-workers' vitest runs ended; no agent, API or vite
-was left); `vrx_w1` dropped by the e2e harness ("nothing named vrx_w1 / vrx_w1 remains"); no Valkey keys left
-(`vrx:w1:e2e:*` deleted); no VPP object was ever created (host runs closed); no rig; build outputs (`dist/`,
+was left); `ngfw_w1` dropped by the e2e harness ("nothing named ngfw_w1 / ngfw_w1 remains"); no Valkey keys left
+(`ngfw:w1:e2e:*` deleted); no VPP object was ever created (host runs closed); no rig; build outputs (`dist/`,
 `apps/agent/bin`, `apps/cli/bin`) removed at the end.

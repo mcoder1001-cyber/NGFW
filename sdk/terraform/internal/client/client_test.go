@@ -35,7 +35,7 @@ func TestNoRedirectNoKeyLeak(t *testing.T) {
 		http.Redirect(w, r, other.URL+"/steal", http.StatusFound)
 	}))
 	defer srv.Close()
-	c, err := New(Options{URL: srv.URL, APIKey: "VRX_TEST_PSK_client"})
+	c, err := New(Options{URL: srv.URL, APIKey: "NGFW_TEST_PSK_client"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestNoRedirectNoKeyLeak(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "302") {
 		t.Fatalf("want the 302 as an error, got %v", err)
 	}
-	if strings.Contains(c.String(), "VRX_TEST_PSK_client") || strings.Contains(err.Error(), "VRX_TEST_PSK_client") {
+	if strings.Contains(c.String(), "NGFW_TEST_PSK_client") || strings.Contains(err.Error(), "NGFW_TEST_PSK_client") {
 		t.Fatal("key in String() or error")
 	}
 }
@@ -55,7 +55,7 @@ func TestProblemParsing(t *testing.T) {
 		_, _ = w.Write([]byte(`{"type":"x","title":"Locked","status":409,"detail":"candidate locked","lock":{"owner":"alice"}}`))
 	}))
 	defer srv.Close()
-	c, _ := New(Options{URL: srv.URL, APIKey: "VRX_TEST_PSK_client"})
+	c, _ := New(Options{URL: srv.URL, APIKey: "NGFW_TEST_PSK_client"})
 	err := c.Put(context.Background(), "/interfaces/loop1", map[string]any{})
 	ae, ok := err.(*APIError)
 	if !ok || ae.Status != 409 || !strings.Contains(err.Error(), `lock: {"owner":"alice"}`) {

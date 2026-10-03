@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/scheduler"
@@ -55,20 +55,20 @@ func withEnv(t *testing.T, e ACLEnv) {
 	t.Cleanup(func() { aclEnv.Store(prev) })
 }
 
-func rule(seq uint32, action string, mut func(r *vrxv1.AclRule)) *vrxv1.AclRule {
-	r := &vrxv1.AclRule{Sequence: proto.Uint32(seq), Action: proto.String(action), Enabled: proto.Bool(true), IpVersion: proto.String("any")}
+func rule(seq uint32, action string, mut func(r *ngfwv1.AclRule)) *ngfwv1.AclRule {
+	r := &ngfwv1.AclRule{Sequence: proto.Uint32(seq), Action: proto.String(action), Enabled: proto.Bool(true), IpVersion: proto.String("any")}
 	if mut != nil {
 		mut(r)
 	}
 	return r
 }
 
-func prefix(p string) *vrxv1.AddressMatch {
-	return &vrxv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String(p)}
+func prefix(p string) *ngfwv1.AddressMatch {
+	return &ngfwv1.AddressMatch{Kind: proto.String("prefix"), Prefix: proto.String(p)}
 }
 
-func object(n string) *vrxv1.AddressMatch {
-	return &vrxv1.AddressMatch{Kind: proto.String("object"), Name: proto.String(n)}
+func object(n string) *ngfwv1.AddressMatch {
+	return &ngfwv1.AddressMatch{Kind: proto.String("object"), Name: proto.String(n)}
 }
 
 // Attachments: a zone expands to its interfaces; per interface and direction the lists are ordered by
@@ -76,18 +76,18 @@ func object(n string) *vrxv1.AddressMatch {
 // attachments are skipped; MACIP attachments bind one list per interface.
 func TestACLBindingsOrderAndZones(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	ds := &vrxv1.DesiredState{
-		Objects: &vrxv1.ObjectsConfig{Zones: map[string]*vrxv1.Zone{"lan": {Interfaces: []string{"loop3001", "loop3002"}}}},
-		Acl: &vrxv1.AclConfig{
-			Lists: map[string]*vrxv1.AclList{"a": {}, "b": {}, "c": {}},
-			Macip: map[string]*vrxv1.MacipList{"m": {Rules: []*vrxv1.MacipRule{{Sequence: proto.Uint32(1), Action: proto.String("deny"), SourceMac: proto.String("02-00-00-AA-BB-CC"), SourcePrefix: proto.String("10.3.1.7/24")}}}},
-			Attachments: []*vrxv1.AclAttachment{
-				{List: proto.String("b"), Target: &vrxv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop3001")}, Direction: proto.String("in"), Sequence: proto.Uint32(20)},
-				{List: proto.String("a"), Target: &vrxv1.AttachmentTarget{Kind: proto.String("zone"), Zone: proto.String("lan")}, Direction: proto.String("in"), Sequence: proto.Uint32(10)},
-				{List: proto.String("c"), Target: &vrxv1.AttachmentTarget{Kind: proto.String("zone"), Zone: proto.String("lan")}, Direction: proto.String("out"), Sequence: proto.Uint32(5)},
-				{List: proto.String("c"), Target: &vrxv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop3001")}, Direction: proto.String("in"), Sequence: proto.Uint32(1), Enabled: proto.Bool(false)},
+	ds := &ngfwv1.DesiredState{
+		Objects: &ngfwv1.ObjectsConfig{Zones: map[string]*ngfwv1.Zone{"lan": {Interfaces: []string{"loop3001", "loop3002"}}}},
+		Acl: &ngfwv1.AclConfig{
+			Lists: map[string]*ngfwv1.AclList{"a": {}, "b": {}, "c": {}},
+			Macip: map[string]*ngfwv1.MacipList{"m": {Rules: []*ngfwv1.MacipRule{{Sequence: proto.Uint32(1), Action: proto.String("deny"), SourceMac: proto.String("02-00-00-AA-BB-CC"), SourcePrefix: proto.String("10.3.1.7/24")}}}},
+			Attachments: []*ngfwv1.AclAttachment{
+				{List: proto.String("b"), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop3001")}, Direction: proto.String("in"), Sequence: proto.Uint32(20)},
+				{List: proto.String("a"), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("zone"), Zone: proto.String("lan")}, Direction: proto.String("in"), Sequence: proto.Uint32(10)},
+				{List: proto.String("c"), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("zone"), Zone: proto.String("lan")}, Direction: proto.String("out"), Sequence: proto.Uint32(5)},
+				{List: proto.String("c"), Target: &ngfwv1.AttachmentTarget{Kind: proto.String("interface"), Interface: proto.String("loop3001")}, Direction: proto.String("in"), Sequence: proto.Uint32(1), Enabled: proto.Bool(false)},
 			},
-			MacipAttachments: []*vrxv1.MacipAttachment{{List: proto.String("m"), Interface: proto.String("loop3002")}},
+			MacipAttachments: []*ngfwv1.MacipAttachment{{List: proto.String("m"), Interface: proto.String("loop3002")}},
 		},
 	}
 	s := newRecSink()
@@ -143,7 +143,7 @@ func TestACLNameTooLongForTag(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
 	name := strings.Repeat("n", 61)
 	s := newRecSink()
-	ACL(s, &vrxv1.DesiredState{Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{name: {}}}}, map[string]bool{"acl": true})
+	ACL(s, &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{name: {}}}}, map[string]bool{"acl": true})
 	if len(s.issues) != 1 || !strings.Contains(s.issues[0], "acl.name") {
 		t.Fatalf("issues %v", s.issues)
 	}
@@ -153,15 +153,15 @@ func TestACLNameTooLongForTag(t *testing.T) {
 // projection of a 100 000-rule list is fast (the time is logged for the task's evidence).
 func TestACLListLimitAndProjectionTime(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	build := func(n int) *vrxv1.DesiredState {
-		l := &vrxv1.AclList{}
+	build := func(n int) *ngfwv1.DesiredState {
+		l := &ngfwv1.AclList{}
 		for i := range uint32(n) { //nolint:gosec // n ≤ 100 000
-			l.Rules = append(l.Rules, rule(i+1, "permit", func(r *vrxv1.AclRule) {
+			l.Rules = append(l.Rules, rule(i+1, "permit", func(r *ngfwv1.AclRule) {
 				r.Source = prefix(fmt.Sprintf("10.%d.%d.0/24", i/256%256, i%256))
 				r.Destination = prefix(fmt.Sprintf("172.%d.%d.%d/32", 16+i/65536, i/256%256, i%256))
 			}))
 		}
-		return &vrxv1.DesiredState{Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{"big": l}}}
+		return &ngfwv1.DesiredState{Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"big": l}}}
 	}
 	ds := build(100_000)
 	start := time.Now()
@@ -177,7 +177,7 @@ func TestACLListLimitAndProjectionTime(t *testing.T) {
 	}
 	t.Logf("projection of a 100 000-rule list (100 000 VPP rules): %v", took)
 
-	ds.Acl.Lists["big"].Rules = append(ds.Acl.Lists["big"].Rules, rule(200_000, "deny", func(r *vrxv1.AclRule) { r.IpVersion = proto.String("ipv4") }))
+	ds.Acl.Lists["big"].Rules = append(ds.Acl.Lists["big"].Rules, rule(200_000, "deny", func(r *ngfwv1.AclRule) { r.IpVersion = proto.String("ipv4") }))
 	s = newRecSink()
 	ACL(s, ds, map[string]bool{"acl": true})
 	if len(s.kvs) != 0 || len(s.issues) != 1 || !strings.Contains(s.issues[0], "E /acl/lists/big acl.list-limit") {
@@ -188,15 +188,15 @@ func TestACLListLimitAndProjectionTime(t *testing.T) {
 // An FQDN object without addresses renders nothing (status EMPTY) and warns; ipVersion pins the family.
 func TestACLFQDNUnresolvedAndFamilies(t *testing.T) {
 	withEnv(t, ACLEnv{Owner: "w3"})
-	ds := &vrxv1.DesiredState{
-		Objects: &vrxv1.ObjectsConfig{Addresses: map[string]*vrxv1.AddressObject{
+	ds := &ngfwv1.DesiredState{
+		Objects: &ngfwv1.ObjectsConfig{Addresses: map[string]*ngfwv1.AddressObject{
 			"cdn":   {Type: proto.String("fqdn"), Fqdn: proto.String("cdn.w3.test")},
 			"dual":  {Type: proto.String("host"), Address: proto.String("192.0.2.1")},
 			"dual6": {Type: proto.String("host"), Address: proto.String("2001:db8::1")},
-		}, AddressGroups: map[string]*vrxv1.AddressGroup{"both": {Members: []string{"dual", "dual6"}}}},
-		Acl: &vrxv1.AclConfig{Lists: map[string]*vrxv1.AclList{"l": {Rules: []*vrxv1.AclRule{
-			rule(1, "permit", func(r *vrxv1.AclRule) { r.Destination = object("cdn") }),
-			rule(2, "permit", func(r *vrxv1.AclRule) { r.Destination = object("both"); r.IpVersion = proto.String("ipv6") }),
+		}, AddressGroups: map[string]*ngfwv1.AddressGroup{"both": {Members: []string{"dual", "dual6"}}}},
+		Acl: &ngfwv1.AclConfig{Lists: map[string]*ngfwv1.AclList{"l": {Rules: []*ngfwv1.AclRule{
+			rule(1, "permit", func(r *ngfwv1.AclRule) { r.Destination = object("cdn") }),
+			rule(2, "permit", func(r *ngfwv1.AclRule) { r.Destination = object("both"); r.IpVersion = proto.String("ipv6") }),
 		}}}},
 	}
 	rec := aclstate.NewRecord(0)
@@ -211,7 +211,7 @@ func TestACLFQDNUnresolvedAndFamilies(t *testing.T) {
 		t.Fatalf("rules %+v", a.Rules)
 	}
 	exp, ok := rec.ACL("l", aclstate.Fingerprint(a.Rules), aclstate.ConfigHash(ds.Acl.Lists["l"]))
-	if !ok || exp.Rules[0].Status != vrxv1.AclRuleStatus_ACL_RULE_STATUS_EMPTY || strings.Join(exp.Rules[0].FQDN, ",") != "cdn" || exp.Rules[1].Count != 1 {
+	if !ok || exp.Rules[0].Status != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_EMPTY || strings.Join(exp.Rules[0].FQDN, ",") != "cdn" || exp.Rules[1].Count != 1 {
 		t.Fatalf("record %+v", exp)
 	}
 }

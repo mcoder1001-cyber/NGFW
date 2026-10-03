@@ -8,8 +8,8 @@ VPP `NRestarts=2` before and after every host run (no VPP restart, D-012/D-064).
 | check | result |
 |---|---|
 | `tools/ci.sh --base main` (my run, log `/root/ngfw-wt/logs/ci/P05-20260924-010303-1118937`) | **CI GATE PASSED**, wall time 1m03s. Matches the pasted gate in P05.md |
-| `VRX_INTEGRATION=1 go test -run OnHost ./internal/agent/ ./internal/descriptors/core/` (slot 7, `flock -s` lab lock) | PASS: `TestAgentOnHost` 4.80s (restart after loss converged in 209ms), `TestAgentProcessOnHost` 6.43s (kill -9 by PID, converged in 1.0s), `TestCoreOnHost` 0.13s |
-| my own restart simulation with the real binary (owner `w7`, own state dir, own socket `/run/vrx-test/w7/rv.sock`) | apply 10 objects → re-apply `unchanged:10` → `kill -9 <pid>` → loopbacks + tables deleted via the binary API (vpp_papi) → restart → `created:7 updated:2 unchanged:1` and `vppctl show interface address` / `show ip fib table 7001` back, `locks:[interface:2, API:1, …]` → `kill -9` of the converged agent → restart → `unchanged:10`, same sw_if_index |
+| `NGFW_INTEGRATION=1 go test -run OnHost ./internal/agent/ ./internal/descriptors/core/` (slot 7, `flock -s` lab lock) | PASS: `TestAgentOnHost` 4.80s (restart after loss converged in 209ms), `TestAgentProcessOnHost` 6.43s (kill -9 by PID, converged in 1.0s), `TestCoreOnHost` 0.13s |
+| my own restart simulation with the real binary (owner `w7`, own state dir, own socket `/run/ngfw-test/w7/rv.sock`) | apply 10 objects → re-apply `unchanged:10` → `kill -9 <pid>` → loopbacks + tables deleted via the binary API (vpp_papi) → restart → `created:7 updated:2 unchanged:1` and `vppctl show interface address` / `show ip fib table 7001` back, `locks:[interface:2, API:1, …]` → `kill -9` of the converged agent → restart → `unchanged:10`, same sw_if_index |
 | confirm timer | `-confirm 4`, never confirmed → reverted at the deadline (`deleted:3`). Across restart: `-confirm 4`, `kill -9` right away, restart 6 s later → one resync, then **one** revert (no double revert, no lost revert) |
 | contract guard (`packages/schema`, `packages/proto`, `apps/agent/gen`, api-client) | no changes |
 | P05a frozen files (`scheduler/descriptor.go`, `vpp/client.go`, `vpp/fake`, `renderers/renderer.go`, the READMEs) | not modified; only the new `descriptors/core/README.md` was added |
@@ -144,7 +144,7 @@ APPLIED and DryRun does not warn. That is contract-compatible (Health lists the 
 `Health.subsystems`, or DryRun should emit an `agent.unimplemented-domain` WARNING. Recommend the warning.
 
 ### L4 — Scope creep (minor, acceptable)
-`cmd/vrx-agentctl` (D-P05-16) was not requested. It is a small dev client used for the evidence and is fine to keep;
+`cmd/ngfw-agentctl` (D-P05-16) was not requested. It is a small dev client used for the evidence and is fine to keep;
 P13 remains the product CLI. `interface-ip.table` (D-P05-12) is justified by the task text ("loopbacks with IPs in your
 VRF range").
 

@@ -90,4 +90,4 @@ P08 registers DF-1's `interface/<name>` alias and passes `IfRef: AliasInterfaceR
 Limitations: VRF and route descriptions are not VPP state; the agent service returns them from its stored desired state
 (D-073b). Routes in the shared table 0 are attributed by the owner table only.
 
-Tests: `core_test.go` (unit, `coretest` fake VPP model) and `core_integration_test.go` (host VPP, `VRX_INTEGRATION=1`).
+Tests: `core_test.go` (unit, `coretest` fake VPP model) and `core_integration_test.go` (host VPP, `NGFW_INTEGRATION=1`).

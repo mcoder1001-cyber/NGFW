@@ -20,7 +20,7 @@ D9.5 (cluster view in UI, T2).
   VPP-engine host steps are opt-in and run alone in a manager window (D-087, D-090).
 - keepalived renderer (RF-4, merged: `apps/agent/internal/renderers/keepalived/{renderer,model}.go`, its README, `docs/agent/renderers/keepalived.md`):
   renders only `engine: keepalived` instances; its `InterfaceMapper` defaults to `NoMapper` (rejects every instance) — **you pass the linux-cp
-  mapping** from P12's LCP pairs (`apps/agent/internal/lcpmap`, merged); `vrx-keepalived-notify` state files; reload via SIGHUP. Without LCP
+  mapping** from P12's LCP pairs (`apps/agent/internal/lcpmap`, merged); `ngfw-keepalived-notify` state files; reload via SIGHUP. Without LCP
   pairs the keepalived path is skip-with-reason.
 - `apps/api` (P06): commit engine, revisions (`config_revision.kind` is a text column), secrets store, the `commit.events` bus topic — config
   sync is API-to-API, never agent-to-agent. **P08 (merged)** patterns: builders in `apps/agent/internal/desired/`, registration + `Domains`
@@ -49,7 +49,7 @@ Files you own (the envelope's list wins): `apps/agent/internal/descriptors/vrrp/
       (node A priority 200, node B priority 100 — both inside your slot, fixture per the envelope) on rig interfaces; `ns-<p>-lan`
       pings the virtual address continuously; stop A's VR (or down its interface) → B becomes master (event pasted) and pings resume within 3 s; A back → preempts
 - [ ] `vppctl show vrrp vr` reflects the committed config; rollback removes the VRs (Retrieve)
-- [ ] Config sync: commit on node A (your slot's API) → node B (a second API+agent inside your slot: port +50, DB `vrx_w<slot>b`, prefix `w<slot>b` — envelope) shows the same revision minus excluded pointers within 10 s
+- [ ] Config sync: commit on node A (your slot's API) → node B (a second API+agent inside your slot: port +50, DB `ngfw_w<slot>b`, prefix `w<slot>b` — envelope) shows the same revision minus excluded pointers within 10 s
 - [ ] Agent-restart simulation → VRs recreated and started within 30 s (log excerpt)
 - [ ] Duplicate (interface, family, vrId) → 400 problem+json with `pointer`
 - [ ] `tools/ci.sh --base main` green in your worktree

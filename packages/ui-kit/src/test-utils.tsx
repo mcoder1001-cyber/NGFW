@@ -4,7 +4,7 @@ import i18next, { type i18n as I18n } from 'i18next';
 import type { ReactElement, ReactNode } from 'react';
 import { I18nextProvider, initReactI18next } from 'react-i18next';
 import { directionFor, UI_KIT_NS, uiKitResources } from './i18n/index.js';
-import { VrxThemeProvider } from './theme/VrxThemeProvider.js';
+import { NgfwThemeProvider } from './theme/NgfwThemeProvider.js';
 
 export function createTestI18n(lang: 'en' | 'fa' = 'en'): I18n {
   const inst = i18next.createInstance();
@@ -29,9 +29,9 @@ export function Providers({ children, lang = 'en', mode = 'light' }: ProviderOpt
   return (
     <I18nextProvider i18n={i18n}>
       <QueryClientProvider client={client}>
-        <VrxThemeProvider mode={mode} lang={lang} dir={directionFor(lang)}>
+        <NgfwThemeProvider mode={mode} lang={lang} dir={directionFor(lang)}>
           {children}
-        </VrxThemeProvider>
+        </NgfwThemeProvider>
       </QueryClientProvider>
     </I18nextProvider>
   );

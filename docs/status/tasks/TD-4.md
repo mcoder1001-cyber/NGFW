@@ -27,7 +27,7 @@ worker. Everything below was re-run after the stop.
 - `test/topology/sdk-terraform-ansible/live.sh` — one line (`"current"`)
 - `docs/user/system/sdk-terraform-ansible.md` — the key-creation example
 - generated, never hand-edited: `packages/api-client/src/generated/schema.d.ts` (`contract(api-client)` commit `37b48e9` + `TD-4-contract.md`),
-  `apps/cli/internal/api/operations_gen.go`, `sdk/python/vrx/_generated/*` (TD-4's `current` plus TD-2's un-regenerated drift, see questions 6)
+  `apps/cli/internal/api/operations_gen.go`, `sdk/python/ngfw/_generated/*` (TD-4's `current` plus TD-2's un-regenerated drift, see questions 6)
 
 ## Out of scope (not built)
 - The product nginx rule "`/api` is never proxied from plain :80" (D-100 (1)) belongs to **P10**: `transport.ts` states the assumption, nothing
@@ -68,7 +68,7 @@ H2: 60 runs, 120 hammered chains + 48 racing logins that got in → survivors 0
  ✓ test/e2e/stream.e2e.test.ts (3 tests) 12697ms
  ✓ test/e2e/auth.e2e.test.ts (10 tests) 65030ms
 (1) after 5 remote plain-HTTP logins: failed_logins 1, locked_until null
-(2) wrong current ×3: [{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://vrx.dev/problems/locked","failed":0,"locked":true}]
+(2) wrong current ×3: [{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/locked","failed":0,"locked":true}]
 (2) key creation racing a generation change: 401
 (3) after the disable commit: {"me":401,"refresh":401,"apiKey":401,"ws":4403,"genBump":1,"keyRows":1,"login":401}
 (3) after the re-enable commit: {"genBump":1,"login":200,"oldToken":401,"apiKey":200,"auditRows":1}
@@ -78,8 +78,8 @@ secrets: 17 passwords checked against {"audit":54,"events":6} rows and 1 API log
  ↓ test/integration/agent.int.test.ts (3 tests | 3 skipped)
  Test Files  7 passed | 1 skipped (8)
       Tests  71 passed | 3 skipped (74)
-e2e teardown: deleted 1286 Valkey keys vrx:w8:e2e:* in db 8
-ok     nothing named vrx_w8 / vrx_w8 remains
+e2e teardown: deleted 1286 Valkey keys ngfw:w8:e2e:* in db 8
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 ```
 TD-2's 61 tests + TD-4's 10 pass; the 3 agent-int tests skip. TD-2's V1 race is still `0 working keys, 0 rows`.
 
@@ -98,7 +98,7 @@ What the 10 TD-4 tests assert (`apps/api/test/e2e/td4-auth-hardening.e2e.test.ts
   commit → one bump, rows `config.password-reset` (D-102, unchanged) + `config.user-disabled`, a new user created disabled → gen 0.
 
 (An earlier run at 16:59 was stopped by me: the host load was 147 on 32 cores and td2-verify/td2-review failed on **timeouts only**; its DB and
-739 Valkey keys were removed by hand — `pg-test.sh drop w8`, `unlink` by `vrx:w8:e2e:*`.)
+739 Valkey keys were removed by hand — `pg-test.sh drop w8`, `unlink` by `ngfw:w8:e2e:*`.)
 
 ### Negative control for (3) — TD-2's `syncUsers` patched back, restored with `git checkout`
 ```
@@ -107,10 +107,10 @@ $ git show ff9811f:apps/api/src/datastore/pg-repo.ts > apps/api/src/datastore/pg
  1 file changed, 19 insertions(+), 41 deletions(-)
 $ tools/lab lock shared pnpm --filter @ngfw/api exec vitest run -c vitest.e2e.config.ts test/e2e/td4-auth-hardening.e2e.test.ts -t 'commit disabled'
  RUN  v3.2.7 /root/ngfw-wt/TD-4/apps/api
-create role vrx_w8
-create database vrx_w8 (owner vrx_w8)
-check  vrx_w8 as vrx_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-ok     env /run/vrx-test/w8/pg.env (0600) · DSN <redacted>
+create role ngfw_w8
+create database ngfw_w8 (owner ngfw_w8)
+check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w8/pg.env (0600) · DSN <redacted>
 (3) after the disable commit: {"me":200,"refresh":401,"apiKey":401,"ws":4403,"genBump":0,"keyRows":1,"login":401}
  ❯ test/e2e/td4-auth-hardening.e2e.test.ts (10 tests | 1 failed | 9 skipped) 26132ms
    × TD-4 auth hardening e2e (D-100) > (3) disabling an account through the config API ends its sessions at once > commit disabled: true → access token, refresh, WebSocket and API key end now; one audit row; re-enable → login 200, the old token stays dead, the key works again 823ms
@@ -135,10 +135,10 @@ AssertionError: expected { me: 200, refresh: 401, …(5) } to deeply equal { me:
       Tests  1 failed | 9 skipped (10)
    Start at  17:22:16
    Duration  74.03s (transform 39.12s, setup 0ms, collect 45.03s, tests 26.13s, environment 4ms, prepare 276ms)
-e2e teardown: deleted 7 Valkey keys vrx:w8:e2e:* in db 8
-drop   database vrx_w8
-drop   role vrx_w8
-ok     nothing named vrx_w8 / vrx_w8 remains
+e2e teardown: deleted 7 Valkey keys ngfw:w8:e2e:* in db 8
+drop   database ngfw_w8
+drop   role ngfw_w8
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
   × "pnpm recursive exec" failed in /root/ngfw-wt/TD-4/apps/api
 exit=1
@@ -154,7 +154,7 @@ $ tools/lab lock shared pnpm --filter @ngfw/api exec vitest run -c vitest.e2e.co
  ✓ test/e2e/td4-auth-hardening.e2e.test.ts (10 tests) 6108ms
  Test Files  1 passed (1)
       Tests  10 passed (10)
-ok     nothing named vrx_w8 / vrx_w8 remains
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 ```
 
 ### Generated outputs
@@ -172,17 +172,17 @@ $ git status --porcelain packages/api-client/src/generated packages/api-client/o
 (end porcelain)
 $ make -C apps/cli gen docs lint test
 make: Entering directory '/root/ngfw-wt/TD-4/apps/cli'
-go run ./cmd/vrx-opgen -in ../../packages/api-client/openapi.json -out internal/api/operations_gen.go
-vrx-opgen: internal/api/operations_gen.go written
-go run ./cmd/vrx-docgen -out ../../docs/user/cli/reference.md
-vrx-docgen: ../../docs/user/cli/reference.md written
+go run ./cmd/ngfw-opgen -in ../../packages/api-client/openapi.json -out internal/api/operations_gen.go
+ngfw-opgen: internal/api/operations_gen.go written
+go run ./cmd/ngfw-docgen -out ../../docs/user/cli/reference.md
+ngfw-docgen: ../../docs/user/cli/reference.md written
 ok: apps/cli talks only to the REST API
 go vet ./...
 0 issues.
 go test -race -count=1 ./...
-?   	ngfw/cli/cmd/vrx	[no test files]
-?   	ngfw/cli/cmd/vrx-docgen	[no test files]
-?   	ngfw/cli/cmd/vrx-opgen	[no test files]
+?   	ngfw/cli/cmd/ngfw	[no test files]
+?   	ngfw/cli/cmd/ngfw-docgen	[no test files]
+?   	ngfw/cli/cmd/ngfw-opgen	[no test files]
 ok  	ngfw/cli/internal/api	1.814s
 ?   	ngfw/cli/internal/api/opgen	[no test files]
 ok  	ngfw/cli/internal/cli	4.730s
@@ -197,9 +197,9 @@ make exit=0
 $ git status --porcelain apps/cli docs/user/cli
 (end porcelain)
 $ sdk/gen.sh --check --openapi packages/api-client/openapi.json
-python sdk: 43 operations, 357 models, 1 write-only + 22 secret-ref pointer patterns → /root/ngfw-wt/TD-4/sdk/python/vrx/_generated
-terraform: vrx_interface 6 JSON names, 1 helpers; 1 write-only + 22 secret-ref pointer patterns, 4 keyed arrays → internal/provider
-gen: clean — sdk/python/vrx/_generated sdk/terraform/internal/provider/zz_*_gen.go
+python sdk: 43 operations, 357 models, 1 write-only + 22 secret-ref pointer patterns → /root/ngfw-wt/TD-4/sdk/python/ngfw/_generated
+terraform: ngfw_interface 6 JSON names, 1 helpers; 1 write-only + 22 secret-ref pointer patterns, 4 keyed arrays → internal/provider
+gen: clean — sdk/python/ngfw/_generated sdk/terraform/internal/provider/zz_*_gen.go
 sdk exit=0
 $ git status --porcelain
 (end)
@@ -210,15 +210,15 @@ $ git status --porcelain
 $ systemctl show vpp -p NRestarts
 NRestarts=0
 $ deploy/dev/pg-test.sh create w8
-create role vrx_w8
-create database vrx_w8 (owner vrx_w8)
-check  vrx_w8 as vrx_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-ok     env /run/vrx-test/w8/pg.env (0600) · DSN <redacted>
+create role ngfw_w8
+create database ngfw_w8 (owner ngfw_w8)
+check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w8/pg.env (0600) · DSN <redacted>
 $ tools/lab lock shared bash -c 'apps/cli/test/devstack.sh start && make -C apps/cli e2e; apps/cli/test/devstack.sh stop'
-agent  pid 1385189 owner w8 socket /run/vrx-test/w8/agent.sock
-api    pid 1385208 http://127.0.0.1:3800 (admin password in /run/vrx-test/w8/admin.pw)
+agent  pid 1385189 owner w8 socket /run/ngfw-test/w8/agent.sock
+api    pid 1385208 http://127.0.0.1:3800 (admin password in /run/ngfw-test/w8/admin.pw)
 make: Entering directory '/root/ngfw-wt/TD-4/apps/cli'
-VRX_INTEGRATION=1 go test -count=1 -v ./test/e2e/
+NGFW_INTEGRATION=1 go test -count=1 -v ./test/e2e/
 === RUN   TestREPLConfirmedCommitAutoRevertAndRBAC
 --- PASS: TestREPLConfirmedCommitAutoRevertAndRBAC (13.44s)
 === RUN   TestReviewFixesOnTheRealStack
@@ -232,12 +232,12 @@ make: *** [Makefile:38: e2e] Error 1
 make: Leaving directory '/root/ngfw-wt/TD-4/apps/cli'
 api stopped (pid 1385208)
 agent stopped (pid 1385189)
-removed slot secrets and logs from /run/vrx-test/w8 (use stop --keep to keep them)
+removed slot secrets and logs from /run/ngfw-test/w8 (use stop --keep to keep them)
 exit=2
 $ deploy/dev/pg-test.sh drop w8
-drop   database vrx_w8
-drop   role vrx_w8
-ok     nothing named vrx_w8 / vrx_w8 remains
+drop   database ngfw_w8
+drop   role ngfw_w8
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 $ systemctl show vpp -p NRestarts
 NRestarts=0
 $ vppctl show interface | grep loop8 (after)
@@ -292,23 +292,23 @@ Thu Sep 24 05:42:33 PM +0330 2026
 
 ### Cleanup
 ```
-$ ps -eo pid,args | grep -E "TD-4|/run/vrx-test/w8|:3800" (my processes)
+$ ps -eo pid,args | grep -E "TD-4|/run/ngfw-test/w8|:3800" (my processes)
 (none)
 $ ss -ltn | grep -E ":(3800|5800|9181)\b"
 (none)
 $ deploy/dev/pg-test.sh list
-(no vrx_w8)
-$ valkey-cli -n 8 --scan --pattern 'vrx:w8:*' | wc -l
+(no ngfw_w8)
+$ valkey-cli -n 8 --scan --pattern 'ngfw:w8:*' | wc -l
 9
-$ ls /run/vrx-test/w8
-ls: cannot access '/run/vrx-test/w8': No such file or directory
+$ ls /run/ngfw-test/w8
+ls: cannot access '/run/ngfw-test/w8': No such file or directory
 $ systemctl show vpp -p NRestarts
 NRestarts=0
 $ vppctl show interface | grep -c "^ *loop8"
 0
-$ valkey-cli -n 8 --scan --pattern 'vrx:w8:cli:*' | xargs -r valkey-cli -n 8 unlink   # refresh keys the two devstack runs left
+$ valkey-cli -n 8 --scan --pattern 'ngfw:w8:cli:*' | xargs -r valkey-cli -n 8 unlink   # refresh keys the two devstack runs left
 9
-$ valkey-cli -n 8 --scan --pattern 'vrx:w8:*' | wc -l
+$ valkey-cli -n 8 --scan --pattern 'ngfw:w8:*' | wc -l
 0
 ```
 The git-ignored build outputs were deleted: `apps/{api,web}/dist`, `packages/{api-client,proto,schema,ui-kit}/dist`, `apps/agent/bin`, `apps/cli/bin`.
@@ -320,7 +320,7 @@ main merged first (`7adbb9a`, clean: TD-6, board/LOG, D-120..D-123). Then:
 
 | finding | fix | where |
 |---|---|---|
-| **H1** step-up: no throttle before argon2, parallel guesses out-run the lockout, two `locked` texts act as an oracle | (a) In `createApiKey`, after the transport rule and the 400s and **before** `checkCurrent`/argon2: `tokens.hit('pwset:<user id>', 60) > VRX_PASSWORD_RATE_PER_MIN` → **429 `rate-limited`** (Valkey INCR, so it holds for parallel requests; keyed by the account id, not by key or session). The budget is the one `setPassword` already spends per caller (`pwset:<caller id>`): one per-account bound for both routes that check a current password, so a stolen JWT cannot double its guesses by alternating routes (D-TD4-8). No new env var. (b) `accountLocked()` has ONE body; the lock that a wrong guess causes now answers exactly like a guess refused while locked and like the transaction re-check. (c) e2e `td4-stepup-burst.e2e.test.ts` (new, own harness: `VRX_PASSWORD_RATE_PER_MIN=5`, `VRX_LOGIN_MAX_FAILURES=3`): 30 parallel step-ups from one JWT, right guess at #20; every argon2 verification is counted through a pass-through `vi.mock` wrapper of `verifyPassword`; the budget is `5 × minute windows touched` (a burst across a minute boundary gets two). Asserts: checks ≤ budget, the rest 429, one body for every `locked`, an `api_key` row only if the right guess got 201, only known answers, the audit reasons match the answers, no guess in `audit_log`. | `auth.service.ts` (`createApiKey`, `checkCurrent`, `accountLocked`), `test/e2e/td4-stepup-burst.e2e.test.ts` |
+| **H1** step-up: no throttle before argon2, parallel guesses out-run the lockout, two `locked` texts act as an oracle | (a) In `createApiKey`, after the transport rule and the 400s and **before** `checkCurrent`/argon2: `tokens.hit('pwset:<user id>', 60) > NGFW_PASSWORD_RATE_PER_MIN` → **429 `rate-limited`** (Valkey INCR, so it holds for parallel requests; keyed by the account id, not by key or session). The budget is the one `setPassword` already spends per caller (`pwset:<caller id>`): one per-account bound for both routes that check a current password, so a stolen JWT cannot double its guesses by alternating routes (D-TD4-8). No new env var. (b) `accountLocked()` has ONE body; the lock that a wrong guess causes now answers exactly like a guess refused while locked and like the transaction re-check. (c) e2e `td4-stepup-burst.e2e.test.ts` (new, own harness: `NGFW_PASSWORD_RATE_PER_MIN=5`, `NGFW_LOGIN_MAX_FAILURES=3`): 30 parallel step-ups from one JWT, right guess at #20; every argon2 verification is counted through a pass-through `vi.mock` wrapper of `verifyPassword`; the budget is `5 × minute windows touched` (a burst across a minute boundary gets two). Asserts: checks ≤ budget, the rest 429, one body for every `locked`, an `api_key` row only if the right guess got 201, only known answers, the audit reasons match the answers, no guess in `audit_log`. | `auth.service.ts` (`createApiKey`, `checkCurrent`, `accountLocked`), `test/e2e/td4-stepup-burst.e2e.test.ts` |
 | **M1** failed key creations audited without a reason | The controller wraps the service call; on a `ProblemError` it sets `req.audit.after = {name, via, reason: <problem slug>}` and rethrows (`bad-request`, `tls-required`, `forbidden`, `locked`, `rate-limited`, `unauthorized`, `current-not-allowed-with-api-key`). Slug only: no detail, no password. td4 (2) audit assertions extended (the four rows of the JWT case, the five of the lockout case, the three refused API-key rows). | `auth.controller.ts` (`createApiKey`), `td4-auth-hardening.e2e.test.ts` |
 | **L1 → D-124** (manager) | A `current` sent by an **API-key** caller → **400 `current-not-allowed-with-api-key`** (pointer `/current`), never checked: no argon2, no lockout count, no key. The transport rule still answers first (a password over remote plain HTTP → 403 `tls-required`). e2e: right and wrong `current` give byte-identical 400s, `failed_logins` stays 0, key rows unchanged. D-TD4-1 marked superseded. | `auth.service.ts`, `auth.controller.ts` (`current` description), `td4-auth-hardening.e2e.test.ts`, `docs/user/system/sdk-terraform-ansible.md` |
 
@@ -336,7 +336,7 @@ with an API key (TD-4 fix 1, D-124)` (+ `TD-4-contract.md` "Fix round 1") · `30
 ### H1 negative control — the burst e2e against the pre-fix code (`7adbb9a` = review tip `d30d503` + main; 18:35, load ≈ 13–22)
 ```
 $ eval "$(tools/lab env 8)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration test/e2e/td4-stepup-burst.e2e.test.ts
-H1 step-up burst (right guess at #20, MAX_FAILURES 3, VRX_PASSWORD_RATE_PER_MIN 5, 2 minute window(s)):
+H1 step-up burst (right guess at #20, MAX_FAILURES 3, NGFW_PASSWORD_RATE_PER_MIN 5, 2 minute window(s)):
   18× 403 locked | the current password is wrong; the account is now locked  ← #0,11,12,14,15,16,17,18,19,21,22,23,24,25,26,27,28,29
   10× 403 locked | the account is locked after too many failed password checks  ← #1,2,3,4,5,6,7,8,9,20
   2× 403 forbidden | the current password is wrong  ← #10,13
@@ -353,7 +353,7 @@ H1 summary: {"argon2Checks":21,"rateLimited":0,"lockedAnswers":28,"distinctLocke
 +   "restRateLimited": false,
  Test Files  1 failed (1)
       Tests  1 failed (1)
-ok     nothing named vrx_w8 / vrx_w8 remains
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 ```
 21 guesses checked by argon2 (7× the lockout of 3), no 429, the right guess (#20) inside the "locked" set of the other text: the
 review's reproduction, now as a committed test. The burst took 44 s (21 argon2 runs on a loaded host).
@@ -361,18 +361,18 @@ review's reproduction, now as a committed test. The burst took 44 s (21 argon2 r
 ### H1 after the fix — both td4 files (18:42)
 ```
 $ eval "$(tools/lab env 8)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration test/e2e/td4-stepup-burst.e2e.test.ts test/e2e/td4-auth-hardening.e2e.test.ts
-H1 step-up burst (right guess at #20, MAX_FAILURES 3, VRX_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
+H1 step-up burst (right guess at #20, MAX_FAILURES 3, NGFW_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
   2× 403 forbidden | the current password is wrong  ← #0,1
   3× 403 locked | the account is locked after too many failed password checks  ← #2,3,4
   25× 429 rate-limited | too many password checks; try again in a minute  ← #5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 H1 summary: {"argon2Checks":5,"rateLimited":25,"lockedAnswers":3,"distinctLockedBodies":1,"rightGuess":"429 rate-limited","keyRows":0} (budget 5)
  ✓ test/e2e/td4-stepup-burst.e2e.test.ts (1 test) 2456ms
-(2) wrong current ×3: [{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://vrx.dev/problems/locked","failed":0,"locked":true}]
+(2) wrong current ×3: [{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/locked","failed":0,"locked":true}]
 secrets: 17 passwords checked against {"audit":55,"events":6} rows and 1 API log lines → found in: []
  ✓ test/e2e/td4-auth-hardening.e2e.test.ts (10 tests) 23080ms
  Test Files  2 passed (2)
       Tests  11 passed (11)
-ok     nothing named vrx_w8 / vrx_w8 remains
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 ```
 5 argon2 checks (= the budget), 25× 429, one `locked` body; the right guess was throttled, so no key row. The burst takes 0.4 s instead of 44 s.
 
@@ -392,7 +392,7 @@ $ eval "$(tools/lab env 8)"; tools/lab lock shared pnpm --filter @ngfw/api test:
  19:16:16 up  9:28,  2 users,  load average: 27.57, 33.34, 36.05
 30454b9 docs(user): API-key creation — per-account check budget, `current` refused with an API key (TD-4 fix 1, D-124)
 (1) after 5 remote plain-HTTP logins: failed_logins 1, locked_until null
-(2) wrong current ×3: [{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://vrx.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://vrx.dev/problems/locked","failed":0,"locked":true}]
+(2) wrong current ×3: [{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":1,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/forbidden","failed":2,"locked":false},{"status":403,"type":"https://ngfw.dev/problems/locked","failed":0,"locked":true}]
 (2) key creation racing a generation change: 401
 (3) after the disable commit: {"me":401,"refresh":401,"apiKey":401,"ws":4403,"genBump":1,"keyRows":1,"login":401}
 (3) after the re-enable commit: {"genBump":1,"login":200,"oldToken":401,"apiKey":200,"auditRows":1}
@@ -406,18 +406,18 @@ V1: 40 admin resets, 4 minting loops each: minted 362 keys (362 by requests in f
  ✓ test/e2e/td2.e2e.test.ts (14 tests) 27090ms
  ✓ test/e2e/stream.e2e.test.ts (3 tests) 11639ms
  ✓ test/e2e/config.e2e.test.ts (15 tests) 12125ms
-H1 step-up burst (right guess at #20, MAX_FAILURES 3, VRX_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
+H1 step-up burst (right guess at #20, MAX_FAILURES 3, NGFW_PASSWORD_RATE_PER_MIN 5, 1 minute window(s)):
   2× 403 forbidden | the current password is wrong  ← #0,1
   3× 403 locked | the account is locked after too many failed password checks  ← #2,3,4
   25× 429 rate-limited | too many password checks; try again in a minute  ← #5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29
 H1 summary: {"argon2Checks":5,"rateLimited":25,"lockedAnswers":3,"distinctLockedBodies":1,"rightGuess":"429 rate-limited","keyRows":0} (budget 5)
  ✓ test/e2e/td4-stepup-burst.e2e.test.ts (1 test) 3222ms
-agent integration test skipped: VRX_INTEGRATION is not 1
+agent integration test skipped: NGFW_INTEGRATION is not 1
  ↓ test/integration/agent.int.test.ts (3 tests | 3 skipped)
  Test Files  8 passed | 1 skipped (9)
       Tests  72 passed | 3 skipped (75)
-e2e teardown: deleted 1327 Valkey keys vrx:w8:e2e:* in db 8
-ok     nothing named vrx_w8 / vrx_w8 remains
+e2e teardown: deleted 1327 Valkey keys ngfw:w8:e2e:* in db 8
+ok     nothing named ngfw_w8 / ngfw_w8 remains
 exit=0
 19:20:02
  19:20:02 up  9:32,  2 users,  load average: 23.09, 29.38, 34.04
@@ -432,8 +432,8 @@ $ git status --porcelain
  M packages/api-client/src/generated/schema.d.ts        → committed as 220bf32 contract(api-client) (+ TD-4-contract.md)
    (diff: the `current` description, and a new 429 response on Auth_createApiKey — additive)
 $ make -C apps/cli gen docs lint test
-vrx-opgen: internal/api/operations_gen.go written
-vrx-docgen: ../../docs/user/cli/reference.md written
+ngfw-opgen: internal/api/operations_gen.go written
+ngfw-docgen: ../../docs/user/cli/reference.md written
 ok: apps/cli talks only to the REST API
 0 issues.
 ok  	ngfw/cli/internal/api	2.531s
@@ -443,9 +443,9 @@ make exit=0
 $ git status --porcelain
 (empty: operations_gen.go and reference.md unchanged)
 $ sdk/gen.sh --check --openapi packages/api-client/openapi.json
-python sdk: 43 operations, 357 models, 1 write-only + 22 secret-ref pointer patterns → /root/ngfw-wt/TD-4/sdk/python/vrx/_generated
-terraform: vrx_interface 6 JSON names, 1 helpers; 1 write-only + 22 secret-ref pointer patterns, 4 keyed arrays → internal/provider
-gen: clean — sdk/python/vrx/_generated sdk/terraform/internal/provider/zz_*_gen.go
+python sdk: 43 operations, 357 models, 1 write-only + 22 secret-ref pointer patterns → /root/ngfw-wt/TD-4/sdk/python/ngfw/_generated
+terraform: ngfw_interface 6 JSON names, 1 helpers; 1 write-only + 22 secret-ref pointer patterns, 4 keyed arrays → internal/provider
+gen: clean — sdk/python/ngfw/_generated sdk/terraform/internal/provider/zz_*_gen.go
 sdk exit=0
 ```
 
@@ -504,19 +504,19 @@ Thu Sep 24 07:15:57 PM +0330 2026
 
 ### Cleanup (19:21)
 ```
-$ ps -eo pid,args | grep -E "ngfw-wt/TD-4|/run/vrx-test/w8|:3800" (my processes)
+$ ps -eo pid,args | grep -E "ngfw-wt/TD-4|/run/ngfw-test/w8|:3800" (my processes)
 (none)
 $ ss -ltn | grep -E ":(3800|5800|9181)\b"
 (none)
 $ deploy/dev/pg-test.sh list
-(no vrx_w8)
-$ valkey-cli -n 8 --scan --pattern 'vrx:w8:*' | wc -l
+(no ngfw_w8)
+$ valkey-cli -n 8 --scan --pattern 'ngfw:w8:*' | wc -l
 0
-$ ls /run/vrx-test/w8
-ls: cannot access '/run/vrx-test/w8': No such file or directory
+$ ls /run/ngfw-test/w8
+ls: cannot access '/run/ngfw-test/w8': No such file or directory
 $ systemctl show vpp -p NRestarts
 NRestarts=1
-$ flock -n -x /run/lock/vrx-lab.lock true  # nobody (me included) holds the lab lock
+$ flock -n -x /run/lock/ngfw-lab.lock true  # nobody (me included) holds the lab lock
 held by someone
 ```
 The lab lock is held by other slots' runs; no process of mine exists (the three vitest runs and two CI runs ended; nothing was left

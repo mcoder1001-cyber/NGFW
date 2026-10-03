@@ -1,6 +1,6 @@
 # TD-2 — P06 API follow-ups (password set, api-client types, /health schema, safe text, per-key candidates, redacted secret changes)
 
-Branch `task/TD-2` (worktree `/root/ngfw-wt/TD-2`, slot 7: `w7`, DB `vrx_w7`, Valkey db 7). Base `main@b36b91c`.
+Branch `task/TD-2` (worktree `/root/ngfw-wt/TD-2`, slot 7: `w7`, DB `ngfw_w7`, Valkey db 7). Base `main@b36b91c`.
 Sources: P07b questions #1–#3, P13 review H1, D-093; item 6 added by the manager mid-task (P07b review H1).
 Ran directly on the host; no servers were started (all API tests run in-process), and the lab lock was held shared only during test runs (D-094).
 
@@ -8,7 +8,7 @@ Ran directly on the host; no servers were started (all API tests run in-process)
 
 | # | item | where | notes |
 |---|---|---|---|
-| 1 | `POST /api/v1/users/{name}/password` `{password, current?}` → 204 | `src/users/users.{controller,service}.ts`, `auth/tokens.service.ts`, `infra/bus.ts`, `telemetry/relay.service.ts`, `commit/commit.service.ts` (`exclusive`) | admin: any user; everyone (readonly too): their own, with `current` (400 pointer `/current` when missing, 403 when wrong). A non-admin who names another user gets 403 **before** the user is looked up, so there is no enumeration. argon2id is computed server-side and written to **app_user only** (D-P06-3/D-091). Revisions stay redacted and no revision is written. A hash that the stored candidate or pending commit already carries for that user is replaced in the same DB transaction, serialised with commit/confirm/rollback, so a later commit cannot write the old hash back. **TLS only**: the request must come over a TLS socket or from a loopback peer (nginx terminates TLS locally); otherwise 403 `tls-required`. **Rate limit**: `VRX_PASSWORD_RATE_PER_MIN` (default 5) per caller; wrong `current` attempts count toward it. **Audit**: `resource user/<name>`, `after {passwordSet, self}`, never the value. **Other sessions end**: refresh families revoked, access tokens issued before the change are refused, WebSockets closed. The caller's own session survives when they change their own password. `POST /auth/password` now uses the same code. |
+| 1 | `POST /api/v1/users/{name}/password` `{password, current?}` → 204 | `src/users/users.{controller,service}.ts`, `auth/tokens.service.ts`, `infra/bus.ts`, `telemetry/relay.service.ts`, `commit/commit.service.ts` (`exclusive`) | admin: any user; everyone (readonly too): their own, with `current` (400 pointer `/current` when missing, 403 when wrong). A non-admin who names another user gets 403 **before** the user is looked up, so there is no enumeration. argon2id is computed server-side and written to **app_user only** (D-P06-3/D-091). Revisions stay redacted and no revision is written. A hash that the stored candidate or pending commit already carries for that user is replaced in the same DB transaction, serialised with commit/confirm/rollback, so a later commit cannot write the old hash back. **TLS only**: the request must come over a TLS socket or from a loopback peer (nginx terminates TLS locally); otherwise 403 `tls-required`. **Rate limit**: `NGFW_PASSWORD_RATE_PER_MIN` (default 5) per caller; wrong `current` attempts count toward it. **Audit**: `resource user/<name>`, `after {passwordSet, self}`, never the value. **Other sessions end**: refresh families revoked, access tokens issued before the change are refused, WebSockets closed. The caller's own session survives when they change their own password. `POST /auth/password` now uses the same code. |
 | 2 | api-client ships types | `packages/api-client/{package.json,scripts/copy-types.mjs,test/,turbo.json}` | `build` = `tsc` + copy `src/generated/schema.d.ts` → `dist/generated/`. `types`/`exports` already point at `dist/index.d.ts`, which now resolves. `test` type-checks `test/consumer.ts` against the **built** package through its `exports` (self-reference). The test asserts `paths` is not `any`, typed `/health` fields, a `@ts-expect-error` on an unknown route and on a wrong body, plus the new TD-2 fields. A package-level `turbo.json` makes `test` depend on the package's own `build`. |
 | 3 | `/health` response schema | `src/health/health.controller.ts` | `HealthOut` (Zod) is both the handler type and the OpenAPI 200 schema. The unit test checks the answer against the documented schema. |
 | 4 | control characters / bidi overrides → 400 problem+json with pointer | `src/common/text.ts`, `common/zod.ts` (`SafeParamPipe`), `config/path.ts`, `datastore/datastore.service.ts`, DTOs | Rejected: C0 except TAB, DEL, C1, U+202A–202E, U+2066–2069. Checked on the commit/rollback `comment`, API key `name`, login `username`, `vrf` query, path params (`users/{name}`, `secrets/{kind}/{name}`, `api-keys/{id}`, `actions/{action}`) and config URL path segments. Checked as a whole-document net on the candidate write path (every string value and every member name that the edit adds; LF is allowed there for banners), **before** the schema so no problem text quotes such a key raw. The rule is emitted as `pattern` in OpenAPI. Passwords and secret values are exempt. |
@@ -48,7 +48,7 @@ ok: gitleaks — scanned ~107715 bytes (107.71 KB) in 927ms no leaks found
 Tasks:    30 successful, 30 total Cached:    12 cached, 30 total Time:    2m7.599s  
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	1.523s; ok  	ngfw/agent/internal/agent	9.303s; ok  	ngfw/agent/internal/contracttest	2.177s; …
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.523s; ok  	ngfw/agent/internal/agent	9.303s; ok  	ngfw/agent/internal/contracttest	2.177s; …
 
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.016s; 
@@ -94,21 +94,21 @@ test/consumer.ts(34,3): error TS2578: Unused '@ts-expect-error' directive.
 
 ### e2e on the host PostgreSQL 18.6 + Valkey (fake agent): `eval "$(tools/lab env 7)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration`
 ```
-create role vrx_w7
-create database vrx_w7 (owner vrx_w7)
-check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+create role ngfw_w7
+create database ngfw_w7 (owner ngfw_w7)
+check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
  ✓ test/e2e/config.e2e.test.ts (15 tests)
  ✓ test/e2e/stream.e2e.test.ts (3 tests)
  ✓ test/e2e/td2.e2e.test.ts (13 tests)
  ✓ test/e2e/auth.e2e.test.ts (10 tests)
-agent integration test skipped: VRX_INTEGRATION is not 1
+agent integration test skipped: NGFW_INTEGRATION is not 1
  ↓ test/integration/agent.int.test.ts (3 tests | 3 skipped)
  Test Files  4 passed | 1 skipped (5)
       Tests  41 passed | 3 skipped (44)
-e2e teardown: deleted 77 Valkey keys vrx:w7:e2e:* in db 7
-drop   database vrx_w7
-drop   role vrx_w7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 77 Valkey keys ngfw:w7:e2e:* in db 7
+drop   database ngfw_w7
+drop   role ngfw_w7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 The TD-2 file, verbose (`vitest run -c vitest.e2e.config.ts --reporter=verbose test/e2e/td2.e2e.test.ts`):
 ```
@@ -127,8 +127,8 @@ The TD-2 file, verbose (`vitest run -c vitest.e2e.config.ts --reporter=verbose t
  ✓ … #6 secret leaves are visible as redacted changes (P07b review H1) > hash-only edit → one redacted diff entry → commit → revision diff shows it redacted; the value never leaves
  Test Files  1 passed (1)
       Tests  13 passed (13)
-e2e teardown: deleted 34 Valkey keys vrx:w7:e2e:* in db 7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 34 Valkey keys ngfw:w7:e2e:* in db 7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 What the key e2e tests assert:
 - **#1**: no plaintext in `audit_log`/`config_revision`/`system_event`; no `argon2id` in revisions; the revision count is unchanged; the audit row is exactly `{resource: user/op1, after: {passwordSet: true, self: false}}`.
@@ -140,7 +140,7 @@ The P06 e2e expectations changed on purpose (these are the only changes to exist
 - The self-service test now uses a second login as "the other session", because the caller's own session survives (#1).
 
 ### Cleanup
-`vrx_w7` dropped (`ok nothing named vrx_w7 / vrx_w7 remains`). `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0`. The API keys were created only inside the e2e databases, and the tests delete them (dropped with the DB anyway). No processes were started: the API runs in-process in vitest, the agent is the in-process fake, and nothing listens on 3700/5700/9171. `/run/vrx-test/w7` still holds files from an earlier slot-7 user, timestamped 00:50–01:47, before this task. Its `agent.pid` points to no live process. I did not delete them because they are not mine.
+`ngfw_w7` dropped (`ok nothing named ngfw_w7 / ngfw_w7 remains`). `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0`. The API keys were created only inside the e2e databases, and the tests delete them (dropped with the DB anyway). No processes were started: the API runs in-process in vitest, the agent is the in-process fake, and nothing listens on 3700/5700/9171. `/run/ngfw-test/w7` still holds files from an earlier slot-7 user, timestamped 00:50–01:47, before this task. Its `agent.pid` points to no live process. I did not delete them because they are not mine.
 
 ## Decisions (for the LOG)
 | id | decision | options | why |
@@ -154,12 +154,12 @@ The P06 e2e expectations changed on purpose (these are the only changes to exist
 | D-TD2-7 | The api-client build copies the generated `.d.ts` into dist. A package-level `turbo.json` (`extends: ["//"]`) makes the package's `test` depend on its own `build`. | (a) point `types` at src (b) copy | consumers must type-check against what ships |
 
 ## Out of scope / left undone
-- The real-agent integration suite was not re-run: TD-2 changes nothing agent-facing, and it skips without `VRX_INTEGRATION=1`.
+- The real-agent integration suite was not re-run: TD-2 changes nothing agent-facing, and it skips without `NGFW_INTEGRATION=1`.
 - Schema-level patterns for the pattern-less descriptions and map keys (packages/schema, contract). The API-side net covers every write; the schema owner may still want them for the UI/JSON Schema.
 - P07b UI adoption: switch the Users form from hash entry to `POST /users/{name}/password`, render `redacted: true` diff entries, drop the apps/web tsconfig mapping to the api-client sources.
 
 ## Open questions
-1. Access-token revocation is kept in process memory. After an API restart with a persistent `VRX_JWT_SECRET`, tokens issued before a password set work again for up to 15 minutes. Should it move to Valkey? That would cost a per-request lookup, and JWT auth would then fail closed when Valkey is down.
+1. Access-token revocation is kept in process memory. After an API restart with a persistent `NGFW_JWT_SECRET`, tokens issued before a password set work again for up to 15 minutes. Should it move to Valkey? That would cost a per-request lookup, and JWT auth would then fail closed when Valkey is down.
 2. Should an admin password reset also revoke the target's API keys (compromised-account case)? Today it does not (D-TD2-3).
 3. Edge case: while `sync = unknown`, a reconcile may promote an in-memory, already-hydrated config that was validated before a password set, which writes back the older hash. Should that path re-hydrate?
 4. A rollback never restores password hashes (app_user is authoritative, D-P06-3), so its revision diff shows no secret changes. Confirm this is intended.
@@ -206,14 +206,14 @@ plus `src/datastore/documents.test.ts`: `Tests  8 passed (8)` (2 new).
  ✓ test/e2e/td2.e2e.test.ts (14 tests)
  ✓ test/e2e/config.e2e.test.ts (15 tests) 10859ms
  ✓ test/e2e/auth.e2e.test.ts (10 tests) 6646ms
-agent integration test skipped: VRX_INTEGRATION is not 1
+agent integration test skipped: NGFW_INTEGRATION is not 1
  ↓ test/integration/agent.int.test.ts (3 tests | 3 skipped)
  Test Files  5 passed | 1 skipped (6)
       Tests  53 passed | 3 skipped (56)
-e2e teardown: deleted 1228 Valkey keys vrx:w7:e2e:* in db 7
-drop   database vrx_w7
-drop   role vrx_w7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 1228 Valkey keys ngfw:w7:e2e:* in db 7
+drop   database ngfw_w7
+drop   role ngfw_w7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 (The verbose reporter lists only tests slower than 300 ms. All 11 td2-review tests passed, including M1 default, L4 and the WebSocket-4403 test.)
 
@@ -233,7 +233,7 @@ CI GATE PASSED
 Warnings: the untracked manager file `TD-2.continue-envelope.md` (not mine, not committed) and non-conventional subjects of the manager's merge and review commits. The salvage commit `8dde3e4` also changed `schema.d.ts` (the 200 body and `ignoredSecrets`). That change is additive to the new route, and the contract note lists it.
 
 ### Cleanup
-`ok nothing named vrx_w7 / vrx_w7 remains`. `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0`. No processes were left running.
+`ok nothing named ngfw_w7 / ngfw_w7 remains`. `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0`. No processes were left running.
 
 ### Left open (see TD-2-questions.md)
 - The account-disable path does not bump the credential generation. Disabled users are refused on refresh by the DB check, so they keep only the current access token, until its TTL. Bumping it would need a hook in `promote()`.
@@ -280,10 +280,10 @@ New tests:
 
 ### e2e, the new file, verbose (`eval "$(tools/lab env 7)"; tools/lab lock shared pnpm exec vitest run -c vitest.e2e.config.ts --reporter=verbose test/e2e/td2-verify.e2e.test.ts`)
 ```
-create role vrx_w7
-create database vrx_w7 (owner vrx_w7)
-check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
-ok     env /run/vrx-test/w7/pg.env (0600) · DSN postgres://vrx_w7:<redacted>@127.0.0.1:5432/vrx_w7
+create role ngfw_w7
+create database ngfw_w7 (owner ngfw_w7)
+check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w7/pg.env (0600) · DSN postgres://ngfw_w7:<redacted>@127.0.0.1:5432/ngfw_w7
 V1: 40 admin resets, 4 minting loops each: minted 573 keys (573 by requests in flight during the reset) → working afterwards 0, api_key rows left 0
  ✓ … > V1 — 40 runs: keys minted (JWT + chained API keys) while an admin reset runs → 0 working keys, 0 rows 18828ms
  ✓ … > V1 — a session from before the reset cannot mint (401); the session a self-service change kept still can 309ms
@@ -299,10 +299,10 @@ V4: reset answered 500 after a deadlock
  ✓ … > V5 — keepApiKeys and a discarded key-owned candidate are audited (and the discard is answered) 428ms
  Test Files  1 passed (1)
       Tests  8 passed (8)
-e2e teardown: deleted 150 Valkey keys vrx:w7:e2e:* in db 7
-drop   database vrx_w7
-drop   role vrx_w7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 150 Valkey keys ngfw:w7:e2e:* in db 7
+drop   database ngfw_w7
+drop   role ngfw_w7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 
 ### Negative control (not committed): V1 and V4 against the round-1 code
@@ -315,15 +315,15 @@ V4: reset answered 500 after a deadlock
    × TD-2 verify fixes e2e (round 2, D-102) > V4 — a reset whose transaction aborts (deadlock) leaves the in-flight copy, the hash and the sessions alone 1198ms
      → expected "replaceInflightHash" to not be called at all, but actually been called 1 times
       Tests  2 failed | 6 skipped (8)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 Updated 2 paths from the index
 ```
 
 ### Full e2e / integration (`eval "$(tools/lab env 7)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration`)
 ```
-create role vrx_w7
-create database vrx_w7 (owner vrx_w7)
-check  vrx_w7 as vrx_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+create role ngfw_w7
+create database ngfw_w7 (owner ngfw_w7)
+check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
 V1: 40 admin resets, 4 minting loops each: minted 563 keys (563 by requests in flight during the reset) → working afterwards 0, api_key rows left 0
 V2 commit: {"me":401,"refresh":401,"apiKey":401,"keyRows":0,"oldLogin":401,"newLogin":200}
 V2 race: 10 config-path resets: minted 204 (204 in flight during the commit) → working afterwards 0, rows left 0
@@ -337,16 +337,16 @@ H2: 60 runs, 120 hammered chains + 47 racing logins that got in → survivors 0
  ✓ test/e2e/auth.e2e.test.ts (10 tests) 6980ms
  Test Files  6 passed | 1 skipped (7)
       Tests  61 passed | 3 skipped (64)
-e2e teardown: deleted 1342 Valkey keys vrx:w7:e2e:* in db 7
-drop   database vrx_w7
-drop   role vrx_w7
-ok     nothing named vrx_w7 / vrx_w7 remains
+e2e teardown: deleted 1342 Valkey keys ngfw:w7:e2e:* in db 7
+drop   database ngfw_w7
+drop   role ngfw_w7
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
-The skipped file is `test/integration/agent.int.test.ts`, the real-agent test. It needs `VRX_INTEGRATION=1`, and TD-2 changes nothing on the agent side. Two existing expectations changed on purpose, because the 200 body now also carries `discardedCandidate: false`: `td2.e2e` #1 and the `td2-review` M1 self-service test.
+The skipped file is `test/integration/agent.int.test.ts`, the real-agent test. It needs `NGFW_INTEGRATION=1`, and TD-2 changes nothing on the agent side. Two existing expectations changed on purpose, because the 200 body now also carries `discardedCandidate: false`: `td2.e2e` #1 and the `td2-review` M1 self-service test.
 
 ### CI (`tools/ci.sh --base main`, HEAD 783a9e9; the later commits are docs only)
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 == contract guard: HEAD vs main ==
 contract files changed in HEAD since main:
   packages/api-client/src/generated/schema.d.ts
@@ -371,7 +371,7 @@ ok: gitleaks — scanned ~279129 bytes (279.13 KB) in 1.21s no leaks found
 == lint · typecheck · unit tests · build (turbo) ==
 Tasks:    30 successful, 30 total Cached:    12 cached, 30 total Time:    2m27.621s  
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	1.436s; ok  	ngfw/agent/internal/agent	9.367s; ok  	ngfw/agent/internal/contracttest	2.002s; ok  	ngfw/agent/internal/descriptors/abf	1.141s; ok  	ngfw/agent/internal/descriptors/acl	1.225s; ok  	ngfw/agen …
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.436s; ok  	ngfw/agent/internal/agent	9.367s; ok  	ngfw/agent/internal/contracttest	2.002s; ok  	ngfw/agent/internal/descriptors/abf	1.141s; ok  	ngfw/agent/internal/descriptors/acl	1.225s; ok  	ngfw/agen …
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.020s; 
 == summary (quick) ==
@@ -393,7 +393,7 @@ CI GATE PASSED
 ```
 
 ### Cleanup
-After every e2e run the teardown printed `ok nothing named vrx_w7 / vrx_w7 remains`, so the slot database is dropped. `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0` and `valkey-cli -n 7 dbsize` → `0`. No process was left running: the API runs in-process in vitest, the agent is the in-process fake, and the CI shell exited. The older files in `/run/vrx-test/w7` belong to an earlier slot-7 user and are untouched, as noted in fix round 1.
+After every e2e run the teardown printed `ok nothing named ngfw_w7 / ngfw_w7 remains`, so the slot database is dropped. `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0` and `valkey-cli -n 7 dbsize` → `0`. No process was left running: the API runs in-process in vitest, the agent is the in-process fake, and the CI shell exited. The older files in `/run/ngfw-test/w7` belong to an earlier slot-7 user and are untouched, as noted in fix round 1.
 
 ### Left over (not in the verify's required list, or moved elsewhere)
 - Info items of the verify that were not changed:
@@ -432,7 +432,7 @@ line, 8911 ms in total including the drain. The other 7 tests passed and `afterA
  ✓ … > V4 — … 1335ms
  ✓ … > V5 — … 348ms
       Tests  1 failed | 7 passed (8)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 ```
 
 ### Full api e2e on slot 7, three runs in a row on `47ebe60` (`eval "$(tools/lab env 7)"; tools/lab lock shared pnpm --filter @ngfw/api test:integration`)
@@ -460,7 +460,7 @@ V4: reset answered 500 after a deadlock
 H2: 60 runs, 120 hammered chains + 40 racing logins that got in → survivors 0
  Test Files  6 passed | 1 skipped (7)
       Tests  61 passed | 3 skipped (64)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 0 2026-09-24T15:44:49+03:30 load: 16.32 34.04 47.16
 ```
 Run 2:
@@ -485,7 +485,7 @@ V2 race: 10 config-path resets: minted 190 (190 in flight during the commit) →
 V4: reset answered 500 after a deadlock
  Test Files  6 passed | 1 skipped (7)
       Tests  61 passed | 3 skipped (64)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 0 2026-09-24T15:49:49+03:30 load: 9.70 20.74 37.87
 ```
 Run 3:
@@ -510,7 +510,7 @@ V2 race: 10 config-path resets: minted 201 (201 in flight during the commit) →
 V4: reset answered 500 after a deadlock
  Test Files  6 passed | 1 skipped (7)
       Tests  61 passed | 3 skipped (64)
-ok     nothing named vrx_w7 / vrx_w7 remains
+ok     nothing named ngfw_w7 / ngfw_w7 remains
 EXIT 0 2026-09-24T15:52:23+03:30 load: 8.58 18.25 34.48
 ```
 Earlier full runs, for the record (not counted): after `5b36365`, td2-verify was green but td2-review H2 hit the 30 s default (`1 failed | 60 passed`).
@@ -550,7 +550,7 @@ EXIT 0 2026-09-24T16:02:52+03:30
 ```
 
 ### Cleanup
-After the runs, `valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0` and `dbsize` → `0`. Nothing listens on 3700/5700/9171, and no
+After the runs, `valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0` and `dbsize` → `0`. Nothing listens on 3700/5700/9171, and no
 process from this worktree is running. The build output (`dist/`, `apps/agent/bin`) was deleted after the gate.
 
 ### Left for the manager

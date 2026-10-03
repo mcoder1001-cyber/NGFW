@@ -17,14 +17,14 @@ client, and the product's signature UX — the pending-change bar with diff and 
    routes, left nav grouped as in docs/05 (Dashboard, Interfaces, Routing, Firewall/NAT, VPN,
    Services, System, Tools) — only Dashboard, Interfaces, System>Users, System>Revisions are
    real routes now; others render an "not yet available" page, **not** fake data.
-2. **Theme** in `packages/ui-kit`: `createVrxTheme(mode, dir)`, light/dark, dense tables,
-   semantic status tokens (up/down/degraded/admin-down) used everywhere via `theme.vrx.status.*`.
+2. **Theme** in `packages/ui-kit`: `createNgfwTheme(mode, dir)`, light/dark, dense tables,
+   semantic status tokens (up/down/degraded/admin-down) used everywhere via `theme.ngfw.status.*`.
    RTL via Emotion cache + `stylis-plugin-rtl`; `<html dir lang>` follow the selected language.
 3. **i18n**: `react-i18next`, namespaces per area, `en` and `fa` complete for everything in
    this task; Persian digits option; date/number via `Intl`. A CI check fails on any
    hardcoded string in JSX (eslint-plugin-i18next or similar).
 4. **`<SchemaForm>`** in `packages/ui-kit`: renders MUI fields from JSON Schema
-   (string/number/boolean/enum/array/object/oneOf) + `x-vrx-ui` hints (widget, group, order,
+   (string/number/boolean/enum/array/object/oneOf) + `x-ngfw-ui` hints (widget, group, order,
    help, dependsOn). Uses react-hook-form + zod resolver from the same schema. Maps
    problem+json `pointer` errors back onto fields. Storybook or a `/dev/schema-form`
    route demonstrating every widget with the `interfaces` schema.

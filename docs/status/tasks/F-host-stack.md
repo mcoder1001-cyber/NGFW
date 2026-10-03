@@ -12,7 +12,7 @@ PostgreSQL and no Chrome.
 - **Schema** (`packages/schema/src/domains/ext/host-stack.ts`):
   - Namespace secret: a `key/<name>` ref only.
   - Rule prefixes: canonical, one family per rule. Tags: unique, no `..`.
-  - `wwwRootPath`: under `/var/lib/vrx/www/`, no `..`, no control characters.
+  - `wwwRootPath`: under `/var/lib/ngfw/www/`, no `..`, no control characters.
   - Rules or namespaces need `enabled: true`.
 - **Semantics** (`semantic/host-stack.ts`):
   - VRF, interface and rule-namespace references must exist, and a namespace's interface must be in the namespace's VRF.
@@ -27,7 +27,7 @@ PostgreSQL and no Chrome.
     bound to the boot identity.
   - `hoststack.session-rule` Retrieves from `session_rules_v2_dump`. VPP carries the tag as `<owner>:<tag>`.
   - `hoststack.tcp-src` uses a D-076 applied-once record and has no delete.
-  - `hoststack.http-static` is registered only for the globals owner and only with `VRX_HOSTSTACK_HTTP_STATIC=1`.
+  - `hoststack.http-static` is registered only for the globals owner and only with `NGFW_HOSTSTACK_HTTP_STATIC=1`.
   - DryRun refuses a namespace `secretRef` (`services.host-stack-secret-channel`).
   - DryRun refuses `httpStatic.enabled` without the opt-in.
 - **API**: `GET /api/v1/state/host-stack` (`features/host-stack`). Configuration uses the generic pointer routes. The fake
@@ -46,7 +46,7 @@ PostgreSQL and no Chrome.
 === RUN   TestHTTPStaticOptIn                   --- PASS   (not registered by default; www_root validation)
 === RUN   TestStateSessionOff                   --- PASS
 === RUN   TestHostStackOnHost
-    integration_test.go:23: integration test: set VRX_INTEGRATION=1 (and run under the shared lab lock)
+    integration_test.go:23: integration test: set NGFW_INTEGRATION=1 (and run under the shared lab lock)
 --- SKIP: TestHostStackOnHost
 ok  	ngfw/agent/internal/descriptors/hoststack	0.017s
 --- PASS: TestHostStackProjection   ok ngfw/agent/internal/desired   (secretRef → services.host-stack-secret-channel; http_static opt-in)

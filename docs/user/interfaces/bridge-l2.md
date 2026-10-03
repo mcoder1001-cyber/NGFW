@@ -2,8 +2,8 @@
 
 **Screen:** Interfaces → **Bridging** (`/interfaces/bridging`). **REST:** configuration through the generic pointer routes
 (`/api/v1/config/routing/l2/…`, `/api/v1/config/interfaces/<if>/l2`); live state `GET /api/v1/state/l2/bridge-domains`
-and `GET /api/v1/state/l2/bridge-domains/{id}/macs?page&pageSize`. **CLI:** `vrx set|merge|delete routing l2 …`,
-`vrx set|merge interfaces <if> l2 …` (no `show` command for bridge state yet — use the REST route).
+and `GET /api/v1/state/l2/bridge-domains/{id}/macs?page&pageSize`. **CLI:** `ngfw set|merge|delete routing l2 …`,
+`ngfw set|merge interfaces <if> l2 …` (no `show` command for bridge state yet — use the REST route).
 
 The data plane is VPP's L2 switching: bridge domains (`bridge_domain_add_del_v2`) with members, a BVI and split-horizon
 groups, L2 cross-connects (`sw_interface_set_l2_xconnect`), L3 cross-connects (the `l3xc` plugin), VLAN tag rewrite on L2
@@ -110,13 +110,13 @@ not render that option. Retrieve reports the ranges grouped per time window, day
 ## The same with the CLI
 
 ```
-vrx merge routing l2 '{"bridgeDomains":{"w7-lan":{"id":7001,"macAgeMin":5}}}'
-vrx merge interfaces loop720 l2 '{"bridgeDomain":"w7-lan","bvi":true}'
-vrx merge interfaces host-w7l0 subinterfaces 100 l2 '{"bridgeDomain":"w7-lan","shg":1,"tagRewrite":{"op":"pop-1"}}'
-vrx merge routing l2 xconnects '{"host-w7w0":{"tx":"host-w7w0.200"},"host-w7w0.200":{"tx":"host-w7w0"}}'
-vrx delete interfaces host-w7l0 l2
-vrx show configuration diff
-vrx commit comment "bridging"
+ngfw merge routing l2 '{"bridgeDomains":{"w7-lan":{"id":7001,"macAgeMin":5}}}'
+ngfw merge interfaces loop720 l2 '{"bridgeDomain":"w7-lan","bvi":true}'
+ngfw merge interfaces host-w7l0 subinterfaces 100 l2 '{"bridgeDomain":"w7-lan","shg":1,"tagRewrite":{"op":"pop-1"}}'
+ngfw merge routing l2 xconnects '{"host-w7w0":{"tx":"host-w7w0.200"},"host-w7w0.200":{"tx":"host-w7w0"}}'
+ngfw delete interfaces host-w7l0 l2
+ngfw show configuration diff
+ngfw commit comment "bridging"
 ```
 
 ## Live state

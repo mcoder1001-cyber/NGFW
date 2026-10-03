@@ -25,7 +25,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/lldp"
 )
@@ -53,7 +53,7 @@ func canonIP(s string, v6 bool) string {
 }
 
 // Lldp emits the LLDP objects of l (see the file comment); globalsOwner is D-071's flag.
-func Lldp(s Sink, l *vrxv1.LldpService, globalsOwner bool) {
+func Lldp(s Sink, l *ngfwv1.LldpService, globalsOwner bool) {
 	if l == nil || proto.Size(l) == 0 {
 		return
 	}

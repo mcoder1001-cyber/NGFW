@@ -25,7 +25,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/gre"
@@ -183,7 +183,7 @@ func (d *TunnelMeta) Retrieve(context.Context) ([]scheduler.KV, error) {
 
 // ---- builder -----------------------------------------------------------------------------------
 
-// tunnelCommon is what every kind shares (vrx.v1 tunnelCommon).
+// tunnelCommon is what every kind shares (ngfw.v1 tunnelCommon).
 type tunnelCommon interface {
 	GetEnabled() bool
 	GetDescription() string
@@ -211,7 +211,7 @@ func canonAddr(a string) (string, error) {
 
 // Tunnels projects tunnels.gre / .ipip / .vxlan. in is the set of authoritative domains of the
 // transaction; vrfID maps VRF names to table ids; span is the agent's id range.
-func Tunnels(s Sink, t *vrxv1.TunnelsConfig, in map[string]bool, vrfID func(string) (uint32, bool), span TunnelIDSpan) {
+func Tunnels(s Sink, t *ngfwv1.TunnelsConfig, in map[string]bool, vrfID func(string) (uint32, bool), span TunnelIDSpan) {
 	if !in["tunnels"] || t == nil {
 		return
 	}
@@ -413,11 +413,11 @@ func (b tunnelBuild) attributes(pt, ifn string, creator scheduler.Key, c tunnelC
 // hasEnabled: enabled is optional in the proto; unset means the schema default (true).
 func hasEnabled(c tunnelCommon) bool {
 	switch v := c.(type) {
-	case *vrxv1.GreTunnel:
+	case *ngfwv1.GreTunnel:
 		return v.Enabled != nil
-	case *vrxv1.IpipTunnel:
+	case *ngfwv1.IpipTunnel:
 		return v.Enabled != nil
-	case *vrxv1.VxlanTunnel:
+	case *ngfwv1.VxlanTunnel:
 		return v.Enabled != nil
 	}
 	return true
@@ -440,7 +440,7 @@ type tunnelAttrs struct {
 // the stored document names that interface). It returns kvs without the bridge-domain memberships of
 // tunnel interfaces, so the bridge-l2 assembler that runs after it does not report them again as
 // interfaces.<vpp name>.l2.
-func AssembleTunnels(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*vrxv1.Interface) []scheduler.KV {
+func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool, tableName func(uint32) string, stored map[string]*ngfwv1.Interface) []scheduler.KV {
 	gres := map[string]*gre.Tunnel{}
 	ipips := map[string]*ipip.Tunnel{}
 	vxlans := map[string]*vxlan.Tunnel{}
@@ -512,13 +512,13 @@ func AssembleTunnels(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]b
 	}
 	if in["tunnels"] {
 		out := struct {
-			gre   map[string]*vrxv1.GreTunnel
-			ipip  map[string]*vrxv1.IpipTunnel
-			vxlan map[string]*vrxv1.VxlanTunnel
-		}{map[string]*vrxv1.GreTunnel{}, map[string]*vrxv1.IpipTunnel{}, map[string]*vrxv1.VxlanTunnel{}}
+			gre   map[string]*ngfwv1.GreTunnel
+			ipip  map[string]*ngfwv1.IpipTunnel
+			vxlan map[string]*ngfwv1.VxlanTunnel
+		}{map[string]*ngfwv1.GreTunnel{}, map[string]*ngfwv1.IpipTunnel{}, map[string]*ngfwv1.VxlanTunnel{}}
 		for _, ifn := range sortedKeys(gres) {
 			v := gres[ifn]
-			g := &vrxv1.GreTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
+			g := &ngfwv1.GreTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
 				UnderlayVrf: proto.String(tableName(v.GetOuterTableId())), Type: proto.String(greTypeName(v.GetType()))}
 			if v.GetDst() != "" {
 				g.Dst = proto.String(v.GetDst())
@@ -531,7 +531,7 @@ func AssembleTunnels(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]b
 		}
 		for _, ifn := range sortedKeys(ipips) {
 			v := ipips[ifn]
-			p := &vrxv1.IpipTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
+			p := &ngfwv1.IpipTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
 				UnderlayVrf: proto.String(tableName(v.GetTableId())), Mode: proto.String("p2p")}
 			if v.GetMode() == ipip.TunnelMode_MP {
 				p.Mode = proto.String("p2mp")
@@ -547,7 +547,7 @@ func AssembleTunnels(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]b
 		}
 		for _, ifn := range sortedKeys(vxlans) {
 			v := vxlans[ifn]
-			x := &vrxv1.VxlanTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
+			x := &ngfwv1.VxlanTunnel{Instance: proto.Uint32(v.GetInstance()), Description: desc(ifn), Src: proto.String(v.GetSrc()),
 				Dst: proto.String(v.GetDst()), UnderlayVrf: proto.String(tableName(v.GetEncapVrfId())), Vni: proto.Uint32(v.GetVni()),
 				SrcPort: proto.Uint32(portOf(v.GetSrcPort())), DstPort: proto.Uint32(portOf(v.GetDstPort())), Decap: proto.String("l2")}
 			if v.GetMcastInterface() != "" {
@@ -564,7 +564,7 @@ func AssembleTunnels(ds *vrxv1.DesiredState, kvs []scheduler.KV, in map[string]b
 		}
 		if len(out.gre)+len(out.ipip)+len(out.vxlan) > 0 {
 			if ds.Tunnels == nil {
-				ds.Tunnels = &vrxv1.TunnelsConfig{}
+				ds.Tunnels = &ngfwv1.TunnelsConfig{}
 			}
 			ds.Tunnels.Gre, ds.Tunnels.Ipip, ds.Tunnels.Vxlan = out.gre, out.ipip, out.vxlan
 		}

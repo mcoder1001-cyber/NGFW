@@ -1,11 +1,11 @@
 package e2e
 
-// P13 §6 e2e against the dev stack on the worker slot (apps/cli/test/devstack.sh: real vrx-api + real vrx-agent +
+// P13 §6 e2e against the dev stack on the worker slot (apps/cli/test/devstack.sh: real ngfw-api + real ngfw-agent +
 // the host VPP): log in through the REPL, Tab/`?` completion from the live schema, set MTU (+ an address the agent
 // does apply) → `commit confirm 5` → observe the automatic revert, then an RBAC denial as readonly.
 //
 //	eval "$(tools/lab env 3)"; tools/lab lock shared apps/cli/test/devstack.sh start
-//	VRX_INTEGRATION=1 go -C apps/cli test -count=1 -v ./test/e2e/
+//	NGFW_INTEGRATION=1 go -C apps/cli test -count=1 -v ./test/e2e/
 //	apps/cli/test/devstack.sh stop
 //
 // Objects: loop<slot>01 and 10.<slot>.101.0/24 only (shared-host rules); removed again at the end.
@@ -29,14 +29,14 @@ type stack struct {
 
 func setup(t *testing.T) *stack {
 	t.Helper()
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("e2e: VRX_INTEGRATION is not 1 (needs the slot dev stack: apps/cli/test/devstack.sh start)")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("e2e: NGFW_INTEGRATION is not 1 (needs the slot dev stack: apps/cli/test/devstack.sh start)")
 	}
-	prefix := env("VRX_TEST_PREFIX", "w3")
+	prefix := env("NGFW_TEST_PREFIX", "w3")
 	slot := strings.TrimPrefix(prefix, "w")
 	s := &stack{
-		api:    env("VRX_E2E_API", "http://127.0.0.1:"+env("VRX_HTTP_PORT", "3300")),
-		pwFile: env("VRX_E2E_ADMIN_PASSWORD_FILE", "/run/vrx-test/"+prefix+"/admin.pw"),
+		api:    env("NGFW_E2E_API", "http://127.0.0.1:"+env("NGFW_HTTP_PORT", "3300")),
+		pwFile: env("NGFW_E2E_ADMIN_PASSWORD_FILE", "/run/ngfw-test/"+prefix+"/admin.pw"),
 		iface:  "loop" + slot + "01",
 		net:    "10." + slot + ".101.",
 		dir:    t.TempDir(),
@@ -48,8 +48,8 @@ func setup(t *testing.T) *stack {
 	if err := os.Mkdir(filepath.Join(s.dir, "private"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	s.bin = filepath.Join(s.dir, "vrx")
-	build := exec.Command("go", "build", "-o", s.bin, "../../cmd/vrx")
+	s.bin = filepath.Join(s.dir, "ngfw")
+	build := exec.Command("go", "build", "-o", s.bin, "../../cmd/ngfw")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
@@ -66,13 +66,13 @@ func env(k, def string) string {
 func (s *stack) env() []string {
 	return []string{
 		"PATH=" + os.Getenv("PATH"), "HOME=" + s.dir, "TERM=xterm",
-		"VRX_API_URL=" + s.api,
-		"VRX_SESSION_FILE=" + filepath.Join(s.dir, "private", "session.json"),
-		"VRX_HISTORY_FILE=" + filepath.Join(s.dir, "private", "history"),
+		"NGFW_API_URL=" + s.api,
+		"NGFW_SESSION_FILE=" + filepath.Join(s.dir, "private", "session.json"),
+		"NGFW_HISTORY_FILE=" + filepath.Join(s.dir, "private", "history"),
 	}
 }
 
-// oneShot runs `vrx args…` without a terminal and returns stdout, stderr and the exit code.
+// oneShot runs `ngfw args…` without a terminal and returns stdout, stderr and the exit code.
 func (s *stack) oneShot(t *testing.T, extraEnv []string, args ...string) (string, string, int) {
 	t.Helper()
 	cmd := exec.Command(s.bin, args...)
@@ -85,7 +85,7 @@ func (s *stack) oneShot(t *testing.T, extraEnv []string, args ...string) (string
 		if ee, ok := err.(*exec.ExitError); ok {
 			code = ee.ExitCode()
 		} else {
-			t.Fatalf("run vrx: %v", err)
+			t.Fatalf("run ngfw: %v", err)
 		}
 	}
 	return so.String(), se.String(), code
@@ -178,12 +178,12 @@ func TestREPLConfirmedCommitAutoRevertAndRBAC(t *testing.T) {
 	if strings.Contains(tr, password) {
 		t.Fatal("the password appeared on the terminal")
 	}
-	if p := os.Getenv("VRX_E2E_TRANSCRIPT"); p != "" {
+	if p := os.Getenv("NGFW_E2E_TRANSCRIPT"); p != "" {
 		_ = os.WriteFile(p, []byte(tr+"\n"), 0o600)
 	}
 
 	// RBAC: readonly may read but not change the candidate (403 → exit 4), human and --json
-	ro := []string{"VRX_API_KEY_FILE=" + keyFile}
+	ro := []string{"NGFW_API_KEY_FILE=" + keyFile}
 	out, _, code := s.oneShot(t, ro, "show", "whoami")
 	if code != 0 || !strings.Contains(out, "effective readonly") {
 		t.Fatalf("readonly whoami: code %d, %q", code, out)
@@ -202,7 +202,7 @@ func TestREPLConfirmedCommitAutoRevertAndRBAC(t *testing.T) {
 	if code != 4 || json.Unmarshal([]byte(errOut), &doc) != nil || doc.Error.Status != 403 {
 		t.Fatalf("readonly --json commit: code %d, %q", code, errOut)
 	}
-	if strings.Contains(errOut, "vrxk_") {
+	if strings.Contains(errOut, "ngfwk_") {
 		t.Fatal("an API key appeared in an error message")
 	}
 

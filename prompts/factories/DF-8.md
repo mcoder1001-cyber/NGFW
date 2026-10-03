@@ -15,9 +15,9 @@ observability F-* tasks wire up later. `linux_cp`/`linux_nl` are **not loaded on
   `binapi/linux_nl/` (if it has an API at all) — **the only source of message names and fields**; verify every name below, never guess
 - `prompts/P12-frr-linuxcp.md` — the consumer of `lcp-itf-pair` (`lcp_itf_pair_add_del_v2`/newest) and of the skip pattern
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (dhcp, dns, flowprobe, ipfix, sflow, prom, http_static, pcap/trace, tracenode, linux-cp)
-- `docs/lab/host-vrx-a.md` — **not loaded:** `linux_cp_plugin.so`, `linux_nl_plugin.so` (also `ip6_dad_autoremove`, irrelevant here). Skip predicate: govpp
+- `docs/lab/host-ngfw-a.md` — **not loaded:** `linux_cp_plugin.so`, `linux_nl_plugin.so` (also `ip6_dad_autoremove`, irrelevant here). Skip predicate: govpp
   `CheckCompatiblity` on the plugin's messages returns unknown-message → `t.Skip("plugin not loaded: …")`. Everything else here is loaded.
-- `docs/lab/shared-host-rules.md` — prefix `w<N>`, addresses `10.<N>.0.0/16`, tap/netdev names `w<N>-*`, ports from your slot, files only under `/run/vrx-test/w<N>/`
+- `docs/lab/shared-host-rules.md` — prefix `w<N>`, addresses `10.<N>.0.0/16`, tap/netdev names `w<N>-*`, ports from your slot, files only under `/run/ngfw-test/w<N>/`
 
 ## Scope — build exactly this
 Enumerate the object types in `docs/status/tasks/DF-8.md` first, then build (estimate: 24 object types × Create/Update/Delete/Retrieve
@@ -40,12 +40,12 @@ Enumerate the object types in `docs/status/tasks/DF-8.md` first, then build (est
 - **sflow** (`binapi/sflow`): `sflow-global` (composite over sflow_sampling_rate_set, sflow_polling_interval_set, sflow_header_bytes_set, sflow_direction_set,
   sflow_drop_monitoring_set — global singleton; Retrieve the matching `*_get`), `sflow-interface` (sflow_enable_disable per interface; Retrieve sflow_interface_dump).
   Export to a collector is hsflowd's job — out of scope.
-- **prom** (`binapi/prom`, `binapi/http_static`): `http-static-server` (http_static_enable_v4 or newest: listen `127.0.0.1:$((VRX_METRICS_PORT+1))` in tests, www root
-  under `/run/vrx-test/w<N>/`, fifo sizes, cache, max age — **global singleton per VPP**: if already enabled by another slot, Retrieve reports it and the
+- **prom** (`binapi/prom`, `binapi/http_static`): `http-static-server` (http_static_enable_v4 or newest: listen `127.0.0.1:$((NGFW_METRICS_PORT+1))` in tests, www root
+  under `/run/ngfw-test/w<N>/`, fifo sizes, cache, max age — **global singleton per VPP**: if already enabled by another slot, Retrieve reports it and the
   test skips with the reason; never disable a server you did not enable), `prom-exporter` (prom_enable_disable or the generated equivalent: stats patterns,
   scrape interval, used-only flag). Retrieve: check for dumps; if none, `partial` + questions file. The agent's own metrics (P05) stay separate.
 - **pcap / trace** (`binapi/pcap`, `binapi/trace`, `binapi/tracenode`, `binapi/bpf_trace_filter`): `pcap-capture` (pcap_trace_on / pcap_trace_off: rx/tx/drop, interface or
-  any, max packets, max bytes per packet, filter flag, filename under `/run/vrx-test/w<N>/` — **one global capture per VPP**: Retrieve first and skip if another
+  any, max packets, max bytes per packet, filter flag, filename under `/run/ngfw-test/w<N>/` — **one global capture per VPP**: Retrieve first and skip if another
   capture is active), `trace-filter` (trace_set_filters / trace_set_filter_function; Retrieve trace_filter_function_dump), `bpf-trace-filter`
   (bpf_trace_filter_set_v2: cBPF/pcap expression compiled by VPP — expression is user input: validate charset and length, never shell), `tracenode-interface`
   (tracenode_enable_disable: interface, direction), `trace-path` (26.06 Trace Path plugin — find the binapi package; if none, questions file).
@@ -68,11 +68,11 @@ lcp-itf-pair → interface + lcp-default-netns (Optional).
    `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index / exporter index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions filter
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions filter
    by your prefix (other workers' objects exist on the same VPP). Use prefixed loopbacks/tables; never touch `local0`, `ens192` or anything unprefixed;
    clean up in `t.Cleanup`. Global singletons (dns enable, flowprobe params, sflow globals, http_static, pcap, lcp netns) are read first, restored
-   after, and skipped with a reason when another slot holds them. Capture files and www roots live under `/run/vrx-test/w<N>/` and are removed.
+   after, and skipped with a reason when another slot holds them. Capture files and www roots live under `/run/ngfw-test/w<N>/` and are removed.
 5. `docs/agent/descriptors/<plugin>.md`: table object type ↔ VPP messages ↔ notes/limitations (every `partial`, every singleton, the skip rule).
 
 ## Rules

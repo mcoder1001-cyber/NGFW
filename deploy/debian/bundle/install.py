@@ -115,7 +115,7 @@ def expected_manifest(path, source):
 @contextlib.contextmanager
 def prepared(source, manifest):
     expected = expected_manifest(manifest, source)
-    with safe_environment(), tempfile.TemporaryDirectory(prefix='vrx-offline-', dir='/var/tmp') as directory:
+    with safe_environment(), tempfile.TemporaryDirectory(prefix='ngfw-offline-', dir='/var/tmp') as directory:
         private = Path(directory)
         snapshot = private / 'delivery'
         snapshot.mkdir(mode=0o700)

@@ -1,4 +1,4 @@
-// Package provider implements the VRX Terraform provider (terraform-plugin-framework, protocol 6).
+// Package provider implements the NGFW Terraform provider (terraform-plugin-framework, protocol 6).
 package provider
 
 import (
@@ -21,11 +21,11 @@ import (
 // DefaultConfirmSeconds is the confirmed-commit window of every apply unless confirm_timeout says otherwise.
 const DefaultConfirmSeconds = 60
 
-type vrxProvider struct{ version string }
+type ngfwProvider struct{ version string }
 
 // New returns the provider factory used by main and the tests.
 func New(version string) func() provider.Provider {
-	return func() provider.Provider { return &vrxProvider{version: version} }
+	return func() provider.Provider { return &ngfwProvider{version: version} }
 }
 
 type providerModel struct {
@@ -60,7 +60,7 @@ func (d *providerData) reportCommit(diags *diag.Diagnostics, what string, r *cli
 	if !r.NotEnforced() {
 		return
 	}
-	summary := fmt.Sprintf("VRX: %s was stored but is NOT enforced by the data plane", what)
+	summary := fmt.Sprintf("NGFW: %s was stored but is NOT enforced by the data plane", what)
 	detail := fmt.Sprintf("commit status %q; domains this agent build does not apply: %v. Running holds the change (revision %d); "+
 		"it takes effect when the agent implements these domains.", r.Status, r.NotApplied, revisionOf(r))
 	if d.failOnNotApplied {
@@ -70,21 +70,21 @@ func (d *providerData) reportCommit(diags *diag.Diagnostics, what string, r *cli
 	diags.AddWarning(summary, detail+" Set fail_on_not_applied = true to make this an error.")
 }
 
-func (p *vrxProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
-	resp.TypeName = "vrx"
+func (p *ngfwProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "ngfw"
 	resp.Version = p.version
 }
 
-func (p *vrxProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+func (p *ngfwProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Manages a VRX appliance through its REST API. Every apply edits the candidate, commits it " +
+		MarkdownDescription: "Manages a NGFW appliance through its REST API. Every apply edits the candidate, commits it " +
 			"with `?confirm=<confirm_timeout>`, checks that the API still answers and confirms — if the appliance becomes " +
 			"unreachable the agent reverts the change on its own.",
 		Attributes: map[string]schema.Attribute{
 			"url": schema.StringAttribute{Optional: true,
-				MarkdownDescription: "Base URL, e.g. `https://vrx-a.example`. Env: `VRX_URL`."},
+				MarkdownDescription: "Base URL, e.g. `https://ngfw-a.example`. Env: `NGFW_URL`."},
 			"api_key": schema.StringAttribute{Optional: true, Sensitive: true,
-				MarkdownDescription: "API key (`Authorization: ApiKey …`). Env: `VRX_API_KEY` (preferred: keeps it out of the configuration)."},
+				MarkdownDescription: "API key (`Authorization: ApiKey …`). Env: `NGFW_API_KEY` (preferred: keeps it out of the configuration)."},
 			"insecure": schema.BoolAttribute{Optional: true,
 				MarkdownDescription: "Skip TLS certificate verification (self-signed lab boxes only). Default `false`."},
 			"ca_file": schema.StringAttribute{Optional: true,
@@ -105,14 +105,14 @@ func (p *vrxProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *
 	}
 }
 
-func (p *vrxProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
+func (p *ngfwProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	var m providerModel
 	resp.Diagnostics.Append(req.Config.Get(ctx, &m)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	url := stringOr(m.URL, os.Getenv("VRX_URL"))
-	key := stringOr(m.APIKey, os.Getenv("VRX_API_KEY"))
+	url := stringOr(m.URL, os.Getenv("NGFW_URL"))
+	key := stringOr(m.APIKey, os.Getenv("NGFW_API_KEY"))
 	if m.URL.IsUnknown() || m.APIKey.IsUnknown() {
 		resp.Diagnostics.AddError("provider configuration unknown", "url and api_key must be known at plan time")
 		return
@@ -131,11 +131,11 @@ func (p *vrxProvider) Configure(ctx context.Context, req provider.ConfigureReque
 		Insecure:  m.Insecure.ValueBool(),
 		CAFile:    m.CAFile.ValueString(),
 		Timeout:   time.Duration(max(confirm, 60)+60) * time.Second,
-		UserAgent: "terraform-provider-vrx/" + p.version,
+		UserAgent: "terraform-provider-ngfw/" + p.version,
 		AllowHTTP: m.AllowHTTP.ValueBool(),
 	})
 	if err != nil {
-		resp.Diagnostics.AddError("cannot configure the VRX provider", err.Error())
+		resp.Diagnostics.AddError("cannot configure the NGFW provider", err.Error())
 		return
 	}
 	if m.Insecure.ValueBool() {
@@ -150,11 +150,11 @@ func (p *vrxProvider) Configure(ctx context.Context, req provider.ConfigureReque
 	resp.DataSourceData = data
 }
 
-func (p *vrxProvider) Resources(context.Context) []func() resource.Resource {
+func (p *ngfwProvider) Resources(context.Context) []func() resource.Resource {
 	return []func() resource.Resource{newConfigResource, newInterfaceResource}
 }
 
-func (p *vrxProvider) DataSources(context.Context) []func() datasource.DataSource {
+func (p *ngfwProvider) DataSources(context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{newStateDataSource}
 }
 

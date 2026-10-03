@@ -21,14 +21,14 @@ management.aaa:
           baseDn: "dc=x", userFilter: "(uid=%s)", groupAttr: memberOf }
   oidc:
     issuer: https://idp.example.net/realms/corp
-    clientId: vrx
+    clientId: ngfw
     clientSecretRef: token/oidc-client
     redirectUri: https://fw.example.net/api/v1/auth/oidc/callback
     # scopes: [openid, profile, email]   usernameClaim: preferred_username   roleClaim: groups
   roleMap:
     - { group: "cn=netadmins,ou=groups,dc=x", role: admin }
     - { group: noc, role: operator }
-  mfa: { required: admins, issuer: vrx }  # none | admins | all
+  mfa: { required: admins, issuer: ngfw }  # none | admins | all
   fallbackLocal: true
 ```
 - Shared secrets, the LDAP bind password and the OIDC client secret are **secret references** (`psk/…`,
@@ -104,7 +104,7 @@ over TLS (or from loopback) — `403 tls-required` otherwise. The OIDC login is 
 
 ## Break-glass local admin
 Keep at least one local admin and `local` in `order` (or `fallbackLocal: true`). The console break-glass tool
-(`vrx-authctl`, root on the device) still unlocks local accounts; with `mfa.required: admins` the admin also needs the TOTP
+(`ngfw-authctl`, root on the device) still unlocks local accounts; with `mfa.required: admins` the admin also needs the TOTP
 code or a recovery code — keep the recovery codes offline.
 
 ## Testing a backend (admin)

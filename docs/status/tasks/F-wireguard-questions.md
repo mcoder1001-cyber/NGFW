@@ -8,7 +8,7 @@ Nothing carries key material from the API to the agent. What this branch does me
   `presharedKeyRef`, and the apply fails loudly at that object (`wireguard.UnavailableRef` marker refused by Create,
   "…PENDING-secret-channel"); a peer is never created without its PSK;
 - tests fill the store directly (unit, host checks: the stand-in for option 1's sealed cache, loaded before the first
-  transaction); test builds only (`-tags vrxtestsecrets`) can load a slot-local 0600 fixture file (`VRX_TEST_WG_SECRETS`,
+  transaction); test builds only (`-tags ngfwtestsecrets`) can load a slot-local 0600 fixture file (`NGFW_TEST_WG_SECRETS`,
   `subsystems/wireguard_fixture.go`) — never compiled into a product build.
 **Correction (review F3):** the store is a stand-in behind the `vpn.Resolver` seam, not the channel's receiver — the
 PENDING answer defines that. And "nothing else changes" was wrong: without material a resync projects the
@@ -87,7 +87,7 @@ gitleaks' `generic-api-key` rule flags it (variable name contains "key", high en
 examples already use (`HIgo9…ykw=`), not a secret. Renamed in `5a5e19fe`; the working tree scans clean (`gitleaks dir`:
 no leaks found). The history finding disappears with the D-112 squash; `tools/ci.sh --base main` over the branch history
 fails on it, so the gate evidence was taken against a squash commit object (`git commit-tree`, no ref, no history rewrite)
-passed as `VRX_CI_HEAD_REF` — the exact tree and single commit the merge produces. Workers may not rewrite history, so I did
+passed as `NGFW_CI_HEAD_REF` — the exact tree and single commit the merge produces. Workers may not rewrite history, so I did
 not; if the manager prefers, the squash at merge is where it goes away.
 
 ## Q13 — Shared-VPP V19 quarantine cap blocked a stack rerun (environment)
@@ -96,6 +96,6 @@ quarantine): placeholder cap reached before every freed classify table index was
 128 freed indices seen)" — other slots' classify churn. The agent refused (correct), the run cleaned up. The manager's
 nightly cleanup / a VPP restart after handover clears it; F-wireguard's evidence (run 2, 04:48–04:50) was taken before.
 
-## Q14 — No `vrx show wireguard` CLI command
+## Q14 — No `ngfw show wireguard` CLI command
 apps/cli is not this row's. The REST operations exist (`Wireguard_state`, `Wireguard_keypair`, in the regenerated operations
 table); a `show wireguard [<interface>]` command is a small follow-up for the CLI owner.

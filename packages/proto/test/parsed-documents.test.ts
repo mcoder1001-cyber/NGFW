@@ -16,7 +16,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { RootConfig, redactSecrets } from '@ngfw/schema';
 import { describe, expect, it } from 'vitest';
-import { DesiredState } from '../gen/ts/vrx/v1/dataplane.js';
+import { DesiredState } from '../gen/ts/ngfw/v1/dataplane.js';
 
 /** JSON names of the uint64 leaves under DesiredState (the Go drift guard pins their proto type). */
 const UINT64_KEYS = new Set(['espBytes', 'espPackets', 'cb', 'eb', 'burstBytes']);

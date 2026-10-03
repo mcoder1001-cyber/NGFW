@@ -39,7 +39,7 @@ type Descriptor struct {
 
 var _ scheduler.Descriptor = (*Descriptor)(nil)
 
-// NewACL returns the acl.acl descriptor for one owner (VRX_OWNER; tests: VRX_TEST_PREFIX).
+// NewACL returns the acl.acl descriptor for one owner (NGFW_OWNER; tests: NGFW_TEST_PREFIX).
 func NewACL(client vpp.Client, owner string) *Descriptor {
 	return &Descriptor{client: client, owner: owner}
 }

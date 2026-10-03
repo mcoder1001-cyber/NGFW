@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/bond"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"
@@ -40,9 +40,9 @@ func (s *sink) value(k scheduler.Key) proto.Message {
 	return nil
 }
 
-func ifsOf(t *testing.T, js string) map[string]*vrxv1.Interface {
+func ifsOf(t *testing.T, js string) map[string]*ngfwv1.Interface {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(`{"interfaces":`+js+`}`), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +131,7 @@ func TestAssembleBonds(t *testing.T) {
 		{Key: "bond.member-weight/BondEthernet3/a", Value: bond.Weight{Bond: "interface/BondEthernet3", Interface: "interface/a", Weight: 9}.Proto()},
 	}
 	stored := ifsOf(t, `{"BondEthernet1": {"description": "uplink", "bond": {"mode": "lacp", "loadBalance": "l2", "id": 1}}, "BondEthernet2": {"bond": {"mode": "xor"}}}`)
-	ds := &vrxv1.DesiredState{Interfaces: map[string]*vrxv1.Interface{"BondEthernet2": {Enabled: proto.Bool(true), Promiscuous: proto.Bool(false), Vrf: proto.String("default")}}}
+	ds := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"BondEthernet2": {Enabled: proto.Bool(true), Promiscuous: proto.Bool(false), Vrf: proto.String("default")}}}
 	AssembleBonds(ds, kvs, stored, func(uint32) string { return "default" })
 	want := ifsOf(t, `{
 	  "BondEthernet1": {"enabled": false, "promiscuous": false, "vrf": "default", "description": "uplink",
@@ -145,7 +145,7 @@ func TestAssembleBonds(t *testing.T) {
 		}
 	}
 	// nothing retrieved: the document is left alone
-	empty := &vrxv1.DesiredState{}
+	empty := &ngfwv1.DesiredState{}
 	AssembleBonds(empty, nil, stored, func(uint32) string { return "default" })
 	if empty.Interfaces != nil {
 		t.Fatal("interfaces created without a bond")

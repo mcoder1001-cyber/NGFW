@@ -1,6 +1,6 @@
 package agent
 
-// F-wireguard host check (VRX_INTEGRATION=1, shared lab lock, one package at a time — D-087). The agent's
+// F-wireguard host check (NGFW_INTEGRATION=1, shared lab lock, one package at a time — D-087). The agent's
 // pieces are built in process over the host VPP exactly as Start builds them (subsystems.Register,
 // Service), with the slot-local secret fixture put into the family's store before the first
 // transaction — the stand-in for the sealed cache of PENDING-secret-channel option 1. Owner
@@ -8,9 +8,9 @@ package agent
 // 20000+100·slot+10/+11 (never 51820). VPP is never restarted; everything is removed in t.Cleanup.
 //
 //	TestWireguardOnHost            apply → Retrieve == desired → idempotent → WireguardState → pause
-//	                               for vppctl (VRX_WG_PAUSE) → simulated loss + agent restart →
+//	                               for vppctl (NGFW_WG_PAUSE) → simulated loss + agent restart →
 //	                               recreated → rollback (empty vpn) → nothing left (binapi)
-//	TestWireguardHandshakeOnHost   (VRX_WG_HANDSHAKE=1) a kernel WireGuard peer in the netns
+//	TestWireguardHandshakeOnHost   (NGFW_WG_HANDSHAKE=1) a kernel WireGuard peer in the netns
 //	                               ns-<owner>, reached through a tap of this owner (no af_packet: V24):
 //	                               handshake → EVENT_KIND_WIREGUARD_PEER_CHANGED established published,
 //	                               WireguardState established with last_handshake, ping through it.
@@ -39,7 +39,7 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/wireguard"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/ownertable"
@@ -54,7 +54,7 @@ import (
 type wgHost struct {
 	svc    *Service
 	cancel context.CancelFunc
-	events chan *vrxv1.Event
+	events chan *ngfwv1.Event
 }
 
 func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[string][]byte) *wgHost {
@@ -63,10 +63,10 @@ func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[strin
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := &wgHost{events: make(chan *vrxv1.Event, 64)}
+	h := &wgHost{events: make(chan *ngfwv1.Event, 64)}
 	reg := scheduler.NewRegistry()
 	w, err := subsystems.Register(reg, subsystems.Env{Client: c, Owner: owner, StateDir: dir, Owned: owned,
-		Publish: func(ev *vrxv1.Event) {
+		Publish: func(ev *ngfwv1.Event) {
 			select {
 			case h.events <- ev:
 			default:
@@ -104,7 +104,7 @@ func nrestarts(t *testing.T) string {
 	return strings.TrimSpace(string(out))
 }
 
-// wgHostKeys returns the slot's fixture material: SHA-256 of "VRX_TEST_PSK_F-wireguard_<owner>_<label>".
+// wgHostKeys returns the slot's fixture material: SHA-256 of "NGFW_TEST_PSK_F-wireguard_<owner>_<label>".
 func wgHostKeys(owner string) map[string][]byte {
 	return map[string][]byte{
 		"key/" + owner + "-a":  wgVector(owner + "_itf_a"),
@@ -123,7 +123,7 @@ func pubOf(t *testing.T, material []byte) string {
 }
 
 // wgHostDoc returns the applied document and its canonical Retrieve form.
-func wgHostDoc(t *testing.T, owner string) (*vrxv1.DesiredState, *vrxv1.DesiredState) {
+func wgHostDoc(t *testing.T, owner string) (*ngfwv1.DesiredState, *ngfwv1.DesiredState) {
 	t.Helper()
 	slot, base := vpptest.Slot(t), vpptest.TableBase(t)
 	p1, p2 := pubOf(t, wgVector(owner+"_peer1")), pubOf(t, wgVector(owner+"_peer2"))
@@ -203,9 +203,9 @@ func deleteWireguard(t *testing.T, c vpp.Client, owner string) int {
 	return len(wgs) + len(peers)
 }
 
-func wgRetrieve(t *testing.T, s *Service) *vrxv1.DesiredState {
+func wgRetrieve(t *testing.T, s *Service) *ngfwv1.DesiredState {
 	t.Helper()
-	got, err := s.Retrieve(context.Background(), &vrxv1.RetrieveRequest{})
+	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func wgRetrieve(t *testing.T, s *Service) *vrxv1.DesiredState {
 
 // wgRelevant is the part of a Retrieve the WireGuard check compares: vrfs and vpn, and it fails
 // when WireGuard leaves leaked into interfaces or routing.static.
-func wgRelevant(t *testing.T, ds *vrxv1.DesiredState) *vrxv1.DesiredState {
+func wgRelevant(t *testing.T, ds *ngfwv1.DesiredState) *ngfwv1.DesiredState {
 	t.Helper()
 	for name := range ds.GetInterfaces() {
 		if strings.HasPrefix(name, "wg") {
@@ -224,7 +224,7 @@ func wgRelevant(t *testing.T, ds *vrxv1.DesiredState) *vrxv1.DesiredState {
 	if n := len(ds.GetRouting().GetStatic()); n != 0 {
 		t.Fatalf("%d static routes reported (the allowed-IP routes belong to vpn.wireguard)", n)
 	}
-	return &vrxv1.DesiredState{Vrfs: ds.GetVrfs(), Vpn: ds.GetVpn()}
+	return &ngfwv1.DesiredState{Vrfs: ds.GetVrfs(), Vpn: ds.GetVpn()}
 }
 
 func TestWireguardOnHost(t *testing.T) {
@@ -245,8 +245,8 @@ func TestWireguardOnHost(t *testing.T) {
 	t.Cleanup(func() {
 		h := startWgHost(t, raw, owner, dir, keys)
 		defer h.stop()
-		resp := apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-cleanup", DesiredState: &vrxv1.DesiredState{}, Subsystems: allDomains})
-		if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		resp := apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-cleanup", DesiredState: &ngfwv1.DesiredState{}, Subsystems: allDomains})
+		if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 			t.Errorf("cleanup apply: %v", resp)
 		}
 		if n := deleteWireguard(t, raw, owner); n != 0 {
@@ -263,8 +263,8 @@ func TestWireguardOnHost(t *testing.T) {
 	ctx := context.Background()
 
 	// 1. apply → Retrieve == desired
-	resp := apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-1", DesiredState: desiredDoc, Subsystems: allDomains})
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp := apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-1", DesiredState: desiredDoc, Subsystems: allDomains})
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %s", protojson.Format(resp))
 	}
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
@@ -277,14 +277,14 @@ func TestWireguardOnHost(t *testing.T) {
 	t.Log("Retrieve == desired (vrfs + vpn.wireguard; no wg leaves under interfaces/routing)")
 
 	// 2. idempotent
-	resp = apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-2", DesiredState: desiredDoc, Subsystems: allDomains})
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED || len(resp.GetResults()) != 0 {
+	resp = apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-2", DesiredState: desiredDoc, Subsystems: allDomains})
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED || len(resp.GetResults()) != 0 {
 		t.Fatalf("idempotent apply: %s", protojson.Format(resp))
 	}
 	t.Logf("idempotent apply: %s", protojson.Format(resp.GetSummary()))
 
 	// 3. live state
-	st, err := h.svc.WireguardState(ctx, &vrxv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
+	st, err := h.svc.WireguardState(ctx, &ngfwv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -298,7 +298,7 @@ func TestWireguardOnHost(t *testing.T) {
 			t.Fatal("key material in WireguardState")
 		}
 	}
-	if s, _ := strconv.Atoi(os.Getenv("VRX_WG_PAUSE")); s > 0 {
+	if s, _ := strconv.Atoi(os.Getenv("NGFW_WG_PAUSE")); s > 0 {
 		t.Logf("pausing %d s for vppctl evidence (redact the private key and mac-key lines)", s)
 		time.Sleep(time.Duration(s) * time.Second)
 	}
@@ -313,7 +313,7 @@ func TestWireguardOnHost(t *testing.T) {
 	h = startWgHost(t, raw, owner, dir, keys)
 	rs := h.svc.Resync(ctx)
 	took := time.Since(start)
-	if rs.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if rs.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("resync: %s", protojson.Format(rs))
 	}
 	if got := wgRelevant(t, wgRetrieve(t, h.svc)); !proto.Equal(got, want) {
@@ -325,8 +325,8 @@ func TestWireguardOnHost(t *testing.T) {
 	}
 
 	// 5. rollback: vpn without WireGuard → nothing left (Retrieve and binapi)
-	resp = apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-3", DesiredState: doc(t, `{"vpn": {}}`), Subsystems: allDomains})
-	if resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	resp = apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-3", DesiredState: doc(t, `{"vpn": {}}`), Subsystems: allDomains})
+	if resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("rollback apply: %s", protojson.Format(resp))
 	}
 	t.Logf("rollback: %s", protojson.Format(resp.GetSummary()))
@@ -343,8 +343,8 @@ func TestWireguardOnHost(t *testing.T) {
 
 func TestWireguardHandshakeOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
-	if os.Getenv("VRX_WG_HANDSHAKE") != "1" {
-		t.Skip("opt-in: VRX_WG_HANDSHAKE=1 (a kernel WireGuard peer in the slot netns, reached through a tap)")
+	if os.Getenv("NGFW_WG_HANDSHAKE") != "1" {
+		t.Skip("opt-in: NGFW_WG_HANDSHAKE=1 (a kernel WireGuard peer in the slot netns, reached through a tap)")
 	}
 	for _, bin := range []string{"ip", "wg"} {
 		if _, err := exec.LookPath(bin); err != nil {
@@ -397,7 +397,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	t.Cleanup(func() {
 		h := startWgHost(t, raw, owner, dir, keys)
 		defer h.stop()
-		if resp := apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-cleanup", DesiredState: &vrxv1.DesiredState{}, Subsystems: allDomains}); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+		if resp := apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-cleanup", DesiredState: &ngfwv1.DesiredState{}, Subsystems: allDomains}); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 			t.Errorf("cleanup apply: %v", resp)
 		}
 		deleteWireguard(t, raw, owner)
@@ -435,7 +435,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	}`, slot, base+60, vppPort, owner, kernPub, kernPort)
 	h := startWgHost(t, raw, owner, dir, keys)
 	defer h.stop()
-	if resp := apply(t, h.svc, &vrxv1.ApplyRequest{TxnId: owner + "-hs", DesiredState: doc(t, js), Subsystems: allDomains}); resp.GetStatus() != vrxv1.ApplyStatus_APPLY_STATUS_APPLIED {
+	if resp := apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-hs", DesiredState: doc(t, js), Subsystems: allDomains}); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
 		t.Fatalf("apply: %s", protojson.Format(resp))
 	}
 	deadline := time.After(20 * time.Second)
@@ -443,9 +443,9 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 		select {
 		case ev := <-h.events:
 			t.Logf("event: kind=%s interface=%s message=%q attributes=%v", ev.GetKind(), ev.GetInterface(), ev.GetMessage(), ev.GetAttributes())
-			established = ev.GetKind() == vrxv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED && ev.GetAttributes()["established"] == "true"
+			established = ev.GetKind() == ngfwv1.EventKind_EVENT_KIND_WIREGUARD_PEER_CHANGED && ev.GetAttributes()["established"] == "true"
 		case <-deadline:
-			if s, _ := strconv.Atoi(os.Getenv("VRX_WG_PAUSE")); s > 0 {
+			if s, _ := strconv.Atoi(os.Getenv("NGFW_WG_PAUSE")); s > 0 {
 				time.Sleep(time.Duration(s) * time.Second) // debugging: objects stay for vppctl
 			}
 			t.Fatalf("no established event within 20 s; kernel side:\n%s", run("ip", "netns", "exec", ns, "wg", "show", kernIf))
@@ -454,7 +454,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	// traffic through the tunnel, from the kernel peer to VPP's tunnel address
 	t.Logf("ping through the tunnel:\n%s", run("ip", "netns", "exec", ns, "ping", "-c", "3", "-W", "2", fmt.Sprintf("10.%d.61.1", slot)))
 	t.Logf("kernel peer (wg show, keys are public):\n%s", run("ip", "netns", "exec", ns, "wg", "show", kernIf, "latest-handshakes"))
-	st, err := h.svc.WireguardState(context.Background(), &vrxv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
+	st, err := h.svc.WireguardState(context.Background(), &ngfwv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +466,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	if !p.GetEstablished() || p.GetLastHandshake() == nil || p.GetEndpoint() != fmt.Sprintf("10.%d.60.2", slot) || st.GetInterfaces()[0].GetRxPackets() == 0 {
 		t.Fatalf("peer not established / no traffic: %v", st)
 	}
-	if s, _ := strconv.Atoi(os.Getenv("VRX_WG_PAUSE")); s > 0 {
+	if s, _ := strconv.Atoi(os.Getenv("NGFW_WG_PAUSE")); s > 0 {
 		t.Logf("pausing %d s for vppctl evidence", s)
 		time.Sleep(time.Duration(s) * time.Second)
 	}

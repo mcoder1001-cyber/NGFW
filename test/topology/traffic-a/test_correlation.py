@@ -13,7 +13,7 @@ from correlation import ExpectedCase, Flow, Probe, correlate
 from evidence import read_pcap, checksum
 from scenario import Refused
 
-MARKER = b'vrx-traffic-a-fixture-nonce'
+MARKER = b'ngfw-traffic-a-fixture-nonce'
 DIGEST = hashlib.sha256(MARKER).hexdigest()
 FLOW = Flow('10.3.1.2', '10.3.2.2', 6, 43001, 8000)
 MAC1 = '02:00:00:00:00:02'

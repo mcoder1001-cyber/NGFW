@@ -122,7 +122,7 @@ import { unboundChronySyslogFeature } from './features/unbound-chrony-syslog/ind
 
 import { notificationsFeature } from './features/notifications/index.js';
 
-const DB_HANDLE = Symbol('VRX_DB_HANDLE');
+const DB_HANDLE = Symbol('NGFW_DB_HANDLE');
 
 /** Closes the pool and the Valkey client when the application shuts down. */
 class Resources implements OnApplicationShutdown {
@@ -138,7 +138,7 @@ class Resources implements OnApplicationShutdown {
 }
 
 /**
- * The vrx-api application. `AppModule.forRoot(env)` wires everything from one parsed environment; nothing connects at
+ * The ngfw-api application. `AppModule.forRoot(env)` wires everything from one parsed environment; nothing connects at
  * construction (database, Valkey and agent are lazy), so the OpenAPI generator and the route-guard test build the
  * complete app offline. Global: AuthGuard on every route, AuditInterceptor on every mutation, problem+json filter.
  */

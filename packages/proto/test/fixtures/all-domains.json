@@ -1,6 +1,6 @@
 {
   "system": {
-    "hostname": "vrx-a",
+    "hostname": "ngfw-a",
     "timezone": "Asia/Tehran",
     "banner": { "login": "Authorised access only." },
     "dns": { "servers": ["10.0.0.53", "2001:db8::53"], "searchDomains": ["lab.example"], "vrf": "default" }
@@ -31,7 +31,7 @@
       "vrf": "default",
       "rxMode": "adaptive",
       "promiscuous": false,
-      "dhcpClient": { "hostname": "vrx-a", "setBroadcastFlag": true }
+      "dhcpClient": { "hostname": "ngfw-a", "setBroadcastFlag": true }
     },
     "TenGigabitEthernet0/0/1": {
       "enabled": true,
@@ -355,7 +355,7 @@
           "protocol": "esp",
           "localAddr": "10.0.0.1",
           "remoteAddr": "192.0.2.1",
-          "localId": "vrx-a",
+          "localId": "ngfw-a",
           "remoteId": "site-b",
           "auth": { "method": "psk", "secretRef": "psk/site-b" },
           "proposal": "default",
@@ -496,7 +496,7 @@
       "vrf": "default",
       "listen": [{ "address": "10.0.0.1", "port": 161 }],
       "engineId": "800000090300aabbccddeeff",
-      "sysName": "vrx-a",
+      "sysName": "ngfw-a",
       "sysLocation": "lab",
       "sysContact": "noc@example.net",
       "communities": { "monitoring": { "secretRef": "password/snmp-monitoring", "access": "ro", "sources": ["10.255.0.0/24"] } },
@@ -505,7 +505,7 @@
     },
     "lldp": {
       "enabled": true,
-      "systemName": "vrx-a",
+      "systemName": "ngfw-a",
       "txHold": 4,
       "txIntervalSec": 30,
       "interfaces": [{ "interface": "TenGigabitEthernet0/0/1", "portDescription": "lan", "mgmtIpv4": "10.0.0.1", "mgmtIpv6": "2001:db8::1", "mgmtOid": "1.3.6.1.4.1" }]
@@ -562,8 +562,8 @@
     },
     "cluster": {
       "enabled": true,
-      "nodeName": "vrx-a",
-      "peers": [{ "name": "vrx-b", "address": "192.168.200.3" }],
+      "nodeName": "ngfw-a",
+      "peers": [{ "name": "ngfw-b", "address": "192.168.200.3" }],
       "port": 4370,
       "secretRef": "key/cluster-sync",
       "interface": "TenGigabitEthernet0/0/1",

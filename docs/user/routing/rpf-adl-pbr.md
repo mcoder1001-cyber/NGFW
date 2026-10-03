@@ -3,7 +3,7 @@
 **Screens:** *Routing → Policy routing* (`/routing/pbr`) and *Firewall → ADL / Auto-SDL* (`/firewall/adl`); uRPF and ADL
 also appear in the interface drawer (*Interfaces → interface → Security*). **REST:** the generic configuration routes
 (`/api/v1/config/interfaces/<if>/urpf`, `…/adl`, `/api/v1/config/routing/pbr`, `/api/v1/config/services/autoSdl`) and
-`GET /api/v1/state/pbr` (live). **CLI:** `vrx configure set …` / `merge …` on the same paths, `vrx show drift`
+`GET /api/v1/state/pbr` (live). **CLI:** `ngfw configure set …` / `merge …` on the same paths, `ngfw show drift`
 (`docs/user/cli/reference.md`). **VPP:** `urpf`, `adl`, `abf` and `auto_sdl` plugins.
 
 | feature | what it does | configuration | absent / off |
@@ -121,12 +121,12 @@ curl -s -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/state/pbr
 ```
 
 ```text
-vrx configure merge routing pbr '{"policies":{"lan-b-via-wan2":{"acl":"from-lan-b","priority":10,"paths":[{"address":"203.0.113.1","interface":"GigabitEthernet0/9/0"}]}}}'
-vrx configure set interfaces GigabitEthernet0/8/0 urpf ipv4 strict
-vrx configure set interfaces GigabitEthernet0/10/0 adl '{"ipv4":true,"allowVrf":"allowed-sources"}'
-vrx configure set services autoSdl '{"enabled":true,"threshold":5,"removeTimeoutSec":300}'
-vrx commit
-vrx show drift
+ngfw configure merge routing pbr '{"policies":{"lan-b-via-wan2":{"acl":"from-lan-b","priority":10,"paths":[{"address":"203.0.113.1","interface":"GigabitEthernet0/9/0"}]}}}'
+ngfw configure set interfaces GigabitEthernet0/8/0 urpf ipv4 strict
+ngfw configure set interfaces GigabitEthernet0/10/0 adl '{"ipv4":true,"allowVrf":"allowed-sources"}'
+ngfw configure set services autoSdl '{"enabled":true,"threshold":5,"removeTimeoutSec":300}'
+ngfw commit
+ngfw show drift
 ```
 
 VPP's own view (read-only, on the router): `vppctl show abf policy`, `vppctl show abf attach <if>`,

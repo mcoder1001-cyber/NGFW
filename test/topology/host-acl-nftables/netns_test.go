@@ -1,7 +1,7 @@
 package hostacl
 
 // The slot's two namespaces (the same shape as apps/agent/internal/renderers/nftables/nftest): ns-<prefix>-hacl is the
-// "host" whose table the slot agent renders (VRX_HOST_ACL_NETNS), ns-<prefix>-hpeer a client, joined by the veth pair
+// "host" whose table the slot agent renders (NGFW_HOST_ACL_NETNS), ns-<prefix>-hpeer a client, joined by the veth pair
 // <prefix>h0 ↔ <prefix>p0 on 10.<slot>.77.0/24. Sockets are opened by a goroutine that locked its OS thread and entered
 // the namespace with setns(2). The root netns ruleset is only ever listed (`nft list tables`) and must not change.
 

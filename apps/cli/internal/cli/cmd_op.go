@@ -143,7 +143,7 @@ func init() {
 	})
 	register(&Command{
 		Words: []string{"configure"}, Where: inOp,
-		Summary: "Enter configuration mode (one-shot: `vrx configure <config command>`)",
+		Summary: "Enter configuration mode (one-shot: `ngfw configure <config command>`)",
 		NoREST:  "local: switches the shell mode; the candidate lives in the API",
 		Run: func(_ context.Context, a *App, _ []cpath.Token) error {
 			a.mode, a.edit = ModeConfig, nil
@@ -755,7 +755,7 @@ func loginCmd(ctx context.Context, a *App, args []cpath.Token) error {
 		}
 	}
 	if !a.interactive && !a.noSession && a.sessionPath() == "" {
-		return usagef("no private place for the session: $XDG_RUNTIME_DIR is unset — set VRX_SESSION_FILE (in a 0700 directory you own) or use an API key")
+		return usagef("no private place for the session: $XDG_RUNTIME_DIR is unset — set NGFW_SESSION_FILE (in a 0700 directory you own) or use an API key")
 	}
 	a.client.Cred = nil
 	if err := a.login(ctx, user, pw, !a.interactive); err != nil {
@@ -834,7 +834,7 @@ func apiKeyCreate(ctx context.Context, a *App, args []cpath.Token) error {
 				return err
 			}
 		default:
-			return usagef("api-key create with a login session needs your current password: run it in a terminal (prompted without echo), pass --password-file <path> (mode 0600), or authenticate with an API key (--api-key-file / VRX_API_KEY)")
+			return usagef("api-key create with a login session needs your current password: run it in a terminal (prompted without echo), pass --password-file <path> (mode 0600), or authenticate with an API key (--api-key-file / NGFW_API_KEY)")
 		}
 		body["current"] = pw
 	}

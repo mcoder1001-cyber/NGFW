@@ -18,7 +18,7 @@ not built**. Reference: VPP "Host Stack" docs; plugins `session`, `tcp`, `udp`, 
   layer on the shared VPP** (same rule as F-rpf-adl-pbr). Check read-only (`vppctl show session verbose`); if it is off, the host check below
   is skipped with that reason and everything stays fake-tested
 - `apps/agent/internal/descriptors/dfkit/` — base helpers (D-077 Q5), `globals.go` (session enable and http_static are VPP globals:
-  globals owner only, D-071; tests hold `flock /run/lock/vrx-globals.lock` exclusively and restore the previous value, D-082)
+  globals owner only, D-071; tests hold `flock /run/lock/ngfw-globals.lock` exclusively and restore the previous value, D-082)
 - LOG D-077 Q3 (http_static host tests stay opt-in and run only in a manager VPP-restart window — you cannot undo an enable), D-063/D-076/
   D-080 (write-only rules), D-064 (crash-prone calls opt-in); DF-8 review M5 (http_static `www_root` must be validated)
 - `packages/schema/src/domains/services.ts` — **no host-stack model exists**
@@ -35,12 +35,12 @@ fields are proposed for the start-up generator in your questions file, not added
 
 ## Scope — build exactly this
 1. **Schema**: namespace secret is a secretRef (never inline); rule prefixes canonical and family-consistent; `wwwRootPath` under
-   `/var/lib/vrx/www/` only, no `..`, no control chars (D-049); session rules and `services.autoSdl.enabled` in one document → 400 with a
+   `/var/lib/ngfw/www/` only, no `..`, no control chars (D-049); session rules and `services.autoSdl.enabled` in one document → 400 with a
    `pointer` (one rt engine, see Inputs).
 2. **Agent**: new `descriptors/hoststack/` package (on `descriptors/dfkit`): `hoststack.session` (global, **write-only**, registered only for
    the globals owner — D-071), `hoststack.namespace/<name>` (write-only, no dump), `hoststack.session-rule/<tag>` (Retrieve from
    `session_rules_v2_dump`), `hoststack.tcp-src` (write-only, D-076 applied-once record), `hoststack.http-static` (write-only, **not in default
-   Register** — opt-in `VRX_HOSTSTACK_HTTP_STATIC=1`, D-064). A namespace with a `secretRef` is refused with a clear DryRun error until the
+   Register** — opt-in `NGFW_HOSTSTACK_HTTP_STATIC=1`, D-064). A namespace with a `secretRef` is refused with a clear DryRun error until the
    secret channel lands (PENDING-secret-channel). Fake-client tests incl. duplicate-add; ONE host check for namespaces + session rules only
    (prefixed tags), **only if the host session layer is already on with the rule-table engine**: Retrieve == desired, `vppctl show session
    rules` contains it, rollback clears, restart simulation.

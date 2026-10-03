@@ -8,7 +8,7 @@ There is no maintained Node.js binding, and writing one over `ffi-napi` puts a
 blocking, memory-unsafe FFI in your event loop — it will deadlock under load and
 crash the API when VPP restarts.
 
-**Decision:** a Go agent (`vrx-agent`) owns everything privileged. Node.js owns the
+**Decision:** a Go agent (`ngfw-agent`) owns everything privileged. Node.js owns the
 product logic. gRPC over a UNIX socket between them.
 
 **Consequences:** you need Go skills on the team. You gain: the agent can be tested,
@@ -79,8 +79,8 @@ dashboard is your own React charts.
 | Unit | User | Restart policy | Notes |
 |---|---|---|---|
 | `vpp.service` | root | on-failure, agent reconciles after | hugepages, isolcpus, `startup.conf` generated |
-| `vrx-agent.service` | root | always | `After=vpp.service`, holds the gRPC socket |
-| `vrx-api.service` | `vrx` | always | no `CAP_NET_ADMIN`, no raw sockets |
+| `ngfw-agent.service` | root | always | `After=vpp.service`, holds the gRPC socket |
+| `ngfw-api.service` | `ngfw` | always | no `CAP_NET_ADMIN`, no raw sockets |
 | `frr.service` | frr | always | config rendered by agent |
 | `strongswan.service` | root | always | `swanctl.conf` rendered by agent |
 | `kea-dhcp4/6`, `unbound`, `chronyd`, `snmpd`, `keepalived` | own users | always | rendered by agent |

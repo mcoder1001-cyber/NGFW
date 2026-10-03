@@ -9,12 +9,12 @@ import (
 	"sync"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Config opens a Runtime.
 type Config struct {
-	// StateDir is the agent state dir (VRX_AGENT_STATE_DIR); Owner the agent owner (VRX_OWNER).
+	// StateDir is the agent state dir (NGFW_AGENT_STATE_DIR); Owner the agent owner (NGFW_OWNER).
 	StateDir string
 	Owner    string
 	Log      *slog.Logger
@@ -142,7 +142,7 @@ func (rt *Runtime) Store() *Store { return rt.store }
 
 // Snapshot is a deep copy of the applied objects document — diagnostics and tests only. Consumers
 // project from the transaction's objects (the request), never from here (docs/agent/objects.md, review F3).
-func (rt *Runtime) Snapshot() *vrxv1.ObjectsConfig { return rt.store.Snapshot() }
+func (rt *Runtime) Snapshot() *ngfwv1.ObjectsConfig { return rt.store.Snapshot() }
 
 // FQDN is the FQDNLookup of this runtime (use with WithFQDN): the addresses FQDN address object
 // name resolves to now; false when it has none (never resolved, expired) or is not an FQDN object.
@@ -172,7 +172,7 @@ func (rt *Runtime) Queries() int {
 }
 
 // fqdnObjects maps every FQDN address object of doc to its host name.
-func fqdnObjects(doc *vrxv1.ObjectsConfig) map[string]string {
+func fqdnObjects(doc *ngfwv1.ObjectsConfig) map[string]string {
 	out := map[string]string{}
 	for name, a := range doc.GetAddresses() {
 		if a.GetType() == "fqdn" && a.GetFqdn() != "" {

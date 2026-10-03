@@ -41,7 +41,7 @@ Secrets page and the dev previews are **not registered**. `apps/web/src/pages/de
 ```
 
 The Secrets page runs on the real P06 API (`/api/v1/secrets`), so routing it adds no stub. When it gets routed, it
-should also get an E2E step in `test/e2e/flow.e2e.mjs` (create → rotate → delete, with a `VRX_TEST_PSK_<id>` value) and a
+should also get an E2E step in `test/e2e/flow.e2e.mjs` (create → rotate → delete, with a `NGFW_TEST_PSK_<id>` value) and a
 `docs/user/` page. Both files are outside WEB-2's ownership.
 
 ## Q3 — Preview strings reach the production bundle

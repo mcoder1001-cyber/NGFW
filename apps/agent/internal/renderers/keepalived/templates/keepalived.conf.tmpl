@@ -1,9 +1,9 @@
-{{- /* keepalived.conf — rendered by the vrx-agent keepalived renderer (RF-4). Every user value
+{{- /* keepalived.conf — rendered by the ngfw-agent keepalived renderer (RF-4). Every user value
        passes one helper: name (instance/script/group names), ifname, addr, prefix, adv, pass,
        path. Script strings name only the shipped notify helper and shipped checks. Never
        rendered: vrrp_strict, use_vmac, no_accept (they make keepalived install firewall
        rules), include, $VAR definitions. */ -}}
-# Rendered by vrx-agent (keepalived renderer). Do not edit: every commit overwrites this file.
+# Rendered by ngfw-agent (keepalived renderer). Do not edit: every commit overwrites this file.
 global_defs {
     router_id {{name .RouterID}}
     enable_script_security

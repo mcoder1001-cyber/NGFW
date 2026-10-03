@@ -7,8 +7,8 @@
 // and deleted in t.Cleanup. Sockets are opened inside a namespace by a goroutine that locks its OS thread
 // and enters it with setns(2) (the swantest pattern).
 //
-//	h := nftest.New(t)                       // skips unless VRX_INTEGRATION=1; takes the lab lock shared
-//	r := nftables.New(h.Runner(), h.Paths()) // table inet vrx_<prefix> inside ns-<prefix>-hacl
+//	h := nftest.New(t)                       // skips unless NGFW_INTEGRATION=1; takes the lab lock shared
+//	r := nftables.New(h.Runner(), h.Paths()) // table inet ngfw_<prefix> inside ns-<prefix>-hacl
 //	stop := h.Listen(t, 2222)                // TCP server on the host side
 //	err := h.Dial(2222, time.Second)         // TCP client from the peer side
 package nftest
@@ -45,7 +45,7 @@ type Harness struct {
 	Peer     string // ns-<prefix>-hpeer
 	HostAddr netip.Addr
 	PeerAddr netip.Addr
-	Dir      string // /run/vrx-test/<prefix>/nftables: rendered file and store
+	Dir      string // /run/ngfw-test/<prefix>/nftables: rendered file and store
 	ip       renderers.Runner
 	nft      renderers.Runner // nft inside Host
 }
@@ -71,7 +71,7 @@ func New(t *testing.T) *Harness {
 		Host: "ns-" + prefix + "-hacl", Peer: "ns-" + prefix + "-hpeer",
 		HostAddr: netip.MustParseAddr(fmt.Sprintf("10.%d.77.1", slot)),
 		PeerAddr: netip.MustParseAddr(fmt.Sprintf("10.%d.77.2", slot)),
-		Dir:      filepath.Join("/run/vrx-test", prefix, "nftables"),
+		Dir:      filepath.Join("/run/ngfw-test", prefix, "nftables"),
 		ip:       renderers.NewSystemRunner(renderers.NewAllowlist(IPBin)),
 	}
 	h.nft = nftables.NewNetnsRunner(h.Host, renderers.NewSystemRunner(nftables.Binaries()))
@@ -126,7 +126,7 @@ func (h *Harness) teardown(ctx context.Context) {
 	}
 }
 
-// Paths are the renderer's test paths: table vrx_<prefix> in the Host namespace, files in Dir.
+// Paths are the renderer's test paths: table ngfw_<prefix> in the Host namespace, files in Dir.
 func (h *Harness) Paths() nftables.Paths { return nftables.TestPaths(h.Prefix, h.Host, h.Dir) }
 
 // Runner is the product runner (nft only); nftables.New wraps it for the namespace.

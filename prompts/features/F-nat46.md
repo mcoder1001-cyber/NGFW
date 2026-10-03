@@ -9,12 +9,12 @@ nat64, nat66, map, cnat, pnat); domain D4 "NAT & CGNAT" in `docs/08-master-sched
 
 ## Inputs to read first
 - `packages/schema/src/domains/nat.ts` — extend additively (contract rule below), do not fork; `nat.map` exists (F-det44-map-dslite-cnat)
-- `packages/proto/vrx/v1/dataplane.proto` — the `NatConfig` message
+- `packages/proto/ngfw/v1/dataplane.proto` — the `NatConfig` message
 - `apps/agent/internal/descriptors/mapnat/` (built by DF-3) — reuse its `map.domain` / `map.interface` descriptors; **do not edit it**
   (owned by F-det44-map-dslite-cnat; agree changes via the questions file)
 - the pattern: F-nat44-ei-64-66-nptv6 (`docs/status/tasks/F-nat44-ei-64-66-nptv6.md`, `descriptors/nat64`, `desired/nat64.go`)
 - `apps/agent/binapi/map/` — **the only source of VPP API names** (manager-owned; missing plugin → questions file)
-- `docs/lab/shared-host-rules.md` — your slot prefix, ports, table range; `docs/lab/host-vrx-a.md` — `map_plugin.so` is part of
+- `docs/lab/shared-host-rules.md` — your slot prefix, ports, table range; `docs/lab/host-ngfw-a.md` — `map_plugin.so` is part of
   vpp-plugin-core (loaded by default; not in the "still not loaded" list)
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/
 
@@ -30,9 +30,9 @@ Renaming/reshaping existing fields is not allowed (PENDING).
 1. **Schema**: Zod model for `nat.nat46` (only if the spike says (a) works; contract rule) with semantic rules: IPv4 service address
    unique, IPv6 server a unicast host address, client /96 prefix an RFC 6052 length (/96 only for 1:1), interfaces exist.
 2. **Agent**: `apps/agent/internal/descriptors/nat46/` — the NAT46 → MAP-T projection (mapping → `map.domain`, interfaces →
-   `map.interface` translation mode); unit tests with the fake client; ONE integration check on the host VPP (`VRX_INTEGRATION=1`,
+   `map.interface` translation mode); unit tests with the fake client; ONE integration check on the host VPP (`NGFW_INTEGRATION=1`,
    shared lock, prefixed objects): after Apply `Retrieve()` == desired and `vppctl show map domain` contains it; after rollback nothing
-   remains; agent-restart simulation recreates it. Real-VPP tests skip without `VRX_INTEGRATION`.
+   remains; agent-restart simulation recreates it. Real-VPP tests skip without `NGFW_INTEGRATION`.
 3. **API**: config via the generic pointer routes; no state route (stateless — nothing to page).
 4. **UI**: NAT46 tab (list + schema-driven form); en + fa strings; screenshot against the real endpoint.
 5. **Docs**: `docs/user/firewall/nat46.md` with an example and the CLI equivalent.

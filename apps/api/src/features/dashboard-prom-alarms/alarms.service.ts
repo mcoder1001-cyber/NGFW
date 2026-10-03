@@ -243,7 +243,7 @@ export class AlarmsService implements OnModuleDestroy {
         await deliver(
           target.url,
           { kind, ...payload, at: new Date(this.now()).toISOString() },
-          { ...(token ? { token } : {}), timeoutMs: this.env.VRX_ALARM_WEBHOOK_TIMEOUT_MS },
+          { ...(token ? { token } : {}), timeoutMs: this.env.NGFW_ALARM_WEBHOOK_TIMEOUT_MS },
         );
       } catch (e) {
         this.log.warn(`webhook '${name}' for alarm '${ruleName}' failed: ${String(e)}`);
@@ -339,7 +339,7 @@ export class AlarmsService implements OnModuleDestroy {
   private openStats(): void {
     if (this.stopped) return;
     const call = this.agent.streamStats({
-      intervalMs: this.env.VRX_ALARM_STATS_INTERVAL_MS,
+      intervalMs: this.env.NGFW_ALARM_STATS_INTERVAL_MS,
       interfaces: [],
       includeWorkerCpu: true,
     });

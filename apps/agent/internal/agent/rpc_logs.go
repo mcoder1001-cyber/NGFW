@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	ucsaction "ngfw/agent/internal/actions/unbound-chrony-syslog"
 	"ngfw/agent/internal/renderers"
 )
@@ -29,7 +29,7 @@ func logRunner() renderers.Runner {
 }
 
 // SyslogState implements the SyslogState RPC.
-func (g *server) SyslogState(ctx context.Context, req *vrxv1.SyslogStateRequest) (*vrxv1.SyslogStateResponse, error) {
+func (g *server) SyslogState(ctx context.Context, req *ngfwv1.SyslogStateRequest) (*ngfwv1.SyslogStateResponse, error) {
 	hs, err := g.hostServices(req.GetOwner())
 	if err != nil {
 		return nil, err
@@ -40,7 +40,7 @@ func (g *server) SyslogState(ctx context.Context, req *vrxv1.SyslogStateRequest)
 	}
 	defer release()
 	r := hs.Rsyslog.Renderer()
-	resp := &vrxv1.SyslogStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().ConfFile, Inputs: map[string]int64{}}
+	resp := &ngfwv1.SyslogStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().ConfFile, Inputs: map[string]int64{}}
 	st, err := r.State(ctx)
 	switch {
 	case err != nil:
@@ -51,7 +51,7 @@ func (g *server) SyslogState(ctx context.Context, req *vrxv1.SyslogStateRequest)
 			resp.Inputs[k] = v
 		}
 		for i, t := range st.Targets {
-			resp.Targets = append(resp.Targets, &vrxv1.SyslogTargetState{
+			resp.Targets = append(resp.Targets, &ngfwv1.SyslogTargetState{
 				Index: uint32(i), Action: t.Name, Target: t.Target, Protocol: t.Protocol, Reported: t.Reported, //nolint:gosec // ≤ 16 targets
 				Processed: t.Processed, Failed: t.Failed, Suspended: t.Suspended, SuspendedDuration: t.SuspendedDuration,
 				Resumed: t.Resumed, QueueSize: t.QueueSize, Enqueued: t.Enqueued, Full: t.Full,
@@ -60,13 +60,13 @@ func (g *server) SyslogState(ctx context.Context, req *vrxv1.SyslogStateRequest)
 		}
 	}
 	for _, p := range hs.Rsyslog.Pending(ctx) {
-		resp.PendingActions = append(resp.PendingActions, &vrxv1.ServiceDaemonAction{Daemon: p.Daemon, Unit: p.Unit, Action: p.Action, Reason: p.Reason})
+		resp.PendingActions = append(resp.PendingActions, &ngfwv1.ServiceDaemonAction{Daemon: p.Daemon, Unit: p.Unit, Action: p.Action, Reason: p.Reason})
 	}
 	return resp, nil
 }
 
 // SyslogEntries implements the SyslogEntries RPC (the log explorer).
-func (g *server) SyslogEntries(ctx context.Context, req *vrxv1.SyslogEntriesRequest) (*vrxv1.SyslogEntriesResponse, error) {
+func (g *server) SyslogEntries(ctx context.Context, req *ngfwv1.SyslogEntriesRequest) (*ngfwv1.SyslogEntriesResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}

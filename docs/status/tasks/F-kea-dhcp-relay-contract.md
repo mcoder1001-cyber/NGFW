@@ -3,7 +3,7 @@
 Committed on `task/F-kea-dhcp-relay` as a separate `contract(schema,proto): …` commit (envelope: workers do not
 create `contract/` branches). Additive only; nothing renamed or reshaped.
 
-## proto (`packages/proto/vrx/v1/dataplane.proto`)
+## proto (`packages/proto/ngfw/v1/dataplane.proto`)
 - `rpc DhcpLeases(DhcpLeasesRequest) returns (DhcpLeasesResponse)` under the `// wave-A: F-kea-dhcp-relay` anchor of
   `service Dataplane` (framed by blank lines, the anchor stays a detached comment).
 - New messages in the `// ----- F-kea-dhcp-relay -----` section: `DhcpLeasesRequest`, `DhcpLease`, `DhcpSubnetUsage`,

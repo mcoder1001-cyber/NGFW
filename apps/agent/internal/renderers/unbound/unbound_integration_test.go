@@ -15,13 +15,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // Integration: a real `unbound -d` child with test-scoped paths under
-// /run/vrx-test/<prefix>/unbound, listening on 127.0.0.1:3<slot>53 only. Never the system
+// /run/ngfw-test/<prefix>/unbound, listening on 127.0.0.1:3<slot>53 only. Never the system
 // unit, never /etc/unbound.
 
 const unboundBin = "/usr/sbin/unbound"
@@ -49,8 +49,8 @@ func TestUnboundIntegration(t *testing.T) {
 	// M4: the product paths render and pass unbound-checkconf on this host (staged copy only:
 	// nothing is written under /etc or /run).
 	prod := New(NewRunner(), WithPaths(ProductPaths()))
-	pf, err := prod.Render(ctx, &vrxv1.DnsService{Resolvers: map[string]*vrxv1.DnsResolver{"lan": {
-		Listen: []*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(53)}},
+	pf, err := prod.Render(ctx, &ngfwv1.DnsService{Resolvers: map[string]*ngfwv1.DnsResolver{"lan": {
+		Listen: []*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(53)}},
 	}}})
 	if err != nil {
 		t.Fatal(err)
@@ -61,25 +61,25 @@ func TestUnboundIntegration(t *testing.T) {
 	t.Log("product paths (control-interface /run/unbound.ctl, pidfile /run/unbound.pid, /var/lib/unbound/root.key): unbound-checkconf accepted the staged render")
 
 	txt := `v=spf1 "quoted" \ back ; semi 'apos' include: /etc/passwd`
-	var extraListen []*vrxv1.SocketAddress
-	desired := func(extra bool) *vrxv1.DesiredState {
-		recs := []*vrxv1.DnsRecord{
+	var extraListen []*ngfwv1.SocketAddress
+	desired := func(extra bool) *ngfwv1.DesiredState {
+		recs := []*ngfwv1.DnsRecord{
 			{Name: proto.String("gw.rig.example.test"), Type: proto.String("A"), Data: proto.String(fmt.Sprintf("10.%d.10.1", slot))},
 			{Name: proto.String("txt.rig.example.test"), Type: proto.String("TXT"), Data: proto.String(txt)},
 		}
 		if extra {
-			recs = append(recs, &vrxv1.DnsRecord{Name: proto.String("new.rig.example.test"), Type: proto.String("A"), Data: proto.String(fmt.Sprintf("10.%d.10.2", slot))})
+			recs = append(recs, &ngfwv1.DnsRecord{Name: proto.String("new.rig.example.test"), Type: proto.String("A"), Data: proto.String(fmt.Sprintf("10.%d.10.2", slot))})
 		}
-		res := &vrxv1.DnsResolver{
+		res := &ngfwv1.DnsResolver{
 			Description:   proto.String(`rig "; rm -rf /`),
-			Listen:        append([]*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port)}}, extraListen...),
-			AccessControl: []*vrxv1.DnsAccessControl{{Prefix: proto.String("127.0.0.0/8"), Action: proto.String("allow")}},
-			ForwardZones: []*vrxv1.DnsForwardZone{{Zone: proto.String("corp.example.test"), Forwarders: []*vrxv1.DnsUpstream{
+			Listen:        append([]*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port)}}, extraListen...),
+			AccessControl: []*ngfwv1.DnsAccessControl{{Prefix: proto.String("127.0.0.0/8"), Action: proto.String("allow")}},
+			ForwardZones: []*ngfwv1.DnsForwardZone{{Zone: proto.String("corp.example.test"), Forwarders: []*ngfwv1.DnsUpstream{
 				{Address: proto.String("192.0.2.1")}, {Address: proto.String("192.0.2.2"), Port: proto.Uint32(5353)},
 			}}},
-			LocalZones: []*vrxv1.DnsLocalZone{{Zone: proto.String("rig.example.test"), Records: recs}},
+			LocalZones: []*ngfwv1.DnsLocalZone{{Zone: proto.String("rig.example.test"), Records: recs}},
 		}
-		return &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Dns: &vrxv1.DnsService{Resolvers: map[string]*vrxv1.DnsResolver{"rig": res}}}}
+		return &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Dns: &ngfwv1.DnsService{Resolvers: map[string]*ngfwv1.DnsResolver{"rig": res}}}}
 	}
 
 	files, err := r.Render(ctx, desired(false))
@@ -223,7 +223,7 @@ func TestUnboundIntegration(t *testing.T) {
 
 	// H1 / M2: adding a listen address needs a restart; Apply must not claim success before
 	// unbound listens there, and the request stays pending until unbound has restarted.
-	extraListen = []*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port2)}}
+	extraListen = []*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(port2)}}
 	files3, err := r.Render(ctx, desired(false))
 	if err != nil {
 		t.Fatal(err)

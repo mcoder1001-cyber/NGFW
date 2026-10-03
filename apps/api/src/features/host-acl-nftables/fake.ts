@@ -9,8 +9,8 @@ import type { FakeAgent } from '../../testing/fake-agent.js';
 
 /**
  * The fake agent's HostAclState (wave-A-hotspots P5): a plausible table derived from the host lists and attachments the
- * fake holds (`current.acl`, i.e. what was applied) — mode `check`, table `vrx_<owner>`, one chain per enabled
- * attachment (`in_|out_|fwd_<list>`), one kernel rule per enabled host rule (comment `vrx:<list>:<seq>/0:00000000`),
+ * fake holds (`current.acl`, i.e. what was applied) — mode `check`, table `ngfw_<owner>`, one chain per enabled
+ * attachment (`in_|out_|fwd_<list>`), one kernel rule per enabled host rule (comment `ngfw:<list>:<seq>/0:00000000`),
  * counters from {@link setFakeHostAclCounters}. Owner check, forced failures and "acl not implemented" behave like the
  * fake's other RPCs. The real renderer (and its rule text) lives in the agent (renderers/nftables).
  */
@@ -60,7 +60,7 @@ export function fakeHostAclTable(agent: FakeAgent): Omit<HostAclStateResponse, '
             pointer: `/acl/host/${list.replaceAll('~', '~0').replaceAll('/', '~1')}/rules/${i}`,
             text: verdict,
             verdict,
-            comment: `vrx:${list}:${sequence}/0:00000000`,
+            comment: `ngfw:${list}:${sequence}/0:00000000`,
             packets: c?.packets ?? '0',
             bytes: c?.bytes ?? '0',
           };
@@ -76,7 +76,7 @@ export function fakeHostAclTable(agent: FakeAgent): Omit<HostAclStateResponse, '
     });
   return {
     owner: agent.owner,
-    table: `vrx_${agent.owner}`,
+    table: `ngfw_${agent.owner}`,
     mode: 'check',
     present: false,
     inSync: true,

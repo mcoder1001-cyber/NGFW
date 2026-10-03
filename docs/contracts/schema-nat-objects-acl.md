@@ -11,9 +11,9 @@ branch; renaming or reshaping an existing field is always a PENDING decision (`d
 
 Conventions shared by the three domains:
 
-- Every field goes through `withUi()` → `title` + `x-vrx-ui { widget, group, order, help }` in the JSON Schema.
+- Every field goes through `withUi()` → `title` + `x-ngfw-ui { widget, group, order, help }` in the JSON Schema.
   The three domain files use a private `withUi` that **merges** with the hints already on the wrapped schema, so a
-  re-wrapped primitive keeps its `widget`/`help` (review H1; `ui.ts`'s own `withUi` replaces `x-vrx-ui` wholesale
+  re-wrapped primitive keeps its `widget`/`help` (review H1; `ui.ts`'s own `withUi` replaces `x-ngfw-ui` wholesale
   until its owner fixes it, D-043). Leaf-level tests pin this: every address/prefix leaf with hints has a `widget`.
 - Every domain accepts `{}` (root `prefault`, D-017); lists default to `[]`, records to `{}`, flags to `false`
   (`enabled` on ACL rules/attachments defaults to `true`), so a parsed document is fully populated and `diff()` never

@@ -176,7 +176,7 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
                 <TableRow key={name} hover sx={{ cursor: 'pointer' }} onClick={() => setEditing({ name, value: e })}>
                   <TableCell>
                     <Stack direction="row" gap={0.5} alignItems="center">
-                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily }}>
+                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily }}>
                         {name}
                       </Box>
                       {pending && <Chip size="small" color="warning" variant="outlined" label={t('pending')} />}
@@ -187,7 +187,7 @@ function KindTable({ kind, onUsage }: { kind: ObjectKind; onUsage: (name: string
                     {kind === 'tags' ? (
                       <TagChips tags={[name]} objects={candidate.data} />
                     ) : (
-                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.vrx.monoFontFamily, fontSize: 12, textAlign: 'start' }}>
+                      <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12, textAlign: 'start' }}>
                         {summary(kind, e) || '—'}
                       </Box>
                     )}

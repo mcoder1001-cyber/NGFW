@@ -10,7 +10,7 @@ import {
   type Srv6SidListConfig,
   type Srv6SteeringConfig,
 } from '@ngfw/schema';
-import type { VrxStatus } from '@ngfw/ui-kit';
+import type { NgfwStatus } from '@ngfw/ui-kit';
 import type { JsonSchema } from '@ngfw/ui-kit/schema-form';
 import { domainSchemas } from '../../../schema/registry';
 
@@ -200,7 +200,7 @@ export function move<T>(a: readonly T[], i: number, delta: number): T[] {
 /** installed = configured and in VPP · missing = configured, not in VPP · unmanaged = in VPP, not configured. */
 export type RowStatus = 'installed' | 'missing' | 'unmanaged';
 
-export function rowChip(s: RowStatus): VrxStatus {
+export function rowChip(s: RowStatus): NgfwStatus {
   return s === 'installed' ? 'up' : s === 'missing' ? 'down' : 'degraded';
 }
 

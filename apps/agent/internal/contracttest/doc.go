@@ -1,5 +1,5 @@
 // Package contracttest holds the hand-written compile/strictness checks for the generated
-// vrx.v1 contract (apps/agent/gen/vrx/v1, produced by packages/proto/gen.sh). It lives outside the
+// ngfw.v1 contract (apps/agent/gen/ngfw/v1, produced by packages/proto/gen.sh). It lives outside the
 // generated tree so that `pnpm gen` can wipe apps/agent/gen completely, and it is owned by the
 // contract task (P03/P03b), not by the agent implementation.
 //

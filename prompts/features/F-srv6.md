@@ -33,7 +33,7 @@ weighted SID lists), L2/L3 steering into a BSID, and the encap source / hop limi
 1. **Schema**: semantic rules — SIDs are IPv6 host addresses, unique; behaviour-specific required fields (END.X needs interface + nextHop,
    END.DT4/DT6 need lookupVrf); encap policies require `encapSource` (D-074), insert policies forbid it; steering BSID must exist; ≤ 16 SIDs.
 2. **Agent**: projection → DF-6 `sr.*` descriptors. Globals only on the globals owner. Retrieve covers every object (the globals are
-   write-only). ONE integration check on the host VPP (`VRX_INTEGRATION=1`, shared lock, slot table range, prefixed objects).
+   write-only). ONE integration check on the host VPP (`NGFW_INTEGRATION=1`, shared lock, slot table range, prefixed objects).
 3. **API**: config via pointer routes; `GET /api/v1/state/srv6` (localsids with counters from `sr_localsids_with_packet_stats_dump`,
    policies, steering) through the `Srv6State` RPC. OpenAPI; regenerate `packages/api-client`.
 4. **UI**: SRv6 tab on the VPN page (`vpnTabs` registry, W-seed shell) with Local SIDs / Policies / Steering sub-tabs, SchemaForm,

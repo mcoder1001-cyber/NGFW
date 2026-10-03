@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	aclstate "ngfw/agent/internal/actions/acl"
 	descacl "ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/desired"
@@ -28,9 +28,9 @@ import (
 // Environment of the acl domain (read once at start).
 const (
 	// EnvACLReproject is the schedule check interval in seconds (default 60; clamped to 5–3600).
-	EnvACLReproject = "VRX_ACL_REPROJECT_SEC"
+	EnvACLReproject = "NGFW_ACL_REPROJECT_SEC"
 	// EnvStatsSocket is the VPP stats segment socket (the agent's own setting, same default).
-	EnvStatsSocket = "VRX_AGENT_VPP_STATS_SOCKET"
+	EnvStatsSocket = "NGFW_AGENT_VPP_STATS_SOCKET"
 )
 
 // ACL re-projection timing.
@@ -193,15 +193,15 @@ func (w *aclWatcher) scheduleChanged(now time.Time) (string, bool) {
 			continue
 		}
 		for _, r := range exp.Rules {
-			if r.Schedule == "" || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED || r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_UNSPECIFIED ||
-				r.Status == vrxv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED { // F-rule-expiry: never rendered again, whatever its schedule
+			if r.Schedule == "" || r.Status == ngfwv1.AclRuleStatus_ACL_RULE_STATUS_DISABLED || r.Status == ngfwv1.AclRuleStatus_ACL_RULE_STATUS_UNSPECIFIED ||
+				r.Status == ngfwv1.AclRuleStatus_ACL_RULE_STATUS_EXPIRED { // F-rule-expiry: never rendered again, whatever its schedule
 				continue
 			}
 			on, err := objects.Active(exp.Schedules[r.Schedule], now, w.loc)
 			if err != nil {
 				continue
 			}
-			if applied := r.Status != vrxv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE; on != applied {
+			if applied := r.Status != ngfwv1.AclRuleStatus_ACL_RULE_STATUS_SCHEDULE_INACTIVE; on != applied {
 				state := "off"
 				if on {
 					state = "on"

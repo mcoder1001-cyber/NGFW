@@ -6,7 +6,7 @@
 # Steps: verify.sh (static) → parse VERSION as data → clone/fetch into deploy/vpp/.build (never builds inside /root/vpp)
 # → verify tag object + commit → pristine checkout → build-patches/series (build infrastructure only, always) →
 # patches/series (product; "Status: demo" patches only with --demo) + optional patches → D-089 local version
-# "<VPP_DEB_VERSION>+vrx<VPP_LOCAL_REV>" when any patch at all was applied (D-092) → build-dependency check (report, never
+# "<VPP_DEB_VERSION>+ngfw<VPP_LOCAL_REV>" when any patch at all was applied (D-092) → build-dependency check (report, never
 # installs; an apt failure is fatal) → hash-locked Python deps (pydeps.lock) in a verified wheelhouse + a
 # --require-hashes install check in a scratch venv → free-disk check → `make pkg-deb` (upstream flags, capped
 # parallelism) → .deb + SHA256SUMS + manifest.json → verify.sh --require-files on the output.
@@ -72,43 +72,43 @@ if ! [[ $JOBS =~ ^[0-9]+$ ]] || ((JOBS < 1 || JOBS > MAX_JOBS)); then die "--job
 case $TRACE_PLUGINS in devtools|core) ;; *) die "--trace-plugins must be devtools or core" ;; esac
 
 # ------------------------------------------------------------------ 0. path guards first (M2), then static checks
-BUILD_DIR=$(vrx_guard_dir "$BUILD_DIR" "$ALLOWED_ROOT" --build-dir) || die "--build-dir must resolve inside $ALLOWED_ROOT"
+BUILD_DIR=$(ngfw_guard_dir "$BUILD_DIR" "$ALLOWED_ROOT" --build-dir) || die "--build-dir must resolve inside $ALLOWED_ROOT"
 if [[ -n $OUT_DIR ]]; then
-  OUT_DIR=$(vrx_guard_dir "$OUT_DIR" "$BUILD_DIR" --out) || die "--out must resolve inside the build dir $BUILD_DIR"
+  OUT_DIR=$(ngfw_guard_dir "$OUT_DIR" "$BUILD_DIR" --out) || die "--out must resolve inside the build dir $BUILD_DIR"
 fi
-[[ -z ${VRX_VPP_IN_TESTS:-} ]] || die "path guards passed inside tests/run.sh — refusing to continue (test expected a refusal)"
+[[ -z ${NGFW_VPP_IN_TESTS:-} ]] || die "path guards passed inside tests/run.sh — refusing to continue (test expected a refusal)"
 "$HERE/verify.sh" >/dev/null || die "deploy/vpp/verify.sh failed — fix VERSION/series/lock first (run it for details)"
-vrx_parse_version "$HERE/VERSION" || die "VERSION rejected"
+ngfw_parse_version "$HERE/VERSION" || die "VERSION rejected"
 
 mkdir -p "$BUILD_DIR/src"
-[[ -f $ALLOWED_ROOT/$VRX_OWNED_MARKER ]] || echo "scratch dir of deploy/vpp/build.sh — rm -rf targets must lie below it" >"$ALLOWED_ROOT/$VRX_OWNED_MARKER"
-[[ -f $BUILD_DIR/$VRX_OWNED_MARKER ]] || cp "$ALLOWED_ROOT/$VRX_OWNED_MARKER" "$BUILD_DIR/$VRX_OWNED_MARKER"
+[[ -f $ALLOWED_ROOT/$NGFW_OWNED_MARKER ]] || echo "scratch dir of deploy/vpp/build.sh — rm -rf targets must lie below it" >"$ALLOWED_ROOT/$NGFW_OWNED_MARKER"
+[[ -f $BUILD_DIR/$NGFW_OWNED_MARKER ]] || cp "$ALLOWED_ROOT/$NGFW_OWNED_MARKER" "$BUILD_DIR/$NGFW_OWNED_MARKER"
 SRC="$BUILD_DIR/src/vpp"
 
 REAL_REF=""
-if [[ -n $REFERENCE && -d $REFERENCE/.git ]]; then REAL_REF="$(vrx_realpath "$REFERENCE")"; fi
+if [[ -n $REFERENCE && -d $REFERENCE/.git ]]; then REAL_REF="$(ngfw_realpath "$REFERENCE")"; fi
 if ((OFFLINE)) && [[ -z $REAL_REF ]]; then die "--offline-reference needs a --reference git clone"; fi
 
 # ------------------------------------------------------------------ 1. which patches (decided before touching anything)
 declare -a PLAN_FILES=() PLAN_P=() PLAN_KIND=() SKIPPED=()
 while read -r name popt; do
   PLAN_FILES+=("build-patches/$name"); PLAN_P+=("$popt"); PLAN_KIND+=(build)
-done < <(vrx_series "$HERE/build-patches/series")
+done < <(ngfw_series "$HERE/build-patches/series")
 while read -r name popt; do
-  st=$(vrx_patch_status "$HERE/patches/$name")
+  st=$(ngfw_patch_status "$HERE/patches/$name")
   if [[ $st == demo && $DEMO == 0 ]]; then SKIPPED+=("$name"); continue; fi
   PLAN_FILES+=("patches/$name"); PLAN_P+=("$popt"); PLAN_KIND+=("$st")
-done < <(vrx_series "$HERE/patches/series")
+done < <(ngfw_series "$HERE/patches/series")
 if [[ $TRACE_PLUGINS == core ]]; then PLAN_FILES+=(patches/optional/trace-plugins-core.patch); PLAN_P+=(-p1); PLAN_KIND+=(optional); fi
 n_version_patches=0
-# D-092: ANY change to the upstream tree (build-patches included) → +vrx<N>; only a byte-identical tree is <tag>-release
+# D-092: ANY change to the upstream tree (build-patches included) → +ngfw<N>; only a byte-identical tree is <tag>-release
 n_version_patches=${#PLAN_FILES[@]}
-EXPECT_VERSION=$(vrx_local_version "$VPP_DEB_VERSION" "$VPP_LOCAL_REV" "$n_version_patches")
+EXPECT_VERSION=$(ngfw_local_version "$VPP_DEB_VERSION" "$VPP_LOCAL_REV" "$n_version_patches")
 VARIANT=""
 if [[ " ${PLAN_KIND[*]} " == *" demo "* ]]; then VARIANT+="-demo"; fi
 if [[ $TRACE_PLUGINS == core ]]; then VARIANT+="-trace-core"; fi
 if [[ -z $OUT_DIR ]]; then
-  OUT_DIR=$(vrx_guard_dir "$BUILD_DIR/out/${EXPECT_VERSION}${VARIANT}" "$BUILD_DIR" --out) || die "bad default out dir"
+  OUT_DIR=$(ngfw_guard_dir "$BUILD_DIR/out/${EXPECT_VERSION}${VARIANT}" "$BUILD_DIR" --out) || die "bad default out dir"
 fi
 [[ $OUT_DIR != "$BUILD_DIR" && $OUT_DIR != "$SRC" && $OUT_DIR != "$SRC"/* ]] || die "--out must not be the build dir or the source tree"
 
@@ -121,7 +121,7 @@ log "build dir: $BUILD_DIR  out: $OUT_DIR  jobs: $JOBS  trace-plugins: $TRACE_PL
 have_commit() { git -C "$SRC" cat-file -e "$VPP_COMMIT^{commit}" 2>/dev/null && git -C "$SRC" rev-parse -q --verify "refs/tags/$VPP_TAG" >/dev/null; }
 SOURCE_KIND=upstream; ((OFFLINE == 0)) || SOURCE_KIND=reference
 if [[ ! -d $SRC/.git ]]; then
-  vrx_rm_rf "$SRC" "$BUILD_DIR" || die "refusing to clear $SRC"
+  ngfw_rm_rf "$SRC" "$BUILD_DIR" || die "refusing to clear $SRC"
   if ((OFFLINE)); then
     log "cloning read-only from $REAL_REF (--offline-reference)"
     git clone --no-checkout --no-hardlinks "$REAL_REF" "$SRC"
@@ -160,13 +160,13 @@ log "checked out $(git -C "$SRC" describe --long --match 'v*') (pristine, upstre
 declare -a APPLIED=()
 for i in "${!PLAN_FILES[@]}"; do
   f="$HERE/${PLAN_FILES[$i]}"
-  vrx_apply_patch "$SRC" "$f" "${PLAN_P[$i]}" || die "${PLAN_FILES[$i]} does not apply exactly on $VPP_TAG"
-  APPLIED+=("${PLAN_FILES[$i]}	$(vrx_sha256 "$f")	${PLAN_KIND[$i]}")
+  ngfw_apply_patch "$SRC" "$f" "${PLAN_P[$i]}" || die "${PLAN_FILES[$i]} does not apply exactly on $VPP_TAG"
+  APPLIED+=("${PLAN_FILES[$i]}	$(ngfw_sha256 "$f")	${PLAN_KIND[$i]}")
   log "applied ${PLAN_FILES[$i]} (${PLAN_KIND[$i]})"
 done
 
 # ------------------------------------------------------------------ 6. D-089 local version (before any compile)
-if [[ $EXPECT_VERSION != "$VPP_DEB_VERSION" ]]; then vrx_write_version_script "$SRC" "$EXPECT_VERSION"; fi
+if [[ $EXPECT_VERSION != "$VPP_DEB_VERSION" ]]; then ngfw_write_version_script "$SRC" "$EXPECT_VERSION"; fi
 tree_version=$("$SRC/src/scripts/version")
 [[ $tree_version == "$EXPECT_VERSION" ]] || die "src/scripts/version = $tree_version, expected $EXPECT_VERSION"
 git -C "$SRC" status --porcelain | sed 's/^/    /'
@@ -174,10 +174,10 @@ log "tree version: $tree_version"
 
 # ------------------------------------------------------------------ 7. build dependencies: report, never install (M3)
 # shellcheck disable=SC2016  # $(DEB_DEPENDS) is make syntax, expanded by make
-deps=$(make -s -C "$SRC" -f Makefile -f <(printf 'vrx-print-deps:\n\t@echo $(DEB_DEPENDS)\n') vrx-print-deps 2>/dev/null) \
+deps=$(make -s -C "$SRC" -f Makefile -f <(printf 'ngfw-print-deps:\n\t@echo $(DEB_DEPENDS)\n') ngfw-print-deps 2>/dev/null) \
   || die "could not read DEB_DEPENDS from the VPP Makefile"
 # shellcheck disable=SC2086  # word splitting of the package list is intended
-missing=$(vrx_apt_missing $deps) || die "build-dependency check failed (apt-get -s error above) — not guessing"
+missing=$(ngfw_apt_missing $deps) || die "build-dependency check failed (apt-get -s error above) — not guessing"
 if [[ -n ${missing// /} ]]; then
   log "MISSING build dependencies (not installed; install-dep is never run here): $missing"
   ((STRICT_DEPS == 0)) || die "missing build dependencies with --strict-deps"
@@ -189,17 +189,17 @@ fi
 PYDEPS_DIR="$BUILD_DIR/pydeps/wheelhouse"
 DL_CACHE="$BUILD_DIR/pydeps/empty-dl-cache"     # upstream DL_CACHE_DIR defaults to ~/Downloads — never read it
 mkdir -p "$DL_CACHE"
-pyout=$(vrx_pydeps_prepare "$HERE/pydeps.lock" "$PYDEPS_DIR" "$BUILD_DIR" "$OFFLINE") || die "Python build deps could not be prepared"
+pyout=$(ngfw_pydeps_prepare "$HERE/pydeps.lock" "$PYDEPS_DIR" "$BUILD_DIR" "$OFFLINE") || die "Python build deps could not be prepared"
 while IFS= read -r l; do log "pydeps: $l"; done <<<"$pyout"
-vrx_pydeps_verify "$HERE/pydeps.lock" "$PYDEPS_DIR" || die "wheelhouse verification failed"
+ngfw_pydeps_verify "$HERE/pydeps.lock" "$PYDEPS_DIR" || die "wheelhouse verification failed"
 CHECK_VENV="$BUILD_DIR/pydeps/check-venv"
-vrx_rm_rf "$CHECK_VENV" "$BUILD_DIR" || die "cannot reset $CHECK_VENV"
+ngfw_rm_rf "$CHECK_VENV" "$BUILD_DIR" || die "cannot reset $CHECK_VENV"
 python3 -m venv "$CHECK_VENV"
 PIP_NO_CACHE_DIR=1 "$CHECK_VENV/bin/pip" install -q --disable-pip-version-check --require-hashes --no-index --find-links "$PYDEPS_DIR" \
   -r "$HERE/pydeps.lock" || die "pip --require-hashes install of pydeps.lock failed"
 log "pydeps: pip install --require-hashes --no-index --find-links $PYDEPS_DIR OK: $("$CHECK_VENV/bin/pip" list --format=freeze --disable-pip-version-check 2>/dev/null | grep -Ev '^pip==' | tr '\n' ' ')"
 # External source tarballs may be seeded from the reference tree (upstream re-verifies their sha256); wheels/sdists never.
-pyfiles=" $(vrx_pydeps_parse "$HERE/pydeps.lock" | awk '{print $4}' | tr '\n' ' ') "
+pyfiles=" $(ngfw_pydeps_parse "$HERE/pydeps.lock" | awk '{print $4}' | tr '\n' ' ') "
 DLD="$SRC/build/external/downloads"
 mkdir -p "$DLD"
 for t in "$DLD"/*; do
@@ -223,16 +223,16 @@ avail_gb=$(( $(df --output=avail -k "$BUILD_DIR" | tail -1) / 1024 / 1024 ))
 log "free disk: ${avail_gb} GB (>= $MIN_FREE_GB)"
 
 # ------------------------------------------------------------------ 10. make pkg-deb (upstream flags, capped parallelism)
-cpus=$(vrx_build_cpus "$JOBS") || die "could not select CPUs from process allowed affinity"
+cpus=$(ngfw_build_cpus "$JOBS") || die "could not select CPUs from process allowed affinity"
 SOURCE_DATE_EPOCH=$(git -C "$SRC" log -1 --format=%ct "$VPP_COMMIT")
 export SOURCE_DATE_EPOCH
 # Every pip the upstream build runs (DPDK meson venv via build-patches/0001; python3-vpp-api's PEP 517 build isolation,
 # which needs setuptools>=61) resolves only from the verified wheelhouse: no index, no ~/.cache/pip, no ~/Downloads.
-export VRX_PYDEPS_LOCK="$HERE/pydeps.lock" VRX_PYDEPS_DIR="$PYDEPS_DIR"
+export NGFW_PYDEPS_LOCK="$HERE/pydeps.lock" NGFW_PYDEPS_DIR="$PYDEPS_DIR"
 export PIP_NO_INDEX=1 PIP_FIND_LINKS="$PYDEPS_DIR" PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1
 unset MAKEFLAGS MFLAGS
 MAKE_ARGS=(pkg-deb MAKE_PARALLEL_JOBS="$JOBS" JOBS="$JOBS" DL_CACHE_DIR="$DL_CACHE"
-           VRX_PYDEPS_LOCK="$VRX_PYDEPS_LOCK" VRX_PYDEPS_DIR="$VRX_PYDEPS_DIR")
+           NGFW_PYDEPS_LOCK="$NGFW_PYDEPS_LOCK" NGFW_PYDEPS_DIR="$NGFW_PYDEPS_DIR")
 log "make -C $SRC ${MAKE_ARGS[*]} (taskset -c $cpus, nice 10, SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH)"
 t0=$SECONDS
 taskset -c "$cpus" nice -n 10 make -C "$SRC" "${MAKE_ARGS[@]}"
@@ -242,13 +242,13 @@ log "make pkg-deb finished in $((build_secs / 60))m$((build_secs % 60))s"
 # the DPDK meson venv must contain exactly the locked versions
 DPDK_VENV="$SRC/build-root/build-vpp-native/external/dpdk-meson-venv"
 venv_freeze=$("$DPDK_VENV/bin/pip" list --format=freeze --disable-pip-version-check 2>/dev/null | grep -Ev '^pip==' | sort | tr '\n' ' ')
-lock_freeze=$(vrx_pydeps_parse "$HERE/pydeps.lock" | awk '{print $1"=="$2}' | sort | tr '\n' ' ')
+lock_freeze=$(ngfw_pydeps_parse "$HERE/pydeps.lock" | awk '{print $1"=="$2}' | sort | tr '\n' ' ')
 [[ ${venv_freeze,,} == "${lock_freeze,,}" ]] || die "DPDK meson venv = [$venv_freeze], pydeps.lock = [$lock_freeze]"
 log "DPDK meson venv matches pydeps.lock: $venv_freeze"
 
 # ------------------------------------------------------------------ 11. collect + SHA256SUMS + manifest.json
-vrx_out_dir_is_ours "$OUT_DIR" || die "refusing to empty $OUT_DIR"
-vrx_rm_rf "$OUT_DIR" "$BUILD_DIR" || die "cannot clear $OUT_DIR"
+ngfw_out_dir_is_ours "$OUT_DIR" || die "refusing to empty $OUT_DIR"
+ngfw_rm_rf "$OUT_DIR" "$BUILD_DIR" || die "cannot clear $OUT_DIR"
 mkdir -p "$OUT_DIR"
 shopt -s nullglob
 debs=("$SRC"/build-root/*.deb)
@@ -257,19 +257,19 @@ cp "${debs[@]}" "$OUT_DIR/"
 cp "$SRC"/build-root/*.buildinfo "$SRC"/build-root/*.changes "$OUT_DIR/" 2>/dev/null || true
 (cd "$OUT_DIR" && sha256sum -- *.deb | sort -k2 >SHA256SUMS)
 
-VRX_OUT="$OUT_DIR" VRX_APPLIED="$(printf '%s\n' "${APPLIED[@]}")" VRX_PYDEPS="$(vrx_pydeps_parse "$HERE/pydeps.lock")" \
-VRX_TRACE="$TRACE_PLUGINS" VRX_DEMO="$DEMO" VRX_JOBS="$JOBS" VRX_SECS="$build_secs" VRX_MISSING="${missing:-}" \
-VRX_SOURCE="$SOURCE_KIND" VRX_VARIANT="${VARIANT#-}" VRX_VERSION="$EXPECT_VERSION" VRX_VENV="$venv_freeze" \
-VRX_DESCRIBE="$(git -C "$SRC" describe --long --match 'v*')" \
-VRX_BUILDER_REV="$(git -C "$HERE" rev-parse HEAD 2>/dev/null || echo unknown)" \
-VRX_BUILDER_DIRTY="$(if [[ -n $(git -C "$HERE" status --porcelain -- . 2>/dev/null) ]]; then echo true; else echo false; fi)" \
+NGFW_OUT="$OUT_DIR" NGFW_APPLIED="$(printf '%s\n' "${APPLIED[@]}")" NGFW_PYDEPS="$(ngfw_pydeps_parse "$HERE/pydeps.lock")" \
+NGFW_TRACE="$TRACE_PLUGINS" NGFW_DEMO="$DEMO" NGFW_JOBS="$JOBS" NGFW_SECS="$build_secs" NGFW_MISSING="${missing:-}" \
+NGFW_SOURCE="$SOURCE_KIND" NGFW_VARIANT="${VARIANT#-}" NGFW_VERSION="$EXPECT_VERSION" NGFW_VENV="$venv_freeze" \
+NGFW_DESCRIBE="$(git -C "$SRC" describe --long --match 'v*')" \
+NGFW_BUILDER_REV="$(git -C "$HERE" rev-parse HEAD 2>/dev/null || echo unknown)" \
+NGFW_BUILDER_DIRTY="$(if [[ -n $(git -C "$HERE" status --porcelain -- . 2>/dev/null) ]]; then echo true; else echo false; fi)" \
 VPP_UPSTREAM_URL="$VPP_UPSTREAM_URL" VPP_BRANCH="$VPP_BRANCH" VPP_TAG="$VPP_TAG" VPP_TAG_OBJECT="$VPP_TAG_OBJECT" \
 VPP_COMMIT="$VPP_COMMIT" VPP_DEB_VERSION="$VPP_DEB_VERSION" VPP_LOCAL_REV="$VPP_LOCAL_REV" \
 VPP_PACKAGES_INSTALLED="$VPP_PACKAGES_INSTALLED" VPP_PACKAGES_SHIP="$VPP_PACKAGES_SHIP" \
 python3 - <<'PY'
 import hashlib, json, os, platform, subprocess, glob, datetime
 e = os.environ
-out = e["VRX_OUT"]
+out = e["NGFW_OUT"]
 def field(deb, f):
     return subprocess.run(["dpkg-deb", "-f", deb, f], check=True, capture_output=True, text=True).stdout.strip()
 installed, ship = set(e["VPP_PACKAGES_INSTALLED"].split()), set(e["VPP_PACKAGES_SHIP"].split())
@@ -282,31 +282,31 @@ for deb in sorted(glob.glob(os.path.join(out, "*.deb"))):
     name = field(deb, "Package")
     pkgs.append({"package": name, "version": field(deb, "Version"), "architecture": field(deb, "Architecture"),
                  "file": os.path.basename(deb), "size": os.path.getsize(deb), "sha256": h.hexdigest(),
-                 "ship": name in ship, "installed_on_vrx_a": name in installed})
-applied = [dict(zip(("name", "sha256", "kind"), l.split("\t"))) for l in e["VRX_APPLIED"].splitlines() if l.strip()]
-pydeps = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["VRX_PYDEPS"].splitlines() if l.strip()]
+                 "ship": name in ship, "installed_on_ngfw_a": name in installed})
+applied = [dict(zip(("name", "sha256", "kind"), l.split("\t"))) for l in e["NGFW_APPLIED"].splitlines() if l.strip()]
+pydeps = [dict(zip(("name", "version", "sha256", "file", "url"), l.split())) for l in e["NGFW_PYDEPS"].splitlines() if l.strip()]
 osr = dict(l.rstrip("\n").split("=", 1) for l in open("/etc/os-release") if "=" in l)
-patched = e["VRX_VERSION"] != e["VPP_DEB_VERSION"]
+patched = e["NGFW_VERSION"] != e["VPP_DEB_VERSION"]
 manifest = {
-    "schema": "vrx.vpp-debs.manifest/v2",
+    "schema": "ngfw.vpp-debs.manifest/v2",
     "upstream": {"url": e["VPP_UPSTREAM_URL"], "branch": e["VPP_BRANCH"], "tag": e["VPP_TAG"],
-                 "tag_object": e["VPP_TAG_OBJECT"], "commit": e["VPP_COMMIT"], "describe": e["VRX_DESCRIBE"]},
-    "version": e["VRX_VERSION"],
+                 "tag_object": e["VPP_TAG_OBJECT"], "commit": e["VPP_COMMIT"], "describe": e["NGFW_DESCRIBE"]},
+    "version": e["NGFW_VERSION"],
     "upstream_version": e["VPP_DEB_VERSION"],
     "local_rev": int(e["VPP_LOCAL_REV"]) if patched else None,
-    "variant": e["VRX_VARIANT"] or "default",
+    "variant": e["NGFW_VARIANT"] or "default",
     "patches": [p for p in applied if p["kind"] != "build"],
-    "options": {"trace_plugins": e["VRX_TRACE"], "demo": e["VRX_DEMO"] == "1"},
-    "build": {"builder": "deploy/vpp/build.sh", "builder_commit": e["VRX_BUILDER_REV"],
-              "builder_dirty": e["VRX_BUILDER_DIRTY"] == "true", "source": e["VRX_SOURCE"],
+    "options": {"trace_plugins": e["NGFW_TRACE"], "demo": e["NGFW_DEMO"] == "1"},
+    "build": {"builder": "deploy/vpp/build.sh", "builder_commit": e["NGFW_BUILDER_REV"],
+              "builder_dirty": e["NGFW_BUILDER_DIRTY"] == "true", "source": e["NGFW_SOURCE"],
               "command": "make pkg-deb (upstream defaults: CMAKE_BUILD_TYPE=release, LTO, all plugins)",
               "build_patches": [p for p in applied if p["kind"] == "build"],
-              "inputs": {"python": pydeps, "dpdk_meson_venv": e["VRX_VENV"].split()},
-              "jobs": int(e["VRX_JOBS"]), "seconds": int(e["VRX_SECS"]),
+              "inputs": {"python": pydeps, "dpdk_meson_venv": e["NGFW_VENV"].split()},
+              "jobs": int(e["NGFW_JOBS"]), "seconds": int(e["NGFW_SECS"]),
               "source_date_epoch": int(e["SOURCE_DATE_EPOCH"]),
               "os": osr.get("PRETTY_NAME", "").strip('"'), "arch": platform.machine(),
               "finished": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
-              "missing_build_deps": e["VRX_MISSING"].split()},
+              "missing_build_deps": e["NGFW_MISSING"].split()},
     "packages": pkgs,
 }
 with open(os.path.join(out, "manifest.json"), "w") as fh:

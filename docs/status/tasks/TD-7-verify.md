@@ -1,7 +1,7 @@
 # TD-7 — verify (verifier, slot 6, 2026-09-24)
 
 Branch `task/TD-7` @ 902a935, base `task/TD-6@621d1e2` (D-114/D-116). All checks below ran in fake-host mode
-(`VRX_TEST_ROOT` fixture, scratch `TMPDIR=/tmp/g-td7verify`). Nothing under `/etc/vpp` was read or written, VPP was
+(`NGFW_TEST_ROOT` fixture, scratch `TMPDIR=/tmp/g-td7verify`). Nothing under `/etc/vpp` was read or written, VPP was
 never touched, no real `--apply` ran.
 
 ## Scope
@@ -29,7 +29,7 @@ at `:192-196`, `:294-296`, and the two `flock -w` in `secure_locks:517`).
   immediately: there is no code path where a process can block on, or already hold, its own fd. Self-deadlock is
   architecturally impossible (flock is scoped to the fd/process, not the apply). Verified live: scenarios 32/33/34/35/36
   (single-rollback paths, no contention) all still pass on this branch (12/12 in my own re-run, see below; 19/19 in
-  the worker's `VRX_TEST_ONLY="32 40 42 43"` run).
+  the worker's `NGFW_TEST_ONLY="32 40 42 43"` run).
 - Ordering in `stage_rollback` is: take lock (:1008-1013) → check `finished` (:1015) → `cancel_deadman` (:1016,
   *before* `touch deadman-fired`) → `secure_locks`/`kill_run`/VPP touched. So the timer is disarmed before VPP is
   touched, satisfying the F1 requirement, and confirmed by scenario 43's own check that the "stop $DM.timer" call
@@ -52,8 +52,8 @@ Built the generator from this tree; pulled `621d1e2:deploy/vpp/apply-startup.sh`
 
 **Scenario 42 against TD-6's script — FAILS as claimed:**
 ```
-$ TMPDIR=/tmp/g-td7verify/tmp VRX_TEST_ONLY="42" VRX_TEST_APPLY_SCRIPT=/tmp/g-td7verify/ref/td6-apply-startup.sh \
-  deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7verify/tmp NGFW_TEST_ONLY="42" NGFW_TEST_APPLY_SCRIPT=/tmp/g-td7verify/ref/td6-apply-startup.sh \
+  deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/ngfw-startupgen
   ok   the apply installed and has no result; its holder is gone
   FAIL the second rollback, started while the first is inside its VPP stop, is refused at once and touches nothing (exit 1)
   ok   the first one rolls back alone (exit 1): original file, VPP active, locks released
@@ -65,8 +65,8 @@ Second rollback went FORCED and both processes stopped/started VPP — exactly t
 
 **Scenario 40 against main's pre-TD-6 script — FAILS as claimed:**
 ```
-$ TMPDIR=/tmp/g-td7verify/tmp VRX_TEST_ONLY="40" VRX_TEST_APPLY_SCRIPT=/tmp/g-td7verify/ref/main-apply-startup.sh \
-  deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7verify/tmp NGFW_TEST_ONLY="40" NGFW_TEST_APPLY_SCRIPT=/tmp/g-td7verify/ref/main-apply-startup.sh \
+  deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/ngfw-startupgen
     elapsed 29s at load 13.82, 6 `ip neigh` read(s): ...
   FAIL the poll is bounded by time, not by count: 6 hanging `ip neigh` read(s) ... — independent of the host load
 apply-startup tests: 1 passed, 2 failed
@@ -76,7 +76,7 @@ RC=1
 
 **Scenarios 40/42/43 on this branch's own script — all pass:**
 ```
-$ TMPDIR=/tmp/g-td7verify/tmp VRX_TEST_ONLY="40 42 43" deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/vrx-startupgen
+$ TMPDIR=/tmp/g-td7verify/tmp NGFW_TEST_ONLY="40 42 43" deploy/vpp/test-apply-startup.sh /tmp/g-td7verify/gen/ngfw-startupgen
 apply-startup tests: 12 passed, 0 failed
 RC=0
 ```

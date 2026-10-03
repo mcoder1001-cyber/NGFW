@@ -1,11 +1,11 @@
 import { z } from 'zod';
 
 /** Name of the JSON Schema extension keyword carrying form-renderer hints. */
-export const X_VRX_UI = 'x-vrx-ui' as const;
+export const X_NGFW_UI = 'x-ngfw-ui' as const;
 
 /**
  * Hints consumed by the UI form renderer (packages/ui-kit SchemaForm). They are emitted verbatim into the
- * generated JSON Schema / OpenAPI components under `x-vrx-ui`, so the UI never needs a hand-written form.
+ * generated JSON Schema / OpenAPI components under `x-ngfw-ui`, so the UI never needs a hand-written form.
  */
 export interface UiHints {
   /** Widget override, e.g. 'select', 'textarea', 'password', 'cidr', 'interface-picker'. */
@@ -35,12 +35,12 @@ export interface UiMeta extends UiHints {
 }
 
 /**
- * Attach `title`, `description` and `x-vrx-ui` hints to a Zod schema. Returns the same schema type, so it can
+ * Attach `title`, `description` and `x-ngfw-ui` hints to a Zod schema. Returns the same schema type, so it can
  * wrap any field: `withUi(z.number().int().min(68).max(9216), { title: 'MTU', widget: 'number', order: 3 })`.
  *
  * Hints are **merged** with the ones already carried by `schema` (or by the schema it wraps: `.optional()`,
  * `.default()`, `.nullable()` …): re-wrapping a hinted primitive to set `group`/`order` keeps its `widget` and
- * `help`; a key given here wins. (Zod 4 `.meta()` merges metadata shallowly, so without this the whole `x-vrx-ui`
+ * `help`; a key given here wins. (Zod 4 `.meta()` merges metadata shallowly, so without this the whole `x-ngfw-ui`
  * object of the primitive was replaced — P02b review H1.)
  */
 export function withUi<T extends z.ZodType>(
@@ -52,16 +52,16 @@ export function withUi<T extends z.ZodType>(
     ...(title !== undefined ? { title } : {}),
     ...(description !== undefined ? { description } : {}),
     ...(merged.secret ? { writeOnly: true } : {}),
-    [X_VRX_UI]: merged,
+    [X_NGFW_UI]: merged,
   };
   return schema.meta(meta);
 }
 
-/** The `x-vrx-ui` hints of `schema`, or of the first schema it wraps that has some; `{}` when none. */
+/** The `x-ngfw-ui` hints of `schema`, or of the first schema it wraps that has some; `{}` when none. */
 export function inheritedHints(schema: z.ZodType): UiHints {
   let current: unknown = schema;
   while (current instanceof z.ZodType) {
-    const hints = z.globalRegistry.get(current)?.[X_VRX_UI] as UiHints | undefined;
+    const hints = z.globalRegistry.get(current)?.[X_NGFW_UI] as UiHints | undefined;
     if (hints !== undefined) return hints;
     current = (current.def as { innerType?: unknown }).innerType;
   }

@@ -10,7 +10,7 @@ import (
 
 	"github.com/strongswan/govici/vici"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Events. charon pushes ike-updown, child-updown, ike-rekey and child-rekey over VICI
@@ -68,7 +68,7 @@ func (e Event) String() string {
 // ToProto maps the event to the agent's Event message. There is no IPsec EventKind yet
 // (same gap as RF-1 Q3): SA events are EVENT_KIND_UNSPECIFIED with the details in attributes;
 // a lost daemon channel is EVENT_KIND_ERROR.
-func (e Event) ToProto() *vrxv1.Event {
+func (e Event) ToProto() *ngfwv1.Event {
 	attrs := map[string]string{"source": "strongswan", "event": e.Kind}
 	maps.Copy(attrs, e.Attrs)
 	if e.Conn != "" {
@@ -81,11 +81,11 @@ func (e Event) ToProto() *vrxv1.Event {
 		attrs["state"] = e.State
 	}
 	attrs["up"] = yesNo(e.Up)
-	kind := vrxv1.EventKind_EVENT_KIND_UNSPECIFIED
+	kind := ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED
 	if e.Kind == KindDaemon && !e.Up {
-		kind = vrxv1.EventKind_EVENT_KIND_ERROR
+		kind = ngfwv1.EventKind_EVENT_KIND_ERROR
 	}
-	return &vrxv1.Event{Kind: kind, Message: e.String(), Attributes: attrs}
+	return &ngfwv1.Event{Kind: kind, Message: e.String(), Attributes: attrs}
 }
 
 // event attributes copied from VICI SA sections.

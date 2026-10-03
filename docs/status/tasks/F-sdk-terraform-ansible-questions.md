@@ -1,8 +1,8 @@
 # F-sdk-terraform-ansible — questions for the manager
 
 1. **Ansible collection not built.** D-085 lists "Ansible cut (see prompts)"; the prompt makes it priority 3 "if
-   reached". I stopped after the Python SDK and the Terraform provider. Left over: `sdk/ansible/` (`vrx.appliance`:
-   `vrx_config` present/absent + check-mode diff via the candidate, `vrx_commit`, `vrx_facts`) on top of `vrx.VrxSession`
+   reached". I stopped after the Python SDK and the Terraform provider. Left over: `sdk/ansible/` (`ngfw.appliance`:
+   `ngfw_config` present/absent + check-mode diff via the candidate, `ngfw_commit`, `ngfw_facts`) on top of `ngfw.NgfwSession`
    (`transaction()`, `diff()`, `state()` already cover what those modules need). Needs `ansible-core` in a worktree venv.
    → a follow-up task, or confirm it stays cut?
 
@@ -23,13 +23,13 @@
 
 5. **OpenAPI shape of the generic config routes.** `{path}` is declared as one string parameter but carries `/`
    (Nest `*` route); generators must special-case the parameter named `path`. An extension such as
-   `x-vrx-pointer: true` on that parameter would let generators treat it generically. `GET /config/{path}` responses
+   `x-ngfw-pointer: true` on that parameter would let generators treat it generically. `GET /config/{path}` responses
    are `{}` (any) — fine for a pointer API, noted only.
 
 6. **`management.users` via automation** needs an enabled admin with a password in the list (semantic rule), and a
    config commit rewrites `app_user` (D-P06-3). The Terraform live test sets a random PHC hash for `admin` in the
    throw-away slot database; the user docs show the pattern (`sensitive_value` index-wise, `{}` keeps a hash). Is
-   managing users from Terraform wanted at all, or should `management.users` be excluded from `vrx_config` like AAA?
+   managing users from Terraform wanted at all, or should `management.users` be excluded from `ngfw_config` like AAA?
 
 7. **No terraform CLI on the host.** Per the envelope I did not install it. The provider is exercised through the
    plugin protocol by `sdk/terraform/internal/tfharness` (Terraform core's proposed-new-state rule, post-apply

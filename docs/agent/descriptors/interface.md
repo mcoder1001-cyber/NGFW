@@ -133,7 +133,7 @@ that never calls `ifsanitize.BeforeDelete`. Test helpers (`*_test.go`, `*test/` 
    cap) the table list is read again, holes that are live now are dropped and every table that appeared during the run
    is probed like a live one (re-review M1). `PlaceholderCap` (**freed indices seen + 2 × FreshRun, at most 64**) bounds it; a run that reaches the cap
    without that proof **fails closed** with `ErrCapped` (which is `ErrNoCleanIndex`), counted in
-   `vrx_agent_iface_sanitize_capped_total{phase="create"}` — see "Placeholder cap" below.
+   `ngfw_agent_iface_sanitize_capped_total{phase="create"}` — see "Placeholder cap" below.
 3. **Clear**: ip classify, l2 classify, ADL, vxlan bypass reset blindly; input ACL read with `classify_table_by_interface`
    and unbound; output ACL / policer / flow classify probed with an unbind per table (live and placeholder; NO_SUCH_TABLE =
    not bound) — so bindings to deleted tables are no longer invisible; SPD read with `ipsec_spd_interface_dump`.
@@ -175,7 +175,7 @@ run's sequence, and with a count of gaps alone a free list with fresh-looking ru
 on every run (TD-5 host run 2026-09-24 14:32: 23 placeholders, 7 gaps). A free list of 12 out-of-order indices, which failed
 the old fixed cap of 16, now passes. A run that reaches the cap before the free list is proven empty still **fails closed**
 (`ErrCapped`, which is `ErrNoCleanIndex`; the index is quarantined only when a binding was proven unclearable), is counted in
-`vrx_agent_iface_sanitize_capped_total{phase="create"}` and logs its pop sequence (`pops`); the scheduler retries it later, and
+`ngfw_agent_iface_sanitize_capped_total{phase="create"}` and logs its pop sequence (`pops`); the scheduler retries it later, and
 it succeeds once the free list is shorter or VPP restarts. The exact per-interface readback that would remove the cap and the
 `FreshRun` guess is tracked in `docs/tech-debt.md` (TD-3 re-review M3), due before any production image.
 
@@ -188,7 +188,7 @@ flags, ADL per-index config (re-initialised on interface add). Known, not handle
 `docs/vpp-code-track.md` V23 b): ABF attachments, NAT64/NAT66/DET44 interface flags, cnat snat-if, flowprobe.
 
 Only binapi messages are used. Every run is logged at info and counted per phase (`create` for a new index, `delete`
-before a delete): `vrx_agent_iface_sanitize_{total,errors_total,inherited_total}{phase}`,
-`vrx_agent_iface_sanitize_{cleared_total,freed_table_total,unclearable_total}{phase,state}`,
-`vrx_agent_iface_sanitize_capped_total{phase}` (placeholder cap reached; create failed closed), plus the gauge
-`vrx_agent_iface_quarantined` and the counter `vrx_agent_iface_quarantine_total`.
+before a delete): `ngfw_agent_iface_sanitize_{total,errors_total,inherited_total}{phase}`,
+`ngfw_agent_iface_sanitize_{cleared_total,freed_table_total,unclearable_total}{phase,state}`,
+`ngfw_agent_iface_sanitize_capped_total{phase}` (placeholder cap reached; create failed closed), plus the gauge
+`ngfw_agent_iface_quarantined` and the counter `ngfw_agent_iface_quarantine_total`.

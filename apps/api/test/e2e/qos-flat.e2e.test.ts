@@ -63,7 +63,7 @@ describe('F-qos-flat e2e (PostgreSQL + fake agent)', () => {
     ]);
     op = await h.login('op1', PW.op);
     ro = await h.login('ro1', PW.ro);
-    base = Number((await h.call(ro, 'GET', '/api/v1/config')).headers['x-vrx-revision']);
+    base = Number((await h.call(ro, 'GET', '/api/v1/config')).headers['x-ngfw-revision']);
     expect((await h.call(op, 'PATCH', '/api/v1/config/interfaces', IFS, MP)).status).toBe(200);
   });
   afterAll(async () => h?.close());

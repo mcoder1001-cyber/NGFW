@@ -20,7 +20,7 @@ Reference: TNSR "DHCP server (Kea), DHCP relay, DHCP client"; VPP plugin `dhcp` 
   (F-rpf-adl-pbr `autoSdl`, F-unbound-chrony-syslog, later F-snmp/F-qos-flat/F-ipfix-sflow): whoever lands first adds it, the others append.
 - **Agent integration fact (checked 2026-09-24):** the agent's Apply/DryRun/Retrieve/Resync path runs only the descriptor scheduler; no
   renderer is called anywhere in the agent (`apps/agent/internal/agent/service.go`). Default (same as F-host-acl-nftables, log it as a
-  decision with options): wrap each Kea renderer in one singleton scheduler descriptor (e.g. `kea.dhcp4/vrx`, `kea.dhcp6/vrx`: Create/Update
+  decision with options): wrap each Kea renderer in one singleton scheduler descriptor (e.g. `kea.dhcp4/ngfw`, `kea.dhcp6/ngfw`: Create/Update
   = Render → Validate → Apply, Delete = idle config, Retrieve = `config-get` normalised), registered under `Domains["services"]` — no change
   to the agent core. Only if the manager has put a shared renderer stage on main when you start, use that instead.
 - `apps/agent/binapi/dhcp/` — `dhcp_proxy_config`, `dhcp_proxy_set_vss`, `dhcp_proxy_dump`, `dhcp_client_config`, `dhcp_client_dump` (verified)
@@ -58,7 +58,7 @@ tab registry). `apps/agent/internal/desired/interfaces.go` stays P08's (the clie
 
 ## Acceptance (paste the evidence)
 - [ ] Test Kea instance (slot dirs/netns) answers a `dhclient` request from `ns-<p>-lan` (`perfdhcp` is not installed on the host; run
-      `dhclient -sf /bin/true` with `-lf`/`-pf` under `/run/vrx-test/<p>/` — dhclient-script under `ip netns exec` would rewrite the host's
+      `dhclient -sf /bin/true` with `-lf`/`-pf` under `/run/ngfw-test/<p>/` — dhclient-script under `ip netns exec` would rewrite the host's
       `/etc/resolv.conf`); lease appears in the API lease page
 - [ ] `vppctl show dhcp proxy` lists the relay with the prefixed VRF; `vppctl show dhcp client` shows the client on a slot interface
 - [ ] Agent-restart simulation → Kea config re-applied and relay/client recreated within 30 s (log excerpt)

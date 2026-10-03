@@ -138,11 +138,11 @@ describe('DatastoreService', () => {
     ]);
     const seen = (await ds.getCandidate()) as { management: { users: Record<string, unknown>[] } };
     expect(seen.management.users[0]).not.toHaveProperty('passwordHash');
-    expect(JSON.stringify(await ds.diff())).not.toContain('VRX_TEST_HASH');
+    expect(JSON.stringify(await ds.diff())).not.toContain('NGFW_TEST_HASH');
     // PUT the redacted document back (whole) plus an extra user before alice: matched by username, not index
     seen.management.users.unshift({ username: 'carol', role: 'readonly' });
     const r = await ds.importCandidate(ADMIN, seen);
-    expect(JSON.stringify(r)).not.toContain('VRX_TEST_HASH');
+    expect(JSON.stringify(r)).not.toContain('NGFW_TEST_HASH');
     const stored = repo.state.candidate.payload as {
       management: { users: Record<string, unknown>[] };
     };
@@ -267,8 +267,8 @@ describe('DatastoreService — control characters in documents (TD-2 #4, D-049)'
 describe('DatastoreService — secret leaves in the diff (TD-2 #6, P07b review H1)', () => {
   let repo: MemoryConfigRepo;
   let ds: DatastoreService;
-  const ALICE_OLD = '$vrx-test$ALICE_OLD';
-  const ALICE_NEW = '$vrx-test$ALICE_NEW';
+  const ALICE_OLD = '$ngfw-test$ALICE_OLD';
+  const ALICE_NEW = '$ngfw-test$ALICE_NEW';
 
   beforeEach(() => {
     repo = new MemoryConfigRepo();
@@ -328,7 +328,7 @@ describe('DatastoreService — secret leaves in the diff (TD-2 #6, P07b review H
     await ds.putCandidate(ADMIN, '/management/users', [
       { username: 'admin', role: 'admin' },
       { username: 'alice', role: 'operator' },
-      { username: 'bob', role: 'readonly', passwordHash: '$vrx-test$BOB' },
+      { username: 'bob', role: 'readonly', passwordHash: '$ngfw-test$BOB' },
     ]);
     const changes = (await ds.diff()).changes;
     expect(changes.map((c) => [c.op, c.pointer, 'redacted' in c])).toEqual([

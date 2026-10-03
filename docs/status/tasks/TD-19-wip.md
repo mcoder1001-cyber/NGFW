@@ -49,7 +49,7 @@ the review checkpoint, then address concrete review findings.
 
 Script 20 now uses the existing CI Go 1.26.0/protoc-gen-go v1.36.12 /
 protoc-gen-go-grpc v1.6.2 pins and the agent module's govpp v0.13.0.
-No generator `@latest` remains. A caller-supplied trusted `VRX_GO_SHA256`
+No generator `@latest` remains. A caller-supplied trusted `NGFW_GO_SHA256`
 (exactly 64 hex characters) is mandatory before APT or any mutation, including
 when a Go installation already exists. The downloaded unique temporary archive
 must pass SHA256 before replacing `/usr/local/go`; existing Go matching checks
@@ -168,7 +168,7 @@ is preserved; this new runner requires its own independent recheck.
 
 Official FRR and NodeSource primary fingerprints are still unresolved. Script00
 now refuses repository setup before artifact verification, APT or network when
-`VRX_FRR_KEY_FINGERPRINTS` or `VRX_NODESOURCE_KEY_FINGERPRINTS` is absent or
+`NGFW_FRR_KEY_FINGERPRINTS` or `NGFW_NODESOURCE_KEY_FINGERPRINTS` is absent or
 malformed. Each is a trusted administrator supplied exact set of 1–8 distinct
 uppercase full (40/64 hex) primary fingerprints, comma separated. Values must
 come from independently verified release provenance; downloaded keys cannot

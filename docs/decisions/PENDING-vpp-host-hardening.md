@@ -32,8 +32,8 @@
 | # | Option | Cost now | Reversal | Risk |
 |---|---|---|---|---|
 | A | **VM memory**: reserve all guest memory in vSphere (balloon → 0), or shrink the VM to what ESXi can back | your vSphere click | trivial | none; biggest single win for the stalls |
-| B | **Hugepages on the kernel command line** (`default_hugepagesz=2M hugepagesz=2M hugepages=1024`), drop `vm.nr_hugepages` from 80-vpp.conf; add `/etc/sysctl.d/60-vrx-netlink.conf` with `net.core.rmem_max=268435456` / `wmem_max` | 0.5 h + 1 reboot | 0.5 h | low |
-| C | **startup.conf tuning** (one VPP restart, applied by the manager through the generator under `flock /run/lock/vrx-vpp.lock`): `memory { main-heap-size 4G }`, `api-trace { on nitems 32768 }`, `cpu { main-core 1 }` (move the main thread off the CI cores), `statseg { size 128M }`, `buffers { buffers-per-numa 32768 }`; unit drop-in `Restart=on-failure`, `StartLimitIntervalSec=300`; `ExecStopPost` moves `/tmp/api_post_mortem.*` to `/var/lib/vpp-crash/`; install the already-built `vpp-dbg` deb | 1 h + 1 VPP restart | 0.5 h | low: none of these changes behaviour, only headroom and diagnostics |
+| B | **Hugepages on the kernel command line** (`default_hugepagesz=2M hugepagesz=2M hugepages=1024`), drop `vm.nr_hugepages` from 80-vpp.conf; add `/etc/sysctl.d/60-ngfw-netlink.conf` with `net.core.rmem_max=268435456` / `wmem_max` | 0.5 h + 1 reboot | 0.5 h | low |
+| C | **startup.conf tuning** (one VPP restart, applied by the manager through the generator under `flock /run/lock/ngfw-vpp.lock`): `memory { main-heap-size 4G }`, `api-trace { on nitems 32768 }`, `cpu { main-core 1 }` (move the main thread off the CI cores), `statseg { size 128M }`, `buffers { buffers-per-numa 32768 }`; unit drop-in `Restart=on-failure`, `StartLimitIntervalSec=300`; `ExecStopPost` moves `/tmp/api_post_mortem.*` to `/var/lib/vpp-crash/`; install the already-built `vpp-dbg` deb | 1 h + 1 VPP restart | 0.5 h | low: none of these changes behaviour, only headroom and diagnostics |
 | D | *Moved to `PENDING-vpp-c-track.md` (D-125)*: the VPP patch build for the upstream crash bugs (6 crashes from 3 bugs) is decided there, so A–C can be answered alone | — | — | — |
 | E | Do nothing now, move to **26.10** when it is released (late Oct) | 0 now | — | the crash bugs are unchanged in 26.10 |
 | F | **Per-slot VPP for tests** (row LAB-vpp-per-slot): each test slot gets its own small VPP (dpdk off, ~512M heap, own sockets); the shared VPP stays for tools/app. Needs A+B first: about 12×(heap+buffers), so hugepages above 555 | 10 h (the row) | 1 h | low once A+B are in; removes the cross-slot interference on the shared VPP |
@@ -47,7 +47,7 @@
 - The test rig and the agent create af_packet interfaces with **small TX rings**: 2048-byte frames and 256 per block instead of 66 KiB × 1024. That is ~0.5 MiB instead of ~66 MiB per interface, which removes most of the stall.
 - A read-only liveness probe (`timeout 5 vppctl show version`) in the manager's cycle.
 - Blind classify-unbind sweeps are replaced by recorded-binding unbinds (tech-debt).
-- `docs/lab/host-vrx-a.md` is corrected to today's facts: 32 vCPU / 94 GB / 2 vNUMA, 555 hugepages, coredump installed.
+- `docs/lab/host-ngfw-a.md` is corrected to today's facts: 32 vCPU / 94 GB / 2 vNUMA, 555 hugepages, coredump installed.
 
 ## خلاصهٔ فارسی
 - **کرش:** VPP در این build **۱۰ بار** کرش کرده است (نه ۴ بار)، بین عصر ۲۳ سپتامبر و ۰۷:۲۷ امروز. از ری‌استارت ساعت ۱۳:۰۳ کرشی نبوده است.

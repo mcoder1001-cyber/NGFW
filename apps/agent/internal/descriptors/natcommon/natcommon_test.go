@@ -91,7 +91,7 @@ func TestScope(t *testing.T) {
 	if id, ok := s.ParseTag("w9:pool1"); !ok || id != "pool1" {
 		t.Fatal("parse tag")
 	}
-	for _, owner := range []string{"vrx", "", "w0", "wx", "w256"} {
+	for _, owner := range []string{"ngfw", "", "w0", "wx", "w256"} {
 		p := natcommon.ScopeFor(owner)
 		if !p.All || !p.NeedsClaim(true) {
 			t.Fatalf("owner %q: production scope, every untagged object needs a claim: %+v", owner, p)

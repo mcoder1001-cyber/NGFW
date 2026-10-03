@@ -10,17 +10,17 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/nftables"
 )
 
-//nolint:revive // the generated gRPC method name (vrx.v1.Dataplane/HostAclState)
-func (g *server) HostAclState(ctx context.Context, req *vrxv1.HostAclStateRequest) (*vrxv1.HostAclStateResponse, error) {
+//nolint:revive // the generated gRPC method name (ngfw.v1.Dataplane/HostAclState)
+func (g *server) HostAclState(ctx context.Context, req *ngfwv1.HostAclStateRequest) (*ngfwv1.HostAclStateResponse, error) {
 	return g.svc.HostACLState(ctx, req)
 }
 
 // HostACLState implements the HostAclState RPC.
-func (s *Service) HostACLState(ctx context.Context, req *vrxv1.HostAclStateRequest) (*vrxv1.HostAclStateResponse, error) {
+func (s *Service) HostACLState(ctx context.Context, req *ngfwv1.HostAclStateRequest) (*ngfwv1.HostAclStateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}

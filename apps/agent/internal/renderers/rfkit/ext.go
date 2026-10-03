@@ -10,7 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // Stand-in fields (D-055). Renderer fields that the desired-state proto does not carry yet
@@ -22,31 +22,31 @@ import (
 var ErrExt = errors.New("rfkit: invalid stand-in field")
 
 // Decode turns a renderer input into the typed desired state plus the raw document for the
-// stand-in fields: *vrxv1.DesiredState (no stand-ins), *structpb.Struct (document), nil.
-func Decode(msg proto.Message) (*vrxv1.DesiredState, *Ext, error) {
+// stand-in fields: *ngfwv1.DesiredState (no stand-ins), *structpb.Struct (document), nil.
+func Decode(msg proto.Message) (*ngfwv1.DesiredState, *Ext, error) {
 	switch m := msg.(type) {
 	case nil:
-		return &vrxv1.DesiredState{}, nil, nil
-	case *vrxv1.DesiredState:
+		return &ngfwv1.DesiredState{}, nil, nil
+	case *ngfwv1.DesiredState:
 		if m == nil {
-			return &vrxv1.DesiredState{}, nil, nil
+			return &ngfwv1.DesiredState{}, nil, nil
 		}
 		return m, nil, nil
 	case *structpb.Struct:
 		if m == nil {
-			return &vrxv1.DesiredState{}, nil, nil
+			return &ngfwv1.DesiredState{}, nil, nil
 		}
 		raw, err := protojson.Marshal(m)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%w: encode document: %v", ErrExt, err)
 		}
-		ds := &vrxv1.DesiredState{}
+		ds := &ngfwv1.DesiredState{}
 		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, ds); err != nil {
 			return nil, nil, fmt.Errorf("%w: decode document: %v", ErrExt, err)
 		}
 		return ds, &Ext{v: structpb.NewStructValue(m), path: ""}, nil
 	default:
-		return nil, nil, fmt.Errorf("%w: unsupported input type %T (want *vrxv1.DesiredState or *structpb.Struct)", ErrExt, msg)
+		return nil, nil, fmt.Errorf("%w: unsupported input type %T (want *ngfwv1.DesiredState or *structpb.Struct)", ErrExt, msg)
 	}
 }
 

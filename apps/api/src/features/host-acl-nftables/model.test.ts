@@ -11,7 +11,7 @@ const rule = (over: Partial<HostAclStateResponse['chains'][number]['rules'][numb
   pointer: '/acl/host/mgmt/rules/0',
   text: 'tcp dport 22 accept',
   verdict: 'accept',
-  comment: 'vrx:mgmt:10/0:0123abcd',
+  comment: 'ngfw:mgmt:10/0:0123abcd',
   packets: '0',
   bytes: '0',
   ...over,
@@ -20,7 +20,7 @@ const rule = (over: Partial<HostAclStateResponse['chains'][number]['rules'][numb
 const response = (): HostAclStateResponse => ({
   owner: 'w9',
   retrievedAt: new Date('2026-09-24T12:00:00Z'),
-  table: 'vrx_w9',
+  table: 'ngfw_w9',
   mode: 'netns',
   present: true,
   inSync: true,
@@ -38,16 +38,16 @@ const response = (): HostAclStateResponse => ({
           list: '',
           sequence: 0,
           pointer: '',
-          comment: 'vrx:pre:ct',
+          comment: 'ngfw:pre:ct',
           packets: '99',
         }),
         // one host rule rendered to an IPv4 and an IPv6 kernel rule
         rule({ packets: '9007199254740993', bytes: '18446744073709551615' }),
-        rule({ comment: 'vrx:mgmt:10/1:0123abcd', packets: '2', bytes: '0' }),
+        rule({ comment: 'ngfw:mgmt:10/1:0123abcd', packets: '2', bytes: '0' }),
         rule({
           sequence: 5,
           pointer: '/acl/host/mgmt/rules/1',
-          comment: 'vrx:mgmt:5/0:aa',
+          comment: 'ngfw:mgmt:5/0:aa',
           packets: '1',
           bytes: '60',
         }),
@@ -60,7 +60,7 @@ const response = (): HostAclStateResponse => ({
       priority: 10,
       policy: 'accept',
       list: 'mgmt',
-      rules: [rule({ comment: 'vrx:mgmt:10/2:0123abcd', packets: '1', bytes: '40' })],
+      rules: [rule({ comment: 'ngfw:mgmt:10/2:0123abcd', packets: '1', bytes: '40' })],
     },
   ],
 });
@@ -122,7 +122,7 @@ describe('host ACL state JSON (F-host-acl-nftables)', () => {
     };
     setFakeHostAclCounters(agent, { 'mgmt:20': { packets: 3, bytes: 180 } });
     const t = fakeHostAclTable(agent);
-    expect(t).toMatchObject({ table: 'vrx_w9', mode: 'check', present: false, inSync: true });
+    expect(t).toMatchObject({ table: 'ngfw_w9', mode: 'check', present: false, inSync: true });
     expect(t.chains).toHaveLength(1);
     expect(t.chains[0]).toMatchObject({
       name: 'in_mgmt',

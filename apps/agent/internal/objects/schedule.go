@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 var weekdays = map[string]time.Weekday{
@@ -24,7 +24,7 @@ var weekdays = map[string]time.Weekday{
 //
 // What an inactive schedule means for a rule is the consumer's decision (docs/agent/objects.md:
 // re-project periodically, default every 60 s).
-func Active(s *vrxv1.Schedule, now time.Time, loc *time.Location) (bool, error) {
+func Active(s *ngfwv1.Schedule, now time.Time, loc *time.Location) (bool, error) {
 	if s == nil {
 		return false, fmt.Errorf("%w: nil schedule", ErrInvalid)
 	}

@@ -21,7 +21,7 @@ import (
 const RaConfigName = "ip6-nd.ra-config"
 
 // VPP 26.06 router-advertisement state of a freshly IPv6-enabled interface (ip6_ra.c,
-// verified on vrx-a with sw_interface_ip6nd_ra_dump): RAs suppressed, lifetime 600,
+// verified on ngfw-a with sw_interface_ip6nd_ra_dump): RAs suppressed, lifetime 600,
 // max/min interval 200/150, initial burst 3 × 16 s. An interface in that state is
 // "unconfigured": Retrieve omits it and Delete restores it.
 const (

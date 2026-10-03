@@ -15,25 +15,25 @@ import {
 } from './break-glass.js';
 
 /**
- * `vrx-authctl` — root-only break-glass for the API's authentication on this device (TD-10b, review 2.3a and P06
- * tech debt). Wrapper: deploy/sbin/vrx-authctl (P10 installs both). Never prints a secret: settings are read, never
+ * `ngfw-authctl` — root-only break-glass for the API's authentication on this device (TD-10b, review 2.3a and P06
+ * tech debt). Wrapper: deploy/sbin/ngfw-authctl (P10 installs both). Never prints a secret: settings are read, never
  * echoed; errors name keys and files, not values.
  */
-export const USAGE = `usage: vrx-authctl [--env-file <file>]... <command>
+export const USAGE = `usage: ngfw-authctl [--env-file <file>]... <command>
   unlock <username>          clear every login lockout of the user: account-wide and per client address
   locks                      list the lockouts in force
-  rotate-jwt-key [<file>]    new signing key on top of the key ring (default: VRX_JWT_KEY_FILE); the previous
+  rotate-jwt-key [<file>]    new signing key on top of the key ring (default: NGFW_JWT_KEY_FILE); the previous
                              signing key stays for tokens it signed; the API reloads within 5 s. The file may belong
-                             to root or to the API's user (VRX_API_USER, default vrx); mode 0600, owner kept
-Root only; every action is audited. The API's settings (VRX_DATABASE_URL or VRX_PG_DSN, VRX_VALKEY_URL/DB/PREFIX,
-VRX_JWT_KEY_FILE) come from the environment and from --env-file files (KEY=VALUE lines, as the API's unit reads them);
+                             to root or to the API's user (NGFW_API_USER, default ngfw); mode 0600, owner kept
+Root only; every action is audited. The API's settings (NGFW_DATABASE_URL or NGFW_PG_DSN, NGFW_VALKEY_URL/DB/PREFIX,
+NGFW_JWT_KEY_FILE) come from the environment and from --env-file files (KEY=VALUE lines, as the API's unit reads them);
 the environment wins.`;
 
-/** KEY=VALUE lines (optional `export `, optional quotes, `#` comments); only VRX_* keys are taken. */
+/** KEY=VALUE lines (optional `export `, optional quotes, `#` comments); only NGFW_* keys are taken. */
 export function parseEnvFile(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const raw of text.split('\n')) {
-    const m = /^\s*(?:export\s+)?(VRX_[A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(raw);
+    const m = /^\s*(?:export\s+)?(NGFW_[A-Z0-9_]+)\s*=\s*(.*?)\s*$/.exec(raw);
     if (m === null) continue;
     let v = m[2]!;
     if (v.length >= 2 && (v[0] === '"' || v[0] === "'") && v.at(-1) === v[0]) v = v.slice(1, -1);
@@ -84,7 +84,7 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
     return 2;
   }
   if (io.getuid() !== 0) {
-    io.err('vrx-authctl: root only (the break-glass acts on the database and Valkey directly)');
+    io.err('ngfw-authctl: root only (the break-glass acts on the database and Valkey directly)');
     return 1;
   }
   let fileVars: Record<string, string> = {};
@@ -92,7 +92,7 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
     for (const f of envFiles) fileVars = { ...fileVars, ...parseEnvFile(readFileSync(f, 'utf8')) };
   } catch (e) {
     io.err(
-      `vrx-authctl: cannot read an --env-file (${(e as NodeJS.ErrnoException).code ?? 'error'})`,
+      `ngfw-authctl: cannot read an --env-file (${(e as NodeJS.ErrnoException).code ?? 'error'})`,
     );
     return 1;
   }
@@ -100,13 +100,13 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
   try {
     env = loadEnv({ ...fileVars, ...io.env });
   } catch (e) {
-    io.err(`vrx-authctl: ${(e as Error).message}`);
+    io.err(`ngfw-authctl: ${(e as Error).message}`);
     return 1;
   }
 
-  const file = cmd === 'rotate-jwt-key' ? (args[0] ?? env.VRX_JWT_KEY_FILE) : undefined;
+  const file = cmd === 'rotate-jwt-key' ? (args[0] ?? env.NGFW_JWT_KEY_FILE) : undefined;
   if (cmd === 'rotate-jwt-key' && file === undefined) {
-    io.err('vrx-authctl: no key file — pass <file> or set VRX_JWT_KEY_FILE');
+    io.err('ngfw-authctl: no key file — pass <file> or set NGFW_JWT_KEY_FILE');
     return 1;
   }
 
@@ -114,11 +114,11 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
   const kv = createValkey(env);
   const events = new SystemEventsService(dbh.db);
   const audit = new AuditService(dbh.db, events);
-  const d: BreakGlassDeps = { db: dbh.db, kv, prefix: env.VRX_VALKEY_PREFIX, audit, events };
+  const d: BreakGlassDeps = { db: dbh.db, kv, prefix: env.NGFW_VALKEY_PREFIX, audit, events };
   try {
     if (cmd === 'rotate-jwt-key') {
-      // review M1: the API's system user may own the file (VRX_API_USER, default vrx)
-      const apiUser = io.env['VRX_API_USER'] ?? fileVars['VRX_API_USER'] ?? DEFAULT_API_USER;
+      // review M1: the API's system user may own the file (NGFW_API_USER, default ngfw)
+      const apiUser = io.env['NGFW_API_USER'] ?? fileVars['NGFW_API_USER'] ?? DEFAULT_API_USER;
       const r = rotateKeyFile(file!, apiUser);
       io.out(
         `rotated ${file}: ${r.keys} key(s), new signing key ${r.kid} first, owner uid ${r.uid}${r.created && r.uid === 0 ? ` (new file owned by root: no user '${apiUser}' here — chown it to the API's user)` : ''}; the API reloads it within 5 s`,
@@ -127,7 +127,7 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
       const failures = audit.writeFailures;
       await auditRotation(d, file!, r);
       if (audit.writeFailures > failures)
-        io.err('vrx-authctl: warning — the audit row of this rotation could not be written');
+        io.err('ngfw-authctl: warning — the audit row of this rotation could not be written');
       return 0;
     }
     if (cmd === 'unlock') {
@@ -145,7 +145,7 @@ export async function main(argv: string[], io: CliIo = defaultIo): Promise<numbe
     }
     return 0;
   } catch (e) {
-    io.err(`vrx-authctl: ${(e as Error).message}`);
+    io.err(`ngfw-authctl: ${(e as Error).message}`);
     return 1;
   } finally {
     kv.disconnect();

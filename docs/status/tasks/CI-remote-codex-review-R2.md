@@ -16,7 +16,7 @@ No BLOCKER, MAJOR, or MINOR findings in this scope.
 
 Commands ran in `/workspace/scratch/96b8b6fbc8a7/NGFW-ci`, not the historical `/root/ngfw-wt` path. No full quick gate or appliance tests ran; the UDS baseline restriction is outside this security review.
 
-Inspected numbered workflow, token settings, and log/tool-install call sites using `nl -ba .github/workflows/ci.yml` and `rg -n 'install-tools|curl|sha256|VRX_CI_LOG_DIR|tee|gitleaks' tools/ci.sh`.
+Inspected numbered workflow, token settings, and log/tool-install call sites using `nl -ba .github/workflows/ci.yml` and `rg -n 'install-tools|curl|sha256|NGFW_CI_LOG_DIR|tee|gitleaks' tools/ci.sh`.
 
 Executed the exact workflow checksum-filter pipeline on local synthetic files:
 

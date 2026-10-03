@@ -14,7 +14,7 @@ import { prose } from './bidi.js';
 import type { PrimitiveInputProps } from './inputs.js';
 
 /**
- * Widgets for string values with structure (`x-vrx-ui.widget` from packages/schema): port-range, ip-range, time,
+ * Widgets for string values with structure (`x-ngfw-ui.widget` from packages/schema): port-range, ip-range, time,
  * datetime, timezone-picker, color. They edit the **same string** the schema validates (the schema's pattern stays
  * the only rule), are fully controlled, and render their values LTR inside RTL pages (RTL-1).
  */
@@ -64,7 +64,7 @@ export function RangeInput(props: PrimitiveInputProps & { kind: 'port' | 'ip' })
   };
   const input = {
     readOnly,
-    sx: { fontFamily: theme.vrx.monoFontFamily },
+    sx: { fontFamily: theme.ngfw.monoFontFamily },
   };
   const html = {
     ...LTR,
@@ -207,7 +207,7 @@ export function DateTimeInput(props: PrimitiveInputProps) {
     emitted.current = v;
     onChange(v);
   };
-  const mono = { fontFamily: theme.vrx.monoFontFamily };
+  const mono = { fontFamily: theme.ngfw.monoFontFamily };
   return (
     <Stack direction="row" gap={1} alignItems="flex-start">
       <TextField
@@ -275,7 +275,7 @@ export function SuggestInput(props: PrimitiveInputProps & { suggestions: readonl
           error={error !== undefined}
           helperText={prose(error ?? helperText ?? defaultHelp)}
           slotProps={{
-            input: { ...params.InputProps, sx: { fontFamily: theme.vrx.monoFontFamily } },
+            input: { ...params.InputProps, sx: { fontFamily: theme.ngfw.monoFontFamily } },
             htmlInput: { ...params.inputProps, spellCheck: false, ...LTR },
           }}
         />
@@ -324,7 +324,7 @@ export function ColorInput(props: PrimitiveInputProps) {
       slotProps={{
         input: {
           readOnly,
-          sx: { fontFamily: theme.vrx.monoFontFamily },
+          sx: { fontFamily: theme.ngfw.monoFontFamily },
           startAdornment: (
             <InputAdornment position="start">
               <Box

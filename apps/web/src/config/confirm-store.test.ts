@@ -17,7 +17,7 @@ describe('confirm store (local countdown of a confirmed commit)', () => {
     expect(confirmStore.get().tracked?.deadlineMs).toBe(100_000);
     confirmStore.adjustDeadline('t1', 90_000);
     expect(confirmStore.get().tracked?.deadlineMs).toBe(90_000);
-    expect(JSON.parse(sessionStorage.getItem('vrx.confirm')!).tracked.deadlineMs).toBe(90_000);
+    expect(JSON.parse(sessionStorage.getItem('ngfw.confirm')!).tracked.deadlineMs).toBe(90_000);
   });
 
   it('the first resolution wins: a late poll result does not overwrite this session\'s own confirm', () => {

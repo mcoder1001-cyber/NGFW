@@ -3,7 +3,7 @@ import { ApiBody, ApiNoContentResponse, ApiOperation, ApiQuery, ApiTags } from '
 import { SECRET_KINDS } from '@ngfw/schema';
 import { z } from 'zod';
 import { MinRole } from '../auth/decorators.js';
-import type { VrxRequest } from '../common/principal.js';
+import type { NgfwRequest } from '../common/principal.js';
 import { ApiOut, Protected } from '../common/responses.js';
 import { openapi, SafeParamPipe, ZodPipe } from '../common/zod.js';
 import { SecretsService } from './secrets.service.js';
@@ -52,7 +52,7 @@ export class SecretsController {
   async put(
     @Body(new ZodPipe(SecretBody)) body: z.output<typeof SecretBody>,
     @Query(new ZodPipe(ReplaceQuery)) q: z.output<typeof ReplaceQuery>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     const r = await this.secrets.put(body.kind, body.name, body.value, {
       replace: q.replace === 'true',
@@ -74,7 +74,7 @@ export class SecretsController {
   async delete(
     @Param('kind', new SafeParamPipe('kind', 16)) kind: string,
     @Param('name', new SafeParamPipe('name', 64)) name: string,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ): Promise<void> {
     req.audit = { resource: `secret/${kind}/${name}` };
     await this.secrets.delete(kind, name);

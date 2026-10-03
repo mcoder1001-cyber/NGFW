@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	dnsd "ngfw/agent/internal/descriptors/dns"
 	"ngfw/agent/internal/renderers/chrony"
 	"ngfw/agent/internal/renderers/rsyslog"
@@ -47,19 +47,19 @@ func (r *dnsRecSink) keys() string {
 	return strings.Join(out, " ")
 }
 
-func doc() *vrxv1.DesiredState {
-	return &vrxv1.DesiredState{
-		Services: &vrxv1.ServicesConfig{
-			Dns: &vrxv1.DnsService{
-				Resolvers: map[string]*vrxv1.DnsResolver{"lan": {Listen: []*vrxv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(31053)}}}},
-				VppCache:  &vrxv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"192.0.2.53", "2001:db8::53"}},
+func doc() *ngfwv1.DesiredState {
+	return &ngfwv1.DesiredState{
+		Services: &ngfwv1.ServicesConfig{
+			Dns: &ngfwv1.DnsService{
+				Resolvers: map[string]*ngfwv1.DnsResolver{"lan": {Listen: []*ngfwv1.SocketAddress{{Address: proto.String("127.0.0.1"), Port: proto.Uint32(31053)}}}},
+				VppCache:  &ngfwv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"192.0.2.53", "2001:db8::53"}},
 			},
-			Ntp:  &vrxv1.NtpService{Enabled: proto.Bool(true), Servers: []*vrxv1.NtpService_Server{{Address: proto.String("127.0.0.1")}}},
-			Snmp: &vrxv1.SnmpService{Enabled: proto.Bool(true)},
+			Ntp:  &ngfwv1.NtpService{Enabled: proto.Bool(true), Servers: []*ngfwv1.NtpService_Server{{Address: proto.String("127.0.0.1")}}},
+			Snmp: &ngfwv1.SnmpService{Enabled: proto.Bool(true)},
 		},
-		Management: &vrxv1.ManagementConfig{
-			Syslog: []*vrxv1.SyslogTarget{{Address: proto.String("127.0.0.1"), Protocol: proto.String("tcp"), Vrf: proto.String("default")}},
-			Users:  []*vrxv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin")}},
+		Management: &ngfwv1.ManagementConfig{
+			Syslog: []*ngfwv1.SyslogTarget{{Address: proto.String("127.0.0.1"), Protocol: proto.String("tcp"), Vrf: proto.String("default")}},
+			Users:  []*ngfwv1.ManagementUser{{Username: proto.String("admin"), Role: proto.String("admin")}},
 		},
 	}
 }
@@ -76,7 +76,7 @@ func withServiceUnimplemented(t *testing.T, key string) {
 func TestHostServicesProjection(t *testing.T) {
 	s := &dnsRecSink{}
 	HostServices(s, doc(), true, true)
-	want := "unbound.config/vrx dns.name-server/192.0.2.53 dns.name-server/2001:db8::53 dns.enable/global chrony.config/vrx rsyslog.config/vrx"
+	want := "unbound.config/ngfw dns.name-server/192.0.2.53 dns.name-server/2001:db8::53 dns.enable/global chrony.config/ngfw rsyslog.config/ngfw"
 	if got := s.keys(); got != want {
 		t.Fatalf("keys\n got %s\nwant %s", got, want)
 	}
@@ -94,7 +94,7 @@ func TestHostServicesProjection(t *testing.T) {
 	// only the authoritative domains
 	s = &dnsRecSink{}
 	HostServices(s, doc(), false, true)
-	if s.keys() != "rsyslog.config/vrx" {
+	if s.keys() != "rsyslog.config/ngfw" {
 		t.Fatalf("management only: %s", s.keys())
 	}
 }
@@ -102,10 +102,10 @@ func TestHostServicesProjection(t *testing.T) {
 func TestHostServicesRefusals(t *testing.T) {
 	d := doc()
 	d.Services.Ntp.Servers[0].KeyRef = proto.String("key/ntp")
-	d.Services.Dns.VppCache = &vrxv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"bogus"}}
+	d.Services.Dns.VppCache = &ngfwv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"bogus"}}
 	d.Management.Syslog = append(d.Management.Syslog,
-		&vrxv1.SyslogTarget{Address: proto.String("192.0.2.9"), Protocol: proto.String("tls"), Tls: &vrxv1.SyslogTls{CaRef: proto.String("cert/ca")}},
-		&vrxv1.SyslogTarget{Address: proto.String("192.0.2.8"), Vrf: proto.String("mgmt")})
+		&ngfwv1.SyslogTarget{Address: proto.String("192.0.2.9"), Protocol: proto.String("tls"), Tls: &ngfwv1.SyslogTls{CaRef: proto.String("cert/ca")}},
+		&ngfwv1.SyslogTarget{Address: proto.String("192.0.2.8"), Vrf: proto.String("mgmt")})
 	s := &dnsRecSink{}
 	HostServices(s, d, true, true)
 	joined := strings.Join(s.issues, "|")
@@ -126,10 +126,10 @@ func TestHostServicesRefusals(t *testing.T) {
 }
 
 func TestHostServicesDisabledAndEmpty(t *testing.T) {
-	d := &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{
-		Dns: &vrxv1.DnsService{},
-		Ntp: &vrxv1.NtpService{Enabled: proto.Bool(false), Port: proto.Uint32(123)},
-	}, Management: &vrxv1.ManagementConfig{}}
+	d := &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{
+		Dns: &ngfwv1.DnsService{},
+		Ntp: &ngfwv1.NtpService{Enabled: proto.Bool(false), Port: proto.Uint32(123)},
+	}, Management: &ngfwv1.ManagementConfig{}}
 	s := &dnsRecSink{}
 	HostServices(s, d, true, true)
 	if len(s.kvs) != 0 {
@@ -143,7 +143,7 @@ func TestHostServicesDisabledAndEmpty(t *testing.T) {
 func TestHostServicesRoundTrip(t *testing.T) {
 	s := &dnsRecSink{}
 	HostServices(s, doc(), true, true)
-	out := &vrxv1.DesiredState{}
+	out := &ngfwv1.DesiredState{}
 	AssembleHostServices(out, s.kvs, true, true)
 	again := &dnsRecSink{}
 	HostServices(again, out, true, true)
@@ -160,7 +160,7 @@ func TestHostServicesRoundTrip(t *testing.T) {
 	}
 	// a drift Value (not the input type) contributes nothing
 	drift := []scheduler.KV{{Key: unbound.Key, Value: unbound.DriftValue([]string{"x"})}}
-	out = &vrxv1.DesiredState{}
+	out = &ngfwv1.DesiredState{}
 	AssembleHostServices(out, drift, true, true)
 	if out.GetServices().GetDns() != nil {
 		t.Fatal("drift assembled as configuration")
@@ -171,7 +171,7 @@ func TestHostServicesRoundTrip(t *testing.T) {
 // upstreams pointer and emits no dns.* object. The old builder projected them.
 func TestVPPCacheNeedsAnIPv4Upstream(t *testing.T) {
 	d := doc()
-	d.Services.Dns.VppCache = &vrxv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"2001:db8::53", "2001:db8::54"}}
+	d.Services.Dns.VppCache = &ngfwv1.DnsService_VppCache{Enabled: proto.Bool(true), Upstreams: []string{"2001:db8::53", "2001:db8::54"}}
 	s := &dnsRecSink{}
 	HostServices(s, d, true, false)
 	if !strings.Contains(strings.Join(s.issues, "|"), "E /services/dns/vppCache/upstreams services.dns-vpp-cache-upstream") {

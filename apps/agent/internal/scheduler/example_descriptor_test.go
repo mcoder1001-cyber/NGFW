@@ -113,7 +113,7 @@ func field(obj proto.Message, key string) *structpb.Value {
 // loopbackDescriptor manages VPP loopback interfaces owned by one agent.
 type loopbackDescriptor struct {
 	client vpp.Client
-	owner  string // VRX_OWNER; tests use their VRX_TEST_PREFIX
+	owner  string // NGFW_OWNER; tests use their NGFW_TEST_PREFIX
 }
 
 const loopbackName = "interface.loopback"

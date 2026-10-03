@@ -137,8 +137,8 @@ else:raise SystemExit(95)
                 curl.chmod(0o755)
                 source = SOURCE.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
                 source = source.replace('\ncheck_key_pins\n', '\npreflight_artifacts() { :; }\ncheck_key_pins\n', 1)
-                env = dict(os.environ, **self.env, VRX_VPP_ARTIFACTS=str(self.root),
-                    VRX_FRR_KEY_FINGERPRINTS=A, VRX_NODESOURCE_KEY_FINGERPRINTS=B,
+                env = dict(os.environ, **self.env, NGFW_VPP_ARTIFACTS=str(self.root),
+                    NGFW_FRR_KEY_FINGERPRINTS=A, NGFW_NODESOURCE_KEY_FINGERPRINTS=B,
                     IMPORT_RC='2' if failing == 'frr-import' else '0', NODE_IDENTITIES=primary(A))
                 result = subprocess.run(['bash', '-c', source], env=env, text=True, capture_output=True)
                 self.assertNotEqual(result.returncode, 0)
@@ -157,10 +157,10 @@ class RealCertificates(unittest.TestCase):
         cls.fingerprints = []
         for label in ('Selected', 'Extra'):
             result = cls.gpg('--pinentry-mode', 'loopback', '--passphrase', '', '--quick-generate-key',
-                             f'VRXFRRSelectionFixture{label}', 'rsa2048', 'sign', '0')
+                             f'NGFWFRRSelectionFixture{label}', 'rsa2048', 'sign', '0')
             if result.returncode:
                 raise RuntimeError('actual GPG fixture generation failed (not source acceptance): ' + result.stderr)
-            keys = cls.gpg('--with-colons', '--with-fingerprint', '--list-keys', f'VRXFRRSelectionFixture{label}')
+            keys = cls.gpg('--with-colons', '--with-fingerprint', '--list-keys', f'NGFWFRRSelectionFixture{label}')
             cls.fingerprints.append(next(line.split(':')[9] for line in keys.stdout.splitlines() if line.startswith('fpr:')))
         cls.a, cls.b = cls.fingerprints
         result = cls.gpg('--pinentry-mode', 'loopback', '--passphrase', '', '--quick-add-key', cls.a, 'rsa2048', 'encr', '0')
@@ -240,9 +240,9 @@ class RealCertificates(unittest.TestCase):
 
     def test_actual_non_signing_authorized_primary_is_refused(self):
         result = self.gpg('--pinentry-mode','loopback','--passphrase','',
-                          '--quick-generate-key','VRXFRRSelectionFixtureCertOnly','rsa2048','cert','0')
+                          '--quick-generate-key','NGFWFRRSelectionFixtureCertOnly','rsa2048','cert','0')
         self.assertEqual(result.returncode, 0, result.stderr)
-        keys = self.gpg('--with-colons','--with-fingerprint','--list-keys','VRXFRRSelectionFixtureCertOnly')
+        keys = self.gpg('--with-colons','--with-fingerprint','--list-keys','NGFWFRRSelectionFixtureCertOnly')
         fingerprint = next(line.split(':')[9] for line in keys.stdout.splitlines() if line.startswith('fpr:'))
         certificate = self.public_export(fingerprint)
         result, output = self.invoke(certificate, fingerprint)
@@ -250,9 +250,9 @@ class RealCertificates(unittest.TestCase):
 
     def test_actual_expired_primary_is_refused(self):
         result = self.gpg('--faked-system-time','1577836800','--pinentry-mode','loopback','--passphrase','',
-                          '--quick-generate-key','VRXFRRSelectionFixtureExpired','rsa2048','sign','1d')
+                          '--quick-generate-key','NGFWFRRSelectionFixtureExpired','rsa2048','sign','1d')
         self.assertEqual(result.returncode, 0, result.stderr)
-        keys = self.gpg('--with-colons','--with-fingerprint','--list-keys','VRXFRRSelectionFixtureExpired')
+        keys = self.gpg('--with-colons','--with-fingerprint','--list-keys','NGFWFRRSelectionFixtureExpired')
         fingerprint = next(line.split(':')[9] for line in keys.stdout.splitlines() if line.startswith('fpr:'))
         expired = self.public_export(fingerprint)
         result, output = self.invoke(expired, fingerprint)

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
@@ -24,7 +24,7 @@ func TestNeighborsRaIDRange(t *testing.T) {
 	}
 }
 
-func registerNRA(t *testing.T, v *coretest.VPP, globals bool, publish func(*vrxv1.Event)) (*scheduler.MapRegistry, *Wiring) {
+func registerNRA(t *testing.T, v *coretest.VPP, globals bool, publish func(*ngfwv1.Event)) (*scheduler.MapRegistry, *Wiring) {
 	t.Helper()
 	dir := t.TempDir()
 	owned, err := ownertable.Open(dir, "w9")
@@ -76,14 +76,14 @@ func TestRegisterNeighborsRa(t *testing.T) {
 
 type events struct {
 	mu  sync.Mutex
-	evs []*vrxv1.Event
+	evs []*ngfwv1.Event
 }
 
-func (e *events) publish(ev *vrxv1.Event) { e.mu.Lock(); e.evs = append(e.evs, ev); e.mu.Unlock() }
-func (e *events) snapshot() []*vrxv1.Event {
+func (e *events) publish(ev *ngfwv1.Event) { e.mu.Lock(); e.evs = append(e.evs, ev); e.mu.Unlock() }
+func (e *events) snapshot() []*ngfwv1.Event {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	return append([]*vrxv1.Event(nil), e.evs...)
+	return append([]*ngfwv1.Event(nil), e.evs...)
 }
 
 func waitFor(t *testing.T, what string, cond func() bool) {
@@ -120,7 +120,7 @@ func TestRunNeighborWatch(t *testing.T) {
 	evs := got.snapshot()
 	var added, removed int
 	for _, ev := range evs {
-		if ev.GetKind() != vrxv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED || ev.GetInterface() != "loop901" {
+		if ev.GetKind() != ngfwv1.EventKind_EVENT_KIND_NEIGHBOR_CHANGED || ev.GetInterface() != "loop901" {
 			t.Fatalf("event %v", ev)
 		}
 		added += atoi(ev.GetAttributes()["added"])
@@ -147,7 +147,7 @@ func TestRunNeighborWatchEarlyRescan(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		RunNeighborWatch(ctx, NeighborWatchConfig{Client: v, Owner: "w9", Publish: func(*vrxv1.Event) {}, Rescan: time.Hour, Early: []time.Duration{100 * time.Millisecond}, PID: 1})
+		RunNeighborWatch(ctx, NeighborWatchConfig{Client: v, Owner: "w9", Publish: func(*ngfwv1.Event) {}, Rescan: time.Hour, Early: []time.Duration{100 * time.Millisecond}, PID: 1})
 	}()
 	time.Sleep(20 * time.Millisecond) // the first scan found nothing
 	idx := v.AddInterface("loop903", "Loopback", "w9:loop903")

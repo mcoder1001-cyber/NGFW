@@ -21,7 +21,7 @@ It is merge-ready once H1 is fixed; M1 and M2 are small and belong in this branc
 
 ## Findings (ranked)
 
-### H1 — a PostgreSQL restart or dropped connection while any commit-lock section runs crashes vrx-api (must fix before merge)
+### H1 — a PostgreSQL restart or dropped connection while any commit-lock section runs crashes ngfw-api (must fix before merge)
 `apps/api/src/commit/pg-lock.ts:20` and `:32` (`pool.connect()`), `:54` (`releaser`).
 The advisory lock is held on a client that stays **checked out** for the whole section: up to 111 s for a commit (Apply 60 s),
 up to 65 s for each reconcile retry, plus the watcher and the ARCH-01 check. pg-pool removes its idle `error` listener on
@@ -131,7 +131,7 @@ the commit revert. The banner (not TD-10a's file) should retry a confirm automat
    - Crash: the session ends and PostgreSQL drops the lock. **Connection loss: crashes the process (H1).**
    - The 1 s wait then 409 is sensible (D-TD10a-1).
 4. **Time budget.** 1 + 5 + 30 + 60 + 15 = **111 s** matches the code path: Health once in `validate`, DryRun capped at 30 s,
-   Apply capped at 60 s even with a larger `VRX_AGENT_TIMEOUT_MS`. The confirm worst case is about 81 s. Web 130 s (19 s
+   Apply capped at 60 s even with a larger `NGFW_AGENT_TIMEOUT_MS`. The confirm worst case is about 81 s. Web 130 s (19 s
    margin) and CLI 150 s (39 s) are right. The CLI looks up only on a real timeout (after 150 s), so it cannot race.
    The web can, see M1. The lookups are GET-only; nothing re-posts.
 5. **Secret delete race: closed.** The only revision writer is `promote`, and it always runs under the commit lock. The

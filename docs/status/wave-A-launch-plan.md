@@ -5,13 +5,13 @@ overlaps every feature's `apps/api/src/features/<slug>/**` and TD-4. Then commit
 ## 1. Critic findings (envelopes in docs/status/tasks/ fixed in place)
 - **Overlaps:** glob intersection over 21 ownership sets (17 feature envelopes, TD-4, TD-5/TD-6 running, TD-2) → 46 hits, all TD-2's `apps/api/**`;
   no other pair overlaps. Dep-chained shared files are hotspots (ED `desired/nat.go`/`rpc_nat44_ed*.go`/natTabs → EI; F-vrf's routes controller → P12).
-  Latent: P10 (prio 6, ready after P08) owns `deploy/debian/` ⊃ P11's `deploy/debian/vrx-strongswan/**`.
+  Latent: P10 (prio 6, ready after P08) owns `deploy/debian/` ⊃ P11's `deploy/debian/ngfw-strongswan/**`.
 - **Added:** A5 event sink for F-neighbors-ra and F-object-model (`agent/events.go` bus unexported; `subsystems.Env` has no publish hook). P12 W2 nav (the
   "routing tab registry by F-vrf-static-ecmp" does not exist). F-loopback D-105 loop16000–16383 rule. F-vlan-qinq D-105 F1 `items[].config` meaning.
   F-rpf-adl-pbr stale number-collision note removed.
 - **Wave-B envelopes:** `contract/<id>` branch → contract commits on the task branch. "First to land creates" shells/sink → manager-seeded (parallel
   add/add otherwise). Secret channel = decision-policy #4.
-- **CI line (18 envelopes):** the requested `flock … vrx-ci.lock` contradicts D-106 (serialising whole gates rejected; golangci-lint serializes itself
+- **CI line (18 envelopes):** the requested `flock … ngfw-ci.lock` contradicts D-106 (serialising whole gates rejected; golangci-lint serializes itself
   since fc0fe68) → ngfw-46's TD-5 form `TMPDIR=/tmp/g-w<SLOT> tools/ci.sh --base main`, plus "ports 3000/8080/9101 = tools/app".
 - **Daemons:** one owner each, all may run at once (slot test instances, D-089): P11 strongswan, P12 frr, F-kea kea, F-unbound unbound+chrony+rsyslog.
 - **Host needs:** nothing NIC-gated, nothing parked; scope cuts only. P11 needs network (apt-get download + strongSwan tarball; RF-2's debs were lost in the
@@ -37,7 +37,7 @@ overlaps every feature's `apps/api/src/features/<slug>/**` and TD-4. Then commit
 ## 3. Batch 2 queue (first free slot, deps merged, prio 3 before 4)
 F-acl → F-host-acl-nftables → F-nat44-ei-64-66-nptv6 → F-loopback-bvi-gso-lldp-span → P11 (if not started) → P12 (frr) →
 F-kea-dhcp-relay (if not started) → F-unbound-chrony-syslog → F-wireguard. The next three need envelopes first: F-tunnels, F-det44 (may run beside EI),
-P10 (must exclude vrx-strongswan).
+P10 (must exclude ngfw-strongswan).
 
 ## 4. Pairs that must not run together
 - TD-2 × apps/api features · P12 × F-vrf-static-ecmp (dep) · P10 × P11 (deploy/debian) · ED × EI · F-bridge-l2 × F-loopback/F-tunnels · F-object-model × F-acl/F-host-acl

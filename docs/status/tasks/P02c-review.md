@@ -201,7 +201,7 @@ All gaps are additive (new optional keys under strict roots) except where noted 
 
 - Secrets: every secret-bearing field is a `*Ref` (`secretReference`); strict objects reject `psk`, `password`, `privateKey`, `presharedKey`,
   `community`, `authPassword`, `secret`, `key` (tested per domain); WireGuard public keys validated as exactly 32 bytes; fixtures use
-  `VRX_TEST_PSK_inline` and the public WireGuard docs keys only. Group-wide scan exists (`vpn.no-inline-secret-material`) and reaches all
+  `NGFW_TEST_PSK_inline` and the public WireGuard docs keys only. Group-wide scan exists (`vpn.no-inline-secret-material`) and reaches all
   four domains (probe h) — with the limits in F7.
 - vdom guardrails: `vrf` on every IPsec/WireGuard/tunnel/service/VR object (+`underlayVrf` on tunnels/WireGuard; F4 for IPsec); names unique
   per record and across tunnel kinds; Kea/Unbound are instance records with their own bind sets; `default` VRF always known.
@@ -209,7 +209,7 @@ All gaps are additive (new optional keys under strict roots) except where noted 
   `unrecognized_keys` handled as `<object>/<key>` in tests (Q8 is a real note for P06).
 - Hostile inputs: NUL/LF, unicode, over-long, wrong padding, 43/45-char keys, `%any`+start, mixed families, multicast/unspecified endpoints,
   VNI 2^24, VRID 0/256, 15 ms interval, pools outside subnets, case/separator-insensitive MAC duplicates, Kea/Unbound passthrough keys, loops.
-- `x-vrx-ui`: `withUi()` on the four roots (`order` 90/100/110/120), sub-trees (`group`/`order`) and fields (`widget` select/switch/number/
+- `x-ngfw-ui`: `withUi()` on the four roots (`order` 90/100/110/120), sub-trees (`group`/`order`) and fields (`widget` select/switch/number/
   textarea/cidr/record/vrf-picker/interface-picker/secret-ref, `help`); verified in `dist/json-schema/{ha,vpn}.json`.
 - VRID unique per (interface, addressFamily) — correct (RFC 5798; VPP `vrrp_vr_add_del` keys on sw_if_index + is_ipv6 + vr_id). Accept P02c-4.
 - Interface references by VPP name; tunnels referenceable only with `instance` — sane, documented (P02c-7).

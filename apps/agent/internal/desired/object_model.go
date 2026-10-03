@@ -22,13 +22,13 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/scheduler"
 )
 
 // ObjectModel emits the objects.* objects of objs.
-func ObjectModel(s Sink, objs *vrxv1.ObjectsConfig) {
+func ObjectModel(s Sink, objs *ngfwv1.ObjectsConfig) {
 	if objs == nil {
 		return
 	}
@@ -70,7 +70,7 @@ type objectEntry struct {
 }
 
 // kindEntries lists kind k of objs sorted by name.
-func kindEntries(objs *vrxv1.ObjectsConfig, k objects.Kind) []objectEntry {
+func kindEntries(objs *ngfwv1.ObjectsConfig, k objects.Kind) []objectEntry {
 	var out []objectEntry
 	add := func(n string, v proto.Message) { out = append(out, objectEntry{n, v}) }
 	switch k {
@@ -109,19 +109,19 @@ func kindEntries(objs *vrxv1.ObjectsConfig, k objects.Kind) []objectEntry {
 
 // AssembleObjectModel merges the retrieved objects.* values into one objects document; nil when
 // the agent holds no object (an empty map domain and an absent one are the same thing, proto.md §1).
-func AssembleObjectModel(kvs []scheduler.KV) *vrxv1.ObjectsConfig {
+func AssembleObjectModel(kvs []scheduler.KV) *ngfwv1.ObjectsConfig {
 	family := map[string]bool{}
 	for _, n := range objects.DescriptorNames() {
 		family[n] = true
 	}
-	var out *vrxv1.ObjectsConfig
+	var out *ngfwv1.ObjectsConfig
 	for _, kv := range kvs {
-		v, ok := kv.Value.(*vrxv1.ObjectsConfig)
+		v, ok := kv.Value.(*ngfwv1.ObjectsConfig)
 		if !ok || !family[kv.Key.Descriptor()] {
 			continue
 		}
 		if out == nil {
-			out = &vrxv1.ObjectsConfig{}
+			out = &ngfwv1.ObjectsConfig{}
 		}
 		proto.Merge(out, v)
 	}

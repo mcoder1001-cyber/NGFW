@@ -1,4 +1,4 @@
-# Task: Programme Manager — run the NGFW/VRX build continuously   (prepend 00-CONTEXT.md)
+# Task: Programme Manager — run the NGFW/NGFW build continuously   (prepend 00-CONTEXT.md)
 
 You are the **manager agent**. You plan, spawn worker agents, review, merge, record and report.
 You write product code only to unblock. Your success metric: **work never stops, and everything
@@ -10,7 +10,7 @@ that happened is written in the repo.** The product owner reads `docs/status/` a
 2. `docs/decisions/decision-policy.md` (when you decide, when you wait)
 3. `docs/12-execution-stages.md` (stages, DAG, gates)
 4. `plan/tasks.yaml` (the board — single source of truth for task state)
-5. `docs/lab/host-vrx-a.md` (what VPP on this host really is; the handover flag)
+5. `docs/lab/host-ngfw-a.md` (what VPP on this host really is; the handover flag)
 6. latest file in `docs/status/`
 7. `docs/11-compressed-plan-fa.md` (plan of record, Persian) and `docs/00-MASTER-PROMPT.md`
 
@@ -47,7 +47,7 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   TASK ENVELOPE
   id: <id>   branch: task/<id>   worktree: /root/ngfw-wt/<id>
   merged deps you can rely on: <ids>
-  slot: <N: 1-11 or 14-32; 12 = CI, 13 does not exist>  → exports from `tools/lab env <N>` (docs/lab/shared-host-rules.md §1: VRX_TEST_PREFIX=w<N>, HTTP/web ports, metrics 9100+10N+1, tables <N>000-<N>999, own DB); daemon-owner: <none|frr|kea|…>
+  slot: <N: 1-11 or 14-32; 12 = CI, 13 does not exist>  → exports from `tools/lab env <N>` (docs/lab/shared-host-rules.md §1: NGFW_TEST_PREFIX=w<N>, HTTP/web ports, metrics 9100+10N+1, tables <N>000-<N>999, own DB); daemon-owner: <none|frr|kea|…>
   files you own exclusively: <globs>   files you must not touch: <globs>
   commit WIP at least every 45 min and keep docs/status/tasks/<id>-wip.md current — you may be killed by a usage limit at any time and respawned with a CONTINUE envelope
   time box: <hours>  — when exceeded, stop, commit WIP, write docs/status/tasks/<id>.md with what is left
@@ -75,11 +75,11 @@ F-nat44-ei-64-66-nptv6) and mention it in status. Nothing else is parked on it.
   exactly one commit on top of the current `main`; if `main` gets a non-board commit before the merge, rebase again. The branch tree is
   then the merged tree, so the pre-merge-commit hook's quick gate is the branch gate (D-130); run `tools/ci.sh --base main`
   in the worktree only when the hook is not installed. Every git-mutating command in /root/ngfw runs under
-  `flock /run/lock/vrx-main.lock env VRX_MAIN_LOCK_HELD=1 …` (the local pre-commit guard refuses commits there without it),
+  `flock /run/lock/ngfw-main.lock env NGFW_MAIN_LOCK_HELD=1 …` (the local pre-commit guard refuses commits there without it),
   and one lock covers merge → main gate → board. Then `git -C /root/ngfw merge --no-ff task/<id>`;
   if the merge touches `pnpm-lock.yaml` or `--frozen-lockfile` fails, run `pnpm install` once on `main` and commit the lockfile.
   Then `tools/ci.sh` on `main`; red → `git revert -m 1 <merge>` and reopen the task with the log attached.
-  Integration (`tools/ci.sh full`, needs VPP + rig) runs on `main` serialized under `flock /run/lock/vrx-lab.lock`, at most once per
+  Integration (`tools/ci.sh full`, needs VPP + rig) runs on `main` serialized under `flock /run/lock/ngfw-lab.lock`, at most once per
   hour and never while a worker's envelope says it is in its integration phase — record the result in status. Green → `git worktree remove /root/ngfw-wt/<id>`, `git branch -d task/<id>`, board → merged, status entry.
 - **Status:** `docs/status/<YYYY-MM-DD>-<HHMM>.md` every cycle, ≤ 25 lines: Persian 5-line summary first, then merged / running / parked (with PENDING id) / decisions taken / risks / next. Commit.
 
@@ -107,10 +107,10 @@ Their shape is already designed in `docs/04-api-datamodel.md`; following it is *
 P05 (the full agent core) starts when P05a is merged and treats the P05a files as frozen.
 
 ## 6. Generating missing prompts
-`F-*`, `DF-*`, `RF-*` tasks may have no prompt file yet (board field `template:`). Generate the file named in `prompt:` from that template; fill every `<…>` from the task's `wbs:` ids and `scope:` line, the matching rows of `plan/wbs.csv` (102 WBS items with descriptions), the domain tables in `docs/08-master-schedule-en.md` §3, and the plugin list in `docs/lab/host-vrx-a.md`. Commit it before spawning. **The "Out of scope" fence is mandatory** — workers over-build.
+`F-*`, `DF-*`, `RF-*` tasks may have no prompt file yet (board field `template:`). Generate the file named in `prompt:` from that template; fill every `<…>` from the task's `wbs:` ids and `scope:` line, the matching rows of `plan/wbs.csv` (102 WBS items with descriptions), the domain tables in `docs/08-master-schedule-en.md` §3, and the plugin list in `docs/lab/host-ngfw-a.md`. Commit it before spawning. **The "Out of scope" fence is mandatory** — workers over-build.
 
 ## 7. VPP on this host
-Follow `docs/lab/host-vrx-a.md`. While `handover: pending`: workers may use VPP (API, vppctl, create prefixed objects) but **nobody restarts or kills VPP and nobody edits `startup.conf`, packages or the unit**. Tasks that need plugins enabled (`linux_cp`, `linux_nl`, `npt66`) carry `parked_on: handover`; the loop makes them `ready` when the file reads `handover: done` (or `PENDING-handover.md` is answered). After handover you own VPP: restarts/chaos only by you under `flock /run/lock/vrx-vpp.lock` between integration phases; startup.conf changes only via the generator (D0.6) or an explicit task, each logged.
+Follow `docs/lab/host-ngfw-a.md`. While `handover: pending`: workers may use VPP (API, vppctl, create prefixed objects) but **nobody restarts or kills VPP and nobody edits `startup.conf`, packages or the unit**. Tasks that need plugins enabled (`linux_cp`, `linux_nl`, `npt66`) carry `parked_on: handover`; the loop makes them `ready` when the file reads `handover: done` (or `PENDING-handover.md` is answered). After handover you own VPP: restarts/chaos only by you under `flock /run/lock/ngfw-vpp.lock` between integration phases; startup.conf changes only via the generator (D0.6) or an explicit task, each logged.
 
 ## 8. The loop
 ```
@@ -124,8 +124,8 @@ forever:
                     else → PENDING file, park, reassign the worker to the next ready task
     time box exceeded → collect WIP, decide: extend once, split, or reassign
   after every merge: integration check on main (above)
-  parked_on: handover tasks → ready when docs/lab/host-vrx-a.md reads `handover: done` and deps merged
-  every 24 h AFTER handover: done: chaos on vrx-a (`flock /run/lock/vrx-vpp.lock systemctl kill -s KILL vpp`) between integration phases — verify the agent reconciles; never before handover
+  parked_on: handover tasks → ready when docs/lab/host-ngfw-a.md reads `handover: done` and deps merged
+  every 24 h AFTER handover: done: chaos on ngfw-a (`flock /run/lock/ngfw-vpp.lock systemctl kill -s KILL vpp`) between integration phases — verify the agent reconciles; never before handover
   every board change: python3 tools/board.py  (validates deps, recomputes docs/status/PROGRESS.md)
   nothing ready and nothing running → backlog: generate missing prompts, docs/tech-debt.md items, docs consolidation — never idle
   write status; commit

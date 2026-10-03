@@ -7,7 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dhcp"
 	"ngfw/agent/internal/ownertable"
@@ -30,7 +30,7 @@ func registerFor(t *testing.T, owner string, ids IDScope) (*scheduler.MapRegistr
 }
 
 // Review M3: the relay families own the rx VRFs of the agent's id range and fail closed. A zero IDScope (no
-// VRX_VPP_TABLE_BASE, no VRX_VPP_ID_RANGE=all) makes Wiring.IDRange return NoIDs with ErrNoIDRange: a relay in any
+// NGFW_VPP_TABLE_BASE, no NGFW_VPP_ID_RANGE=all) makes Wiring.IDRange return NoIDs with ErrNoIDRange: a relay in any
 // table is neither retrieved (so never deleted) nor created. A refactor to "on error, own everything" (rng = nil)
 // would hand a slot agent every relay of the shared VPP — this test fails then.
 func TestRegisterKeaRelayScope(t *testing.T) {
@@ -96,8 +96,8 @@ func TestRegisterKeaRelayScope(t *testing.T) {
 	}
 }
 
-// Review M3: VRX_KEA_MODE and VRX_KEA_IFMAP / VRX_KEA_NETNS parsing; review Q7: test mode is refused for the product
-// agent (owner "vrx" or VRX_VPP_ID_RANGE=all).
+// Review M3: NGFW_KEA_MODE and NGFW_KEA_IFMAP / NGFW_KEA_NETNS parsing; review Q7: test mode is refused for the product
+// agent (owner "ngfw" or NGFW_VPP_ID_RANGE=all).
 func TestRegisterKeaModes(t *testing.T) {
 	slot := IDScope{Range: &IDRange{Lo: 4000, Hi: 4999}}
 	cases := []struct {
@@ -112,14 +112,14 @@ func TestRegisterKeaModes(t *testing.T) {
 		{name: "off", mode: "off", owner: "wk4", ids: slot},
 		{name: "bogus mode refuses to start", mode: "lab", owner: "wk4", ids: slot, wantErr: "want product, test or off"},
 		{name: "test", mode: "test", netns: "ns-wk4-wan", ifmap: "host-wk4l0=wk4w1, host-wk4x=wk4x1", owner: "wk4", ids: slot,
-			kea: true, confDir: "/run/vrx-test/wk4/kea/etc", ns: "ns-wk4-wan"},
-		{name: "test, default netns", mode: "test", owner: "wk4", ids: slot, kea: true, confDir: "/run/vrx-test/wk4/kea/etc", ns: "ns-wk4-a"},
+			kea: true, confDir: "/run/ngfw-test/wk4/kea/etc", ns: "ns-wk4-wan"},
+		{name: "test, default netns", mode: "test", owner: "wk4", ids: slot, kea: true, confDir: "/run/ngfw-test/wk4/kea/etc", ns: "ns-wk4-a"},
 		{name: "test, bad map pair", mode: "test", ifmap: "host-wk4l0:wk4w1", owner: "wk4", ids: slot, wantErr: "is not <vpp-if>=<linux-if>"},
 		{name: "test, linux name too long", mode: "test", ifmap: "host-wk4l0=wk4-way-too-long-name", owner: "wk4", ids: slot, wantErr: "is not <vpp-if>=<linux-if>"},
 		{name: "test, bad netns", mode: "test", netns: "-exec", owner: "wk4", ids: slot, wantErr: "Paths.Netns"},
-		{name: "Q7: test refused for owner vrx", mode: "test", owner: "vrx", ids: IDScope{All: true}, wantErr: "refused for the product agent"},
+		{name: "Q7: test refused for owner ngfw", mode: "test", owner: "ngfw", ids: IDScope{All: true}, wantErr: "refused for the product agent"},
 		{name: "Q7: test refused with id range all", mode: "test", owner: "wk4", ids: IDScope{All: true}, wantErr: "refused for the product agent"},
-		{name: "Q7: test refused for owner vrx on a range", mode: "test", owner: "vrx", ids: slot, wantErr: "refused for the product agent"},
+		{name: "Q7: test refused for owner ngfw on a range", mode: "test", owner: "ngfw", ids: slot, wantErr: "refused for the product agent"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -178,13 +178,13 @@ func TestKeaTestModeMapper(t *testing.T) {
 	if !strings.Contains(desc, "ns-wk5-a") || !strings.Contains(desc, "1 mapped") {
 		t.Fatalf("description %q", desc)
 	}
-	ds := func(ifn string) *vrxv1.DesiredState {
-		return &vrxv1.DesiredState{
-			Interfaces: map[string]*vrxv1.Interface{ifn: {Ipv4: []string{"10.5.1.1/24"}}},
-			Services: &vrxv1.ServicesConfig{Dhcp: &vrxv1.DhcpService{Servers: map[string]*vrxv1.DhcpServer{"lan": {
+	ds := func(ifn string) *ngfwv1.DesiredState {
+		return &ngfwv1.DesiredState{
+			Interfaces: map[string]*ngfwv1.Interface{ifn: {Ipv4: []string{"10.5.1.1/24"}}},
+			Services: &ngfwv1.ServicesConfig{Dhcp: &ngfwv1.DhcpService{Servers: map[string]*ngfwv1.DhcpServer{"lan": {
 				Interfaces: []string{ifn},
-				Subnets: map[string]*vrxv1.DhcpSubnet{"lan": {Subnet: proto.String("10.5.1.0/24"),
-					Pools: []*vrxv1.DhcpPool{{Start: proto.String("10.5.1.100"), End: proto.String("10.5.1.150")}}}},
+				Subnets: map[string]*ngfwv1.DhcpSubnet{"lan": {Subnet: proto.String("10.5.1.0/24"),
+					Pools: []*ngfwv1.DhcpPool{{Start: proto.String("10.5.1.100"), End: proto.String("10.5.1.150")}}}},
 			}}}},
 		}
 	}

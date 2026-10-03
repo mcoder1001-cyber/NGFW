@@ -3,15 +3,15 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "vrx"
+name = "ngfw"
 version = "0.1.0"
-description = "Python SDK for the VRX REST API (generated operations + VrxSession)"
+description = "Python SDK for the NGFW REST API (generated operations + NgfwSession)"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 dependencies = []
 
 [tool.setuptools.packages.find]
-include = ["vrx*"]
+include = ["ngfw*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

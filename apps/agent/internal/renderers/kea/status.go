@@ -143,7 +143,7 @@ func SubnetsOf(cfg []byte) ([]SubnetRef, error) {
 		for _, s := range append(v.Subnet4, v.Subnet6...) {
 			ref := SubnetRef{ID: s.ID, Prefix: s.Subnet}
 			if s.UserContext != nil {
-				ref.Server, ref.Subnet = s.UserContext.VRX.Server, s.UserContext.VRX.Subnet
+				ref.Server, ref.Subnet = s.UserContext.NGFW.Server, s.UserContext.NGFW.Subnet
 			}
 			out = append(out, ref)
 		}

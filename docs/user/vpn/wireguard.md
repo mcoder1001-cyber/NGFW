@@ -3,9 +3,9 @@
 **Where:** VPN → **WireGuard** tab. **REST:** configuration through the generic routes under `/api/v1/config/vpn`
 (`vpn.wireguard.interfaces.<name>`), live state `GET /api/v1/state/vpn/wireguard`, key pairs
 `POST /api/v1/actions/vpn/wireguard/keypair`, live peer status on the WebSocket topic `wireguard.events`.
-**CLI:** `vrx set vpn wireguard …` / `vrx show configuration vpn` (see the end of this page).
+**CLI:** `ngfw set vpn wireguard …` / `ngfw show configuration vpn` (see the end of this page).
 
-VRX runs WireGuard in the VPP data plane (plugin `wireguard`, VPP 26.06). Each configured interface becomes the VPP
+NGFW runs WireGuard in the VPP data plane (plugin `wireguard`, VPP 26.06). Each configured interface becomes the VPP
 interface `wg<instance>`; its peers, addresses, MTU, VRF and (optionally) the routes of the peers' allowed IPs are
 programmed by the agent on commit and rebuilt after a restart.
 
@@ -20,7 +20,7 @@ data plane** while a commit has not created it yet), listen address and port, ad
 | Status | **Established** (handshake completed), **No answer** (VPP gave up: no handshake reply), **No handshake** (no session yet) |
 | Endpoint | the address VPP currently sends to — learnt from the peer's last packet (a roaming client shows its current address) |
 | Allowed IPs | cryptokey routing: prefixes accepted from and routed to the peer |
-| Last handshake | when VRX last saw the peer become established (VPP itself reports no handshake time) |
+| Last handshake | when NGFW last saw the peer become established (VPP itself reports no handshake time) |
 
 Status changes arrive live (a peer event from VPP, relayed by the agent and the API). The table itself is read from the
 data plane every 30 s and on **Refresh** — reading it walks VPP, so the screen never polls faster (decision D-132).
@@ -44,7 +44,7 @@ WireGuard keys are never part of the configuration document; it holds references
 - **Road-warrior clients:** in the peer dialog, **Generate client keys** makes a key pair in your browser (WebCrypto
   X25519) and fills the peer's public key; the client's private key stays in this browser tab only. **Export client
   configuration** then downloads the client's `.conf` with that private key — after you leave the page it is gone (the
-  export then contains a placeholder). VRX never stores a client's private key.
+  export then contains a placeholder). NGFW never stores a client's private key.
 
 ![Generate key pair: only the reference and the public key are shown](img/wireguard-keypair-en.png)
 
@@ -146,7 +146,7 @@ reports `agent.unsupported-value`).
 ## The same with the CLI and REST
 
 ```
-vrx configure
+ngfw configure
 set vpn wireguard interfaces rw instance 1
 set vpn wireguard interfaces rw listenAddress 198.51.100.2
 set vpn wireguard interfaces rw listenPort 51820

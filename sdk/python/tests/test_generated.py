@@ -3,10 +3,10 @@ from __future__ import annotations
 
 import inspect
 
-import vrx
-from vrx._generated import models
-from vrx._generated.operations import OPERATIONS, Operations
-from vrx._generated.secrets import SECRET_REF_POINTERS, WRITE_ONLY_POINTERS
+import ngfw
+from ngfw._generated import models
+from ngfw._generated.operations import OPERATIONS, Operations
+from ngfw._generated.secrets import SECRET_REF_POINTERS, WRITE_ONLY_POINTERS
 
 from .fake import FAKE_KEY, FakeTransport
 
@@ -23,7 +23,7 @@ def test_generated_method_builds_the_request() -> None:
     fake = FakeTransport()
     fake.on("POST", "/api/v1/config/rollback/3", (200, {"status": "pending"}))
     fake.on("DELETE", "/api/v1/secrets/psk/site-a", (204, None))
-    s = vrx.VrxSession("https://h:1", FAKE_KEY, transport=fake)
+    s = ngfw.NgfwSession("https://h:1", FAKE_KEY, transport=fake)
     s.config_rollback("3", confirm=30)
     assert s.secrets_delete("psk", "site-a") is None
     assert fake.calls() == ["POST /api/v1/config/rollback/3?confirm=30", "DELETE /api/v1/secrets/psk/site-a"]

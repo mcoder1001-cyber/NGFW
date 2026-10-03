@@ -51,7 +51,7 @@ export function fetchList(url: string, o: FetchOptions): Promise<FetchResult> {
   const timeoutMs = o.timeoutMs ?? FETCH_TIMEOUT_MS;
   const headers: Record<string, string> = {
     accept: 'text/plain, */*;q=0.5',
-    'user-agent': 'vrx-global-blocking',
+    'user-agent': 'ngfw-global-blocking',
   };
   if (o.authorization) headers['authorization'] = o.authorization;
   if (o.etag) headers['if-none-match'] = o.etag;

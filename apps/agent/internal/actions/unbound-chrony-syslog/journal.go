@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
@@ -79,7 +79,7 @@ type Query struct {
 }
 
 // ParseRequest validates req (now = the agent clock). Errors are InvalidArgument.
-func ParseRequest(req *vrxv1.SyslogEntriesRequest, now time.Time) (Query, error) {
+func ParseRequest(req *ngfwv1.SyslogEntriesRequest, now time.Time) (Query, error) {
 	q := Query{Priority: -1, Page: int(req.GetPage()), PageSize: int(req.GetPageSize())}
 	q.Since = now.Add(-DefaultWindow)
 	if req.GetSince() != nil {
@@ -156,7 +156,7 @@ func (q Query) Argv() []string {
 }
 
 // Run executes q through runner and returns one page (newest first).
-func Run(ctx context.Context, runner renderers.Runner, q Query) (*vrxv1.SyslogEntriesResponse, error) {
+func Run(ctx context.Context, runner renderers.Runner, q Query) (*ngfwv1.SyslogEntriesResponse, error) {
 	out, err := runner.Run(ctx, renderers.Command{Path: JournalctlBin, Args: q.Argv(), Timeout: journalTimeout})
 	var ee *renderers.ExitError
 	switch {
@@ -165,8 +165,8 @@ func Run(ctx context.Context, runner renderers.Runner, q Query) (*vrxv1.SyslogEn
 	case err != nil:
 		return nil, status.Errorf(codes.Internal, "journalctl: %v %s", err, firstLine(out.Stderr))
 	}
-	resp := &vrxv1.SyslogEntriesResponse{Page: uint32(q.Page), PageSize: uint32(q.PageSize), Source: "journald"} //nolint:gosec // bounded above
-	var matches []*vrxv1.SyslogEntry
+	resp := &ngfwv1.SyslogEntriesResponse{Page: uint32(q.Page), PageSize: uint32(q.PageSize), Source: "journald"} //nolint:gosec // bounded above
+	var matches []*ngfwv1.SyslogEntry
 	for _, line := range bytes.Split(out.Stdout, []byte("\n")) {
 		if len(bytes.TrimSpace(line)) == 0 {
 			continue
@@ -200,7 +200,7 @@ func firstLine(b []byte) string {
 
 // parseEntry decodes one `journalctl -o json` line. Field values are strings, or — for binary data — arrays of
 // byte values (and arrays of strings when a field repeats; the first one is used).
-func parseEntry(line []byte) (*vrxv1.SyslogEntry, bool) {
+func parseEntry(line []byte) (*ngfwv1.SyslogEntry, bool) {
 	var raw map[string]json.RawMessage
 	if json.Unmarshal(line, &raw) != nil {
 		return nil, false
@@ -232,7 +232,7 @@ func parseEntry(line []byte) (*vrxv1.SyslogEntry, bool) {
 	if err != nil {
 		return nil, false
 	}
-	e := &vrxv1.SyslogEntry{Time: timestamppb.New(time.UnixMicro(us)), Hostname: field("_HOSTNAME"), Unit: field("_SYSTEMD_UNIT")}
+	e := &ngfwv1.SyslogEntry{Time: timestamppb.New(time.UnixMicro(us)), Hostname: field("_HOSTNAME"), Unit: field("_SYSTEMD_UNIT")}
 	if p, err := strconv.Atoi(field("PRIORITY")); err == nil && p >= 0 && p < len(Severities) {
 		e.Severity = Severities[p]
 	}

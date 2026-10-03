@@ -2,9 +2,9 @@
 # Prepare a signed repository locally. Serving/deploying it is manager-owned.
 set -euo pipefail
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-[[ $# == 3 ]] || { echo 'usage: publish-apt.sh VERIFIED_VPP_OUTPUT VRX_DEB_DIRECTORY NEW_REPOSITORY_DIRECTORY' >&2; exit 2; }
+[[ $# == 3 ]] || { echo 'usage: publish-apt.sh VERIFIED_VPP_OUTPUT NGFW_DEB_DIRECTORY NEW_REPOSITORY_DIRECTORY' >&2; exit 2; }
 VPP_OUTPUT=$(realpath -e -- "$1")
-VRX_DEBS=$(realpath -e -- "$2")
+NGFW_DEBS=$(realpath -e -- "$2")
 OUTPUT=$(realpath -m -- "$3")
 SIGNING_HOME=$(realpath -m -- "${XDG_CONFIG_HOME:-$HOME/.config}/ngfw/apt-signing")
 # A publication tree must never contain a signing home, nor be nested in one.
@@ -20,20 +20,20 @@ VPP_VERSION=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["v
 # Validate every product package and version before creating a signing key or repo.
 DEBS=()
 VERSION=
-for package in vrx-agent vrx-api vrx-web vrx-meta; do
+for package in ngfw-agent ngfw-api ngfw-web ngfw-meta; do
   MATCHES=()
-  for candidate in "$VRX_DEBS"/*.deb; do
+  for candidate in "$NGFW_DEBS"/*.deb; do
     [[ -f $candidate ]] || continue
     [[ $(dpkg-deb -f "$candidate" Package) == "$package" ]] && MATCHES+=("$candidate")
   done
   [[ ${#MATCHES[@]} == 1 ]] || { echo "expected exactly one $package package" >&2; exit 1; }
   candidate=${MATCHES[0]}
   CURRENT=$(dpkg-deb -f "$candidate" Version)
-  [[ -z $VERSION || $VERSION == "$CURRENT" ]] || { echo 'mixed VRX package versions' >&2; exit 1; }
+  [[ -z $VERSION || $VERSION == "$CURRENT" ]] || { echo 'mixed NGFW package versions' >&2; exit 1; }
   VERSION=$CURRENT
   ARCH=$(dpkg-deb -f "$candidate" Architecture)
-  [[ $ARCH == amd64 || $ARCH == all ]] || { echo 'unsupported VRX architecture' >&2; exit 1; }
-  if [[ $package == vrx-meta ]]; then
+  [[ $ARCH == amd64 || $ARCH == all ]] || { echo 'unsupported NGFW architecture' >&2; exit 1; }
+  if [[ $package == ngfw-meta ]]; then
     DEPENDS=$(dpkg-deb -f "$candidate" Depends)
     python3 - "$VPP_VERSION" "$DEPENDS" <<'PYDEPS'
 import re, sys
@@ -44,7 +44,7 @@ for group in depends.split(','):
     if any(name and name.group(1) == 'vpp' for name in names):
         vpp_groups.append(group.strip())
 if len(vpp_groups) != 1 or not re.fullmatch(r'vpp\s*\(=\s*' + re.escape(version) + r'\s*\)', vpp_groups[0]):
-    sys.exit('vrx-meta VPP dependency must be one exact standalone verified version')
+    sys.exit('ngfw-meta VPP dependency must be one exact standalone verified version')
 PYDEPS
   fi
   DEBS+=("$candidate")
@@ -66,14 +66,14 @@ install -d -m 0700 "$SIGNING_HOME"
 FINGERPRINT=$(gpg --homedir "$SIGNING_HOME" --batch --with-colons --list-secret-keys 2>/dev/null | awk -F: '$1=="fpr" && !seen {print $10; seen=1}')
 if [[ -z $FINGERPRINT ]]; then
   gpg --homedir "$SIGNING_HOME" --batch --pinentry-mode loopback --passphrase '' \
-    --quick-generate-key 'VRX APT signing' rsa3072 sign 2y >/dev/null 2>&1
+    --quick-generate-key 'NGFW APT signing' rsa3072 sign 2y >/dev/null 2>&1
   FINGERPRINT=$(gpg --homedir "$SIGNING_HOME" --batch --with-colons --list-secret-keys 2>/dev/null | awk -F: '$1=="fpr" && !seen {print $10; seen=1}')
 fi
 [[ $FINGERPRINT =~ ^[A-F0-9]{40}$ ]] || { echo 'no valid signing key' >&2; exit 1; }
 mkdir -p "$OUTPUT/conf"
 sed "s/@SIGNING_FINGERPRINT@/$FINGERPRINT/" "$ROOT/deploy/apt/distributions.in" > "$OUTPUT/conf/distributions"
 # Public trust anchor only; private keys stay in SIGNING_HOME.
-gpg --homedir "$SIGNING_HOME" --batch --export "$FINGERPRINT" > "$OUTPUT/vrx-archive-keyring.gpg"
+gpg --homedir "$SIGNING_HOME" --batch --export "$FINGERPRINT" > "$OUTPUT/ngfw-archive-keyring.gpg"
 for package in "${DEBS[@]}"; do
   GNUPGHOME=$SIGNING_HOME reprepro --basedir "$OUTPUT" includedeb resolute "$package" >/dev/null
 done

@@ -4,7 +4,7 @@ title: Descriptors: acl (incl. macip), acl stats
 prompt: prompts/factories/DF-4.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D5.2
 scope: acl (incl. macip), acl stats
 merged deps you can rely on: P05a, P04
-slot: 10 → VRX_TEST_PREFIX=w10  VRX_HTTP_PORT=31000  VRX_WEB_PORT=51000  VRX_METRICS_PORT=91101  VRX_AGENT_SOCKET=/run/vrx-test/w10/agent.sock  VRX_PG_DATABASE=vrx_w10  VRX_VPP_TABLE_BASE=10000
+slot: 10 → NGFW_TEST_PREFIX=w10  NGFW_HTTP_PORT=31000  NGFW_WEB_PORT=51000  NGFW_METRICS_PORT=91101  NGFW_AGENT_SOCKET=/run/ngfw-test/w10/agent.sock  NGFW_PG_DATABASE=ngfw_w10  NGFW_VPP_TABLE_BASE=10000
 daemon-owner: none
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-4>/** docs/agent/descriptors/<plugins>.md
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

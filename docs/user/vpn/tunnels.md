@@ -3,7 +3,7 @@
 **Where:** VPN → **Tunnels** (tabs **GRE**, **VXLAN**, **IPIP**). **REST:** the generic configuration routes under
 `/api/v1/config/tunnels` (`tunnels.gre`, `tunnels.vxlan`, `tunnels.ipip`); live state of the tunnel interfaces in
 `GET /api/v1/state/interfaces` (a tunnel is an interface named by its instance).
-**CLI:** `vrx set tunnels gre <name> …` / `vrx show configuration tunnels`.
+**CLI:** `ngfw set tunnels gre <name> …` / `ngfw show configuration tunnels`.
 
 A tunnel is an interface. Its addresses, MTU, VRF and (L2 tunnels) bridge-domain membership are set on the tunnel
 record itself; other features (routes, VRRP, LLDP …) reference it by its engine interface name.
@@ -12,7 +12,7 @@ record itself; other features (routes, VRRP, LLDP …) reference it by its engin
 
 | field | meaning |
 |---|---|
-| `instance` | **Required in this release.** Fixes the engine interface name: `gre<n>`, `vxlan_tunnel<n>`, `ipip<n>`. It must lie in the agent's VPP id range (on a shared lab host the slot's range, e.g. 7000–7999; `VRX_VPP_ID_RANGE=all` on a box of its own). A tunnel without an instance, or outside the range, is refused with a pointer at `instance`. |
+| `instance` | **Required in this release.** Fixes the engine interface name: `gre<n>`, `vxlan_tunnel<n>`, `ipip<n>`. It must lie in the agent's VPP id range (on a shared lab host the slot's range, e.g. 7000–7999; `NGFW_VPP_ID_RANGE=all` on a box of its own). A tunnel without an instance, or outside the range, is refused with a pointer at `instance`. |
 | `src` / `dst` | Outer addresses, same family, `src` configured on an interface in the underlay VRF |
 | `underlayVrf` | FIB the encapsulated packets use (default `default`) |
 | `vrf` | FIB the tunnel interface belongs to (overlay) |

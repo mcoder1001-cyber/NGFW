@@ -1,4 +1,4 @@
-# VRX agent prompts
+# NGFW agent prompts
 
 **Start here if you are the human:** `cd /root/ngfw && cat prompts/00-CONTEXT.md prompts/MANAGER-PROMPT.md | claude` — the manager agent runs everything else (see `docs/13-handoff-fa.md`).
 
@@ -6,9 +6,9 @@ Every task prompt is **self-contained** once you prepend `00-CONTEXT.md`. Run ea
 its own git worktree with Claude Code from the repo root:
 
 ```bash
-git worktree add ../vrx-P05 -b feat/P05-agent-core
-cd ../vrx-P05
-cat ../vrx/prompts/00-CONTEXT.md ../vrx/prompts/P05-agent-core.md | claude
+git worktree add ../ngfw-P05 -b feat/P05-agent-core
+cd ../ngfw-P05
+cat ../ngfw/prompts/00-CONTEXT.md ../ngfw/prompts/P05-agent-core.md | claude
 ```
 
 ## Order and parallelism

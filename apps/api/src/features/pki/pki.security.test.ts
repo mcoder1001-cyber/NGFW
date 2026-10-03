@@ -23,7 +23,7 @@ describe('PKI HTTP authorization and write-ahead audit', () => {
       order: ['local'],
       fallbackLocal: true,
       mfaRequired: 'none',
-      mfaIssuer: 'vrx',
+      mfaIssuer: 'ngfw',
     });
     vi.spyOn(app.get(AuditService), 'write').mockResolvedValue(undefined);
     begin = vi.spyOn(app.get(AuditService), 'begin').mockResolvedValue(42);

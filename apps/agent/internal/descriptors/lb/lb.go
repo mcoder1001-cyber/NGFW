@@ -346,7 +346,7 @@ func (d *VIPDescriptor) Dependencies(proto.Message) []scheduler.Dependency {
 // lb_add_del_vip(_v2) without ntohl: govpp sends them big-endian, so every value but 0 (gre4,
 // clusterip) would be misread and the VIP rejected (INVALID_ADDRESS_FAMILY). Byte-swapping
 // here makes the wire bytes equal the host-order value VPP expects on a little-endian host
-// (x86_64/arm64, the only VRX targets). docs/agent/descriptors/lb.md, DF-7-questions.md.
+// (x86_64/arm64, the only NGFW targets). docs/agent/descriptors/lb.md, DF-7-questions.md.
 func rawEnum(v uint32) uint32 {
 	if enumNative.Load() {
 		return v // VPP converts with ntohl (V20 fixed): send the plain value

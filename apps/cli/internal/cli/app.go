@@ -1,5 +1,5 @@
-// Package cli implements the `vrx` command: one-shot commands, the interactive REPL (operational and configuration
-// mode) and machine mode (--json). It is a thin client of vrx-api: every command maps to documented REST
+// Package cli implements the `ngfw` command: one-shot commands, the interactive REPL (operational and configuration
+// mode) and machine mode (--json). It is a thin client of ngfw-api: every command maps to documented REST
 // operations (see Command.Ops) and nothing here talks to the agent or VPP.
 package cli
 
@@ -41,7 +41,7 @@ const (
 	ModeConfig
 )
 
-// App is one vrx invocation.
+// App is one ngfw invocation.
 type App struct {
 	Stdin          *os.File
 	Stdout, Stderr io.Writer
@@ -84,23 +84,23 @@ func New() *App {
 	return &App{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr, Getenv: os.Getenv}
 }
 
-// Main runs vrx with args (without the program name) and returns the exit code.
+// Main runs ngfw with args (without the program name) and returns the exit code.
 func (a *App) Main(args []string) int {
-	fs := flag.NewFlagSet("vrx", flag.ContinueOnError)
+	fs := flag.NewFlagSet("ngfw", flag.ContinueOnError)
 	fs.SetOutput(a.Stderr)
-	fs.StringVar(&a.apiURL, "api", "", "API base URL (env VRX_API_URL; default "+DefaultAPI+")")
+	fs.StringVar(&a.apiURL, "api", "", "API base URL (env NGFW_API_URL; default "+DefaultAPI+")")
 	fs.BoolVar(&a.jsonOut, "json", false, "machine mode: every command prints exactly one JSON document")
 	fs.BoolVar(&a.debug, "debug", false, "print method, path and status of every API call to stderr (never credentials)")
-	fs.StringVar(&a.apiKeyFile, "api-key-file", "", "read the API key from this file (mode 0600; env VRX_API_KEY_FILE)")
+	fs.StringVar(&a.apiKeyFile, "api-key-file", "", "read the API key from this file (mode 0600; env NGFW_API_KEY_FILE)")
 	fs.StringVar(&a.user, "user", "", "log in as this user for this invocation (password prompted without echo)")
 	fs.StringVar(&a.passwordFile, "password-file", "", "with --user: read the password from this file (mode 0600) instead of prompting")
 	fs.BoolVar(&a.noSession, "no-session", false, "do not read or write the login session file")
 	fs.BoolVar(&a.insecureHTTP, "insecure-http", false, "allow http:// to a host that is not loopback (credentials travel in cleartext)")
 	showVersion := fs.Bool("version", false, "print the version and exit")
 	fs.Usage = func() {
-		_, _ = fmt.Fprintf(a.Stderr, "usage: vrx [flags] [command …]   (no command: interactive shell)\n\nflags:\n")
+		_, _ = fmt.Fprintf(a.Stderr, "usage: ngfw [flags] [command …]   (no command: interactive shell)\n\nflags:\n")
 		fs.PrintDefaults()
-		fmt.Fprintf(a.Stderr, "\ncommands: vrx help\n")
+		fmt.Fprintf(a.Stderr, "\ncommands: ngfw help\n")
 	}
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
@@ -115,14 +115,14 @@ func (a *App) Main(args []string) int {
 		defer func() { _ = so.Flush(); _ = se.Flush() }()
 	}
 	if *showVersion {
-		fmt.Fprintf(a.Stdout, "vrx %s (API spec %s)\n", Version, api.SpecVersion)
+		fmt.Fprintf(a.Stdout, "ngfw %s (API spec %s)\n", Version, api.SpecVersion)
 		return ExitOK
 	}
 	if a.apiURL == "" {
-		a.apiURL = a.env("VRX_API_URL", DefaultAPI)
+		a.apiURL = a.env("NGFW_API_URL", DefaultAPI)
 	}
 	if a.apiKeyFile == "" {
-		a.apiKeyFile = a.Getenv("VRX_API_KEY_FILE")
+		a.apiKeyFile = a.Getenv("NGFW_API_KEY_FILE")
 	}
 	c, err := api.New(a.apiURL)
 	if err != nil {
@@ -179,7 +179,7 @@ func isLoopback(host string) bool {
 
 // ---- credentials ----
 
-// ensureAuth makes sure the client carries a credential (API key file → VRX_API_KEY → --user login → session file
+// ensureAuth makes sure the client carries a credential (API key file → NGFW_API_KEY → --user login → session file
 // → interactive login prompt).
 func (a *App) ensureAuth(ctx context.Context) error {
 	if a.client.Cred != nil {
@@ -193,7 +193,7 @@ func (a *App) ensureAuth(ctx context.Context) error {
 		a.client.Cred, a.credSource = api.Key(key), "api-key-file"
 		return nil
 	}
-	if k := strings.TrimSpace(a.Getenv("VRX_API_KEY")); k != "" {
+	if k := strings.TrimSpace(a.Getenv("NGFW_API_KEY")); k != "" {
 		a.client.Cred, a.credSource = api.Key(k), "env"
 		return nil
 	}
@@ -217,7 +217,7 @@ func (a *App) ensureAuth(ctx context.Context) error {
 		_, _ = fmt.Fprintln(a.Stdout, "Not logged in (no API key, no session).")
 		return a.login(ctx, "", "", !a.noSession)
 	}
-	return &ExitErr{Code: ExitAuth, Err: errors.New("not logged in — run `vrx login`, or set VRX_API_KEY / --api-key-file")}
+	return &ExitErr{Code: ExitAuth, Err: errors.New("not logged in — run `ngfw login`, or set NGFW_API_KEY / --api-key-file")}
 }
 
 // readSecretFile reads a credential file that must not be readable by group or others.
@@ -250,7 +250,7 @@ func (a *App) login(ctx context.Context, user, password string, save bool) error
 	var err error
 	if user == "" {
 		if !lineedit.IsTerminal(a.Stdin) {
-			return usagef("login needs a username (vrx login <user>)")
+			return usagef("login needs a username (ngfw login <user>)")
 		}
 		if user, err = a.readLine("Username: "); err != nil {
 			return err
@@ -269,7 +269,7 @@ func (a *App) login(ctx context.Context, user, password string, save bool) error
 	}
 	a.client.Cred, a.credSource, a.username = api.Bearer(out.AccessToken), "login", out.User.Username
 	for _, c := range r.Cookies {
-		if c.Name == "vrx_refresh" {
+		if c.Name == "ngfw_refresh" {
 			a.refreshCookie = c.Name + "=" + c.Value
 		}
 	}
@@ -296,7 +296,7 @@ func (a *App) refresh(ctx context.Context) (api.Credential, error) {
 		return nil, err
 	}
 	for _, c := range r.Cookies {
-		if c.Name == "vrx_refresh" {
+		if c.Name == "ngfw_refresh" {
 			a.refreshCookie = c.Name + "=" + c.Value
 		}
 	}
@@ -319,7 +319,7 @@ func (a *App) readSecret(prompt string) (string, error) {
 	return e.ReadSecret(prompt)
 }
 
-// ---- session file ($XDG_RUNTIME_DIR/vrx/session.json, 0600; access token only, expires with it) ----
+// ---- session file ($XDG_RUNTIME_DIR/ngfw/session.json, 0600; access token only, expires with it) ----
 
 type session struct {
 	API       string    `json:"api"`
@@ -329,10 +329,10 @@ type session struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 }
 
-// sessionPath is $VRX_SESSION_FILE, else $XDG_RUNTIME_DIR/vrx/session.json, else /run/user/<uid>/vrx/session.json
+// sessionPath is $NGFW_SESSION_FILE, else $XDG_RUNTIME_DIR/ngfw/session.json, else /run/user/<uid>/ngfw/session.json
 // when that directory is ours; "" = no session persistence (never a shared temp directory — review M1).
 func (a *App) sessionPath() string {
-	if p := a.Getenv("VRX_SESSION_FILE"); p != "" {
+	if p := a.Getenv("NGFW_SESSION_FILE"); p != "" {
 		return p
 	}
 	dir := a.Getenv("XDG_RUNTIME_DIR")
@@ -343,7 +343,7 @@ func (a *App) sessionPath() string {
 		}
 		dir = d
 	}
-	return filepath.Join(dir, "vrx", "session.json")
+	return filepath.Join(dir, "ngfw", "session.json")
 }
 
 func loadSession(path, apiURL string) (*session, error) {
@@ -366,7 +366,7 @@ func loadSession(path, apiURL string) (*session, error) {
 
 func saveSession(path string, s session) error {
 	if path == "" {
-		return errors.New("no private runtime directory ($XDG_RUNTIME_DIR unset) — set VRX_SESSION_FILE to a file in a 0700 directory you own, or use an API key")
+		return errors.New("no private runtime directory ($XDG_RUNTIME_DIR unset) — set NGFW_SESSION_FILE to a file in a 0700 directory you own, or use an API key")
 	}
 	b, err := json.Marshal(s)
 	if err != nil {
@@ -405,11 +405,11 @@ func (a *App) SetSchema(d *jschema.Doc) { a.schema = d }
 func (a *App) prompt() string {
 	host := a.hostname
 	if host == "" {
-		host = "vrx"
+		host = "ngfw"
 	}
 	user := a.username
 	if user == "" {
-		user = "vrx"
+		user = "ngfw"
 	}
 	host, user = safe.String(host), safe.String(user)
 	if a.pending != nil { // review M3: countdown of the unconfirmed commit in the prompt
@@ -586,7 +586,7 @@ func (a *App) greet(ctx context.Context) {
 	}
 	if _, err := a.client.JSON(ctx, api.Call{Op: "Auth_me"}, &me); err == nil {
 		a.username = me.Username
-		fmt.Fprintf(a.Stdout, "vrx %s — %s as %s (role %s, via %s). Type ? for help.\n", Version, a.client.Base.Host, me.Username, me.EffectiveRole, me.Via)
+		fmt.Fprintf(a.Stdout, "ngfw %s — %s as %s (role %s, via %s). Type ? for help.\n", Version, a.client.Base.Host, me.Username, me.EffectiveRole, me.Via)
 	}
 	var host string
 	if _, err := a.client.JSON(ctx, api.Call{Op: "Config_runningAt", Params: map[string]string{"path": "system/hostname"}}, &host); err == nil && host != "" {
@@ -595,7 +595,7 @@ func (a *App) greet(ctx context.Context) {
 }
 
 func (a *App) historyPath() string {
-	if p := a.Getenv("VRX_HISTORY_FILE"); p != "" {
+	if p := a.Getenv("NGFW_HISTORY_FILE"); p != "" {
 		return p
 	}
 	dir := a.Getenv("XDG_STATE_HOME")
@@ -606,7 +606,7 @@ func (a *App) historyPath() string {
 		}
 		dir = filepath.Join(home, ".local", "state")
 	}
-	return filepath.Join(dir, "vrx", "history")
+	return filepath.Join(dir, "ngfw", "history")
 }
 
 func loadHistory(path string) []string {
@@ -634,7 +634,7 @@ func saveHistory(path string, h []string) {
 	var keep []string
 	for _, l := range h {
 		low := strings.ToLower(l)
-		if strings.Contains(low, "password") || strings.Contains(low, "secret") || strings.Contains(low, "psk") || strings.Contains(low, "vrxk_") {
+		if strings.Contains(low, "password") || strings.Contains(low, "secret") || strings.Contains(low, "psk") || strings.Contains(low, "ngfwk_") {
 			continue
 		}
 		keep = append(keep, l)

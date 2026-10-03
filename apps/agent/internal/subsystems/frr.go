@@ -3,7 +3,7 @@ package subsystems
 // P12 wiring (wave-A-hotspots A1): subsystems.go carries one registration line and the descriptor names in
 // Domains[Interfaces] (lcp.itf-pair) and Domains[Routing] (frr.config) under its anchors; everything else is here.
 //
-// The FRR stage (P12-questions Q3, D-109 d): one singleton scheduler object `frr.config/vrx` whose value is the
+// The FRR stage (P12-questions Q3, D-109 d): one singleton scheduler object `frr.config/ngfw` whose value is the
 // FRR-relevant subset of the document (desired.FRRDoc). Create/Update render it with every registered RF-1 section
 // (bgp, policy, lcp-addresses, later ospf/isis/…) → `vtysh -C` → `frr-reload.py --reload` + convergence check; Delete
 // applies the framework-only configuration; Retrieve reports the last applied document with its status from
@@ -11,9 +11,9 @@ package subsystems
 // FRR learns. A 1 Hz poller publishes EVENT_KIND_BGP_NEIGHBOR_CHANGED / EVENT_KIND_ROUTING_CHANGED while FRR carries
 // this agent's configuration.
 //
-// Which FRR this agent drives: the product agent (owner "vrx") → /etc/frr, /var/run/frr (no pathspace);
-// VRX_FRR_PATHSPACE=<slot prefix> → that slot's frrtest instance (/run/vrx-test/<p>/frr, pathspace <p>: topology tests);
-// otherwise, or with VRX_FRR=off, none. An agent without FRR projects no frr.config object: FRR content in the document
+// Which FRR this agent drives: the product agent (owner "ngfw") → /etc/frr, /var/run/frr (no pathspace);
+// NGFW_FRR_PATHSPACE=<slot prefix> → that slot's frrtest instance (/run/ngfw-test/<p>/frr, pathspace <p>: topology tests);
+// otherwise, or with NGFW_FRR=off, none. An agent without FRR projects no frr.config object: FRR content in the document
 // is an agent.unsupported-field warning, as before P12 (unit tests, slots that do not run FRR). Before any vtysh call
 // the runtime checks that a vty socket exists, so an agent whose FRR is down never spawns vtysh.
 
@@ -36,7 +36,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/desired"
@@ -56,10 +56,10 @@ const (
 )
 
 // EnvFRR = "off" disables FRR for every owner.
-const EnvFRR = "VRX_FRR"
+const EnvFRR = "NGFW_FRR"
 
 // EnvFRRPathspace names a slot's frrtest instance for a non-product agent (see the file comment).
-const EnvFRRPathspace = "VRX_FRR_PATHSPACE"
+const EnvFRRPathspace = "NGFW_FRR_PATHSPACE"
 
 // ErrFRRUnavailable is returned when the configuration needs FRR and this agent has none.
 var ErrFRRUnavailable = errors.New("frr: FRR is not available to this agent")
@@ -77,7 +77,7 @@ func frrPaths(owner string) (frr.Paths, bool) {
 		return frr.Paths{}, false
 	case ps != "" && slotOwnerRe.MatchString(ps):
 		return frr.TestPaths(ps), true
-	case owner == "vrx" && ps == "":
+	case owner == "ngfw" && ps == "":
 		return frr.ProductPaths(), true
 	}
 	return frr.Paths{}, false
@@ -93,14 +93,14 @@ type FRR struct {
 	owner   string
 	client  vpp.Client
 	log     *slog.Logger
-	publish func(*vrxv1.Event)
+	publish func(*ngfwv1.Event)
 	paths   frr.Paths
 	enabled bool
 	mapper  *lcpmap.Mapper
 	r       *frr.Renderer
 
 	mu        sync.Mutex
-	last      *vrxv1.DesiredState // last applied document (nil: none since start, or removed)
+	last      *ngfwv1.DesiredState // last applied document (nil: none since start, or removed)
 	lastFiles renderers.Files
 
 	pollOnce sync.Once
@@ -133,7 +133,7 @@ func FRRRuntime(owner string) *FRR {
 // render before anything is applied.
 func FRRProjection() desired.FRROptions {
 	return desired.FRROptions{
-		Selector: func(i int, sr *vrxv1.StaticRoute) bool { return frr.StaticOwnedByFRR(i, sr, nil) },
+		Selector: func(i int, sr *ngfwv1.StaticRoute) bool { return frr.StaticOwnedByFRR(i, sr, nil) },
 		Check:    CheckFRR,
 		Disabled: !frrEnabled.Load(),
 	}
@@ -142,7 +142,7 @@ func FRRProjection() desired.FRROptions {
 // CheckFRR renders doc without applying it: every registered section and interface-line producer, the linux-cp
 // mapping of doc's own pairs, no secret resolver. Render does no I/O (the runner is never called, the paths are only
 // file names).
-func CheckFRR(doc *vrxv1.DesiredState) error {
+func CheckFRR(doc *ngfwv1.DesiredState) error {
 	m := &lcpmap.Mapper{}
 	m.Set(lcpmap.FromDesired(doc))
 	_, err := frr.New(renderers.NewRecordingRunner(), frr.WithInterfaceMapper(m.Map)).Render(context.Background(), doc)
@@ -207,13 +207,13 @@ func (rt *FRR) Running() bool {
 }
 
 // render renders doc with the mapping of doc's own linux-cp pairs.
-func (rt *FRR) render(ctx context.Context, doc *vrxv1.DesiredState) (renderers.Files, error) {
+func (rt *FRR) render(ctx context.Context, doc *ngfwv1.DesiredState) (renderers.Files, error) {
 	rt.mapper.Set(lcpmap.FromDesired(doc))
 	return rt.r.Render(ctx, doc)
 }
 
 // apply renders, validates and applies doc (nil = the framework-only configuration, which forgets the last document).
-func (rt *FRR) apply(ctx context.Context, doc *vrxv1.DesiredState) error {
+func (rt *FRR) apply(ctx context.Context, doc *ngfwv1.DesiredState) error {
 	remove := doc == nil
 	if !rt.Enabled() {
 		return fmt.Errorf("%w (owner %q, %s=%q)", ErrFRRUnavailable, rt.owner, EnvFRR, os.Getenv(EnvFRR))
@@ -222,7 +222,7 @@ func (rt *FRR) apply(ctx context.Context, doc *vrxv1.DesiredState) error {
 		return fmt.Errorf("%w: no FRR vty socket in %s (is FRR running?)", ErrFRRUnavailable, rt.paths.SocketDir())
 	}
 	if doc == nil {
-		doc = &vrxv1.DesiredState{}
+		doc = &ngfwv1.DesiredState{}
 	}
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -239,7 +239,7 @@ func (rt *FRR) apply(ctx context.Context, doc *vrxv1.DesiredState) error {
 	if remove {
 		rt.last, rt.lastFiles = nil, nil
 	} else {
-		rt.last, rt.lastFiles = proto.Clone(doc).(*vrxv1.DesiredState), files
+		rt.last, rt.lastFiles = proto.Clone(doc).(*ngfwv1.DesiredState), files
 		rt.startPoller()
 	}
 	rt.log.Info("FRR configuration applied", "conf", rt.paths.ConfFile(), "bgp", doc.GetRouting().GetBgp() != nil)
@@ -268,7 +268,7 @@ func (rt *FRR) retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			return nil, nil // FRR answers nothing useful: nothing is reported (a Create re-applies)
 		}
 		if hasOwnContent(string(out)) {
-			return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(&vrxv1.DesiredState{}, desired.FRRUnknown)}}, nil
+			return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(&ngfwv1.DesiredState{}, desired.FRRUnknown)}}, nil
 		}
 		return nil, nil
 	}
@@ -424,11 +424,11 @@ func (rt *FRR) pollLoop() {
 
 // EventOf maps an FRR poller event to the agent's Event: bgp-neighbors → EVENT_KIND_BGP_NEIGHBOR_CHANGED, routes →
 // EVENT_KIND_ROUTING_CHANGED; FRR's interface events are dropped (the agent reports VPP's own link events).
-func EventOf(e frr.Event) *vrxv1.Event {
+func EventOf(e frr.Event) *ngfwv1.Event {
 	switch e.Poller {
 	case bgp.PollerNeighbors:
 		vrf, peer := bgp.SplitNeighborKey(e.Key)
-		return &vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED,
+		return &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED,
 			Message:    fmt.Sprintf("BGP neighbour %s (vrf %s): %s → %s", peer, vrf, dash(e.Old), dash(e.New)),
 			Attributes: map[string]string{"source": "frr", "vrf": vrf, "peer": peer, "old": e.Old, "new": e.New}}
 	case frr.PollerRoutes:
@@ -436,7 +436,7 @@ func EventOf(e frr.Event) *vrxv1.Event {
 		if len(parts) != 3 {
 			return nil
 		}
-		return &vrxv1.Event{Kind: vrxv1.EventKind_EVENT_KIND_ROUTING_CHANGED,
+		return &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_ROUTING_CHANGED,
 			Message: fmt.Sprintf("FRR %s routes in vrf %s (%s): %s → %s", parts[2], parts[1], parts[0], zero(e.Old), zero(e.New)),
 			Attributes: map[string]string{"source": "frr", "family": parts[0], "vrf": parts[1], "protocol": parts[2],
 				"old": zero(e.Old), "new": zero(e.New)}}
@@ -477,9 +477,9 @@ type FRRState struct {
 	BGP       []bgp.Instance
 	RIBCounts map[string]uint32
 	Readers   map[string]string
-	RIB       []*vrxv1.RoutingRibEntry
+	RIB       []*ngfwv1.RoutingRibEntry
 	// LcpPairs are this owner's pairs (read from VPP inside the same serialised walk); PairsErr why they could not be.
-	LcpPairs []*vrxv1.RoutingLcpPair
+	LcpPairs []*ngfwv1.RoutingLcpPair
 	PairsErr error
 }
 
@@ -592,7 +592,7 @@ func (rt *FRR) State(ctx context.Context, readers, prefixes []string, vrf string
 // lookup reads FRR's RIB entries of exactly p in vrf: `show ip[v6] route vrf <vrf> <p> json`. The command is built
 // from a canonical netip.Prefix and a validated VRF name (never raw input) and passes the framework's show-command
 // check; its output is bounded by the entries of one prefix.
-func (rt *FRR) lookup(ctx context.Context, vrf string, p netip.Prefix) ([]*vrxv1.RoutingRibEntry, error) {
+func (rt *FRR) lookup(ctx context.Context, vrf string, p netip.Prefix) ([]*ngfwv1.RoutingRibEntry, error) {
 	fam := "ip"
 	if p.Addr().Is6() {
 		fam = "ipv6"
@@ -619,12 +619,12 @@ func (rt *FRR) lookup(ctx context.Context, vrf string, p netip.Prefix) ([]*vrxv1
 	if err := json.Unmarshal(raw, &byPrefix); err != nil {
 		return nil, fmt.Errorf("decode route %s: %w", p, err)
 	}
-	var out []*vrxv1.RoutingRibEntry
+	var out []*ngfwv1.RoutingRibEntry
 	for _, e := range byPrefix[p.String()] {
-		re := &vrxv1.RoutingRibEntry{Prefix: p.String(), Vrf: vrf, Protocol: e.Protocol, Selected: e.Selected,
+		re := &ngfwv1.RoutingRibEntry{Prefix: p.String(), Vrf: vrf, Protocol: e.Protocol, Selected: e.Selected,
 			Installed: e.Installed, Distance: e.Distance, Metric: e.Metric}
 		for _, nh := range e.Nexthops {
-			re.NextHops = append(re.NextHops, &vrxv1.RoutingRibNextHop{Address: nh.IP, Interface: nh.InterfaceName, Active: nh.Active, Fib: nh.FIB})
+			re.NextHops = append(re.NextHops, &ngfwv1.RoutingRibNextHop{Address: nh.IP, Interface: nh.InterfaceName, Active: nh.Active, Fib: nh.FIB})
 		}
 		out = append(out, re)
 	}
@@ -649,7 +649,7 @@ func (rt *FRR) acquireState(ctx context.Context) (func(), error) {
 }
 
 // LcpPairs returns this owner's linux-cp pairs from VPP (lcp_itf_pair_get + the owner's interface table).
-func (rt *FRR) LcpPairs(ctx context.Context) ([]*vrxv1.RoutingLcpPair, error) {
+func (rt *FRR) LcpPairs(ctx context.Context) ([]*ngfwv1.RoutingLcpPair, error) {
 	ctx, cancel := context.WithTimeout(ctx, lcpPairsTimeout)
 	defer cancel()
 	kvs, err := lcp.NewItfPair(rt.client, rt.owner).Retrieve(ctx)
@@ -659,13 +659,13 @@ func (rt *FRR) LcpPairs(ctx context.Context) ([]*vrxv1.RoutingLcpPair, error) {
 		}
 		return nil, err
 	}
-	var out []*vrxv1.RoutingLcpPair
+	var out []*ngfwv1.RoutingLcpPair
 	for _, kv := range kvs {
 		var p lcp.ItfPair
 		if err := dfkit.Decode(kv.Value, &p); err != nil {
 			continue
 		}
-		rp := &vrxv1.RoutingLcpPair{Interface: p.Interface, HostIfName: p.HostIfName, HostIfType: p.HostIfType, Netns: p.Netns}
+		rp := &ngfwv1.RoutingLcpPair{Interface: p.Interface, HostIfName: p.HostIfName, HostIfType: p.HostIfType, Netns: p.Netns}
 		if m, ok := kv.Meta.(lcp.PairMeta); ok {
 			rp.PhySwIfIndex, rp.HostSwIfIndex, rp.VifIndex = m.PhySwIfIndex, m.HostSwIfIndex, m.VifIndex
 		}

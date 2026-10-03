@@ -30,10 +30,10 @@ func TestApplySupervisor(t *testing.T) {
 	if err := r.Apply(ctx, rr, []Session{s1, s0}); err != nil {
 		t.Fatal(err)
 	}
-	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart vrx-pppoe-wan0.service|restart vrx-pppoe-wan1.service" {
+	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart ngfw-pppoe-wan0.service|restart ngfw-pppoe-wan1.service" {
 		t.Fatalf("initial: %v", got)
 	}
-	if _, err := os.Stat(base + "/etc/ppp/peers/vrx-wan0"); err != nil {
+	if _, err := os.Stat(base + "/etc/ppp/peers/ngfw-wan0"); err != nil {
 		t.Fatalf("peer file not written: %v", err)
 	}
 
@@ -53,7 +53,7 @@ func TestApplySupervisor(t *testing.T) {
 	if err := r.Apply(ctx, rr, []Session{s0b, s1}); err != nil {
 		t.Fatal(err)
 	}
-	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart vrx-pppoe-wan0.service" {
+	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart ngfw-pppoe-wan0.service" {
 		t.Fatalf("mtu change: %v", got)
 	}
 
@@ -63,13 +63,13 @@ func TestApplySupervisor(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := cmds(rr)
-	if got[0] != "stop vrx-pppoe-wan1.service" || got[1] != "daemon-reload" {
+	if got[0] != "stop ngfw-pppoe-wan1.service" || got[1] != "daemon-reload" {
 		t.Fatalf("removal order: %v", got)
 	}
-	if _, err := os.Stat(base + "/etc/ppp/peers/vrx-wan1"); !os.IsNotExist(err) {
+	if _, err := os.Stat(base + "/etc/ppp/peers/ngfw-wan1"); !os.IsNotExist(err) {
 		t.Fatalf("wan1 peer file not removed: %v", err)
 	}
-	if _, err := os.Stat(base + "/etc/systemd/system/vrx-pppoe-wan1.service"); !os.IsNotExist(err) {
+	if _, err := os.Stat(base + "/etc/systemd/system/ngfw-pppoe-wan1.service"); !os.IsNotExist(err) {
 		t.Fatal("wan1 unit not removed")
 	}
 

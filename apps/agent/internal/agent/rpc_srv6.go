@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/sr"
 	"ngfw/agent/internal/desired"
@@ -30,12 +30,12 @@ var srv6WalkWait = 3 * time.Second
 var srv6Walk = make(chan struct{}, 1)
 
 // Srv6State implements the Srv6State RPC.
-func (g *server) Srv6State(ctx context.Context, req *vrxv1.Srv6StateRequest) (*vrxv1.Srv6StateResponse, error) {
+func (g *server) Srv6State(ctx context.Context, req *ngfwv1.Srv6StateRequest) (*ngfwv1.Srv6StateResponse, error) {
 	return g.svc.Srv6State(ctx, req)
 }
 
 // Srv6State builds the response.
-func (s *Service) Srv6State(ctx context.Context, req *vrxv1.Srv6StateRequest) (*vrxv1.Srv6StateResponse, error) {
+func (s *Service) Srv6State(ctx context.Context, req *ngfwv1.Srv6StateRequest) (*ngfwv1.Srv6StateResponse, error) {
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -63,23 +63,23 @@ func (s *Service) Srv6State(ctx context.Context, req *vrxv1.Srv6StateRequest) (*
 	case err != nil:
 		return nil, status.Errorf(codes.Internal, "srv6 state: %v", err)
 	}
-	resp := &vrxv1.Srv6StateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
+	resp := &ngfwv1.Srv6StateResponse{Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}
 	for _, l := range snap.LocalSids {
-		resp.LocalSids = append(resp.LocalSids, &vrxv1.Srv6StateLocalSid{
+		resp.LocalSids = append(resp.LocalSids, &ngfwv1.Srv6StateLocalSid{
 			Sid: l.GetSid(), Behavior: desired.Srv6BehaviorName(l.GetBehavior()), Psp: l.GetEndPsp(), FibTable: l.GetFibTable(),
 			Interface: l.GetInterface(), NextHop: l.GetNextHop(), LookupTable: l.GetLookupTable(),
 			GoodPackets: l.GoodPackets, GoodBytes: l.GoodBytes, BadPackets: l.BadPackets, BadBytes: l.BadBytes,
 		})
 	}
 	for _, p := range snap.Policies {
-		out := &vrxv1.Srv6StatePolicy{Bsid: p.GetBsid(), Type: desired.Srv6PolicyTypeName(p.GetType()), Encap: p.GetEncap(), FibTable: p.GetFibTable(), EncapSource: p.GetEncapSrc()}
+		out := &ngfwv1.Srv6StatePolicy{Bsid: p.GetBsid(), Type: desired.Srv6PolicyTypeName(p.GetType()), Encap: p.GetEncap(), FibTable: p.GetFibTable(), EncapSource: p.GetEncapSrc()}
 		for _, l := range p.GetSidLists() {
-			out.SidLists = append(out.SidLists, &vrxv1.Srv6StateSidList{Sids: append([]string(nil), l.GetSids()...), Weight: l.GetWeight()})
+			out.SidLists = append(out.SidLists, &ngfwv1.Srv6StateSidList{Sids: append([]string(nil), l.GetSids()...), Weight: l.GetWeight()})
 		}
 		resp.Policies = append(resp.Policies, out)
 	}
 	for _, st := range snap.Steering {
-		out := &vrxv1.Srv6StateSteering{Bsid: st.GetBsid(), Prefix: st.GetPrefix(), FibTable: st.GetTableId(), Interface: st.GetInterface()}
+		out := &ngfwv1.Srv6StateSteering{Bsid: st.GetBsid(), Prefix: st.GetPrefix(), FibTable: st.GetTableId(), Interface: st.GetInterface()}
 		switch st.GetTrafficType() {
 		case sr.SteerType_L2:
 			out.TrafficType = "l2"

@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rfkit"
 )
 
@@ -121,11 +121,11 @@ type Options struct {
 
 // BuildModel validates the keepalived instances of ha.vrrp (engine "keepalived", enabled)
 // plus the stand-ins (D-055) and resolves their secrets.
-func BuildModel(ds *vrxv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, o Options) (*Model, error) {
+func BuildModel(ds *ngfwv1.DesiredState, ext *rfkit.Ext, sec *rfkit.Secrets, o Options) (*Model, error) {
 	if o.Mapper == nil {
 		o.Mapper = NoMapper
 	}
-	m := &Model{Notify: o.Paths.NotifyHelper, StateDir: o.Paths.StateDir, RouterID: "vrx"}
+	m := &Model{Notify: o.Paths.NotifyHelper, StateDir: o.Paths.StateDir, RouterID: "ngfw"}
 	if h := ds.GetSystem().GetHostname(); nameRe.MatchString(h) {
 		m.RouterID = h
 	}
@@ -217,7 +217,7 @@ func buildScripts(sx *rfkit.Ext, o Options) ([]Script, error) {
 	return out, nil
 }
 
-func buildInstance(name string, v *vrxv1.VrrpInstance, kx *rfkit.Ext, sec *rfkit.Secrets, o Options, scripts []Script) (*Instance, error) {
+func buildInstance(name string, v *ngfwv1.VrrpInstance, kx *rfkit.Ext, sec *rfkit.Secrets, o Options, scripts []Script) (*Instance, error) {
 	path := "ha.vrrp." + name
 	if _, err := Name(name); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)

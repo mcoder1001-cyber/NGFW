@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
-# tools/lab — driver for the VRX lab (P04).
+# tools/lab — driver for the NGFW lab (P04).
 #
-# Local mode: the machine named `vrx-a` in test/topology/ is THIS host (mgmt: local) — commands run directly.
+# Local mode: the machine named `ngfw-a` in test/topology/ is THIS host (mgmt: local) — commands run directly.
 # Remote mode: other inventory entries are VMware VMs reached over SSH (root) once they exist (docs/lab/vmware.md).
 #
 #   tools/lab status [vm]                    VPP active?, version, plugins, sockets, handover flag, data NICs, rig, PostgreSQL, Valkey
 #   tools/lab vppctl <vm> <cmd...>           run a vppctl command on that machine
-#   tools/lab provision <vm> [--apply]       local (vrx-a): VERIFY ONLY + manual steps; remote role=vrx: print plan; --apply provisions
-#                                            only with VRX_LAB_REMOTE_APPLY=1, never a machine whose mgmt IP is this host, never role host/peer-*
+#   tools/lab provision <vm> [--apply]       local (ngfw-a): VERIFY ONLY + manual steps; remote role=ngfw: print plan; --apply provisions
+#                                            only with NGFW_LAB_REMOTE_APPLY=1, never a machine whose mgmt IP is this host, never role host/peer-*
 #   tools/lab restart-vpp <vm>               REFUSED unless BOTH /root/ngfw/docs/lab/host-<vm>.md (main) AND this worktree's copy say
-#                                            `handover: done` (inventory/env cannot override); then flock -x vrx-vpp.lock + lab lock
+#                                            `handover: done` (inventory/env cannot override); then flock -x ngfw-vpp.lock + lab lock
 #   tools/lab kill-vpp <vm>                  same guard; SIGKILL to the vpp unit (systemd restarts it) — simulates a crash
-#   tools/lab lock shared|exclusive <cmd...> run <cmd> under flock -s|-x /run/lock/vrx-lab.lock (test harnesses use shared)
+#   tools/lab lock shared|exclusive <cmd...> run <cmd> under flock -s|-x /run/lock/ngfw-lab.lock (test harnesses use shared)
 #   tools/lab lock status                    who holds the lab lock
 #   tools/lab env <slot>                     print the slot exports from docs/lab/shared-host-rules.md (eval "$(tools/lab env 3)")
-#   tools/lab rig up|down|gc|show <prefix>   veth/netns packet rig through VPP af_packet host-interfaces (prefix = VRX_TEST_PREFIX);
-#                                            w<N> → 10.<N>.{1,2}.0/24 (the prefix wins over VRX_SLOT); other prefixes need VRX_SLOT
+#   tools/lab rig up|down|gc|show <prefix>   veth/netns packet rig through VPP af_packet host-interfaces (prefix = NGFW_TEST_PREFIX);
+#                                            w<N> → 10.<N>.{1,2}.0/24 (the prefix wins over NGFW_SLOT); other prefixes need NGFW_SLOT
 #   tools/lab inventory                      list test/topology/*.yml
 #
-# Hard rules (docs/lab/host-vrx-a.md, docs/lab/shared-host-rules.md): never edits /etc/vpp/*, never installs/removes packages on
+# Hard rules (docs/lab/host-ngfw-a.md, docs/lab/shared-host-rules.md): never edits /etc/vpp/*, never installs/removes packages on
 # this host, never restarts or kills VPP while handover is pending, only touches objects that carry the caller's prefix
 # (rig down/gc match the exact rig names: `w1` never touches `w11`'s objects). rig up/down/gc hold flock -s on the lab lock.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 CANON_ROOT=/root/ngfw   # the manager's `main` checkout: the handover flag is read from HERE (and from $ROOT), never from an override (review F3)
-TOPO_DIR="${VRX_TOPOLOGY_DIR:-$ROOT/test/topology}"
-LAB_LOCK="${VRX_LAB_LOCK:-/run/lock/vrx-lab.lock}"
-VPP_LOCK="${VRX_VPP_LOCK:-/run/lock/vrx-vpp.lock}"
-DEFAULT_VM="vrx-a"
+TOPO_DIR="${NGFW_TOPOLOGY_DIR:-$ROOT/test/topology}"
+LAB_LOCK="${NGFW_LAB_LOCK:-/run/lock/ngfw-lab.lock}"
+VPP_LOCK="${NGFW_VPP_LOCK:-/run/lock/ngfw-vpp.lock}"
+DEFAULT_VM="ngfw-a"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new)
 
 # ---------------------------------------------------------------- output helpers
@@ -110,7 +110,7 @@ run_on() {  # <vm> <cmd...> — run locally or over SSH (never SSH to ourselves)
 # ---------------------------------------------------------------- handover flag (review F3: fixed paths, no inventory/env override)
 # The flag for <vm> lives in docs/lab/host-<vm>.md. It is read from the CANONICAL copy (main: /root/ngfw, or `git show main:` when
 # that checkout is elsewhere) AND from this worktree's copy; `done` counts only when every source says done. A branch that edits
-# its own copy, a VRX_TOPOLOGY_DIR pointing at another inventory, or a missing file can therefore only make the answer `pending`.
+# its own copy, a NGFW_TOPOLOGY_DIR pointing at another inventory, or a missing file can therefore only make the answer `pending`.
 handover_flag() {  # stdin: doc text → pending|done (no/ambiguous flag → pending)
   local s; s="$(grep -oE '^`?handover: *(pending|done)' | head -1 | grep -oE 'pending|done' || true)"; echo "${s:-pending}"
 }
@@ -260,38 +260,38 @@ cmd_env() {
   if (( n <= 12 )); then http=$(( 3000 + n * 100 )); web=$(( 5000 + n * 100 ))    # unchanged for the running slots
   else http=$(( 10000 + n * 100 )); web=$(( 14000 + n * 100 )); fi                # 3<N>00 would hit 5<M>00 of slots 1-12
   cat <<EOV
-export VRX_SLOT=$n
-export VRX_TEST_PREFIX=w$n
-export VRX_HTTP_PORT=$http
-export VRX_WEB_PORT=$web
-export VRX_METRICS_PORT=$(( 9100 + n * 10 + 1 ))
-export VRX_AGENT_SOCKET=/run/vrx-test/w$n/agent.sock
-export VRX_PG_DATABASE=vrx_w$n
-export VRX_VALKEY_DB=$n
-export VRX_VPP_TABLE_BASE=$(( n * 1000 ))
-export VRX_LAB_LOCK=$LAB_LOCK
+export NGFW_SLOT=$n
+export NGFW_TEST_PREFIX=w$n
+export NGFW_HTTP_PORT=$http
+export NGFW_WEB_PORT=$web
+export NGFW_METRICS_PORT=$(( 9100 + n * 10 + 1 ))
+export NGFW_AGENT_SOCKET=/run/ngfw-test/w$n/agent.sock
+export NGFW_PG_DATABASE=ngfw_w$n
+export NGFW_VALKEY_DB=$n
+export NGFW_VPP_TABLE_BASE=$(( n * 1000 ))
+export NGFW_LAB_LOCK=$LAB_LOCK
 EOV
 }
 
 # ---------------------------------------------------------------- packet rig (af_packet host-interfaces on veth + netns)
 rig_setup_names() {  # <prefix> → sets the object names (no slot needed: down/gc/show work on names alone)
   P="$1"
-  [[ "$P" =~ ^[a-z][a-z0-9]{1,5}$ ]] || die "rig: prefix '$P' must match ^[a-z][a-z0-9]{1,5}\$ (2–6 chars, e.g. w3 = VRX_TEST_PREFIX)"
+  [[ "$P" =~ ^[a-z][a-z0-9]{1,5}$ ]] || die "rig: prefix '$P' must match ^[a-z][a-z0-9]{1,5}\$ (2–6 chars, e.g. w3 = NGFW_TEST_PREFIX)"
   NS_LAN="ns-$P-lan"; NS_WAN="ns-$P-wan"
   L0="${P}l0"; L1="${P}l1"; W0="${P}w0"; W1="${P}w1"
   VL="host-$L0"; VW="host-$W0"
   SLOT="?"; LAN_GW="?"; LAN_IP="?"; WAN_GW="?"; WAN_IP="?"
 }
-rig_resolve_slot() {  # <strict 0|1> → SLOT + addresses. w<N>: the prefix decides (VRX_SLOT is ignored with a warning, review F2);
-  local strict="$1"    # other prefixes: VRX_SLOT is required — no hashing, silent collisions are worse than an error (review F7)
+rig_resolve_slot() {  # <strict 0|1> → SLOT + addresses. w<N>: the prefix decides (NGFW_SLOT is ignored with a warning, review F2);
+  local strict="$1"    # other prefixes: NGFW_SLOT is required — no hashing, silent collisions are worse than an error (review F7)
   if [[ "$P" =~ ^w([0-9]{1,2})$ ]]; then
     SLOT=$((10#${BASH_REMATCH[1]}))
-    [[ -z "${VRX_SLOT:-}" || "$VRX_SLOT" == "$SLOT" ]] || warn "rig: prefix $P means slot $SLOT — ignoring VRX_SLOT=$VRX_SLOT (the prefix wins)"
-  elif [[ -n "${VRX_SLOT:-}" ]]; then
-    SLOT="$VRX_SLOT"
-    [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT <= 32 )) && warn "rig: VRX_SLOT=$SLOT is worker/CI slot w$SLOT's range (10.$SLOT.x.x) — its rig and yours cannot coexist"
+    [[ -z "${NGFW_SLOT:-}" || "$NGFW_SLOT" == "$SLOT" ]] || warn "rig: prefix $P means slot $SLOT — ignoring NGFW_SLOT=$NGFW_SLOT (the prefix wins)"
+  elif [[ -n "${NGFW_SLOT:-}" ]]; then
+    SLOT="$NGFW_SLOT"
+    [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT <= 32 )) && warn "rig: NGFW_SLOT=$SLOT is worker/CI slot w$SLOT's range (10.$SLOT.x.x) — its rig and yours cannot coexist"
   elif (( strict )); then
-    die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export VRX_SLOT=<33..254> (10.<slot>.{1,2}.0/24); no hash fallback"
+    die "rig: prefix '$P' is not w<N>, so its addresses cannot be derived — export NGFW_SLOT=<33..254> (10.<slot>.{1,2}.0/24); no hash fallback"
   else return 0; fi
   if [[ "$SLOT" =~ ^[0-9]+$ ]] && (( SLOT >= 1 && SLOT <= 254 )); then :; else die "rig: slot '$SLOT' out of range 1..254"; fi
   LAN_GW="10.$SLOT.1.1"; LAN_IP="10.$SLOT.1.2"; WAN_GW="10.$SLOT.2.1"; WAN_IP="10.$SLOT.2.2"
@@ -383,9 +383,9 @@ rig_state_word() {
   case $have in 0) echo down;; "$want") echo up;; *) echo "partial ($have/$want objects)";; esac
 }
 cmd_rig() {
-  local action="${1:-}" prefix="${2:-${VRX_TEST_PREFIX:-}}"
+  local action="${1:-}" prefix="${2:-${NGFW_TEST_PREFIX:-}}"
   [[ -n "$action" ]] || die "rig up|down|gc|show <prefix>"
-  [[ -n "$prefix" ]] || die "rig: give a prefix (or set VRX_TEST_PREFIX)"
+  [[ -n "$prefix" ]] || die "rig: give a prefix (or set NGFW_TEST_PREFIX)"
   rig_setup_names "$prefix"
   case "$action" in
     up)
@@ -474,11 +474,11 @@ cmd_provision_local_verify() {
   else
     echo "${c_red}verify: $FAILS check(s) failed.${c_off} Manual steps (this tool will NOT do them while handover is pending):"
     cat <<'MAN'
-  - VPP packages/service/startup.conf/sockets: owned by the VPP bring-up agent until docs/lab/host-vrx-a.md says `handover: done`.
+  - VPP packages/service/startup.conf/sockets: owned by the VPP bring-up agent until docs/lab/host-ngfw-a.md says `handover: done`.
     Write the problem to docs/status/tasks/<id>-questions.md; do not apt install/remove vpp*, do not edit /etc/vpp, do not restart vpp.
   - Plugins linux_cp/linux_nl/npt66: need a `plugins { plugin X_plugin.so { enable } }` block → after handover (manager, D-012).
   - PostgreSQL/Valkey: `apt install postgresql valkey-server` is allowed (P04 item 4); keep them bound to 127.0.0.1 (deploy/dev/README.md).
-  - Tools: `apt install iproute2 iputils-ping util-linux python3-yaml jq postgresql-client valkey-tools`; Go + binapi-generator: docs/lab/host-vrx-a.md.
+  - Tools: `apt install iproute2 iputils-ping util-linux python3-yaml jq postgresql-client valkey-tools`; Go + binapi-generator: docs/lab/host-ngfw-a.md.
 MAN
     return 1
   fi
@@ -508,10 +508,10 @@ cmd_provision() {
     cmd_provision_local_verify "$vm"; return
   fi
   local role; role="$(inv_get "$vm" role unknown)"
-  if [[ "$role" != vrx ]]; then   # review F4: only role=vrx machines ever get VPP + a startup.conf from this tool
+  if [[ "$role" != ngfw ]]; then   # review F4: only role=ngfw machines ever get VPP + a startup.conf from this tool
     hdr "provision $vm — role '$role' (no VPP): plan only"
     echo "  plain Linux networking; its software (iperf3 / FRR / strongSwan) is installed by the task that needs it (docs/lab/vmware.md)."
-    (( apply == 0 )) || die "REFUSED: provision --apply on $vm (role '$role') — tools/lab provisions VPP only on 'role: vrx' machines"
+    (( apply == 0 )) || die "REFUSED: provision --apply on $vm (role '$role') — tools/lab provisions VPP only on 'role: ngfw' machines"
     return 0
   fi
   hdr "provision $vm — REMOTE MODE (Ubuntu $(inv_get "$vm" os) + our .debs from $(inv_get "$vm" vpp.source) + DPDK dev <pci> on vmxnet3)"
@@ -522,12 +522,12 @@ cmd_provision() {
   echo "  4. write /etc/vpp/startup.conf:"; render_startup_conf "$vm" | sed 's/^/       /'
   echo "  5. driverctl set-override <pci> vfio-pci for each dpdk NIC; systemctl enable --now vpp; verify sockets + show version + show hardware"
   if is_planned "$vm"; then echo; echo "${c_yel}$vm is 'planned' — create the VM first (docs/lab/vmware.md), fill mgmt/pci in $TOPO_DIR/$vm.yml, then rerun with --apply.${c_off}"; return 3; fi
-  (( apply == 1 )) || { echo; echo "dry run — add --apply (and VRX_LAB_REMOTE_APPLY=1) to execute; never runs against this host."; return 0; }
-  # review F4: three guards before anything is written remotely — the target is not this host (remote_ip), the role is vrx (above),
+  (( apply == 1 )) || { echo; echo "dry run — add --apply (and NGFW_LAB_REMOTE_APPLY=1) to execute; never runs against this host."; return 0; }
+  # review F4: three guards before anything is written remotely — the target is not this host (remote_ip), the role is ngfw (above),
   # and the caller confirmed that /etc/vpp, /etc/sysctl.d and the package set of root@<mgmt> will be changed.
   local ip src; ip="$(remote_ip "$vm")"; src="$(inv_get "$vm" vpp.source /root/vpp/build-root)"
-  [[ "${VRX_LAB_REMOTE_APPLY:-}" == 1 ]] \
-    || die "REFUSED: provision --apply writes /etc/vpp/startup.conf + /etc/sysctl.d/80-vpp.conf and installs packages on root@$ip — rerun with VRX_LAB_REMOTE_APPLY=1 to confirm"
+  [[ "${NGFW_LAB_REMOTE_APPLY:-}" == 1 ]] \
+    || die "REFUSED: provision --apply writes /etc/vpp/startup.conf + /etc/sysctl.d/80-vpp.conf and installs packages on root@$ip — rerun with NGFW_LAB_REMOTE_APPLY=1 to confirm"
   # Validate locally BEFORE the first remote command or any host mutation.
   local selection remote_dir
   selection=$("$ROOT/scripts/00-add-repos.sh" --check-artifacts "$src")
@@ -538,8 +538,8 @@ cmd_provision() {
 . /etc/os-release && [[ "$VERSION_ID" == 26.04 ]] || { echo "not Ubuntu 26.04: $PRETTY_NAME"; exit 1; }
 REMOTE
 )"
-  remote_dir=$(run_on "$vm" mktemp -d /tmp/vrx-debs.XXXXXXXX)
-  [[ $remote_dir =~ ^/tmp/vrx-debs\.[A-Za-z0-9]{8}$ ]] || die "unexpected remote staging directory"
+  remote_dir=$(run_on "$vm" mktemp -d /tmp/ngfw-debs.XXXXXXXX)
+  [[ $remote_dir =~ ^/tmp/ngfw-debs\.[A-Za-z0-9]{8}$ ]] || die "unexpected remote staging directory"
   local -a transfers=()
   local file
   for file in "${ship_files[@]}"; do transfers+=("$src/$file"); done

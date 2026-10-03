@@ -18,7 +18,7 @@
 //	                  first revision → the loopbacks are gone
 //	  cleanup         the fixture is deleted; nothing with the slot prefix remains (dump)
 //
-// Runs only with VRX_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
+// Runs only with NGFW_INTEGRATION=1, as root, with a slot prefix (w<N>), under flock -s on the lab lock; NRestarts is
 // checked before and after. Build and run: test/topology/loopback-bvi-gso-lldp-span/run.sh.
 package lbgs
 
@@ -38,7 +38,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 
 	spanapi "ngfw/agent/binapi/span"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 type names struct {
@@ -89,8 +89,8 @@ func (n names) featuresPatch() map[string]any {
 }
 
 func TestLoopbackBviGsoLldpSpanOnHost(t *testing.T) {
-	if os.Getenv("VRX_INTEGRATION") != "1" {
-		t.Skip("F-loopback-bvi-gso-lldp-span topology test: set VRX_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
+	if os.Getenv("NGFW_INTEGRATION") != "1" {
+		t.Skip("F-loopback-bvi-gso-lldp-span topology test: set NGFW_INTEGRATION=1 (host VPP, PostgreSQL) — run.sh does")
 	}
 	if os.Geteuid() != 0 {
 		t.Skip("needs root (VPP API socket)")
@@ -225,7 +225,7 @@ func TestLoopbackBviGsoLldpSpanOnHost(t *testing.T) {
 		var tStart, tResync time.Time
 		for i, l := range lines {
 			switch {
-			case l.Msg == "vrx-agent starting" && tStart.IsZero():
+			case l.Msg == "ngfw-agent starting" && tStart.IsZero():
 				tStart = l.Time
 				t.Log("agent log: " + raw[i])
 			case l.Msg == "resync finished" && tResync.IsZero():
@@ -361,7 +361,7 @@ func assertFeatures(t *testing.T, a *api, conn vppConn, n names, socket string, 
 }
 
 // retrieve asks the slot's agent for Retrieve over its unix socket.
-func retrieve(t *testing.T, socket string) *vrxv1.DesiredState {
+func retrieve(t *testing.T, socket string) *ngfwv1.DesiredState {
 	t.Helper()
 	cc, err := grpc.NewClient("unix:"+socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
@@ -370,7 +370,7 @@ func retrieve(t *testing.T, socket string) *vrxv1.DesiredState {
 	defer cc.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	r, err := vrxv1.NewDataplaneClient(cc).Retrieve(ctx, &vrxv1.RetrieveRequest{Subsystems: []string{"interfaces", "services"}})
+	r, err := ngfwv1.NewDataplaneClient(cc).Retrieve(ctx, &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "services"}})
 	if err != nil {
 		t.Fatalf("agent Retrieve: %v", err)
 	}

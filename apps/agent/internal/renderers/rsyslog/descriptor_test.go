@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/rfkit"
 )
@@ -26,11 +26,11 @@ func slotPaths(t *testing.T) (Paths, *DeferredController) {
 	dir := t.TempDir()
 	p := PathsUnder(dir, 0)
 	// the stand-in "instance" is /usr/bin/sleep (Binary), never a real rsyslogd
-	return p, &DeferredController{PendingFile: filepath.Join(dir, "vrx.pending"), PIDFile: filepath.Join(dir, "rsyslogd.pid"), Binary: "/usr/bin/sleep"}
+	return p, &DeferredController{PendingFile: filepath.Join(dir, "ngfw.pending"), PIDFile: filepath.Join(dir, "rsyslogd.pid"), Binary: "/usr/bin/sleep"}
 }
 
-func typed(targets ...*vrxv1.SyslogTarget) *vrxv1.ManagementConfig {
-	return &vrxv1.ManagementConfig{Syslog: targets}
+func typed(targets ...*ngfwv1.SyslogTarget) *ngfwv1.ManagementConfig {
+	return &ngfwv1.ManagementConfig{Syslog: targets}
 }
 
 func retrieveOne(t *testing.T, d *Descriptor) proto.Message {
@@ -53,10 +53,10 @@ func TestDescriptorDeferred(t *testing.T) {
 	p, dc := slotPaths(t)
 	rr := renderers.NewRecordingRunner().Succeed(RsyslogdBin, "")
 	d := NewDescriptor(New(rr, WithPaths(p), WithController(dc)), nil)
-	if d.Name() != Name || Key != "rsyslog.config/vrx" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
+	if d.Name() != Name || Key != "rsyslog.config/ngfw" || d.KeyOf(nil) != Key || d.Dependencies(nil) != nil {
 		t.Fatal("identity")
 	}
-	in := typed(&vrxv1.SyslogTarget{
+	in := typed(&ngfwv1.SyslogTarget{
 		Address: proto.String("127.0.0.1"), Port: proto.Uint32(31016), Protocol: proto.String("tcp"), Severity: proto.String("notice"),
 		Facilities: []string{"local7", "daemon"}, Format: proto.String("rfc5424"), QueueSize: proto.Uint32(2000),
 	})
@@ -84,7 +84,7 @@ func TestDescriptorDeferred(t *testing.T) {
 	// an instance runs (pidfile): a changed export → a persisted restart request, returned until it restarted
 	old := startRsyslogStandIn(t)
 	writePidFile(t, dc.PIDFile, old)
-	in2 := typed(&vrxv1.SyslogTarget{Address: proto.String("127.0.0.1"), Port: proto.Uint32(31015)})
+	in2 := typed(&ngfwv1.SyslogTarget{Address: proto.String("127.0.0.1"), Port: proto.Uint32(31015)})
 	if _, err := d.Update(ctx, in, in2, nil); err != nil {
 		t.Fatal(err)
 	}

@@ -74,17 +74,17 @@ func ProductPaths() Paths {
 		KeyMode:      0o600,
 		ClockControl: true,
 		Unit:         "chrony",
-		PendingFile:  "/run/vrx/renderers/chrony.pending",
+		PendingFile:  "/run/ngfw/renderers/chrony.pending",
 	}
 }
 
 // TestPaths are the test-scoped paths for slot prefix ("w6") and an instance name ("server",
-// "client"): everything under /run/vrx-test/<prefix>/chrony/<instance>, no clock control,
+// "client"): everything under /run/ngfw-test/<prefix>/chrony/<instance>, no clock control,
 // loopback only. Owners are the product's: chronyd drops to _chrony after reading its config
 // and chronyc drops to _chrony before talking to the socket, so the instance directory is
 // _chrony:_chrony 0750 (chronyd refuses a command-socket directory it does not own).
 func TestPaths(prefix, instance string) Paths {
-	return PathsUnder(filepath.Join("/run/vrx-test", prefix, "chrony", instance))
+	return PathsUnder(filepath.Join("/run/ngfw-test", prefix, "chrony", instance))
 }
 
 // PathsUnder are TestPaths rooted at base (an agent that is not the globals owner renders its slot-local instance
@@ -102,7 +102,7 @@ func PathsUnder(base string) Paths {
 		ClockControl: false,
 		LoopbackOnly: true,
 		Unit:         "chrony",
-		PendingFile:  filepath.Join(base, "vrx.pending"),
+		PendingFile:  filepath.Join(base, "ngfw.pending"),
 	}
 }
 
@@ -140,8 +140,8 @@ func (p Paths) Keys() string { return filepath.Join(p.ConfDir, "chrony.keys") }
 // SourceDir is the sourcedir; Sources is the file the renderer owns in it.
 func (p Paths) SourceDir() string { return filepath.Join(p.ConfDir, "sources.d") }
 
-// Sources is sources.d/vrx.sources.
-func (p Paths) Sources() string { return filepath.Join(p.SourceDir(), "vrx.sources") }
+// Sources is sources.d/ngfw.sources.
+func (p Paths) Sources() string { return filepath.Join(p.SourceDir(), "ngfw.sources") }
 
 // Socket is the unix command socket (bindcmdaddress).
 func (p Paths) Socket() string { return filepath.Join(p.RunDir, "chronyd.sock") }

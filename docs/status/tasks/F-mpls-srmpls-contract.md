@@ -32,7 +32,7 @@ interface = an interface or another MPLS tunnel · VRFs exist · tunnel name ≠
 route · a bound label is not a table-0 route / BSID / other binding, one label per (VRF, prefix) · steering names an
 existing policy, (VRF, prefix) once · segment lists of a policy distinct.
 
-## Proto (`packages/proto/vrx/v1/dataplane.proto`)
+## Proto (`packages/proto/ngfw/v1/dataplane.proto`)
 - `RoutingConfig` **15 `mpls`** → `MplsConfig` (under `// wave-BC: F-mpls-srmpls`, blank-line framed).
 - `MplsConfig` fields 1–6 (`interfaces`, `tables`, `label_routes`, `ip_bindings`, `tunnels`, `sr`), 7–9 unused (this
   task's), **10 = F-mpls-ldp's `ldp`**: comment `// 10 reserved: ldp (F-mpls-ldp)` + `// wave-BC: F-mpls-ldp` anchor (no

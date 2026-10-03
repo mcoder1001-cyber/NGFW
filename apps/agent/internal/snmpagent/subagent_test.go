@@ -54,7 +54,7 @@ func (m *fakeMaster) handshake(c net.Conn) {
 	}
 	d := decoder{b: p, o: h.order()}
 	d.u32()
-	if id, _ := d.oid(); id.Compare(VRXMIBOID) != 0 {
+	if id, _ := d.oid(); id.Compare(NGFWMIBOID) != 0 {
 		m.t.Errorf("Open id %s", id)
 	}
 	respond(c, h, 42)
@@ -65,7 +65,7 @@ func (m *fakeMaster) handshake(c net.Conn) {
 	}
 	d = decoder{b: p, o: h.order()}
 	d.u32()
-	if sub, _ := d.oid(); sub.Compare(VRXMIBOID) != 0 {
+	if sub, _ := d.oid(); sub.Compare(NGFWMIBOID) != 0 {
 		m.t.Errorf("Register subtree %s", sub)
 	}
 	respond(c, h, 42)
@@ -151,7 +151,7 @@ func waitSession(t *testing.T, m *fakeMaster, within time.Duration) net.Conn {
 	return nil
 }
 
-// TestSubagentWalk: Open + Register, then a full GetNext walk of VRX-MIB, a Get and a GetBulk.
+// TestSubagentWalk: Open + Register, then a full GetNext walk of NGFW-MIB, a Get and a GetBulk.
 func TestSubagentWalk(t *testing.T) {
 	m := newFakeMaster(t)
 	s, _ := startSubagent(t, m)
@@ -159,7 +159,7 @@ func TestSubagentWalk(t *testing.T) {
 	waitStatus(t, s, 1)
 
 	var walked []VarBind
-	cur := VRXMIBOID
+	cur := NGFWMIBOID
 	for i := uint32(1); i < 100; i++ {
 		vbs := ask(t, c, pduGetNext, i, leOID(leOID(nil, cur, false), nil, false))
 		if len(vbs) != 1 {
@@ -180,21 +180,21 @@ func TestSubagentWalk(t *testing.T) {
 			t.Fatalf("walk not strictly increasing at %s", vb.Name)
 		}
 	}
-	// vrxIfName.2 (sw_if_index 1) and vrxIfInOctets.2 (a Counter64 above 2^32)
-	name := MustOID(VRXMIBOID.String() + ".2.1.2.2")
-	oct := MustOID(VRXMIBOID.String() + ".2.1.5.2")
+	// ngfwIfName.2 (sw_if_index 1) and ngfwIfInOctets.2 (a Counter64 above 2^32)
+	name := MustOID(NGFWMIBOID.String() + ".2.1.2.2")
+	oct := MustOID(NGFWMIBOID.String() + ".2.1.5.2")
 	vbs := ask(t, c, pduGet, 200, leOID(leOID(leOID(leOID(nil, name, false), nil, false), oct, false), nil, false))
 	if string(vbs[0].Value.Str) != "loop0" || vbs[1].Value.Type != TypeCounter64 || vbs[1].Value.U64 != 1<<40 {
 		t.Fatalf("Get: %+v", vbs)
 	}
-	missing := ask(t, c, pduGet, 201, leOID(leOID(nil, MustOID(VRXMIBOID.String()+".2.1.2.99"), false), nil, false))
+	missing := ask(t, c, pduGet, 201, leOID(leOID(nil, MustOID(NGFWMIBOID.String()+".2.1.2.99"), false), nil, false))
 	if missing[0].Value.Type != TypeNoSuchInstance {
 		t.Fatalf("Get of a missing row: type %d", missing[0].Value.Type)
 	}
-	// GetBulk: 0 non-repeaters, 3 repetitions from vrxIfName → names then the admin column.
+	// GetBulk: 0 non-repeaters, 3 repetitions from ngfwIfName → names then the admin column.
 	bulk := binary.LittleEndian.AppendUint16(nil, 0)
 	bulk = binary.LittleEndian.AppendUint16(bulk, 3)
-	bulk = leOID(leOID(bulk, MustOID(VRXMIBOID.String()+".2.1.2"), false), nil, false)
+	bulk = leOID(leOID(bulk, MustOID(NGFWMIBOID.String()+".2.1.2"), false), nil, false)
 	vbs = ask(t, c, pduGetBulk, 202, bulk)
 	if len(vbs) != 3 || string(vbs[0].Value.Str) != "local0" || string(vbs[1].Value.Str) != "loop0" || vbs[2].Value.Int != statusDown {
 		t.Fatalf("GetBulk: %+v", vbs)

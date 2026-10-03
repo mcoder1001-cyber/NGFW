@@ -5,9 +5,9 @@ import { RootConfig } from './index.js';
 import { redactSecrets, secretPointers } from './secrets.js';
 import { withUi } from './ui.js';
 
-const HASH = '$vrx-test$VRX_TEST_HASH_admin';
+const HASH = '$ngfw-test$NGFW_TEST_HASH_admin';
 const doc = {
-  system: { hostname: 'vrx-a' },
+  system: { hostname: 'ngfw-a' },
   management: {
     users: [
       { username: 'admin', role: 'admin', passwordHash: HASH, fullName: 'Admin' },

@@ -64,90 +64,90 @@ func Collect(ctx context.Context, src StatsSource, prefix string, w io.Writer) e
 	}
 	e := newWriter(w)
 
-	e.family("vrx_interface_rx_bytes_total", "counter", "Bytes received on the interface.")
+	e.family("ngfw_interface_rx_bytes_total", "counter", "Bytes received on the interface.")
 	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_rx_bytes_total", ifl(prefix, i.Name), i.RxBytes)
+		e.counter("ngfw_interface_rx_bytes_total", ifl(prefix, i.Name), i.RxBytes)
 	}
-	e.family("vrx_interface_tx_bytes_total", "counter", "Bytes transmitted on the interface.")
+	e.family("ngfw_interface_tx_bytes_total", "counter", "Bytes transmitted on the interface.")
 	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_tx_bytes_total", ifl(prefix, i.Name), i.TxBytes)
+		e.counter("ngfw_interface_tx_bytes_total", ifl(prefix, i.Name), i.TxBytes)
 	}
-	e.family("vrx_interface_rx_packets_total", "counter", "Packets received on the interface.")
+	e.family("ngfw_interface_rx_packets_total", "counter", "Packets received on the interface.")
 	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_rx_packets_total", ifl(prefix, i.Name), i.RxPackets)
+		e.counter("ngfw_interface_rx_packets_total", ifl(prefix, i.Name), i.RxPackets)
 	}
-	e.family("vrx_interface_tx_packets_total", "counter", "Packets transmitted on the interface.")
+	e.family("ngfw_interface_tx_packets_total", "counter", "Packets transmitted on the interface.")
 	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_tx_packets_total", ifl(prefix, i.Name), i.TxPackets)
+		e.counter("ngfw_interface_tx_packets_total", ifl(prefix, i.Name), i.TxPackets)
 	}
-	e.family("vrx_interface_drops_total", "counter", "Packets dropped on the interface (VPP aggregate).")
-	for _, i := range snap.Interfaces {
-		if i.StatsOnly {
-			e.counter("vrx_interface_drops_total", ifl(prefix, i.Name), i.Drops)
-		}
-	}
-	e.family("vrx_interface_rx_drops_total", "counter", "Packets dropped on receive.")
+	e.family("ngfw_interface_drops_total", "counter", "Packets dropped on the interface (VPP aggregate).")
 	for _, i := range snap.Interfaces {
 		if i.StatsOnly {
-			continue
+			e.counter("ngfw_interface_drops_total", ifl(prefix, i.Name), i.Drops)
 		}
-		e.counter("vrx_interface_rx_drops_total", ifl(prefix, i.Name), i.RxDrops)
 	}
-	e.family("vrx_interface_tx_drops_total", "counter", "Packets dropped on transmit.")
+	e.family("ngfw_interface_rx_drops_total", "counter", "Packets dropped on receive.")
 	for _, i := range snap.Interfaces {
 		if i.StatsOnly {
 			continue
 		}
-		e.counter("vrx_interface_tx_drops_total", ifl(prefix, i.Name), i.TxDrops)
+		e.counter("ngfw_interface_rx_drops_total", ifl(prefix, i.Name), i.RxDrops)
 	}
-	e.family("vrx_interface_rx_errors_total", "counter", "Receive errors on the interface.")
-	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_rx_errors_total", ifl(prefix, i.Name), i.RxErrors)
-	}
-	e.family("vrx_interface_tx_errors_total", "counter", "Transmit errors on the interface.")
-	for _, i := range snap.Interfaces {
-		e.counter("vrx_interface_tx_errors_total", ifl(prefix, i.Name), i.TxErrors)
-	}
-	e.family("vrx_interface_admin_up", "gauge", "Interface administrative state (1 = up).")
+	e.family("ngfw_interface_tx_drops_total", "counter", "Packets dropped on transmit.")
 	for _, i := range snap.Interfaces {
 		if i.StatsOnly {
 			continue
 		}
-		e.gauge("vrx_interface_admin_up", ifl(prefix, i.Name), b2f(i.AdminUp))
+		e.counter("ngfw_interface_tx_drops_total", ifl(prefix, i.Name), i.TxDrops)
 	}
-	e.family("vrx_interface_link_up", "gauge", "Interface link/carrier state (1 = up).")
+	e.family("ngfw_interface_rx_errors_total", "counter", "Receive errors on the interface.")
+	for _, i := range snap.Interfaces {
+		e.counter("ngfw_interface_rx_errors_total", ifl(prefix, i.Name), i.RxErrors)
+	}
+	e.family("ngfw_interface_tx_errors_total", "counter", "Transmit errors on the interface.")
+	for _, i := range snap.Interfaces {
+		e.counter("ngfw_interface_tx_errors_total", ifl(prefix, i.Name), i.TxErrors)
+	}
+	e.family("ngfw_interface_admin_up", "gauge", "Interface administrative state (1 = up).")
 	for _, i := range snap.Interfaces {
 		if i.StatsOnly {
 			continue
 		}
-		e.gauge("vrx_interface_link_up", ifl(prefix, i.Name), b2f(i.LinkUp))
+		e.gauge("ngfw_interface_admin_up", ifl(prefix, i.Name), b2f(i.AdminUp))
+	}
+	e.family("ngfw_interface_link_up", "gauge", "Interface link/carrier state (1 = up).")
+	for _, i := range snap.Interfaces {
+		if i.StatsOnly {
+			continue
+		}
+		e.gauge("ngfw_interface_link_up", ifl(prefix, i.Name), b2f(i.LinkUp))
 	}
 
-	e.family("vrx_worker_vectors_per_call", "gauge", "Average vectors per graph-node call (VPP load indicator).")
+	e.family("ngfw_worker_vectors_per_call", "gauge", "Average vectors per graph-node call (VPP load indicator).")
 	for _, wk := range snap.Workers {
-		e.gauge("vrx_worker_vectors_per_call", map[string]string{"worker": wk.Name}, wk.VectorsPerCall)
+		e.gauge("ngfw_worker_vectors_per_call", map[string]string{"worker": wk.Name}, wk.VectorsPerCall)
 	}
-	e.family("vrx_worker_clocks_per_vector", "gauge", "Average clock cycles per vector.")
+	e.family("ngfw_worker_clocks_per_vector", "gauge", "Average clock cycles per vector.")
 	for _, wk := range snap.Workers {
-		e.gauge("vrx_worker_clocks_per_vector", map[string]string{"worker": wk.Name}, wk.Clocks)
+		e.gauge("ngfw_worker_clocks_per_vector", map[string]string{"worker": wk.Name}, wk.Clocks)
 	}
 
-	e.family("vrx_buffer_used", "gauge", "Buffers in use per pool.")
+	e.family("ngfw_buffer_used", "gauge", "Buffers in use per pool.")
 	for _, bp := range snap.Buffers {
-		e.gauge("vrx_buffer_used", map[string]string{"pool": bp.Pool}, float64(bp.Used))
+		e.gauge("ngfw_buffer_used", map[string]string{"pool": bp.Pool}, float64(bp.Used))
 	}
-	e.family("vrx_buffer_available", "gauge", "Buffers available per pool.")
+	e.family("ngfw_buffer_available", "gauge", "Buffers available per pool.")
 	for _, bp := range snap.Buffers {
-		e.gauge("vrx_buffer_available", map[string]string{"pool": bp.Pool}, float64(bp.Available))
+		e.gauge("ngfw_buffer_available", map[string]string{"pool": bp.Pool}, float64(bp.Available))
 	}
-	e.family("vrx_buffer_used_percent", "gauge", "Percent of the pool's buffers in use.")
+	e.family("ngfw_buffer_used_percent", "gauge", "Percent of the pool's buffers in use.")
 	for _, bp := range snap.Buffers {
-		e.gauge("vrx_buffer_used_percent", map[string]string{"pool": bp.Pool}, usedPercent(bp))
+		e.gauge("ngfw_buffer_used_percent", map[string]string{"pool": bp.Pool}, usedPercent(bp))
 	}
 
-	e.family("vrx_node_errors_total", "counter", "Data-plane node error counters (top-N by count).")
+	e.family("ngfw_node_errors_total", "counter", "Data-plane node error counters (top-N by count).")
 	for _, ne := range topErrors(snap.NodeErrors) {
-		e.counter("vrx_node_errors_total", map[string]string{"node": ne.Node, "reason": ne.Reason}, ne.Count)
+		e.counter("ngfw_node_errors_total", map[string]string{"node": ne.Node, "reason": ne.Reason}, ne.Count)
 	}
 	return e.flush()
 }

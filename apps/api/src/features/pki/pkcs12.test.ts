@@ -13,7 +13,7 @@ import {
   signCsr,
 } from './x509.js';
 
-const PASS = 'VRX_TEST_PSK_FPKI_p12'; // test fixture label, never a real passphrase
+const PASS = 'NGFW_TEST_PSK_FPKI_p12'; // test fixture label, never a real passphrase
 
 /** A CA and a gateway certificate it signed, written for openssl (key file 0600 in the scratch dir). */
 function material(s: ReturnType<typeof scratch>) {
@@ -112,13 +112,13 @@ describe('F-pki PKCS#12 import (files made by openssl)', () => {
         '-out',
         p12,
       ]);
-      expect(() => parsePkcs12(readFileSync(p12), 'VRX_TEST_PSK_FPKI_wrong')).toThrow(
+      expect(() => parsePkcs12(readFileSync(p12), 'NGFW_TEST_PSK_FPKI_wrong')).toThrow(
         /wrong passphrase/,
       );
       try {
-        parsePkcs12(readFileSync(p12), 'VRX_TEST_PSK_FPKI_wrong');
+        parsePkcs12(readFileSync(p12), 'NGFW_TEST_PSK_FPKI_wrong');
       } catch (e) {
-        expect(String(e)).not.toContain('VRX_TEST_PSK_FPKI_wrong');
+        expect(String(e)).not.toContain('NGFW_TEST_PSK_FPKI_wrong');
       }
     } finally {
       s.done();

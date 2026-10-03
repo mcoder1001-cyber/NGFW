@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
-# test/topology/sdk-terraform-ansible/live.sh — a real VRX API + real vrx-agent on ONE slot, for the SDK / Terraform
+# test/topology/sdk-terraform-ansible/live.sh — a real NGFW API + real ngfw-agent on ONE slot, for the SDK / Terraform
 # provider live runs (F-sdk-terraform-ansible). Everything carries the slot prefix (docs/lab/shared-host-rules.md).
 #
-#   live.sh up            pg-test database vrx_<prefix>, vrx-agent (VRX_OWNER=<prefix>, slot socket/state/metrics),
+#   live.sh up            pg-test database ngfw_<prefix>, ngfw-agent (NGFW_OWNER=<prefix>, slot socket/state/metrics),
 #                         apps/api dist/main.js on the slot port, admin login → API key (admin role by default: the live runs also write management.users)
 #   live.sh down          stop both processes BY PID, drop the database, delete the slot's sdk Valkey keys, remove state
-#   live.sh run <cmd...>  up; <cmd> under `tools/lab lock shared` with VRX_SDK_URL / VRX_SDK_API_KEY_FILE exported; down
+#   live.sh run <cmd...>  up; <cmd> under `tools/lab lock shared` with NGFW_SDK_URL / NGFW_SDK_API_KEY_FILE exported; down
 #   live.sh status        what is running
 #
-# Needs: `eval "$(tools/lab env <slot>)"` (VRX_TEST_PREFIX, VRX_HTTP_PORT, VRX_AGENT_SOCKET, VRX_VALKEY_DB, VRX_METRICS_PORT),
+# Needs: `eval "$(tools/lab env <slot>)"` (NGFW_TEST_PREFIX, NGFW_HTTP_PORT, NGFW_AGENT_SOCKET, NGFW_VALKEY_DB, NGFW_METRICS_PORT),
 # a built API (`pnpm --filter @ngfw/api build`) and agent (`make -C apps/agent build`).
-# Secrets (bootstrap admin password, JWT key, API key) are generated per run and live only in /run/vrx-test/<prefix>/
+# Secrets (bootstrap admin password, JWT key, API key) are generated per run and live only in /run/ngfw-test/<prefix>/
 # (tmpfs, 0600) — never in the repository, never printed.
 set -euo pipefail
 
 ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
-: "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
-: "${VRX_HTTP_PORT:?}" "${VRX_AGENT_SOCKET:?}" "${VRX_VALKEY_DB:?}" "${VRX_METRICS_PORT:?}"
-P=$VRX_TEST_PREFIX
-RUN="/run/vrx-test/$P"
+: "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
+: "${NGFW_HTTP_PORT:?}" "${NGFW_AGENT_SOCKET:?}" "${NGFW_VALKEY_DB:?}" "${NGFW_METRICS_PORT:?}"
+P=$NGFW_TEST_PREFIX
+RUN="/run/ngfw-test/$P"
 STATE="$RUN/sdk-agent-state"
-LOGS="${VRX_SDK_LOG_DIR:-/root/ngfw-wt/logs}"
-KEYROLE="${VRX_SDK_KEY_ROLE:-admin}"
-VALKEY_PREFIX="vrx:$P:sdk:"
-URL="http://127.0.0.1:$VRX_HTTP_PORT"
+LOGS="${NGFW_SDK_LOG_DIR:-/root/ngfw-wt/logs}"
+KEYROLE="${NGFW_SDK_KEY_ROLE:-admin}"
+VALKEY_PREFIX="ngfw:$P:sdk:"
+URL="http://127.0.0.1:$NGFW_HTTP_PORT"
 
 say() { echo "live: $*"; }
 rand() { head -c 32 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c "${1:-32}"; }
@@ -41,7 +41,7 @@ stop_pid() {  # stop_pid <pidfile> <name> — only the PID this script started
 
 up() {
   install -d -m 0750 "$RUN"; mkdir -p "$LOGS"
-  [[ -x $ROOT/apps/agent/bin/vrx-agent ]] || { echo "build the agent: make -C apps/agent build" >&2; exit 1; }
+  [[ -x $ROOT/apps/agent/bin/ngfw-agent ]] || { echo "build the agent: make -C apps/agent build" >&2; exit 1; }
   [[ -f $ROOT/apps/api/dist/main.js ]] || { echo "build the API: pnpm --filter @ngfw/api build" >&2; exit 1; }
   alive "$RUN/sdk-api.pid" && { say "already up ($URL)"; return 0; }
 
@@ -49,20 +49,20 @@ up() {
   # shellcheck disable=SC1091
   set -a; . "$RUN/pg.env"; set +a
 
-  rm -f "$VRX_AGENT_SOCKET"; mkdir -p "$STATE"
-  VRX_OWNER=$P VRX_AGENT_SOCKET=$VRX_AGENT_SOCKET VRX_AGENT_STATE_DIR=$STATE VRX_METRICS_PORT=$VRX_METRICS_PORT \
-    nohup "$ROOT/apps/agent/bin/vrx-agent" >"$LOGS/F-sdk-terraform-ansible-agent.log" 2>&1 &
+  rm -f "$NGFW_AGENT_SOCKET"; mkdir -p "$STATE"
+  NGFW_OWNER=$P NGFW_AGENT_SOCKET=$NGFW_AGENT_SOCKET NGFW_AGENT_STATE_DIR=$STATE NGFW_METRICS_PORT=$NGFW_METRICS_PORT \
+    nohup "$ROOT/apps/agent/bin/ngfw-agent" >"$LOGS/F-sdk-terraform-ansible-agent.log" 2>&1 &
   echo $! >"$RUN/sdk-agent.pid"
-  for _ in $(seq 100); do [[ -S $VRX_AGENT_SOCKET ]] && break; sleep 0.2; done
-  [[ -S $VRX_AGENT_SOCKET ]] || { echo "agent did not open $VRX_AGENT_SOCKET" >&2; down; exit 1; }
-  say "agent up (pid $(cat "$RUN/sdk-agent.pid"), owner $P, socket $VRX_AGENT_SOCKET)"
+  for _ in $(seq 100); do [[ -S $NGFW_AGENT_SOCKET ]] && break; sleep 0.2; done
+  [[ -S $NGFW_AGENT_SOCKET ]] || { echo "agent did not open $NGFW_AGENT_SOCKET" >&2; down; exit 1; }
+  say "agent up (pid $(cat "$RUN/sdk-agent.pid"), owner $P, socket $NGFW_AGENT_SOCKET)"
 
   (umask 077; rand 24 >"$RUN/sdk-admin.pw")
   (
-    export VRX_HTTP_PORT VRX_VALKEY_DB VRX_AGENT_SOCKET
-    export VRX_DATABASE_URL="$VRX_PG_DSN" VRX_VALKEY_PREFIX="$VALKEY_PREFIX" VRX_AGENT_OWNER="$P" \
-      VRX_SECRET_KEY_FILE="$RUN/sdk-secret.key" VRX_JWT_SECRET="$(rand 48)" \
-      VRX_BOOTSTRAP_ADMIN_PASSWORD="$(cat "$RUN/sdk-admin.pw")" VRX_COOKIE_SECURE=0 VRX_AGENT_TIMEOUT_MS=30000
+    export NGFW_HTTP_PORT NGFW_VALKEY_DB NGFW_AGENT_SOCKET
+    export NGFW_DATABASE_URL="$NGFW_PG_DSN" NGFW_VALKEY_PREFIX="$VALKEY_PREFIX" NGFW_AGENT_OWNER="$P" \
+      NGFW_SECRET_KEY_FILE="$RUN/sdk-secret.key" NGFW_JWT_SECRET="$(rand 48)" \
+      NGFW_BOOTSTRAP_ADMIN_PASSWORD="$(cat "$RUN/sdk-admin.pw")" NGFW_COOKIE_SECURE=0 NGFW_AGENT_TIMEOUT_MS=30000
     cd "$ROOT/apps/api" && exec nohup node dist/main.js >"$LOGS/F-sdk-terraform-ansible-api.log" 2>&1
   ) &
   echo $! >"$RUN/sdk-api.pid"
@@ -90,12 +90,12 @@ PY
 down() {
   stop_pid "$RUN/sdk-api.pid" api
   stop_pid "$RUN/sdk-agent.pid" agent
-  rm -f "$VRX_AGENT_SOCKET" "$RUN/sdk-apikey" "$RUN/sdk-admin.pw" "$RUN/sdk-secret.key"
+  rm -f "$NGFW_AGENT_SOCKET" "$RUN/sdk-apikey" "$RUN/sdk-admin.pw" "$RUN/sdk-secret.key"
   rm -rf "$STATE"
   local n=0 k
-  while read -r k; do [[ -n $k ]] && valkey-cli -n "$VRX_VALKEY_DB" DEL "$k" >/dev/null && n=$((n + 1)); done \
-    < <(valkey-cli -n "$VRX_VALKEY_DB" --scan --pattern "${VALKEY_PREFIX}*")
-  say "deleted $n Valkey keys ${VALKEY_PREFIX}* in db $VRX_VALKEY_DB"
+  while read -r k; do [[ -n $k ]] && valkey-cli -n "$NGFW_VALKEY_DB" DEL "$k" >/dev/null && n=$((n + 1)); done \
+    < <(valkey-cli -n "$NGFW_VALKEY_DB" --scan --pattern "${VALKEY_PREFIX}*")
+  say "deleted $n Valkey keys ${VALKEY_PREFIX}* in db $NGFW_VALKEY_DB"
   "$ROOT/deploy/dev/pg-test.sh" drop "$P" || true
 }
 
@@ -112,7 +112,7 @@ case "${1:-}" in
     shift; (($#)) || { echo "live.sh run <cmd...>" >&2; exit 2; }
     trap down EXIT
     up
-    VRX_SDK_URL=$URL VRX_SDK_API_KEY_FILE="$RUN/sdk-apikey" VRX_INTEGRATION=1 \
+    NGFW_SDK_URL=$URL NGFW_SDK_API_KEY_FILE="$RUN/sdk-apikey" NGFW_INTEGRATION=1 \
       "$ROOT/tools/lab" lock shared "$@"
     ;;
   *) sed -n '2,15p' "$0" | sed -E 's/^# ?//'; exit 2 ;;

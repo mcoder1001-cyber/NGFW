@@ -97,7 +97,7 @@ async function webhook(
         headers: {
           'content-type': 'application/json',
           'content-length': Buffer.byteLength(body),
-          'x-vrx-signature': `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`,
+          'x-ngfw-signature': `sha256=${createHmac('sha256', secret).update(body).digest('hex')}`,
         },
       },
       (res) => {
@@ -189,7 +189,7 @@ export async function sendNotification(
     await transport.sendMail({
       from: e.from,
       to: e.to,
-      subject: 'VRX notification',
+      subject: 'NGFW notification',
       text: body,
       disableFileAccess: true,
       disableUrlAccess: true,

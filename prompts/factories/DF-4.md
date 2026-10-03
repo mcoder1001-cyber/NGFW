@@ -14,7 +14,7 @@ firewall F-* tasks wire up later. Your `acl/<name>` key is consumed by DF-2 (ABF
 - `apps/agent/internal/vpp/` stats-segment reader (P05; if not merged yet, the P05a `Client` interface + a stats fake) — hit counters live in the
   stats segment, not in the binary API
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (acl plugin, "ACL-based forwarding" for how ABF consumes acl indices)
-- `docs/lab/host-vrx-a.md` — `acl_plugin.so` is loaded; nothing here needs an unloaded plugin
+- `docs/lab/host-ngfw-a.md` — `acl_plugin.so` is loaded; nothing here needs an unloaded plugin
 - `docs/lab/shared-host-rules.md` — tags `w<N>-*`, prefixed loopbacks, no unprefixed objects
 
 ## Scope — build exactly this
@@ -53,8 +53,8 @@ acl-stats-enable → none · acl-stats → the ACLs it reads (Optional). Publish
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update-in-place keeps index, delete, dependency ordering,
    Retrieve decoding, binding list reorder = update not recreate).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your tag prefix (other workers' ACLs exist on the same VPP — never assert on total counts or on index values). Bind only to your
    prefixed loopbacks; never touch `local0` or anything unprefixed; clean up in `t.Cleanup` (unbind before delete). One 50-rule ACL to prove the
    encoder at size; one stats read that shows zero counters with the expected shape (no traffic on this host).

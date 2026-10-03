@@ -10,11 +10,11 @@ Prepare a directory containing:
 - `vpp/`: the complete real output from `deploy/vpp/build.sh`, including its
   manifest and checksum files. The existing VPP verifier must accept it with
   `--require-files` and `--install-gate`.
-- Product archives: `vrx-agent`, `vrx-api`, `vrx-web`, and `vrx-meta`, all at the
+- Product archives: `ngfw-agent`, `ngfw-api`, `ngfw-web`, and `ngfw-meta`, all at the
   same version, built from the repository packaging recipe.
-- `vrx-strongswan`, the separately built P11 product package with the VPP plugin;
+- `ngfw-strongswan`, the separately built P11 product package with the VPP plugin;
   an upstream strongSwan package cannot replace it. This complete-runtime profile
-  requires it even while `vrx-meta` only recommends it.
+  requires it even while `ngfw-meta` only recommends it.
 - Runtime and transitive dependency archives for Ubuntu 26.04 amd64. Include
   FRR and `frr-pythontools`, Node.js 22 and PostgreSQL 18. Existing package
   dependency version constraints must be satisfied. The checker does not assume
@@ -131,7 +131,7 @@ From a source checkout with Python 3, Bash and Debian package tools, export a
 complete directory using the separately obtained trusted runtime manifest:
 
 ```sh
-python3 deploy/debian/bundle/export.py /path/to/delivery --manifest /trusted/bundle-manifest.json --output /owned/output/vrx-delivery.tar
+python3 deploy/debian/bundle/export.py /path/to/delivery --manifest /trusted/bundle-manifest.json --output /owned/output/ngfw-delivery.tar
 ```
 
 This does not build or fetch missing packages. The existing full bundle and VPP
@@ -165,7 +165,7 @@ saved tar, including tar headers, padding and the retained nonshipping VPP
 archives. `bytes` remains the sum of member payload sizes. Preserve this report
 through the same trusted channel used for the expected manifest; a report copied
 with an unknown tar cannot authenticate its publisher. Before extraction, compare
-`sha256sum /path/to/vrx-delivery.tar` and `stat -c %s /path/to/vrx-delivery.tar`
+`sha256sum /path/to/ngfw-delivery.tar` and `stat -c %s /path/to/ngfw-delivery.tar`
 against the trusted report. Reject a mismatch before opening the archive.
 
 برای انتقال، مقدار `sha256` و اندازهٔ `archive_bytes` در گزارش خروجی را از مسیر
@@ -194,7 +194,7 @@ Export the helper archive into an existing caller-owned output directory outside
 the checkout (no group/other write permission):
 
 ```sh
-python3 deploy/debian/bundle/helpers.py --output /owned/output/vrx-helpers.tar > /owned/output/helper-report.json
+python3 deploy/debian/bundle/helpers.py --output /owned/output/ngfw-helpers.tar > /owned/output/helper-report.json
 cp deploy/debian/bundle/recipient.py /owned/output/recipient.py
 sha256sum /owned/output/helper-report.json /owned/output/recipient.py
 ```
@@ -220,7 +220,7 @@ only an accidental-mismatch check; executable code cannot authenticate itself.
 No public-key signing/bootstrap distribution or ownership policy is supplied by
 this change. Existing signed APT publication remains the release trust mechanism.
 
-On a recipient, only the delivered `recipient.py`, `vrx-helpers.tar`, helper report,
+On a recipient, only the delivered `recipient.py`, `ngfw-helpers.tar`, helper report,
 external runtime manifest and restored package directory are needed. No repository
 checkout, Python packages, Go/Node toolchain or source build is required. The
 unchanged VPP gate still needs normal Debian/Ubuntu system tools: Python **3.12
@@ -236,7 +236,7 @@ any directory:
 ```sh
 env -i PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C /usr/bin/python3 -I /received/recipient.py /restored/delivery \
   --manifest /trusted/bundle-manifest.json \
-  --helpers /received/vrx-helpers.tar \
+  --helpers /received/ngfw-helpers.tar \
   --helper-report /received/helper-report.json \
   --helper-report-sha256 EXPECTED_SHA256_FROM_AUTHENTICATED_CHANNEL
 ```

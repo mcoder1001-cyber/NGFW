@@ -36,7 +36,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
 	"ngfw/agent/internal/descriptors/policer"
 	"ngfw/agent/internal/descriptors/qos"
@@ -76,7 +76,7 @@ const (
 
 var (
 	qosIDsMu sync.Mutex
-	qosIDs   *df7.IDRange // nil = every id (VRX_VPP_ID_RANGE=all)
+	qosIDs   *df7.IDRange // nil = every id (NGFW_VPP_ID_RANGE=all)
 )
 
 // SetQoSMapIDRange sets the egress map id range the projection allocates from and accepts (the agent's id range,
@@ -131,7 +131,7 @@ func orDefault(v, def string) string {
 	return v
 }
 
-func qosAction(a *vrxv1.QosPolicerAction, def string) policer.Action {
+func qosAction(a *ngfwv1.QosPolicerAction, def string) policer.Action {
 	out := policer.Action{Type: orDefault(a.GetAction(), def)}
 	if out.Type == policer.ActMark {
 		out.DSCP = uint8(a.GetDscp()) //nolint:gosec // G115: the schema bounds dscp to 0–63; Validate re-checks
@@ -140,7 +140,7 @@ func qosAction(a *vrxv1.QosPolicerAction, def string) policer.Action {
 }
 
 // qosPolicerSpec is the DF-7 spec of services.qos.policers.<name> (the schema's defaults for absent leaves).
-func qosPolicerSpec(name string, p *vrxv1.QosPolicer) (policer.Policer, error) {
+func qosPolicerSpec(name string, p *ngfwv1.QosPolicer) (policer.Policer, error) {
 	typ := orDefault(p.GetType(), "1r2c")
 	t, ok := qosPolicerTypes[typ]
 	if !ok {
@@ -157,7 +157,7 @@ func qosPolicerSpec(name string, p *vrxv1.QosPolicer) (policer.Policer, error) {
 }
 
 // QosShaperSpec is the egress policer that realises services.qos.shapers.<name> (V3).
-func QosShaperSpec(name string, sh *vrxv1.QosShaper) policer.Policer {
+func QosShaperSpec(name string, sh *ngfwv1.QosShaper) policer.Policer {
 	burst := sh.GetBurstBytes()
 	if sh.BurstBytes == nil {
 		burst = ShaperBurstBytes(sh.GetRateKbps())
@@ -173,7 +173,7 @@ func QosShaperSpec(name string, sh *vrxv1.QosShaper) policer.Policer {
 
 // qosMapIDs assigns every map its egress map id: the document's id, else the lowest free id of the range in name
 // order. Findings go to s; a map without a valid id is left out of the result.
-func qosMapIDs(s Sink, maps map[string]*vrxv1.QosMap) map[string]uint32 {
+func qosMapIDs(s Sink, maps map[string]*ngfwv1.QosMap) map[string]uint32 {
 	r := qosMapIDRange()
 	out := map[string]uint32{}
 	used := map[uint32]string{}
@@ -215,11 +215,11 @@ func qosMapIDs(s Sink, maps map[string]*vrxv1.QosMap) map[string]uint32 {
 }
 
 // qosEgressMap is the DF-7 spec of one map: per source a 256-entry row (unlisted values 0; an all-zero row omitted).
-func qosEgressMap(id uint32, m *vrxv1.QosMap) qos.EgressMap {
+func qosEgressMap(id uint32, m *ngfwv1.QosMap) qos.EgressMap {
 	out := qos.EgressMap{ID: id}
 	rows := m.GetRows()
 	for _, src := range qosSourceOrder {
-		var entries []*vrxv1.QosMapEntry
+		var entries []*ngfwv1.QosMapEntry
 		switch src {
 		case qos.SourceExt:
 			entries = rows.GetExt()
@@ -258,9 +258,9 @@ func qosEgressMap(id uint32, m *vrxv1.QosMap) qos.EgressMap {
 	return out
 }
 
-func qosRowFroms(rows *vrxv1.QosMap_Rows) map[string][]int {
+func qosRowFroms(rows *ngfwv1.QosMap_Rows) map[string][]int {
 	out := map[string][]int{}
-	add := func(src string, entries []*vrxv1.QosMapEntry) {
+	add := func(src string, entries []*ngfwv1.QosMapEntry) {
 		for _, e := range entries {
 			out[src] = append(out[src], int(e.GetFrom()))
 		}
@@ -276,7 +276,7 @@ func qosRowFroms(rows *vrxv1.QosMap_Rows) map[string][]int {
 }
 
 // QoS projects services.qos (nil: nothing) onto the policer / qos objects and the qos.meta record.
-func QoS(s Sink, q *vrxv1.QosService) {
+func QoS(s Sink, q *ngfwv1.QosService) {
 	if q == nil {
 		return
 	}
@@ -348,7 +348,7 @@ func QoS(s Sink, q *vrxv1.QosService) {
 	}
 }
 
-func qosInterface(s Sink, q *vrxv1.QosService, ifName string, ids map[string]uint32) {
+func qosInterface(s Sink, q *ngfwv1.QosService, ifName string, ids map[string]uint32) {
 	a := q.GetInterfaces()[ifName]
 	pt := func(leaf ...string) string {
 		return Ptr(append([]string{"services", "qos", "interfaces", ifName}, leaf...)...)
@@ -432,30 +432,30 @@ func qosInterface(s Sink, q *vrxv1.QosService, ifName string, ids map[string]uin
 }
 
 // qosOf returns ds.services.qos, allocated.
-func qosOf(ds *vrxv1.DesiredState) *vrxv1.QosService {
+func qosOf(ds *ngfwv1.DesiredState) *ngfwv1.QosService {
 	if ds.Services == nil {
-		ds.Services = &vrxv1.ServicesConfig{}
+		ds.Services = &ngfwv1.ServicesConfig{}
 	}
 	if ds.Services.Qos == nil {
-		ds.Services.Qos = &vrxv1.QosService{}
+		ds.Services.Qos = &ngfwv1.QosService{}
 	}
 	return ds.Services.Qos
 }
 
-func qosIface(q *vrxv1.QosService, name string) *vrxv1.QosInterface {
+func qosIface(q *ngfwv1.QosService, name string) *ngfwv1.QosInterface {
 	if q.Interfaces == nil {
-		q.Interfaces = map[string]*vrxv1.QosInterface{}
+		q.Interfaces = map[string]*ngfwv1.QosInterface{}
 	}
 	a, ok := q.Interfaces[name]
 	if !ok {
-		a = &vrxv1.QosInterface{}
+		a = &ngfwv1.QosInterface{}
 		q.Interfaces[name] = a
 	}
 	return a
 }
 
-func qosActionOut(a policer.Action) *vrxv1.QosPolicerAction {
-	out := &vrxv1.QosPolicerAction{Action: proto.String(a.Type)}
+func qosActionOut(a policer.Action) *ngfwv1.QosPolicerAction {
+	out := &ngfwv1.QosPolicerAction{Action: proto.String(a.Type)}
 	if a.Type == policer.ActMark {
 		out.Dscp = proto.Uint32(uint32(a.DSCP))
 	}
@@ -465,7 +465,7 @@ func qosActionOut(a policer.Action) *vrxv1.QosPolicerAction {
 // AssembleQoS adds services.qos of the retrieved objects to ds: `services.qos` is always present once the domain
 // is assembled (an empty one when VPP has nothing of ours). Maps are named, and descriptions and explicit ids
 // restored, from the qos.meta record; a map id the record does not know is reported as "map-<id>" with its id.
-func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
+func AssembleQoS(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	q := qosOf(ds)
 	meta, _ := qos.DocMetaOf(kvs)
 	mapName := func(id uint32) (string, bool) {
@@ -484,7 +484,7 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 				continue
 			}
 			if name, ok := strings.CutPrefix(p.Name, ShaperPrefix); ok {
-				sh := &vrxv1.QosShaper{RateKbps: proto.Uint32(p.CIR)}
+				sh := &ngfwv1.QosShaper{RateKbps: proto.Uint32(p.CIR)}
 				sm := meta.Shapers[name]
 				if sm.Burst || p.CB != ShaperBurstBytes(p.CIR) {
 					sh.BurstBytes = proto.Uint64(p.CB)
@@ -493,13 +493,13 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 					sh.Description = proto.String(sm.Description)
 				}
 				if q.Shapers == nil {
-					q.Shapers = map[string]*vrxv1.QosShaper{}
+					q.Shapers = map[string]*ngfwv1.QosShaper{}
 				}
 				q.Shapers[name] = sh
 				continue
 			}
 			typ := QosPolicerTypeName(p.Type)
-			out := &vrxv1.QosPolicer{
+			out := &ngfwv1.QosPolicer{
 				Type: proto.String(typ), RateUnit: proto.String(p.RateType), Cir: proto.Uint32(p.CIR), Cb: proto.Uint64(p.CB),
 				Round: proto.String(p.RoundType), ColorAware: proto.Bool(p.ColorAware),
 				ConformAction: qosActionOut(p.Conform), ExceedAction: qosActionOut(p.Exceed), ViolateAction: qosActionOut(p.Violate),
@@ -514,7 +514,7 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 				out.Description = proto.String(d)
 			}
 			if q.Policers == nil {
-				q.Policers = map[string]*vrxv1.QosPolicer{}
+				q.Policers = map[string]*ngfwv1.QosPolicer{}
 			}
 			q.Policers[p.Name] = out
 		case qos.NameEgressMap:
@@ -524,7 +524,7 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 			}
 			name, known := mapName(m.ID)
 			mm := meta.Maps[name]
-			out := &vrxv1.QosMap{Rows: &vrxv1.QosMap_Rows{
+			out := &ngfwv1.QosMap{Rows: &ngfwv1.QosMap_Rows{
 				Ext: qosRowOut(m.Ext, mm.Rows[qos.SourceExt]), Vlan: qosRowOut(m.VLAN, mm.Rows[qos.SourceVLAN]),
 				Mpls: qosRowOut(m.MPLS, mm.Rows[qos.SourceMPLS]), Ip: qosRowOut(m.IP, mm.Rows[qos.SourceIP]),
 			}}
@@ -535,7 +535,7 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 				out.Description = proto.String(mm.Description)
 			}
 			if q.Maps == nil {
-				q.Maps = map[string]*vrxv1.QosMap{}
+				q.Maps = map[string]*ngfwv1.QosMap{}
 			}
 			q.Maps[name] = out
 		case policer.NameInterface: // write-only: present only when kvs are a desired state (never in a Retrieve)
@@ -565,14 +565,14 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 			if err != nil {
 				continue
 			}
-			qosIface(q, st.Interface).Store = &vrxv1.QosInterface_Store{Source: proto.String(st.Source), Value: proto.Uint32(uint32(st.Value))}
+			qosIface(q, st.Interface).Store = &ngfwv1.QosInterface_Store{Source: proto.String(st.Source), Value: proto.Uint32(uint32(st.Value))}
 		case qos.NameMark:
 			mk, err := df7.Decode[qos.Mark](kv.Value)
 			if err != nil {
 				continue
 			}
 			name, _ := mapName(mk.Map)
-			qosIface(q, mk.Interface).Mark = &vrxv1.QosInterface_Mark{Map: proto.String(name), Output: proto.String(mk.Source)}
+			qosIface(q, mk.Interface).Mark = &ngfwv1.QosInterface_Mark{Map: proto.String(name), Output: proto.String(mk.Source)}
 		}
 	}
 	for name, itf := range q.GetInterfaces() {
@@ -582,17 +582,17 @@ func AssembleQoS(ds *vrxv1.DesiredState, kvs []scheduler.KV) {
 	}
 }
 
-func qosPol(itf *vrxv1.QosInterface) *vrxv1.QosInterface_Policer {
+func qosPol(itf *ngfwv1.QosInterface) *ngfwv1.QosInterface_Policer {
 	if itf.Policer == nil {
-		itf.Policer = &vrxv1.QosInterface_Policer{}
+		itf.Policer = &ngfwv1.QosInterface_Policer{}
 	}
 	return itf.Policer
 }
 
 // qosRowOut rebuilds a row's entries from VPP's 256 outputs: the recorded values the document listed first, in its
 // order (their outputs as VPP has them, zeros included), then every other non-zero output in value order.
-func qosRowOut(row []int, froms []int) []*vrxv1.QosMapEntry {
-	var out []*vrxv1.QosMapEntry
+func qosRowOut(row []int, froms []int) []*ngfwv1.QosMapEntry {
+	var out []*ngfwv1.QosMapEntry
 	at := func(i int) int {
 		if i >= 0 && i < len(row) {
 			return row[i]
@@ -605,11 +605,11 @@ func qosRowOut(row []int, froms []int) []*vrxv1.QosMapEntry {
 			continue
 		}
 		seen[f] = true
-		out = append(out, &vrxv1.QosMapEntry{From: proto.Uint32(uint32(f)), To: proto.Uint32(uint32(at(f)))}) //nolint:gosec // G115: bytes
+		out = append(out, &ngfwv1.QosMapEntry{From: proto.Uint32(uint32(f)), To: proto.Uint32(uint32(at(f)))}) //nolint:gosec // G115: bytes
 	}
 	for i, v := range row {
 		if v != 0 && !seen[i] {
-			out = append(out, &vrxv1.QosMapEntry{From: proto.Uint32(uint32(i)), To: proto.Uint32(uint32(v))}) //nolint:gosec // G115: bytes
+			out = append(out, &ngfwv1.QosMapEntry{From: proto.Uint32(uint32(i)), To: proto.Uint32(uint32(v))}) //nolint:gosec // G115: bytes
 		}
 	}
 	return out

@@ -24,7 +24,7 @@ NPTv6"; VPP plugins `nat44_ei`, `nat64`, `nat66`, `npt66` (WBS D4.2, D4.3 in `pl
   on one VPP (`ErrOtherVariant`). `nattest.SlotLock(t, "nat44")` serialises only your slot's packages; across slots the EI host test
   skips while nat44-ed is enabled (`nat44ei_integration_test.go` pattern)
 - **P08** patterns: registration + `Domains` in `apps/agent/internal/subsystems/subsystems.go` (`natcommon.WithGlobalsOwner(env.GlobalsOwner)`,
-  `WithClaims(<Wiring.KeyedClaims("nat")>)`; `VRX_GLOBALS_OWNER=0` on slots), `apps/agent/internal/agent/projection.go`, the `desired` `Sink`
+  `WithClaims(<Wiring.KeyedClaims("nat")>)`; `NGFW_GLOBALS_OWNER=0` on slots), `apps/agent/internal/agent/projection.go`, the `desired` `Sink`
   and `interface/<name>` alias references
 - The `tools/lab rig` is IPv4-only (10.<N>.{1,2}.0/24). NAT64/NAT66/NPTv6 packet tests add their IPv6 addresses themselves inside the
   slot block `fd00:<slot hex>::/32` (`nattest.Addr6`/`Prefix6`) and remove them in `t.Cleanup`. They use a slot VRF (`nattest.Table`) and

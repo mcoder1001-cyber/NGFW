@@ -18,19 +18,19 @@ Facts (VPP 26.06 source, `src/plugins/linux-cp/lcp_nl.c`, read-only):
   `lcp lcp-sync on` (a VPP global, no binary API: startup.conf `linux-cp { lcp-sync }`), which is off on this host.
   Linux→VPP (admin, MTU, addresses, routes, neighbours) is linux_nl's, from the netns its socket lives in.
 
-So the VRX-side FRR's kernel routes reach VPP only if that FRR runs in the netns the socket opened in. Options:
+So the NGFW-side FRR's kernel routes reach VPP only if that FRR runs in the netns the socket opened in. Options:
 
 | | how | FIB proof | host impact |
 |---|---|---|---|
-| **T1 (default, always run)** | VRX-side FRR (frrtest) in its own netns `ns-w8-frr`; LCP pairs `host-w8l0 ↔ w8-l0`, `host-w8w0 ↔ w8-w0` created **with that netns** (pair field, no global); tap addresses rendered by FRR (`interface w8-l0 / ip address …`, see Q5); peers = 2 frrtest instances in the rig's `ns-w8-lan` / `ns-w8-wan` | BGP sessions over the punt path, 200 prefixes in FRR's RIB, route-map half, withdraw, link-down → BGP notices, agent restart, rollback — **not** the VPP FIB (linux_nl listens in root) | none beyond the slot: no global, no root-netns daemon |
-| **T2 (opt-in `VRX_P12_LINUXNL=1`, manager window)** | as T1, plus: `flock -x /run/lock/vrx-globals.lock`; refuse unless **no** LCP pair exists and default netns is unset; `lcp_default_ns_set ns-w8-frr` → the agent's first pair opens linux_nl's socket in `ns-w8-frr` → restore default netns to exactly the saved value (unset) at once; the socket stays in `ns-w8-frr` while any pair exists | full: routes in `ns-w8-frr`'s main table → VPP table 0 via linux_nl, prefixes only inside the slot's `10.8.0.0/16` (`10.8.64.0/25`… peer 1, `10.8.160.0/25`… peer 2), `ip_route_dump` / ListRoutes `source=lcp-rt-dynamic` counts 200 / 100 / 0 | the global is changed for < 1 s; while my pairs exist linux_nl hears only `ns-w8-frr` (nobody else depends on linux_nl today: P11 uses its fixture pair for IKE punt only). The globals lock is held **for the whole test**, so DF-8's host test (LockGlobals, shared) and any other pair creator waits; after my pairs are deleted the socket closes (no pair left) |
+| **T1 (default, always run)** | NGFW-side FRR (frrtest) in its own netns `ns-w8-frr`; LCP pairs `host-w8l0 ↔ w8-l0`, `host-w8w0 ↔ w8-w0` created **with that netns** (pair field, no global); tap addresses rendered by FRR (`interface w8-l0 / ip address …`, see Q5); peers = 2 frrtest instances in the rig's `ns-w8-lan` / `ns-w8-wan` | BGP sessions over the punt path, 200 prefixes in FRR's RIB, route-map half, withdraw, link-down → BGP notices, agent restart, rollback — **not** the VPP FIB (linux_nl listens in root) | none beyond the slot: no global, no root-netns daemon |
+| **T2 (opt-in `NGFW_P12_LINUXNL=1`, manager window)** | as T1, plus: `flock -x /run/lock/ngfw-globals.lock`; refuse unless **no** LCP pair exists and default netns is unset; `lcp_default_ns_set ns-w8-frr` → the agent's first pair opens linux_nl's socket in `ns-w8-frr` → restore default netns to exactly the saved value (unset) at once; the socket stays in `ns-w8-frr` while any pair exists | full: routes in `ns-w8-frr`'s main table → VPP table 0 via linux_nl, prefixes only inside the slot's `10.8.0.0/16` (`10.8.64.0/25`… peer 1, `10.8.160.0/25`… peer 2), `ip_route_dump` / ListRoutes `source=lcp-rt-dynamic` counts 200 / 100 / 0 | the global is changed for < 1 s; while my pairs exist linux_nl hears only `ns-w8-frr` (nobody else depends on linux_nl today: P11 uses its fixture pair for IKE punt only). The globals lock is held **for the whole test**, so DF-8's host test (LockGlobals, shared) and any other pair creator waits; after my pairs are deleted the socket closes (no pair left) |
 | T3 (alternative) | root-netns zebra/bgpd (a frrtest root mode, gap) with a kernel VRF `w8vrf` table 8001, taps in root enslaved to it; BGP `vrf w8vrf` → VPP table 8001 | full, table 8001 | a root-netns zebra is host-wide (startup sweep of FRR-proto kernel routes, sees ens192); one slot at a time; product-like only if the product runs FRR in root |
 
 **Decided (manager, fix round 1): no T2 on the shared VPP** — review H3 showed it unsafe (the recreated pairs of step 4
 reopen linux_nl's socket in root; a deleted pair flushes no route, leaving `lcp-rt-dynamic` entries in the shared table 0;
 a restore in `t.Cleanup` only; the globals lock does not exclude pair creators). The T2 code is gone. The VPP FIB proof is
 row **P12-fib-proof** on a VPP of the slot's own (LAB-vpp-per-slot), test design in P12.md. ~~Default taken: T1 always;
-T2 behind `VRX_P12_LINUXNL=1`.~~ **Ask:** a manager window for one T2 run (≈ 10 min, slot 8; the test holds the globals lock
+T2 behind `NGFW_P12_LINUXNL=1`.~~ **Ask:** a manager window for one T2 run (≈ 10 min, slot 8; the test holds the globals lock
 exclusively and prints `show lcp` / default netns before and after). T3 is not implemented (no frrtest root mode).
 Product layout = either FRR in root with default netns unset, or TNSR-style `linux-cp { default netns dataplane }` +
 FRR in that netns (startup.conf, F-startup-gen) — both work with the same agent code (the pair's `netns` leaf).
@@ -48,7 +48,7 @@ validation error asks for it (no silent truncation/rename). Parent interfaces on
 Why the interface: the pair is a property of one interface (like TNSR's per-interface host pair), the W-seed anchor
 sits there, and a routing-level list would duplicate interface names. `RoutingConfig` 12 stays reserved.
 
-## Q3 — renderer stage (envelope coordination (1)): one singleton descriptor `frr.config/vrx` (default (a), D-109 d)
+## Q3 — renderer stage (envelope coordination (1)): one singleton descriptor `frr.config/ngfw` (default (a), D-109 d)
 
 In `Domains["routing"]`; desired only when the document has FRR content (bgp, non-empty policy, a `viaFrr` static, or an
 interface with `lcp` + address/description to render), so an agent without FRR (CI, product boxes without routing)
@@ -64,7 +64,7 @@ until then DryRun gets the render-time errors from the projection (Q4).
 Product wiring has no resolver: a neighbour or peer group with `passwordRef` is refused at validation time
 (`routing.bgp-password-unavailable`, pointer `/routing/bgp/neighbors/<addr>/passwordRef`) with the text "BGP MD5 passwords
 need the API→agent secret channel (PENDING-secret-channel); remove passwordRef or wait". Tests use a fixture resolver
-(`VRX_TEST_PSK_P12_<n>`), and the redaction path is unit-tested (DryRun, errors, Retrieve).
+(`NGFW_TEST_PSK_P12_<n>`), and the redaction path is unit-tested (DryRun, errors, Retrieve).
 
 ## Q5 — who puts the VPP interface addresses on the Linux tap
 
@@ -106,10 +106,10 @@ the `// ----- P12 -----` section. Nothing else. Committed first as `contract(sch
 
 ## Q10 — frrtest multi-instance (framework gap, envelope: gap-only)
 
-The topology needs three FRR instances in one slot (VRX side + two peers). frrtest has one pathspace/lock/base per prefix
-and requires `Options.NetNS` to contain the prefix; a second prefix (`w8p1`) would live outside `/run/vrx-test/w8`
+The topology needs three FRR instances in one slot (NGFW side + two peers). frrtest has one pathspace/lock/base per prefix
+and requires `Options.NetNS` to contain the prefix; a second prefix (`w8p1`) would live outside `/run/ngfw-test/w8`
 (shared-host §5). **Done (gap):** `Options.Instance` → pathspace `<prefix><instance>`, base
-`/run/vrx-test/<prefix>/frr-<instance>`, lock `/run/vrx-test/<prefix>/frr-<instance>.lock`, symlink `/run/frr/<pathspace>`;
+`/run/ngfw-test/<prefix>/frr-<instance>`, lock `/run/ngfw-test/<prefix>/frr-<instance>.lock`, symlink `/run/frr/<pathspace>`;
 the namespace check stays on the slot prefix. Existing callers unchanged.
 
 ## Q11 — seams S2/S3 (D-119 M4, confirmed)
@@ -153,7 +153,7 @@ F-bfd-redistribution sit in the table.
   (`lcp_itf_pair_link_up_down`). `lcp-sync` stays useful for admin state/MTU/addresses VPP→Linux (a F-startup-gen note).
 - **Update (manager, 2026-09-25):** not P12's; host runs resumed with NRestarts 2 as the new "before" value.
 
-## Q14 — CLI `vrx show bgp summary`
+## Q14 — CLI `ngfw show bgp summary`
 
 `apps/cli` (not P12's) has `show bgp summary` exiting 10 ("no REST endpoint yet"). It can now read `GET /api/v1/state/bgp`
 (operationId `Bgp_state`). Owner of apps/cli: wire it (one table row), or tell me to.

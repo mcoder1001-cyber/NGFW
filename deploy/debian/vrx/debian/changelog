@@ -1,5 +1,0 @@
-vrx (0.1.0~dev) resolute; urgency=medium
-
-  * Initial packaging scaffold. Release version is set by prepare.sh.
-
- -- VRX maintainers <maintainers@example.invalid>  Fri, 02 Oct 2026 12:00:00 +0000

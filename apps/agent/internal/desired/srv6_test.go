@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/sr"
 	"ngfw/agent/internal/scheduler"
 )
@@ -34,9 +34,9 @@ func (s *srv6Sink) Warnf(pointer, rule, _ string, _ ...any) {
 	s.warns = append(s.warns, pointer+" "+rule)
 }
 
-func srv6DS(t *testing.T, js string) *vrxv1.DesiredState {
+func srv6DS(t *testing.T, js string) *ngfwv1.DesiredState {
 	t.Helper()
-	ds := &vrxv1.DesiredState{}
+	ds := &ngfwv1.DesiredState{}
 	if err := protojson.Unmarshal([]byte(js), ds); err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestSrv6Assemble(t *testing.T) {
 		{Key: "sr.policy/fd00:4:bb::2", Value: &sr.Policy{Bsid: "fd00:4:bb::2", Type: sr.PolicyType_SPRAY, FibTable: 4001, SidLists: []*sr.SidList{{Sids: []string{"fd00:4:ee::4"}, Weight: 2}}}},
 		{Key: "sr.policy/fd00:4:bb::3", Value: &sr.Policy{Bsid: "fd00:4:bb::3", Type: sr.PolicyType_TEF, Encap: true, EncapSrc: "fd00:4::3", SidLists: []*sr.SidList{{Sids: []string{"fd00:4:ee::5"}, Weight: 1}}}},
 	}
-	ds := &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{}}
+	ds := &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{}}
 	AssembleSrv6(ds, kvs, routingOnly, srv6Names, Srv6Env{EncapSource: func() string { return "fd00:4::1" }})
 	want := srv6DS(t, `{"routing": {"srv6": {
 	  "localSids": {
@@ -235,13 +235,13 @@ func TestSrv6Assemble(t *testing.T) {
 		t.Fatalf("assembled\n got %s\nwant %s", protojson.Format(ds), protojson.Format(want))
 	}
 	// Without an applied global (non-owner, or before the first resync) every source is reported.
-	ds = &vrxv1.DesiredState{}
+	ds = &ngfwv1.DesiredState{}
 	AssembleSrv6(ds, kvs, routingOnly, srv6Names, Srv6Env{})
 	if ds.GetRouting().GetSrv6().GetPolicies()["fd00:4:bb::1"].GetEncapSource() != "fd00:4::1" {
 		t.Fatalf("source %s", protojson.Format(ds))
 	}
 	// Nothing retrieved → no srv6 key; other domains → untouched.
-	ds = &vrxv1.DesiredState{Routing: &vrxv1.RoutingConfig{}}
+	ds = &ngfwv1.DesiredState{Routing: &ngfwv1.RoutingConfig{}}
 	AssembleSrv6(ds, nil, routingOnly, srv6Names, Srv6Env{})
 	AssembleSrv6(ds, kvs, map[string]bool{"vrfs": true}, srv6Names, Srv6Env{})
 	if ds.GetRouting().GetSrv6() != nil {
@@ -275,7 +275,7 @@ func TestSrv6RoundTrip(t *testing.T) {
 	for k, v := range s.kvs {
 		kvs = append(kvs, scheduler.KV{Key: k, Value: v})
 	}
-	out := &vrxv1.DesiredState{}
+	out := &ngfwv1.DesiredState{}
 	AssembleSrv6(out, kvs, routingOnly, srv6Names, Srv6Env{})
 	if !proto.Equal(out, in) {
 		t.Fatalf("round trip\n got %s\nwant %s", protojson.Format(out), protojson.Format(in))

@@ -1,7 +1,7 @@
 # F-lisp — LISP / LISP-GPE (status)
 
 Branch `task/F-lisp` (base be53867). Minimal LISP / LISP-GPE end to end in FAST MODE, fake-client evidence; **the opt-in host
-run (VRX_DF6_LISP_HOST / VRX_INTEGRATION) was NOT run** — this is a cloud container without VPP; per D-064/V14 it needs a manager
+run (NGFW_DF6_LISP_HOST / NGFW_INTEGRATION) was NOT run** — this is a cloud container without VPP; per D-064/V14 it needs a manager
 VPP window (requested in F-lisp-questions.md). Nothing was run on the shared VPP.
 
 ## What

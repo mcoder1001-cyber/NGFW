@@ -41,7 +41,7 @@ export function KeyButton({ children, onClick, tabIndex, hasFocus, disabled, 'ar
         // the grid must not treat Enter/Space as row selection or cell editing: they activate this button
         if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();
       }}
-      sx={{ fontFamily: (th) => th.vrx.monoFontFamily, textAlign: 'start', verticalAlign: 'middle', maxInlineSize: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+      sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, textAlign: 'start', verticalAlign: 'middle', maxInlineSize: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
     >
       <bdi dir="ltr">{children}</bdi>
     </Link>

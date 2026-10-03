@@ -5,7 +5,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"net"
 	"net/http"
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/promexport"
 	"strconv"
 	"testing"
@@ -26,7 +26,7 @@ func TestPrometheusListenerLifecycle(t *testing.T) {
 	s := NewPrometheusStage(dashboardSource{})
 	defer s.Close()
 	ctx := context.Background()
-	v := &vrxv1.ManagementPrometheus{Enabled: proto.Bool(true), Listen: proto.String("127.0.0.1"), Port: proto.Uint32(port)}
+	v := &ngfwv1.ManagementPrometheus{Enabled: proto.Bool(true), Listen: proto.String("127.0.0.1"), Port: proto.Uint32(port)}
 	if _, err := s.Create(ctx, v); err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestPrometheusListenerLifecycle(t *testing.T) {
 		}
 	}
 	scrape(200)
-	deny := proto.Clone(v).(*vrxv1.ManagementPrometheus)
+	deny := proto.Clone(v).(*ngfwv1.ManagementPrometheus)
 	deny.Allow = []string{"192.0.2.0/24"}
 	if _, err := s.Update(ctx, v, deny, nil); err != nil {
 		t.Fatal(err)
@@ -62,7 +62,7 @@ func TestPrometheusListenerLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer func() { _ = blocked.Close() }()
-	bad := proto.Clone(v).(*vrxv1.ManagementPrometheus)
+	bad := proto.Clone(v).(*ngfwv1.ManagementPrometheus)
 	bad.Port = proto.Uint32(dashboardPort(t, blocked))
 	if _, err := s.Update(ctx, v, bad, nil); err == nil {
 		t.Fatal("occupied port accepted")

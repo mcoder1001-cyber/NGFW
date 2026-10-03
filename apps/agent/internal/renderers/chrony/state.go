@@ -14,7 +14,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/structpb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
 // chronyc -c prints CSV without a header; the column names below follow `chronyc` (4.8)
@@ -256,9 +256,9 @@ type Event struct{ Key, Old, New string }
 func (e Event) String() string { return fmt.Sprintf("chrony %s: %q -> %q", e.Key, e.Old, e.New) }
 
 // ToProto maps the event to the agent's Event message (details in attributes).
-func (e Event) ToProto() *vrxv1.Event {
-	return &vrxv1.Event{
-		Kind:       vrxv1.EventKind_EVENT_KIND_UNSPECIFIED,
+func (e Event) ToProto() *ngfwv1.Event {
+	return &ngfwv1.Event{
+		Kind:       ngfwv1.EventKind_EVENT_KIND_UNSPECIFIED,
 		Message:    e.String(),
 		Attributes: map[string]string{"source": "chrony", "key": e.Key, "old": e.Old, "new": e.New},
 	}

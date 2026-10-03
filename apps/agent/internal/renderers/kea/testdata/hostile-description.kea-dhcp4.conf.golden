@@ -9,13 +9,13 @@
     "control-sockets": [
       {
         "socket-type": "unix",
-        "socket-name": "/run/vrx-test/w0/kea/run/kea4.sock"
+        "socket-name": "/run/ngfw-test/w0/kea/run/kea4.sock"
       }
     ],
     "lease-database": {
       "type": "memfile",
       "persist": true,
-      "name": "/run/vrx-test/w0/kea/lib/leases4.csv",
+      "name": "/run/ngfw-test/w0/kea/lib/leases4.csv",
       "lfc-interval": 3600
     },
     "hooks-libraries": [
@@ -25,7 +25,7 @@
     ],
     "option-def": [
       {
-        "name": "vrx-224",
+        "name": "ngfw-224",
         "code": 224,
         "type": "string",
         "space": "dhcp4"
@@ -78,10 +78,10 @@
             "data": "lan.example.test, example.test"
           },
           {
-            "name": "vrx-224",
+            "name": "ngfw-224",
             "code": 224,
             "space": "dhcp4",
-            "data": "vrx private text"
+            "data": "ngfw private text"
           },
           {
             "code": 225,
@@ -104,7 +104,7 @@
               }
             ],
             "user-context": {
-              "vrx": {
+              "ngfw": {
                 "reservation": "printer"
               }
             }
@@ -115,7 +115,7 @@
         "rebind-timer": 3600,
         "authoritative": true,
         "user-context": {
-          "vrx": {
+          "ngfw": {
             "server": "lan",
             "subnet": "lan",
             "description": "\"}]} , \"Dhcp4\": {\"hooks-libraries\": [{\"library\": \"/tmp/evil.so\"}]} \\u2603 \\\\",
@@ -145,7 +145,7 @@
         "valid-lifetime": 600,
         "authoritative": true,
         "user-context": {
-          "vrx": {
+          "ngfw": {
             "server": "lan",
             "subnet": "guest",
             "server-description": "\"; rm -rf /"
@@ -158,7 +158,7 @@
         "name": "kea-dhcp4",
         "output-options": [
           {
-            "output": "/run/vrx-test/w0/kea/log/kea-dhcp4.log",
+            "output": "/run/ngfw-test/w0/kea/log/kea-dhcp4.log",
             "maxsize": 10485760,
             "maxver": 4
           }
@@ -167,8 +167,8 @@
       }
     ],
     "user-context": {
-      "vrx": {
-        "input": "WvcDCvQDCvEDCgNsYW4S6QMIARILIjsgcm0gLXJmIC8aBGlwdjQiB2RlZmF1bHQqBHcwLWEwoDg4iA5AkBxIAVJOCgVndWVzdBJFEgwxMC42LjExLjAvMjQaGAoKMTAuNi4xMS4xMBIKMTAuNi4xMS41MBoYCgoxMC42LjExLjYwEgoxMC42LjExLjcwSNgEUtACCgNsYW4SyAIKSCJ9XX0gLCAiRGhjcDQiOiB7Imhvb2tzLWxpYnJhcmllcyI6IFt7ImxpYnJhcnkiOiAiL3RtcC9ldmlsLnNvIn1dfSDimIMgXBIMMTAuNi4xMC4wLzI0GhoKCzEwLjYuMTAuMTAwEgsxMC42LjEwLjE5OSIJMTAuNi4xMC4xKgkxMC42LjEwLjEqCTEwLjYuMC41MzIJMTAuNi4xMC4xOhBsYW4uZXhhbXBsZS50ZXN0QhBsYW4uZXhhbXBsZS50ZXN0QgxleGFtcGxlLnRlc3RSFQjgARIQdnJ4IHByaXZhdGUgdGV4dFIPCOEBEggweDBhMGIwYxgBWkwKB3ByaW50ZXISQQoRQUEtQkItQ0MtMDAtMTEtMjIaCjEwLjYuMTAuMjAiCFByaW50ZXIxKhYIDxIScHJpbnQuZXhhbXBsZS50ZXN0WhUIQhIRdGZ0cC5leGFtcGxlLnRlc3Q=",
+      "ngfw": {
+        "input": "WvgDCvUDCvIDCgNsYW4S6gMIARILIjsgcm0gLXJmIC8aBGlwdjQiB2RlZmF1bHQqBHcwLWEwoDg4iA5AkBxIAVJOCgVndWVzdBJFEgwxMC42LjExLjAvMjQaGAoKMTAuNi4xMS4xMBIKMTAuNi4xMS41MBoYCgoxMC42LjExLjYwEgoxMC42LjExLjcwSNgEUtECCgNsYW4SyQIKSCJ9XX0gLCAiRGhjcDQiOiB7Imhvb2tzLWxpYnJhcmllcyI6IFt7ImxpYnJhcnkiOiAiL3RtcC9ldmlsLnNvIn1dfSDimIMgXBIMMTAuNi4xMC4wLzI0GhoKCzEwLjYuMTAuMTAwEgsxMC42LjEwLjE5OSIJMTAuNi4xMC4xKgkxMC42LjEwLjEqCTEwLjYuMC41MzIJMTAuNi4xMC4xOhBsYW4uZXhhbXBsZS50ZXN0QhBsYW4uZXhhbXBsZS50ZXN0QgxleGFtcGxlLnRlc3RSFgjgARIRbmdmdyBwcml2YXRlIHRleHRSDwjhARIIMHgwYTBiMGMYAVpMCgdwcmludGVyEkEKEUFBLUJCLUNDLTAwLTExLTIyGgoxMC42LjEwLjIwIghQcmludGVyMSoWCA8SEnByaW50LmV4YW1wbGUudGVzdFoVCEISEXRmdHAuZXhhbXBsZS50ZXN0",
         "servers": [
           "lan"
         ]

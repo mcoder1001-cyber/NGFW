@@ -51,7 +51,7 @@ func TestDefaultReplyTimeoutIsBounded(t *testing.T) {
 	if core.DefaultReplyTimeout <= 0 {
 		t.Fatalf("core.DefaultReplyTimeout = %v: govpp's 0 waits forever for a reply", core.DefaultReplyTimeout)
 	}
-	c := Dial("/nonexistent/vrx-test-api.sock", ConnOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
+	c := Dial("/nonexistent/ngfw-test-api.sock", ConnOptions{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))})
 	defer c.Close()
 	if d := replyTimeoutOf(c); d != core.DefaultReplyTimeout {
 		t.Fatalf("Dial's default reply timeout = %v, want %v", d, core.DefaultReplyTimeout)

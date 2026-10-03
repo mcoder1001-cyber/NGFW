@@ -83,7 +83,7 @@ next to the tcpdump in the lan netns. The trace excerpt in the status file is fr
 - D-129 noted: Q2 all four out-of-anchor edits kept (the coretest `extensions` seam = A6, one copy at merge); Q3 (c)
   kept, (d) is the manager's tech-debt row; Q4 goes to a later task; Q7 the manager adds `tx off` in `tools/lab rig up`
   (my test's two `ethtool` lines can go then). L5: no rebase by me.
-- **Q11 (info): the API e2e was not run this round.** Slot 4 (`vrx_w4`) now belongs to F-nat44-ei, and the e2e
+- **Q11 (info): the API e2e was not run this round.** Slot 4 (`ngfw_w4`) now belongs to F-nat44-ei, and the e2e
   global setup creates and DROPS the slot database — running it would destroy that task's database. No other slot was
   assigned for this round, so the API side is covered by its unit tests (vitest, no DB) plus the agent and web tests;
   the e2e file is updated (`pageSize=257` is the new bad value) and runs unchanged on a free slot.
@@ -92,7 +92,7 @@ next to the tcpdump in the lan netns. The trace excerpt in the status file is fr
   `Wiring.Nat44ED()` from `subsystems/nat44_ed.go` and use it. L4 is done (streaming `EachUserSession`, a gap-only DF-3
   helper).
 - **Q13 (merge note): main's ci.sh vs the branch's old deploy/vpp harness.** The gate with main's ci.sh fails only in the
-  apply-startup harness step. The branch's pre-D-103 `deploy/vpp/test-apply-startup.sh` has no `VRX_TEST_SHARD`, so
+  apply-startup harness step. The branch's pre-D-103 `deploy/vpp/test-apply-startup.sh` has no `NGFW_TEST_SHARD`, so
   main's ci.sh runs four full copies of it in parallel, and they collide on scenarios 24 and 26. Serially, the same copy
   passes 101/101. The file is not mine, and the L5 rebase replaces it with main's copy. After the rebase the step runs
   main's sharded harness and should pass.
@@ -109,10 +109,10 @@ next to the tcpdump in the lan netns. The trace excerpt in the status file is fr
   implements `Persistent()` on task/TD-11b@14daf722. So no change is needed in my files. After the rebase, the guard
   runs in every NAT agent test (`newSvc` → `subsystems.Register`).
 - **Q13 resolved (not a flake, not this task):** both fix-round gate runs failed only in the apply-startup harness step.
-  This branch has no diff under `deploy/`, `tools/` or `apps/agent/cmd/vrx-startupgen` against its W-seed base, and
-  `vrx-startupgen` plus its testdata are byte-identical to main's. The step fails because main's ci.sh shards a
+  This branch has no diff under `deploy/`, `tools/` or `apps/agent/cmd/ngfw-startupgen` against its W-seed base, and
+  `ngfw-startupgen` plus its testdata are byte-identical to main's. The step fails because main's ci.sh shards a
   harness copy that cannot shard (the pre-D-103 file from the old base). Main's own `deploy/vpp`, run sharded exactly as
-  main's ci.sh runs it against this tree's `vrx-startupgen` (the same binary as the gate's), passes 138/138 at load 59
+  main's ci.sh runs it against this tree's `ngfw-startupgen` (the same binary as the gate's), passes 138/138 at load 59
   (logs `/root/ngfw-wt/logs/F-nat44-ed-sessions-mainharness-shard{1..4}.log`). I did not merge main: a trial
   `git merge-tree HEAD main` shows about 35 conflicts, mostly in files I do not own (`agent.go`, `service.go`,
   `seams.go`, `stores.go` add/add from the re-cut W-seed). That is the L5 rebase the merger does.

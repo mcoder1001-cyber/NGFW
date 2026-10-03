@@ -16,7 +16,7 @@ import (
 	"slices"
 	"sync"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/frr"
 )
@@ -28,7 +28,7 @@ func init() { frr.RegisterInterfaceLines(LinesName, AddressLines) }
 
 // HostName returns the Linux name of vppName's pair: lcp.hostIfName, else vppName itself; either must be a valid Linux
 // interface name for FRR (frr.IfName: ≤ 15 bytes of [A-Za-z0-9_.-], not an address).
-func HostName(vppName string, lcp *vrxv1.InterfaceLcp) (string, error) {
+func HostName(vppName string, lcp *ngfwv1.InterfaceLcp) (string, error) {
 	name := vppName
 	if lcp.GetHostIfName() != "" {
 		name = lcp.GetHostIfName()
@@ -43,7 +43,7 @@ func HostName(vppName string, lcp *vrxv1.InterfaceLcp) (string, error) {
 }
 
 // HostType returns lcp.hostIfType ("tap" by default).
-func HostType(lcp *vrxv1.InterfaceLcp) string {
+func HostType(lcp *ngfwv1.InterfaceLcp) string {
 	if t := lcp.GetHostIfType(); t != "" {
 		return t
 	}
@@ -55,7 +55,7 @@ type Map map[string]string
 
 // FromDesired builds the table of every interface with a valid `lcp` leaf (invalid ones are left out: the projection
 // reports them).
-func FromDesired(ds *vrxv1.DesiredState) Map {
+func FromDesired(ds *ngfwv1.DesiredState) Map {
 	m := Map{}
 	for name, itf := range ds.GetInterfaces() {
 		if itf.Lcp == nil {

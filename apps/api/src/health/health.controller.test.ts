@@ -16,7 +16,7 @@ describe('GET /api/v1/health', () => {
   it('returns ok without credentials (public liveness)', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/v1/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ status: 'ok', service: 'vrx-api' });
+    expect(res.json()).toMatchObject({ status: 'ok', service: 'ngfw-api' });
   });
 
   it('the answer matches the documented response schema (TD-2 #3)', async () => {

@@ -14,7 +14,7 @@
 //     never touched (the resolver refuses it); untagged → only with a claim record for the
 //     object's key in DF-1's per-owner ClaimStore (iface.Claims);
 //   - objects identified only by a number (QoS egress map id, BFD conf-key id) are attributed by
-//     an IDRange (tests: the slot's VRX_VPP_TABLE_BASE..+999; production: every id);
+//     an IDRange (tests: the slot's NGFW_VPP_TABLE_BASE..+999; production: every id);
 //   - VPP-global settings (lb.conf, lldp.global, bfd.echo-source, igmp.group-prefix) are only
 //     registered by the plugins' RegisterGlobals, which only the globals owner calls (D-071).
 package df7

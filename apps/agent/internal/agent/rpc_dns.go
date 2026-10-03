@@ -13,7 +13,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	ucsaction "ngfw/agent/internal/actions/unbound-chrony-syslog"
 	"ngfw/agent/internal/subsystems"
 )
@@ -31,19 +31,19 @@ func (g *server) hostServices(owner string) (*subsystems.HostServices, error) {
 }
 
 // storedServices returns a copy of the stored (applied) desired services and management domains.
-func (g *server) storedServices(ctx context.Context) (*vrxv1.ServicesConfig, *vrxv1.ManagementConfig, error) {
+func (g *server) storedServices(ctx context.Context) (*ngfwv1.ServicesConfig, *ngfwv1.ManagementConfig, error) {
 	if err := g.svc.lock(ctx); err != nil {
 		return nil, nil, err
 	}
 	defer g.svc.unlock()
 	ds := g.svc.st.desired
-	svc, _ := proto.Clone(ds.GetServices()).(*vrxv1.ServicesConfig)
-	mgmt, _ := proto.Clone(ds.GetManagement()).(*vrxv1.ManagementConfig)
+	svc, _ := proto.Clone(ds.GetServices()).(*ngfwv1.ServicesConfig)
+	mgmt, _ := proto.Clone(ds.GetManagement()).(*ngfwv1.ManagementConfig)
 	return svc, mgmt, nil
 }
 
 // DnsState implements the DnsState RPC (the name is fixed by the generated DataplaneServer interface).
-func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrxv1.DnsStateResponse, error) { //nolint:revive // generated interface name
+func (g *server) DnsState(ctx context.Context, req *ngfwv1.DnsStateRequest) (*ngfwv1.DnsStateResponse, error) { //nolint:revive // generated interface name
 	hs, err := g.hostServices(req.GetOwner())
 	if err != nil {
 		return nil, err
@@ -54,24 +54,24 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 	}
 	defer release()
 	r := hs.Unbound.Renderer()
-	resp := &vrxv1.DnsStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().Conf()}
+	resp := &ngfwv1.DnsStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now()), ConfigPath: r.Paths().Conf()}
 	st, err := r.State(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}
 	resp.Running, resp.Status, resp.Stats = st.Running, st.Status, st.Stats
 	for _, z := range st.Forwards {
-		resp.Forwards = append(resp.Forwards, &vrxv1.DnsZoneState{Zone: z.Zone, Kind: z.Kind, Flags: z.Flags, Addresses: z.Addrs})
+		resp.Forwards = append(resp.Forwards, &ngfwv1.DnsZoneState{Zone: z.Zone, Kind: z.Kind, Flags: z.Flags, Addresses: z.Addrs})
 	}
 	for _, z := range st.Stubs {
-		resp.Stubs = append(resp.Stubs, &vrxv1.DnsZoneState{Zone: z.Zone, Kind: z.Kind, Flags: z.Flags, Addresses: z.Addrs})
+		resp.Stubs = append(resp.Stubs, &ngfwv1.DnsZoneState{Zone: z.Zone, Kind: z.Kind, Flags: z.Flags, Addresses: z.Addrs})
 	}
 	for _, z := range st.LocalZones {
-		resp.LocalZones = append(resp.LocalZones, &vrxv1.DnsLocalZoneState{Zone: z.Zone, Type: z.Type})
+		resp.LocalZones = append(resp.LocalZones, &ngfwv1.DnsLocalZoneState{Zone: z.Zone, Type: z.Type})
 	}
 	resp.LocalData, resp.LocalDataTruncated = st.LocalData, st.LocalDataTruncated
 	for _, p := range hs.Unbound.Pending(ctx) {
-		resp.PendingActions = append(resp.PendingActions, &vrxv1.ServiceDaemonAction{Daemon: p.Daemon, Unit: p.Unit, Action: p.Action, Reason: p.Reason})
+		resp.PendingActions = append(resp.PendingActions, &ngfwv1.ServiceDaemonAction{Daemon: p.Daemon, Unit: p.Unit, Action: p.Action, Reason: p.Reason})
 	}
 	svc, _, err := g.storedServices(ctx)
 	if err != nil {
@@ -79,7 +79,7 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 	}
 	vc := svc.GetDns().GetVppCache()
 	// appliedByThisAgent is the live DF-8 fact (IPv4 server added + enabled on the running VPP), never the document
-	resp.VppCache = &vrxv1.DnsVppCacheState{Configured: vc.GetEnabled(), AppliedByThisAgent: hs.GlobalsOwner && hs.DNSReadiness.Ready(ctx), Upstreams: append([]string(nil), vc.GetUpstreams()...)}
+	resp.VppCache = &ngfwv1.DnsVppCacheState{Configured: vc.GetEnabled(), AppliedByThisAgent: hs.GlobalsOwner && hs.DNSReadiness.Ready(ctx), Upstreams: append([]string(nil), vc.GetUpstreams()...)}
 	sort.Strings(resp.VppCache.Upstreams)
 	return resp, nil
 }
@@ -88,7 +88,7 @@ func (g *server) DnsState(ctx context.Context, req *vrxv1.DnsStateRequest) (*vrx
 // globals owner, DF-8's readiness fact says it added an IPv4 name server and enabled the cache on the VPP instance that
 // runs now (review H2: never the stored document, which survives a VPP restart and a failed resync), and the agent is
 // not DEGRADED. VPP 26.06 crashes on dns_resolve_name otherwise (D-137, ucsaction.Lookup).
-func (g *server) dnsLookup(a *vrxv1.DnsLookupAction, stream grpc.ServerStreamingServer[vrxv1.ActionOutput]) error {
+func (g *server) dnsLookup(a *ngfwv1.DnsLookupAction, stream grpc.ServerStreamingServer[ngfwv1.ActionOutput]) error {
 	ctx := stream.Context()
 	hs, err := g.hostServices("")
 	if err != nil {

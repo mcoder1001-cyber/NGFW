@@ -131,7 +131,7 @@ describe('advanced editor — a fixed-shape domain root (nested containers becom
   it('never nulls out a nested container it never touched when saving a sibling scalar field', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     api.on('GET /api/v1/config/candidate/system', {
-      body: { hostname: 'vrx', timezone: 'UTC', banner: {}, dns: { servers: [], searchDomains: [], vrf: 'default' } },
+      body: { hostname: 'ngfw', timezone: 'UTC', banner: {}, dns: { servers: [], searchDomains: [], vrf: 'default' } },
     });
     let patched: unknown;
     api.on('PATCH /api/v1/config/system', (_r, body) => {
@@ -147,16 +147,16 @@ describe('advanced editor — a fixed-shape domain root (nested containers becom
     expect(screen.getByRole('button', { name: 'DNS client' })).toBeInTheDocument();
 
     const hostname = screen.getByLabelText('Hostname');
-    fireEvent.change(hostname, { target: { value: 'vrx-b' } });
+    fireEvent.change(hostname, { target: { value: 'ngfw-b' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save to candidate' }));
     // exactly the touched field: banner/dns are absent from the form and must stay untouched by the merge patch
-    await waitFor(() => expect(patched).toEqual({ hostname: 'vrx-b' }));
+    await waitFor(() => expect(patched).toEqual({ hostname: 'ngfw-b' }));
   });
 
   it('opening a nested container navigates the breadcrumb one level down and reads that node directly', { timeout: 60_000 }, async () => {
     const api = installFakeApi();
     api.on('GET /api/v1/config/candidate/system', {
-      body: { hostname: 'vrx', timezone: 'UTC', banner: { login: 'welcome' }, dns: { servers: [], searchDomains: [], vrf: 'default' } },
+      body: { hostname: 'ngfw', timezone: 'UTC', banner: { login: 'welcome' }, dns: { servers: [], searchDomains: [], vrf: 'default' } },
     });
     // the banner sub-page reads `/system/banner` directly (D-UDE-1), not the whole `system` domain again
     api.on('GET /api/v1/config/candidate/system/banner', { body: { login: 'welcome' } });

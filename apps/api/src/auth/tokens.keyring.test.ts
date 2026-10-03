@@ -20,21 +20,21 @@ import { rotateKeyFile } from './break-glass.js';
 import { checkKeyFile } from './key-file.js';
 import { TokensService } from './tokens.service.js';
 
-/** TD-10b (P06 tech debt): JWT signing-key rotation (VRX_JWT_KEY_FILE) and the key-file owner check. */
+/** TD-10b (P06 tech debt): JWT signing-key rotation (NGFW_JWT_KEY_FILE) and the key-file owner check. */
 const key = () => randomBytes(36).toString('base64url');
 const claims = { id: 7, username: 'u', role: 'operator' as const, sid: 'fam', gen: 1 };
 
-describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
+describe('JWT key ring (NGFW_JWT_KEY_FILE)', () => {
   let dir: string;
   const tokens = (file: string) =>
-    new TokensService(testEnv({ VRX_JWT_KEY_FILE: file }), {} as Valkey, new Bus());
+    new TokensService(testEnv({ NGFW_JWT_KEY_FILE: file }), {} as Valkey, new Bus());
   const write = (file: string, text: string, mode = 0o600) => {
     writeFileSync(file, text, { mode });
     chmodSync(file, mode);
   };
 
   beforeAll(() => {
-    dir = mkdtempSync(join(tmpdir(), 'vrx-td10b-ring-'));
+    dir = mkdtempSync(join(tmpdir(), 'ngfw-td10b-ring-'));
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
   afterEach(() => vi.useRealTimers());
@@ -83,8 +83,8 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
     const legacy = await new SignJWT({ username: 'u', role: 'operator', typ: 'access', gen: 1 })
       .setProtectedHeader({ alg: 'HS256' })
       .setSubject('7')
-      .setIssuer('vrx-api')
-      .setAudience('vrx')
+      .setIssuer('ngfw-api')
+      .setAudience('ngfw')
       .setIssuedAt()
       .setExpirationTime('60s')
       .sign(new TextEncoder().encode(k));
@@ -92,8 +92,8 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
     const forged = await new SignJWT({ username: 'u', role: 'admin', typ: 'access', gen: 1 })
       .setProtectedHeader({ alg: 'HS256', kid: 'ffffffffffffffff' })
       .setSubject('7')
-      .setIssuer('vrx-api')
-      .setAudience('vrx')
+      .setIssuer('ngfw-api')
+      .setAudience('ngfw')
       .setExpirationTime('60s')
       .sign(new TextEncoder().encode(key()));
     expect(await t.verifyAccess(forged)).toBeNull();
@@ -135,7 +135,7 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
   it.runIf(process.geteuid?.() === 0)(
     'review M1: root rotates the PRODUCT layout — a 0600 ring owned by the API user — keeping owner and mode; foreign owners and group/other bits are still refused',
     () => {
-      // `nobody` (65534) stands in for the API user `vrx`, which this host does not have
+      // `nobody` (65534) stands in for the API user `ngfw`, which this host does not have
       const file = join(dir, 'product');
       write(file, `${key()}\n`);
       chownSync(file, 65534, 65534);
@@ -175,16 +175,16 @@ describe('JWT key ring (VRX_JWT_KEY_FILE)', () => {
     expect(decodeProtectedHeader(await t.signAccess(claims)).kid).toBe(kid);
   });
 
-  it('the key file wins over VRX_JWT_SECRET; VRX_JWT_SECRET alone is a one-key ring', async () => {
+  it('the key file wins over NGFW_JWT_SECRET; NGFW_JWT_SECRET alone is a one-key ring', async () => {
     const secret = key();
     const file = join(dir, 'ring4');
     write(file, `${key()}\n`);
     const both = new TokensService(
-      testEnv({ VRX_JWT_KEY_FILE: file, VRX_JWT_SECRET: secret }),
+      testEnv({ NGFW_JWT_KEY_FILE: file, NGFW_JWT_SECRET: secret }),
       {} as Valkey,
       new Bus(),
     );
-    const only = new TokensService(testEnv({ VRX_JWT_SECRET: secret }), {} as Valkey, new Bus());
+    const only = new TokensService(testEnv({ NGFW_JWT_SECRET: secret }), {} as Valkey, new Bus());
     expect(await only.verifyAccess(await both.signAccess(claims))).toBeNull();
     expect(await only.verifyAccess(await only.signAccess(claims))).toMatchObject({ id: 7 });
   });
@@ -197,7 +197,7 @@ describe('TD-10b sessions in TokensService', () => {
         throw new Error('simulated Valkey outage');
       },
     } as unknown as Valkey;
-    const t = new TokensService(testEnv({ VRX_JWT_SECRET: key() }), failing, new Bus());
+    const t = new TokensService(testEnv({ NGFW_JWT_SECRET: key() }), failing, new Bus());
     const mine = await t.signAccess({ ...claims, sid: 's1' });
     const other = await t.signAccess({ ...claims, sid: 's2' });
     const noSid = await t.signAccess({ id: 7, username: 'u', role: 'operator', gen: 1 });
@@ -207,8 +207,8 @@ describe('TD-10b sessions in TokensService', () => {
     expect(await t.verifyAccess(noSid)).toMatchObject({ id: 7 });
   });
 
-  it('an access token never outlives its session (VRX_SESSION_MAX_SEC, review 2.3d)', async () => {
-    const t = new TokensService(testEnv({ VRX_JWT_SECRET: key() }), {} as Valkey, new Bus());
+  it('an access token never outlives its session (NGFW_SESSION_MAX_SEC, review 2.3d)', async () => {
+    const t = new TokensService(testEnv({ NGFW_JWT_SECRET: key() }), {} as Valkey, new Bus());
     const now = Math.floor(Date.now() / 1000);
     expect(decodeJwt(await t.signAccess(claims, now + 30)).exp).toBe(now + 30);
     for (const notAfter of [undefined, now + 5000]) {

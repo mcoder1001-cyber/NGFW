@@ -16,16 +16,16 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	vrxv1 "ngfw/agent/gen/vrx/v1"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers"
 )
 
 var update = flag.Bool("update", false, "rewrite testdata/*.golden")
 
-// Test fixture secrets use the literal VRX_TEST_PSK_<id> (00-CONTEXT).
+// Test fixture secrets use the literal NGFW_TEST_PSK_<id> (00-CONTEXT).
 var fixtureSecrets = map[string][]byte{
-	"key/upstream": []byte("VRX_TEST_PSK_RF3_upstream"),
-	"key/backup":   []byte("VRX_TEST_PSK_RF3_backup"),
+	"key/upstream": []byte("NGFW_TEST_PSK_RF3_upstream"),
+	"key/backup":   []byte("NGFW_TEST_PSK_RF3_backup"),
 }
 
 func resolver(ref string) ([]byte, error) {
@@ -41,11 +41,11 @@ func newUnit(p Paths) *Renderer {
 	return New(renderers.NewRecordingRunner(), WithPaths(p), WithSecrets(resolver))
 }
 
-func clientNTP() *vrxv1.NtpService {
-	return &vrxv1.NtpService{
+func clientNTP() *ngfwv1.NtpService {
+	return &ngfwv1.NtpService{
 		Enabled: proto.Bool(true),
 		Vrf:     proto.String("default"),
-		Servers: []*vrxv1.NtpService_Server{
+		Servers: []*ngfwv1.NtpService_Server{
 			{Address: proto.String("192.0.2.123"), Prefer: proto.Bool(true), MinPoll: proto.Int32(4), MaxPoll: proto.Int32(6), KeyRef: proto.String("key/upstream")},
 			{Address: proto.String("NTP.Example.test"), Iburst: proto.Bool(false), KeyRef: proto.String("key/backup")},
 			{Address: proto.String("2001:db8::123"), KeyRef: proto.String("key/upstream")},
@@ -56,19 +56,19 @@ func clientNTP() *vrxv1.NtpService {
 	}
 }
 
-func serverNTP() *vrxv1.NtpService {
-	return &vrxv1.NtpService{
+func serverNTP() *ngfwv1.NtpService {
+	return &ngfwv1.NtpService{
 		Enabled:      proto.Bool(true),
-		Servers:      []*vrxv1.NtpService_Server{{Address: proto.String("127.0.0.1")}},
+		Servers:      []*ngfwv1.NtpService_Server{{Address: proto.String("127.0.0.1")}},
 		Allow:        []string{"127.0.0.1/32", "10.6.0.9/16", "fd00:6::/64"},
 		Deny:         []string{"10.6.66.0/24"},
 		Listen:       []string{"127.0.0.1", "::1"},
 		Port:         proto.Uint32(3623),
-		RateLimit:    &vrxv1.NtpService_RateLimit{Interval: proto.Int32(-2), Burst: proto.Uint32(16), Leak: proto.Uint32(1)},
+		RateLimit:    &ngfwv1.NtpService_RateLimit{Interval: proto.Int32(-2), Burst: proto.Uint32(16), Leak: proto.Uint32(1)},
 		LocalStratum: proto.Uint32(10),
 		Orphan:       proto.Bool(true),
 		RtcSync:      proto.Bool(true),
-		Makestep:     &vrxv1.NtpService_Makestep{ThresholdSec: proto.Float64(0.5), Limit: proto.Int32(-1)},
+		Makestep:     &ngfwv1.NtpService_Makestep{ThresholdSec: proto.Float64(0.5), Limit: proto.Int32(-1)},
 	}
 }
 
@@ -99,7 +99,7 @@ func golden(t *testing.T, name string, got []byte) {
 	}
 }
 
-// TestRenderGolden covers chrony.conf and vrx.sources for every template path. chrony.keys
+// TestRenderGolden covers chrony.conf and ngfw.sources for every template path. chrony.keys
 // is asserted structurally (TestKeys) instead of stored as a golden file: even fixture key
 // material stays out of testdata.
 func TestRenderGolden(t *testing.T) {
@@ -109,14 +109,14 @@ func TestRenderGolden(t *testing.T) {
 		desired proto.Message
 	}{
 		"disabled": {unitPaths(), nil},
-		"client":   {unitPaths(), &vrxv1.DesiredState{Services: &vrxv1.ServicesConfig{Ntp: clientNTP()}}},
-		"server":   {unitPaths(), &vrxv1.ServicesConfig{Ntp: serverNTP()}},
+		"client":   {unitPaths(), &ngfwv1.DesiredState{Services: &ngfwv1.ServicesConfig{Ntp: clientNTP()}}},
+		"server":   {unitPaths(), &ngfwv1.ServicesConfig{Ntp: serverNTP()}},
 		"product":  {prod, serverNTP()},
-		"local-only": {unitPaths(), &vrxv1.NtpService{
+		"local-only": {unitPaths(), &ngfwv1.NtpService{
 			Enabled: proto.Bool(true), LocalStratum: proto.Uint32(8), Port: proto.Uint32(0),
 		}},
-		"test-source-port": {func() Paths { p := unitPaths(); p.SourcePort = 3623; return p }(), &vrxv1.NtpService{
-			Enabled: proto.Bool(true), Servers: []*vrxv1.NtpService_Server{{Address: proto.String("127.0.0.1"), MinPoll: proto.Int32(-2), MaxPoll: proto.Int32(0)}}, Port: proto.Uint32(0),
+		"test-source-port": {func() Paths { p := unitPaths(); p.SourcePort = 3623; return p }(), &ngfwv1.NtpService{
+			Enabled: proto.Bool(true), Servers: []*ngfwv1.NtpService_Server{{Address: proto.String("127.0.0.1"), MinPoll: proto.Int32(-2), MaxPoll: proto.Int32(0)}}, Port: proto.Uint32(0),
 		}},
 	}
 	for name, c := range cases {
@@ -126,7 +126,7 @@ func TestRenderGolden(t *testing.T) {
 				t.Fatalf("want 3 files, got %v", files.Paths())
 			}
 			golden(t, name+".chrony.conf", files[c.paths.Conf()].Content)
-			golden(t, name+".vrx.sources", files[c.paths.Sources()].Content)
+			golden(t, name+".ngfw.sources", files[c.paths.Sources()].Content)
 			k := files[c.paths.Keys()]
 			if !k.Secret || k.Mode != c.paths.KeyMode || k.Owner != c.paths.KeyOwner {
 				t.Fatalf("keys file: secret=%v mode=%v owner=%q", k.Secret, k.Mode, k.Owner)
@@ -179,11 +179,11 @@ func TestKeys(t *testing.T) {
 
 func TestSecretErrorsDoNotLeak(t *testing.T) {
 	leaky := func(string) ([]byte, error) {
-		return nil, fmt.Errorf("backend said: value VRX_TEST_PSK_RF3_leak is expired")
+		return nil, fmt.Errorf("backend said: value NGFW_TEST_PSK_RF3_leak is expired")
 	}
 	r := New(renderers.NewRecordingRunner(), WithPaths(unitPaths()), WithSecrets(leaky))
 	_, err := r.Render(context.Background(), clientNTP())
-	if !errors.Is(err, ErrSecret) || strings.Contains(err.Error(), "VRX_TEST_PSK") {
+	if !errors.Is(err, ErrSecret) || strings.Contains(err.Error(), "NGFW_TEST_PSK") {
 		t.Fatalf("want ErrSecret without the value, got %v", err)
 	}
 	long := func(string) ([]byte, error) { return []byte(strings.Repeat("k", MaxKeyBytes+1)), nil }
@@ -202,43 +202,45 @@ var hostile = []string{
 }
 
 func TestRejects(t *testing.T) {
-	type mut func(n *vrxv1.NtpService)
+	type mut func(n *ngfwv1.NtpService)
 	cases := map[string]mut{
-		"listen-host-nic": func(n *vrxv1.NtpService) { n.Listen = []string{"172.30.126.195"} },
-		"listen-two-v4":   func(n *vrxv1.NtpService) { n.Listen = []string{"127.0.0.1", "127.0.0.2"} },
-		"listen-none":     func(n *vrxv1.NtpService) { n.Listen = nil },
-		"port":            func(n *vrxv1.NtpService) { n.Port = proto.Uint32(70000) },
-		"port0-serving":   func(n *vrxv1.NtpService) { n.Port = proto.Uint32(0) },
-		"allow-dup":       func(n *vrxv1.NtpService) { n.Allow = []string{"10.0.0.0/8", "10.1.0.0/8"} },
-		"nts-server": func(n *vrxv1.NtpService) {
-			n.NtsServer = &vrxv1.NtpService_NtsServer{CertificateRef: proto.String("cert/x"), KeyRef: proto.String("key/x")}
+		"listen-host-nic": func(n *ngfwv1.NtpService) { n.Listen = []string{"172.30.126.195"} },
+		"listen-two-v4":   func(n *ngfwv1.NtpService) { n.Listen = []string{"127.0.0.1", "127.0.0.2"} },
+		"listen-none":     func(n *ngfwv1.NtpService) { n.Listen = nil },
+		"port":            func(n *ngfwv1.NtpService) { n.Port = proto.Uint32(70000) },
+		"port0-serving":   func(n *ngfwv1.NtpService) { n.Port = proto.Uint32(0) },
+		"allow-dup":       func(n *ngfwv1.NtpService) { n.Allow = []string{"10.0.0.0/8", "10.1.0.0/8"} },
+		"nts-server": func(n *ngfwv1.NtpService) {
+			n.NtsServer = &ngfwv1.NtpService_NtsServer{CertificateRef: proto.String("cert/x"), KeyRef: proto.String("key/x")}
 		},
-		"ratelimit":     func(n *vrxv1.NtpService) { n.RateLimit.Burst = proto.Uint32(999) },
-		"ratelimit-cli": func(n *vrxv1.NtpService) { n.Allow = nil; n.Port = proto.Uint32(0); n.Listen = nil },
-		"stratum":       func(n *vrxv1.NtpService) { n.LocalStratum = proto.Uint32(16) },
-		"orphan":        func(n *vrxv1.NtpService) { n.LocalStratum = nil },
-		"makestep":      func(n *vrxv1.NtpService) { n.Makestep.ThresholdSec = proto.Float64(0) },
-		"poll":          func(n *vrxv1.NtpService) { n.Servers[0].MinPoll = proto.Int32(30) },
-		"poll-order":    func(n *vrxv1.NtpService) { n.Servers[0].MinPoll, n.Servers[0].MaxPoll = proto.Int32(8), proto.Int32(4) },
-		"nts-and-key": func(n *vrxv1.NtpService) {
+		"ratelimit":     func(n *ngfwv1.NtpService) { n.RateLimit.Burst = proto.Uint32(999) },
+		"ratelimit-cli": func(n *ngfwv1.NtpService) { n.Allow = nil; n.Port = proto.Uint32(0); n.Listen = nil },
+		"stratum":       func(n *ngfwv1.NtpService) { n.LocalStratum = proto.Uint32(16) },
+		"orphan":        func(n *ngfwv1.NtpService) { n.LocalStratum = nil },
+		"makestep":      func(n *ngfwv1.NtpService) { n.Makestep.ThresholdSec = proto.Float64(0) },
+		"poll":          func(n *ngfwv1.NtpService) { n.Servers[0].MinPoll = proto.Int32(30) },
+		"poll-order": func(n *ngfwv1.NtpService) {
+			n.Servers[0].MinPoll, n.Servers[0].MaxPoll = proto.Int32(8), proto.Int32(4)
+		},
+		"nts-and-key": func(n *ngfwv1.NtpService) {
 			n.Servers[0].Nts, n.Servers[0].KeyRef = proto.Bool(true), proto.String("key/upstream")
 		},
-		"keyref":     func(n *vrxv1.NtpService) { n.Servers[0].KeyRef = proto.String("psk/upstream") },
-		"server-dup": func(n *vrxv1.NtpService) { n.Servers = append(n.Servers, n.Servers[0]) },
-		"pool-ip":    func(n *vrxv1.NtpService) { n.Pools = []string{"192.0.2.1"} },
-		"all-digits": func(n *vrxv1.NtpService) { n.Servers[0].Address = proto.String("192.0.2") },
-		"nothing": func(n *vrxv1.NtpService) {
+		"keyref":     func(n *ngfwv1.NtpService) { n.Servers[0].KeyRef = proto.String("psk/upstream") },
+		"server-dup": func(n *ngfwv1.NtpService) { n.Servers = append(n.Servers, n.Servers[0]) },
+		"pool-ip":    func(n *ngfwv1.NtpService) { n.Pools = []string{"192.0.2.1"} },
+		"all-digits": func(n *ngfwv1.NtpService) { n.Servers[0].Address = proto.String("192.0.2") },
+		"nothing": func(n *ngfwv1.NtpService) {
 			n.Servers, n.LocalStratum, n.Orphan, n.Allow, n.RateLimit, n.Port, n.Listen = nil, nil, nil, nil, nil, proto.Uint32(0), nil
 		},
-		"vrf": func(n *vrxv1.NtpService) { n.Vrf = proto.String("a b") },
+		"vrf": func(n *ngfwv1.NtpService) { n.Vrf = proto.String("a b") },
 	}
 	for i, h := range hostile {
 		h := h
-		cases[fmt.Sprintf("server-hostile-%d", i)] = func(n *vrxv1.NtpService) { n.Servers[0].Address = proto.String(h) }
-		cases[fmt.Sprintf("pool-hostile-%d", i)] = func(n *vrxv1.NtpService) { n.Pools = []string{h} }
-		cases[fmt.Sprintf("keyref-hostile-%d", i)] = func(n *vrxv1.NtpService) { n.Servers[0].KeyRef = proto.String("key/" + h) }
-		cases[fmt.Sprintf("allow-hostile-%d", i)] = func(n *vrxv1.NtpService) { n.Allow = []string{h} }
-		cases[fmt.Sprintf("listen-hostile-%d", i)] = func(n *vrxv1.NtpService) { n.Listen = []string{h} }
+		cases[fmt.Sprintf("server-hostile-%d", i)] = func(n *ngfwv1.NtpService) { n.Servers[0].Address = proto.String(h) }
+		cases[fmt.Sprintf("pool-hostile-%d", i)] = func(n *ngfwv1.NtpService) { n.Pools = []string{h} }
+		cases[fmt.Sprintf("keyref-hostile-%d", i)] = func(n *ngfwv1.NtpService) { n.Servers[0].KeyRef = proto.String("key/" + h) }
+		cases[fmt.Sprintf("allow-hostile-%d", i)] = func(n *ngfwv1.NtpService) { n.Allow = []string{h} }
+		cases[fmt.Sprintf("listen-hostile-%d", i)] = func(n *ngfwv1.NtpService) { n.Listen = []string{h} }
 	}
 	for name, m := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -275,7 +277,7 @@ func TestValidate(t *testing.T) {
 	}
 	c := rr.Calls()
 	if len(c) != 2 || c[0].Args[0] != "-p" || c[0].Args[1] != "-f" || !strings.HasSuffix(c[0].Args[2], "/chrony.conf") ||
-		!strings.HasSuffix(c[1].Args[2], "/sources.d/vrx.sources") || strings.HasPrefix(c[0].Args[2], unitPaths().ConfDir) {
+		!strings.HasSuffix(c[1].Args[2], "/sources.d/ngfw.sources") || strings.HasPrefix(c[0].Args[2], unitPaths().ConfDir) {
 		t.Fatalf("argv %v", c)
 	}
 	bad := renderers.Files{}
@@ -283,10 +285,10 @@ func TestValidate(t *testing.T) {
 		bad[p] = f
 	}
 	k := bad[unitPaths().Keys()]
-	k.Content = []byte("1 SHA256 HEX:VRX_TEST_PSK_notHex\n")
+	k.Content = []byte("1 SHA256 HEX:NGFW_TEST_PSK_notHex\n")
 	bad[unitPaths().Keys()] = k
 	err := r.Validate(context.Background(), bad)
-	if !errors.Is(err, ErrDaemon) || strings.Contains(err.Error(), "VRX_TEST_PSK") {
+	if !errors.Is(err, ErrDaemon) || strings.Contains(err.Error(), "NGFW_TEST_PSK") {
 		t.Fatalf("malformed keys: %v", err)
 	}
 	k.Secret = false
@@ -306,7 +308,7 @@ func tmpPaths(t *testing.T) Paths {
 	d := t.TempDir()
 	p.ConfDir, p.RunDir, p.StateDir, p.LogDir = d, d, d, d
 	p.FileOwner, p.KeyOwner = "", ""
-	p.PendingFile = filepath.Join(d, "state", "vrx.pending")
+	p.PendingFile = filepath.Join(d, "state", "ngfw.pending")
 	if err := os.MkdirAll(p.SourceDir(), 0o750); err != nil {
 		t.Fatal(err)
 	}
@@ -336,8 +338,8 @@ func startChild(t *testing.T) int {
 func TestKeyIDsStable(t *testing.T) {
 	a := render(t, newUnit(unitPaths()), clientNTP())
 	n := clientNTP()
-	n.Servers = append(n.Servers, &vrxv1.NtpService_Server{Address: proto.String("192.0.2.200"), KeyRef: proto.String("key/aaa")})
-	fixtureSecrets["key/aaa"] = []byte("VRX_TEST_PSK_RF3_aaa")
+	n.Servers = append(n.Servers, &ngfwv1.NtpService_Server{Address: proto.String("192.0.2.200"), KeyRef: proto.String("key/aaa")})
+	fixtureSecrets["key/aaa"] = []byte("NGFW_TEST_PSK_RF3_aaa")
 	defer delete(fixtureSecrets, "key/aaa")
 	b := render(t, newUnit(unitPaths()), n)
 	for _, l := range strings.Split(string(a[unitPaths().Sources()].Content), "\n") {
@@ -411,8 +413,8 @@ func TestApply(t *testing.T) {
 			t.Fatalf("want reload sources, got %v", c)
 		}
 		rr.Reset()
-		fixtureSecrets["key/backup"] = []byte("VRX_TEST_PSK_RF3_backup2")
-		defer func() { fixtureSecrets["key/backup"] = []byte("VRX_TEST_PSK_RF3_backup") }()
+		fixtureSecrets["key/backup"] = []byte("NGFW_TEST_PSK_RF3_backup2")
+		defer func() { fixtureSecrets["key/backup"] = []byte("NGFW_TEST_PSK_RF3_backup") }()
 		if err := r.Apply(ctx, render(t, r, changed)); err != nil {
 			t.Fatal(err)
 		}

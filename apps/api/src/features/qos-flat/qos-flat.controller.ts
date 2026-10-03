@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, Param, Post, Query, Req } from '@nestjs/comm
 import { ApiOkResponse, ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { AgentClient } from '../../agent/agent.client.js';
-import type { VrxRequest } from '../../common/principal.js';
+import type { NgfwRequest } from '../../common/principal.js';
 import { ProblemError, problems } from '../../common/problem.js';
 import { Protected } from '../../common/responses.js';
 import { openapi, ZodPipe } from '../../common/zod.js';
@@ -129,7 +129,7 @@ export class QosFlatController {
   @ApiOkResponse({ schema: openapi(ResetOut, 'output') })
   async reset(
     @Param(new ZodPipe(ResetParams)) p: z.output<typeof ResetParams>,
-    @Req() req: VrxRequest,
+    @Req() req: NgfwRequest,
   ) {
     req.audit = { resource: `qos/policers/${p.name}` };
     try {

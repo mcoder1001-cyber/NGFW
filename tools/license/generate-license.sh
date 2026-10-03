@@ -22,6 +22,7 @@ usage() {
 Usage:
   generate-license.sh                         # Generate a full-feature licence
   generate-license.sh all [CUSTOMER [FILE]]    # Same, with optional name/path
+  sudo generate-license.sh trust FILE PUBLIC.pem  # Trust its signing key in vrx-api
   generate-license.sh init
   generate-license.sh api-env
   generate-license.sh builtin-public-key
@@ -39,6 +40,10 @@ Keys and defaults can also be changed in the variables at the top of this file.
 Requires Bash and Node 22; uses the existing vrx-license.mjs signing implementation.
 The easy mode creates keys if missing, verifies the licence, and writes api.env
 next to it. All six features are enabled with no limits, valid for DEFAULT_DAYS.
+trust verifies FILE with PUBLIC.pem, configures the systemd vrx-api service to
+trust that public key, and restarts the API. Upload FILE afterwards.
+This replaces the service's product-key setting; use the existing signing pair
+when previously issued licences must remain valid. It requires root/systemd.
 HELP
 }
 
@@ -51,6 +56,35 @@ esac
 command -v node >/dev/null || { echo 'Node 22 is required.' >&2; exit 2; }
 
 case "$command" in
+  trust)
+    (($# == 2)) || { usage >&2; exit 2; }
+    ((EUID == 0)) || { echo 'Run trust with sudo and pass the original public-key path.' >&2; exit 2; }
+    command -v systemctl >/dev/null || { echo 'trust requires the systemd vrx-api service.' >&2; exit 2; }
+    # Fail before changing service settings if this is not a VRX system or the
+    # selected public key does not verify this exact licence.
+    systemctl cat vrx-api.service >/dev/null
+    node "$CLI" verify --pub "$2" "$1"
+    node --input-type=module - "$2" <<'JS'
+import { readFileSync, mkdirSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
+import { createPublicKey } from 'node:crypto';
+const key = createPublicKey(readFileSync(process.argv[2]));
+if (key.asymmetricKeyType !== 'ed25519') throw Error('Expected an Ed25519 public key');
+const pem = key.export({ type: 'spki', format: 'pem' }).trim().replace(/\n/g, '\\n');
+const dir = '/etc/systemd/system/vrx-api.service.d';
+const env = `${dir}/license-public.env`;
+const dropin = `${dir}/90-license-key.conf`;
+mkdirSync(dir, { recursive: true, mode: 0o755 });
+for (const path of [env, dropin]) {
+  if (existsSync(path)) copyFileSync(path, `${path}.bak-${Date.now()}`);
+}
+writeFileSync(env, `VRX_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { mode: 0o644 });
+writeFileSync(dropin, `[Service]\nEnvironmentFile=${env}\n`, { mode: 0o644 });
+JS
+    systemctl daemon-reload
+    systemctl restart vrx-api.service
+    systemctl is-active --quiet vrx-api.service
+    printf 'کلید عمومی در API تنظیم شد. اکنون فایل %s را دوباره در System → Licence بارگذاری کن.\n' "$1"
+    ;;
   all)
     (($# <= 2)) || { usage >&2; exit 2; }
     customer="${1:-${VRX_LICENSE_CUSTOMER:-Local administrator}}"
@@ -94,7 +128,9 @@ const pem = readFileSync(process.argv[2], 'utf8').trim().replace(/\r?\n/g, '\\n'
 writeFileSync(process.argv[3], `VRX_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { flag: 'wx', mode: 0o644 });
 JS
     printf '\nلایسنس همه قابلیت‌ها ساخته شد: %s\nاعتبار: %s روز؛ بدون محدودیت تعداد.\n' "$license_file" "$DEFAULT_DAYS"
-    printf 'برای پذیرش در سیستم، خط فایل %s را در /etc/vrx/api.env قرار بده و vrx-api را ری‌استارت کن.\n' "$env_file"
+    printf 'برای پذیرش در همین دستگاه VRX، اجرا کن:\n'
+    printf 'sudo bash %q trust %q %q\n' "${SCRIPT_DIR}/generate-license.sh" "$(realpath -- "$license_file")" "$(realpath -- "$PUBLIC_KEY")"
+    printf 'اگر دستگاه جداست، فایل لایسنس و کلید عمومی را به آن منتقل کن و فرمان trust را آنجا اجرا کن.\n'
     printf 'سپس فایل لایسنس را در System → Licence بارگذاری کن.\n'
     ;;
   init)

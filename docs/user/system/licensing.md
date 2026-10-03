@@ -123,6 +123,24 @@ in **System → Licence**. This changes the API's trusted product keys; keep an
 existing signing pair if licences already in use must continue verifying.
 No API settings or services are changed by the generator itself.
 
+If upload reports `licence signature is invalid`, first verify the original file
+with its signing public key. The API must trust that same public key. On the VRX
+device, this command verifies the file, writes a systemd drop-in with the public
+key, and restarts the API:
+
+```bash
+sudo bash tools/license/generate-license.sh trust license.vrxlic \
+  "$HOME/.config/vrx/license-keys/vrx-license-public.pem"
+```
+
+Then upload the licence again. Pass the actual public-key path from the signing
+workstation; do not generate another pair to fix an existing licence. For a
+separate appliance, transfer only the licence and public key to it, along with
+the generator and its adjacent `vrx-license.mjs`. The private key stays on the
+signing workstation. `trust` replaces the service's product-key setting via
+`/etc/systemd/system/vrx-api.service.d/90-license-key.conf`; existing files there
+are backed up before replacement. It requires the installed systemd service.
+
 `tools/license/generate-license.sh` provides editable defaults: keys under
 `$HOME/.config/vrx/license-keys`, a 365-day duration, and all six licensed features
 with no limits. It uses the same Node issuer and signature format as above.

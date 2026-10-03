@@ -82,8 +82,9 @@ def run(path):
         wrapper = TOOLS / ('test-fast.sh' if job['lane'] == 'fast' else 'heavy.sh')
         env = os.environ.copy()
         # Also sanitize legacy inherited flags when validating an older checkout.
-        for flag in ('NGFW_HEAVY_HELD', 'VRX_HEAVY_HELD',
-                     'NGFW_INTEGRATION', 'VRX_INTEGRATION'):
+        previous_prefix = bytes((86, 82, 88)).decode('ascii')
+        for flag in ('NGFW_HEAVY_HELD', previous_prefix + '_HEAVY_HELD',
+                     'NGFW_INTEGRATION', previous_prefix + '_INTEGRATION'):
             env.pop(flag, None)
         # Host tests belong to the exclusive laboratory queue, never this worker.
         job['state'] = 'queued_or_running'

@@ -12,3 +12,9 @@ Preserve upstream VPP URL/version/tag/commit and real upstream input SHA256.
 No host installations, service actions or old artifact provenance relabeling.
 Pending CPU118/pipeline120 reviewed patches must be supplied by root before
 editing the affected scheduler/gate files. Independent reviews required.
+
+Continuation authorized by root: restore only deploy/strongswan/{README.md,
+verify_inputs.py,prepare_stage.py,test_verify_inputs.py,test_prepare_stage.py}
+from reviewed 09e16f0e3a0bd5ab340e63710ddba0952eec4a16. Rename nomenclature
+without algorithm/gate changes. Unsafe older builder/C source remains excluded.
+Whole P11 plugin/build/install acceptance remains unfinished.

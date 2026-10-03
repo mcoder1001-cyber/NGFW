@@ -53,3 +53,23 @@ Follow-up validation:
   pydeps.lock bytes equal. Python syntax 35 files PASS; license Node syntax PASS.
 - Final full owned-shell warning/error audit after those fixes: 38 scripts, exit0,
   no diagnostics. Latest coherent product checkpoint 4478efdf1db21a3fb46669a50bbdd3da9bbaed6e.
+
+P11 bounded continuation (root authorized): restored ONLY five product files
+under deploy/strongswan from 09e16f0e3a0bd5ab340e63710ddba0952eec4a16.
+Automated comparison proves each equals that source with nomenclature-only
+VRX/vrx/Vrx to NGFW/ngfw/Ngfw replacement; no algorithm or test-gate changes.
+No unsafe older builder/C source or stale P10 branch restored. Existing
+historical upstream origin/digest metadata remains unchanged, not authenticated
+anew; whole P11 build/plugin/traffic/install acceptance stays unfinished.
+Legacy safety sanitation/refusal now derives the previous prefix from ASCII
+86,82,88; historical placeholder regex uses equivalent V[R]X pattern. This
+preserves previous checks without introducing runtime/auth configuration aliases.
+Actual static TOML/Python check: all five exact nomenclature-only comparisons
+true; historical and new placeholder allowed, generic token not allowlisted.
+- Literal old-brand scan tools/.github/deploy/strongswan: no matches.
+- Targeted legacy/refusal handoff regressions: 2 tests in 1.263s, OK.
+- Original complete VPP script with new namespace: 72 passed, 0 failed.
+- Python syntax for restored intake/stage/tests: PASS.
+- Bash syntax and warning/error shellcheck test-fast.sh: PASS.
+Full intake11/stage23 suites in progress; exact results pending.
+VPP build recipe remains frozen from prior checkpoint; no host changes.

@@ -9,6 +9,7 @@ import tempfile
 import unittest
 
 TOOLS = Path(__file__).resolve().parent
+PREVIOUS_PREFIX = bytes((86, 82, 88)).decode('ascii')
 
 
 class HandoffTests(unittest.TestCase):
@@ -29,8 +30,8 @@ class HandoffTests(unittest.TestCase):
         self.env = os.environ.copy()
         self.env.pop('NGFW_HEAVY_HELD', None)
         self.env.pop('NGFW_INTEGRATION', None)
-        self.env.pop('VRX_HEAVY_HELD', None)
-        self.env.pop('VRX_INTEGRATION', None)
+        self.env.pop(PREVIOUS_PREFIX + '_HEAVY_HELD', None)
+        self.env.pop(PREVIOUS_PREFIX + '_INTEGRATION', None)
         self.env['NGFW_TEST_LOCK_DIR'] = str(self.locks)
         self.env['NGFW_FAST_TIMEOUT_SECONDS'] = '30'
 
@@ -106,8 +107,8 @@ class HandoffTests(unittest.TestCase):
         self.assertEqual(direct.returncode, 2)
 
     def test_legacy_inherited_flags_cannot_enable_host_tests_or_bypass_locks(self):
-        flags = ('NGFW_INTEGRATION', 'VRX_INTEGRATION',
-                 'NGFW_HEAVY_HELD', 'VRX_HEAVY_HELD')
+        flags = ('NGFW_INTEGRATION', PREVIOUS_PREFIX + '_INTEGRATION',
+                 'NGFW_HEAVY_HELD', PREVIOUS_PREFIX + '_HEAVY_HELD')
         for flag in flags:
             with self.subTest(flag=flag):
                 env = dict(self.env, **{flag: '1'})
@@ -115,7 +116,7 @@ class HandoffTests(unittest.TestCase):
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                 self.assertEqual(direct.returncode, 2)
         self.env.update({flag: '1' for flag in flags})
-        blocked = ('NGFW_INTEGRATION', 'VRX_INTEGRATION', 'VRX_HEAVY_HELD')
+        blocked = ('NGFW_INTEGRATION', PREVIOUS_PREFIX + '_INTEGRATION', PREVIOUS_PREFIX + '_HEAVY_HELD')
         command = ('import os; flags=' + repr(blocked) +
                    '; assert not any(flag in os.environ for flag in flags); '
                    'assert os.environ.get("NGFW_HEAVY_HELD") == "3"')

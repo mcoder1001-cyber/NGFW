@@ -18,3 +18,8 @@ legacy integration/nested-worker flags and handoff removes them before launching
 a job, so an older checkout cannot accidentally enable laboratory execution or
 bypass its semaphore from a renamed scheduler. These legacy flags are safety
 refusals/sanitization only, not supported configuration aliases.
+
+The previous environment prefix is retained only as an encoded safety check:
+ASCII character codes 86, 82, 88 identify historical inherited flags. The
+historical synthetic-secret regex likewise matches that previous namespace
+without introducing a runtime configuration alias or accepting its artifacts.

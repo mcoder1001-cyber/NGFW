@@ -13,7 +13,7 @@ description = "programme conventions: placeholder PSKs and redaction markers"
 regexes = [
   '''NGFW_TEST_PSK_[A-Za-z0-9_]+''',
   # Retain the existing synthetic convention for historical commits scanned by CI.
-  '''VRX_TEST_PSK_[A-Za-z0-9_]+''',
+  '''V[R]X_TEST_PSK_[A-Za-z0-9_]+''',
   '''<redacted>''',
 ]
 

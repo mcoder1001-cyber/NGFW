@@ -102,3 +102,28 @@ tools/license/vrx-license inspect example.vrxlic
 ```
 
 The customer uploads `example.vrxlic` on **System → Licence**.
+
+### Bash shortcut
+
+`tools/license/generate-license.sh` provides editable defaults: keys under
+`$HOME/.config/vrx/license-keys`, a 365-day duration, and all six licensed features
+with no limits. It uses the same Node issuer and signature format as above.
+
+```bash
+tools/license/generate-license.sh init
+tools/license/generate-license.sh api-env
+# Apply the printed export to the API process environment and restart the API.
+tools/license/generate-license.sh issue --customer "Example Ltd" --out example.vrxlic
+tools/license/generate-license.sh verify example.vrxlic
+# Optional restrictions:
+tools/license/generate-license.sh issue --customer "Example Ltd" --days 30 \
+  --features ipsec,ha --limit ipsecTunnels=50 --serial "CUSTOMER-SERIAL" --out restricted.vrxlic
+```
+
+Change the defaults at the top of the script or set `VRX_SIGNING_KEY_DIR`,
+`VRX_SIGNING_PRIVATE_KEY`, `VRX_SIGNING_PUBLIC_KEY`, `VRX_LICENSE_DAYS`, or
+`VRX_LICENSE_FEATURES`. Keep the script beside `vrx-license.mjs`.
+The `builtin-public-key` command prints the current placeholder for reference;
+its discarded private half cannot be recovered. Newly generated keys are trusted
+only after configuring the API with their public key. Private keys stay on the
+signing workstation; `api-env` prints only the public key.

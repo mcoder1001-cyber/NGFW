@@ -1,3 +1,0 @@
-# Modern PKI integration envelope
-
-Parent-authorized isolated worktree `/root/.codex/worktrees/0b16/developers/PKI-integration`, branch `codex/pki-integration-20261003` from origin/main. Extract only PKI contracts from historical continuation; preserve every modern domain. Regenerate through repository generators; commit contracts before consumers. Then transfer standalone owned PKI API files and exact app.module anchors if feasible. No old-branch merge, broad generated/renderers copy, other worktree/main writes, services/VPP access, push or merge. Root publishes prepared checkpoints. Use shared on-disk dependencies and heavy semaphore. Recovery source is `F-pki-integration-wip.md`.

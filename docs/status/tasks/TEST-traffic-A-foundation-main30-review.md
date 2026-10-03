@@ -1,9 +1,0 @@
-# Foundation re-composition after identity main merge
-
-**APPROVE bounded current-main composition** exact `7ff1d271c8ab2ba7af09df9636333aeffaf5bcc7`, tree `56feeb0181ed4100ad2d3260ff4812b61d7b764e`, independently checked2026-10-02 against actual main `30fccd767e1e25a247659dc24808a2587d69c5e5` after external PR70 identity merge. This is a metadata/composition check, not another product/test round.
-
-Recursive tree assertions preserve **4360 other current-main entries** exact object/mode. The31 changed paths introduced between prior0e main and new30 main were individually checked against composed head; new identity source/generated contracts and every other new-main feature are intact. Only three existing documentation paths differ: arbitration log, central acceptance and operational checkpoints, each strictly append-only with actual-current-main bytes retained as exact prefix. Traffic source still exactly matches approvedfda0ddc7; explicit16 runner/workflow exactly matches approvedca486c2f. No stdout-cap/correlation/producer behavior enters foundation, no main source/CI gate replaced.
-
-Tree/new-main31-path preservation, strict append-only documents, frozen source/runner/workflow identity and `git diff --check`: PASS. No redundant16 rerun or source authoring. Prior archived published head/gates are historical; previous main full quick cancellation and an older head still running are not accepted as current-head PASS. Existing passing fixture evidence remains correctly scoped to its own head.
-
-Publish one new final commit with then-current30 main parent, require fresh unchanged full hosted quick and strict16 at that exact head, merge with expected-head validation and verify post-merge main. If main changes again, current composition/gates must be reassessed. No alternative gate weakening, whole-task DONE or live acceptance claim; no actual host/SSH/rig/capture mutation.

@@ -1,3 +1,0 @@
-# Build-affinity integration envelope
-
-Rootoperator assembles reviewedfivepaths only; no productcodeauthorship. Sourceccc0d2e6/remotece77e7ba reviewedR1/R2/R7/R8, originalstatic66+new6=72pass. ProspectivebaseP10integration9c577511; actualD112currentmainparent refresh andunchangedcompletequick pending. Integrationdocappendrefreshesobsoletehandoffrefs/nextcommandforR7MINOR, freshfocusedR7recheckpending. Actualcompiler usesfrozenccc sourcebranch, no sourcechangesduringcompile. Productinputs/provenance/taskset/nice/sharedjobs1..8capsunchanged. No completeDebian/release/install/hardwareclaim.

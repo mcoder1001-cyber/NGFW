@@ -1,7 +1,0 @@
-# Foundation current-main CI78 preservation review
-
-**APPROVE bounded composition** exact `b7ba72fdb6df20c25a568533955786569203758b`, tree `d3eea98ad7c4c339d8fcd184b7f9b829f9eb6b27`, independently checked2026-10-02 against actual CI78 merged main `508ffe415445154ff78426e165e8efbd37d51098`. No new product/test round.
-
-Recursive tree assertions preserve **4360 other current-main entries** exact object/mode. Only the three expected existing documentation paths differ; each remains strictly append-only with actual-main bytes as exact prefix. Main's `.github/workflows/ci.yml` is exactly retained, including newly merged `push.branches: [main]`; PR/workflow_dispatch events and full gate body are not replaced or bypassed. Traffic source equals approvedfda0ddc7, strict16 runner/workflow equals approvedca486c2f. Identity/generated contract/installer/key source and all other main features remain exact. Assertions and `git diff --check`: PASS. No redundant fixture execution or source authoring.
-
-Historical old-head full quick PASS and archived earlier published heads do not establish acceptance for this new508-parent composition. Publish a new single commit with then-current main parent and require fresh unchanged complete hosted quick plus strict16 fixtures at its exact PR head; retain archive/history and merge with expected-head verification. CI78 feature-push suppression does not remove PR final-head validation. No live host/packet/SSH/rig mutation and no whole TEST-traffic-A DONE claim.

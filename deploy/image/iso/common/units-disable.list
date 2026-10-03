@@ -1,3 +1,0 @@
-# systemd units disabled on the image (docs/09-os-packages.md §3; scripts/10-install-runtime.sh does the same).
-# Columns: unit  profiles (all | iso | vm | cloud)  reason
-irqbalance.service  all  moves interrupts onto the cores isolated for VPP workers (jitter)

@@ -1,1 +1,0 @@
-ALTER TABLE "api_key" ADD COLUMN "mfa_verified" boolean DEFAULT false NOT NULL;

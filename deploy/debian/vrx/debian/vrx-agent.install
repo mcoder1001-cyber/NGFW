@@ -1,5 +1,0 @@
-stage/usr/sbin/vrx-agent usr/sbin/
-stage/usr/sbin/vrx-startupgen usr/lib/vrx/bin/
-stage/usr/sbin/vrx-vppcheck usr/lib/vrx/bin/
-stage/usr/lib/vrx/apply-startup.sh usr/lib/vrx/
-stage/usr/lib/systemd/system/vrx-agent.service usr/lib/systemd/system/

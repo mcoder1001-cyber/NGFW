@@ -1,1 +1,0 @@
-ALTER TABLE "app_user" ADD COLUMN "credential_gen" integer DEFAULT 0 NOT NULL;

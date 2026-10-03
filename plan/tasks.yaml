@@ -1282,15 +1282,16 @@ tasks:
     → start → AckRestart, SA state/event glue) apps/agent/internal/desired/ipsec*.go apps/agent/internal/subsystems/ipsec*.go apps/agent/internal/agent/rpc_ipsec*.go packages/schema/src/semantic/ipsec*.ts
     apps/api/src/features/ipsec/** apps/api/test/e2e/ipsec* apps/web/src/domains/vpn/ipsec/** apps/web/src/locales/{en,fa}/ipsec.json docs/user/vpn/ipsec.md docs/agent/renderers/strongswan.md docs/agent/descriptors/ipsec.md
     test/topology/ipsec/** docs/status/tasks/P11* — plus apps/agent/internal/secrets/** ONLY if the manager assigns the API→agent secret channel to P11 (see coordination)'
-  branch: task/P11-codex
-  worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-P11
-  owner: awaiting resume
-  started: '2026-10-01T20:33:27.076593+00:00'
+  branch: codex/p11-resume-parallel-20261003
+  worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-p11-resume
+  owner: /root/ngfw_manager/p10_developer (P11 assignment)
+  started: '2026-10-03'
   finished: ''
   notes: 'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13: RF-2 AckRestart(ctx,
     since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before
     any VPP write) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. |
-    2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source state retained.'
+    2026-10-03 parallel recovery: no verified live developer; operationally awaiting resume, unfinished source state retained. | 2026-10-03 new live recovery assignment: isolated packaging provenance/staging
+    slice; all5deps merged; no host mutation.'
 - id: F-ikev2-native
   title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
   prompt: prompts/features/F-ikev2-native.md
@@ -2087,13 +2088,14 @@ tasks:
     (FD.io row and table rows; review 5.5a)'
   branch: codex/p10-resume-parallel-20261003
   worktree: /root/Documents/Codex/2026-10-03/check-out-latest-code-from-git/work/NGFW-p10-resume
-  owner: /root/ngfw_manager/p10_developer
+  owner: awaiting independent fresh review
   started: '2026-10-03'
   finished: ''
   notes: 'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box 15 → 24 (:59); +nginx
     security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled until TD-17 merges; the first real
     DPDK run waits for TD-11c | started 2026-09-25 11:30 slot 6, SPECULATIVE on main 16467e5e (TD-9/TD-10b approved, not merged; D-114) | 2026-10-03: live isolated developer assigned by programme manager;
-    unfinished code first, bounded source slice, whole task not yet done.'
+    unfinished code first, bounded source slice, whole task not yet done. | 2026-10-03 PR98 published e53bc20b source slice; developer handed off and reassigned P11; required fresh panel blocked runtime
+    total-thread cap, no merge.'
 - id: P14
   title: Unattended installer ISO (26.04)
   prompt: prompts/P14-iso-installer.md

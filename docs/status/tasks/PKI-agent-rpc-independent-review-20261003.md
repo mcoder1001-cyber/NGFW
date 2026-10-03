@@ -1,0 +1,11 @@
+# Independent PKI agent RPC review
+
+Reviewed frozen `ede0011f90dc88377302dee8a13c232145a669a9` in PKI-agent-rpc: new rpc_pki.go, rpc_pki_test.go and task documents only. Verdict **APPROVE WITH VALIDATION LIMITS**; no concrete blocking finding.
+
+The new method is on the actual registered `*server` receiver and therefore overrides the generated embedded UNIMPLEMENTED handler. It calls existing checkOwner before observation: nonempty foreign owner returns InvalidArgument; empty owner follows existing service.go:296–301 convention. Request GetOwner is nil-safe. Successful response uses actual configured owner and service clock; NewService defaults that clock to time.Now. Timestamp is created with timestamppb.New. No filesystem, secrets, scheduler, VPP, network or host mutation is performed by the method.
+
+Unavailable response is truthful for this build: fixed public materializer-not-wired reason, empty root/files, current observation timestamp. This matches proto root-empty-when-unavailable and avoids suggesting an empty healthy inventory. It does not claim a scheduler materializer, secret transport or nonempty file observer exists. No certificate/key content or secret references are accessed or returned.
+
+Tests are meaningful: direct foreign-owner rejection precedes clock invocation; matching/empty owner each observe timestamp once; exact proto equality checks empty root/files and fixed reason, and CheckValid checks timestamp. The generated client/server adapter is exercised over in-memory bufconn with deadline, proving concrete registration overrides inherited UNIMPLEMENTED and roundtrips the full response. Foreign-owner rejection is also exercised through generated transport. Nil scheduler/state/VPP/provider in fixtures exposes accidental side-effect dependencies. Insecure credentials are confined to the in-memory test transport; production registration/auth configuration is unchanged. Owner validation is not a new transport authentication mechanism.
+
+No reviewer execution of tests/lint/build/full gate, no product edits and no host calls. Root owns finite race test, linter, build and hosted quick gate. Future materializer wiring must replace this static unavailable behavior with observed state under the coordinated P11 privilege/secret boundary; that implementation is outside this checkpoint approval.

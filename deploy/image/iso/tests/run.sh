@@ -220,13 +220,19 @@ mkdir -p "$VRX_ISO_SCRATCH/foreign"; rc=0; ( vrx_rm_rf "$VRX_ISO_SCRATCH/foreign
 check "guard: rm refuses a dir without the marker" test "$rc" != 0 -a -d "$VRX_ISO_SCRATCH/foreign"
 
 check "installer: failed inventory blocks destructive continuation" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_disk_guard.py"
+check "installer: uncertain size inventory fails closed" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_size_guard.py"
 
 check "python: renderer regression cases" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_render.py"
+check "python: uncertain console credential cleanup recovery" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_console_recovery.py"
 check "python: VPP manifest completeness and archive parity" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_vpp_manifest.py"
 
 # ---------------------------------------------------------------- shellcheck
 if command -v shellcheck >/dev/null; then
-  check "shellcheck: all P14 shell code" shellcheck -x -P SCRIPTDIR "$ISO/build-iso.sh" "$ISO"/lib/*.sh "$ISO"/installer/*.sh "$C"/bin/* "$HERE/run.sh"
+  if shellcheck -x -P SCRIPTDIR "$ISO/build-iso.sh" "$ISO"/lib/*.sh "$ISO"/installer/*.sh "$C"/bin/* "$HERE/run.sh"; then
+    ok "shellcheck: all P14 shell code"
+  else
+    bad "shellcheck: all P14 shell code"
+  fi
 fi
 check "python: render.py compiles" env PYTHONPYCACHEPREFIX="$TMP/pycache" python3 -m py_compile "$ISO/lib/render.py"
 

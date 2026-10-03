@@ -864,7 +864,7 @@ export class PkiService implements OnApplicationBootstrap, OnModuleDestroy {
           notAfter: facts.notAfter,
           daysLeft: left,
           alertDays,
-          severity: left <= 0 ? 'critical' : 'warning',
+          severity: Date.parse(facts.notAfter) < now.getTime() ? 'critical' : 'warning',
         });
     };
     for (const [name, c] of Object.entries(running.cas))
@@ -882,7 +882,7 @@ export class PkiService implements OnApplicationBootstrap, OnModuleDestroy {
           value: a.daysLeft,
           severity: a.severity,
           message:
-            a.daysLeft <= 0
+            a.severity === 'critical'
               ? `${a.kind} '${a.name}' expired on ${a.notAfter}`
               : `${a.kind} '${a.name}' expires in ${a.daysLeft} days (${a.notAfter})`,
         });

@@ -1,0 +1,9 @@
+# Independent P14 console decimal-count review
+
+Read-only reproduction against origin/mainb2c214b5 and source fix review95ed63b52d34170afb516260e8f39a617a68f17c in P14-count. Verdict APPROVE source fix, pending root-owned regression/aggregate validation.
+
+Actual pre-fix probes ran the real bootstrap/banner scripts exclusively against fresh temporary image roots and the existing non-live query hook. Successful positive counts9223372036854775808 and18446744073709551616 each removed the credential copy;08 also removed it while emitting an arithmetic diagnostic. Ordinary1 preserved it. Only count strings and boolean outcomes were printed; script outputs and credential bytes were never exposed. Separate harmless Bash arithmetic probes confirmed signed overflow and octal-leading-zero interpretation. No live root, database, network, services, mounts or appliance operations used.
+
+Fix retains the existing successful-query/digits-only validation and compares only validated text to /^0+$/. Thus every accepted decimal value containing a nonzero digit preserves credentials regardless of width/leading zeros, and only a confirmed all-zero count removes them. It performs no integer conversion, suppresses no failure, changes no query/cleanup permission boundary and is not limited to a chosen machine integer width.
+
+Added actual-script regressions cover signed64 overflow,2^64 wrap,008positive and000zero. Positive cases reuse preserved bytes/private issue mode/no-secret diagnostic assertions and ordinary-zero recovery, rather than testing a duplicate helper. Existing partial failure and malformed output regressions remain. Zero-leading fixture checks actual deletion and sanitized issue. Root owns post-fix execution and aggregate wiring; no post-fix tests or full gate executed by reviewer. Real database/first-login acceptance remains NOT RUN.

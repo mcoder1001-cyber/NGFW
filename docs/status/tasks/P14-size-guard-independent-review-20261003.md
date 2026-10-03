@@ -1,0 +1,11 @@
+# Independent ISO disk-size guard review — 2026-10-03
+
+Reviewed immutable9d199f89 against95ed63b5 in P14-size. Verdict APPROVE source repair with root-owned execution limits. No product edits/tests/host disk operations performed by reviewer.
+
+Python invokes fixed-argv lsblk SIZE,TYPE,RM with check=True. Failed inventory is rejected before parsing even when stdout includes a valid-looking partial disk, and raw subprocess diagnostics/output are not echoed. Every successful output row must have exactly three fields, decimal SIZE1–20digits within uint64, lexical TYPE and removable0/1. Python arbitrary-precision comparisons avoid scientific notation, float loss and signed overflow. Only fixed disks participate; no qualifying disk or insufficient maximum rejects. Returned size is printed only after the entire inventory passes validation, so a malformed later row cannot bypass the guard.
+
+Production early hook calls the exact helper via its own directory and routes nonzero exit through existing stop/poweroff behavior. Prior installation/inventory guard still runs first; reinstall does not skip either inventory guard. BIOS GRUB adjustment and LUKS generation remain after successful safety checks; default destructive storage selection and reinstall semantics are unchanged. Builder embeds the helper with the existing installers through install -m0755; source100644 is valid because invocation is python3 and target mode is explicitly0755. Python is already an installer dependency.
+
+New subprocess tests execute the actual helper with a temporary PATH stub that enforces exact production lsblk arguments, never reading live disks. Fixtures cover threshold/largest fixed versus removable, failed-empty/partial inventory, malformed rows after a valid disk, invalid numbers/flags/field counts, no fixed disk and exactuint64 maximum/overflow. Aggregate run.sh includes the new test, avoiding prior standalone-test discovery gaps. Meaningful behavior differs from a reimplemented parser test and would fail the original float/partial-inventory path.
+
+Limits: no real lsblk/installer/build/VM or test suites executed by reviewer. Root queues actual finite tests/aggregate71 and full hosted gate. Actual ISO embedding/boot/media/disk selection acceptance remains NOT RUN; this repair does not claim full P14 completion or change curtin largest-disk selection policy.

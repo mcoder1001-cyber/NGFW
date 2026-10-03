@@ -17,7 +17,9 @@ say() { echo "vrx-early: $*"; }
 stop() { # print the reason on every console and power off (never wipes anything)
   local c
   for c in /dev/console /dev/tty1 /dev/ttyS0; do
-    [[ -w $c ]] && printf '\n\n*** VRX installer stopped: %s ***\n*** The machine powers off in 60 s. ***\n\n' "$*" > "$c" 2>/dev/null || true
+    if [[ -w $c ]]; then
+      printf '\n\n*** VRX installer stopped: %s ***\n*** The machine powers off in 60 s. ***\n\n' "$*" > "$c" 2>/dev/null || true
+    fi
   done
   say "STOP: $*"; sleep 60; systemctl poweroff --force || poweroff -f
   exit 1
@@ -31,10 +33,8 @@ if ! vrx_check_reinstall "$cmdline"; then
   stop "disk safety verification failed (inventory unavailable or prior VRX installation found); see /var/log/vrx-early.log"
 fi
 
-min=$((96 * 1024 * 1024 * 1024))
-largest=$(lsblk -bdnro SIZE,TYPE,RM 2>/dev/null | awk '$2 == "disk" && $3 == 0 { if ($1 > m) m = $1 } END { print m + 0 }')
-if ((largest < min)); then
-  stop "the largest fixed disk has $((largest / 1024 / 1024 / 1024)) GiB; the VRX layout needs at least 96 GiB"
+if ! python3 "$HERE/vrx-size-guard.py"; then
+  stop "disk size inventory unavailable, invalid or below 96 GiB; see /var/log/vrx-early.log"
 fi
 
 if [[ ! -d /sys/firmware/efi ]]; then

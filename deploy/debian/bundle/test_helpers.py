@@ -116,6 +116,7 @@ class HelpersTests(unittest.TestCase):
         # All executable project files used by the child are delivered helpers
         # in /var/tmp; cwd/PYTHONPATH are outside the checkout, Python uses -I.
         (self.root / 'sitecustomize.py').write_text('raise RuntimeError("untrusted Python startup")\n')
+        (self.delivery / 'install.py').write_text('raise RuntimeError("unknown delivery helper executed")\n')
         result = self.invocation()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout), {'mode': 'plan', 'manifest': self.plan})
@@ -124,6 +125,19 @@ class HelpersTests(unittest.TestCase):
             self.assertEqual(set(archive.getnames()), set(HELPERS.source_files()))
             for member in archive:
                 self.assertEqual(archive.extractfile(member).read(), (HELPERS.ROOT / member.name).read_bytes())
+
+    def test_all_extracted_directories_private_with_normal_umask(self):
+        destination = self.root / 'private-mode-test'
+        destination.mkdir(mode=0o700)
+        self.addCleanup(shutil.rmtree, destination)
+        previous = os.umask(0o022)
+        try:
+            RECIPIENT.unpack_helpers(self.helpers, self.report_data, destination)
+        finally:
+            os.umask(previous)
+        for path in destination.rglob('*'):
+            expected = 0o700 if path.is_dir() else self.report_data['files'][path.relative_to(destination).as_posix()]['mode']
+            self.assertEqual(path.stat().st_mode & 0o777, expected, str(path))
 
     def test_deterministic_export_and_no_overwrite(self):
         output = self.root / 'second.tar'

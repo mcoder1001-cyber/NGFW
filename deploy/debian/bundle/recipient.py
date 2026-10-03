@@ -120,7 +120,13 @@ def unpack_helpers(archive_path, report, destination):
             if len(content) != entry['size'] or hashlib.sha256(content).hexdigest() != entry['sha256']:
                 raise ValueError('helper member differs from trusted inventory')
             path = destination / member.name
-            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            # Path.mkdir(parents=True) applies mode only to the leaf, leaving
+            # implicit parents at the process umask's default permissions.
+            # Create every canonical directory component explicitly instead.
+            parent = destination
+            for component in Path(member.name).parts[:-1]:
+                parent = parent / component
+                parent.mkdir(exist_ok=True, mode=0o700)
             with path.open('xb') as stream:
                 stream.write(content)
             path.chmod(entry['mode'])

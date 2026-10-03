@@ -12,3 +12,7 @@ Inspected production app.ts configureApp, telemetry/stream.route.ts and mgmt-tls
 This review covers stream recovery only. Certificate-removal listener behavior, delayed listener creation, state accuracy and concurrent reload sequencing remain explicit follow-ups; no whole management or lab/browser acceptance is certified.
 
 Verdict: APPROVE
+
+## Sanitized final99 recheck
+
+Local7b57a2849938d7fd361cd3adcf292a89108252f3, tree482ea283bf0cb9d4d606294462c723331715cc62; published7f7b81eb9e8af2b1918da22b98b29883f7418074. Diff versus initial reviewed source changes only test nonce/client pooling/error context and evidence; product service unchanged. Runtime nonce prevents fixed-public-RFC-sample scanner false positive; no security scanner exemption/weakening introduced. Independent focus10/10PASS on frozen final source. Verdict: APPROVE (bounded delta only).

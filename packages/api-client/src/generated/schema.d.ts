@@ -745,6 +745,142 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/actions/pki/ca': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Generate a self-signed CA (key key/<name>, certificate cert/<name>) and stage vpn.pki.cas.<name> */
+    post: operations['Pki_ca'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/csr': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Generate a key pair (stored as key/<name>, never returned) and return a CSR for it */
+    post: operations['Pki_csr'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/sign': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** An internal CA signs a CSR (cert/<name>); staged as vpn.pki.certificates.<name> when key/<name> is its key */
+    post: operations['Pki_sign'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Import a CA or a certificate: PEM (+ key PEM or key reference) or PKCS#12 with passphrase; validates chain and key match */
+    post: operations['Pki_import'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/export/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Public PEM of a certificate, CA (chain) or CRL — a private key is never exported (403) */
+    get: operations['Pki_export'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/crl/refresh': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Fetch, verify and store the CRL of one CA (or of every CA with crl.url) as cert/<ca>.crl */
+    post: operations['Pki_crl'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/pki/ocsp/check': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Ask the OCSP responder of the issuing CA about one certificate (or all) */
+    post: operations['Pki_ocsp'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/pki': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** PKI state: subject, issuer, SAN, validity, days left, CRL age, OCSP status, materialised files */
+    get: operations['Pki_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/mpls/fib': {
     parameters: {
       query?: never;
@@ -6718,6 +6854,45 @@ export interface components {
              * Format: uri
              */
             ocspUrl?: string;
+            /** Key */
+            keySpec?: {
+              /**
+               * Key type
+               * @default ecdsa
+               * @enum {string}
+               */
+              type: 'ecdsa' | 'rsa';
+              /**
+               * Curve
+               * @enum {string}
+               */
+              curve?: 'p256' | 'p384';
+              /** Key size (bits) */
+              bits?: 2048 | 3072 | 4096;
+            };
+            /** Certificate facts */
+            issued?: {
+              /** Subject */
+              subject: string;
+              /** Issuer */
+              issuer: string;
+              /** Serial number */
+              serial: string;
+              /**
+               * Valid from
+               * Format: date-time
+               */
+              notBefore: string;
+              /**
+               * Valid until
+               * Format: date-time
+               */
+              notAfter: string;
+              /** SHA-256 fingerprint */
+              fingerprint: string;
+              /** CA certificate (basicConstraints CA:TRUE) */
+              ca?: boolean;
+            };
           };
         };
         /**
@@ -6761,6 +6936,58 @@ export interface components {
              * @default 30
              */
             expiryAlertDays: number;
+            /** CSR */
+            csr?: {
+              /** Subject */
+              subject: string;
+              /**
+               * Subject alternative names
+               * @default []
+               */
+              san: (string | string)[];
+              /**
+               * Key
+               * @default {}
+               */
+              keySpec: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              };
+            };
+            /** Certificate facts */
+            issued?: {
+              /** Subject */
+              subject: string;
+              /** Issuer */
+              issuer: string;
+              /** Serial number */
+              serial: string;
+              /**
+               * Valid from
+               * Format: date-time
+               */
+              notBefore: string;
+              /**
+               * Valid until
+               * Format: date-time
+               */
+              notAfter: string;
+              /** SHA-256 fingerprint */
+              fingerprint: string;
+              /** CA certificate (basicConstraints CA:TRUE) */
+              ca?: boolean;
+            };
           };
         };
         /** PKCS#11 / HSM */
@@ -12816,6 +13043,1236 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_ca: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description vpn.pki object name (≤ 59 characters) */
+          name: string;
+          /** Distinguished name */
+          subject: string;
+          keySpec?: {
+            /**
+             * Key type
+             * @default ecdsa
+             * @enum {string}
+             */
+            type?: 'ecdsa' | 'rsa';
+            /**
+             * Curve
+             * @enum {string}
+             */
+            curve?: 'p256' | 'p384';
+            /** Key size (bits) */
+            bits?: 2048 | 3072 | 4096;
+          };
+          /** @default 3650 */
+          days?: number;
+          description?: string;
+          /**
+           * @description merge the result into the candidate
+           * @default true
+           */
+          stage?: boolean;
+          /**
+           * @description store new secret versions when the references exist
+           * @default false
+           */
+          replace?: boolean;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            certificateRef: string;
+            issued: {
+              /** Subject */
+              subject: string;
+              /** Issuer */
+              issuer: string;
+              /** Serial number */
+              serial: string;
+              /**
+               * Valid from
+               * Format: date-time
+               */
+              notBefore: string;
+              /**
+               * Valid until
+               * Format: date-time
+               */
+              notAfter: string;
+              /** SHA-256 fingerprint */
+              fingerprint: string;
+              ca: boolean;
+            };
+            keyRef: string;
+            keySpec: {
+              /**
+               * Key type
+               * @default ecdsa
+               * @enum {string}
+               */
+              type: 'ecdsa' | 'rsa';
+              /**
+               * Curve
+               * @enum {string}
+               */
+              curve?: 'p256' | 'p384';
+              /** Key size (bits) */
+              bits?: 2048 | 3072 | 4096;
+            };
+            certificatePem: string;
+            staged: boolean;
+            pointer: string;
+            patch: {
+              /** Description */
+              description?: string;
+              /** Certificate (reference) */
+              certificateRef?: string;
+              /** CRL */
+              crl?: {
+                /**
+                 * URL
+                 * Format: uri
+                 */
+                url?: string;
+                /**
+                 * CRL refresh (s)
+                 * @default 86400
+                 */
+                refreshIntervalSec: number;
+              };
+              /**
+               * OCSP responder URL
+               * Format: uri
+               */
+              ocspUrl?: string;
+              /** Key */
+              keySpec?: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              };
+              /** Certificate facts */
+              issued?: {
+                /** Subject */
+                subject: string;
+                /** Issuer */
+                issuer: string;
+                /** Serial number */
+                serial: string;
+                /**
+                 * Valid from
+                 * Format: date-time
+                 */
+                notBefore: string;
+                /**
+                 * Valid until
+                 * Format: date-time
+                 */
+                notAfter: string;
+                /** SHA-256 fingerprint */
+                fingerprint: string;
+                /** CA certificate (basicConstraints CA:TRUE) */
+                ca?: boolean;
+              };
+              /** Private key (reference) */
+              privateKeyRef?: string;
+              /** Issuing CA */
+              ca?: string;
+              /** ACME */
+              acme?: {
+                /**
+                 * URL
+                 * Format: uri
+                 * @default https://acme-v02.api.letsencrypt.org/directory
+                 */
+                directoryUrl: string;
+                /** Domains */
+                domains: string[];
+                /**
+                 * Account e-mail
+                 * Format: email
+                 */
+                email?: string;
+                /**
+                 * Challenge
+                 * @default http-01
+                 * @enum {string}
+                 */
+                challenge: 'http-01' | 'dns-01';
+              };
+              /**
+               * Expiry alert (days before)
+               * @default 30
+               */
+              expiryAlertDays: number;
+              csr?: {
+                subject: string;
+                san: string[];
+                keySpec?: {
+                  /**
+                   * Key type
+                   * @default ecdsa
+                   * @enum {string}
+                   */
+                  type: 'ecdsa' | 'rsa';
+                  /**
+                   * Curve
+                   * @enum {string}
+                   */
+                  curve?: 'p256' | 'p384';
+                  /** Key size (bits) */
+                  bits?: 2048 | 3072 | 4096;
+                };
+              };
+            };
+            reason?: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_csr: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description vpn.pki object name (≤ 59 characters) */
+          name: string;
+          /** Distinguished name */
+          subject: string;
+          /** @default [] */
+          san?: (string | string)[];
+          keySpec?: {
+            /**
+             * Key type
+             * @default ecdsa
+             * @enum {string}
+             */
+            type?: 'ecdsa' | 'rsa';
+            /**
+             * Curve
+             * @enum {string}
+             */
+            curve?: 'p256' | 'p384';
+            /** Key size (bits) */
+            bits?: 2048 | 3072 | 4096;
+          };
+          /**
+           * @description store new secret versions when the references exist
+           * @default false
+           */
+          replace?: boolean;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            keyRef: string;
+            csr: {
+              /** Subject */
+              subject: string;
+              /**
+               * Subject alternative names
+               * @default []
+               */
+              san: (string | string)[];
+              /** Key */
+              keySpec: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              };
+            };
+            csrPem: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_sign: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description vpn.pki object name (≤ 59 characters) */
+          ca: string;
+          /** @description vpn.pki object name (≤ 59 characters) */
+          name: string;
+          csrPem: string;
+          /** @default 365 */
+          days?: number;
+          san?: (string | string)[];
+          /**
+           * @description merge the result into the candidate
+           * @default true
+           */
+          stage?: boolean;
+          /**
+           * @description store new secret versions when the references exist
+           * @default false
+           */
+          replace?: boolean;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            certificateRef: string;
+            issued: {
+              /** Subject */
+              subject: string;
+              /** Issuer */
+              issuer: string;
+              /** Serial number */
+              serial: string;
+              /**
+               * Valid from
+               * Format: date-time
+               */
+              notBefore: string;
+              /**
+               * Valid until
+               * Format: date-time
+               */
+              notAfter: string;
+              /** SHA-256 fingerprint */
+              fingerprint: string;
+              ca: boolean;
+            };
+            certificatePem: string;
+            staged: boolean;
+            pointer: string;
+            patch: {
+              /** Description */
+              description?: string;
+              /** Certificate (reference) */
+              certificateRef?: string;
+              /** CRL */
+              crl?: {
+                /**
+                 * URL
+                 * Format: uri
+                 */
+                url?: string;
+                /**
+                 * CRL refresh (s)
+                 * @default 86400
+                 */
+                refreshIntervalSec: number;
+              };
+              /**
+               * OCSP responder URL
+               * Format: uri
+               */
+              ocspUrl?: string;
+              /** Key */
+              keySpec?: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              };
+              /** Certificate facts */
+              issued?: {
+                /** Subject */
+                subject: string;
+                /** Issuer */
+                issuer: string;
+                /** Serial number */
+                serial: string;
+                /**
+                 * Valid from
+                 * Format: date-time
+                 */
+                notBefore: string;
+                /**
+                 * Valid until
+                 * Format: date-time
+                 */
+                notAfter: string;
+                /** SHA-256 fingerprint */
+                fingerprint: string;
+                /** CA certificate (basicConstraints CA:TRUE) */
+                ca?: boolean;
+              };
+              /** Private key (reference) */
+              privateKeyRef?: string;
+              /** Issuing CA */
+              ca?: string;
+              /** ACME */
+              acme?: {
+                /**
+                 * URL
+                 * Format: uri
+                 * @default https://acme-v02.api.letsencrypt.org/directory
+                 */
+                directoryUrl: string;
+                /** Domains */
+                domains: string[];
+                /**
+                 * Account e-mail
+                 * Format: email
+                 */
+                email?: string;
+                /**
+                 * Challenge
+                 * @default http-01
+                 * @enum {string}
+                 */
+                challenge: 'http-01' | 'dns-01';
+              };
+              /**
+               * Expiry alert (days before)
+               * @default 30
+               */
+              expiryAlertDays: number;
+              csr?: {
+                subject: string;
+                san: string[];
+                keySpec?: {
+                  /**
+                   * Key type
+                   * @default ecdsa
+                   * @enum {string}
+                   */
+                  type: 'ecdsa' | 'rsa';
+                  /**
+                   * Curve
+                   * @enum {string}
+                   */
+                  curve?: 'p256' | 'p384';
+                  /** Key size (bits) */
+                  bits?: 2048 | 3072 | 4096;
+                };
+              };
+            };
+            reason?: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_import: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json':
+          | {
+              /** @constant */
+              format: 'pem';
+              /** @enum {string} */
+              as: 'ca' | 'certificate';
+              /** @description vpn.pki object name (≤ 59 characters) */
+              name: string;
+              certificatePem: string;
+              /** @description write-only; never returned */
+              privateKeyPem?: string;
+              privateKeyRef?: string;
+              /** @description vpn.pki object name (≤ 59 characters) */
+              ca?: string;
+              /**
+               * @description merge the result into the candidate
+               * @default true
+               */
+              stage?: boolean;
+              /**
+               * @description store new secret versions when the references exist
+               * @default false
+               */
+              replace?: boolean;
+            }
+          | {
+              /** @constant */
+              format: 'pkcs12';
+              /** @enum {string} */
+              as: 'ca' | 'certificate';
+              /** @description vpn.pki object name (≤ 59 characters) */
+              name: string;
+              /** Format: base64 */
+              pkcs12: string;
+              /** @description write-only; never returned or logged */
+              passphrase: string;
+              /** @description vpn.pki object name (≤ 59 characters) */
+              ca?: string;
+              /**
+               * @description merge the result into the candidate
+               * @default true
+               */
+              stage?: boolean;
+              /**
+               * @description store new secret versions when the references exist
+               * @default false
+               */
+              replace?: boolean;
+            };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            certificateRef: string;
+            issued: {
+              /** Subject */
+              subject: string;
+              /** Issuer */
+              issuer: string;
+              /** Serial number */
+              serial: string;
+              /**
+               * Valid from
+               * Format: date-time
+               */
+              notBefore: string;
+              /**
+               * Valid until
+               * Format: date-time
+               */
+              notAfter: string;
+              /** SHA-256 fingerprint */
+              fingerprint: string;
+              ca: boolean;
+            };
+            /** @enum {string} */
+            as: 'ca' | 'certificate';
+            keyRef: string | null;
+            chainLength: number;
+            staged: boolean;
+            pointer: string;
+            patch: {
+              /** Description */
+              description?: string;
+              /** Certificate (reference) */
+              certificateRef?: string;
+              /** CRL */
+              crl?: {
+                /**
+                 * URL
+                 * Format: uri
+                 */
+                url?: string;
+                /**
+                 * CRL refresh (s)
+                 * @default 86400
+                 */
+                refreshIntervalSec: number;
+              };
+              /**
+               * OCSP responder URL
+               * Format: uri
+               */
+              ocspUrl?: string;
+              /** Key */
+              keySpec?: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              };
+              /** Certificate facts */
+              issued?: {
+                /** Subject */
+                subject: string;
+                /** Issuer */
+                issuer: string;
+                /** Serial number */
+                serial: string;
+                /**
+                 * Valid from
+                 * Format: date-time
+                 */
+                notBefore: string;
+                /**
+                 * Valid until
+                 * Format: date-time
+                 */
+                notAfter: string;
+                /** SHA-256 fingerprint */
+                fingerprint: string;
+                /** CA certificate (basicConstraints CA:TRUE) */
+                ca?: boolean;
+              };
+              /** Private key (reference) */
+              privateKeyRef?: string;
+              /** Issuing CA */
+              ca?: string;
+              /** ACME */
+              acme?: {
+                /**
+                 * URL
+                 * Format: uri
+                 * @default https://acme-v02.api.letsencrypt.org/directory
+                 */
+                directoryUrl: string;
+                /** Domains */
+                domains: string[];
+                /**
+                 * Account e-mail
+                 * Format: email
+                 */
+                email?: string;
+                /**
+                 * Challenge
+                 * @default http-01
+                 * @enum {string}
+                 */
+                challenge: 'http-01' | 'dns-01';
+              };
+              /**
+               * Expiry alert (days before)
+               * @default 30
+               */
+              expiryAlertDays: number;
+              csr?: {
+                subject: string;
+                san: string[];
+                keySpec?: {
+                  /**
+                   * Key type
+                   * @default ecdsa
+                   * @enum {string}
+                   */
+                  type: 'ecdsa' | 'rsa';
+                  /**
+                   * Curve
+                   * @enum {string}
+                   */
+                  curve?: 'p256' | 'p384';
+                  /** Key size (bits) */
+                  bits?: 2048 | 3072 | 4096;
+                };
+              };
+            };
+            reason?: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_export: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            name: string;
+            /** @enum {string} */
+            kind: 'certificate' | 'ca' | 'crl';
+            ref: string;
+            pem: string;
+            fingerprint: string | null;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_crl: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description vpn.pki object name (≤ 59 characters) */
+          ca?: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            results: {
+              url: string;
+              fetchedAt: string | null;
+              thisUpdate: string | null;
+              nextUpdate: string | null;
+              revoked: string[];
+              number: string | null;
+              error: string | null;
+              ca: string;
+              stored: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_ocsp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @description vpn.pki object name (≤ 59 characters) */
+          certificate?: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            results: {
+              /** @enum {string} */
+              status: 'good' | 'revoked' | 'unknown' | 'error';
+              /** Format: date-time */
+              checkedAt: string;
+              revokedAt: string | null;
+              error: string | null;
+              certificate: string;
+              url: string;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Pki_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** Format: date-time */
+            generatedAt: string;
+            cas: {
+              name: string;
+              certificateRef: string | null;
+              subject: string | null;
+              issuer: string | null;
+              serial: string | null;
+              /** @description Decoded certificate subject alternative names, with DNS:, IP: or email: labels */
+              san: string[];
+              notBefore: string | null;
+              notAfter: string | null;
+              daysLeft: number | null;
+              fingerprint: string | null;
+              keySpec: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              } | null;
+              isCa: boolean | null;
+              signingKey: boolean;
+              crl: {
+                url: string;
+                refreshIntervalSec: number;
+                fetchedAt: string | null;
+                ageSec: number | null;
+                thisUpdate: string | null;
+                nextUpdate: string | null;
+                revoked: number | null;
+                error: string | null;
+              } | null;
+              ocspUrl: string | null;
+              problems: string[];
+            }[];
+            certificates: {
+              name: string;
+              ca: string | null;
+              certificateRef: string | null;
+              privateKeyRef: string | null;
+              subject: string | null;
+              issuer: string | null;
+              serial: string | null;
+              /** @description Decoded certificate subject alternative names, with DNS:, IP: or email: labels */
+              san: string[];
+              notBefore: string | null;
+              notAfter: string | null;
+              daysLeft: number | null;
+              fingerprint: string | null;
+              keySpec: {
+                /**
+                 * Key type
+                 * @default ecdsa
+                 * @enum {string}
+                 */
+                type: 'ecdsa' | 'rsa';
+                /**
+                 * Curve
+                 * @enum {string}
+                 */
+                curve?: 'p256' | 'p384';
+                /** Key size (bits) */
+                bits?: 2048 | 3072 | 4096;
+              } | null;
+              isCa: boolean | null;
+              expiryAlertDays: number;
+              expiring: boolean;
+              revokedByCrl: boolean;
+              ocsp: {
+                /** @enum {string} */
+                status: 'good' | 'revoked' | 'unknown' | 'error';
+                /** Format: date-time */
+                checkedAt: string;
+                revokedAt: string | null;
+                error: string | null;
+              } | null;
+              problems: string[];
+            }[];
+            expiry: {
+              lastCheck: string | null;
+              active: {
+                /** @enum {string} */
+                kind: 'ca' | 'certificate';
+                name: string;
+                /** Format: date-time */
+                notAfter: string;
+                daysLeft: number;
+                alertDays: number;
+                /** @enum {string} */
+                severity: 'warning' | 'critical';
+              }[];
+            };
+            agentFiles: {
+              root: string | null;
+              unavailable: string | null;
+              files: {
+                /** @enum {string} */
+                kind: 'cert' | 'ca' | 'key' | 'crl';
+                name: string;
+                ref: string;
+                fingerprint: string;
+                mode: string;
+                size: number;
+                present: boolean;
+              }[];
+            };
+            unsupported: string[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

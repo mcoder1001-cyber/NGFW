@@ -933,6 +933,8 @@ export class FakeAgent {
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
       // wave-BC: F-pki
+      pkiFileState: (_call: unknown, cb: (e: { code: number; details: string }) => void) =>
+        cb({ code: status.UNIMPLEMENTED, details: 'unknown method PkiFileState' }),
       // wave-BC: F-ikev2-native
       // wave-BC: F-ospf
       // wave-BC: F-isis-rip

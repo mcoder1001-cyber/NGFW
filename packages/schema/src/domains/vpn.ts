@@ -445,6 +445,117 @@ export const WireguardSchema = z.strictObject({
 // PKI (D6.4) — certificates and keys are stored through the secrets API; the document holds references only
 // ---------------------------------------------------------------------------------------------------------------
 
+// ----- F-pki: key spec, CSR parameters and certificate facts (docs/status/wave-BC-numbers.md § F-pki) -----
+
+/** Key algorithms of the key pairs the PKI actions generate (ECDSA P-256/P-384, RSA 2048/3072/4096). */
+export const PKI_KEY_TYPES = ['ecdsa', 'rsa'] as const;
+export const PKI_EC_CURVES = ['p256', 'p384'] as const;
+export const PKI_RSA_BITS = [2048, 3072, 4096] as const;
+
+/** How a key pair is (or was) generated: `curve` for ECDSA (default p256), `bits` for RSA (default 2048). */
+export const PkiKeySpecSchema = z
+  .strictObject({
+    type: withUi(z.enum(PKI_KEY_TYPES).default('ecdsa'), { title: 'Key type', widget: 'select' }),
+    curve: withUi(z.enum(PKI_EC_CURVES), {
+      title: 'Curve',
+      widget: 'select',
+      help: 'ECDSA only (default p256)',
+    }).optional(),
+    bits: withUi(z.union([z.literal(2048), z.literal(3072), z.literal(4096)]), {
+      title: 'Key size (bits)',
+      widget: 'select',
+      help: 'RSA only (default 2048)',
+    }).optional(),
+  })
+  .superRefine((k, ctx) => {
+    if (k.type === 'ecdsa' && k.bits !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['bits'], message: 'bits applies to RSA keys only' });
+    }
+    if (k.type === 'rsa' && k.curve !== undefined) {
+      ctx.addIssue({ code: 'custom', path: ['curve'], message: 'curve applies to ECDSA keys only' });
+    }
+  });
+
+/** Attribute types the PKI actions encode in a distinguished name (E = emailAddress). */
+export const PKI_DN_ATTRIBUTES = ['CN', 'O', 'OU', 'C', 'L', 'ST', 'DC', 'E', 'serialNumber'] as const;
+const pkiDnAttr = `(?:${PKI_DN_ATTRIBUTES.join('|')})`;
+const pkiDnValue = '[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f](?:[^,=+"\\\\<>;#\\x00-\\x1f\\x7f]*[^ ,=+"\\\\<>;#\\x00-\\x1f\\x7f])?';
+
+/**
+ * A distinguished name in the RFC 4514 reading order, `CN=gw.example.com, O=Example, C=CH`: attributes from
+ * PKI_DN_ATTRIBUTES, values without `, = + " \ < > ; #` or control characters (no escapes — FAST MODE). One pattern for
+ * the three consumers (no lookaround: valid RE2 and Python `re`).
+ */
+export const pkiDistinguishedName = withUi(
+  z
+    .string()
+    .min(4)
+    .max(1024)
+    .regex(
+      new RegExp(`^${pkiDnAttr}=${pkiDnValue}(?:, ?${pkiDnAttr}=${pkiDnValue})*$`),
+      'expected a distinguished name like CN=gw.example.com, O=Example, C=CH',
+    ),
+  { title: 'Distinguished name' },
+);
+
+/** A DNS name for a subjectAltName: an RFC 1123 hostname, optionally with a leading `*.` wildcard label. */
+const pkiDnsName = z
+  .string()
+  .min(1)
+  .max(253)
+  .regex(
+    /^(?:\*\.)?[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/,
+    'expected a DNS name (a leading *. wildcard is allowed)',
+  );
+
+/** A subject alternative name: an IP address (iPAddress), an e-mail address (rfc822Name) or a DNS name (dNSName). */
+export const pkiSubjectAltName = withUi(z.union([ipAddress, z.email(), pkiDnsName]), {
+  title: 'Subject alternative name',
+});
+
+/** The request parameters of a key pair + CSR made by `POST /api/v1/actions/pki/csr` (kept for re-issue). */
+export const PkiCsrSchema = z.strictObject({
+  subject: withUi(pkiDistinguishedName, { title: 'Subject' }),
+  san: withUi(z.array(pkiSubjectAltName).max(64).default([]), {
+    title: 'Subject alternative names',
+    help: 'DNS names, IP addresses or e-mail addresses',
+  }),
+  keySpec: withUi(PkiKeySpecSchema, { title: 'Key' }).prefault({}),
+});
+
+/** Colon-separated upper-case hex bytes (a serial number of up to 32 bytes, a SHA-256 fingerprint). */
+const pkiHexBytes = (max: number) => new RegExp(`^[0-9A-F]{2}(?::[0-9A-F]{2}){0,${max - 1}}$`);
+
+/**
+ * Facts of the certificate behind `certificateRef`, recorded by the PKI actions next to the reference (read-only in the
+ * UI; `GET /api/v1/state/pki` re-reads them from the material). The rules below use them: a CA must be CA:TRUE and
+ * `expiryAlertDays` must be shorter than the validity.
+ */
+export const PkiIssuedSchema = z.strictObject({
+  subject: withUi(z.string().min(1).max(1024), { title: 'Subject' }),
+  issuer: withUi(z.string().min(1).max(1024), { title: 'Issuer' }),
+  serial: withUi(z.string().max(95).regex(pkiHexBytes(32), 'expected colon-separated hex bytes'), {
+    title: 'Serial number',
+  }),
+  notBefore: withUi(z.iso.datetime({ offset: true }), { title: 'Valid from', widget: 'datetime' }),
+  notAfter: withUi(z.iso.datetime({ offset: true }), { title: 'Valid until', widget: 'datetime' }),
+  fingerprint: withUi(
+    z.string().length(95).regex(pkiHexBytes(32), 'expected a colon-separated SHA-256 fingerprint'),
+    { title: 'SHA-256 fingerprint' },
+  ),
+  ca: withUi(z.boolean(), {
+    title: 'CA certificate (basicConstraints CA:TRUE)',
+    widget: 'switch',
+  }).optional(),
+});
+
+/** Whole days between notBefore and notAfter (NaN when either does not parse). */
+function pkiValidityDays(issued: { notBefore: string; notAfter: string }): number {
+  return (Date.parse(issued.notAfter) - Date.parse(issued.notBefore)) / 86_400_000;
+}
+
+// ----- end F-pki -----
+
 export const PkiCaSchema = z.strictObject({
   description: descriptionField.optional(),
   certificateRef: withUi(secretRefOf('cert'), {
@@ -463,6 +574,23 @@ export const PkiCaSchema = z.strictObject({
   ).optional(),
   ocspUrl: withUi(httpsUrl, { title: 'OCSP responder URL' }).optional(),
   // wave-BC: F-pki
+  keySpec: withUi(PkiKeySpecSchema, {
+    title: 'Key',
+    help: 'How the CA key pair was generated (POST /api/v1/actions/pki/ca)',
+  }).optional(),
+  issued: withUi(PkiIssuedSchema, {
+    title: 'Certificate facts',
+    help: 'Recorded by the PKI actions',
+  }).optional(),
+}).superRefine((c, ctx) => {
+  // F-pki: a CA certificate must be CA:TRUE (the import/generate actions record basicConstraints in issued.ca)
+  if (c.issued?.ca === false) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['issued', 'ca'],
+      message: 'a CA certificate must have basicConstraints CA:TRUE; import it as a certificate instead',
+    });
+  }
 });
 
 export const PkiCertificateSchema = z
@@ -488,6 +616,14 @@ export const PkiCertificateSchema = z
       widget: 'number',
     }),
     // wave-BC: F-pki
+    csr: withUi(PkiCsrSchema, {
+      title: 'CSR',
+      help: 'Subject, SANs and key of the request (POST /api/v1/actions/pki/csr)',
+    }).optional(),
+    issued: withUi(PkiIssuedSchema, {
+      title: 'Certificate facts',
+      help: 'Recorded by the PKI actions',
+    }).optional(),
   })
   .superRefine((c, ctx) => {
     if (c.certificateRef === undefined && c.acme === undefined) {
@@ -496,6 +632,17 @@ export const PkiCertificateSchema = z
         path: ['certificateRef'],
         message: 'a certificate needs either certificateRef or an acme block',
       });
+    }
+    // F-pki: the alert must fire before the certificate expires (validity from the recorded facts)
+    if (c.issued !== undefined) {
+      const days = pkiValidityDays(c.issued);
+      if (Number.isFinite(days) && c.expiryAlertDays >= days) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['expiryAlertDays'],
+          message: `expiryAlertDays (${c.expiryAlertDays}) must be shorter than the certificate's validity (${Math.floor(days)} days)`,
+        });
+      }
     }
   });
 
@@ -525,6 +672,19 @@ export const PkiSchema = z.strictObject({
     }),
     { title: 'PKCS#11 / HSM' },
   ).optional(),
+}).superRefine((pki, ctx) => {
+  // F-pki: a certificate's `ca` must be the CA that issued it, when both facts are recorded
+  for (const [name, cert] of Object.entries(pki.certificates)) {
+    const ca = cert.ca === undefined ? undefined : pki.cas[cert.ca];
+    if (ca?.issued === undefined || cert.issued === undefined) continue;
+    if (cert.issued.issuer !== ca.issued.subject) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['certificates', name, 'ca'],
+        message: `certificate '${name}' was issued by '${cert.issued.issuer}', not by CA '${cert.ca}' ('${ca.issued.subject}')`,
+      });
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -691,4 +851,7 @@ export type WireguardInterface = z.infer<typeof WireguardInterfaceSchema>;
 export type WireguardPeer = z.infer<typeof WireguardPeerSchema>;
 export type PkiCa = z.infer<typeof PkiCaSchema>;
 export type PkiCertificate = z.infer<typeof PkiCertificateSchema>;
+export type PkiKeySpec = z.infer<typeof PkiKeySpecSchema>; // F-pki
+export type PkiCsr = z.infer<typeof PkiCsrSchema>; // F-pki
+export type PkiIssued = z.infer<typeof PkiIssuedSchema>; // F-pki
 export type RemoteAccessProfile = z.infer<typeof RemoteAccessProfileSchema>;

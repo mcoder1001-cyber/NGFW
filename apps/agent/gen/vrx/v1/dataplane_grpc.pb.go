@@ -57,6 +57,7 @@ const (
 	Dataplane_Det44Sessions_FullMethodName           = "/vrx.v1.Dataplane/Det44Sessions"
 	Dataplane_Det44Lookup_FullMethodName             = "/vrx.v1.Dataplane/Det44Lookup"
 	Dataplane_CnatSessions_FullMethodName            = "/vrx.v1.Dataplane/CnatSessions"
+	Dataplane_PkiFileState_FullMethodName            = "/vrx.v1.Dataplane/PkiFileState"
 	Dataplane_MplsState_FullMethodName               = "/vrx.v1.Dataplane/MplsState"
 	Dataplane_LbState_FullMethodName                 = "/vrx.v1.Dataplane/LbState"
 	Dataplane_LbFlushVip_FullMethodName              = "/vrx.v1.Dataplane/LbFlushVip"
@@ -140,6 +141,11 @@ type DataplaneClient interface {
 	Det44Lookup(ctx context.Context, in *Det44LookupRequest, opts ...grpc.CallOption) (*Det44LookupResponse, error)
 	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
 	CnatSessions(ctx context.Context, in *CnatSessionsRequest, opts ...grpc.CallOption) (*CnatSessionsResponse, error)
+	// PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+	// its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+	// HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+	// semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+	PkiFileState(ctx context.Context, in *PkiFileStateRequest, opts ...grpc.CallOption) (*PkiFileStateResponse, error)
 	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
 	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
 	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -431,6 +437,16 @@ func (c *dataplaneClient) CnatSessions(ctx context.Context, in *CnatSessionsRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CnatSessionsResponse)
 	err := c.cc.Invoke(ctx, Dataplane_CnatSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) PkiFileState(ctx context.Context, in *PkiFileStateRequest, opts ...grpc.CallOption) (*PkiFileStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PkiFileStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_PkiFileState_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -869,6 +885,11 @@ type DataplaneServer interface {
 	Det44Lookup(context.Context, *Det44LookupRequest) (*Det44LookupResponse, error)
 	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
 	CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error)
+	// PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
+	// its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
+	// HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
+	// semantics in docs/status/tasks/F-pki-contract.md until docs/contracts/proto.md carries them).
+	PkiFileState(context.Context, *PkiFileStateRequest) (*PkiFileStateResponse, error)
 	// MplsState reads the live MPLS state of this owner: one page of an MPLS FIB (mpls_route_dump read once, filtered and
 	// paged in the agent; the agent runs one MPLS FIB walk at a time) or the MPLS tunnels (mpls_tunnel_dump). Read-only
 	// (docs/contracts/proto.md "F-mpls-srmpls: MplsState").
@@ -1061,6 +1082,9 @@ func (UnimplementedDataplaneServer) Det44Lookup(context.Context, *Det44LookupReq
 }
 func (UnimplementedDataplaneServer) CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CnatSessions not implemented")
+}
+func (UnimplementedDataplaneServer) PkiFileState(context.Context, *PkiFileStateRequest) (*PkiFileStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method PkiFileState not implemented")
 }
 func (UnimplementedDataplaneServer) MplsState(context.Context, *MplsStateRequest) (*MplsStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MplsState not implemented")
@@ -1370,6 +1394,24 @@ func _Dataplane_CnatSessions_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).CnatSessions(ctx, req.(*CnatSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_PkiFileState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PkiFileStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).PkiFileState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_PkiFileState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).PkiFileState(ctx, req.(*PkiFileStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2089,6 +2131,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CnatSessions",
 			Handler:    _Dataplane_CnatSessions_Handler,
+		},
+		{
+			MethodName: "PkiFileState",
+			Handler:    _Dataplane_PkiFileState_Handler,
 		},
 		{
 			MethodName: "MplsState",

@@ -36,6 +36,7 @@ import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
+import { pkiFeature } from './features/pki/index.js';
 // wave-BC: F-ikev2-native
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
@@ -161,6 +162,7 @@ export class AppModule {
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-pki
+        ...pkiFeature.controllers,
         // wave-BC: F-ikev2-native
         // wave-BC: F-ospf
         // wave-BC: F-isis-rip
@@ -269,6 +271,7 @@ export class AppModule {
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-pki
+        ...pkiFeature.providers,
         // wave-BC: F-ikev2-native
         // wave-BC: F-ospf
         // wave-BC: F-isis-rip

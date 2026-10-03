@@ -1,0 +1,1 @@
+ok: 30 developer slots + CI slot 12; 1057 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots

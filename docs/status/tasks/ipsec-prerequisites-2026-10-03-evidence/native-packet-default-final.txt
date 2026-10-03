@@ -1,0 +1,100 @@
+DISPOSABLE_VPP pid=1130174 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1130162
+=== RUN   TestIKEv2NativePackets
+2026/10/03 15:49:16 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ikev2_integration_test.go:246: partial Apply safely retained stored VPN context
+    ikev2_integration_test.go:246: partial tunnels-only Apply refused protected admin-up: native-partial-before-sa
+    ikev2_integration_test.go:334: native IKE negotiated AUTHENTICATED, child SPI 0xbe9cfee/0xc760303b
+    ikev2_integration_test.go:350: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=2.50 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=1.58 ms
+        64 bytes from 198.18.82.2: icmp_seq=3 ttl=63 time=1.72 ms
+        64 bytes from 198.18.82.2: icmp_seq=4 ttl=63 time=1.33 ms
+        64 bytes from 198.18.82.2: icmp_seq=5 ttl=63 time=1.74 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+        rtt min/avg/max/mdev = 1.334/1.776/2.501/0.390 ms
+        
+    ikev2_integration_test.go:351: PING 198.18.81.2 (198.18.81.2) from 198.18.82.2 : 56(84) bytes of data.
+        64 bytes from 198.18.81.2: icmp_seq=1 ttl=63 time=1.61 ms
+        64 bytes from 198.18.81.2: icmp_seq=2 ttl=63 time=1.55 ms
+        64 bytes from 198.18.81.2: icmp_seq=3 ttl=63 time=1.61 ms
+        64 bytes from 198.18.81.2: icmp_seq=4 ttl=63 time=1.67 ms
+        64 bytes from 198.18.81.2: icmp_seq=5 ttl=63 time=1.55 ms
+        
+        --- 198.18.81.2 ping statistics ---
+        5 packets transmitted, 5 received, 0% packet loss, time 4008ms
+        rtt min/avg/max/mdev = 1.550/1.599/1.672/0.045 ms
+        
+    ikev2_integration_test.go:365: TCP exact 1048576 bytes passed
+        
+    ikev2_integration_test.go:385: SPI 0xbe9cfee: packets=767 bytes=1117680
+    ikev2_integration_test.go:385: SPI 0xc760303b: packets=496 bytes=36424
+    ikev2_integration_test.go:420: production native state measured inbound/outbound counters without keys; foreign SPI actions refused
+    ikev2_integration_test.go:430: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=2.03 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=1.69 ms
+        64 bytes from 198.18.82.2: icmp_seq=3 ttl=63 time=1.72 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+        rtt min/avg/max/mdev = 1.692/1.815/2.034/0.155 ms
+        
+    ikev2_integration_test.go:431: production Apply reconciliation retained active SA and traffic
+    ikev2_integration_test.go:440: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=1.61 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=1.76 ms
+        64 bytes from 198.18.82.2: icmp_seq=3 ttl=63 time=1.51 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+        rtt min/avg/max/mdev = 1.514/1.629/1.762/0.101 ms
+        
+    ikev2_integration_test.go:441: production agent restart reopened sealed secrets, initial Service.Resync retained identical active IKE/CHILD SPIs and protected traffic
+    ikev2_integration_test.go:479: rekey changed CHILD SPI
+    ikev2_integration_test.go:480: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=5.08 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=2.05 ms
+        64 bytes from 198.18.82.2: icmp_seq=3 ttl=63 time=2.19 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+        rtt min/avg/max/mdev = 2.052/3.107/5.079/1.395 ms
+        
+    ikev2_integration_test.go:498: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=1.27 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=1.64 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+        rtt min/avg/max/mdev = 1.265/1.451/1.637/0.186 ms
+        
+    ikev2_integration_test.go:507: peer crashed; awaiting native VPP default liveness expiry (30 seconds, 3 retries)
+    ikev2_integration_test.go:521: default VPP DPD removed crashed peer SA
+    ikev2_integration_test.go:555: PING 198.18.82.2 (198.18.82.2) 56(84) bytes of data.
+        64 bytes from 198.18.82.2: icmp_seq=1 ttl=63 time=1.63 ms
+        64 bytes from 198.18.82.2: icmp_seq=2 ttl=63 time=1.39 ms
+        64 bytes from 198.18.82.2: icmp_seq=3 ttl=63 time=1.68 ms
+        
+        --- 198.18.82.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+        rtt min/avg/max/mdev = 1.391/1.565/1.678/0.125 ms
+        
+    ikev2_integration_test.go:556: PING 198.18.81.2 (198.18.81.2) from 198.18.82.2 : 56(84) bytes of data.
+        64 bytes from 198.18.81.2: icmp_seq=1 ttl=63 time=1.60 ms
+        64 bytes from 198.18.81.2: icmp_seq=2 ttl=63 time=1.44 ms
+        64 bytes from 198.18.81.2: icmp_seq=3 ttl=63 time=1.68 ms
+        
+        --- 198.18.81.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+        rtt min/avg/max/mdev = 1.439/1.572/1.681/0.100 ms
+        
+    ikev2_integration_test.go:557: default VPP DPD cleared crashed peer and lowered IPIP; peer restart and automatic native retry restored bidirectional encrypted traffic
+    ikev2_integration_test.go:570: partial Apply safely retained stored VPN context
+    ikev2_integration_test.go:570: partial tunnels-only Apply refused protected admin-up: native-partial-after-delete
+    ikev2_integration_test.go:599: underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion
+    ikev2_integration_test.go:600: route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained
+--- PASS: TestIKEv2NativePackets (108.93s)
+PASS
+ok  	ngfw/agent/internal/desired	109.068s
+DISPOSABLE_VPP_STOPPED pid=1130174

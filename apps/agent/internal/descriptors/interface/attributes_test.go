@@ -327,3 +327,31 @@ func TestProcessMemoryDroppedOnVPPRestart(t *testing.T) {
 		t.Fatalf("mac after a VPP restart = %+v", kvs)
 	}
 }
+
+func TestIPIPCreationMTUWithNonzeroLinkMTU(t *testing.T) {
+	d := &ifapi.SwInterfaceDetails{InterfaceDevType: "IPIP tunnel device", LinkMtu: 65516}
+	if !iface.IsDefaultMtu(d, [4]uint32{9000, 0, 0, 0}) {
+		t.Fatal("real IPIP creation MTU reported as custom")
+	}
+	for _, mtu := range [][4]uint32{{1500, 0, 0, 0}, {65516, 0, 0, 0}, {9000, 1400, 0, 0}} {
+		if iface.IsDefaultMtu(d, mtu) {
+			t.Fatalf("custom MTU hidden: %v", mtu)
+		}
+	}
+	d.InterfaceDevType = "Loopback"
+	if iface.IsDefaultMtu(d, [4]uint32{9000, 0, 0, 0}) {
+		t.Fatal("IPIP default applied to another device class")
+	}
+}
+
+func TestGRECreationMTUWithNonzeroLinkMTU(t *testing.T) {
+	d := &ifapi.SwInterfaceDetails{InterfaceDevType: "GRE tunnel device", LinkMtu: 65512}
+	if !iface.IsDefaultMtu(d, [4]uint32{9000, 0, 0, 0}) {
+		t.Fatal("real GRE creation MTU reported as custom")
+	}
+	for _, mtu := range [][4]uint32{{1500, 0, 0, 0}, {65512, 0, 0, 0}, {9000, 1400, 0, 0}} {
+		if iface.IsDefaultMtu(d, mtu) {
+			t.Fatalf("custom GRE MTU hidden: %v", mtu)
+		}
+	}
+}

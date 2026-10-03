@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { z } from 'zod';
-import { GreTunnelSchema, IpipTunnelSchema, TunnelsSchema, VxlanTunnelSchema } from './tunnels.js';
+import {
+  GreTunnelSchema,
+  GtpuTunnelSchema,
+  IpipTunnelSchema,
+  L2tpv3TunnelSchema,
+  PppoeSessionSchema,
+  TUNNEL_KINDS,
+  TunnelsSchema,
+  VxlanGpeTunnelSchema,
+  VxlanTunnelSchema,
+} from './tunnels.js';
 
 const ok = (schema: z.ZodType, value: unknown): boolean => schema.safeParse(value).success;
 /** Paths of all issues; Zod 4 reports unknown keys with an empty path and the keys in `issue.keys`. */
@@ -136,15 +146,92 @@ describe('VxlanTunnelSchema', () => {
 
 describe('TunnelsSchema root', () => {
   it('parses {} to empty records (D-017/D-053) and keeps given records', () => {
-    expect(TunnelsSchema.parse({})).toEqual({ gre: {}, vxlan: {}, ipip: {} });
-    expect(TunnelsSchema.parse({ gre: {} })).toEqual({ gre: {}, vxlan: {}, ipip: {} });
+    const empty = { gre: {}, vxlan: {}, ipip: {}, vxlanGpe: {}, gtpu: {}, l2tpv3: {}, pppoe: {} };
+    expect(TunnelsSchema.parse({})).toEqual(empty);
+    expect(TunnelsSchema.parse({ gre: {} })).toEqual(empty);
   });
   it('rejects unknown kinds, bad names and non-object entries', () => {
-    expect(ok(TunnelsSchema, { gtpu: {} })).toBe(false);
+    expect(ok(TunnelsSchema, { sctp: {} })).toBe(false);
     expect(ok(TunnelsSchema, { gre: { 'bad name': { src: '10.0.0.1', dst: '10.0.0.2' } } })).toBe(
       false,
     );
     expect(ok(TunnelsSchema, { gre: { a: null } })).toBe(false);
     expect(ok(TunnelsSchema, { gre: [] })).toBe(false);
+  });
+});
+
+// ---- S-tunnels-contract (T1) ------------------------------------------------------------------------------------
+
+describe('IpipTunnelSchema.sixrd', () => {
+  const rd = {
+    src: '198.51.100.2',
+    sixrd: { ip6Prefix: '2001:db8:6::/48', ip4Prefix: '198.51.0.0/16' },
+  };
+  it('accepts a 6RD tunnel without dst and fills the defaults', () => {
+    const t = IpipTunnelSchema.parse(rd);
+    expect(t.sixrd).toEqual({
+      ip6Prefix: '2001:db8:6::/48',
+      ip4Prefix: '198.51.0.0/16',
+      securityCheck: false,
+    });
+    expect(t.mode).toBe('p2p');
+  });
+  it('rejects dst, dscp, p2mp and an IPv6 source with sixrd', () => {
+    expect(ok(IpipTunnelSchema, { ...rd, dst: '203.0.113.1' })).toBe(false);
+    expect(ok(IpipTunnelSchema, { ...rd, dscp: 1 })).toBe(false);
+    expect(ok(IpipTunnelSchema, { ...rd, mode: 'p2mp' })).toBe(false);
+    expect(ok(IpipTunnelSchema, { ...rd, src: '2001:db8::1' })).toBe(false);
+  });
+});
+
+describe('VxlanGpeTunnelSchema / GtpuTunnelSchema / L2tpv3TunnelSchema / PppoeSessionSchema', () => {
+  const gpe = { src: '198.51.100.2', dst: '203.0.113.40', vni: 300 };
+  it('VXLAN-GPE defaults to ethernet on 4790; addresses only with ip4/ip6; nsh is not bridged', () => {
+    const t = VxlanGpeTunnelSchema.parse(gpe);
+    expect([t.protocol, t.srcPort, t.dstPort]).toEqual(['ethernet', 4790, 4790]);
+    expect(ok(VxlanGpeTunnelSchema, { ...gpe, ipv4: ['10.0.0.1/30'] })).toBe(false);
+    expect(ok(VxlanGpeTunnelSchema, { ...gpe, protocol: 'ip4', ipv4: ['10.0.0.1/30'] })).toBe(true);
+    expect(ok(VxlanGpeTunnelSchema, { ...gpe, protocol: 'nsh', bridgeDomain: 1 })).toBe(false);
+    expect(ok(VxlanGpeTunnelSchema, { ...gpe, dst: '239.1.1.1' })).toBe(false); // mcastInterface missing
+    expect(ok(VxlanGpeTunnelSchema, { ...gpe, instance: 1 })).toBe(false); // no instance on this kind
+  });
+  const gtpu = { src: '198.51.100.2', dst: '203.0.113.50', teid: 7 };
+  it('GTP-U defaults to decap ip4; qfi needs pduExtension; l2 takes a bridge domain', () => {
+    expect(GtpuTunnelSchema.parse(gtpu).decap).toBe('ip4');
+    expect(ok(GtpuTunnelSchema, { ...gtpu, qfi: 5 })).toBe(false);
+    expect(ok(GtpuTunnelSchema, { ...gtpu, pduExtension: true, qfi: 5 })).toBe(true);
+    expect(ok(GtpuTunnelSchema, { ...gtpu, decap: 'l2', bridgeDomain: 7 })).toBe(true);
+    expect(ok(GtpuTunnelSchema, { ...gtpu, decap: 'drop', bridgeDomain: 7 })).toBe(false);
+  });
+  const l2 = {
+    src: '2001:db8:0:1::2',
+    dst: '2001:db8:ffff::9',
+    localSessionId: 1,
+    remoteSessionId: 2,
+  };
+  it('L2TPv3 is IPv6 only, L2 only, default VRF underlay', () => {
+    expect(L2tpv3TunnelSchema.parse(l2).localCookie).toBe(0);
+    expect(ok(L2tpv3TunnelSchema, { ...l2, src: '10.0.0.1', dst: '10.0.0.2' })).toBe(false);
+    expect(ok(L2tpv3TunnelSchema, { ...l2, ipv6: ['2001:db8::1/64'] })).toBe(false);
+    expect(ok(L2tpv3TunnelSchema, { ...l2, underlayVrf: 'red' })).toBe(false);
+    expect(ok(L2tpv3TunnelSchema, { ...l2, bridgeDomain: 100 })).toBe(true);
+  });
+  it('PPPoE sessions: id 1–65535, a MAC and a unicast client address', () => {
+    const p = { sessionId: 1, clientMac: '02:00:00:00:00:01', clientIp: '10.99.0.2' };
+    expect(PppoeSessionSchema.parse(p).vrf).toBe('default');
+    expect(ok(PppoeSessionSchema, { ...p, sessionId: 0 })).toBe(false);
+    expect(ok(PppoeSessionSchema, { ...p, clientIp: '224.0.0.1' })).toBe(false);
+    expect(ok(PppoeSessionSchema, { ...p, src: '10.0.0.1' })).toBe(false);
+  });
+  it('TUNNEL_KINDS carries the instance / advanced flags the rules and the UI read', () => {
+    expect(TUNNEL_KINDS.map((k) => [k.key, k.instance, k.advanced])).toEqual([
+      ['gre', true, false],
+      ['vxlan', true, false],
+      ['ipip', true, false],
+      ['vxlanGpe', false, false],
+      ['gtpu', false, true],
+      ['l2tpv3', false, true],
+      ['pppoe', false, true],
+    ]);
   });
 });

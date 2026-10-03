@@ -1,0 +1,28 @@
+rig up w32 (slot 32, path af_packet)
+  create netns ns-w32-lan
+  create veth w32l0 <-> ns-w32-lan:w32l1
+  create vpp host-w32l0 (af_packet on w32l0)
+  reset  ip/ip6 classify host-w32l0 (table-index ~0)
+  set    addr host-w32l0 10.32.1.1/24
+  create netns ns-w32-wan
+  create veth w32w0 <-> ns-w32-wan:w32w1
+  create vpp host-w32w0 (af_packet on w32w0)
+  reset  ip/ip6 classify host-w32w0 (table-index ~0)
+  set    addr host-w32w0 10.32.2.1/24
+rig: up
+prefix: w32
+slot: 32
+path: af_packet
+lan_ns: ns-w32-lan
+lan_veth: w32l1
+lan_ip: 10.32.1.2/24
+lan_gw: 10.32.1.1
+vpp_lan_if: host-w32l0
+vpp_lan_addr: 10.32.1.1/24 
+wan_ns: ns-w32-wan
+wan_veth: w32w1
+wan_ip: 10.32.2.2/24
+wan_gw: 10.32.2.1
+vpp_wan_if: host-w32w0
+vpp_wan_addr: 10.32.2.1/24 
+ping: ip netns exec ns-w32-lan ping -c 3 10.32.2.2

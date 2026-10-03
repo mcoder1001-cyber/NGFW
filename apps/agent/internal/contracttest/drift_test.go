@@ -72,6 +72,15 @@ func (c *driftChecker) add(dir, path, format string, args ...any) {
 // "<direction> <path>". Every entry must still occur (a stale entry is a finding), and only
 // proto→schema supersets may be accepted — a schema leaf without a proto field never is.
 var acceptedDrift = map[string]string{
+	// Native route based IPsec deliberately rejects legacy per-profile DPD and
+	// unsupported IKE/packet lifetimes. Their wire tags stay reserved to existing
+	// fields for compatibility; IpsecRekey is also shared with remote access.
+	// These exact native paths are proto supersets only: API validation rejects
+	// them before projection (vpn.test.ts), and stale entries still fail below.
+	protoToSchema + " /vpn/ipsec/tunnels/{}/dpd":              "legacy per-profile DPD wire field; native liveness is global and schema rejects this setting",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/espPackets": "shared IpsecRekey wire field; native CHILD packet limits are unsupported and rejected",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/ikeSec":     "shared IpsecRekey wire field; native IKE lifetimes are unsupported and rejected",
+	protoToSchema + " /vpn/ipsec/tunnels/{}/rekey/reauth":     "shared IpsecRekey wire field; native IKE reauthentication is unsupported and rejected",
 	// One shared Redistribute message serves bgp/ospf/isis/rip (P02a sync, D-045). The schema's record
 	// omits the protocol's own key ("a protocol cannot redistribute into itself"), so the proto is a
 	// superset by exactly one field per protocol; the API's Zod validation runs before fromJSON, so the

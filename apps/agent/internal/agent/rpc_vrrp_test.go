@@ -7,12 +7,16 @@ package agent
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
+	vrrpapi "ngfw/agent/binapi/vrrp"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core/coretest"
 )
@@ -35,6 +39,15 @@ const vrrpRetrieved = `{"vrrp": {
     "addresses": ["10.7.3.1"], "engine": "vpp"}
 }}`
 
+// vrrpGates pins every input of the ha.vrrp engine gates (review S-rva R1 B2): the tests never depend on
+// the ambient NGFW_TEST_PREFIX / NGFW_VRRP_VPP / NGFW_KEEPALIVED of a slot or `tools/ci.sh full` (w12).
+func vrrpGates(t *testing.T, vpp, keepalived, prefix string) {
+	t.Helper()
+	t.Setenv("NGFW_VRRP_VPP", vpp)
+	t.Setenv("NGFW_KEEPALIVED", keepalived)
+	t.Setenv("NGFW_TEST_PREFIX", prefix)
+}
+
 func vrrpRetrieve(t *testing.T, s *Service) *ngfwv1.HaConfig {
 	t.Helper()
 	got, err := s.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "ha"}})
@@ -45,6 +58,7 @@ func vrrpRetrieve(t *testing.T, s *Service) *ngfwv1.HaConfig {
 }
 
 func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
+	vrrpGates(t, "on", "off", "") // the VPP engine explicitly on (RV-A R4 M1 gate), keepalived off
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
@@ -102,6 +116,8 @@ func TestVrrpApplyRetrieveRestartRollback(t *testing.T) {
 }
 
 func TestVrrpDryRunFindings(t *testing.T) {
+	// both engines on: keepalived needs a slot prefix (TestPaths) — "on" alone is refused (review S-rva R4 M3)
+	vrrpGates(t, "on", "on", testOwner)
 	s := newSvc(t, coretest.New(), t.TempDir())
 	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: doc(t, `{
 	  "interfaces": {"loop7201": {}},
@@ -125,5 +141,120 @@ func TestVrrpDryRunFindings(t *testing.T) {
 	}
 	if rep.GetOk() || strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("dry run:\n got %v\nwant %v", got, want)
+	}
+}
+
+const vrrpGatedDoc = `{
+  "interfaces": {"loop7301": {"lcp": {"hostIfName": "lan0"}}, "loop7302": {}},
+  "ha": {"vrrp": {
+    "v": {"interface": "loop7302", "vrId": 21, "addresses": ["10.7.5.1"]},
+    "k": {"interface": "loop7301", "vrId": 20, "engine": "keepalived", "addresses": ["10.7.4.1"]}
+  }}}`
+
+// TestVrrpEnginesGatedOff (RV-A R4 M1/M2): a lab-slot agent (owner w7, NGFW_VRRP_VPP / NGFW_KEEPALIVED
+// unset → both off) never writes vrrp_vr_* on the shared VPP nor stages keepalived. Both engines are
+// reported as configured-but-not-applied warnings and the commit still succeeds.
+func TestVrrpEnginesGatedOff(t *testing.T) {
+	vrrpGates(t, "", "", "") // all unset, no slot prefix, no NGFW_VPP_ID_RANGE=all: both engines default off
+	v := coretest.New()
+	dir := t.TempDir()
+	s := newSvc(t, v, dir)
+
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "g1", DesiredState: doc(t, vrrpGatedDoc)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, is := range rep.GetErrors() {
+		if strings.HasPrefix(is.GetRule(), "ha.vrrp-") {
+			got = append(got, is.GetSeverity().String()+" "+is.GetPointer()+" "+is.GetRule())
+		}
+	}
+	want := []string{
+		"ISSUE_SEVERITY_WARNING /ha/vrrp/k/engine ha.vrrp-keepalived-disabled",
+		"ISSUE_SEVERITY_WARNING /ha/vrrp/v/engine ha.vrrp-vpp-disabled",
+	}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("gated dry run:\n got %v\nwant %v", got, want)
+	}
+
+	// the warnings do not block the commit, and nothing reaches the shared VPP
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "g2", DesiredState: doc(t, vrrpGatedDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if n, _ := v.Vrrp().Count(); n != 0 {
+		t.Fatalf("a gated agent wrote %d VRs to the shared VPP", n)
+	}
+	if got := vrrpRetrieve(t, s); len(got.GetVrrp()) != 0 {
+		t.Fatalf("gated agent reports VRs: %s", protojson.Format(got))
+	}
+}
+
+// TestVrrpRollbackRestoresVppAndMeta (RV-A R1 M4): a VR create refused mid-transaction rolls the whole
+// commit back — VPP and the agent-local vrrp-meta-<owner>.json return to the pre-transaction state
+// (the earlier "rollback" test only forward-applied `ha: {}`).
+func TestVrrpRollbackRestoresVppAndMeta(t *testing.T) {
+	vrrpGates(t, "on", "off", "")
+	v := coretest.New()
+	dir := t.TempDir()
+	s := newSvc(t, v, dir)
+	metaFile := filepath.Join(dir, "vrrp-meta-"+testOwner+".json")
+
+	// pre-transaction state: one VR (lan-v4) applied, its name in vrrp-meta
+	pre := `{"interfaces": {"loop7201": {"ipv4": ["10.7.2.2/24"]}, "loop7202": {"ipv4": ["10.7.3.2/24"]}},
+	  "ha": {"vrrp": {"lan-v4": {"interface": "loop7201", "vrId": 10, "addresses": ["10.7.2.1"]}}}}`
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "pre", DesiredState: doc(t, pre)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	if n, _ := v.Vrrp().Count(); n != 1 {
+		t.Fatalf("pre: %d VRs, want 1", n)
+	}
+	metaBefore, err := os.ReadFile(metaFile) //nolint:gosec // test reads the agent's own state file in a temp dir
+	if err != nil || !strings.Contains(string(metaBefore), "lan-v4") {
+		t.Fatalf("pre: vrrp-meta must hold lan-v4 (the rollback check is not vacuous): %q %v", metaBefore, err)
+	}
+
+	// mid-transaction refusal: the shared VPP rejects the new VR (wan-uni) create
+	v.On("vrrp_vr_update", func(req api.Message) ([]api.Message, error) {
+		if r := req.(*vrrpapi.VrrpVrUpdate); r.VrrpIndex == ^uint32(0) {
+			return []api.Message{&vrrpapi.VrrpVrUpdateReply{Retval: int32(api.INVALID_VALUE)}}, nil
+		}
+		return []api.Message{&vrrpapi.VrrpVrUpdateReply{}}, nil
+	})
+	both := `{"interfaces": {"loop7201": {"ipv4": ["10.7.2.2/24"]}, "loop7202": {"ipv4": ["10.7.3.2/24"]}},
+	  "ha": {"vrrp": {
+	    "lan-v4": {"interface": "loop7201", "vrId": 10, "addresses": ["10.7.2.1"]},
+	    "wan-uni": {"interface": "loop7202", "vrId": 11, "addresses": ["10.7.3.1"]}
+	  }}}`
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "fail", DesiredState: doc(t, both)}), ngfwv1.ApplyStatus_APPLY_STATUS_ROLLED_BACK)
+
+	// VPP is back to exactly the pre-transaction VR (no partial wan-uni), and vrrp-meta is unchanged
+	if n, _ := v.Vrrp().Count(); n != 1 {
+		t.Fatalf("rollback left %d VRs, want the pre-transaction 1", n)
+	}
+	if got := vrrpRetrieve(t, s).GetVrrp(); len(got) != 1 || got["lan-v4"] == nil || got["wan-uni"] != nil {
+		t.Fatalf("Retrieve after rollback: %v", got)
+	}
+	if metaAfter, _ := os.ReadFile(metaFile); string(metaAfter) != string(metaBefore) || strings.Contains(string(metaAfter), "wan-uni") { //nolint:gosec // test reads the agent's own state file in a temp dir
+		t.Fatalf("vrrp-meta not restored:\nbefore %s\nafter  %s", metaBefore, metaAfter)
+	}
+}
+
+// TestHaClusterUnsupported (RV-A R3 M1): `ha` is a registered domain, so ha.cluster no longer trips
+// agent.unimplemented-domain; desired.Vrrp reports it as agent.unsupported-field instead of applying
+// nothing silently.
+func TestHaClusterUnsupported(t *testing.T) {
+	vrrpGates(t, "", "", "")
+	s := newSvc(t, coretest.New(), t.TempDir())
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "hc1",
+		DesiredState: doc(t, `{"ha": {"cluster": {"enabled": true, "configSync": true}}}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, is := range rep.GetErrors() {
+		if strings.HasPrefix(is.GetPointer(), "/ha") {
+			got = append(got, is.GetSeverity().String()+" "+is.GetPointer()+" "+is.GetRule())
+		}
+	}
+	want := []string{"ISSUE_SEVERITY_WARNING /ha/cluster agent.unsupported-field"}
+	if strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Fatalf("ha.cluster findings:\n got %v\nwant %v", got, want)
 	}
 }

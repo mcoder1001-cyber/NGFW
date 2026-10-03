@@ -1,0 +1,250 @@
+{"Time":"2026-10-03T13:14:55.161633926+03:30","Action":"start","Package":"ngfw/cli/cmd/vrx"}
+{"Time":"2026-10-03T13:14:55.161829088+03:30","Action":"output","Package":"ngfw/cli/cmd/vrx","Output":"?   \tngfw/cli/cmd/vrx\t[no test files]\n"}
+{"Time":"2026-10-03T13:14:55.161913275+03:30","Action":"skip","Package":"ngfw/cli/cmd/vrx","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.161851795+03:30","Action":"start","Package":"ngfw/cli/cmd/vrx-docgen"}
+{"Time":"2026-10-03T13:14:55.162100532+03:30","Action":"output","Package":"ngfw/cli/cmd/vrx-docgen","Output":"?   \tngfw/cli/cmd/vrx-docgen\t[no test files]\n"}
+{"Time":"2026-10-03T13:14:55.162266078+03:30","Action":"skip","Package":"ngfw/cli/cmd/vrx-docgen","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.16219009+03:30","Action":"start","Package":"ngfw/cli/cmd/vrx-opgen"}
+{"Time":"2026-10-03T13:14:55.162305186+03:30","Action":"output","Package":"ngfw/cli/cmd/vrx-opgen","Output":"?   \tngfw/cli/cmd/vrx-opgen\t[no test files]\n"}
+{"Time":"2026-10-03T13:14:55.16231955+03:30","Action":"skip","Package":"ngfw/cli/cmd/vrx-opgen","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.273539186+03:30","Action":"start","Package":"ngfw/cli/internal/api"}
+{"Time":"2026-10-03T13:14:55.274488719+03:30","Action":"start","Package":"ngfw/cli/internal/api/opgen"}
+{"Time":"2026-10-03T13:14:55.274558396+03:30","Action":"output","Package":"ngfw/cli/internal/api/opgen","Output":"?   \tngfw/cli/internal/api/opgen\t[no test files]\n"}
+{"Time":"2026-10-03T13:14:55.274581781+03:30","Action":"skip","Package":"ngfw/cli/internal/api/opgen","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.311733327+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestOperationsTableMatchesOpenAPI"}
+{"Time":"2026-10-03T13:14:55.31179575+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestOperationsTableMatchesOpenAPI","Output":"=== RUN   TestOperationsTableMatchesOpenAPI\n"}
+{"Time":"2026-10-03T13:14:55.312313075+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestOperationsTableMatchesOpenAPI","Output":"    api_test.go:21: packages/api-client/openapi.json not generated here (open ../../../../packages/api-client/openapi.json: no such file or directory) — run `pnpm gen`\n"}
+{"Time":"2026-10-03T13:14:55.312486018+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestOperationsTableMatchesOpenAPI","Output":"--- SKIP: TestOperationsTableMatchesOpenAPI (0.00s)\n"}
+{"Time":"2026-10-03T13:14:55.312602595+03:30","Action":"skip","Package":"ngfw/cli/internal/api","Test":"TestOperationsTableMatchesOpenAPI","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.312734481+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestGenerateFromFixture"}
+{"Time":"2026-10-03T13:14:55.312755854+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestGenerateFromFixture","Output":"=== RUN   TestGenerateFromFixture\n"}
+{"Time":"2026-10-03T13:14:55.326813933+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestGenerateFromFixture","Output":"--- PASS: TestGenerateFromFixture (0.01s)\n"}
+{"Time":"2026-10-03T13:14:55.3268717+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestGenerateFromFixture","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:55.326886424+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestURLEncodesPointerSegmentsAndChecksQuery"}
+{"Time":"2026-10-03T13:14:55.326894601+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestURLEncodesPointerSegmentsAndChecksQuery","Output":"=== RUN   TestURLEncodesPointerSegmentsAndChecksQuery\n"}
+{"Time":"2026-10-03T13:14:55.326904104+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestURLEncodesPointerSegmentsAndChecksQuery","Output":"--- PASS: TestURLEncodesPointerSegmentsAndChecksQuery (0.00s)\n"}
+{"Time":"2026-10-03T13:14:55.326918925+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestURLEncodesPointerSegmentsAndChecksQuery","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.326926832+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestProblemAndCredentialsNotLogged"}
+{"Time":"2026-10-03T13:14:55.326958602+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestProblemAndCredentialsNotLogged","Output":"=== RUN   TestProblemAndCredentialsNotLogged\n"}
+{"Time":"2026-10-03T13:14:55.335092853+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestProblemAndCredentialsNotLogged","Output":"--- PASS: TestProblemAndCredentialsNotLogged (0.01s)\n"}
+{"Time":"2026-10-03T13:14:55.33544456+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestProblemAndCredentialsNotLogged","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:55.337748516+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed"}
+{"Time":"2026-10-03T13:14:55.337788227+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed","Output":"=== RUN   TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed\n"}
+{"Time":"2026-10-03T13:14:55.366182486+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed","Output":"--- PASS: TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed (0.03s)\n"}
+{"Time":"2026-10-03T13:14:55.366476239+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed","Elapsed":0.03}
+{"Time":"2026-10-03T13:14:55.366735939+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestRedirect307And308NeverReplayTheBody"}
+{"Time":"2026-10-03T13:14:55.366766242+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestRedirect307And308NeverReplayTheBody","Output":"=== RUN   TestRedirect307And308NeverReplayTheBody\n"}
+{"Time":"2026-10-03T13:14:55.378246564+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestRedirect307And308NeverReplayTheBody","Output":"--- PASS: TestRedirect307And308NeverReplayTheBody (0.01s)\n"}
+{"Time":"2026-10-03T13:14:55.38143607+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestRedirect307And308NeverReplayTheBody","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:55.381495464+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestApplyDeadlineIsAboveTheServerBudget"}
+{"Time":"2026-10-03T13:14:55.381508767+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestApplyDeadlineIsAboveTheServerBudget","Output":"=== RUN   TestApplyDeadlineIsAboveTheServerBudget\n"}
+{"Time":"2026-10-03T13:14:55.381526212+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestApplyDeadlineIsAboveTheServerBudget","Output":"--- PASS: TestApplyDeadlineIsAboveTheServerBudget (0.00s)\n"}
+{"Time":"2026-10-03T13:14:55.381535185+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestApplyDeadlineIsAboveTheServerBudget","Elapsed":0}
+{"Time":"2026-10-03T13:14:55.381544155+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome"}
+{"Time":"2026-10-03T13:14:55.381552132+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome","Output":"=== RUN   TestCommitTimeoutLooksUpTheOutcome\n"}
+{"Time":"2026-10-03T13:14:55.381561777+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/applied"}
+{"Time":"2026-10-03T13:14:55.381569517+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/applied","Output":"=== RUN   TestCommitTimeoutLooksUpTheOutcome/applied\n"}
+{"Time":"2026-10-03T13:14:55.694220353+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/applied","Output":"--- PASS: TestCommitTimeoutLooksUpTheOutcome/applied (0.31s)\n"}
+{"Time":"2026-10-03T13:14:55.694820551+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/applied","Elapsed":0.31}
+{"Time":"2026-10-03T13:14:55.695300566+03:30","Action":"run","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/nothing_new"}
+{"Time":"2026-10-03T13:14:55.695355833+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/nothing_new","Output":"=== RUN   TestCommitTimeoutLooksUpTheOutcome/nothing_new\n"}
+{"Time":"2026-10-03T13:14:56.018436889+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/nothing_new","Output":"--- PASS: TestCommitTimeoutLooksUpTheOutcome/nothing_new (0.32s)\n"}
+{"Time":"2026-10-03T13:14:56.018547477+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome/nothing_new","Elapsed":0.32}
+{"Time":"2026-10-03T13:14:56.018582237+03:30","Action":"output","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome","Output":"--- PASS: TestCommitTimeoutLooksUpTheOutcome (0.64s)\n"}
+{"Time":"2026-10-03T13:14:56.018607052+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Test":"TestCommitTimeoutLooksUpTheOutcome","Elapsed":0.64}
+{"Time":"2026-10-03T13:14:56.018626208+03:30","Action":"output","Package":"ngfw/cli/internal/api","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:57.044910006+03:30","Action":"output","Package":"ngfw/cli/internal/api","Output":"ok  \tngfw/cli/internal/api\t1.771s\n"}
+{"Time":"2026-10-03T13:14:57.045016899+03:30","Action":"pass","Package":"ngfw/cli/internal/api","Elapsed":1.771}
+{"Time":"2026-10-03T13:14:58.07778044+03:30","Action":"start","Package":"ngfw/cli/internal/cli"}
+{"Time":"2026-10-03T13:14:58.077956337+03:30","Action":"start","Package":"ngfw/cli/internal/cpath"}
+{"Time":"2026-10-03T13:14:58.078026685+03:30","Action":"start","Package":"ngfw/cli/internal/jschema"}
+{"Time":"2026-10-03T13:14:58.078190314+03:30","Action":"start","Package":"ngfw/cli/internal/lineedit"}
+{"Time":"2026-10-03T13:14:58.07827646+03:30","Action":"output","Package":"ngfw/cli/internal/lineedit","Output":"?   \tngfw/cli/internal/lineedit\t[no test files]\n"}
+{"Time":"2026-10-03T13:14:58.078301372+03:30","Action":"skip","Package":"ngfw/cli/internal/lineedit","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.078350529+03:30","Action":"start","Package":"ngfw/cli/internal/render"}
+{"Time":"2026-10-03T13:14:58.078792628+03:30","Action":"start","Package":"ngfw/cli/internal/safe"}
+{"Time":"2026-10-03T13:14:58.07906865+03:30","Action":"start","Package":"ngfw/cli/test/e2e"}
+{"Time":"2026-10-03T13:14:58.126912176+03:30","Action":"run","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC"}
+{"Time":"2026-10-03T13:14:58.127052569+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Output":"=== RUN   TestREPLConfirmedCommitAutoRevertAndRBAC\n"}
+{"Time":"2026-10-03T13:14:58.128581705+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Output":"    repl_e2e_test.go:95: e2e: VRX_INTEGRATION is not 1 (needs the slot dev stack: apps/cli/test/devstack.sh start)\n"}
+{"Time":"2026-10-03T13:14:58.128644478+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Output":"--- SKIP: TestREPLConfirmedCommitAutoRevertAndRBAC (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.128673671+03:30","Action":"skip","Package":"ngfw/cli/test/e2e","Test":"TestREPLConfirmedCommitAutoRevertAndRBAC","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.128692603+03:30","Action":"run","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack"}
+{"Time":"2026-10-03T13:14:58.128739594+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"=== RUN   TestReviewFixesOnTheRealStack\n"}
+{"Time":"2026-10-03T13:14:58.128765851+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"    review_e2e_test.go:21: e2e: VRX_INTEGRATION is not 1 (needs the slot dev stack: apps/cli/test/devstack.sh start)\n"}
+{"Time":"2026-10-03T13:14:58.128782243+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Output":"--- SKIP: TestReviewFixesOnTheRealStack (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.128820017+03:30","Action":"skip","Package":"ngfw/cli/test/e2e","Test":"TestReviewFixesOnTheRealStack","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.12883369+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:58.133110907+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestWalkPropertiesMapsAndArrays"}
+{"Time":"2026-10-03T13:14:58.133204948+03:30","Action":"run","Package":"ngfw/cli/internal/render","Test":"TestTextIsStableAndHierarchical"}
+{"Time":"2026-10-03T13:14:58.133215114+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestWalkPropertiesMapsAndArrays","Output":"=== RUN   TestWalkPropertiesMapsAndArrays\n"}
+{"Time":"2026-10-03T13:14:58.133236718+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestTextIsStableAndHierarchical","Output":"=== RUN   TestTextIsStableAndHierarchical\n"}
+{"Time":"2026-10-03T13:14:58.134072256+03:30","Action":"run","Package":"ngfw/cli/internal/safe","Test":"TestStringEscapesControlsAndBidi"}
+{"Time":"2026-10-03T13:14:58.134119981+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Test":"TestStringEscapesControlsAndBidi","Output":"=== RUN   TestStringEscapesControlsAndBidi\n"}
+{"Time":"2026-10-03T13:14:58.134205236+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Test":"TestStringEscapesControlsAndBidi","Output":"--- PASS: TestStringEscapesControlsAndBidi (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.134242332+03:30","Action":"pass","Package":"ngfw/cli/internal/safe","Test":"TestStringEscapesControlsAndBidi","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.134270925+03:30","Action":"run","Package":"ngfw/cli/internal/safe","Test":"TestWriterSplitsUTF8AcrossWrites"}
+{"Time":"2026-10-03T13:14:58.134283069+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Test":"TestWriterSplitsUTF8AcrossWrites","Output":"=== RUN   TestWriterSplitsUTF8AcrossWrites\n"}
+{"Time":"2026-10-03T13:14:58.134652744+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Test":"TestWriterSplitsUTF8AcrossWrites","Output":"--- PASS: TestWriterSplitsUTF8AcrossWrites (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.134698504+03:30","Action":"pass","Package":"ngfw/cli/internal/safe","Test":"TestWriterSplitsUTF8AcrossWrites","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.134761854+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:58.13694457+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestPointerRoundTrip"}
+{"Time":"2026-10-03T13:14:58.136986829+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestPointerRoundTrip","Output":"=== RUN   TestPointerRoundTrip\n"}
+{"Time":"2026-10-03T13:14:58.137688427+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestPointerRoundTrip","Output":"--- PASS: TestPointerRoundTrip (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.137769391+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestPointerRoundTrip","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.137805269+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestParsePointerErrors"}
+{"Time":"2026-10-03T13:14:58.137817774+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestParsePointerErrors","Output":"=== RUN   TestParsePointerErrors\n"}
+{"Time":"2026-10-03T13:14:58.138181311+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestParsePointerErrors","Output":"--- PASS: TestParsePointerErrors (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.138232397+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestParsePointerErrors","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.138262599+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestResolveWordsToPointer"}
+{"Time":"2026-10-03T13:14:58.138274946+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestResolveWordsToPointer","Output":"=== RUN   TestResolveWordsToPointer\n"}
+{"Time":"2026-10-03T13:14:58.138541308+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestResolveWordsToPointer","Output":"--- PASS: TestResolveWordsToPointer (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.138594626+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestResolveWordsToPointer","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.138612507+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestTokenize"}
+{"Time":"2026-10-03T13:14:58.138624193+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestTokenize","Output":"=== RUN   TestTokenize\n"}
+{"Time":"2026-10-03T13:14:58.139062851+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestSetSendsPUTAtTheEscapedPointer"}
+{"Time":"2026-10-03T13:14:58.139097305+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestSetSendsPUTAtTheEscapedPointer","Output":"=== RUN   TestSetSendsPUTAtTheEscapedPointer\n"}
+{"Time":"2026-10-03T13:14:58.139185863+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestTokenize","Output":"--- PASS: TestTokenize (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.13920057+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestTokenize","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.13921465+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteSurvivesTokenize"}
+{"Time":"2026-10-03T13:14:58.139226034+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteSurvivesTokenize","Output":"=== RUN   TestQuoteSurvivesTokenize\n"}
+{"Time":"2026-10-03T13:14:58.139885323+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteSurvivesTokenize","Output":"--- PASS: TestQuoteSurvivesTokenize (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.139929087+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteSurvivesTokenize","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.140033081+03:30","Action":"run","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteMakesControlsVisible"}
+{"Time":"2026-10-03T13:14:58.140048856+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteMakesControlsVisible","Output":"=== RUN   TestQuoteMakesControlsVisible\n"}
+{"Time":"2026-10-03T13:14:58.140458496+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteMakesControlsVisible","Output":"--- PASS: TestQuoteMakesControlsVisible (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.140491782+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Test":"TestQuoteMakesControlsVisible","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.140845007+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:58.146002632+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestTextIsStableAndHierarchical","Output":"--- PASS: TestTextIsStableAndHierarchical (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.146088996+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Test":"TestTextIsStableAndHierarchical","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.146117565+03:30","Action":"run","Package":"ngfw/cli/internal/render","Test":"TestSetLines"}
+{"Time":"2026-10-03T13:14:58.146129823+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestSetLines","Output":"=== RUN   TestSetLines\n"}
+{"Time":"2026-10-03T13:14:58.147110809+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestSetLines","Output":"--- PASS: TestSetLines (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.147156528+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Test":"TestSetLines","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.147200292+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestWalkPropertiesMapsAndArrays","Output":"--- PASS: TestWalkPropertiesMapsAndArrays (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.147231962+03:30","Action":"run","Package":"ngfw/cli/internal/render","Test":"TestSetLinesTokenizeBack"}
+{"Time":"2026-10-03T13:14:58.147244036+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestSetLinesTokenizeBack","Output":"=== RUN   TestSetLinesTokenizeBack\n"}
+{"Time":"2026-10-03T13:14:58.147312028+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestWalkPropertiesMapsAndArrays","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.14738833+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestPropertiesFollowUIOrder"}
+{"Time":"2026-10-03T13:14:58.147401962+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestPropertiesFollowUIOrder","Output":"=== RUN   TestPropertiesFollowUIOrder\n"}
+{"Time":"2026-10-03T13:14:58.147687586+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestSetLinesTokenizeBack","Output":"--- PASS: TestSetLinesTokenizeBack (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.14775159+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Test":"TestSetLinesTokenizeBack","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.147776369+03:30","Action":"run","Package":"ngfw/cli/internal/render","Test":"TestDiff"}
+{"Time":"2026-10-03T13:14:58.147788736+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestDiff","Output":"=== RUN   TestDiff\n"}
+{"Time":"2026-10-03T13:14:58.148208142+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestDiff","Output":"--- PASS: TestDiff (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.148250571+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Test":"TestDiff","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.148269473+03:30","Action":"run","Package":"ngfw/cli/internal/render","Test":"TestScalar"}
+{"Time":"2026-10-03T13:14:58.148281977+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestScalar","Output":"=== RUN   TestScalar\n"}
+{"Time":"2026-10-03T13:14:58.148581407+03:30","Action":"output","Package":"ngfw/cli/internal/render","Test":"TestScalar","Output":"--- PASS: TestScalar (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.148601814+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Test":"TestScalar","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.148756456+03:30","Action":"output","Package":"ngfw/cli/internal/render","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:58.159233027+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestPropertiesFollowUIOrder","Output":"--- PASS: TestPropertiesFollowUIOrder (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.159351207+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestPropertiesFollowUIOrder","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.159397714+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestCoerce"}
+{"Time":"2026-10-03T13:14:58.159419323+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestCoerce","Output":"=== RUN   TestCoerce\n"}
+{"Time":"2026-10-03T13:14:58.177629618+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestCoerce","Output":"--- PASS: TestCoerce (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.17775616+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestCoerce","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.177803529+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestValidateObjects"}
+{"Time":"2026-10-03T13:14:58.177820665+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestValidateObjects","Output":"=== RUN   TestValidateObjects\n"}
+{"Time":"2026-10-03T13:14:58.194742439+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestValidateObjects","Output":"--- PASS: TestValidateObjects (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.194830284+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestValidateObjects","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.194863806+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestEnumAndHelp"}
+{"Time":"2026-10-03T13:14:58.194877395+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestEnumAndHelp","Output":"=== RUN   TestEnumAndHelp\n"}
+{"Time":"2026-10-03T13:14:58.210685066+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestEnumAndHelp","Output":"--- PASS: TestEnumAndHelp (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.210839614+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestEnumAndHelp","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.210874565+03:30","Action":"run","Package":"ngfw/cli/internal/jschema","Test":"TestLoadNeedsRootConfig"}
+{"Time":"2026-10-03T13:14:58.21088796+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestLoadNeedsRootConfig","Output":"=== RUN   TestLoadNeedsRootConfig\n"}
+{"Time":"2026-10-03T13:14:58.210910503+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Test":"TestLoadNeedsRootConfig","Output":"--- PASS: TestLoadNeedsRootConfig (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.21096286+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Test":"TestLoadNeedsRootConfig","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.211122021+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:58.225416467+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestSetSendsPUTAtTheEscapedPointer","Output":"--- PASS: TestSetSendsPUTAtTheEscapedPointer (0.09s)\n"}
+{"Time":"2026-10-03T13:14:58.225606142+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestSetSendsPUTAtTheEscapedPointer","Elapsed":0.09}
+{"Time":"2026-10-03T13:14:58.2257554+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestClientSideValidationSendsNothing"}
+{"Time":"2026-10-03T13:14:58.2257876+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestClientSideValidationSendsNothing","Output":"=== RUN   TestClientSideValidationSendsNothing\n"}
+{"Time":"2026-10-03T13:14:58.353970902+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestClientSideValidationSendsNothing","Output":"--- PASS: TestClientSideValidationSendsNothing (0.13s)\n"}
+{"Time":"2026-10-03T13:14:58.354087407+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestClientSideValidationSendsNothing","Elapsed":0.13}
+{"Time":"2026-10-03T13:14:58.354124123+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestLeafListAppendAndDeleteItem"}
+{"Time":"2026-10-03T13:14:58.354143525+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestLeafListAppendAndDeleteItem","Output":"=== RUN   TestLeafListAppendAndDeleteItem\n"}
+{"Time":"2026-10-03T13:14:58.442225912+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestLeafListAppendAndDeleteItem","Output":"--- PASS: TestLeafListAppendAndDeleteItem (0.09s)\n"}
+{"Time":"2026-10-03T13:14:58.442356373+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestLeafListAppendAndDeleteItem","Elapsed":0.09}
+{"Time":"2026-10-03T13:14:58.442393757+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestMergeAndDelete"}
+{"Time":"2026-10-03T13:14:58.44241381+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestMergeAndDelete","Output":"=== RUN   TestMergeAndDelete\n"}
+{"Time":"2026-10-03T13:14:58.487140805+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestMergeAndDelete","Output":"--- PASS: TestMergeAndDelete (0.04s)\n"}
+{"Time":"2026-10-03T13:14:58.487229494+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestMergeAndDelete","Elapsed":0.04}
+{"Time":"2026-10-03T13:14:58.487260834+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestCommitConfirmCommentAndOutput"}
+{"Time":"2026-10-03T13:14:58.487272965+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestCommitConfirmCommentAndOutput","Output":"=== RUN   TestCommitConfirmCommentAndOutput\n"}
+{"Time":"2026-10-03T13:14:58.502921371+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestCommitConfirmCommentAndOutput","Output":"--- PASS: TestCommitConfirmCommentAndOutput (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.503060979+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestCommitConfirmCommentAndOutput","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.50311052+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestExitCodesFollowHTTPStatus"}
+{"Time":"2026-10-03T13:14:58.503170329+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestExitCodesFollowHTTPStatus","Output":"=== RUN   TestExitCodesFollowHTTPStatus\n"}
+{"Time":"2026-10-03T13:14:58.588854955+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestExitCodesFollowHTTPStatus","Output":"--- PASS: TestExitCodesFollowHTTPStatus (0.09s)\n"}
+{"Time":"2026-10-03T13:14:58.588967051+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestExitCodesFollowHTTPStatus","Elapsed":0.09}
+{"Time":"2026-10-03T13:14:58.588999345+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestJSONMode"}
+{"Time":"2026-10-03T13:14:58.58901818+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestJSONMode","Output":"=== RUN   TestJSONMode\n"}
+{"Time":"2026-10-03T13:14:58.610945563+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestJSONMode","Output":"--- PASS: TestJSONMode (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.611020813+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestJSONMode","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.611052417+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestLoginWithPasswordFileNeverPrintsSecrets"}
+{"Time":"2026-10-03T13:14:58.611066553+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestLoginWithPasswordFileNeverPrintsSecrets","Output":"=== RUN   TestLoginWithPasswordFileNeverPrintsSecrets\n"}
+{"Time":"2026-10-03T13:14:58.629457899+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestLoginWithPasswordFileNeverPrintsSecrets","Output":"--- PASS: TestLoginWithPasswordFileNeverPrintsSecrets (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.629574485+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestLoginWithPasswordFileNeverPrintsSecrets","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.629596188+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestAPIKeyCreateStepUp"}
+{"Time":"2026-10-03T13:14:58.629606978+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestAPIKeyCreateStepUp","Output":"=== RUN   TestAPIKeyCreateStepUp\n"}
+{"Time":"2026-10-03T13:14:58.66183138+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestAPIKeyCreateStepUp","Output":"--- PASS: TestAPIKeyCreateStepUp (0.03s)\n"}
+{"Time":"2026-10-03T13:14:58.661968178+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestAPIKeyCreateStepUp","Elapsed":0.03}
+{"Time":"2026-10-03T13:14:58.662290227+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestScriptOnStdinStopsAtFirstError"}
+{"Time":"2026-10-03T13:14:58.662365828+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestScriptOnStdinStopsAtFirstError","Output":"=== RUN   TestScriptOnStdinStopsAtFirstError\n"}
+{"Time":"2026-10-03T13:14:58.68534351+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestScriptOnStdinStopsAtFirstError","Output":"--- PASS: TestScriptOnStdinStopsAtFirstError (0.02s)\n"}
+{"Time":"2026-10-03T13:14:58.685498122+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestScriptOnStdinStopsAtFirstError","Elapsed":0.02}
+{"Time":"2026-10-03T13:14:58.685549324+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestEveryCommandMapsToDocumentedREST"}
+{"Time":"2026-10-03T13:14:58.685579009+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestEveryCommandMapsToDocumentedREST","Output":"=== RUN   TestEveryCommandMapsToDocumentedREST\n"}
+{"Time":"2026-10-03T13:14:58.686898586+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestEveryCommandMapsToDocumentedREST","Output":"--- PASS: TestEveryCommandMapsToDocumentedREST (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.686964042+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestEveryCommandMapsToDocumentedREST","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.687017874+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestReferenceDocIsCurrent"}
+{"Time":"2026-10-03T13:14:58.687058998+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestReferenceDocIsCurrent","Output":"=== RUN   TestReferenceDocIsCurrent\n"}
+{"Time":"2026-10-03T13:14:58.691438764+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestReferenceDocIsCurrent","Output":"--- PASS: TestReferenceDocIsCurrent (0.00s)\n"}
+{"Time":"2026-10-03T13:14:58.691487974+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestReferenceDocIsCurrent","Elapsed":0}
+{"Time":"2026-10-03T13:14:58.691516337+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestCompletionFromTheLiveSchema"}
+{"Time":"2026-10-03T13:14:58.691529272+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestCompletionFromTheLiveSchema","Output":"=== RUN   TestCompletionFromTheLiveSchema\n"}
+{"Time":"2026-10-03T13:14:58.72386784+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestCompletionFromTheLiveSchema","Output":"--- PASS: TestCompletionFromTheLiveSchema (0.03s)\n"}
+{"Time":"2026-10-03T13:14:58.723984825+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestCompletionFromTheLiveSchema","Elapsed":0.03}
+{"Time":"2026-10-03T13:14:58.724032578+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestInteractiveRefreshOn401"}
+{"Time":"2026-10-03T13:14:58.724069867+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestInteractiveRefreshOn401","Output":"=== RUN   TestInteractiveRefreshOn401\n"}
+{"Time":"2026-10-03T13:14:58.731317612+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestInteractiveRefreshOn401","Output":"--- PASS: TestInteractiveRefreshOn401 (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.731392238+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestInteractiveRefreshOn401","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.731422533+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestServerStringsCannotDriveTheTerminal"}
+{"Time":"2026-10-03T13:14:58.731436813+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestServerStringsCannotDriveTheTerminal","Output":"=== RUN   TestServerStringsCannotDriveTheTerminal\n"}
+{"Time":"2026-10-03T13:14:58.761560328+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestServerStringsCannotDriveTheTerminal","Output":"--- PASS: TestServerStringsCannotDriveTheTerminal (0.03s)\n"}
+{"Time":"2026-10-03T13:14:58.761701281+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestServerStringsCannotDriveTheTerminal","Elapsed":0.03}
+{"Time":"2026-10-03T13:14:58.761897839+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestDeleteIntegerListByValue"}
+{"Time":"2026-10-03T13:14:58.761918546+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestDeleteIntegerListByValue","Output":"=== RUN   TestDeleteIntegerListByValue\n"}
+{"Time":"2026-10-03T13:14:58.819372229+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestDeleteIntegerListByValue","Output":"--- PASS: TestDeleteIntegerListByValue (0.06s)\n"}
+{"Time":"2026-10-03T13:14:58.81946381+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestDeleteIntegerListByValue","Elapsed":0.06}
+{"Time":"2026-10-03T13:14:58.819490166+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestSessionFileIsPrivate"}
+{"Time":"2026-10-03T13:14:58.819505116+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestSessionFileIsPrivate","Output":"=== RUN   TestSessionFileIsPrivate\n"}
+{"Time":"2026-10-03T13:14:58.846564229+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestSessionFileIsPrivate","Output":"--- PASS: TestSessionFileIsPrivate (0.03s)\n"}
+{"Time":"2026-10-03T13:14:58.846653112+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestSessionFileIsPrivate","Elapsed":0.03}
+{"Time":"2026-10-03T13:14:58.846676269+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestPlainHTTPOnlyToLoopback"}
+{"Time":"2026-10-03T13:14:58.846757142+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestPlainHTTPOnlyToLoopback","Output":"=== RUN   TestPlainHTTPOnlyToLoopback\n"}
+{"Time":"2026-10-03T13:14:58.854252657+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestPlainHTTPOnlyToLoopback","Output":"--- PASS: TestPlainHTTPOnlyToLoopback (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.854314088+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestPlainHTTPOnlyToLoopback","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.854343815+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestPendingCommitIsTracked"}
+{"Time":"2026-10-03T13:14:58.854357001+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestPendingCommitIsTracked","Output":"=== RUN   TestPendingCommitIsTracked\n"}
+{"Time":"2026-10-03T13:14:58.862308876+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestPendingCommitIsTracked","Output":"--- PASS: TestPendingCommitIsTracked (0.01s)\n"}
+{"Time":"2026-10-03T13:14:58.862496961+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestPendingCommitIsTracked","Elapsed":0.01}
+{"Time":"2026-10-03T13:14:58.862553553+03:30","Action":"run","Package":"ngfw/cli/internal/cli","Test":"TestShowInterfacesListsOnlyRetrievedRows"}
+{"Time":"2026-10-03T13:14:58.862570683+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestShowInterfacesListsOnlyRetrievedRows","Output":"=== RUN   TestShowInterfacesListsOnlyRetrievedRows\n"}
+{"Time":"2026-10-03T13:14:58.91324634+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Test":"TestShowInterfacesListsOnlyRetrievedRows","Output":"--- PASS: TestShowInterfacesListsOnlyRetrievedRows (0.05s)\n"}
+{"Time":"2026-10-03T13:14:58.913349923+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Test":"TestShowInterfacesListsOnlyRetrievedRows","Elapsed":0.05}
+{"Time":"2026-10-03T13:14:58.913377561+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Output":"PASS\n"}
+{"Time":"2026-10-03T13:14:59.140465695+03:30","Action":"output","Package":"ngfw/cli/test/e2e","Output":"ok  \tngfw/cli/test/e2e\t1.061s\n"}
+{"Time":"2026-10-03T13:14:59.140561646+03:30","Action":"pass","Package":"ngfw/cli/test/e2e","Elapsed":1.061}
+{"Time":"2026-10-03T13:14:59.145260947+03:30","Action":"output","Package":"ngfw/cli/internal/safe","Output":"ok  \tngfw/cli/internal/safe\t1.066s\n"}
+{"Time":"2026-10-03T13:14:59.145354064+03:30","Action":"pass","Package":"ngfw/cli/internal/safe","Elapsed":1.067}
+{"Time":"2026-10-03T13:14:59.152452981+03:30","Action":"output","Package":"ngfw/cli/internal/cpath","Output":"ok  \tngfw/cli/internal/cpath\t1.074s\n"}
+{"Time":"2026-10-03T13:14:59.152539171+03:30","Action":"pass","Package":"ngfw/cli/internal/cpath","Elapsed":1.075}
+{"Time":"2026-10-03T13:14:59.16264324+03:30","Action":"output","Package":"ngfw/cli/internal/render","Output":"ok  \tngfw/cli/internal/render\t1.084s\n"}
+{"Time":"2026-10-03T13:14:59.162976716+03:30","Action":"pass","Package":"ngfw/cli/internal/render","Elapsed":1.085}
+{"Time":"2026-10-03T13:14:59.226049119+03:30","Action":"output","Package":"ngfw/cli/internal/jschema","Output":"ok  \tngfw/cli/internal/jschema\t1.148s\n"}
+{"Time":"2026-10-03T13:14:59.22613309+03:30","Action":"pass","Package":"ngfw/cli/internal/jschema","Elapsed":1.148}
+{"Time":"2026-10-03T13:14:59.938536534+03:30","Action":"output","Package":"ngfw/cli/internal/cli","Output":"ok  \tngfw/cli/internal/cli\t1.861s\n"}
+{"Time":"2026-10-03T13:14:59.938653418+03:30","Action":"pass","Package":"ngfw/cli/internal/cli","Elapsed":1.861}

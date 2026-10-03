@@ -1,0 +1,12 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/schema exec vitest run src/semantic/routing.test.ts
+heavy: slot 2 after 10s
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/packages/schema
+
+ ✓ src/semantic/routing.test.ts (22 tests) 285ms
+
+ Test Files  1 passed (1)
+      Tests  22 passed (22)
+   Start at  15:13:34
+   Duration  5.22s (transform 2.47s, setup 0ms, collect 3.89s, tests 285ms, environment 1ms, prepare 304ms)
+

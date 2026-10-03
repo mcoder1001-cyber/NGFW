@@ -1,0 +1,12 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/schema exec vitest run src/domains/vpn.test.ts
+heavy: slot 1 after 20s
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/packages/schema
+
+ ✓ src/domains/vpn.test.ts (90 tests) 176ms
+
+ Test Files  1 passed (1)
+      Tests  90 passed (90)
+   Start at  15:28:35
+   Duration  1.89s (transform 389ms, setup 0ms, collect 716ms, tests 176ms, environment 0ms, prepare 236ms)
+

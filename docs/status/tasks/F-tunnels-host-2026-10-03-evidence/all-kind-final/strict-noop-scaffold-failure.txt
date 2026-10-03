@@ -1,0 +1,57 @@
+17:24:01 window start 2026-10-03T17:24:01+03:30: flock -s vrx-lab.lock (no VPP-global touched)
+17:24:01 === 0 host facts ===
+17:24:01 NRestarts before: NRestarts=0
+17:24:02 plugins: gre_plugin.so gtpu_plugin.so l2tp_plugin.so pppoe_plugin.so 
+17:24:02 branch 5848a73ce slot 6 prefix w6 table base 6000
+17:24:02 === 1 slot stack ===
+17:24:09 agent pid 1781719 (owner w6, table base 6000), API :3600 health {"status":"ok"}
+17:24:10 GET /state/tunnels (empty stack): {"tunnels":[],"retrievedAt":"2026-10-03T13:54:10.053Z"}
+17:24:10 === 2 tunnels.instance-required (D-205): GRE without instance → 400 with a pointer, agent not asked ===
+17:24:10 commit → HTTP 400 {"title":"Validation failed","tier":"semantic","errors":[{"pointer":"/tunnels/gre/w6-nogre/instance","message":"a gre tunnel needs an instance: it names the engine interface (gre<instance>)"}]}
+17:24:10 === 3 gre + vxlan-gpe on the real engine ===
+17:24:12 commit → {"status":"applied","revision":1}
+17:24:12 vppctl show gre tunnel:
+[0] instance 6001 src 10.6.7.1 dst 10.6.7.2 fib-idx 0 sw-if-idx 2 payload L3 point-to-point 
+17:24:12 vppctl show vxlan-gpe tunnel:
+[0] lcl 10.6.7.1 rmt 10.6.7.3 lcl_port 4790 rmt_port 4790 vni 6003 fib-idx 0 sw-if-idx 3 decap-next-protocol ip4 fib-idx 0 
+unknown input `tunnel'
+17:24:12 vppctl show interface (ours):
+gre6001                           2      up          9000/0/0/0     
+vxlan_gpe_tunnel0                 3      up          1500/0/0/0     
+17:24:12 vppctl show interface addr (ours):
+gre6001 (up):
+  L3 10.6.254.1/30
+--
+vxlan_gpe_tunnel0 (up):
+  L3 10.6.253.1/30
+17:24:12 GET /state/tunnels: {"tunnels":[{"name":"w6-gre","kind":"gre","interface":"gre6001","swIfIndex":2,"adminUp":true,"linkUp":true,"mtu":9000,"deviceClass":"GRE tunnel device"},{"name":"w6-gpe","kind":"vxlanGpe","interface":"vxlan_gpe_tunnel0","swIfIndex":3,"adminUp":true,"linkUp":true,"mtu":1500,"deviceClass":"VXLAN_GPE"}],"retrievedAt":"2026-10-03T13:54:12.684Z"}
+17:24:12 GET /config/tunnels (running): {"gre":{"w6-gre":{"dst":"10.6.7.2","src":"10.6.7.1","vrf":"default","ipv4":["10.6.254.1/30"],"ipv6":[],"type":"l3","enabled":true,"instance":6001,"description":"S-tunnels-contract","underlayVrf":"default"}},"vxlanGpe":{"w6-gpe":{"dst":"10.6.7.3","mtu":1500,"src":"10.6.7.1","vni":6003,"vrf":"default","ipv4":["10.6.253.1/30"],"ipv6":[],"dstPort":4790,"enabled":true,"srcPort":4790,"protocol":"ip4","underlayVrf":"default"}}}
+17:24:13 GET /state/drift: {"subsystems":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"changes":[],"ignored":[{"pointer":"/management/aaa","rule":"agent.unsupported-field"},{"pointer":"/management/tls","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","rule":"agent.write-only"},{"pointer":"/services/ntp","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","rule":"agent.unsupported-field"}]}
+17:24:13 re-commit (no change) → {"status":"applied","revision":2}
+17:24:13 === 4 rollback ===
+17:24:14 commit → {"status":"applied","revision":3}
+17:24:14 show gre tunnel lines with 10.6.7.1: 0 · show vxlan-gpe tunnel lines with 10.6.7.1: 0
+17:24:14 GET /state/tunnels: {"tunnels":[],"retrievedAt":"2026-10-03T13:54:14.651Z"}
+17:24:14 === 5 all-kind GRE/IPIP/VXLAN acceptance ===
+17:24:15 commit → {"status":"applied","revision":4}
+17:24:15 all-kind state {"tunnels":[{"name":"w6-gre","kind":"gre","interface":"gre6001","swIfIndex":2,"adminUp":true,"linkUp":true,"mtu":9000,"deviceClass":"GRE tunnel device"},{"name":"w6-ipip","kind":"ipip","interface":"ipip6002","swIfIndex":4,"adminUp":true,"linkUp":true,"mtu":9000,"deviceClass":"IPIP tunnel device"},{"name":"w6-vxlan","kind":"vxlan","interface":"vxlan_tunnel6003","swIfIndex":5,"adminUp":true,"linkUp":true,"mtu":1500,"deviceClass":"VXLAN"}],"retrievedAt":"2026-10-03T13:54:15.691Z"}
+17:24:16 all-kind drift {"subsystems":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"changes":[],"ignored":[{"pointer":"/management/aaa","rule":"agent.unsupported-field"},{"pointer":"/management/tls","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","rule":"agent.write-only"},{"pointer":"/services/ntp","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","rule":"agent.unsupported-field"}]}
+[0] instance 6001 src 10.6.7.1 dst 10.6.7.2 fib-idx 0 sw-if-idx 2 payload L3 point-to-point 
+[0] instance 6002 src 10.6.7.1 dst 10.6.7.3 table-ID 0 sw-if-idx 4 flags [encap-copy-dscp ] dscp CS0
+[0] instance 6003 src 10.6.7.1 dst 10.6.7.4 src_port 4789 dst_port 4789 vni 6003 fib-idx 0 sw-if-idx 5 encap-dpo-idx 6 
+gre6001 (up):
+  L3 10.6.251.1/30
+ipip6002 (up):
+  L3 10.6.252.1/30
+local0 (dn):
+loop6070 (up):
+  L3 10.6.7.1/24
+vxlan_tunnel6003 (up):
+  L3 10.6.253.1/30
+17:24:16 commit refused: {"status":"unchanged","results":[],"warnings":[],"notApplied":[],"sync":{"state":"in-sync","reason":"","txnId":null,"since":"1970-01-01T00:00:00.000Z"}}
+17:24:16 === cleanup ===
+17:24:17 cleanup commit: {"status":"applied","revision":5}
+17:24:19 leftovers in VPP: 0 interface(s) named like ours; show gre tunnel: 0 · show vxlan-gpe tunnel: 0
+17:24:19 NRestarts after cleanup: NRestarts=0
+17:24:19 window end 2026-10-03T17:24:19+03:30
+17:24:19 cleanup status 0; original status 1

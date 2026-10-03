@@ -109,7 +109,13 @@ func Render(o *ngfwv1.IsisConfig) ([]string, error) {
 	if !netRe.MatchString(n) {
 		return nil, policy.Errf(base.At("net"), "net %q is not an ISO NET (AA.AAAA.SSSS.SSSS.SSSS.00)", o.GetNet())
 	}
-	out := []string{head, " is-type " + levels[lvl].isType, " net " + n, " metric-style wide"}
+	// FRR omits these default values from running-config. Emitting them
+	// leaves a permanent reload diff despite a successfully applied config.
+	out := []string{head}
+	if levels[lvl].isType != "level-1-2" {
+		out = append(out, " is-type "+levels[lvl].isType)
+	}
+	out = append(out, " net "+n)
 	redist, err := redistribute(o.GetRedistribute(), lvl)
 	if err != nil {
 		return nil, err
@@ -216,7 +222,9 @@ func RenderInterfaces(o *ngfwv1.IsisConfig, mapIf frr.InterfaceMapper) (map[stri
 			if m := itf.GetMetric(); m < 1 || m > 16777215 {
 				return nil, policy.Errf(path.At("metric"), "metric %d not in 1–16777215", m)
 			}
-			lines = append(lines, fmt.Sprintf(" isis metric %d", itf.GetMetric()))
+			if itf.GetMetric() != 10 {
+				lines = append(lines, fmt.Sprintf(" isis metric %d", itf.GetMetric()))
+			}
 		}
 		if itf.GetPassive() {
 			lines = append(lines, " isis passive")

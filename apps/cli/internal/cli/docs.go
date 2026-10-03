@@ -107,7 +107,7 @@ Output formats of configuration: ` + "`text`" + ` (default: a stable brace hiera
 
 - Login-shell / SSH wiring and a local unix-socket transport with peer-credential check (P13 out of scope; the API
   listens on TCP only today): the CLI authenticates with a login or an API key.
-- ` + "`show bgp summary`" + ` and ` + "`show ipsec sa`" + ` exist but exit 10: the API has no BGP / IPsec SA state endpoints yet.
+- ` + "`show bgp summary`" + ` exists but exits 10: the API has no BGP summary endpoint yet.
 - ` + "`ping`" + ` / ` + "`traceroute`" + ` call ` + "`POST /api/v1/actions/{action}`" + `, which answers 501 until the agent implements actions.
 `)
 	return b.String()

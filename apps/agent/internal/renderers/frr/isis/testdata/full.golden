@@ -8,7 +8,6 @@ interface w8-l0
  ipv6 router isis ngfw
  isis circuit-type level-2-only
  isis network point-to-point
- isis metric 10
  isis bfd
 exit
 !
@@ -25,9 +24,7 @@ interface w8-lo
 exit
 !
 router isis ngfw
- is-type level-1-2
  net 49.0001.1921.6800.1001.00
- metric-style wide
  redistribute ipv4 connected level-1 metric 20
  redistribute ipv6 connected level-1 metric 20
  redistribute ipv4 connected level-2 metric 20

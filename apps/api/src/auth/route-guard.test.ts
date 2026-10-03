@@ -55,6 +55,7 @@ const ADMIN_ONLY = new Set([
   // wave-BC: F-backup-restore
   'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
+  'POST /api/v1/actions/ipsec/ikev2/:tunnel/:operation',
   'POST /api/v1/actions/vpn/wireguard/keypair', // F-wireguard (no anchor for it: end of the block)
   // F-pki: certificate/key creation, signing, import and CRL secret refresh.
   'POST /api/v1/actions/pki/ca',
@@ -63,6 +64,10 @@ const ADMIN_ONLY = new Set([
   'POST /api/v1/actions/pki/import',
   'POST /api/v1/actions/pki/crl/refresh',
   'GET /api/v1/state/logs', // F-unbound-chrony-syslog (review M2: the host journal; no SY1 anchor seeded)
+  'POST /api/v1/actions/capture/:id/stop',
+  'POST /api/v1/actions/capture', // S-capture-file-safety (RV-C F-capture-trace R2 #3): VPP-global filter + plaintext
+  'GET /api/v1/state/captures/:id/file', // S-capture-file-safety: pcap download (audited)
+  'DELETE /api/v1/state/captures/:id', // S-capture-file-safety
 ]);
 
 function concrete(url: string): string {

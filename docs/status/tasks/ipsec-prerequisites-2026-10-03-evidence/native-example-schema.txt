@@ -1,0 +1,12 @@
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/packages/schema
+
+ ✓ src/semantic/vpn.test.ts (28 tests) 411ms
+ ✓ src/examples.test.ts (15 tests) 552ms
+   ✓ examples (group a) > minimal.json is accepted, semantically clean, idempotent and free of secret leaves  370ms
+
+ Test Files  2 passed (2)
+      Tests  43 passed (43)
+   Start at  14:54:56
+   Duration  5.14s (transform 2.57s, setup 0ms, collect 7.28s, tests 963ms, environment 1ms, prepare 452ms)
+

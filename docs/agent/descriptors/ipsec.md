@@ -1,5 +1,7 @@
 # Descriptors: ipsec (DF-5, WBS D6.1)
 
+> Current IPsec implementation scope (2026-10-03): **route-based only**, VPP native IKEv2 with a protected tunnel interface and routes. See [DEC-ipsec-route-based](../../decisions/DEC-ipsec-route-based.md). Existing low-level SPD/strongSwan/optional routeBased contract descriptions below document current or historical code; they do not authorise policy-based product implementation. Native module validation must require routeBased binding and reject unsupported modes.
+
 Package `apps/agent/internal/descriptors/ipsec`, desired-state types in
 `apps/agent/internal/descriptors/vpn/pb/vpn.proto` (agent-internal until P03b moves VPN leaf
 messages into `packages/proto`, D-055). Entry point:

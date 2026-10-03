@@ -5,6 +5,7 @@ package neighborsra
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,11 +97,29 @@ func (st *stack) startAgent(t *testing.T) {
 	t.Helper()
 	st.agent = start(t, "ngfw-agent", st.agentLog, st.agentEnv, st.agentBin)
 	if !waitFor(30*time.Second, func() bool {
-		_, err := os.Stat(st.s.socket)
-		return err == nil || st.agent.exited()
+		if st.agent.exited() {
+			return true
+		}
+		c, err := net.DialTimeout("unix", st.s.socket, time.Second)
+		if err == nil {
+			_ = c.Close()
+		}
+		return err == nil
 	}) || st.agent.exited() {
 		raw, _ := os.ReadFile(st.agentLog) //nolint:gosec // our own log
 		t.Fatalf("ngfw-agent did not come up:\n%s", raw)
+	}
+	// The API keeps its gRPC channel across agent restarts. A listening socket does
+	// not imply that channel has left reconnect backoff yet. Wait on a read-only
+	// RPC before issuing commits; never retry a mutation to mask an outage.
+	if st.api != nil && !waitFor(15*time.Second, func() bool {
+		return st.agent.exited() || st.api.call("GET", "/api/v1/state/drift", nil).status == 200
+	}) {
+		t.Fatal("API channel did not reconnect to the restarted agent within 15 s")
+	}
+	if st.agent.exited() {
+		raw, _ := os.ReadFile(st.agentLog)
+		t.Fatalf("ngfw-agent exited during readiness check:\n%s", raw)
 	}
 }
 

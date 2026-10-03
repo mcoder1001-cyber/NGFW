@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): go -C apps/agent test ./internal/renderers/frr/isis ./internal/renderers/frr
+heavy: slot 2 after 20s
+ok  	ngfw/agent/internal/renderers/frr/isis	0.075s
+ok  	ngfw/agent/internal/renderers/frr	(cached)

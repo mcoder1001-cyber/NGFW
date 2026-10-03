@@ -1,0 +1,37 @@
+Sat Oct  3 13:41:21 2026: Starting Keepalived v2.3.4 (06/10,2025)
+Sat Oct  3 13:41:21 2026: Running on Linux 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 (built for Linux 6.17.1)
+Sat Oct  3 13:41:21 2026: Command line: '/usr/sbin/keepalived' '-n' '-l' '-P' '-G' '-D' '-f'
+Sat Oct  3 13:41:21 2026:               '/run/vrx-test/w6/vrrp/kb/keepalived.conf' '-p'
+Sat Oct  3 13:41:21 2026:               '/run/vrx-test/w6/vrrp/kb/keepalived.pid' '-r' '/run/vrx-test/w6/vrrp/kb/vrrp.pid' '-c'
+Sat Oct  3 13:41:21 2026:               '/run/vrx-test/w6/vrrp/kb/checkers.pid'
+Sat Oct  3 13:41:21 2026: Opening file '/run/vrx-test/w6/vrrp/kb/keepalived.conf'.
+Sat Oct  3 13:41:21 2026: Configuration file /run/vrx-test/w6/vrrp/kb/keepalived.conf
+Sat Oct  3 13:41:21 2026: NOTICE: setting config option max_auto_priority should result in better keepalived performance
+Sat Oct  3 13:41:21 2026: Starting VRRP child process, pid=562682
+Sat Oct  3 13:41:21 2026: Registering Kernel netlink reflector
+Sat Oct  3 13:41:21 2026: Registering Kernel netlink command channel
+Sat Oct  3 13:41:21 2026: Assigned address 10.6.1.3 for interface w6k1
+Sat Oct  3 13:41:21 2026: Assigned address fe80::d443:c7ff:fe27:69fa for interface w6k1
+Sat Oct  3 13:41:21 2026: Registering gratuitous ARP shared channel
+Sat Oct  3 13:41:21 2026: (nodeB) removing VIPs.
+Sat Oct  3 13:41:21 2026: Startup complete
+Sat Oct  3 13:41:21 2026: (nodeB) removing VIPs.
+Sat Oct  3 13:41:21 2026: (nodeB) Entering BACKUP STATE (init)
+Sat Oct  3 13:41:21 2026: VRRP sockpool: [ifindex(  4), family(IPv4), proto(112), fd(13,14) multicast, address(224.0.0.18)]
+Sat Oct  3 13:41:22 2026: (nodeB) master set to 10.6.1.1
+Sat Oct  3 13:41:28 2026: (nodeB) Backup received priority 0 advertisement
+Sat Oct  3 13:41:28 2026: (nodeB) Receive advertisement timeout
+Sat Oct  3 13:41:28 2026: (nodeB) Entering MASTER STATE
+Sat Oct  3 13:41:28 2026: (nodeB) setting VIPs.
+Sat Oct  3 13:41:28 2026: (nodeB) Sending/queueing gratuitous ARPs on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:28 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:28 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:28 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:28 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:28 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: (nodeB) Sending/queueing gratuitous ARPs on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254
+Sat Oct  3 13:41:33 2026: Sending gratuitous ARP on w6k1 for 10.6.1.254

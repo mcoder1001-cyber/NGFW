@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-03",
+  "implementation": "native VPP IKEv2 route-based PSK",
+  "deployment": "disposable only; shared appliance unchanged",
+  "defaultReliability": {
+    "result": "PASS",
+    "durationSeconds": 108.93,
+    "livenessPeriodSeconds": 30,
+    "livenessMaxRetries": 3,
+    "peerHardCrash": true,
+    "nativeSACleared": true,
+    "protectedInterfaceLowered": true,
+    "peerRestartAutomaticRetry": true,
+    "newExactlyOneOwnedSA": true,
+    "bidirectionalRecoveryTraffic": true
+  },
+  "productionPath": {
+    "agentStartSealedCache": true,
+    "grpcApplySeparateSecretBundle": true,
+    "declarativeInterfacesIPIPRoutes": true,
+    "nativeInitiateRekeyDeleteActions": true,
+    "bidirectionalICMP": true,
+    "exactTCPBytes": 1048576,
+    "stateMeasuredBytesPacketsBothDirections": true,
+    "stateNoKeyEcho": true,
+    "foreignSPIRefusal": true,
+    "activeApplyPreservesSA": true,
+    "realAgentRestartInitialResyncPreservesIKEAndChildSPIs": true,
+    "routeWithdrawalRecovery": true,
+    "partialApplyBeforeSAAfterDeletionFailClosed": true,
+    "ESPOnUnderlay": true,
+    "plaintextIPIPPackets": 0
+  },
+  "acceleratedDiagnostic": {
+    "periodSeconds": 1,
+    "maxRetries": 3,
+    "result": "PASS",
+    "defaultEvidence": false
+  },
+  "sharedHost": {
+    "vppPID": 1014,
+    "NRestarts": 0
+  },
+  "cleanup": {
+    "ownedNetnsRemaining": [],
+    "ownedVethRemaining": [],
+    "ownedProcessesRemaining": [],
+    "privateVPPStopped": true
+  },
+  "limitations": [
+    "certificate/PKI unavailable",
+    "IPv4/default underlay only",
+    "one selector per direction",
+    "local responder CHILD rekey unavailable",
+    "per-tunnel DPD and IKE lifetime unavailable",
+    "IPv6 overlay and NAT traversal unverified",
+    "full VPP process restart not tested",
+    "no shared deployment"
+  ],
+  "artifactSha256": {
+    "accelerated-diagnostic.log": "28b643880ea7d8b90ba97abf0cb5624a25102c36930750aafd8b4f51b161a09a",
+    "cli-final.log": "085dc4b374448bbef44c1c1b1ba993acddf8f2431f23a2105d409be448736073",
+    "initiator-underlay.pcap": "107222ceb78bb730ab51bfa7e07824c27f3bbac084d1f2767ec147cf2ae414dd",
+    "plugin-build.log": "d645d0a09f18164cac47a1d7b8947699029ead52d556ec7e244eb1537dc894ef",
+    "production-active-restart.log": "c270efe08414b3b46a0fd533afe0991c84d894de5121626037b1f4da592b6079",
+    "production-default-dpd.log": "f3fab47846e26aac900a9f6d6a984e1fddf9b376b88512b20960c1055538a5f6",
+    "vpp-static.log": "1ce852f607cef916ab442f1b8cf49a4fb156aba1ebbfde619484fea98af94363"
+  }
+}

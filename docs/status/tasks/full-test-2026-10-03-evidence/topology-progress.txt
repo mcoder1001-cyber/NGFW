@@ -1,0 +1,42 @@
+START topology test_integration_reachability
+END topology test_integration_reachability exit 0
+START topology test_integration_smoke
+END topology test_integration_smoke exit 0
+START topology test_topology_acl
+END topology test_topology_acl exit 1
+START topology test_topology_bonding
+END topology test_topology_bonding exit 1
+START topology test_topology_bridge-l2
+END topology test_topology_bridge-l2 exit 1
+START topology test_topology_det44
+END topology test_topology_det44 exit 1
+START topology test_topology_host-acl-nftables
+END topology test_topology_host-acl-nftables exit 1
+START topology test_topology_interfaces
+END topology test_topology_interfaces exit 0
+START topology test_topology_ipfix-sflow
+END topology test_topology_ipfix-sflow exit 0
+START topology test_topology_kea-dhcp-relay
+END topology test_topology_kea-dhcp-relay exit 1
+START topology test_topology_loopback-bvi-gso-lldp-span
+END topology test_topology_loopback-bvi-gso-lldp-span exit 1
+START topology test_topology_nat44-ed-sessions
+END topology test_topology_nat44-ed-sessions exit 1
+START topology test_topology_nat44-ei-64-66-nptv6
+END topology test_topology_nat44-ei-64-66-nptv6 exit 1
+START topology test_topology_neighbors-ra
+END topology test_topology_neighbors-ra exit 1
+START topology test_topology_object-model
+END topology test_topology_object-model exit 1
+START topology test_topology_packaging
+END topology test_topology_packaging exit 0
+START topology test_topology_qos-flat
+END topology test_topology_qos-flat exit 0
+START topology test_topology_system-identity
+END topology test_topology_system-identity exit 0
+START topology test_topology_unbound-chrony-syslog
+END topology test_topology_unbound-chrony-syslog exit 1
+START topology test_topology_vlan-qinq
+END topology test_topology_vlan-qinq exit 1
+START topology test_topology_vrf-static-ecmp
+END topology test_topology_vrf-static-ecmp exit 1

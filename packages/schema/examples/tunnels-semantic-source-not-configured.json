@@ -31,5 +31,13 @@
       "rxMode": "polling"
     }
   },
-  "tunnels": { "gre": { "gre-x": { "src": "198.51.100.9", "dst": "203.0.113.30" } } }
+  "tunnels": {
+    "gre": {
+      "gre-x": {
+        "instance": 9,
+        "src": "198.51.100.9",
+        "dst": "203.0.113.30"
+      }
+    }
+  }
 }

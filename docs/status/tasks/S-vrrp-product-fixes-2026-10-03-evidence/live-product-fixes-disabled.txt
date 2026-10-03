@@ -1,0 +1,21 @@
+DISPOSABLE_VPP pid=1302884 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1302882
+=== RUN   TestVRRPProductFixesOnDisposableVPP
+2026/10/03 16:34:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop570 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    product_fixes_integration_test.go:88: show vrrp vr:
+        [0] sw_if_index 1 VR ID 5 IPv4
+           state Master flags: preempt yes accept yes unicast no
+           priority: configured 100 adjusted 100
+           timers: adv interval 10 master adv 10 skew 6 master down 36
+           virtual MAC 00:00:5e:00:01:05
+           addresses 10.5.70.253 10.5.70.254 
+           peer addresses 
+           tracked interfaces 
+    product_fixes_integration_test.go:101: F1: accept-mode Master VIPs excluded; unchanged commit has zero operations
+    product_fixes_integration_test.go:120: F2: live VIP order [10.5.70.253 10.5.70.254] restored presentation order [10.5.70.254 10.5.70.253]
+    product_fixes_integration_test.go:129: disabled Master commit failed: &{FAILED 0x3d998710ce60 [{interface-ip/loop570/10.5.70.1/24  DEPENDENCY_MISSING mandatory dependency interface.loopback/loop570 is neither desired nor present} {vrrp.vr/loop570/5/ipv4  DEPENDENCY_MISSING mandatory dependency interface/loop570 is neither desired nor present}] {0 0 0 0 2 0} validation failed: interface-ip/loop570/10.5.70.1/24: mandatory dependency interface.loopback/loop570 is neither desired nor present 3.128441ms 0 0 false}
+2026/10/03 16:34:17 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop570 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- FAIL: TestVRRPProductFixesOnDisposableVPP (0.66s)
+FAIL
+FAIL	ngfw/agent/internal/descriptors/vrrp	0.751s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=1302884

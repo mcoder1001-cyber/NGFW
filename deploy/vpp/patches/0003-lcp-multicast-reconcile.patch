@@ -1,0 +1,127 @@
+Subject: [PATCH] linux-cp: reconcile multicast acceptance across pair lifecycle
+Track: V27
+Status: product
+Upstream: not submitted
+
+Repair plugin-low multicast inputs when pairs are created with existing addresses
+or VPP addresses change without a matching Linux address notification. Remove
+both address-family inputs on pair deletion. Track IPv6 link delegate lifecycle
+so explicit link-local enablement survives global-address deletion.
+
+--- a/src/plugins/linux-cp/lcp_router.c
++++ b/src/plugins/linux-cp/lcp_router.c
+@@ -693,9 +693,11 @@
+ 	    ip6_add_del_interface_address (
+ 	      vlib_get_main (), sw_if_index, &ip_addr_v6 (&nh),
+ 	      rtnl_addr_get_prefixlen (rla), is_del);
+-	  if (!is_del ||
+-	      !lcp_router_count_interface_addresses (sw_if_index, AF_IP6))
+-	    lcp_router_ip6_mroutes_add_del (sw_if_index, !is_del);
++	  /* The link may retain an explicit or link-local reference after the
++	   * last global address is removed. The operation above has completed,
++	   * so reconcile from the actual link state, not the global pool count. */
++	  lcp_router_ip6_mroutes_add_del (sw_if_index,
++					ip6_link_is_enabled (sw_if_index));
+ 	}
+ 
+       LCP_ROUTER_DBG ("link-addr: %U %U/%d", format_vnet_sw_if_index_name,
+@@ -1605,10 +1607,76 @@
+ 			     .cb = lcp_router_route_sync_end },
+ };
+ 
++/* Reconcile the plugin-owned multicast inputs independently of netlink event
++ * ordering. Addresses can already exist when an LCP pair is recreated. */
++static void
++lcp_router_interface_mroutes_reconcile (u32 sw_if_index, u8 af)
++{
++  if (lcp_itf_pair_find_by_phy (sw_if_index) == INDEX_INVALID)
++    return;
++  u8 has_address = lcp_router_count_interface_addresses (sw_if_index, af) != 0;
++  if (af == AF_IP4)
++    lcp_router_ip4_mroutes_add_del (sw_if_index, has_address);
++  else
++    lcp_router_ip6_mroutes_add_del (sw_if_index, has_address);
++}
++
++static void
++lcp_router_ip4_address_change (ip4_main_t *im, uword opaque, u32 sw_if_index,
++                             ip4_address_t *address, u32 address_length,
++                             u32 if_address_index, u32 is_del)
++{
++  lcp_router_interface_mroutes_reconcile (sw_if_index, AF_IP4);
++}
++
++/* IPv6 link-local addresses are outside the interface address pool. Track
++ * the link's first-enable/final-disable transitions, including explicit LL-only
++ * enablement, rather than removing acceptance on every global-address delete. */
++static ip6_link_delegate_id_t lcp_router_ip6_delegate;
++
++static void
++lcp_router_ip6_link_enable (u32 sw_if_index)
++{
++  if (lcp_itf_pair_find_by_phy (sw_if_index) == INDEX_INVALID)
++    return;
++  ip6_link_delegate_update (sw_if_index, lcp_router_ip6_delegate, sw_if_index);
++  lcp_router_ip6_mroutes_add_del (sw_if_index, 1);
++}
++
++static u8 *
++format_lcp_router_ip6_link (u8 *s, va_list *args)
++{
++  u32 sw_if_index = va_arg (*args, u32);
++  u32 indent = va_arg (*args, u32);
++  return format (s, "%Ulinux-cp multicast input on %U\n", format_white_space,
++                 indent, format_vnet_sw_if_index_name, vnet_get_main (),
++                 sw_if_index);
++}
++
++static void
++lcp_router_ip6_link_disable (index_t sw_if_index)
++{
++  if (lcp_itf_pair_find_by_phy (sw_if_index) != INDEX_INVALID)
++    lcp_router_ip6_mroutes_add_del (sw_if_index, 0);
++}
++
++static void
++lcp_lcp_router_interface_add_cb (lcp_itf_pair_t *lip)
++{
++  lcp_router_interface_mroutes_reconcile (lip->lip_phy_sw_if_index, AF_IP4);
++  /* Link-local IPv6 addresses are maintained outside the interface address
++   * pool. Preserve acceptance when a recreated pair already has IPv6 enabled. */
++  if (ip6_link_is_enabled (lip->lip_phy_sw_if_index))
++    lcp_router_ip6_link_enable (lip->lip_phy_sw_if_index);
++}
++
+ static void
+ lcp_lcp_router_interface_del_cb (lcp_itf_pair_t *lip)
+ {
++  lcp_router_ip4_mroutes_add_del (lip->lip_phy_sw_if_index, 0);
+   lcp_router_ip6_mroutes_add_del (lip->lip_phy_sw_if_index, 0);
++  ip6_link_delegate_remove (lip->lip_phy_sw_if_index, lcp_router_ip6_delegate,
++                           lip->lip_phy_sw_if_index);
+ }
+ 
+ static clib_error_t *
+@@ -1619,10 +1687,22 @@
+   nl_register_vft (&lcp_router_vft);
+ 
+   lcp_itf_pair_vft_t lcp_router_interface_del_vft = {
++    .pair_add_fn = lcp_lcp_router_interface_add_cb,
+     .pair_del_fn = lcp_lcp_router_interface_del_cb,
+   };
+ 
+   lcp_itf_pair_register_vft (&lcp_router_interface_del_vft);
++
++  ip4_add_del_interface_address_callback_t cb4 = {
++    .function = lcp_router_ip4_address_change,
++  };
++  vec_add1 (ip4_main.add_del_interface_address_callbacks, cb4);
++  const ip6_link_delegate_vft_t ip6_delegate = {
++    .ildv_enable = lcp_router_ip6_link_enable,
++    .ildv_disable = lcp_router_ip6_link_disable,
++    .ildv_format = format_lcp_router_ip6_link,
++  };
++  lcp_router_ip6_delegate = ip6_link_delegate_register (&ip6_delegate);
+ 
+   /*
+    * allocate 2 route sources. The low priority source will be for

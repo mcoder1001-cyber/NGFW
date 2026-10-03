@@ -1,5 +1,7 @@
 # strongSwan renderer — desired state ↔ rendered directives (RF-2)
 
+> Current IPsec implementation scope (2026-10-03): **route-based only**, VPP native IKEv2 with a protected tunnel interface and routes. See [DEC-ipsec-route-based](../../decisions/DEC-ipsec-route-based.md). Existing low-level SPD/strongSwan/optional routeBased contract descriptions below document current or historical code; they do not authorise policy-based product implementation. Native module validation must require routeBased binding and reject unsupported modes.
+
 Code: `apps/agent/internal/renderers/strongswan` (README there: files, escaping, VICI apply,
 govici limits, test harness). Files: `/etc/strongswan.conf` and `/etc/swanctl/conf.d/ngfw.conf`
 (0640 root:root), `/etc/swanctl/conf.d/ngfw-secrets.conf` (**0600** root:root), written atomically;

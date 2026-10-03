@@ -265,3 +265,105 @@ implementation in VPP 26.06: `nat64` translates only IPv6→IPv4 sessions, `map`
 `pnat` stay in one family. F-nat46 ships the stateless 1:1 variant (SIIT over a MAP-T domain per mapping, `nat.nat46`);
 D-160 puts the stateful variant out of scope. Fallback implemented: one IPv4 service address per IPv6 server (1:1).
 Est. VPP effort: 2–4 weeks (a nat46 session table + IPv4→IPv6 in2out/out2in nodes modelled on nat64).
+
+
+### V-new (S-rva-agent-gates / F-isis-rip): IS-IS OSI punt to linux-cp (`lcp.osi-proto`)
+
+FRR's `isisd` runs the IS-IS control plane on the linux-cp tap of each interface, but IS-IS frames ride the OSI
+ethertypes (CLNP/IS-IS `0xfefe`, LLC/SNAP), not IPv4/IPv6. VPP does not punt those frames to the linux-cp pair by
+default, so `isisd` on the tap never sees IIH/LSP/SNP PDUs and adjacencies never form — even though the agent renders a
+valid `router isis` config and the commit reports APPLIED. VPP 26.06 does expose a linux-cp control for this
+(`lcp.LcpOsiProtoEnable` / `lcp.LcpOsiProtoGet`, `apps/agent/binapi/lcp/lcp.ba.go`), but wiring it needs a
+globals-owner descriptor with an irreversible enable (per the F-isis-rip prompt), and that descriptor is **not built**
+in this plan.
+
+Raised by: RV-A R4 (F-isis M1) / R1 (F-isis M2). Fallback implemented (this row, S-rva-agent-gates item 5): the
+projection reports `routing.isis` as `agent.unsupported-field` (`apps/agent/internal/agent/projection.go`) — a commit
+of `routing.isis` succeeds and renders the FRR config, but the warning states that IS-IS will not form adjacencies until
+the OSI punt exists, so it is never silent. When the punt is built (a globals-owner `lcp.osi-proto` descriptor with a
+fake-VPP unit test, Retrieve from `osi_proto_get`, Delete a documented no-op, the enable only in a manager window), flip
+`routing.isis` back to handled and drop the warning. Est. VPP effort: 0 (configuration-only via the existing linux-cp
+API; ~1 day to build and test the descriptor).
+
+### V-new (INC-vpp-classify-crash) — the merger moves it into the table as the next free V-number
+
+**CRASH VECTOR: an ip classify *reset* gives lower interfaces classify table 0. Two SIGSEGVs on 2026-09-28:
+14:10:40 (pid 1099) and 14:13:00 (pid 1810565); NRestarts 0→2.** Neither was the af_packet delete (V24) that D-182
+recorded.
+
+Backtrace: `vnet_classify_find_entry` (`vnet_classify.h:539`, fault addr 0x60 = `NULL->buckets[12]`) ←
+`ip_classify_inline` (`ip_classify.c:226`, node `ip4-classify`) ← `dispatch_pending_node`. The packet was an ICMP
+echo to the interface's own address. The cores show a classify DPO pointing to **freed table 0** and
+`classify_table_index_by_sw_if_index` = `{0:0, 1:0}`. Evidence: `docs/status/tasks/INC-vpp-classify-crash*`.
+
+- **Root cause:** `vnet_set_ip4_classify_intfc` (`src/vnet/ip/ip4_forward.c:2800`) and `vnet_set_ip6_classify_intfc`
+  (`ip6_forward.c:2993`) grow `lm->classify_table_index_by_sw_if_index` with `vec_validate`, which **zero-fills**.
+  Every other classify binding vector (input/output ACL, policer, flow, l2) uses `vec_validate_init_empty (…, ~0)`.
+  So `classify_set_interface_ip_table(sw_if_index=N, table=~0)` — even a pure reset — gives every lower
+  sw_if_index that was never set explicitly the ip classify table **0**.
+- **Arming:** the next address add on such an interface runs `ip4_add_interface_routes` (`ip4_forward.c:424-440`;
+  ip6 `:104-115`). It installs a `FIB_SOURCE_CLASSIFY` /32 (outranks `interface`) with a classify DPO to table 0.
+  The DPO takes no reference on the table.
+- **Crash:** `classify_add_del_table` delete (or `macip_acl_del`, whose tables are vnet classify tables) frees
+  table 0. The next packet to that address calls `pool_elt_at_index` on a freed entry, and `buckets` is NULL. With
+  no classify table at all, the NULL pool crashes the same way.
+- **Cleanup gap:** `ip4_del_interface_routes` deletes only the `interface` source, so the classify /32 outlives the
+  address. A classify table delete does not touch the DPOs either.
+- **ip6 FIB index (S-ipclassify-zerofill review F6):** `vnet_set_ip6_classify_intfc` adds/removes the /128 of the
+  first IPv6 address in `fib_table_get_index_for_sw_if_index (FIB_PROTOCOL_IP4, …)` (`ip6_forward.c:3006`) — the
+  interface's IPv4 table index used as an IPv6 table. So an ip6 reset with an IPv6 address present removes nothing
+  (or touches the wrong table). The fallback therefore resets ip6 only at create, before any address; the repair
+  resets are ip4-only. The fix uses `FIB_PROTOCOL_IP6`.
+- **Related:** likely also the 2026-09-24 04:50:27 crash filed under V19, which had the same signature; its core was
+  lost, so this is not proven.
+
+**Raised by:** INC-vpp-classify-crash (D-182).
+
+**Why VPP code is needed:** wrong vector initialisation, and a classify DPO without a table lock.
+
+**Fallback (configuration and agent only; proposed, owner manager):**
+1. Every interface creator resets ip4/ip6 classify on its new interface at create, before any address. After that
+   reset, a later zero-fill cannot reach the interface. The creators are:
+   - `ifsanitize.Acquire` (already does it);
+   - test fixtures that create loopbacks directly (today they reset only in `BeforeDelete` — this is what armed
+     another slot's interface on 09-28);
+   - the `tools/lab` rig: `set ip classify intfc <if> table-index -1` and
+     `set ip6 classify intfc <if> table-index -1` after `create host-interface`;
+   - hand scripts.
+2. To repair an armed interface, reset before any address delete. The reset removes the classify /32 of the
+   current first address.
+3. Optional safety net: the globals owner pins a never-deleted 1-bucket table at index 0 after each VPP start, so
+   an armed address drops traffic instead of crashing VPP.
+
+**Estimated VPP effort:** 0.5 day. Use `vec_validate_init_empty (lm->classify_table_index_by_sw_if_index,
+sw_if_index, ~0)` in both files. Better still, lock the table from `classify_dpo_create`, and remove the
+`FIB_SOURCE_CLASSIFY` /32 in `ip4/6_del_interface_routes` and on table delete.
+
+- V-new (INC-vpp-hang-20260928, 2026-09-29): src/plugins/nat/lib/alloc.c `nat_add_del_ip4_pool_addr()` — on delete, `a = pool->pool_addr + 1;` should be `pool->pool_addr + i` (frees slot 1's bitmaps/per-thread vectors instead of the matched slot's). Effect on VPP 26.06: DS-Lite pool delete-all + re-add (agent restart-safety / rollback sequence) makes the next delete an invalid free → dlmalloc abort → os_panic without exit (process spins; systemd never restarts it). Mitigation until the fix: no DS-Lite pool address delete on the shared host (F-det44 harness makes DS-Lite pools opt-in); the owner's VPP build carries the one-line patch. Found by F-det44-map-dslite-cnat-host (questions Q1-Q3).
+
+### V-new (S-mpls-ipbind-idempotent) — the merger moves it into the table as the next free V-number
+
+**mpls ip-bind leaks its label when the same (label, prefix) is bound twice (D-194).** Host-probed on ngfw-a in the
+F-mpls-srmpls-host globals window 2026-09-28 15:58:06 (`docs/status/tasks/F-mpls-srmpls-host-evidence/2-ipbind-probe-window.txt`
+on branch task/F-mpls-srmpls-host): `mpls_ip_bind_unbind` bind x1 + unbind x1 is clean. After bind x3 + unbind x1, the
+label's MPLS table 0 entries (`50040/eos` and `50040/neos`) remain. Four more unbinds (all retval 0) do not remove them;
+only deleting MPLS table 0 does. Every call returns 0, so the API gives no sign of the leak.
+
+| item | raised by | why VPP code seems needed | fallback implemented | est. VPP effort |
+|---|---|---|---|---|
+| A second bind of an already bound (label, prefix) should be a no-op (or replace), and an unbind should remove the label's table-0 entries whatever the bind count. VPP 26.06 has no dump of label bindings, so the agent cannot read which bindings exist (write-only, D-063). Suspected site: the local-label path of `mpls_ip_bind_unbind` (`fib_table_entry_local_label_add` / the FIB MPLS source's set-data). This is not proven from the source; the host behaviour is the evidence. | F-mpls-srmpls-host HQ4 (D-194) | upstream lifecycle bug in the MPLS local-label source, and an API gap (no binding dump) | `IPBindDescriptor.Create` probes MPLS table 0 (`mpls_route_dump`) and skips the bind while the label's EOS entry is present, so the scheduler's write-only re-applies (every apply D-063, every restart D-076) send nothing. The probe cannot tell a binding from another table-0 label, so the schema forbids a binding label that is also a table-0 label route, an SR binding SID, another binding's label (`routing.mpls-srmpls-binding-unique`) or inside the LDP dynamic range (`routing.mpls-ldp`). The fake VPP (coretest) models the leak. Limits: a label leaked earlier (before this fix, or by another client) is taken for the binding and never re-bound; the binding's MPLS table id is only an existence check — VPP installs the eos+neos entries in table 0 and creates table 0 itself when absent (`fib_entry_src_mpls_set_data` → `fib_table_find_or_create_and_lock`, FIB_SOURCE_MPLS), so the probe always reads table 0 and finds the entry from the second Create on | 1–2 days (idempotent bind + a `mpls_ip_bind_dump`, upstream + our build) |
+
+| item | raised by | why VPP code seems needed | fallback implemented | est. VPP effort |
+|---|---|---|---|---|
+| map/lpm.c: the ip6-pfx LPM used by ip6-map-t for domain lookup of reply sources never matches prefixes longer than /64, so a /128 NAT46 domain gets RX 0 | F-nat46-return-path Q1 (D-216) | upstream LPM bug | servers written `<P>::<ipv4>` project to a P/64 domain; other servers stay one-way | < 1 day |
+| lcp_router.c: pair-delete callback removes only the IPv6 (*,ff02) paths, never the IPv4 (*,224.0.0.0/24) Accept added on first tap IPv4 address; plugin-sourced, not removable by CLI/API | S-ospf-mfib-stale Q1 (D-216) | upstream lifecycle bug | agent flushes the root-ns tap IPv4 before pair delete (mfibguard.go); out-of-band deletes still leak | one line |
+
+## V26 — native route-based IKEv2 safety (2026-10-03)
+
+The native route-based assignment requires product patch [0002](../deploy/vpp/patches/0002-ikev2-safe-native-state.patch). On stock VPP 26.06, `ikev2_sa_v3_dump` can dereference an unallocated profile during SA_INIT and crash VPP. The patch skips unassociated profiles in v2/v3 dumps and corrects missing network-to-host conversion in IKE deletion and CHILD deletion/rekey handlers. It advertises exact plugin capability major 1/minor `0x56525801`; the agent refuses incompatible native operation.
+
+The patch was compiled and tested in disposable VPP instances, including production agent secret delivery, authenticated encrypted forwarding, native initiation/rekey/deletion and active-SA preservation across agent restart. It is part of the ordinary product patch series, version `26.06-release+ngfw2`. No package/plugin was installed on the shared appliance. Original-responder local CHILD rekey remains explicitly unavailable; peer-triggered rekey is verified.
+
+## V27 — LCP multicast pair/address lifecycle (2026-10-03)
+
+Product patch [0003](../deploy/vpp/patches/0003-lcp-multicast-reconcile.patch) repairs plugin-low IPv4/IPv6 multicast acceptance across pair recreation, address changes, link-local lifecycle and pair deletion. Stock reproduction fails, while private plugin lifecycle and strict full ISIS/RIP restart/withdraw/relearn/rollback tests pass. See [review and evidence](status/tasks/V27-lcp-multicast-reconcile-2026-10-03.md). Product series version is `26.06-release+ngfw3`; no patched plugin/package was installed on the shared appliance.

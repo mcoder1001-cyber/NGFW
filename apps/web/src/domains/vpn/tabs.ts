@@ -8,6 +8,11 @@ import type { DomainTab } from '../DomainTabsPage';
  */
 export const vpnTabs: readonly DomainTab[] = [
   // wave-BC: F-ikev2-native
+  {
+    id: 'ipsec',
+    labelKey: 'ipsec:tab',
+    Component: lazy(() => import('./ipsec/IpsecPage').then((m) => ({ default: m.IpsecPage }))),
+  },
   // wave-BC: F-srv6
   {
     id: 'srv6',

@@ -178,14 +178,10 @@ func mtuInEffect(c vpp.Client, owner string) func(context.Context, proto.Message
 		if err != nil || !ok {
 			return nil, false, err
 		}
-		def := [4]uint32{uint32(det.LinkMtu), 0, 0, 0}
-		if iface.Kind(det) == iface.SubinterfaceName {
-			def = [4]uint32{}
-		}
 		var cur [4]uint32
 		copy(cur[:], det.Mtu)
 		want := [4]uint32{o.GetMtu(), o.GetIp4(), o.GetIp6(), o.GetMpls()}
-		return iface.Meta{SwIfIndex: idx}, want == def && cur == def, nil
+		return iface.Meta{SwIfIndex: idx}, iface.IsDefaultMtu(det, want) && iface.IsDefaultMtu(det, cur), nil
 	}
 }
 

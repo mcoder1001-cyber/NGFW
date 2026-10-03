@@ -91,11 +91,9 @@ func interfaceCreators(t *testing.T) []creatorCase {
 // interface/<name> today (TD-11c fix round 1), with the row that fixes them. Shrink-only: a fixed
 // creator must be removed from this list (the test says so).
 var knownAliasCreatorGaps = map[string]string{
-	vxlan_gpe.TunnelName: "F-tunnels",
-	gtpu.TunnelName:      "F-tunnels",
-	gtpu.ForwardName:     "F-tunnels (shares the GTPU class with gtpu.tunnel: needs a KeyProvider)",
-	l2tp.TunnelName:      "F-tunnels",
-	pppoe.SessionName:    "F-tunnels",
+	// S-tunnels-contract mapped VXLAN_GPE / GTPU / L2TPv3 / PPPoE (subsystems/tunnels_t1.go); gtpu.forward shares the
+	// GTPU class with gtpu.tunnel and is not projected by any row yet: it needs a KeyProvider in descriptors/gtpu.
+	gtpu.ForwardName: "S-tunnels-contract follow-up (gtpu.forward is unprojected; needs a KeyProvider in descriptors/gtpu)",
 }
 
 func TestEveryInterfaceCreatorNamesItsAlias(t *testing.T) {

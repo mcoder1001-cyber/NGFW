@@ -1,0 +1,230 @@
+DISPOSABLE_VPP pid=1246668 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1246651
+run.sh: 2026-10-03T16:14:32 compile internal/renderers/frr/isis + overlay isis_host_integration_test.go (tools/heavy.sh)
+run.sh: 2026-10-03T16:14:36 VPP NRestarts=0 before live-isis
+=== RUN   TestISISHostLive
+    isis_host_integration_test.go:282: vrx ns-w6-frr (pathspace w6, pids map[isisd:1247292 mgmtd:1247206 staticd:1247289 zebra:1247283]), peer ns-w6-p1 (pathspace w6p1, pids map[isisd:1247360 mgmtd:1247299 staticd:1247332 zebra:1247307]), veth w6v0 10.6.9.1 ↔ w6v1 10.6.9.2, dummy w6d0 10.6.8.0/24
+    isis_host_integration_test.go:285: show version: FRRouting 10.7.1 (ubuntu-26.04) on Linux(7.0.0-31-generic).
+    isis_host_integration_test.go:314: golden: fullDoc rendered with w6-l0/-l1/-lo == testdata/full.golden (w8- → w6-):
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6-l0
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis circuit-type level-2-only
+         isis network point-to-point
+        exit
+        !
+        interface w6-l1
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis circuit-type level-1
+        exit
+        !
+        interface w6-lo
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis passive
+        exit
+        !
+        router isis vrx
+         net 49.0001.1921.6800.1001.00
+         redistribute ipv4 connected level-1 metric 20
+         redistribute ipv6 connected level-1 metric 20
+         redistribute ipv4 connected level-2 metric 20
+         redistribute ipv6 connected level-2 metric 20
+         redistribute ipv4 ospf level-1
+         redistribute ipv4 ospf level-2
+         redistribute ipv4 bgp level-1 route-map rm-in
+         redistribute ipv6 bgp level-1 route-map rm-in
+         redistribute ipv4 bgp level-2 route-map rm-in
+         redistribute ipv6 bgp level-2 route-map rm-in
+        exit
+        !
+        end
+    isis_host_integration_test.go:315: golden: Apply converged
+    isis_host_integration_test.go:321: golden: frr-reload --test of the applied golden: no diff (FRR 10.7.1 holds every applied line in canonical form)
+    isis_host_integration_test.go:327: golden: 25 rendered isis/interface lines found verbatim in show running-config:
+        Building configuration...
+        
+        Current configuration:
+        !
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6-l0
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis circuit-type level-2-only
+         isis network point-to-point
+        exit
+        !
+        interface w6-l1
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis circuit-type level-1
+        exit
+        !
+        interface w6-lo
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis passive
+        exit
+        !
+        router isis vrx
+         net 49.0001.1921.6800.1001.00
+         redistribute ipv4 bgp level-2 route-map rm-in
+         redistribute ipv4 bgp level-1 route-map rm-in
+         redistribute ipv4 ospf level-2
+         redistribute ipv4 ospf level-1
+         redistribute ipv4 connected level-2 metric 20
+         redistribute ipv4 connected level-1 metric 20
+         redistribute ipv6 bgp level-2 route-map rm-in
+         redistribute ipv6 bgp level-1 route-map rm-in
+         redistribute ipv6 connected level-2 metric 20
+         redistribute ipv6 connected level-1 metric 20
+        exit
+        !
+        end
+    isis_host_integration_test.go:331: golden removal: Apply converged
+    isis_host_integration_test.go:335: golden removal: no isis line left in show running-config
+    isis_host_integration_test.go:366: peer (minimal level-2 IS): Apply converged
+    isis_host_integration_test.go:367: vrx live: Apply converged
+    isis_host_integration_test.go:369: vrx rendered /run/vrx-test/w6/frr/etc/w6/frr.conf:
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6d0
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis passive
+        exit
+        !
+        interface w6v0
+         ip router isis vrx
+         ipv6 router isis vrx
+         isis circuit-type level-2-only
+         isis network point-to-point
+        exit
+        !
+        router isis vrx
+         net 49.0006.0000.0000.0001.00
+         redistribute ipv4 connected level-1 metric 20
+         redistribute ipv6 connected level-1 metric 20
+         redistribute ipv4 connected level-2 metric 20
+         redistribute ipv6 connected level-2 metric 20
+        exit
+        !
+        end
+    isis_host_integration_test.go:374: frr-reload --test of the applied live config: no diff
+    isis_host_integration_test.go:387: 15 rendered isis/interface lines found verbatim in show running-config
+    isis_host_integration_test.go:401: adjacency Up on the VRX side (parsed by isis.Neighbors) after 100ms ({VRF:default Area:vrx SystemID:ubuntu-26.04 Interface:w6v0 Level:2 State:Up})
+    isis_host_integration_test.go:407: real FRR 10.7.1 output of "show isis vrf all neighbor json" (VRX side):
+        {
+          "areas":[
+            {
+              "area":"vrx",
+              "circuits":[
+                {
+                  "circuit":0
+                },
+                {
+                  "circuit":0,
+                  "adj":"ubuntu-26.04",
+                  "interface":"w6v0",
+                  "level":2,
+                  "state":"Up",
+                  "expires-in":"29s",
+                  "snpa":"2020.2020.2020"
+                }
+              ]
+            }
+          ]
+        }
+    isis_host_integration_test.go:409: isis.ParseNeighbors on it: [{VRF:default Area:vrx SystemID:ubuntu-26.04 Interface:w6v0 Level:2 State:Up}] err=<nil>
+    isis_host_integration_test.go:416: show isis neighbor (text, VRX side):
+        Area vrx:
+         System Id           Interface   L  State         Holdtime SNPA
+         ubuntu-26.04        w6v0        2  Up            29       2020.2020.2020
+    isis_host_integration_test.go:419: show isis neighbor detail (text, VRX side):
+        Area vrx:
+         ubuntu-26.04        
+            Interface: w6v0, Level: 2, State: Up, Expires in 28s
+            Adjacency flaps: 1, Last: 2s ago
+            Circuit type: L2, Speaks: IPv4, IPv6
+            SNPA: 2020.2020.2020
+            Area Address(es):
+              49.0006
+            IPv4 Address(es):
+              10.6.9.2
+            IPv6 Address(es):
+              fe80::5883:23ff:fe3a:65c4
+        
+    isis_host_integration_test.go:424: peer side "show isis vrf all neighbor json":
+        {
+          "areas":[
+            {
+              "area":"vrx",
+              "circuits":[
+                {
+                  "circuit":0,
+                  "adj":"ubuntu-26.04",
+                  "interface":"w6v1",
+                  "level":2,
+                  "state":"Up",
+                  "expires-in":"28s",
+                  "snpa":"2020.2020.2020"
+                }
+              ]
+            }
+          ]
+        }
+        parsed: [{VRF:default Area:vrx SystemID:ubuntu-26.04 Interface:w6v1 Level:2 State:Up}] err=<nil>
+    isis_host_integration_test.go:431: 20 IS-IS routes on the VRX side after 100ms (20 of the peer's 20 prefixes as isis routes)
+    isis_host_integration_test.go:436: VRX's connected 10.6.8.0/24 (metric 20) as an IS-IS route on the peer after 26.1s (10.6.8.0/24 10.6.9.0/24)
+    isis_host_integration_test.go:438: VRX show ip route 10.6.64.0/24:
+        Routing entry for 10.6.64.0/24
+          Known via "isis", distance 115, metric 10, best
+          Last update 00:00:27 ago
+          Flags: Selected 
+          Status: Installed 
+          * 10.6.9.2, via w6v0, weight 1
+        
+    isis_host_integration_test.go:450: Retrieve carries the isisNeighbors reader (5248 bytes of state)
+    isis_host_integration_test.go:460: isis-adjacencies poller snapshot: map[default|vrx|ubuntu-26.04|w6v0|2:Up]
+    isis_host_integration_test.go:472: peer withdraws: Apply converged
+    isis_host_integration_test.go:477: 0 IS-IS routes of the peer after its withdrawal after 100ms (0 of the peer's 20 prefixes as isis routes)
+    isis_host_integration_test.go:492: isis-adjacencies event for the lost adjacency after 300ms (isis-adjacencies default|vrx|ubuntu-26.04|w6v0|2: Up -> -)
+    isis_host_integration_test.go:495: vrx removal (rollback of routing.isis): Apply converged
+    isis_host_integration_test.go:512: after removal, rendered /run/vrx-test/w6/frr/etc/w6/frr.conf:
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        
+        show running-config:
+        Building configuration...
+        
+        Current configuration:
+        !
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        end
+--- PASS: TestISISHostLive (58.70s)
+PASS
+run.sh: 2026-10-03T16:15:35 VPP NRestarts=0 after live-isis, exit 0
+run.sh: /tmp/g-w6 not empty: lic vrrp-bin 
+DISPOSABLE_VPP_STOPPED pid=1246668

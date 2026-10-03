@@ -1,0 +1,12 @@
+heavy: all 3 heavy slots busy, waiting (0s): go -C apps/agent test -race -count=1 ./internal/descriptors/lcp ./internal/descriptors/vrrp ./internal/descriptors/core ./internal/descriptors/interface ./internal/desired ./internal/subsystems ./internal/renderers/keepalived -run Test(DefaultPair|Leftover|MovedAccept|NetlinkAck|AddrReq|VRDeleteAfter|VRRP|Vrrp|.*DefaultMtu|.*Keepalived)
+heavy: slot 1 after 30s
+ok  	ngfw/agent/internal/descriptors/lcp	1.141s
+ok  	ngfw/agent/internal/descriptors/vrrp	1.208s
+ok  	ngfw/agent/internal/descriptors/core	1.109s
+ok  	ngfw/agent/internal/descriptors/interface	1.099s [no tests to run]
+ok  	ngfw/agent/internal/desired	1.331s
+ok  	ngfw/agent/internal/subsystems	1.936s
+ok  	ngfw/agent/internal/renderers/keepalived	1.360s
+heavy: all 3 heavy slots busy, waiting (0s): go -C apps/agent test -race -count=1 ./internal/descriptors/interface -run Test(Mtu|IPIPCreationMTU|GRECreationMTU|ProcessMemoryDropped)
+heavy: slot 1 after 10s
+ok  	ngfw/agent/internal/descriptors/interface	1.109s

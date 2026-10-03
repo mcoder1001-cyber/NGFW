@@ -21,11 +21,10 @@ one build script and a manifest that the packaging (P10) and the installer ISO (
 
 | build | patches applied | Debian version | output dir |
 |---|---|---|---|
-| `build.sh` | build-patches only (the product series is empty today) | `26.06-release+ngfw<N>` (D-092: the tree differs from upstream) | `.build/out/26.06-release+ngfw<N>/` |
+| `build.sh` | build-patches and native IKEv2 product patch 0002 | `26.06-release+ngfw<N>` (D-092: the tree differs from upstream) | `.build/out/26.06-release+ngfw<N>/` |
 | — | none (byte-identical upstream tree) | `26.06-release` — only the upstream/host build; `build.sh` never produces it | — |
 | `build.sh --demo` | + `Status: demo` patches | `26.06-release+ngfw<N>` | `.build/out/26.06-release+ngfw<N>-demo/` |
 | `build.sh --trace-plugins core` | + optional V18 patch | `26.06-release+ngfw<N>` | `.build/out/26.06-release+ngfw<N>-trace-core/` |
-| once `patches/series` holds a product patch | product patches | `26.06-release+ngfw<N>` | `.build/out/26.06-release+ngfw<N>/` |
 
 D-092: **any** change to the upstream source tree — build-patches included, because a different meson/pyelftools can
 change binaries — gets the suffix; a package claiming the host's `26.06-release` must be the host's (upstream) build.
@@ -169,3 +168,13 @@ flock -u 9
 
 Rollback (any check fails): `dpkg -i "$B"/*.deb` (a downgrade from `+ngfw<N>` to `26.06-release`; dpkg warns and
 proceeds), `cp -a "$B/etc-vpp/." /etc/vpp/`, `systemctl restart vpp`, re-run the checks, record it in `docs/decisions/LOG.md`.
+
+## Native route-based IKEv2 capability
+
+Product patch `0002-ikev2-safe-native-state.patch` is required by the native module. It safely skips SAs without an allocated profile during v2/v3 state dumps, converts action SPIs from network byte order, and advertises plugin API major 1 with minor `0x56525801`. The agent requires that exact pair before using native state. An upstream plugin is refused because polling incomplete negotiation can crash it.
+
+The patch was exercised only in disposable VPP instances, including protected packets and production API/agent PSK lifecycle. No patched package or plugin was installed on the shared host. The ordinary product build applies this patch; the demonstration patch remains opt-in via `--demo`.
+
+## LCP multicast lifecycle
+
+Product patch `0003-lcp-multicast-reconcile.patch` repairs Linux-NL multicast acceptance across LCP pair recreation and IPv4/IPv6 address/link lifecycle. It preserves other interface paths and avoids API-source overlays. Independent review, stock-failure/patched-lifecycle comparisons and strict full ISIS/RIP restart recovery passed in disposable VPP. Product revision is 3; no shared appliance installation occurred.

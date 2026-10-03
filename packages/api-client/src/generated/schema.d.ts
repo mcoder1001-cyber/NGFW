@@ -14148,7 +14148,9 @@ export interface operations {
   };
   Pki_export: {
     parameters: {
-      query?: never;
+      query?: {
+        kind?: 'certificate' | 'ca' | 'crl' | 'key';
+      };
       header?: never;
       path: {
         name: string;

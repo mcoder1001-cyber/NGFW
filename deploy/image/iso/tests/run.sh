@@ -222,6 +222,7 @@ check "guard: rm refuses a dir without the marker" test "$rc" != 0 -a -d "$VRX_I
 check "installer: failed inventory blocks destructive continuation" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_disk_guard.py"
 
 check "python: renderer regression cases" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_render.py"
+check "python: VPP manifest completeness and archive parity" env PYTHONDONTWRITEBYTECODE=1 python3 "$HERE/test_vpp_manifest.py"
 
 # ---------------------------------------------------------------- shellcheck
 if command -v shellcheck >/dev/null; then

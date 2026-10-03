@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Inject, Param, Post, Query, Req } from '@nestjs/common';
-import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { PkiKeySpecSchema, pkiDistinguishedName, pkiSubjectAltName } from '@ngfw/schema';
 import { z } from 'zod';
 import { AuditUnavailableDoc } from '../../audit/audit.interceptor.js';
@@ -229,6 +229,7 @@ export class PkiController {
       'Public PEM of a certificate, CA (chain) or CRL — a private key is never exported (403)',
   })
   @ApiOut(PkiExportOut)
+  @ApiQuery({ name: 'kind', required: false, schema: openapi(ExportQuery.shape.kind) })
   export(
     @Param('name', new SafeParamPipe('name', 64)) name: string,
     @Query(new ZodPipe(ExportQuery)) q: z.output<typeof ExportQuery>,

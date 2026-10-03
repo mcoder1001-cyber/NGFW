@@ -49,6 +49,23 @@ func TestGenerateFromFixture(t *testing.T) {
 	}
 }
 
+func TestPkiPublicExportSelection(t *testing.T) {
+	c, err := New("http://127.0.0.1:3000")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"certificate", "ca", "crl"} {
+		u, _, err := c.URL(Call{Op: "Pki_export", Params: map[string]string{"name": "issuer"}, Query: url.Values{"kind": {kind}}})
+		want := "http://127.0.0.1:3000/api/v1/actions/pki/export/issuer?kind=" + kind
+		if err != nil || u != want {
+			t.Errorf("public %s export URL = %q, %v; want %q", kind, u, err, want)
+		}
+	}
+	if _, _, err := c.URL(Call{Op: "Pki_export", Params: map[string]string{"name": "issuer"}, Query: url.Values{"force": {"true"}}}); err == nil {
+		t.Error("undocumented export query parameter must be refused")
+	}
+}
+
 func TestURLEncodesPointerSegmentsAndChecksQuery(t *testing.T) {
 	c, err := New("http://127.0.0.1:3000/")
 	if err != nil {

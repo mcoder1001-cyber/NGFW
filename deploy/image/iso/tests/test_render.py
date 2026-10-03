@@ -38,6 +38,15 @@ class RenderTests(unittest.TestCase):
         with self.assertRaises(SystemExit):
             render.grub('', '1.0', ' console=tty0;reboot')
 
+    def test_destructive_menu_labels_match_largest_disk_selection(self):
+        cfg = 'menuentry "Ubuntu" {\nlinux /casper/vmlinuz ---\ninitrd /casper/initrd\n}\n'
+        result = render.grub(cfg, '1.0', '')
+        self.assertIn('menuentry "Install VRX 1.0 (unattended: ERASES the largest disk)"', result)
+        self.assertIn('menuentry "Reinstall VRX 1.0 (ERASES the largest disk)"', result)
+        self.assertNotIn('ERASES an existing VRX installation', result)
+        self.assertEqual(result.count(' vrx.reinstall=1'), 1)
+        self.assertIn('set default=0\nmenuentry "Install VRX', result)
+
 
 if __name__ == '__main__':
     unittest.main()

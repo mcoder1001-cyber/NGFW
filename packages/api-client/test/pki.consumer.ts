@@ -26,7 +26,14 @@ export async function pkiConsumer(): Promise<void> {
     void imported.data.passphrase;
   }
   const exported = await api.GET('/api/v1/actions/pki/export/{name}', {
-    params: { path: { name: 'server' } },
+    params: { path: { name: 'server' }, query: { kind: 'ca' } },
+  });
+  await api.GET('/api/v1/actions/pki/export/{name}', {
+    params: {
+      path: { name: 'server' },
+      // @ts-expect-error — export selection is a bounded enum.
+      query: { kind: 'unknown' },
+    },
   });
   if (exported.data) {
     const pem: string = exported.data.pem;

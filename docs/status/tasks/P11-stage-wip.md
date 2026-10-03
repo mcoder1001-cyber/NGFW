@@ -1,3 +1,97 @@
+# P11 resumed HOME blocker fix — current checkpoint
+
+Branch/worktree unchanged: `codex/p11-stage-20261003`, `NGFW-p11-stage`.
+Previous materialised-stage implementation is durable: observed local HEAD
+`9565735f7de97208786aba43edc0bc18cd7189df`; manager reports remote publication
+`295b8ce42b600e21784e04f7dbf53b3535be2d0f`. Developer cannot independently read remote.
+Current fix remains local pending coordinator commit/publication because shared Git metadata is read-only.
+
+Original independent FAIL is preserved: manager/root T1 observed `VERIFY.run`
+raise `InvalidBundle: bash failed`; direct `verify.sh` exited 1 with
+`FAIL tests/run.sh failed`, and direct unchanged tests stopped after 19 passes at
+`deploy/vpp/tests/run.sh: line 60: HOME: unbound variable`.
+Evidence: `../NGFW-manager/docs/status/tasks/P11-stage-test-T1-root.md` and final
+HOME blocker in `P11-stage-manager-feedback.md`. Prior 21 stage/9 intake fixture
+passes did not resolve or supersede this real verifier defect.
+
+Exact changed files for this resumed fix:
+- `deploy/strongswan/verify_inputs.py`: set deterministic `HOME=/nonexistent`
+  inside `verified_snapshot`'s existing shared sanitized environment; do not
+  change shared helper, privileges, caller restoration or full gate flags.
+- `deploy/strongswan/test_verify_inputs.py`: regression for exact sanitized
+  environment and full caller restoration after success, invalid digest and
+  consumer error; run real unchanged VPP 66-test script and static `verify.sh`
+  through the original production `VERIFY.run` inside the snapshot environment.
+  Synthetic intake provenance remains explicitly stubbed; real static checks do not.
+- `docs/status/tasks/P11-stage-wip.md`: this recovery and actual verification record.
+
+Final frozen verification (no skipped tests):
+```
+python3 deploy/strongswan/test_verify_inputs.py
+Ran 11 tests in 94.568s
+OK
+python3 deploy/strongswan/test_prepare_stage.py
+Ran 23 tests in 137.742s
+OK
+tools/ci.sh check --base HEAD
+check PASSED (0m08s)
+python3 -m py_compile deploy/strongswan/verify_inputs.py deploy/strongswan/test_verify_inputs.py
+exit 0
+git diff --check
+exit 0
+```
+Both suites execute the unchanged real `deploy/vpp/tests/run.sh` via the original
+production `VERIFY.run`, under the fixed three-variable environment in the actual
+P11 snapshot scope. Direct real script output: `66 passed, 0 failed` (66 `ok` lines).
+Both also execute the unchanged real static `deploy/vpp/verify.sh` without
+`--no-tests`, which itself reruns the full 66-test suite. Actual static output:
+```
+ok   VERSION: v26.06 c3200b88dc46bd380f00a49ca3392a102cc1980b → 26.06-release (patched: 26.06-release+vrx1), 11 packages, ship 7
+ok   series: patches 1 · build-patches 1 (build/ only) · optional optional/trace-plugins-core.patch
+ok   pydeps.lock: meson==0.57.2 pyelftools==0.33 setuptools==84.0.0 wheel==0.48.0 packaging==26.3 (sha256-pinned)
+ok   scripts parse + shellcheck; no .deb/.whl/.build in git; .gitignore covers deploy/vpp/.build and *.deb
+ok   tests/run.sh: 66 passed, 0 failed
+verify.sh: OK
+```
+Logs: `/tmp/p11-home-intake-tests-final.log`, `/tmp/p11-home-stage-tests.log`,
+`/tmp/p11-home-check.log`. The first new intake regression run genuinely executed
+both real commands successfully but failed because the test expected the wrong
+success label (`verify.sh: all checks passed` rather than actual `verify.sh: OK`).
+That assertion was corrected and the full final intake suite rerun passed; initial
+log preserved at `/tmp/p11-home-intake-tests.log`. This test-assertion error is
+separate from the original independently reproduced missing-HOME product FAIL,
+which is preserved above. Positive synthetic provenance remains stubbed; these
+real static successes prove the environment prerequisite, not a real product
+build/source authenticity, ABI, release or lab acceptance.
+
+No VPP test/verifier scripts, shared installer, privileges or other task code
+modified. Ancestor/overlap/rollback fixtures retained and passing. Only own
+untracked `deploy/strongswan/__pycache__` cleaned before handoff. Current fix is
+ready for coordinator commit/publication; read-only shared Git metadata remains
+the known blocker, no retries of unavailable connector approval or auth changes.
+Independent root R2 and unchanged full hosted quick remain mandatory/pending.
+Builder, release/security/licensing and lab acceptance remain unfinished.
+
+Exact next commands for the coordinator in this same worktree:
+```
+git add deploy/strongswan/verify_inputs.py deploy/strongswan/test_verify_inputs.py docs/status/tasks/P11-stage-wip.md
+git commit -m 'fix(packaging): provide deterministic HOME for P11 verification'
+git push origin HEAD
+```
+Record actual new local/remote SHAs; obtain independent root R2 and unchanged
+hosted quick results. Developer does not self-review, merge or wait for hosted CI.
+
+Frozen tested product-file SHA-256 fingerprints:
+`deploy/strongswan/verify_inputs.py`: `3299b289c382c4bafdc4eaf9b519d8af255e0539705ed81cfaa9d07802a14f6d`
+
+`deploy/strongswan/test_verify_inputs.py`: `d17d5f32bb16ff0d59a3ec9e586083aa1e350c1cb5a27afa7a9aa650eb9d79af`
+
+
+---
+
+The following is the preserved historical record before manager committed/published
+`9565735f` / `295b8ce4`; its then-pending publication statements are historical.
+
 # P11 stage WIP — tested checkpoint ready for manager publication
 
 Branch: `codex/p11-stage-20261003`; base/frozen PR101 `2dbdff2405e845da47aa149bb72cdedbce60649c`.

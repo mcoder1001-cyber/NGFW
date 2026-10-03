@@ -53,6 +53,7 @@ class IntakeTests(unittest.TestCase):
         self.manifest()
         self.tar()
         original = INPUT.VERIFY.run
+        self.real_run = original
         def gate(argv, limit=1024 * 1024, pass_fds=()):
             if argv[0] == 'bash':
                 self.assertIn('--install-gate', argv)
@@ -179,6 +180,54 @@ class IntakeTests(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertIn('P11 input verification failed:', errors.getvalue())
         self.assertNotIn('Traceback', errors.getvalue())
+
+    def test_snapshot_fixed_home_and_full_environment_restoration(self):
+        expected = {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C',
+                    'HOME': '/nonexistent'}
+        gate = INPUT.VERIFY.run
+        def checked(argv, limit=1024 * 1024, pass_fds=()):
+            self.assertEqual(dict(os.environ), expected)
+            return gate(argv, limit, pass_fds)
+        with patch.dict(os.environ, {'HOME': '/caller-home-must-not-be-used',
+                                     'BASH_ENV': '/caller-startup-must-not-be-used'}):
+            before = dict(os.environ)
+            with patch.object(INPUT.VERIFY, 'run', checked):
+                with INPUT.verified_snapshot(self.vpp, self.source, '5.9.6', self.digest):
+                    self.assertEqual(dict(os.environ), expected)
+                self.assertEqual(dict(os.environ), before)
+                with self.assertRaises(INPUT.InvalidInputs): self.verify('0' * 64)
+                self.assertEqual(dict(os.environ), before)
+                with self.assertRaisesRegex(RuntimeError, 'consumer failure'):
+                    with INPUT.verified_snapshot(self.vpp, self.source, '5.9.6', self.digest):
+                        raise RuntimeError('consumer failure')
+                self.assertEqual(dict(os.environ), before)
+
+    def test_real_vpp_tests_and_static_verifier_in_snapshot_environment(self):
+        gate = INPUT.VERIFY.run
+        observed = []
+        def real_static(argv, limit=1024 * 1024, pass_fds=()):
+            if argv[0] == 'bash':
+                self.assertEqual(os.environ['HOME'], '/nonexistent')
+                self.assertNotIn('BASH_ENV', os.environ)
+                # These commands are real and unchanged; no provenance stub is used
+                # for either static verification or the full 66-test script.
+                tests = self.real_run(['bash', str(INPUT.ROOT / 'deploy/vpp/tests/run.sh')])
+                self.assertEqual(len([line for line in tests.splitlines()
+                                      if line.startswith('ok ')]), 66)
+                self.assertIn('66 passed, 0 failed', tests)
+                static = self.real_run(['bash', str(INPUT.ROOT / 'deploy/vpp/verify.sh')])
+                self.assertIn('verify.sh: OK', static)
+                observed.extend([tests, static])
+            return gate(argv, limit, pass_fds)
+        with patch.dict(os.environ, {'HOME': '/caller-home-must-not-be-used',
+                                     'BASH_ENV': '/caller-startup-must-not-be-used'}):
+            before = dict(os.environ)
+            with patch.object(INPUT.VERIFY, 'run', real_static):
+                self.verify()
+            self.assertEqual(dict(os.environ), before)
+        self.assertEqual(len(observed), 2)
+        print('REAL unchanged VPP tests in verified_snapshot clean environment:\n' + observed[0])
+        print('REAL unchanged VPP static verify via VERIFY.run:\n' + observed[1])
 
     def test_real_vpp_gate_refuses_synthetic_build(self):
         self.gate.stop()

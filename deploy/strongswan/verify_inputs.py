@@ -111,6 +111,9 @@ def verified_snapshot(vpp_output, source, version, digest):
     if version != '5.9.6':
         raise InvalidInputs('this intake profile requires historical strongSwan 5.9.6')
     with INSTALL.safe_environment(), tempfile.TemporaryDirectory(prefix='vrx-p11-', dir='/var/tmp') as temporary:
+        # Mandatory VPP tests use HOME under set -u. Never inherit caller startup paths.
+        # The enclosing shared context restores the complete caller environment.
+        os.environ['HOME'] = '/nonexistent'
         private = Path(temporary)
         delivery = private / 'delivery'
         delivery.mkdir(mode=0o700)

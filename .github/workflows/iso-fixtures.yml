@@ -1,0 +1,35 @@
+name: Offline ISO fixtures
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/image/iso/**'
+      - 'deploy/vpp/VERSION'
+      - '.github/workflows/iso-fixtures.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/image/iso/**'
+      - 'deploy/vpp/VERSION'
+      - '.github/workflows/iso-fixtures.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-fixtures:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install fixture dependencies on the disposable runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes python3-yaml dpkg-dev shellcheck
+      - name: Run offline fixtures without installation or mounts
+        env:
+          PYTHONDONTWRITEBYTECODE: '1'
+        run: bash deploy/image/iso/tests/run.sh

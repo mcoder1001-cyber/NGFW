@@ -24,7 +24,7 @@ a one-line comment that says what a feature adds under its anchor.
 | C1 | `packages/schema/src/domains/services.ts` | `ServicesSchema` root (2) |
 | C2 | `packages/schema/src/semantic/index.ts` | imports (14) · `SEMANTIC_VALIDATORS` spreads (14) = 28 |
 | C3 | `packages/schema/src/index.ts` | `export * from './domains/ext/<slug>.js'` (11) |
-| C5 | `packages/proto/vrx/v1/dataplane.proto` | end of `service Dataplane` (16) · `Interface` (6) · `Subinterface` (3) · `Vrf` (2) · `StaticRoute` (2) · `RoutingConfig` (2) · `ServicesConfig` (2) · `AclConfig` (2) · `ActionRequest.action` (3) · `EventKind` (5) = 43; plus 16 `// ----- <task-id> -----` section stubs at the end of the file |
+| C5 | `packages/proto/ngfw/v1/dataplane.proto` | end of `service Dataplane` (16) · `Interface` (6) · `Subinterface` (3) · `Vrf` (2) · `StaticRoute` (2) · `RoutingConfig` (2) · `ServicesConfig` (2) · `AclConfig` (2) · `ActionRequest.action` (3) · `EventKind` (5) = 43; plus 16 `// ----- <task-id> -----` section stubs at the end of the file |
 | C6 | `docs/contracts/proto.md` | new heading "## 11. Feature RPCs" (16) |
 | P1 | `apps/api/src/app.module.ts` | import (16) · `controllers` (16) · `providers` (16) = 48 |
 | P4 | `apps/api/src/agent/agent.client.ts` | `@ngfw/proto` type imports (16) · methods (16) = 32 |
@@ -40,10 +40,10 @@ a one-line comment that says what a feature adds under its anchor.
 `NAMESPACES` and `en`/`fa` literals (W3). Their content is unchanged; the only additions are the shell namespaces `services` and `vpn`.
 
 **Seams** (launch plan §5.2):
-- `subsystems.Env.Publish func(*vrxv1.Event)` and `Env.Resync func()` are reached through `Wiring.Publish(ev)` and
+- `subsystems.Env.Publish func(*ngfwv1.Event)` and `Env.Resync func()` are reached through `Wiring.Publish(ev)` and
   `Wiring.RequestResync()` (`subsystems/seams.go`). Both are nil by default, and nil means no-op. `TestEventAndResyncHooksDefaultInert`
   checks this. `agent.go` does not set the hooks yet, because it is outside this envelope. Q1 has the proposed wiring.
-- `subsystems.SlotIDRange() (*IDRange, error)` reads `VRX_VPP_TABLE_BASE` and returns base..base+999. It returns nil when the variable
+- `subsystems.SlotIDRange() (*IDRange, error)` reads `NGFW_VPP_TABLE_BASE` and returns base..base+999. It returns nil when the variable
   is unset (the product agent owns every id) and an error for a malformed value, 0, or a range that overflows. `TestSlotIDRange` covers these cases.
 - The vpn and services page shells are `apps/web/src/domains/DomainTabsPage.tsx` plus `{vpn/VpnPage,services/ServicesPage}.tsx`
   and their `tabs.ts` registries. With an empty registry the page renders exactly `DomainPlaceholderPage`, so there is no
@@ -109,7 +109,7 @@ and this file (3, including the command above).
 48 apps/agent/internal/subsystems/subsystems.go      48 apps/api/src/app.module.ts            68 apps/web/src/i18n.ts
 32 apps/agent/internal/agent/projection.go           32 apps/api/src/agent/agent.client.ts    15 apps/web/src/nav/nav.ts
  4 apps/agent/internal/agent/server.go               16 apps/api/src/testing/fake-agent.ts    15 apps/web/src/nav/nav.test.ts
-43 packages/proto/vrx/v1/dataplane.proto (+16 "// ----- <id> -----" stubs)   6 apps/api/src/infra/bus.ts   15 apps/web/src/router.tsx
+43 packages/proto/ngfw/v1/dataplane.proto (+16 "// ----- <id> -----" stubs)   6 apps/api/src/infra/bus.ts   15 apps/web/src/router.tsx
 16 docs/contracts/proto.md                            6 apps/api/src/telemetry/relay.service.ts
 28 packages/schema/src/semantic/index.ts             11 packages/schema/src/index.ts             2 apps/web/src/domains/vpn/tabs.ts
  9 packages/schema/src/domains/interfaces.ts          5 packages/schema/src/domains/routing.ts   2 apps/web/src/domains/services/tabs.ts
@@ -118,7 +118,7 @@ and this file (3, including the command above).
 
 ### 4. `TMPDIR=/tmp/g-w3 tools/ci.sh --base main`: green
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 branch    task/W-seed @ 0083590   (base: main)
 ok — contract commit(s) on the branch:
   5c6e1f8 contract(wave-A): anchors

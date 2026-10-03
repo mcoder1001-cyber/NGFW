@@ -5,7 +5,7 @@ Write the reconciler **descriptors** (Create/Update/Delete/Retrieve/Dependencies
 tunnel-protect/ipsec interfaces (WBS D6.1), the native IKEv2 responder profile path (D6.3) and WireGuard (D6.5) — against the scheduler
 interface published by P05a and the generated bindings in `apps/agent/binapi/`. No API, no UI — pure agent-side building blocks that P11
 (strongSwan + tunnel protect) and the VPN F-* tasks wire up later. All key material is a **secret**: never logged, never in fixtures except the
-literal `VRX_TEST_PSK_<id>` / documented test vectors, never returned by Retrieve in clear.
+literal `NGFW_TEST_PSK_<id>` / documented test vectors, never returned by Retrieve in clear.
 
 ## Inputs to read first
 - `apps/agent/internal/scheduler/descriptor.go` (P05a — the interface; do not change it, request changes via a question file)
@@ -14,7 +14,7 @@ literal `VRX_TEST_PSK_<id>` / documented test vectors, never returned by Retriev
   (fixture only) — **the only source of message names and fields**; verify every name below in the package, never guess
 - `prompts/P11-strongswan-vpp.md` — the consumer of `ipsec-sa`, `ipsec-tunnel-protect`, `ipsec-sa` Retrieve (counters) and the ipip fixture pattern
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (ipsec, ikev2, wireguard)
-- `docs/lab/host-vrx-a.md` — ipsec/ikev2/wireguard plugins are loaded; the host has **no workers** → async crypto mode and per-worker settings get
+- `docs/lab/host-ngfw-a.md` — ipsec/ikev2/wireguard plugins are loaded; the host has **no workers** → async crypto mode and per-worker settings get
   integration tests marked `skip: no workers on host`; crypto engines available: native + openssl (check `ipsec_backend_dump`)
 - `docs/lab/shared-host-rules.md` — prefix `w<N>`, addresses `10.<N>.0.0/16`, SPD/SA ids and UDP ports from your slot (document the port scheme, never 500/4500/51820 on the host)
 
@@ -36,7 +36,7 @@ Enumerate the object types in `docs/status/tasks/DF-5.md` first, then build (est
   ikev2_profile_set_id (local/remote: ip4/fqdn/rfc822/ip6/key-id) + ikev2_profile_set_ts (local/remote selectors) + ikev2_set_ike_transforms +
   ikev2_set_esp_transforms + ikev2_set_sa_lifetime + ikev2_profile_set_udp_encap + ikev2_profile_set_ipsec_udp_port + ikev2_profile_set_liveness
   + ikev2_set_tunnel_interface + ikev2_set_responder / ikev2_set_responder_hostname (Update re-issues only the changed setters; profile name
-  `w<N>-*`), `ikev2-local-key` (ikev2_set_local_key — file path; global singleton, file under `/run/vrx-test/w<N>/`), `ikev2-sleep-interval`
+  `w<N>-*`), `ikev2-local-key` (ikev2_set_local_key — file path; global singleton, file under `/run/ngfw-test/w<N>/`), `ikev2-sleep-interval`
   (ikev2_plugin_set_sleep_interval — global, read-only in tests). Retrieve: ikev2_profile_dump; state: ikev2_sa_dump / ikev2_sa_v3_dump (newest) +
   ikev2_child_sa_dump (Retrieve-only). ikev2_initiate_sa_init / ikev2_initiate_del_ike_sa / ikev2_initiate_del_child_sa / ikev2_initiate_rekey_child_sa
   = action helpers, not descriptors.
@@ -61,8 +61,8 @@ deletes it in `t.Cleanup`.
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding; plus
    a test that a key never appears in `%v`/`slog` output of any descriptor type — implement `LogValue`/`String` redaction).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your prefix (other workers' objects exist on the same VPP). Use prefixed loopbacks/ipip fixtures; never touch `local0` or anything
    unprefixed; clean up in `t.Cleanup`. Test keys are documented test vectors, never real material. No peer, so SAs/IKE profiles stay idle —
    assert configuration, not traffic.
@@ -80,7 +80,7 @@ deletes it in `t.Cleanup`.
 - [ ] `go test ./internal/descriptors/{ipsec,ikev2,wireguard}/...` green (unit + integration on the host)
 - [ ] `grep -rn "vppctl\|exec.Command" internal/descriptors/{ipsec,ikev2,wireguard}` is empty
 - [ ] Applying the same desired state twice yields an empty plan (log excerpt) — including with SAs whose keys are not retrievable
-- [ ] Object ↔ message table committed; `grep -rn "VRX_TEST_PSK\|private_key" -i` over test logs shows no material (paste the grep)
+- [ ] Object ↔ message table committed; `grep -rn "NGFW_TEST_PSK\|private_key" -i` over test logs shows no material (paste the grep)
 - [ ] `vppctl show ipsec sa` / `show ipsec spd` / `show ikev2 profile` / `show wireguard interface` pasted for your prefixed objects, then empty after delete
 
 ## Out of scope (do not build)

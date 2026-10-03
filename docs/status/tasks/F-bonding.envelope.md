@@ -6,13 +6,13 @@ scope: LACP/XOR/RR/active-backup bonds. The work: bond model + builder onto DF-1
 merged deps you can rely on: P08, DF-1
   - P08: desired/ Sink + Assemble + KindOf, subsystems registry + Wiring stores, projection.go, InterfaceState state-RPC pattern, test/topology/interfaces
   - DF-1: bond.bond, bond.member, interface/<name> alias, ClaimStore
-  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/vrx-vpp-preflight; bond.bond Create sanitizes) and TD-2 (API auth/users follow-ups)
+  - also on main: TD-3 (V19 sanitizer apps/agent/internal/vpp/ifsanitize + cmd/ngfw-vpp-preflight; bond.bond Create sanitizes) and TD-2 (API auth/users follow-ups)
 read first: prompts/features/F-bonding.md · docs/status/vertical-slice.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers; your ids: A1, A2, A3 kind-only, A6, C1–C7, P1, P4, P5, W1, W2, W3, D1) · docs/agent/descriptors/{bond,interface}.md · docs/decisions/LOG.md D-063, D-065, D-069, D-071, D-075, D-076, D-080, D-095, D-101, D-104
-slot: 6 → VRX_SLOT=6 VRX_TEST_PREFIX=w6 VRX_HTTP_PORT=3000+100·6 VRX_WEB_PORT=5000+100·6 VRX_METRICS_PORT=9100+10·6+1 VRX_AGENT_SOCKET=/run/vrx-test/w6/agent.sock VRX_PG_DATABASE=vrx_w6 VRX_VALKEY_DB=6 VRX_VPP_TABLE_BASE=6000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 6 → NGFW_SLOT=6 NGFW_TEST_PREFIX=w6 NGFW_HTTP_PORT=3000+100·6 NGFW_WEB_PORT=5000+100·6 NGFW_METRICS_PORT=9100+10·6+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w6/agent.sock NGFW_PG_DATABASE=ngfw_w6 NGFW_VALKEY_DB=6 NGFW_VPP_TABLE_BASE=6000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 6)"`
   - rig prefix w6 → 10.6.{1,2}.0/24
   - bond ids come from 6000–6999
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none
 obligations:
@@ -42,7 +42,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge). Inser
   - C1 packages/schema/src/domains/interfaces.ts: one key line
   - C3 packages/schema/src/index.ts: one export
   - C2 packages/schema/src/semantic/index.ts: one spread
-  - C5 packages/proto/vrx/v1/dataplane.proto: field 13 + the RPC under the service anchor + a `// ----- F-bonding -----` message section
+  - C5 packages/proto/ngfw/v1/dataplane.proto: field 13 + the RPC under the service anchor + a `// ----- F-bonding -----` message section
   - C6 docs/contracts/proto.md: `### F-bonding: BondState`
   - P1 apps/api/src/app.module.ts: one import + spreads
   - P4 apps/api/src/agent/agent.client.ts: one method
@@ -67,20 +67,20 @@ files you must not touch:
   - sibling wave-A dirs: apps/agent/internal/descriptors/{l2,l3xc,mactime,lldp,span,gso,nsim}/**, apps/web/src/domains/interfaces/{subinterfaces,bridge-l2,loopback-bvi-gso-lldp-span}/**
 host rules:
   - members are only slot-prefixed af_packet host-interfaces (veths w6…) or fixture taps named w6…; never ens* NICs
-  - V19 SAFETY: send no packets through the rig until TD-3's pre-flight (`go -C apps/agent run ./cmd/vrx-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces
+  - V19 SAFETY: send no packets through the rig until TD-3's pre-flight (`go -C apps/agent run ./cmd/ngfw-vpp-preflight` exits 0) or a dump shows no classify/ACL/SPD binding on your interfaces
   - D-101: bring the veth down before any af_packet delete (TD-5 may not be merged)
   - run `systemctl show vpp -p NRestarts` before and after every host run; stop and write the questions file if it rises
-  - with VRX_INTEGRATION=1, run one Go package at a time
+  - with NGFW_INTEGRATION=1, run one Go package at a time
   - hold `flock -s` on the lab lock only during a run (D-094)
 evidence: Playwright is not installed. Take the UI screenshot with the headless Chrome approach of P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`), kept outside the product code, and say so. LACP will likely not negotiate without a partner: the evidence is config + `show lacp`.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-bonding.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-bonding-wip.md current
-CI: `TMPDIR=/tmp/g-w6 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w6 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-bonding.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
 cleanup:
   - stop every process you started (API/agent/vite), by PID
   - lab lock released
-  - vrx_w6 dropped
+  - ngfw_w6 dropped
   - your rig and extra veths/taps removed
   - no w6 bonds left in VPP (dump pasted)
   - dist/ and apps/agent/bin removed

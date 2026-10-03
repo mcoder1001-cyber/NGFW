@@ -7,7 +7,7 @@ does not re-review the rest. No code was edited; every probe and mutation ran in
 
 | finding | verified how | result |
 |---|---|---|
-| **M1** masking | `validator.go`: the name list and the map-key rule are gone. `collectRefs` masks D-051-form strings anywhere, plus `*_ref` string fields. Inside a `google.protobuf.Struct`, `_ref` keys count, and `Value`/`ListValue` pass the mark on. I re-ran my review probe on HEAD (see below), and ran mutation K2 (the `_ref` rule off). | ✔. The probe keeps `psk0`, its address and description, and the BGP community; `password/snmp-ro` is masked. K2 → `validator_test.go:384: finding leaks "VRX_TEST_PSK_TD13"` (caught). |
+| **M1** masking | `validator.go`: the name list and the map-key rule are gone. `collectRefs` masks D-051-form strings anywhere, plus `*_ref` string fields. Inside a `google.protobuf.Struct`, `_ref` keys count, and `Value`/`ListValue` pass the mark on. I re-ran my review probe on HEAD (see below), and ran mutation K2 (the `_ref` rule off). | ✔. The probe keeps `psk0`, its address and description, and the BGP community; `password/snmp-ro` is masked. K2 → `validator_test.go:384: finding leaks "NGFW_TEST_PSK_TD13"` (caught). |
 | **M2** drift | `PlanOptions{SkipValidators}` + `PlanWith` set the unexported `ApplyOptions.skipValidators`, so Apply can't set it. `validate()` returns at once when it is set. Mutation K1 (the skip ignored). A scratch run of the rebase steps from TD-13.md on TD-9 (see below). | ✔. K1 → `validator_test.go:559: drift plan: … issues [daemon.fake/dns: validator: …] ops []` (caught). The rebase steps work (below). |
 | **L1** stage wording | stage.go, descriptor.go, the doc page and D-entry (5): "first tie-breaker, greedy, not a phase split". The overclaim is gone, and stage.go describes my probe case exactly. | ✔ |
 | **L2** panic log | `validator.go` recover: `boundText(RedactLeaves(fmt.Sprint(r), value), …)`. Mutation K3 (back to `fmt.Sprint(r)`). | ✔. K3 → `validator_test.go:521: log:` (caught) |
@@ -37,7 +37,7 @@ Result:
   included).
 
 The steps are correct and enough. The merger or the rebasing worker should add one test: a drifted daemon object
-whose validator rejects gives `vrx_agent_drift_objects` = the number of drifted ops.
+whose validator rejects gives `ngfw_agent_drift_objects` = the number of drifted ops.
 
 ## Runs
 

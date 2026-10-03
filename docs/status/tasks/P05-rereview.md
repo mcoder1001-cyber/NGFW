@@ -11,13 +11,13 @@ VPP `NRestarts=2` before and after every host run. I did not restart VPP.
 |---|---|
 | `tools/ci.sh --base main` (my run, log `/root/ngfw-wt/logs/ci/P05-20260924-013433-1432473`) | **CI GATE PASSED**, wall time 1m09s. The only warning is main's `review(P05): findings` subject. Matches the gate pasted in P05.md |
 | `go test -race -count=1 ./internal/...` (apps/agent) | all packages ok, no races |
-| `VRX_INTEGRATION=1 go test -run OnHost ./internal/agent/ ./internal/descriptors/core/` under `flock -s` on the lab lock | PASS: `TestAgentOnHost` 5.00s (converged 225 ms after the loss), `TestAgentProcessOnHost` 6.98s (kill -9 by PID, converged 1.02 s), `TestCoreOnHost`, `TestClaimRulesOnHost` (log lines identical to P05.md) |
+| `NGFW_INTEGRATION=1 go test -run OnHost ./internal/agent/ ./internal/descriptors/core/` under `flock -s` on the lab lock | PASS: `TestAgentOnHost` 5.00s (converged 225 ms after the loss), `TestAgentProcessOnHost` 6.98s (kill -9 by PID, converged 1.02 s), `TestCoreOnHost`, `TestClaimRulesOnHost` (log lines identical to P05.md) |
 | trial merge `git merge-tree main HEAD` | clean. `go vet` and `go test ./internal/...` on the merged tree (DF-2 + RF-1 now on main) pass. The only failures were contracttest fixtures, which were missing because I extracted `apps/agent` alone |
 | contract guard, `binapi/`, `tools/binapi-gen.sh` | untouched. The fix commits touch only `apps/agent/internal/**` and P05 status docs; the board/LOG hunks in `b7d8533..HEAD` come from the main merge `d8cdc0b` |
 | my throwaway tests (fake + host) for concurrency, the revert wedge and the claim rule | written in the worktree, run, then deleted. Not committed (`git status` clean) |
 
 ### Restart simulation with the real binary (once, as required)
-Built `vrx-agent`/`vrx-agentctl` into my scratch dir. Owner `w7`, own state dir, socket `/run/vrx-test/w7/rr.sock`,
+Built `ngfw-agent`/`ngfw-agentctl` into my scratch dir. Owner `w7`, own state dir, socket `/run/ngfw-test/w7/rr.sock`,
 metrics off. Doc: VRF `w7-rr`=7031, `loop731` (in 7031, v4+v6), `loop732` (default), recursive route in 7031, blackhole in table 0.
 ```
 NRestarts=2
@@ -28,7 +28,7 @@ vppctl show ip fib table 7031 10.7.131.0/24     → w7:w7-rr … locks:[interfac
 kill -9 1422783 ; restart                        → resync APPLIED "unchanged:9" reapplied:1
 apply pend.json -txn rr-p -confirm 3 (adds loop733, drops the table-0 route) → APPLIED created 2 deleted 1
 kill -9 1424989 ; restart 4 s later              → WARN "confirm timeout: reverting…" rr-p ; mode=revert APPLIED "created:1 deleted:2 unchanged:8"
-vppctl: loop733 gone, 10.7.132.0/24 back          ; vrx-agentctl confirm rr-p → FailedPrecondition "not pending confirmation"
+vppctl: loop733 gone, 10.7.132.0/24 back          ; ngfw-agentctl confirm rr-p → FailedPrecondition "not pending confirmation"
 cleanup apply {} -subsystems interfaces,vrfs,routing → deleted 9 ; show ip table: no 7031 (so the resync Reapply did not stack an API lock)
 NRestarts=2
 ```
@@ -48,7 +48,7 @@ NRestarts=2
 | **L1** stale Meta index in undo/delete | **FIXED** | loopback, address and table-binding deletes re-resolve by tag right before acting (`loopback.go:84-96`, `ifaddr.go:86-94`, `:198-206`) |
 | **L2** owner table lost/corrupt | **FIXED (documented)** | README "Owner table recovery (L2)" |
 | **L3** unimplemented domains silent | **FIXED** | `projection.go:253-257` warns `agent.unimplemented-domain` for non-empty unimplemented domains only (so the 13-domain prefaulted `{}` doc stays quiet). `TestUnimplementedDomainWarning` |
-| **L4** `vrx-agentctl` scope creep | accepted, unchanged | — |
+| **L4** `ngfw-agentctl` scope creep | accepted, unchanged | — |
 
 LOG checks:
 - **D-063/D-065/D-069**: unchanged since the first review, still fine.

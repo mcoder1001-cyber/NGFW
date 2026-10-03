@@ -8,9 +8,9 @@ Reviewed on the host, slot 12. I wrote none of this code.
 | check | result |
 |---|---|
 | `tools/ci.sh --base main` (my run, log `/root/ngfw-wt/logs/ci/RF-1-20260924-004919-964424`) | `CI GATE PASSED`, wall time 0m52s, `ok ngfw/agent/internal/renderers/frr 2.004s`, gitleaks "no leaks found", contract guard "no contract files changed in the 5 commit(s)". Same as the pasted run in `RF-1.md` |
-| `VRX_INTEGRATION=1 go test -run TestFRRRendererIntegration` (slot 12) | PASS (16.04 s). Same steps and output shape as pasted: both static routes in `show ip route json`, frr-reload diff, PIDs unchanged across reloads, LINK_DOWN event |
+| `NGFW_INTEGRATION=1 go test -run TestFRRRendererIntegration` (slot 12) | PASS (16.04 s). Same steps and output shape as pasted: both static routes in `show ip route json`, frr-reload diff, PIDs unchanged across reloads, LINK_DOWN event |
 | My own throw-away probe (`zz_review_probe_test.go`, real mgmtd/zebra/staticd in `ns-w12-frr` via `frrtest`; deleted afterwards, never committed) | results in findings H1, H2 and M1 below |
-| After all runs | `systemctl is-active frr` = `inactive`. `/etc/frr` `stat` (name, mtime, size) is the same before and after. No `/usr/lib/frr/*` process is running. `/run/frr` is empty (no `w12` symlink). No `ns-w12-frr`. `/run/vrx-test/w12` is empty. Worktree clean |
+| After all runs | `systemctl is-active frr` = `inactive`. `/etc/frr` `stat` (name, mtime, size) is the same before and after. No `/usr/lib/frr/*` process is running. `/run/frr` is empty (no `w12` symlink). No `ns-w12-frr`. `/run/ngfw-test/w12` is empty. Worktree clean |
 
 Checklist: (1) contract: no hits. (2) real verification: yes, real FRR daemons, and the test asserts on `show ip route json`, the kernel route and `show interface json`. (3) restart safety: not applicable (no VPP objects). The integrated `frr.conf` is the daemons' startup config. (4) binapi: not used. (5) shared host: prefixed, pidfile kill, t.Cleanup, `/etc/frr` untouched (but see M4 and L3). (6) security: findings H1, M1, M2 and L1. (7) transaction: H2 and L2. (8) and (10): no UI. (9) scope: I1. (11) CI matches.
 
@@ -89,8 +89,8 @@ Fix:
 `tools/ci.sh full` runs `go test -race ./...` with slot 12 for *every* package, and Go runs packages in parallel. `vpptest.LockLab` takes only a *shared* lock. Once P12 and F-ospf add their own `frrtest.Start(Prefix: "w12")`, the second package's `killStale` will find the first package's daemons. They pass `ours()`, because the cmdline contains the same socket dir. It SIGTERMs them and `RemoveAll`s the other test's directory. The result is flaky, cross-killing integration runs. This is the realistic way the pidfile kill can hit a "foreign" PID: foreign to the test, though still one of our own daemons.
 
 Fix:
-- Take an exclusive `flock` on `/run/vrx-test/<prefix>/frr.lock` for the harness lifetime, so a second Start waits. Alternatively, allow a sub-prefix per package (`w12b`), which `prefixRe` already accepts.
-- Tighten `ours()`: check that `/proc/<pid>/exe` is the daemon binary and that argv holds `-i <this pidfile>`. The current check is a substring match on the socket dir. A plain `tail -f /run/vrx-test/w12/frr/run/w12/zebra.log` also matches (my own `pgrep -af` shell matched the same way). Low risk, but cheap to close.
+- Take an exclusive `flock` on `/run/ngfw-test/<prefix>/frr.lock` for the harness lifetime, so a second Start waits. Alternatively, allow a sub-prefix per package (`w12b`), which `prefixRe` already accepts.
+- Tighten `ours()`: check that `/proc/<pid>/exe` is the daemon binary and that argv holds `-i <this pidfile>`. The current check is a substring match on the socket dir. A plain `tail -f /run/ngfw-test/w12/frr/run/w12/zebra.log` also matches (my own `pgrep -af` shell matched the same way). Low risk, but cheap to close.
 
 ### L1: `/usr/bin/ip` in an allowlist is an exec trampoline
 `ALLOWLIST.md` row `ip netns exec <ns> <daemon>`, `frrtest.Binaries()` (harness.go:63).

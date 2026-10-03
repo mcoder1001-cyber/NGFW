@@ -2,14 +2,14 @@
 
 Exact local head `b07a5c4077156c60993d961ad8411f3cc51e83ae`, tree `3fc888ec`, compared against fresh main `8f07ce68744ac3ec87d0c4ec87661c64b59c3884`. Isolated task/P10-punt-composition-review; reviewer made no production edits.
 
-**APPROVE this composition.** The agent unit preserves main's dedicated appliance comment and `VRX_VPP_ID_RANGE=all` verbatim, plus reviewed punt activation `VRX_BASE_POLICY=1` and nftables Requires/After ordering. Capability set remains exactly NET_ADMIN/SYS_ADMIN/IPC_LOCK, writable paths unchanged, no shared-lab activation authorized. `all` came from approved main, not a new privilege/range decision introduced by this composition.
+**APPROVE this composition.** The agent unit preserves main's dedicated appliance comment and `NGFW_VPP_ID_RANGE=all` verbatim, plus reviewed punt activation `NGFW_BASE_POLICY=1` and nftables Requires/After ordering. Capability set remains exactly NET_ADMIN/SYS_ADMIN/IPC_LOCK, writable paths unchanged, no shared-lab activation authorized. `all` came from approved main, not a new privilege/range decision introduced by this composition.
 
-Compared file identities with main: Debian control/postinst packaging files, API unit, API storage helper inputs, runtime installer and pending agent ownership decision have no diff. Only owned packaging overlaps are the reviewed dynamic-set bootstrap renderer/test plus agent activation unit; source delta is the previously reviewed typed punt lifecycle and scheduler uncertainty marker. Main storage directory ownership/hardlink/symlink safeguards and direct Python package dependency remain retained. Installer still requires explicit VRX_INSTALL_APPLIANCE=1 and verified artifact input, warns never shared development host; vrx-meta.postinst registers future boot without starting/restarting VPP.
+Compared file identities with main: Debian control/postinst packaging files, API unit, API storage helper inputs, runtime installer and pending agent ownership decision have no diff. Only owned packaging overlaps are the reviewed dynamic-set bootstrap renderer/test plus agent activation unit; source delta is the previously reviewed typed punt lifecycle and scheduler uncertainty marker. Main storage directory ownership/hardlink/symlink safeguards and direct Python package dependency remain retained. Installer still requires explicit NGFW_INSTALL_APPLIANCE=1 and verified artifact input, warns never shared development host; ngfw-meta.postinst registers future boot without starting/restarting VPP.
 
 Personally executed complete combined packaging fixture suite in exact frozen worktree:
 
 ```
-python3 -m unittest discover -s deploy/debian/vrx/tests -v
+python3 -m unittest discover -s deploy/debian/ngfw/tests -v
 Ran 30 tests in 4.967s
 OK (skipped=1)
 ```

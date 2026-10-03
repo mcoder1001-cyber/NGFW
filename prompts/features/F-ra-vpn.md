@@ -12,11 +12,11 @@ swanctl `pools` + `eap-*` plugins (WBS D6.9 in `plan/wbs.csv`).
   radius{servers[{address, port, secretRef}]}, dpd, rekey}` + `semantic/vpn.ts` (pool overlap, refs); proto `RemoteAccessProfile`
 - P11 (merged before you start): `apps/agent/internal/renderers/strongswan/` (RF-2 + P11) and `docs/agent/renderers/strongswan.md` — the
   model already renders `pools { <name> { addrs; dns } }` and `authorities`; **you extend this renderer** through new files
-  (`ra*.go`, `templates/vrx-ra*.tmpl`) plus a few named hunks in P11's files (envelope list) — nobody else edits it while you run
+  (`ra*.go`, `templates/ngfw-ra*.tmpl`) plus a few named hunks in P11's files (envelope list) — nobody else edits it while you run
 - F-pki (merged): certificate/CA files materialised by `apps/agent/internal/pki` — you reference names, you do not write PEM files
 - `apps/agent/binapi/ipsec/` for SA state (`ipsec_sa_v5_dump`) — via P11's state code, not new descriptors
 - `docs/decisions/LOG.md` D-051 (password/psk refs; EAP secrets rendered only into the 0600 secrets file), D-040, D-067 (IKEv1 + GCM IKE rejected),
-  D-083/D-089 (stock strongSwan client = debs unpacked under `/run/vrx-test/<slot>/`, owner-prefix scoping on a shared charon);
+  D-083/D-089 (stock strongSwan client = debs unpacked under `/run/ngfw-test/<slot>/`, owner-prefix scoping on a shared charon);
   `docs/decisions/PENDING-secret-channel.md` (EAP/RADIUS secrets need the API→agent channel: use what P11 merged, else a fixture resolver);
   `docs/vpp-code-track.md` V6 (vpp_sswan vs strongSwan 6.x — use the version P11 pinned)
 
@@ -29,14 +29,14 @@ swanctl `pools` + `eap-*` plugins (WBS D6.9 in `plan/wbs.csv`).
    `eap_id = %any`, child `local_ts = splitTunnel or 0.0.0.0/0,::/0`), `secrets.eap-<user>` from resolved refs (0600 file, never logged),
    `eap-radius` plugin section in `strongswan.conf` with the resolved shared secret; VPP side: client-pool routes resolved via the route
    the kernel-vpp plugin installs (verify, do not add a second programmer — D-072 spirit). State: connected users (identity, virtual IP,
-   uptime, bytes) from VICI `list-sas`; action: disconnect a user (`terminate` over VICI). ONE integration check (`VRX_INTEGRATION=1`).
+   uptime, bytes) from VICI `list-sas`; action: disconnect a user (`terminate` over VICI). ONE integration check (`NGFW_INTEGRATION=1`).
 3. **API**: config via pointer routes; `GET /api/v1/state/vpn/remote-access/sessions` (paged),
    `POST /api/v1/actions/vpn/remote-access/sessions/{id}/disconnect` (state routes are read-only — architecture rule 8);
    OpenAPI; regenerate `packages/api-client`.
 4. **UI**: Remote access page — profile wizard (auth method → pools → split tunnel → users/RADIUS), connected-users grid with disconnect,
    client configuration hints per OS; en + fa; screenshot against the real endpoint.
 5. **Docs**: `docs/user/vpn/ra-vpn.md` — EAP-MSCHAPv2 and EAP-TLS examples, Windows/macOS/strongSwan client steps, CLI equivalent.
-Files you own (the envelope's list wins): new files `apps/agent/internal/renderers/strongswan/{ra*.go,templates/vrx-ra*.tmpl,testdata/ra-*}`
+Files you own (the envelope's list wins): new files `apps/agent/internal/renderers/strongswan/{ra*.go,templates/ngfw-ra*.tmpl,testdata/ra-*}`
 (named hunks in P11's renderer files and an appended section in `docs/agent/renderers/strongswan.md`), `apps/agent/internal/{desired,subsystems}/ra_vpn*.go`,
 `apps/agent/internal/agent/rpc_ra_vpn*.go`, `apps/agent/internal/actions/ra-vpn/**`, `apps/api/src/features/ra-vpn/**`, `apps/web/src/domains/vpn/ra-vpn/**`,
 `apps/web/src/locales/*/ra-vpn.json`, `docs/user/vpn/ra-vpn.md`, `test/topology/ra-vpn/**`.

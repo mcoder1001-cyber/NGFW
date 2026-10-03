@@ -8,15 +8,15 @@ Read shared/R1/R2 rules, current R4/R8 findings and verify-round evidence, actua
 
 Ordinary non-symlink storage reconfiguration preserves existing backup bytes, mode, owner and group in the supplied regression. Creation is idempotent and retains fail-fast shell behavior. The redirected fixture avoids real host accounts and paths. Nine packaging tests pass independently. However symlink-containing pre-existing storage is not covered and is unsafe as the R2 blocker below demonstrates; overall checkpoint cannot merge as-is.
 
-Appliance `VRX_VPP_ID_RANGE=all` matches the pre-existing explicit dedicated-appliance contract in shared-host-rules section 12. Unit adds no conflicting table base; ResolveIDScope rejects missing, malformed and contradictory settings. The unit comment/docs forbid shared-host execution. No new capability or writable-path scope is introduced by that ID declaration. Existing unresolved daemon-ownership and identity parent-directory privilege work remains unfinished, not waived by this review.
+Appliance `NGFW_VPP_ID_RANGE=all` matches the pre-existing explicit dedicated-appliance contract in shared-host-rules section 12. Unit adds no conflicting table base; ResolveIDScope rejects missing, malformed and contradictory settings. The unit comment/docs forbid shared-host execution. No new capability or writable-path scope is introduced by that ID declaration. Existing unresolved daemon-ownership and identity parent-directory privilege work remains unfinished, not waived by this review.
 
 R1 bounded ordinary-path verdict: **APPROVE**, subject to R2 blocker; no complete quick/installed appliance acceptance claimed.
 
 ## R2 security — BLOCKER
 
-**Root package reconfiguration follows attacker-controlled storage symlinks**, `deploy/debian/vrx/debian/vrx-api.postinst:6,10`.
+**Root package reconfiguration follows attacker-controlled storage symlinks**, `deploy/debian/ngfw/debian/ngfw-api.postinst:6,10`.
 
-Line 6 makes `/data` owned by vrx; API sandbox explicitly allows writes to `/data`. A compromised vrx process can replace a child such as `/data/backups` with a symlink to an external root-owned directory. New line 10 runs root `install -d -m 0750 -o vrx -g vrx` on that symlink. GNU install follows it and changes the target's owner/mode. On the next root package configure, a link to `/etc` would grant vrx ownership of that directory. This crosses the API-to-root privilege boundary despite service sandbox restrictions because the maintainer script executes outside the service sandbox.
+Line 6 makes `/data` owned by ngfw; API sandbox explicitly allows writes to `/data`. A compromised ngfw process can replace a child such as `/data/backups` with a symlink to an external root-owned directory. New line 10 runs root `install -d -m 0750 -o ngfw -g ngfw` on that symlink. GNU install follows it and changes the target's owner/mode. On the next root package configure, a link to `/etc` would grant ngfw ownership of that directory. This crosses the API-to-root privilege boundary despite service sandbox restrictions because the maintainer script executes outside the service sandbox.
 
 Safe reproduction executed only under a fresh temporary directory: create `data/backups -> outside`, outside initially mode 0700; execute a redirected copy of the actual postinst (account lookup replaced by fixture no-op, owner/group replaced by current test UID/GID, paths all redirected into the temporary root). Actual output:
 
@@ -28,19 +28,19 @@ backups symlink retained: True
 
 This demonstrates target metadata mutation without touching `/etc` or any host configuration. The owner-changing flags are unchanged in product; non-root fixture proves mode traversal, not a live privilege escalation.
 
-Required correction: provision storage without following symlinks or allowing a check/use race in the service-writable parent. A simple shell `test -L` followed by install is insufficient while vrx can rename children. Use an appropriate no-follow directory-descriptor approach (including safe ancestry) or another demonstrably race-safe design that retains required data/permissions and does not silently delete operator content. Add negative symlink regression and preserve the existing ordinary reconfigure test. Do not broaden privileges or resolve unrelated pending ownership policies as a workaround.
+Required correction: provision storage without following symlinks or allowing a check/use race in the service-writable parent. A simple shell `test -L` followed by install is insufficient while ngfw can rename children. Use an appropriate no-follow directory-descriptor approach (including safe ancestry) or another demonstrably race-safe design that retains required data/permissions and does not silently delete operator content. Add negative symlink regression and preserve the existing ordinary reconfigure test. Do not broaden privileges or resolve unrelated pending ownership policies as a workaround.
 
 R2 verdict: **BLOCK** until this confirmed privileged path traversal is fixed and independently verified.
 
 ## Actual independent commands
 
 ```text
-python3 deploy/debian/vrx/tests/test_packaging.py
+python3 deploy/debian/ngfw/tests/test_packaging.py
 .........
 Ran 9 tests in 0.764s
 OK
-sh -n deploy/debian/vrx/debian/vrx-api.postinst
-bash -n deploy/debian/vrx/prepare.sh
+sh -n deploy/debian/ngfw/debian/ngfw-api.postinst
+bash -n deploy/debian/ngfw/prepare.sh
 git diff --check aa76368a HEAD
 ```
 

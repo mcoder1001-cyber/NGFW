@@ -6,7 +6,7 @@ Mandatory on every branch (docs-only too: secrets end up in docs). You look for 
 1. **Secrets:** none in code, fixtures, logs, GET responses, status files, screenshots or test output. Write-only fields stay
    write-only (never echoed back). `gitleaks detect --no-git -s /root/ngfw-wt/<id>` if installed, else
    `grep -rnE 'BEGIN (RSA|EC|OPENSSH) PRIVATE|password\s*[:=]\s*[^<]' docs/status <changed files>`. Test secrets only through the
-   sanctioned channels (e.g. the `vrxtestsecrets` tag rule in `tools/ci.sh`).
+   sanctioned channels (e.g. the `ngfwtestsecrets` tag rule in `tools/ci.sh`).
 2. **Shell and injection (00-CONTEXT rule 9, D-049):** `exec.Command`, `child_process`, `sh -c`, `cli_inband`, `vppctl` with any
    user-controlled value → BLOCKER unless argv-only with a validated alphabet. Template rendering of daemon configs: every user
    value validated/escaped for that daemon's syntax (newline, quote, `;`, `}` injection). SQL only parameterised. Path joins with

@@ -1,7 +1,7 @@
 # P06 — independent review (API core)
 
 Reviewer: independent review agent (did not write this code). Branch `task/P06` @ `20e2a78`, base `main@76b017c`.
-Ran on the dev host directly, slot 1 (`w1`, port 3100, DB `vrx_w1`, Valkey db 1). All probes cleaned up (see end).
+Ran on the dev host directly, slot 1 (`w1`, port 3100, DB `ngfw_w1`, Valkey db 1). All probes cleaned up (see end).
 
 ## What was run
 
@@ -9,7 +9,7 @@ Ran on the dev host directly, slot 1 (`w1`, port 3100, DB `vrx_w1`, Valkey db 1)
 |---|---|
 | `tools/ci.sh --base main` in `/root/ngfw-wt/P06` (HEAD 20e2a78) | **CI GATE PASSED** (contract guard ok — only `packages/api-client/src/generated` with `contract(api-client)` commit 69302a6 + P06-contract.md; generated-output gate clean; forbidden patterns + gitleaks clean; turbo 30/30; agent make ok). Matches the pasted run. |
 | Throw-away review worktree `task/P06` + `git merge main` (P05 merged) | one conflict: `pnpm-lock.yaml`, 4 hunks, pure union (`@fastify/websocket`/`util-deprecate` vs `@floating-ui/utils`/`use-sync-external-store`); resolved as union, `pnpm install --frozen-lockfile` ok. Nothing else conflicts. |
-| Real P05 agent built from the merged tree (`make build`), `VRX_INTEGRATION=1 tools/lab lock shared pnpm --filter @ngfw/api test:integration` (slot 1, `VRX_OWNER=w1`, socket `/run/vrx-test/w1/agent.sock`, state dir under `/run/vrx-test/w1`) | **25 passed, 1 failed** (see H2). The agent test is no longer skipped. |
+| Real P05 agent built from the merged tree (`make build`), `NGFW_INTEGRATION=1 tools/lab lock shared pnpm --filter @ngfw/api test:integration` (slot 1, `NGFW_OWNER=w1`, socket `/run/ngfw-test/w1/agent.sock`, state dir under `/run/ngfw-test/w1`) | **25 passed, 1 failed** (see H2). The agent test is no longer skipped. |
 | Ad-hoc probes against the built `dist/main.js` on :3100 + the real agent | lockout race, stale-lock takeover, secret overwrite, `/api/docs`, confirm-timer across an API restart, agent-down commit (below) |
 
 ### Real-agent end-to-end (the question asked)
@@ -60,7 +60,7 @@ from its state dir (D-073(b) precedent). Keep the assertion; it caught a real pr
 
 ### M1 — Operator commits admin-only (users/AAA) changes after a stale-lock takeover — `apps/api/src/commit/commit.service.ts:129-148`, `apps/api/src/datastore/datastore.service.ts:122-135`, `apps/api/src/datastore/lock.ts:371`
 The operator check compares the *candidate before* vs *after* an edit, never *running vs candidate* at commit. When an admin's
-candidate with user changes goes stale (`VRX_LOCK_TTL_SEC`), any operator takes the lock with a harmless edit and commits it.
+candidate with user changes goes stale (`NGFW_LOCK_TTL_SEC`), any operator takes the lock with a harmless edit and commits it.
 **Probe (TTL 5 s):** admin stages a new `evil` admin user → operator PATCH while locked = 409 → after TTL operator PATCH
 `/system` = 200 → operator `POST /commit` = **200 applied** → running users include `evil:admin`, `evil` logs in (200); the
 revision's author is the operator. This violates "operator: no user/AAA changes" (P06 §6, questions #4 "checked on the whole
@@ -78,7 +78,7 @@ general 409 unless `?replace=true`, with the change recorded as a system event; 
 the ciphertext it was committed with (manager decision → LOG).
 
 ### M3 — API ↔ VPP divergence when anything fails after the agent applied — `apps/api/src/commit/commit.service.ts:284-322, 361-367, 225-231`
-- `agent.apply` has a 60 s deadline (`VRX_AGENT_TIMEOUT_MS`); on `DEADLINE_EXCEEDED`/connection loss after the request was sent the
+- `agent.apply` has a 60 s deadline (`NGFW_AGENT_TIMEOUT_MS`); on `DEADLINE_EXCEEDED`/connection loss after the request was sent the
   agent may have applied, the API returns 504/503 and running stays old.
 - `promote()` (DB tx) failing after `APPLIED`, or after `CONFIRMED` in `confirm()`, leaves VPP on the new state and running on the old.
 - `DEGRADED` is reported as 422 "running is unchanged" although the agent says the data plane is partially changed.
@@ -113,10 +113,10 @@ running referencing a missing secret. **Fix:** include `config_pending`.
   deleted/disabled/demoted user keeps `/api/v1/stream` open indefinitely (`relay.service.ts:208`). Close sockets at token `exp`
   or on a `users` change. No per-connection backpressure (`send` ignores `bufferedAmount`).
 - Password change (`auth.service.ts:241-250`) does not revoke existing refresh families/API keys of that user.
-- `VRX_COOKIE_SECURE` defaults to `0` (`config.ts:37-40`): production default should be `1` (dev overrides it).
+- `NGFW_COOKIE_SECURE` defaults to `0` (`config.ts:37-40`): production default should be `1` (dev overrides it).
 - JWT secret: min 32 chars, HS256, iss/aud/typ checked — fine; no rotation path (no `kid`, no previous-key verify). Note for P07b/ops.
 - No `trustProxy`: `X-Forwarded-For` spoofing is **not** possible (probe: audit shows `127.0.0.1`), but behind a reverse proxy all
-  clients share one rate-limit bucket and audit IP. Document a `VRX_TRUST_PROXY` (exact proxy address) before a proxy is added.
+  clients share one rate-limit bucket and audit IP. Document a `NGFW_TRUST_PROXY` (exact proxy address) before a proxy is added.
 
 ### L4 — Secret store details — `apps/api/src/secrets/secrets.service.ts:144-171`
 AES-256-GCM with a fresh random 96-bit IV per encryption (no nonce reuse), tag checked, key file created `wx` + 0600 and re-chmodded:
@@ -127,7 +127,7 @@ fine. Minor: no AAD (ciphertexts can be swapped between refs by a DB writer — 
 - **Checked and fine:** guard is global (`APP_GUARD`) + WS authenticates in `preValidation` before the upgrade (no token in URL, no
   cookie auth on WS → no CSWSH); no CORS registered (same-origin only); refresh cookie httpOnly + SameSite=Strict + path
   `/api/v1/auth`; refresh rotation with family revocation on reuse (`tokens.service.ts:379-397`, `getdel` atomic); API keys
-  `vrxk_` + 256-bit random, sha256 at rest, format-checked before the query, role-capped, live user role/disabled per request;
+  `ngfwk_` + 256-bit random, sha256 at rest, format-checked before the query, role-capped, live user role/disabled per request;
   argon2id m=19456,t=2,p=1 with a dummy verify for unknown users; operator restriction on PUT/import/merge-patch of the root and on
   rollback is document-level (verified in code + e2e); prototype pollution: `__proto__`/`constructor`/`prototype` rejected by
   `mergePatchAt`/`setAt` (400 with pointer, probed), Zod records drop `__proto__` keys; **no SQL built from pointers** (whole-document

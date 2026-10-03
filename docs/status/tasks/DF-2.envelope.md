@@ -4,7 +4,7 @@ title: Descriptors: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip table
 prompt: prompts/factories/DF-2.md   (template: prompts/DESCRIPTOR-FACTORY-TEMPLATE.md)   wbs: D2.3, D2.4, D2.7
 scope: ip_neighbor, ip6_nd (RA, DAD), urpf, abf, classify (ip tables/routes are P05 core)
 merged deps you can rely on: P05a, P04
-slot: 3 → VRX_TEST_PREFIX=w3  VRX_HTTP_PORT=3300  VRX_WEB_PORT=5300  VRX_METRICS_PORT=9131  VRX_AGENT_SOCKET=/run/vrx-test/w3/agent.sock  VRX_PG_DATABASE=vrx_w3  VRX_VPP_TABLE_BASE=3000
+slot: 3 → NGFW_TEST_PREFIX=w3  NGFW_HTTP_PORT=3300  NGFW_WEB_PORT=5300  NGFW_METRICS_PORT=9131  NGFW_AGENT_SOCKET=/run/ngfw-test/w3/agent.sock  NGFW_PG_DATABASE=ngfw_w3  NGFW_VPP_TABLE_BASE=3000
 daemon-owner: none
 files you own exclusively: apps/agent/internal/descriptors/<plugins of DF-2>/** docs/agent/descriptors/<plugins>.md
 files you must not touch: everything else; never /root/ngfw (main), other worktrees, /etc/vpp, /root/vpp, apps/agent/binapi (P04/manager-owned)

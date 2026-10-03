@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 # test/topology/wireguard/stack.sh — F-wireguard full-stack evidence run on one slot (host VPP, real processes):
-#   the vrx-agent TEST build (-tags vrxtestsecrets: the slot-local secret fixture, PENDING-secret-channel), vrx-api on a
+#   the ngfw-agent TEST build (-tags ngfwtestsecrets: the slot-local secret fixture, PENDING-secret-channel), ngfw-api on a
 #   throwaway database, the production web build under `vite preview`, and a kernel WireGuard peer in a netns reached
 #   through a tap. Steps: key pair through the API → commit → handshake (peer event → WS → UI) → state/vppctl evidence
 #   → optional screenshots → simulated loss + agent restart → rollback → cleanup. Every process is stopped by PID.
 #
 #   eval "$(tools/lab env <slot>)"; test/topology/wireguard/stack.sh [<screenshot node script> <out dir>]
 #
-# Owner "<prefix>wg" (F-bonding shares slot 6), database vrx_<prefix>wg, API port VRX_HTTP_PORT+70, web VRX_WEB_PORT+70 (D-156),
-# agent socket /run/vrx-test/<prefix>/wg/agent.sock, wg instance/table base+70, tap id slot·100+70, UDP 20000+100·slot+10/+11,
+# Owner "<prefix>wg" (F-bonding shares slot 6), database ngfw_<prefix>wg, API port NGFW_HTTP_PORT+70, web NGFW_WEB_PORT+70 (D-156),
+# agent socket /run/ngfw-test/<prefix>/wg/agent.sock, wg instance/table base+70, tap id slot·100+70, UDP 20000+100·slot+10/+11,
 # 10.<slot>.70-72.0/24, loopback loop<slot>70. The screenshot script (kept outside the repo, P07a/P07b) is called as
 # `node <script> <webUrl> <outDir> <adminPasswordFile>`. Output: $RUN/evidence.log (key material never written there).
 set -euo pipefail
 HERE="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-: "${VRX_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
-: "${VRX_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
-P=$VRX_TEST_PREFIX N=$VRX_SLOT OWNER=${VRX_TEST_PREFIX}wg
+: "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
+: "${NGFW_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
+P=$NGFW_TEST_PREFIX N=$NGFW_SLOT OWNER=${NGFW_TEST_PREFIX}wg
 BASE=$((N * 1000)) INST=$((N * 1000 + 70)) TAPID=$((N * 100 + 70))
-API_PORT=$((${VRX_HTTP_PORT:?} + 70)) WEB_PORT=$((${VRX_WEB_PORT:?} + 70))  # D-156: offsets from the slot exports
+API_PORT=$((${NGFW_HTTP_PORT:?} + 70)) WEB_PORT=$((${NGFW_WEB_PORT:?} + 70))  # D-156: offsets from the slot exports
 VPP_PORT=$((20000 + 100 * N + 10)) KERN_PORT=$((20000 + 100 * N + 11))
 NS=ns-$OWNER TAP=tap$TAPID HOSTIF=$OWNER-t0 KIF=$OWNER-k0
-RUN=/run/vrx-test/$P/wg
+RUN=/run/ngfw-test/$P/wg
 SHOTS=${1:-} SHOTS_OUT=${2:-}
-[[ -d /run/vrx-test/$P ]] || install -d -m 0755 /run/vrx-test/$P
+[[ -d /run/ngfw-test/$P ]] || install -d -m 0755 /run/ngfw-test/$P
 rm -rf "$RUN"; install -d -m 0700 "$RUN"
 LOG=$RUN/evidence.log
 say() { printf '%s %s\n' "$(date +%T)" "$*" | tee -a "$LOG"; }
@@ -54,11 +54,11 @@ cleanup() {
 trap cleanup EXIT
 
 say "VPP $(systemctl show vpp -p NRestarts) before"
-( cd "$ROOT/apps/agent" && go build -tags vrxtestsecrets -o bin/vrx-agent-wgtest ./cmd/vrx-agent && go build -o bin/vrx-vpp-preflight ./cmd/vrx-vpp-preflight )
+( cd "$ROOT/apps/agent" && go build -tags ngfwtestsecrets -o bin/ngfw-agent-wgtest ./cmd/ngfw-agent && go build -o bin/ngfw-vpp-preflight ./cmd/ngfw-vpp-preflight )
 ( cd "$ROOT" && pnpm --filter @ngfw/api build >/dev/null && pnpm --filter @ngfw/web build >/dev/null )
 
-# test vectors (00-CONTEXT: VRX_TEST_PSK_<id> labels) — the same values go to the agent fixture and to the API's store
-vec() { python3 -c "import hashlib,base64,sys; print(base64.b64encode(hashlib.sha256(('VRX_TEST_PSK_F-wireguard_'+sys.argv[1]).encode()).digest()).decode())" "$1"; }
+# test vectors (00-CONTEXT: NGFW_TEST_PSK_<id> labels) — the same values go to the agent fixture and to the API's store
+vec() { python3 -c "import hashlib,base64,sys; print(base64.b64encode(hashlib.sha256(('NGFW_TEST_PSK_F-wireguard_'+sys.argv[1]).encode()).digest()).decode())" "$1"; }
 ITF_KEY=$(vec "${OWNER}_stack_itf") KERN_KEY=$(vec "${OWNER}_stack_kernel") PSK=$(vec "${OWNER}_stack_psk")
 ( umask 077
   printf '{"key/%s-site":"%s","psk/%s-k":"%s"}\n' "$OWNER" "$ITF_KEY" "$OWNER" "$PSK" > "$RUN/secrets.json"
@@ -67,17 +67,17 @@ KERN_PUB=$(wg pubkey < "$RUN/kernel.key") VPP_PUB=$(printf '%s' "$ITF_KEY" | wg 
 
 # processes
 "$ROOT/deploy/dev/pg-test.sh" create "$OWNER" >/dev/null
-DSN=$(sed -n 's/^VRX_PG_DSN=//p' "/run/vrx-test/$OWNER/pg.env")
-env -i PATH="$PATH" HOME="$HOME" VRX_OWNER="$OWNER" VRX_GLOBALS_OWNER=0 VRX_AGENT_SOCKET="$RUN/agent.sock" \
-  VRX_AGENT_STATE_DIR="$RUN/agent-state" VRX_METRICS_ADDR=off VRX_SOCKET_GROUP=root VRX_LOG_LEVEL=info \
-  VRX_VPP_TABLE_BASE="$BASE" VRX_TEST_WG_SECRETS="$RUN/secrets.json" \
-  "$ROOT/apps/agent/bin/vrx-agent-wgtest" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
+DSN=$(sed -n 's/^NGFW_PG_DSN=//p' "/run/ngfw-test/$OWNER/pg.env")
+env -i PATH="$PATH" HOME="$HOME" NGFW_OWNER="$OWNER" NGFW_GLOBALS_OWNER=0 NGFW_AGENT_SOCKET="$RUN/agent.sock" \
+  NGFW_AGENT_STATE_DIR="$RUN/agent-state" NGFW_METRICS_ADDR=off NGFW_SOCKET_GROUP=root NGFW_LOG_LEVEL=info \
+  NGFW_VPP_TABLE_BASE="$BASE" NGFW_TEST_WG_SECRETS="$RUN/secrets.json" \
+  "$ROOT/apps/agent/bin/ngfw-agent-wgtest" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
 ADMIN_PW=$(head -c 18 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')
 ( umask 077; printf '%s' "$ADMIN_PW" > "$RUN/admin.pw" )
-env -i PATH="$PATH" HOME="$HOME" NODE_ENV=production VRX_HTTP_PORT="$API_PORT" VRX_HTTP_HOST=127.0.0.1 VRX_PG_DSN="$DSN" \
-  VRX_VALKEY_DB="$N" VRX_VALKEY_PREFIX="vrx:$OWNER:stack:" VRX_AGENT_SOCKET="$RUN/agent.sock" VRX_AGENT_OWNER="$OWNER" \
-  VRX_AGENT_TIMEOUT_MS=60000 VRX_JWT_SECRET="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" \
-  VRX_SECRET_KEY_FILE="$RUN/secret.key" VRX_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PW" VRX_COOKIE_SECURE=0 VRX_LOG_LEVEL=warn \
+env -i PATH="$PATH" HOME="$HOME" NODE_ENV=production NGFW_HTTP_PORT="$API_PORT" NGFW_HTTP_HOST=127.0.0.1 NGFW_PG_DSN="$DSN" \
+  NGFW_VALKEY_DB="$N" NGFW_VALKEY_PREFIX="ngfw:$OWNER:stack:" NGFW_AGENT_SOCKET="$RUN/agent.sock" NGFW_AGENT_OWNER="$OWNER" \
+  NGFW_AGENT_TIMEOUT_MS=60000 NGFW_JWT_SECRET="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9')" \
+  NGFW_SECRET_KEY_FILE="$RUN/secret.key" NGFW_BOOTSTRAP_ADMIN_PASSWORD="$ADMIN_PW" NGFW_COOKIE_SECURE=0 NGFW_LOG_LEVEL=warn \
   node "$ROOT/apps/api/dist/main.js" >> "$RUN/api.log" 2>&1 & PIDS+=("$!")
 for _ in $(seq 120); do curl -sf "http://127.0.0.1:$API_PORT/api/v1/health" >/dev/null && break; sleep 0.5; done
 TOKEN=$(curl -sf -H 'content-type: application/json' -d "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}" "http://127.0.0.1:$API_PORT/api/v1/auth/login" | jq -r .accessToken)
@@ -93,7 +93,7 @@ vppctl create tap id "$TAPID" host-if-name "$HOSTIF" host-ns "$NS" host-ip4-addr
 vppctl set interface ip address "$TAP" "10.$N.70.1/24"
 vppctl set interface state "$TAP" up
 ip -n "$NS" route add "10.$N.72.1/32" via "10.$N.70.1"
-"$ROOT/apps/agent/bin/vrx-vpp-preflight" | tail -1 | tee -a "$LOG"
+"$ROOT/apps/agent/bin/ngfw-vpp-preflight" | tail -1 | tee -a "$LOG"
 [[ ${PIPESTATUS[0]} -eq 0 ]] || { say "V19 pre-flight failed: no traffic"; exit 1; }
 ip -n "$NS" link add "$KIF" type wireguard
 ip netns exec "$NS" wg set "$KIF" private-key "$RUN/kernel.key" listen-port "$KERN_PORT" peer "$VPP_PUB" preshared-key <(printf '%s\n' "$PSK") \
@@ -127,7 +127,7 @@ say "duplicate public key: $(api PATCH /api/v1/config/vpn "{\"wireguard\":{\"int
 api POST /api/v1/config/discard >/dev/null
 
 if [[ -n "$SHOTS" ]]; then
-  env VRX_HTTP_PORT="$API_PORT" VRX_WEB_PORT="$WEB_PORT" "$ROOT/apps/web/node_modules/.bin/vite" preview "$ROOT/apps/web" >> "$RUN/vite.log" 2>&1 & PIDS+=("$!")
+  env NGFW_HTTP_PORT="$API_PORT" NGFW_WEB_PORT="$WEB_PORT" "$ROOT/apps/web/node_modules/.bin/vite" preview "$ROOT/apps/web" >> "$RUN/vite.log" 2>&1 & PIDS+=("$!")
   for _ in $(seq 60); do curl -sf -o /dev/null "http://127.0.0.1:$WEB_PORT/" && break; sleep 0.5; done
   say "screenshots: $(node "$SHOTS" "http://127.0.0.1:$WEB_PORT" "$SHOTS_OUT" "$RUN/admin.pw" 2>&1 | tr '\n' ' ')"
 fi
@@ -139,10 +139,10 @@ vppctl wireguard delete "wg$INST"
 say "simulated loss: wg$INST present? $(vppctl show interface | grep -c "^wg$INST ")"
 MARK=$(wc -c < "$RUN/agent.log")
 T0=$(date +%s.%N)
-env -i PATH="$PATH" HOME="$HOME" VRX_OWNER="$OWNER" VRX_GLOBALS_OWNER=0 VRX_AGENT_SOCKET="$RUN/agent.sock" \
-  VRX_AGENT_STATE_DIR="$RUN/agent-state" VRX_METRICS_ADDR=off VRX_SOCKET_GROUP=root VRX_LOG_LEVEL=info \
-  VRX_VPP_TABLE_BASE="$BASE" VRX_TEST_WG_SECRETS="$RUN/secrets.json" \
-  "$ROOT/apps/agent/bin/vrx-agent-wgtest" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
+env -i PATH="$PATH" HOME="$HOME" NGFW_OWNER="$OWNER" NGFW_GLOBALS_OWNER=0 NGFW_AGENT_SOCKET="$RUN/agent.sock" \
+  NGFW_AGENT_STATE_DIR="$RUN/agent-state" NGFW_METRICS_ADDR=off NGFW_SOCKET_GROUP=root NGFW_LOG_LEVEL=info \
+  NGFW_VPP_TABLE_BASE="$BASE" NGFW_TEST_WG_SECRETS="$RUN/secrets.json" \
+  "$ROOT/apps/agent/bin/ngfw-agent-wgtest" >> "$RUN/agent.log" 2>&1 & AGENT=$!; PIDS+=("$AGENT")
 for _ in $(seq 60); do st=$(apij GET /api/v1/state/vpn/wireguard); [[ $(jq '.interfaces[0].peers|length? // 0' <<<"$st" 2>/dev/null) == 2 ]] && break; sleep 0.5; done
 say "restart: interface and $(jq '.interfaces[0].peers|length? // 0' <<<"$st") peers back after $(python3 -c "import time;print(round(time.time()-$T0,2))") s (agent pid $AGENT)"
 tail -c +"$((MARK + 1))" "$RUN/agent.log" | grep -E 'reconcile (start|done)|subsystems wired|dynamic|TEST BUILD' | cut -c1-400 >> "$LOG"

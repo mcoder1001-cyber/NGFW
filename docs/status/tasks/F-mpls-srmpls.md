@@ -8,7 +8,7 @@ LDP is F-mpls-ldp's (D-085/D-109); its anchors are seeded (see "For F-mpls-ldp")
 | Layer | Files | What |
 |---|---|---|
 | Contract (schema) | `packages/schema/src/domains/ext/mpls-srmpls.ts`, `semantic/mpls-srmpls.ts` (+ test), key line in `domains/routing.ts`, lines in `semantic/index.ts`, `index.ts` | `routing.mpls` (plain `strictObject`, optional): `interfaces`, `tables`, `labelRoutes`, `ipBindings`, `tunnels`, `sr{policies, steering}`; 12 rules `routing.mpls-srmpls-…` — see `F-mpls-srmpls-contract.md` |
-| Contract (proto) | `packages/proto/vrx/v1/dataplane.proto` | `RoutingConfig.mpls = 15` → `MplsConfig` (1–6; 10 left to F-mpls-ldp), `rpc MplsState` + `MplsState*` messages; regenerated Go/TS stubs, API client, CLI operation table; fixture `packages/proto/test/fixtures/mpls-srmpls-full.json`; `docs/contracts/proto.md` § F-mpls-srmpls: MplsState |
+| Contract (proto) | `packages/proto/ngfw/v1/dataplane.proto` | `RoutingConfig.mpls = 15` → `MplsConfig` (1–6; 10 left to F-mpls-ldp), `rpc MplsState` + `MplsState*` messages; regenerated Go/TS stubs, API client, CLI operation table; fixture `packages/proto/test/fixtures/mpls-srmpls-full.json`; `docs/contracts/proto.md` § F-mpls-srmpls: MplsState |
 | Descriptors (gap-only, D-104) | `apps/agent/internal/descriptors/mpls/{mpls,tunnel,ownership}.go`, `sr_mpls/ownership.go`, tests `f_mpls_srmpls_test.go` | D-071 table-0 role; table-0 routes of a non-globals-owner; TD-11b declarations + claim/record-first; TD-11c tunnel alias key; missing dependencies — every gap with a named test that fails on DF-7/DF-6 (below) |
 | Agent | `desired/mpls_srmpls.go`, `subsystems/mpls_srmpls.go`, `agent/rpc_mpls_srmpls.go` (+ tests), `coretest/mpls_srmpls.go` | projection routing.mpls → `mpls-*` / `sr-mpls.*` (table 0 only when needed; segment lists sorted, D-074), Retrieve assembly (canonical; bindings/SR write-only, D-063), registration with persisted Wiring stores + slot id range, `MplsState` (MPLS FIB paged in the agent, one walk at a time, D-132; tunnels) |
 | API | `apps/api/src/features/mpls-srmpls/{index,mpls-srmpls.controller,fake}.ts` (+ unit test), `test/e2e/mpls-srmpls.e2e.test.ts` | `GET /api/v1/state/routing/mpls/fib?table&label&page&pageSize` (404 unreadable table, 400 bad query/window), `GET /api/v1/state/routing/mpls/tunnels`; config through the generic pointer routes; fake agent's `MplsState` |
@@ -59,10 +59,10 @@ EVIDENCE_TESTS
 `docs/status/tasks/F-mpls-srmpls-screens/`: `mpls-interfaces`, `mpls-label-routes`, `mpls-label-route-editor`,
 `mpls-tunnels`, `mpls-sr`, `mpls-fib` — each `-en.png` and `-fa-rtl.png` (`document.documentElement` = `rtl/fa`).
 Taken with headless Chrome-for-Testing + playwright-core (P07a/P07b/P08 approach, scripts outside the repo) against the
-real vrx-api (`apps/api/dist`, slot port 3500, database `vrx_w5`) and the web UI (vite, port 5500) of this worktree, with
-**the API's FakeAgent standing in for vrx-agent + VPP** (host runs closed until TD-25): the FIB and tunnel views show the
+real ngfw-api (`apps/api/dist`, slot port 3500, database `ngfw_w5`) and the web UI (vite, port 5500) of this worktree, with
+**the API's FakeAgent standing in for ngfw-agent + VPP** (host runs closed until TD-25): the FIB and tunnel views show the
 fake's model of the committed document, not VPP. A pending edit (tunnel `t3`) shows the pending-change bar and the
-"missing" live state of an uncommitted tunnel. Stack stopped by PID, `vrx_w5` dropped, 31 Valkey keys `vrx:w5:shots:*`
+"missing" live state of an uncommitted tunnel. Stack stopped by PID, `ngfw_w5` dropped, 31 Valkey keys `ngfw:w5:shots:*`
 deleted, lab lock released.
 
 ### Host check — pending
@@ -90,7 +90,7 @@ CI_RESULT
   anchor; F-vrf-static-ecmp inserts after the `vrfs.js` line, one unchanged line apart).
 - `packages/schema/src/semantic/index.ts`: import + `...mplsSrmplsValidators,` under the two anchors (C2).
 - `packages/schema/src/index.ts`: `export * from './domains/ext/mpls-srmpls.js';` (C3).
-- `packages/proto/vrx/v1/dataplane.proto`: `rpc MplsState` under the service anchor; `MplsConfig mpls = 15;` under the
+- `packages/proto/ngfw/v1/dataplane.proto`: `rpc MplsState` under the service anchor; `MplsConfig mpls = 15;` under the
   RoutingConfig anchor (both blank-line framed); messages in `// ----- F-mpls-srmpls -----` (C5).
 - `docs/contracts/proto.md`: `### F-mpls-srmpls: MplsState` appended at the end (no wave-BC anchor there) (C6).
 - Generated (C7, regenerate on conflict): `apps/agent/gen/**`, `packages/proto/gen/ts/**`,

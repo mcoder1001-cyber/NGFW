@@ -110,10 +110,10 @@ CI GATE PASSED
 ```
 
 ### Screenshots — attempted on slot 11, blocked at the last step (full detail in `UI-domain-editor-questions.md` D-UDE-4)
-Stood up for real: `deploy/dev/pg-test.sh create w11` (fresh `vrx_w11`), the real API built with `tsc` and run as
+Stood up for real: `deploy/dev/pg-test.sh create w11` (fresh `ngfw_w11`), the real API built with `tsc` and run as
 `node apps/api/dist/main.js` (port 4100 — **note:** `tsx`/esbuild cannot boot this NestJS app at this base commit,
 see D-UDE-4; building with `tsc` fixes it and is not a code change), `vite` on port 6100 proxying `/api` to it,
-**vrx-agent not started** (the manager's af_packet-free instruction; the advanced editor's reads/writes never call
+**ngfw-agent not started** (the manager's af_packet-free instruction; the advanced editor's reads/writes never call
 the agent, confirmed by reading `ConfigController`/`DatastoreService`). Confirmed both processes boot cleanly and the
 API mapped every `ConfigController` route including `GET /api/v1/config/candidate/*`.
 
@@ -143,8 +143,8 @@ proof (tests, CI, both real processes booting) is real and stands as recorded ab
 **Teardown performed regardless** (nothing was left running or lying around from the attempt, aside from a scratch
 download noted below): API and vite stopped by their exact PIDs (checked with `ps` first — an unrelated
 `node apps/api/dist/main.js` already running on this host, started 2026-09-24 by someone else, was left alone);
-`deploy/dev/pg-test.sh drop w11` → "nothing named vrx_w11 remains"; Valkey db 11 flushed (`dbsize` 0 before and
-after — nothing had actually been written); `/run/vrx-test/w11` removed; ports 4100/6100 confirmed closed
+`deploy/dev/pg-test.sh drop w11` → "nothing named ngfw_w11 remains"; Valkey db 11 flushed (`dbsize` 0 before and
+after — nothing had actually been written); `/run/ngfw-test/w11` removed; ports 4100/6100 confirmed closed
 (`ss -ltn`). The downloaded `chrome-headless-shell` archive (~261 MB, unpacked, its `.zip` already removed) sits
 under `/tmp/g-ude/chrome` — a second permission denial on `rm -rf` of that directory (my own scratch dir, not shared)
 means it is still there; nothing references it from any committed file.
@@ -164,8 +164,8 @@ means it is still there; nothing references it from any committed file.
 
 ### Screenshots (D-UDE-4) — captured
 The manager pointed at this session's own scratchpad, where WEB-3's already-extracted `chrome-headless-shell` +
-shared libraries live (no install, no `dpkg-deb`, env vars only): `VRX_CHROME`/`LD_LIBRARY_PATH` into
-`.../scratchpad/chrome/{chrome-headless-shell-linux64,libroot/usr/lib/x86_64-linux-gnu}`, `VRX_PLAYWRIGHT_CORE` into
+shared libraries live (no install, no `dpkg-deb`, env vars only): `NGFW_CHROME`/`LD_LIBRARY_PATH` into
+`.../scratchpad/chrome/{chrome-headless-shell-linux64,libroot/usr/lib/x86_64-linux-gnu}`, `NGFW_PLAYWRIGHT_CORE` into
 the existing npx cache (`~/.npm/_npx/*/node_modules/playwright-core`, 1.63.0). Confirmed working
 (`chrome-headless-shell --version` → `Google Chrome for Testing 153.0.8010.12`), so nothing from D-UDE-4 was actually
 needed — that finding stands as an accurate record of what a fresh sandbox has, not of this host in general.
@@ -175,7 +175,7 @@ Stood up web + API only on slot 11 again (no agent, same as before), copied WEB-
 `shots.mjs`'s own `webRoot` resolution finds real locale files — a symlink at `apps/web/src` back to this worktree,
 nothing duplicated) and wrote `screens/advanced.mjs` (not committed — screens are feature-owned per WEB-3's README,
 and WEB-3 is not merged, so nothing in this branch can import its harness). One real bug found and fixed in that
-screen: `newPage()`'s `addInitScript` reseeds `vrx.ui.settings` on **every** navigation in the context, so a screen
+screen: `newPage()`'s `addInitScript` reseeds `ngfw.ui.settings` on **every** navigation in the context, so a screen
 that does full `page.goto()`s (this one must — `/config/*` is not nav()-reachable) silently lost a runtime
 `setTheme()` switch on its very next navigation; the fix re-applies the switch after each `goto()` and waits for
 `<html style.colorScheme>` to actually match before shooting (the same ground truth `_example.mjs` checks). Without
@@ -217,7 +217,7 @@ SHOTS OK (18 checks, 1 screen(s) x 2 lang(s) x 2 theme(s))
 `<html dir>` for every shot. The 8 PNGs are committed at `docs/status/tasks/UI-domain-editor-screens/`.
 
 Teardown: API and the real vite listener (`ss -ltnp`, not the `pnpm exec` wrapper PID) stopped by their exact PIDs;
-`pg-test.sh drop w11` → "nothing named vrx_w11 remains"; Valkey db 11 flushed (30 keys → 0); `/run/vrx-test/w11`
+`pg-test.sh drop w11` → "nothing named ngfw_w11 remains"; Valkey db 11 flushed (30 keys → 0); `/run/ngfw-test/w11`
 removed; ports 4100/6100 confirmed closed. No `pkill` anywhere this round.
 
 ### D-UDE-1 (Medium) — the editor now addresses the pointer's real depth

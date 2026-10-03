@@ -1,6 +1,6 @@
-# vrx-a = the dev/CI host 172.30.126.195 itself (local mode: no SSH). Facts: docs/lab/host-vrx-a.md (2026-09-23).
-name: vrx-a
-role: vrx
+# ngfw-a = the dev/CI host 172.30.126.195 itself (local mode: no SSH). Facts: docs/lab/host-ngfw-a.md (2026-09-23).
+name: ngfw-a
+role: ngfw
 mgmt: local
 state: active
 os: ubuntu-26.04
@@ -13,7 +13,7 @@ vpp:
   cli_socket: /run/vpp/cli.sock
   stats_socket: /run/vpp/stats.sock
   startup_conf: /etc/vpp/startup.conf   # read-only for everyone while handover is pending (D-012)
-  # `handover: pending|done` is NOT configurable here: tools/lab reads docs/lab/host-vrx-a.md from the canonical main checkout
+  # `handover: pending|done` is NOT configurable here: tools/lab reads docs/lab/host-ngfw-a.md from the canonical main checkout
   # (/root/ngfw) AND from the calling worktree; both must say `done` before restart-vpp/kill-vpp run (review F3).
   unit: vpp.service
 data_path: af_packet                    # veth/netns rig (D-010); DPDK only after NICs are bound (needs startup.conf → handover)

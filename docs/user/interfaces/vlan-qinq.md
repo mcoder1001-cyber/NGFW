@@ -2,11 +2,11 @@
 
 **Screen:** *Interfaces → Interfaces* (`/interfaces`) → click the parent interface → **Sub-interfaces** in the drawer.
 **REST:** the generic configuration routes under `/api/v1/config/interfaces/<parent>/subinterfaces/<id>` and the live table
-`/api/v1/state/interfaces`. **CLI:** `vrx set|merge interfaces <parent> subinterfaces …`, `vrx show interfaces <parent>.<id>`.
+`/api/v1/state/interfaces`. **CLI:** `ngfw set|merge interfaces <parent> subinterfaces …`, `ngfw show interfaces <parent>.<id>`.
 Basics of the screen: [basics.md](basics.md).
 
 A sub-interface is a routed interface `<parent>.<id>` on top of an Ethernet interface. It takes the frames that carry its
-**tag stack** and nothing else (*exact match*), and it has its own addresses, VRF, MTU and admin state. VRX supports:
+**tag stack** and nothing else (*exact match*), and it has its own addresses, VRF, MTU and admin state. NGFW supports:
 
 | stack | configuration | VPP (`create_subif` flags) | encapsulation shown |
 |---|---|---|---|
@@ -37,7 +37,7 @@ Validation (the commit is refused with `400 application/problem+json`, the point
 
 ```json
 {
-  "type": "https://vrx.dev/problems/validation", "title": "Validation failed", "status": 400, "tier": "semantic",
+  "type": "https://ngfw.dev/problems/validation", "title": "Validation failed", "status": 400, "tier": "semantic",
   "errors": [{ "pointer": "/interfaces/host-w5w0/subinterfaces/201/vlanId",
                "message": "VLAN dot1ad 200.100 is already used by sub-interface host-w5w0.200" }]
 }
@@ -99,19 +99,19 @@ curl -s -X DELETE -H "authorization: Bearer $T" http://127.0.0.1:3000/api/v1/con
 
 ```
 # a new sub-interface: the whole object at its path (PUT), or a merge patch on the parent's sub-interfaces
-vrx set interfaces host-w5w0 subinterfaces 100 '{"vlanId":100,"enabled":true,"ipv4":["10.5.100.1/24"]}'
-vrx merge interfaces host-w5w0 subinterfaces '{"200":{"vlanId":200,"innerVlanId":100,"dot1ad":true,"enabled":true,"ipv4":["10.5.200.1/24"]}}'
-vrx show configuration diff
-vrx commit comment "qinq"
+ngfw set interfaces host-w5w0 subinterfaces 100 '{"vlanId":100,"enabled":true,"ipv4":["10.5.100.1/24"]}'
+ngfw merge interfaces host-w5w0 subinterfaces '{"200":{"vlanId":200,"innerVlanId":100,"dot1ad":true,"enabled":true,"ipv4":["10.5.200.1/24"]}}'
+ngfw show configuration diff
+ngfw commit comment "qinq"
 # change one tag of an existing sub-interface (re-created on commit), remove one
-vrx set interfaces host-w5w0 subinterfaces 200 innerVlanId 101
-vrx delete interfaces host-w5w0 subinterfaces 200
+ngfw set interfaces host-w5w0 subinterfaces 200 innerVlanId 101
+ngfw delete interfaces host-w5w0 subinterfaces 200
 ```
 
 Real output from the topology test (`test/topology/vlan-qinq`, slot 5, 2026-09-24):
 
 ```
-$ vrx configure show interfaces host-w5w0 subinterfaces set
+$ ngfw configure show interfaces host-w5w0 subinterfaces set
 set interfaces host-w5w0 subinterfaces 200 description "QinQ dot1ad 200 + dot1q 100"
 set interfaces host-w5w0 subinterfaces 200 dot1ad true
 set interfaces host-w5w0 subinterfaces 200 enabled true
@@ -121,7 +121,7 @@ set interfaces host-w5w0 subinterfaces 200 ipv6 []
 set interfaces host-w5w0 subinterfaces 200 vlanId 200
 set interfaces host-w5w0 subinterfaces 200 vrf default
 …
-$ vrx show interfaces host-w5w0.200
+$ ngfw show interfaces host-w5w0.200
 Interface host-w5w0.200 (retrieved 2026-09-24T15:11:05.412Z)
   description "QinQ dot1ad 200 + dot1q 100";
   dot1ad true;

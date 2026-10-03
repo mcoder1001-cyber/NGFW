@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/nat66`, binapi `apps/agent/binapi/nat66` (plugin `nat66_plugin.so`, loaded
-on vrx-a but **disabled by default** — `show nat66 …` prints "plugin disabled" until `nat66_plugin_enable_disable`).
+on ngfw-a but **disabled by default** — `show nat66 …` prints "plugin disabled" until `nat66_plugin_enable_disable`).
 Entry point `nat66.Register(registry, client, owner)`.
 
 | Descriptor | Key id | Create / Delete | Update | Retrieve | Dependencies | Notes / limitations |

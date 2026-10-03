@@ -18,7 +18,7 @@ Branch `task/F-startup-gen` @ 2888b94, base main. Reviewed on the host (read-onl
 | 9 | scope creep | `Renderer` (dry-run use, Q3) and the in-process LCS diff are small and justified; none to remove |
 | 11 | CI | `tools/ci.sh --base main` run by the reviewer: **CI GATE PASSED** (mode quick, wall 1m04s, logs `/root/ngfw-wt/logs/ci/F-startup-gen-20260924-014651-1560129`); matches the pasted run |
 
-Reviewer probes (built `vrx-startupgen`, fed documents on stdin): newline / `}` / `{` / `#` / U+2028 / overlong logical
+Reviewer probes (built `ngfw-startupgen`, fed documents on stdin): newline / `}` / `{` / `#` / U+2028 / overlong logical
 names, brace+newline in `devices` keys and `plugins` keys, `../` plugin paths, `default` plugin, 1e300 numbers,
 `0b:00.0`, `" 0000:0b:00.0"`, Arabic-Indic and full-width digits, `0000:0B:00.0` vs `0000:0b:00.0` in every
 combination of `managementPci`/`pciWhitelist`/`devices`, duplicate JSON keys → **all rejected** with one-line errors.
@@ -56,7 +56,7 @@ document still renders `blacklist 0000:0b:00.0`.
 
 1. **Rollback dies with the SSH session.** The script runs in the manager's SSH shell; if the new file does take the
    management path down, sshd's session gets SIGHUP and the `bash -c` (including the rollback branch) is killed — the
-   one failure the rollback must survive. Run the restart+verify+rollback detached (`systemd-run --unit=vrx-startup-apply
+   one failure the rollback must survive. Run the restart+verify+rollback detached (`systemd-run --unit=ngfw-startup-apply
    --collect …` or `setsid nohup`), and add a dead-man timer (`systemd-run --on-active=180 …restore-and-restart…`) that
    the manager cancels only after reconnecting.
 2. **Interface verification is vacuous:** `vppctl show interface "$n"` (line 109) exits 0 even for an unknown name —
@@ -95,7 +95,7 @@ main core**, not `main+1…main+N`. Reproduced:
 - `{"workers":2}` without `mainCore` → worker placement depends on the CPU VPP starts on (non-deterministic).
 Fix: model VPP's algorithm exactly (main = mainCore; workers = first N of online∖{0, main}, CPU 0 last resort), and
 require `mainCore` whenever `workers > 0` or the host isolates CPUs (or render `corelist-workers` computed from the
-isolated set). Also `h.CPUs = max(online)+1` (`cmd/vrx-startupgen/main.go:224-227`) ignores holes in the online list:
+isolated set). Also `h.CPUs = max(online)+1` (`cmd/ngfw-startupgen/main.go:224-227`) ignores holes in the online list:
 keep the online set and check `mainCore`/corelist membership, since VPP errors on an offline CPU ("cpu %u is not available").
 
 ### F5 — MEDIUM: hugepage budget can be bypassed → VPP fails buffer allocation at start
@@ -129,7 +129,7 @@ files never contain a mid-token `#`, so no false "identical" found), but align i
 
 ### F9 — LOW: `TestLiveHostFileSemantics` binds unit tests to the live host file
 `render_test.go:151-161`. After any legitimate manager change of `/etc/vpp/startup.conf` (e.g. the first real apply
-with devices), `make test` fails on this host. Gate it behind `VRX_INTEGRATION` or compare against the checked-in
+with devices), `make test` fails on this host. Gate it behind `NGFW_INTEGRATION` or compare against the checked-in
 `testdata/host-startup.conf` only.
 
 ## Answers to the focus questions

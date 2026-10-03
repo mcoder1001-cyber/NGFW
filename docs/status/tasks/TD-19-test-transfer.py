@@ -18,12 +18,12 @@ class TransferGate(unittest.TestCase):
             root = Path(directory)
             (root / 'package/DEBIAN').mkdir(parents=True)
             (root / 'bin').mkdir()
-            control = 'Package: vpp\nVersion: 26.06-release+vrx1\nArchitecture: amd64\nMaintainer: Fixture <test@example.invalid>\nDescription: Fixture\n'
+            control = 'Package: vpp\nVersion: 26.06-release+ngfw1\nArchitecture: amd64\nMaintainer: Fixture <test@example.invalid>\nDescription: Fixture\n'
             (root / 'package/DEBIAN/control').write_text(control)
             package = root / 'vpp.deb'
             subprocess.run(['dpkg-deb', '--build', '--root-owner-group', str(root / 'package'), str(package)],
                            check=True, capture_output=True)
-            entry = dict(package='vpp', version='26.06-release+vrx1', architecture='amd64',
+            entry = dict(package='vpp', version='26.06-release+ngfw1', architecture='amd64',
                          file='vpp.deb', sha256=hashlib.sha256(package.read_bytes()).hexdigest())
             selection = dict(version=entry['version'], packages=[entry])
             policy = root / 'policy-rc.d'

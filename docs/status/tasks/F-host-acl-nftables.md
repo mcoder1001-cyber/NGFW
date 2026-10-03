@@ -10,10 +10,10 @@ F-hardening-lite consumes it). Contract: `docs/status/tasks/F-host-acl-nftables-
 | part | where |
 |---|---|
 | **Contract** (additive, `contract(proto): host acl state`): read-only RPC `HostAclState`; config gap `acl.hostSettings` (`defaultInput`, `allowIcmp`, `antiLockout{enabled, sources, interfaces, ports}`) = `AclConfig.host_settings = 8`; semantic rule `acl.host-settings` | `packages/proto`, `packages/schema/src/domains/ext/host-acl-nftables.ts`, `semantic/host-acl-nftables.ts` |
-| **Renderer** `renderers/nftables`: ONE table `table inet vrx` (slots `vrx_<prefix>`); sets per address object, one base chain per enabled attachment, `ct state established,related accept` first, loopback, ICMP / IPv6 ND, the **anti-lockout** accept, user rules with counters and `log prefix "vrx:<list>:<seq> "`; `nft -c -f` on a staged copy; one `nft -f` transaction (`add table` + `delete table` + body); Retrieve = `nft -j list table` normalised; never `flush ruleset`, never another table | `apps/agent/internal/renderers/nftables/` (README), `docs/agent/renderers/nftables.md` (mapping table) |
+| **Renderer** `renderers/nftables`: ONE table `table inet ngfw` (slots `ngfw_<prefix>`); sets per address object, one base chain per enabled attachment, `ct state established,related accept` first, loopback, ICMP / IPv6 ND, the **anti-lockout** accept, user rules with counters and `log prefix "ngfw:<list>:<seq> "`; `nft -c -f` on a staged copy; one `nft -f` transaction (`add table` + `delete table` + body); Retrieve = `nft -j list table` normalised; never `flush ruleset`, never another table | `apps/agent/internal/renderers/nftables/` (README), `docs/agent/renderers/nftables.md` (mapping table) |
 | **Anti-lockout check** (DryRun error with pointer): management probes simulated through the input chains | `renderers/nftables/lockout.go` |
-| **Agent wiring** (decision (a)): singleton descriptor `host-acl.nftables/vrx` under `Domains["acl"]`, builder/assembler, `HostAclState` | `subsystems/host_acl.go`, `desired/hostacl.go`, `agent/rpc_host_acl.go` |
-| **Modes / isolation**: product owner → root netns (`apply`); a slot agent → `check` (nft -c only) or, with `VRX_HOST_ACL_NETNS`, `netns` (every nft call on a thread that `setns`-ed into the slot namespace; never `ip netns exec`); `apply` is refused for any owner but `vrx` | `renderers/nftables/paths.go`, `runner.go` |
+| **Agent wiring** (decision (a)): singleton descriptor `host-acl.nftables/ngfw` under `Domains["acl"]`, builder/assembler, `HostAclState` | `subsystems/host_acl.go`, `desired/hostacl.go`, `agent/rpc_host_acl.go` |
+| **Modes / isolation**: product owner → root netns (`apply`); a slot agent → `check` (nft -c only) or, with `NGFW_HOST_ACL_NETNS`, `netns` (every nft call on a thread that `setns`-ed into the slot namespace; never `ip netns exec`); `apply` is refused for any owner but `ngfw` | `renderers/nftables/paths.go`, `runner.go` |
 | **API** `GET /api/v1/state/host-acl` (`HostAclNftablesController`), fake agent, e2e | `apps/api/src/features/host-acl-nftables/`, `apps/api/test/e2e/host-acl-nftables.e2e.test.ts` |
 | **UI** *Firewall → Host ACL* (`/firewall/host-acl`): Lists (rules + live counters), Attachments, Settings, Rendered table; anti-lockout banner; en + fa | `apps/web/src/domains/firewall/host-acl-nftables/`, `apps/web/src/locales/{en,fa}/host-acl-nftables.json` |
 | **Docs** | `docs/user/firewall/host-acl-nftables.md` (default policy, anti-lockout, "SSH only from 10.0.0.0/24" + CLI), `docs/agent/renderers/nftables.md` |
@@ -27,7 +27,7 @@ F-hardening-lite consumes it). Contract: `docs/status/tasks/F-host-acl-nftables-
    store) plus the rendered model; Retrieve reads the daemon/kernel and pairs it with the store. P11/P12/F-kea/F-unbound can
    follow it wherever the actual state can be read back.
 2. **Rule identity for Retrieve**: nft re-prints rules in its own form (drops implied `meta l4proto`, `meta nfproto`,
-   rewrites `th dport` …), so comparing rule text is fragile. Each rule carries `comment "vrx:<id>/<n>:<sha256(text)[:8]>"`;
+   rewrites `th dport` …), so comparing rule text is fragile. Each rule carries `comment "ngfw:<id>/<n>:<sha256(text)[:8]>"`;
    Retrieve compares sets (elements normalised), chain headers and the ordered comments, and takes the annotations from the
    store. Options were (i) rule JSON prediction (fragile), (ii) comment hash (taken). Limitation: a hand edit of a rule body that
    keeps its comment is not seen (documented; the table is owned by the renderer).
@@ -39,8 +39,8 @@ F-hardening-lite consumes it). Contract: `docs/status/tasks/F-host-acl-nftables-
    wave-A-hotspots §2 proposal (questions Q1).
 5. **Management interfaces before D-026** (prompt open question): `antiLockout.interfaces`/`sources` empty = any (Q3).
    **reject**: nftables' default (`icmpx port-unreachable`, Q4).
-6. **Test/product isolation**: slot agents default to `check`; `netns` needs `VRX_HOST_ACL_NETNS`; the product stack on this
-   shared host should run with `VRX_HOST_ACL_MODE=check` (Q5, `tools/app` is the manager's).
+6. **Test/product isolation**: slot agents default to `check`; `netns` needs `NGFW_HOST_ACL_NETNS`; the product stack on this
+   shared host should run with `NGFW_HOST_ACL_MODE=check` (Q5, `tools/app` is the manager's).
 
 ## Late obligations (CONTINUE-quota "Also new", 2026-09-25)
 - **TD-11b ownership guard**: `host-acl.nftables` declares `RecordsNoOwnership()` (its ownership is the owner-specific table
@@ -53,7 +53,7 @@ F-hardening-lite consumes it). Contract: `docs/status/tasks/F-host-acl-nftables-
 
 | file | hunk |
 |---|---|
-| `packages/proto/vrx/v1/dataplane.proto` (C5) | `rpc HostAclState` in `service Dataplane`; `HostAclSettings host_settings = 8;` in `AclConfig`; messages in the `// ----- F-host-acl-nftables -----` section |
+| `packages/proto/ngfw/v1/dataplane.proto` (C5) | `rpc HostAclState` in `service Dataplane`; `HostAclSettings host_settings = 8;` in `AclConfig`; messages in the `// ----- F-host-acl-nftables -----` section |
 | `packages/schema/src/domains/acl.ts` (C1) | one import + one key line `hostSettings` at the end of `AclSchema` (no anchor seeded in acl.ts) |
 | `packages/schema/src/semantic/index.ts` (C2) | one import + one spread line |
 | `packages/schema/src/index.ts` (C3) | one `export *` line |
@@ -108,13 +108,13 @@ ok  	ngfw/agent/internal/renderers/nftables	1.325s
 ok  	ngfw/agent/internal/agent	0.349s
 ```
 
-### Integration in the slot netns (`VRX_INTEGRATION=1 go test -run TestIntegrationHostFirewallInSlotNetns ./internal/renderers/nftables/`)
+### Integration in the slot netns (`NGFW_INTEGRATION=1 go test -run TestIntegrationHostFirewallInSlotNetns ./internal/renderers/nftables/`)
 ```
 === RUN   TestIntegrationHostFirewallInSlotNetns
     apply: APPLIED summary={Created:1 …} in 118ms
-    `nft list table inet vrx_w9` in ns-w9-hacl after apply:
-        table inet vrx_w9 {
-        	comment "vrx-agent host firewall"
+    `nft list table inet ngfw_w9` in ns-w9-hacl after apply:
+        table inet ngfw_w9 {
+        	comment "ngfw-agent host firewall"
         	set a4_peer {
         		type ipv4_addr
         		flags interval
@@ -122,16 +122,16 @@ ok  	ngfw/agent/internal/agent	0.349s
         	}
         	chain in_local-in {
         		type filter hook input priority filter; policy accept;
-        		ct state established,related counter packets 0 bytes 0 accept comment "vrx:@established/0:c77fde03"
-        		iif "lo" counter packets 0 bytes 0 accept comment "vrx:@loopback/0:ad72b3be"
-        		meta l4proto icmp counter packets 0 bytes 0 accept comment "vrx:@icmp/0:36418210"
-        		meta l4proto ipv6-icmp counter packets 0 bytes 0 accept comment "vrx:@icmp/1:455fde78"
-        		ip saddr 10.9.77.2 tcp dport 22 counter packets 0 bytes 0 accept comment "vrx:@anti-lockout/0:f175bad4"
-        		ip saddr @a4_peer tcp dport 2222 counter packets 0 bytes 0 accept comment "vrx:local-in:10/0:591e6c38"
-        		tcp dport 2323 counter packets 0 bytes 0 log prefix "vrx:local-in:20 " drop comment "vrx:local-in:20/0:f020440d"
+        		ct state established,related counter packets 0 bytes 0 accept comment "ngfw:@established/0:c77fde03"
+        		iif "lo" counter packets 0 bytes 0 accept comment "ngfw:@loopback/0:ad72b3be"
+        		meta l4proto icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/0:36418210"
+        		meta l4proto ipv6-icmp counter packets 0 bytes 0 accept comment "ngfw:@icmp/1:455fde78"
+        		ip saddr 10.9.77.2 tcp dport 22 counter packets 0 bytes 0 accept comment "ngfw:@anti-lockout/0:f175bad4"
+        		ip saddr @a4_peer tcp dport 2222 counter packets 0 bytes 0 accept comment "ngfw:local-in:10/0:591e6c38"
+        		tcp dport 2323 counter packets 0 bytes 0 log prefix "ngfw:local-in:20 " drop comment "ngfw:local-in:20/0:f020440d"
         	}
         }
-    `nft list tables` in ns-w9-hacl:   table inet foreign / table inet vrx_w9
+    `nft list tables` in ns-w9-hacl:   table inet foreign / table inet ngfw_w9
     port 2323 from 10.9.77.2: dial tcp 10.9.77.1:2323: i/o timeout (dropped)
     drop rule (sequence 20) counter: 0 → 2 packets; allowed rule (sequence 10): 1 packets
     apply: APPLIED summary={Updated:1 …}                    (update: + reject 2424)
@@ -145,31 +145,31 @@ ok  	ngfw/agent/internal/agent	0.349s
 
 ### Topology on slot 9 (`test/topology/host-acl-nftables/run.sh -run TestHostACLTopology`: real agent + API + slot DB)
 ```
-    started vrx-agent pid 1570280 … started vrx-api pid 1570399
-    `nft list table inet vrx_w9` in ns-w9-hacl after commit (revision 1):   (the table above)
-    `nft list tables` in ns-w9-hacl: table inet foreign / table inet vrx_w9
-    /state/drift: no change under /acl (Retrieve == running); /state/host-acl: present, inSync, mode netns, table vrx_w9
-    retrieve acl (vrx-agentctl): map[host:map[local-in:… rules:[…sequence:10… …sequence:20…]] hostAttachments:[…input… priority:0]
+    started ngfw-agent pid 1570280 … started ngfw-api pid 1570399
+    `nft list table inet ngfw_w9` in ns-w9-hacl after commit (revision 1):   (the table above)
+    `nft list tables` in ns-w9-hacl: table inet foreign / table inet ngfw_w9
+    /state/drift: no change under /acl (Retrieve == running); /state/host-acl: present, inSync, mode netns, table ngfw_w9
+    retrieve acl (ngfw-agentctl): map[host:map[local-in:… rules:[…sequence:10… …sequence:20…]] hostAttachments:[…input… priority:0]
       hostSettings:map[allowIcmp:true antiLockout:map[enabled:true ports:[22] sources:[10.9.77.2/32]] defaultInput:accept]]
     port 2323 from 10.9.77.2: dial tcp 10.9.77.1:2323: i/o timeout (dropped)
     GET /api/v1/state/host-acl rules[]: sequence 20 (drop 2323) packets=2, sequence 10 (accept 2222) packets=1
-    validate with anti-lockout off and a drop of tcp/22 → 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed",
+    validate with anti-lockout off and a drop of tcp/22 → 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed",
       "status":400,"tier":"agent",…,"errors":[{"pointer":"/acl/host/local-in/rules/0","message":"management TCP 22 from 10.9.77.2/32 on
       any interface would be dropped by this rule (drop, chain in_local-in): the anti-lockout rule is off
       (acl.hostSettings.antiLockout.enabled), so the rules must accept management traffic before any drop — add an accept rule in
       front, narrow this one, or turn the anti-lockout rule on","rule":"acl.host-anti-lockout"}]}
     (commit of the same candidate → 400; discard; the kernel table unchanged)
     rollback 2 → 1: status applied, revision map[… id:3 kind:rollback parentId:2 …]
-    rollback: `nft list table inet vrx_w9` equals revision 1's (counters blanked); /state/drift clean for acl
-    stopped vrx-agent pid 1570280
+    rollback: `nft list table inet ngfw_w9` equals revision 1's (counters blanked); /state/drift clean for acl
+    stopped ngfw-agent pid 1570280
     simulated loss: `nft list tables` in ns-w9-hacl with the agent down:  table inet foreign
-    started vrx-agent pid 1577073
+    started ngfw-agent pid 1577073
     restart: table re-rendered identically after 236ms (diff empty); agent log:
-      {"msg":"host firewall wired","owner":"w9","table":"inet vrx_w9","mode":"netns","netns":"ns-w9-hacl",…}
-      {"msg":"host firewall rendered","owner":"w9","family":"host-acl","table":"vrx_w9","mode":"netns","chains":1,"sets":1}
+      {"msg":"host firewall wired","owner":"w9","table":"inet ngfw_w9","mode":"netns","netns":"ns-w9-hacl",…}
+      {"msg":"host firewall rendered","owner":"w9","family":"host-acl","table":"ngfw_w9","mode":"netns","chains":1,"sets":1}
       {"msg":"reconcile done","mode":"resync","domains":["interfaces","vrfs","routing","objects","acl"],"status":"APPLY_STATUS_APPLIED","summary":"updated:1 unchanged:1"}
     VPP NRestarts 1 → 1
-    stopped vrx-api … stopped vrx-agent …   pg-test drop w9: ok nothing named vrx_w9 remains
+    stopped ngfw-api … stopped ngfw-agent …   pg-test drop w9: ok nothing named ngfw_w9 remains
 --- PASS: TestHostACLTopology (15.78s)
 ```
 This task creates no VPP object; the agent connects to the shared VPP only for its other domains (`NRestarts` unchanged).
@@ -231,9 +231,9 @@ How the gate was run, and why (D-127 and one inherited finding):
 | id | fix | commit | test that fails on the old code |
 |---|---|---|---|
 | H1 | An enabled **output** attachment at priority ≤ −200 (before `NF_IP_PRI_CONNTRACK`) is refused: Go `Build` → `acl.host-attachment` at `/acl/hostAttachments/<i>/priority`; schema tier-b rule `acl.host-output-priority` (400 at the same pointer, before the agent is asked). Docs corrected ("replies are not cut" now holds by construction) | 723c92cf (`contract(schema)`), a0e82b38 | `TestBuildErrors` "output before conntrack" (−300) / "output at conntrack" (−200): no issue on the old code; `TestOutputPriorityAfterConntrack` (−199, other hooks, disabled attachment stay fine); schema `acl.host-output-priority …` (5/5) |
-| H2 | Mode `apply` requires the product owner **and** `Env.GlobalsOwner` (D-071: the root-netns firewall is a host-wide singleton): `ProductPaths`/`PathsFromEnv(stateDir, owner, globalsOwner)` fall back to `check`; `VRX_HOST_ACL_MODE=apply` is refused without it; `Paths.Validate` checks it too. `tools/app`: `VRX_HOST_ACL_MODE=check` added to the product agent's env line — that one line only (manager's Q5 answer); tools/app was not run | a0e82b38 | `TestPathsFromEnv` (owner vrx without globals → check; apply without globals → error; Validate): does not build on the old API, which had no globals input and returned apply for owner vrx |
+| H2 | Mode `apply` requires the product owner **and** `Env.GlobalsOwner` (D-071: the root-netns firewall is a host-wide singleton): `ProductPaths`/`PathsFromEnv(stateDir, owner, globalsOwner)` fall back to `check`; `NGFW_HOST_ACL_MODE=apply` is refused without it; `Paths.Validate` checks it too. `tools/app`: `NGFW_HOST_ACL_MODE=check` added to the product agent's env line — that one line only (manager's Q5 answer); tools/app was not run | a0e82b38 | `TestPathsFromEnv` (owner ngfw without globals → check; apply without globals → error; Validate): does not build on the old API, which had no globals input and returned apply for owner ngfw |
 | M1 | Retrieve pairs a kernel rule with its stored annotations only while (a) its verdict equals the stored one and (b) its body still hashes as right after the last `nft -f` (sha256 of the kernel's `expr` JSON, counter values stripped; stored as `kernel_hashes` after a read-back in Create/Update). (c) The table's `flags dormant` is parsed (`HostTable.dormant`). Unhooked chains were already visible and are now tested | 71e85fa7 | `TestKernelDriftIsVisible` + "verdict flip, comment kept", "port edit, comment kept", "dormant table", "chain not hooked" (the first three are invisible on the old `annotate`); `TestDescriptorLifecycle` (read-back after the load, hashes stored); round trip with and without stored hashes |
-| M2 | The anti-lockout check is a pure function of the configuration: matches through FQDN-bearing objects count as *partial* whatever the resolver answers (an FQDN accept never protects management, an FQDN drop may hit it), and a rule whose FQDN object has no answer of a family yet takes part as a non-rendered ghost. A config accepted at commit therefore can never produce `acl.host-anti-lockout` at a resync, so the failure cannot reach the other domains. Scoping a runtime descriptor failure to one key (DEGRADED/FAILED for `host-acl.nftables/vrx` only) is scheduler semantics — every descriptor error rolls the transaction back today; with the check DNS-independent no such failure is left for this family (TD-13's validator would be the place for more) | b3439a64 | `TestAntiLockoutIgnoresFQDNAnswers`: the same findings with the FQDN objects resolved and unresolved; on the old code "fqdn accept (resolved)", "fqdn drop (resolved)", "fqdn drop (unresolved)" gave no error |
+| M2 | The anti-lockout check is a pure function of the configuration: matches through FQDN-bearing objects count as *partial* whatever the resolver answers (an FQDN accept never protects management, an FQDN drop may hit it), and a rule whose FQDN object has no answer of a family yet takes part as a non-rendered ghost. A config accepted at commit therefore can never produce `acl.host-anti-lockout` at a resync, so the failure cannot reach the other domains. Scoping a runtime descriptor failure to one key (DEGRADED/FAILED for `host-acl.nftables/ngfw` only) is scheduler semantics — every descriptor error rolls the transaction back today; with the check DNS-independent no such failure is left for this family (TD-13's validator would be the place for more) | b3439a64 | `TestAntiLockoutIgnoresFQDNAnswers`: the same findings with the FQDN objects resolved and unresolved; on the old code "fqdn accept (resolved)", "fqdn drop (resolved)", "fqdn drop (unresolved)" gave no error |
 | M3 | `TestRetrieveSubsystems` takes its unimplemented example from the registry (first root key without a `subsystems.Domains` entry; skipped when none) | 32ad5184 | (test-only change) |
 | M4 | the manager's (P10) — not touched | — | — |
 | L1 | the error says to set `antiLockout.sources` when none are configured, and that FQDN matches never protect | b3439a64 | `TestAntiLockoutMessageWithoutSources` |
@@ -302,7 +302,7 @@ Cleanup after the round: no w9 netns/links, no process of this task, lab lock re
 ## Acceptance
 
 - [x] Golden + hostile-input tests (quote/brace/newline injection in descriptions and interface names) green
-- [x] In the slot netns: after apply `nft list table inet vrx_w9` shows the rules (pasted); a blocked port from a veth peer is
+- [x] In the slot netns: after apply `nft list table inet ngfw_w9` shows the rules (pasted); a blocked port from a veth peer is
       dropped and the counter increments (0 → 2); an allowed port connects
 - [x] Agent-restart simulation → table re-rendered identically (diff empty; 236 ms on the stack, 135 ms at renderer level)
 - [x] Rollback → table content equals the previous revision (Retrieve / drift + listing, not assumption); other tables
@@ -326,7 +326,7 @@ Verified after the last run (2026-09-25 ~04:20):
 ```
 --- processes        none (agent, API and vite preview of every run were started and stopped by PID by the tests)
 --- netns            no w9 namespaces, no w9 links (ns-w9-hacl / ns-w9-hpeer / ns-w9-probe deleted)
---- db               vrx_w9 database and role dropped (pg-test.sh drop: "nothing named vrx_w9 remains")
+--- db               ngfw_w9 database and role dropped (pg-test.sh drop: "nothing named ngfw_w9 remains")
 --- lab lock         no holder
 --- root netns       table ip filter / ip nat / ip mangle / ip6 filter / ip6 nat / ip6 mangle  (= baseline, never changed)
                      nftables.service inactive, disabled

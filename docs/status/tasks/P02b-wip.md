@@ -20,7 +20,7 @@
   `tools/ci.sh --base main`, P02b.md with pasted output.
 - 2026-09-24 00:25 FIX ROUND 2 (CONTINUE). Merged main (e29cd10). 13667cd already covers M1–M4, L1, L5, L7.
   H1: P02a (owner of ui.ts) not merged yet → fixed in own files: private merging `withUi` in domains/{nat,acl,objects}.ts
-  (inherits `x-vrx-ui` of the wrapped schema), + leaf tests and a walker (every format-carrying leaf with hints has a
+  (inherits `x-ngfw-ui` of the wrapped schema), + leaf tests and a walker (every format-carrying leaf with hints has a
   widget); verified the tests fail with the merge disabled. Next: L6, L9, doc notes L4/L8, M5 evidence.
 - 00:45 L9 (11ba023: empty groups allowed, rules may not use them), L6 (0dcfd45: `enabled` optional + `isNat44Enabled()`),
   contract doc (H1 note, L6/L9 semantics, L8 "not modelled" list), questions #1 resolved, #9/#10, D-P02b-9…12.

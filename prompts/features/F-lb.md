@@ -14,7 +14,7 @@ HAProxy/nginx") — build the minimal, honest version. Reference: VPP plugin `lb
   P08 already installs the persisted DF-7 BootStore (`df7.SetBootStore` in `subsystems.Register`) — the applied-once records survive agent restarts.
 - LOG **D-090 (2)**: the globals owner triggers VPP's lb garbage collection after lb changes through **one fixed-string `cli_inband` call**
   (constant command, no user input — the only allowed CLI use, documented as a row in `apps/agent/internal/renderers/ALLOWLIST.md`);
-  options and the command are in `docs/status/tasks/DF-7-questions.md` Q1 (option a). Slot agents (`VRX_GLOBALS_OWNER=0`) never run it.
+  options and the command are in `docs/status/tasks/DF-7-questions.md` Q1 (option a). Slot agents (`NGFW_GLOBALS_OWNER=0`) never run it.
 - `apps/agent/binapi/lb/` (`lb_conf`, `lb_add_del_vip_v2`, `lb_add_del_as`, `lb_add_del_intf_nat4/6`, `lb_vip_dump`, `lb_as_dump`, `lb_flush_vip`)
 - `docs/vpp-code-track.md` **V20**: removed VIPs/ASes are freed only by CLI-triggered GC (fallback: globals owner runs the lb cleanup;
   AS /32 tracking entries linger in table 0), lb enum/type fields not byte-swapped by VPP (fallback: the descriptor swaps, little-endian
@@ -38,8 +38,8 @@ under your anchor only.
 2. **Agent**: projection `services.lb` → `lb.conf` (globals owner only; slots *require* it), `lb.vip`, `lb.as`, `lb.intf-nat`; read-only state
    from `lb.DumpVIPs` (what VPP reports correctly: prefix, encap/type, AS list with weights/"removed" flag) — never used as Retrieve.
    D-090: in the globals owner only, after a transaction that deleted/recreated lb objects, run the constant GC command once through
-   `cli_inband` (+ its ALLOWLIST row); unit-test that a slot agent never sends it. Host test opt-in (`VRX_LB_HOST=1`, like DF-7's
-   `VRX_DF7_LB=1`), run once for the evidence — every run leaves "removed" VIPs until a GC (V20).
+   `cli_inband` (+ its ALLOWLIST row); unit-test that a slot agent never sends it. Host test opt-in (`NGFW_LB_HOST=1`, like DF-7's
+   `NGFW_DF7_LB=1`), run once for the evidence — every run leaves "removed" VIPs until a GC (V20).
 3. **API**: config via pointer routes; `GET /api/v1/state/lb/vips` (VIPs + ASes + in-use/removed state); `POST /api/v1/actions/lb/vips/{name}/flush`.
 4. **UI**: Load balancer page: VIP list + AS sub-table (SchemaForm), state column, flush action, a visible "write-only / GC" notice; en + fa.
 5. **Docs**: `docs/user/services/lb.md` — GRE and L3DSR examples, what the plugin does NOT do (no health checks, no L7), V20 caveats, CLI equivalent.

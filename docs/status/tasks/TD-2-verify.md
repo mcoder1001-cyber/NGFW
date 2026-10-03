@@ -2,9 +2,9 @@
 
 Reviewer: independent review agent (did not write this code). Branch `task/TD-2` @ `a2748ce`, base `main`. Checked against
 the previous review `cc70629` (TD-2-review.md), the fix-round section in TD-2.md, TD-2-contract.md and D-097.
-Ran on the host, slot 7 (`w7`, DB `vrx_w7`, Valkey db 7). The probes were a throw-away e2e file in the worktree. I deleted it
-after the runs and did not commit it. Cleanup: `ok nothing named vrx_w7 / vrx_w7 remains` after every run.
-`valkey-cli -n 7 --scan --pattern 'vrx:w7:*' | wc -l` → `0`, and `dbsize` → `0`. No processes were left running.
+Ran on the host, slot 7 (`w7`, DB `ngfw_w7`, Valkey db 7). The probes were a throw-away e2e file in the worktree. I deleted it
+after the runs and did not commit it. Cleanup: `ok nothing named ngfw_w7 / ngfw_w7 remains` after every run.
+`valkey-cli -n 7 --scan --pattern 'ngfw:w7:*' | wc -l` → `0`, and `dbsize` → `0`. No processes were left running.
 
 ## What was run
 

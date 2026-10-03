@@ -10,7 +10,7 @@ sync quality) belongs to the F-* tasks — you deliver render / validate / apply
 - `apps/agent/internal/renderers/renderer.go` + `README.md` + `ALLOWLIST.md` (P05a) — the interface and helpers you implement
 - Daemon docs: Kea ARM for the installed version (`kea-dhcp4 -v`; Kea ≥ 2.7.2/3.0 uses `control-sockets` lists, can serve HTTP directly and deprecates
   kea-ctrl-agent — decide per installed version, record it), `man unbound.conf`, `man unbound-control`, `man chrony.conf`, `man chronyc`, `chronyd --help`.
-  Installed on this host (disabled): frr, strongswan (stock; vrx build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound (+ `dns-root-data`
+  Installed on this host (disabled): frr, strongswan (stock; ngfw build comes from P11), kea-dhcp4/6 + kea-ctrl-agent, unbound (+ `dns-root-data`
   `/usr/share/dns/root.key`), chrony, snmpd, keepalived, rsyslog
 - `packages/proto` messages for the domain (P03) — the input type (`services.dhcp`, `services.dns`, `services.ntp`); missing fields → additive `contract/<id>`, questions file, continue
 - `docs/lab/shared-host-rules.md` — you are `daemon-owner: kea, unbound, chrony` for this task; slot prefix `w<N>`, addresses `10.<N>.0.0/16`; propose your
@@ -18,7 +18,7 @@ sync quality) belongs to the F-* tasks — you deliver render / validate / apply
 
 ## Scope — build exactly this, per daemon
 All paths come from one injected `Paths` struct (product: `/etc/kea/*.conf`, `/etc/unbound/unbound.conf`, `/etc/chrony/chrony.conf`, `/etc/chrony/chrony.keys`;
-tests: `/run/vrx-test/w<N>/{kea,unbound,chrony}/…`). Kea configs are JSON: render them by marshalling typed Go structs with `encoding/json` (native escaping),
+tests: `/run/ngfw-test/w<N>/{kea,unbound,chrony}/…`). Kea configs are JSON: render them by marshalling typed Go structs with `encoding/json` (native escaping),
 not `text/template`; golden files still apply. Unbound and chrony are line-based: `text/template` + strict escaping.
 1. Templates in `internal/renderers/<daemon>/templates/*.tmpl` rendered with `text/template` and **strict escaping helpers** — no user string reaches the file unescaped.
    - **kea**: `kea-dhcp4.conf` / `kea-dhcp6.conf` (`interfaces-config.interfaces` explicit `name/addr` list; `control-socket(s)` unix `<dir>/kea4.sock`; `lease-database`
@@ -31,8 +31,8 @@ not `text/template`; golden files still apply. Unbound and chrony are line-based
      `@port`, forward-tls-upstream), `stub-zone:`, `local-zone:` + `local-data:` built from typed RRs, `view:` blocks with `view-first`). Escaping: values quoted, no newline
      / `"` / leading `include:`; domain names validated as DNS names; the token `include` is never emitted from user data.
    - **chrony**: `chrony.conf` (`bindaddress`, `port`, `bindcmdaddress <dir>/chronyd.sock`, `cmdport 0`, `driftfile`, `pidfile`, `keyfile`, `ntsdumpdir`, `makestep`, `allow`/`deny`,
-     `local stratum` for server mode, `sourcedir <dir>/sources.d`, `log`) + `sources.d/vrx.sources` (`server|pool|peer <host> iburst minpoll maxpoll key <id> nts`) +
-     `chrony.keys` (0600, ids + `SHA256 HEX:…`; fixtures `VRX_TEST_PSK_<id>`). Escaping: hostnames/IPs typed; option keywords from an allow-list; no free text.
+     `local stratum` for server mode, `sourcedir <dir>/sources.d`, `log`) + `sources.d/ngfw.sources` (`server|pool|peer <host> iburst minpoll maxpoll key <id> nts`) +
+     `chrony.keys` (0600, ids + `SHA256 HEX:…`; fixtures `NGFW_TEST_PSK_<id>`). Escaping: hostnames/IPs typed; option keywords from an allow-list; no free text.
 2. `Validate()` — `kea-dhcp4 -t <cfg>`, `kea-dhcp6 -t <cfg>`, `kea-ctrl-agent -t <cfg>`; `unbound-checkconf <cfg>`; `chronyd -p -f <cfg>` (prints parsed config and exits on
    chrony ≥ 4 — confirm with `chronyd --help`; if absent, structural validation only, documented).
 3. `Apply()` — write files atomically (temp + rename, correct owner/mode: kea `_kea` 0640, unbound `unbound` 0640, chrony `_chrony` 0640 + keys 0600 in product; root in tests),
@@ -63,7 +63,7 @@ not `text/template`; golden files still apply. Unbound and chrony are line-based
 - [ ] `go test ./internal/renderers/{kea,unbound,chrony}/...` green, integration included (paste `config-get` diff = empty, `list_forwards`, `chronyc -c tracking`)
 - [ ] `grep -rn "sh -c\|bash -c" internal/renderers/{kea,unbound,chrony}` is empty; `ALLOWLIST.md` updated
 - [ ] A rendered config with `"; rm -rf /` in a description field is rejected or escaped (test present, per daemon); `include:` injection rejected for unbound
-- [ ] No child daemon left running after tests (`pgrep -f /run/vrx-test/w<N>/kea`, `…/unbound`, `…/chrony` empty); `systemctl is-active kea-dhcp4-server kea-dhcp6-server
+- [ ] No child daemon left running after tests (`pgrep -f /run/ngfw-test/w<N>/kea`, `…/unbound`, `…/chrony` empty); `systemctl is-active kea-dhcp4-server kea-dhcp6-server
       kea-ctrl-agent unbound chrony` all `inactive`; `/etc/kea`, `/etc/unbound`, `/etc/chrony` untouched (`stat` before/after); system clock never stepped (`-x` in argv)
 
 ## Out of scope (do not build)

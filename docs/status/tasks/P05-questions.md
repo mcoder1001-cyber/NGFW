@@ -5,7 +5,7 @@
    `df2.ErrRetrieveUnsupported` ("vpp has no dump for this object type"). `scheduler.IsRetrieveUnsupported(err)` accepts
    either sentinel (errors.Is or the message) so DF-2 works unchanged; after both merge DF-2 should alias:
    `ErrRetrieveUnsupported = scheduler.ErrRetrieveUnsupported`. Write-only rules implemented as in D-063; counter exposed
-   as metric `vrx_agent_retrieve_unsupported_objects` (+ `..._descriptors`).
+   as metric `ngfw_agent_retrieve_unsupported_objects` (+ `..._descriptors`).
 2. **Normalizer** — optional interface `scheduler.Normalizer{ Normalize(proto.Message) proto.Message }` (DF-2's
    proposed shape). The scheduler normalises every desired value before diffing. DF-2's exported `Normalize*`
    functions need a one-line method per descriptor to be picked up.
@@ -16,7 +16,7 @@
    For DF-2…6 dependencies on non-loopback interfaces to resolve, DF-1's interface-creating descriptors (tap,
    host-interface, bond, memif, subinterface) should implement `ProvidedKeys` → `interface/<name>` (one method each).
    VRFs: `vrf/<id>` as all DF prompts assume.
-4. **DF-2 classify store path** — proposal accepted for wiring time: `$VRX_AGENT_STATE_DIR/classify-<owner>.json`; P05
+4. **DF-2 classify store path** — proposal accepted for wiring time: `$NGFW_AGENT_STATE_DIR/classify-<owner>.json`; P05
    provides `internal/ownertable` (`owned-<owner>.json`) for untaggable objects (routes use it).
 5. **D-065 wiring owner** — when DF-1 merges, someone must register DF-1's `interface` alias descriptor next to
    `core.Register`, set `core.Env.IfRef = core.AliasInterfaceRef`, and emit one `interface/<name>` object per document

@@ -52,7 +52,7 @@ Full example: `apps/agent/internal/renderers/frr/ospf/testdata/full.golden`.
 
 ## Wiring outside the package
 
-- `desired.FRRDoc` / `AssembleFRR` carry `routing.ospf` into / out of the `frr.config/vrx` singleton.
+- `desired.FRRDoc` / `AssembleFRR` carry `routing.ospf` into / out of the `frr.config/ngfw` singleton.
 - `projection.go`: the `ospf` routing leaf is `handled` (no more agent.unsupported-field warning).
 
 ## Not done / open

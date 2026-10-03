@@ -1,6 +1,6 @@
 # TD-10a — API commit engine correctness (REVIEW-2026-09-24, D-125)
 
-Branch `task/TD-10a`, slot 5 (w5, DB `vrx_w5`). Base main@3a6c679; `main` merged in afterwards (P08, W-seed, 869c580-era main: no conflict).
+Branch `task/TD-10a`, slot 5 (w5, DB `ngfw_w5`). Base main@3a6c679; `main` merged in afterwards (P08, W-seed, 869c580-era main: no conflict).
 Merge order: after TD-4 (the merger rebases; TD-4 touches another hunk of commit.service.ts — `configResets` — and of pg-repo.ts — `syncUsers`).
 No OpenAPI/api-client change (`pnpm --filter @ngfw/api openapi` leaves `packages/api-client/openapi.json` unchanged), so no `contract(…)` commit.
 
@@ -13,7 +13,7 @@ Each item was checked on main first. None had been fixed already. Every behaviou
 | 2.1 | `checkPending` compared only `pendingConfirmTxnId` and never read `lastTxnId`. `confirm()` turned every `FAILED_PRECONDITION` into `commit-reverted` and rethrew a timeout. The fake agent set `lastTxnId` on confirm-window applies and was not a faithful model of the agent. | `pendingFate()` reads Health: `last_txn_id == txn` means confirmed and the revision is saved; `pending_confirm_txn_id == txn` means still pending; anything else means reverted. It is used by the deadline watcher, by `confirm()` on FAILED_PRECONDITION and on a lost answer (checked at once; if Health is also unreachable → sync `unknown` + reconcile), and by `reconcile()`, which now knows about pending commits: it promotes a confirmed one and drops a reverted one before it re-applies. The fake agent now follows service.go: `lastTxnId` changes only on a non-window apply or on a confirm, never on a revert. New test hooks: `confirmDelayMs`, `confirmPending()`, `revertNow()`, `deadlines`. |
 | 2.2 | `restoreSecrets` was kept only in memory; `setPending` did not persist it. A confirmed rollback (the UI default) therefore restored nothing and pinned the current versions. | Migration `0004_td10a_pending_restore_warnings` adds `config_pending.restore_secrets` and `config_pending.warnings` (jsonb). `PendingCommit.restoreSecrets`/`warnings` are stored by `setPending` and returned by `readPending`. All four promote paths (confirm, watcher, reconcile, ARCH-01 check) pass the value to `promote`. |
 | 2.3f | `SecretsService.delete` ran 3 separate SELECTs, then 2 DELETEs, with no transaction and no commit lock. | Now `commits.exclusive(() => db.transaction(…))`: `config_candidate` and `config_pending` are read `FOR UPDATE`, then running is read, then `secret` and `secret_version` are deleted, all in one transaction. |
-| 2.4a | Web deadline was 75 s and CLI 90 s, but the server's worst case was 5 + 60 + 60 s plus an unbounded mutex queue. The web called `trackPending` only in onSuccess. | `commit/budget.ts` sets the server budget: lock wait 1 s + health 5 s + DryRun ≤ 30 s + Apply ≤ 60 s + DB 15 s = at most 111 s. DryRun and Apply are capped even when `VRX_AGENT_TIMEOUT_MS` is larger, and the agent sees these as gRPC deadlines. Commit, rollback and confirm return **409 `commit-busy`** (`retryAfterSec: 2`) after the 1 s lock wait instead of queueing. Web `TIMEOUTS.apply` is now 130 s and the CLI `ApplyTimeout` 150 s; other CLI calls keep 90 s. When there is no answer in time, both look up the outcome: the web via `applyOutcome()` in net.ts plus the RevisionsPage rollback hunk (pending / applied / unknown / not-applied, with en+fa strings, and a pending commit goes to the countdown banner); the CLI via `Error.Outcome` (`GET /state/system` + newest revision). |
+| 2.4a | Web deadline was 75 s and CLI 90 s, but the server's worst case was 5 + 60 + 60 s plus an unbounded mutex queue. The web called `trackPending` only in onSuccess. | `commit/budget.ts` sets the server budget: lock wait 1 s + health 5 s + DryRun ≤ 30 s + Apply ≤ 60 s + DB 15 s = at most 111 s. DryRun and Apply are capped even when `NGFW_AGENT_TIMEOUT_MS` is larger, and the agent sees these as gRPC deadlines. Commit, rollback and confirm return **409 `commit-busy`** (`retryAfterSec: 2`) after the 1 s lock wait instead of queueing. Web `TIMEOUTS.apply` is now 130 s and the CLI `ApplyTimeout` 150 s; other CLI calls keep 90 s. When there is no answer in time, both look up the outcome: the web via `applyOutcome()` in net.ts plus the RevisionsPage rollback hunk (pending / applied / unknown / not-applied, with en+fa strings, and a pending commit goes to the countdown banner); the CLI via `Error.Outcome` (`GET /state/system` + newest revision). |
 | 2.4b | `new Mutex()` was in-process only (D-111 known limit). | `CommitLock` in common/mutex.ts is an in-process FIFO plus a **PostgreSQL session advisory lock** (`pg_advisory_lock(0x56525841, 1)`, commit/pg-lock.ts) held on a dedicated pool connection for each section. `run` waits (reconcile, watcher, password set via `exclusive`, secret delete); `tryRun` gives up after the wait (user commit/rollback/confirm). Without a DSN it falls back to in-process only (OpenAPI generator, unit tests). |
 | 2.5 (API) | `confirm()` returned `warnings: []`. The 422 `apply-failed` and the `running-unknown` problems had no warnings. | Warnings are stored in `config_pending.warnings` and returned by confirm (including after an API restart). The 422 and `running-unknown` extras now carry `warnings`. The agent/proto part is untouched (tech-debt line, D-125). |
 | 5.7b | `http.Client{Timeout: 90s}` had no CheckRedirect. Go 1.26 strips Authorization only when the hostname changes. | `CheckRedirect: http.ErrUseLastResponse`. A 3xx is returned as an error that names the Location, so the header never goes to another scheme or port and a 307/308 body is never replayed. `Raw()` does the same. |
@@ -54,7 +54,7 @@ Unit (`apps/api/src/commit/commit.engine.test.ts`) on main: **14 failed | 3 pass
    × 2.5 … the 422 apply-failed problem carries them
    × 2.5 … the running-unknown problem carries them
    × 2.4a … a commit while another is in flight is 409 commit-busy at once
-   × 2.4a … DryRun and Apply carry the budget deadlines even when VRX_AGENT_TIMEOUT_MS is larger
+   × 2.4a … DryRun and Apply carry the budget deadlines even when NGFW_AGENT_TIMEOUT_MS is larger
    × ARCH-01 … RECONCILE_DONE from an agent resync with another last_txn_id → running re-applied
    × ARCH-01 … boot (resumeSync): an agent whose last_txn_id is not running’s is put back on running
    × ARCH-01 … boot: a confirm the agent completed while the API was down is saved at once
@@ -63,10 +63,10 @@ ProblemError: agent: Deadline exceeded after 0.301s …                      (lo
 ProblemError: transaction 02d2a709-… is no longer pending (it was reverted) (confirmed txn called "reverted")
 AssertionError: expected undefined to deeply equal { 'psk/tac': 1 }        (restoreSecrets not persisted)
 AssertionError: expected 2 to be 1 // Object.is equality                   (confirmed rollback restored nothing)
-AssertionError: expected 120024 to be less than or equal to 31000          (DryRun deadline = VRX_AGENT_TIMEOUT_MS)
+AssertionError: expected 120024 to be less than or equal to 31000          (DryRun deadline = NGFW_AGENT_TIMEOUT_MS)
 ```
 
-PostgreSQL e2e (`test/e2e/td10a.e2e.test.ts`, slot w5, `flock -s /run/lock/vrx-lab.lock`) on main:
+PostgreSQL e2e (`test/e2e/td10a.e2e.test.ts`, slot w5, `flock -s /run/lock/ngfw-lab.lock`) on main:
 ```
    × 2.4b a second API process gets 409 commit-busy while the first one commits → expected 200 to be 409
    × 2.2 + 2.5 … → Failed query: select restore_secrets, warnings from config_pending (column "restore_secrets" does not exist)
@@ -79,9 +79,9 @@ PostgreSQL e2e (`test/e2e/td10a.e2e.test.ts`, slot w5, `flock -s /run/lock/vrx-l
 CLI (`apps/cli/internal/api/transport_test.go`) with main's client.go:
 ```
 --- FAIL: TestRedirectToOtherSchemeAndPortOfSameHostIsNotFollowed
-    redirect followed: the http:// target got 1 request(s), Authorization ["ApiKey vrxk_VRX_TEST_KEY_TD10A"]
+    redirect followed: the http:// target got 1 request(s), Authorization ["ApiKey ngfwk_NGFW_TEST_KEY_TD10A"]
 --- FAIL: TestRedirect307And308NeverReplayTheBody
-    307: body replayed to http://localhost:37061: ["{\"password\":\"VRX_TEST_PSK_TD10A\",\"username\":\"admin\"}"]
+    307: body replayed to http://localhost:37061: ["{\"password\":\"NGFW_TEST_PSK_TD10A\",\"username\":\"admin\"}"]
     308: body replayed to http://localhost:42955: […]
 --- FAIL: TestApplyDeadlineIsAboveTheServerBudget
     /api/v1/config/commit: deadline in 1m29.999932592s, want ≥ 140 s (server budget 111 s)
@@ -128,7 +128,7 @@ Commits: 2809b1a (API + web), 2cfae25 (H1 e2e, CLI L3/L4, budget note, tech-debt
 
 | finding | fix |
 |---|---|
-| **H1** the lock client is checked out with no `error` listener, so a PG restart or a dropped connection crashes vrx-api | `pg-lock.ts`: `watched(client)` attaches our own `error` listener from checkout to release. `release()` gives the client back first and only then removes the listener, so the client is never without one. A lost client is destroyed (`release(err)`) and never re-pooled. `mutex.ts`: `ProcessLock` returns `Held { release(), lost() }`, and `CommitLock` calls `opts.onLost` after the section. `commit.service.ts` `lockLost()` records the system event `COMMIT_LOCK_LOST`, sets sync `unknown`, and the reconcile re-checks the agent. The section itself finishes normally. |
+| **H1** the lock client is checked out with no `error` listener, so a PG restart or a dropped connection crashes ngfw-api | `pg-lock.ts`: `watched(client)` attaches our own `error` listener from checkout to release. `release()` gives the client back first and only then removes the listener, so the client is never without one. A lost client is destroyed (`release(err)`) and never re-pooled. `mutex.ts`: `ProcessLock` returns `Held { release(), lost() }`, and `CommitLock` calls `opts.onLost` after the section. `commit.service.ts` `lockLost()` records the system event `COMMIT_LOCK_LOST`, sets sync `unknown`, and the reconcile re-checks the agent. The section itself finishes normally. |
 | **M1** the web says "not applied, try again" while the server's budget can still be running | `net.ts`: `COMMIT_BUDGET_MS = 111_000` and `OUTCOME_WAIT` (budget + 5 s, poll every 3 s). `applyOutcome()` answers `running` rather than `not-applied` until the budget has passed. `RevisionsPage.tsx` `followOutcome()` polls `/state/system` and the newest revision until an outcome is decisive or the budget has passed; closing or resubmitting the dialog ends the follow-up. The `looking` string now says "do not start another one meanwhile". Tech-debt line for P10: nginx `proxy_read_timeout ≥ 130 s` on the apply paths. |
 | **M2** secret delete waited without bound behind commits | `CommitService.userExclusive()` = `userSection`: after the 1 s wait it answers 409 `commit-busy` with `retryAfterSec: 2`. `SecretsService.delete` uses it. The same change for `users.service.ts:134` is handed to TD-10b (tech-debt line). |
 | **L1** a second API process could undo the other's lost-answer recovery | `checkAgentTxn` re-reads `config_sync` from the database inside the lock and does nothing unless it says `in-sync`. |

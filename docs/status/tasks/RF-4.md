@@ -13,7 +13,7 @@ Three agent-side renderers implementing `renderers.Renderer` (Render / Validate 
 | `internal/renderers/rfkit` | `Controller` interface with `SystemdController` (product: `systemctl reload\|restart\|kill <unit>`, never start/enable) and `ProcessController` (tests: signal the spawned PID after checking `/proc/<pid>/exe`; restart hook); D-051 `Secrets` resolver + `Redactor` (also masks each line of multi-line secrets); `ApplyFiles` (snapshot → atomic write → activate → **convergence check** → restore + re-activate on a fresh context); `Poll`; bounded `ReadFileLimit`/`ReadTail`; `Poller` (change events, `EVENT_KIND_ERROR` on poll failures, redacted); D-055 stand-in navigation (`Decode`, `Ext`). |
 | `internal/renderers/snmpd` | `services.snmp` → `snmpd.conf` (0600, Secret): agentaddress, sys*, views (numeric OIDs, symbolic allow-list), ro/rw community[6] per source, `createUser` + ro/rwuser, trap2sink/informsink/trapsess, `master agentx` + `agentXSocket`, disk/load monitors. **Validate = daemon parse run** of a staged check copy. Apply = SIGHUP + SNMP convergence. Retrieve = gosnmp GET of the system group with a credential read from the file itself. |
 | `internal/renderers/keepalived` | `ha.vrrp` (engine keepalived) → `keepalived.conf` (0640): global_defs (script security, vrrp_version 3), vrrp_script (shipped checks only), vrrp_instance (state, interface, VRID, priority, advert_int incl. centiseconds, nopreempt/preempt_delay, accept, unicast, VIPs, virtual_routes, track_interface, track_script, VRRPv2 PASS auth), notify_* → our helper, vrrp_sync_group. Validate `keepalived -t -f <staged> -s <netns>`. Apply = SIGHUP + convergence from the SIGJSON dump. Retrieve = notify state files + whitelisted dump (never `auth_data`; dump deleted after reading). |
-| `internal/renderers/keepalived/cmd/vrx-keepalived-notify` | the notify helper: validates its fixed argv, writes `<state dir>/<instance>.state` atomically (JSON line). |
+| `internal/renderers/keepalived/cmd/ngfw-keepalived-notify` | the notify helper: validates its fixed argv, writes `<state dir>/<instance>.state` atomically (JSON line). |
 | `internal/renderers/rsyslog` | `management.syslog` → one RainerScript file: impstats (JSON), fixed RFC 5424 template, per target a ruleset + `omfwd` action (queue LinkedList, resumeRetryCount -1, octet-counted TCP), facility/severity `prifilt`, TLS (ossl driver, CA/cert/key files from `cert/`/`key/` refs, key 0640 Secret). Standalone mode (tests) adds `global()`, imuxsock on the slot socket, imtcp on 127.0.0.1. Validate `rsyslogd -N1`. Apply = restart + convergence from impstats records stamped after the restart. Retrieve = impstats tail (bounded). |
 
 Docs: per-package `README.md`, mapping tables `docs/agent/renderers/{snmpd,keepalived,rsyslog}.md`,
@@ -34,7 +34,7 @@ Docs: per-package `README.md`, mapping tables `docs/agent/renderers/{snmpd,keepa
   unit tests per daemon + integration scans of the slot directories and the test log.
 - **Unbounded reads**: pidfiles 64 B, configs 1 MiB, keepalived dump 4 MiB, state files 4 KiB, snmpd parse-run log
   256 KiB, impstats tail 256 KiB (+ truncation above 8 MiB).
-- **Harness cross-kill**: each integration test takes an exclusive `/run/vrx-test/<prefix>/<daemon>.lock`, kills
+- **Harness cross-kill**: each integration test takes an exclusive `/run/ngfw-test/<prefix>/<daemon>.lock`, kills
   only its `exec.Cmd` PID; the parse-run snmpd is stopped only after `/proc/<pid>/exe` + cmdline (staging dir) match;
   `ProcessController` refuses a PID running another binary (unit test with a real process).
 
@@ -49,10 +49,10 @@ only; keepalived interfaces `w8-*` inside `ns-w8-a` only; rsyslog inputs = slot 
 loopback only).
 
 ```
-$ VRX_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/   (slot 8, under flock -s /run/lock/vrx-lab.lock)
+$ NGFW_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/   (slot 8, under flock -s /run/lock/ngfw-lab.lock)
 === RUN   TestSnmpdIntegration
     snmpd_integration_test.go:85: parse run rejects a broken line: snmpd: daemon error: snmpd rejected snmpd.conf: <staging>/check/snmpd.conf: line 34: Error: bad SUBTREE object id
-    snmpd_integration_test.go:107: snmpd child pid 1927092: /usr/sbin/snmpd -f -Lf /run/vrx-test/w8/snmpd/snmpd.log -C -c /run/vrx-test/w8/snmpd/snmpd.conf -p /run/vrx-test/w8/snmpd/snmpd.pid -m  -M /run/vrx-test/w8/snmpd/mibs
+    snmpd_integration_test.go:107: snmpd child pid 1927092: /usr/sbin/snmpd -f -Lf /run/ngfw-test/w8/snmpd/snmpd.log -C -c /run/ngfw-test/w8/snmpd/snmpd.conf -p /run/ngfw-test/w8/snmpd/snmpd.pid -m  -M /run/ngfw-test/w8/snmpd/mibs
     snmpd_integration_test.go:110: SNMP reply (127.0.0.1:3861 via v3 user u1): sysName.0="w8-snmpd" sysLocation.0="RF-4 rack one" sysContact.0="noc@example.net" sysUpTime.0=46 sysDescr.0="Linux ubuntu-26.04 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64"
     snmpd_integration_test.go:136: after Apply+SIGHUP: sysLocation.0="RF-4 rack two", pid 1927092 unchanged
     snmpd_integration_test.go:150: Apply without a reload is refused and rolled back: rfkit: daemon did not converge: snmpd reports sysLocation "RF-4 rack two", rendered "never applied"
@@ -62,7 +62,7 @@ PASS
 ok  	ngfw/agent/internal/renderers/snmpd	4.246s
 === RUN   TestKeepalivedIntegration
     keepalived_integration_test.go:80: rendered keepalived.conf:
-    keepalived_integration_test.go:108: keepalived child pid 1927774: /usr/bin/ip netns exec ns-w8-a /usr/sbin/keepalived -n -l -P -G -f /run/vrx-test/w8/keepalived/keepalived.conf -p /run/vrx-test/w8/keepalived/keepalived.pid -r /run/vrx-test/w8/keepalived/vrrp.pid -c /run/vrx-test/w8/keepalived/checkers.pid
+    keepalived_integration_test.go:108: keepalived child pid 1927774: /usr/bin/ip netns exec ns-w8-a /usr/sbin/keepalived -n -l -P -G -f /run/ngfw-test/w8/keepalived/keepalived.conf -p /run/ngfw-test/w8/keepalived/keepalived.pid -r /run/ngfw-test/w8/keepalived/vrrp.pid -c /run/ngfw-test/w8/keepalived/checkers.pid
     keepalived_integration_test.go:112: vi1.state (MASTER after 1.801s): {"name":"vi1","type":"INSTANCE","state":"MASTER","time":"2026-09-23T22:49:37.651070336Z"}
     keepalived_integration_test.go:116: ip -n ns-w8-a -j addr show dev w8-a: 10.8.240.1/24 present
     keepalived_integration_test.go:122: Retrieve (state file + keepalived JSON dump): {"Name":"vi1","State":"MASTER","Since":"2026-09-23T22:49:37.651070336Z","Dump":{"name":"vi1","interface":"w8-a","vrid":81,"state":"MASTER","basePriority":150,"effectivePriority":150,"vipsSet":true,"vips":["10.8.240.1/24"],"version":3,"lastTransition":1790203777.636595,"advertSent":1,"advertRcvd":0,"becomeMaster":1,"releaseMaster":0,"authFailure":0}}
@@ -76,18 +76,18 @@ ok  	ngfw/agent/internal/renderers/keepalived	10.356s
 === RUN   TestRsyslogIntegration
     rsyslog_integration_test.go:118: rendered rsyslog.conf:
     rsyslog_integration_test.go:135: TLS export on this host: rsyslog: daemon error: TLS export needs the rsyslog ossl netstream driver (lmnsd_ossl.so, package rsyslog-openssl), not installed in /usr/lib/x86_64-linux-gnu/rsyslog
-    rsyslog_integration_test.go:149: rsyslogd child pid 1926857: /usr/sbin/rsyslogd -n -iNONE -f /run/vrx-test/w8/rsyslog/rsyslog.conf
+    rsyslog_integration_test.go:149: rsyslogd child pid 1926857: /usr/sbin/rsyslogd -n -iNONE -f /run/ngfw-test/w8/rsyslog/rsyslog.conf
     rsyslog_integration_test.go:157: UDP collector 127.0.0.1:3815 received (RFC 5424):
-    rsyslog_integration_test.go:159:   "<14>1 2026-09-24T02:19:34.710286+03:30 ubuntu-26 vrxtest - - -  hello RF-4 user.info\n"
-    rsyslog_integration_test.go:159:   "<13>1 2026-09-24T00:00:00Z h vrxtcp - - - hello via imtcp\n"
-    rsyslog_integration_test.go:159:   "<156>1 2026-09-24T02:19:34.710424+03:30 ubuntu-26 vrxtest - - -  hello RF-4 local3.warning\n"
-    rsyslog_integration_test.go:168: TCP collector 127.0.0.1:3816 received (octet-counted): "91 <156>1 2026-09-24T02:19:34.710424+03:30 ubuntu-26 vrxtest - - -  hello RF-4 local3.warning"
-    rsyslog_integration_test.go:178: impstats vrx_export_0_ce31a4a2 → 127.0.0.1:3815/udp: processed=3 failed=0 suspended=0 queue.enqueued=3
-    rsyslog_integration_test.go:178: impstats vrx_export_1_2ec2d6d7 → 127.0.0.1:3816/tcp: processed=1 failed=0 suspended=0 queue.enqueued=1
+    rsyslog_integration_test.go:159:   "<14>1 2026-09-24T02:19:34.710286+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 user.info\n"
+    rsyslog_integration_test.go:159:   "<13>1 2026-09-24T00:00:00Z h ngfwtcp - - - hello via imtcp\n"
+    rsyslog_integration_test.go:159:   "<156>1 2026-09-24T02:19:34.710424+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 local3.warning\n"
+    rsyslog_integration_test.go:168: TCP collector 127.0.0.1:3816 received (octet-counted): "91 <156>1 2026-09-24T02:19:34.710424+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 local3.warning"
+    rsyslog_integration_test.go:178: impstats ngfw_export_0_ce31a4a2 → 127.0.0.1:3815/udp: processed=3 failed=0 suspended=0 queue.enqueued=3
+    rsyslog_integration_test.go:178: impstats ngfw_export_1_2ec2d6d7 → 127.0.0.1:3816/tcp: processed=1 failed=0 suspended=0 queue.enqueued=1
     rsyslog_integration_test.go:180: impstats inputs: map[imtcp(3814):1 imuxsock:3]
-    rsyslog_integration_test.go:201: Apply restarted rsyslogd: pid 1926857 → 1927746; impstats reports [vrx_export_0_703a90a2 vrx_export_1_2ec2d6d7]
-    rsyslog_integration_test.go:223: Apply without a restart is refused and rolled back: rsyslog: daemon error: rfkit: daemon did not converge: impstats reports actions [vrx_export_0_703a90a2 vrx_export_1_2ec2d6d7] after the restart, rendered [vrx_export_0_141cbd05]
-    rsyslog_integration_test.go:248: events: [rsyslog vrx_export_1_2ec2d6d7/queue: empty -> backlog]
+    rsyslog_integration_test.go:201: Apply restarted rsyslogd: pid 1926857 → 1927746; impstats reports [ngfw_export_0_703a90a2 ngfw_export_1_2ec2d6d7]
+    rsyslog_integration_test.go:223: Apply without a restart is refused and rolled back: rsyslog: daemon error: rfkit: daemon did not converge: impstats reports actions [ngfw_export_0_703a90a2 ngfw_export_1_2ec2d6d7] after the restart, rendered [ngfw_export_0_141cbd05]
+    rsyslog_integration_test.go:248: events: [rsyslog ngfw_export_1_2ec2d6d7/queue: empty -> backlog]
     rsyslog_integration_test.go:254: host rsyslog.service MainPID 1014 unchanged
 --- PASS: TestRsyslogIntegration (7.48s)
 PASS
@@ -96,15 +96,15 @@ ok  	ngfw/agent/internal/renderers/rsyslog	7.525s
 $ grep -rn "sh -c\|bash -c" internal/renderers/{snmpd,keepalived,rsyslog,rfkit}; echo exit=$?
 exit=1
 
-$ grep -rn "VRX_TEST_PSK\|RF4tpsk" /root/ngfw-wt/logs/RF-4-integration.log; echo exit=$?
+$ grep -rn "NGFW_TEST_PSK\|RF4tpsk" /root/ngfw-wt/logs/RF-4-integration.log; echo exit=$?
 exit=1
 
 $ for p in /proc/[0-9]*; do exe=$(readlink $p/exe); case $exe in /usr/sbin/snmpd|/usr/sbin/keepalived|/usr/sbin/rsyslogd) echo pid exe cmdline;; esac; done
 1014 /usr/sbin/rsyslogd /usr/sbin/rsyslogd -n -iNONE 
-(only the host's own rsyslog.service, pid 1014; no snmpd, no keepalived, no test rsyslogd. `pgrep -f /run/vrx-test/w8/…` from the tool
+(only the host's own rsyslog.service, pid 1014; no snmpd, no keepalived, no test rsyslogd. `pgrep -f /run/ngfw-test/w8/…` from the tool
 harness matches the wrapper shell whose command line carries the pattern, so the check is done by executable.)
-$ ip netns list | grep w8; ls -A /run/vrx-test/w8; ls -d /tmp/vrx-w8-* /run/keepalived 2>&1
-ls: cannot access '/tmp/vrx-w8-*': No such file or directory
+$ ip netns list | grep w8; ls -A /run/ngfw-test/w8; ls -d /tmp/ngfw-w8-* /run/keepalived 2>&1
+ls: cannot access '/tmp/ngfw-w8-*': No such file or directory
 ls: cannot access '/run/keepalived': No such file or directory
 
 $ systemctl is-active snmpd keepalived rsyslog; systemctl is-enabled …; systemctl show rsyslog -p MainPID   (before → after)
@@ -125,7 +125,7 @@ ok  	ngfw/agent/internal/renderers	0.336s
 ok  	ngfw/agent/internal/renderers/frr	0.415s
 ok  	ngfw/agent/internal/renderers/frr/frrtest	0.026s
 ok  	ngfw/agent/internal/renderers/keepalived	0.765s
-ok  	ngfw/agent/internal/renderers/keepalived/cmd/vrx-keepalived-notify	0.015s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/ngfw-keepalived-notify	0.015s
 ok  	ngfw/agent/internal/renderers/rfkit	0.097s
 ok  	ngfw/agent/internal/renderers/rsyslog	3.315s
 ok  	ngfw/agent/internal/renderers/snmpd	0.947s
@@ -133,7 +133,7 @@ ok  	ngfw/agent/internal/renderers/snmpd	0.947s
 
 ### CI gate
 `tools/ci.sh --base main` (log `/root/ngfw-wt/logs/RF-4-ci-2.log`; the first run failed on a secret-shaped PEM literal in a
-hostile-value test, fixed in `test(RF-4): hostile PEM derived from the VRX_TEST_PSK fixture`):
+hostile-value test, fixed in `test(RF-4): hostile PEM derived from the NGFW_TEST_PSK fixture`):
 
 ```
 == summary (quick) ==
@@ -189,7 +189,7 @@ placement and parse-run validation, Q8 P10 packaging list, Q9 VRFs, Q10 event ki
 | D-RF4-8 | Product interface mapping for keepalived defaults to `NoMapper` (instances rejected until F-vrrp passes linux-cp names) | (a) NoMapper (b) identity | RF-1 L4 |
 | D-RF4-9 | rsyslog: only `omfwd`; fixed template set; TLS refused unless the ossl driver exists; impstats file bounded read + truncation | — | task rules; `-N1` does not load the driver |
 | D-RF4-10 | Controller for tests = PID the test spawned with `/proc/<pid>/exe` check; product = systemctl reload/restart/kill of the owned unit only | — | shared-host §5, RF-1 M4 |
-| D-RF4-11 | VRRPv2 test keys `RF4tpsk*` instead of `VRX_TEST_PSK_<id>` | — | 8-character limit (Q3) |
+| D-RF4-11 | VRRPv2 test keys `RF4tpsk*` instead of `NGFW_TEST_PSK_<id>` | — | 8-character limit (Q3) |
 
 ## Final gate
 `tools/ci.sh --base main` on `6fe7c05` (log `/root/ngfw-wt/logs/RF-4-ci-3.log`, step logs `/root/ngfw-wt/logs/ci/RF-4-20260924-022058-1953729`):
@@ -207,7 +207,7 @@ placement and parse-run validation, Q8 P10 packaging list, Q9 VRFs, Q10 event ki
 
 CI GATE PASSED
 ```
-Only docs change after this run. Test daemons stopped, `ns-w8-a` removed, `/run/vrx-test/w8` empty, `apps/agent/bin` removed.
+Only docs change after this run. Test daemons stopped, `ns-w8-a` removed, `/run/ngfw-test/w8` empty, `apps/agent/bin` removed.
 
 ## Review fixes (fix round after `RF-4-review.md`, APPROVE WITH CHANGES)
 
@@ -226,10 +226,10 @@ dropping the rows both branches had moved to *Active*).
 
 ### Integration after the fixes (slot 8, test daemons only)
 ```
-$ VRX_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/
+$ NGFW_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/{snmpd,keepalived,rsyslog}/
 === RUN   TestSnmpdIntegration
     snmpd_integration_test.go:85: parse run rejects a broken line: snmpd: daemon error: snmpd rejected snmpd.conf: <staging>/check/snmpd.conf: line 34: Error: bad SUBTREE object id
-    snmpd_integration_test.go:110: snmpd child pid 2153410: /usr/sbin/snmpd -f -Lf /run/vrx-test/w8/snmpd/snmpd.log -A -C -c /run/vrx-test/w8/snmpd/snmpd.conf -p /run/vrx-test/w8/snmpd/snmpd.pid -m  -M /run/vrx-test/w8/snmpd/mibs
+    snmpd_integration_test.go:110: snmpd child pid 2153410: /usr/sbin/snmpd -f -Lf /run/ngfw-test/w8/snmpd/snmpd.log -A -C -c /run/ngfw-test/w8/snmpd/snmpd.conf -p /run/ngfw-test/w8/snmpd/snmpd.pid -m  -M /run/ngfw-test/w8/snmpd/mibs
     snmpd_integration_test.go:113: SNMP reply (127.0.0.1:3861 via v3 user u1): sysName.0="w8-snmpd" sysLocation.0="RF-4 rack one" sysContact.0="noc@example.net" sysUpTime.0=42 sysDescr.0="Linux ubuntu-26.04 7.0.0-31-generic #31-Ubuntu SMP PREEMPT_DYNAMIC Sat Aug  1 04:26:38 UTC 2026 x86_64"
     snmpd_integration_test.go:139: after Apply+SIGHUP: sysLocation.0="RF-4 rack two", pid 2153410 unchanged
     snmpd_integration_test.go:153: Apply without a reload is refused and rolled back: rfkit: daemon did not converge: snmpd reports sysLocation "RF-4 rack two", rendered "never applied"
@@ -243,7 +243,7 @@ $ VRX_INTEGRATION=1 go test -count=1 -v -run Integration ./internal/renderers/{s
 PASS
 ok  	ngfw/agent/internal/renderers/snmpd	5.345s
 === RUN   TestKeepalivedIntegration
-    keepalived_integration_test.go:108: keepalived child pid 2153630: /usr/bin/ip netns exec ns-w8-a /usr/sbin/keepalived -n -l -P -G -f /run/vrx-test/w8/keepalived/keepalived.conf -p /run/vrx-test/w8/keepalived/keepalived.pid -r /run/vrx-test/w8/keepalived/vrrp.pid -c /run/vrx-test/w8/keepalived/checkers.pid
+    keepalived_integration_test.go:108: keepalived child pid 2153630: /usr/bin/ip netns exec ns-w8-a /usr/sbin/keepalived -n -l -P -G -f /run/ngfw-test/w8/keepalived/keepalived.conf -p /run/ngfw-test/w8/keepalived/keepalived.pid -r /run/ngfw-test/w8/keepalived/vrrp.pid -c /run/ngfw-test/w8/keepalived/checkers.pid
     keepalived_integration_test.go:112: vi1.state (MASTER after 1.801s): {"name":"vi1","type":"INSTANCE","state":"MASTER","time":"2026-09-23T23:12:17.120079325Z"}
     keepalived_integration_test.go:116: ip -n ns-w8-a -j addr show dev w8-a: 10.8.240.1/24 present
     keepalived_integration_test.go:122: Retrieve (state file + keepalived JSON dump): {"Name":"vi1","State":"MASTER","Since":"2026-09-23T23:12:17.120079325Z","Dump":{"name":"vi1","interface":"w8-a","vrid":81,"state":"MASTER","basePriority":150,"effectivePriority":150,"vipsSet":true,"vips":["10.8.240.1/24"],"version":3,"lastTransition":1790205137.107601,"advertSent":1,"advertRcvd":0,"becomeMaster":1,"releaseMaster":0,
@@ -256,36 +256,36 @@ PASS
 ok  	ngfw/agent/internal/renderers/keepalived	9.919s
 === RUN   TestRsyslogIntegration
     rsyslog_integration_test.go:135: TLS export on this host: rsyslog: daemon error: TLS export needs the rsyslog ossl netstream driver (lmnsd_ossl.so, package rsyslog-openssl), not installed in /usr/lib/x86_64-linux-gnu/rsyslog
-    rsyslog_integration_test.go:149: rsyslogd child pid 2153467: /usr/sbin/rsyslogd -n -iNONE -f /run/vrx-test/w8/rsyslog/rsyslog.conf
+    rsyslog_integration_test.go:149: rsyslogd child pid 2153467: /usr/sbin/rsyslogd -n -iNONE -f /run/ngfw-test/w8/rsyslog/rsyslog.conf
     rsyslog_integration_test.go:157: UDP collector 127.0.0.1:3815 received (RFC 5424):
-    rsyslog_integration_test.go:159:   "<14>1 2026-09-24T02:42:14.353265+03:30 ubuntu-26 vrxtest - - -  hello RF-4 user.info\n"
-    rsyslog_integration_test.go:159:   "<156>1 2026-09-24T02:42:14.353687+03:30 ubuntu-26 vrxtest - - -  hello RF-4 local3.warning\n"
-    rsyslog_integration_test.go:159:   "<13>1 2026-09-24T00:00:00Z h vrxtcp - - - hello via imtcp\n"
-    rsyslog_integration_test.go:168: TCP collector 127.0.0.1:3816 received (octet-counted): "91 <156>1 2026-09-24T02:42:14.353687+03:30 ubuntu-26 vrxtest - - -  hello RF-4 local3.warning"
-    rsyslog_integration_test.go:178: impstats vrx_export_0_ce31a4a2 → 127.0.0.1:3815/udp: processed=3 failed=0 suspended=0 queue.enqueued=3
-    rsyslog_integration_test.go:178: impstats vrx_export_1_2ec2d6d7 → 127.0.0.1:3816/tcp: processed=1 failed=0 suspended=0 queue.enqueued=1
+    rsyslog_integration_test.go:159:   "<14>1 2026-09-24T02:42:14.353265+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 user.info\n"
+    rsyslog_integration_test.go:159:   "<156>1 2026-09-24T02:42:14.353687+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 local3.warning\n"
+    rsyslog_integration_test.go:159:   "<13>1 2026-09-24T00:00:00Z h ngfwtcp - - - hello via imtcp\n"
+    rsyslog_integration_test.go:168: TCP collector 127.0.0.1:3816 received (octet-counted): "91 <156>1 2026-09-24T02:42:14.353687+03:30 ubuntu-26 ngfwtest - - -  hello RF-4 local3.warning"
+    rsyslog_integration_test.go:178: impstats ngfw_export_0_ce31a4a2 → 127.0.0.1:3815/udp: processed=3 failed=0 suspended=0 queue.enqueued=3
+    rsyslog_integration_test.go:178: impstats ngfw_export_1_2ec2d6d7 → 127.0.0.1:3816/tcp: processed=1 failed=0 suspended=0 queue.enqueued=1
     rsyslog_integration_test.go:180: impstats inputs: map[imtcp(3814):1 imuxsock:3]
-    rsyslog_integration_test.go:201: Apply restarted rsyslogd: pid 2153467 → 2153606; impstats reports [vrx_export_0_703a90a2 vrx_export_1_2ec2d6d7]
+    rsyslog_integration_test.go:201: Apply restarted rsyslogd: pid 2153467 → 2153606; impstats reports [ngfw_export_0_703a90a2 ngfw_export_1_2ec2d6d7]
     rsyslog_integration_test.go:211: two more Applies of the same files: pid 2153606 unchanged (no restart)
-    rsyslog_integration_test.go:233: Apply without a restart is refused and rolled back: rsyslog: daemon error: rfkit: daemon did not converge: impstats reports actions [vrx_export_0_703a90a2 vrx_export_1_2ec2d6d7] after the restart, rendered [vrx_export_0_141cbd05]
-    rsyslog_integration_test.go:258: events: [rsyslog vrx_export_1_2ec2d6d7/queue: empty -> backlog]
+    rsyslog_integration_test.go:233: Apply without a restart is refused and rolled back: rsyslog: daemon error: rfkit: daemon did not converge: impstats reports actions [ngfw_export_0_703a90a2 ngfw_export_1_2ec2d6d7] after the restart, rendered [ngfw_export_0_141cbd05]
+    rsyslog_integration_test.go:258: events: [rsyslog ngfw_export_1_2ec2d6d7/queue: empty -> backlog]
     rsyslog_integration_test.go:264: host rsyslog.service MainPID 1014 unchanged
 --- PASS: TestRsyslogIntegration (7.35s)
 === RUN   TestRsyslogHostImpstatsIntegration
-    rsyslog_integration_test.go:334: host scan: {Loaded:true File:/run/vrx-test/w8/rsyslog-host/host-impstats.json Source:/run/vrx-test/w8/rsyslog-host/rsyslog.conf}
+    rsyslog_integration_test.go:334: host scan: {Loaded:true File:/run/ngfw-test/w8/rsyslog-host/host-impstats.json Source:/run/ngfw-test/w8/rsyslog-host/rsyslog.conf}
     rsyslog_integration_test.go:353: rsyslogd -N1 -f <host main + our include>: err=<nil>
     rsyslog_integration_test.go:365: rsyslogd -N1 with a second impstats load (pre-fix rendering): err=exit status 1
-    rsyslog_integration_test.go:379: collector 127.0.0.1:3817: "<14>1 2026-09-24T02:42:21.680735+03:30 ubuntu-26 vrxtest - - -  via the host config\n"
-    rsyslog_integration_test.go:389: Apply converged via /run/vrx-test/w8/rsyslog-host/host-impstats.json; Retrieve: vrx_export_0_e3fea578 reported=true
+    rsyslog_integration_test.go:379: collector 127.0.0.1:3817: "<14>1 2026-09-24T02:42:21.680735+03:30 ubuntu-26 ngfwtest - - -  via the host config\n"
+    rsyslog_integration_test.go:389: Apply converged via /run/ngfw-test/w8/rsyslog-host/host-impstats.json; Retrieve: ngfw_export_0_e3fea578 reported=true
 --- PASS: TestRsyslogHostImpstatsIntegration (1.59s)
 PASS
 ok  	ngfw/agent/internal/renderers/rsyslog	8.992s
 
-$ grep -c "VRX_TEST_PSK\|RF4tpsk" /root/ngfw-wt/logs/RF-4-integration-fix.log
+$ grep -c "NGFW_TEST_PSK\|RF4tpsk" /root/ngfw-wt/logs/RF-4-integration-fix.log
 0
 $ # snmpd/keepalived/rsyslogd processes by executable; netns; slot dir
 1014 /usr/sbin/rsyslogd   (host rsyslog.service)
-ns-w8-*: 0   /run/vrx-test/w8 entries: 0
+ns-w8-*: 0   /run/ngfw-test/w8 entries: 0
 $ systemctl is-active/is-enabled snmpd keepalived rsyslog; MainPID (before → after)
 inactive inactive active 
 disabled disabled enabled 

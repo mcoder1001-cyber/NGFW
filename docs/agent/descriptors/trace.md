@@ -6,7 +6,7 @@ from `apps/agent/binapi/bpf_trace_filter`. `trace.RegisterGlobals(registry, clie
 | Object type | Key | VPP messages | Retrieve | Update | Dependencies |
 |---|---|---|---|---|---|
 | `trace.bpf-filter` (singleton) | `trace.bpf-filter/global` | `bpf_trace_filter_set_v2` is_add=1 (expression, optimize) / is_add=0 | **write-only** (no getter; `show bpf trace filter` is CLI only) | in place (recompile) | — |
-| `trace-filter`, `tracenode-interface`, `trace-path` | — | **dropped (D-077, V18):** tracedump and tracenode are not built on vrx-a (no binapi), Trace Path has no API — F-capture-trace picks them up (plugins enabled in the F-vpp-debs build) | — | — | — |
+| `trace-filter`, `tracenode-interface`, `trace-path` | — | **dropped (D-077, V18):** tracedump and tracenode are not built on ngfw-a (no binapi), Trace Path has no API — F-capture-trace picks them up (plugins enabled in the F-vpp-debs build) | — | — | — |
 
 `binapi/trace` is the iOAM trace-profile API (`trace_profile_add/del`) — unrelated to packet tracing.
 
@@ -16,7 +16,7 @@ from `apps/agent/binapi/bpf_trace_filter`. `trace.RegisterGlobals(registry, clie
   backslashes, `;`, `$`, backticks). It never reaches a shell.
 - VPP answers retval -1 when libpcap cannot compile the expression, and it **frees the previous program before
   compiling**: a failed Create leaves no filter (host-verified). The reconciler's rollback re-applies the old value.
-- VPP-global without getter: its previous value cannot be restored, so the host test is **opt-in** (`VRX_DF8_GLOBALS=1`,
+- VPP-global without getter: its previous value cannot be restored, so the host test is **opt-in** (`NGFW_DF8_GLOBALS=1`,
   manager window, review M3).
 - The filter is used by the packet tracer and by pcap when `pcap.filter-function` is `bpf_trace_filter`.
 

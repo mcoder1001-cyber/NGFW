@@ -11,25 +11,25 @@ R1/R2/R8 BLOCK pending fixes. No code edits by reviewer. R7 APPROVE checkpoint h
 
 ## Firewall scope
 
-Pure renderer validates explicit management and bounded unique punt-interface names; no wildcard or control syntax can enter nft source. It creates/replaces only inet vrx_base in one nft batch, keeps host-policy inet vrx separate and does not flush global rules. Early helper requires root, validates bootstrap metadata, checks actual interface presence and nft check before publication, then persists nonsecret interface values for subsequent boots. It has no DB/auth dependency. Main firstboot is ordered after nftables/PG/Valkey; distro nft early ordering is retained, and ExecStop reset avoids destructive global flush. Exact nft kernel syntax/idempotent replay was not run in this environment. Dynamic LCP/punt admission remains a real functional gap, not waived completion.
+Pure renderer validates explicit management and bounded unique punt-interface names; no wildcard or control syntax can enter nft source. It creates/replaces only inet ngfw_base in one nft batch, keeps host-policy inet ngfw separate and does not flush global rules. Early helper requires root, validates bootstrap metadata, checks actual interface presence and nft check before publication, then persists nonsecret interface values for subsequent boots. It has no DB/auth dependency. Main firstboot is ordered after nftables/PG/Valkey; distro nft early ordering is retained, and ExecStop reset avoids destructive global flush. Exact nft kernel syntax/idempotent replay was not run in this environment. Dynamic LCP/punt admission remains a real functional gap, not waived completion.
 
 ## Actual independent verification
 
 ```text
-python3 deploy/debian/vrx/tests/test_base_policy.py
+python3 deploy/debian/ngfw/tests/test_base_policy.py
 3 tests in 0.002s, OK
-python3 deploy/debian/vrx/tests/test_packaging.py
+python3 deploy/debian/ngfw/tests/test_packaging.py
 8 tests in 1.476s, OK
-python3 deploy/debian/vrx/tests/test_firstboot.py
+python3 deploy/debian/ngfw/tests/test_firstboot.py
 6 tests in 4.059s, OK
-python3 deploy/debian/vrx/tests/test_publish_apt.py
+python3 deploy/debian/ngfw/tests/test_publish_apt.py
 2 tests in 0.265s, OK (skipped=1)
 ```
 
 APT wrong-pin rejection executed actual dpkg-deb fixture metadata. Real GPG key generation was skipped because isolated gpg-agent cannot start here; signing was NOT RUN, not PASS. No actual reprepro publication was run.
 
 ```text
-bash -n scripts/publish-apt.sh deploy/debian/vrx/assets/firewall-bootstrap.sh
+bash -n scripts/publish-apt.sh deploy/debian/ngfw/assets/firewall-bootstrap.sh
 exit 0
 tools/ci.sh check --base origin/main
 ok: gitleaks — scanned ~93956 bytes (93.96 KB) in 251ms no leaks found

@@ -123,7 +123,7 @@ $ eval "$(tools/lab env 2)"; date -Is; uptime; systemctl show vpp -p NRestarts -
  15:36:54 up  5:49,  2 users,  load average: 20.60, 79.66, 62.51
 MainPID=8760
 NRestarts=0
-$ cd apps/agent && VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+$ cd apps/agent && NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
 === RUN   TestHostInterfaceOnHost
 2026/09/24 15:37:03 INFO interface sanitized (VPP V19/V21 inherited state) interface=w2-af50 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=26 rereads=3 reset="[…]" skipped=[]
     integration_test.go:106: timing: Create af-packet.host-interface/w2-af50 took 4.609s (err <nil>)
@@ -276,7 +276,7 @@ $ cd apps/agent && go test -count=1 -v ./internal/descriptors/af_packet/
 === RUN   TestHostInterface
 --- PASS: TestHostInterface (0.00s)
 === RUN   TestHostInterfaceOnHost
-    integration_test.go:83: integration test: set VRX_INTEGRATION=1 (and run under the shared lab lock)
+    integration_test.go:83: integration test: set NGFW_INTEGRATION=1 (and run under the shared lab lock)
 --- SKIP: TestHostInterfaceOnHost (0.00s)
 === RUN   TestDeleteQuiescesFirst
     quiesce_test.go:199: Delete: link-down(w2-l0) → settle → … → af_packet_delete(w2-l0)
@@ -358,7 +358,7 @@ exit=0
 ```
 `TestTwelveFreedOutOfOrderSucceeds` first shows that the same pool **fails with the old fixed cap of 16** (`MaxPlaceholders = 16` → `ErrCapped`),
 then that it succeeds under the new cap. `TestCappedFailsClosed` needs 70 + 8, is capped at exactly 64 and moves
-`vrx_agent_iface_sanitize_capped_total{phase="create"}`.
+`ngfw_agent_iface_sanitize_capped_total{phase="create"}`.
 
 ### Host (shared VPP, slot 2, one package, no packets). NRestarts before and after every run
 Run 1 (14:32) failed closed on the sanitize cap, before my D1 fix. The Create was rolled back **with the quiesce** (the log line
@@ -367,7 +367,7 @@ Run 1 (14:32) failed closed on the sanitize cap, before my D1 fix. The Create wa
 $ date; systemctl show vpp -p NRestarts
 2026-09-24T14:31:59+03:30
 NRestarts=0
-$ cd apps/agent && VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+$ cd apps/agent && NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
 === RUN   TestHostInterfaceOnHost
 2026/09/24 14:32:02 WARN interface sanitize: placeholder cap reached (VPP V19); the create fails closed sw_if_index=3 placeholders=23 cap=23 holes_seen=7 holes_left=0 fresh_run=5
 2026/09/24 14:32:02 ERROR interface sanitize failed (VPP V19) interface=w2-af50 sw_if_index=3 phase=create err="no clean sw_if_index obtained (VPP V19 quarantine): placeholder cap reached before every freed classify table index was resurrected (23 placeholders, cap 23 for 7 freed indices seen)" cleared=[] freed=[] unclearable=[] placeholders=23 capped=true rereads=3
@@ -388,7 +388,7 @@ Run 2 (14:35), after D1 (TX ring only at that point):
 $ date; systemctl show vpp -p NRestarts
 2026-09-24T14:35:10+03:30
 NRestarts=0
-$ cd apps/agent && VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+$ cd apps/agent && NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
 === RUN   TestHostInterfaceOnHost
 2026/09/24 14:35:15 INFO interface sanitized (VPP V19/V21 inherited state) interface=w2-af50 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=26 rereads=3 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
     integration_test.go:97: timing: Create af-packet.host-interface/w2-af50 took 167ms (err <nil>)
@@ -428,7 +428,7 @@ each Delete is the settle). No stalls.
 $ eval "$(tools/lab env 2)"; date -Is; systemctl show vpp -p NRestarts
 2026-09-24T14:41:12+03:30
 NRestarts=0
-$ cd apps/agent && VRX_INTEGRATION=1 flock -s /run/lock/vrx-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
+$ cd apps/agent && NGFW_INTEGRATION=1 flock -s /run/lock/ngfw-lab.lock go test -count=1 -v -run 'OnHost' ./internal/descriptors/af_packet/
 === RUN   TestHostInterfaceOnHost
 2026/09/24 14:41:14 INFO interface sanitized (VPP V19/V21 inherited state) interface=w2-af50 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=26 rereads=3 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
     integration_test.go:97: timing: Create af-packet.host-interface/w2-af50 took 181ms (err <nil>)
@@ -594,14 +594,14 @@ ok: gitleaks — scanned ~67419 bytes (67.42 KB) in 1.3s no leaks found
 Tasks:    30 successful, 30 total Cached:    24 cached, 30 total Time:    2m15.318s  
 
 == apps/agent: make lint test build ==
-ok  	ngfw/agent/cmd/vrx-startupgen	1.442s; ok  	ngfw/agent/cmd/vrx-vppcheck	1.868s; ok  	ngfw/agent/internal/agent	15.266s; ok  	ngfw/agent/internal/contracttest	8.388s; ok  	ngfw/agent/internal/descriptors/abf	1.365s; ok  	ngfw/agent/internal/descriptors/acl	1.596s; ok  	ngfw/agent/internal/descriptors/adl	1.268s; ok  	ngfw/agent/internal/descriptors/af_packet	13.948s; ok  	ngfw/agent/internal/descriptors/arp	1.328s; ok  	ngfw/agent/internal/descriptors/bfd	1.427s; ok  	ngfw/agent/internal/descriptors/bond	1.568s; ok  	ngfw/agent/internal/descriptors/classify	2.756s; 
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.442s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.868s; ok  	ngfw/agent/internal/agent	15.266s; ok  	ngfw/agent/internal/contracttest	8.388s; ok  	ngfw/agent/internal/descriptors/abf	1.365s; ok  	ngfw/agent/internal/descriptors/acl	1.596s; ok  	ngfw/agent/internal/descriptors/adl	1.268s; ok  	ngfw/agent/internal/descriptors/af_packet	13.948s; ok  	ngfw/agent/internal/descriptors/arp	1.328s; ok  	ngfw/agent/internal/descriptors/bfd	1.427s; ok  	ngfw/agent/internal/descriptors/bond	1.568s; ok  	ngfw/agent/internal/descriptors/classify	2.756s; 
 
 == apps/cli: make lint test build ==
 ok  	ngfw/cli/internal/api	1.348s; ok  	ngfw/cli/internal/cli	1.932s; ok  	ngfw/cli/internal/cpath	1.093s; ok  	ngfw/cli/internal/jschema	1.208s; ok  	ngfw/cli/internal/render	1.124s; ok  	ngfw/cli/internal/safe	1.093s; ok  	ngfw/cli/test/e2e	1.078s; 
 
 == test/ Go modules, unit mode (test/integration/smoke) ==
 test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.016s; 
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 
 == summary (quick) ==
   contract guard: HEAD vs main                       0m00s

@@ -53,19 +53,19 @@ ok  	ngfw/agent/internal/descriptors/trace	0.035s
 ok  	ngfw/agent/internal/descriptors/lcp	0.026s
 ```
 
-### Host integration (VRX_INTEGRATION=1, shared lab lock, slot 5, all packages in parallel as `go test ./...` runs them)
+### Host integration (NGFW_INTEGRATION=1, shared lab lock, slot 5, all packages in parallel as `go test ./...` runs them)
 ```
-$ eval "$(tools/lab env 5)"; VRX_INTEGRATION=1 go test -count=1 ./internal/descriptors/{dfkit/...,dhcp,dns,ipfix,flowprobe,sflow,prom,pcap,trace,lcp}/
+$ eval "$(tools/lab env 5)"; NGFW_INTEGRATION=1 go test -count=1 ./internal/descriptors/{dfkit/...,dhcp,dns,ipfix,flowprobe,sflow,prom,pcap,trace,lcp}/
 NRestarts before: 2
 ok  	ngfw/agent/internal/descriptors/dfkit	0.024s
 ok  	ngfw/agent/internal/descriptors/dfkit/restarttest	0.307s
-    --- SKIP: TestDHCPOnHost/dhcp6_duid (0.00s)        # opt-in VRX_DF8_DUID=1: VPP-global without getter/reset
+    --- SKIP: TestDHCPOnHost/dhcp6_duid (0.00s)        # opt-in NGFW_DF8_DUID=1: VPP-global without getter/reset
 ok  	ngfw/agent/internal/descriptors/dhcp	2.391s
 ok  	ngfw/agent/internal/descriptors/dns	2.293s
 ok  	ngfw/agent/internal/descriptors/ipfix	0.084s
 ok  	ngfw/agent/internal/descriptors/flowprobe	2.316s
 ok  	ngfw/agent/internal/descriptors/sflow	0.140s
---- SKIP: TestHTTPStaticOnHost (0.01s)                  # opt-in VRX_DF8_HTTP_STATIC=1 (irreversible, Q3)
+--- SKIP: TestHTTPStaticOnHost (0.01s)                  # opt-in NGFW_DF8_HTTP_STATIC=1 (irreversible, Q3)
 ok  	ngfw/agent/internal/descriptors/prom	0.025s
 ok  	ngfw/agent/internal/descriptors/pcap	0.051s
 ok  	ngfw/agent/internal/descriptors/trace	0.146s
@@ -76,7 +76,7 @@ lcp is tested for real (D-060): `plugin linux_cp loaded: 4 message(s) compatible
 (`skip-unless-plugin-loaded` via `CheckCompatiblity` remains in place for hosts without the plugin).
 
 ### Idempotency (re-applying the same desired state plans nothing) and VPP CLI while the objects exist / after delete
-Captured with `VRX_DF8_EVIDENCE_HOLD=5s` (objects held while the CLI ran; test log lines abbreviated to `file:line`):
+Captured with `NGFW_DF8_EVIDENCE_HOLD=5s` (objects held while the CLI ran; test log lines abbreviated to `file:line`):
 ```
 ### [during] show dhcp proxy
     RX FIB       Src Address  Servers FIB,Address
@@ -157,7 +157,7 @@ capture to file /tmp/w5-df8.pcap
 
 ### Restart simulation (fresh connection + fresh descriptors → empty plan; simulated loss → re-create → empty plan)
 ```
-$ VRX_INTEGRATION=1 go test -count=1 -v -run OnHost ./internal/descriptors/dfkit/restarttest/
+$ NGFW_INTEGRATION=1 go test -count=1 -v -run OnHost ./internal/descriptors/dfkit/restarttest/
     created loop593 sw_if_index 18 tag "w5r:loop593"   (loop594, loop595 likewise)
     == agent 1: apply the desired state
     plan dhcp.proxy              create dhcp.proxy/5901/0/10.5.95.1
@@ -248,7 +248,7 @@ host run, Q4 DUID host run, Q5 dfkit package, Q6 sentinel alias, Q7 dhcp relay o
 | D-DF8-9 | http_static: Update → ErrNotSupported, Delete no-op, full host run opt-in | — | no disable/reconfigure API; enabling is irreversible and turns the session layer on |
 | D-DF8-10 | dhcp relay (`dhcp.proxy`, `-vss`) stays a per-owner object scoped by rx VRF (`WithVRFScope`), not a VPP-global | (a) per-VRF owner scope (b) globals-owner only | relays are per-VRF tables; the VRF range is the slot's ownership unit (README) — manager to confirm (Q7) |
 | D-DF8-11 | Non-owner globals descriptors "require" (getter compare, else ErrNotGlobalsOwner) and are write-only for the reconciler | (a) refuse registration (b) require mode | D-071 allows requiring; RegisterGlobals is still owner-only |
-| D-DF8-12 | Integration tests of one slot serialise VPP-global tests with `/run/vrx-test/<prefix>/df8-globals.lock`; the restart simulation uses its own owner (`w5r`) | — | `go test ./...` runs packages in parallel |
+| D-DF8-12 | Integration tests of one slot serialise VPP-global tests with `/run/ngfw-test/<prefix>/df8-globals.lock`; the restart simulation uses its own owner (`w5r`) | — | `go test ./...` runs packages in parallel |
 
 ## Review fixes (review 463dc8a, APPROVE WITH CHANGES; main merged at 5e4b83c incl. DF-2 and contracts-v1)
 
@@ -258,7 +258,7 @@ host run, Q4 DUID host run, Q5 dfkit package, Q6 sentinel alias, Q7 dhcp relay o
 | H2 ipfix classify table by raw index | `ClassifyTable.Table` is DF-2's table **name**, key `ipfix.classify-table/<name>`, mandatory dep `classify.table/<name>`; index from `classify.LiveTables` (instance + geometry verified) right before every call; a gone table is a no-op delete | 581b61e | `TestClassifyWriteOnly`; host (opt-in) via DF-2 `classify.TableDescriptor` |
 | M1 sflow map survives VPP restart / racy learning | map bound to the D-080 boot identity; learn only from an unambiguous dump difference, else by toggling our own interface | 581b61e | `TestInterfaceLearnReadOnlyRetrieve` (RestartVPP + reused hw index, concurrent enabler) |
 | M2 sflow Retrieve toggles the data plane | Retrieve read-only; learning moved to Create (write path, own interface only) | 581b61e, 478bb48 | same + host `fresh descriptor (learned in Create)`; restart simulation shows the one re-learn |
-| M3 host tests change VPP-wide settings | DNS, BPF filter, pcap filter function, IPFIX classify stream, lcp default netns: opt-in `VRX_DF8_GLOBALS=1`; lcp replace: opt-in `VRX_DF8_LCP_REPLACE=1`; read-first global tests under the lab-wide `/run/lock/vrx-globals.lock` (Q9) | 581b61e | host run below (SKIPs) |
+| M3 host tests change VPP-wide settings | DNS, BPF filter, pcap filter function, IPFIX classify stream, lcp default netns: opt-in `NGFW_DF8_GLOBALS=1`; lcp replace: opt-in `NGFW_DF8_LCP_REPLACE=1`; read-first global tests under the lab-wide `/run/lock/ngfw-globals.lock` (Q9) | 581b61e | host run below (SKIPs) |
 | M4 in-memory BootStore orphans own capture | BootStore is an explicit `NewCapture`/`Register` argument (nil panics); `FileBootStore` writes+fsyncs before updating memory; records bound to the D-080 identity | 581b61e, 995e48e | `TestCapture` (lost store → documented busy), `TestFileBootStore`; host: restart with the persisted store recognises its own capture |
 | M5 prom/http_static leftover (D-077) | package `prom` and `prom.md` removed; `ErrNotSupported` removed | 581b61e | — |
 | M6 DHCPv4 lease events after restart/reconnect | event pid = agent PID + connection generation; stale pid = drift → recreate; `Reconnected()` hook for P05 | 581b61e | `TestClientEventSubscriptionPerConnection` |
@@ -296,18 +296,18 @@ ok  	ngfw/agent/internal/descriptors/dfkit	0.018s
 ok  	ngfw/agent/internal/descriptors/dfkit/restarttest	0.397s
     --- SKIP: TestDHCPOnHost/dhcp6_duid (0.00s)
 ok  	ngfw/agent/internal/descriptors/dhcp	0.759s
---- SKIP: TestDNSOnHost (0.00s)                    # opt-in VRX_DF8_GLOBALS=1
+--- SKIP: TestDNSOnHost (0.00s)                    # opt-in NGFW_DF8_GLOBALS=1
 ok  	ngfw/agent/internal/descriptors/dns	0.022s
---- SKIP: TestIPFIXClassifyOnHost (0.00s)          # opt-in VRX_DF8_GLOBALS=1
+--- SKIP: TestIPFIXClassifyOnHost (0.00s)          # opt-in NGFW_DF8_GLOBALS=1
 ok  	ngfw/agent/internal/descriptors/ipfix	0.038s
 ok  	ngfw/agent/internal/descriptors/flowprobe	0.469s
 ok  	ngfw/agent/internal/descriptors/sflow	0.446s
---- SKIP: TestPcapFilterFunctionOnHost (0.00s)     # opt-in VRX_DF8_GLOBALS=1
+--- SKIP: TestPcapFilterFunctionOnHost (0.00s)     # opt-in NGFW_DF8_GLOBALS=1
 ok  	ngfw/agent/internal/descriptors/pcap	0.051s
---- SKIP: TestBPFFilterOnHost (0.00s)              # opt-in VRX_DF8_GLOBALS=1
+--- SKIP: TestBPFFilterOnHost (0.00s)              # opt-in NGFW_DF8_GLOBALS=1
 ok  	ngfw/agent/internal/descriptors/trace	0.020s
-    --- SKIP: TestLCPOnHost/default-netns (0.00s)  # opt-in VRX_DF8_GLOBALS=1
-    --- SKIP: TestLCPOnHost/replace_helpers (0.00s) # opt-in VRX_DF8_LCP_REPLACE=1
+    --- SKIP: TestLCPOnHost/default-netns (0.00s)  # opt-in NGFW_DF8_GLOBALS=1
+    --- SKIP: TestLCPOnHost/replace_helpers (0.00s) # opt-in NGFW_DF8_LCP_REPLACE=1
 ok  	ngfw/agent/internal/descriptors/lcp	0.702s
 NRestarts after: 2
     integration_test.go:87: refused as expected: {Interface:loop597 HostIfName:w5-lcp9 HostIfType:tap Netns:}
@@ -387,4 +387,4 @@ CI GATE PASSED
 | D-DF8-13 | Claims are recorded after a successful add and qualified with the D-080 identity + sw_if_index; existing objects on untagged interfaces are adopted only with our claim | review H1, D-080 |
 | D-DF8-14 | sflow learns hw→sw only in Create (dump difference or own-interface toggle); Retrieve read-only; after an agent restart one re-create per sflow interface re-learns | review M2 (the reviewer's "disable, dump, re-enable" option) |
 | D-DF8-15 | lcp host tap stays untagged (tagging lets DF-1 delete it) | review L3 → P12 |
-| D-DF8-16 | getter-less VPP-global host tests opt-in; read-first ones under `/run/lock/vrx-globals.lock` | review M3, Q9 |
+| D-DF8-16 | getter-less VPP-global host tests opt-in; read-first ones under `/run/lock/ngfw-globals.lock` | review M3, Q9 |

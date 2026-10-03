@@ -57,9 +57,9 @@ $ grep -rn "vppctl\|exec.Command" internal/descriptors/{gre,ipip,vxlan,vxlan_gpe
 (no output, exit 1)
 ```
 
-### Host VPP (`VRX_INTEGRATION=1 VRX_TEST_PREFIX=w11 VRX_SLOT=11 VRX_VPP_TABLE_BASE=11000 VRX_DF6_HOLD=6`, shared lab lock)
+### Host VPP (`NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w11 NGFW_SLOT=11 NGFW_VPP_TABLE_BASE=11000 NGFW_DF6_HOLD=6`, shared lab lock)
 Each package's `OnHost` tests were run one package at a time; `systemctl show vpp -p NRestarts` stayed `2` before and
-after every run (the 2 restarts are the gtpu incident, Q1). gtpu with `VRX_DF6_GTPU_HOST=1`, lisp with `VRX_DF6_LISP_HOST=1`.
+after every run (the 2 restarts are the gtpu incident, Q1). gtpu with `NGFW_DF6_GTPU_HOST=1`, lisp with `NGFW_DF6_LISP_HOST=1`.
 "re-apply plan … empty=true" is the idempotency check: Retrieve after apply diffed against the same desired state
 (`df6test.PlanFor`, scheduler semantics) — applying the same desired state twice yields an empty plan.
 ```
@@ -87,7 +87,7 @@ after every run (the 2 restarts are the gtpu incident, Q1). gtpu with `VRX_DF6_G
 ### l2tp
 --- PASS: TestL2tpOnHost (0.02s)
     l2tp_integration_test.go:42: l2tpv3 tunnels of w11 before: 0
-    l2tp_integration_test.go:44: l2tp.tunnel create skipped: VPP has no l2tpv3 delete, a created tunnel would outlive the test on the shared host (set VRX_DF6_L2TP_CREATE=1 to opt in)
+    l2tp_integration_test.go:44: l2tp.tunnel create skipped: VPP has no l2tpv3 delete, a created tunnel would outlive the test on the shared host (set NGFW_DF6_L2TP_CREATE=1 to opt in)
 --- SKIP: TestL2tpTunnelOnHost (0.02s)
 ### pppoe
 --- PASS: TestCpOnHost (6.02s)
@@ -303,7 +303,7 @@ See the end of this file.
   steering, LISP map-register HMAC keys, LISP control-plane semantics beyond the messages listed, NSH EIDs, iOAM,
   hardware offload (`vxlan_offload_rx`, `gtpu_offload_rx`), PPPoE daemons.
 - Host coverage gaps (all with reasons in the tests): `l2tp.tunnel` create (no delete; opt-in
-  `VRX_DF6_L2TP_CREATE=1`), `pppoe.session` create (needs PPPoE discovery traffic), `sr-mpls.endpoint-color` (global
+  `NGFW_DF6_L2TP_CREATE=1`), `pppoe.session` create (needs PPPoE discovery traffic), `sr-mpls.endpoint-color` (global
   side effects, no un-assign), `lisp.pitr` (changes the global LISP mode), singleton globals (encap source/hop limit,
   l2tp lookup key: no getter, never changed on the shared host).
 
@@ -325,7 +325,7 @@ msg id · Q9 LISP leftovers (`<remote-N>` sets, `lisp_gpe*` interfaces) · Q10 R
 
 ## CI gate — `tools/ci.sh --base main` on commit 4e8b26c (the code tree of this report; this file is docs-only on top)
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 == contract guard: HEAD vs main ==
 == tools (golangci-lint, gitleaks) ==
 == install (pnpm --frozen-lockfile --prefer-offline) ==
@@ -351,7 +351,7 @@ ok  	ngfw/agent/internal/descriptors/vxlan	1.103s
 ok  	ngfw/agent/internal/descriptors/vxlan_gpe	1.089s
 ok  	ngfw/agent/internal/renderers	1.426s; 
 == test/ Go modules, unit mode (test/integration/smoke) ==
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 == summary (quick) ==
 CI GATE PASSED
 ```
@@ -368,7 +368,7 @@ Merged main first (`407e074`: main's go.mod/go.sum, `go mod tidy`), then applied
 | H3 write-only not idempotent | tunnels adopt the interface tagged `<owner>:<id>` (6RD: no second add, deletable after agent restart by tag); keyed write-only (SR-MPLS policy/steering, GPE entries): exact presence probe + claim → re-apply is a no-op; toggles (gtpu/vxlan-gpe/vxlan bypass, l2tp enable, pppoe cp) and SR-MPLS endpoint-color: claim `<name>@vpp-<boot>` (`df6.BootID` = VPP PID from control_ping), enable once per VPP instance. Fakes model duplicate adds / stacked features; tests assert one instance after repeated resyncs | `d29fd4d`, `c39500c` |
 | H4 VPP names / foreign interfaces | `df6.Interfaces` wraps DF-1's `iface.Table`: resolution by logical name (`IndexByName`, refuses foreign tags with `iface.ErrForeignInterface`), Retrieve reports logical names (`Logical`) — toggles, SRv6 End.X/DX, L2 steering, LISP locators, vxlan/gpe/gtpu mcast | `d29fd4d` |
 | M1 deletes by index | `IfDescriptor.verify`: tag `<owner>:<id>` + dump record at that index decoding to the same id, delete with VPP's key fields; stale Meta ignored in favour of the tag. Toggles re-resolve by logical name, compare with Meta, check ownership (tag or claim) and only disable what this agent enabled on the running VPP. l2tp cookie update verified the same way | `d29fd4d` |
-| M2 pppoe.cp global | singleton `pppoe.cp/global` under the globals-owner rule; host test opt-in (`VRX_DF6_PPPOE_CP_HOST`), never run on the shared VPP; `gtpu.forward` one-per-type documented | `d29fd4d`, `0236ff1` |
+| M2 pppoe.cp global | singleton `pppoe.cp/global` under the globals-owner rule; host test opt-in (`NGFW_DF6_PPPOE_CP_HOST`), never run on the shared VPP; `gtpu.forward` one-per-type documented | `d29fd4d`, `0236ff1` |
 | M3 presence ≠ identity | SR steering: `Identity` = BSID (Delete refuses an entry re-pointed elsewhere, Create never takes over an existing key); SR-MPLS: BSID = EOS entry whose paths are all recursive MPLS paths; steering = FIB_SOURCE_SR route (`fib_source_dump` "SR") with an MPLS path, VPN label as identity | `d29fd4d` |
 | M4 endpoint-color blocks policy delete | Delete is a documented no-op (VPP clears it in `sr_mpls_policy_del`); Create requires our claimed policy | `d29fd4d` |
 | M5 restart evidence | `df6/restart_integration_test.go` (host) + fake resync/restart tests per write-only type | `0236ff1` |
@@ -437,7 +437,7 @@ VPP restart → exactly one re-add; stale Meta refused; foreign interface refuse
 `pppoe` cp (two resyncs → 1, VPP restart → 1, foreign refused, require variant never sets/resets),
 `sr TestClaims`, `sr_mpls TestResync`, `lisp TestLISP` (resync without GPE re-add, require variants, emptiness check).
 
-### Host: agent-restart simulation (M5), `VRX_INTEGRATION=1 VRX_TEST_PREFIX=w11 VRX_SLOT=11 VRX_VPP_TABLE_BASE=11000`
+### Host: agent-restart simulation (M5), `NGFW_INTEGRATION=1 NGFW_TEST_PREFIX=w11 NGFW_SLOT=11 NGFW_VPP_TABLE_BASE=11000`
 Agent 1 applies a gre tunnel, an SRv6 local SID, an SRv6 policy and a vxlan bypass; agent 2 = new API connection +
 new descriptors + claim store reopened from its file; then the gre tunnel and the local SID are deleted behind its
 back via binapi (simulated loss).
@@ -515,7 +515,7 @@ NRestarts before the first and after the last package: 2 / 2
 
 ### CI gate — `tools/ci.sh --base main` (fix round, on `c39500c`)
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 == contract guard: HEAD vs main ==
 == tools (golangci-lint, gitleaks) ==
 == install (pnpm --frozen-lockfile --prefer-offline) ==
@@ -541,7 +541,7 @@ ok  	ngfw/agent/internal/descriptors/ipip	1.131s
 ok  	ngfw/agent/internal/descriptors/l2	1.153s
 ok  	ngfw/agent/internal/descriptors/l2tp	1.141s; 
 == test/ Go modules, unit mode (test/integration/smoke) ==
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 == summary (quick) ==
 CI GATE PASSED
 ```
@@ -644,7 +644,7 @@ NRestarts before / after: 2 / 2; no loop11* left
 
 ### CI gate — `tools/ci.sh --base main` on `0981d0d`
 ```
-== VRX CI gate: quick ==
+== NGFW CI gate: quick ==
 == contract guard: HEAD vs main ==
 == tools (golangci-lint, gitleaks) ==
 == install (pnpm --frozen-lockfile --prefer-offline) ==
@@ -670,7 +670,7 @@ ok  	ngfw/agent/internal/descriptors/df2	1.202s
 ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.163s
 ok  	ngfw/agent/internal/descriptors/df6	1.180s; 
 == test/ Go modules, unit mode (test/integration/smoke) ==
-integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
 == summary (quick) ==
 CI GATE PASSED
 ```

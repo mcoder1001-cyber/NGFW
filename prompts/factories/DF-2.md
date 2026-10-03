@@ -13,7 +13,7 @@ IP tables, routes and interface addresses are **P05 core** — you consume their
   `binapi/ip_session_redirect/`, `binapi/ip_types/`, `binapi/fib_types/` — **the only source of message names and fields**; verify every
   name below in the package, never guess
 - VPP 26.06 docs: https://s3-docs.fd.io/vpp/26.06/ (ip_neighbor, ip6-nd, urpf, adl, abf, classify, ip_session_redirect)
-- `docs/lab/host-vrx-a.md` — `ip6_dad_autoremove` is **not loaded** → its descriptor gets an integration test marked `skip-unless-plugin-loaded`
+- `docs/lab/host-ngfw-a.md` — `ip6_dad_autoremove` is **not loaded** → its descriptor gets an integration test marked `skip-unless-plugin-loaded`
   (skip predicate: govpp `CheckCompatiblity` on that plugin's messages returns unknown-message). abf/urpf/adl/classify are loaded.
 - `docs/lab/shared-host-rules.md` — prefix `w<N>`, table range `<N>000–<N>999`, addresses in `10.<N>.0.0/16`, IPv6 test prefixes documented in your status file
 
@@ -60,8 +60,8 @@ classify-session → classify-table · classify-interface-* / input-acl / output
    `Retrieve` (full dump, decoded into the same proto type used for desired state, including metadata such as sw_if_index / table index).
 2. Registration in the plugin's `Register(scheduler)` function; add to the descriptor registry list.
 3. Unit tests with the fake VPP client (table-driven: create, idempotent re-apply, update, delete, dependency ordering, Retrieve decoding).
-4. Integration test against the host VPP (`/run/vpp/api.sock`, `VRX_INTEGRATION=1`, `flock -s /run/lock/vrx-lab.lock`): create → Retrieve shows it →
-   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `VRX_TEST_PREFIX` / slot range**; Retrieve-based assertions
+4. Integration test against the host VPP (`/run/vpp/api.sock`, `NGFW_INTEGRATION=1`, `flock -s /run/lock/ngfw-lab.lock`): create → Retrieve shows it →
+   delete → Retrieve shows nothing. **Every object name/tag/table id carries your `NGFW_TEST_PREFIX` / slot range**; Retrieve-based assertions
    filter by your prefix (other workers' objects exist on the same VPP). Use prefixed loopbacks (`loop<N>xx`, created via binapi as fixtures)
    and tables in your range; never touch `local0` or anything unprefixed; clean up in `t.Cleanup`. `neighbor-config` is global: set, read back,
    restore the previous value in `t.Cleanup`; never leave it changed.

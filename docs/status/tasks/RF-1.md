@@ -7,7 +7,7 @@ Branch `task/RF-1` (worktree `/root/ngfw-wt/RF-1`, slot 12, daemon-owner frr). B
 `apps/agent/internal/renderers/frr` (package README has the details; mapping table in `docs/agent/renderers/frr.md`):
 
 - **Paths** injected everywhere (`ProductPaths()` = `/etc/frr`, `/var/run/frr`, `frr:frr 0640`; `TestPaths("w12")` =
-  `/run/vrx-test/w12/frr/{etc,run}`, FRR pathspace `-N w12`, owner root).
+  `/run/ngfw-test/w12/frr/{etc,run}`, FRR pathspace `-N w12`, owner root).
 - **Escaping**: `Hostname` `[A-Za-z0-9][A-Za-z0-9.-]{0,62}`; `IfName`/`VRFName` `[A-Za-z0-9_.-]{1,15}`; `Description`
   printable ASCII 1–80, no leading `!`/`#`, no leading/trailing/double blanks; prefixes/addresses via `net/netip`
   (masked, canonical, no zones). Plus the renderers' `CheckRendered` backstop and a per-line check on every section's
@@ -15,7 +15,7 @@ Branch `task/RF-1` (worktree `/root/ngfw-wt/RF-1`, slot 12, daemon-owner frr). B
 - **Section registry**: `type Section interface { Name() string; Order() int; Render(desired proto.Message) ([]string, error) }`,
   `RegisterSection` (orders 400–899 for protocols; framework owns 0 globals, 100 vrf, 200 interface, 300 static).
   The whole file is re-rendered each time; frr-reload.py computes the diff. `frr.Desired(msg)` gives any section the
-  typed `*vrxv1.DesiredState`.
+  typed `*ngfwv1.DesiredState`.
 - **Templates** (`templates/framework.tmpl`, `text/template` via `renderers.NewTemplate`): `frr version` / `frr defaults
   traditional` / `hostname` / `log syslog informational` / `service integrated-vtysh-config` → `vrf <name>` (+ its static
   routes, FRR's canonical form) → `interface <name>` + description → `ip route` / `ipv6 route` (nexthop ip / interface /
@@ -65,7 +65,7 @@ CI GATE PASSED
 ```
 $ cd apps/agent && go test -count=1 -v ./internal/renderers/frr/...
 --- PASS: TestRenderGolden (0.03s)            # testdata/{empty,empty-state,hostname,vrfs,descriptions,static,static-proto,full,hostile-description}.golden
---- PASS: TestRenderVtyshConfAndPaths (0.00s)  # testdata/vtysh.conf.golden, test paths /run/vrx-test/w12/frr/etc/w12/*
+--- PASS: TestRenderVtyshConfAndPaths (0.00s)  # testdata/vtysh.conf.golden, test paths /run/ngfw-test/w12/frr/etc/w12/*
 --- PASS: TestRenderDeterministic (0.07s)
 --- PASS: TestHostileStringsRejectedOrEscaped (0.01s)   # 20 hostile strings × 8 fields
 --- PASS: TestDescriptionRmRfIsConfinedToOneLine (0.00s)
@@ -112,11 +112,11 @@ exit
 In every other field (hostname, names, addresses) the same string is rejected. The integration test shows FRR stores
 it as the description only: `show interface vrf all json` → `"description":"\"; rm -rf /"`.
 
-### Integration (test-scoped FRR in ns-w12-frr; `VRX_INTEGRATION=1`, lab lock shared)
+### Integration (test-scoped FRR in ns-w12-frr; `NGFW_INTEGRATION=1`, lab lock shared)
 ```
-$ eval "$(tools/lab env 12)"; cd apps/agent && VRX_INTEGRATION=1 go test -count=1 -v -run TestFRRRendererIntegration ./internal/renderers/frr/...
+$ eval "$(tools/lab env 12)"; cd apps/agent && NGFW_INTEGRATION=1 go test -count=1 -v -run TestFRRRendererIntegration ./internal/renderers/frr/...
 === RUN   TestFRRRendererIntegration
-    harness: netns ns-w12-frr, daemons map[mgmtd:913348 staticd:913586 zebra:913389], argv zebra: ip netns exec ns-w12-frr /usr/lib/frr/zebra -d -N w12 --vty_socket /run/vrx-test/w12/frr/run/w12 -i /run/vrx-test/w12/frr/run/w12/zebra.pid -A 127.0.0.1 -P 0 --log file:/run/vrx-test/w12/frr/run/w12/zebra.log --log-level warn -z /run/vrx-test/w12/frr/run/w12/zserv.api -f /run/vrx-test/w12/frr/zebra.conf
+    harness: netns ns-w12-frr, daemons map[mgmtd:913348 staticd:913586 zebra:913389], argv zebra: ip netns exec ns-w12-frr /usr/lib/frr/zebra -d -N w12 --vty_socket /run/ngfw-test/w12/frr/run/w12 -i /run/ngfw-test/w12/frr/run/w12/zebra.pid -A 127.0.0.1 -P 0 --log file:/run/ngfw-test/w12/frr/run/w12/zebra.log --log-level warn -z /run/ngfw-test/w12/frr/run/w12/zserv.api -f /run/ngfw-test/w12/frr/zebra.conf
     step1: rendered frr.conf:
         frr version 10.7.1
         frr defaults traditional
@@ -178,7 +178,7 @@ $ eval "$(tools/lab env 12)"; cd apps/agent && VRX_INTEGRATION=1 go test -count=
         no ip route 10.12.201.0/24 blackhole tag 100 50
     step4: Retrieve runningConfig [frr defaults traditional hostname ubuntu-26.04 log syslog informational service integrated-vtysh-config vrf w12red exit-vrf interface w12f0  description "; rm -rf / exit]
     step4: PIDs unchanged map[mgmtd:913348 staticd:913586 zebra:913389]
-    after Stop: no process names /run/vrx-test/w12/frr; /etc/frr unchanged:
+    after Stop: no process names /run/ngfw-test/w12/frr; /etc/frr unchanged:
         daemons 4127 1787745928000000000 -rw-r-----
         frr.conf 489 1787745928000000000 -rw-r-----
         support_bundle_commands.conf 10383 1787745928000000000 -rw-r-----
@@ -195,7 +195,7 @@ Full log: `/root/ngfw-wt/logs/RF-1-evidence/integration.txt`.
 ```
 $ grep -rn "sh -c\|bash -c" apps/agent/internal/renderers/frr ; echo rc=$?
 rc=1
-$ pgrep -af '[/]run/vrx-test/w12/frr' ; echo rc=$?
+$ pgrep -af '[/]run/ngfw-test/w12/frr' ; echo rc=$?
 rc=1
 $ systemctl is-active frr ; systemctl is-enabled frr
 inactive
@@ -231,7 +231,7 @@ Q7 harness namespace `ns-<prefix>-frr` instead of the rig's.
 
 | decision | options | chosen / why |
 |---|---|---|
-| Input type for Render | (a) `*vrxv1.DesiredState` only (b) + `*structpb.Struct` document with stand-in fields | (b) D-055: tag/blackhole are not in the proto; sections get the typed state via `frr.Desired` |
+| Input type for Render | (a) `*ngfwv1.DesiredState` only (b) + `*structpb.Struct` document with stand-in fields | (b) D-055: tag/blackhole are not in the proto; sections get the typed state via `frr.Desired` |
 | `"; rm -rf /` in a description | (a) reject (b) write verbatim | (b) printable ASCII is a legitimate description; FRR's `description LINE...` takes it as one token and no shell exists; every *other* field rejects it. Golden + integration prove confinement |
 | Descriptions: double blanks / leading-trailing blanks | (a) normalise (b) reject | (b) FRR re-joins tokens with single blanks → permanent frr-reload delta; never rewrite silently |
 | Static routes in a VRF | (a) `ip route … vrf X` at top level (b) inside `vrf X … exit-vrf` | (b) FRR's canonical running-config form → empty diff after apply |
@@ -263,7 +263,7 @@ Evidence files: `/root/ngfw-wt/logs/RF-1-evidence/{unit,integration}.txt`, `etc-
 | M1 keyword/IP-shaped next-hop interfaces, bad gateways | `RouteIfName` (IP/prefix-shaped names; equal to or an abbreviation of `blackhole reject null0 tag label table vrf nexthop-vrf onlink color segments bfd track weight`, case-insensitive); `IfName` rejects IP-shaped names; gateways: no unspecified/multicast/loopback, link-local only with an interface | `827f1be` |
 | M2 secrets | `Section.Render(*RenderContext)` with `rc.Secret("<kind>/<name>")` (D-051; `WithSecretResolver`), frr.conf marked `Secret`; redactor (resolved values + built-in FRR secret patterns + `RegisterRedaction`) on `Show`/`State`/`Retrieve`, `DryRun`, every tool error, render errors; frr-reload.py `--log-level critical` | `827f1be`, live `a37879d` |
 | M3 whole-RIB reads | State reads `show ip[v6] route vrf all static json` (stream-decoded, `StreamRIB`) + `… summary json`; poller reads summaries only; `frr.NewSystemRunner()` bound `MaxShowOutput` = 64 MiB (documented sizing), output at the bound = `ErrTruncated` | `827f1be`, live 10 240 routes `a37879d` |
-| M4 harness cross-kill | exclusive `flock /run/vrx-test/<prefix>/frr.lock` for the harness lifetime; `ours()` = `/proc/<pid>/exe` is the daemon binary **and** argv has `-i <own pidfile>` | `827f1be`, live `a37879d` |
+| M4 harness cross-kill | exclusive `flock /run/ngfw-test/<prefix>/frr.lock` for the harness lifetime; `ours()` = `/proc/<pid>/exe` is the daemon binary **and** argv has `-i <own pidfile>` | `827f1be`, live `a37879d` |
 | D-072 | static routes rendered only when `frr.StaticOwnedByFRR` (default `FlaggedStatic`: stand-in `routing.static[i].frr: true`); `RegisterStaticSelector` hook for the real flag; P05 descriptor must skip exactly those (README, questions Q4) | `827f1be` |
 | L1 `ip` trampoline | `TestProductAllowlistHasNoTrampoline`; ALLOWLIST row "test-only; never in a production allowlist" | `827f1be`, `a37879d` |
 | L2 rollback | rollback reload on `context.WithoutCancel` + own timeout (test); "no previous file" and "no concurrent Apply" documented | `827f1be` |
@@ -291,7 +291,7 @@ Evidence files: `/root/ngfw-wt/logs/RF-1-evidence/{unit,integration}.txt`, `etc-
 ok  	ngfw/agent/internal/renderers/frr	…
 ```
 
-### Integration against test-scoped FRR 10.7.1 (`VRX_INTEGRATION=1 go test -count=1 -v -timeout 25m ./internal/renderers/frr/...`)
+### Integration against test-scoped FRR 10.7.1 (`NGFW_INTEGRATION=1 go test -count=1 -v -timeout 25m ./internal/renderers/frr/...`)
 ```
 --- PASS: TestFRRRendererIntegration (27.03s)
     step1: events [routes ipv4/default/static: - -> 2 routes ipv4/w12red/static: - -> 1]
@@ -320,7 +320,7 @@ ok  	ngfw/agent/internal/renderers/frr	…
 --- PASS: TestReviewH2NotConvergedLive (11.75s)
     M2: DryRun: Lines To Delete ⏎ =============== ⏎ Lines To Add ⏎ ============ ⏎ log syslog informational ⏎ service integrated-vtysh-config ⏎ password <redacted> ⏎
     M2: Show: Building configuration... ⏎ … ⏎ ! ⏎ password <redacted> ⏎ ! ⏎ end ⏎
-    M2: Validate error: frr: daemon error: vtysh -C rejected frr.conf: line 6: % Unknown command[4]: password <redacted> bogus-extra Configuration file[<staging>/run/vrx-test/w12/frr/etc/w12/frr.conf] processing failure: 2
+    M2: Validate error: frr: daemon error: vtysh -C rejected frr.conf: line 6: % Unknown command[4]: password <redacted> bogus-extra Configuration file[<staging>/run/ngfw-test/w12/frr/etc/w12/frr.conf] processing failure: 2
     M2: frr-reload.log:                                   # empty (log level critical)
 --- PASS: TestReviewM2SecretLive (9.94s)                 # raw vtysh (ground truth) shows the password; Retrieve/Show/DryRun/errors/log do not
     M3: 10240 FRR static routes: Apply 59.485s (incl. convergence check), State 4.032s (10240 routes, static json 5346734 bytes, bound 67108864), poll step 245ms (summary json 479 bytes), summary ipv4/default/static=10240
@@ -328,7 +328,7 @@ ok  	ngfw/agent/internal/renderers/frr	…
 ok  	ngfw/agent/internal/renderers/frr	177.481s
 --- PASS: TestHarnessArgvScoped (0.00s)
 --- PASS: TestOursNeedsExeAndPidfileArgv (0.00s)
-    M4: second Start blocked ≥3s on /run/vrx-test/w12/frr.lock; first harness daemons map[mgmtd:1206055 staticd:1206385 zebra:1206320] alive
+    M4: second Start blocked ≥3s on /run/ngfw-test/w12/frr.lock; first harness daemons map[mgmtd:1206055 staticd:1206385 zebra:1206320] alive
     M4: second harness started after release with map[mgmtd:1209477 staticd:1210662 zebra:1209535] and stopped
 --- PASS: TestHarnessSlotLockSerialises (33.77s)
 ok  	ngfw/agent/internal/renderers/frr/frrtest	33.807s
@@ -351,7 +351,7 @@ $ stat -c '%n %s %Y %U:%G %a' /etc/frr /etc/frr/*        # identical before/afte
 /etc/frr/frr.conf 489 1787745928 frr:root 640
 /etc/frr/support_bundle_commands.conf 10383 1787745928 frr:root 640
 /etc/frr/vtysh.conf 32 1787745928 frr:root 640
-$ ls -A /run/frr ; ip netns list | grep -c w12-frr ; ls -A /run/vrx-test/w12
+$ ls -A /run/frr ; ip netns list | grep -c w12-frr ; ls -A /run/ngfw-test/w12
 0
 frr.lock                      # the empty slot lock file stays (deleting it would break the flock for a waiter)
 ```

@@ -1,6 +1,6 @@
 # طرح فشردهٔ ۲۱ روزه — همهٔ قابلیت‌های نرم‌افزاری، روی VM، بدون آزمایشگاه
 
-> **اجرا:** یک ایجنت مدیر (`prompts/MANAGER-PROMPT.md`) بورد `plan/tasks.yaml` را می‌راند؛ مراحل و گیت‌ها در `docs/12-execution-stages.md`؛ قاعدهٔ تصمیم‌گیری در `docs/decisions/decision-policy.md`؛ راهنمای شما در `docs/13-handoff-fa.md`. **P01 انجام شد (۲۰۲۶-۰۹-۲۳).** VPP 26.06 روی همین سرور اجراست (`docs/lab/host-vrx-a.md`).
+> **اجرا:** یک ایجنت مدیر (`prompts/MANAGER-PROMPT.md`) بورد `plan/tasks.yaml` را می‌راند؛ مراحل و گیت‌ها در `docs/12-execution-stages.md`؛ قاعدهٔ تصمیم‌گیری در `docs/decisions/decision-policy.md`؛ راهنمای شما در `docs/13-handoff-fa.md`. **P01 انجام شد (۲۰۲۶-۰۹-۲۳).** VPP 26.06 روی همین سرور اجراست (`docs/lab/host-ngfw-a.md`).
 
 این سند جای [`10-30-day-agent-plan-fa.md`](10-30-day-agent-plan-fa.md) را می‌گیرد و
 سه تغییر اصلی شما را اعمال می‌کند:
@@ -223,7 +223,7 @@
 | جزء | انتخاب |
 |---|---|
 | میزبان توسعه/CI | `172.30.126.195` (Ubuntu 26.04، ۳۰ vCPU، ۳۹ GB، ۱۹۷ GB) — خودش VM روی VMware است، **بدون nested KVM**؛ فقط بیلد، CI و راندن آزمایشگاه از راه SSH. مخزن در `/root/ngfw` |
-| روترها | VM های جدا روی همان vSphere: `vrx-a/b/c` (۴ vCPU، ۶ GB، ۴ کارت vmxnet3) — **VPP 26.06 + پلاگین DPDK روی vmxnet3** (همان مسیر سخت‌افزار؛ روز انتقال فقط PCI whitelist و درایور عوض می‌شود) |
+| روترها | VM های جدا روی همان vSphere: `ngfw-a/b/c` (۴ vCPU، ۶ GB، ۴ کارت vmxnet3) — **VPP 26.06 + پلاگین DPDK روی vmxnet3** (همان مسیر سخت‌افزار؛ روز انتقال فقط PCI whitelist و درایور عوض می‌شود) |
 | همتاها | `host-lan` `host-wan` (scapy/iperf3) · `peer-frr` · `peer-sswan` — ۱ vCPU، ۱ GB |
 | سگمنت‌ها | port group های vSphere: `mgmt`، `lan`، `wan`، `dmz`، `p2p-ab`، `p2p-bc` |
 | ابزار | `tools/lab` روی SSH (+ `govc` اختیاری برای snapshot/restore و ساخت VM): `up`, `down`, `status`, `provision`, `restart-vpp`, `kill-vpp`, `vppctl`, `snapshot`, `restore` |

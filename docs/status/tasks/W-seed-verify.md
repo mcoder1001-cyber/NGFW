@@ -38,7 +38,7 @@ All confirmed by diff read, not just by trusting the worker's report.
   (`w.env.Publish != nil` / `w.env.Resync != nil`); a zero-value `Wiring{}` (no `Env` set) is a no-op.
   `seams_test.go:11` `TestEventAndResyncHooksDefaultInert` calls both on a zero `Wiring{}` first (asserting no panic),
   then re-checks forwarding with hooks set.
-- `seams.go:29` `SlotIDRange()` returns `nil, nil` when `VRX_VPP_TABLE_BASE` is unset (default = agent owns every id).
+- `seams.go:29` `SlotIDRange()` returns `nil, nil` when `NGFW_VPP_TABLE_BASE` is unset (default = agent owns every id).
   `seams_test.go:29` `TestSlotIDRange` covers unset, a normal value, five malformed/out-of-range values, and the
   top-of-range edge.
 - Ran `cd apps/agent && go test ./internal/subsystems/...`: `ok ngfw/agent/internal/subsystems 0.058s`, and verbose

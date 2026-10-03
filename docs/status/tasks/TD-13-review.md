@@ -277,7 +277,7 @@ keeps its goroutine until it returns. Each later Plan can then add another. Sugg
 ## Adoption recipe
 
 - **Kea.** It matches `task/F-kea-dhcp-relay`:
-  - the descriptor value is `*vrxv1.DesiredState`;
+  - the descriptor value is `*ngfwv1.DesiredState`;
   - `RenderFamily(in, family)` exists;
   - `Renderer.Validate` stages into a private dir (`renderers.Stage`, closed by `defer`) and runs `kea-dhcp<N> -t`
     through `renderers.Command{Timeout}` with ctx, under `ip netns exec` when a netns is set;

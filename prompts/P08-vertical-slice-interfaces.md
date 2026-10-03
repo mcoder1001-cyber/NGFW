@@ -21,7 +21,7 @@ P05, P06, P07b, DF-1, DF-2 merged; `tools/lab rig up <prefix>` available (P04). 
    rx/tx bps + pps sparkline from the WS topic, errors), row click → detail drawer with
    `SchemaForm` for the interface schema and a sub-interface table with add/remove.
    Status chips use the semantic tokens. Everything en+fa.
-4. **Topology test** (`test/topology/interfaces/`, `VRX_INTEGRATION=1`, shared lock): `tools/lab rig up <prefix>`; configure both VPP
+4. **Topology test** (`test/topology/interfaces/`, `NGFW_INTEGRATION=1`, shared lock): `tools/lab rig up <prefix>`; configure both VPP
    host-interfaces with IPs via the API; commit; `ip netns exec ns-<p>-lan ping <wan addr>` through VPP; assert `vppctl show int`
    counters and the WS counters agree within 5%; set MTU 1400 on one side; 1500-byte ping with DF → fails; rollback → succeeds again.
 5. **Restart-safety test** (no VPP restart before handover, D-012): stop the agent, delete the prefixed host-interfaces and addresses via

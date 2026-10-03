@@ -1,7 +1,7 @@
 # RF-2 — questions (none blocking; work continued)
 
 1. **strongSwan not installed on the host.** The prompt says the stock package is installed (disabled); it is not. I used
-   extracted debs under `/run/vrx-test/w3/swan-stock` (no install). Should the manager install the stock package (disabled,
+   extracted debs under `/run/ngfw-test/w3/swan-stock` (no install). Should the manager install the stock package (disabled,
    masked) for RF-* / P11 test runs, or keep the extract-into-/run approach (tmpfs, redo after reboot; README commands)?
    CI slot 12 (`tools/ci.sh full`) will **skip** the integration test until one of the two exists for `w12`.
 2. **go.mod edited** outside my file set: `github.com/strongswan/govici v0.8.2` (MIT, required by the task) and
@@ -20,7 +20,7 @@
    Proposal for P11's contract PR: `vpn.ipsec.tunnels` keys (and `remoteAccess` profile names) `max(60)` in the schema,
    so the UI rejects them before commit instead of the renderer at tier-3 validation.
 8. **D-083 "the harness re-unpacks".** The harness does not download: unpacking needs `apt-get download` (network,
-   not allow-listed) — it skips with the README commands when `/run/vrx-test/<slot>/swan-stock/root` is missing
+   not allow-listed) — it skips with the README commands when `/run/ngfw-test/<slot>/swan-stock/root` is missing
    (e.g. after a reboot). A `tools/lab` step (manager-owned) could do it; RF-2 does not add one.
 9. **M2 shared-host rule for the manager:** a strongSwan renderer on a charon shared by several slots must use
    `WithOwnerPrefix(<slot prefix>)`; only the product agent uses no prefix. Please add to `docs/lab/shared-host-rules.md`.

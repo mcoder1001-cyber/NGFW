@@ -13,8 +13,8 @@ summary or schema is renamed or reshaped.
 | `Auth_logout` (`POST /api/v1/auth/logout`) | `204` description only: the session's refresh chain AND access tokens end; a Bearer token sent along counts | 2.3c per-session revocation |
 
 Regenerated and unchanged (checked): `apps/cli/internal/api/operations_gen.go`, `docs/user/cli/reference.md`
-(`make -C apps/cli gen docs`), `sdk/python/vrx/_generated`, `sdk/terraform/internal/provider/zz_*_gen.go` (`sdk/gen.sh`) —
+(`make -C apps/cli gen docs`), `sdk/python/ngfw/_generated`, `sdk/terraform/internal/provider/zz_*_gen.go` (`sdk/gen.sh`) —
 none of them carries response descriptions or status codes of these operations.
 
-Not in the contract: the cookies (`vrx_docs` next to `vrx_refresh`, Set-Cookie headers are not described in the OpenAPI),
-the new environment settings (`VRX_TRUST_PROXY`, `VRX_SESSION_MAX_SEC`, `VRX_JWT_KEY_FILE`), the audit rows.
+Not in the contract: the cookies (`ngfw_docs` next to `ngfw_refresh`, Set-Cookie headers are not described in the OpenAPI),
+the new environment settings (`NGFW_TRUST_PROXY`, `NGFW_SESSION_MAX_SEC`, `NGFW_JWT_KEY_FILE`), the audit rows.

@@ -3,7 +3,7 @@
 > **Ownership, globals (D-071), claims, unique keys and write-only re-application: see [nat-common.md](nat-common.md)** — it overrides older wording below where they differ.
 
 Package `apps/agent/internal/descriptors/nat64`, binapi `apps/agent/binapi/nat64` (plugin `nat64_plugin.so`, loaded
-on vrx-a). Entry point `nat64.Register(registry, client, owner)`. Carrier/ownership as in `nat44-ed.md`.
+on ngfw-a). Entry point `nat64.Register(registry, client, owner)`. Carrier/ownership as in `nat44-ed.md`.
 
 **No "is enabled" getter in VPP 26.06.** `nat64.enable` is **write-only** (D-063). Retrieve returns
 `ErrRetrieveUnsupported`, and the reconciler re-applies the enable on every resync (VPP answers retval 1 "already

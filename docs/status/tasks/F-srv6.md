@@ -6,7 +6,7 @@ WIP log `F-srv6-wip.md`.
 
 **Host runs are pending TD-25.** The manager closed host runs on the shared VPP until TD-25 merges (af_packet creates
 fail until then). Everything except the host runs is built and verified: the fake VPP model (`coretest`), the API
-with its fake agent, and the production web build against the real vrx-api. The host steps are written and listed
+with its fake agent, and the production web build against the real ngfw-api. The host steps are written and listed
 under "Pending host steps (after TD-25)".
 
 ## What was built
@@ -14,7 +14,7 @@ under "Pending host steps (after TD-25)".
 | layer | files | what |
 |---|---|---|
 | schema (contract) | `packages/schema/src/domains/ext/srv6.ts`, `semantic/srv6.ts` (+ `srv6.test.ts`) | `routing.srv6{encapSource, encapHopLimit, localSids, policies, steering}` (see F-srv6-contract.md); 11 rules `routing.srv6-*` |
-| proto (contract) | `packages/proto/vrx/v1/dataplane.proto`, fixture `packages/proto/test/fixtures/srv6-full.json` | `RoutingConfig.srv6 = 17`, `Srv6Config/LocalSid/Policy/SidList/Steering`, rpc `Srv6State` + `Srv6State*` messages |
+| proto (contract) | `packages/proto/ngfw/v1/dataplane.proto`, fixture `packages/proto/test/fixtures/srv6-full.json` | `RoutingConfig.srv6 = 17`, `Srv6Config/LocalSid/Policy/SidList/Steering`, rpc `Srv6State` + `Srv6State*` messages |
 | agent | `internal/desired/srv6.go` | builder: routing.srv6 → `sr.localsid` / `sr.policy` / `sr.steering` / the two globals; every encap policy gets its own `encap_src` (policy override, else the global, D-074); agent-side validation with pointers and the same rule ids; write-only globals noted `agent.unsupported-field` (drift skips them). Assembler: Retrieve → routing.srv6 in canonical form, steering sorted (L3 by VRF then prefix, then L2) |
 | agent | `internal/subsystems/srv6.go` (+ 5 names in `Domains[Routing]`, 1 call in `register()`) | `sr.Register` with `df6.WithClaims(Wiring.PairClaims("df6"))` (TD-11b) and `df6.WithGlobalsOwner(Env.GlobalsOwner)` (D-071); records the global encap source the globals owner applied (the assembler's `Srv6Env`); `Srv6State` read path (claimed objects + counters) |
 | agent | `internal/agent/rpc_srv6.go` | `Srv6State` RPC: owner check, one SR walk in flight (3 s wait, then UNAVAILABLE — D-132), claimed objects only |
@@ -88,7 +88,7 @@ internal/descriptors/sr/gaps_test.go:45:20: undefined: sr.Global
 internal/descriptors/sr/gaps_test.go:68:17: undefined: sr.LocalSidCounters
 internal/desired/srv6_test.go:80:2: undefined: Srv6
 internal/desired/srv6_test.go:217:2: undefined: AssembleSrv6
-internal/desired/srv6_test.go:240:21: ds.GetRouting().GetSrv6 undefined (type *vrxv1.RoutingConfig has no field or method GetSrv6)
+internal/desired/srv6_test.go:240:21: ds.GetRouting().GetSrv6 undefined (type *ngfwv1.RoutingConfig has no field or method GetSrv6)
 ```
 
 and each of these mutations makes a test fail (then reverted):
@@ -113,7 +113,7 @@ $ go test -count=1 -v -run 'TestSchemaProtoDrift$|TestDesiredState' ./internal/c
 ```
 (`semantic/srv6.test.ts`: 23 tests covering defaults, limits and every rule id with its pointer and message.)
 
-### API (unit + e2e on slot 4: PostgreSQL vrx_w4 + the fake agent)
+### API (unit + e2e on slot 4: PostgreSQL ngfw_w4 + the fake agent)
 
 ```
  ✓ srv6.controller.test.ts > F-srv6 API helpers > maps table ids to the running VRF names (0 = default, unknown = the id)
@@ -127,7 +127,7 @@ $ eval "$(tools/lab env 4)"; pnpm exec vitest run -c vitest.e2e.config.ts test/e
  ✓ … > readonly may not edit routing.srv6 (403) 10ms
  ✓ … > commit → the fake agent has it; GET /state/srv6 joins the running VRF names 240ms
  ✓ … > rollback to the revision before the SRv6 commit removes it (agent and state) 143ms
-drop   database vrx_w4 · drop role vrx_w4 · ok nothing named vrx_w4 / vrx_w4 remains
+drop   database ngfw_w4 · drop role ngfw_w4 · ok nothing named ngfw_w4 / ngfw_w4 remains
 ```
 
 ### UI (unit) and screenshots
@@ -145,20 +145,20 @@ drop   database vrx_w4 · drop role vrx_w4 · ok nothing named vrx_w4 / vrx_w4 r
 ```
 
 Screenshots (interim, while host runs are closed): the production web build (`vite preview`, port 5400) against the
-real vrx-api (`apps/api/dist`, port 3400, database vrx_w4srshot). The agent behind the API was its `FakeAgent`, served
+real ngfw-api (`apps/api/dist`, port 3400, database ngfw_w4srshot). The agent behind the API was its `FakeAgent`, served
 on a unix socket with sample counters. The screenshot and runner scripts are kept outside the repo (P07a/P07b
 practice). Every process was stopped by PID and the database was dropped:
 
 ```
 11:30:49 commit: {"status":"applied","revision":1,"errors":null}
-11:30:50 encap policy without source: 400 {"type":"https://vrx.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",…,"errors":[{"pointer":"/routing/srv6/policies/fd00:4:bb::1/encapSource","message":"an encapsulating policy needs an outer source address: set encapSource here or routing.srv6.encapSource (VPP’s global default cannot be read back, D-074)"},{"pointer":"/routing/srv6/policies/fd00:4:bb::9/encapSource",…}]}
+11:30:50 encap policy without source: 400 {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"tier":"semantic",…,"errors":[{"pointer":"/routing/srv6/policies/fd00:4:bb::1/encapSource","message":"an encapsulating policy needs an outer source address: set encapSource here or routing.srv6.encapSource (VPP’s global default cannot be read back, D-074)"},{"pointer":"/routing/srv6/policies/fd00:4:bb::9/encapSource",…}]}
 srv6-sids-en.png  html dir/lang=ltr/en  live="SID Behavior VRF Target Status Processed Dropped fd00:4:ff::1 end (PSP) default — Installed 5,120 pkts / 655,360 B 3 pkts / 384 B …" pageErrors=0
 srv6-policies-en.png  html dir/lang=ltr/en  live="Binding SID Type Mode VRF Encapsulation source Segment lists Status fd00:4:bb::1 Default (weighted) Encapsulate default fd00:4::1 (global) …" pageErrors=0
 srv6-sid-list-editor-en.png  html dir/lang=ltr/en  dialog="Policy fd00:4:bb::1 Type default …" pageErrors=0
 srv6-steering-en.png  html dir/lang=ltr/en  live="Match VRF Traffic Binding SID Status 10.4.160.0/24 cust-a IPv4 fd00:4:bb::1 Installed fd00:4:160::/48 cust-a IPv6 fd00:4:bb::2 Installed loop461 — L2 …" pageErrors=0
 srv6-sids-fa-rtl.png  html dir/lang=rtl/fa  live="SID رفتار VRF مقصد وضعیت پردازش‌شده دورریخته fd00:4:ff::1 end (PSP) default — نصب‌شده 5,120 بسته / 655,360 بایت …" pageErrors=0
 srv6-sid-list-editor-fa-rtl.png  html dir/lang=rtl/fa  dialog="سیاست fd00:4:bb::1 نوع default …" pageErrors=0
-11:31:14 stopped 1272920 1273427 1275563; database vrx_w4srshot dropped
+11:31:14 stopped 1272920 1273427 1275563; database ngfw_w4srshot dropped
 ```
 Committed: `docs/user/vpn/img/srv6-{sids,policies,sid-list-editor,steering}-en.png`, `srv6-sids-fa-rtl.png` and
 `srv6-sid-list-editor-fa-rtl.png`. The real-agent screenshots come from `test/topology/srv6/stack.sh <script> <dir>`
@@ -167,7 +167,7 @@ after TD-25.
 ## Pending host steps (after TD-25; the manager opens host runs)
 
 1. `eval "$(tools/lab env 4)"; systemctl show vpp -p NRestarts` (baseline 2) — paste.
-2. `cd apps/agent && VRX_INTEGRATION=1 go test -count=1 -v -run TestSrv6OnHost ./internal/agent/`. It takes the
+2. `cd apps/agent && NGFW_INTEGRATION=1 go test -count=1 -v -run TestSrv6OnHost ./internal/agent/`. It takes the
    shared lab lock and uses owner `w4sr`, VRF table 4060, loop460/461 and SIDs in fd00:4::/48; it sends no packet and
    creates no af_packet interface. It pastes:
    - Retrieve == desired, and `vppctl show sr localsids` / `show sr policies` / `show sr steering-policies` /
@@ -178,11 +178,11 @@ after TD-25.
    - the rollback order, and "no SR route left" across `show ip6 fib` / `show ip fib`.
 3. `test/topology/srv6/stack.sh <shots script> <out dir>`: the same through the API (commit, `GET /state/srv6`, drift,
    400, restart log excerpt, rollback to the baseline revision), with real-agent screenshots.
-4. Optional, manager window only: `VRX_FSRV6_GLOBALS=1 VRX_INTEGRATION=1 go test -run TestSrv6GlobalsOnHost …`. It
-   takes the exclusive `/run/lock/vrx-globals.lock`, records `show sr encaps source addr` / `hop-limit` first and
+4. Optional, manager window only: `NGFW_FSRV6_GLOBALS=1 NGFW_INTEGRATION=1 go test -run TestSrv6GlobalsOnHost …`. It
+   takes the exclusive `/run/lock/ngfw-globals.lock`, records `show sr encaps source addr` / `hop-limit` first and
    restores them.
 5. `systemctl show vpp -p NRestarts` after. Cleanup check: `show sr localsids` has no fd00:4: entry, table 4060 is
-   gone, vrx_w4sr is dropped, `apps/agent/bin` is removed.
+   gone, ngfw_w4sr is dropped, `apps/agent/bin` is removed.
 
 ## Shared hunks (all under the F-srv6 anchors unless noted)
 
@@ -194,7 +194,7 @@ after TD-25.
 | `packages/schema/src/domains/routing.ts` | `srv6: srv6Field,` · **outside the anchor:** one import line at the end of the import block (as F-rpf-adl-pbr) |
 | `packages/schema/src/semantic/index.ts` | import + spread |
 | `packages/schema/src/index.ts` | `export * from './domains/ext/srv6.js'` |
-| `packages/proto/vrx/v1/dataplane.proto` | `Srv6Config srv6 = 17;` in `RoutingConfig` and `rpc Srv6State` in `service Dataplane` (framed by blank lines) · messages in `// ----- F-srv6 -----` |
+| `packages/proto/ngfw/v1/dataplane.proto` | `Srv6Config srv6 = 17;` in `RoutingConfig` and `rpc Srv6State` in `service Dataplane` (framed by blank lines) · messages in `// ----- F-srv6 -----` |
 | `docs/contracts/proto.md` | `### F-srv6: Srv6State` appended (§11 has no wave-BC anchors) |
 | `docs/vpp-code-track.md` | `### V-new (F-srv6)` appended (the manager numbers it) |
 | `apps/api/src/app.module.ts` | import · `...srv6Feature.controllers` · `...srv6Feature.providers` |
@@ -203,7 +203,7 @@ after TD-25.
 | `apps/web/src/i18n.ts` | 2 imports, `'srv6'`, `srv6: enSrv6`, `srv6: faSrv6` |
 | `apps/web/src/domains/vpn/tabs.ts` | the `srv6` entry · **outside:** `import { lazy } from 'react'` at the top (the same line F-wireguard adds: trivial conflict) |
 | `apps/web/src/nav/nav.ts` + `nav.test.ts` | `'vpn'` in `BUILT_DOMAINS` / the expected list (F-wireguard adds the same: a duplicate the manager drops) |
-| generated (never hand-edited) | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go` (`Srv6_state`); `docs/user/cli/reference.md` unchanged; `sdk/python/vrx/_generated` not regenerated (Q9) |
+| generated (never hand-edited) | `apps/agent/gen/**`, `packages/proto/gen/ts/**`, `packages/api-client/src/generated/schema.d.ts`, `apps/cli/internal/api/operations_gen.go` (`Srv6_state`); `docs/user/cli/reference.md` unchanged; `sdk/python/ngfw/_generated` not regenerated (Q9) |
 
 ## Decisions (with options) — for the LOG
 
@@ -271,6 +271,6 @@ CI GATE PASSED
 
 ## Cleanup (non-host parts)
 
-Every process started for the e2e and screenshot runs was stopped by PID (fake agent, vrx-api, vite preview). The
-databases vrx_w4 (e2e harness) and vrx_w4srshot were dropped. No VPP object was created (host runs are closed). `apps/agent/bin` (built by the CI gate) and `apps/api/dist`, `apps/web/dist` were removed after the final CI run
+Every process started for the e2e and screenshot runs was stopped by PID (fake agent, ngfw-api, vite preview). The
+databases ngfw_w4 (e2e harness) and ngfw_w4srshot were dropped. No VPP object was created (host runs are closed). `apps/agent/bin` (built by the CI gate) and `apps/api/dist`, `apps/web/dist` were removed after the final CI run
 (`packages/*/dist` are regenerated by `pnpm gen`).

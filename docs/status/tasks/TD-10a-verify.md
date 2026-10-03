@@ -13,7 +13,7 @@ regressed. The nits below are optional and do not block the merge.
 |---|---|
 | `pnpm --filter @ngfw/api test` | `Test Files 12 passed (12)  Tests 119 passed (119)` |
 | `pnpm --filter @ngfw/web test` | `Test Files 16 passed (16)  Tests 110 passed (110)` |
-| td10a e2e, slot 5 (`:3500` free, `flock -s /run/lock/vrx-lab.lock`) | `Tests 5 passed (5)`, including `H1 … backend … terminated mid-commit`; `2.3f race: commit 409, delete 409, running references it: false, secret exists: true` |
+| td10a e2e, slot 5 (`:3500` free, `flock -s /run/lock/ngfw-lab.lock`) | `Tests 5 passed (5)`, including `H1 … backend … terminated mid-commit`; `2.3f race: commit 409, delete 409, running references it: false, secret exists: true` |
 | `go test ./internal/api/` (apps/cli) | `ok` |
 | negative control: new CLI test against the pre-fix `client.go` (3abfd0a) | `FAIL TestCommitTimeoutLooksUpTheOutcome/applied` + `/nothing_new` (lacks "new since the request: revision 8 …", "no new revision since the request") |
 | pre-fix logs `/root/ngfw-wt/logs/TD-10a-fix1-{prefix-fail,e2e-H1-prefix,web-prefix-fail}.log` | real, and they match TD-10a.md: unit 5 failed / 1 passed (L4 is coverage of an existing path), e2e H1 `1 failed … Errors 2 errors` (unhandled `Connection terminated unexpectedly`), web 5 failed / 7 passed |

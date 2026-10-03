@@ -9,7 +9,7 @@ ported onto main (`port/F-srv6`). Checklist: prompts/REVIEW-PROMPT.md.
 
 ### H1 — no host proof yet (checklist 2)
 Fake-VPP (`coretest/srv6.go`) agent tests, API e2e against PostgreSQL with the fake agent, and screenshots of the
-production build against the real vrx-api with a fake agent socket. `srv6_integration_test.go` and
+production build against the real ngfw-api with a fake agent socket. `srv6_integration_test.go` and
 `test/topology/srv6/stack.sh` are written but did not run (host runs were closed until TD-25; a cloud session has no
 VPP). **Resolution:** follow-up row `F-srv6-host` (ready, deps F-srv6): the "Pending host steps" of F-srv6.md with
 NRestarts before/after and the real-agent screenshots.

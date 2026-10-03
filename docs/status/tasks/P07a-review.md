@@ -11,8 +11,8 @@ Reviewer: independent review agent · 2026-09-24 · branch `task/P07a` @ `22febb
 | 2 | Real verification (VPP) | N/A. This is a UI-only task with no server calls. The unit tests are real: the WS client is tested against a real `ws` server on loopback, and the form, grid and shell are tested in jsdom. |
 | 3 | Restart safety | N/A (no VPP objects). |
 | 4 | VPP API provenance | N/A. `binapi/` and `tools/binapi-gen.sh` are untouched. |
-| 5 | Shared-host rules | OK. Vite dev and preview bind `127.0.0.1` on `VRX_WEB_PORT` with `strictPort`, and the proxy goes to `VRX_HTTP_PORT`. The status file says the preview server was killed by PID. |
-| 6 | Security | OK. No `exec`, `child_process`, `dangerouslySetInnerHTML`, `eval` or `new Function`. localStorage holds only UI settings. The test PSK uses the `VRX_TEST_PSK_<id>` convention. |
+| 5 | Shared-host rules | OK. Vite dev and preview bind `127.0.0.1` on `NGFW_WEB_PORT` with `strictPort`, and the proxy goes to `NGFW_HTTP_PORT`. The status file says the preview server was killed by PID. |
+| 6 | Security | OK. No `exec`, `child_process`, `dangerouslySetInnerHTML`, `eval` or `new Function`. localStorage holds only UI settings. The test PSK uses the `NGFW_TEST_PSK_<id>` convention. |
 | 7 | Transaction semantics | N/A. |
 | 8 | UI honesty | **Partial.** Unbuilt screens show "Not yet available" and no data. The Dashboard shows the real `/api/v1/health` card. No TODO, mock or stub markers. **But:** there is no screenshot in `P07a.md` (the browser check is described in text only), and the synthetic-data demo pages ship to every user (M1, M2). |
 | 9 | Scope creep | **Some** (see M1). `/dev/data-grid` (20 000 synthetic interface-like rows), `/dev/stream` and a "Developer" nav group are shipped in production builds. The prompt asked only for "Storybook or a `/dev/schema-form` route". The extra widgets (slider, chips, json, radio, textarea, password), the `contrast()` helper and the bundle-budget script are small and justified. |
@@ -26,7 +26,7 @@ Reviewer: independent review agent · 2026-09-24 · branch `task/P07a` @ `22febb
 **M1 — Developer demo routes, including 20 000 synthetic "interface" rows, ship to every user in production**
 `apps/web/src/nav/nav.ts:74-78`, `apps/web/src/router.tsx:29-31`, `apps/web/src/pages/dev/DataGridDemoPage.tsx:20-33`
 - Failure scenario: an operator on a production appliance opens the "Developer" nav group. They see a table of `demo-00001…` rows with up/down/degraded `StatusChip`s, MTUs and bit rates. It looks exactly like device data, and a warning banner is the only signal that it is not. The prompt asked only for `/dev/schema-form` (or Storybook). The data-grid and stream demos and the nav group are extra. D-P07a-7 decided this unilaterally, and it conflicts with "never ship a UI screen whose backend is stubbed".
-- Fix: gate the `dev` nav group and `/dev/*` routes behind `import.meta.env.DEV` or an explicit `VITE_VRX_DEV_ROUTES=1` build flag, so production builds have neither the routes nor the chunks. Otherwise, drop `/dev/data-grid` and `/dev/stream` and keep only `/dev/schema-form`. Mark D-P07a-7 for the manager's decision instead of treating it as taken.
+- Fix: gate the `dev` nav group and `/dev/*` routes behind `import.meta.env.DEV` or an explicit `VITE_NGFW_DEV_ROUTES=1` build flag, so production builds have neither the routes nor the chunks. Otherwise, drop `/dev/data-grid` and `/dev/stream` and keep only `/dev/schema-form`. Mark D-P07a-7 for the manager's decision instead of treating it as taken.
 
 **M2 — No screenshot in the status file (review check 8)**
 `docs/status/tasks/P07a.md` ("Built app checked in a browser" section)
@@ -91,7 +91,7 @@ Reviewer: independent review agent · 2026-09-24 · branch `task/P07a` @ `22febb
 
 ### Info
 - `pnpm-lock.yaml` is outside the owned paths; the change is unavoidable when adding deps. OK.
-- `createVrxTheme.ts:43` lists `Inter` and `Vazirmatn`, but neither is loaded, so `fa` falls back to system fonts. Bundle Vazirmatn or drop it from the stack.
+- `createNgfwTheme.ts:43` lists `Inter` and `Vazirmatn`, but neither is loaded, so `fa` falls back to system fonts. Bundle Vazirmatn or drop it from the stack.
 - `apps/web/src/schema/registry.ts` duplicates `generateSchemas()` (question 8). Re-export it from `@ngfw/schema` via a `contract/` branch later.
 - ui-kit strings live in TS resources (`packages/ui-kit/src/i18n/locales/*.ts`), not in `apps/web/src/locales/*.json`. 00-CONTEXT names the latter location. This is acceptable for a reusable package, but the manager should note it.
 - The "Tests actually run" requirement is met, but `tools/ci.sh` hides turbo output, so its log alone cannot distinguish cache hits from real runs. That is a manager tooling item, not P07a's.

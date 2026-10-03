@@ -2,7 +2,7 @@
 
 None of these blocks P06; each has a default that is implemented. Numbered for the LOG.
 
-1. **State RPCs missing in the agent contract (routes, neighbours).** `vrx.v1.Dataplane` has no FIB / IP-neighbour dump.
+1. **State RPCs missing in the agent contract (routes, neighbours).** `ngfw.v1.Dataplane` has no FIB / IP-neighbour dump.
    Implemented: `GET /api/v1/state/routes` pages the connected + static routes the agent *retrieves from VPP* for its
    owner (Retrieve of `interfaces` + `routing`); `GET /api/v1/state/neighbors` answers 501 with the reason. Proposal:
    an additive `contract/…` branch (owner P03b/P05) adding `rpc DumpRoutes(DumpRoutesRequest{vrf, prefix, page_token,
@@ -43,9 +43,9 @@ None of these blocks P06; each has a default that is implemented. Numbered for t
 
 8. **Agent integration e2e not executed.** `apps/api/test/integration/agent.int.test.ts` implements the prompt's
    real-agent scenario (loop1xx + 10.<slot>.101.0/24; commit → Retrieve + `vppctl show int addr`; rollback; confirm=5
-   revert; overlap 400; readonly 403) and skips without `VRX_INTEGRATION=1` + an agent binary (`VRX_AGENT_BIN` or
-   `apps/agent/bin/vrx-agent`). P05's CLI flags are unknown to P06: the test passes `VRX_OWNER`/`VRX_AGENT_SOCKET` in
-   the environment and `VRX_AGENT_ARGS` verbatim. Please run it once P05 merges (or tell P05 which env names to honour).
+   revert; overlap 400; readonly 403) and skips without `NGFW_INTEGRATION=1` + an agent binary (`NGFW_AGENT_BIN` or
+   `apps/agent/bin/ngfw-agent`). P05's CLI flags are unknown to P06: the test passes `NGFW_OWNER`/`NGFW_AGENT_SOCKET` in
+   the environment and `NGFW_AGENT_ARGS` verbatim. Please run it once P05 merges (or tell P05 which env names to honour).
 
 ## After the review fix round
 - #4 (operators and secrets) is answered by D-P06-13: secret writes are admin-only now.

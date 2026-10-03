@@ -17,7 +17,7 @@ ok: gitleaks — scanned ~631132 bytes (631.13 KB) in 891ms no leaks found
   mode quick · wall time 3m31s · logs /root/ngfw-wt/logs/ci/DF-5-20260924-052112-3006936
 CI GATE PASSED                                    (matches the gate pasted in DF-5.md for c283f5e)
 
-$ eval "$(tools/lab env 4)"; VRX_INTEGRATION=1 go test -count=1 -run OnHost -v ./internal/descriptors/<pkg>/
+$ eval "$(tools/lab env 4)"; NGFW_INTEGRATION=1 go test -count=1 -run OnHost -v ./internal/descriptors/<pkg>/
 ipsec     exit=0 NRestarts 5 -> 5
   charon sweep (charon running): SPDs [], policies 1, SAs [4501], in use []
   charon sweep (charon stopped): SPDs [4501], policies 0, SAs [4502], in use []
@@ -28,13 +28,13 @@ ikev2     exit=0 NRestarts 5 -> 5   --- PASS: TestIkev2OnHost (0.31s)  --- SKIP:
 wireguard exit=0 NRestarts 5 -> 5   --- PASS: TestWireguardOnHost (0.55s)
 ```
 
-VRX_DF5_GLOBALS was not set. No packets were sent. VPP was not restarted. Afterwards `show ipsec sa` and `show ipsec spd` were empty.
+NGFW_DF5_GLOBALS was not set. No packets were sent. VPP was not restarted. Afterwards `show ipsec sa` and `show ipsec spd` were empty.
 
 **Leak check on my own host-test output.**
 
 * There are 8 references: ipsec 5 `hmac:`, ikev2 2 `hmac:`, wireguard 1 `hmac:` and 1 `x25519:`.
-* There are 0 `sha256:` references and 0 `VRX_TEST_PSK` strings.
-* The plain `sha256` of every DF-5 test placeholder (`VRX_TEST_PSK_DF5`, `_ikev2`, `_ikev2_b`, `_int`, `_wg_`, `_0123…`,
+* There are 0 `sha256:` references and 0 `NGFW_TEST_PSK` strings.
+* The plain `sha256` of every DF-5 test placeholder (`NGFW_TEST_PSK_DF5`, `_ikev2`, `_ikev2_b`, `_int`, `_wg_`, `_0123…`,
   `_fingerprint_key`, `_scheduler_plant`) occurs 0 times, in the host logs and in the CI logs.
 * Every 64-hex or base64-32 string in the output is either an `hmac:` value or a WireGuard *public* key (the peer key and the
   `x25519:` reference).
@@ -59,7 +59,7 @@ VRX_DF5_GLOBALS was not set. No packets were sent. VPP was not restarted. Afterw
 * **Keyed references.** `vpn.Keyer` computes HMAC-SHA256 references (`hmac:<hex>`). The keyer is injected with `WithKeyer` in
   ipsec, ikev2 and wireguard. There is no package global. Every Retrieve path takes the keyer and refuses to run without one
   (`ErrNoKeyer`).
-* **Old logs and plain SHA-256.** The old logs had `sha256(VRX_TEST_PSK_DF5_ikev2)` in them. The new host output has 0
+* **Old logs and plain SHA-256.** The old logs had `sha256(NGFW_TEST_PSK_DF5_ikev2)` in them. The new host output has 0
   occurrences (see "What I ran").
 * **Formatting and logging.** The `Keyer` and `MapResolver` types format as fixed strings and implement `LogValuer`. The key
   sits behind a pointer.
@@ -281,7 +281,7 @@ All of these need write access to the state dir, so they are defence in depth.
 ### N7 — LOW: pre-fix logs with plain SHA-256 of test PSKs remain on disk
 
 `/root/ngfw-wt/logs/DF-5-integration.log` (00:48) and `DF-5-ipsec-integration.log` (Sep 23 16:03) have mode 0644. They
-contain `sha256(VRX_TEST_PSK_DF5)`, `sha256(VRX_TEST_PSK_DF5_ikev2)` and `sha256(VRX_TEST_PSK_DF5_int)`. These are test
+contain `sha256(NGFW_TEST_PSK_DF5)`, `sha256(NGFW_TEST_PSK_DF5_ikev2)` and `sha256(NGFW_TEST_PSK_DF5_int)`. These are test
 placeholders only, so nothing real leaks. Delete or regenerate the files so the evidence set matches D-096.
 
 ### N8 — LOW: `Sweep(ctx, token, nil)` trusts the caller that charon is stopped

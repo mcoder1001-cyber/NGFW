@@ -20,7 +20,7 @@ No host runs (per instructions); unit gate re-run with main's `tools/ci.sh` copy
 | 2 | real verification | OK on the pasted evidence. `TestNeighborsRaHost` runs on the host VPP with prefixed loopbacks and no packets (learned entries are injected with `ip_neighbor_add_del` flags NONE). It asserts on agent Retrieve, `show ip neighbors`, `show ip6 interface`, `show arp proxy`, the `arp-proxy` feature and `/state/drift`. `TestNeighborWatchOnHost` checks `show ip neighbor-watcher` (our pid on our loopback, never ~0). I did not re-run host tests |
 | 3 | restart safety | OK: log excerpt pasted (agent stopped, dependents deleted via binapi, `created:6` back 0.25 s after start). No new object type (DF-2 descriptors, all with Retrieve). NRestarts 1 → 1 (the 1 predates the task, Q7) |
 | 4 | VPP API provenance | OK: only `binapi/{ip_neighbor,interface,ip6_nd,ip6_dad,arp}`. `binapi/` and `tools/binapi-gen.sh` are untouched |
-| 5 | shared host | OK: w9 prefix, table range from `SlotIDRange()` (9000–9999), `VRX_GLOBALS_OWNER=0`, `flock -s` only during the run, NRestarts checked, cleanup pasted. Never ~0: the new code refuses `sw_if_index` 0 and ~0 for dump/subscribe/flush, and never calls `ip_neighbor_flush`. VPP source confirms `ip_neighbor_watch` maps 0 to ~0 (`ip_neighbor_watch.c:109`) and that `ip_neighbor_flush` is `ip_neighbor_del_all`, which deletes statics too (`ip_neighbor_api.c:368`, `ip_neighbor.c:689`). D-128: no `show trace` / `trace add` / `clear trace` anywhere in the branch. D-126: no classify sweep, no 802.1ad, no packets |
+| 5 | shared host | OK: w9 prefix, table range from `SlotIDRange()` (9000–9999), `NGFW_GLOBALS_OWNER=0`, `flock -s` only during the run, NRestarts checked, cleanup pasted. Never ~0: the new code refuses `sw_if_index` 0 and ~0 for dump/subscribe/flush, and never calls `ip_neighbor_flush`. VPP source confirms `ip_neighbor_watch` maps 0 to ~0 (`ip_neighbor_watch.c:109`) and that `ip_neighbor_flush` is `ip_neighbor_del_all`, which deletes statics too (`ip_neighbor_api.c:368`, `ip_neighbor.c:689`). D-128: no `show trace` / `trace add` / `clear trace` anywhere in the branch. D-126: no classify sweep, no 802.1ad, no packets |
 | 6 | security | OK: no `exec`/`child_process` in product code (only in the `test/topology` harness, with fixed args). Authz: global `AuthGuard` (GET = readonly, POST `/actions/arp-flush` = operator). Audit: resource `arp-flush/<if\|*>`, before/after, failure rows included (pasted). Body is `strictObject` with a regex-bounded interface name. No secrets |
 | 7 | transaction semantics | OK: rollback evidence (Retrieve, then vppctl empty). A validation failure leaves nothing (`TestNeighborsRaValidationFailureRollsBack`). Globals are projected only for the owner, and slot agents get `agent.unsupported-field` warnings |
 | 8 | UI honesty | OK: real endpoints, screenshots en+fa (table, flush confirm, flush done, drawer group), no TODO/mock/stub in `apps/web/src/domains/routing/neighbors-ra` |
@@ -34,7 +34,7 @@ No host runs (per instructions); unit gate re-run with main's `tools/ci.sh` copy
   `Register` exactly once: `ipneighbor`, `ip6nd` (ra-config + ra-prefix) and `arp` (range + interface). Every call gets
   `df2.WithClaims(w.KeyedClaims("acl"))`, which is the persisted store (D-080; §4 checklist line satisfied). No other
   package registers these families, and there is no new descriptor or claim store. `RegisterGlobals` is called only
-  when `Env.GlobalsOwner` is set. `RegisterProxyNd` is called only with `VRX_DF2_PROXY_ND=1`, and the UI labels it
+  when `Env.GlobalsOwner` is set. `RegisterProxyNd` is called only with `NGFW_DF2_PROXY_ND=1`, and the UI labels it
   "experimental". The `Domains` lines put one descriptor in one domain each: RA and proxy → interfaces, ranges → vrfs,
   statics/limits/DAD → routing. `NormalizeRaConfig` and `NormalizeRaPrefix` are used as they are (D-104).
 - **DF-2 ip-neighbor Retrieve fix.** Correct and complete. `neighbor.go:142-196` dumps
@@ -81,7 +81,7 @@ No host runs (per instructions); unit gate re-run with main's `tools/ci.sh` copy
   status). The fix belongs to whoever owns the Action dispatch in the fake: F-vrf-static-ecmp, or the manager in the
   anchor commit. Then add an `arp_flush` handler in `features/neighbors-ra/fake.ts` under the P5 anchor, and tighten
   `test/e2e/neighbors-ra.e2e.test.ts:205` (`expect([501, 504])`) to the real success path. Until then that e2e case also
-  costs `VRX_AGENT_TIMEOUT_MS` of wall time per run. Not a merge blocker: the success path is unit-tested with a stub
+  costs `NGFW_AGENT_TIMEOUT_MS` of wall time per run. Not a merge blocker: the success path is unit-tested with a stub
   client and proven on the host agent.
 
 ## Findings (ranked)
@@ -174,9 +174,9 @@ CI GATE FAILED — apply-startup fake-host harness failed (398 passed …)
 ```
 **Assessment: green for this feature.** The only failing step is `do_deploy_vpp`, which main added after the branch's
 base. The branch does not touch `deploy/vpp` (`git diff df67a8e task/F-neighbors-ra -- deploy/vpp` is empty), and its
-old-base `deploy/vpp/test-apply-startup.sh` has no `VRX_TEST_SHARD`/`VRX_TEST_ONLY` support (0 occurrences; main's
+old-base `deploy/vpp/test-apply-startup.sh` has no `NGFW_TEST_SHARD`/`NGFW_TEST_ONLY` support (0 occurrences; main's
 copy has 5). Main's step therefore ran the **whole** harness 4× in parallel: scenario 24 has second-scale timeouts and
-failed under that load. The "serial rerun" then ran everything again, ignoring `VRX_TEST_ONLY`, and died in scenario 26.
+failed under that load. The "serial rerun" then ran everything again, ignoring `NGFW_TEST_ONLY`, and died in scenario 26.
 This goes away when the feature diff is placed on the new base (merge note). Every step the worker pasted matches this
 run: 30/30 turbo, golangci 0 issues, 91 ok / 0 FAIL, cli 7 packages, the topology module. The worker's pasted run
 used the branch's `ci.sh` with the D-127 hunk, which has no deploy/vpp step (Q8). The manager re-runs CI on the

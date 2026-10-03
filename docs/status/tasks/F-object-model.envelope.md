@@ -5,14 +5,14 @@ prompt: prompts/features/F-object-model.md   (template: prompts/FEATURE-TEMPLATE
 scope: agent library `internal/objects` (Expand/ExpandService, range→CIDR, v4/v6 split, schedules, 10 000-entry cap), the agent-side FQDN resolver with persisted last-good state, `objects` as an implemented agent-state domain (no VPP objects), a read-only `FqdnObjectState` RPC, API FQDN state + where-used, the Objects page + an exported ObjectPicker widget, docs. The config schema, its semantic rules and `ObjectsConfig` already exist — use, do not rebuild.
 merged deps you can rely on: P08
   - P08: subsystems.Register/Domains + Wiring stores, desired/ (Sink, pointers), projection.go, InterfaceState state-RPC pattern, SchemaForm screen pattern (`widgets` prop for custom widgets), test/topology/interfaces
-  - through P08: P02b `packages/schema/src/domains/objects.ts` + `semantic/objects.ts` (rules `objects.names-disjoint`, `.tags-exist`, `.address-range-valid`, `.address-group-members`, `.service-group-members`, `.service-valid`, `.schedule-valid`, `.zone-interfaces`) and `semantic/acl.ts` `acl.rule-references`; `ObjectsConfig` proto; D-078 `vrx.model.acl.v1`; DF-4 `descriptors/acl/spec.go` (the shape F-acl will expand into); RF-3 unbound renderer (reference only)
+  - through P08: P02b `packages/schema/src/domains/objects.ts` + `semantic/objects.ts` (rules `objects.names-disjoint`, `.tags-exist`, `.address-range-valid`, `.address-group-members`, `.service-group-members`, `.service-valid`, `.schedule-valid`, `.zone-interfaces`) and `semantic/acl.ts` `acl.rule-references`; `ObjectsConfig` proto; D-078 `ngfw.model.acl.v1`; DF-4 `descriptors/acl/spec.go` (the shape F-acl will expand into); RF-3 unbound renderer (reference only)
   - also on main: TD-3 (V19 sanitizer), TD-2 (API auth/users follow-ups)
 downstream: F-acl and F-host-acl-nftables depend on this task (board) — keep the exported Go API of `internal/objects` small, documented (docs/agent/objects.md) and stable, and export the web `ObjectPicker` from your directory; they wire the re-projection trigger and the picker on their side
 read first: prompts/features/F-object-model.md · docs/status/wave-A-hotspots.md (§0 rules, §2 numbers, A1 A2 C1–C7 P1 P4 P5 P6 W1–W3) · docs/contracts/schema-nat-objects-acl.md · docs/status/vertical-slice.md · docs/decisions/LOG.md D-003, D-062, D-063, D-073, D-078, D-094, D-104
-slot: 3 → VRX_SLOT=3 VRX_TEST_PREFIX=w3 VRX_HTTP_PORT=3000+100·3 VRX_WEB_PORT=5000+100·3 VRX_METRICS_PORT=9100+10·3+1 VRX_AGENT_SOCKET=/run/vrx-test/w3/agent.sock VRX_PG_DATABASE=vrx_w3 VRX_VALKEY_DB=3 VRX_VPP_TABLE_BASE=3000 VRX_LAB_LOCK=/run/lock/vrx-lab.lock
+slot: 3 → NGFW_SLOT=3 NGFW_TEST_PREFIX=w3 NGFW_HTTP_PORT=3000+100·3 NGFW_WEB_PORT=5000+100·3 NGFW_METRICS_PORT=9100+10·3+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w3/agent.sock NGFW_PG_DATABASE=ngfw_w3 NGFW_VALKEY_DB=3 NGFW_VPP_TABLE_BASE=3000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env 3)"`
   - object addresses in fixtures: documentation ranges or 10.3.0.0/16; FQDN names under a test-only zone served by your in-process responder
-  - test agents run with VRX_GLOBALS_OWNER=0 (D-071)
+  - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)
   - slots 1–11 only; 12 is CI
 daemon-owner: none (the resolver is Go code in the agent; it never configures, starts or reloads unbound, systemd-resolved or any other daemon)
 obligations:
@@ -35,7 +35,7 @@ shared hotspots (append-only, conflicts resolved by the manager at merge):
   - A1 apps/agent/internal/subsystems/subsystems.go: `Domains["objects"]` (your descriptor names) + one call into your registration/lifecycle helper
   - A2 apps/agent/internal/agent/projection.go: one call in project(), one in assemble()
   - C1/C2/C3 packages/schema: only if you add a config field (e.g. `fqdn.refreshSec`, `fqdn.maxAddresses`) or a missing rule — one key line / one spread line / one export line · C4 new fixture files only
-  - C5 packages/proto/vrx/v1/dataplane.proto: `FqdnObjectState` under the service anchor; new messages in a `// ----- F-object-model -----` section at the end
+  - C5 packages/proto/ngfw/v1/dataplane.proto: `FqdnObjectState` under the service anchor; new messages in a `// ----- F-object-model -----` section at the end
   - allocated numbers (wave-A-hotspots §2, a merge blocker if reused): **EventKind 11 `EVENT_KIND_FQDN_CHANGED`** (only if the change is published to the API) · ObjectsConfig 8–9 only if you add a config field; nothing else
   - C6 docs/contracts/proto.md: `### F-object-model: FqdnObjectState` · C7 generated, regenerated and never hand-edited: apps/agent/gen/**, packages/proto/gen/ts/**, packages/api-client/src/generated/**, apps/cli/internal/api/operations_gen.go, docs/user/cli/reference.md (`packages/proto/gen.sh`, `pnpm gen`, `make -C apps/cli gen docs`)
   - P1 apps/api/src/app.module.ts · P4 apps/api/src/agent/agent.client.ts (`fqdnObjectState`) · P5 apps/api/src/testing/fake-agent.ts (UNIMPLEMENTED stub under the anchor on the contract commit) · P6 apps/api/src/infra/bus.ts `TOPICS` + apps/api/src/telemetry/relay.service.ts: topic `objects.events` + its EventKind case (only with EventKind 11)
@@ -58,8 +58,8 @@ coordination: F-acl and F-host-acl-nftables start after you merge (board deps) a
 evidence: Playwright is not installed. Take the screenshots (en + fa/RTL: each tab, where-used drawer, FQDN resolution column) with the headless Chrome approach from P07a/P07b/P08 (`test/topology/interfaces/shots_test.go`, kept outside the product code), and say so.
 time box: 15 h — when exceeded: stop, commit WIP, write docs/status/tasks/F-object-model.md with what is left
 WIP: commit at least every 45 min; keep docs/status/tasks/F-object-model-wip.md current
-CI: `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/vrx/agent.sock belong to the running product stack (tools/app) — never touch them
+CI: `TMPDIR=/tmp/g-w3 tools/ci.sh --base main` — short TMPDIR (unix socket paths ≤ 108 chars); no host-wide CI lock: golangci-lint serializes itself since main fc0fe68 (D-106 rejected serialising whole gates). Ports 3000/8080/9101 and /run/ngfw/agent.sock belong to the running product stack (tools/app) — never touch them
 finish: `tools/ci.sh --base main` green in the worktree · docs/status/tasks/F-object-model.md with pasted real output · everything committed · final message = 10-line summary (branch, last commit, CI result, evidence, open questions, decisions taken with options)
-cleanup: stop every process you started (API/agent/vite/DNS responder), by PID · lab lock released · vrx_w3 dropped · your slot's agent state dir removed · dist/ and apps/agent/bin removed
+cleanup: stop every process you started (API/agent/vite/DNS responder), by PID · lab lock released · ngfw_w3 dropped · your slot's agent state dir removed · dist/ and apps/agent/bin removed
 questions: docs/status/tasks/F-object-model-questions.md — write and keep going; never wait for a human
 never: merge · restart/kill VPP · Docker · pkill · secrets in files · edit files you do not own

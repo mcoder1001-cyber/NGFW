@@ -1,7 +1,7 @@
 # F-vlan-qinq — WIP log
 
 Branch `task/F-vlan-qinq` (speculative on `task/W-seed`, D-114/D-120; `task/W-seed`@df67a8e merged at 18:12 on the
-manager's A1 instruction), slot 5 (`w5`, API 3500, web 5500, metrics 9151, DB `vrx_w5`, rig 10.5.{1,2}.0/24). Started 17:27.
+manager's A1 instruction), slot 5 (`w5`, API 3500, web 5500, metrics 9151, DB `ngfw_w5`, rig 10.5.{1,2}.0/24). Started 17:27.
 
 | time | step | state |
 |---|---|---|

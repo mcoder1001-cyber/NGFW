@@ -5,8 +5,8 @@ Interfaces → **LLDP** (`/interfaces/lldp`), Interfaces → **Port mirroring** 
 **Delay simulator (lab)** (`/tools/nsim`). **REST:** configuration through the generic pointer routes
 (`/api/v1/config/interfaces/<if>/gso|mirror`, `/api/v1/config/services/lldp`, `/api/v1/config/services/nsim`); live
 state `GET /api/v1/state/lldp/neighbors?page&pageSize` and, for GSO and mirror sessions, the `config` of each item of
-`GET /api/v1/state/interfaces`. **CLI:** `vrx set|merge|delete interfaces <if> gso|mirror …`,
-`vrx set|merge services lldp …`, `vrx set|merge|delete services nsim …` (no `show` command for the LLDP table yet — use
+`GET /api/v1/state/interfaces`. **CLI:** `ngfw set|merge|delete interfaces <if> gso|mirror …`,
+`ngfw set|merge services lldp …`, `ngfw set|merge|delete services nsim …` (no `show` command for the LLDP table yet — use
 the REST route).
 
 | what | configuration | VPP |
@@ -54,8 +54,8 @@ interface that cannot segment them itself. The switch is in the interface drawer
 Checksum/TSO offloads of DPDK NICs are start-up settings, not this switch.
 
 ```
-vrx set interfaces loop720 gso true
-vrx commit comment "gso"
+ngfw set interfaces loop720 gso true
+ngfw commit comment "gso"
 ```
 
 `vppctl show interface features loop720` lists `gso-ip4` under `ip4-output` (and the `gso-l2-*` nodes).
@@ -78,8 +78,8 @@ The second session is **ERSPAN**: `gre7` is a GRE tunnel of type `erspan` (`tunn
 "erspan", sessionId: 1, src, dst}`), so the copies travel encapsulated to the collector at the tunnel's destination.
 
 ```
-vrx merge interfaces loop720 '{"mirror":[{"destination":"loop721"},{"destination":"gre7","direction":"rx"}]}'
-vrx delete interfaces loop720 mirror
+ngfw merge interfaces loop720 '{"mirror":[{"destination":"loop721"},{"destination":"gre7","direction":"rx"}]}'
+ngfw delete interfaces loop720 mirror
 ```
 
 `vppctl show interface span` shows the sessions:
@@ -96,13 +96,13 @@ never relies on VPP's cleanup).
 ## LLDP
 
 ```json
-{ "services": { "lldp": { "enabled": true, "systemName": "vrx-a", "txHold": 4, "txIntervalSec": 30,
+{ "services": { "lldp": { "enabled": true, "systemName": "ngfw-a", "txHold": 4, "txIntervalSec": 30,
   "interfaces": [ { "interface": "TenGigabitEthernet0/0/0", "portDescription": "uplink", "mgmtIpv4": "192.0.2.1" } ] } } }
 ```
 
 ```
-vrx merge services lldp '{"enabled":true,"interfaces":[{"interface":"TenGigabitEthernet0/0/0","portDescription":"uplink"}]}'
-vrx commit comment "lldp"
+ngfw merge services lldp '{"enabled":true,"interfaces":[{"interface":"TenGigabitEthernet0/0/0","portDescription":"uplink"}]}'
+ngfw commit comment "lldp"
 ```
 
 - `systemName`, `txHold`, `txIntervalSec` are VPP-wide: only the product agent that owns the VPP-global settings applies
@@ -128,7 +128,7 @@ interfaces — for lab tests of timeouts, retransmission and VPN behaviour, **no
 default**:
 
 - It is VPP-wide (one model, one cross-connect pair), so only the agent that owns the VPP-global settings applies it,
-  and only with the lab switch **`VRX_NSIM=lab`** in the environment of the agent and of the API. Without it the API
+  and only with the lab switch **`NGFW_NSIM=lab`** in the environment of the agent and of the API. Without it the API
   refuses a commit (or a rollback) that carries `services.nsim` with **409** (pointer `/services/nsim`) and records
   the attempt in the audit log (failure, 409, reason `nsim-disabled`), and an agent reports it as not applied.
 - **Configuring it keeps VPP's main thread polling (one busy core) until VPP restarts** — VPP sets the simulator's
@@ -137,7 +137,7 @@ default**:
 - On a VPP with worker threads, VPP gives the main thread no scheduler wheel unless startup.conf carries
   `nsim { poll-main-thread }`, and a frame the main thread sends through the simulator (a ping from the API, other
   control traffic) would then crash VPP. The agent refuses nsim on a VPP with workers unless the operator confirms that
-  setting with `VRX_NSIM_POLL_MAIN_THREAD=1`.
+  setting with `NGFW_NSIM_POLL_MAIN_THREAD=1`.
 - The model is bounded (at most 2^20 scheduler slots, 32 MiB per thread); VPP would crash on a failed allocation, so
   both the API and the agent refuse more.
 
@@ -147,8 +147,8 @@ default**:
 ```
 
 ```
-vrx merge services nsim '{"delayMs":50,"bandwidthMbps":100,"crossConnect":{"a":"TenGigabitEthernet0/0/3","b":"TenGigabitEthernet0/0/4"}}'
-vrx delete services nsim
+ngfw merge services nsim '{"delayMs":50,"bandwidthMbps":100,"crossConnect":{"a":"TenGigabitEthernet0/0/3","b":"TenGigabitEthernet0/0/4"}}'
+ngfw delete services nsim
 ```
 
 `vppctl show nsim` shows the model and the cross-connect. Run it in a lab, ideally shortly before a planned VPP restart.

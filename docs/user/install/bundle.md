@@ -160,6 +160,19 @@ channel. That expected manifest covers runtime artifacts, not the retained
 nonshipping VPP payloads. Export does not add publisher authentication or prove
 that those excluded payloads form an authenticated release.
 
+The JSON export report includes `sha256` and `archive_bytes` for the complete
+saved tar, including tar headers, padding and the retained nonshipping VPP
+archives. `bytes` remains the sum of member payload sizes. Preserve this report
+through the same trusted channel used for the expected manifest; a report copied
+with an unknown tar cannot authenticate its publisher. Before extraction, compare
+`sha256sum /path/to/vrx-delivery.tar` and `stat -c %s /path/to/vrx-delivery.tar`
+against the trusted report. Reject a mismatch before opening the archive.
+
+برای انتقال، مقدار `sha256` و اندازهٔ `archive_bytes` در گزارش خروجی را از مسیر
+مطمئن نگه دارید. پیش از استخراج، هش و اندازهٔ فایل منتقل‌شده را با گزارش مقایسه
+کنید؛ در صورت اختلاف، فایل را استخراج یا نصب نکنید. گزارش همراه فایل ناشناس،
+اصالت ناشر را ثابت نمی‌کند.
+
 Transport the tar and keep the trusted expected manifest separately. Restore
 only an export you trust into a new empty directory with a standard tar tool,
 then rerun `verify.py --manifest` or the default `install.py` preflight against

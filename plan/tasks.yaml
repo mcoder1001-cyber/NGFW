@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-02'
+updated: '2026-10-03'
 tasks:
 - id: P01
   title: Monorepo scaffold
@@ -1160,9 +1160,9 @@ tasks:
   - P08
   - W-seed-BC
   - WEB-2
-  priority: 3
+  priority: 1
   est_hours: 8
-  state: running
+  state: merged
   parked_on: ''
   wbs:
   - D0.14
@@ -1175,7 +1175,7 @@ tasks:
   started: '2026-09-27'
   finished: '2026-09-27'
   notes: 'Added 2026-09-26: product owner chose option 1 of PENDING-system-identity (now DEC-system-identity, D-152). Removes the "soon" chip from the System nav entry. | Integrated partial scope, remaining
-    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build'
+    code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-02 recovery: assigned identity_build | 2026-10-03 board correction: code merged in PR #70 (30fccd767e1e25a247659dc24808a2587d69c5e5); appliance/browser/restart acceptance NOT RUN and owner-deferred.'
 - id: F-dataplane-ui
   title: 'Dataplane screen: VPP plugins, NIC queues/descriptors, workers/corelist, hugepages — startup.conf preview + gated apply'
   prompt: prompts/features/F-dataplane-ui.md
@@ -1212,7 +1212,7 @@ tasks:
   - WEB-2
   - TD-10b
   - F-unbound-chrony-syslog
-  priority: 4
+  priority: 1
   est_hours: 6
   state: running
   parked_on: ''
@@ -1264,7 +1264,7 @@ tasks:
   - DF-5
   - W-seed
   - TD-8
-  priority: 4
+  priority: 1
   est_hours: 16
   state: running
   parked_on: ''
@@ -2068,7 +2068,7 @@ tasks:
   - W-seed-BC
   - TD-9
   - TD-10b
-  priority: 5
+  priority: 1
   est_hours: 20
   state: running
   parked_on: ''
@@ -3168,7 +3168,7 @@ tasks:
   stage: S5
   deps:
   - P10
-  priority: 6
+  priority: 1
   est_hours: 3.5
   state: todo
   parked_on: ''
@@ -3747,7 +3747,7 @@ tasks:
   - F-kea-dhcp-relay
   - F-nat44-ed-sessions
   - F-host-acl-nftables
-  priority: 3
+  priority: 1
   est_hours: 10
   state: running
   parked_on: ''
@@ -3912,10 +3912,10 @@ tasks:
   parked_on: ''
   branch: task/F-dashboard-prom-alarms-host-codex
   worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-dashboard
-  owner: PR58 pending hosted gate
+  owner: merged PR62
   started: '2026-10-01T20:33:27.076593+00:00'
   finished: ''
-  state: running
+  state: merged
   wbs: []
   prompt: ''
   id: F-dashboard-prom-alarms-host
@@ -3930,7 +3930,7 @@ tasks:
     re-evaluation without duplicate notifications; dashboard screenshot against the real endpoint'
   files_owned: docs/status/tasks/F-dashboard-prom-alarms*
   notes: 'follow-up of F-dashboard-prom-alarms (cloud session had no VPP/Prometheus); see docs/status/tasks/F-dashboard-prom-alarms.md section Not done here | 2026-10-01: cloud implementation started by
-    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate'
+    owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned PR58 pending hosted gate | 2026-10-03 board correction: code integrated in PR #62 (c76774e8d2e04abee8ea7a301e64acbb3f794373); PR #58 closed unmerged and superseded; live VPP/browser/restart acceptance NOT RUN and owner-deferred.'
 - template: ''
   parked_on: ''
   branch: task/F-multiwan-host-codex

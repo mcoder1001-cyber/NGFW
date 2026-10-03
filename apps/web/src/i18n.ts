@@ -42,6 +42,8 @@ import faTunnels from './locales/fa/tunnels.json';
 import enHa from './locales/en/ha.json';
 import faHa from './locales/fa/ha.json';
 // wave-BC: F-pki
+import enPkiInventory from './locales/en/pki-inventory.json';
+import faPkiInventory from './locales/fa/pki-inventory.json';
 // wave-BC: F-ikev2-native
 // wave-BC: F-ospf
 // wave-BC: F-isis-rip
@@ -194,6 +196,7 @@ export const NAMESPACES = [
   // wave-BC: F-vrrp-config-sync
   'ha',
   // wave-BC: F-pki
+  'pkiInventory',
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
@@ -303,6 +306,7 @@ const en = {
   // wave-BC: F-vrrp-config-sync
   ha: enHa,
   // wave-BC: F-pki
+  pkiInventory: enPkiInventory,
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
@@ -409,6 +413,7 @@ const fa = {
   // wave-BC: F-vrrp-config-sync
   ha: faHa,
   // wave-BC: F-pki
+  pkiInventory: faPkiInventory,
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip

@@ -192,11 +192,11 @@ module vrx-vpn {
         }
         leaf ikeVersion {
           type union {
-            type decimal64 {
-              fraction-digits 6;
+            type uint32 {
+              range "1";
             }
-            type decimal64 {
-              fraction-digits 6;
+            type uint32 {
+              range "2";
             }
           }
           default "2";
@@ -615,6 +615,81 @@ module vrx-vpn {
             length "0..2048";
           }
         }
+        container keySpec {
+          description "How the CA key pair was generated (POST /api/v1/actions/pki/ca)";
+          leaf type {
+            type enumeration {
+              enum "ecdsa";
+              enum "rsa";
+            }
+            default "ecdsa";
+          }
+          leaf curve {
+            type enumeration {
+              enum "p256";
+              enum "p384";
+            }
+            description "ECDSA only (default p256)";
+          }
+          leaf bits {
+            type union {
+              type uint32 {
+                range "2048";
+              }
+              type uint32 {
+                range "3072";
+              }
+              type uint32 {
+                range "4096";
+              }
+            }
+            description "RSA only (default 2048)";
+          }
+        }
+        container issued {
+          description "Recorded by the PKI actions";
+          leaf subject {
+            type string {
+              length "1..1024";
+            }
+            mandatory true;
+          }
+          leaf issuer {
+            type string {
+              length "1..1024";
+            }
+            mandatory true;
+          }
+          leaf serial {
+            type string {
+              pattern "[0-9A-F]{2}(:[0-9A-F]{2}){0,31}";
+              length "0..95";
+            }
+            mandatory true;
+          }
+          leaf notBefore {
+            type string {
+              pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+            }
+            mandatory true;
+          }
+          leaf notAfter {
+            type string {
+              pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+            }
+            mandatory true;
+          }
+          leaf fingerprint {
+            type string {
+              pattern "[0-9A-F]{2}(:[0-9A-F]{2}){0,31}";
+              length "95..95";
+            }
+            mandatory true;
+          }
+          leaf ca {
+            type boolean;
+          }
+        }
       }
       list certificates {
         key "name";
@@ -682,6 +757,110 @@ module vrx-vpn {
             range "1..365";
           }
           default "30";
+        }
+        container csr {
+          description "Subject, SANs and key of the request (POST /api/v1/actions/pki/csr)";
+          leaf subject {
+            type string {
+              // pattern dropped: not XSD-expressible
+              length "4..1024";
+            }
+            mandatory true;
+          }
+          leaf-list san {
+            type union {
+              type union {
+                type string {
+                  pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+                }
+                type string {
+                  pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))";
+                }
+              }
+              type string {
+                pattern "([A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}";
+              }
+              type string {
+                pattern "(\\*\\.)?[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*";
+                length "1..253";
+              }
+            }
+            description "DNS names, IP addresses or e-mail addresses";
+          }
+          container keySpec {
+            leaf type {
+              type enumeration {
+                enum "ecdsa";
+                enum "rsa";
+              }
+              default "ecdsa";
+            }
+            leaf curve {
+              type enumeration {
+                enum "p256";
+                enum "p384";
+              }
+              description "ECDSA only (default p256)";
+            }
+            leaf bits {
+              type union {
+                type uint32 {
+                  range "2048";
+                }
+                type uint32 {
+                  range "3072";
+                }
+                type uint32 {
+                  range "4096";
+                }
+              }
+              description "RSA only (default 2048)";
+            }
+          }
+        }
+        container issued {
+          description "Recorded by the PKI actions";
+          leaf subject {
+            type string {
+              length "1..1024";
+            }
+            mandatory true;
+          }
+          leaf issuer {
+            type string {
+              length "1..1024";
+            }
+            mandatory true;
+          }
+          leaf serial {
+            type string {
+              pattern "[0-9A-F]{2}(:[0-9A-F]{2}){0,31}";
+              length "0..95";
+            }
+            mandatory true;
+          }
+          leaf notBefore {
+            type string {
+              pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+            }
+            mandatory true;
+          }
+          leaf notAfter {
+            type string {
+              pattern "((\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-((0[13578]|1[02])-(0[1-9]|[12]\\d|3[01])|(0[469]|11)-(0[1-9]|[12]\\d|30)|(02)-(0[1-9]|1\\d|2[0-8])))T(([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(\\.\\d+)?(Z|([+-]([01]\\d|2[0-3]):[0-5]\\d)))";
+            }
+            mandatory true;
+          }
+          leaf fingerprint {
+            type string {
+              pattern "[0-9A-F]{2}(:[0-9A-F]{2}){0,31}";
+              length "95..95";
+            }
+            mandatory true;
+          }
+          leaf ca {
+            type boolean;
+          }
         }
       }
       container hsm {

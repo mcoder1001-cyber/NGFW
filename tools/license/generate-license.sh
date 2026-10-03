@@ -20,6 +20,8 @@ CLI="${SCRIPT_DIR}/vrx-license.mjs"
 usage() {
   cat <<'HELP'
 Usage:
+  generate-license.sh                         # Generate a full-feature licence
+  generate-license.sh all [CUSTOMER [FILE]]    # Same, with optional name/path
   generate-license.sh init
   generate-license.sh api-env
   generate-license.sh builtin-public-key
@@ -35,10 +37,12 @@ Override with --key, --days, --expires, --features, --serial, --machine-id,
 --machine-id-hash, --id, --not-before, or repeated --limit name=integer.
 Keys and defaults can also be changed in the variables at the top of this file.
 Requires Bash and Node 22; uses the existing vrx-license.mjs signing implementation.
+The easy mode creates keys if missing, verifies the licence, and writes api.env
+next to it. All six features are enabled with no limits, valid for DEFAULT_DAYS.
 HELP
 }
 
-command="${1:-help}"
+command="${1:-all}"
 if (($#)); then shift; fi
 case "$command" in
   help|-h|--help) usage; exit 0 ;;
@@ -47,6 +51,52 @@ esac
 command -v node >/dev/null || { echo 'Node 22 is required.' >&2; exit 2; }
 
 case "$command" in
+  all)
+    (($# <= 2)) || { usage >&2; exit 2; }
+    customer="${1:-${VRX_LICENSE_CUSTOMER:-Local administrator}}"
+    license_file="${2:-${VRX_LICENSE_OUTPUT:-license.vrxlic}}"
+    env_file="${license_file}.api.env"
+    [[ ! -e "$license_file" && ! -e "$env_file" ]] || {
+      echo 'Output already exists. Choose a new path: all "Customer" new.vrxlic' >&2
+      exit 2
+    }
+    if [[ ! -e "$PRIVATE_KEY" && ! -e "$PUBLIC_KEY" ]]; then
+      # keygen writes these fixed filenames; custom paths must be supplied as a pair.
+      [[ "$PRIVATE_KEY" == "$KEY_DIR/vrx-license-signing.pem" && "$PUBLIC_KEY" == "$KEY_DIR/vrx-license-public.pem" ]] || {
+        echo 'Custom key paths require an existing private/public key pair.' >&2; exit 2;
+      }
+      node "$CLI" keygen --out-dir "$KEY_DIR"
+    fi
+    [[ -r "$PRIVATE_KEY" && -r "$PUBLIC_KEY" ]] || {
+      echo 'Both signing keys must exist and be readable. Check the key paths.' >&2; exit 2;
+    }
+    # Verify the pair before issuing; a mismatched public key would fail API acceptance.
+    node --input-type=module - "$PRIVATE_KEY" "$PUBLIC_KEY" <<'JS'
+import { readFileSync } from 'node:fs';
+import { createPrivateKey, createPublicKey } from 'node:crypto';
+const privateKey = createPrivateKey(readFileSync(process.argv[2]));
+const publicKey = createPublicKey(readFileSync(process.argv[3]));
+if (privateKey.asymmetricKeyType !== 'ed25519' ||
+    !createPublicKey(privateKey).export({ type: 'spki', format: 'der' })
+      .equals(publicKey.export({ type: 'spki', format: 'der' }))) {
+  console.error('The Ed25519 signing/public keys do not match.');
+  process.exit(2);
+}
+JS
+    node "$CLI" issue --key "$PRIVATE_KEY" --customer "$customer" --days "$DEFAULT_DAYS" \
+      --features ipsec,wireguard,bgp,ospf,isis,ha --out "$license_file"
+    node "$CLI" verify --pub "$PUBLIC_KEY" "$license_file"
+    # JSON quoting gives both shell and systemd a single value with literal \n escapes;
+    # parsePublicKeys in the API expands these escapes back into PEM newlines.
+    node --input-type=module - "$PUBLIC_KEY" "$env_file" <<'JS'
+import { readFileSync, writeFileSync } from 'node:fs';
+const pem = readFileSync(process.argv[2], 'utf8').trim().replace(/\r?\n/g, '\\n');
+writeFileSync(process.argv[3], `VRX_LICENSE_PUBLIC_KEYS=${JSON.stringify(pem)}\n`, { flag: 'wx', mode: 0o644 });
+JS
+    printf '\nلایسنس همه قابلیت‌ها ساخته شد: %s\nاعتبار: %s روز؛ بدون محدودیت تعداد.\n' "$license_file" "$DEFAULT_DAYS"
+    printf 'برای پذیرش در سیستم، خط فایل %s را در /etc/vrx/api.env قرار بده و vrx-api را ری‌استارت کن.\n' "$env_file"
+    printf 'سپس فایل لایسنس را در System → Licence بارگذاری کن.\n'
+    ;;
   init)
     (($# == 0)) || { usage >&2; exit 2; }
     node "$CLI" keygen --out-dir "$KEY_DIR"

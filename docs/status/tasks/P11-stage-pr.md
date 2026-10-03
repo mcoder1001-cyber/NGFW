@@ -1,0 +1,9 @@
+# feat(packaging): materialise verified P11 stage prerequisites
+
+P11's intake previously returned a report and deleted its verified snapshots. Add a scoped snapshot API and materialise actual validated source and VPP development payload bytes from those exact snapshots, retaining the unchanged full VPP verification gate and the existing read-only API. No source execution, compilation, installation or service changes occur.
+
+The public API requires the independently trusted source digest. Extraction applies file/member/aggregate decoded and payload limits, rejects links/traversal/duplicates/special files/collisions, and writes private modes. Destination traversal rejects symlink ancestors and input overlap, pins the owned parent, publishes a complete new tree using Linux atomic no-replace rename, and rolls back its owned output if parent identity changes. Report retains `release_approved: false`, adds `builder_ready: false`.
+
+Validation: intake 9 tests PASS (10.823s); stage 21 tests PASS (25.836s); `tools/ci.sh check --base HEAD` PASS (9s); Python compile check and `git diff --check` PASS. Real Debian/bzip2 fixtures demonstrate output bytes, trust/tampering, aggregate limits, real linked-payload refusal, cleanup and publication races. Positive VPP provenance is explicitly stubbed; negative fixtures run the actual complete gate and reject synthetic builds.
+
+Independent R2 review and unchanged complete hosted quick gate are pending and mandatory before merge. This prerequisite does not finish P11: builder, compiler/ABI validation, identifier allocation, plugin/agent wiring, source security/licensing/release approval and real installation/traffic/reboot acceptance remain unfinished. PR101 remains frozen/unmerged; this branch is based on `2dbdff2405e845da47aa149bb72cdedbce60649c`.

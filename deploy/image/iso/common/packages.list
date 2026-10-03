@@ -1,0 +1,6 @@
+# Packages an image installs on top of the Ubuntu 26.04 base (P14 ISO installer; F-images reuses this list read-only).
+# One package per line. vrx-meta pulls everything else — the agent, the API, the web front end, our VPP build at the
+# exact manifest version and every daemon the renderers drive (deploy/debian/vrx/debian/control) — so nothing that
+# vrx-meta already depends on is listed here (the P10 rule). APT Recommends stay ON, exactly like
+# scripts/10-install-runtime.sh, so that the ISO and the package path produce the same box (D-202 (1)).
+vrx-meta

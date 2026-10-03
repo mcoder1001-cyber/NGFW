@@ -34,21 +34,31 @@ describe('notification SMTP contract', () => {
   });
 });
 
-
 describe('notification authentication and rule references', () => {
   it('allows an explicitly unauthenticated relay', () => {
-    const { username: _username, passwordRef: _passwordRef, ...relay } = email('relay-user').email;
-    expect(NotificationChannelSchema.safeParse({ ...email('relay-user'), email: relay }).success).toBe(true);
+    const configured = email('relay-user').email;
+    const relay = { smtpHost: configured.smtpHost, from: configured.from, to: configured.to };
+    expect(
+      NotificationChannelSchema.safeParse({ ...email('relay-user'), email: relay }).success,
+    ).toBe(true);
   });
-  it.each(['username', 'passwordRef'] as const)('rejects missing SMTP %s at the nested field', (missing) => {
-    const relay: Record<string, unknown> = { ...email('relay-user').email };
-    delete relay[missing];
-    const result = NotificationsSchema.safeParse({ channels: [{ ...email('relay-user'), email: relay }] });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: ['channels', 0, 'email', missing] }),
-    ]));
-  });
+  it.each(['username', 'passwordRef'] as const)(
+    'rejects missing SMTP %s at the nested field',
+    (missing) => {
+      const relay: Record<string, unknown> = { ...email('relay-user').email };
+      delete relay[missing];
+      const result = NotificationsSchema.safeParse({
+        channels: [{ ...email('relay-user'), email: relay }],
+      });
+      expect(result.success).toBe(false);
+      if (!result.success)
+        expect(result.error.issues).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ path: ['channels', 0, 'email', missing] }),
+          ]),
+        );
+    },
+  );
   const rules = (channels: string[]) => ({
     channels: [email('relay-user'), { ...email('relay-user'), name: 'backup' }],
     rules: [{ name: 'alarms', events: ['alarm'], channels }],
@@ -59,8 +69,14 @@ describe('notification authentication and rule references', () => {
   it('rejects a nonadjacent repeated channel at its duplicate index', () => {
     const result = NotificationsSchema.safeParse(rules(['relay', 'backup', 'relay']));
     expect(result.success).toBe(false);
-    if (!result.success) expect(result.error.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: ['rules', 0, 'channels', 2], message: 'duplicate channel reference' }),
-    ]));
+    if (!result.success)
+      expect(result.error.issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            path: ['rules', 0, 'channels', 2],
+            message: 'duplicate channel reference',
+          }),
+        ]),
+      );
   });
 });

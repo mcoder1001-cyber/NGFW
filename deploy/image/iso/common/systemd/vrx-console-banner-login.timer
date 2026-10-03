@@ -1,0 +1,13 @@
+# P14 deploy/image common (F-images reuses it): polls for the first admin login every 30 s while the bootstrap
+# password file exists; vrx-console-banner check-login disables this timer once the password is gone.
+[Unit]
+Description=VRX bootstrap password check (until the first admin login)
+ConditionPathExists=/var/lib/vrx-image/console/bootstrap-password
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

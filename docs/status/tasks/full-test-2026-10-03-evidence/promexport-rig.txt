@@ -1,0 +1,65 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py bash -c trap "tools/lab rig down $VRX_TEST_PREFIX" EXIT; tools/lab rig up "$VRX_TEST_PREFIX" && go -C apps/agent test -json -race -count=1 -timeout 5m -run TestSegmentSourceHost ./internal/promexport
+heavy: slot 1 after 30s
+DISPOSABLE_VPP pid=575895 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-575893
+rig up w3 (slot 3, path af_packet)
+  create netns ns-w3-lan
+  create veth w3l0 <-> ns-w3-lan:w3l1
+  create vpp host-w3l0 (af_packet on w3l0)
+  reset  ip/ip6 classify host-w3l0 (table-index ~0)
+  set    addr host-w3l0 10.3.1.1/24
+  create netns ns-w3-wan
+  create veth w3w0 <-> ns-w3-wan:w3w1
+  create vpp host-w3w0 (af_packet on w3w0)
+  reset  ip/ip6 classify host-w3w0 (table-index ~0)
+  set    addr host-w3w0 10.3.2.1/24
+rig: up
+prefix: w3
+slot: 3
+path: af_packet
+lan_ns: ns-w3-lan
+lan_veth: w3l1
+lan_ip: 10.3.1.2/24
+lan_gw: 10.3.1.1
+vpp_lan_if: host-w3l0
+vpp_lan_addr: 10.3.1.1/24 
+wan_ns: ns-w3-wan
+wan_veth: w3w1
+wan_ip: 10.3.2.2/24
+wan_gw: 10.3.2.1
+vpp_wan_if: host-w3w0
+vpp_wan_addr: 10.3.2.1/24 
+ping: ip netns exec ns-w3-lan ping -c 3 10.3.2.2
+{"Time":"2026-10-03T13:44:53.840350644+03:30","Action":"start","Package":"ngfw/agent/internal/promexport"}
+{"Time":"2026-10-03T13:44:53.94597237+03:30","Action":"run","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost"}
+{"Time":"2026-10-03T13:44:53.946198722+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Output":"=== RUN   TestSegmentSourceHost\n"}
+{"Time":"2026-10-03T13:44:54.777903739+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Output":"    statssource_integration_test.go:60: stats segment /run/vpp/stats.sock: 3 interfaces, host-w3l0 rx_bytes=426\n"}
+{"Time":"2026-10-03T13:44:56.992399359+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Output":"    statssource_integration_test.go:73: after traffic: host-w3l0 rx_bytes=1028 (delta 602)\n"}
+{"Time":"2026-10-03T13:44:57.021303824+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Output":"    statssource_integration_test.go:94: /metrics served vrx_interface_rx_bytes_total{interface=\"host-w3l0\"} from the live stats segment\n"}
+{"Time":"2026-10-03T13:44:57.022768365+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Output":"--- PASS: TestSegmentSourceHost (3.08s)\n"}
+{"Time":"2026-10-03T13:44:57.022816621+03:30","Action":"pass","Package":"ngfw/agent/internal/promexport","Test":"TestSegmentSourceHost","Elapsed":3.08}
+{"Time":"2026-10-03T13:44:57.023023747+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Output":"PASS\n"}
+{"Time":"2026-10-03T13:44:58.052451544+03:30","Action":"output","Package":"ngfw/agent/internal/promexport","Output":"ok  \tngfw/agent/internal/promexport\t4.211s\n"}
+{"Time":"2026-10-03T13:44:58.052591542+03:30","Action":"pass","Package":"ngfw/agent/internal/promexport","Elapsed":4.212}
+rig down w3
+  delete vpp host-w3l0
+  delete netns ns-w3-lan (and its veth peer)
+  delete vpp host-w3w0
+  delete netns ns-w3-wan (and its veth peer)
+rig: down
+prefix: w3
+slot: 3
+path: af_packet
+lan_ns: ns-w3-lan
+lan_veth: w3l1
+lan_ip: 10.3.1.2/24
+lan_gw: 10.3.1.1
+vpp_lan_if: host-w3l0
+vpp_lan_addr: -
+wan_ns: ns-w3-wan
+wan_veth: w3w1
+wan_ip: 10.3.2.2/24
+wan_gw: 10.3.2.1
+vpp_wan_if: host-w3w0
+vpp_wan_addr: -
+ping: ip netns exec ns-w3-lan ping -c 3 10.3.2.2
+DISPOSABLE_VPP_STOPPED pid=575895

@@ -1,0 +1,130 @@
+ci-slot: /run/lock/vrx-ci-1.lock + /run/lock/vrx-heavy-1.lock after 0s (canary 0.32s, MemAvailable 48 GB) — tools/ci.sh --base main (log /root/ngfw-wt/logs/ci/gate-NGFW-1003-165944.log)
+== VRX CI gate: quick ==
+worktree  /root/.codex/worktrees/bbd9/NGFW
+branch    HEAD @ 5848a73ce   (base: main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/vrx-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/NGFW-20261003-165944-1531206
+WARN TESTS OFF (plan/NO-TESTS, D-210): compile-only gate — typecheck · build · go vet; no lint, no unit/integration tests, no apply-startup harness
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+       M apps/agent/internal/actions/capture-trace/capture.go
+       M apps/agent/internal/actions/capture-trace/capture_test.go
+       M apps/agent/internal/agent/agent.go
+       M apps/agent/internal/agent/project_p12_test.go
+       M apps/agent/internal/agent/projection.go
+       M apps/agent/internal/agent/projection_test.go
+       M apps/agent/internal/agent/rpc_capture_trace.go
+       M apps/agent/internal/agent/rpc_capture_trace_test.go
+       M apps/agent/internal/agent/rpc_ipsec.go
+       M apps/agent/internal/agent/rpc_ipsec_test.go
+       M apps/agent/internal/agent/rpc_tunnels_t1_test.go
+       M apps/agent/internal/agent/seams_test.go
+       M apps/agent/internal/agent/server.go
+       M apps/agent/internal/agent/service.go
+       M apps/agent/internal/agent/state.go
+
+== contract guard: HEAD vs main ==
+no contract files changed in the 0 commit(s) of HEAD since main (5848a73ce)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 135ms using pnpm v12.5.1 
+
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+
+== forbidden patterns (+ gitleaks) ==
+WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: vrxtestsecrets only in test code
+ok: gitleaks — scanned ~0 bytes (0) in 542ms no leaks found 
+
+== packet-trace ban on the shared VPP (D-128) ==
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+
+== ip classify reset after every shell interface create (D-185) ==
+ok: every shell interface create is followed by an ip4/ip6 classify reset
+
+== slot resource scheme (1..32, no collisions) ==
+ok: 30 developer slots + CI slot 12; 1057 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+
+== typecheck · build (turbo — tests OFF) ==
+Tasks:    21 successful, 21 total Cached:    2 cached, 21 total Time:    3m36.326s  
+
+== apps/agent: go build + go vet (tests OFF) ==
+
+== apps/cli: make build (tests OFF) ==
+
+== test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/acl test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/host-acl-nftables test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/packaging test/topology/qos-flat test/topology/system-identity test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp) ==
+test/integration/reachability: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/integration/smoke: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/acl: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/bonding: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/bridge-l2: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/det44: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/host-acl-nftables: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/interfaces: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/ipfix-sflow: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/kea-dhcp-relay: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/loopback-bvi-gso-lldp-span: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/nat44-ed-sessions: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/nat44-ei-64-66-nptv6: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/neighbors-ra: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/object-model: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/packaging: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/qos-flat: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/system-identity: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/unbound-chrony-syslog: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/vlan-qinq: gofmt ok · go vet ok · go test skipped (tests OFF)
+test/topology/vrf-static-ecmp: gofmt ok · go vet ok · go test skipped (tests OFF)
+integration tests inside these modules skip here (VRX_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+WARN deploy/vpp harness and integration skipped (tests OFF, D-210)
+
+== summary (quick) ==
+  contract guard: HEAD vs main                       0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   0m00s
+  generate + generated-output gate                   2m02s
+  forbidden patterns (+ gitleaks)                    0m05s
+  packet-trace ban on the shared VPP (D-128)         0m01s
+  ip classify reset after every shell interface create (D-185)   0m01s
+  slot resource scheme (1..32, no collisions)        0m03s
+  typecheck · build (turbo — tests OFF)           3m37s
+  apps/agent: go build + go vet (tests OFF)          0m38s
+  apps/cli: make build (tests OFF)                   0m04s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/acl test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/host-acl-nftables test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/packaging test/topology/qos-flat test/topology/system-identity test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   0m17s
+  warnings:
+    - TESTS OFF (plan/NO-TESTS, D-210): compile-only gate — typecheck · build · go vet; no lint, no unit/integration tests, no apply-startup harness
+    - uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+       M apps/agent/internal/actions/capture-trace/capture.go
+       M apps/agent/internal/actions/capture-trace/capture_test.go
+       M apps/agent/internal/agent/agent.go
+       M apps/agent/internal/agent/project_p12_test.go
+       M apps/agent/internal/agent/projection.go
+       M apps/agent/internal/agent/projection_test.go
+       M apps/agent/internal/agent/rpc_capture_trace.go
+       M apps/agent/internal/agent/rpc_capture_trace_test.go
+       M apps/agent/internal/agent/rpc_ipsec.go
+       M apps/agent/internal/agent/rpc_ipsec_test.go
+       M apps/agent/internal/agent/rpc_tunnels_t1_test.go
+       M apps/agent/internal/agent/seams_test.go
+       M apps/agent/internal/agent/server.go
+       M apps/agent/internal/agent/service.go
+       M apps/agent/internal/agent/state.go
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+    - deploy/vpp harness and integration skipped (tests OFF, D-210)
+  mode quick · wall time 6m51s · logs /root/ngfw-wt/logs/ci/NGFW-20261003-165944-1531206
+
+CI GATE PASSED

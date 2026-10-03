@@ -185,9 +185,21 @@ func (d *InterfaceTableDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV
 
 // ---- interface-ip ----------------------------------------------------------------------------
 
+// VirtualAddressSource returns plugin-owned address values by interface index.
+// The owning plugin installs this hook; core has no dependency on that plugin.
+type VirtualAddressSource func(context.Context, vpp.Client, string) (map[uint32]map[string]bool, error)
+
 // InterfaceAddrDescriptor manages one address on an owned interface; on an untagged interface
 // through the claim path (Env.Claims, holder AddrHolder(prefix), TD-11c).
-type InterfaceAddrDescriptor struct{ Env }
+type InterfaceAddrDescriptor struct {
+	Env
+	virtualAddresses VirtualAddressSource
+}
+
+// SetVirtualAddressSource installs the plugin classifier during registration, before reconciliation starts.
+func (d *InterfaceAddrDescriptor) SetVirtualAddressSource(source VirtualAddressSource) {
+	d.virtualAddresses = source
+}
 
 var _ scheduler.Descriptor = (*InterfaceAddrDescriptor)(nil)
 
@@ -318,6 +330,7 @@ func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 	}
 	svc := ip.NewServiceClient(d.Client)
 	var leases leaseAddrs // nil until the first address of ours is seen
+	var virtual map[uint32]map[string]bool
 	var out []scheduler.KV
 	for _, in := range t.all {
 		if in.ID == "" && (!in.Untagged || d.Claims == nil) {
@@ -351,6 +364,18 @@ func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 				}
 				if leases[in.Index][p] {
 					continue // VPP's DHCP client installed it: VPP-owned, never ours to delete
+				}
+				if d.virtualAddresses != nil {
+					if virtual == nil {
+						virtual, err = d.virtualAddresses(ctx, d.Client, d.Owner)
+						if err != nil {
+							return nil, err
+						}
+					}
+					prefix, _ := netip.ParsePrefix(p)
+					if virtual[in.Index][prefix.Addr().String()] {
+						continue
+					}
 				}
 				out = append(out, scheduler.KV{
 					Key:   InterfaceAddrKey(name, p),

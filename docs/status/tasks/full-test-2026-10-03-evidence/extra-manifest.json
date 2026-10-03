@@ -1,0 +1,218 @@
+[
+  {
+    "label": "bfd",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/bfd"
+    ],
+    "exit": 0,
+    "elapsed": 96.09,
+    "tests": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "lldp",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/lldp"
+    ],
+    "exit": 0,
+    "elapsed": 5.04,
+    "tests": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "mpls",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/mpls"
+    ],
+    "exit": 1,
+    "elapsed": 4.99,
+    "tests": {
+      "pass": 1,
+      "fail": 2,
+      "skip": 0
+    }
+  },
+  {
+    "label": "lb-descriptor",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/lb"
+    ],
+    "exit": 0,
+    "elapsed": 5.19,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "label": "trace",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/trace"
+    ],
+    "exit": 0,
+    "elapsed": 4.89,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "workers-policer",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/policer"
+    ],
+    "exit": 0,
+    "elapsed": 5.8,
+    "tests": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "workers-interface",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "Host",
+      "./internal/descriptors/interface"
+    ],
+    "exit": 1,
+    "elapsed": 7.25,
+    "tests": {
+      "pass": 9,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "label": "objects-scale",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "TestStoreScale",
+      "./internal/objects"
+    ],
+    "exit": 0,
+    "elapsed": 35.81,
+    "tests": {
+      "pass": 3,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "label": "scheduler-perf",
+    "command": [
+      "go",
+      "-C",
+      "apps/agent",
+      "test",
+      "-json",
+      "-race",
+      "-count=1",
+      "-timeout",
+      "10m",
+      "-run",
+      "TestTD21Scale",
+      "./internal/scheduler"
+    ],
+    "exit": 0,
+    "elapsed": 15.34,
+    "tests": {
+      "pass": 4,
+      "fail": 0,
+      "skip": 0
+    }
+  }
+]

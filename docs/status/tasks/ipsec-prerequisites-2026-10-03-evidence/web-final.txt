@@ -1,0 +1,326 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c pnpm --filter @ngfw/web test IpsecPage && pnpm --filter @ngfw/web build
+heavy: slot 1 after 150s
+$ vitest run IpsecPage
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/web
+
+stdout | src/domains/vpn/ipsec/IpsecPage.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stderr | src/domains/vpn/ipsec/IpsecPage.test.tsx > IpsecPage > keeps its candidate apart from the WireGuard tab on one QueryClient, and confirms deletes
+No `HydrateFallback` element provided to render during initial hydration
+
+ ✓ src/domains/vpn/ipsec/IpsecPage.test.tsx (5 tests) 6105ms
+   ✓ IpsecPage > keeps its candidate apart from the WireGuard tab on one QueryClient, and confirms deletes  4971ms
+   ✓ IpsecPage > shows a fixed translated restart notice, never the agent text  999ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  15:43:14
+   Duration  17.30s (transform 4.71s, setup 533ms, collect 8.58s, tests 6.11s, environment 1.11s, prepare 159ms)
+
+$ tsc -p tsconfig.json --noEmit && vite build && node scripts/bundle-budget.mjs && node scripts/check-no-dev-routes.mjs
+vite v7.3.6 building client environment for production...
+transforming...
+../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js (74:0): A comment
+
+"/** Anchors a pattern source. The interpolation lives here rather than at the call site because
+ * esbuild will not drop a `@__PURE__` call whose own argument interpolates a variable, but it
+ * will drop `anchor(dateSource)`. Keeping it inline pinned `date` into every bundle. */"
+
+in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/regexes.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js (400:0): A comment
+
+"// Wrapped in a `@__PURE__` IIFE: esbuild never tree-shakes a top-level initializer that contains a member access on `Number`, so the bare object literal survived into every bundle."
+
+in "../../node_modules/.pnpm/zod@4.6.5/node_modules/zod/v4/core/util.js" contains an annotation that Rollup cannot interpret due to the position of the comment. The comment will be removed to avoid issues.
+✓ 2071 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.38 kB │ gzip:   0.25 kB
+dist/assets/Download-Dtl7RlLY.js                   0.18 kB │ gzip:   0.18 kB │ map:     0.69 kB
+dist/assets/Delete-D5S3yq9K.js                     0.21 kB │ gzip:   0.21 kB │ map:     0.71 kB
+dist/assets/Close-CHFgv03I.js                      0.24 kB │ gzip:   0.20 kB │ map:     0.74 kB
+dist/assets/config-path-BZ3IcctS.js                0.25 kB │ gzip:   0.21 kB │ map:     3.14 kB
+dist/assets/config-url-DXoJ869S.js                 0.25 kB │ gzip:   0.19 kB │ map:     2.64 kB
+dist/assets/UploadFile-D2B08Dvf.js                 0.29 kB │ gzip:   0.25 kB │ map:     0.81 kB
+dist/assets/Key-Cr_RRYbX.js                        0.30 kB │ gzip:   0.25 kB │ map:     0.80 kB
+dist/assets/Refresh-D0rIqXGc.js                    0.33 kB │ gzip:   0.27 kB │ map:     0.84 kB
+dist/assets/DeleteForever-BKlJpmeA.js              0.34 kB │ gzip:   0.26 kB │ map:     0.86 kB
+dist/assets/StatusChip-CS_FkTDK.js                 0.34 kB │ gzip:   0.28 kB │ map:     1.36 kB
+dist/assets/PathsView-CtK-Y_YT.js                  0.39 kB │ gzip:   0.29 kB │ map:     1.53 kB
+dist/assets/TableContainer-Baw9aTo6.js             0.59 kB │ gzip:   0.39 kB │ map:     4.64 kB
+dist/assets/ExpiryChip-ZySBKJ_G.js                 0.62 kB │ gzip:   0.44 kB │ map:     2.22 kB
+dist/assets/TableHead-B8H54Ze8.js                  0.70 kB │ gzip:   0.45 kB │ map:     5.01 kB
+dist/assets/queries-CB5dwtfW.js                    0.76 kB │ gzip:   0.43 kB │ map:     4.03 kB
+dist/assets/MapTab-BFBYD1na.js                     0.86 kB │ gzip:   0.51 kB │ map:     1.05 kB
+dist/assets/PnatTab-ifdPIV3g.js                    0.86 kB │ gzip:   0.52 kB │ map:     1.05 kB
+dist/assets/DomainTabsPage-DcbrU3r9.js             0.92 kB │ gzip:   0.56 kB │ map:     4.08 kB
+dist/assets/rates-BuslZTu0.js                      0.94 kB │ gzip:   0.55 kB │ map:     4.72 kB
+dist/assets/merge-patch-BKWYWzzV.js                0.98 kB │ gzip:   0.55 kB │ map:     7.55 kB
+dist/assets/DomainPlaceholderPage-Cb64mfYU.js      1.00 kB │ gzip:   0.57 kB │ map:     3.83 kB
+dist/assets/queries-Dnn5JUSe.js                    1.03 kB │ gzip:   0.50 kB │ map:     3.59 kB
+dist/assets/api-B0RCTXps.js                        1.13 kB │ gzip:   0.61 kB │ map:     5.99 kB
+dist/assets/common-DILS186c.js                     1.14 kB │ gzip:   0.66 kB │ map:     4.10 kB
+dist/assets/queries-C9wkwee5.js                    1.19 kB │ gzip:   0.55 kB │ map:     4.74 kB
+dist/assets/AlarmsCard-CnS5TXhY.js                 1.24 kB │ gzip:   0.67 kB │ map:     3.59 kB
+dist/assets/SubtreeForm-BHjwqEnu.js                1.32 kB │ gzip:   0.78 kB │ map:     5.55 kB
+dist/assets/InterfacesTab-9-Smz0jp.js              1.50 kB │ gzip:   0.83 kB │ map:     3.92 kB
+dist/assets/problem-BQqJHHmQ.js                    1.73 kB │ gzip:   0.72 kB │ map:     7.06 kB
+dist/assets/schemaPath-BKX-uAkF.js                 1.74 kB │ gzip:   0.82 kB │ map:     9.24 kB
+dist/assets/AaaTab-gYvJhwB2.js                     1.78 kB │ gzip:   1.00 kB │ map:     5.14 kB
+dist/assets/queries-Ddmk2c2T.js                    1.88 kB │ gzip:   0.72 kB │ map:     7.48 kB
+dist/assets/InputAdornment-DI1xp_2G.js             1.90 kB │ gzip:   0.98 kB │ map:    10.11 kB
+dist/assets/ManagementPage-BelLTcju.js             1.91 kB │ gzip:   0.87 kB │ map:     2.57 kB
+dist/assets/VpnPage-0H2G2Yc1.js                    1.93 kB │ gzip:   0.87 kB │ map:     2.44 kB
+dist/assets/model-BKiZn0CZ.js                      1.94 kB │ gzip:   0.98 kB │ map:     8.28 kB
+dist/assets/RoutingPage-DtyEshxO.js                1.95 kB │ gzip:   0.87 kB │ map:     2.12 kB
+dist/assets/ListEditor-Dyt3pxvI.js                 2.01 kB │ gzip:   1.05 kB │ map:     8.57 kB
+dist/assets/Nptv6Tab-BixRMl_G.js                   2.09 kB │ gzip:   0.91 kB │ map:     5.49 kB
+dist/assets/SubtreeForm-CM1GSw2P.js                2.10 kB │ gzip:   1.21 kB │ map:    10.22 kB
+dist/assets/Nat66Tab-BBvzxe93.js                   2.24 kB │ gzip:   1.01 kB │ map:     5.96 kB
+dist/assets/NsimPage-BbpPgkG6.js                   2.29 kB │ gzip:   1.18 kB │ map:     7.32 kB
+dist/assets/CnatTab-D0nElCSd.js                    2.37 kB │ gzip:   1.09 kB │ map:     6.23 kB
+dist/assets/model-BrDgBLow.js                      2.45 kB │ gzip:   1.31 kB │ map:    12.09 kB
+dist/assets/PingTab-CGlFCSkZ.js                    2.45 kB │ gzip:   1.19 kB │ map:     7.90 kB
+dist/assets/ObjectPicker-BFtNKgx3.js               2.56 kB │ gzip:   1.20 kB │ map:    11.51 kB
+dist/assets/PolicyTab-CF1d4XMQ.js                  2.61 kB │ gzip:   1.27 kB │ map:     7.42 kB
+dist/assets/OspfPage-D0Vm3P33.js                   2.64 kB │ gzip:   1.03 kB │ map:     8.12 kB
+dist/assets/queries--62OLlMr.js                    2.67 kB │ gzip:   1.20 kB │ map:    12.26 kB
+dist/assets/Nat46Tab-B7mu4zJQ.js                   2.70 kB │ gzip:   1.41 kB │ map:     9.42 kB
+dist/assets/RestconfYangPage-C36EKnbw.js           2.70 kB │ gzip:   1.17 kB │ map:     9.06 kB
+dist/assets/IsisRipPage-Bzuhgv4k.js                2.71 kB │ gzip:   1.18 kB │ map:     8.14 kB
+dist/assets/ProtocolForm-COLDZXv6.js               2.72 kB │ gzip:   1.31 kB │ map:    13.93 kB
+dist/assets/PoolsTab-BAhdidpH.js                   2.85 kB │ gzip:   1.36 kB │ map:     6.88 kB
+dist/assets/useMpls-B8F97ZVf.js                    2.86 kB │ gzip:   1.36 kB │ map:    13.38 kB
+dist/assets/TableCell-Cs3muhom.js                  2.89 kB │ gzip:   1.30 kB │ map:    14.43 kB
+dist/assets/FibTab-B5YXn59p.js                     2.89 kB │ gzip:   1.50 kB │ map:     8.75 kB
+dist/assets/TableRow-DWqT-TnN.js                   2.96 kB │ gzip:   1.17 kB │ map:    18.56 kB
+dist/assets/AlarmsPage-BipZ6z9J.js                 2.96 kB │ gzip:   1.29 kB │ map:    10.39 kB
+dist/assets/model-DDc2YRtk.js                      3.00 kB │ gzip:   1.53 kB │ map:    14.53 kB
+dist/assets/WanGroupsPage-CuMnJLYA.js              3.03 kB │ gzip:   1.25 kB │ map:    10.01 kB
+dist/assets/ServicesPage-BKz2cVay.js               3.04 kB │ gzip:   1.20 kB │ map:     3.47 kB
+dist/assets/queries-D0eCx_uQ.js                    3.06 kB │ gzip:   1.47 kB │ map:    15.15 kB
+dist/assets/MappingsTab-CfSjFYL9.js                3.14 kB │ gzip:   1.30 kB │ map:     8.07 kB
+dist/assets/TunnelsTab-fPW1xMqa.js                 3.16 kB │ gzip:   1.58 kB │ map:     8.98 kB
+dist/assets/ToggleButton-oLxk0Dr7.js               3.16 kB │ gzip:   1.21 kB │ map:    16.80 kB
+dist/assets/queries-Ds5hgPUf.js                    3.19 kB │ gzip:   1.37 kB │ map:    15.47 kB
+dist/assets/OutboundTab-DXw58OFB.js                3.28 kB │ gzip:   1.55 kB │ map:    10.19 kB
+dist/assets/Nat64Tab-5i54W9HT.js                   3.32 kB │ gzip:   1.51 kB │ map:     8.99 kB
+dist/assets/RecordEditor-BiYDfiUu.js               3.39 kB │ gzip:   1.68 kB │ map:    15.48 kB
+dist/assets/ListSection-CoDdiZDF.js                3.43 kB │ gzip:   1.67 kB │ map:    14.36 kB
+dist/assets/model-Cj76HA1Y.js                      3.43 kB │ gzip:   1.63 kB │ map:    14.67 kB
+dist/assets/LabelRoutesTab-b1cNzpEI.js             3.44 kB │ gzip:   1.40 kB │ map:     9.53 kB
+dist/assets/SrTab-BpFHVEwg.js                      3.78 kB │ gzip:   1.61 kB │ map:    11.23 kB
+dist/assets/LldpPage-DVoaRd1H.js                   4.00 kB │ gzip:   1.77 kB │ map:    11.75 kB
+dist/assets/FibTab-Qbfgmv14.js                     4.03 kB │ gzip:   1.84 kB │ map:    12.97 kB
+dist/assets/MulticastPage-BIQP0nxa.js              4.05 kB │ gzip:   1.22 kB │ map:    13.63 kB
+dist/assets/model-BrmFQo0d.js                      4.11 kB │ gzip:   1.71 kB │ map:    21.92 kB
+dist/assets/BgpPage-D_F0xPBy.js                    4.14 kB │ gzip:   1.94 kB │ map:    11.26 kB
+dist/assets/AdlPage-C9sjW7qM.js                    4.28 kB │ gzip:   1.83 kB │ map:    15.11 kB
+dist/assets/TlsTab-DA4fzixY.js                     4.28 kB │ gzip:   1.86 kB │ map:    13.55 kB
+dist/assets/LdpTab-B8ZGItqe.js                     4.50 kB │ gzip:   1.55 kB │ map:    14.54 kB
+dist/assets/MirroringPage-_hRGG9pa.js              4.51 kB │ gzip:   1.88 kB │ map:    15.74 kB
+dist/assets/queries-DTCjDVsX.js                    4.52 kB │ gzip:   2.06 kB │ map:    19.76 kB
+dist/assets/LicensingPage-T_W3dJM4.js              4.63 kB │ gzip:   1.68 kB │ map:    14.41 kB
+dist/assets/AutoBlockPage-TSwgDqb5.js              4.65 kB │ gzip:   1.85 kB │ map:    16.31 kB
+dist/assets/CgnatTab-BTdtgwDX.js                   4.91 kB │ gzip:   1.60 kB │ map:    15.12 kB
+dist/assets/VrfsPage-VA5NIyBc.js                   4.99 kB │ gzip:   2.20 kB │ map:    15.82 kB
+dist/assets/NeighborsTab-CYxe97mt.js               5.32 kB │ gzip:   2.12 kB │ map:    16.44 kB
+dist/assets/NatPage-BZ2KI3ui.js                    5.36 kB │ gzip:   1.58 kB │ map:     5.93 kB
+dist/assets/AaaPage-D6M_xB0Y.js                    5.41 kB │ gzip:   1.84 kB │ map:    17.56 kB
+dist/assets/schema-utils-0S6ObuwD.js               5.41 kB │ gzip:   2.22 kB │ map:    22.91 kB
+dist/assets/CapturePage-i2FUr47v.js                5.46 kB │ gzip:   2.31 kB │ map:    19.95 kB
+dist/assets/queries-y27u-8ke.js                    5.59 kB │ gzip:   2.42 kB │ map:    23.43 kB
+dist/assets/SystemIdentityPage-CkfGlOhM.js         5.63 kB │ gzip:   2.19 kB │ map:    19.71 kB
+dist/assets/model-u1NZHL1l.js                      5.66 kB │ gzip:   2.45 kB │ map:    29.09 kB
+dist/assets/EiTab-CMrVQoCN.js                      5.79 kB │ gzip:   2.43 kB │ map:    20.29 kB
+dist/assets/MplsPage-BelAA7q8.js                   5.82 kB │ gzip:   2.26 kB │ map:    15.27 kB
+dist/assets/HostStackTab-DTdgrl0p.js               5.88 kB │ gzip:   2.07 kB │ map:    21.17 kB
+dist/assets/LispTab-Dk-7yzq4.js                    5.89 kB │ gzip:   2.53 kB │ map:    21.22 kB
+dist/assets/HaPage-CUCHM-1e.js                     5.90 kB │ gzip:   2.11 kB │ map:    22.41 kB
+dist/assets/SessionsTab-CK9SNkby.js                6.11 kB │ gzip:   2.41 kB │ map:    20.05 kB
+dist/assets/TablePagination-TklaNJPW.js            6.36 kB │ gzip:   2.42 kB │ map:    38.87 kB
+dist/assets/InterfacesPage-B7iZ1fUV.js             6.40 kB │ gzip:   2.69 kB │ map:    19.25 kB
+dist/assets/LoggingTab-KEuHXeFg.js                 7.20 kB │ gzip:   2.89 kB │ map:    24.62 kB
+dist/assets/ObjectsPage-DKKZWMMh.js                7.32 kB │ gzip:   3.20 kB │ map:    25.00 kB
+dist/assets/NtpTab-LnJp5Mt6.js                     7.59 kB │ gzip:   3.10 kB │ map:    40.37 kB
+dist/assets/DnsTab-DL0858A0.js                     7.72 kB │ gzip:   2.92 kB │ map:    26.80 kB
+dist/assets/StaticRoutesTab-tqZsK_WX.js            8.33 kB │ gzip:   3.66 kB │ map:    40.99 kB
+dist/assets/RevisionsPage-Ddt5HnVJ.js              8.47 kB │ gzip:   3.49 kB │ map:    29.18 kB
+dist/assets/PbrPage-khKDx_Qx.js                    8.47 kB │ gzip:   2.82 kB │ map:    30.07 kB
+dist/assets/NeighborsPage-C-h3Va8m.js              8.74 kB │ gzip:   3.61 kB │ map:    34.91 kB
+dist/assets/LbPage-BZdD-Isg.js                     9.01 kB │ gzip:   3.43 kB │ map:    36.28 kB
+dist/assets/SnmpTab-ChUMrr7Z.js                    9.75 kB │ gzip:   3.03 kB │ map:    35.39 kB
+dist/assets/parts-D-Rbjr-B.js                     10.65 kB │ gzip:   3.73 kB │ map:    51.88 kB
+dist/assets/AdvancedEditorPage-CZea751T.js        10.89 kB │ gzip:   4.49 kB │ map:    50.92 kB
+dist/assets/ImportDialog-Bd9FNO1R.js              11.28 kB │ gzip:   4.13 kB │ map:    44.73 kB
+dist/assets/UsersPage-C4SLbgzH.js                 12.49 kB │ gzip:   4.32 kB │ map:    45.09 kB
+dist/assets/IpsecPage-DcAXF8n2.js                 12.52 kB │ gzip:   4.38 kB │ map:    48.70 kB
+dist/assets/FlowExportTab-DYxxaYPt.js             12.88 kB │ gzip:   4.05 kB │ map:    49.43 kB
+dist/assets/InterfaceDrawer-D6rtZ2JU.js           13.16 kB │ gzip:   4.84 kB │ map:    53.27 kB
+dist/assets/GlobalBlockingPage-wtupm7u_.js        13.42 kB │ gzip:   4.91 kB │ map:    48.19 kB
+dist/assets/WireguardPage-DMqyAWey.js             14.09 kB │ gzip:   5.11 kB │ map:    54.13 kB
+dist/assets/DataplanePage-CsxDx3F1.js             14.45 kB │ gzip:   4.88 kB │ map:    49.13 kB
+dist/assets/BondsPage-DEx08hst.js                 14.66 kB │ gzip:   5.46 kB │ map:    53.75 kB
+dist/assets/HostAclPage-CGSVxsvc.js               15.37 kB │ gzip:   4.86 kB │ map:    56.67 kB
+dist/assets/Tab-DanDJQrf.js                       15.82 kB │ gzip:   5.51 kB │ map:    79.01 kB
+dist/assets/BridgingPage-DaIZBHup.js              17.49 kB │ gzip:   5.78 kB │ map:    65.93 kB
+dist/assets/TunnelsPage-Chsafetg.js               20.00 kB │ gzip:   7.99 kB │ map:    96.32 kB
+dist/assets/Srv6Page-CQKLad1Y.js                  21.63 kB │ gzip:   6.42 kB │ map:    84.24 kB
+dist/assets/DhcpPage-DSYPoUvX.js                  23.23 kB │ gzip:   6.96 kB │ map:    90.91 kB
+dist/assets/DashboardPage-CChfkZqw.js             24.10 kB │ gzip:   7.49 kB │ map:    82.05 kB
+dist/assets/Autocomplete-7DhBiImT.js              25.70 kB │ gzip:   9.00 kB │ map:   137.56 kB
+dist/assets/QosPage-B4oZRBXE.js                   30.60 kB │ gzip:   9.30 kB │ map:   122.26 kB
+dist/assets/AclPage-jiFMYu02.js                   41.05 kB │ gzip:  11.15 kB │ map:   153.76 kB
+dist/assets/SchemaForm-85eg306V.js               125.57 kB │ gzip:  41.65 kB │ map:   590.98 kB
+dist/assets/ServerDataGrid-zxiJSjgB.js           429.90 kB │ gzip: 130.32 kB │ map: 2,217.74 kB
+dist/assets/index-BTevAkP0.js                  1,727.67 kB │ gzip: 518.76 kB │ map: 5,800.38 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 29.31s
+bundle-budget: gzipped sizes (I = loaded on first paint, L = lazy route/vendor chunk)
+  I    505.9 kB  (raw  1687.2 kB)  assets/index-BTevAkP0.js
+  L    127.0 kB  (raw   419.8 kB)  assets/ServerDataGrid-zxiJSjgB.js
+  L     40.7 kB  (raw   122.6 kB)  assets/SchemaForm-85eg306V.js
+  L     10.9 kB  (raw    40.1 kB)  assets/AclPage-jiFMYu02.js
+  L      9.1 kB  (raw    29.9 kB)  assets/QosPage-B4oZRBXE.js
+  L      8.8 kB  (raw    25.1 kB)  assets/Autocomplete-7DhBiImT.js
+  L      7.8 kB  (raw    19.5 kB)  assets/TunnelsPage-Chsafetg.js
+  L      7.3 kB  (raw    23.5 kB)  assets/DashboardPage-CChfkZqw.js
+  L      6.8 kB  (raw    22.7 kB)  assets/DhcpPage-DSYPoUvX.js
+  L      6.3 kB  (raw    21.1 kB)  assets/Srv6Page-CQKLad1Y.js
+  L      5.6 kB  (raw    17.1 kB)  assets/BridgingPage-DaIZBHup.js
+  L      5.4 kB  (raw    15.4 kB)  assets/Tab-DanDJQrf.js
+  L      5.3 kB  (raw    14.3 kB)  assets/BondsPage-DEx08hst.js
+  L      5.0 kB  (raw    13.8 kB)  assets/WireguardPage-DMqyAWey.js
+  L      4.8 kB  (raw    13.1 kB)  assets/GlobalBlockingPage-wtupm7u_.js
+  L      4.8 kB  (raw    14.1 kB)  assets/DataplanePage-CsxDx3F1.js
+  L      4.7 kB  (raw    15.0 kB)  assets/HostAclPage-CGSVxsvc.js
+  L      4.7 kB  (raw    12.9 kB)  assets/InterfaceDrawer-D6rtZ2JU.js
+  L      4.4 kB  (raw    10.6 kB)  assets/AdvancedEditorPage-CZea751T.js
+  L      4.3 kB  (raw    12.2 kB)  assets/IpsecPage-DcAXF8n2.js
+  L      4.2 kB  (raw    12.2 kB)  assets/UsersPage-C4SLbgzH.js
+  L      4.0 kB  (raw    11.0 kB)  assets/ImportDialog-Bd9FNO1R.js
+  L      3.9 kB  (raw    12.6 kB)  assets/FlowExportTab-DYxxaYPt.js
+  L      3.6 kB  (raw    10.4 kB)  assets/parts-D-Rbjr-B.js
+  L      3.6 kB  (raw     8.1 kB)  assets/StaticRoutesTab-tqZsK_WX.js
+  L      3.5 kB  (raw     8.5 kB)  assets/NeighborsPage-C-h3Va8m.js
+  L      3.4 kB  (raw     8.3 kB)  assets/RevisionsPage-Ddt5HnVJ.js
+  L      3.3 kB  (raw     8.8 kB)  assets/LbPage-BZdD-Isg.js
+  L      3.1 kB  (raw     7.1 kB)  assets/ObjectsPage-DKKZWMMh.js
+  L      3.0 kB  (raw     7.4 kB)  assets/NtpTab-LnJp5Mt6.js
+  L      3.0 kB  (raw     9.5 kB)  assets/SnmpTab-ChUMrr7Z.js
+  L      2.8 kB  (raw     7.5 kB)  assets/DnsTab-DL0858A0.js
+  L      2.8 kB  (raw     7.0 kB)  assets/LoggingTab-KEuHXeFg.js
+  L      2.8 kB  (raw     8.3 kB)  assets/PbrPage-khKDx_Qx.js
+  L      2.6 kB  (raw     6.2 kB)  assets/InterfacesPage-B7iZ1fUV.js
+  L      2.5 kB  (raw     5.8 kB)  assets/LispTab-Dk-7yzq4.js
+  L      2.4 kB  (raw     5.5 kB)  assets/model-u1NZHL1l.js
+  L      2.4 kB  (raw     5.6 kB)  assets/EiTab-CMrVQoCN.js
+  L      2.4 kB  (raw     6.2 kB)  assets/TablePagination-TklaNJPW.js
+  L      2.4 kB  (raw     5.5 kB)  assets/queries-y27u-8ke.js
+  L      2.3 kB  (raw     6.0 kB)  assets/SessionsTab-CK9SNkby.js
+  L      2.3 kB  (raw     5.3 kB)  assets/CapturePage-i2FUr47v.js
+  L      2.2 kB  (raw     5.7 kB)  assets/MplsPage-BelAA7q8.js
+  L      2.2 kB  (raw     5.3 kB)  assets/schema-utils-0S6ObuwD.js
+  L      2.1 kB  (raw     4.9 kB)  assets/VrfsPage-VA5NIyBc.js
+  L      2.1 kB  (raw     5.5 kB)  assets/SystemIdentityPage-CkfGlOhM.js
+  L      2.1 kB  (raw     5.2 kB)  assets/NeighborsTab-CYxe97mt.js
+  L      2.1 kB  (raw     5.8 kB)  assets/HaPage-CUCHM-1e.js
+  L      2.0 kB  (raw     5.7 kB)  assets/HostStackTab-DTdgrl0p.js
+  L      2.0 kB  (raw     4.4 kB)  assets/queries-DTCjDVsX.js
+  L      1.9 kB  (raw     4.0 kB)  assets/BgpPage-D_F0xPBy.js
+  L      1.8 kB  (raw     4.4 kB)  assets/MirroringPage-_hRGG9pa.js
+  L      1.8 kB  (raw     4.2 kB)  assets/TlsTab-DA4fzixY.js
+  L      1.8 kB  (raw     4.5 kB)  assets/AutoBlockPage-TSwgDqb5.js
+  L      1.8 kB  (raw     5.3 kB)  assets/AaaPage-D6M_xB0Y.js
+  L      1.8 kB  (raw     3.9 kB)  assets/FibTab-Qbfgmv14.js
+  L      1.8 kB  (raw     4.2 kB)  assets/AdlPage-C9sjW7qM.js
+  L      1.7 kB  (raw     3.9 kB)  assets/LldpPage-DVoaRd1H.js
+  L      1.7 kB  (raw     4.0 kB)  assets/model-BrmFQo0d.js
+  L      1.6 kB  (raw     3.3 kB)  assets/RecordEditor-BiYDfiUu.js
+  L      1.6 kB  (raw     4.5 kB)  assets/LicensingPage-T_W3dJM4.js
+  L      1.6 kB  (raw     3.3 kB)  assets/ListSection-CoDdiZDF.js
+  L      1.6 kB  (raw     3.4 kB)  assets/model-Cj76HA1Y.js
+  L      1.6 kB  (raw     3.7 kB)  assets/SrTab-BpFHVEwg.js
+  L      1.6 kB  (raw     4.8 kB)  assets/CgnatTab-BTdtgwDX.js
+  L      1.5 kB  (raw     3.1 kB)  assets/TunnelsTab-fPW1xMqa.js
+  L      1.5 kB  (raw     5.2 kB)  assets/NatPage-BZ2KI3ui.js
+  L      1.5 kB  (raw     4.4 kB)  assets/LdpTab-B8ZGItqe.js
+  L      1.5 kB  (raw     3.2 kB)  assets/OutboundTab-DXw58OFB.js
+  L      1.5 kB  (raw     2.9 kB)  assets/model-DDc2YRtk.js
+  L      1.5 kB  (raw     3.2 kB)  assets/Nat64Tab-5i54W9HT.js
+  L      1.5 kB  (raw     2.8 kB)  assets/FibTab-B5YXn59p.js
+  L      1.4 kB  (raw     3.0 kB)  assets/queries-D0eCx_uQ.js
+  L      1.4 kB  (raw     2.6 kB)  assets/Nat46Tab-B7mu4zJQ.js
+  L      1.4 kB  (raw     3.4 kB)  assets/LabelRoutesTab-b1cNzpEI.js
+  L      1.3 kB  (raw     3.1 kB)  assets/queries-Ds5hgPUf.js
+  L      1.3 kB  (raw     2.8 kB)  assets/useMpls-B8F97ZVf.js
+  L      1.3 kB  (raw     2.8 kB)  assets/PoolsTab-BAhdidpH.js
+  L      1.3 kB  (raw     2.7 kB)  assets/ProtocolForm-COLDZXv6.js
+  L      1.3 kB  (raw     2.4 kB)  assets/model-BrDgBLow.js
+  L      1.3 kB  (raw     2.8 kB)  assets/TableCell-Cs3muhom.js
+  L      1.3 kB  (raw     3.1 kB)  assets/MappingsTab-CfSjFYL9.js
+  L      1.3 kB  (raw     2.9 kB)  assets/AlarmsPage-BipZ6z9J.js
+  L      1.2 kB  (raw     2.5 kB)  assets/PolicyTab-CF1d4XMQ.js
+  L      1.2 kB  (raw     3.0 kB)  assets/WanGroupsPage-CuMnJLYA.js
+  L      1.2 kB  (raw     4.0 kB)  assets/MulticastPage-BIQP0nxa.js
+  L      1.2 kB  (raw     2.0 kB)  assets/SubtreeForm-CM1GSw2P.js
+  L      1.2 kB  (raw     3.1 kB)  assets/ToggleButton-oLxk0Dr7.js
+  L      1.2 kB  (raw     2.5 kB)  assets/ObjectPicker-BFtNKgx3.js
+  L      1.2 kB  (raw     2.6 kB)  assets/queries--62OLlMr.js
+  L      1.2 kB  (raw     3.0 kB)  assets/ServicesPage-BKz2cVay.js
+  L      1.2 kB  (raw     2.4 kB)  assets/PingTab-CGlFCSkZ.js
+  L      1.1 kB  (raw     2.2 kB)  assets/NsimPage-BbpPgkG6.js
+  L      1.1 kB  (raw     2.9 kB)  assets/TableRow-DWqT-TnN.js
+  L      1.1 kB  (raw     2.6 kB)  assets/IsisRipPage-Bzuhgv4k.js
+  L      1.1 kB  (raw     2.6 kB)  assets/RestconfYangPage-C36EKnbw.js
+  L      1.1 kB  (raw     2.3 kB)  assets/CnatTab-D0nElCSd.js
+  L      1.0 kB  (raw     2.0 kB)  assets/ListEditor-Dyt3pxvI.js
+  L      1.0 kB  (raw     2.6 kB)  assets/OspfPage-D0Vm3P33.js
+  L      1.0 kB  (raw     2.2 kB)  assets/Nat66Tab-BBvzxe93.js
+  L      1.0 kB  (raw     1.7 kB)  assets/AaaTab-gYvJhwB2.js
+  L      1.0 kB  (raw     1.9 kB)  assets/model-BKiZn0CZ.js
+  L      1.0 kB  (raw     1.9 kB)  assets/InputAdornment-DI1xp_2G.js
+  L      0.9 kB  (raw     2.0 kB)  assets/Nptv6Tab-BixRMl_G.js
+  L      0.8 kB  (raw     1.9 kB)  assets/RoutingPage-DtyEshxO.js
+  L      0.8 kB  (raw     1.9 kB)  assets/VpnPage-0H2G2Yc1.js
+  L      0.8 kB  (raw     1.9 kB)  assets/ManagementPage-BelLTcju.js
+  L      0.8 kB  (raw     1.5 kB)  assets/InterfacesTab-9-Smz0jp.js
+  L      0.8 kB  (raw     1.7 kB)  assets/schemaPath-BKX-uAkF.js
+  L      0.8 kB  (raw     1.3 kB)  assets/SubtreeForm-BHjwqEnu.js
+  L      0.7 kB  (raw     1.8 kB)  assets/queries-Ddmk2c2T.js
+  L      0.7 kB  (raw     1.7 kB)  assets/problem-BQqJHHmQ.js
+  L      0.7 kB  (raw     1.2 kB)  assets/AlarmsCard-CnS5TXhY.js
+  L      0.6 kB  (raw     1.1 kB)  assets/common-DILS186c.js
+  L      0.6 kB  (raw     1.1 kB)  assets/api-B0RCTXps.js
+  L      0.6 kB  (raw     1.0 kB)  assets/DomainPlaceholderPage-Cb64mfYU.js
+  L      0.5 kB  (raw     0.9 kB)  assets/DomainTabsPage-DcbrU3r9.js
+  L      0.5 kB  (raw     0.9 kB)  assets/rates-BuslZTu0.js
+  L      0.5 kB  (raw     1.2 kB)  assets/queries-C9wkwee5.js
+  L      0.5 kB  (raw     1.0 kB)  assets/merge-patch-BKWYWzzV.js
+  L      0.5 kB  (raw     0.8 kB)  assets/PnatTab-ifdPIV3g.js
+  L      0.5 kB  (raw     0.8 kB)  assets/MapTab-BFBYD1na.js
+  L      0.5 kB  (raw     1.0 kB)  assets/queries-Dnn5JUSe.js
+  L      0.4 kB  (raw     0.7 kB)  assets/TableHead-B8H54Ze8.js
+  L      0.4 kB  (raw     0.6 kB)  assets/ExpiryChip-ZySBKJ_G.js
+  L      0.4 kB  (raw     0.7 kB)  assets/queries-CB5dwtfW.js
+  L      0.4 kB  (raw     0.6 kB)  assets/TableContainer-Baw9aTo6.js
+  L      0.3 kB  (raw     0.4 kB)  assets/PathsView-CtK-Y_YT.js
+  L      0.3 kB  (raw     0.3 kB)  assets/StatusChip-CS_FkTDK.js
+  L      0.3 kB  (raw     0.3 kB)  assets/Refresh-D0rIqXGc.js
+  L      0.3 kB  (raw     0.3 kB)  assets/DeleteForever-BKlJpmeA.js
+  L      0.2 kB  (raw     0.3 kB)  assets/Key-Cr_RRYbX.js
+  L      0.2 kB  (raw     0.3 kB)  assets/UploadFile-D2B08Dvf.js
+  L      0.2 kB  (raw     0.2 kB)  assets/config-path-BZ3IcctS.js
+  L      0.2 kB  (raw     0.2 kB)  assets/Delete-D5S3yq9K.js
+  L      0.2 kB  (raw     0.2 kB)  assets/Close-CHFgv03I.js
+  L      0.2 kB  (raw     0.2 kB)  assets/config-url-DXoJ869S.js
+  L      0.2 kB  (raw     0.2 kB)  assets/Download-Dtl7RlLY.js
+bundle-budget: initial   505.9 kB gzipped of   600.0 kB budget; 137 lazy chunk(s)
+bundle-budget: OK
+check-no-dev-routes: OK (139 files, no /dev routes, dev nav or demo chunks)

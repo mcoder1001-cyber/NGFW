@@ -1,0 +1,861 @@
+DISPOSABLE_VPP pid=1415393 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-1415302
+run.sh: 2026-10-03T16:47:23 compile internal/agent + overlay isisrip_topology_integration_test.go (tools/heavy.sh)
+run.sh: 2026-10-03T16:47:52 VPP NRestarts=0 before topology
+=== RUN   TestISISRIPTopologyOnHost
+    isisrip_topology_integration_test.go:372: waiting for the exclusive globals lock /run/lock/vrx-globals.lock …
+    isisrip_topology_integration_test.go:376: globals window open at 2026-10-03T16:47:52+03:30
+    isisrip_topology_integration_test.go:383: systemctl show vpp -p NRestarts (before) = 0
+2026/10/03 16:47:52 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    isisrip_topology_integration_test.go:403: VRX_OSPF_FIB=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    isisrip_topology_integration_test.go:406: table-0 mfib before the run (vppctl show ip mfib 224.0.0.0/24):
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+         fib:0 index:0 locks:1
+          src:Default Route flags:none locks:1:  flags:Drop,
+            Extensions:
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+    isisrip_topology_integration_test.go:414: vrx-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    isisrip_topology_integration_test.go:419: rig up w6 (slot 6, path af_packet)
+          create netns ns-w6-lan
+          create veth w6l0 <-> ns-w6-lan:w6l1
+          create vpp host-w6l0 (af_packet on w6l0)
+          reset  ip/ip6 classify host-w6l0 (table-index ~0)
+          set    addr host-w6l0 10.6.1.1/24
+          create netns ns-w6-wan
+          create veth w6w0 <-> ns-w6-wan:w6w1
+          create vpp host-w6w0 (af_packet on w6w0)
+          reset  ip/ip6 classify host-w6w0 (table-index ~0)
+          set    addr host-w6w0 10.6.2.1/24
+        rig: up
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: 10.6.1.1/24 
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: 10.6.2.1/24 
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+        
+    isisrip_topology_integration_test.go:425: rig VPP side handed to the agent: af_packet_delete w6l0 (veth down)
+    isisrip_topology_integration_test.go:425: rig VPP side handed to the agent: af_packet_delete w6w0 (veth down)
+    isisrip_topology_integration_test.go:429: rootFRR: [mgmtd zebra staticd ripd isisd] started in the root netns, pathspace w6, base /run/vrx-test/w6/frr, pids map[isisd:1426192 mgmtd:1426107 ripd:1426170 staticd:1426151 zebra:1426139]
+    isisrip_topology_integration_test.go:438: peers: p1 ns-w6-lan (RIP + IS-IS L2 on w6l1, 10.6.64.0/24…10.6.83.0/24), p2 ns-w6-wan (on w6w1, 10.6.128.0/24…10.6.147.0/24); FRR-default isis lines stripped from the peers' render (F1, scaffolding)
+2026/10/03 16:48:18 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w6 component=subsystems
+2026/10/03 16:48:18 INFO pppoe client wired owner=w6 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 16:48:18 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w6 component=subsystems
+2026/10/03 16:48:18 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w6 component=subsystems
+2026/10/03 16:48:18 INFO fqdn state reloaded owner=w6 component=subsystems family=objects file=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/objects-fqdn-w6.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 16:48:18 INFO objects domain wired owner=w6 component=subsystems store=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/objects-w6.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 16:48:18 INFO acl domain wired owner=w6 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/03 16:48:18 INFO host firewall wired owner=w6 component=subsystems table="inet vrx_w6" mode=check netns="" rules_file=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/host-acl-w6.nft
+2026/10/03 16:48:18 INFO strongSwan not driven by this agent owner=w6 component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 16:48:18 INFO kea wired owner=w6 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 16:48:18 INFO host services wired owner=w6 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/g-w6/vrx-agent-test-528936213/unbound/unbound.conf chrony_conf=/tmp/g-w6/vrx-agent-test-528936213/chrony/agent/chrony.conf rsyslog_conf=/tmp/g-w6/vrx-agent-test-528936213/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 16:48:18 INFO system identity wired owner=w6 component=subsystems product_paths=false mechanism=files issue_file=/tmp/g-w6/vrx-agent-test-528936213/sysident/etc/issue.d/vrx.issue
+2026/10/03 16:48:18 INFO subsystems wired owner=w6 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state: claims-iface-w6.json, boot-w6.json; globals owner false" vpp_ids=6000-6999
+2026/10/03 16:48:18 INFO VPP binary API connected owner=w6 component=vpp socket=/run/vpp/api.sock
+2026/10/03 16:48:18 INFO vrx-agent listening owner=w6 socket=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/agent.sock metrics=off state_dir=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state vpp_api=/run/vpp/api.sock
+2026/10/03 16:48:18 INFO VPP boot identity owner=w6 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1415393/1439771 complete=true expired_claims=0
+2026/10/03 16:48:18 INFO reconcile start owner=w6 txn_id="" mode=resync domains=[]
+2026/10/03 16:48:18 WARN neighbour events: interface dump owner=w6 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/03 16:48:19 INFO reconcile done owner=w6 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=130.736176ms err=""
+2026/10/03 16:48:19 INFO resync finished owner=w6 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/03 16:48:19 INFO reconcile start owner=w6 txn_id=w6-p12-commit-rip mode=apply domains="[interfaces routing]"
+2026/10/03 16:48:19 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=af-packet.host-interface/host-w6l0
+2026/10/03 16:48:19 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=af-packet.host-interface/host-w6w0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface/host-w6l0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface-ip/host-w6l0/10.6.1.1/24
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface.admin-state/host-w6l0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface.mtu/host-w6l0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface/host-w6w0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface-ip/host-w6w0/10.6.2.1/24
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface.admin-state/host-w6w0
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=interface.mtu/host-w6w0
+2026/10/03 16:48:19 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6l0
+2026/10/03 16:48:19 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:48:19 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6w0
+2026/10/03 16:48:20 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:48:20 INFO created owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:48:21 INFO reconcile done owner=w6 txn_id=w6-p12-commit-rip mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:13 reapplied=0 duration=2.253381088s err=""
+    isisrip_topology_integration_test.go:502: apply commit-rip: {
+          "created":  13
+        }
+    isisrip_topology_integration_test.go:504: 40 RIP routes after commit: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 29.1s
+    isisrip_topology_integration_test.go:505: [after commit] vppctl [show ip mfib]:
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+        (*, 224.0.0.0/24): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[4:968]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.1/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:0 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.2/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:1 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+    isisrip_topology_integration_test.go:505: [after commit] vppctl [show interface address]:
+        host-w6l0 (up):
+          L3 10.6.1.1/24
+        host-w6w0 (up):
+          L3 10.6.2.1/24
+        local0 (dn):
+        tap4096 (up):
+        tap4097 (up):
+    isisrip_topology_integration_test.go:505: [after commit] vppctl [show interface]:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w6l0                         2      up          1500/0/0/0     rx packets                    24
+                                                                            rx bytes                   17972
+                                                                            tx packets                    17
+                                                                            tx bytes                    1694
+                                                                            drops                         19
+                                                                            ip4                            4
+                                                                            ip6                            8
+        host-w6w0                         1      up          1500/0/0/0     rx packets                    25
+                                                                            rx bytes                   18042
+                                                                            tx packets                    16
+                                                                            tx bytes                    2028
+                                                                            drops                         19
+                                                                            ip4                            4
+                                                                            ip6                            9
+        local0                            0     down          0/0/0/0       
+        tap4096                           3      up          1500/0/0/0     rx packets                    18
+                                                                            rx bytes                    1652
+                                                                            tx packets                     6
+                                                                            tx bytes                     764
+                                                                            drops                          2
+                                                                            ip4                            8
+                                                                            ip6                            9
+        tap4097                           4      up          1500/0/0/0     rx packets                    17
+                                                                            rx bytes                    1986
+                                                                            tx packets                     7
+                                                                            tx bytes                     834
+                                                                            drops                          2
+                                                                            ip4                            7
+                                                                            ip6                            9
+    isisrip_topology_integration_test.go:505: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w6l0 tap4096 w6-l0 7 type tap
+        itf-pair: [1] host-w6w0 tap4097 w6-w0 8 type tap
+    isisrip_topology_integration_test.go:505: [after commit] ip -br addr show dev w6-l0 / w6-w0 (taps):
+        w6-l0            UNKNOWN        10.6.1.1/24 fe80::fe:19ff:fe31:a5d/64 
+        w6-w0            UNKNOWN        10.6.2.1/24 fe80::fe:47ff:fea8:ad7e/64 
+    isisrip_topology_integration_test.go:505: [after commit] vtysh -N w6 -c "show ip rip status":
+        Routing Protocol is "rip"
+          Sending updates every 30 seconds with +/-50%, next due in 26 seconds
+          Timeout after 180 seconds, garbage collect after 120 seconds
+          Outgoing update filter list for all interface is not set
+          Incoming update filter list for all interface is not set
+          Default redistribution metric is 1
+          Redistributing:
+          Default version control: send version 2, receive version 2 
+            Interface        Send  Recv   Key-chain
+            w6-l0            2     2      
+            w6-w0            2     2      
+          Routing for Networks:
+            w6-l0
+            w6-w0
+          Routing Information Sources:
+            Gateway          BadPackets BadRoutes  Distance Last Update
+            10.6.1.2                  0         0       120    00:00:03
+            10.6.2.2                  0         0       120    00:00:00
+          Distance: (default is 120)
+    isisrip_topology_integration_test.go:505: [after commit] ip -4 route show proto rip (root netns): 40 routes
+        10.6.64.0/24 nhid 10 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.65.0/24 nhid 10 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.66.0/24 nhid 10 via 10.6.1.2 dev w6-l0 metric 20 
+        … (37 more)
+    isisrip_topology_integration_test.go:505: [after commit] vppctl show ip fib 10.6.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.6.64.0/24 fib:0 index:23 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[36] locks:40 flags:shared, uPRF-list:30 len:1 itfs:[2, ]
+              path:[52] pl-index:36 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.1.2 host-w6l0
+              [@0]: ipv4 via 10.6.1.2 host-w6l0: mtu:1500 next:7 flags:[] 1aa237f0c56c02fe19310a5d0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:25 buckets:1 uRPF:30 to:[0:0]]
+            [0] [@5]: ipv4 via 10.6.1.2 host-w6l0: mtu:1500 next:7 flags:[] 1aa237f0c56c02fe19310a5d0800
+    isisrip_topology_integration_test.go:505: [after commit] vppctl show ip fib 10.6.147.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.6.147.0/24 fib:0 index:62 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:40 flags:shared, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.2.2 host-w6w0
+              [@0]: ipv4 via 10.6.2.2 host-w6w0: mtu:1500 next:8 flags:[] 0e963a471b0c02fe47a8ad7e0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:64 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@5]: ipv4 via 10.6.2.2 host-w6w0: mtu:1500 next:8 flags:[] 0e963a471b0c02fe47a8ad7e0800
+    isisrip_topology_integration_test.go:514: Retrieve routing.rip == desired: {
+          "interfaces":  {
+            "host-w6l0":  {},
+            "host-w6w0":  {}
+          }
+        }
+2026/10/03 16:48:51 INFO reconcile start owner=w6 txn_id=w6-p12-idempotent mode=apply domains="[interfaces routing]"
+2026/10/03 16:48:52 INFO reconcile done owner=w6 txn_id=w6-p12-idempotent mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:13 reapplied=0 duration=416.441699ms err=""
+    isisrip_topology_integration_test.go:521: apply idempotent: {
+          "unchanged":  13
+        }
+    isisrip_topology_integration_test.go:538: peer 1 withdrew: FRR RIB rip=20, VPP lcp-rt-dynamic=20 after 1.3s
+    isisrip_topology_integration_test.go:542: peer 1 announces again: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 1.3s
+    isisrip_topology_integration_test.go:549: lcp_osi_proto_get (read-only binary API): retval=0 count=0 osi_protos=[]
+    isisrip_topology_integration_test.go:553: vppctl show lcp osi-proto: ""
+2026/10/03 16:48:57 INFO reconcile start owner=w6 txn_id=w6-isisrip-isis mode=apply domains="[interfaces routing]"
+2026/10/03 16:48:59 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:48:59 INFO updated owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:49:00 INFO reconcile done owner=w6 txn_id=w6-isisrip-isis mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:12" reapplied=0 duration=2.384774486s err=""
+    isisrip_topology_integration_test.go:559: commit routing.isis through the agent: <nil> status=APPLY_STATUS_APPLIED message="" summary={
+          "updated":  1,
+          "unchanged":  12
+        }
+    isisrip_topology_integration_test.go:561:   result: frr.config/vrx APPLY_OPERATION_UPDATE OBJECT_RESULT_CODE_OK 
+    isisrip_topology_integration_test.go:564:   validation: {
+          "txnId":  "w6-isisrip-isis",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/routing/isis",
+              "message":  "routing.isis is rendered into FRR but IS-IS adjacencies will not form on this build: the VPP OSI punt to linux-cp (lcp.osi-proto, V-new in docs/vpp-code-track.md) is not enabled",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "agent.unsupported-field"
+            }
+          ],
+          "summary":  {}
+        }
+    isisrip_topology_integration_test.go:567: the agent applied routing.isis (F1 fixed?)
+    isisrip_topology_integration_test.go:571: RIP intact after the refused IS-IS commit: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 300ms
+    isisrip_topology_integration_test.go:585: test-only: the agent's render of routing.rip + routing.isis without [] applied to the VRX FRR (converged):
+        frr version 10.7.1
+        frr defaults traditional
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6-l0
+         ip router isis vrx
+         ipv6 router isis vrx
+         ip address 10.6.1.1/24
+        exit
+        !
+        interface w6-w0
+         ip router isis vrx
+         ipv6 router isis vrx
+         ip address 10.6.2.1/24
+        exit
+        !
+        router rip
+         version 2
+         network w6-l0
+         network w6-w0
+        exit
+        !
+        router isis vrx
+         is-type level-2-only
+         net 49.0006.0000.0000.0001.00
+        exit
+        !
+        end
+    isisrip_topology_integration_test.go:589: osi-input before: 31
+                31             osi-input                     unknown osi protocol          error  
+    isisrip_topology_integration_test.go:617: after 41s: peer 1 adjacency view [] <nil>; VRX adjacencies (agent RoutingState isisNeighbors, parsed) []
+    isisrip_topology_integration_test.go:621: VRX raw isisNeighbors:
+        {
+          "areas":[
+            {
+              "area":"vrx",
+              "circuits":[
+                {
+                  "circuit":7
+                },
+                {
+                  "circuit":8
+                }
+              ]
+            }
+          ]
+        }
+    isisrip_topology_integration_test.go:623: peer 1 show isis neighbor:
+        Area vrx:
+         System Id           Interface   L  State         Holdtime SNPA
+    isisrip_topology_integration_test.go:640: tcpdump -Q in isis on the peer veth ns-w6-lan/w6l1 (frames VRX → peer):
+        (exit: exit status 124)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on w6l1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+        
+        0 packets captured
+        4 packets received by filter
+        0 packets dropped by kernel
+    isisrip_topology_integration_test.go:641: tcpdump -Q in isis on the VRX tap w6-l0 (frames peer → VRX via VPP):
+        (exit: exit status 124)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on w6-l0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+        
+        0 packets captured
+        3 packets received by filter
+        0 packets dropped by kernel
+    isisrip_topology_integration_test.go:644: osi-input after 1m2s: 118 (+87 drops 'unknown osi protocol'); host-w6l0 rx packets +25
+               118             osi-input                     unknown osi protocol          error  
+2026/10/03 16:50:05 INFO reconcile start owner=w6 txn_id=w6-p12-rip-after-isis mode=apply domains="[interfaces routing]"
+2026/10/03 16:50:05 WARN FRR running configuration drifted from the applied one owner=w6 component=subsystems component=frr diff="Lines To Delete\n===============\nLines To Add\n============\ninterface w6-l0\n ip router isis vrx\nexit\ninterface w6-l0\n ipv6 router isis vrx\nexit\ninterface w6-w0\n ip router isis vrx\nexit\ninterface w6-w0\n ipv6 router isis vrx\nexit\nrouter isis vrx\nexit\nrouter isis vrx\n is-type level-2-only\nexit\nrouter isis vrx\n net 49.0006.0000.0000.0001.00\nexit\n"
+2026/10/03 16:50:05 INFO created owner=w6 component=scheduler key=interface.mtu/host-w6l0
+2026/10/03 16:50:06 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:50:06 INFO updated owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:50:07 INFO reconcile done owner=w6 txn_id=w6-p12-rip-after-isis mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:1  updated:1  unchanged:11" reapplied=0 duration=2.069811098s err=""
+    isisrip_topology_integration_test.go:659: apply rip-after-isis: {
+          "created":  1,
+          "updated":  1,
+          "unchanged":  11
+        }
+    isisrip_topology_integration_test.go:660: the agent sees drift after the test-only IS-IS window: [key:"interface.mtu/host-w6l0"  op:APPLY_OPERATION_CREATE  code:OBJECT_RESULT_CODE_OK  pointer:"/interfaces/host-w6l0/mtu"  subsystem:"interfaces" key:"frr.config/vrx"  op:APPLY_OPERATION_UPDATE  code:OBJECT_RESULT_CODE_OK  pointer:"/routing"  subsystem:"routing"]
+    isisrip_topology_integration_test.go:662: RIP after the IS-IS window: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 300ms
+2026/10/03 16:50:07 INFO vrx-agent stopped owner=w6
+    isisrip_topology_integration_test.go:671: simulated loss: ip -4 addr flush dev w6-l0 (root netns): <nil> 
+    isisrip_topology_integration_test.go:671: simulated loss: lcp_itf_pair_add_del_v3 del host-w6l0 (sw_if_index 2) with the agent stopped
+    isisrip_topology_integration_test.go:672: simulated loss: ip -4 addr flush dev w6-w0 (root netns): <nil> 
+    isisrip_topology_integration_test.go:672: simulated loss: lcp_itf_pair_add_del_v3 del host-w6w0 (sw_if_index 1) with the agent stopped
+    isisrip_topology_integration_test.go:673: table-0 mfib after the simulated loss:
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 224.0.0.0/24): 
+         fib:0 index:8 locks:1
+          src:plugin-low flags:none locks:1: 
+            path-list:[23] locks:2 flags:no-uRPF, uRPF-list: None
+              path:[33] pl-index:23 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+                [@0]: dpo-receive
+            Extensions:
+             path:33 flags:Forward,
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[10:3560]]
+            [0] [@1]: dpo-receive
+2026/10/03 16:50:10 INFO VPP VRRP engine off (VRX_VRRP_VPP=off, or unset without VRX_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w6 component=subsystems
+2026/10/03 16:50:10 INFO pppoe client wired owner=w6 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/03 16:50:10 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w6 component=subsystems
+2026/10/03 16:50:10 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w6 component=subsystems
+2026/10/03 16:50:10 INFO fqdn state reloaded owner=w6 component=subsystems family=objects file=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/objects-fqdn-w6.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/03 16:50:10 INFO objects domain wired owner=w6 component=subsystems store=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/objects-w6.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/03 16:50:10 INFO acl domain wired owner=w6 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/03 16:50:10 INFO host firewall wired owner=w6 component=subsystems table="inet vrx_w6" mode=check netns="" rules_file=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state/host-acl-w6.nft
+2026/10/03 16:50:10 INFO strongSwan not driven by this agent owner=w6 component=subsystems component=strongswan reason="no product signal (owner vrx with VRX_VPP_ID_RANGE=all) and no slot pathspace"
+2026/10/03 16:50:10 INFO kea wired owner=w6 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/03 16:50:10 INFO host services wired owner=w6 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/g-w6/vrx-agent-test-528936213/unbound/unbound.conf chrony_conf=/tmp/g-w6/vrx-agent-test-528936213/chrony/agent/chrony.conf rsyslog_conf=/tmp/g-w6/vrx-agent-test-528936213/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/03 16:50:10 INFO system identity wired owner=w6 component=subsystems product_paths=false mechanism=files issue_file=/tmp/g-w6/vrx-agent-test-528936213/sysident/etc/issue.d/vrx.issue
+2026/10/03 16:50:10 INFO VPP binary API connected owner=w6 component=vpp socket=/run/vpp/api.sock
+2026/10/03 16:50:10 INFO subsystems wired owner=w6 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state: claims-iface-w6.json, boot-w6.json; globals owner false" vpp_ids=6000-6999
+2026/10/03 16:50:10 INFO vrx-agent listening owner=w6 socket=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/agent.sock metrics=off state_dir=/tmp/g-w6/TestISISRIPTopologyOnHost370127165/001/state vpp_api=/run/vpp/api.sock
+2026/10/03 16:50:10 INFO VPP boot identity owner=w6 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1415393/1439771 complete=true expired_claims=0
+2026/10/03 16:50:10 INFO reconcile start owner=w6 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/03 16:50:10 WARN neighbour events: interface dump owner=w6 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/03 16:50:10 INFO created owner=w6 component=scheduler key=interface-ip/host-w6l0/10.6.1.1/24
+2026/10/03 16:50:10 INFO created owner=w6 component=scheduler key=interface.mtu/host-w6l0
+2026/10/03 16:50:10 INFO created owner=w6 component=scheduler key=interface-ip/host-w6w0/10.6.2.1/24
+2026/10/03 16:50:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-l0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:10 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6l0
+2026/10/03 16:50:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:11 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6w0
+2026/10/03 16:50:12 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:50:12 INFO updated owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:50:12 INFO reconcile done owner=w6 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:5  updated:1  unchanged:7" reapplied=0 duration=1.983419756s err=""
+2026/10/03 16:50:12 INFO resync finished owner=w6 why=connect status=APPLY_STATUS_APPLIED summary="created:5  updated:1  unchanged:7"
+    isisrip_topology_integration_test.go:676: after agent restart + pair loss: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 300ms
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl [show ip mfib]:
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+        (*, 224.0.0.0/24): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[11:3992]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.1/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:0 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.2/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:1 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl [show interface address]:
+        host-w6l0 (up):
+          L3 10.6.1.1/24
+        host-w6w0 (up):
+          L3 10.6.2.1/24
+        local0 (dn):
+        tap4096 (up):
+        tap4097 (up):
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl [show interface]:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w6l0                         2      up          1500/0/0/0     rx packets                    61
+                                                                            rx bytes                   64694
+                                                                            tx packets                    27
+                                                                            tx bytes                    3654
+                                                                            drops                         48
+                                                                            ip4                           10
+                                                                            ip6                           10
+        host-w6w0                         1      up          1500/0/0/0     rx packets                    58
+                                                                            rx bytes                   63356
+                                                                            tx packets                    30
+                                                                            tx bytes                    5036
+                                                                            drops                         48
+                                                                            ip4                            7
+                                                                            ip6                           10
+        local0                            0     down          0/0/0/0       
+        tap4096                           4      up          1500/0/0/0     rx packets                     9
+                                                                            rx bytes                    1066
+                                                                            tx packets                     2
+                                                                            tx bytes                     892
+                                                                            drops                          2
+                                                                            ip4                            4
+                                                                            ip6                            5
+        tap4097                           3      up          1500/0/0/0     rx packets                    10
+                                                                            rx bytes                    1156
+                                                                            tx packets                     1
+                                                                            tx bytes                     446
+                                                                            drops                          2
+                                                                            ip4                            4
+                                                                            ip6                            6
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w6w0 tap4097 w6-w0 10 type tap
+        itf-pair: [1] host-w6l0 tap4096 w6-l0 9 type tap
+    isisrip_topology_integration_test.go:677: [immediately after restart] ip -br addr show dev w6-l0 / w6-w0 (taps):
+        w6-l0            UNKNOWN        10.6.1.1/24 fe80::6ca8:9dff:fe79:5198/64 
+        w6-w0            UNKNOWN        10.6.2.1/24 fe80::2432:a7ff:fee5:9b2d/64 
+    isisrip_topology_integration_test.go:677: [immediately after restart] vtysh -N w6 -c "show ip rip status":
+        Routing Protocol is "rip"
+          Sending updates every 30 seconds with +/-50%, next due in 12 seconds
+          Timeout after 180 seconds, garbage collect after 120 seconds
+          Outgoing update filter list for all interface is not set
+          Incoming update filter list for all interface is not set
+          Default redistribution metric is 1
+          Redistributing:
+          Default version control: send version 2, receive version 2 
+            Interface        Send  Recv   Key-chain
+            w6-l0            2     2      
+            w6-w0            2     2      
+          Routing for Networks:
+            w6-l0
+            w6-w0
+          Routing Information Sources:
+            Gateway          BadPackets BadRoutes  Distance Last Update
+            10.6.1.2                  0         0       120    00:00:01
+            10.6.2.2                  0         0       120    00:00:01
+          Distance: (default is 120)
+    isisrip_topology_integration_test.go:677: [immediately after restart] ip -4 route show proto rip (root netns): 40 routes
+        10.6.64.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.65.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.66.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        … (37 more)
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl show ip fib 10.6.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, lcp-rt:1, ]
+        10.6.64.0/24 fib:0 index:42 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[36] locks:40 flags:shared, uPRF-list:30 len:1 itfs:[2, ]
+              path:[52] pl-index:36 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.1.2 host-w6l0
+              [@0]: arp-ipv4: via 10.6.1.2 host-w6l0
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:44 buckets:1 uRPF:30 to:[0:0]]
+            [0] [@3]: arp-ipv4: via 10.6.1.2 host-w6l0
+    isisrip_topology_integration_test.go:677: [immediately after restart] vppctl show ip fib 10.6.147.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, lcp-rt:1, ]
+        10.6.147.0/24 fib:0 index:62 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:40 flags:shared, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.2.2 host-w6w0
+              [@0]: arp-ipv4: via 10.6.2.2 host-w6w0
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:64 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@3]: arp-ipv4: via 10.6.2.2 host-w6w0
+    isisrip_topology_integration_test.go:682: recovered 3.2s after the agent restart (target ≤ 30 s)
+    isisrip_topology_integration_test.go:690: peer 1 withdrew after the restart: FRR RIB rip=20, VPP lcp-rt-dynamic=20 after 300ms
+    isisrip_topology_integration_test.go:692: peer 1 announces again after the restart: FRR RIB rip=40, VPP lcp-rt-dynamic=40 after 900ms
+    isisrip_topology_integration_test.go:694: [after restart] vppctl [show ip mfib]:
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+        (*, 224.0.0.0/24): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[13:4856]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.1/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:0 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.2/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:1 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+    isisrip_topology_integration_test.go:694: [after restart] vppctl [show interface address]:
+        host-w6l0 (up):
+          L3 10.6.1.1/24
+        host-w6w0 (up):
+          L3 10.6.2.1/24
+        local0 (dn):
+        tap4096 (up):
+        tap4097 (up):
+    isisrip_topology_integration_test.go:694: [after restart] vppctl [show interface]:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w6l0                         2      up          1500/0/0/0     rx packets                    65
+                                                                            rx bytes                   67142
+                                                                            tx packets                    30
+                                                                            tx bytes                    3856
+                                                                            drops                         49
+                                                                            ip4                           12
+                                                                            ip6                           10
+        host-w6w0                         1      up          1500/0/0/0     rx packets                    61
+                                                                            rx bytes                   66426
+                                                                            tx packets                    33
+                                                                            tx bytes                    5594
+                                                                            drops                         50
+                                                                            ip4                            7
+                                                                            ip6                           10
+        local0                            0     down          0/0/0/0       
+        tap4096                           4      up          1500/0/0/0     rx packets                    11
+                                                                            rx bytes                    1226
+                                                                            tx packets                     4
+                                                                            tx bytes                    1784
+                                                                            drops                          2
+                                                                            ip4                            4
+                                                                            ip6                            7
+        tap4097                           3      up          1500/0/0/0     rx packets                    12
+                                                                            rx bytes                    1672
+                                                                            tx packets                     1
+                                                                            tx bytes                     446
+                                                                            drops                          2
+                                                                            ip4                            5
+                                                                            ip6                            7
+    isisrip_topology_integration_test.go:694: [after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w6w0 tap4097 w6-w0 10 type tap
+        itf-pair: [1] host-w6l0 tap4096 w6-l0 9 type tap
+    isisrip_topology_integration_test.go:694: [after restart] ip -br addr show dev w6-l0 / w6-w0 (taps):
+        w6-l0            UNKNOWN        10.6.1.1/24 fe80::6ca8:9dff:fe79:5198/64 
+        w6-w0            UNKNOWN        10.6.2.1/24 fe80::2432:a7ff:fee5:9b2d/64 
+    isisrip_topology_integration_test.go:694: [after restart] vtysh -N w6 -c "show ip rip status":
+        Routing Protocol is "rip"
+          Sending updates every 30 seconds with +/-50%, next due in 7 seconds
+          Timeout after 180 seconds, garbage collect after 120 seconds
+          Outgoing update filter list for all interface is not set
+          Incoming update filter list for all interface is not set
+          Default redistribution metric is 1
+          Redistributing:
+          Default version control: send version 2, receive version 2 
+            Interface        Send  Recv   Key-chain
+            w6-l0            2     2      
+            w6-w0            2     2      
+          Routing for Networks:
+            w6-l0
+            w6-w0
+          Routing Information Sources:
+            Gateway          BadPackets BadRoutes  Distance Last Update
+            10.6.1.2                  0         0       120    00:00:01
+            10.6.2.2                  0         0       120    00:00:06
+          Distance: (default is 120)
+    isisrip_topology_integration_test.go:694: [after restart] ip -4 route show proto rip (root netns): 40 routes
+        10.6.64.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.65.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        10.6.66.0/24 nhid 19 via 10.6.1.2 dev w6-l0 metric 20 
+        … (37 more)
+    isisrip_topology_integration_test.go:694: [after restart] vppctl show ip fib 10.6.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.6.64.0/24 fib:0 index:25 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[20] locks:40 flags:shared, uPRF-list:16 len:1 itfs:[2, ]
+              path:[23] pl-index:20 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.1.2 host-w6l0
+              [@0]: ipv4 via 10.6.1.2 host-w6l0: mtu:1500 next:7 flags:[] 1aa237f0c56c02fe19310a5d0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:27 buckets:1 uRPF:16 to:[0:0]]
+            [0] [@5]: ipv4 via 10.6.1.2 host-w6l0: mtu:1500 next:7 flags:[] 1aa237f0c56c02fe19310a5d0800
+    isisrip_topology_integration_test.go:694: [after restart] vppctl show ip fib 10.6.147.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.6.147.0/24 fib:0 index:62 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:40 flags:shared, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.6.2.2 host-w6w0
+              [@0]: ipv4 via 10.6.2.2 host-w6w0: mtu:1500 next:8 flags:[] 0e963a471b0c02fe47a8ad7e0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:64 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@5]: ipv4 via 10.6.2.2 host-w6w0: mtu:1500 next:8 flags:[] 0e963a471b0c02fe47a8ad7e0800
+2026/10/03 16:50:18 INFO reconcile start owner=w6 txn_id=w6-p12-rollback mode=apply domains="[interfaces routing]"
+2026/10/03 16:50:20 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:50:20 INFO updated owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:50:21 INFO reconcile done owner=w6 txn_id=w6-p12-rollback mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:12" reapplied=0 duration=2.292486078s err=""
+    isisrip_topology_integration_test.go:697: apply rollback: {
+          "updated":  1,
+          "unchanged":  12
+        }
+    isisrip_topology_integration_test.go:698: after rollback: FRR RIB rip=0, VPP lcp-rt-dynamic=0 after 200ms
+    isisrip_topology_integration_test.go:706: Retrieve after rollback: no routing.rip
+    isisrip_topology_integration_test.go:716: rendered /run/vrx-test/w6/frr/etc/w6/frr.conf after rollback (no router rip):
+        frr version 10.7.1
+        frr defaults traditional
+        hostname ubuntu-26.04
+        log syslog informational
+        service integrated-vtysh-config
+        !
+        interface w6-l0
+         ip address 10.6.1.1/24
+        exit
+        !
+        interface w6-w0
+         ip address 10.6.2.1/24
+        exit
+        !
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl [show ip mfib]:
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 0.0.0.0/0):  flags:Drop,
+          Interfaces:
+          multicast-ip4-chain
+          [@0]: dpo-drop ip4
+        (*, 224.0.0.0/24): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[13:4856]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.1/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:0 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+        (*, 224.0.0.2/32): 
+          Interfaces:
+           host-w6l0: Accept,
+           host-w6w0: Accept,
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:1 buckets:1 flags:[has-local ] to:[0:0]]
+            [0] [@1]: dpo-receive
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl [show interface address]:
+        host-w6l0 (up):
+          L3 10.6.1.1/24
+        host-w6w0 (up):
+          L3 10.6.2.1/24
+        local0 (dn):
+        tap4096 (up):
+        tap4097 (up):
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl [show interface]:
+                      Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w6l0                         2      up          1500/0/0/0     rx packets                    67
+                                                                            rx bytes                   70170
+                                                                            tx packets                    30
+                                                                            tx bytes                    3856
+                                                                            drops                         51
+                                                                            ip4                           12
+                                                                            ip6                           10
+        host-w6w0                         1      up          1500/0/0/0     rx packets                    63
+                                                                            rx bytes                   68010
+                                                                            tx packets                    34
+                                                                            tx bytes                    6040
+                                                                            drops                         51
+                                                                            ip4                            7
+                                                                            ip6                           11
+        local0                            0     down          0/0/0/0       
+        tap4096                           4      up          1500/0/0/0     rx packets                    13
+                                                                            rx bytes                    1334
+                                                                            tx packets                     4
+                                                                            tx bytes                    1784
+                                                                            drops                          4
+                                                                            ip4                            6
+                                                                            ip6                            7
+        tap4097                           3      up          1500/0/0/0     rx packets                    15
+                                                                            rx bytes                    2226
+                                                                            tx packets                     2
+                                                                            tx bytes                     516
+                                                                            drops                          4
+                                                                            ip4                            8
+                                                                            ip6                            7
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w6w0 tap4097 w6-w0 10 type tap
+        itf-pair: [1] host-w6l0 tap4096 w6-l0 9 type tap
+    isisrip_topology_integration_test.go:721: [after rollback] ip -br addr show dev w6-l0 / w6-w0 (taps):
+        w6-l0            UNKNOWN        10.6.1.1/24 fe80::6ca8:9dff:fe79:5198/64 
+        w6-w0            UNKNOWN        10.6.2.1/24 fe80::2432:a7ff:fee5:9b2d/64 
+    isisrip_topology_integration_test.go:721: [after rollback] vtysh -N w6 -c "show ip rip status":
+        % RIP instance not found
+    isisrip_topology_integration_test.go:721: [after rollback] ip -4 route show proto rip (root netns): 0 routes
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl show ip fib 10.6.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    isisrip_topology_integration_test.go:721: [after rollback] vppctl show ip fib 10.6.147.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+2026/10/03 16:50:22 INFO reconcile start owner=w6 txn_id=w6-isisrip-cleanup mode=apply domains="[interfaces routing]"
+2026/10/03 16:50:24 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/vrx-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=frr.config/vrx
+2026/10/03 16:50:24 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=lcp.itf-pair/host-w6w0
+2026/10/03 16:50:24 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-l0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=lcp.itf-pair/host-w6l0
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface.mtu/host-w6w0
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface.mtu/host-w6l0
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface.admin-state/host-w6w0
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface.admin-state/host-w6l0
+2026/10/03 16:50:24 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w6w0 prefix=10.6.2.1/24 err="sw_interface_add_del_address host-w6w0 10.6.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface-ip/host-w6w0/10.6.2.1/24
+2026/10/03 16:50:24 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w6w0 descriptor=af-packet.host-interface ifindex=6 kind=veth
+2026/10/03 16:50:24 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=af-packet.host-interface/host-w6w0
+2026/10/03 16:50:24 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w6l0 prefix=10.6.1.1/24 err="sw_interface_add_del_address host-w6l0 10.6.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=interface-ip/host-w6l0/10.6.1.1/24
+2026/10/03 16:50:24 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w6l0 descriptor=af-packet.host-interface ifindex=4 kind=veth
+2026/10/03 16:50:24 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 16:50:24 INFO deleted owner=w6 component=scheduler key=af-packet.host-interface/host-w6l0
+2026/10/03 16:50:24 INFO reconcile done owner=w6 txn_id=w6-isisrip-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:11 reapplied=0 duration=2.016021772s err=""
+    isisrip_topology_integration_test.go:468: cleanup apply: <nil> APPLY_STATUS_APPLIED {
+          "deleted":  11
+        }
+    isisrip_topology_integration_test.go:474: cleanup: 0 lcp-rt-dynamic routes of 10.6/16 left in VPP table 0
+2026/10/03 16:50:24 INFO vrx-agent stopped owner=w6
+    isisrip_topology_integration_test.go:484: table-0 mfib after the cleanup (vppctl show ip mfib 224.0.0.0/24):
+        ipv4-VRF:0, fib_index:0 flags:none
+        (*, 224.0.0.0/24): 
+         fib:0 index:8 locks:1
+          src:plugin-low flags:none locks:1: 
+            path-list:[23] locks:2 flags:no-uRPF, uRPF-list: None
+              path:[33] pl-index:23 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+                [@0]: dpo-receive
+            Extensions:
+             path:33 flags:Forward,
+            Interface-Forwarding:
+        
+          Interfaces:
+          multicast-ip4-chain
+          [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[13:4856]]
+            [0] [@1]: dpo-receive
+    isisrip_topology_integration_test.go:422: rig down: <nil>
+        rig down w6
+          delete netns ns-w6-lan (and its veth peer)
+          delete netns ns-w6-wan (and its veth peer)
+        rig: down
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: -
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+    isisrip_topology_integration_test.go:386: systemctl show vpp -p NRestarts (after) = 0
+    isisrip_topology_integration_test.go:378: globals window closed at 2026-10-03T16:50:26+03:30
+--- FAIL: TestISISRIPTopologyOnHost (153.66s)
+FAIL
+run.sh: 2026-10-03T16:50:26 VPP NRestarts=0 after topology, exit 1
+run.sh: /tmp/g-w6 not empty: lic vrrp-bin 
+DISPOSABLE_VPP_STOPPED pid=1415393

@@ -1,0 +1,10 @@
+# Hardware/native merge recovery
+
+Branch: codex/hardware-native-merge-20261003. Base advanced through published f2e52a5b2; newer origin changes must be incorporated before merge.
+Reviewed local source checkpoint: 1311382aa. Remote recovery archive: codex/hardware-native-recovery-20261003, commit e87c3d2d10d33841e1d81a22c4cb5f1c91ba90f7. Bundle restores 273 commits and passed gitleaks.
+Owned files: staged hardware/native integration delta and missing dependency foundations. Independent reviewers: native_ipsec, drift, restart_socket (read-only).
+State: conflicts resolved; NOT merge-ready until unchanged hosted quick gate passes. Combined Go agent54.322s, desired9.460s, subsystems18.566s passed; core/VRRP/Capture passed cached. API tsc passed. Client/CLI regeneration in progress. Restored StrongSwan fixture is confined to internal/testpeer, with no product registration. Published board states preserved; OSPFv3 and native certificate/event delivery remain open. Current source must compile, regenerate contracts, pass unchanged complete quick CI and independent integration review before merge. Preserve latest PKI/notifications/license changes and merge board rows only after actual successful merge. Main VPP PID1014 must not be restarted.
+Next: resolve remaining index conflicts, run packages/proto/gen.sh and unchanged tools/ci.sh quick --base origin/main via bounded heavy wrapper.
+
+
+Brand integration: published main advanced to07fbfb192 (NGFW rename). Active product source/tests/proto are ported to NGFW paths and environment; shared VPP and existing data/owner files untouched. Preserve mandatory main CI, new16-byte classify signature and packaging new-install boundary. Original host evidence remains historical VRX evidence. Exact ff57ecaaf tree published as remote584b2c8a on codex/hardware-native-integration-checkpoint-20261003. Current post-brand tree still awaiting combined validation. CI prior-base failures corrected: Capture start admin decorator and protocol constants outside translated JSX. Use original root heavy wrapper for resource serialization; private lab must bind NGFW_LAB_LOCK to existing VRX lab lock while older workers exist.

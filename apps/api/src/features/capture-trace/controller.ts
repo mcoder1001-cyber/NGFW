@@ -46,6 +46,7 @@ export class CaptureTraceController {
   ) {}
 
   @Post('actions/capture')
+  @MinRole('admin')
   @HttpCode(202)
   @Protected(400, 409, 501, 502, 503)
   @ApiOperation({
@@ -77,11 +78,28 @@ export class CaptureTraceController {
     }
   }
 
+  @Post('actions/capture/:id/stop')
+  @MinRole('admin')
+  @HttpCode(202)
+  @Protected(403, 404, 409, 502, 503)
+  @ApiParam({ name: 'id', schema: { type: 'string' } })
+  @ApiOperation({
+    summary: 'Stop a capture running in this API process; poll state until it finishes',
+  })
+  @ApiOkResponse({ schema: openapi(CaptureStarted, 'output') })
+  async stop(@Param('id') id: string, @Req() req: NgfwRequest) {
+    checkId(id);
+    req.audit = { resource: `captures/${id}` };
+    await this.agent.stopCapture(id);
+    req.audit.after = { stopRequested: true };
+    return { id };
+  }
+
   @Get('state/captures')
   @Protected(501, 502, 503)
   @ApiOperation({
     summary:
-      'Captures kept by the agent (and the running one), retention caps, trace / PG availability',
+      'Unpaged capture list bounded by maxFiles (plus the running capture), retention caps, trace / PG availability',
   })
   @ApiOkResponse({ schema: openapi(CapturesOut, 'output') })
   async list() {

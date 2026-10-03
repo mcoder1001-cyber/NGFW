@@ -1,0 +1,142 @@
+[
+  {
+    "module": "bonding",
+    "package": "fail",
+    "elapsed": 14.208,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  {
+    "module": "final-bonding",
+    "package": "pass",
+    "elapsed": 15.832,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  {
+    "module": "final-bridge-l2",
+    "package": "pass",
+    "elapsed": 19.835,
+    "tests": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "final-loopback-bvi-gso-lldp-span",
+    "package": "pass",
+    "elapsed": 17.947,
+    "tests": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "final-nat44-ed-sessions",
+    "package": "pass",
+    "elapsed": 30.236,
+    "tests": {
+      "pass": 7,
+      "fail": 0,
+      "skip": 2
+    }
+  },
+  {
+    "module": "final-nat44-ei-64-66-nptv6",
+    "package": "pass",
+    "elapsed": 28.482,
+    "tests": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 3
+    }
+  },
+  {
+    "module": "final-neighbors-ra",
+    "package": "pass",
+    "elapsed": 15.03,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "host-acl-nftables",
+    "package": "pass",
+    "elapsed": 20.69,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "loopback-bvi-gso-lldp-span",
+    "package": "fail",
+    "elapsed": 9.718,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 1
+    }
+  },
+  {
+    "module": "neighbors-ra",
+    "package": "fail",
+    "elapsed": 14.286,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 1
+    }
+  },
+  {
+    "module": "object-model",
+    "package": "pass",
+    "elapsed": 74.6,
+    "tests": {
+      "pass": 8,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "ra-countdown-before-descriptor-fix",
+    "package": "fail",
+    "elapsed": 15.018,
+    "tests": {
+      "pass": 0,
+      "fail": 1,
+      "skip": 1
+    }
+  },
+  {
+    "module": "ra-lifetime-fix-before-hardening",
+    "package": "pass",
+    "elapsed": 14.493,
+    "tests": {
+      "pass": 1,
+      "fail": 0,
+      "skip": 1
+    }
+  },
+  {
+    "module": "vlan-qinq",
+    "package": "pass",
+    "elapsed": 21.004,
+    "tests": {
+      "pass": 6,
+      "fail": 0,
+      "skip": 2
+    }
+  }
+]

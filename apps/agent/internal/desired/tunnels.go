@@ -6,16 +6,22 @@ package desired
 //	tunnels.gre.<name>    → gre.tunnel/gre<instance>              (type l3|teb|erspan, p2p)
 //	tunnels.ipip.<name>   → ipip.tunnel/ipip<instance>            (p2p|p2mp; dscp unset = copy the inner DSCP)
 //	tunnels.vxlan.<name>  → vxlan.tunnel/vxlan_tunnel<instance>   (decap l2 = L2 tunnel, ip4|ip6 = is_l3)
-//	every tunnel          → tunnels.meta/<vpp name>               (name, description, decap: VPP cannot hold them)
+//	tunnels.ipip.<name> with sixrd → ipip.sixrd/<name>            (6RD border relay; write-only in VPP, kept in tunnels.meta)
+//	tunnels.vxlanGpe.<name> → vxlan-gpe.tunnel/<name>             (S-tunnels-contract T1: VPP names the interface,
+//	tunnels.gtpu.<name>     → gtpu.tunnel/<name>                   the configuration name is the owner-tag id and the
+//	tunnels.l2tpv3.<name>   → l2tp.tunnel/<name>                   logical interface name; no instance)
+//	tunnels.pppoe.<name>    → pppoe.session/<mac>/<session id>
+//	every tunnel          → tunnels.meta/<id>                     (name, description, decap, 6RD: VPP cannot hold them)
 //	with `interfaces` in the transaction:
 //	  → interface/<vpp name> (creator = the tunnel key), interface.admin-state, interface.mtu,
 //	    interface-ip.table (vrf ≠ default), interface-ip/<addr> (ipv4/ipv6),
 //	    l2.bridge-domain-member/<bd>/<vpp name> (bridgeDomain; L2 tunnels only)
 //
-// `instance` is mandatory in this build (the descriptors key a tunnel by its VPP name) and must lie in
-// the agent's VPP id range (TD-8b, fail closed: no range → every tunnel is refused). Underlay VRF →
-// the outer FIB table id; `vrf` → the overlay table of the tunnel interface. VXLAN-GPE, GTP-U, L2TPv3,
-// PPPoE and 6RD have DF-6 descriptors but no schema keys yet (contract change) and are not projected.
+// `instance` is mandatory for gre/ipip/vxlan (the descriptors key those by their VPP name; the schema
+// rule tunnels.instance-required answers 400 first, D-205) and must lie in the agent's VPP id range
+// (TD-8b, fail closed: no range → every tunnel is refused). Underlay VRF → the outer FIB table id;
+// `vrf` → the overlay table of the tunnel interface. An L2TPv3 tunnel cannot be deleted by VPP 26.06
+// (no l2tpv3 delete message): the projection warns, the scheduler surfaces df6.ErrNoDelete on removal.
 
 import (
 	"context"
@@ -25,14 +31,20 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	"ngfw/agent/binapi/tunnel_types"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/gre"
+	"ngfw/agent/internal/descriptors/gtpu"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/ipip"
 	"ngfw/agent/internal/descriptors/l2"
+	"ngfw/agent/internal/descriptors/l2tp"
+	"ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/descriptors/vxlan"
+	"ngfw/agent/internal/descriptors/vxlan_gpe"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -43,6 +55,7 @@ const (
 	RuleTunnelInstanceDup   = "tunnels.instance-unique"
 	RuleTunnelValue         = "tunnels.value"
 	RuleTunnelDomain        = "tunnels.interfaces-domain"
+	RuleTunnelNoDelete      = "tunnels.l2tpv3-no-delete"
 )
 
 // TunnelIDSpan is the id range tunnel instances must lie in (the agent's VPP id scope, TD-8b).
@@ -71,13 +84,26 @@ func (r TunnelIDSpan) String() string {
 // description and VXLAN decap family of every tunnel this agent created.
 const TunnelMetaName = "tunnels.meta"
 
-// TunnelMetaSpec is one tunnels.meta entry; ID is the VPP interface name (gre5, vxlan_tunnel7 …).
+// TunnelMetaSpec is one tunnels.meta entry; ID is the VPP interface name (gre5, vxlan_tunnel7 …) for the
+// instance-keyed kinds and the descriptor id (the configuration name; "<mac>/<session id>" for PPPoE)
+// for the kinds VPP names itself. Sixrd carries the 6RD parameters VPP cannot report (write-only).
 type TunnelMetaSpec struct {
-	ID          string `json:"id"`
-	Kind        string `json:"kind"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Decap       string `json:"decap,omitempty"`
+	ID          string           `json:"id"`
+	Kind        string           `json:"kind"`
+	Name        string           `json:"name"`
+	Description string           `json:"description,omitempty"`
+	Decap       string           `json:"decap,omitempty"`
+	Sixrd       *TunnelMetaSixrd `json:"sixrd,omitempty"`
+}
+
+// TunnelMetaSixrd mirrors tunnels.ipip.<name>.sixrd plus the 6RD source (the tunnel's src).
+type TunnelMetaSixrd struct {
+	Src           string  `json:"src,omitempty"`
+	UnderlayVrf   string  `json:"underlayVrf,omitempty"`
+	Ip6Prefix     string  `json:"ip6Prefix"`
+	Ip4Prefix     string  `json:"ip4Prefix"`
+	SecurityCheck bool    `json:"securityCheck"`
+	TcTos         *uint32 `json:"tcTos,omitempty"`
 }
 
 // TunnelMetaKey is "tunnels.meta/<vpp name>".
@@ -253,6 +279,10 @@ func Tunnels(s Sink, t *ngfwv1.TunnelsConfig, in map[string]bool, vrfID func(str
 	for _, name := range sortedKeys(t.GetIpip()) {
 		p := t.GetIpip()[name]
 		pt := Ptr("tunnels", "ipip", name)
+		if p.GetSixrd() != nil {
+			b.sixrd(pt, name, p)
+			continue
+		}
 		ifn, table, overlay, ok := b.common(pt, "ipip", p, p.Instance, ipip.InterfaceName, seen)
 		if !ok {
 			continue
@@ -319,11 +349,215 @@ func Tunnels(s Sink, t *ngfwv1.TunnelsConfig, in map[string]bool, vrfID func(str
 		b.meta(pt, TunnelMetaSpec{ID: ifn, Kind: "vxlan", Name: name, Description: x.GetDescription(), Decap: decap})
 		b.attributes(pt, ifn, key, x, x.Mtu, overlay, x.BridgeDomain, decap == "l2")
 	}
+	b.t1Kinds(t)
 }
 
-// ipipCopyDSCP is TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_DSCP: an IPIP tunnel without dscp copies
-// the inner DSCP (the schema's "omit to copy").
-const ipipCopyDSCP = 4
+// t1Kinds projects the kinds VPP names itself (S-tunnels-contract): the configuration name is the
+// descriptor id, the owner tag and the logical interface name of the attributes.
+func (b tunnelBuild) t1Kinds(t *ngfwv1.TunnelsConfig) {
+	s := b.s
+	for _, name := range sortedKeys(t.GetVxlanGpe()) {
+		x := t.GetVxlanGpe()[name]
+		pt := Ptr("tunnels", "vxlanGpe", name)
+		table, overlay, ok := b.vrfs(pt, x)
+		if !ok {
+			continue
+		}
+		v := &vxlan_gpe.Tunnel{Name: name, Vni: x.GetVni(), EncapVrfId: table, McastInterface: x.GetMcastInterface(),
+			LocalPort: gpePort(x.SrcPort), RemotePort: gpePort(x.DstPort)}
+		isIP := false
+		switch x.GetProtocol() {
+		case "", "ethernet":
+			v.Protocol = vxlan_gpe.Protocol_ETHERNET
+		case "nsh":
+			v.Protocol = vxlan_gpe.Protocol_NSH
+		case "ip4":
+			v.Protocol, isIP = vxlan_gpe.Protocol_IP4, true
+		case "ip6":
+			v.Protocol, isIP = vxlan_gpe.Protocol_IP6, true
+		default:
+			s.Errorf(pt+"/protocol", RuleTunnelValue, "unknown VXLAN-GPE protocol %q", x.GetProtocol())
+			continue
+		}
+		if isIP {
+			v.DecapVrfId = overlay
+		}
+		var err error
+		if v.Local, err = canonAddr(x.GetSrc()); err != nil {
+			s.Errorf(pt+"/src", RuleTunnelValue, "%v", err)
+			continue
+		}
+		if v.Remote, err = canonAddr(x.GetDst()); err != nil {
+			s.Errorf(pt+"/dst", RuleTunnelValue, "%v", err)
+			continue
+		}
+		key := scheduler.Join(vxlan_gpe.TunnelName, name)
+		s.Add(key, v, pt)
+		b.meta(pt, TunnelMetaSpec{ID: name, Kind: "vxlanGpe", Name: name, Description: x.GetDescription()})
+		b.attributes(pt, name, key, x, x.Mtu, overlay, x.BridgeDomain, !isIP)
+	}
+	for _, name := range sortedKeys(t.GetGtpu()) {
+		g := t.GetGtpu()[name]
+		pt := Ptr("tunnels", "gtpu", name)
+		table, overlay, ok := b.vrfs(pt, g)
+		if !ok {
+			continue
+		}
+		v := &gtpu.Tunnel{Name: name, McastInterface: g.GetMcastInterface(), EncapVrfId: table, Teid: g.GetTeid(),
+			Tteid: g.GetTteid(), PduExtension: g.GetPduExtension(), Qfi: g.GetQfi()}
+		isIP := false
+		switch g.GetDecap() {
+		case "", "ip4":
+			v.DecapNext, isIP = gtpu.DecapNext_IP4, true
+		case "ip6":
+			v.DecapNext, isIP = gtpu.DecapNext_IP6, true
+		case "l2":
+			v.DecapNext = gtpu.DecapNext_L2
+		case "drop":
+			v.DecapNext = gtpu.DecapNext_DROP
+		default:
+			s.Errorf(pt+"/decap", RuleTunnelValue, "unknown GTP-U decap %q", g.GetDecap())
+			continue
+		}
+		var err error
+		if v.Src, err = canonAddr(g.GetSrc()); err != nil {
+			s.Errorf(pt+"/src", RuleTunnelValue, "%v", err)
+			continue
+		}
+		if v.Dst, err = canonAddr(g.GetDst()); err != nil {
+			s.Errorf(pt+"/dst", RuleTunnelValue, "%v", err)
+			continue
+		}
+		key := scheduler.Join(gtpu.TunnelName, name)
+		s.Add(key, v, pt)
+		b.meta(pt, TunnelMetaSpec{ID: name, Kind: "gtpu", Name: name, Description: g.GetDescription()})
+		b.attributes(pt, name, key, g, g.Mtu, overlay, g.BridgeDomain, !isIP)
+	}
+	for _, name := range sortedKeys(t.GetL2Tpv3()) {
+		l := t.GetL2Tpv3()[name]
+		pt := Ptr("tunnels", "l2tpv3", name)
+		table, overlay, ok := b.vrfs(pt, l)
+		if !ok {
+			continue
+		}
+		if table != 0 {
+			s.Errorf(pt+"/underlayVrf", RuleTunnelValue, "the engine encapsulates L2TPv3 in the default VRF only")
+			continue
+		}
+		v := &l2tp.Tunnel{Name: name, LocalSessionId: l.GetLocalSessionId(), RemoteSessionId: l.GetRemoteSessionId(),
+			LocalCookie: l.GetLocalCookie(), RemoteCookie: l.GetRemoteCookie(), L2SublayerPresent: l.GetL2Sublayer()}
+		var err error
+		if v.OurAddress, err = canonAddr(l.GetSrc()); err != nil {
+			s.Errorf(pt+"/src", RuleTunnelValue, "%v", err)
+			continue
+		}
+		if v.ClientAddress, err = canonAddr(l.GetDst()); err != nil {
+			s.Errorf(pt+"/dst", RuleTunnelValue, "%v", err)
+			continue
+		}
+		key := scheduler.Join(l2tp.TunnelName, name)
+		s.Add(key, v, pt)
+		s.Warnf(pt, RuleTunnelNoDelete, "%s: the engine cannot delete an L2TPv3 tunnel (VPP 26.06 has no l2tpv3 delete); removing it needs an engine restart", pt)
+		b.meta(pt, TunnelMetaSpec{ID: name, Kind: "l2tpv3", Name: name, Description: l.GetDescription()})
+		b.attributes(pt, name, key, l, l.Mtu, overlay, l.BridgeDomain, true)
+	}
+	for _, name := range sortedKeys(t.GetPppoe()) {
+		p := t.GetPppoe()[name]
+		pt := Ptr("tunnels", "pppoe", name)
+		overlay, ok := b.vrfID(vrfName(p.GetVrf()))
+		if !ok {
+			s.Errorf(pt+"/vrf", "tunnels.vrf-exists", "VRF %q does not exist", vrfName(p.GetVrf()))
+			continue
+		}
+		id, err := pppoe.SessionID(p.GetClientMac(), p.GetSessionId())
+		if err != nil {
+			s.Errorf(pt+"/clientMac", RuleTunnelValue, "%v", err)
+			continue
+		}
+		ip, err := canonAddr(p.GetClientIp())
+		if err != nil {
+			s.Errorf(pt+"/clientIp", RuleTunnelValue, "%v", err)
+			continue
+		}
+		mac, _ := df6CanonicalMAC(p.GetClientMac())
+		v := &pppoe.Session{SessionId: p.GetSessionId(), ClientIp: ip, ClientMac: mac, DecapVrfId: overlay}
+		key := scheduler.Join(pppoe.SessionName, id)
+		s.Add(key, v, pt)
+		b.meta(pt, TunnelMetaSpec{ID: id, Kind: "pppoe", Name: name, Description: p.GetDescription()})
+		b.attributes(pt, id, key, pppoeCommon{p}, p.Mtu, 0, nil, true)
+	}
+}
+
+// sixrd projects an IPIP tunnel with `sixrd` as a 6RD border relay: ipip.sixrd/<name> (write-only in
+// VPP: the parameters live in tunnels.meta) plus the interface attributes keyed by the name.
+func (b tunnelBuild) sixrd(pt, name string, p *ngfwv1.IpipTunnel) {
+	s := b.s
+	table, overlay, ok := b.vrfs(pt, p)
+	if !ok {
+		return
+	}
+	x := p.GetSixrd()
+	src, err := canonAddr(p.GetSrc())
+	if err != nil {
+		s.Errorf(pt+"/src", RuleTunnelValue, "%v", err)
+		return
+	}
+	p6, err := core.CanonAddrPrefix(x.GetIp6Prefix())
+	if err != nil {
+		s.Errorf(pt+"/sixrd/ip6Prefix", RuleTunnelValue, "%v", err)
+		return
+	}
+	p4, err := core.CanonAddrPrefix(x.GetIp4Prefix())
+	if err != nil {
+		s.Errorf(pt+"/sixrd/ip4Prefix", RuleTunnelValue, "%v", err)
+		return
+	}
+	v := &ipip.Tunnel6Rd{Name: name, Ip6Prefix: p6, Ip4Prefix: p4, Ip4Src: src, SecurityCheck: x.GetSecurityCheck(),
+		Ip6TableId: overlay, Ip4TableId: table, TcTos: x.GetTcTos()}
+	key := scheduler.Join(ipip.SixrdName, name)
+	s.Add(key, v, pt)
+	m := TunnelMetaSpec{ID: name, Kind: "ipip", Name: name, Description: p.GetDescription(),
+		Sixrd: &TunnelMetaSixrd{Src: src, UnderlayVrf: vrfName(p.GetUnderlayVrf()), Ip6Prefix: p6, Ip4Prefix: p4, SecurityCheck: x.GetSecurityCheck()}}
+	if x.TcTos != nil {
+		m.Sixrd.TcTos = proto.Uint32(x.GetTcTos())
+	}
+	b.meta(pt, m)
+	b.attributes(pt, name, key, p, p.Mtu, overlay, p.BridgeDomain, false)
+}
+
+// vrfs resolves the underlay (outer) and overlay table ids of a tunnel without an instance.
+func (b tunnelBuild) vrfs(pt string, c tunnelCommon) (uint32, uint32, bool) {
+	underlay, ok := b.vrfID(vrfName(c.GetUnderlayVrf()))
+	if !ok {
+		b.s.Errorf(pt+"/underlayVrf", "tunnels.vrf-exists", "VRF %q does not exist", vrfName(c.GetUnderlayVrf()))
+		return 0, 0, false
+	}
+	overlay, ok := b.vrfID(vrfName(c.GetVrf()))
+	if !ok {
+		b.s.Errorf(pt+"/vrf", "tunnels.vrf-exists", "VRF %q does not exist", vrfName(c.GetVrf()))
+		return 0, 0, false
+	}
+	return underlay, overlay, true
+}
+
+func gpePort(p *uint32) uint32 {
+	if p == nil || *p == vxlan_gpe.DefaultPort {
+		return 0 // the descriptor's canonical form of VPP's default port
+	}
+	return *p
+}
+
+// pppoeCommon adapts a PPPoE session (no src / underlay / addresses) to the attribute builder.
+type pppoeCommon struct{ *ngfwv1.PppoeSession }
+
+func (pppoeCommon) GetSrc() string         { return "" }
+func (pppoeCommon) GetUnderlayVrf() string { return "" }
+func (pppoeCommon) GetIpv4() []string      { return nil }
+func (pppoeCommon) GetIpv6() []string      { return nil }
+
+// ipipCopyDSCP: an IPIP tunnel without dscp copies the inner DSCP (the schema's "omit to copy"); the
+// generated binding's constant (RV-C F-tunnels MINOR 5).
+const ipipCopyDSCP = uint32(tunnel_types.TUNNEL_API_ENCAP_DECAP_FLAG_ENCAP_COPY_DSCP)
 
 func vxlanPort(p *uint32) uint32 {
 	if p == nil || *p == vxlan.DefaultPort {
@@ -419,6 +653,14 @@ func hasEnabled(c tunnelCommon) bool {
 		return v.Enabled != nil
 	case *ngfwv1.VxlanTunnel:
 		return v.Enabled != nil
+	case *ngfwv1.VxlanGpeTunnel:
+		return v.Enabled != nil
+	case *ngfwv1.GtpuTunnel:
+		return v.Enabled != nil
+	case *ngfwv1.L2Tpv3Tunnel:
+		return v.Enabled != nil
+	case pppoeCommon:
+		return v.Enabled != nil
 	}
 	return true
 }
@@ -444,6 +686,10 @@ func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]
 	gres := map[string]*gre.Tunnel{}
 	ipips := map[string]*ipip.Tunnel{}
 	vxlans := map[string]*vxlan.Tunnel{}
+	gpes := map[string]*vxlan_gpe.Tunnel{}
+	gtpus := map[string]*gtpu.Tunnel{}
+	l2tps := map[string]*l2tp.Tunnel{}
+	pppoes := map[string]*pppoe.Session{}
 	metas := map[string]TunnelMetaSpec{}
 	attrs := map[string]*tunnelAttrs{}
 	attr := func(n string) *tunnelAttrs {
@@ -462,6 +708,16 @@ func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]
 			ipips[ipip.InterfaceName(v.GetInstance())] = v
 		case *vxlan.Tunnel:
 			vxlans[vxlan.InterfaceName(v.GetInstance())] = v
+		case *vxlan_gpe.Tunnel:
+			gpes[v.GetName()] = v
+		case *gtpu.Tunnel:
+			gtpus[v.GetName()] = v
+		case *l2tp.Tunnel:
+			l2tps[v.GetName()] = v
+		case *pppoe.Session:
+			if id, err := pppoe.SessionID(v.GetClientMac(), v.GetSessionId()); err == nil {
+				pppoes[id] = v
+			}
 		case *iface.AdminState:
 			attr(iface.RefID(v.GetInterface())).admin = true
 		case *iface.Mtu:
@@ -562,11 +818,26 @@ func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]
 			fill(ifn, &x.Enabled, &x.Vrf, &x.Mtu, &x.Ipv4, &x.Ipv6, &x.BridgeDomain)
 			out.vxlan[name(ifn, "vxlan")] = x
 		}
-		if len(out.gre)+len(out.ipip)+len(out.vxlan) > 0 {
+		// 6RD tunnels: VPP cannot report their parameters; tunnels.meta holds them (written and rolled back
+		// with the tunnel object).
+		for _, id := range sortedKeys(metas) {
+			m := metas[id]
+			if m.Kind != "ipip" || m.Sixrd == nil {
+				continue
+			}
+			p := &ngfwv1.IpipTunnel{Description: desc(id), Mode: proto.String("p2p"), Src: proto.String(m.Sixrd.Src), UnderlayVrf: proto.String(vrfName(m.Sixrd.UnderlayVrf)),
+				Sixrd: &ngfwv1.IpipSixrd{Ip6Prefix: proto.String(m.Sixrd.Ip6Prefix), Ip4Prefix: proto.String(m.Sixrd.Ip4Prefix),
+					SecurityCheck: proto.Bool(m.Sixrd.SecurityCheck), TcTos: m.Sixrd.TcTos}}
+			fill(id, &p.Enabled, &p.Vrf, &p.Mtu, &p.Ipv4, &p.Ipv6, &p.BridgeDomain)
+			out.ipip[m.Name] = p
+		}
+		t1 := assembleT1(gpes, gtpus, l2tps, pppoes, metas, tableName, fill)
+		if len(out.gre)+len(out.ipip)+len(out.vxlan)+len(t1.VxlanGpe)+len(t1.Gtpu)+len(t1.L2Tpv3)+len(t1.Pppoe) > 0 {
 			if ds.Tunnels == nil {
 				ds.Tunnels = &ngfwv1.TunnelsConfig{}
 			}
 			ds.Tunnels.Gre, ds.Tunnels.Ipip, ds.Tunnels.Vxlan = out.gre, out.ipip, out.vxlan
+			ds.Tunnels.VxlanGpe, ds.Tunnels.Gtpu, ds.Tunnels.L2Tpv3, ds.Tunnels.Pppoe = t1.VxlanGpe, t1.Gtpu, t1.L2Tpv3, t1.Pppoe
 		}
 	}
 	// what P08's assemblers derived from the tunnel interfaces belongs to tunnels.*
@@ -579,6 +850,14 @@ func AssembleTunnels(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]
 	}
 	for ifn := range vxlans {
 		drop = append(drop, ifn)
+	}
+	for _, ks := range [][]string{sortedKeys(gpes), sortedKeys(gtpus), sortedKeys(l2tps), sortedKeys(pppoes)} {
+		drop = append(drop, ks...)
+	}
+	for id, m := range metas {
+		if m.Kind == "ipip" && m.Sixrd != nil {
+			drop = append(drop, id)
+		}
 	}
 	sort.Strings(drop)
 	dropped := map[string]bool{}
@@ -617,3 +896,100 @@ func greTypeName(t gre.TunnelType) string {
 	}
 	return "l3"
 }
+
+type fillFn = func(ifn string, en **bool, vrf **string, mtu **uint32, v4, v6 *[]string, bd **uint32)
+
+// assembleT1 builds tunnels.vxlanGpe / .gtpu / .l2tpv3 / .pppoe from the retrieved T1 objects.
+func assembleT1(gpes map[string]*vxlan_gpe.Tunnel, gtpus map[string]*gtpu.Tunnel, l2tps map[string]*l2tp.Tunnel,
+	pppoes map[string]*pppoe.Session, metas map[string]TunnelMetaSpec, tableName func(uint32) string, fill fillFn) *ngfwv1.TunnelsConfig {
+	out := &ngfwv1.TunnelsConfig{VxlanGpe: map[string]*ngfwv1.VxlanGpeTunnel{}, Gtpu: map[string]*ngfwv1.GtpuTunnel{},
+		L2Tpv3: map[string]*ngfwv1.L2Tpv3Tunnel{}, Pppoe: map[string]*ngfwv1.PppoeSession{}}
+	desc := func(id string) *string {
+		if m, ok := metas[id]; ok && m.Description != "" {
+			return proto.String(m.Description)
+		}
+		return nil
+	}
+	for _, name := range sortedKeys(gpes) {
+		v := gpes[name]
+		x := &ngfwv1.VxlanGpeTunnel{Description: desc(name), Src: proto.String(v.GetLocal()), Dst: proto.String(v.GetRemote()),
+			UnderlayVrf: proto.String(tableName(v.GetEncapVrfId())), Vni: proto.Uint32(v.GetVni()),
+			SrcPort: proto.Uint32(gpePortOf(v.GetLocalPort())), DstPort: proto.Uint32(gpePortOf(v.GetRemotePort()))}
+		if v.GetMcastInterface() != "" {
+			x.McastInterface = proto.String(v.GetMcastInterface())
+		}
+		switch v.GetProtocol() {
+		case vxlan_gpe.Protocol_IP4:
+			x.Protocol = proto.String("ip4")
+		case vxlan_gpe.Protocol_IP6:
+			x.Protocol = proto.String("ip6")
+		case vxlan_gpe.Protocol_NSH:
+			x.Protocol = proto.String("nsh")
+		default:
+			x.Protocol = proto.String("ethernet")
+		}
+		fill(name, &x.Enabled, &x.Vrf, &x.Mtu, &x.Ipv4, &x.Ipv6, &x.BridgeDomain)
+		out.VxlanGpe[name] = x
+	}
+	for _, name := range sortedKeys(gtpus) {
+		v := gtpus[name]
+		g := &ngfwv1.GtpuTunnel{Description: desc(name), Src: proto.String(v.GetSrc()), Dst: proto.String(v.GetDst()),
+			UnderlayVrf: proto.String(tableName(v.GetEncapVrfId())), Teid: proto.Uint32(v.GetTeid()),
+			PduExtension: proto.Bool(v.GetPduExtension())}
+		if v.GetTteid() != 0 {
+			g.Tteid = proto.Uint32(v.GetTteid())
+		}
+		if v.GetPduExtension() {
+			g.Qfi = proto.Uint32(v.GetQfi())
+		}
+		if v.GetMcastInterface() != "" {
+			g.McastInterface = proto.String(v.GetMcastInterface())
+		}
+		switch v.GetDecapNext() {
+		case gtpu.DecapNext_L2:
+			g.Decap = proto.String("l2")
+		case gtpu.DecapNext_IP6:
+			g.Decap = proto.String("ip6")
+		case gtpu.DecapNext_DROP:
+			g.Decap = proto.String("drop")
+		default:
+			g.Decap = proto.String("ip4")
+		}
+		fill(name, &g.Enabled, &g.Vrf, &g.Mtu, &g.Ipv4, &g.Ipv6, &g.BridgeDomain)
+		out.Gtpu[name] = g
+	}
+	for _, name := range sortedKeys(l2tps) {
+		v := l2tps[name]
+		l := &ngfwv1.L2Tpv3Tunnel{Description: desc(name), Src: proto.String(v.GetOurAddress()), Dst: proto.String(v.GetClientAddress()),
+			UnderlayVrf: proto.String(tableName(v.GetEncapVrfId())), LocalSessionId: proto.Uint32(v.GetLocalSessionId()),
+			RemoteSessionId: proto.Uint32(v.GetRemoteSessionId()), LocalCookie: proto.Uint64(v.GetLocalCookie()),
+			RemoteCookie: proto.Uint64(v.GetRemoteCookie()), L2Sublayer: proto.Bool(v.GetL2SublayerPresent())}
+		fill(name, &l.Enabled, &l.Vrf, &l.Mtu, &l.Ipv4, &l.Ipv6, &l.BridgeDomain)
+		out.L2Tpv3[name] = l
+	}
+	for _, id := range sortedKeys(pppoes) {
+		v := pppoes[id]
+		name := id
+		if m, ok := metas[id]; ok && m.Kind == "pppoe" {
+			name = m.Name
+		}
+		p := &ngfwv1.PppoeSession{Description: desc(id), SessionId: proto.Uint32(v.GetSessionId()), ClientMac: proto.String(v.GetClientMac()),
+			ClientIp: proto.String(v.GetClientIp()), Vrf: proto.String(tableName(v.GetDecapVrfId()))}
+		var v4, v6 []string
+		var bd *uint32
+		var vrf *string
+		fill(id, &p.Enabled, &vrf, &p.Mtu, &v4, &v6, &bd)
+		out.Pppoe[name] = p
+	}
+	return out
+}
+
+func gpePortOf(p uint32) uint32 {
+	if p == 0 {
+		return vxlan_gpe.DefaultPort
+	}
+	return p
+}
+
+// df6CanonicalMAC is df6.CanonicalMAC (kept behind one name so the builder reads as one unit).
+func df6CanonicalMAC(mac string) (string, error) { return df6.CanonicalMAC(mac) }

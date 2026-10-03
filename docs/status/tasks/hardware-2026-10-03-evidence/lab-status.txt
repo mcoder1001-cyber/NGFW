@@ -1,0 +1,16 @@
+== vrx-a  (mgmt: local, role: vrx, state: active) ==
+host:        ubuntu-26.04 · Ubuntu 26.04.1 LTS · 7.0.0-31-generic · load 14.58 9.21 4.13
+vpp.service: active (enabled) pid 1014 since Sat 2026-10-03 12:48:02 +0330
+vpp version: vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+plugins:     87 loaded · af_packet: yes · linux_cp: yes · linux_nl: yes · npt66: yes · dpdk: yes
+interfaces:  local0 
+sockets:     api.sock (root:vpp 775) cli.sock (root:vpp 775) stats.sock (root:vpp 775)
+handover:    pending  (canonical:/root/ngfw/docs/lab/host-vrx-a.md=pending · worktree:docs/lab/host-vrx-a.md=pending) → restart-vpp/kill-vpp REFUSED
+startup.conf: /etc/vpp/startup.conf (read-only) · hugepages 4096 total, 4063 free
+data NICs:   6 non-mgmt of 7 in inventory (kernel driver, not in startup.conf) · data_path: af_packet
+path:        af_packet
+rig:         prefixes with rig objects: 
+netns:       
+postgresql:  active · 18 main port 5432 online · listen 127.0.0.1:5432 
+valkey:      active · v=9.0.4 · listen 127.0.0.1:6379 [::1]:6379  · ping PONG
+locks:       /run/lock/vrx-lab.lock: free (no file) · /run/lock/vrx-vpp.lock: free (no file)

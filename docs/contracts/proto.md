@@ -881,7 +881,15 @@ Configuration is `RoutingConfig.mpls = 15` (`MplsConfig`; field 10 is F-mpls-ldp
 the agent keeps the file (0600, `NGFW_CAPTURE_DIR`, retention by count and bytes). `CaptureAction.drop = 7`,
 `error_filter = 8`. `CaptureList` returns the kept files plus the running capture, with `trace_available`/`pg_available`
 (false on this build, with reasons). `CaptureRead` streams one file. `CaptureDelete` removes one (`NOT_FOUND`; running →
-`FAILED_PRECONDITION`).
+`FAILED_PRECONDITION`). Snaplen 0 defaults to 9000. Plans whose worst-case pcap size
+`maxPackets × (snaplen + 16) + 24` exceeds the retained byte cap fail before capture starts.
+The newest retained capture is protected from byte-cap eviction. Agent connection initializes
+recovery before any RPC; Read/Delete also recover interrupted records. Capture stop is an
+API-side cancellation, `POST /api/v1/actions/capture/{id}/stop` (admin/audited, 202;
+unknown id 404, stream not held by this API process 409), with no new protobuf RPC.
+Failed stop/filter restoration stays recoverable and boot-bound; it is never reported done.
+The list is unpaged and bounded by retention plus a running capture. No binary packet-count
+getter exists in this pinned API, so the agent finishes on timeout or explicit cancellation.
 
 
 ### F-system-identity: SystemIdentityState
@@ -894,3 +902,51 @@ are returned. A non-globals slot never reads host kernel hostname or resolver ru
 `unavailable`, or `slot-only`: file observation is not daemon health or restart completion. No banner, secret, config mutation,
 privilege escalation or daemon restart is included. Existing `/state/system` REST health fields remain; `identity` is null
 when this RPC is unavailable. Public configured banner is a separate narrowly bounded API-only route.
+
+### F-default-vpp-nics: HostNics (+ Interface.physical 24)
+
+`Interface.physical = 24` (`InterfacePhysical { pci = 1, owner = 2, built_in = 3 }`) mirrors
+`interfaces.<name>.physical`: present = a physical NIC seeded from the host inventory (built-in, non-deletable;
+`owner` `"dataplane"` | `"host"`, Zod default `"dataplane"`; `built_in` Zod default true). The agent treats a
+`physical` row whose name is still a hardware kernel netdev (rtnetlink kind empty) as **not bound**: it projects no
+objects for it (no alias, attributes or linux-cp pair) and reports `agent.nic-not-bound` (WARNING, pointer
+`/interfaces/<name>`) — never an error; Retrieve has no such interface. A linux-cp tap of the same name is not the NIC.
+A row released to the host (`owner: "host"`) is never projected and gets an INFO `agent.nic-released`. The API
+counts both rules as coverage notes, so these rows are not drift (`GET /state/drift`).
+
+`HostNics(HostNicsRequest{owner}) → HostNicsResponse{nics, owner, retrieved_at, management_notes}` is read-only: it
+binds nothing, never touches `/etc/vpp` and never restarts VPP (D-012). One `HostNic{netdev, pci, driver, mac,
+is_management, bound_to_dpdk, link_up}` per network PCI function, sorted by `pci`:
+- every `/sys/class/net/<if>` whose `device` is a PCI address (NICs without one — virtio-mmio, USB — are not
+  enumerated, D-177), plus every PCI function of class `0x02xxxx` bound to a DPDK driver (`vfio-pci`,
+  `uio_pci_generic`, `igb_uio`), which has no netdev (`netdev` empty);
+- `is_management`: the start-up generator's decision (`vppstartup.ReadHost`): default-route NIC(s), the NIC of an
+  established sshd/control connection (`/proc/net/tcp{,6}`; unreadable → route fallback with a note), plus
+  `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`;
+- `bound_to_dpdk`: the PCI function's driver is a DPDK driver, or a live VPP interface of type `dpdk` has the NIC's
+  MAC (bifurcated drivers);
+- `management_notes` give the reason class only (never a peer address).
+Errors: an unreadable host fact → `vppstartup.ErrHost` (the API retries). The API seeds the default document from this
+answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/D-192).
+
+## Native route-based IPsec additions (2026-10-03)
+
+`ApplyRequest.secret_bundle` (field 7) and `DryRunRequest.secret_bundle` (field 5)
+carry a separate `SecretBundle.values` map of reference to raw UTF-8 bytes over the
+existing permission-controlled agent socket. They are outside DesiredState and are
+never returned by Retrieve, validation reports, events or errors. The API currently
+resolves only PSKs of enabled native VPP IKEv2 tunnels, including revision-pinned
+versions for rollback. Other secret consumers remain pending.
+
+An absent bundle keeps the current selection; a present empty bundle clears it.
+Apply seals a snapshot before changing the dataplane; agent metadata stores only
+keyed snapshot identifiers. Current and confirmed snapshots survive restart and
+rollback. Cache files and their local key are private (0600); cache authentication
+or missing material fails closed. DryRun uses a transient snapshot without writing
+it to disk. Request buffers are cleared after processing. Idempotency includes the
+secret snapshot identity, so changing a PSK under an existing transaction ID fails.
+
+`ActionRequest.ikev2` (oneof field 11) carries `Ikev2Action`: tunnel name (1),
+operation (2: initiate, rekey, delete-sa), IKE SPI (3, uint64) and CHILD SPI
+(4, uint32). These operations are restricted to owned native profiles. The existing
+IpsecState RPC reports native state without exposing authentication material.

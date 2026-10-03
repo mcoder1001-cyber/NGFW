@@ -1,0 +1,14 @@
+heavy: all 3 heavy slots busy, waiting (0s): sdk/test.sh
+heavy: all 3 heavy slots busy, waiting (300s): sdk/test.sh
+heavy: slot 1 after 370s
+== python sdk
+......s............................                                      [100%]
+34 passed, 1 skipped in 1.12s
+== terraform provider
+0 issues.
+?   	ngfw/sdk/terraform	[no test files]
+ok  	ngfw/sdk/terraform/internal/client	0.035s
+ok  	ngfw/sdk/terraform/internal/provider	0.444s
+ok  	ngfw/sdk/terraform/internal/tfharness	0.025s
+ok  	ngfw/sdk/terraform/tools/genschema	0.015s
+sdk: OK

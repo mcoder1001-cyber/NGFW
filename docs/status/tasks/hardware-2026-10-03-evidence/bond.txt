@@ -1,0 +1,19 @@
+=== RUN   TestBondOnHost
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-tap20 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:67: tapv2.tap: Retrieve == desired: tapv2.tap/w32-tap20
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-tap21 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:67: tapv2.tap: Retrieve == desired: tapv2.tap/w32-tap21
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-bond20 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:72: bond.bond: Retrieve == desired: bond.bond/w32-bond20
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w32-bond21 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+    integration_test.go:74: bond.bond: Retrieve == desired: bond.bond/w32-bond21
+    integration_test.go:77: bond.member: Retrieve == desired: bond.member/w32-bond20/w32-tap20
+    integration_test.go:78: bond.member: Retrieve == desired: bond.member/w32-bond20/w32-tap21
+    integration_test.go:79: bond w32-bond20 (BondEthernet3220) with members [tapv2.tap/w32-tap20 tapv2.tap/w32-tap21] configured; vppctl show bond details
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=bond sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=bond sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+2026/10/03 13:02:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped=[]
+--- PASS: TestBondOnHost (0.71s)
+PASS
+ok  	ngfw/agent/internal/descriptors/bond	0.738s

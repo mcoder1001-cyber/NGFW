@@ -1,0 +1,2 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c set -e; go -C apps/agent build -o bin/vrx-agent ./cmd/vrx-agent; go -C apps/agent build -o bin/vrx-agentctl ./cmd/vrx-agentctl; go -C apps/agent build -o bin/vrx-vpp-preflight ./cmd/vrx-vpp-preflight; go -C apps/agent build -o bin/vrx-startupgen ./cmd/vrx-startupgen
+heavy: slot 1 after 50s

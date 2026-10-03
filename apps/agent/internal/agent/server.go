@@ -122,6 +122,8 @@ func (g *server) Action(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingSe
 	case *ngfwv1.ActionRequest_CnatSessionPurge:
 		return g.cnatSessionPurge(req, stream)
 	// wave-BC: F-ikev2-native
+	case *ngfwv1.ActionRequest_Ikev2:
+		return g.ikev2Action(req.GetIkev2(), stream)
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync
 	// wave-BC: F-capture-trace

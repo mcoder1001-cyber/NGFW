@@ -1,0 +1,6 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash tools/ci.sh gen-check
+heavy: slot 2 after 160s
+
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated
+gen-check PASSED (2m08s)

@@ -20,9 +20,12 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	capturetrace "ngfw/agent/internal/actions/capture-trace"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
@@ -41,18 +44,21 @@ const (
 // Service implements the ngfw.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
+	captureConfig capturetrace.Config
 	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
-	netdevKind desired.NetdevKind
-	owner      string
-	version    string
-	log        *slog.Logger
-	vpp        vpp.Client
-	sched      *scheduler.Scheduler
-	st         *state
-	bus        *bus
-	metrics    *metrics
-	now        func() time.Time
-	claimsTxn  func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
+	netdevKind        desired.NetdevKind
+	owner             string
+	version           string
+	log               *slog.Logger
+	vpp               vpp.Client
+	sched             *scheduler.Scheduler
+	st                *state
+	secrets           *secretchannel.Store
+	candidateSecretID string
+	bus               *bus
+	metrics           *metrics
+	now               func() time.Time
+	claimsTxn         func() (flush func() error) // TD-11c: Wiring.ClaimsTxn, set by Start (nil = none)
 
 	// txn serialises transactions (Apply, resync, revert) and guards st and timer.
 	txn      chan struct{}
@@ -100,14 +106,17 @@ type Service struct {
 
 // ServiceConfig builds a Service.
 type ServiceConfig struct {
-	Owner     string
-	Version   string
-	Logger    *slog.Logger
-	VPP       vpp.Client
-	Scheduler *scheduler.Scheduler
-	StateDir  string
-	Metrics   *metrics
-	Now       func() time.Time
+	CaptureBoot  dfkit.BootStore
+	GlobalsOwner bool
+	SecretCache  *secretchannel.Store
+	Owner        string
+	Version      string
+	Logger       *slog.Logger
+	VPP          vpp.Client
+	Scheduler    *scheduler.Scheduler
+	StateDir     string
+	Metrics      *metrics
+	Now          func() time.Time
 	// BeforeTxn runs at the start of every transaction (P08: subsystems.Wiring.BeforeTxn).
 	BeforeTxn func()
 	// NetdevKind is the Linux netdev lookup of the af_packet veth rule (D-105; subsystems.Wiring.NetdevKind).
@@ -160,6 +169,19 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 		txnTimeout: cfg.TxnTimeout, requestResync: cfg.RequestResync,
+	}
+	s.captureConfig = capturetrace.Config{Client: cfg.VPP, Owner: cfg.Owner, GlobalsOwner: cfg.GlobalsOwner, Boot: cfg.CaptureBoot}
+	if cfg.StateDir != "/var/lib/ngfw/agent" {
+		s.captureConfig.Dir = cfg.StateDir + "/captures"
+	}
+	s.secrets = cfg.SecretCache
+	if s.secrets == nil && (st.meta.SecretBundle != "" || st.meta.ConfirmedSecretBundle != "") {
+		return nil, errors.New("persisted secret bindings require an available secret cache")
+	}
+	if s.secrets != nil {
+		if err := s.secrets.Activate(st.meta.SecretBundle); err != nil {
+			return nil, fmt.Errorf("load secret snapshot: %w", err)
+		}
 	}
 	s.sources = newDynSources(cfg.Sources, s.metrics)
 	s.refreshSnapshotLocked()
@@ -215,6 +237,11 @@ func (s *Service) containLocked(what string, errp *error) {
 	s.metrics.panicked("transaction")
 	if st, err := loadState(s.st.dir, s.owner); err == nil {
 		s.st = st
+		if s.secrets != nil {
+			if e := s.secrets.Activate(st.meta.SecretBundle); e != nil {
+				s.log.Error("secret snapshot unavailable after state reload")
+			}
+		}
 	} else {
 		s.log.Error("reload state after a panic", "err", err)
 	}
@@ -344,6 +371,7 @@ func fingerprint(ds *ngfwv1.DesiredState, subsystems []string) string {
 
 // Apply implements the Apply RPC.
 func (s *Service) Apply(ctx context.Context, req *ngfwv1.ApplyRequest) (resp *ngfwv1.ApplyResponse, err error) {
+	defer clearSecretBundle(req.GetSecretBundle())
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -370,8 +398,23 @@ func (s *Service) Apply(ctx context.Context, req *ngfwv1.ApplyRequest) (resp *ng
 	defer cancel()
 
 	var fp string
+	s.candidateSecretID = s.st.meta.SecretBundle
+	if req.GetSecretBundle() != nil {
+		if !hasApply || s.secrets == nil {
+			return nil, status.Error(codes.FailedPrecondition, "secret bundle requires an apply and an available secret cache")
+		}
+		id, e := s.secrets.ID(req.GetSecretBundle().GetValues())
+		if e != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid secret bundle")
+		}
+		s.candidateSecretID = id
+	}
+	defer s.restoreSecretSelection()
 	if hasApply {
 		fp = fingerprint(req.GetDesiredState(), req.GetSubsystems())
+		if req.GetSecretBundle() != nil {
+			fp += "|" + s.candidateSecretID
+		}
 		if prev, resp, ok := s.st.recall(req.GetTxnId()); ok {
 			if prev != fp {
 				return nil, status.Errorf(codes.Aborted, "txn_id %q was already used with a different desired state", req.GetTxnId())
@@ -383,6 +426,14 @@ func (s *Service) Apply(ctx context.Context, req *ngfwv1.ApplyRequest) (resp *ng
 		// and an owed revert is not touched.
 		if !s.vpp.Connected() {
 			return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
+		}
+	}
+	if req.GetSecretBundle() != nil {
+		if _, e := s.secrets.Stage(req.GetSecretBundle().GetValues()); e != nil {
+			return nil, status.Error(codes.Internal, "cannot seal secret snapshot")
+		}
+		if e := s.secrets.Activate(s.candidateSecretID); e != nil {
+			return nil, status.Error(codes.Internal, "cannot activate secret snapshot")
 		}
 	}
 	if hasConfirm {
@@ -429,6 +480,7 @@ func (s *Service) confirmLocked() error {
 	}
 	txn := s.st.meta.PendingTxnID
 	s.st.confirm = proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
+	s.st.meta.ConfirmedSecretBundle = s.st.meta.SecretBundle
 	s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 	s.st.meta.LastTxnID = txn
 	s.st.meta.PendingTxnID = ""
@@ -519,6 +571,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngf
 			}
 			covers := len(minus(implementedOnly(s.st.meta.Managed), domains)) == 0
 			s.st.desired = mergeDomains(s.st.desired, ds, domains)
+			s.st.meta.SecretBundle = s.candidateSecretID
 			s.st.meta.Managed = union(s.st.meta.Managed, domains)
 			if confirmSec > 0 {
 				// Review 1.5b: the window starts when the transaction was applied (proto.md §4: applied_at
@@ -530,6 +583,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngf
 				s.armTimerLocked(txnID, deadline)
 			} else {
 				s.st.confirm = proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
+				s.st.meta.ConfirmedSecretBundle = s.st.meta.SecretBundle
 				s.st.meta.ConfirmedManaged = append([]string(nil), s.st.meta.Managed...)
 				s.st.meta.LastTxnID = txnID
 			}
@@ -762,6 +816,14 @@ func (s *Service) revertLocked(ctx context.Context, txnID string) {
 	// confirmed baseline and the transaction stays pending with "revert owed", so a failed attempt
 	// (VPP down, rollback) is retried by every resync and nothing re-applies the unconfirmed config.
 	s.st.desired = proto.Clone(s.st.confirm).(*ngfwv1.DesiredState)
+	s.st.meta.SecretBundle = s.st.meta.ConfirmedSecretBundle
+	if s.secrets != nil {
+		if e := s.secrets.Activate(s.st.meta.SecretBundle); e != nil {
+			s.log.Error("confirmed secret snapshot unavailable")
+			s.setDegraded(true, "confirmed secrets unavailable")
+			return
+		}
+	}
 	s.st.meta.Managed = union(s.st.meta.Managed, s.st.meta.ConfirmedManaged)
 	s.st.meta.Reverting = true
 	s.refreshSnapshotLocked()
@@ -839,6 +901,8 @@ func (s *Service) Resync(ctx context.Context) (resp *ngfwv1.ApplyResponse) {
 }
 
 func (s *Service) resyncLocked(ctx context.Context) *ngfwv1.ApplyResponse {
+	defer s.restoreSecretSelection()
+
 	// A pending transaction whose deadline passed (while the agent was down, or whose revert is
 	// owed): converge straight to the confirmed baseline, never re-apply the unconfirmed config.
 	if p := s.st.meta.PendingTxnID; p != "" && (s.st.meta.Reverting || (s.st.meta.ConfirmDeadline != nil && !s.st.meta.ConfirmDeadline.After(s.now()))) {
@@ -946,7 +1010,14 @@ func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*n
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
 	// Always dump the VRFs too: they name the tables of interface bindings and routes.
-	kvs, err := s.sched.Retrieve(ctx, scopeOf(union(domains, []string{"vrfs"})))
+	retrieveDomains := union(domains, []string{"vrfs"})
+	for _, domain := range domains {
+		if domain == subsystems.Routing {
+			retrieveDomains = union(retrieveDomains, []string{"tunnels"})
+			break
+		}
+	}
+	kvs, err := s.sched.Retrieve(ctx, scopeOf(retrieveDomains))
 	if err != nil {
 		if errors.Is(err, vpp.ErrDisconnected) {
 			return nil, status.Error(codes.Unavailable, err.Error())
@@ -1011,6 +1082,7 @@ func (s *Service) addDescriptions(ds *ngfwv1.DesiredState) {
 
 // DryRun implements the DryRun RPC: validation + plan, nothing applied, no events.
 func (s *Service) DryRun(ctx context.Context, req *ngfwv1.DryRunRequest) (*ngfwv1.ValidationReport, error) {
+	defer clearSecretBundle(req.GetSecretBundle())
 	if err := s.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
@@ -1020,6 +1092,25 @@ func (s *Service) DryRun(ctx context.Context, req *ngfwv1.DryRunRequest) (*ngfwv
 	if !s.vpp.Connected() {
 		return nil, status.Error(codes.Unavailable, "VPP binary API is not connected")
 	}
+	if err := s.lock(ctx); err != nil {
+		return nil, err
+	}
+	defer s.unlock()
+	if req.GetSecretBundle() != nil {
+		if s.secrets == nil {
+			return nil, status.Error(codes.FailedPrecondition, "secret cache unavailable")
+		}
+		id, e := s.secrets.Transient(req.GetSecretBundle().GetValues())
+		if e != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid secret bundle")
+		}
+		old := s.secrets.Active()
+		if e = s.secrets.Activate(id); e != nil {
+			return nil, status.Error(codes.Internal, "cannot activate validation secrets")
+		}
+		defer func() { _ = s.secrets.Activate(old); s.secrets.DiscardTransient(id) }()
+	}
+
 	domains := authoritative(req.GetDesiredState(), req.GetSubsystems())
 	pj := s.projectWithBasePolicy(ctx, req.GetDesiredState(), domains)
 	if pj.hasErrors() {
@@ -1068,6 +1159,7 @@ func (s *Service) events() *bus { return s.bus }
 
 // Close stops the confirm timer (the pending state stays persisted; a restart resumes it).
 func (s *Service) Close() {
+	captureManagers.Delete(s)
 	_ = s.lock(context.Background())
 	defer s.unlock()
 	if s.timer != nil {
@@ -1205,7 +1297,7 @@ func claimsNotPersisted(resp *ngfwv1.ApplyResponse, err error) {
 }
 
 func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredState, domains []string) *projected {
-	projection := project(ds, domains, s.resolveVRF, s.netdevKind)
+	projection := project(s.routingProjectionState(ds, domains), domains, s.resolveVRF, s.netdevKind)
 	for _, domain := range domains {
 		if domain == "interfaces" {
 			subsystems.ProjectBasePolicy(ctx, s.owner, projection, projection.kvs)
@@ -1213,4 +1305,20 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 		}
 	}
 	return projection
+}
+
+// Resolve existing logical tunnel references for direct routing-only requests.
+// The added context is projected for names only; selected domains still govern mutations.
+func (s *Service) routingProjectionState(ds *ngfwv1.DesiredState, domains []string) *ngfwv1.DesiredState {
+	if ds == nil || ds.Tunnels != nil || s.st.desired.GetTunnels() == nil {
+		return ds
+	}
+	for _, domain := range domains {
+		if domain == subsystems.Routing {
+			view := proto.Clone(ds).(*ngfwv1.DesiredState)
+			view.Tunnels = proto.Clone(s.st.desired.Tunnels).(*ngfwv1.TunnelsConfig)
+			return view
+		}
+	}
+	return ds
 }

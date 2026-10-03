@@ -1,0 +1,20 @@
+ipv4-VRF:0, fib_index:0 flags:none
+(*, 224.0.0.0/24): 
+ fib:0 index:9 locks:1
+  src:plugin-low flags:none locks:1: 
+    path-list:[26] locks:2 flags:no-uRPF, uRPF-list: None
+      path:[32] pl-index:26 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+        [@0]: dpo-receive
+      path:[19] pl-index:26 ip4 weight=1 pref=0 attached:  oper-flags:resolved,
+         host-w6w0
+    Extensions:
+     path:19 flags:Accept,
+     path:32 flags:Forward,
+    Interface-Forwarding:
+     host-w6w0: Accept,
+
+  Interfaces:
+   host-w6w0: Accept,
+  multicast-ip4-chain
+  [@1]: dpo-replicate: [index:7 buckets:1 flags:[has-local ] to:[13:4856]]
+    [0] [@1]: dpo-receive

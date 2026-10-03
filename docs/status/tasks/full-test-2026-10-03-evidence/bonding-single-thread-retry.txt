@@ -1,0 +1,35 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py go -C test/topology/bonding test -json -count=1 -race -timeout 8m ./...
+heavy: slot 3 after 10s
+DISPOSABLE_VPP pid=473068 runtime=/root/.codex/worktrees/bbd9/NGFW/.scratch/isolated-vpp-473065
+{"Time":"2026-10-03T13:34:48.502631457+03:30","Action":"start","Package":"ngfw/test/topology/bonding"}
+{"Time":"2026-10-03T13:34:48.595021115+03:30","Action":"run","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost"}
+{"Time":"2026-10-03T13:34:48.595180587+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"=== RUN   TestBondingOnHost\n"}
+{"Time":"2026-10-03T13:34:48.640343139+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:57: systemctl show vpp -p NRestarts (before) = 0\n"}
+{"Time":"2026-10-03T13:34:48.710926839+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:70: fixture tap tap8000 sw_if_index=1 host w8bm0 (untagged)\n"}
+{"Time":"2026-10-03T13:34:48.79213464+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:70: fixture tap tap8001 sw_if_index=2 host w8bm1 (untagged)\n"}
+{"Time":"2026-10-03T13:34:48.861793395+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:70: fixture tap tap8002 sw_if_index=3 host w8bm2 (untagged)\n"}
+{"Time":"2026-10-03T13:34:48.896381266+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:72: binding check (read-only): tap8000 sw_if_index=1: classify l2/ip4/ip6=~0, no ACL, no SPD\n"}
+{"Time":"2026-10-03T13:34:48.896472732+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:72: binding check (read-only): tap8001 sw_if_index=2: classify l2/ip4/ip6=~0, no ACL, no SPD\n"}
+{"Time":"2026-10-03T13:34:48.896519603+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:72: binding check (read-only): tap8002 sw_if_index=3: classify l2/ip4/ip6=~0, no ACL, no SPD\n"}
+{"Time":"2026-10-03T13:34:55.616189904+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:74: create role vrx_w8\n"}
+{"Time":"2026-10-03T13:34:55.616319517+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        create database vrx_w8 (owner vrx_w8)\n"}
+{"Time":"2026-10-03T13:34:55.616340114+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        check  vrx_w8 as vrx_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu\n"}
+{"Time":"2026-10-03T13:34:55.616357157+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        ok     env /run/vrx-test/w8/pg.env (0600) · DSN <database-dsn-redacted>\u003credacted\u003e@127.0.0.1:5432/vrx_w8\n"}
+{"Time":"2026-10-03T13:34:55.616392438+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        \n"}
+{"Time":"2026-10-03T13:34:55.618411374+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:74: started vrx-agent pid 474865 (log /run/vrx-test/w8/f-bonding/agent.log)\n"}
+{"Time":"2026-10-03T13:34:55.820195925+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:74: vrx-agent did not come up:\n"}
+{"Time":"2026-10-03T13:34:55.820325154+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        {\"time\":\"2026-10-03T13:34:55.714282145+03:30\",\"level\":\"ERROR\",\"msg\":\"vrx-agent: invalid configuration\",\"err\":\"no VPP id range: set VRX_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or VRX_VPP_ID_RANGE=all (the product agent on a box of its own)\"}\n"}
+{"Time":"2026-10-03T13:34:57.722871265+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    stack_test.go:421: pg-test drop w8: \u003cnil\u003e\n"}
+{"Time":"2026-10-03T13:34:57.72295588+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        drop   database vrx_w8\n"}
+{"Time":"2026-10-03T13:34:57.722972635+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        drop   role vrx_w8\n"}
+{"Time":"2026-10-03T13:34:57.722985991+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"        ok     nothing named vrx_w8 / vrx_w8 remains\n"}
+{"Time":"2026-10-03T13:34:57.853480678+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    vpp_test.go:119: deleted fixture tap tap8000 (sw_if_index 1)\n"}
+{"Time":"2026-10-03T13:34:57.899966485+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    vpp_test.go:119: deleted fixture tap tap8001 (sw_if_index 2)\n"}
+{"Time":"2026-10-03T13:34:57.938194193+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    vpp_test.go:119: deleted fixture tap tap8002 (sw_if_index 3)\n"}
+{"Time":"2026-10-03T13:34:57.969629095+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"    bonding_test.go:60: systemctl show vpp -p NRestarts (after) = 0\n"}
+{"Time":"2026-10-03T13:34:57.969764825+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Output":"--- FAIL: TestBondingOnHost (9.37s)\n"}
+{"Time":"2026-10-03T13:34:57.96986888+03:30","Action":"fail","Package":"ngfw/test/topology/bonding","Test":"TestBondingOnHost","Elapsed":9.37}
+{"Time":"2026-10-03T13:34:57.969983025+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Output":"FAIL\n"}
+{"Time":"2026-10-03T13:34:57.987169117+03:30","Action":"output","Package":"ngfw/test/topology/bonding","Output":"FAIL\tngfw/test/topology/bonding\t9.483s\n"}
+{"Time":"2026-10-03T13:34:57.987251476+03:30","Action":"fail","Package":"ngfw/test/topology/bonding","Elapsed":9.485}
+DISPOSABLE_VPP_STOPPED pid=473068

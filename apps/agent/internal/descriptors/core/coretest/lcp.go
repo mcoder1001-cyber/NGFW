@@ -15,6 +15,7 @@ import (
 
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/lcp"
+	"ngfw/agent/binapi/mfib_types"
 )
 
 // LcpPair is one modelled pair (guarded by VPP.mu).
@@ -31,6 +32,7 @@ type lcpModel struct {
 	pairs     map[uint32]*LcpPair // by phy sw_if_index
 	defaultNS string
 	nextTap   uint32
+	apiAccept map[uint32]map[uint32]mfib_types.MfibPath
 }
 
 // lcpState maps each VPP model to its linux_cp model: a sync.Map, because parallel tests create models that each hold
@@ -57,8 +59,9 @@ func (v *VPP) LcpPairs() []LcpPair {
 }
 
 func (v *VPP) installLcp() {
-	m := &lcpModel{pairs: map[uint32]*LcpPair{}}
+	m := &lcpModel{pairs: map[uint32]*LcpPair{}, apiAccept: map[uint32]map[uint32]mfib_types.MfibPath{}}
 	lcpState.Store(v, m)
+
 	v.On("lcp_default_ns_get", func(api.Message) ([]api.Message, error) {
 		v.mu.Lock()
 		defer v.mu.Unlock()

@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/subsystems	1.041s
+ok  	ngfw/agent/internal/agent	0.393s

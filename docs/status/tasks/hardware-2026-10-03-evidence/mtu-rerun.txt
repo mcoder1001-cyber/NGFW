@@ -1,0 +1,76 @@
+rig up w32 (slot 32, path af_packet)
+  create netns ns-w32-lan
+  create veth w32l0 <-> ns-w32-lan:w32l1
+  create vpp host-w32l0 (af_packet on w32l0)
+  reset  ip/ip6 classify host-w32l0 (table-index ~0)
+  set    addr host-w32l0 10.32.1.1/24
+  create netns ns-w32-wan
+  create veth w32w0 <-> ns-w32-wan:w32w1
+  create vpp host-w32w0 (af_packet on w32w0)
+  reset  ip/ip6 classify host-w32w0 (table-index ~0)
+  set    addr host-w32w0 10.32.2.1/24
+rig: up
+prefix: w32
+slot: 32
+path: af_packet
+lan_ns: ns-w32-lan
+lan_veth: w32l1
+lan_ip: 10.32.1.2/24
+lan_gw: 10.32.1.1
+vpp_lan_if: host-w32l0
+vpp_lan_addr: 10.32.1.1/24 
+wan_ns: ns-w32-wan
+wan_veth: w32w1
+wan_ip: 10.32.2.2/24
+wan_gw: 10.32.2.1
+vpp_wan_if: host-w32w0
+vpp_wan_addr: 10.32.2.1/24 
+ping: ip netns exec ns-w32-lan ping -c 3 10.32.2.2
+PING 10.32.2.2 (10.32.2.2) 56(84) bytes of data.
+64 bytes from 10.32.2.2: icmp_seq=2 ttl=63 time=1.18 ms
+
+--- 10.32.2.2 ping statistics ---
+2 packets transmitted, 1 received, 50% packet loss, time 1046ms
+rtt min/avg/max/mdev = 1.181/1.181/1.181/0.000 ms
+PING 10.32.2.2 (10.32.2.2) 1472(1500) bytes of data.
+From 10.32.1.1 icmp_seq=1 Frag needed and DF set (mtu = 1400)
+From 10.32.1.1 icmp_seq=2 Frag needed and DF set (mtu = 1400)
+From 10.32.1.1 icmp_seq=3 Frag needed and DF set (mtu = 1400)
+
+--- 10.32.2.2 ping statistics ---
+3 packets transmitted, 0 received, +3 errors, 100% packet loss, time 2060ms
+
+PING 10.32.2.2 (10.32.2.2) 1472(1500) bytes of data.
+1480 bytes from 10.32.2.2: icmp_seq=1 ttl=63 time=1.56 ms
+1480 bytes from 10.32.2.2: icmp_seq=2 ttl=63 time=1.57 ms
+1480 bytes from 10.32.2.2: icmp_seq=3 ttl=63 time=1.64 ms
+1480 bytes from 10.32.2.2: icmp_seq=4 ttl=63 time=4.36 ms
+1480 bytes from 10.32.2.2: icmp_seq=5 ttl=63 time=1.72 ms
+
+--- 10.32.2.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 404ms
+rtt min/avg/max/mdev = 1.555/2.169/4.358/1.095 ms
+MainPID=1014
+NRestarts=0
+rig down w32
+  delete vpp host-w32l0
+  delete netns ns-w32-lan (and its veth peer)
+  delete vpp host-w32w0
+  delete netns ns-w32-wan (and its veth peer)
+rig: down
+prefix: w32
+slot: 32
+path: af_packet
+lan_ns: ns-w32-lan
+lan_veth: w32l1
+lan_ip: 10.32.1.2/24
+lan_gw: 10.32.1.1
+vpp_lan_if: host-w32l0
+vpp_lan_addr: -
+wan_ns: ns-w32-wan
+wan_veth: w32w1
+wan_ip: 10.32.2.2/24
+wan_gw: 10.32.2.1
+vpp_wan_if: host-w32w0
+vpp_wan_addr: -
+ping: ip netns exec ns-w32-lan ping -c 3 10.32.2.2

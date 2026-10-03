@@ -80,6 +80,9 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `delete <path> [<list-value> \| index <N>]` | Remove the node at a path from the candidate; on a list of scalars the last word is a value to remove (`index <N>` removes by position) | `DELETE /api/v1/config/{path}`<br>`GET /api/v1/config/candidate/{path}` · *both* |
 | `discard` | Drop the candidate and release the lock | `POST /api/v1/config/discard` · *both* |
 | `help [<command>]` | List commands, or explain one | local · *both* |
+| `ipsec delete-sa <tunnel> <spi>` | Native IKE runtime action on an owned tunnel | `POST /api/v1/actions/ipsec/ikev2/{tunnel}/{operation}` · *operational* |
+| `ipsec initiate <tunnel>` | Native IKE runtime action on an owned tunnel | `POST /api/v1/actions/ipsec/ikev2/{tunnel}/{operation}` · *operational* |
+| `ipsec rekey <tunnel> <spi>` | Native IKE runtime action on an owned tunnel | `POST /api/v1/actions/ipsec/ikev2/{tunnel}/{operation}` · *operational* |
 | `login [<user>]` | Log in (password prompted without echo); one-shot use stores the 15-min access token in a 0600 session file | `POST /api/v1/auth/login` · *operational* |
 | `logout` | Revoke the refresh token (interactive) and remove the session file | `POST /api/v1/auth/logout` · *operational* |
 | `merge <path> <json-object>` | RFC 7386 merge patch at a path (null deletes a member); the merged result is schema-checked first | `PATCH /api/v1/config/{path}`<br>`PATCH /api/v1/config`<br>`GET /api/v1/config/candidate/{path}`<br>`GET /api/v1/config/candidate` · *both* |
@@ -94,7 +97,8 @@ Output formats of configuration: `text` (default: a stable brace hierarchy, keys
 | `show drift` | Running configuration vs what the agent retrieves from the data plane | `GET /api/v1/state/drift` · *operational* |
 | `show interfaces [<name>]` | Interfaces as retrieved from VPP by the agent, with counters | `GET /api/v1/state/interfaces` · *operational* |
 | `show ip route [<vrf>]` | Routes retrieved from the data plane (connected + static), optionally of one VRF | `GET /api/v1/state/routes` · *operational* |
-| `show ipsec sa` | IPsec security associations | no REST endpoint yet: the API has no IPsec SA state route (P11) — exits 10 · *operational* |
+| `show ipsec sa [<tunnel>] [limit <1..1000>] [offset <0..1000000>]` | Native route-based IPsec SAs: SPIs, transforms and counters (no keys) | `GET /api/v1/state/ipsec/sas` · *operational* |
+| `show ipsec tunnels [<tunnel>]` | Native route-based IPsec tunnel state | `GET /api/v1/state/ipsec/tunnels` · *operational* |
 | `show lock` | Who holds the candidate (single writer) | `GET /api/v1/config/lock` · *operational* |
 | `show revision <rev> [json\|text\|set]` | One revision with its (redacted) configuration | `GET /api/v1/config/revisions/{rev}` · *operational* |
 | `show revisions [<count>]` | Commit history, newest first | `GET /api/v1/config/revisions` · *operational* |
@@ -140,5 +144,5 @@ Commands available in both modes are listed under *Operational commands*. Words 
 
 - Login-shell / SSH wiring and a local unix-socket transport with peer-credential check (P13 out of scope; the API
   listens on TCP only today): the CLI authenticates with a login or an API key.
-- `show bgp summary` and `show ipsec sa` exist but exit 10: the API has no BGP / IPsec SA state endpoints yet.
+- `show bgp summary` exists but exits 10: the API has no BGP summary endpoint yet.
 - `ping` / `traceroute` call `POST /api/v1/actions/{action}`, which answers 501 until the agent implements actions.

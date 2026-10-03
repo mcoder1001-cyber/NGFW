@@ -1,10 +1,21 @@
-# PENDING: secret-channel
+# Secret channel: native IPsec implemented; other consumers pending
 
 - raised: 2026-09-24 15:00 by the manager (ngfw-46), from the wave-A prep: the P11 envelope, the F-wireguard/P12/F-unbound prompts, and P08's note "P11 adds the secret resolver"
-- decision: **<empty until the product owner fills it>**
-- parked tasks: none as whole tasks. Only the **end-to-end secret steps** wait: P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`), F-unbound-chrony-syslog (TLS key), and since D-119 also F-ikev2-native, F-pki, F-ra-vpn, F-snmp (community/USM keys), F-ospf/F-isis-rip/F-bfd/F-mpls-ldp (auth keys), F-host-stack, F-vrrp-config-sync (keepalived auth + cluster sync key). Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`NGFW_TEST_PSK_<id>_*`).
+- decision: **2026-10-03: implement recommended API-push channel for native route-based IPsec PSKs within the owner-authorized implementation; other consumers remain pending.**
+- parked tasks: none as whole tasks. Only the **end-to-end secret steps** wait: P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`), F-unbound-chrony-syslog (TLS key), and since D-119 also F-pki, F-ra-vpn, F-snmp (community/USM keys), F-ospf/F-isis-rip/F-bfd/F-mpls-ldp (auth keys), F-host-stack, F-vrrp-config-sync (keepalived auth + cluster sync key). Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`NGFW_TEST_PSK_<id>_*`).
 
-## Context
+## Implemented native scope (2026-10-03)
+
+The API resolves enabled native IKEv2 PSKs, and sends a separate SecretBundle on
+DryRun/Apply. The agent loads its sealed cache before first resync, retains current
+and confirmed snapshots, and restores the correct selection on rollback. DryRun
+material is transient. Unit, socket serialization, restart and rollback checks are
+recorded under `docs/status/tasks/ipsec-prerequisites-2026-10-03-evidence/`.
+No WireGuard, routing authentication, TLS, certificate or other consumer is claimed
+complete by this change. The options and original rationale below remain historical
+context; native PSK delivery is no longer parked.
+
+## Historical context and options (before 2026-10-03)
 The API stores secrets encrypted in PostgreSQL: AES-GCM, with the secret name as AAD (D-091). It strips secret leaves before sending desired state to the agent (D-040), and `desired.pb` must never hold plaintext (rule 10). The agent needs the plaintext to render swanctl/WireGuard/FRR/TLS files. Nothing carries secret material from the API to the agent today. `docs/04-api-datamodel.md` specifies only the `secret` table, not the channel. That makes this a security-boundary and secret-storage decision (decision-policy always-ask #4).
 
 ## Options
@@ -24,7 +35,7 @@ _Refreshed 2026-09-24 (D-125): the socket wording now matches the code, and the 
 
 ## خلاصهٔ فارسی
 - **مسئله:** کلیدها و رمزهای VPN (مثل PSK و کلید خصوصی) در API رمزنگاری‌شده ذخیره می‌شوند، ولی ایجنت برای نوشتن فایل‌های strongSwan، WireGuard و FRR به متن ساده‌شان نیاز دارد. هنوز هیچ کانالی این اسرار را از API به ایجنت نمی‌رساند.
-- **دلیل نیاز به تصمیم شما:** این یک مرز امنیتی است، پس طبق سیاست تصمیم‌گیری با شماست.
+- **وضعیت فعلی:** با دستور پیش‌برد پیاده‌سازی در ۲۰۲۶-۱۰-۰۳، مسیر پیشنهادی API push برای PSK تونل‌های native اجرا شده است. مصرف‌کنندگان دیگر همچنان باقی‌اند.
 - **نکتهٔ تازه (۲۰۲۶-۰۹-۲۵):** هر گزینه‌ای انتخاب شود، اسرار باید پیش از اولین resync بعد از ری‌استارت ایجنت در دسترس باشند؛ وگرنه تونل‌های WireGuard بدون کلید دوباره ساخته و قطع می‌شوند. برای همین در گزینهٔ ۱ کش مهروموم‌شده الزامی است.
 - **پیشنهاد من، گزینهٔ ۱:** API موقع commit اسرار را در یک فیلد جداگانه که هیچ‌جا ذخیره نمی‌شود به ایجنت می‌فرستد. این کار از راه سوکت ایجنت با دسترسی root:ngfw 0660 انجام می‌شود و فقط API در گروه ngfw است. Retrieve، DryRun و پیام‌های خطا هرگز محتوای اسرار را برنمی‌گردانند. ایجنت آن‌ها را در یک کش محلیِ مهروموم‌شده نگه می‌دارد تا بعد از ری‌استارت هم بدون API کار کند. کلید اصلی فقط پیش API می‌ماند.
-- **چه چیزی منتظر می‌ماند:** فقط مرحلهٔ end-to-end اسرار در P11، F-wireguard، P12 و F-unbound. بقیهٔ کارها ادامه دارد.
+- **چه چیزی منتظر می‌ماند:** تحویل اسرار برای WireGuard، احراز هویت routing، TLS و سایر مصرف‌کنندگان؛ مسیر PSK در native IPsec دیگر منتظر نیست.

@@ -213,6 +213,12 @@ func newFakeVPP() *fakeVPP {
 		p.p.NattDisabled = true
 		return []api.Message{&ikev2.Ikev2ProfileDisableNattReply{}}, nil
 	})
+	v.On("ikev2_plugin_get_version", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&ikev2.Ikev2PluginGetVersionReply{Major: 1, Minor: 0x56525801}}, nil
+	})
+	v.On("sw_interface_set_flags", func(api.Message) ([]api.Message, error) {
+		return []api.Message{&interfaces.SwInterfaceSetFlagsReply{}}, nil
+	})
 	v.On("ikev2_profile_dump", func(api.Message) ([]api.Message, error) {
 		out := make([]api.Message, 0, len(v.profiles))
 		for _, name := range v.order {

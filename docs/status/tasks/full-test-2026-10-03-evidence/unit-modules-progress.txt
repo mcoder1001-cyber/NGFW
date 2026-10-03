@@ -1,0 +1,46 @@
+START unit-modules test_integration_reachability
+END unit-modules test_integration_reachability exit 0
+START unit-modules test_integration_smoke
+END unit-modules test_integration_smoke exit 0
+START unit-modules test_topology_acl
+END unit-modules test_topology_acl exit 0
+START unit-modules test_topology_bonding
+END unit-modules test_topology_bonding exit 0
+START unit-modules test_topology_bridge-l2
+END unit-modules test_topology_bridge-l2 exit 0
+START unit-modules test_topology_det44
+END unit-modules test_topology_det44 exit 0
+START unit-modules test_topology_host-acl-nftables
+END unit-modules test_topology_host-acl-nftables exit 0
+START unit-modules test_topology_interfaces
+END unit-modules test_topology_interfaces exit 0
+START unit-modules test_topology_ipfix-sflow
+END unit-modules test_topology_ipfix-sflow exit 0
+START unit-modules test_topology_kea-dhcp-relay
+END unit-modules test_topology_kea-dhcp-relay exit 0
+START unit-modules test_topology_loopback-bvi-gso-lldp-span
+END unit-modules test_topology_loopback-bvi-gso-lldp-span exit 0
+START unit-modules test_topology_nat44-ed-sessions
+END unit-modules test_topology_nat44-ed-sessions exit 0
+START unit-modules test_topology_nat44-ei-64-66-nptv6
+END unit-modules test_topology_nat44-ei-64-66-nptv6 exit 0
+START unit-modules test_topology_neighbors-ra
+END unit-modules test_topology_neighbors-ra exit 0
+START unit-modules test_topology_object-model
+END unit-modules test_topology_object-model exit 0
+START unit-modules test_topology_packaging
+END unit-modules test_topology_packaging exit 0
+START unit-modules test_topology_qos-flat
+END unit-modules test_topology_qos-flat exit 0
+START unit-modules test_topology_system-identity
+END unit-modules test_topology_system-identity exit 0
+START unit-modules test_topology_unbound-chrony-syslog
+END unit-modules test_topology_unbound-chrony-syslog exit 0
+START unit-modules test_topology_vlan-qinq
+END unit-modules test_topology_vlan-qinq exit 0
+START unit-modules test_topology_vrf-static-ecmp
+END unit-modules test_topology_vrf-static-ecmp exit 0
+START unit-modules terraform
+END unit-modules terraform exit 0
+START unit-modules vpp-build-guards
+END unit-modules vpp-build-guards exit 0

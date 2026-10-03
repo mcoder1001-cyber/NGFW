@@ -1,0 +1,46 @@
+[
+  {
+    "phase": "test-license",
+    "feature": "ipsec",
+    "limit": 1,
+    "signed": true,
+    "isolatedTrustRoot": true
+  },
+  {
+    "phase": "commit-v1",
+    "revision": 1,
+    "version": 1,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "restart-recreate",
+    "sameSealedSnapshot": true,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "commit-v2",
+    "revision": 2,
+    "version": 2,
+    "nativePskMatches": true,
+    "newSealedSnapshot": true
+  },
+  {
+    "phase": "rollback-v1",
+    "revision": 3,
+    "version": 1,
+    "originalSealedSnapshot": true,
+    "nativePskMatches": true
+  },
+  {
+    "phase": "noecho",
+    "apiAgentAuditSealedCache": true
+  },
+  {
+    "phase": "noecho-shutdown",
+    "passed": true
+  },
+  {
+    "phase": "valkey-cleanup",
+    "ownPrefixOnly": true
+  }
+]

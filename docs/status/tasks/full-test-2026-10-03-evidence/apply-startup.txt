@@ -1,0 +1,251 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash deploy/vpp/test-apply-startup.sh apps/agent/bin/vrx-startupgen
+heavy: slot 1 after 50s
+== 1. dry run (default) changes nothing; prints diffs, drivers, management restore plan, reachability check, preflight, gate, both sha256
+  ok   exit 3 (the gate would refuse --apply: TD-6 V9); unified diff shows the new dev lines
+  ok   semantic diff shows the logical names
+  ok   drivers of the PCI devices involved are listed
+  ok   management interface, ifupdown detected, addresses recorded
+  ok   exact restore plan printed (address + default route)
+  ok   link-local address and kernel routes are not in the plan
+  ok   reachability check chosen and shown: neigh (next hop REACHABLE)
+  ok   VPP preflight + boot identity; gate state shown
+  ok   sha256 of the live file and of the rendering printed
+  ok   live file untouched, VPP not restarted, no ip change
+  ok   dry run removed its temp dir
+== 2. dry run: reachability — gateway drops ICMP (vrx-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected
+  ok   exit 0; peer shown; neigh chosen although ICMP is dropped
+  ok   next hop does not answer ARP: exit 3, refused early
+  ok   --mgmt-probe tcp:10.0.0.1:22 viable (exit 0)
+  ok   loopback TCP target rejected (exit 3)
+  ok   explicit gateway-ping on a no-ICMP gateway: exit 3
+== 3. usage errors → exit 2, nothing changed
+  ok   --apply without --expect-new-sha256 refused (exit 2)
+  ok   approval id that is not PENDING-<slug> refused (exit 2)
+  ok   --window 0 refused (exit 2)
+  ok   --foreground over SSH without --console refused (exit 2)
+  ok   a test root with the real startup.conf is refused (exit 2)
+== 4. gate: pending → refused; approval only when a D-row has the PENDING as subject AND names this rendering; spent approval refused (N4)
+  ok   no approval: exit 3, no work dir
+  ok   PENDING-no-such refused (exit 3)
+  ok   PENDING-closed refused (exit 3)
+  ok   PENDING-mentioned refused (exit 3)
+  ok   systemd never touched
+  ok   D-900 has the PENDING as subject and names this rendering: accepted, recorded in gate + log (exit 0)
+  ok   approval sent to syslog
+  ok   same approval + same rendering again after the commit: spent, exit 3, no new work dir
+  ok   same PENDING, a different change: not covered, exit 3
+  ok   the dry run shows the gate against its own rendering
+  ok   handover: done → accepted without approval (exit 0)
+  ok   one more pending source keeps it pending (exit 3)
+  ok   flag parser (tools/lab rule); interface names regex-escaped
+== 5. --stage run verifies the sealed plan (forged gate / altered settings → refused)
+  ok   forged gate file: exit 3
+  ok   altered settings: exit 3
+== 6. what was reviewed is pinned: live file or rendering changed → refused inside the lock
+  ok   live file changed: exit 3, no restart, locks released
+  ok   rendering changed: exit 3, no restart
+== 7. VPP hung BEFORE the apply → preflight refuses within the timeout, nothing installed
+  ok   exit 3, refused, locks released
+  ok   bounded: 11s (limit 29s = 15s idle-host limit × load factor at load 9.61; unbounded: the preflight waits for the hung VPP's sleep 1000)
+== 8. healthy apply commits — NRestarts 4 before, reset to 0 by the restart (H1); settle + ≥2 identity reads (N3)
+  ok   exit 0, committed although NRestarts went 4 → 0
+  ok   new boot identity = the unit's MainPID, NRestarts 0 right after the restart
+  ok   identity stable across 2 reads in the window
+  ok   new file installed, backup kept
+  ok   logical interfaces + plugins verified through vrx-vppcheck
+  ok   management snapshot: ens192, ifupdown; check neigh (ARP of the next hop)
+  ok   locks taken (holder unit) before backup and diff
+  ok   dead-man timer and lock holder units started with the settings as --setenv
+  ok   timer cancelled, locks released, exactly one VPP restart
+  ok   dead-man deadline > run budget + rollback budget
+== 9. VPP did not actually restart (same boot identity) → rollback
+  ok   exit 1, detected
+== 10. VPP crashes and is brought back by systemd — inside the settle time (N3) and inside the window → rollback
+  ok   crash before the first identity read: exit 1, rolled back
+  ok   crash in the window: exit 1, rolled back
+== 11. reviewer's scenario: gateway drops ICMP, the manager's SSH session closes during the window → commits (N1)
+  ok   exit 0, committed with neigh; closed session logged only; one VPP restart
+== 12. --mgmt-probe tcp:… → commits; path lost → rollback judged by the same probe
+  ok   exit 0, committed with a TCP probe
+  ok   exit 1, lost TCP path → rollback, healthy afterwards by the same probe
+== 13. the path stays dead after the rollback → ONE rollback, console-needed, locks released, no restart loop (N1)
+  ok   exit 1, file restored, console-needed marker
+  ok   locks released, timer cancelled, VPP (re)started twice in total (apply + one rollback)
+  ok   a late dead-man does nothing — no further restart
+== 14. no viable check at apply time → refused before anything changes
+  ok   exit 3, refused, locks released
+== 15. a logical interface missing in VPP → rollback
+  ok   exit 1, rolled back, original file restored, locks released
+  ok   reason logged
+  ok   VPP stopped, reset-failed, started on the old file
+  ok   replaying the rolled-back work dir with --stage run: refused (exit 3), no restart
+== 16. ifupdown host (vrx-a), no netplan: VPP steals the management NIC → rebind + EXACT address/route restore
+  ok   exit 1, loss detected (addresses/routes compared exactly)
+  ok   unbound from vfio-pci, bound back to vmxnet3, override cleared
+  ok   recorded addresses (v4+v6) and default route re-applied verbatim
+  ok   addresses before routes
+  ok   fake kernel: address, default route and vmxnet3 driver back
+  ok   no network manager needed; rollback verified healthy
+== 17. ifupdown, exact re-apply not enough → ifup --force ens192
+  ok   exit 1, ifup --force used, rollback healthy
+== 18. systemd-networkd host → networkctl reconfigure
+  ok   exit 1, networkd detected, reconfigure used, rollback healthy
+== 19. netplan host → netplan apply
+  ok   exit 1, netplan detected, netplan apply used, rollback healthy
+== 20. plugins: enabled but not loaded → rollback; D-084 omission (dropped from the document) → commits
+  ok   exit 1, reason: npt66 not loaded
+  ok   exit 0, committed without npt66
+== 21. VPP HANGS after the restart (socket accepted, no answer) → bounded wait, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 18s (limit 47s = 30s idle-host limit × load factor at load 5.87; unbounded: wait_api on a VPP that never answers: sleep 1000 per probe)
+== 22. VPP hangs in the middle of the watch window → rollback
+  ok   exit 1, hang detected, rolled back
+  ok   bounded: 20s (limit 82s = 30s idle-host limit × load factor at load 18.47; unbounded: a health read on a hung VPP: sleep 1000)
+== 23. systemctl restart itself hangs → svc timeout, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 18s (limit 78s = 30s idle-host limit × load factor at load 17.24; unbounded: systemctl restart hangs in sleep 1000)
+== 24. SSH session dies mid-apply (the run is a systemd-run unit with a clean environment) → the run still commits
+deploy/vpp/test-apply-startup.sh: line 72: 440101 Killed                     setsid bash -c '"$0" --doc "$1" --apply "${@:2}"; sleep 60' "$SCRIPT" "$DOCF" "${TIMING[@]}" "${APPROVE[@]}" --expect-sha256 "$ORIG" --expect-new-sha256 "$NEW" "${HOSTARGS[@]}" > "$T/caller.out" 2>&1
+  ok   session killed after install, before commit
+  ok   detached run committed anyway
+  ok   unit started with every setting as --setenv
+  ok   the unit saw exactly the recorded settings under env -i
+== 25. systemd-run unavailable → --apply refused, no fallback (N2)
+  ok   run unit: exit 3, nothing changed
+  ok   lock holder unit (--foreground): exit 3, nothing changed
+  ok   dead-man timer: exit 3, refused before install, locks released
+== 26. the run HANGS; an integration run queues on the lab lock → dead-man kills the run; the holder keeps the locks until its single rollback is done (M1)
+  ok   run stuck in 'systemctl restart'; holder unit 458877 owns the locks
+  ok   exit 1, run killed, file restored
+  ok   holder kept the locks across the kill; not FORCED
+  ok   queued shared waiter got the lab lock only after the rollback restarted VPP
+  ok   locks released, holder gone, exactly one rollback start
+  ok   bounded: 6s (limit 59s = 20s idle-host limit × load factor at load 20.92; unbounded: the run's systemctl restart hangs (sleep 1000, --svc-timeout 600))
+== 27. the lock holder dies during the apply → rollback (the locks are not ours any more)
+  ok   exit 1, rolled back
+== 28. dead-man: no-op after commit; one rollback when the run died before finishing (holder gone → takes the locks itself)
+  ok   committed run: dead-man does nothing
+  ok   exactly one rollback, locks taken exclusively first, released after (exit 1)
+== 29. dead-man, holder gone AND a foreign process holds the lab lock → bounded wait, FORCED rollback, holder logged
+  ok   exit 1, rolled back without the lock, holder named
+  ok   bounded: 6s (limit 32s = 15s idle-host limit × load factor at load 11.95; unbounded: the foreign holder keeps the lab lock for 300 s)
+== 30. lab lock held by someone else at apply time → refused, nothing changed
+  ok   exit 3, lock busy (holder named), file unchanged
+== 31. the generator refuses the management NIC as a device (host facts) → nothing changed
+  ok   dry run fails with the generator's error (exit 2)
+== 32. V1: a dead run's armed dead-man never reverts a newer apply — the planner refuses while an apply is unfinished; a superseded dead-man changes nothing
+deploy/vpp/test-apply-startup.sh: line 72: 476225 Killed                     apply > "$T/run1.out" 2>&1
+  ok   run 1 died after installing; its holder is gone; its dead-man is still armed
+    state: rc=3 finished=[] vpp=active locks-free=y timer-cancelled=n live==new=y live==orig=n
+  ok   a new apply is refused while run 1 is unfinished (exit 3; dir and timer named), nothing changed
+  ok   TD-7 F1: the refusal points at the safe command, the dead-man's own unit (systemctl start <unit>.service), not a second rollback by hand
+  ok   run 1's dead-man makes its one rollback (exit 1): original file back
+  ok   then the new apply commits (exit 0) and is recorded as the current one
+    state: rc=1 finished=[superseded] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   late dead-man of run 1: superseded, the newer committed file stays (exit 1)
+  ok   VPP neither stopped nor restarted by it, locks released
+== 33. V2: the rollback cannot write startup.conf (/etc/vpp replaced by a file during the window) → VPP is NOT stopped; console-needed; timer cancelled; locks released
+    state: rc=1 finished=[console-needed] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   exit 1, console-needed names the failed restore
+  ok   VPP left running (never stopped), locks released, timer cancelled
+  ok   a late dead-man does nothing
+== 34. V2: the old file was staged, but /etc/vpp breaks while VPP is stopped → VPP is started again anyway; console-needed; locks released
+    state: rc=1 finished=[console-needed] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   exit 1, console-needed: startup.conf not restored
+  ok   VPP started again after the stop, locks released
+== 35. V3: `systemctl show` fails right after the restart — once → read again, commits; persistently → immediate rollback (not a dead run)
+    state: rc=0 finished=[committed] vpp=active locks-free=y timer-cancelled=y live==new=y live==orig=n
+  ok   transient D-Bus failure: exit 0, committed with a complete unit tuple
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   persistent failure: exit 1, rolled back at once, locks released
+== 36. V4: VPP crashes and systemd restarts it BEFORE the first `systemctl show` → NRestarts=1 in the baseline → rollback
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+    unit.restart: ActiveEnterTimestampMonotonic=78009 MainPID=1051 NRestarts=1 
+  ok   exit 1, the auto-restarted instance is not accepted
+== 37. V5: the holder dies while a shared waiter queues on the lab lock → the run's rollback takes the locks exclusively (bounded) before it stops VPP
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+    order: 16:WAITER-IN 22:WAITER-OUT 23:systemctl stop vpp 30:systemctl start vpp 
+  ok   exit 1, rolled back
+  ok   the waiter's lab-lock section [16,22] and the rollback's VPP stop..start [23,30] do not overlap (calls lines)
+  ok   the rollback took the locks exclusively (not FORCED) and released them
+== 38. V6: the VRX_TEST_ROOT guard resolves paths — '/.' and a symlink out of the test root are refused
+    canon_root with VRX_TEST_ROOT=/. → rc=2: apply-startup: VRX_TEST_ROOT resolves to '/' — refused
+  ok   test root '/.' with /./etc/vpp/startup.conf refused (exit 2)
+    canon_root with startup.conf behind a symlink to /etc → rc=2: apply-startup: VRX_TEST_ROOT is only honoured when startup.conf, sysfs, systemctl, systemd-run, ip, the state dir and the locks are inside it (VRX_STARTUP_CONF=/tmp/tmp.gll8skgpYr/esc/vpp/startup.conf resolves to /etc/vpp/startup.conf, outside /tmp/tmp.gll8skgpYr)
+  ok   startup.conf reached through a symlink to /etc refused (exit 2)
+  ok   the harness's own test root is still accepted
+== 39. V7: the lock holder keeps the locks until the run's recomputed deadline (hold-until), not its own default-count HOLD_MAX
+  ok   the run records hold-until ≥ its dead-man deadline + lock wait + one rollback
+  ok   a holder follows hold-until (released after ~2 s)
+    defaults: 1 management interface(s): holder's default HOLD_MAX 4249s, dead-man worst-case end 3649s
+    defaults: 3 management interface(s): holder's default HOLD_MAX 4249s, dead-man worst-case end 5129s
+== 40. V8: neigh probe — a link-local IPv6 default gateway is nudged with its scope; a hanging `ip neigh` is bounded by time
+      will use: neigh (passes now); manager session: no peer known
+  ok   dual stack, gateway fe80::1: nudged as fe80::1%ens192, neigh viable (exit 0)
+    elapsed 6s at load 7.96, 1 `ip neigh` read(s):   NONE VIABLE — --apply will refuse: no viable management reachability check on this host: next hop 10.0.0.1 on ens192
+  ok   ip neigh hangs (cmd-timeout 3s): refused (exit 3)
+  ok   the poll is bounded by time, not by count: 1 hanging `ip neigh` read(s) of 3 s within the 3 s deadline (pre-V8: 2 × cmd-timeout = 6 reads) — independent of the host load
+== 41. V9: the dry run exits 3 when --apply would be refused by the gate, 0 when the approval covers this rendering
+  ok   handover pending, no approval: exit 3 (sums still printed)
+  ok   approval names this rendering: exit 0
+== 42. F1: two `--stage rollback` of one apply at once, holder gone (the operator finishes it by hand while its dead-man fires) → the second is refused at once; VPP stopped and started exactly once, never FORCED
+  ok   the apply installed and has no result; its holder is gone
+    rollback 1 (pid 530976): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=0; VPP stops=1 starts=1
+    | rollback 2: apply-startup: 2026-10-03 13:38:26 a rollback of /tmp/tmp.gll8skgpYr/case.r90h/apply/20261003-133810-525889 is already running (pid 530976) — nothing to do
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   the second rollback, started while the first is inside its VPP stop, is refused at once and touches nothing (exit 0)
+  ok   the first one rolls back alone (exit 1): original file, VPP active, locks released
+  ok   VPP stopped and started exactly once (stops=1 starts=1); the locks taken exclusively, never FORCED
+== 43. F1: the same overlap while the holder is alive (the run hangs in `systemctl restart`, its dead-man armed) → the rollback disarms the timer first; the second is refused; VPP stopped and started exactly once
+  ok   the run is stuck in 'systemctl restart'; holder 534716 owns the locks; the dead-man vrx-startup-apply-deadman-20261003-133834-533257 is armed
+    rollback 1 (pid 535842): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=0; VPP stops=1 starts=1
+    | rollback 2: apply-startup: 2026-10-03 13:38:42 a rollback of /tmp/tmp.gll8skgpYr/case.ZnVl/apply/20261003-133834-533257 is already running (pid 535842) — nothing to do
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   the second rollback (the timer firing while the operator's runs) is refused at once and touches nothing (exit 0)
+  ok   the rollback disarmed the armed dead-man timer (calls line 17) before it stopped VPP (line 19)
+  ok   the first one killed the run and rolled back alone (exit 1) under the holder's locks, then released them
+  ok   VPP stopped and started exactly once (stops=1 starts=1)
+== 44. TD-17 product mode: installed binaries (VRX_LIB_BIN), operator confirmation bound to the rendering's sha256; lab-only flags refused
+   S-apply-startup-mode (RV-B R2/R4 #7): mode from --mode only; fails closed on a lab host / repo checkout / without the root-owned appliance marker
+  ok   --approve-rendering in lab mode refused (exit 2)
+  ok   --i-have-product-owner-approval in product mode refused (exit 2)
+  ok   unknown --mode refused (exit 2)
+  ok   --mode on a stage refused (exit 2): a stage takes the mode from its work dir
+  ok   product mode looks for the installed binaries under VRX_LIB_BIN (exit 2)
+  ok   product mode: a generator outside VRX_LIB_BIN refused (exit 2)
+  ok   product mode: an appliance marker path outside the test root refused (exit 2)
+  ok   review #2: VRX_LIB_BIN is pinned like the marker — a path outside the test root refused (exit 2)
+   -- the canonical fixture repo is present and says handover: pending (vrx-a today)
+  ok   RV-B R4 #7: installed layout + marker + valid confirmation, canon pending → --apply exit 3, no work dir, restarts=0, live file unchanged
+  ok   same host, dry run: exit 3, the lab-host refusal shown
+  ok   --vm vrx-z does not dodge it: every docs/lab/host-*.md is read (exit 3)
+  ok   canonical repo present without a host file: fails closed (exit 3)
+  ok   VRX_HANDOVER_EXTRA pending: exit 3 (can only make the gate stricter)
+   -- VRX_APPLY_MODE=product in the environment alone: lab behaviour
+  ok   env-only product dry run: note printed, lab handover gate evaluated (exit 3)
+  ok   env-only product + --approve-rendering: refused as a lab-mode run (exit 2)
+   -- appliance-like host: canonical repo absent
+  ok   dry run without the confirmation: exit 3, appliance gate shown, no handover gate
+  ok   dry run with the confirmation: exit 0, gate names marker, install dir, sources; nothing changed
+  ok   marker writable by group: exit 3
+  ok   marker directory writable by group: exit 3
+  ok   marker not owned by root: exit 3
+  ok   marker a symlink (exit 3) or missing (exit 3): refused
+  ok   review #2: a group-writable installed binary (exit 3) or VRX_LIB_BIN directory (exit 3): refused
+  ok   review #7: a dangling canonical path counts as pending, not absent (exit 3)
+  ok   script inside a git checkout (VRX_LIB_BIN pointed at it): exit 3
+  ok   a lab tree beside the script (no .git, e.g. a synced copy), handover pending: exit 3
+  ok   script outside VRX_LIB_BIN: exit 3
+  ok   an unreadable VRX_HANDOVER_EXTRA counts as pending: exit 3
+  ok   confirmation of another sum (the later flag wins): exit 3, no work dir
+  ok   product apply on the appliance-like host commits (exit 0); gate recorded
+  ok   mode, installed paths, marker and the script's origin recorded and pinned in the work dir
+  ok   dead-man armed (in product mode) and cancelled after the commit; locks released; one VPP restart
+  ok   review #3: --stage run of the sealed product plan re-checks the product gate: lab host now → exit 3, file unchanged, no further restart
+   -- the canonical repo says handover: done (a lab host after the handover) + marker: allowed (decision in the status file)
+  ok   canon done + marker + installed: dry run passes (exit 0)
+   -- env-only product --apply with the lab approval: a lab-mode apply
+  ok   VRX_APPLY_MODE=product + lab flags → lab gate + lab mode recorded (exit 0)
+  ok   product mode: the dead-man cannot be armed → refused (exit 3), VPP not restarted
+
+apply-startup tests: 173 passed, 0 failed

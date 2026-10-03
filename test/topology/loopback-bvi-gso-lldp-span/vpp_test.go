@@ -249,7 +249,7 @@ func bridgeDomain(t *testing.T, conn vppConn, id uint32) (bdInfo, bool) {
 // gre_tunnel_add_del_v2 (type erspan, p2p) and the owner tag "<owner>:gre<inst>" (df6.TagInterface) — because
 // apps/agent/internal/** cannot be imported from this module (Go's internal rule); the descriptor itself is exercised on
 // the host by apps/agent/internal/descriptors/span TestERSPANOnHost. The tunnels domain belongs to F-tunnels: the
-// configuration only names the tunnel. Deleted in Cleanup.
+// configuration declares the tunnel so resync retains it. Deleted in Cleanup.
 func greFixture(t *testing.T, conn vppConn, owner string, inst uint32, src, dst string, session uint16) (string, uint32) {
 	t.Helper()
 	ctx, cancel := ctx10()
@@ -272,7 +272,15 @@ func greFixture(t *testing.T, conn vppConn, owner string, inst uint32, src, dst 
 		t.Fatalf("tag %s: %v", name, err)
 	}
 	idx := uint32(rep.SwIfIndex)
-	t.Cleanup(func() { delGre(t, conn, idx, inst, src, dst, session) })
+	t.Cleanup(func() {
+		if current, ok := dumpIfs(t, conn)[name]; ok {
+			if current.tag != owner+":"+name {
+				t.Errorf("refusing to delete fixture %s with foreign tag %q", name, current.tag)
+				return
+			}
+			delGre(t, conn, current.idx, inst, src, dst, session)
+		}
+	})
 	return name, idx
 }
 
@@ -371,6 +379,19 @@ func vppctl(t *testing.T, args ...string) string {
 func alignedLoopback(t *testing.T, conn vppConn, slot int) (string, uint32, bool) {
 	t.Helper()
 	svc := interfaces.NewServiceClient(conn)
+	finish := func(name string, idx uint32) (string, uint32, bool) {
+		t.Cleanup(func() {
+			if current, ok := dumpIfs(t, conn)[name]; ok {
+				ownerTag := fmt.Sprintf("w%d:%s", slot, name)
+				if current.tag != "" && current.tag != ownerTag {
+					t.Errorf("refusing to delete LLDP fixture %s with foreign tag %q", name, current.tag)
+					return
+				}
+				delLoop(t, conn, current.idx)
+			}
+		})
+		return name, idx, true
+	}
 	mk := func(inst int) (string, uint32) {
 		ctx, cancel := ctx10()
 		defer cancel()
@@ -393,7 +414,7 @@ func alignedLoopback(t *testing.T, conn vppConn, slot int) (string, uint32, bool
 		h, found := hwIndex(t, conn, name)
 		t.Logf("LLDP probe %s: sw_if_index %d hw_if_index %d (found %v)", name, s, h, found)
 		if found && h == s {
-			return name, s, true
+			return finish(name, s)
 		}
 		delLoop(t, conn, s)
 		if !found {
@@ -419,7 +440,7 @@ func alignedLoopback(t *testing.T, conn vppConn, slot int) (string, uint32, bool
 		h, found = hwIndex(t, conn, name)
 		t.Logf("LLDP probe %s (after taking software indexes): sw_if_index %d hw_if_index %d (found %v)", name, s, h, found)
 		if found && h == s {
-			return name, s, true
+			return finish(name, s)
 		}
 		delLoop(t, conn, s)
 	}

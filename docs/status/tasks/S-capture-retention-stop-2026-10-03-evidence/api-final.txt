@@ -1,0 +1,14 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/api test src/agent/capture-stream.test.ts src/auth/route-guard.test.ts
+heavy: slot 1 after 30s
+$ vitest run src/agent/capture-stream.test.ts src/auth/route-guard.test.ts
+
+ RUN  v3.2.7 /root/.codex/worktrees/bbd9/NGFW/apps/api
+
+ ✓ src/agent/capture-stream.test.ts (4 tests) 46ms
+ ✓ src/auth/route-guard.test.ts (8 tests) 1293ms
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  16:56:07
+   Duration  17.80s (transform 12.07s, setup 0ms, collect 25.85s, tests 1.34s, environment 1ms, prepare 402ms)
+

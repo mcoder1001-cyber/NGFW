@@ -1,0 +1,36 @@
+17:25:00 window start 2026-10-03T17:25:00+03:30: flock -s vrx-lab.lock (no VPP-global touched)
+17:25:00 === 0 host facts ===
+17:25:00 NRestarts before: NRestarts=0
+17:25:00 plugins: gre_plugin.so gtpu_plugin.so l2tp_plugin.so pppoe_plugin.so 
+17:25:00 branch 5848a73ce slot 6 prefix w6 table base 6000
+17:25:00 === 1 slot stack ===
+17:25:08 agent pid 1795488 (owner w6, table base 6000), API :3600 health {"status":"ok"}
+17:25:08 GET /state/tunnels (empty stack): {"tunnels":[],"retrievedAt":"2026-10-03T13:55:08.496Z"}
+17:25:08 === 2 tunnels.instance-required (D-205): GRE without instance → 400 with a pointer, agent not asked ===
+17:25:09 commit → HTTP 400 {"title":"Validation failed","tier":"semantic","errors":[{"pointer":"/tunnels/gre/w6-nogre/instance","message":"a gre tunnel needs an instance: it names the engine interface (gre<instance>)"}]}
+17:25:09 === 3 gre + vxlan-gpe on the real engine ===
+17:25:10 commit → {"status":"applied","revision":1}
+17:25:10 vppctl show gre tunnel:
+[0] instance 6001 src 10.6.7.1 dst 10.6.7.2 fib-idx 0 sw-if-idx 2 payload L3 point-to-point 
+17:25:10 vppctl show vxlan-gpe tunnel:
+[0] lcl 10.6.7.1 rmt 10.6.7.3 lcl_port 4790 rmt_port 4790 vni 6003 fib-idx 0 sw-if-idx 3 decap-next-protocol ip4 fib-idx 0 
+unknown input `tunnel'
+17:25:10 vppctl show interface (ours):
+gre6001                           2      up          9000/0/0/0     
+vxlan_gpe_tunnel0                 3      up          1500/0/0/0     
+17:25:10 vppctl show interface addr (ours):
+gre6001 (up):
+  L3 10.6.254.1/30
+--
+vxlan_gpe_tunnel0 (up):
+  L3 10.6.253.1/30
+17:25:11 GET /state/tunnels: {"tunnels":[{"name":"w6-gre","kind":"gre","interface":"gre6001","swIfIndex":2,"adminUp":true,"linkUp":true,"mtu":9000,"deviceClass":"GRE tunnel device"},{"name":"w6-gpe","kind":"vxlanGpe","interface":"vxlan_gpe_tunnel0","swIfIndex":3,"adminUp":true,"linkUp":true,"mtu":1500,"deviceClass":"VXLAN_GPE"}],"retrievedAt":"2026-10-03T13:55:11.069Z"}
+17:25:11 GET /config/tunnels (running): {"gre":{"w6-gre":{"dst":"10.6.7.2","src":"10.6.7.1","vrf":"default","ipv4":["10.6.254.1/30"],"ipv6":[],"type":"l3","enabled":true,"instance":6001,"description":"S-tunnels-contract","underlayVrf":"default"}},"vxlanGpe":{"w6-gpe":{"dst":"10.6.7.3","mtu":1500,"src":"10.6.7.1","vni":6003,"vrf":"default","ipv4":["10.6.253.1/30"],"ipv6":[],"dstPort":4790,"enabled":true,"srcPort":4790,"protocol":"ip4","underlayVrf":"default"}}}
+17:25:11 GET /state/drift: {"subsystems":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management"],"changes":[],"ignored":[{"pointer":"/management/aaa","rule":"agent.unsupported-field"},{"pointer":"/management/tls","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","rule":"agent.write-only"},{"pointer":"/services/ntp","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","rule":"agent.unsupported-field"}]}
+17:25:12 commit refused: {"status":"applied","revision":{"id":2,"createdAt":"2026-10-03T13:55:11.939Z","authorId":1,"author":"admin","comment":"t1-nochange","parentId":1,"hash":"ae081162b2c6824ca445c59a2edb0d2182aec78012d9ded34a5610a06fcc7e3c","txnId":"f83c6bf4-57d6-4d8e-aaf7-2a39dff25128","kind":"commit","secretChanges":[],"secretVersions":null},"txnId":"f83c6bf4-57d6-4d8e-aaf7-2a39dff25128","results":[],"warnings":[{"pointer":"/management/aaa","message":"management.aaa is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/management/tls","message":"management.tls is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","message":"nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","message":"flowprobe parameters are applied only with at least one monitored interface","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","message":"services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)","rule":"agent.write-only"},{"pointer":"/services/ntp","message":"services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","message":"vpn.ipsec is not implemented by this agent build (P11)","rule":"agent.unsupported-field"}],"notApplied":[],"summary":{"created":0,"updated":0,"deleted":0,"unchanged":16,"failed":0,"reverted":0},"sync":{"state":"in-sync","reason":"","txnId":null,"since":"1970-01-01T00:00:00.000Z"}}
+17:25:12 === cleanup ===
+17:25:12 cleanup commit: {"status":"applied","revision":3}
+17:25:15 leftovers in VPP: 0 interface(s) named like ours; show gre tunnel: 0 · show vxlan-gpe tunnel: 0
+17:25:15 NRestarts after cleanup: NRestarts=0
+17:25:15 window end 2026-10-03T17:25:15+03:30
+17:25:15 cleanup status 0; original status 1

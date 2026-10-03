@@ -1,0 +1,23 @@
+MainPID=1014
+NRestarts=0
+lo               UNKNOWN        127.0.0.1/8 ::1/128 
+ens161           DOWN           
+ens192           UP             172.30.126.195/24 fe80::250:56ff:fe9f:1e53/64 
+ens224           DOWN           
+ens225           DOWN           
+ens256           DOWN           
+ens257           DOWN           
+virbr0           DOWN           192.168.122.1/24 
+ens193           DOWN           
+ip6tnl0@NONE     DOWN           
+default via 172.30.126.1 dev ens192 onlink 
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+local0                            0     down          0/0/0/0       drops                          6
+lcp default netns '<unset>'
+lcp lcp-auto-subint off
+lcp lcp-sync off
+lcp lcp-sync-unnumbered on
+lcp del-static-on-link-down off
+lcp del-dynamic-on-link-down off
+N
+64

@@ -42,9 +42,14 @@ Next: pass final PPP quick37223559490 and merge165 expected38cef0cb;
 cumulatively integrate163→160→166.
 No live VPP restart, production apply, PPPoE dial or forwarding campaign was run.
 
-PPP cumulative API validation: all19secret-delivery cases passed after strictly
+All 19 cumulative IGP and PPPoE delivery tests passed after strictly
 sequential proto and schema builds (15.07s). Initial local failures were the RIP
 positive/negative cases because pre-IGP proto dist dropped the new RIP auth leaf;
 OSPF rejection was already correct. No product or assertion was changed to make
 them pass. Build/test logs: `/root/ngfw-wt/pppoe-tmp/proto-integrated-build.log`,
 `schema-integrated-final-build.log`, `api-integrated-igp-built.log`.
+
+Historical scanner correction: the natural-language nineteen-test summary in
+board/status commit e372cf6c was concatenated without spaces and flagged as a
+credential. That text contains no credential. Its exact historical fingerprint
+is excepted; the wording is corrected and scan rules/depth remain unchanged.

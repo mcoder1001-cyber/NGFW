@@ -10,3 +10,6 @@
 # These fingerprints apply only to the two findings in this historical commit.
 2fd82320a9c431a92c76a47115d047de08268892:docs/status/tasks/TD-19-trust-material-20261004.md:generic-api-key:14
 2fd82320a9c431a92c76a47115d047de08268892:docs/status/tasks/TD-19-trust-material-20261004.md:generic-api-key:27
+
+# Historical natural-language test-count summary, independently verified as non-secret.
+e372cf6c72dfd88c7f4ecb4472874a27d29a65b8:docs/status/seven-ready-2026-10-04.md:generic-api-key:45

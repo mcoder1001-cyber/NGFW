@@ -174,3 +174,26 @@ func TestRoutesOptionalPriorityUsesSchemaDefault(t *testing.T) {
 		t.Fatal("omitted priority outranked explicit priority2")
 	}
 }
+
+func TestExpandPBRSharedMemberDoesNotCrossAddressFamily(t *testing.T) {
+	doc := routeDoc()
+	v6 := proto.Clone(doc.Routing.WanGroups[0]).(*ngfwv1.WanGroup)
+	v6.Name = proto.String("internet6")
+	v6.Members[0].Gateway = proto.String("2001:db8:1::1")
+	v6.Members[1].Gateway = proto.String("2001:db8:2::1")
+	doc.Routing.WanGroups = append(doc.Routing.WanGroups, v6)
+	doc.Routing.Pbr = &ngfwv1.PbrConfig{Policies: map[string]*ngfwv1.PbrPolicy{
+		"v4": {Paths: []*ngfwv1.PbrPath{{WanGroup: proto.String("internet")}}},
+		"v6": {Paths: []*ngfwv1.PbrPath{{WanGroup: proto.String("internet6")}}},
+	}}
+	states := append(health(true, true), &ngfwv1.WanGroupState{Name: "internet6", Members: []*ngfwv1.WanMemberState{{Interface: "wan1", Up: false}, {Interface: "wan2", Up: true}}})
+	if issues := ExpandPBR(doc, states); len(issues) > 0 {
+		t.Fatal(issues)
+	}
+	if p := doc.Routing.Pbr.Policies["v4"].Paths[0]; p.GetAddress() != "192.0.2.1" || p.GetInterface() != "wan1" {
+		t.Fatal("IPv4 group used overlapping IPv6 group", p)
+	}
+	if p := doc.Routing.Pbr.Policies["v6"].Paths[0]; p.GetAddress() != "2001:db8:2::1" || p.GetInterface() != "wan2" {
+		t.Fatal("IPv6 group used overlapping IPv4 group", p)
+	}
+}

@@ -46,6 +46,14 @@ export class SecretDeliveryService {
         if (protocol !== 'ospf' && protocol !== 'rip') return false;
         return state.routing?.[protocol]?.interfaces[parts[3]!]?.auth?.type === 'md5';
       }
+      if (
+        parts[0] === 'interfaces' &&
+        parts.length === 4 &&
+        parts[2] === 'pppoe' &&
+        parts[3] === 'passwordRef'
+      ) {
+        return state.interfaces[parts[1]!]?.pppoe?.enabled !== false;
+      }
       if (parts[0] !== 'vpn') return false;
       if (parts[1] === 'pki') {
         if (parts.length !== 5) return false;
@@ -92,7 +100,7 @@ export class SecretDeliveryService {
       const selections = refs.filter((r) => r.ref === ref);
       const kinds = new Set(
         selections.map(({ pointer }) =>
-          pointer.startsWith('/routing/')
+          pointer.startsWith('/routing/') || pointer.startsWith('/interfaces/')
             ? 'password'
             : pointer.startsWith('/vpn/pki/')
               ? pointer.endsWith('/privateKeyRef')

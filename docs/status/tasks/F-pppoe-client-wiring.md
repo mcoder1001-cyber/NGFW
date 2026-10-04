@@ -1,0 +1,19 @@
+# F-pppoe-client-wiring development closeout
+
+Branch: codex/F-pppoe-client-wiring-20261004. Worktree: /root/ngfw-wt/F-pppoe-client-wiring-20261004. PR165. Initial durable restoration checkpointec29be1b019b87c1aa849b6bc66b1b94bd5928b1; reviewed product checkpoint881b148f8368ea4a7f1b330c53ced56c5a400901 matches local387a9e3cf tree. CLI push403; GitHub connector publishes each checkpoint. Subsequent formatting/docs/checkpoint head is visible in the PR.
+
+Implemented: config-to-singleton StageDaemon projection, reference-only desired/manifest, existing sealed versioned password channel, parent LCP/defaults, structural staged validator/redaction, render-only slot mode, globals supervision, hook polling and transaction-serialized address/default-route/MSS mirror, up/down/removal/restart metadata recovery, state/DNS/failure count and reconnect. Restored historical reviewed runtime prerequisite absent main. Added partial-failure cleanup and retry tracking, secrets-only unit restart/hook invalidation, clamp-only state preservation, stale slot hook removal, exact password failure pointer.
+
+Actual focused race: `go test -race ./internal/descriptors/pppoe ./internal/subsystems ./internal/desired ./internal/agent -run 'Pppoe|PPPoE|ClientMirror|ClientValidate|ClientMissing|ClientManifest' -count=1` PASS (1.321s / 2.078s / 1.519s / 1.739s), /root/ngfw-wt/pppoe-tmp/race.log.
+
+Actual complete changed-package race after reachability shrink correction: `go test -race ./internal/descriptors/pppoe ./internal/subsystems ./internal/desired ./internal/agent -count=1` PASS (1.528s / 27.491s / 30.102s / 82.816s), /root/ngfw-wt/pppoe-tmp/full-race-final.log. No integration environment flag; real VPP tests skip and are not claimed passing lab checks.
+
+Tests execute the generated ip-up/ip-down hooks against fake VPP and verify route path/MSS/address lifecycle, repeat observation, loss repair, removal/re-add, credential-only restart, clamp preservation, failure-after-address and cleanup retry, watcher cancellation, deduplicated unit exits, checker-once on staged paths, masked output and password-free manifest. Independent integration and API-secret security review APPROVE from /root/integration_review at reviewed source881b148f. Root second review/unchanged complete hosted quick gate remain mandatory before actual merge.
+
+Initial full lint found inherited native-certificate/VRRP/ISIS errors in main and own PPPoE fixture/comment findings; own findings corrected. Root prerequisite PR162 repairs inherited errors. Exact changed-file lint and API password unit results are appended after commands finish. Initial API test did not run because proto workspace build was missing; dependency builds are in progress, not counted as tests.
+
+Laboratory-only acceptance NOT RUN: real AC/ISP dial, actual NAT packets, wrong-password pppd process exits, real appliance/LCP/VPP restart/rollback and screenshots. No shared VPP writes, host package install or systemd commands performed outside test recording runners. Rendered hooks were real shell scripts in private test trees. Product namespace supervision is explicitly unavailable with the existing unit; task questions explain this limitation.
+
+Next manager command: integrate reviewed prerequisite branch after its quick gate, compose PPPoE + IGP additive secret selection hunks, verify unchanged full hosted quick on the current main integration tree, independently review applicable security source and merge165 sequentially with expected-head checks; update board only after actual merge.
+
+Changed-code golangci-lint (`--new-from-rev=origin/main`) PASS. Proto/schema dependency builds PASS; API secret-delivery suite PASS (see `/root/ngfw-wt/pppoe-tmp/api-tests-final.log`). Full unchanged hosted quick remains mandatory after root prerequisite integrates.

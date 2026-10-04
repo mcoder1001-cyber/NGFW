@@ -10,6 +10,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1261,6 +1262,10 @@ func fillResponse(resp *ngfwv1.ApplyResponse, res *scheduler.TxnResult, pj *proj
 		or := &ngfwv1.ObjectResult{Key: string(r.Key), Op: opPB[r.Op], Code: codePB[r.Code], Pointer: pj.pointers[r.Key], Subsystem: domainOf(r.Key.Descriptor())}
 		if r.Err != nil {
 			or.Message = r.Err.Error()
+			var validation *scheduler.ValidationError
+			if errors.As(r.Err, &validation) && strings.HasPrefix(validation.Pointer, "/") {
+				or.Pointer = validation.Pointer
+			}
 		}
 		resp.Results = append(resp.Results, or)
 	}

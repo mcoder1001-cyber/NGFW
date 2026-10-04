@@ -43,3 +43,13 @@ failure, the consecutive-failure count and the last error. **Reconnect** redials
   password; the panel shows the last error.
 - **Large downloads stall** — leave *Clamp TCP MSS* on; a wrong MTU black-holes big packets.
 - **No default route** — turn on *Default route from peer* (unless another interface provides the default route).
+
+## Client configuration wiring
+
+Enabled `interfaces.<name>.pppoe` is reconciled from the committed configuration through the `pppoe.client.config` daemon descriptor. Its parent must have a linux-cp tap; `parent` defaults to the configured interface. Username, service, MTU, route, DNS, IPv6 negotiation and reconnect policy are rendered from the schema. The existing encrypted, revision-pinned secret channel delivers only an enabled client's `password/<name>` reference. References remain in desired state and the private applied manifest; resolved passwords appear only in mode-0600 PAP/CHAP files. Missing material produces a passwordRef finding and prevents dialing.
+
+The globals-owner agent supervises the per-tap pppd units. Other agents render under `/run/ngfw-test/<owner>/pppoe/` and report `pppoe.not-supervised`; they never call systemctl. Hook polling converges negotiated IPv4 addresses, a single multipath-safe default-route path and MSS clamp under the agent transaction lock. Down and configuration removal withdraw those effects before deleting dependencies. Credential edits invalidate previous hook state and restart the dialer even when peer options are unchanged; changing only MSS clamp keeps the negotiated hook state.
+
+The interface-state endpoint includes phase, negotiated addresses, peer DNS and observed consecutive unit failures. Successful up hooks reset failure state. Reconnect uses the existing `POST /api/v1/actions/interfaces/{name}/pppoe/reconnect` action. Equivalent operator inspection is `systemctl show ngfw-pppoe-<tap>.service -p ExecMainStatus -p NRestarts` plus `vppctl show interface address`, `show ip fib` and `mss_clamp_get`. Configure the client with the normal candidate → commit workflow; do not edit generated files.
+
+Actual live dialing still needs the owner's PPP kernel/package provisioning and ISP or test AC. Production supervision in an LCP network namespace is currently rejected because the packaged pppd unit does not enter that namespace; slot rendering and hook tests can use the slot tap without supervising host units. Real dialing, peer restart/holdoff, wrong-password unit exits, NAT packets and appliance restart acceptance remain in the deferred acceptance ledger. No packages are installed by this development task.

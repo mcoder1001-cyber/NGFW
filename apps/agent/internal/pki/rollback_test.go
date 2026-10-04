@@ -69,7 +69,7 @@ func TestRollbackWithCandidateOnlySealedSecrets(t *testing.T) {
 			if cache.Active() != candidate {
 				t.Fatal("descriptor changed secret selection")
 			}
-			key, err := os.ReadFile(filepath.Join(root, "private", "w5-gw.pem"))
+			key, _, err := readBounded(filepath.Join(root, "private", "w5-gw.pem"), MaxCRLSize)
 			if err != nil || string(key) != string(old.leafKey) {
 				t.Fatal("old key bytes not restored")
 			}

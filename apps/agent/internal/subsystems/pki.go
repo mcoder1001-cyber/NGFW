@@ -34,7 +34,7 @@ type pkiResolver struct {
 	source func(string) ([]byte, error)
 }
 
-func (r *pkiResolver) Resolve(ctx context.Context, ref string) ([]byte, error) {
+func (r *pkiResolver) Resolve(_ context.Context, ref string) ([]byte, error) {
 	r.mu.RLock()
 	source := r.source
 	r.mu.RUnlock()
@@ -48,6 +48,8 @@ func (r *pkiResolver) Resolve(ctx context.Context, ref string) ([]byte, error) {
 	}
 	return material, nil
 }
+
+// SetPKISecrets installs the owner-scoped sealed-cache resolver for PKI material.
 func SetPKISecrets(owner string, source func(string) ([]byte, error)) error {
 	rt := PKIRuntimeFor(owner)
 	if rt == nil || rt.source == nil {

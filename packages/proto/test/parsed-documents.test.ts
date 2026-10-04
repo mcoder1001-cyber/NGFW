@@ -86,6 +86,11 @@ function diff(want: unknown, got: unknown, path = '', key = ''): string[] {
     const g = got as Record<string, unknown>;
     const out: string[] = [];
     for (const k of Object.keys(w)) {
+      // Read-only first-boot metadata is API-owned; the Go guard pins this boundary.
+      if (path === '/system' && k === 'setup') {
+        if (k in g) out.push('/system/setup: API-owned metadata crossed the agent boundary');
+        continue;
+      }
       if (!(k in g)) {
         if (!isEmptyContainer(w[k])) out.push(`${path}/${k}: dropped by the proto (no field?)`);
       } else out.push(...diff(w[k], g[k], `${path}/${k}`, k));
@@ -137,6 +142,16 @@ describe('parsed documents survive the DesiredState projection', () => {
       },
     }));
     expect(diff(parsed, DesiredState.toJSON(DesiredState.fromJSON(parsed)))).toEqual([]);
+  });
+
+  it('API-owned setup metadata never crosses the agent boundary', () => {
+    const parsed = redactSecrets(RootConfig.parse({ system: { setup: { completed: true } } }));
+    const back = DesiredState.toJSON(DesiredState.fromJSON(parsed)) as { system: Record<string, unknown> };
+    expect(back.system).not.toHaveProperty('setup');
+    expect(diff(parsed, back)).toEqual([]);
+    expect(diff(parsed, { ...back, system: { ...back.system, setup: { completed: true } } })).toContain(
+      '/system/setup: API-owned metadata crossed the agent boundary',
+    );
   });
 
   it('the comparison is not vacuous: a leaf without a proto field is reported', () => {

@@ -10,12 +10,19 @@ import (
 	"strings"
 )
 
+// NeighborsReader6 identifies the bounded OSPFv3 neighbor reader.
 const NeighborsReader6 = "ospf6Neighbors"
+
+// InterfacesReader6 identifies the OSPFv3 interface reader.
 const InterfacesReader6 = "ospf6Interfaces"
+
+// ShowNeighbors6 is the fixed FRR OSPFv3 neighbor observation command.
 const ShowNeighbors6 frr.ShowCommand = "show ipv6 ospf6 vrf all neighbor json"
+
+// ShowInterfaces6 is the fixed FRR OSPFv3 interface observation command.
 const ShowInterfaces6 frr.ShowCommand = "show ipv6 ospf6 vrf all interface json"
 
-// FRR's v3 neighbors are arrays (unlike v2's router-id maps). Invalid observations never
+// PollNeighbors6 reads FRR's v3 neighbor arrays (unlike v2's router-id maps). Invalid observations never
 // replace the previous poll snapshot with empty state and synthesize removal events.
 func PollNeighbors6(ctx context.Context, show frr.ShowFunc) (map[string]string, error) {
 	raw, err := show(ctx, ShowNeighbors6)

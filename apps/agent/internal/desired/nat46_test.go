@@ -1,6 +1,7 @@
 package desired_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -90,5 +91,36 @@ func TestNat46RoundTrip(t *testing.T) {
 	got = desired.AssembleNat(s.kvs, tableName)
 	if len(got.GetMap().GetInterfaces()) != 2 || len(got.GetNat46().GetInterfaces()) != 0 || len(got.GetNat46().GetMappings()) != 2 {
 		t.Fatalf("without owners: %s", protojson.Format(got))
+	}
+}
+
+func TestNat46ProjectedIPv6KeyCollision(t *testing.T) {
+	for _, mode := range []string{"map-e", "map-t"} {
+		for _, prefix := range []string{"2001:db8:46::/64", "2001:db8:46::1/64", "2001:db8:47::/64"} {
+			t.Run(mode+prefix, func(t *testing.T) {
+				s := newSink()
+				desired.Nat(s, natDoc(t, fmt.Sprintf(`{"map":{"domains":[{"name":"ordinary","mode":%q,"ipv4Prefix":"203.0.113.0/24","ipv6Prefix":%q,"ipv6Source":"2001:db8:ff::1/128","eaBitsLength":0}]},"nat46":{"clientPrefix":"64:ff9b::/96","interfaces":["loop460"],"mappings":[{"name":"web","ipv4":"198.51.100.10","ipv6":"2001:db8:46::c633:640a"}]}}`, mode, prefix)), vrfID)
+				want := "/nat/nat46/mappings/0/ipv6 " + desired.RuleNat46
+				found := false
+				for _, err := range s.errs {
+					if err == want {
+						found = true
+					}
+				}
+				collision := prefix != "2001:db8:47::/64"
+				if found != collision {
+					t.Fatalf("collision=%v issues=%v", collision, s.errs)
+				}
+				hasNat46 := false
+				for _, key := range s.keys() {
+					if key == "map.domain/nat46-web" {
+						hasNat46 = true
+					}
+				}
+				if hasNat46 == collision {
+					t.Fatalf("collision=%v projected keys=%v", collision, s.keys())
+				}
+			})
+		}
 	}
 }

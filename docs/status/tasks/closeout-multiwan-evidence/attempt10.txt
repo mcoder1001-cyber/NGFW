@@ -1,0 +1,6 @@
+DISPOSABLE_VPP pid=3860974 runtime=/root/ngfw-wt/codex-closeout-multiwan-live/.scratch/isolated-vpp-3860972
+# ngfw/test/topology/acl [ngfw/test/topology/acl.test]
+./acceptance_test.go:156:13: invalid operation: cannot call start (variable of struct type "time".Time): "time".Time is not a function
+FAIL	ngfw/test/topology/acl [build failed]
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3860974

@@ -1,0 +1,107 @@
+DISPOSABLE_VPP pid=3667073 runtime=/root/ngfw-wt/codex-closeout-nat46-driver/.scratch/isolated-vpp-3667071
+18:37:13 shared lab lock held (fd 9)
+18:37:13 === step 0: host facts (run start 2026-10-04T18:37:13+03:30, slot 8 prefix w8, path: af_packet) ===
+18:37:13 NRestarts before: NRestarts=0
+18:37:14 load: 3.49 10.80 11.43
+18:37:14 vpp: vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+18:37:14 map plugin:  41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+18:37:14 map domains of w8 before: 0
+18:37:14 === step 1: TestNat46OnHost (descriptor level, NGFW_INTEGRATION=1, shared lab lock) ===
+18:37:14 NRestarts before step 1: NRestarts=0
+18:37:16 vppctl show map domain (ours, while the test holds the domain):
+[0] tag {w8:nat46-w8-web} ip4-pfx 10.8.46.10/32 ip6-pfx fd00:8::4610/128 ip6-src fd00:8:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 1500 
+18:37:16 vppctl show map domain index <ours> counters:
+[0] tag {w8:nat46-w8-web} ip4-pfx 10.8.46.10/32 ip6-pfx fd00:8::4610/128 ip6-src fd00:8:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 1500   TX: 0/0  RX: 0/0
+18:37:17 interfaces with map-t (show interface features, ours):
+  ip6-map-t
+  ip4-map-t
+18:37:17 go test rc=0:
+=== RUN   TestNat46OnHost
+    nat46_integration_test.go:46: plan for map.domain after re-apply: empty (1 objects converged)
+    nat46_integration_test.go:48: plan for map.interface after re-apply: empty (2 objects converged)
+    nat46_integration_test.go:50: NAT46 domain accepted: 10.8.46.10 → fd00:8::4610 (IPv4 client 192.0.2.33 appears as fd00:8:4646::c000:221)
+    nat46_integration_test.go:55: plan for map.domain after re-apply: empty (0 objects converged)
+    nat46_integration_test.go:56: plan for map.interface after re-apply: empty (0 objects converged)
+--- PASS: TestNat46OnHost (1.27s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat46	1.298s
+18:37:17 map domains of w8 after the test: 0
+18:37:17 NRestarts after step 1: NRestarts=0
+18:37:18 === step 2: rig up w8 (af_packet) + IPv6-only server side ===
+18:37:18 NRestarts before step 2: NRestarts=0
+rig up w8 (slot 8, path af_packet)
+  create netns ns-w8-lan
+  create veth w8l0 <-> ns-w8-lan:w8l1
+  create vpp host-w8l0 (af_packet on w8l0)
+  reset  ip/ip6 classify host-w8l0 (table-index ~0)
+  set    addr host-w8l0 10.8.1.1/24
+  create netns ns-w8-wan
+  create veth w8w0 <-> ns-w8-wan:w8w1
+  create vpp host-w8w0 (af_packet on w8w0)
+  reset  ip/ip6 classify host-w8w0 (table-index ~0)
+  set    addr host-w8w0 10.8.2.1/24
+rig: up
+prefix: w8
+slot: 8
+path: af_packet
+lan_ns: ns-w8-lan
+lan_veth: w8l1
+lan_ip: 10.8.1.2/24
+lan_gw: 10.8.1.1
+vpp_lan_if: host-w8l0
+vpp_lan_addr: 10.8.1.1/24 
+wan_ns: ns-w8-wan
+wan_veth: w8w1
+wan_ip: 10.8.2.2/24
+wan_gw: 10.8.2.1
+vpp_wan_if: host-w8w0
+vpp_wan_addr: 10.8.2.1/24 
+ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+18:37:20 ns ns-w8-wan: inet6 fd00:8:2::46/64 scope global nodad · route: fd00:8:4646::/96 via fd00:8:2::1 dev w8w1 metric 1024 pref medium
+18:37:20 ns ns-w8-lan: inet 10.8.1.2/24 scope global w8l1 · route: default via 10.8.1.1 dev w8l1
+handoff: removed unowned VPP host-w8l0 index1; Linux veth retained
+handoff: removed unowned VPP host-w8w0 index2; Linux veth retained
+18:37:20 NRestarts after step 2: NRestarts=0
+18:37:20 === step 3: agent apply nat.nat46 → Retrieve == canonical, idempotent re-apply, vppctl show map domain ===
+18:37:21 NRestarts before step 3: NRestarts=0
+18:37:21 agent started pid 3667682
+18:37:22 apply full.json: {"txnId":"nat46-1","status":"APPLY_STATUS_APPLIED","results":[{"key":"af-packet.host-interface/host-w8l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"af-packet.host-interface/host-w8w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface/host-w8l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w8l0/10.8.1.1/24","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface.admin-state/host-w8l0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface/host-w8w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w8w0/10.8.2.1/24","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface-ip/host-w8w0/fd00:8:2::1/64","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"interface.admin-state/host-w8w0","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.domain/nat46-web","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.interface/host-w8l0/map-t","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"},{"key":"map.interface/host-w8w0/map-t","op":"APPLY_OPERATION_CREATE","code":"OBJECT_RESULT_CODE_OK"}],"errors":null}
+18:37:22 Retrieve nat: {"nat46":{"clientPrefix":"fd00:8:4646::/96","interfaces":["host-w8l0","host-w8w0"],"mappings":[{"ipv4":"10.8.46.10","ipv6":"fd00:8:2::46","name":"web"}]}}
+18:37:22 canonical  : {"nat46":{"clientPrefix":"fd00:8:4646::/96","interfaces":["host-w8l0","host-w8w0"],"mappings":[{"ipv4":"10.8.46.10","ipv6":"fd00:8:2::46","name":"web"}]}}
+18:37:22 Retrieve == canonical: OK
+18:37:22 re-apply full.json: {"status":"APPLY_STATUS_APPLIED","results":null}
+V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+18:37:22 vppctl show map domain (ours):
+[0] tag {w8:nat46-web} ip4-pfx 10.8.46.10/32 ip6-pfx fd00:8:2::46/128 ip6-src fd00:8:4646::/96 ea-bits-len 0 psid-offset 0 psid-len 0 mtu 0 
+18:37:22 vppctl show interface features host-w8l0 / host-w8w0 (map-t):
+  host-w8l0   ip6-map-t
+  host-w8l0   ip4-map-t
+  host-w8w0   ip6-map-t
+  host-w8w0   ip4-map-t
+18:37:23 vppctl show interface addr (ours):
+host-w8w0 (up):
+  L3 10.8.2.1/24
+  L3 fd00:8:2::1/64
+18:37:23 NRestarts after step 3: NRestarts=0
+18:37:23 === step 4: packet test IPv4 client 10.8.1.2 → 10.8.46.10:3846 ⇒ IPv6-only server [fd00:8:2::46]:3846 (path: af_packet) ===
+18:37:23 NRestarts before step 4: NRestarts=0
+18:37:24 ping 10.8.46.10 from ns-w8-lan (ICMP → ICMPv6 → ICMP):
+--- 10.8.46.10 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2079ms
+
+18:37:34 FAIL: IPv4-to-IPv6 TCP failed: Traceback (most recent call last):
+  File "/run/ngfw-test/w8/nat46/client4.py", line 6, in <module>
+    c.connect((sys.argv[3], int(sys.argv[4])))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+18:37:34 === cleanup ===
+18:37:34 owned object cleanup: {
+  "txnId":  "nat46-cleanup",
+  "status":  "APPLY_STATUS_APPLIED",
+  "summary":  {},
+  "appliedAt":  "2026-10-04T15:07:34.597562934Z"
+}
+18:37:36 leftover map domains of w8: 1 · rig: 
+18:37:36 NRestarts after cleanup: NRestarts=0
+18:37:36 run end 2026-10-04T18:37:36+03:30
+DISPOSABLE_VPP_STOPPED pid=3667073

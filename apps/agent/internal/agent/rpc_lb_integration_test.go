@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"syscall"
@@ -28,6 +29,7 @@ import (
 	"ngfw/agent/binapi/vlib"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	lbd "ngfw/agent/internal/descriptors/lb"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
@@ -94,6 +96,9 @@ func TestLbOnHost(t *testing.T) {
 	ctx := context.Background()
 
 	cfg := hostConfig(t, owner)
+	// Start installs a process-global owner store backed by cfg.StateDir. Release it
+	// after the agent stops, before t.TempDir removes the backing directory.
+	t.Cleanup(func() { df7.SetBootStore(owner, nil) })
 	a, err := Start(ctx, cfg, "it", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -234,6 +239,15 @@ func TestLbGarbageCollectOnHost(t *testing.T) {
 	t.Cleanup(func() { _ = syscall.Flock(int(lock.Fd()), syscall.LOCK_UN) })
 	owner := vpptest.Prefix(t)
 	n := vpptest.Slot(t)
+	// This test creates descriptors directly, rather than starting an agent. Give
+	// them their own persisted ownership store instead of inheriting a prior
+	// TestLbOnHost agent's already-removed temporary directory.
+	boot, err := dfkit.NewFileBootStore(filepath.Join(t.TempDir(), "boot.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	df7.SetBootStore(owner, boot)
+	t.Cleanup(func() { df7.SetBootStore(owner, nil) })
 	raw := vpp.Dial(vppSocket(), vpp.ConnOptions{})
 	t.Cleanup(raw.Close)
 	wctx, wcancel := context.WithTimeout(context.Background(), 15*time.Second)

@@ -447,3 +447,38 @@ func TestTunnelAndBind(t *testing.T) {
 		t.Fatal(r.Names())
 	}
 }
+
+// VPP sources the IP prefix once but increments SPECIAL MPLS label references
+// on each unchanged bind. A single final unbind must remove every reference,
+// including after reconstructing the descriptor on agent restart.
+func TestIPBindRepeatedApplyDoesNotLeakLabel(t *testing.T) {
+	f := df7test.NewFake()
+	bound, refs := false, 0
+	f.On("mpls_ip_bind_unbind", func(m api.Message) ([]api.Message, error) {
+		r := m.(*mpls.MplsIPBindUnbind)
+		if r.MbIsBind {
+			bound = true
+			refs++
+		} else if bound {
+			bound = false
+			refs--
+		}
+		return []api.Message{&mpls.MplsIPBindUnbindReply{}}, nil
+	})
+	b := df7.Encode(IPBind{MPLSTable: 100, Label: 2000, VRF: 7, Prefix: "10.0.0.0/24"})
+	for range 4 {
+		d := NewIPBind(f, df7test.Owner)
+		if _, err := d.Create(t.Context(), b); err != nil {
+			t.Fatal(err)
+		}
+		if !bound || refs != 1 {
+			t.Fatalf("reapply: bound=%v label references=%d", bound, refs)
+		}
+	}
+	if err := NewIPBind(f, df7test.Owner).Delete(t.Context(), b, nil); err != nil {
+		t.Fatal(err)
+	}
+	if bound || refs != 0 {
+		t.Fatalf("rollback leaked label: bound=%v references=%d", bound, refs)
+	}
+}

@@ -1,0 +1,7 @@
+--- FAIL: TestEmbeddedForeignFamilyRefused (0.00s)
+    nat46_test.go:318: foreign family assembled: {ClientPrefix: Interfaces:[] Mappings:[]} error <nil>
+FAIL
+FAIL	ngfw/agent/internal/descriptors/nat46	0.122s
+ok  	ngfw/agent/internal/descriptors/mapnat	1.104s
+ok  	ngfw/agent/internal/desired	33.571s
+FAIL

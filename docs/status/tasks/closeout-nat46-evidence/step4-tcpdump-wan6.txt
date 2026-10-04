@@ -1,0 +1,11 @@
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on w8w1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+18:49:05.533077 IP6 fd00:8:4646::a08:102.46001 > fd00:8:46::a08:2e0a.3846: Flags [S], seq 890413677, win 64240, options [mss 1460,sackOK,TS val 1335953893 ecr 0,nop,wscale 13], length 0
+18:49:05.533152 IP6 fd00:8:46::a08:2e0a.3846 > fd00:8:4646::a08:102.46001: Flags [S.], seq 2404887480, ack 890413678, win 64260, options [mss 1440,sackOK,TS val 1892012630 ecr 1335953893,nop,wscale 13], length 0
+18:49:05.533977 IP6 fd00:8:4646::a08:102.46001 > fd00:8:46::a08:2e0a.3846: Flags [.], ack 1, win 8, options [nop,nop,TS val 1335953894 ecr 1892012630], length 0
+18:49:05.534520 IP6 fd00:8:46::a08:2e0a.3846 > fd00:8:4646::a08:102.46001: Flags [P.], seq 1:15, ack 1, win 8, options [nop,nop,TS val 1892012631 ecr 1335953894], length 14
+18:49:05.534576 IP6 fd00:8:46::a08:2e0a.3846 > fd00:8:4646::a08:102.46001: Flags [F.], seq 15, ack 1, win 8, options [nop,nop,TS val 1892012631 ecr 1335953894], length 0
+18:49:05.536010 IP6 fd00:8:4646::a08:102.46001 > fd00:8:46::a08:2e0a.3846: Flags [.], ack 15, win 8, options [nop,nop,TS val 1335953896 ecr 1892012631], length 0
+6 packets captured
+8 packets received by filter
+0 packets dropped by kernel

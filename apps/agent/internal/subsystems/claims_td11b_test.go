@@ -87,7 +87,7 @@ func TestClaimRefreshBoundedByCallerContext(t *testing.T) {
 	if testing.Short() {
 		t.Skip("stalls the fake VPP for 5.2 s")
 	}
-	v, reg, _ := nicWiring(t, "w1r2")
+	v, reg, w := nicWiring(t, "w1r2")
 	slowDumps(v, 5200*time.Millisecond)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second) // the transaction's deadline
 	defer cancel()
@@ -95,7 +95,15 @@ func TestClaimRefreshBoundedByCallerContext(t *testing.T) {
 	if _, err := attr(reg, iface.AdminStateName).Create(ctx, &iface.AdminState{Interface: "interface/ens224"}); err != nil {
 		t.Fatalf("Create failed after %v although the caller's deadline is 30 s: %v", time.Since(start).Round(time.Millisecond), err)
 	}
-	if !iface.Claims("w1r2").Claimed("ens224", iface.AdminStateName) {
+	// Revalidate after cache invalidation with the transaction's context. The
+	// legacy context-less getter intentionally has its own five-second limit,
+	// shorter than this test's API stall; cache expiry must not change the proof.
+	w.index.Invalidate()
+	claims, ok := iface.Claims("w1r2").(iface.ContextClaimStore)
+	if !ok {
+		t.Fatal("product claim store lacks caller-context support")
+	}
+	if !claims.ClaimedContext(ctx, "ens224", iface.AdminStateName) {
 		t.Fatal("claim not recorded")
 	}
 }

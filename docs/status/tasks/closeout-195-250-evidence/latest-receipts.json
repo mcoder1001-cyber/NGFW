@@ -1,0 +1,104 @@
+{
+  "source_sha": "d44d44eb6efd88754c1964996f7973b16febc57a",
+  "agent_sha256": "8658f0111afb301935815d462200debb359e75f5ffe7a6c71920c6758f5fce3a",
+  "subsequent_change": "6619ae641: exact ISIS/RIP fixture and tunnel help only; no agent/API implementation change",
+  "receipts": [
+    {
+      "path": "latest-agent-host/manifest.json",
+      "sha256": "1d4041025b1cccb0de55459866d0755053932af93d05e18efc219c7ab99a1c88",
+      "result_lines": []
+    },
+    {
+      "path": "latest-native.log",
+      "sha256": "1a2c82dbf2e2c0cb37ccd53eafd05762e77a24301c53dadf6c863006bf626870",
+      "result_lines": [
+        "--- PASS: TestIKEv2NativeCertificateProduction (4.18s)",
+        "--- PASS: TestIKEv2NativePackets (26.80s)"
+      ]
+    },
+    {
+      "path": "latest-api-integration.log",
+      "sha256": "023b60610ceba64380fb98b0cb96a37665c484918b7c007adbbfc219ff1499dd",
+      "result_lines": [
+        " Test Files  60 passed | 1 skipped (61)",
+        "      Tests  289 passed | 3 skipped (292)"
+      ]
+    },
+    {
+      "path": "latest-api-real-agent.log",
+      "sha256": "0f56efcf0aa9d6a29476960bd7ee0dd206ef2ea35f3ee8648c10fc1b5b5dd178",
+      "result_lines": [
+        " Test Files  1 passed (1)",
+        "      Tests  3 passed (3)"
+      ]
+    },
+    {
+      "path": "latest-security-host.log",
+      "sha256": "569141e9067dd81d449a9e19967933469ef9f9e40433c7da54ceba013f5b96d0",
+      "result_lines": [
+        "--- PASS: TestRuleExpiryRealAPI (36.20s)",
+        "--- PASS: TestGlobalBlockingRealAPI (31.98s)"
+      ]
+    },
+    {
+      "path": "latest-management-host.log",
+      "sha256": "0652d7577cc9af860cf5b97dd9f46b978d965cea6d107d0a23904b70fc8c7cea",
+      "result_lines": [
+        "SHARED_VPP_BEFORE=MainPID=1014,NRestarts=0",
+        "DATAPLANE_REAL_API_ACCEPTANCE=PASS",
+        "SHARED_VPP_AFTER=MainPID=1014,NRestarts=0",
+        "MANAGEMENT_REAL_API_ACCEPTANCE=PASS"
+      ]
+    },
+    {
+      "path": "quick-repair-focused-2.log",
+      "sha256": "ded3a3b5fe3a3d9d87e8483e8992c28e88af23b057445ef2e4f3f534bbf93bc9",
+      "result_lines": [
+        " Test Files  1 passed (1)",
+        "      Tests  26 passed (26)",
+        " Test Files  2 passed (2)",
+        "      Tests  5 passed (5)"
+      ]
+    }
+  ],
+  "latest_agent_source_sha": "51625a52303cde1bbd5e37456822e368cb7730e9",
+  "latest_agent_sha256": "bb12c410e4b34382308887a130d479d01999b64e859bd68b4097fdf79a0ca3ae",
+  "repeat_receipts": [
+    {
+      "path": "complete-agent-host/manifest.json",
+      "sha256": "104c17a00dc177f336fcef3fce1fd383858ff630d74fda41f1dbc3807f480079",
+      "result_lines": []
+    },
+    {
+      "path": "complete-native.log",
+      "sha256": "4de5e6bc80b119ca0ced18c95cd352b8a93472c0bc8398de0122d250b474d8bf",
+      "result_lines": [
+        "--- PASS: TestIKEv2NativeCertificateProduction (4.20s)",
+        "--- PASS: TestIKEv2NativePackets (26.72s)",
+        "ok  \tngfw/agent/internal/desired\t31.042s"
+      ]
+    },
+    {
+      "path": "complete-multiwan.log",
+      "sha256": "ad41b869948e4b48897fa223febdaa8b20cee037ce328141be0d286a6fe41c4e",
+      "result_lines": [
+        "--- PASS: TestMultiWANRealAPI (31.59s)",
+        "ok  \tngfw/test/topology/acl\t31.623s"
+      ]
+    },
+    {
+      "path": "allowlist-repair-focused.log",
+      "sha256": "01035eed9097e031855043995c31a20c94e9678e6641a5944d7f3f6906eb1864",
+      "result_lines": [
+        "ok  \tngfw/agent/internal/renderers\t1.229s"
+      ]
+    },
+    {
+      "path": "allowlist-production-boundary.log",
+      "sha256": "a907b4bcc5a8468ce252b5c3d737929ca557d6dc4da8fe29f62b8664821b0157",
+      "result_lines": [
+        "ok  \tngfw/agent/internal/renderers/frr\t1.137s"
+      ]
+    }
+  ]
+}

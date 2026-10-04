@@ -7,6 +7,7 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -294,6 +295,36 @@ func TestVrrpStateObservedAndOwnerScoped(t *testing.T) {
 	}
 	if _, err := s.vrrpState(context.Background(), &ngfwv1.VrrpStateRequest{Owner: "foreign"}); err == nil {
 		t.Fatal("foreign owner accepted")
+	}
+}
+
+func TestVrrpStateRefusesWrappedVRID(t *testing.T) {
+	vrrpGates(t, "on", "off", "")
+	for _, vrid := range []uint32{0, 1, 255, 256, 4294967295} {
+		s := newSvc(t, coretest.New(), t.TempDir())
+		s.st.desired = doc(t, fmt.Sprintf(`{"ha":{"vrrp":{"router":{"interface":"loop7201","vrId":%d}}}}`, vrid))
+		out, err := s.vrrpState(context.Background(), &ngfwv1.VrrpStateRequest{})
+		if err != nil || len(out.Routers) != 1 {
+			t.Fatalf("VRID%d: out=%v err=%v", vrid, out, err)
+		}
+		invalid := vrid == 0 || vrid > 255
+		if strings.Contains(out.Routers[0].Error, "VRID is outside") != invalid {
+			t.Fatalf("VRID%d observation=%v", vrid, out.Routers[0])
+		}
+	}
+}
+
+func TestVrrpObservedPriorityBounds(t *testing.T) {
+	for _, priority := range []int{-1, 0, 1, 254, 255, 256} {
+		row := &ngfwv1.VrrpRuntime{State: "master"}
+		setVrrpObservedPriority(row, priority)
+		if priority < 0 || priority > 255 {
+			if row.State != "unknown" || row.Error == "" || row.CurrentPriority != 0 {
+				t.Fatalf("invalid priority%d accepted: %v", priority, row)
+			}
+		} else if row.State != "master" || row.Error != "" || uint64(row.CurrentPriority) != uint64(priority) {
+			t.Fatalf("valid priority%d changed: %v", priority, row)
+		}
 	}
 }
 

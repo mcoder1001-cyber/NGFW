@@ -1,0 +1,520 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/hardware-smoke/isolated-vpp.py go -C apps/agent test ./internal/agent -run ^TestMplsOnHost$ -v -count=1 -timeout 3m
+heavy: slot 1 after 160s
+DISPOSABLE_VPP pid=3594163 runtime=/root/ngfw-wt/codex-closeout-mpls/.scratch/isolated-vpp-3594159
+=== RUN   TestMplsOnHost
+    rpc_mpls_srmpls_integration_test.go:196: systemctl show vpp -p NRestarts (before): NRestarts=0
+2026/10/04 18:23:44 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    rpc_mpls_srmpls_integration_test.go:232: NGFW_DF7_GLOBALS=1: created MPLS table 0 for the window (deleted at the end)
+2026/10/04 18:23:45 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w7 component=subsystems
+2026/10/04 18:23:45 INFO VPP binary API connected owner=w7 component=vpp socket=/run/vpp/api.sock
+2026/10/04 18:23:45 INFO PKI file materialiser wired owner=w7 component=subsystems root=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/pki-w7 source=true
+2026/10/04 18:23:45 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w7 component=subsystems
+2026/10/04 18:23:45 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w7 component=subsystems
+2026/10/04 18:23:45 INFO fqdn state reloaded owner=w7 component=subsystems family=objects file=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 18:23:45 INFO objects domain wired owner=w7 component=subsystems store=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 18:23:45 INFO acl domain wired owner=w7 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/04 18:23:45 INFO host firewall wired owner=w7 component=subsystems table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/host-acl-w7.nft
+2026/10/04 18:23:45 INFO kea wired owner=w7 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 18:23:45 INFO host services wired owner=w7 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-703602410/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-703602410/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-703602410/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 18:23:45 INFO system identity wired owner=w7 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-703602410/sysident/etc/hostname
+2026/10/04 18:23:45 INFO subsystems wired owner=w7 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestMplsOnHost1690285776/001/state: claims-iface-w7.json, boot-w7.json; globals owner false" vpp_ids=7000-7999
+2026/10/04 18:23:45 INFO ngfw-agent listening owner=w7 socket=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state vpp_api=/run/vpp/api.sock
+2026/10/04 18:23:45 INFO VPP boot identity owner=w7 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3594163/10657513 complete=true expired_claims=0
+2026/10/04 18:23:45 WARN neighbour events: interface dump owner=w7 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/04 18:23:45 INFO reconcile start owner=w7 txn_id="" mode=resync domains=[]
+2026/10/04 18:23:45 INFO reconcile done owner=w7 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=602.642232ms err=""
+2026/10/04 18:23:45 INFO resync finished owner=w7 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/04 18:23:45 INFO reconcile start owner=w7 txn_id=w7-mpls-1 mode=apply domains="[interfaces vrfs routing]"
+2026/10/04 18:23:45 INFO created owner=w7 component=scheduler key=vrf/7010
+2026/10/04 18:23:45 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop731 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:23:45 INFO created owner=w7 component=scheduler key=interface.loopback/loop731
+2026/10/04 18:23:45 INFO created owner=w7 component=scheduler key=interface/loop731
+2026/10/04 18:23:45 INFO created owner=w7 component=scheduler key=interface-ip/loop731/10.7.31.1/24
+2026/10/04 18:23:45 INFO created owner=w7 component=scheduler key=mpls-table/0
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-table/7001
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-route/7001/70016/eos
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-route/7001/70030/eos
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-ip-bind/0/70040/7010/10.7.40.0/24
+2026/10/04 18:23:46 INFO interface sanitized (VPP V19/V21 inherited state) interface=t1 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped="[lldp (retval -7)]"
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-tunnel/t1
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-route/0/70020/neos
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=sr-mpls.policy/70100
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=sr-mpls.steering/0/10.7.60.0/24
+2026/10/04 18:23:46 INFO reconcile done owner=w7 txn_id=w7-mpls-1 mode=apply domains="[interfaces vrfs routing]" status=APPLY_STATUS_APPLIED summary=created:14 reapplied=0 duration=382.033472ms err=""
+    rpc_mpls_srmpls_integration_test.go:320: apply: {
+          "created": 14
+        }
+    rpc_mpls_srmpls_integration_test.go:322: vppctl show mpls fib table 7001:
+        w7:7001, fib_index:1 locks:[API:1, ]
+        ip4-explicit-null:neos/21 fib:1 index:23 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[35] locks:2 flags:exclusive, uPRF-list:23 len:0 itfs:[]
+              path:[37] pl-index:35 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:26 buckets:1 uRPF:23 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ip4-explicit-null:eos/21 fib:1 index:22 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[34] locks:2 flags:exclusive, uPRF-list:22 len:0 itfs:[]
+              path:[36] pl-index:34 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip4 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:25 buckets:1 uRPF:22 to:[0:0]]
+            [0] [@3]: dst-address,unicast lookup in interface's ip4 table
+        router-alert:neos/21 fib:1 index:20 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[32] locks:2 flags:exclusive, uPRF-list:20 len:0 itfs:[]
+              path:[34] pl-index:32 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:23 buckets:1 uRPF:20 to:[0:0]]
+            [0] [@2]: dpo-punt
+        router-alert:eos/21 fib:1 index:21 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[33] locks:2 flags:exclusive, uPRF-list:21 len:0 itfs:[]
+              path:[35] pl-index:33 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:24 buckets:1 uRPF:21 to:[0:0]]
+            [0] [@2]: dpo-punt
+        ipv6-explicit-null:neos/21 fib:1 index:25 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[37] locks:2 flags:exclusive, uPRF-list:25 len:0 itfs:[]
+              path:[39] pl-index:37 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:28 buckets:1 uRPF:25 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ipv6-explicit-null:eos/21 fib:1 index:24 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[36] locks:2 flags:exclusive, uPRF-list:24 len:0 itfs:[]
+              path:[38] pl-index:36 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip6 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:27 buckets:1 uRPF:24 to:[0:0]]
+            [0] [@5]: dst-address,unicast lookup in interface's ip6 table
+        70016:eos/21 fib:1 index:26 locks:2
+          API refs:1 src-flags:added,contributing,active,
+            path-list:[38] locks:3 flags:shared, uPRF-list:26 len:1 itfs:[1, ]
+              path:[40] pl-index:38 ip4 weight=1 pref=0 attached-nexthop: 
+                10.7.31.2 loop731
+              [@0]: arp-ipv4: via 10.7.31.2 loop731
+            Extensions:
+             path:40  labels:[[70017 pipe ttl:0 exp:0][70018 pipe ttl:0 exp:0]]
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:29 buckets:1 uRPF:26 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70030:eos/21 fib:1 index:27 locks:2
+          API refs:1 entry-flags:uRPF-exempt, src-flags:added,contributing,active,
+            path-list:[39] locks:2 flags:shared, uPRF-list:27 len:0 itfs:[]
+              path:[41] pl-index:39 ip4 weight=1 pref=0 deag:  oper-flags:resolved,
+                 fib-index:1
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:30 buckets:1 uRPF:28 to:[0:0]]
+            [0] [@6]: mpls-disposition:[0]:[ip4, pipe]
+                [@7]: dst-address,unicast lookup in w7:red
+    rpc_mpls_srmpls_integration_test.go:323: vppctl show mpls tunnel:
+        [@0] mpls-tunnel0: sw_if_index:2 hw_if_index:2
+         via:
+            path-list:[38] locks:3 flags:shared, uPRF-list:26 len:1 itfs:[1, ]
+              path:[40] pl-index:38 ip4 weight=1 pref=0 attached-nexthop: 
+                10.7.31.2 loop731
+              [@0]: arp-ipv4: via 10.7.31.2 loop731
+            Extensions:
+             path:40  labels:[[70050 pipe ttl:0 exp:0]]
+    rpc_mpls_srmpls_integration_test.go:328: vppctl show sr mpls policies:
+        SR MPLS policies:
+        [0].-	BSID: 70100
+        	TE disabled
+        	Type: Default
+        	Segment Lists:
+          	[0].- < 70101, 70102,  > 
+        -----------
+    rpc_mpls_srmpls_integration_test.go:329: vppctl show mpls interface:
+        loop731
+          MPLS enabled
+    rpc_mpls_srmpls_integration_test.go:330: vppctl show mpls fib table 0 (our labels [70020 70040 70100]):
+        w7:globals-window, fib_index:0 locks:[interface:1, SR:1, API:1, mpls:1, recursive-resolution:2, ]
+        ip4-explicit-null:neos/21 fib:0 index:10 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[16] locks:2 flags:exclusive, uPRF-list:10 len:0 itfs:[]
+              path:[16] pl-index:16 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:13 buckets:1 uRPF:10 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ip4-explicit-null:eos/21 fib:0 index:9 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[15] locks:2 flags:exclusive, uPRF-list:9 len:0 itfs:[]
+              path:[15] pl-index:15 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip4 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:12 buckets:1 uRPF:9 to:[0:0]]
+            [0] [@3]: dst-address,unicast lookup in interface's ip4 table
+        router-alert:neos/21 fib:0 index:7 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[13] locks:2 flags:exclusive, uPRF-list:7 len:0 itfs:[]
+              path:[13] pl-index:13 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:10 buckets:1 uRPF:7 to:[0:0]]
+            [0] [@2]: dpo-punt
+        router-alert:eos/21 fib:0 index:8 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[14] locks:2 flags:exclusive, uPRF-list:8 len:0 itfs:[]
+              path:[14] pl-index:14 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:11 buckets:1 uRPF:8 to:[0:0]]
+            [0] [@2]: dpo-punt
+        ipv6-explicit-null:neos/21 fib:0 index:12 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[18] locks:2 flags:exclusive, uPRF-list:12 len:0 itfs:[]
+              path:[18] pl-index:18 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:15 buckets:1 uRPF:12 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ipv6-explicit-null:eos/21 fib:0 index:11 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[17] locks:2 flags:exclusive, uPRF-list:11 len:0 itfs:[]
+              path:[17] pl-index:17 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip6 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:14 buckets:1 uRPF:11 to:[0:0]]
+            [0] [@5]: dst-address,unicast lookup in interface's ip6 table
+        70020:neos/21 fib:0 index:31 locks:2
+          API refs:1 entry-flags:attached, src-flags:added,contributing,active,
+            path-list:[43] locks:2 flags:shared, uPRF-list:32 len:1 itfs:[2, ]
+              path:[45] pl-index:43 ip4 weight=1 pref=0 attached-nexthop:  cfg-flags:attached,
+                8411:100:0:0:200:: mpls-tunnel0 (p2p)
+              [@0]: ipv4 via 0.0.0.0 mpls-tunnel0: mtu:9000 next:5 flags:[]
+                     stacked-on:
+                       [@0]: dpo-drop ip4
+            Extensions:
+             path:45  labels:[[70021 pipe ttl:0 exp:0]]
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:34 buckets:1 uRPF:32 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70040:neos/21 fib:0 index:29 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[41] locks:2 flags:exclusive, uPRF-list:30 len:0 itfs:[]
+              path:[43] pl-index:41 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-load-balance: [proto:mpls index:32 buckets:1 uRPF:29 to:[0:0]]
+                  [0] [@0]: dpo-drop mpls
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:32 buckets:1 uRPF:29 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70040:eos/21 fib:0 index:30 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[42] locks:2 flags:exclusive, uPRF-list:31 len:0 itfs:[]
+              path:[44] pl-index:42 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-load-balance: [proto:mpls index:33 buckets:1 uRPF:29 to:[0:0]]
+                  [0] [@0]: dpo-drop mpls
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:33 buckets:1 uRPF:29 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70100:neos/21 fib:0 index:32 locks:2
+          SR refs:1 src-flags:added,contributing,active,
+            path-list:[44] locks:4 flags:shared, uPRF-list:34 len:0 itfs:[]
+              path:[46] pl-index:44 mpls weight=1 pref=0 recursive: 
+                via 70101 neos in fib:0 via-fib:33 via-dpo:[dpo-load-balance:35]
+            Extensions:
+             path:46  labels:[[70102 pipe ttl:0 exp:0]]
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:36 buckets:1 uRPF:34 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70100:eos/21 fib:0 index:34 locks:4
+          SR refs:1 src-flags:added,contributing,active,
+            path-list:[44] locks:4 flags:shared, uPRF-list:34 len:0 itfs:[]
+              path:[46] pl-index:44 mpls weight=1 pref=0 recursive: 
+                via 70101 neos in fib:0 via-fib:33 via-dpo:[dpo-load-balance:35]
+            Extensions:
+             path:46  labels:[[70102 pipe ttl:0 exp:0]]
+          recursive-resolution refs:1 src-flags:added, cover:-1
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:37 buckets:1 uRPF:34 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70101:neos/21 fib:0 index:33 locks:3
+          recursive-resolution refs:1 src-flags:added,contributing,active, cover:-1
+            path-list:[45] locks:2 flags:drop, uPRF-list:33 len:0 itfs:[]
+              path:[47] pl-index:45 mpls weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop mpls
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:35 buckets:1 uRPF:33 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+2026/10/04 18:23:46 INFO reconcile start owner=w7 txn_id=w7-mpls-2 mode=apply domains="[interfaces vrfs routing]"
+2026/10/04 18:23:46 INFO reconcile done owner=w7 txn_id=w7-mpls-2 mode=apply domains="[interfaces vrfs routing]" status=APPLY_STATUS_APPLIED summary=unchanged:14 reapplied=0 duration=103.718258ms err=""
+    rpc_mpls_srmpls_integration_test.go:341: idempotent apply: {
+          "unchanged": 14
+        } (write-only objects are re-applied, D-063)
+    rpc_mpls_srmpls_integration_test.go:348: MplsState fib table 7001: total 8, tables [name:"w7:globals-window" table_id:7001 name:"w7:7001"]
+    rpc_mpls_srmpls_integration_test.go:353: MplsState tunnels: {
+          "owner": "w7",
+          "view": "tunnels",
+          "tunnels": [
+            {
+              "name": "t1",
+              "interface": "mpls-tunnel0",
+              "swIfIndex": 2,
+              "paths": [
+                {
+                  "type": "normal",
+                  "proto": "ip4",
+                  "nextHop": "10.7.31.2",
+                  "interface": "loop731",
+                  "outLabels": [
+                    70050
+                  ],
+                  "weight": 1
+                }
+              ],
+              "owned": true
+            }
+          ],
+          "tables": [
+            {
+              "name": "w7:globals-window"
+            },
+            {
+              "tableId": 7001,
+              "name": "w7:7001"
+            }
+          ],
+          "retrievedAt": "2026-10-04T14:53:46.340332651Z"
+        }
+2026/10/04 18:23:46 INFO ngfw-agent stopped owner=w7
+    rpc_mpls_srmpls_integration_test.go:373: simulated loss: vppctl show mpls fib table 7001:
+        w7:7001, fib_index:1 locks:[API:1, ]
+        ip4-explicit-null:neos/21 fib:1 index:23 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[35] locks:2 flags:exclusive, uPRF-list:23 len:0 itfs:[]
+              path:[37] pl-index:35 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:26 buckets:1 uRPF:23 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ip4-explicit-null:eos/21 fib:1 index:22 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[34] locks:2 flags:exclusive, uPRF-list:22 len:0 itfs:[]
+              path:[36] pl-index:34 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip4 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:25 buckets:1 uRPF:22 to:[0:0]]
+            [0] [@3]: dst-address,unicast lookup in interface's ip4 table
+        router-alert:neos/21 fib:1 index:20 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[32] locks:2 flags:exclusive, uPRF-list:20 len:0 itfs:[]
+              path:[34] pl-index:32 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:23 buckets:1 uRPF:20 to:[0:0]]
+            [0] [@2]: dpo-punt
+        router-alert:eos/21 fib:1 index:21 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[33] locks:2 flags:exclusive, uPRF-list:21 len:0 itfs:[]
+              path:[35] pl-index:33 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:24 buckets:1 uRPF:21 to:[0:0]]
+            [0] [@2]: dpo-punt
+        ipv6-explicit-null:neos/21 fib:1 index:25 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[37] locks:2 flags:exclusive, uPRF-list:25 len:0 itfs:[]
+              path:[39] pl-index:37 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:28 buckets:1 uRPF:25 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ipv6-explicit-null:eos/21 fib:1 index:24 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[36] locks:2 flags:exclusive, uPRF-list:24 len:0 itfs:[]
+              path:[38] pl-index:36 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip6 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:27 buckets:1 uRPF:24 to:[0:0]]
+            [0] [@5]: dst-address,unicast lookup in interface's ip6 table
+2026/10/04 18:23:46 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w7 component=subsystems
+2026/10/04 18:23:46 INFO PKI file materialiser wired owner=w7 component=subsystems root=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/pki-w7 source=true
+2026/10/04 18:23:46 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w7 component=subsystems
+2026/10/04 18:23:46 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w7 component=subsystems
+2026/10/04 18:23:46 INFO fqdn state reloaded owner=w7 component=subsystems family=objects file=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 18:23:46 INFO VPP binary API connected owner=w7 component=vpp socket=/run/vpp/api.sock
+2026/10/04 18:23:46 INFO objects domain wired owner=w7 component=subsystems store=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 18:23:46 INFO acl domain wired owner=w7 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/04 18:23:46 INFO host firewall wired owner=w7 component=subsystems table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state/host-acl-w7.nft
+2026/10/04 18:23:46 INFO kea wired owner=w7 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 18:23:46 INFO host services wired owner=w7 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-703602410/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-703602410/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-703602410/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 18:23:46 INFO system identity wired owner=w7 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-703602410/sysident/etc/hostname
+2026/10/04 18:23:46 INFO subsystems wired owner=w7 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestMplsOnHost1690285776/001/state: claims-iface-w7.json, boot-w7.json; globals owner false" vpp_ids=7000-7999
+2026/10/04 18:23:46 INFO ngfw-agent listening owner=w7 socket=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestMplsOnHost1690285776/001/state vpp_api=/run/vpp/api.sock
+2026/10/04 18:23:46 INFO VPP boot identity owner=w7 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3594163/10657513 complete=true expired_claims=0
+2026/10/04 18:23:46 INFO reconcile start owner=w7 txn_id="" mode=resync domains="[interfaces vrfs routing]"
+2026/10/04 18:23:46 WARN neighbour events: interface dump owner=w7 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/04 18:23:46 INFO re-creating dependents owner=w7 component=scheduler key=mpls-table/0 dependents=2
+2026/10/04 18:23:46 INFO deleted owner=w7 component=scheduler key=mpls-route/0/70020/neos
+2026/10/04 18:23:46 INFO deleted owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-table/0
+2026/10/04 18:23:46 INFO created owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:46 WARN create failed owner=w7 component=scheduler key=mpls-route/0/70020/neos err="fib path: iface: no owned interface with this id: \"t1\" (owner \"w7\")"
+2026/10/04 18:23:46 ERROR rollback operation failed owner=w7 component=scheduler key=mpls-route/0/70020/neos op=delete err="fib path: iface: no owned interface with this id: \"#2\" (owner \"w7\")"
+2026/10/04 18:23:46 ERROR agent degraded owner=w7 why="create mpls-route/0/70020/neos: fib path: iface: no owned interface with this id: \"t1\" (owner \"w7\")"
+2026/10/04 18:23:46 WARN resync owed while degraded owner=w7 in=5s
+2026/10/04 18:23:46 INFO reconcile done owner=w7 txn_id="" mode=resync domains="[interfaces vrfs routing]" status=APPLY_STATUS_DEGRADED summary="unchanged:6 failed:1 reverted:2" reapplied=0 duration=150.199271ms err="create mpls-route/0/70020/neos: fib path: iface: no owned interface with this id: \"t1\" (owner \"w7\")"
+2026/10/04 18:23:46 INFO resync finished owner=w7 why=connect status=APPLY_STATUS_DEGRADED summary="unchanged:6 failed:1 reverted:2"
+2026/10/04 18:23:51 WARN retrying the owed resync owner=w7
+2026/10/04 18:23:51 WARN resync owed while degraded owner=w7 in=10s
+2026/10/04 18:23:51 INFO reconcile start owner=w7 txn_id="" mode=resync domains="[interfaces vrfs routing]"
+2026/10/04 18:23:51 INFO re-creating dependents owner=w7 component=scheduler key=mpls-table/0 dependents=1
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-table/0
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-route/7001/70016/eos
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-route/7001/70030/eos
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-ip-bind/0/70040/7010/10.7.40.0/24
+2026/10/04 18:23:51 INFO interface sanitized (VPP V19/V21 inherited state) interface=t1 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped="[lldp (retval -7)]"
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-tunnel/t1
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=mpls-route/0/70020/neos
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=sr-mpls.policy/70100
+2026/10/04 18:23:51 INFO created owner=w7 component=scheduler key=sr-mpls.steering/0/10.7.60.0/24
+2026/10/04 18:23:51 INFO reconcile done owner=w7 txn_id="" mode=resync domains="[interfaces vrfs routing]" status=APPLY_STATUS_APPLIED summary="created:8 updated:1 unchanged:6" reapplied=1 duration=171.721451ms err=""
+2026/10/04 18:23:51 INFO resync finished owner=w7 why=requested status=APPLY_STATUS_APPLIED summary="created:8 updated:1 unchanged:6"
+    rpc_mpls_srmpls_integration_test.go:381: restart after loss: Retrieve == canonical in 5.356760024s
+    rpc_mpls_srmpls_integration_test.go:382: vppctl show mpls fib table 7001 (after restart):
+        w7:7001, fib_index:1 locks:[API:1, ]
+        ip4-explicit-null:neos/21 fib:1 index:23 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[35] locks:2 flags:exclusive, uPRF-list:23 len:0 itfs:[]
+              path:[37] pl-index:35 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:26 buckets:1 uRPF:23 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ip4-explicit-null:eos/21 fib:1 index:22 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[34] locks:2 flags:exclusive, uPRF-list:22 len:0 itfs:[]
+              path:[36] pl-index:34 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip4 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:25 buckets:1 uRPF:22 to:[0:0]]
+            [0] [@3]: dst-address,unicast lookup in interface's ip4 table
+        router-alert:neos/21 fib:1 index:20 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[32] locks:2 flags:exclusive, uPRF-list:20 len:0 itfs:[]
+              path:[34] pl-index:32 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:23 buckets:1 uRPF:20 to:[0:0]]
+            [0] [@2]: dpo-punt
+        router-alert:eos/21 fib:1 index:21 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[33] locks:2 flags:exclusive, uPRF-list:21 len:0 itfs:[]
+              path:[35] pl-index:33 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dpo-punt
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:24 buckets:1 uRPF:21 to:[0:0]]
+            [0] [@2]: dpo-punt
+        ipv6-explicit-null:neos/21 fib:1 index:25 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[37] locks:2 flags:exclusive, uPRF-list:25 len:0 itfs:[]
+              path:[39] pl-index:37 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's mpls table
+        
+         forwarding:   mpls-neos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:28 buckets:1 uRPF:25 to:[0:0]]
+            [0] [@4]: dst-address,unicast lookup in interface's mpls table
+        ipv6-explicit-null:eos/21 fib:1 index:24 locks:2
+          special refs:1 entry-flags:exclusive, src-flags:added,contributing,active,
+            path-list:[36] locks:2 flags:exclusive, uPRF-list:24 len:0 itfs:[]
+              path:[38] pl-index:36 mpls weight=1 pref=0 exclusive:  oper-flags:resolved, cfg-flags:exclusive,
+                [@0]: dst-address,unicast lookup in interface's ip6 table
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:27 buckets:1 uRPF:24 to:[0:0]]
+            [0] [@5]: dst-address,unicast lookup in interface's ip6 table
+        70016:eos/21 fib:1 index:31 locks:2
+          API refs:1 src-flags:added,contributing,active,
+            path-list:[43] locks:3 flags:shared, uPRF-list:26 len:1 itfs:[1, ]
+              path:[45] pl-index:43 ip4 weight=1 pref=0 attached-nexthop: 
+                10.7.31.2 loop731
+              [@0]: arp-ipv4: via 10.7.31.2 loop731
+            Extensions:
+             path:45  labels:[[70017 pipe ttl:0 exp:0][70018 pipe ttl:0 exp:0]]
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:34 buckets:1 uRPF:26 to:[0:0]]
+            [0] [@0]: dpo-drop mpls
+        70030:eos/21 fib:1 index:33 locks:2
+          API refs:1 entry-flags:uRPF-exempt, src-flags:added,contributing,active,
+            path-list:[45] locks:2 flags:shared, uPRF-list:35 len:0 itfs:[]
+              path:[47] pl-index:45 ip4 weight=1 pref=0 deag:  oper-flags:resolved,
+                 fib-index:1
+        
+         forwarding:   mpls-eos-chain
+          [@0]: dpo-load-balance: [proto:mpls index:35 buckets:1 uRPF:32 to:[0:0]]
+            [0] [@6]: mpls-disposition:[0]:[ip4, pipe]
+                [@7]: dst-address,unicast lookup in w7:red
+    rpc_mpls_srmpls_integration_test.go:384: vppctl show sr mpls policies (after restart):
+        SR MPLS policies:
+        [0].-	BSID: 70100
+        	TE disabled
+        	Type: Default
+        	Segment Lists:
+          	[0].- < 70101, 70102,  > 
+        -----------
+2026/10/04 18:23:51 INFO reconcile start owner=w7 txn_id=w7-mpls-3 mode=apply domains=[routing]
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=sr-mpls.steering/0/10.7.60.0/24
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=sr-mpls.policy/70100
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-route/0/70020/neos
+2026/10/04 18:23:51 INFO interface sanitized (VPP V19/V21 inherited state) interface=t1 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6]" skipped="[lldp (retval -7)]"
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-tunnel/t1
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-ip-bind/0/70040/7010/10.7.40.0/24
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-route/7001/70030/eos
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-route/7001/70016/eos
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-interface/loop731
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-table/7001
+2026/10/04 18:23:51 INFO deleted owner=w7 component=scheduler key=mpls-table/0
+2026/10/04 18:23:51 INFO reconcile done owner=w7 txn_id=w7-mpls-3 mode=apply domains=[routing] status=APPLY_STATUS_APPLIED summary=deleted:10 reapplied=0 duration=137.183695ms err=""
+    rpc_mpls_srmpls_integration_test.go:392: rollback: {
+          "deleted": 10
+        }
+    rpc_mpls_srmpls_integration_test.go:402: after rollback: vppctl show mpls fib table 7001:
+    rpc_mpls_srmpls_integration_test.go:410: after rollback: vppctl show sr mpls policies:
+        SR MPLS policies:
+2026/10/04 18:23:51 INFO ngfw-agent stopped owner=w7
+2026/10/04 18:23:51 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop731 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    rpc_mpls_srmpls_integration_test.go:220: cleanup: 0 MPLS objects, 2 loopbacks/VRFs removed via binapi
+    rpc_mpls_srmpls_integration_test.go:221: cleanup: vppctl show mpls fib table 7001:
+    rpc_mpls_srmpls_integration_test.go:200: systemctl show vpp -p NRestarts (after): NRestarts=0
+--- PASS: TestMplsOnHost (7.15s)
+PASS
+ok  	ngfw/agent/internal/agent	7.279s
+DISPOSABLE_VPP_STOPPED pid=3594163

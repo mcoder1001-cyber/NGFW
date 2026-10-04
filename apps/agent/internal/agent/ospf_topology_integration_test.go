@@ -192,7 +192,19 @@ func (h *rootFRR) start(d string) error {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil { //nolint:gosec // fixed FRR binary + slot paths
+	// A daemonized FRR child inherits stdout/stderr. CombinedOutput's pipe
+	// can remain open after the launcher exits and prevent Cmd.Wait returning.
+	// Use a slot-owned regular file so launcher completion stays bounded.
+	launchPath := filepath.Join(h.Paths.SocketDir(), d+".launch.log")
+	launchLog, err := os.OpenFile(launchPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600) //nolint:gosec // private slot runtime
+	if err != nil {
+		return err
+	}
+	defer func() { _ = launchLog.Close() }()
+	cmd := exec.CommandContext(ctx, bin, args...) //nolint:gosec // fixed FRR binary + slot paths
+	cmd.Stdout, cmd.Stderr = launchLog, launchLog
+	if err := cmd.Run(); err != nil {
+		out, _ := os.ReadFile(launchPath) //nolint:gosec // private slot launch diagnostics
 		return fmt.Errorf("start %s: %w: %s", d, err, out)
 	}
 	deadline := time.Now().Add(30 * time.Second)
@@ -641,6 +653,18 @@ func TestOSPFTopologyOnHost(t *testing.T) {
 		out, err := e.cmd(lab, "rig", "down", prefix)
 		t.Logf("rig down: %v\n%s", err, out)
 	})
+	// The AF_PACKET interface has VPP's default 9000-byte MTU, copied to
+	// its LCP TAP. Match both ends of the test links before OSPF exchanges
+	// database descriptions; Linux veth defaults to 1500 and would make
+	// otherwise healthy peers reject each other's DBD packets.
+	for _, side := range []struct{ host, ns, peer string }{
+		{prefix + "l0", "ns-" + prefix + "-lan", prefix + "l1"},
+		{prefix + "w0", "ns-" + prefix + "-wan", prefix + "w1"},
+	} {
+		e.must("ip", "link", "set", "dev", side.host, "mtu", "9000")
+		e.must("ip", "-n", side.ns, "link", "set", "dev", side.peer, "mtu", "9000")
+		t.Logf("OSPF fixture link %s/%s in %s: MTU 9000 matches VPP/LCP", side.host, side.peer, side.ns)
+	}
 	e.peers(false)
 	e.handRigToAgent()
 

@@ -4204,13 +4204,13 @@ tasks:
     files_owned: apps/api/test/e2e/** apps/api/src/features/*/fake.ts apps/api/src/testing/** docs/status/tasks/E2E-red-main*
     notes: ''
   - template: ''
-    parked_on: lab topology/host acceptance prerequisite; NOTRUN
+    parked_on: ''
     branch: ''
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
-    state: parked
+    finished: '2026-10-04'
+    state: merged
     wbs: []
     prompt: ''
     id: F-rule-expiry-host
@@ -4226,6 +4226,8 @@ tasks:
 
       topology test on a slot; NRestarts before/after | 2026-09-28 spawned (Agent tool, developer) slot 7, envelope /root/ngfw-wt/F-rule-expiry-host.envelope.md, base main@f1f885a6 | done
       81508302 CI GATE PASSED after R7 round 1; docs-only | merged 04d1e052 (squash 5e89b064; second gate after the TD-H7 flake)'
+
+    acceptance_closeout: "Closes with PR161 integration: real API/VPP expiry without candidate commit, actual agent restart and rollback PASS without skips; repeated on latest source, independently reviewed. Evidence closeout-security-host.md and closeout-195-250-evidence/latest-receipts.json. Integration remains conditional on unchanged complete quick green."
   - template: ''
     parked_on: lab topology/host acceptance prerequisite; NOTRUN
     branch: ''

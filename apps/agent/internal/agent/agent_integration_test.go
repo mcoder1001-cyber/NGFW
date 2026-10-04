@@ -67,8 +67,9 @@ func hostDoc(t *testing.T, owner string) (*ngfwv1.DesiredState, *ngfwv1.DesiredS
 	  ]}
 	}`, vrf, table, l1, l2, slot)
 	// Retrieve (desired.Assemble, P08) always reports admin state and promiscuous mode; every implemented domain is
-	// present (services since F-rpf-adl-pbr)
+	// present. System identity reports its normalized defaults; DHCP and QoS report empty services.
 	canon := fmt.Sprintf(`{
+	  "system": {"hostname": "ngfw-a", "timezone": "UTC", "banner": {}, "dns": {"vrf": "default"}},
 	  "vrfs": {%[1]q: {"id": %[2]d}},
 	  "interfaces": {
 	    %[3]q: {"enabled": false, "promiscuous": false, "vrf": %[1]q, "ipv4": ["10.%[5]d.1.1/24"], "ipv6": ["2001:db8:%[5]d::1/64"]},
@@ -78,7 +79,7 @@ func hostDoc(t *testing.T, owner string) (*ngfwv1.DesiredState, *ngfwv1.DesiredS
 	    {"prefix": "10.%[5]d.100.0/24", "vrf": %[1]q, "distance": 1, "blackhole": false, "nextHops": [{"address": "10.%[5]d.1.254", "weight": 1}]},
 	    {"prefix": "10.%[5]d.101.0/24", "vrf": %[1]q, "blackhole": false, "nextHops": [{"address": "10.%[5]d.2.254", "interface": %[4]q, "weight": 1}]}
 	  ]},
-	  "services": {}
+	  "services": {"dhcp": {}, "qos": {}}
 	}`, vrf, table, l1, l2, slot)
 	return doc(t, js), doc(t, canon)
 }
@@ -229,6 +230,11 @@ func TestAgentOnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if a != nil {
+			a.Stop()
+		}
+	})
 	c := dialAgent(t, cfg.Socket)
 	waitReady(t, c)
 	desired, canonical := hostDoc(t, owner)
@@ -242,8 +248,9 @@ func TestAgentOnHost(t *testing.T) {
 	t.Logf("apply: %s", protojson.Format(resp.GetSummary()))
 	waitConverged(t, c, canonical, time.Now())
 	resp, err = c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: owner + "-it-2", DesiredState: desired})
-	// 12 = VRF + 2 loopbacks + 2 interface/<name> aliases (P08, D-065) + 2 table bindings + 3 addresses + 2 routes
-	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 12 {
+	// 13 = system identity + VRF + 2 loopbacks + 2 interface/<name> aliases (P08, D-065)
+	// + 2 table bindings + 3 addresses + 2 routes.
+	if err != nil || len(resp.GetResults()) != 0 || resp.GetSummary().GetUnchanged() != 13 {
 		t.Fatalf("idempotent apply: %v %v", err, resp)
 	}
 	ifsBefore, _ := ownedOnHost(t, raw, owner)
@@ -254,6 +261,11 @@ func TestAgentOnHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(func() {
+		if b != nil {
+			b.Stop()
+		}
+	})
 	cb := dialAgent(t, cfgB.Socket)
 	waitReady(t, cb)
 	if got, err := cb.Retrieve(ctx, &ngfwv1.RetrieveRequest{}); err != nil || len(got.GetDesiredState().GetInterfaces())+len(got.GetDesiredState().GetVrfs())+len(got.GetDesiredState().GetRouting().GetStatic()) != 0 {
@@ -267,10 +279,12 @@ func TestAgentOnHost(t *testing.T) {
 		t.Fatal("agent b accepted a request for owner a")
 	}
 	b.Stop()
+	b = nil
 	waitConverged(t, c, canonical, time.Now())
 
 	// 3. simulated loss: stop the agent, delete our objects via binapi, start → recreated.
 	a.Stop()
+	a = nil
 	if n := deleteOwned(t, raw, owner); n != 3 {
 		t.Fatalf("deleted %d objects, want 2 loopbacks + 1 VRF", n)
 	}
@@ -286,6 +300,7 @@ func TestAgentOnHost(t *testing.T) {
 	// 4. restart without loss: no VPP change (same sw_if_index values, nothing recreated).
 	ifsMid, _ := ownedOnHost(t, raw, owner)
 	a.Stop()
+	a = nil
 	a, err = Start(context.Background(), cfg, "it", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -338,6 +353,7 @@ func TestAgentOnHost(t *testing.T) {
 		t.Fatalf("delete all: %v %v", err, resp)
 	}
 	a.Stop()
+	a = nil
 	if ifs, tables := ownedOnHost(t, raw, owner); len(ifs)+len(tables) != 0 {
 		t.Fatalf("left over: %v %v", ifs, tables)
 	}

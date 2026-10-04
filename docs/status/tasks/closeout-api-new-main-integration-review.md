@@ -1,0 +1,9 @@
+# Independent integration review against updated main
+
+Read-only management_acceptance review: APPROVE integrationc29f7866895ceb471bdb39d137705b08e4f8218b against origin/mainf8fcd6c2fc8cfddfe8c34397681acec44724225d, subject to unchanged complete frozen CI and fresh relevant host evidence. Reviewer wrote no product code/root files and did not review own fixture authorship as independent evidence.
+
+NAT46 product files exactly match previously approved3d001ee60 source, retaining bounded embedded return-path projection and cross-MAP exact-key collision refusal. Native certificate files and tunnel UI resolution have zero diff against new main; main Close error propagation and dataplane approval flow remain. VRRP helper extraction preserves main priority0..255/shutdown semantics and exact error message; main out-of-range stored-ID regression retained alongside helper/boundary tests. MPLS bounded matching-label cleanup remains previously root independently reviewed scope.
+
+Management acceptance preview assertion now expects applyAvailable true, exactly as new main toDataplanePreview returns and its test expects. This reflects availability of the new approved apply flow, not execution approval. Driver invokes preview, candidate patch/discard and validation only; no dataplane apply call or VPP restart. Startup file SHA and shared VPP MainPID/NRestarts before/after checks remain. New-main integration requires actual fresh execution before describing current result as PASS.
+
+CI adds official CLI generation after pnpm gen and guards committed operation table plus YANG; generator module-file checks cover both agent and CLI. No lint/detector exemption introduced. Existing bounded campaign reviews remain applicable to matching source; broader PPPoE/runtime, traffic matrix/browser and nonembedded NAT46 obligations remain explicit. Final merge needs actual green unchanged gate on the final integrated tree.

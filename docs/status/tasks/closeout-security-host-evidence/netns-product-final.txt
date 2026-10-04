@@ -1,0 +1,319 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 /root/ngfw-wt/codex-closeout-traffic-audit/test/topology/hardware-smoke/isolated-vpp.py go -C /tmp/security-host-60_7s0qa test -v -count=1 -timeout 5m -run Test(RuleExpiry|GlobalBlocking)RealAPI .
+heavy: slot 1 after 140s
+DISPOSABLE_VPP pid=3594547 runtime=/root/ngfw-wt/codex-closeout-traffic-audit/.scratch/isolated-vpp-3594545
+=== RUN   TestRuleExpiryRealAPI
+    acceptance_test.go:27: rig up w8 (slot 8, path af_packet)
+          create netns ns-w8-lan
+          create veth w8l0 <-> ns-w8-lan:w8l1
+          create vpp host-w8l0 (af_packet on w8l0)
+          reset  ip/ip6 classify host-w8l0 (table-index ~0)
+          set    addr host-w8l0 10.8.1.1/24
+          create netns ns-w8-wan
+          create veth w8w0 <-> ns-w8-wan:w8w1
+          create vpp host-w8w0 (af_packet on w8w0)
+          reset  ip/ip6 classify host-w8w0 (table-index ~0)
+          set    addr host-w8w0 10.8.2.1/24
+        rig: up
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: 10.8.1.1/24 
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: 10.8.2.1/24 
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+        
+    acceptance_test.go:37: sw_interface_add_del_address sw_if_index=1 (host-w8l0) del_all=true → ok
+    acceptance_test.go:37: af_packet_delete host_if_name=w8l0 (tag "") → ok
+    acceptance_test.go:37: sw_interface_add_del_address sw_if_index=2 (host-w8w0) del_all=true → ok
+    acceptance_test.go:37: af_packet_delete host_if_name=w8w0 (tag "") → ok
+    acceptance_test.go:55: create role ngfw_w8
+        create database ngfw_w8 (owner ngfw_w8)
+        check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w8/pg.env (0600) · DSN postgres://ngfw_w8:<redacted>@127.0.0.1:5432/ngfw_w8
+        
+    acceptance_test.go:55: started ngfw-agent pid 3595571 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:55: started ngfw-api pid 3595592 (log /run/ngfw-test/w8/acl/api.log)
+    acceptance_test.go:61: ngfw-vpp-preflight: exit 0
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    acceptance_test.go:70: baseline tx=3 rx=3
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.14 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=2.53 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=1.50 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 1.138/1.722/2.529/0.589 ms
+    acceptance_test.go:92: commit status applied revision map[author:admin authorId:1 comment:expiry-live createdAt:2026-10-04T14:54:14.840Z hash:019f8dcc28b2636ca99d9444c2a45b7f1592b50ce27cc50e4539b72abcf7fb4d id:2 kind:commit parentId:1 secretChanges:[] secretVersions:<nil> txnId:88fede3d-7a53-444a-b078-3599b14ddfb2] results [{"code":"ok","key":"acl.config/attachments","message":"","op":"create","pointer":"/acl/attachments","subsystem":"acl"},{"code":"ok","key":"acl.config/list/temporary","message":"","op":"create","pointer":"/acl/lists/temporary","subsystem":"acl"},{"code":"ok","key":"acl.acl/temporary","message":"","op":"create","pointer":"/acl/lists/temporary","subsystem":"acl"},{"code":"ok","key":"acl.interface-binding/host-w8l0","message":"","op":"create","pointer":"/acl/attachments/0","subsystem":"acl"}]
+    acceptance_test.go:70: before expiry tx=3 rx=3
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.50 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=1.74 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=1.27 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 1.268/1.502/1.738/0.191 ms
+    acceptance_test.go:103: expiry removed permit without a second commit: acl-index 0 count 1 tag {w8:temporary}
+                  0: ipv4 deny src 0.0.0.0/0 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+          applied inbound on sw_if_index: 2
+          used in lookup context index: 0
+        
+    acceptance_test.go:70: after expiry tx=3 rx=0
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 413ms
+        
+    stack_test.go:199: stopped ngfw-agent pid 3595571
+    acceptance_test.go:172: started ngfw-agent pid 3597251 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:176: actual agent restart recreated removed owned ACLs from persisted desired state
+    acceptance_test.go:70: agent restart retains expiry tx=3 rx=0
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 413ms
+        
+    acceptance_test.go:113: Retrieve retains metadata: {"attachments":[{"direction":"in","enabled":true,"list":"temporary","sequence":1,"target":{"interface":"host-w8l0","kind":"interface"}}],"lists":{"temporary":{"rules":[{"action":"permit","destination":{"kind":"any"},"enabled":true,"expiresAt":"2026-10-04T14:54:26.129023414Z","ipVersion":"ipv4","log":false,"owner":"netops","sequence":10,"service":{"kind":"any"},"source":{"kind":"any"},"ticket":"slot8-acceptance"},{"action":"deny","destination":{"kind":"any"},"enabled":true,"ipVersion":"ipv4","log":false,"sequence":20,"service":{"kind":"any"},"source":{"kind":"any"}}]}}}
+    acceptance_test.go:77: rollback status applied
+    acceptance_test.go:70: rollback restores forwarding tx=3 rx=3
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.64 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=1.34 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=2.39 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 1.335/1.790/2.394/0.444 ms
+    acceptance_test.go:70: rollback restores host local-in tx=3 rx=3
+        PING 10.8.4.1 (10.8.4.1) 56(84) bytes of data.
+        64 bytes from 10.8.4.1: icmp_seq=1 ttl=64 time=0.181 ms
+        64 bytes from 10.8.4.1: icmp_seq=2 ttl=64 time=0.147 ms
+        64 bytes from 10.8.4.1: icmp_seq=3 ttl=64 time=0.081 ms
+        
+        --- 10.8.4.1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 413ms
+        rtt min/avg/max/mdev = 0.081/0.136/0.181/0.041 ms
+    acceptance_test.go:59: cleanup commit (acl, objects, rig interfaces) → 200 {"status":"applied","revision":{"id":4,"createdAt":"2026-10-04T14:54:33.853Z","authorId":1,"author":"admin","comment":"acl-test-cleanup","parentId":3,"hash":"80fb59e775c1a34211d18ef65e15b04d015d99d97710772fa5a6c85c00290ce7","txnId":"edb56964-7864-4087-bb60-d3d7c13a329d","kind":"commit","secretChange… (2349 bytes)
+    stack_test.go:199: stopped ngfw-api pid 3595592
+    stack_test.go:199: stopped ngfw-agent pid 3597251
+    acl_test.go:177: pg-test drop w8: <nil>
+        drop   database ngfw_w8
+        drop   role ngfw_w8
+        ok     nothing named ngfw_w8 / ngfw_w8 remains
+    acceptance_test.go:30: rig cleanup <nil> rig down w8
+          delete netns ns-w8-lan (and its veth peer)
+          delete netns ns-w8-wan (and its veth peer)
+          delete veth w8w0
+        rig: down
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: -
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+--- PASS: TestRuleExpiryRealAPI (35.68s)
+=== RUN   TestGlobalBlockingRealAPI
+    acceptance_test.go:27: rig up w8 (slot 8, path af_packet)
+          create netns ns-w8-lan
+          create veth w8l0 <-> ns-w8-lan:w8l1
+          create vpp host-w8l0 (af_packet on w8l0)
+          reset  ip/ip6 classify host-w8l0 (table-index ~0)
+          set    addr host-w8l0 10.8.1.1/24
+          create netns ns-w8-wan
+          create veth w8w0 <-> ns-w8-wan:w8w1
+          create vpp host-w8w0 (af_packet on w8w0)
+          reset  ip/ip6 classify host-w8w0 (table-index ~0)
+          set    addr host-w8w0 10.8.2.1/24
+        rig: up
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: 10.8.1.1/24 
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: 10.8.2.1/24 
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+        
+    acceptance_test.go:37: sw_interface_add_del_address sw_if_index=2 (host-w8l0) del_all=true → ok
+    acceptance_test.go:37: af_packet_delete host_if_name=w8l0 (tag "") → ok
+    acceptance_test.go:37: sw_interface_add_del_address sw_if_index=1 (host-w8w0) del_all=true → ok
+    acceptance_test.go:37: af_packet_delete host_if_name=w8w0 (tag "") → ok
+    acceptance_test.go:55: create role ngfw_w8
+        create database ngfw_w8 (owner ngfw_w8)
+        check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w8/pg.env (0600) · DSN postgres://ngfw_w8:<redacted>@127.0.0.1:5432/ngfw_w8
+        
+    acceptance_test.go:55: started ngfw-agent pid 3598003 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:55: started ngfw-api pid 3598031 (log /run/ngfw-test/w8/acl/api.log)
+    acceptance_test.go:61: ngfw-vpp-preflight: exit 0
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    acceptance_test.go:70: baseline tx=3 rx=3
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.87 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=1.91 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=1.02 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 401ms
+        rtt min/avg/max/mdev = 1.019/1.596/1.905/0.408 ms
+    acceptance_test.go:70: host local-in baseline tx=3 rx=3
+        PING 10.8.4.1 (10.8.4.1) 56(84) bytes of data.
+        64 bytes from 10.8.4.1: icmp_seq=1 ttl=64 time=0.435 ms
+        64 bytes from 10.8.4.1: icmp_seq=2 ttl=64 time=0.081 ms
+        64 bytes from 10.8.4.1: icmp_seq=3 ttl=64 time=0.093 ms
+        
+        --- 10.8.4.1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 414ms
+        rtt min/avg/max/mdev = 0.081/0.203/0.435/0.164 ms
+    acceptance_test.go:124: commit status applied results [{"code":"ok","key":"acl.config/global-blocking","message":"","op":"create","pointer":"/acl/globalBlocking","subsystem":"acl"},{"code":"ok","key":"acl.acl/_gb.bad.i00","message":"","op":"create","pointer":"/acl/globalBlocking/lists/bad","subsystem":"acl"},{"code":"ok","key":"acl.acl/_gb.bad.o00","message":"","op":"create","pointer":"/acl/globalBlocking/lists/bad","subsystem":"acl"},{"code":"ok","key":"acl.acl/_gb.pass","message":"","op":"create","pointer":"/acl/globalBlocking","subsystem":"acl"},{"code":"ok","key":"acl.interface-binding/host-w8l0","message":"","op":"create","pointer":"/acl/globalBlocking/lists/bad","subsystem":"acl"},{"code":"ok","key":"host-acl.nftables/ngfw","message":"","op":"create","pointer":"/acl","subsystem":"acl"}]
+    acceptance_test.go:126: acl-index 0 count 2 tag {w8:_gb.bad.i00}
+                  0: ipv4 deny src 10.8.1.2/32 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+                  1: ipv4 deny src 10.8.4.2/32 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+          applied inbound on sw_if_index: 1
+          applied outbound on sw_if_index: 
+          used in lookup context index: 1
+        acl-index 1 count 2 tag {w8:_gb.bad.o00}
+                  0: ipv4 deny src 0.0.0.0/0 dst 10.8.1.2/32 proto 0 sport 0-65535 dport 0-65535
+                  1: ipv4 deny src 0.0.0.0/0 dst 10.8.4.2/32 proto 0 sport 0-65535 dport 0-65535
+          applied inbound on sw_if_index: 
+          applied outbound on sw_if_index: 1
+          used in lookup context index: 0
+        acl-index 2 count 2 tag {w8:_gb.pass}
+                  0: ipv4 permit src 0.0.0.0/0 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+                  1: ipv6 permit src ::/0 dst ::/0 proto 0 sport 0-65535 dport 0-65535
+          applied inbound on sw_if_index: 1
+          applied outbound on sw_if_index: 1
+          used in lookup context index: 0, 1
+        
+    acceptance_test.go:127: sw_if_index 0:
+        sw_if_index 1:
+          input acl(s): 0, 2
+          output acl(s): 1, 2
+        sw_if_index 2:
+        
+    acceptance_test.go:70: host local-in listed source blocked tx=3 rx=0
+        PING 10.8.4.1 (10.8.4.1) 56(84) bytes of data.
+        
+        --- 10.8.4.1 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 414ms
+        
+    acceptance_test.go:132: isolated host nft readback: {"nftables": [{"metainfo": {"version": "1.1.6", "release_name": "Commodore Bullmoose #7", "json_schema_version": 1}}, {"table": {"family": "inet", "name": "ngfw_w8", "handle": 4, "comment": "ngfw-agent host firewall"}}, {"chain": {"family": "inet", "table": "ngfw_w8", "name": "in__gb", "handle": 1, "type": "filter", "hook": "input", "prio": -300, "policy": "accept"}}, {"set": {"family": "inet", "name": "b4_bad", "table": "ngfw_w8", "type": "ipv4_addr", "handle": 2, "flags": ["interval"], "elem": ["10.8.1.2", "10.8.4.2"]}}, {"rule": {"family": "inet", "table": "ngfw_w8", "chain": "in__gb", "handle": 3, "comment": "ngfw:@global-blocking/0:c01b901e", "expr": [{"match": {"op": "==", "left": {"payload": {"protocol": "ip", "field": "saddr"}}, "right": "@b4_bad"}}, {"counter": {"packets": 3, "bytes": 252}}, {"drop": null}]}}]}
+        
+    acceptance_test.go:70: listed source forward blocked tx=3 rx=0
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 409ms
+        
+    acceptance_test.go:70: listed endpoint reverse blocked tx=3 rx=0
+        PING 10.8.1.2 (10.8.1.2) 56(84) bytes of data.
+        
+        --- 10.8.1.2 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 416ms
+        
+    acceptance_test.go:140: PING 10.8.2.2 (10.8.2.2) from 10.8.1.3 : 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.30 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=1.25 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=1.64 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+        rtt min/avg/max/mdev = 1.251/1.397/1.638/0.171 ms
+        
+    stack_test.go:199: stopped ngfw-agent pid 3598003
+    acceptance_test.go:172: started ngfw-agent pid 3599595 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:176: actual agent restart recreated removed owned ACLs from persisted desired state
+    acceptance_test.go:70: agent restart retains blocking tx=3 rx=0
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 409ms
+        
+    acceptance_test.go:70: unselected LAN permits listed source tx=3 rx=3
+        PING 10.8.1.1 (10.8.1.1) 56(84) bytes of data.
+        64 bytes from 10.8.1.1: icmp_seq=1 ttl=64 time=1.55 ms
+        64 bytes from 10.8.1.1: icmp_seq=2 ttl=64 time=1.02 ms
+        64 bytes from 10.8.1.1: icmp_seq=3 ttl=64 time=0.426 ms
+        
+        --- 10.8.1.1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 0.426/1.000/1.553/0.460 ms
+    acceptance_test.go:151: Retrieve: {"globalBlocking":{"lists":{"bad":{"allInterfaces":false,"direction":"both","enabled":true,"entries":["10.8.1.2/32","10.8.4.2/32"],"interfaces":["host-w8w0"],"log":false,"protectHost":true,"source":{"kind":"upload"}}}}}
+    acceptance_test.go:77: rollback status applied
+    acceptance_test.go:70: rollback restores forwarding tx=3 rx=3
+        PING 10.8.2.2 (10.8.2.2) 56(84) bytes of data.
+        64 bytes from 10.8.2.2: icmp_seq=1 ttl=63 time=1.10 ms
+        64 bytes from 10.8.2.2: icmp_seq=2 ttl=63 time=1.61 ms
+        64 bytes from 10.8.2.2: icmp_seq=3 ttl=63 time=1.39 ms
+        
+        --- 10.8.2.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 1.095/1.364/1.608/0.210 ms
+    acceptance_test.go:70: rollback restores host local-in tx=3 rx=3
+        PING 10.8.4.1 (10.8.4.1) 56(84) bytes of data.
+        64 bytes from 10.8.4.1: icmp_seq=1 ttl=64 time=0.084 ms
+        64 bytes from 10.8.4.1: icmp_seq=2 ttl=64 time=0.154 ms
+        64 bytes from 10.8.4.1: icmp_seq=3 ttl=64 time=0.107 ms
+        
+        --- 10.8.4.1 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 409ms
+        rtt min/avg/max/mdev = 0.084/0.115/0.154/0.029 ms
+    acceptance_test.go:59: cleanup commit (acl, objects, rig interfaces) → 200 {"status":"applied","revision":{"id":5,"createdAt":"2026-10-04T14:55:06.275Z","authorId":1,"author":"admin","comment":"acl-test-cleanup","parentId":4,"hash":"80fb59e775c1a34211d18ef65e15b04d015d99d97710772fa5a6c85c00290ce7","txnId":"21d4f477-ff3c-4b6e-b0a6-70bdd4254cad","kind":"commit","secretChange… (2349 bytes)
+    stack_test.go:199: stopped ngfw-api pid 3598031
+    stack_test.go:199: stopped ngfw-agent pid 3599595
+    acl_test.go:177: pg-test drop w8: <nil>
+        drop   database ngfw_w8
+        drop   role ngfw_w8
+        ok     nothing named ngfw_w8 / ngfw_w8 remains
+    acceptance_test.go:30: rig cleanup <nil> rig down w8
+          delete netns ns-w8-lan (and its veth peer)
+          delete netns ns-w8-wan (and its veth peer)
+        rig: down
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: -
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+--- PASS: TestGlobalBlockingRealAPI (32.54s)
+PASS
+ok  	ngfw/test/topology/acl	68.242s
+DISPOSABLE_VPP_STOPPED pid=3594547

@@ -75,18 +75,30 @@ describe('nat46 e2e (PostgreSQL + fake agent)', () => {
         ],
       },
     };
-    for (const [patch, pointer] of [
-      [dup, '/nat/nat46/mappings/1/ipv4'],
-      [{ nat46: { ...nat46, clientPrefix: 'fd00:1:46::/64' } }, '/nat/nat46/clientPrefix'],
-      [mapOverlap, '/nat/nat46/mappings/0/ipv4'],
-      [{ nat46: { ...nat46, interfaces: ['host-w1x9'] } }, '/nat/nat46/interfaces/0'],
+    // Intra-NAT46 refinements reject edits at the schema boundary. References to
+    // other domains are checked by semantic validation when committing.
+    for (const [patch, pointer, boundary] of [
+      [dup, '/nat/nat46/mappings/1/ipv4', 'patch'],
+      [{ nat46: { ...nat46, clientPrefix: 'fd00:1:46::/64' } }, '/nat/nat46/clientPrefix', 'patch'],
+      [mapOverlap, '/nat/nat46/mappings/0/ipv4', 'commit'],
+      [{ nat46: { ...nat46, interfaces: ['host-w1x9'] } }, '/nat/nat46/interfaces/0', 'commit'],
     ] as const) {
-      expect((await h.call(admin, 'PATCH', '/api/v1/config/nat', patch, mp)).status).toBe(200);
-      const c = await h.call(admin, 'POST', '/api/v1/config/commit');
+      const candidate = await h.call(admin, 'GET', '/api/v1/config/candidate');
+      expect(candidate.status).toBe(200);
+      const applies = h.fake.calls.filter((x) => x.method === 'Apply').length;
+      const edited = await h.call(admin, 'PATCH', '/api/v1/config/nat', patch, mp);
+      expect(edited.status, pointer).toBe(boundary === 'patch' ? 400 : 200);
+      const c = boundary === 'patch' ? edited : await h.call(admin, 'POST', '/api/v1/config/commit');
       expect(c.status, pointer).toBe(400);
       expect(c.headers['content-type']).toMatch(/^application\/problem\+json/);
       expect(c.body.errors).toContainEqual(expect.objectContaining({ pointer }));
-      await h.call(admin, 'POST', '/api/v1/config/discard');
+      expect(h.fake.calls.filter((x) => x.method === 'Apply').length, pointer).toBe(applies);
+      if (boundary === 'patch') {
+        const unchanged = await h.call(admin, 'GET', '/api/v1/config/candidate');
+        expect(unchanged.status).toBe(200);
+        expect(unchanged.body, pointer).toEqual(candidate.body);
+      }
+      expect((await h.call(admin, 'POST', '/api/v1/config/discard')).status).toBe(200);
     }
   });
 

@@ -836,7 +836,9 @@ func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 // IPBindDescriptor manages mpls-ip-bind objects (mpls_ip_bind_unbind). Write-only (D-063):
 // VPP 26.06 reports no bindings; their label entries appear in MPLS table 0 but cannot be told
 // apart from mpls-route entries (mpls_route_details carries no FIB source). Bind and unbind are
-// idempotent (VPP sources the prefix once and replaces the label).
+// normalized before each bind: VPP sources the IP prefix once, but re-adding an unchanged
+// label increments its SPECIAL MPLS FIB references. A matching unbind first avoids leaking
+// those references across idempotent apply and agent restart.
 type IPBindDescriptor struct{ df7.Base }
 
 var _ scheduler.Descriptor = (*IPBindDescriptor)(nil)
@@ -879,6 +881,13 @@ func (d *IPBindDescriptor) bind(ctx context.Context, b IPBind, bind bool) error 
 	p, err := df7.ParsePrefix(b.Prefix)
 	if err != nil {
 		return err
+	}
+	if bind {
+		// The API only unbinds when both the IP prefix and current label match. Do not
+		// delete label routes directly: those can belong to another FIB source.
+		if err := d.bind(ctx, b, false); err != nil {
+			return err
+		}
 	}
 	_, err = mpls.NewServiceClient(d.Client).MplsIPBindUnbind(ctx, &mpls.MplsIPBindUnbind{MbMplsTableID: b.MPLSTable, MbLabel: b.Label,
 		MbIPTableID: b.VRF, MbIsBind: bind, MbPrefix: df7.ToPrefix(p)})

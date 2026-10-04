@@ -1,0 +1,145 @@
+DISPOSABLE_VPP pid=3510773 runtime=/root/ngfw-wt/codex-closeout-traffic-audit/.scratch/isolated-vpp-3510771
+=== RUN   TestRuleExpiryRealAPI
+    acceptance_test.go:18: rig up w8 (slot 8, path af_packet)
+          create netns ns-w8-lan
+          create veth w8l0 <-> ns-w8-lan:w8l1
+          create vpp host-w8l0 (af_packet on w8l0)
+          reset  ip/ip6 classify host-w8l0 (table-index ~0)
+          set    addr host-w8l0 10.8.1.1/24
+          create netns ns-w8-wan
+          create veth w8w0 <-> ns-w8-wan:w8w1
+          create vpp host-w8w0 (af_packet on w8w0)
+          reset  ip/ip6 classify host-w8w0 (table-index ~0)
+          set    addr host-w8w0 10.8.2.1/24
+        rig: up
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: 10.8.1.1/24 
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: 10.8.2.1/24 
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+        
+    acceptance_test.go:20: sw_interface_add_del_address sw_if_index=1 (host-w8l0) del_all=true → ok
+    acceptance_test.go:20: af_packet_delete host_if_name=w8l0 (tag "") → ok
+    acceptance_test.go:20: sw_interface_add_del_address sw_if_index=2 (host-w8w0) del_all=true → ok
+    acceptance_test.go:20: af_packet_delete host_if_name=w8w0 (tag "") → ok
+    acceptance_test.go:27: create role ngfw_w8
+        create database ngfw_w8 (owner ngfw_w8)
+        check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w8/pg.env (0600) · DSN postgres://ngfw_w8:<redacted>@127.0.0.1:5432/ngfw_w8
+        
+    acceptance_test.go:27: started ngfw-agent pid 3511772 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:27: started ngfw-api pid 3511834 (log /run/ngfw-test/w8/acl/api.log)
+    acceptance_test.go:29: POST /api/v1/config/commit?comment=security-baseline → 422, want 200: {"type":"https://ngfw.dev/problems/apply-failed","title":"Apply failed","status":422,"txnId":"1221ddf6-be64-48db-9fc0-ef7ab4036172","applyStatus":"rolled_back","results":[{"key":"af-packet.host-interface/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0","subsystem":"interfaces","code":"failed","message":"af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\""},{"key":"af-packet.host-interface/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface-ip/host-w8l0/10.8.1.1/24","op":"create","pointer":"/interfaces/host-w8l0/ipv4/0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface.admin-state/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0/enabled","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface-ip/host-w8w0/10.8.2.1/24","op":"create","pointer":"/interfaces/host-w8w0/ipv4/0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface.admin-state/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0/enabled","subsystem":"interfaces","code":"skipped","message":""}],"summary":{"created":0,"updated":0,"deleted":0,"unchanged":1,"failed":1,"reverted":0},"sync":{"state":"in-sync","reason":"","txnId":null,"since":"1970-01-01T00:00:00.000Z"},"warnings":[{"pointer":"/management/aaa","message":"management.aaa is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/management/tls","message":"management.tls is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","message":"nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","message":"flowprobe parameters are applied only with at least one monitored interface","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","message":"services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)","rule":"agent.write-only"},{"pointer":"/services/ntp","message":"services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","message":"vpn.ipsec is not implemented by this agent build (P11)","rule":"agent.unsupported-field"}],"detail":"the agent answered rolled_back: create af-packet.host-interface/host-w8l0: af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\"; the data plane was rolled back, running is unchanged","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w8l0","message":"af-packet.host-interface/host-w8l0: af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\""},{"pointer":"/interfaces/host-w8w0","message":"af-packet.host-interface/host-w8w0: skipped"},{"pointer":"/interfaces/host-w8l0","message":"interface/host-w8l0: skipped"},{"pointer":"/interfaces/host-w8l0/ipv4/0","message":"interface-ip/host-w8l0/10.8.1.1/24: skipped"},{"pointer":"/interfaces/host-w8l0/enabled","message":"interface.admin-state/host-w8l0: skipped"},{"pointer":"/interfaces/host-w8w0","message":"interface/host-w8w0: skipped"},{"pointer":"/interfaces/host-w8w0/ipv4/0","message":"interface-ip/host-w8w0/10.8.2.1/24: skipped"},{"pointer":"/interfaces/host-w8w0/enabled","message":"interface.admin-state/host-w8w0: skipped"}]}
+    stack_test.go:199: stopped ngfw-api pid 3511834
+    stack_test.go:199: stopped ngfw-agent pid 3511772
+    acl_test.go:177: pg-test drop w8: <nil>
+        drop   database ngfw_w8
+        drop   role ngfw_w8
+        ok     nothing named ngfw_w8 / ngfw_w8 remains
+    acceptance_test.go:19: rig cleanup <nil> rig down w8
+          delete netns ns-w8-lan (and its veth peer)
+          delete netns ns-w8-wan (and its veth peer)
+          delete veth w8w0
+        rig: down
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: -
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+--- FAIL: TestRuleExpiryRealAPI (13.16s)
+=== RUN   TestGlobalBlockingRealAPI
+    acceptance_test.go:18: rig up w8 (slot 8, path af_packet)
+          create netns ns-w8-lan
+          create veth w8l0 <-> ns-w8-lan:w8l1
+          create vpp host-w8l0 (af_packet on w8l0)
+          reset  ip/ip6 classify host-w8l0 (table-index ~0)
+          set    addr host-w8l0 10.8.1.1/24
+          create netns ns-w8-wan
+          create veth w8w0 <-> ns-w8-wan:w8w1
+          create vpp host-w8w0 (af_packet on w8w0)
+          reset  ip/ip6 classify host-w8w0 (table-index ~0)
+          set    addr host-w8w0 10.8.2.1/24
+        rig: up
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: 10.8.1.1/24 
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: 10.8.2.1/24 
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+        
+    acceptance_test.go:20: sw_interface_add_del_address sw_if_index=2 (host-w8l0) del_all=true → ok
+    acceptance_test.go:20: af_packet_delete host_if_name=w8l0 (tag "") → ok
+    acceptance_test.go:20: sw_interface_add_del_address sw_if_index=1 (host-w8w0) del_all=true → ok
+    acceptance_test.go:20: af_packet_delete host_if_name=w8w0 (tag "") → ok
+    acceptance_test.go:27: create role ngfw_w8
+        create database ngfw_w8 (owner ngfw_w8)
+        check  ngfw_w8 as ngfw_w8 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w8/pg.env (0600) · DSN postgres://ngfw_w8:<redacted>@127.0.0.1:5432/ngfw_w8
+        
+    acceptance_test.go:27: started ngfw-agent pid 3515365 (log /run/ngfw-test/w8/acl/agent.log)
+    acceptance_test.go:27: started ngfw-api pid 3515426 (log /run/ngfw-test/w8/acl/api.log)
+    acceptance_test.go:29: POST /api/v1/config/commit?comment=security-baseline → 422, want 200: {"type":"https://ngfw.dev/problems/apply-failed","title":"Apply failed","status":422,"txnId":"a8e655a8-8fc3-49f6-a676-a6e28a1e93e1","applyStatus":"rolled_back","results":[{"key":"af-packet.host-interface/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0","subsystem":"interfaces","code":"failed","message":"af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\""},{"key":"af-packet.host-interface/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface-ip/host-w8l0/10.8.1.1/24","op":"create","pointer":"/interfaces/host-w8l0/ipv4/0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface.admin-state/host-w8l0","op":"create","pointer":"/interfaces/host-w8l0/enabled","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface-ip/host-w8w0/10.8.2.1/24","op":"create","pointer":"/interfaces/host-w8w0/ipv4/0","subsystem":"interfaces","code":"skipped","message":""},{"key":"interface.admin-state/host-w8w0","op":"create","pointer":"/interfaces/host-w8w0/enabled","subsystem":"interfaces","code":"skipped","message":""}],"summary":{"created":0,"updated":0,"deleted":0,"unchanged":1,"failed":1,"reverted":0},"sync":{"state":"in-sync","reason":"","txnId":null,"since":"1970-01-01T00:00:00.000Z"},"warnings":[{"pointer":"/management/aaa","message":"management.aaa is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/management/tls","message":"management.tls is not applied by this agent build","rule":"agent.unsupported-field"},{"pointer":"/nat/ipfix","message":"nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))","rule":"agent.unsupported-field"},{"pointer":"/services/ipfix/flowprobe","message":"flowprobe parameters are applied only with at least one monitored interface","rule":"agent.unsupported-field"},{"pointer":"/services/lldp","message":"services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)","rule":"agent.write-only"},{"pointer":"/services/ntp","message":"services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare","rule":"agent.unsupported-field"},{"pointer":"/vpn/ipsec","message":"vpn.ipsec is not implemented by this agent build (P11)","rule":"agent.unsupported-field"}],"detail":"the agent answered rolled_back: create af-packet.host-interface/host-w8l0: af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\"; the data plane was rolled back, running is unchanged","instance":"/api/v1/config/commit","errors":[{"pointer":"/interfaces/host-w8l0","message":"af-packet.host-interface/host-w8l0: af_packet attaches only to a Linux veth (lab data path, D-010/D-105): no Linux netdev \"w8l0\""},{"pointer":"/interfaces/host-w8w0","message":"af-packet.host-interface/host-w8w0: skipped"},{"pointer":"/interfaces/host-w8l0","message":"interface/host-w8l0: skipped"},{"pointer":"/interfaces/host-w8l0/ipv4/0","message":"interface-ip/host-w8l0/10.8.1.1/24: skipped"},{"pointer":"/interfaces/host-w8l0/enabled","message":"interface.admin-state/host-w8l0: skipped"},{"pointer":"/interfaces/host-w8w0","message":"interface/host-w8w0: skipped"},{"pointer":"/interfaces/host-w8w0/ipv4/0","message":"interface-ip/host-w8w0/10.8.2.1/24: skipped"},{"pointer":"/interfaces/host-w8w0/enabled","message":"interface.admin-state/host-w8w0: skipped"}]}
+    stack_test.go:199: stopped ngfw-api pid 3515426
+    stack_test.go:199: stopped ngfw-agent pid 3515365
+    acl_test.go:177: pg-test drop w8: <nil>
+        drop   database ngfw_w8
+        drop   role ngfw_w8
+        ok     nothing named ngfw_w8 / ngfw_w8 remains
+    acceptance_test.go:19: rig cleanup <nil> rig down w8
+          delete netns ns-w8-lan (and its veth peer)
+          delete netns ns-w8-wan (and its veth peer)
+          delete veth w8w0
+        rig: down
+        prefix: w8
+        slot: 8
+        path: af_packet
+        lan_ns: ns-w8-lan
+        lan_veth: w8l1
+        lan_ip: 10.8.1.2/24
+        lan_gw: 10.8.1.1
+        vpp_lan_if: host-w8l0
+        vpp_lan_addr: -
+        wan_ns: ns-w8-wan
+        wan_veth: w8w1
+        wan_ip: 10.8.2.2/24
+        wan_gw: 10.8.2.1
+        vpp_wan_if: host-w8w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w8-lan ping -c 3 10.8.2.2
+--- FAIL: TestGlobalBlockingRealAPI (12.22s)
+FAIL
+FAIL	ngfw/test/topology/acl	25.407s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3510773

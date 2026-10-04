@@ -1,0 +1,2 @@
+# Audit envelope
+Manager assignment: source/testing audit only, branch codex/closeout-traffic-audit at /root/ngfw-wt/codex-closeout-traffic-audit. Own docs/status/tasks/closeout-traffic*; fixture test fixes only if demonstrated. Do not edit board/product, execute live VPP, spawn agents, create PR or merge. Commit coherent docs locally; publication blocked by parent-observed403, do not retry. Scope: trafficA fixture workflows and supported host closeability matrix for pending TEST A/B/C, INTEGRATE and named host rows.

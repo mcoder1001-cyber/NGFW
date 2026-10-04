@@ -1,0 +1,33 @@
+heavy: all 3 heavy slots busy, waiting (0s): bash -c cd apps/agent && golangci-lint run ./internal/descriptors/lcp_osi ./internal/desired ./internal/renderers/frr/isis ./internal/renderers/frr/rip ./internal/renderers/frr/ripng
+heavy: slot 2 after 10s
+internal/desired/ikev2_certificate_integration_test.go:72:21: Error return value of `logfile.Close` is not checked (errcheck)
+	defer logfile.Close()
+	                   ^
+internal/desired/ikev2_certificate_integration_test.go:107:16: Error return value of `cc.Close` is not checked (errcheck)
+	defer cc.Close()
+	              ^
+internal/desired/ikev2_certificate_test.go:80:44: unused-parameter: parameter 'e' seems to be unused, consider removing or renaming it as _ (revive)
+		{"ca-only", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		                                         ^
+internal/desired/ikev2_certificate_test.go:83:49: unused-parameter: parameter 'e' seems to be unused, consider removing or renaming it as _ (revive)
+		{"missing-peer", func(d *ngfwv1.DesiredState, e *IKEv2Env) { d.Vpn.Ipsec.Tunnels["site"].Auth.PeerCertificate = nil }},
+		                                              ^
+internal/desired/ikev2_certificate_test.go:84:54: unused-parameter: parameter 'e' seems to be unused, consider removing or renaming it as _ (revive)
+		{"missing-local-key", func(d *ngfwv1.DesiredState, e *IKEv2Env) { d.Vpn.Pki.Certificates["local"].PrivateKeyRef = nil }},
+		                                                   ^
+internal/desired/ikev2_certificate_test.go:91:30: unused-parameter: parameter 'd' seems to be unused, consider removing or renaming it as _ (revive)
+		{"non-globals-owner", func(d *ngfwv1.DesiredState, e *IKEv2Env) { e.GlobalsOwner = false }},
+		                           ^
+internal/desired/ikev2_certificate_test.go:92:33: unused-parameter: parameter 'd' seems to be unused, consider removing or renaming it as _ (revive)
+		{"unavailable-material", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		                              ^
+internal/desired/ikev2_certificate_test.go:95:26: unused-parameter: parameter 'd' seems to be unused, consider removing or renaming it as _ (revive)
+		{"foreign-owner", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		                       ^
+internal/desired/ikev2_certificate.go:90:18: QF1008: could remove embedded field "PublicKey" from selector (staticcheck)
+		matches := key.PublicKey.N.Cmp(pub.N) == 0 && key.PublicKey.E == pub.E
+		               ^
+9 issues:
+* errcheck: 2
+* revive: 6
+* staticcheck: 1

@@ -197,3 +197,29 @@ func TestExpandPBRSharedMemberDoesNotCrossAddressFamily(t *testing.T) {
 		t.Fatal("IPv6 group used overlapping IPv4 group", p)
 	}
 }
+
+func TestRoutesWeightWidthBounds(t *testing.T) {
+	for _, weight := range []uint32{0, 1, 255, 256, 4294967295} {
+		doc := routeDoc()
+		doc.Routing.WanGroups[0].Mode = proto.String("balance")
+		doc.Routing.WanGroups[0].Members[0].Weight = proto.Uint32(weight)
+		kvs, issues := Routes(doc, health(true, true))
+		if weight > 255 {
+			if len(kvs) != 0 || len(issues) == 0 {
+				t.Fatalf("weight%d emitted partial route: %v %v", weight, kvs, issues)
+			}
+			continue
+		}
+		if len(issues) != 0 || len(kvs) != 1 {
+			t.Fatalf("weight%d refused: %v %v", weight, kvs, issues)
+		}
+		want := weight
+		if want == 0 {
+			want = 1
+		}
+		got := kvs[0].Value.(*core.Route).Paths[0].Weight
+		if got != want {
+			t.Fatalf("weight%d got%d want%d", weight, got, want)
+		}
+	}
+}

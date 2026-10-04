@@ -1,0 +1,253 @@
+DISPOSABLE_VPP pid=3632756 runtime=/root/ngfw-wt/codex-closeout-ospf/.scratch/isolated-vpp-3632753
+run.sh: 2026-10-04T18:31:45 VPP NRestarts=0 before, mode netns
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:609: systemctl show vpp -p NRestarts (before) = 0
+2026/10/04 18:32:21 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ospf_topology_integration_test.go:634: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    ospf_topology_integration_test.go:639: rig up w7 (slot 7, path af_packet)
+          create netns ns-w7-lan
+          create veth w7l0 <-> ns-w7-lan:w7l1
+          create vpp host-w7l0 (af_packet on w7l0)
+          reset  ip/ip6 classify host-w7l0 (table-index ~0)
+          set    addr host-w7l0 10.7.1.1/24
+          create netns ns-w7-wan
+          create veth w7w0 <-> ns-w7-wan:w7w1
+          create vpp host-w7w0 (af_packet on w7w0)
+          reset  ip/ip6 classify host-w7w0 (table-index ~0)
+          set    addr host-w7w0 10.7.2.1/24
+        rig: up
+        prefix: w7
+        slot: 7
+        path: af_packet
+        lan_ns: ns-w7-lan
+        lan_veth: w7l1
+        lan_ip: 10.7.1.2/24
+        lan_gw: 10.7.1.1
+        vpp_lan_if: host-w7l0
+        vpp_lan_addr: 10.7.1.1/24 
+        wan_ns: ns-w7-wan
+        wan_veth: w7w1
+        wan_ip: 10.7.2.2/24
+        wan_gw: 10.7.2.1
+        vpp_wan_if: host-w7w0
+        vpp_wan_addr: 10.7.2.1/24 
+        ping: ip netns exec ns-w7-lan ping -c 3 10.7.2.2
+        
+    ospf_topology_integration_test.go:654: OSPF fixture link w7l0/w7l1 in ns-w7-lan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:654: OSPF fixture link w7w0/w7w1 in ns-w7-wan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:657: rig VPP side handed to the agent: af_packet_delete w7l0 (veth down)
+    ospf_topology_integration_test.go:657: rig VPP side handed to the agent: af_packet_delete w7w0 (veth down)
+2026/10/04 18:32:54 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w7 component=subsystems
+2026/10/04 18:32:54 INFO PKI file materialiser wired owner=w7 component=subsystems root=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/pki-w7 source=true
+2026/10/04 18:32:54 INFO VPP binary API connected owner=w7 component=vpp socket=/run/vpp/api.sock
+2026/10/04 18:32:54 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w7 component=subsystems
+2026/10/04 18:32:54 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w7 component=subsystems
+2026/10/04 18:32:54 INFO fqdn state reloaded owner=w7 component=subsystems family=objects file=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 18:32:54 INFO objects domain wired owner=w7 component=subsystems store=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 18:32:54 INFO acl domain wired owner=w7 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/04 18:32:54 INFO host firewall wired owner=w7 component=subsystems table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/host-acl-w7.nft
+2026/10/04 18:32:54 INFO kea wired owner=w7 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 18:32:54 INFO host services wired owner=w7 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-885475674/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-885475674/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-885475674/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 18:32:54 INFO system identity wired owner=w7 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-885475674/sysident/etc/hostname
+2026/10/04 18:32:54 INFO subsystems wired owner=w7 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state: claims-iface-w7.json, boot-w7.json; globals owner false" vpp_ids=7000-7999
+2026/10/04 18:32:54 INFO ngfw-agent listening owner=w7 socket=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state vpp_api=/run/vpp/api.sock
+2026/10/04 18:32:54 INFO VPP boot identity owner=w7 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3632756/10706001 complete=true expired_claims=0
+2026/10/04 18:32:54 WARN neighbour events: interface dump owner=w7 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/04 18:32:54 INFO reconcile start owner=w7 txn_id="" mode=resync domains=[]
+2026/10/04 18:32:54 INFO reconcile done owner=w7 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=131.112785ms err=""
+2026/10/04 18:32:54 INFO resync finished owner=w7 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/04 18:32:54 INFO dynamic source started owner=w7 source=mpls-ldp descriptors=[mpls-route.ldp]
+    ospf_topology_integration_test.go:721: VPP FIB checks not requested (NGFW_OSPF_FIB=root runs the NGFW-side FRR in the root netns): FRR's RIB is checked
+2026/10/04 18:32:54 INFO reconcile start owner=w7 txn_id=w7-p12-commit mode=apply domains="[interfaces routing]"
+2026/10/04 18:32:54 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w7l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=af-packet.host-interface/host-w7l0
+2026/10/04 18:32:54 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w7w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=af-packet.host-interface/host-w7w0
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface/host-w7l0
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface-ip/host-w7l0/10.7.1.1/24
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface.admin-state/host-w7l0
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface/host-w7w0
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface-ip/host-w7w0/10.7.2.1/24
+2026/10/04 18:32:54 INFO created owner=w7 component=scheduler key=interface.admin-state/host-w7w0
+2026/10/04 18:32:55 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:32:55 INFO created owner=w7 component=scheduler key=lcp.itf-pair/host-w7l0
+2026/10/04 18:32:55 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:32:55 INFO created owner=w7 component=scheduler key=lcp.itf-pair/host-w7w0
+2026/10/04 18:32:56 INFO FRR configuration applied owner=w7 component=subsystems component=frr conf=/run/ngfw-test/w7/frr/etc/w7/frr.conf bgp=false
+2026/10/04 18:32:56 INFO created owner=w7 component=scheduler key=frr.config/ngfw
+2026/10/04 18:32:57 INFO reconcile done owner=w7 txn_id=w7-p12-commit mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=2.742155886s err=""
+    ospf_topology_integration_test.go:724: apply commit: {
+          "created":  11
+        }
+    ospf_topology_integration_test.go:726: both adjacencies Full after 900ms: [{VRF:default RouterID:10.7.1.2 Address:10.7.1.2 Interface:w7-l0 State:Full/- Priority:1} {VRF:default RouterID:10.7.2.2 Address:10.7.2.2 Interface:w7-w0 State:Full/- Priority:1}]
+    ospf_topology_integration_test.go:727: 100 routes after commit: FRR RIB ospf=100, VPP lcp-rt-dynamic=-1 after 5.8s
+    ospf_topology_integration_test.go:728: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w7l0 tap4096 w7-l0 3 type tap netns ns-w7-frr
+        itf-pair: [1] host-w7w0 tap4097 w7-w0 4 type tap netns ns-w7-frr
+    ospf_topology_integration_test.go:728: [after commit] ip -br addr show (ns-w7-frr, slot lines):
+        w7-l0            UNKNOWN        10.7.1.1/24 fe80::fe:75ff:fefc:b72/64 
+        w7-w0            UNKNOWN        10.7.2.1/24 fe80::fe:aff:fe7e:3005/64 
+    ospf_topology_integration_test.go:728: [after commit] vtysh -N w7 "show ip ospf neighbor":
+        
+        Neighbor ID     Pri State           Up Time         Dead Time Address         Interface                        RXmtL RqstL DBsmL
+        10.7.1.2          1 Full/-          6.241s             3.216s 10.7.1.2        w7-l0:10.7.1.1                       0     0     0
+        10.7.2.2          1 Full/-          6.243s             3.226s 10.7.2.2        w7-w0:10.7.2.1                       0     0     0
+        
+    ospf_topology_integration_test.go:738: Retrieve routing.ospf == desired: {
+          "routerId":  "10.7.1.1",
+          "areas":  {
+            "0":  {}
+          },
+          "interfaces":  {
+            "host-w7l0":  {
+              "area":  "0",
+              "networkType":  "point-to-point",
+              "helloIntervalSec":  1,
+              "deadIntervalSec":  4
+            },
+            "host-w7w0":  {
+              "area":  "0",
+              "networkType":  "point-to-point",
+              "helloIntervalSec":  1,
+              "deadIntervalSec":  4
+            }
+          }
+        }
+2026/10/04 18:33:04 INFO reconcile start owner=w7 txn_id=w7-p12-idempotent mode=apply domains="[interfaces routing]"
+2026/10/04 18:33:05 INFO reconcile done owner=w7 txn_id=w7-p12-idempotent mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=549.395236ms err=""
+    ospf_topology_integration_test.go:745: apply idempotent: {
+          "unchanged":  11
+        }
+    ospf_topology_integration_test.go:761: peer 1 withdrew: FRR RIB ospf=50, VPP lcp-rt-dynamic=-1 after 300ms
+    ospf_topology_integration_test.go:765: peer 1 announces again: FRR RIB ospf=100, VPP lcp-rt-dynamic=-1 after 300ms
+2026/10/04 18:33:09 INFO dynamic source stopped owner=w7 source=mpls-ldp
+2026/10/04 18:33:09 INFO ngfw-agent stopped owner=w7
+    ospf_topology_integration_test.go:777: simulated loss: lcp_itf_pair_add_del_v3 del host-w7l0 (sw_if_index 2) with the agent stopped
+    ospf_topology_integration_test.go:777: simulated loss: lcp_itf_pair_add_del_v3 del host-w7w0 (sw_if_index 1) with the agent stopped
+2026/10/04 18:33:09 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w7 component=subsystems
+2026/10/04 18:33:09 INFO PKI file materialiser wired owner=w7 component=subsystems root=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/pki-w7 source=true
+2026/10/04 18:33:09 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w7 component=subsystems
+2026/10/04 18:33:09 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w7 component=subsystems
+2026/10/04 18:33:09 INFO fqdn state reloaded owner=w7 component=subsystems family=objects file=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 18:33:09 INFO objects domain wired owner=w7 component=subsystems store=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 18:33:09 INFO acl domain wired owner=w7 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/04 18:33:09 INFO host firewall wired owner=w7 component=subsystems table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state/host-acl-w7.nft
+2026/10/04 18:33:09 INFO kea wired owner=w7 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 18:33:09 INFO host services wired owner=w7 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-885475674/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-885475674/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-885475674/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 18:33:09 INFO system identity wired owner=w7 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-885475674/sysident/etc/hostname
+2026/10/04 18:33:09 INFO VPP binary API connected owner=w7 component=vpp socket=/run/vpp/api.sock
+2026/10/04 18:33:09 INFO subsystems wired owner=w7 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state: claims-iface-w7.json, boot-w7.json; globals owner false" vpp_ids=7000-7999
+2026/10/04 18:33:09 INFO ngfw-agent listening owner=w7 socket=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestOSPFTopologyOnHost86512984/001/state vpp_api=/run/vpp/api.sock
+2026/10/04 18:33:09 INFO VPP boot identity owner=w7 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3632756/10706001 complete=true expired_claims=0
+2026/10/04 18:33:09 INFO reconcile start owner=w7 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/04 18:33:09 WARN neighbour events: interface dump owner=w7 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/04 18:33:09 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-l0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:09 INFO created owner=w7 component=scheduler key=lcp.itf-pair/host-w7l0
+2026/10/04 18:33:09 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:09 INFO created owner=w7 component=scheduler key=lcp.itf-pair/host-w7w0
+2026/10/04 18:33:10 INFO FRR configuration applied owner=w7 component=subsystems component=frr conf=/run/ngfw-test/w7/frr/etc/w7/frr.conf bgp=false
+2026/10/04 18:33:10 INFO updated owner=w7 component=scheduler key=frr.config/ngfw
+2026/10/04 18:33:11 INFO reconcile done owner=w7 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:8" reapplied=0 duration=2.046569962s err=""
+2026/10/04 18:33:11 INFO resync finished owner=w7 why=connect status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:8"
+2026/10/04 18:33:11 INFO dynamic source started owner=w7 source=mpls-ldp descriptors=[mpls-route.ldp]
+    ospf_topology_integration_test.go:781: both adjacencies Full after 400ms: [{VRF:default RouterID:10.7.1.2 Address:10.7.1.2 Interface:w7-l0 State:Full/- Priority:1} {VRF:default RouterID:10.7.2.2 Address:10.7.2.2 Interface:w7-w0 State:Full/- Priority:1}]
+    ospf_topology_integration_test.go:782: after agent restart + pair loss: FRR RIB ospf=100, VPP lcp-rt-dynamic=-1 after 4.3s
+    ospf_topology_integration_test.go:784: recovered 7.4s after the agent restart (target ≤ 30 s)
+    ospf_topology_integration_test.go:796: [after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w7w0 tap4097 w7-w0 6 type tap netns ns-w7-frr
+        itf-pair: [1] host-w7l0 tap4096 w7-l0 5 type tap netns ns-w7-frr
+    ospf_topology_integration_test.go:796: [after restart] ip -br addr show (ns-w7-frr, slot lines):
+        w7-l0            UNKNOWN        10.7.1.1/24 fe80::d81f:aff:fe98:c2e5/64 
+        w7-w0            UNKNOWN        10.7.2.1/24 fe80::dc5f:74ff:fe4d:bea9/64 
+    ospf_topology_integration_test.go:796: [after restart] vtysh -N w7 "show ip ospf neighbor":
+        
+        Neighbor ID     Pri State           Up Time         Dead Time Address         Interface                        RXmtL RqstL DBsmL
+        10.7.1.2          1 Full/-          6.358s             3.639s 10.7.1.2        w7-l0:10.7.1.1                       0     0     0
+        10.7.2.2          1 Full/-          6.348s             3.649s 10.7.2.2        w7-w0:10.7.2.1                       0     0     0
+        
+2026/10/04 18:33:16 INFO reconcile start owner=w7 txn_id=w7-p12-rollback mode=apply domains="[interfaces routing]"
+2026/10/04 18:33:19 INFO FRR configuration applied owner=w7 component=subsystems component=frr conf=/run/ngfw-test/w7/frr/etc/w7/frr.conf bgp=false
+2026/10/04 18:33:19 INFO updated owner=w7 component=scheduler key=frr.config/ngfw
+2026/10/04 18:33:19 INFO reconcile done owner=w7 txn_id=w7-p12-rollback mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:10" reapplied=0 duration=3.110622986s err=""
+    ospf_topology_integration_test.go:799: apply rollback: {
+          "updated":  1,
+          "unchanged":  10
+        }
+    ospf_topology_integration_test.go:800: after rollback: FRR RIB ospf=0, VPP lcp-rt-dynamic=-1 after 300ms
+    ospf_topology_integration_test.go:820: [after rollback] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w7w0 tap4097 w7-w0 6 type tap netns ns-w7-frr
+        itf-pair: [1] host-w7l0 tap4096 w7-l0 5 type tap netns ns-w7-frr
+    ospf_topology_integration_test.go:820: [after rollback] ip -br addr show (ns-w7-frr, slot lines):
+        w7-l0            UNKNOWN        10.7.1.1/24 fe80::d81f:aff:fe98:c2e5/64 
+        w7-w0            UNKNOWN        10.7.2.1/24 fe80::dc5f:74ff:fe4d:bea9/64 
+    ospf_topology_integration_test.go:820: [after rollback] vtysh -N w7 "show ip ospf neighbor":
+        % OSPF is not enabled in vrf default
+2026/10/04 18:33:21 INFO reconcile start owner=w7 txn_id=w7-ospf-cleanup mode=apply domains="[interfaces routing]"
+2026/10/04 18:33:23 INFO FRR configuration applied owner=w7 component=subsystems component=frr conf=/run/ngfw-test/w7/frr/etc/w7/frr.conf bgp=false
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=frr.config/ngfw
+2026/10/04 18:33:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=lcp.itf-pair/host-w7w0
+2026/10/04 18:33:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-l0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=lcp.itf-pair/host-w7l0
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=interface.admin-state/host-w7w0
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=interface.admin-state/host-w7l0
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=interface-ip/host-w7w0/10.7.2.1/24
+2026/10/04 18:33:23 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w7w0 descriptor=af-packet.host-interface ifindex=389 kind=veth
+2026/10/04 18:33:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w7w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=af-packet.host-interface/host-w7w0
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=interface-ip/host-w7l0/10.7.1.1/24
+2026/10/04 18:33:23 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w7l0 descriptor=af-packet.host-interface ifindex=387 kind=veth
+2026/10/04 18:33:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w7l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 18:33:23 INFO deleted owner=w7 component=scheduler key=af-packet.host-interface/host-w7l0
+2026/10/04 18:33:23 INFO reconcile done owner=w7 txn_id=w7-ospf-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=2.417245955s err=""
+    ospf_topology_integration_test.go:701: cleanup apply: <nil> {
+          "deleted":  9
+        }
+2026/10/04 18:33:23 INFO dynamic source stopped owner=w7 source=mpls-ldp
+2026/10/04 18:33:23 INFO ngfw-agent stopped owner=w7
+    ospf_topology_integration_test.go:642: rig down: <nil>
+        rig down w7
+          delete netns ns-w7-lan (and its veth peer)
+          delete netns ns-w7-wan (and its veth peer)
+        rig: down
+        prefix: w7
+        slot: 7
+        path: af_packet
+        lan_ns: ns-w7-lan
+        lan_veth: w7l1
+        lan_ip: 10.7.1.2/24
+        lan_gw: 10.7.1.1
+        vpp_lan_if: host-w7l0
+        vpp_lan_addr: -
+        wan_ns: ns-w7-wan
+        wan_veth: w7w1
+        wan_ip: 10.7.2.2/24
+        wan_gw: 10.7.2.1
+        vpp_wan_if: host-w7w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w7-lan ping -c 3 10.7.2.2
+    ospf_topology_integration_test.go:612: systemctl show vpp -p NRestarts (after) = 0
+--- PASS: TestOSPFTopologyOnHost (63.99s)
+PASS
+ok  	ngfw/agent/internal/agent	64.099s
+run.sh: 2026-10-04T18:33:25 VPP NRestarts=0 after, exit 0
+DISPOSABLE_VPP_STOPPED pid=3632756

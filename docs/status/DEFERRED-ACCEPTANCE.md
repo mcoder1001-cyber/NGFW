@@ -105,3 +105,17 @@ paths, expected forwarding/drop, translation/endpoint independence, rollback
 cleanup, capture loss and run identity. Both `whole_chain_proven=false` and
 `packet_outcomes_proven=false` remain authoritative until real acceptance proves
 them. No real rig, SSH, VPP, nft or capture operation was run for this foundation.
+
+## Three ready-task source integrations — 2026-10-04
+
+The owner explicitly authorized public publication and merging of the three selected source implementations while deferring aggregate CI. This is a scoped exception for F-bruteforce-block-host, F-igmp-mfib-host and F-capture-trace-host; it does not change workflow files, host privilege boundaries or other task acceptance. Independent source reviews and focused checks are recorded in the task reports. An environment-blocked or incomplete aggregate gate is **NOT PASS**.
+
+Marking these rows merged records source integration only. The cases below remain **NOT RUN** until a provisioned target produces fresh evidence.
+
+| Task | Required deferred acceptance | Explicit boundary |
+|---|---|---|
+| F-bruteforce-block-host | Real VPP ACL and nftables forwarding/local-in enforcement, trusted SSH/native-auth/scan observation, allowlist/TTL, rollback, restart/dataplane-loss replay and failed-update recovery | Fake VPP/nft unit evidence is not kernel or packet acceptance; bounded native polling and rate-limited logs can miss observations |
+| F-igmp-mfib-host | Real static mFIB create/retrieve/rollback/recreate; IGMP packet membership/events and reconnect/restart under the existing explicit IGMP opt-in window | FRR PIM renderer/synchronization belongs to F-pim-frrsync; PIM neighbour reporting remains unavailable; optional BIER is not built |
+| F-capture-trace-host | Actual API e2e with PostgreSQL/Valkey, dedicated-VPP recovery and rig packets, BPF globals restoration, file lifecycle and real T4 screenshot | Shared-VPP dispatch capture remains banned; a missing dedicated socket produces explicit NOTRUN/SKIP, never packet acceptance |
+
+Aggregate CI for the combined integration tree remains deferred by this authorization. Existing local quick attempts encountered Unix-socket permission failures; no aggregate green result is claimed. Run the unchanged complete gate on the exact integrated SHA in an environment with the required socket permissions, preserve its failures and rerun after fixes. Record host SHA, slot, commands, actual results and artifacts for every live case.

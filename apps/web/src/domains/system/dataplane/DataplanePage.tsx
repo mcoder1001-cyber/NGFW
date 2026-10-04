@@ -165,6 +165,46 @@ export function DataplanePage() {
           </Paper>
         )}
         <Stack spacing={3} sx={{ flex: 1, width: '100%' }}>
+          <Paper variant="outlined" sx={{ p: 2 }} data-testid="dp-runtime">
+            <Typography component="h3" variant="h6">
+              {t('runtime.title')}
+            </Typography>
+            {state.isError && <ProblemAlert error={state.error} />}
+            {st && (
+              <>
+                {st.runtimeErrors?.length > 0 && (
+                  <Alert severity="warning">
+                    {t('runtime.unavailable')}: {st.runtimeErrors.join(', ')}
+                  </Alert>
+                )}
+                <Typography component="pre" sx={{ whiteSpace: 'pre-wrap' }} dir="ltr">
+                  {st.runtimeThreads
+                    ?.map((th) =>
+                      t('runtime.thread', {
+                        name: th.name,
+                        type: th.type,
+                        cpu: th.cpuId,
+                        core: th.core,
+                        numa: th.numaSocket,
+                      }),
+                    )
+                    .join('\n') || none}
+                </Typography>
+                {(['loadedPlugins', 'nicQueues', 'runtimeMemory'] as const).map((key) => (
+                  <Stack key={key}>
+                    <Typography variant="subtitle2">{t(`runtime.${key}`)}</Typography>
+                    <Typography
+                      component="pre"
+                      dir="ltr"
+                      sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                    >
+                      {st[key] || none}
+                    </Typography>
+                  </Stack>
+                ))}
+              </>
+            )}
+          </Paper>
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography component="h3" variant="h6" gutterBottom>
               {t('live.title')}
@@ -273,6 +313,22 @@ export function DataplanePage() {
               ))}
               <Typography variant="body2" data-testid="dp-preview-summary">
                 {t('preview.summary')}
+              </Typography>
+              <Typography
+                component="pre"
+                dir="ltr"
+                sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                data-testid="dp-preview-rendered"
+              >
+                {preview.data.rendered}
+              </Typography>
+              <Typography
+                component="pre"
+                dir="ltr"
+                sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                data-testid="dp-preview-diff"
+              >
+                {preview.data.diff}
               </Typography>
             </Stack>
           )}

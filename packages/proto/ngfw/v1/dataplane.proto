@@ -7943,6 +7943,21 @@ message DataplaneStartupStateResponse {
   // Why part of the state could not be read ("" = everything was read).
   string error = 10;
   google.protobuf.Timestamp retrieved_at = 11;
+  // Observed VPP runtime, independent of the installed startup file. Empty on probe failure.
+  repeated DataplaneRuntimeThread runtime_threads = 12;
+  string loaded_plugins = 13; // Fixed read-only `show plugins` response.
+  string nic_queues = 14; // Fixed read-only `show interface rx-placement` response.
+  string runtime_memory = 15; // Fixed read-only `show memory` response; host hugepage totals are separate.
+  repeated string runtime_errors = 16; // Probe names only; unavailable must never look like configured state.
+}
+
+message DataplaneRuntimeThread {
+  uint32 id = 1;
+  string name = 2;
+  string type = 3;
+  uint32 cpu_id = 4;
+  uint32 core = 5;
+  uint32 numa_socket = 6;
 }
 
 message DataplaneStartupPreviewRequest {

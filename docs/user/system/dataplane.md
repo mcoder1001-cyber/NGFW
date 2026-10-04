@@ -2,7 +2,7 @@
 
 **Screen:** System › Dataplane (`/system/dataplane`). **API:** the generic configuration routes on `/dataplane`
 (`GET/PUT/PATCH /api/v1/config/candidate/dataplane`, `/api/v1/config/dataplane`), then commit;
-`GET /api/v1/state/dataplane` (installed start-up file + host facts) and `POST /api/v1/actions/dataplane/preview`
+`GET /api/v1/state/dataplane` (observed VPP runtime + installed start-up file + host facts) and `POST /api/v1/actions/dataplane/preview`
 (rendered startup.conf + diff, read-only). **CLI:** `ngfw configure set|merge dataplane …`, then `commit`.
 
 ## Why a restart is needed
@@ -37,7 +37,8 @@ sizes) are checked when you save. The error is shown at the field (for example `
 
 1. Open **System › Dataplane**. The yellow banner is a reminder that nothing here takes effect before a VPP restart.
 2. Edit the form and press **Save to candidate**. The *Candidate and running* table marks rows that are not committed.
-   *Installed start-up file* shows what VPP booted with (workers, cores, plugin switches), the online CPUs and the
+   *Observed VPP runtime* shows actual VPP threads and CPU placement, loaded plugins, RX queue placement and memory/page sizes read over the binary API. Failed probes are explicit and never replaced with configured values. Host hugepage totals describe the host pool, not VPP usage.
+   *Installed start-up file* shows the current file contents (workers, cores, plugin switches), the online CPUs and the
    free/total hugepages.
 3. Press **Preview startup.conf**. The agent renders the file for the candidate on this host (read-only) and shows the
    diff against the installed file and its sha256.

@@ -10469,12 +10469,33 @@ export interface DataplaneStartupStateResponse {
   hugepagesFreeBytes: string;
   /** Why part of the state could not be read ("" = everything was read). */
   error: string;
-  retrievedAt: Date | undefined;
+  retrievedAt:
+    | Date
+    | undefined;
+  /** Observed VPP runtime, independent of the installed startup file. Empty on probe failure. */
+  runtimeThreads: DataplaneRuntimeThread[];
+  /** Fixed read-only `show plugins` response. */
+  loadedPlugins: string;
+  /** Fixed read-only `show interface rx-placement` response. */
+  nicQueues: string;
+  /** Fixed read-only `show memory` response; host hugepage totals are separate. */
+  runtimeMemory: string;
+  /** Probe names only; unavailable must never look like configured state. */
+  runtimeErrors: string[];
 }
 
 export interface DataplaneStartupStateResponse_PluginsEntry {
   key: string;
   value: boolean;
+}
+
+export interface DataplaneRuntimeThread {
+  id: number;
+  name: string;
+  type: string;
+  cpuId: number;
+  core: number;
+  numaSocket: number;
 }
 
 export interface DataplaneStartupPreviewRequest {
@@ -94634,6 +94655,11 @@ function createBaseDataplaneStartupStateResponse(): DataplaneStartupStateRespons
     hugepagesFreeBytes: "0",
     error: "",
     retrievedAt: undefined,
+    runtimeThreads: [],
+    loadedPlugins: "",
+    nicQueues: "",
+    runtimeMemory: "",
+    runtimeErrors: [],
   };
 }
 
@@ -94671,6 +94697,21 @@ export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResp
     }
     if (message.retrievedAt !== undefined) {
       Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(90).fork()).join();
+    }
+    for (const v of message.runtimeThreads) {
+      DataplaneRuntimeThread.encode(v!, writer.uint32(98).fork()).join();
+    }
+    if (message.loadedPlugins !== "") {
+      writer.uint32(106).string(message.loadedPlugins);
+    }
+    if (message.nicQueues !== "") {
+      writer.uint32(114).string(message.nicQueues);
+    }
+    if (message.runtimeMemory !== "") {
+      writer.uint32(122).string(message.runtimeMemory);
+    }
+    for (const v of message.runtimeErrors) {
+      writer.uint32(130).string(v!);
     }
     return writer;
   },
@@ -94779,6 +94820,46 @@ export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResp
             message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.runtimeThreads.push(DataplaneRuntimeThread.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.loadedPlugins = reader.string();
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.nicQueues = reader.string();
+            continue;
+          }
+          case 15: {
+            if (tag !== 122) {
+              break;
+            }
+
+            message.runtimeMemory = reader.string();
+            continue;
+          }
+          case 16: {
+            if (tag !== 130) {
+              break;
+            }
+
+            message.runtimeErrors.push(reader.string());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -94849,6 +94930,31 @@ export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResp
         : isSet(object.retrieved_at)
         ? fromJsonTimestamp(object.retrieved_at)
         : undefined,
+      runtimeThreads: globalThis.Array.isArray(object?.runtimeThreads)
+        ? object.runtimeThreads.map((e: any) => DataplaneRuntimeThread.fromJSON(e))
+        : globalThis.Array.isArray(object?.runtime_threads)
+        ? object.runtime_threads.map((e: any) => DataplaneRuntimeThread.fromJSON(e))
+        : [],
+      loadedPlugins: isSet(object.loadedPlugins)
+        ? globalThis.String(object.loadedPlugins)
+        : isSet(object.loaded_plugins)
+        ? globalThis.String(object.loaded_plugins)
+        : "",
+      nicQueues: isSet(object.nicQueues)
+        ? globalThis.String(object.nicQueues)
+        : isSet(object.nic_queues)
+        ? globalThis.String(object.nic_queues)
+        : "",
+      runtimeMemory: isSet(object.runtimeMemory)
+        ? globalThis.String(object.runtimeMemory)
+        : isSet(object.runtime_memory)
+        ? globalThis.String(object.runtime_memory)
+        : "",
+      runtimeErrors: globalThis.Array.isArray(object?.runtimeErrors)
+        ? object.runtimeErrors.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.runtime_errors)
+        ? object.runtime_errors.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -94893,6 +94999,21 @@ export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResp
     if (message.retrievedAt !== undefined) {
       obj.retrievedAt = message.retrievedAt.toISOString();
     }
+    if (message.runtimeThreads?.length) {
+      obj.runtimeThreads = message.runtimeThreads.map((e) => DataplaneRuntimeThread.toJSON(e));
+    }
+    if (message.loadedPlugins !== "") {
+      obj.loadedPlugins = message.loadedPlugins;
+    }
+    if (message.nicQueues !== "") {
+      obj.nicQueues = message.nicQueues;
+    }
+    if (message.runtimeMemory !== "") {
+      obj.runtimeMemory = message.runtimeMemory;
+    }
+    if (message.runtimeErrors?.length) {
+      obj.runtimeErrors = message.runtimeErrors;
+    }
     return obj;
   },
 
@@ -94920,6 +95041,11 @@ export const DataplaneStartupStateResponse: MessageFns<DataplaneStartupStateResp
     message.hugepagesFreeBytes = object.hugepagesFreeBytes ?? "0";
     message.error = object.error ?? "";
     message.retrievedAt = object.retrievedAt ?? undefined;
+    message.runtimeThreads = object.runtimeThreads?.map((e) => DataplaneRuntimeThread.fromPartial(e)) || [];
+    message.loadedPlugins = object.loadedPlugins ?? "";
+    message.nicQueues = object.nicQueues ?? "";
+    message.runtimeMemory = object.runtimeMemory ?? "";
+    message.runtimeErrors = object.runtimeErrors?.map((e) => e) || [];
     return message;
   },
 };
@@ -95007,6 +95133,163 @@ export const DataplaneStartupStateResponse_PluginsEntry: MessageFns<DataplaneSta
     const message = createBaseDataplaneStartupStateResponse_PluginsEntry();
     message.key = object.key ?? "";
     message.value = object.value ?? false;
+    return message;
+  },
+};
+
+function createBaseDataplaneRuntimeThread(): DataplaneRuntimeThread {
+  return { id: 0, name: "", type: "", cpuId: 0, core: 0, numaSocket: 0 };
+}
+
+export const DataplaneRuntimeThread: MessageFns<DataplaneRuntimeThread> = {
+  encode(message: DataplaneRuntimeThread, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== 0) {
+      writer.uint32(8).uint32(message.id);
+    }
+    if (message.name !== "") {
+      writer.uint32(18).string(message.name);
+    }
+    if (message.type !== "") {
+      writer.uint32(26).string(message.type);
+    }
+    if (message.cpuId !== 0) {
+      writer.uint32(32).uint32(message.cpuId);
+    }
+    if (message.core !== 0) {
+      writer.uint32(40).uint32(message.core);
+    }
+    if (message.numaSocket !== 0) {
+      writer.uint32(48).uint32(message.numaSocket);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DataplaneRuntimeThread {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseDataplaneRuntimeThread();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.id = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.cpuId = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.core = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.numaSocket = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): DataplaneRuntimeThread {
+    return {
+      id: isSet(object.id) ? globalThis.Number(object.id) : 0,
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      type: isSet(object.type) ? globalThis.String(object.type) : "",
+      cpuId: isSet(object.cpuId)
+        ? globalThis.Number(object.cpuId)
+        : isSet(object.cpu_id)
+        ? globalThis.Number(object.cpu_id)
+        : 0,
+      core: isSet(object.core) ? globalThis.Number(object.core) : 0,
+      numaSocket: isSet(object.numaSocket)
+        ? globalThis.Number(object.numaSocket)
+        : isSet(object.numa_socket)
+        ? globalThis.Number(object.numa_socket)
+        : 0,
+    };
+  },
+
+  toJSON(message: DataplaneRuntimeThread): unknown {
+    const obj: any = {};
+    if (message.id !== 0) {
+      obj.id = Math.round(message.id);
+    }
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.type !== "") {
+      obj.type = message.type;
+    }
+    if (message.cpuId !== 0) {
+      obj.cpuId = Math.round(message.cpuId);
+    }
+    if (message.core !== 0) {
+      obj.core = Math.round(message.core);
+    }
+    if (message.numaSocket !== 0) {
+      obj.numaSocket = Math.round(message.numaSocket);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<DataplaneRuntimeThread>): DataplaneRuntimeThread {
+    return DataplaneRuntimeThread.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<DataplaneRuntimeThread>): DataplaneRuntimeThread {
+    const message = createBaseDataplaneRuntimeThread();
+    message.id = object.id ?? 0;
+    message.name = object.name ?? "";
+    message.type = object.type ?? "";
+    message.cpuId = object.cpuId ?? 0;
+    message.core = object.core ?? 0;
+    message.numaSocket = object.numaSocket ?? 0;
     return message;
   },
 };

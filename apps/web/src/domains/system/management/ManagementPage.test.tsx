@@ -120,7 +120,7 @@ describe('System → Management (F-management-ui)', () => {
       'DNS:ngfw.example.test, IP Address:192.0.2.1',
     );
     expect(screen.getByTestId('tls-revision')).toHaveTextContent('12');
-    expect(screen.getByText(/NGFW_HTTPS_PORT is not set/)).toBeInTheDocument();
+    expect(screen.getByText(/HTTPS is not currently listening/)).toBeInTheDocument();
     expect(await screen.findByText('uncommitted')).toBeInTheDocument();
     const cert = await screen.findByLabelText('Certificate');
     expect(cert).toHaveValue('cert/api');
@@ -172,7 +172,7 @@ describe('System → Management (F-management-ui)', () => {
     }));
     render(app('/system/management?tab=tls'));
     expect(await screen.findByTestId('tls-error')).toHaveTextContent(
-      /previous one is still in use/,
+      /TLS configuration could not be applied/,
     );
   });
   it('Notifications: operators can inspect but cannot save configuration', async () => {

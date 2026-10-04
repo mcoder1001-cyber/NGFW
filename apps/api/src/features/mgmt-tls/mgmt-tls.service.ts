@@ -164,8 +164,15 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
     this.shuttingDown = true;
     this.unsubscribe?.();
     await this.reloadQueue;
+    await this.closeListener();
+  }
+
+  private async closeListener(): Promise<void> {
+    const server = this.server;
+    this.server = null;
     for (const socket of this.upgradedSockets) socket.destroy();
-    await new Promise<void>((r) => (this.server ? this.server.close(() => r()) : r()));
+    server?.closeAllConnections();
+    await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
   }
 
   /** The secure-context options new handshakes use; null = no usable certificate configured. */
@@ -176,15 +183,40 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
   /** Semantic-tier check of a parsed document's `management.tls` (errors carry pointers). */
   async validate(doc: unknown): Promise<ProblemIssue[]> {
     const tls = tlsOf(doc);
-    if (!tls.certificateRef || !tls.privateKeyRef) return [];
+    if (!tls.certificateRef || !tls.privateKeyRef) {
+      if (this.server?.listening)
+        return [
+          {
+            pointer: CERT_POINTER,
+            message:
+              'disable NGFW_HTTPS_PORT and restart the API before removing its active TLS certificate',
+            rule: 'management.tls.active-listener',
+          },
+        ];
+      return [];
+    }
     return (await this.check(tls)).issues;
   }
 
   private async check(tls: TlsConfig) {
-    const [cert, key] = await Promise.all([
-      this.readSecret(tls.certificateRef!),
-      this.readSecret(tls.privateKeyRef!),
-    ]);
+    let cert: string | null;
+    let key: string | null;
+    try {
+      [cert, key] = await Promise.all([
+        this.readSecret(tls.certificateRef!),
+        this.readSecret(tls.privateKeyRef!),
+      ]);
+    } catch {
+      return {
+        issues: [
+          {
+            pointer: CERT_POINTER,
+            message: 'could not read TLS certificate or key from the secret store',
+            rule: 'management.tls.secret-store',
+          },
+        ],
+      };
+    }
     if (cert === null)
       return {
         issues: [
@@ -226,25 +258,25 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
         loadedAt: this.now().toISOString(),
       } as const;
       if (!tls.certificateRef || !tls.privateKeyRef) {
-        // the running listener keeps its last certificate until the API restarts (it cannot serve without one)
-        if (this.server?.listening && this.current) {
-          // Retention is the existing policy: report the certificate still served, not an empty context.
-          this.current = {
-            ...this.current,
-            configured: false,
-            certificateRef: base.certificateRef,
-            error: null,
-          };
-        } else {
-          this.context = null;
-          this.current = { ...base, configured: false, active: null, error: null };
-        }
+        // Rollback/external recovery may remove the pair even though ordinary removal is guarded.
+        // Stop accepting HTTPS before dropping its key and certificate; never keep serving removed material.
+        await this.closeListener();
+        this.context = null;
+        this.current = { ...base, configured: false, active: null, error: null };
         return;
       }
       const res = await this.check(tls);
       if (res.issues.length > 0 || !('options' in res) || !res.options || !res.info) {
         const error = res.issues.map((i) => i.message).join('; ') || 'no TLS context';
-        this.current = { ...base, configured: true, active: this.current?.active ?? null, error };
+        this.current = {
+          ...(this.current ?? {
+            ...emptyState(),
+            certificateRef: base.certificateRef,
+            minVersion: base.minVersion,
+          }),
+          configured: true,
+          error,
+        };
         this.log.warn(`management.tls of revision ${base.loadedRevision} not applied: ${error}`);
         return;
       }
@@ -257,7 +289,8 @@ export class MgmtTlsService implements OnModuleInit, OnApplicationBootstrap, OnA
         `management.tls applied: ${res.info.subject} (sha256 ${res.info.fingerprintSha256})`,
       );
     } catch (e) {
-      const error = `could not load management.tls: ${(e as Error).message}`;
+      const code = (e as NodeJS.ErrnoException).code;
+      const error = `could not load management.tls${code === 'EADDRINUSE' ? ': EADDRINUSE' : ''}`;
       this.current = { ...(this.current ?? emptyState()), error };
       this.log.warn(error);
     }

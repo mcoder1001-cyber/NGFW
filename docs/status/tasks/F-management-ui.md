@@ -1,3 +1,20 @@
+# F-management-ui — source completion, 2026-10-04
+
+Current branch: `codex/complete-management-ui-20261004`, based on `121c09747`.
+The recovered Management screen, authenticated HTTPS WebSocket transport, serialized reload, late listener startup,
+and shutdown were already in main. This change finishes the certificate lifecycle: active HTTPS removal is rejected
+at semantic validation before commit to preserve management access; external/rollback removal closes listener and
+upgraded connections and clears the context; later valid configuration starts the listener again.
+Failed rotation reports the certificate's actual loaded revision and TLS minimum, not the rejected target.
+Secret-store exceptions are sanitized in validation and status. English/Persian UI wording reflects actual listener
+and load state. No generated contract, auth model, host proxy configuration or service restart is changed.
+
+Focused verification is recorded in `F-management-ui-wip.md`. Full CI was waived by the owner.
+Production endpoint/DB commit and browser acceptance remain laboratory-only verification, not unfinished source.
+AAA implementation belongs to F-aaa; front-end TLS termination remains outside this task's prompt.
+
+## Historical implementation notes (superseded lifecycle/open-code gaps)
+
 # F-management-ui: Management screen (users, AAA, API TLS, remote syslog) + management.tls apply
 
 Branch `claude/modest-keller-upaw4m` (cloud session modest-keller). D-152, WBS D0.9 / D0.10.

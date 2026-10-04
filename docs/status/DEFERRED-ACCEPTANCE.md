@@ -23,7 +23,7 @@ The exact fourteen-row matrix, implementation SHAs, missing functionality and ac
 | Notifications | SMTP TLS/auth, HMAC webhook DNS/IP filtering, rules/dedup/retry/reload/shutdown, real alarm/commit/link/VPN events, en/fa browser | SMTP/webhook only; Telegram removed by owner instruction |
 | Setup wizard | Real first-boot LAN access/DHCP/NAT, password, one confirmed commit and rollback/session loss, stale candidate/cancel/reopen, browser | No relaxation of management anti-lockout |
 | System identity | Installed readback, DNS facts, bounded public login banner, failure pointers, restart/no rewrite, browser | Restart privilege boundary retained; daemon status unknown unless observed |
-| Multi-WAN | Two WANs traffic failover/restore, weighted flows, NAT session cleanup, queue retry/restart, browser | Static IPv4/default VRF first; dynamic gateway, VRF and ABF remain explicit code follow-ups |
+| Multi-WAN | Two WANs traffic failover/restore, weighted flows, NAT session cleanup, queue retry/restart, browser | Static gateway forwarding, owned VRF routes and ABF group expansion are implemented; probes support the default namespace/default VRF. DHCP/PPPoE gateway handoff remains separate code work; non-default probe VRFs/netns refuse unavailable. |
 
 ## Remaining host acceptance rows
 
@@ -160,7 +160,7 @@ Reviewed source merged through PR151 (tunnels, IS-IS/RIPng, native SA events), P
 |---|---|---|
 | F-tunnels | Deployed browser, live tunnel/FIB/stats transitions, packet/restart/rollback exercises | Live unavailable/absent fields remain explicit |
 | F-isis-rip | Dual-peer IPv4/IPv6 adjacency, route/FIB withdrawal, source password rotation, daemon/agent restart and rollback, deployed browser | Sealed production password references implemented; package fixtures are source evidence |
-| F-multiwan-host | Timed packet failover/restore, 1000-flow weighted split/affinity, NAT session preservation, restart/rollback | Static gateways, default namespace/default VRF probes; unsupported VRF/netns unavailable; DHCP/PPPoE handoff not built |
+| F-multiwan-host | Timed packet failover/restore, 1000-flow weighted split/affinity, NAT session preservation, restart/rollback | Static gateways and owned VRF/ABF forwarding implemented; probes remain default namespace/default VRF only. Non-default probe VRF/netns refuse unavailable; DHCP/PPPoE gateway handoff is not built. |
 | F-vrrp-config-sync | Dual-appliance VRRP master change/split-brain, peer-offline recovery, anti-lockout and configuration-sync reconciliation | Single automatic writer; mixed/unknown roles refuse; HA NAT/IPsec/ACL state synchronization unsupported and warns |
 
 P11/native certificate trust option 1 was approved by the owner under D-234 on 2026-10-04; source implementation and independent review are complete. Real production sealed-cache/PKI/global-key/profile lifecycle, rotation, explicit revert and autonomous agent recovery after simulated profile/snapshot loss passed in disposable VPP. Certificate peer negotiation/packets, active-SA rotation, on-appliance/browser acceptance and deployment of this new source remain NOT RUN. P10 development packages are verified installed on 172.30.126.250; runtime file-ownership and release-license followups do not negate that installation. TD19 bootstrap trust remains pending. This source campaign has not restarted shared VPP, changed services or installed target packages.
@@ -188,3 +188,15 @@ at `14771daa5574bc36678f014a54db9acba7bd949b`, then merged as
 review. Live FRR authenticated peers, key rotation/removal, convergence and real
 API/browser acceptance remain **NOT RUN**. Existing unrelated historical FRR
 observations are not fresh acceptance of this merge.
+
+### Seven ready tasks: Multi-WAN source closeout (2026-10-04)
+
+PR159 fixes address-family matching by VRF/prefix for dual-stack WAN groups
+sharing member interfaces. Previously-integrated monitor/default-route/weighted
+ECMP/SNAT/ABF wiring is not claimed as new code. Complete cumulative hosted quick
+[37222055557](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37222055557)
+passed at `2dd48e0afa3456e4494651995a233c02290a7663`; merge
+`bee8ed4b22a6270b61186ecabd0b8f2716aaa174` followed independent review.
+Real failover/restore, 1000-flow weighted split and affinity, NAT cleanup,
+agent-originated ABF/readback and rollback remain **NOT RUN**. Dynamic
+DHCP/PPPoE gateway handoff remains separate implementation work.

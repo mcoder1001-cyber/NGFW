@@ -1,12 +1,12 @@
 # Seven ready tasks — 2026-10-04
 
 درخواست مالک: تکمیل، مرج و Done کردن هفت تسک اولیه، هر کدام روی شاخهٔ جدا.
-کد هر هفت تسک تکمیل و مستقل بازبینی شده؛ دو تسک تاکنون مرج شده‌اند.
+کد هر هفت تسک تکمیل و مستقل بازبینی شده؛ سه تسک تاکنون مرج شده‌اند.
 تمام هفت نسخهٔ مستقل گیت کامل hosted quick را گذرانده‌اند.
 مرج‌ها ترتیبی است؛ هر ترکیب جدید محصول باید گیت کامل را بگذراند.
 پذیرش واقعی دستگاه/مرورگر/شبکه اجرا نشده و در کمپین مرکزی باقی است.
 
-**Overall: 86.2% by hours (1360.0/1577.5 h), 85.3% by tasks (180/211)**
+**Overall: 86.8% by hours (1370.0/1577.5 h), 85.8% by tasks (181/211)**
 
 This report covers only the seven initially-ready rows. Auto-readied dependents
 are separate work. Done means reviewed source completion, not deployed or live
@@ -15,9 +15,9 @@ laboratory acceptance. See [central deferred acceptance](DEFERRED-ACCEPTANCE.md)
 | Initial task | Published task branch | PR | Current source/gate evidence | Merge / board |
 |---|---|---|---|---|
 | F-dataplane-apply-flow | codex/ready-dataplane-apply-20261004 | [162](https://github.com/mcoder1001-cyber/NGFW/pull/162) | c434481c; complete quick [37217602615](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37217602615) PASS | f8fcd6c2; Done board f6386e4b |
-| F-igp-followups | codex/igp-followups-20261004 | [164](https://github.com/mcoder1001-cyber/NGFW/pull/164) | 14771daa; final complete quick [37220789126](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37220789126) PASS | 8c537ce2; Done closeout in this report commit |
-| F-multiwan-wiring | codex/F-multiwan-wiring-20261004 | [159](https://github.com/mcoder1001-cyber/NGFW/pull/159) | 2dd48e0a cumulative quick37222055557 PASS; standalone7f56e543 quick37219016499 PASS | queued |
-| F-pppoe-client-wiring | codex/F-pppoe-client-wiring-20261004 | [165](https://github.com/mcoder1001-cyber/NGFW/pull/165) | d33edd3c standalone complete quick37219021909 PASS | queued after159 |
+| F-igp-followups | codex/igp-followups-20261004 | [164](https://github.com/mcoder1001-cyber/NGFW/pull/164) | 14771daa; final complete quick [37220789126](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37220789126) PASS | 8c537ce2; Done board588eaafe |
+| F-multiwan-wiring | codex/F-multiwan-wiring-20261004 | [159](https://github.com/mcoder1001-cyber/NGFW/pull/159) | 2dd48e0a cumulative quick37222055557 PASS; standalone7f56e543 quick37219016499 PASS | bee8ed4b; Done closeout in this report commit |
+| F-pppoe-client-wiring | codex/F-pppoe-client-wiring-20261004 | [165](https://github.com/mcoder1001-cyber/NGFW/pull/165) | 38cef0cb cumulative quick37223559490 running; d33edd3c standalone quick37219021909 PASS | cumulative gate running; source/API integration APPROVE; complete gate pending |
 | F-management-ui-host | codex/ready-management-ui-host-20261004 | [163](https://github.com/mcoder1001-cyber/NGFW/pull/163) | 375f85b0 standalone complete quick37219065597 PASS | queued after165 |
 | F-dataplane-ui-host | codex/ready-dataplane-ui-host-20261004 | [160](https://github.com/mcoder1001-cyber/NGFW/pull/160) | a990ad73 standalone complete quick37219069928 PASS | queued after163 |
 | TEST-traffic-A | codex/ready-traffic-a-composed-20261004 | [166](https://github.com/mcoder1001-cyber/NGFW/pull/166) | e20afc2d standalone complete quick37219072067 PASS | queued after160 |
@@ -35,7 +35,16 @@ changed neither scanner rules nor depth. Full redacted history scan346commits
 found zero remaining leaks. Complete quick37219414200 PASS; merge38fa5d4e;
 postmerge main quick37220694454 PASS. This maintenance PR is not an eighth task.
 
-Recovery: current product main8c537ce2; main gate37221999334 PASS.
+Recovery: current product mainbee8ed4b; postmerge main gate37223476801 PASS.
+IGP postmerge main37221999334 PASS.
 Root board/status checkpoint branch is codex/seven-ready-integration-20261004.
-Next: merge159 expected2dd48e0a, then cumulatively integrate165→163→160→166.
+Next: pass final PPP quick37223559490 and merge165 expected38cef0cb;
+cumulatively integrate163→160→166.
 No live VPP restart, production apply, PPPoE dial or forwarding campaign was run.
+
+PPP cumulative API validation: all19secret-delivery cases passed after strictly
+sequential proto and schema builds (15.07s). Initial local failures were the RIP
+positive/negative cases because pre-IGP proto dist dropped the new RIP auth leaf;
+OSPF rejection was already correct. No product or assertion was changed to make
+them pass. Build/test logs: `/root/ngfw-wt/pppoe-tmp/proto-integrated-build.log`,
+`schema-integrated-final-build.log`, `api-integrated-igp-built.log`.

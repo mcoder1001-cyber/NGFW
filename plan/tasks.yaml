@@ -4792,7 +4792,7 @@ tasks:
       - F-multiwan-host
     priority: 4
     est_hours: 10
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope:
@@ -4801,12 +4801,12 @@ tasks:
     files_owned:
       apps/agent/internal/subsystems/wanmon/** apps/agent/internal/subsystems/wanmon_register.go apps/agent/internal/desired/multiwan*.go apps/agent/internal/agent/rpc_wan*.go
       test/topology/multiwan/** docs/user/network/multi-wan.md docs/status/tasks/F-multiwan-wiring*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: D-176
+    branch: "codex/F-multiwan-wiring-20261004"
+    worktree: "/root/ngfw-wt/F-multiwan-wiring-20261004"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
+    notes: "D-176 | Reviewed dual-stack PBR family fix completes remaining wiring source; historical monitor/routes/SNAT/ABF code was already integrated. PR159 merged bee8ed4b22a6270b61186ecabd0b8f2716aaa174; final head2dd48e0a complete cumulative hosted quick37222055557 PASS. Static gateway VRF/ABF forwarding implemented; probes remain default namespace/default VRF; DHCP/PPPoE gateway handoff separate. Real failover/weighted-flow/NAT/ABF acceptance NOT RUN, central campaign."
   - prompt: ''
     template: ''
     stage: S4

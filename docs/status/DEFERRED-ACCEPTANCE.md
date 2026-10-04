@@ -164,3 +164,16 @@ Reviewed source merged through PR151 (tunnels, IS-IS/RIPng, native SA events), P
 | F-vrrp-config-sync | Dual-appliance VRRP master change/split-brain, peer-offline recovery, anti-lockout and configuration-sync reconciliation | Single automatic writer; mixed/unknown roles refuse; HA NAT/IPsec/ACL state synchronization unsupported and warns |
 
 P11/native certificate trust option 1 was approved by the owner under D-234 on 2026-10-04; source implementation and independent review are complete. Real production sealed-cache/PKI/global-key/profile lifecycle, rotation, explicit revert and autonomous agent recovery after simulated profile/snapshot loss passed in disposable VPP. Certificate peer negotiation/packets, active-SA rotation, on-appliance/browser acceptance and deployment of this new source remain NOT RUN. P10 development packages are verified installed on 172.30.126.250; runtime file-ownership and release-license followups do not negate that installation. TD19 bootstrap trust remains pending. This source campaign has not restarted shared VPP, changed services or installed target packages.
+
+### Seven ready tasks: dataplane Apply source closeout (2026-10-04)
+
+PR162 implements the root-only Unix-socket executor, single-use actor/document/
+preview/installed SHA-bound approval, audited administrator API/UI action and
+existing product apply-startup rollback guards. Exact source head
+`c434481c0c5f55608b8bb4fc5e12274c9633eb65` passed the complete unchanged hosted
+quick gate [37217602615](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37217602615)
+and merged as `f8fcd6c2fc8cfddfe8c34397681acec44724225d`.
+Installed socket activation/permissions, real startup preview and approval,
+privileged apply/deadman/health rollback and en/fa browser acceptance remain
+**NOT RUN**. Execute under appliance ownership and the existing exclusive lock;
+source and isolated fixture success do not certify deployment.

@@ -150,7 +150,7 @@ Setup wizard: seven-step staged first boot/re-run and password/confirmed commit 
 
 PKI: operational secure materializer, sealed cache adapter and mutation UI completed. Real browser/daemon acceptance NOT RUN. Native IKEv2 certificate consumers belong to the separate native task. Public CA/CRL and operational keys only; CA signing keys stay API-side.
 
-OSPF: v3 contracts/rendering, fixture MD5 auth, Event20 and bounded on-demand state/UI completed. Production MD5 delivery remains explicitly PENDING-secret-channel per the task prompt. Real v2/v3 VPP FIB, withdrawal/restart/rollback and browser acceptance NOT RUN.
+OSPF: v3 contracts/rendering, fixture MD5 auth, Event20 and bounded on-demand state/UI completed. PR164 wires OSPF/RIPv2 MD5 password selection through the existing versioned sealed channel and adds RIPv2 per-interface key-chain authentication. Live authenticated peer/rotation acceptance remains NOT RUN. Real v2/v3 VPP FIB, withdrawal/restart/rollback and browser acceptance NOT RUN.
 
 ## Running-task source completion — 2026-10-04
 
@@ -177,3 +177,14 @@ Installed socket activation/permissions, real startup preview and approval,
 privileged apply/deadman/health rollback and en/fa browser acceptance remain
 **NOT RUN**. Execute under appliance ownership and the existing exclusive lock;
 source and isolated fixture success do not certify deployment.
+
+### Seven ready tasks: IGP source closeout (2026-10-04)
+
+PR164 additive RIPv2 MD5 key chains and decoded OSPF/RIP sealed-secret selectors
+passed unchanged complete hosted quick
+[37220789126](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37220789126)
+at `14771daa5574bc36678f014a54db9acba7bd949b`, then merged as
+`8c537ce2ff09fe4d91239149736e4ba2e24d30fd` after independent source/security
+review. Live FRR authenticated peers, key rotation/removal, convergence and real
+API/browser acceptance remain **NOT RUN**. Existing unrelated historical FRR
+observations are not fresh acceptance of this merge.

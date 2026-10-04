@@ -4749,17 +4749,17 @@ tasks:
       - S-rva-web-fixes
     priority: 5
     est_hours: 16
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope: the "not built" lists of docs/status/tasks/{F-ospf,F-isis-rip,F-vrrp-config-sync}.md and RV-A-review-R7.md; split into contract + agent + API + UI rows at prompt time
     files_owned: tbd at prompt generation
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: D-173; may be split
+    branch: "codex/igp-followups-20261004"
+    worktree: "/root/ngfw-wt/igp-followups-20261004"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
+    notes: "D-173; may be split | Reviewed additive RIPv2 MD5/key-chain and OSPF/RIP sealed-secret delivery source merged PR164 as 8c537ce2ff09fe4d91239149736e4ba2e24d30fd; exact head14771daa complete hosted quick37220789126 PASS. Live FRR authenticated peer/convergence/browser acceptance NOT RUN, central campaign."
   - id: F-pim-frrsync
     title: 'PIM via FRR: renderers/frr/pim section + frrsync/pim (PIM → VPP mFIB via seam S1), pimd test-scoped harness'
     prompt: prompts/features/F-pim-frrsync.md

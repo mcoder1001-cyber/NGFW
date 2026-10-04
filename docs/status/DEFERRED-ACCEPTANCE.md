@@ -228,3 +228,17 @@ passed at `fc6d896c99514c6403248f7c2b648f60c8dce719`; reviewed merge
 Actual deployed API/database TLS rotation and anti-lockout, real audit/log scrub,
 rollback and en/fa browser acceptance remain **NOT RUN**. Driver unit fixtures
 are not actual appliance or browser results.
+
+### Seven ready tasks: Dataplane host source closeout (2026-10-04)
+
+PR160 supplies an isolated real-API Dataplane acceptance driver with atomic
+candidate ownership, owner/lock/revision checks, preview/diff/SHA/readback and
+semantic-error pointer checks, plus process/startup no-restart invariants.
+It accepts both supported Apply-availability outcomes and does not invoke the
+separate privileged VPP apply/restart action. Three driver regressions and
+complete cumulative hosted quick
+[37226354347](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37226354347)
+passed at `4eaaa17a676fbff11a05321a385e3160cb9008a3`; reviewed merge
+`4069b365d1b762411ebdfc1a07c37461de04cb18` followed.
+Actual deployed API/database preview/commit/revision behavior and en/fa browser
+acceptance remain **NOT RUN**. Isolated driver tests are not real host proof.

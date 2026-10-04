@@ -5015,17 +5015,17 @@ tasks:
       - F-dataplane-ui
     priority: 3
     est_hours: 3
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope: owed checklist for F-dataplane-ui in docs/status/tasks/RV-B-review-R7.md; run after its S-row fixes merge where they change the behaviour under test
     files_owned: docs/status/tasks/F-dataplane-ui-host* test/topology/dataplane-ui/**
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: D-184
+    branch: "codex/ready-dataplane-ui-host-20261004"
+    worktree: "/root/.codex/worktrees/f796/work-dataplane-ui-host"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
+    notes: "D-184 | Reviewed isolated Dataplane API/UI acceptance driver source merged PR160 as4069b365d1b762411ebdfc1a07c37461de04cb18; final4eaaa17a complete cumulative hosted quick37226354347 PASS and three driver tests PASS. Atomic candidate ownership and revision/lock guards, preview/diff/SHA/readback checks, semantic pointer errors and process/startup no-restart invariants implemented; Apply availability true/false supported. Real API/DB/browser acceptance NOT RUN; driver does not issue privileged VPP apply/restart, central campaign."
   - id: F-management-ui-host
     title: 'F-management-ui host runs: the "Owed on the host" checklist of RV-B-review-R7.md'
     prompt: prompts/features/F-management-ui-host.md

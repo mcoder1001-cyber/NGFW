@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-03'
+updated: '2026-10-04'
 tasks:
   - id: P01
     title: Monorepo scaffold
@@ -4387,12 +4387,12 @@ tasks:
       guard DONE 2026-09-27 task/F-aaa-mfa-lockout] [API-key MFA gate, JWKS reuse, lower(username) index DONE 2026-09-27 task/F-aaa-hardening] TACACS+/SAML/QR/LDAPS pinning not built'
   - template: ''
     parked_on: ''
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    state: ready
+    branch: "codex/autoblock-host-20261003"
+    worktree: "/workspace/scratch/da15bc9650a7/task-autoblock"
+    owner: "Work agent autoblock (reviewed source integrated)"
+    started: "2026-10-03"
+    finished: "2026-10-04"
+    state: "merged"
     wbs: []
     prompt: ''
     id: F-bruteforce-block-host
@@ -4409,20 +4409,15 @@ tasks:
       bad logins -> blocked on local-in and through; expiry -> unblocked; allow-listed never blocked)
     files_owned: apps/agent/internal/**
     notes:
-      'follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host)
-
-      follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host) | 2026-09-28 spawned
-      (Agent tool, developer) slot 14, envelope /root/ngfw-wt/F-bruteforce-block-host.envelope.md, base main@f1f885a6 | done 8b3d2957 CI GATE PASSED (docs-only); review batch RV-H2 (R7+R2+T1)
-      with F-srv6-host | round 1 done c42c3a7e CI PASSED; docs-only → verify round then merge | round 2 fixed 0f71eaa7 (manager spot-check: KEEP=1 re-run, verbatim blocks, TD-H4 cited,
-      CI tail file) → merge queue | merged 25d085fa'
+      "follow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host)\nfollow-up to F-bruteforce-block (PR #49): the API-side webLogin detector + block set + UI shipped; this wires the dataplane and host detectors (needs lab VPP/host) | 2026-09-28 spawned (Agent tool, developer) slot 14, envelope /root/ngfw-wt/F-bruteforce-block-host.envelope.md, base main@f1f885a6 | done 8b3d2957 CI GATE PASSED (docs-only); review batch RV-H2 (R7+R2+T1) with F-srv6-host | round 1 done c42c3a7e CI PASSED; docs-only → verify round then merge | round 2 fixed 0f71eaa7 (manager spot-check: KEEP=1 re-run, verbatim blocks, TD-H4 cited, CI tail file) → merge queue | merged 25d085fa\n\n2026-10-04: scoped reviewed source integrated by PR139, merge 4ead8bd2ae2eb7881f311cc71a92218c129f15d7. Focused Go race, API23, typecheck and integration-tree review passed; real VPP/nftables packet, detector and restart-loss acceptance NOT RUN. Aggregate CI deferred by explicit owner publication/merge authorization; no aggregate green or hardware acceptance claimed. See docs/status/2026-10-04-three-ready-tasks.md and docs/status/DEFERRED-ACCEPTANCE.md."
   - template: ''
     parked_on: ''
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    state: ready
+    branch: "codex/igmp-host-20261003"
+    worktree: "/workspace/scratch/da15bc9650a7/task-igmp"
+    owner: "Work agent igmp (reviewed source integrated)"
+    started: "2026-10-03"
+    finished: "2026-10-04"
+    state: "merged"
     wbs: []
     prompt: ''
     id: F-igmp-mfib-host
@@ -4438,14 +4433,7 @@ tasks:
       30s)
     files_owned: apps/agent/internal/**
     notes:
-      'follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host;
-      VPP-engine IGMP host steps opt-in per D-087/D-090)
-
-      follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine
-      IGMP host steps opt-in per D-087/D-090) | 2026-09-28 spawned (Agent tool, developer) slot 15, envelope /root/ngfw-wt/F-igmp-mfib-host.envelope.md, base main@f1f885a6 | 2026-09-28
-      done 22b2f933 CI PASSED: (a) mfib.route descriptor host-verified; (b) igmp projection + events relay = CONTINUE WIP (F-igmp-mfib-host-wip.md); (c) → F-pim-frrsync; panel RV-H2 |
-      round 1 done c023c88f CI PASSED (R2/R4/R7 items addressed); verify round → merge; (b) CONTINUE remains | verify N1-N5 fixed f60108c1 CI PASSED; manager spot-check (run.txt tracked,
-      2 new tests pass) → merge queue; (b) stays CONTINUE → next worker | merged 103e0aa6 | item (b) igmp projection + events relay remains → CONTINUE row needed (F-igmp-mfib-wiring)'
+      "follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090)\nfollow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090) | 2026-09-28 spawned (Agent tool, developer) slot 15, envelope /root/ngfw-wt/F-igmp-mfib-host.envelope.md, base main@f1f885a6 | 2026-09-28 done 22b2f933 CI PASSED: (a) mfib.route descriptor host-verified; (b) igmp projection + events relay = CONTINUE WIP (F-igmp-mfib-host-wip.md); (c) → F-pim-frrsync; panel RV-H2 | round 1 done c023c88f CI PASSED (R2/R4/R7 items addressed); verify round → merge; (b) CONTINUE remains | verify N1-N5 fixed f60108c1 CI PASSED; manager spot-check (run.txt tracked, 2 new tests pass) → merge queue; (b) stays CONTINUE → next worker | merged 103e0aa6 | item (b) igmp projection + events relay remains → CONTINUE row needed (F-igmp-mfib-wiring)\n\n2026-10-04: scoped reviewed source integrated by PR138, merge 1a3d2ba47c4a93fa6fb4cdb269bd74daa3146515. Six-package race and focused source checks passed; real VPP/IGMP/restart NOT RUN. FRR PIM synchronization remains F-pim-frrsync; optional BIER not built. Aggregate CI deferred by explicit owner publication/merge authorization; no aggregate green or hardware acceptance claimed. See docs/status/2026-10-04-three-ready-tasks.md and docs/status/DEFERRED-ACCEPTANCE.md."
   - template: ''
     parked_on: ''
     branch: ''
@@ -5559,17 +5547,17 @@ tasks:
       - S-capture-retention-stop
     priority: 3
     est_hours: 4
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope: RV-C F-capture-trace MAJOR 5 (RV-C-review-F-capture-trace.md); HOST-FOLLOWUP-TEMPLATE
     files_owned: test/topology/capture-trace/** apps/api/test/e2e/capture-trace* apps/agent/internal/agent/capture_integration_test.go docs/status/tasks/F-capture-trace-host*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: ''
+    branch: "codex/capture-host-20261003"
+    worktree: "/workspace/scratch/da15bc9650a7/task-capture"
+    owner: "Work agent capture (reviewed source integrated)"
+    started: "2026-10-03"
+    finished: "2026-10-04"
+    notes: "\n\n2026-10-04: scoped reviewed source integrated by PR137, merge 5bad63a4b2df303a57e35f909044ac989cfc9c51. Runner9 and focused Go/API typecheck passed; actual API e2e, dedicated VPP recovery/packets, BPF and T4 screenshot NOT RUN. Aggregate CI deferred by explicit owner publication/merge authorization; no aggregate green or hardware acceptance claimed. See docs/status/2026-10-04-three-ready-tasks.md and docs/status/DEFERRED-ACCEPTANCE.md."
   - id: S-capture-file-safety
     title:
       "Capture file safety: unpredictable capture id, O_NOFOLLOW + fstat ownership check before moving VPP's /tmp pcap, fchmod on the fd, Read with O_NOFOLLOW; POST start admin-only

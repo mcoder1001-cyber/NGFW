@@ -13,7 +13,7 @@ Each case must record SHA, slot, command, expected/actual outcome, artifacts, fa
 
 ## Integrated review backlog
 
-The exact fourteen-row matrix, implementation SHAs, missing functionality and acceptance cases are in [review-lab-audit.md](review-lab-audit.md), incorporated into this campaign. Seven complete scoped implementations were already on main; seven partial features require further code. Board reconciliation is not fourteen new product merges.
+The exact fourteen-row matrix, implementation SHAs, missing functionality and acceptance cases are in [review-lab-audit.md](review-lab-audit.md), incorporated into this campaign. This historical audit distinguishes prior integrations from missing source at the time of review. Current completion and remaining functionality are recorded in each task closeout; deferred live acceptance is not PASS. Board reconciliation is not fourteen new product merges.
 
 ## Active feature acceptance
 
@@ -27,7 +27,7 @@ The exact fourteen-row matrix, implementation SHAs, missing functionality and ac
 
 ## Remaining host acceptance rows
 
-TEST-trafficA, F-lb-host, F-srv6-host, F-mpls-srmpls-host, F-rule-expiry-host, F-global-blocking-host, F-pppoe-client-host: execute their existing task acceptance against real slots. AutoBlock, multicast and LDP require code recovery and fresh reviews before their forwarding/expiry/detector, PIM/IGMP and label/neighbour/restart acceptance. No unavailable test is marked passed.
+TEST-trafficA, F-lb-host, F-srv6-host, F-mpls-srmpls-host, F-rule-expiry-host, F-global-blocking-host, F-pppoe-client-host: execute their existing task acceptance against real slots. AutoBlock, multicast and LDP source recovery and reviews are recorded in their integration reports; their forwarding/expiry/detector, PIM/IGMP and label/neighbour/restart laboratory acceptance remains NOT RUN. No unavailable test is marked passed.
 
 ## Recovery checkpoint
 
@@ -87,24 +87,20 @@ the strict wrapper correctly exits1. This bounded hosted proof does not establis
 VPP provenance, real reprepro publication, production signing-key management or
 fresh appliance installation/boot. Those target cases above remain NOT RUN.
 
-### TEST-traffic-A inactive source foundation
+### TEST-traffic-A composed source acceptance
 
-The bounded support foundation frozen at `bd443810dd048ef767c4bba0e4b7153b2a0d907b`
-has sixteen strict source cases; neither these nor structural capture parsing
-prove forwarding. Seven composed executors, candidate/commit and rollback
-lifecycle, shared-lock/lease renewal, protected run directories, capture
-generation, packet correlation and forwarding/drop assertions remain genuine
-**NOTIMPLEMENTED source work**. The live CLI refuses all stages. The stdout byte
-cap continuation is split from this foundation and must ship before live
-activation. These gaps are not lab-only deferrals; whole TEST-traffic-A is not DONE.
+PR166 integrates the leased in-tree composed transaction and owned NAT fixture,
+candidate/commit/rollback lifecycle, canonical locks, protected captures, packet
+correlation, CLI/API counter readback and cleanup guards. The original bounded
+foundation remains covered by source fixtures. Independent source review and
+fixtures do not prove actual forwarding.
 
-Actual laboratory acceptance remains **NOT RUN**. Once the executors and their
-reviewed lifecycle exist and access returns, use this single campaign to check
-VLAN→bridge/BVI→VRF/ECMP→uRPF/PBR→ACL→NAT44-ED/EI, selected PBR and both ECMP
-paths, expected forwarding/drop, translation/endpoint independence, rollback
-cleanup, capture loss and run identity. Both `whole_chain_proven=false` and
-`packet_outcomes_proven=false` remain authoritative until real acceptance proves
-them. No real rig, SSH, VPP, nft or capture operation was run for this foundation.
+Actual laboratory acceptance remains **NOT RUN**: execute
+VLAN→bridge/BVI→VRF/ECMP→uRPF/PBR→ACL→NAT44-ED/EI under a manager lease and idle
+owned window. Retain both-path/PBR, forwarding/drop, translation and endpoint
+independence, rollback/residue, capture-loss and VPP-identity evidence. The runner
+can mark whole_chain_proven only after real packet, readback and cleanup checks
+pass. No live campaign result is claimed by this source batch.
 
 ## Three ready-task source integrations — 2026-10-04
 
@@ -242,3 +238,19 @@ passed at `4eaaa17a676fbff11a05321a385e3160cb9008a3`; reviewed merge
 `4069b365d1b762411ebdfc1a07c37461de04cb18` followed.
 Actual deployed API/database preview/commit/revision behavior and en/fa browser
 acceptance remain **NOT RUN**. Isolated driver tests are not real host proof.
+
+### Seven ready tasks: Traffic composed source closeout (2026-10-04)
+
+PR166 supplies the composed VLAN/bridge/BVI/VRF/ECMP/uRPF/PBR/ACL/NAT44-ED/EI
+acceptance executor, canonical manager lease/lock, in-tree owned NAT fixture,
+private captures, packet/counter/readback correlation, configuration ownership
+and guarded cleanup. Source validation has 61 Python fixtures and three Go
+cases/vet PASS. Complete cumulative hosted quick
+[37227941852](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37227941852)
+and all ten companion PR fixture checks passed at
+`ab4ef8d548a2596bd356cd40f41ff4d3f0842b45`; reviewed merge
+`1f094f631caa6e4cdbc03afdb5c2cee8dcc23301` followed.
+All actual packet forwarding/drop, both-path/selected-PBR, NAT translation and
+endpoint independence, rollback/residue, capture-loss and VPP identity cases
+remain **NOT RUN**. No live whole_chain_proven result was generated. Use the
+existing manager lease and an idle owned rig window for this single campaign.

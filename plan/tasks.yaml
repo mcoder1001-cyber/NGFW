@@ -3564,7 +3564,7 @@ tasks:
       - F-nat44-ei-64-66-nptv6
     priority: 4
     est_hours: 6
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs:
       - D0.13
@@ -3572,16 +3572,13 @@ tasks:
       'review 6.6a: one scripted af_packet scenario: VLAN sub-if → bridge/BVI → VRF static/ECMP → uRPF/PBR → ACL → NAT44-ED/EI, ping and tcp from ns-lan to ns-wan with tcpdump evidence;
       wave A closes when this row is green'
     files_owned: test/topology/traffic-a/** docs/status/tasks/TEST-traffic-A*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
+    branch: "codex/ready-traffic-a-composed-20261004"
+    worktree: "/root/.codex/worktrees/f796/work-traffic-a"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
     notes:
-      'D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
-
-      Published reconciliation: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate) | 2026-10-03: fixture foundation only; composed
-      execution/rollback/lifecycle/capture/correlation/packet proof remain source work, not merely lab acceptance.'
+      "D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)\nPublished reconciliation: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate) | 2026-10-03: fixture foundation only; composed execution/rollback/lifecycle/capture/correlation/packet proof remain source work, not merely lab acceptance. | Reviewed leased composed forwarding acceptance source and in-tree owned NAT fixture merged PR166 as1f094f631caa6e4cdbc03afdb5c2cee8dcc23301; final ab4ef8d5 complete cumulative hosted quick37227941852 PASS and all ten companion PR fixture checks PASS. Source validation61 Python cases and three Go tests/vet PASS; original standalone gate37219072067 PASS. Canonical lock, ownership/fingerprint guards, capture/counter/readback and guarded cleanup implemented. Actual VLAN bridge VRF ECMP uRPF PBR ACL NAT forwarding/drop acceptance NOT RUN; no live whole-chain proof, central campaign."
   - id: TEST-traffic-B
     title: Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns
     prompt: ''

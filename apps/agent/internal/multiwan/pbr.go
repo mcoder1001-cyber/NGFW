@@ -3,6 +3,7 @@ package multiwan
 import (
 	"fmt"
 	"google.golang.org/protobuf/proto"
+	"net/netip"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"reflect"
@@ -46,15 +47,31 @@ func ExpandPBR(doc *ngfwv1.DesiredState, health []*ngfwv1.WanGroupState) []Route
 				}
 			}
 			var selected *core.Route
-			for _, kv := range routes {
-				r := kv.Value.(*core.Route)
-				for _, member := range g.GetMembers() {
-					for _, rp := range r.Paths {
-						if rp.Interface == member.GetInterface() {
-							selected = r
-						}
+			// A member can occur in both IPv4 and IPv6 groups. Match the
+			// group's forwarding identity, rather than an overlapping interface.
+			table := uint32(0)
+			if vrf != "default" {
+				table = doc.GetVrfs()[vrf].GetId()
+			}
+			for _, member := range g.GetMembers() {
+				if member.GetNextHop() != "gateway" {
+					continue
+				}
+				gateway, err := netip.ParseAddr(member.GetGateway())
+				if err != nil {
+					continue // Routes already validates static gateways.
+				}
+				prefix := "0.0.0.0/0"
+				if gateway.Unmap().Is6() {
+					prefix = "::/0"
+				}
+				for _, kv := range routes {
+					if kv.Key.ID() == core.RouteKey(table, prefix).ID() {
+						selected = kv.Value.(*core.Route)
+						break
 					}
 				}
+				break
 			}
 			if selected == nil {
 				paths = append(paths, &ngfwv1.PbrPath{Vrf: &vrf, Weight: path.Weight})

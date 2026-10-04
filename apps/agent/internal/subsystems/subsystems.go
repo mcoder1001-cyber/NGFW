@@ -332,6 +332,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-BC: F-pki
+	if err := w.registerPKI(r); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-ikev2-native
 	if err := w.registerIKEv2(r); err != nil {
 		return nil, err

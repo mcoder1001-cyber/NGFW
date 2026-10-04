@@ -24,6 +24,7 @@ const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
  * reported as a system_event). Route patterns as Fastify registers them; the route-guard test checks each exists.
  */
 export const PRIVILEGED_ROUTES: ReadonlySet<string> = new Set([
+  'POST /api/v1/config/setup/stage', // setup stages a new administrator credential
   'POST /api/v1/users/:name/password',
   'POST /api/v1/auth/password',
   'POST /api/v1/auth/api-keys',

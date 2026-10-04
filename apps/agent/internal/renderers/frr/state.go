@@ -122,8 +122,10 @@ func (r *Renderer) ShowJSON(ctx context.Context, cmd ShowCommand) (json.RawMessa
 // StateReader adds one JSON show command to Retrieve under Key (P12: {"bgpSummary",
 // "show bgp summary json"}).
 type StateReader struct {
-	Key     string
-	Command ShowCommand
+	// OnDemand excludes optional/large readers from automatic Retrieve; RoutingState may request them explicitly.
+	OnDemand bool
+	Key      string
+	Command  ShowCommand
 }
 
 var (
@@ -246,6 +248,9 @@ func (r *Renderer) State(ctx context.Context) (*State, error) {
 	for _, sr := range rs {
 		if err := sr.check(); err != nil {
 			return nil, err
+		}
+		if sr.OnDemand {
+			continue
 		}
 		if st.Extra[sr.Key], err = r.ShowJSON(ctx, sr.Command); err != nil {
 			return nil, err

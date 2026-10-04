@@ -1,3 +1,13 @@
+import {
+  buildCsr,
+  generateKey,
+  normaliseKeySpec,
+  parseCsr,
+  parseDn,
+  selfSignedCa,
+  signCsr,
+  toPem,
+} from '../features/pki/x509.js';
 import { DesiredState } from '@ngfw/proto';
 import { createCipheriv, randomBytes } from 'node:crypto';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -28,10 +38,10 @@ function setup(rows: unknown[][], payload = randomBytes(24).toString('hex')) {
   const key = randomBytes(32);
   const file = join(dir, 'master');
   writeFileSync(file, key, { mode: 0o600 });
-  const encrypt = (plain: string) => {
+  const encrypt = (plain: string, associatedRef = ref) => {
     const iv = randomBytes(12);
     const c = createCipheriv('aes-256-gcm', key, iv);
-    c.setAAD(Buffer.from(ref));
+    c.setAAD(Buffer.from(associatedRef));
     const ct = Buffer.concat([c.update(plain), c.final()]);
     return Buffer.concat([iv, c.getAuthTag(), ct]).toString('base64');
   };
@@ -45,7 +55,7 @@ function setup(rows: unknown[][], payload = randomBytes(24).toString('hex')) {
   return { delivery, select, where, encrypt, payload };
 }
 
-describe('native IPsec secret delivery', () => {
+describe('operational secret delivery', () => {
   it('does no secret reads for empty or unsupported reference domains', async () => {
     const { delivery, select } = setup([]);
     const ds = DesiredState.fromJSON({
@@ -79,9 +89,9 @@ describe('native IPsec secret delivery', () => {
 
   it('rejects absent or wrong-kind references without returning raw material', async () => {
     const { delivery } = setup([[]]);
-    await expect(delivery.resolve(state())).rejects.toThrow('native IPsec secret is unavailable');
+    await expect(delivery.resolve(state())).rejects.toThrow('operational secret is unavailable');
     await expect(delivery.resolve(state('key/native'))).rejects.toThrow(
-      'native IPsec secret kind is invalid',
+      'operational secret kind is invalid',
     );
   });
 
@@ -95,7 +105,7 @@ describe('native IPsec secret delivery', () => {
       await delivery.resolve(state());
       throw new Error('expected rejection');
     } catch (e) {
-      expect(String(e)).toContain('native IPsec secret cannot be decrypted');
+      expect(String(e)).toContain('operational secret cannot be decrypted');
       expect(String(e)).not.toContain(payload);
     }
     expect(log).not.toHaveBeenCalled();
@@ -103,4 +113,121 @@ describe('native IPsec secret delivery', () => {
     log.mockRestore();
     error.mockRestore();
   });
+});
+
+describe('operational PKI selection', () => {
+  it('delivers certificate and operational key, excludes CA signing keys, CSR-only keys and unrelated secrets', async () => {
+    const { delivery, where, encrypt } = setup([]);
+    const ds = DesiredState.fromJSON({
+      vpn: {
+        pki: {
+          cas: { root: { certificateRef: 'cert/root' } },
+          certificates: {
+            gateway: { certificateRef: 'cert/gateway', privateKeyRef: 'key/gateway' },
+            pending: { privateKeyRef: 'key/pending' },
+          },
+        },
+      },
+      management: { aaa: { radius: { servers: [{ secretRef: 'key/unrelated' }] } } },
+    });
+    const caKey = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const ca = selfSignedCa(parseDn('CN=Root'), caKey, 365);
+    const leafKey = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const csr = parseCsr(
+      toPem('CERTIFICATE REQUEST', buildCsr(parseDn('CN=Gateway'), [], leafKey)),
+    );
+    const leaf = signCsr(csr, { facts: ca.facts, key: caKey.privateKey }, { days: 30 });
+    const payloads: Record<string, string> = {
+      'cert/root': ca.pem,
+      'cert/gateway': leaf.pem,
+      'key/gateway': 'operational-key-test',
+    };
+    const selected = ['cert/root', 'cert/gateway', 'key/gateway'];
+    where.mockResolvedValue([]);
+    for (const r of selected)
+      where.mockResolvedValueOnce([
+        { ref: r, kind: r.split('/')[0], version: 3, ciphertext: encrypt(payloads[r]!, r) },
+      ]);
+    const got = await delivery.resolveVersioned(ds);
+    expect(Object.keys(got.bundle.values)).toEqual(selected);
+    expect(where).toHaveBeenCalledTimes(4);
+    expect(got.versions).toEqual(Object.fromEntries(selected.map((r) => [r, 3])));
+  });
+  it('rejects mixed kind and oversized material without exposing decrypted bytes', async () => {
+    const { delivery, where, encrypt } = setup([]);
+    const ds = DesiredState.fromJSON({
+      vpn: {
+        pki: {
+          certificates: {
+            gateway: { certificateRef: 'cert/gateway', privateKeyRef: 'cert/gateway' },
+          },
+        },
+      },
+    });
+    await expect(delivery.resolve(ds)).rejects.toThrow('operational secret kind is invalid');
+    expect(where).not.toHaveBeenCalled();
+    const oversized = 'x'.repeat(65537);
+    where.mockResolvedValueOnce([
+      { kind: 'cert', version: 1, ciphertext: encrypt(oversized, 'cert/root') },
+    ]);
+    await expect(
+      delivery.resolve(
+        DesiredState.fromJSON({ vpn: { pki: { cas: { root: { certificateRef: 'cert/root' } } } } }),
+      ),
+    ).rejects.toThrow('transport limit');
+  });
+});
+
+it('refuses configured CA signing key reuse as an operational key before decrypting it', async () => {
+  const { delivery, where, encrypt } = setup([]);
+  where.mockResolvedValueOnce([
+    { kind: 'cert', version: 1, ciphertext: encrypt('public', 'cert/root') },
+  ]);
+  where.mockResolvedValueOnce([
+    { kind: 'cert', version: 1, ciphertext: encrypt('public', 'cert/gateway') },
+  ]);
+  const ds = DesiredState.fromJSON({
+    vpn: {
+      pki: {
+        cas: { root: { certificateRef: 'cert/root' } },
+        certificates: { gateway: { certificateRef: 'cert/gateway', privateKeyRef: 'key/root' } },
+      },
+    },
+  });
+  await expect(delivery.resolve(ds)).rejects.toThrow('kind is invalid');
+  expect(where).toHaveBeenCalledTimes(2);
+});
+
+it('rejects a CA certificate hidden in operational inventory before reading its signing key', async () => {
+  const { delivery, where, encrypt } = setup([]);
+  const key = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+  const ca = selfSignedCa(parseDn('CN=Hidden CA'), key, 365);
+  where.mockResolvedValueOnce([
+    { kind: 'cert', version: 1, ciphertext: encrypt(ca.pem, 'cert/alias') },
+  ]);
+  await expect(
+    delivery.resolve(
+      DesiredState.fromJSON({
+        vpn: {
+          pki: {
+            certificates: { alias: { certificateRef: 'cert/alias', privateKeyRef: 'key/alias' } },
+          },
+        },
+      }),
+    ),
+  ).rejects.toThrow('CA signing keys cannot be delivered');
+  expect(where).toHaveBeenCalledTimes(1);
+});
+it('does not add a newly available implicit CRL to a revision that had no CRL version', async () => {
+  const { delivery, where, encrypt } = setup([]);
+  where.mockResolvedValueOnce([
+    { kind: 'cert', version: 1, ciphertext: encrypt('public', 'cert/root') },
+  ]);
+  where.mockResolvedValueOnce([{ version: 1, ciphertext: encrypt('public', 'cert/root') }]);
+  const result = await delivery.resolveVersioned(
+    DesiredState.fromJSON({ vpn: { pki: { cas: { root: { certificateRef: 'cert/root' } } } } }),
+    { 'cert/root': 1 },
+  );
+  expect(Object.keys(result.bundle.values)).toEqual(['cert/root']);
+  expect(where).toHaveBeenCalledTimes(2);
 });

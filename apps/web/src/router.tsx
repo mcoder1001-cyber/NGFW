@@ -66,6 +66,7 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // both work). A splat route ranks below every static path above, so it never shadows them.
         { path: 'config/*', lazy: async () => ({ Component: (await import('./domains/advanced/AdvancedEditorPage')).AdvancedEditorPage }) },
         // Feature screens: one lazy route line under the feature's anchor (wave-A-hotspots W1).
+        { path: 'system/setup', lazy: async () => ({ Component: (await import('./domains/system/setup/SetupWizardPage')).SetupWizardPage }) },
         // wave-BC: F-tunnels
         { path: 'vpn/tunnels', lazy: async () => ({ Component: (await import('./domains/vpn/tunnels/TunnelsPage')).TunnelsPage }) },
         // wave-BC: P10

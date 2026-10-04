@@ -66,6 +66,10 @@ func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute
 		out.Bgp = proto.Clone(rt.GetBgp()).(*ngfwv1.BgpConfig)
 		content = true
 	}
+	if rt.GetOspf6() != nil {
+		out.Ospf6 = proto.Clone(rt.GetOspf6()).(*ngfwv1.Ospf6Config)
+		content = true
+	}
 	if rt.GetOspf() != nil { // F-ospf
 		out.Ospf = proto.Clone(rt.GetOspf()).(*ngfwv1.OspfConfig)
 		content = true
@@ -248,6 +252,7 @@ func AssembleFRR(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 		ds.Routing.Bgp = rt.GetBgp()
 		ds.Routing.Policy = rt.GetPolicy()
 		ds.Routing.Ospf = rt.GetOspf() // F-ospf
+		ds.Routing.Ospf6 = rt.GetOspf6()
 		ds.Routing.Isis = rt.GetIsis() // F-isis-rip
 		ds.Routing.Rip = rt.GetRip()   // F-isis-rip
 		if len(rt.GetStatic()) > 0 {

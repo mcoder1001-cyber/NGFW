@@ -3,6 +3,12 @@ package agent
 import (
 	"context"
 	"net"
+	"ngfw/agent/internal/descriptors/vpn"
+	"ngfw/agent/internal/pki"
+	"ngfw/agent/internal/subsystems"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -91,5 +97,33 @@ func TestPkiFileStateRegisteredRPC(t *testing.T) {
 	got, err := client.PkiFileState(ctx, &ngfwv1.PkiFileStateRequest{Owner: "foreign"})
 	if got != nil || status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("registered RPC foreign owner response %v, error %v", got, err)
+	}
+}
+
+func TestPkiFileStateAvailableAndRedactedErrors(t *testing.T) {
+	keyer, err := vpn.NewKeyer(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	manifest := filepath.Join(dir, "manifest.json")
+	m, err := pki.New(pki.Config{Root: dir, Manifest: manifest, Keyer: keyer})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	restore := subsystems.SetPKIRuntimeForTest("pki-observed", m, "")
+	defer restore()
+	g := &server{svc: &Service{owner: "pki-observed", now: func() time.Time { return pkiStateTime }}}
+	got, err := g.PkiFileState(context.Background(), &ngfwv1.PkiFileStateRequest{Owner: "pki-observed"})
+	if err != nil || got.GetRoot() != dir || got.GetUnavailable() != "" || len(got.GetFiles()) != 0 {
+		t.Fatalf("observed state: %v %v", got, err)
+	}
+	if err := os.WriteFile(manifest, []byte("PRIVATE_DIAGNOSTIC_CANARY"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err = g.PkiFileState(context.Background(), &ngfwv1.PkiFileStateRequest{})
+	if got != nil || status.Code(err) != codes.Unavailable || strings.Contains(err.Error(), "CANARY") {
+		t.Fatalf("unsafe error: %v %v", got, err)
 	}
 }

@@ -134,7 +134,7 @@ const REVERT_GRACE_MS = 1500;
 const RECONCILE_RETRY_MS = [1000, 2000, 5000, 10_000, 30_000];
 
 /** The API applies `management.users` itself (app_user), so changes there count as applied (review M4). */
-const API_APPLIED = ['/management/users', '/management/notifications'];
+const API_APPLIED = ['/management/users', '/management/notifications', '/system/setup'];
 
 /**
  * Changed top-level keys between two documents that the agent does not implement (review M4). A domain whose only

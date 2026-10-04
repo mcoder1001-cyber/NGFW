@@ -1,3 +1,5 @@
+import Button from '@mui/material/Button';
+import { Link as RouterLink } from 'react-router';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
@@ -80,6 +82,9 @@ export function SystemIdentityPage() {
 
   return (
     <PageHeader title={t('title')}>
+      <Button component={RouterLink} to="/system/setup">
+        {t('setup:run')}
+      </Button>
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {t('intro')}
       </Typography>
@@ -88,7 +93,12 @@ export function SystemIdentityPage() {
       )}
       {cand.isError && <ProblemAlert error={cand.error} sx={{ mb: 2 }} />}
       {running.isError && <ProblemAlert error={running.error} sx={{ mb: 2 }} />}
-      <Paper component="section" aria-label={t('observed.title')} variant="outlined" sx={{ p: 2, mb: 2 }}>
+      <Paper
+        component="section"
+        aria-label={t('observed.title')}
+        variant="outlined"
+        sx={{ p: 2, mb: 2 }}
+      >
         <Typography component="h3" variant="h6">
           {t('observed.title')}
         </Typography>

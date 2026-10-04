@@ -542,6 +542,31 @@ export const OspfAreaSchema = z.strictObject({
 });
 
 /** OSPF on one interface; the interface name is the record key (`/routing/ospf/interfaces/loop0`). */
+export const OspfAuthSchema = z
+  .strictObject({
+    type: z.enum(['none', 'md5']),
+    keyId: z.number().int().min(1).max(255).optional(),
+    keyRef: secretRefOf('password').optional(),
+  })
+  .superRefine((auth, ctx) => {
+    if (auth.type === 'md5') {
+      if (auth.keyId === undefined)
+        ctx.addIssue({ code: 'custom', message: 'MD5 requires a key id', path: ['keyId'] });
+      if (!auth.keyRef)
+        ctx.addIssue({
+          code: 'custom',
+          message: 'MD5 requires a secret reference',
+          path: ['keyRef'],
+        });
+    } else if (auth.keyId !== undefined || auth.keyRef !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'authentication none cannot carry a key',
+        path: ['keyRef'],
+      });
+    }
+  });
+
 export const OspfInterfaceSchema = z.strictObject({
   area: withUi(ospfAreaId, { order: 1 }),
   cost: withUi(z.number().int().min(1).max(65535).optional(), { title: 'Cost', order: 2 }),
@@ -565,6 +590,7 @@ export const OspfInterfaceSchema = z.strictObject({
   priority: withUi(z.number().int().min(0).max(255).optional(), { title: 'DR priority', order: 7 }),
   bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 8 }),
   // wave-BC: F-ospf
+  auth: withUi(OspfAuthSchema.optional(), { title: 'Authentication', order: 9 }),
   // wave-BC: F-bfd-redistribution
 });
 
@@ -601,6 +627,26 @@ export const OspfSchema = z
     },
   );
 export type OspfConfig = z.infer<typeof OspfSchema>;
+
+// OSPFv3 shares the area model; NBMA and v2 authentication are deliberately unavailable.
+export const Ospf6InterfaceSchema = OspfInterfaceSchema.omit({ auth: true, bfd: true }).extend({
+  networkType: withUi(z.enum(['broadcast', 'point-to-point', 'point-to-multipoint']).optional(), {
+    title: 'Network type',
+  }),
+});
+export const Ospf6Schema = z
+  .strictObject({
+    routerId: withUi(routerId.optional(), { title: 'Router ID' }),
+    vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF' }),
+    areas: withUi(z.record(ospfAreaId, OspfAreaSchema).default({}), { title: 'Areas' }),
+    interfaces: igpInterfaces(Ospf6InterfaceSchema),
+    redistribute: withUi(redistributeInto('ospf'), { title: 'Redistribution' }),
+  })
+  .refine(
+    (o) => new Set(Object.keys(o.areas).map(ospfAreaNumber)).size === Object.keys(o.areas).length,
+    { message: 'area ids must be unique', path: ['areas'] },
+  );
+export type Ospf6Config = z.infer<typeof Ospf6Schema>;
 
 /* ------------------------------------------------------------------------------------------------- IS-IS */
 
@@ -721,6 +767,7 @@ export const RoutingSchema = withUi(
     bfd: withUi(BfdSchema.optional(), { title: 'BFD', group: 'dynamic', order: 7 }),
     // Feature keys (sub-schema in domains/ext/<slug>.ts): one key line under the feature's anchor.
     // wave-BC: F-ospf
+    ospf6: withUi(Ospf6Schema.optional(), { title: 'OSPFv3', group: 'dynamic', order: 5 }),
     // wave-BC: F-isis-rip
     // wave-BC: F-mpls-srmpls
     mpls: routingMpls,

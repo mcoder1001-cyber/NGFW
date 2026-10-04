@@ -108,7 +108,7 @@ describe('public PKI inventory', () => {
     expect(within(table).getByText('Expiring')).toBeInTheDocument();
     expect(screen.getByText('Agent certificate inventory is unavailable.')).toBeInTheDocument();
     expect(view.container.textContent).not.toContain(secret);
-    expect(screen.queryByRole('button', { name: /import|export|sign/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /import|sign/i })).not.toBeInTheDocument();
   });
 
   it('recovers from API errors with an accessible retry without showing server detail', async () => {

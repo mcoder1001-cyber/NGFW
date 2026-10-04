@@ -44,6 +44,7 @@ const failPath = (schema: z.ZodType, value: unknown): unknown[] | undefined =>
 describe('system', () => {
   it('fills defaults for the empty section', () => {
     expect(SystemSchema.parse({})).toEqual({
+      setup: { completed: false },
       hostname: 'ngfw',
       timezone: 'UTC',
       banner: {},

@@ -1,3 +1,20 @@
+# F-ospf — source completion 2026-10-04
+
+Branch codex/complete-ospf-20261004 based on main121c09747. The historical v2-only status below is superseded.
+Built OSPFv3 additive schema/proto, family/VRF/area/router-id checks, FRR section and mapped interface lines,
+FRR desired projection/assembly, interface MD5 fixture resolver and existing redaction, Event20 for both families,
+version-selectable authenticated bounded observed neighbors, request-only interface/LSDB public projection and
+paged database route, OSPFv3 form tab and live neighbors grid, en/fa strings, user/CLI docs.
+Optional v3/LSDB StateReaders are request-only, so automatic FRR Retrieve never depends on their daemon or walks LSDB.
+Actual checks and remote checkpoints are recorded in F-ospf-wip.md.
+
+Runtime boundary: PENDING-secret-channel continues to prohibit production routing-password delivery. Missing resolver
+rejects MD5 commit explicitly; fixture rendering/redaction is tested, real MD5 is not claimed. Older FRR may emit
+concatenated multi-VRF JSON for v3; this is reported unavailable rather than invented healthy state. Host FIB/packet,
+withdrawal, daemon recovery/rollback and browser acceptance require laboratory execution and remain deferred.
+
+## Historical notes (superseded missing-source list)
+
 # F-ospf — OSPFv2 via FRR (OSPFv3 blocked on contract)
 
 State: review. Branch `claude/modest-keller-upaw4m`.

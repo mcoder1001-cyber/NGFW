@@ -72,6 +72,7 @@ func (c *driftChecker) add(dir, path, format string, args ...any) {
 // "<direction> <path>". Every entry must still occur (a stale entry is a finding), and only
 // proto→schema supersets may be accepted — a schema leaf without a proto field never is.
 var acceptedDrift = map[string]string{
+	protoToSchema + " /routing/ospf6/redistribute/ospf": "shared Redistribute; IPv4 OSPF cannot redistribute into IPv6 OSPFv3",
 	// Native route based IPsec deliberately rejects legacy per-profile DPD and
 	// unsupported IKE/packet lifetimes. Their wire tags stay reserved to existing
 	// fields for compatibility; IpsecRekey is also shared with remote access.
@@ -262,6 +263,20 @@ func (c *driftChecker) object(path string, alts []jsonNode, md protoreflect.Mess
 	for _, name := range names {
 		p := path + "/" + name
 		f := md.Fields().ByJSONName(name)
+		// Setup completion is API-owned read-only bookkeeping, deliberately stripped
+		// before DesiredState construction. Do not permit arbitrary readOnly exclusions.
+		if p == "/system/setup" {
+			for _, node := range props[name] {
+				if node["readOnly"] != true {
+					c.add(schemaToProto, p, "API-owned setup metadata must remain read-only")
+					break
+				}
+			}
+			if f != nil {
+				c.add(schemaToProto, p, "API-owned setup metadata must not cross the agent boundary")
+			}
+			continue
+		}
 		if isSecretNode(props[name]) {
 			if f != nil {
 				c.add(schemaToProto, p, "secret-flagged leaf has proto field %s = %d — secrets never cross the boundary (D-040)", f.Name(), f.Number())
@@ -583,5 +598,30 @@ func TestModelStaysAgentInternal(t *testing.T) {
 		if p := imports.Get(i).Path(); strings.HasPrefix(p, "ngfw/model/") {
 			t.Errorf("ngfw/v1/dataplane.proto imports %s — the object model must stay agent-internal", p)
 		}
+	}
+}
+
+func TestAPIOnlySetupContractRemainsReadOnly(t *testing.T) {
+	root := loadGeneratedSchema(t)
+	system := flatten(root["properties"].(jsonNode)["system"].(jsonNode))[0]["properties"].(jsonNode)
+	setup := system["setup"].(jsonNode)
+	setup["readOnly"] = false
+	c := checkDrift(root, (&ngfwv1.DesiredState{}).ProtoReflect().Descriptor(), acceptedDrift)
+	if len(c.findings) != 1 || c.findings[0].path != "/system/setup" || !strings.Contains(c.findings[0].msg, "must remain read-only") {
+		t.Fatalf("API metadata guard: %+v", c.findings)
+	}
+}
+func TestAPIOnlySetupContractRejectsAgentWireField(t *testing.T) {
+	file, err := protodesc.NewFile(&descriptorpb.FileDescriptorProto{
+		Name: proto.String("api_setup_probe.proto"), Package: proto.String("probe"), Syntax: proto.String("proto3"),
+		MessageType: []*descriptorpb.DescriptorProto{{Name: proto.String("System"), Field: []*descriptorpb.FieldDescriptorProto{{Name: proto.String("setup"), Number: proto.Int32(1), Type: descriptorpb.FieldDescriptorProto_TYPE_BOOL.Enum()}}}},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &driftChecker{messages: map[protoreflect.FullName]bool{}}
+	c.object("/system", []jsonNode{{"properties": jsonNode{"setup": jsonNode{"type": "object", "readOnly": true}}}}, file.Messages().Get(0))
+	if len(c.findings) != 1 || !strings.Contains(c.findings[0].msg, "must not cross") {
+		t.Fatalf("wire boundary guard: %+v", c.findings)
 	}
 }

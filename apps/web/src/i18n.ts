@@ -1,3 +1,5 @@
+import enSetup from './locales/en/setup.json';
+import faSetup from './locales/fa/setup.json';
 import { UI_KIT_NS, uiKitResources } from '@ngfw/ui-kit';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
@@ -326,6 +328,7 @@ const en = {
   // F-system-identity (unanchored)
   'system-identity': enSystemIdentity,
   dataplane: enDataplane, // F-dataplane-ui (unanchored)
+  setup: enSetup,
   management: enManagement, // F-management-ui (unanchored)
   // wave-BC: F-snmp
   snmp: enSnmp,
@@ -434,6 +437,7 @@ const fa = {
   // F-system-identity (unanchored)
   'system-identity': faSystemIdentity,
   dataplane: faDataplane, // F-dataplane-ui (unanchored)
+  setup: faSetup,
   management: faManagement, // F-management-ui (unanchored)
   // wave-BC: F-snmp
   snmp: faSnmp,

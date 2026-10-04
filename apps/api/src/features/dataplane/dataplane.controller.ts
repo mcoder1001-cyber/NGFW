@@ -1,4 +1,4 @@
-import { Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Inject, Post } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   DataplaneConfig,
@@ -14,6 +14,20 @@ import { DatastoreService } from '../../datastore/datastore.service.js';
 
 export const DataplaneStateOut = z
   .object({
+    runtimeThreads: z.array(
+      z.object({
+        id: z.number(),
+        name: z.string(),
+        type: z.string(),
+        cpuId: z.number(),
+        core: z.number(),
+        numaSocket: z.number(),
+      }),
+    ),
+    loadedPlugins: z.string(),
+    nicQueues: z.string(),
+    runtimeMemory: z.string(),
+    runtimeErrors: z.array(z.string()),
     startupPath: z.string().describe('installed VPP start-up file the agent read'),
     startupPresent: z.boolean(),
     workers: z.number().int().nullable().describe('cpu { workers N } of the installed file'),
@@ -53,6 +67,11 @@ export function toDataplaneState(
   r: DataplaneStartupStateResponse,
 ): z.infer<typeof DataplaneStateOut> {
   return {
+    runtimeThreads: r.runtimeThreads ?? [],
+    loadedPlugins: r.loadedPlugins ?? '',
+    nicQueues: r.nicQueues ?? '',
+    runtimeMemory: r.runtimeMemory ?? '',
+    runtimeErrors: r.runtimeErrors ?? [],
     startupPath: r.startupPath,
     startupPresent: r.startupPresent,
     workers: r.workers ?? null,
@@ -90,15 +109,15 @@ export function toDataplanePreview(
 @Controller('api/v1')
 export class DataplaneController {
   constructor(
-    private readonly agent: AgentClient,
-    private readonly ds: DatastoreService,
+    @Inject(AgentClient) private readonly agent: AgentClient,
+    @Inject(DatastoreService) private readonly ds: DatastoreService,
   ) {}
 
   @Get('state/dataplane')
   @Protected(501, 502, 503)
   @ApiOperation({
     summary:
-      'Installed VPP start-up configuration (workers, cores, plugin switches) and host facts (CPUs, hugepages)',
+      'Observed VPP threads, plugins, RX queues and memory, alongside installed startup settings and host facts',
   })
   @ApiOkResponse({ schema: openapi(DataplaneStateOut, 'output') })
   async state() {

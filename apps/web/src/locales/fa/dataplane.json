@@ -118,5 +118,13 @@
   "switch": {
     "on": "روشن",
     "off": "خاموش"
+  },
+  "runtime": {
+    "title": "وضعیت مشاهده‌شدهٔ VPP",
+    "unavailable": "بعضی اطلاعات زمان اجرا در دسترس نیست",
+    "loadedPlugins": "پلاگین‌های بارگذاری‌شده",
+    "nicQueues": "تخصیص صف‌های دریافت",
+    "runtimeMemory": "حافظه و اندازهٔ صفحات VPP",
+    "thread": "{{name}} ({{type}}) پردازنده {{cpu}}، هسته {{core}}، گره NUMA {{numa}}"
   }
 }

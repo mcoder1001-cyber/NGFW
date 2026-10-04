@@ -1146,7 +1146,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Installed VPP start-up configuration (workers, cores, plugin switches) and host facts (CPUs, hugepages) */
+    /** Observed VPP threads, plugins, RX queues and memory, alongside installed startup settings and host facts */
     get: operations['Dataplane_state'];
     put?: never;
     post?: never;
@@ -16182,6 +16182,18 @@ export interface operations {
         };
         content: {
           'application/json': {
+            runtimeThreads: {
+              id: number;
+              name: string;
+              type: string;
+              cpuId: number;
+              core: number;
+              numaSocket: number;
+            }[];
+            loadedPlugins: string;
+            nicQueues: string;
+            runtimeMemory: string;
+            runtimeErrors: string[];
             /** @description installed VPP start-up file the agent read */
             startupPath: string;
             startupPresent: boolean;

@@ -12,10 +12,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/internal/vpp"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -63,11 +66,13 @@ func readStartup(path string) ([]byte, bool, error) {
 }
 
 // DataplaneStartupState implements the DataplaneStartupState RPC.
-func (g *server) DataplaneStartupState(_ context.Context, req *ngfwv1.DataplaneStartupStateRequest) (*ngfwv1.DataplaneStartupStateResponse, error) {
+func (g *server) DataplaneStartupState(ctx context.Context, req *ngfwv1.DataplaneStartupStateRequest) (*ngfwv1.DataplaneStartupStateResponse, error) {
 	if err := g.svc.checkOwner(req.GetOwner()); err != nil {
 		return nil, err
 	}
-	return startupState(startupSourcesFromEnv()), nil
+	out := startupState(startupSourcesFromEnv())
+	fillRuntime(ctx, g.svc.vpp, out)
+	return out, nil
 }
 
 func startupState(src startupSources) *ngfwv1.DataplaneStartupStateResponse {
@@ -202,4 +207,42 @@ func startupPreview(src startupSources, dp *ngfwv1.DataplaneConfig) (*ngfwv1.Dat
 	}
 	out.Diff, out.Changed = d, d != ""
 	return out, nil
+}
+
+// Every command is a fixed read-only probe. No installed settings are substituted on failure.
+func fillRuntime(ctx context.Context, client vpp.Client, out *ngfwv1.DataplaneStartupStateResponse) {
+	if client == nil || !client.Connected() {
+		out.RuntimeErrors = []string{"vpp.disconnected"}
+		return
+	}
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	svc := vlib.NewServiceClient(client)
+	threads, err := svc.ShowThreads(ctx, &vlib.ShowThreads{})
+	if err != nil {
+		out.RuntimeErrors = append(out.RuntimeErrors, "threads.unavailable")
+	} else {
+		for _, t := range threads.ThreadData {
+			out.RuntimeThreads = append(out.RuntimeThreads, &ngfwv1.DataplaneRuntimeThread{Id: t.ID, Name: t.Name, Type: t.Type, CpuId: t.CPUID, Core: t.Core, NumaSocket: t.CPUSocket})
+		}
+	}
+	for _, probe := range []struct {
+		name, command string
+		target        *string
+	}{
+		{"plugins", "show plugins", &out.LoadedPlugins},
+		{"nic_queues", "show interface rx-placement", &out.NicQueues},
+		{"nic_hardware", "show hardware-interfaces", &out.NicQueues},
+		{"memory", "show memory verbose", &out.RuntimeMemory},
+	} {
+		rep, err := svc.CliInband(ctx, &vlib.CliInband{Cmd: probe.command})
+		if err != nil || strings.Contains(strings.ToLower(rep.Reply), "unknown input") {
+			out.RuntimeErrors = append(out.RuntimeErrors, probe.name+".unavailable")
+			continue
+		}
+		if *probe.target != "" {
+			*probe.target += "\n"
+		}
+		*probe.target += rep.Reply
+	}
 }

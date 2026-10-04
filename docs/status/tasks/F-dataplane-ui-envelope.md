@@ -1,0 +1,3 @@
+# F-dataplane-ui completion envelope
+
+Assigned by manager on 2026-10-04 to agent complete_dataplane. Branch codex/complete-dataplane-ui-20261004; isolated worktree /tmp/ngfw-complete-dataplane; base origin/main121c09747. Finish existing source, preserve contracts additively; own dataplane API/UI and startup state RPC. Do not edit task board or generated API-client; manager regenerates combined client. No VPP restart or startup apply; apply has a separate task. Full CI waived by owner; focused meaningful checks and independent review required. Publish every checkpoint via authorized GitHub connector because CLI push returns403. Remaining laboratory acceptance must be explicit, never labeled complete.

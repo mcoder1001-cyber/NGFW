@@ -137,3 +137,11 @@ Capture the exact integrated SHA, topology/slot, commands, raw outcomes and arti
 Owner authorized source recovery and final merging with complete CI waived. See `tasks/eight-review-recovery-20261004.md`. Source completion and live acceptance are separate. Default NIC binding/release on hardware, classify/sentinel current-host lifecycle, det44 current packet acceptance, and alarm rebuild on actual PostgreSQL/API restart remain deferred. Unsafe DS-Lite pool deletion tests are parked until a verified upstream VPP fix and reviewed safe harness exist.
 
 NAT46: scoped descriptor acceptance was run on current VPP slot17 and passed create/retrieve/idempotent apply/delete; full IPv4-to-IPv6 packets, agent-restart timing, rollback and API/browser remain deferred. OSPF: restored FRR live and full topology tests; FRR-only adjacency/redistribution/withdrawal/event/config removal passed on slot11 (41.597s); root FIB mode fails closed on unverified shared-host preconditions. Full FRR/VPP adjacency/FIB, withdrawal/restart/rollback and API acceptance remain owed unless recorded in the recovery report. These two host rows remain parked; historical PASS evidence alone does not complete them.
+
+## Five incomplete task completion campaign — 2026-10-04
+
+Dataplane UI: observed VPP runtime/probe errors and actual startup preview/diff implemented, live read-only VPP probes passed. Deployed browser en/fa, startup commit/rollback and gated restart acceptance remain NOT RUN; VPP restart is the separate appliance privilege gate.
+
+Management UI: certificate removal/rotation listener lifecycle and accurate revision/protocol status completed. Focused TLS/WSS15 and UI/locale11 tests passed with independent review. Real deployed API/DB/browser anti-lockout acceptance remains NOT RUN.
+
+The owner waived hosted/full CI for this campaign. Focused tests, typechecks and independent source review are recorded separately; no waived gate is claimed passed.

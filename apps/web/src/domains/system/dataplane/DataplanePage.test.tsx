@@ -26,6 +26,11 @@ function app(path: string) {
 const RUNNING = { workers: 2, mainCore: 1, pciWhitelist: [], managementPci: [], devices: {} };
 const CANDIDATE = { workers: 4, mainCore: 1, pciWhitelist: [], managementPci: [], devices: {} };
 const STATE = {
+  runtimeThreads: [{ id: 0, name: 'vpp_main', type: 'main', cpuId: 7, core: 7, numaSocket: 0 }],
+  loadedPlugins: 'observed_plugin.so',
+  nicQueues: 'queue 0 on worker 1',
+  runtimeMemory: '2m pages',
+  runtimeErrors: [],
   startupPath: '/etc/vpp/startup.conf',
   startupPresent: true,
   workers: 2,
@@ -92,7 +97,10 @@ describe('System → Dataplane (F-dataplane-ui)', () => {
       'Review candidate and running settings',
     );
     expect(screen.queryByTestId('dp-diff')).not.toBeInTheDocument();
-    expect(document.body.textContent).not.toMatch(/FRR|VPP|strongSwan|\/etc\/vpp/i);
+    expect(screen.getByTestId('dp-preview-rendered')).toHaveTextContent('workers 4');
+    expect(screen.getByTestId('dp-preview-diff')).toHaveTextContent('- workers 2');
+    expect(screen.getByTestId('dp-runtime')).toHaveTextContent('CPU 7');
+    expect(screen.getByTestId('dp-runtime')).toHaveTextContent('observed_plugin.so');
     expect(PREVIEW.diff).toContain('/etc/vpp/startup.conf');
     expect(api.calls.some((c) => c.method === 'POST')).toBe(true);
   });

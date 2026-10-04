@@ -38,6 +38,11 @@ export function dataplaneFake(): {
   return {
     dataplaneStartupState: (_call, cb) =>
       cb(null, {
+        runtimeThreads: [],
+        loadedPlugins: '',
+        nicQueues: '',
+        runtimeMemory: '',
+        runtimeErrors: ['vpp.disconnected'],
         startupPath: '/etc/vpp/startup.conf',
         startupPresent: true,
         workers: 2,

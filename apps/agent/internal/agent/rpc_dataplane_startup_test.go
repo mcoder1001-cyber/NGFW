@@ -1,6 +1,10 @@
 package agent
 
 import (
+	"context"
+	"go.fd.io/govpp/api"
+	"ngfw/agent/binapi/vlib"
+	"ngfw/agent/internal/vpp/fake"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,5 +83,27 @@ func TestDataplaneStartupPreview(t *testing.T) {
 	_, err = startupPreview(src, &ngfwv1.DataplaneConfig{Plugins: &ngfwv1.PluginSet{Switches: map[string]bool{bad: true}}})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestDataplaneRuntimeDoesNotSubstituteInstalledState(t *testing.T) {
+	out := startupState(startupRoot(t))
+	fillRuntime(context.Background(), nil, out)
+	if len(out.RuntimeThreads) != 0 || len(out.RuntimeErrors) != 1 || out.GetWorkers() != 2 {
+		t.Fatalf("%+v", out)
+	}
+	client := fake.New()
+	client.Reply("show_threads", &vlib.ShowThreadsReply{ThreadData: []vlib.ThreadData{{ID: 0, Name: "vpp_main", CPUID: 7}}})
+	client.On("cli_inband", func(req api.Message) ([]api.Message, error) {
+		cmd := req.(*vlib.CliInband).Cmd
+		if cmd == "show interface rx-placement" {
+			return []api.Message{&vlib.CliInbandReply{Reply: "unknown input"}}, nil
+		}
+		return []api.Message{&vlib.CliInbandReply{Reply: cmd + " observed"}}, nil
+	})
+	out.RuntimeErrors = nil
+	fillRuntime(context.Background(), client, out)
+	if len(out.RuntimeThreads) != 1 || out.RuntimeThreads[0].CpuId != 7 || out.LoadedPlugins != "show plugins observed" || out.NicQueues != "show hardware-interfaces observed" || len(out.RuntimeErrors) != 1 {
+		t.Fatalf("%+v", out)
 	}
 }

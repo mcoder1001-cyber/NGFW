@@ -1,0 +1,21 @@
+08:05:06 === F-ospf-host API 400 evidence: slot 11, owner w11, API :4100, agent socket /run/ngfw-test/w11/ospf-api/agent.sock ===
+08:05:06 VPP NRestarts=2 before
+08:05:15 agent pid 2917444 (NGFW_FRR_PATHSPACE=w11 NGFW_VPP_TABLE_BASE=11000), API pid 2917451 health {"status":"ok"}
+08:05:15 agent log: {"time":"2026-09-29T08:05:13.009848576+03:30","level":"WARN","msg":"VPP connect round failed; backing off","owner":"w11","component":"vpp","err":"dial unix /run/vpp/api.sock: connect: resource tempora
+08:05:15 === 1. undefined area: interface host-w11l0 in area 51, areas = {0} → POST /config/validate ===
+08:05:15 PATCH /config/routing (ospf: routerId 10.11.1.1, areas {0}, interfaces {host-w11l0: area 51}) → HTTP 200 application/json; charset=utf-8
+08:05:16 POST /config/validate → HTTP 400 application/problem+json; charset=utf-8
+08:05:16 body: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"errors":[{"pointer":"/routing/ospf/interfaces/host-w11l0/area","message":"OSPF area 51 is not defined under /routing/ospf/areas"}]}
+08:05:16 POST /config/commit → HTTP 400 application/problem+json; charset=utf-8
+08:05:16 body: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"errors":[{"pointer":"/routing/ospf/interfaces/host-w11l0/area","message":"OSPF area 51 is not defined under /routing/ospf/areas"}]}
+08:05:16 running config after the refused commit: routing.ospf = null
+08:05:16 === 2. backbone stub: areas = {0: stub}, interface host-w11l0 in area 0 → POST /config/validate ===
+08:05:16 PATCH /config/routing (ospf.areas.0.type = stub, interfaces {host-w11l0: area 0}) → HTTP 200 application/json; charset=utf-8
+08:05:17 POST /config/validate → HTTP 503 application/problem+json; charset=utf-8
+08:05:17 body: {"type":"https://ngfw.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"detail":"agent: VPP binary API is not connected","errors":[]}
+08:05:17 agent log tail: {"time":"2026-09-29T08:05:13.009848576+03:30","level":"WARN","msg":"VPP connect round failed; backing off","owner":"w11","component":"vpp","err":"dial unix /run/vpp/api.sock: connect: resource tempora
+08:05:17 === cleanup ===
+08:05:17 candidate discarded
+08:05:23 stopped pids: 2917444 2917451
+08:05:24 database ngfw_w11 dropped
+08:05:24 VPP NRestarts=2 after

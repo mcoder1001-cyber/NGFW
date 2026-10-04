@@ -1,0 +1,11 @@
+run.sh: 2026-09-28T19:14:00 VPP NRestarts=2 before, mode netns
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:598: systemctl show vpp -p NRestarts (before) = 2
+2026/09/28 19:14:20 WARN VPP connect round failed; backing off component=vpp err="dial unix /run/vpp/api.sock: connect: resource temporarily unavailable"
+2026/09/28 19:14:26 WARN VPP connect round failed; backing off component=vpp err="dial unix /run/vpp/api.sock: connect: resource temporarily unavailable"
+    ospf_topology_integration_test.go:611: waiting for VPP at /run/vpp/api.sock: context deadline exceeded
+    ospf_topology_integration_test.go:601: systemctl show vpp -p NRestarts (after) = 2
+--- FAIL: TestOSPFTopologyOnHost (15.07s)
+FAIL
+FAIL	ngfw/agent/internal/agent	15.223s
+FAIL

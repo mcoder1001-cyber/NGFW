@@ -12,11 +12,14 @@ import (
 )
 
 type nativeSecretResolver struct {
-	mu          sync.RWMutex
-	resolver    vpn.Resolver
-	fingerprint func(context.Context, string) (string, error)
-	ready       func(context.Context) error
-	profile     *ikev2.Profile
+	mu               sync.RWMutex
+	resolver         vpn.Resolver
+	fingerprint      func(context.Context, string) (string, error)
+	ready            func(context.Context) error
+	profile          *ikev2.Profile
+	root             string
+	globals          bool
+	certificateReady func(context.Context) error
 }
 
 func (r *nativeSecretResolver) Resolve(ctx context.Context, ref string) ([]byte, error) {
@@ -51,7 +54,10 @@ func (w *Wiring) registerIKEv2(r scheduler.Registry) error {
 	if err != nil {
 		return err
 	}
-	secrets := &nativeSecretResolver{ready: func(ctx context.Context) error { return ikev2.RequireSafeState(ctx, w.env.Client) }}
+	secrets := &nativeSecretResolver{root: filepath.Join(w.env.StateDir, "native-ikev2-"+w.env.Owner), certificateReady: func(ctx context.Context) error {
+		return ikev2.CheckCertificateOwnership(ctx, w.env.Client, w.env.Owner)
+	}, globals: w.env.GlobalsOwner, ready: func(ctx context.Context) error { return ikev2.RequireSafeState(ctx, w.env.Client) }}
+	opts = append(opts, ikev2.WithNativeRoot(secrets.root))
 	cfg := ikev2.Config{Client: w.env.Client, Owner: w.env.Owner, Secrets: secrets}
 	for _, opt := range opts {
 		opt(&cfg)
@@ -105,5 +111,5 @@ func IKEv2Projection() desired.IKEv2Env {
 	if r == nil {
 		return desired.IKEv2Env{}
 	}
-	return desired.IKEv2Env{SecretRef: r.Ref, CheckReady: r.ready}
+	return desired.IKEv2Env{SecretRef: r.Ref, Resolve: r.Resolve, NativeRoot: r.root, GlobalsOwner: r.globals, CertificateReady: r.certificateReady, CheckReady: r.ready}
 }

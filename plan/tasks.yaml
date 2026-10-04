@@ -1378,8 +1378,8 @@ tasks:
       - TD-8
     priority: 1
     est_hours: 16
-    state: parked
-    parked_on: 'PENDING-native-ipsec-certificate-trust'
+    state: merged
+    parked_on: ''
     wbs:
       - D6.1
       - D6.2
@@ -1396,7 +1396,7 @@ tasks:
     worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-P11
     owner: Codex manager delegated worker
     started: '2026-10-01T20:33:27.076593+00:00'
-    finished: ''
+    finished: '2026-10-04'
     notes:
       'build against staging sysroot from /root/vpp/build-root debs; test vs stock strongSwan in a netns | D-096: own charon SPD/SA id range; stop→sweep→start→AckRestart | DF-5 Q13:
       RF-2 AckRestart(ctx, since) should ack only the charon start time P11 observed | envelope draft docs/status/tasks/P11.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit
@@ -1411,8 +1411,8 @@ tasks:
       P11-pkg; host evidence → P11-host (D-188) | 2026-09-28 round 1 done a6a7f196 CI PASSED; verify round (2 verifiers) | 2026-09-28 verify fix round done db390780 CI PASSED (both verifiers
       APPROVE WITH CHANGES → fixed); merge queued | merge gate: rebase conflict in apps/agent/gen dataplane.pb.go (generated) → developer regenerates, rerun | merged ab13f71e (IPsec host
       proof → P11-host; package → P11-pkg; CLI → S-cli-ipsec)'
-    worker_status: "awaiting owner decision; no active developer; Current route-based scope per DEC-ipsec-route-based; PSK source milestone and events merged; certificate trust/global key decision unanswered; obsolete strongSwan build excluded"
-    completion_evidence: "Current route-based scope per DEC-ipsec-route-based; PSK source milestone and events merged; certificate trust/global key decision unanswered; obsolete strongSwan build excluded"
+    worker_status: "Native certificate source completed and independently approved; source/lifecycle acceptance distinct from deployment and peer packet acceptance"
+    completion_evidence: "D234 owner-approved explicit peer public-key pin and shared local identity implemented; sealed native PKI/global-key/profile production lifecycle PASS in disposable VPP, independent tests/review PASS; see native-cert-integration-20261004.md; certificate peer negotiation/packets and target deployment NOTRUN"
   - id: F-ikev2-native
     title: 'Wave B (day 10-12): VPP native IKEv2 responder path'
     prompt: prompts/features/F-ikev2-native.md
@@ -1426,8 +1426,8 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: parked
-    parked_on: 'PENDING-native-ipsec-certificate-trust'
+    state: merged
+    parked_on: ''
     wbs:
       - D6.3
     scope:
@@ -1438,14 +1438,16 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: '2026-10-04'
     notes: |-
       prompts-s4: suggested deps +P11 (ipsec itf/tunnel-protect + SA state); soft +F-pki (cert auth) — docs/status/tasks/prompts-s4.md
       2026-10-03: native route-based PSK milestone wired and verified with production API/agent secrets, packets, counters, actions and active-SA agent restart; default 30-second/three-retry DPD hard crash and automatic peer recovery passed in 108.93 seconds. Evidence docs/status/tasks/F-ikev2-native.md and native-ipsec-2026-10-03-evidence/result.json. Overall remains running: certificate/PKI acceptance open; required VPP patch tested only in disposable instances, not deployed.
 
       2026-10-03: native route based PSK source milestone merged by PR135 (a0922c7e9ca25c50dd9e7b18aab62e8385697443); full hosted quick run 37139608578 passed. Overall state remains running: native certificate provisioning and native SA event publishing are real source work; VPP patch installation and new appliance acceptance remain unperformed.
 
-    completion_evidence: "Native SA events mergedPR151; PSK milestone remains implemented; certificate boundary decision unanswered and failclosed; patched appliance deployment/acceptance NOTRUN"
+    completion_evidence: "D234 owner-approved explicit peer public-key pin and shared local identity implemented; sealed native PKI/global-key/profile production lifecycle PASS in disposable VPP, independent tests/review PASS; see native-cert-integration-20261004.md; certificate peer negotiation/packets and target deployment NOTRUN"
+    worker_status: "Native certificate source completed and independently approved; source/lifecycle acceptance distinct from deployment and peer packet acceptance"
+
   - id: F-wireguard
     title: 'Wave B (day 10-12): WireGuard peers/keys'
     prompt: prompts/features/F-wireguard.md

@@ -52,8 +52,13 @@ describe('IPsec model', () => {
       >
     )['auth'];
     expect((auth?.oneOf ?? auth?.anyOf)?.map((branch) => branch.properties?.method?.const)).toEqual(
-      ['psk'],
+      ['psk', 'cert'],
     );
+    const cert = (auth?.oneOf ?? auth?.anyOf)?.find(
+      (branch) => branch.properties?.method?.const === 'cert',
+    ) as { required?: string[]; properties?: Record<string, unknown> };
+    expect(cert.required).toContain('peerCertificate');
+    expect(cert.properties).not.toHaveProperty('remoteCa');
   });
 
   it('localizes every field, nested groups and union branches; schema help never leaks (R6 M1)', () => {

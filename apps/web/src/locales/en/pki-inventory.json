@@ -55,6 +55,7 @@
     "publicResult": "Public output",
     "close": "Close",
     "submit": "Submit",
-    "storedOnly": "Material was stored, but the candidate was not changed. Acquire the configuration lock and stage the saved object before committing."
+    "storedOnly": "Material was stored, but the candidate was not changed. Acquire the configuration lock and stage the saved object before committing.",
+    "publicOnly": "Peer public certificate only (no private key)"
   }
 }

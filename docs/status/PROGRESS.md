@@ -2,15 +2,15 @@
 
 Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 83.0% by hours (1310.0/1577.5 h), 83.4% by tasks (176/211)**
+**Overall: 84.7% by hours (1336.0/1577.5 h), 84.4% by tasks (178/211)**
 
 | state | tasks |
 |---|---|
-| merged | 176 |
+| merged | 178 |
 | review | 0 |
 | running | 0 |
 | ready | 7 |
-| parked | 13 |
+| parked | 11 |
 | failed | 0 |
 | todo | 15 |
 
@@ -20,7 +20,7 @@ Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 857.0 / 1002.0 | 85.5% | 128/150 | 0 | 6 | 10 |
+| S4 | 883.0 / 1002.0 | 88.1% | 130/150 | 0 | 6 | 8 |
 | S5 | 94 / 155.5 | 60.5% | 9/16 | 0 | 1 | 1 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -31,8 +31,6 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Parked
 
-- P11 — parked_on: PENDING-native-ipsec-certificate-trust
-- F-ikev2-native — parked_on: PENDING-native-ipsec-certificate-trust
 - TD-19 — parked_on: PENDING-TD19-repository-trust
 - LAB-vpp-per-slot — parked_on: PENDING-vpp-host-hardening
 - P12-fib-proof — parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)

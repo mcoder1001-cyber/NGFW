@@ -226,9 +226,9 @@ describe('IpsecTunnelSchema', () => {
     ['rekey shorter than 60 s', tunnel({ rekey: { espSec: 30 } }), 'rekey.espSec'],
     ['identity with double quote', tunnel({ localId: 'C=CH, CN="x"' }), 'localId'],
     [
-      'native certificate capability unavailable',
+      'native certificate pin missing',
       tunnel({ auth: { method: 'cert', certificate: 'c1' } }),
-      'auth.method',
+      'auth.peerCertificate',
     ],
     ['cert auth without certificate', tunnel({ auth: { method: 'cert' } }), 'auth.certificate'],
   ])('rejects %s', (_label, value, path) => {
@@ -320,6 +320,12 @@ describe('WireguardInterfaceSchema', () => {
 });
 
 describe('PKI and remote access', () => {
+  it('a public-only peer certificate is accepted without weakening WireGuard keys', () => {
+    expect(ok(PkiCertificateSchema, { certificateRef: 'cert/peer' })).toBe(true);
+    expect(errorPaths(WireguardInterfaceSchema, { ...wg(), privateKeyRef: undefined })).toContain(
+      'privateKeyRef',
+    );
+  });
   it('a certificate needs certificateRef or acme; private keys are references', () => {
     expect(errorPaths(PkiCertificateSchema, { privateKeyRef: 'key/a' })).toEqual([
       'certificateRef',

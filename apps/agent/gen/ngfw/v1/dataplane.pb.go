@@ -16963,10 +16963,12 @@ type IpsecAuth struct {
 	SecretRef *string `protobuf:"bytes,2,opt,name=secret_ref,json=secretRef,proto3,oneof" json:"secret_ref,omitempty"`
 	// method=cert: local certificate name in vpn.pki.certificates.
 	Certificate *string `protobuf:"bytes,3,opt,name=certificate,proto3,oneof" json:"certificate,omitempty"`
-	// method=cert: CA name in vpn.pki.cas trusted for the peer; unset = any configured CA.
-	RemoteCa      *string `protobuf:"bytes,4,opt,name=remote_ca,json=remoteCa,proto3,oneof" json:"remote_ca,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Reserved CA reference; native IPsec rejects it because CA-chain verification is unsupported.
+	RemoteCa *string `protobuf:"bytes,4,opt,name=remote_ca,json=remoteCa,proto3,oneof" json:"remote_ca,omitempty"`
+	// method=cert: explicit peer leaf certificate name in vpn.pki.certificates.
+	PeerCertificate *string `protobuf:"bytes,5,opt,name=peer_certificate,json=peerCertificate,proto3,oneof" json:"peer_certificate,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *IpsecAuth) Reset() {
@@ -17023,6 +17025,13 @@ func (x *IpsecAuth) GetCertificate() string {
 func (x *IpsecAuth) GetRemoteCa() string {
 	if x != nil && x.RemoteCa != nil {
 		return *x.RemoteCa
+	}
+	return ""
+}
+
+func (x *IpsecAuth) GetPeerCertificate() string {
+	if x != nil && x.PeerCertificate != nil {
+		return *x.PeerCertificate
 	}
 	return ""
 }
@@ -48674,18 +48683,20 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\vdescription\x18\x01 \x01(\tH\x00R\vdescription\x88\x01\x01\x12&\n" +
 	"\x03ike\x18\x02 \x01(\v2\x14.ngfw.v1.IkeProposalR\x03ike\x12&\n" +
 	"\x03esp\x18\x03 \x01(\v2\x14.ngfw.v1.EspProposalR\x03espB\x0e\n" +
-	"\f_description\"\xcd\x01\n" +
+	"\f_description\"\x92\x02\n" +
 	"\tIpsecAuth\x12\x1b\n" +
 	"\x06method\x18\x01 \x01(\tH\x00R\x06method\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"secret_ref\x18\x02 \x01(\tH\x01R\tsecretRef\x88\x01\x01\x12%\n" +
 	"\vcertificate\x18\x03 \x01(\tH\x02R\vcertificate\x88\x01\x01\x12 \n" +
-	"\tremote_ca\x18\x04 \x01(\tH\x03R\bremoteCa\x88\x01\x01B\t\n" +
+	"\tremote_ca\x18\x04 \x01(\tH\x03R\bremoteCa\x88\x01\x01\x12.\n" +
+	"\x10peer_certificate\x18\x05 \x01(\tH\x04R\x0fpeerCertificate\x88\x01\x01B\t\n" +
 	"\a_methodB\r\n" +
 	"\v_secret_refB\x0e\n" +
 	"\f_certificateB\f\n" +
 	"\n" +
-	"_remote_ca\"\xc3\x01\n" +
+	"_remote_caB\x13\n" +
+	"\x11_peer_certificate\"\xc3\x01\n" +
 	"\bIpsecDpd\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12 \n" +
 	"\tdelay_sec\x18\x02 \x01(\rH\x01R\bdelaySec\x88\x01\x01\x12$\n" +

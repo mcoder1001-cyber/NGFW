@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
+	"sync"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"ngfw/agent/binapi/ikev2"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
+	"ngfw/agent/internal/pki"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -29,7 +33,11 @@ var (
 // is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler re-applies
 // the path on resync — idempotent (D-076): VPP frees the loaded key and loads the file again.
 // Delete leaves VPP's loaded key (there is no unset).
-type LocalKey struct{ cfg Config }
+type LocalKey struct {
+	cfg    Config
+	mu     sync.Mutex
+	loaded string
+}
 
 // NewLocalKey returns the descriptor.
 func NewLocalKey(cfg Config) *LocalKey { return &LocalKey{cfg: cfg} }
@@ -41,7 +49,12 @@ func (*LocalKey) Name() string { return LocalKeyName }
 func (*LocalKey) KeyOf(proto.Message) scheduler.Key { return LocalKeyKey }
 
 // Dependencies implements scheduler.Descriptor (none).
-func (*LocalKey) Dependencies(proto.Message) []scheduler.Dependency { return nil }
+func (d *LocalKey) Dependencies(proto.Message) []scheduler.Dependency {
+	if d.cfg.NativeRoot != "" {
+		return []scheduler.Dependency{{Key: pki.Key}}
+	}
+	return nil
+}
 
 // Create implements scheduler.Descriptor.
 func (d *LocalKey) Create(ctx context.Context, obj proto.Message) (any, error) {
@@ -52,14 +65,104 @@ func (d *LocalKey) Create(ctx context.Context, obj proto.Message) (any, error) {
 	if o.GetKeyFile() == "" || len(o.GetKeyFile()) > 255 || strings.ContainsRune(o.GetKeyFile(), 0) {
 		return nil, errors.New("ikev2: local key_file must be a path of 1–255 bytes")
 	}
-	if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2SetLocalKey(ctx, &ikev2.Ikev2SetLocalKey{KeyFile: o.GetKeyFile()}); err != nil {
-		return nil, fmt.Errorf("ikev2_set_local_key (%s): %w", o.GetKeyFile(), err)
+	if d.cfg.NativeRoot != "" {
+		if !d.cfg.GlobalsOwner {
+			return nil, vpn.ErrNotGlobalsOwner
+		}
+		if err := CheckCertificateOwnership(ctx, d.cfg.Client, d.cfg.Owner); err != nil {
+			return nil, err
+		}
 	}
+	if err := d.cfg.snapshot(ctx, o.GetKeyFile(), true); err != nil {
+		return nil, err
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if err := d.prepareProfiles(ctx, o.GetKeyFile()); err != nil {
+		return nil, err
+	}
+	if err := d.set(ctx, o.GetKeyFile()); err != nil {
+		if d.loaded != "" {
+			restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			if snapshotErr := d.cfg.snapshot(restoreCtx, d.loaded, true); snapshotErr == nil {
+				if restoreErr := d.set(restoreCtx, d.loaded); restoreErr == nil {
+					return nil, err
+				}
+			}
+		}
+		return nil, fmt.Errorf("%w: native local key setter failed and previous key could not be restored: %w", scheduler.ErrUncertainOutcome, err)
+	}
+	d.loaded = o.GetKeyFile()
 	return nil, nil
 }
+func (d *LocalKey) set(ctx context.Context, path string) error {
+	if _, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2SetLocalKey(ctx, &ikev2.Ikev2SetLocalKey{KeyFile: path}); err != nil {
+		return fmt.Errorf("native local key setter: %w", err)
+	}
+	return nil
+}
+func (d *LocalKey) prepareProfiles(ctx context.Context, path string) error {
+	if d.cfg.NativeRoot == "" {
+		return nil
+	}
+	stream, err := ikev2.NewServiceClient(d.cfg.Client).Ikev2ProfileDump(ctx, &ikev2.Ikev2ProfileDump{})
+	if err != nil {
+		return err
+	}
+	rotate := false
+	generation := strings.TrimSuffix(strings.TrimPrefix(path, d.cfg.NativeRoot+"/"), ".key.pem")
+	rsaNames := map[string]bool{}
+	for {
+		det, e := stream.Recv()
+		if errors.Is(e, io.EOF) {
+			break
+		}
+		if e != nil {
+			return e
+		}
+		p := det.Profile
+		isRSA := p.Auth.Method == authRSASig
+		authPath := string(p.Auth.Data)
+		vpn.Zero(p.Auth.Data)
+		if !isRSA {
+			continue
+		}
+		if !strings.HasPrefix(p.Name, d.cfg.Owner+"-") {
+			return errors.New("native local key is shared with a foreign RSA profile")
+		}
+		rsaNames[strings.TrimPrefix(p.Name, d.cfg.Owner+"-")] = true
+		if !strings.HasSuffix(strings.TrimRight(authPath, "\x00"), "-"+generation+".cert.pem") {
+			rotate = true
+		}
+	}
+	if rotate {
+		sas, e := SAs(ctx, d.cfg.Client, d.cfg.Owner)
+		if e != nil {
+			return e
+		}
+		for _, sa := range sas {
+			if rsaNames[sa.Profile] {
+				if err := DeleteIKESA(ctx, d.cfg.Client, sa.ISPI); err != nil {
+					return fmt.Errorf("%w: native certificate session retirement: %w", scheduler.ErrUncertainOutcome, err)
+				}
+			}
+		}
+	}
+	return nil
+}
 
-// Update implements scheduler.Descriptor.
-func (d *LocalKey) Update(ctx context.Context, _, newObj proto.Message, _ any) (any, error) {
+// Update compensates a failed load; VPP frees its previous key before loading.
+func (d *LocalKey) Update(ctx context.Context, oldObj, newObj proto.Message, _ any) (any, error) {
+	old, ok := oldObj.(*vpnpb.Ikev2LocalKey)
+	if !ok {
+		return nil, typeErr(LocalKeyName, oldObj)
+	}
+	d.mu.Lock()
+	if d.loaded == "" {
+		d.loaded = old.GetKeyFile()
+	}
+	d.mu.Unlock()
 	return d.Create(ctx, newObj)
 }
 

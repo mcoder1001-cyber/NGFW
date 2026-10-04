@@ -8,7 +8,7 @@
   },
   "refresh": "Refresh",
   "refreshHint": "The state is read from the IKE daemon on demand and every 15 s.",
-  "pskNotice": "Tunnels with a pre-shared key are refused at commit until secrets can be delivered to the data-plane agent. Certificate authentication needs certificates from the PKI screen.",
+  "pskNotice": "Certificate authentication pins the public key from an imported peer leaf certificate. It does not verify a CA chain or the peer-presented certificate. All enabled certificate tunnels share one local certificate identity. Import the local certificate with its private key and the peer certificate without a private key in PKI.",
   "restarted": "The IKE daemon restarted since the last reconciliation; its leftover security associations are removed at the next apply.",
   "pendingRestart": "The IKE daemon must be restarted to load the new configuration. Until then, tunnels keep running with the previous settings.",
   "tunnels": "Tunnels",
@@ -128,7 +128,11 @@
       },
       "remoteCa": {
         "title": "Remote CA",
-        "help": "Name of the CA trusted for the peer certificate"
+        "help": "Unsupported by native IPsec; use a peer public-key pin"
+      },
+      "peerCertificate": {
+        "title": "Pinned peer certificate",
+        "help": "PKI leaf certificate whose public key verifies peer authentication; update this reference when the peer key changes"
       }
     },
     "proposal": {

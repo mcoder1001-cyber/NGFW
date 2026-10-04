@@ -4043,8 +4043,10 @@ message IpsecAuth {
   optional string secret_ref = 2;
   // method=cert: local certificate name in vpn.pki.certificates.
   optional string certificate = 3;
-  // method=cert: CA name in vpn.pki.cas trusted for the peer; unset = any configured CA.
+  // Reserved CA reference; native IPsec rejects it because CA-chain verification is unsupported.
   optional string remote_ca = 4;
+  // method=cert: explicit peer leaf certificate name in vpn.pki.certificates.
+  optional string peer_certificate = 5;
 }
 
 // IpsecDpd mirrors a dead-peer-detection block.

@@ -31,13 +31,12 @@ export function tunnelFormSchema(): JsonSchema {
   );
   const auth = prop(schema, 'auth');
   for (const union of ['oneOf', 'anyOf'] as const) {
-    if (Array.isArray(auth[union])) {
-      auth[union] = (auth[union] as JsonSchema[]).filter((branch) => {
-        const method = (branch.properties as Record<string, JsonSchema> | undefined)?.method;
-        return (
-          method?.const === 'psk' || (Array.isArray(method?.enum) && method.enum.includes('psk'))
-        );
-      });
+    if (!Array.isArray(auth[union])) continue;
+    for (const branch of auth[union] as JsonSchema[]) {
+      const properties = branch.properties as Record<string, JsonSchema> | undefined;
+      if (properties?.method?.const !== 'cert') continue;
+      delete properties.remoteCa;
+      branch.required = [...new Set([...(branch.required ?? []), 'peerCertificate'])];
     }
   }
   return schema;

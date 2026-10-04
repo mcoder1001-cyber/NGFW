@@ -35,11 +35,12 @@ func TestOwnershipDeclared(t *testing.T) {
 
 // TestInterfaceObjectsRecordNoStore is a merge tripwire: a new Env field may be a new ownership store,
 // and the descriptors that record ownership in it must declare CheckPersistent over it. Claims
+// RouteInstance is only a route ownership namespace, not a new store. Claims
 // (TD-11c) is covered by TestInterfaceObjectsRequirePersistedClaims.
 func TestInterfaceObjectsRecordNoStore(t *testing.T) {
 	env := reflect.TypeFor[Env]()
 	for i := 0; i < env.NumField(); i++ {
-		if f := env.Field(i); f.Name != "Client" && f.Name != "Owner" && f.Name != "Owned" && f.Name != "IfRef" && f.Name != "Claims" {
+		if f := env.Field(i); f.Name != "Client" && f.Name != "Owner" && f.Name != "Owned" && f.Name != "IfRef" && f.Name != "Claims" && f.Name != "RouteInstance" {
 			t.Fatalf("core.Env gained %s (%s): if interface-ip / interface-ip.table now record ownership in it, replace their RecordsNoOwnership (ownership.go) with CheckPersistent over it (TD-11b review M1/Nit)", f.Name, f.Type)
 		}
 	}

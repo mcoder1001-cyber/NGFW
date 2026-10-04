@@ -32,6 +32,15 @@ const multiwanRules: ValidatorDefinition = {
         }
       });
     });
+    for (const [name, policy] of Object.entries(config.routing.pbr?.policies ?? {})) {
+      policy.paths.forEach((path, i) => {
+        if (path.wanGroup !== undefined && !seen.has(path.wanGroup))
+          issues.push({
+            pointer: jsonPointer('routing', 'pbr', 'policies', name, 'paths', i, 'wanGroup'),
+            message: `WAN group '${path.wanGroup}' does not exist`,
+          });
+      });
+    }
     return issues;
   },
 };

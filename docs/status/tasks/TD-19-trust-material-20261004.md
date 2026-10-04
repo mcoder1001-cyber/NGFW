@@ -11,7 +11,7 @@ Official [FRR homepage](https://deb.frrouting.org/) independently lists only
 Its linked [canonical key endpoint](https://deb.frrouting.org/frr/keys.gpg)
 download additionally contains `A90FC36D9429409798E9C2D874DEED43AB194DBF`,
 and repeats the BBC certificate. These are observed downloaded identities,
-not separately published authorization. Raw key SHA256:
+not separately published authorization. Public certificate bundle checksum (SHA-256):
 `bf10935b9296e2ce7c5d9855fa29ef30c35810b0fc4b1f53005494a04a33554d`.
 
 Actual private gpgv verification of [resolute
@@ -24,7 +24,7 @@ published three certificates cannot validate this fourth signer.
 
 [NodeSource canonical public key](https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key)
 has primary `6F71F525282841EEDAF851B42F59B5F99B1BE0B4`, subkey
-`0FA5ECC8C0CA58863C0AC5867E9656125E955B26`. Raw key SHA256:
+`0FA5ECC8C0CA58863C0AC5867E9656125E955B26`. Public certificate bundle checksum (SHA-256):
 `b42e0321dabdc24e892115da705cf061167eac12a317f23d329862d0aa0a271d`.
 Private dearmor and actual gpgv of [Node22 nodistro
 InRelease](https://deb.nodesource.com/node_22.x/dists/nodistro/InRelease)

@@ -53,3 +53,35 @@ describe('F-multiwan semantic rules', () => {
     expect(r.some((i) => i.message.includes("'wan' is defined twice"))).toBe(true);
   });
 });
+
+it('validates group-pinned policy references and exclusive forwarding fields', () => {
+  const base: RootConfigInput = {
+    interfaces: { eth0: { enabled: true } },
+    routing: {
+      wanGroups: [group()],
+      pbr: { policies: { pin: { acl: 'allow', paths: [{ wanGroup: 'wan' }] } } },
+    },
+  };
+  expect(run(base)).toEqual([]);
+  const missing: RootConfigInput = {
+    ...base,
+    routing: {
+      ...base.routing,
+      pbr: { policies: { pin: { acl: 'allow', paths: [{ wanGroup: 'missing' }] } } },
+    },
+  };
+  expect(run(missing)).toEqual([
+    expect.objectContaining({ pointer: '/routing/pbr/policies/pin/paths/0/wanGroup' }),
+  ]);
+  expect(
+    RootConfig.safeParse({
+      ...base,
+      routing: {
+        ...base.routing,
+        pbr: {
+          policies: { pin: { acl: 'allow', paths: [{ wanGroup: 'wan', address: '192.0.2.1' }] } },
+        },
+      },
+    }).success,
+  ).toBe(false);
+});

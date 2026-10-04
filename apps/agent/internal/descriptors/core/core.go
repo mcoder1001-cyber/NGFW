@@ -66,9 +66,11 @@ var (
 
 // Env is what every core descriptor needs: the VPP client, the owner and the owner table.
 type Env struct {
-	Client vpp.Client
-	Owner  string
-	Owned  ownertable.Set
+	// RouteInstance separates persistent ownership for dynamic route sources.
+	RouteInstance string
+	Client        vpp.Client
+	Owner         string
+	Owned         ownertable.Set
 	// IfRef maps an interface name to the key core objects depend on (nil = DirectInterfaceRef;
 	// AliasInterfaceRef once DF-1's "interface" alias descriptor is registered, D-065).
 	IfRef func(name string) scheduler.Key

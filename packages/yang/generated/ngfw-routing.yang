@@ -2433,6 +2433,12 @@ module ngfw-routing {
           // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
           ordered-by user;
           description "next hops matching packets are forwarded over (weighted when more than one)";
+          leaf wanGroup {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
           leaf address {
             type union {
               type string {

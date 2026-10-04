@@ -74,6 +74,7 @@ func TestWanDeviceFailClosedForMissingNamespaceAndVRF(t *testing.T) {
 func TestWanRuntimeReadsDurableApplyAndRemoval(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	service := newSvc(t, coretest.New(), t.TempDir())
+	service.st.desired.Interfaces = map[string]*ngfwv1.Interface{"wan0": {}}
 	runtime := multiwan.NewRuntime(func(context.Context, string, *ngfwv1.WanMonitor) multiwan.CheckResult {
 		return multiwan.CheckResult{Sent: 1, Received: 1}
 	})
@@ -88,7 +89,7 @@ func TestWanRuntimeReadsDurableApplyAndRemoval(t *testing.T) {
 			t.Error("WAN watcher did not drain")
 		}
 	})
-	desired := doc(t, `{"routing":{"wanGroups":[{"name":"edge","mode":"failover","members":[{"interface":"wan0","weight":1,"priority":10}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1,"downAfter":1}]}]}}`)
+	desired := doc(t, `{"interfaces":{"wan0":{}},"routing":{"wanGroups":[{"name":"edge","mode":"failover","members":[{"interface":"wan0","weight":1,"priority":10}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1,"downAfter":1}]}]}}`)
 	response := apply(t, service, &ngfwv1.ApplyRequest{TxnId: "wan-add", DesiredState: desired, Subsystems: []string{"routing"}})
 	mustStatus(t, response, ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	deadline := time.Now().Add(3 * time.Second)

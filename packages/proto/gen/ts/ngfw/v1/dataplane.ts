@@ -7131,7 +7131,11 @@ export interface PbrPath {
     | string
     | undefined;
   /** Weight 1–255; Zod default 1. */
-  weight?: number | undefined;
+  weight?:
+    | number
+    | undefined;
+  /** Expand this WAN group into live healthy forwarding members; exclusive with address/interface/vrf. */
+  wanGroup?: string | undefined;
 }
 
 /** PbrAttachment binds a policy to an interface for one address family (abf_itf_attach_add_del). */
@@ -63099,7 +63103,7 @@ export const PbrPolicy: MessageFns<PbrPolicy> = {
 };
 
 function createBasePbrPath(): PbrPath {
-  return { address: undefined, interface: undefined, vrf: undefined, weight: undefined };
+  return { address: undefined, interface: undefined, vrf: undefined, weight: undefined, wanGroup: undefined };
 }
 
 export const PbrPath: MessageFns<PbrPath> = {
@@ -63115,6 +63119,9 @@ export const PbrPath: MessageFns<PbrPath> = {
     }
     if (message.weight !== undefined) {
       writer.uint32(32).uint32(message.weight);
+    }
+    if (message.wanGroup !== undefined) {
+      writer.uint32(42).string(message.wanGroup);
     }
     return writer;
   },
@@ -63164,6 +63171,14 @@ export const PbrPath: MessageFns<PbrPath> = {
             message.weight = reader.uint32();
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.wanGroup = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -63182,6 +63197,11 @@ export const PbrPath: MessageFns<PbrPath> = {
       interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
       weight: isSet(object.weight) ? globalThis.Number(object.weight) : undefined,
+      wanGroup: isSet(object.wanGroup)
+        ? globalThis.String(object.wanGroup)
+        : isSet(object.wan_group)
+        ? globalThis.String(object.wan_group)
+        : undefined,
     };
   },
 
@@ -63199,6 +63219,9 @@ export const PbrPath: MessageFns<PbrPath> = {
     if (message.weight !== undefined) {
       obj.weight = Math.round(message.weight);
     }
+    if (message.wanGroup !== undefined) {
+      obj.wanGroup = message.wanGroup;
+    }
     return obj;
   },
 
@@ -63211,6 +63234,7 @@ export const PbrPath: MessageFns<PbrPath> = {
     message.interface = object.interface ?? undefined;
     message.vrf = object.vrf ?? undefined;
     message.weight = object.weight ?? undefined;
+    message.wanGroup = object.wanGroup ?? undefined;
     return message;
   },
 };

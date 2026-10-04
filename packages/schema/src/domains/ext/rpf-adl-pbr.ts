@@ -113,6 +113,7 @@ export type PbrFamily = z.infer<typeof PbrFamily>;
  */
 export const PbrPathSchema = z
   .strictObject({
+    wanGroup: withUi(objectName.optional(), { title: 'WAN group', order: 5 }),
     address: withUi(ipAddress.optional(), { title: 'Next-hop address', order: 1 }),
     interface: withUi(vppInterfaceName.optional(), { title: 'Egress interface', order: 2 }),
     vrf: withUi(vrfName.default(DEFAULT_VRF), {
@@ -127,6 +128,15 @@ export const PbrPathSchema = z
       order: 4,
     }),
   })
+  .refine(
+    (p) =>
+      p.wanGroup === undefined ||
+      (p.address === undefined && p.interface === undefined && p.vrf === DEFAULT_VRF),
+    {
+      message: 'wanGroup is exclusive with address, interface and a non-default VRF',
+      path: ['wanGroup'],
+    },
+  )
   .refine((p) => p.interface === undefined || p.vrf === DEFAULT_VRF, {
     message:
       'a path with an interface is resolved on that interface; vrf applies only to paths without one',

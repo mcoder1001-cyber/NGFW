@@ -280,8 +280,14 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, err
 	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
+	wan := multiwan.NewRuntime(nil)
+	if err := registerWANRoutes(reg, wiring, conn, cfg.Owner, owned, wan); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
-	svc, err := NewService(ServiceConfig{CaptureBoot: wiring.BootStore(), GlobalsOwner: cfg.GlobalsOwner, SecretCache: cache, Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
+	svc, err := NewService(ServiceConfig{WAN: wan, CaptureBoot: wiring.BootStore(), GlobalsOwner: cfg.GlobalsOwner, SecretCache: cache, Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),
 		Events: events, Sources: wiring.DynamicSources(),
 		RequestResync: func() { requestResync(resyncs) }}) // TD-9: the owed resync takes the Env.Resync path
 	if err != nil {
@@ -298,7 +304,6 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		return nil, fmt.Errorf("listen %s: %w", cfg.Socket, err)
 	}
 	a.grpc = newGRPCServer(log, m) // TD-9: panic recovery interceptors
-	wan := multiwan.NewRuntime(nil)
 	ngfwv1.RegisterDataplaneServer(a.grpc, &server{svc: svc, stats: a.stats, log: log, wan: wan})
 
 	if cfg.MetricsAddr != "" && cfg.MetricsAddr != "off" {

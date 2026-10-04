@@ -5,3 +5,8 @@
 4e59528994162b4ec14167b7c5620fb130d66581:apps/api/test/e2e/igmp-mfib.e2e.test.ts:generic-api-key:18
 5a2d88d8000f06375c24a91f72939fed80183004:apps/api/test/e2e/auto-block.e2e.test.ts:generic-api-key:37
 5b33b153039892be0deacd7f807aa69de80439b9:apps/api/test/e2e/restconf-yang.e2e.test.ts:generic-api-key:18
+
+# Immutable public-key SHA256 documentation, independently reviewed false positives.
+# These fingerprints apply only to the two findings in this historical commit.
+2fd82320a9c431a92c76a47115d047de08268892:docs/status/tasks/TD-19-trust-material-20261004.md:generic-api-key:14
+2fd82320a9c431a92c76a47115d047de08268892:docs/status/tasks/TD-19-trust-material-20261004.md:generic-api-key:27

@@ -22,9 +22,10 @@ import (
 // document the rules reference and the FQDN answers of the running agent (nil: FQDN objects expand to
 // nothing).
 type Input struct {
-	ACL     *ngfwv1.AclConfig
-	Objects *ngfwv1.ObjectsConfig
-	FQDN    objects.FQDNLookup
+	AutoBlock *ngfwv1.AutoBlock
+	ACL       *ngfwv1.AclConfig
+	Objects   *ngfwv1.ObjectsConfig
+	FQDN      objects.FQDNLookup
 }
 
 // Issue is a finding of Build at a JSON pointer of the document (the agent's DryRun reports it).
@@ -94,7 +95,7 @@ var hookPrefix = map[string]string{"input": "in", "output": "out", "forward": "f
 func Build(in Input) (*HostTable, []Issue) {
 	acl := in.ACL
 	blocking := hostBlockLists(acl)
-	if len(acl.GetHost()) == 0 && len(acl.GetHostAttachments()) == 0 && acl.GetHostSettings() == nil && len(blocking) == 0 {
+	if len(acl.GetHost()) == 0 && len(acl.GetHostAttachments()) == 0 && acl.GetHostSettings() == nil && len(blocking) == 0 && !scanEnabled(in.AutoBlock) {
 		return nil, nil
 	}
 	b := &builder{in: in, sets: map[string]*Set{}, expanded: map[string]*expansion{}}
@@ -174,6 +175,19 @@ func Build(in Input) (*HostTable, []Issue) {
 			}
 		}
 		v.Chains = append(v.Chains, ch)
+	}
+	if scanEnabled(in.AutoBlock) {
+		v.Chains = append(v.Chains, scanChain())
+		sort.SliceStable(v.Chains, func(i, j int) bool {
+			a, c := v.Chains[i], v.Chains[j]
+			if hookOrder[a.Hook] != hookOrder[c.Hook] {
+				return hookOrder[a.Hook] < hookOrder[c.Hook]
+			}
+			if a.Priority != c.Priority {
+				return a.Priority < c.Priority
+			}
+			return a.Name < c.Name
+		})
 	}
 	for _, name := range sortedKeys(b.sets) {
 		if used[name] {

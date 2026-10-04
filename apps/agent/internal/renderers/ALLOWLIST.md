@@ -18,6 +18,8 @@ Rules for an entry:
 
 ## Active
 
+Auto-block host detectors use the existing `/usr/bin/journalctl` entry with fixed argv `--no-pager --quiet --output=json --output-fields=MESSAGE,_COMM,_UID,_TRANSPORT,__CURSOR,__REALTIME_TIMESTAMP --lines=5000 --since=@<agent unix seconds>`, a 5-second timeout and 4-MiB output cap. No user fields reach argv.
+
 | binary | renderer | purpose | argv shape | added by |
 |---|---|---|---|---|
 | `/usr/bin/vtysh` | frr | validate a staged frr.conf; read state | `vtysh --config_dir <dir> --vty_socket <rundir> [-N <ns>] -C -f <staged frr.conf>` / `… -c "<constant show command>"` | RF-1 |

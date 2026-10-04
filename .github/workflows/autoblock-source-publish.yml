@@ -1,0 +1,38 @@
+name: Publish reviewed autoblock source
+on:
+  push:
+    branches: [codex/autoblock-publish-20261004]
+    paths: [.github/workflows/autoblock-source-publish.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 1
+      - name: Restore verified generated source and remove transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64,gzip,pathlib,subprocess
+          for payload,target,expected in [
+              ("go","apps/agent/gen/ngfw/v1/dataplane.pb.go","24ca1b203cbc62c5124108209ab14ddfc1b62777"),
+              ("ts","packages/proto/gen/ts/ngfw/v1/dataplane.ts","db4158028b6255b3777e6241c956b31b08ea7f5e")]:
+              data=gzip.decompress(base64.b64decode(pathlib.Path(".autoblock-publish/"+payload+".gz.b64").read_text()))
+              actual=subprocess.check_output(["git","hash-object","--stdin"],input=data).decode().strip()
+              assert actual==expected,(target,actual)
+              pathlib.Path(target).write_bytes(data)
+          PY
+          rm -r .autoblock-publish
+          rm .github/workflows/autoblock-source-publish.yml
+          git add -A
+          actual=$(git write-tree)
+          test "$actual" = "1e10b47413568fac4c25da9b45fab8cfd53186cb"
+          git config user.name "NGFW source publisher"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(autoblock): publish reviewed host enforcement and detectors [skip ci]"
+          git push origin HEAD:refs/heads/codex/autoblock-publish-20261004

@@ -49,6 +49,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	Dataplane_IpsecState_FullMethodName              = "/ngfw.v1.Dataplane/IpsecState"
 	Dataplane_TunnelState_FullMethodName             = "/ngfw.v1.Dataplane/TunnelState"
+	Dataplane_AutoBlockSet_FullMethodName            = "/ngfw.v1.Dataplane/AutoBlockSet"
 	Dataplane_Apply_FullMethodName                   = "/ngfw.v1.Dataplane/Apply"
 	Dataplane_Retrieve_FullMethodName                = "/ngfw.v1.Dataplane/Retrieve"
 	Dataplane_DryRun_FullMethodName                  = "/ngfw.v1.Dataplane/DryRun"
@@ -116,6 +117,8 @@ type DataplaneClient interface {
 	// operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
 	// same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
 	// self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+	// Replace the system-owned runtime auto-block snapshot without a configuration commit.
+	AutoBlockSet(ctx context.Context, in *AutoBlockSetRequest, opts ...grpc.CallOption) (*AutoBlockSetResponse, error)
 	Apply(ctx context.Context, in *ApplyRequest, opts ...grpc.CallOption) (*ApplyResponse, error)
 	// Retrieve dumps the ACTUAL state of the selected subsystems from VPP and the daemons, filtered
 	// to objects owned by this agent, decoded into the same DesiredState messages (canonicalised),
@@ -325,6 +328,16 @@ func (c *dataplaneClient) TunnelState(ctx context.Context, in *TunnelStateReques
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TunnelStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_TunnelState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) AutoBlockSet(ctx context.Context, in *AutoBlockSetRequest, opts ...grpc.CallOption) (*AutoBlockSetResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AutoBlockSetResponse)
+	err := c.cc.Invoke(ctx, Dataplane_AutoBlockSet_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -882,6 +895,8 @@ type DataplaneServer interface {
 	// operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
 	// same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
 	// self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+	// Replace the system-owned runtime auto-block snapshot without a configuration commit.
+	AutoBlockSet(context.Context, *AutoBlockSetRequest) (*AutoBlockSetResponse, error)
 	Apply(context.Context, *ApplyRequest) (*ApplyResponse, error)
 	// Retrieve dumps the ACTUAL state of the selected subsystems from VPP and the daemons, filtered
 	// to objects owned by this agent, decoded into the same DesiredState messages (canonicalised),
@@ -1082,6 +1097,9 @@ func (UnimplementedDataplaneServer) IpsecState(context.Context, *IpsecStateReque
 }
 func (UnimplementedDataplaneServer) TunnelState(context.Context, *TunnelStateRequest) (*TunnelStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method TunnelState not implemented")
+}
+func (UnimplementedDataplaneServer) AutoBlockSet(context.Context, *AutoBlockSetRequest) (*AutoBlockSetResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AutoBlockSet not implemented")
 }
 func (UnimplementedDataplaneServer) Apply(context.Context, *ApplyRequest) (*ApplyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Apply not implemented")
@@ -1286,6 +1304,24 @@ func _Dataplane_TunnelState_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).TunnelState(ctx, req.(*TunnelStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_AutoBlockSet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AutoBlockSetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).AutoBlockSet(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_AutoBlockSet_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).AutoBlockSet(ctx, req.(*AutoBlockSetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2176,6 +2212,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TunnelState",
 			Handler:    _Dataplane_TunnelState_Handler,
+		},
+		{
+			MethodName: "AutoBlockSet",
+			Handler:    _Dataplane_AutoBlockSet_Handler,
 		},
 		{
 			MethodName: "Apply",

@@ -1,3 +1,6 @@
+import { EventKind } from '@ngfw/proto';
+import { AgentClient } from '../../agent/agent.client.js';
+import { SnapshotPublisher, runtimeSources } from './publisher.js';
 import { Inject, Injectable, Logger, type OnModuleDestroy } from '@nestjs/common';
 import {
   isPlainObject,
@@ -66,6 +69,10 @@ export class AutoBlockService implements OnModuleDestroy {
   private readonly offAudit: () => void;
   private readonly offCommit: () => void;
   private stopped = false;
+  private readonly publisher: SnapshotPublisher;
+  private readonly offAgent: () => void;
+  private offReady: (() => void) | undefined;
+  private publishTimer: NodeJS.Timeout | undefined;
   /** Clock (tests move it). */
   now: () => number = () => Date.now();
 
@@ -75,7 +82,21 @@ export class AutoBlockService implements OnModuleDestroy {
     private readonly events: SystemEventsService,
     private readonly bus: Bus,
     @Inject(DB) private readonly db: Db,
+    private readonly agent: AgentClient,
   ) {
+    this.publisher = new SnapshotPublisher(
+      async () => {
+        await this.agent.autoBlockSet(runtimeSources(await this.list(), this.allow));
+      },
+      (e) => this.log.warn(`auto-block enforcement failed; retrying: ${String(e)}`),
+    );
+    this.offAgent = this.bus.onAgentEvent((e) => {
+      if (e.kind !== EventKind.EVENT_KIND_AUTOBLOCK_OBSERVED) return;
+      const kind = e.attributes['detector'];
+      if (kind === 'ssh' || kind === 'vpnAuth' || kind === 'portScan') {
+        this.observe(e.attributes['source_ip'] ?? '', kind);
+      }
+    });
     this.offAudit = this.audit.onEntry((e) => this.onAudit(e));
     this.offCommit = this.bus.onPublish((m) => {
       if (m.topic === 'commit.events') {
@@ -88,6 +109,10 @@ export class AutoBlockService implements OnModuleDestroy {
   /** Called once the app is ready (index.ts provider factory), like the alarms engine. */
   async start(): Promise<void> {
     await this.reload();
+    this.offReady = this.agent.watchReady(() => this.publisher.request());
+    this.publishTimer = setInterval(() => this.publisher.request(), 5000);
+    this.publishTimer.unref?.();
+    this.publisher.request();
     this.sweepTimer = setInterval(() => void this.sweep(), SWEEP_MS);
     this.sweepTimer.unref?.();
   }
@@ -96,6 +121,10 @@ export class AutoBlockService implements OnModuleDestroy {
     this.stopped = true;
     this.offAudit();
     this.offCommit();
+    this.offAgent();
+    this.offReady?.();
+    this.publisher.stop();
+    if (this.publishTimer) clearInterval(this.publishTimer);
     if (this.sweepTimer) clearInterval(this.sweepTimer);
   }
 
@@ -104,9 +133,15 @@ export class AutoBlockService implements OnModuleDestroy {
     const { doc } = await this.ds.getRunning();
     const sec = isPlainObject(doc['security']) ? (doc['security'] as Json) : {};
     this.cfg = (isPlainObject(sec['autoBlock']) ? sec['autoBlock'] : undefined) as
-      | AutoBlock
-      | undefined;
-    this.allow = compileAllowlist(this.cfg?.allowlist ?? []);
+      AutoBlock | undefined;
+    const acl = isPlainObject(doc['acl']) ? (doc['acl'] as Json) : {};
+    const settings = isPlainObject(acl['hostSettings']) ? (acl['hostSettings'] as Json) : {};
+    const lockout = isPlainObject(settings['antiLockout']) ? (settings['antiLockout'] as Json) : {};
+    const management = Array.isArray(lockout['sources'])
+      ? lockout['sources'].filter((s): s is string => typeof s === 'string')
+      : [];
+    this.allow = compileAllowlist([...(this.cfg?.allowlist ?? []), ...management]);
+    this.publisher.request();
   }
 
   private ruleFor(kind: AutoBlockSourceKind): AutoBlockRule | undefined {
@@ -186,11 +221,17 @@ export class AutoBlockService implements OnModuleDestroy {
       });
     this.emit('blocked', source, { reason: kind, hits, offences, blockSec: secs });
     void this.events
-      .record('warning', 'security', 'AUTO_BLOCK', `blocked ${source} (${kind}, ${hits} hits, offence ${offences}) for ${secs}s`, {
-        source,
-        reason: kind,
-        offences,
-      })
+      .record(
+        'warning',
+        'security',
+        'AUTO_BLOCK',
+        `blocked ${source} (${kind}, ${hits} hits, offence ${offences}) for ${secs}s`,
+        {
+          source,
+          reason: kind,
+          offences,
+        },
+      )
       .catch(() => {});
   }
 
@@ -266,7 +307,10 @@ export class AutoBlockService implements OnModuleDestroy {
     const source = canonicalSource(sourceRaw);
     if (source === undefined) throw problems.badRequest(`'${sourceRaw}' is not an IP address`);
     if (isAllowlisted(this.allow, sourceRaw)) {
-      throw problems.conflict('allowlisted', `${source} is on the allow-list and cannot be blocked`);
+      throw problems.conflict(
+        'allowlisted',
+        `${source} is on the allow-list and cannot be blocked`,
+      );
     }
     const secs = Math.min(Math.max(blockSec ?? DEFAULT_MANUAL_BLOCK_SEC, 1), MAX_MANUAL_BLOCK_SEC);
     const now = new Date(this.now());
@@ -274,18 +318,33 @@ export class AutoBlockService implements OnModuleDestroy {
     await this.makeRoom();
     await this.db
       .insert(autoBlockTable)
-      .values({ source, reason: 'manual', hits: 0, offences: 1, origin: 'manual', note, blockedAt: now, expiresAt })
+      .values({
+        source,
+        reason: 'manual',
+        hits: 0,
+        offences: 1,
+        origin: 'manual',
+        note,
+        blockedAt: now,
+        expiresAt,
+      })
       .onConflictDoUpdate({
         target: autoBlockTable.source,
         set: { reason: 'manual', origin: 'manual', note, blockedAt: now, expiresAt },
       });
     this.emit('blocked', source, { reason: 'manual', by: who.username, blockSec: secs });
     void this.events
-      .record('warning', 'security', 'AUTO_BLOCK', `${who.username} blocked ${source} for ${secs}s`, {
-        source,
-        by: who.username,
-        manual: true,
-      })
+      .record(
+        'warning',
+        'security',
+        'AUTO_BLOCK',
+        `${who.username} blocked ${source} for ${secs}s`,
+        {
+          source,
+          by: who.username,
+          manual: true,
+        },
+      )
       .catch(() => {});
     const [row] = await this.db
       .select()
@@ -324,6 +383,12 @@ export class AutoBlockService implements OnModuleDestroy {
   }
 
   private emit(type: 'blocked' | 'unblocked', source: string, extra: Json): void {
-    this.bus.publish('security.events', { type, source, at: new Date(this.now()).toISOString(), ...extra });
+    this.publisher.request();
+    this.bus.publish('security.events', {
+      type,
+      source,
+      at: new Date(this.now()).toISOString(),
+      ...extra,
+    });
   }
 }

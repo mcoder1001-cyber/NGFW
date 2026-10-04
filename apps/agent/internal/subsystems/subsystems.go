@@ -79,6 +79,7 @@ const (
 
 // Domains maps each implemented configuration domain to the descriptors that realise it.
 var Domains = map[string][]string{
+	"security": {}, // defensive policy persisted by the agent; enforcement depends on ACL objects
 	Interfaces: {
 		core.LoopbackName,
 		afpacket.HostInterfaceName,

@@ -364,7 +364,7 @@ func (p *Plugin) arcNodes(ctx context.Context, idx uint32) (in, out, ok bool, er
 	case err != nil:
 		return false, false, false, err
 	}
-	return in, out, !(in && out), nil
+	return in, out, !in || !out, nil
 }
 
 // purge removes every instance of node from the ip4-unicast arc of idx and returns how many

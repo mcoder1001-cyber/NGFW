@@ -967,6 +967,10 @@ export class FakeAgent {
       ...det44MapDsliteCnatFake(this), // Det44Sessions/Det44Lookup/CnatSessions + det44SessionClose/cnatSessionPurge
       // wave-BC: F-tunnels
       // wave-BC: F-vrrp-config-sync
+      vrrpState: (call, cb) => {
+        if (!this.checkCommon('VrrpState', call.request, cb)) return;
+        cb(null, { owner: this.owner, retrievedAt: new Date(), routers: [] });
+      },
       // wave-BC: F-pki
       pkiFileState: (_call: unknown, cb: (e: { code: number; details: string }) => void) =>
         cb({ code: status.UNIMPLEMENTED, details: 'unknown method PkiFileState' }),

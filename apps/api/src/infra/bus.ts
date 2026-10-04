@@ -12,6 +12,7 @@ export const TOPICS = [
   'agent.events',
   // Feature topics: one line under the feature's anchor (wave-A-hotspots P6).
   // wave-BC: F-vrrp-config-sync
+  'vrrp.events',
   // wave-BC: F-pki
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip

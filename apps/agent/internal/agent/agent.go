@@ -325,7 +325,8 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 
 	rctx, cancel := context.WithCancel(ctx)
 	a.cancel = cancel
-	a.wg.Add(8)
+	a.wg.Add(9)
+	go func() { defer a.wg.Done(); a.watchVrrp(rctx) }()
 	go func() { defer a.wg.Done(); a.watchNativeAutoBlock(rctx) }()
 	go func() { defer a.wg.Done(); a.watchHostDetectors(rctx) }()
 	go func() { defer a.wg.Done(); a.watchAutoBlock(rctx) }()

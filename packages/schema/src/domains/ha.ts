@@ -153,6 +153,9 @@ export const HaClusterSchema = z
           z.strictObject({
             name: withUi(hostname, { title: 'Peer name' }),
             address: withUi(ipAddress, { title: 'Peer address' }),
+            certificatePin: withUi(z.string().regex(/^[a-f0-9]{64}$/), {
+              title: 'Peer TLS certificate SHA256',
+            }).optional(),
           }),
         )
         .min(1)
@@ -183,6 +186,18 @@ export const HaClusterSchema = z
       { title: 'State synchronisation' },
     ).prefault({}),
     // wave-BC: F-vrrp-config-sync
+    syncExclude: z
+      .array(
+        z
+          .string()
+          .regex(/^\/(?:[^~]|~[01])+$/)
+          .refine(
+            (p) => !p.split('/').some((x) => ['__proto__', 'constructor', 'prototype'].includes(x)),
+            'unsafe pointer',
+          ),
+      )
+      .max(64)
+      .default([]),
   })
   .superRefine((c, ctx) => {
     const names = new Set<string>();

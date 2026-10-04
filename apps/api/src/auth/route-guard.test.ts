@@ -22,6 +22,7 @@ const PUBLIC = new Set([
   'POST /api/v1/auth/logout',
   // Feature public routes: one line under the feature's anchor (SY1).
   // wave-BC: F-vrrp-config-sync
+  "POST /api/v1/actions/ha/receive",
   // wave-BC: F-aaa
   'POST /api/v1/auth/mfa/verify', // F-aaa-login: authorised by the single-use login challenge
   'POST /api/v1/auth/mfa/enroll', // F-aaa-login: authorised by the single-use login challenge

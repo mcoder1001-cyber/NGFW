@@ -1,0 +1,7 @@
+# HA integration verification, 2026-10-04
+
+Integrated independently approved source ee3bff260 on main9994929bb (WAN PR154), preserving native-SA watcher, sealed FRR resolver, routing/tunnel contracts and WAN dynamic ownership. Native-SA and VRRP watchers each register one lifecycle worker (Add9); Event17 maps to vrrp.events alongside native Event12 and routing20/21.
+
+Actual integration evidence: Go focused race agent7.566s/subsystems1.437s/vrrp1.272s PASS; followup desired/agent race including native SA event lifecycle PASS1.442/2.740s. API HA/auth44 tests PASS23.72s; cluster classification2 tests PASS16.80s; existing drift-defaults4 tests PASS16.11s. HA UI6 tests PASS17.91s. Full API/web dependency build14/14 PASS3m45.885s, bundle budget506.1KB gzip within600KB, no development routes. Normal protobuf/YANG/client generation completed; Final API direct typecheck PASS; source guard PASS11s, 163.78KB scanned, no leaks with unchanged scanner configuration.
+
+Independent review found and fixed durable stale-source rejection and fail-closed automatic single-writer authority; exact reviews in F-vrrp-config-sync-independent-review-20261004.md. API-managed cluster metadata is excluded from dataplane drift; enabled unsupported stateSync leaves still warn individually. No production host or shared VPP changed. Full hosted CI retains prior owner waiver. Dual-node VRRP/failure/configuration-sync appliance acceptance is NOTRUN and deferred.

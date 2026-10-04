@@ -23,6 +23,7 @@ import { det44MapDsliteCnatValidators } from './det44-map-dslite-cnat.js';
 import { nat46Validators } from './nat46.js'; // F-nat46 (unanchored)
 // wave-BC: F-tunnels
 // wave-BC: F-vrrp-config-sync
+import { vrrpConfigSyncValidators } from "./vrrp-config-sync.js";
 // wave-BC: F-pki
 // wave-BC: F-ikev2-native
 import { ipsecValidators } from './ipsec.js';
@@ -110,6 +111,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...nat46Validators, // F-nat46 (unanchored)
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
+  ...vrrpConfigSyncValidators,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   ...ipsecValidators,

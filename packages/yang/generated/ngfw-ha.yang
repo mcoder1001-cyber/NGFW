@@ -168,6 +168,11 @@ module ngfw-ha {
           }
           mandatory true;
         }
+        leaf certificatePin {
+          type string {
+            pattern "[a-f0-9]{64}";
+          }
+        }
       }
       leaf port {
         type uint32 {
@@ -215,6 +220,9 @@ module ngfw-ha {
           type boolean;
           default "false";
         }
+      }
+      leaf-list syncExclude {
+        type string; // pattern dropped: not XSD-expressible
       }
     }
   }

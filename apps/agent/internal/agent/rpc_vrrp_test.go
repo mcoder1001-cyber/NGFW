@@ -236,10 +236,8 @@ func TestVrrpRollbackRestoresVppAndMeta(t *testing.T) {
 	}
 }
 
-// TestHaClusterUnsupported (RV-A R3 M1): `ha` is a registered domain, so ha.cluster no longer trips
-// agent.unimplemented-domain; desired.Vrrp reports it as agent.unsupported-field instead of applying
-// nothing silently.
-func TestHaClusterUnsupported(t *testing.T) {
+// Configuration sync is API-managed; unsupported session replication still reports a warning.
+func TestHaClusterAPIManaged(t *testing.T) {
 	vrrpGates(t, "", "", "")
 	s := newSvc(t, coretest.New(), t.TempDir())
 	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "hc1",
@@ -253,8 +251,48 @@ func TestHaClusterUnsupported(t *testing.T) {
 			got = append(got, is.GetSeverity().String()+" "+is.GetPointer()+" "+is.GetRule())
 		}
 	}
-	want := []string{"ISSUE_SEVERITY_WARNING /ha/cluster agent.unsupported-field"}
+	want := []string{}
 	if strings.Join(got, "|") != strings.Join(want, "|") {
 		t.Fatalf("ha.cluster findings:\n got %v\nwant %v", got, want)
+	}
+}
+
+func TestHaClusterStateSyncUnsupported(t *testing.T) {
+	vrrpGates(t, "", "", "")
+	s := newSvc(t, coretest.New(), t.TempDir())
+	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "state-sync", DesiredState: doc(t, `{"ha":{"cluster":{"stateSync":{"nat":true}}}}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, issue := range rep.Errors {
+		if issue.Pointer == "/ha/cluster/stateSync/nat" && issue.Rule == "agent.unsupported-field" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("unsupported state sync not reported: %v", rep.Errors)
+	}
+}
+
+func TestVrrpStateObservedAndOwnerScoped(t *testing.T) {
+	vrrpGates(t, "on", "off", "")
+	v := coretest.New()
+	s := newSvc(t, v, t.TempDir())
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "state-view", DesiredState: doc(t, vrrpDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	out, err := s.vrrpState(context.Background(), &ngfwv1.VrrpStateRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Routers) != 2 {
+		t.Fatalf("routers=%v", out.Routers)
+	}
+	for _, r := range out.Routers {
+		if r.State != "backup" {
+			t.Fatalf("configured priority cannot imply master: %v", r)
+		}
+	}
+	if _, err := s.vrrpState(context.Background(), &ngfwv1.VrrpStateRequest{Owner: "foreign"}); err == nil {
+		t.Fatal("foreign owner accepted")
 	}
 }

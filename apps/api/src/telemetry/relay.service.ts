@@ -43,6 +43,8 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-A: F-object-model
     // wave-A: F-acl
     // wave-A: P11
+    case EventKind.EVENT_KIND_VRRP_STATE_CHANGED:
+      return 'vrrp.events';
     case EventKind.EVENT_KIND_IPSEC_SA_CHANGED:
       return 'ipsec.events';
     // wave-A: F-wireguard

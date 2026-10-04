@@ -212,14 +212,19 @@ func Vrrp(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, opts VrrpOptions)
 		return
 	}
 	ha := ds.GetHa()
-	// RV-A R3 M1: `ha` is now a registered domain, so agent.unimplemented-domain no longer fires for it
-	// and desired.Vrrp never applies ha.cluster. Without this an ha.cluster{enabled,configSync} commit
-	// validates clean and applies nothing, breaking the projection contract (an unimplemented leaf must
-	// surface as agent.unsupported-field). The D9.2 config-sync engine is not built (F-config-sync).
-	if ha.GetCluster() != nil {
-		s.Warnf(Ptr("ha", "cluster"), "agent.unsupported-field",
-			"ha.cluster (config sync and cluster state) is not applied by this agent build: the D9.2 config-sync engine is not built yet")
+	// Membership and configuration sync are applied by the API, never the agent.
+	// Session/state replication remains outside F-vrrp-config-sync.
+	st := ha.GetCluster().GetStateSync()
+	for _, flag := range []struct {
+		name    string
+		enabled bool
+	}{{"nat", st.GetNat()}, {"ipsec", st.GetIpsec()}, {"acl", st.GetAcl()}} {
+		if flag.enabled {
+			s.Warnf(Ptr("ha", "cluster", "stateSync", flag.name), "agent.unsupported-field",
+				"HA %s session replication is not implemented by this agent build", flag.name)
+		}
 	}
+
 	names := make([]string, 0, len(ha.GetVrrp()))
 	for n := range ha.GetVrrp() {
 		names = append(names, n)

@@ -134,7 +134,12 @@ const REVERT_GRACE_MS = 1500;
 const RECONCILE_RETRY_MS = [1000, 2000, 5000, 10_000, 30_000];
 
 /** The API applies `management.users` itself (app_user), so changes there count as applied (review M4). */
-const API_APPLIED = ['/management/users', '/management/notifications', '/system/setup'];
+const API_APPLIED = [
+  '/management/users',
+  '/management/notifications',
+  '/system/setup',
+  '/ha/cluster',
+];
 
 /**
  * Changed top-level keys between two documents that the agent does not implement (review M4). A domain whose only
@@ -605,6 +610,28 @@ export class CommitService implements OnApplicationShutdown {
         return { status: 'deferred', reason: 'another commit is in progress' };
       throw e;
     }
+  }
+
+  /** Authenticated HA delivery: preserves the ordinary atomic validator/apply/promote path. */
+  clusterCommit(change: (running: Doc) => Promise<Doc>, origin: string): Promise<CommitResult> {
+    return this.userSection(async () => {
+      await this.assertNoPending();
+      if (this.sync.state !== 'in-sync' || this.inflight !== undefined)
+        throw problems.conflict('cluster-sync-busy', 'running is awaiting reconciliation');
+      const c = await this.repo.candidate();
+      if (c.payload !== null || c.lockedAt !== null)
+        throw problems.conflict(
+          'candidate-dirty',
+          'local candidate edits or a candidate lock prevent cluster sync',
+        );
+      const running = await this.repo.latestRevision();
+      const next = await change(structuredClone(running?.payload ?? emptyDocument()));
+      return this.applyDocument(SYSTEM_PRINCIPAL, next, {
+        comment: `cluster sync from ${origin}`,
+        kind: 'cluster-sync',
+        parentId: running?.id ?? null,
+      });
+    });
   }
 
   /** New revision whose payload is revision `rev`'s, applied through the agent (P06 §4). */

@@ -1,0 +1,7 @@
+# HA additive contract completion, 2026-10-04
+
+Existing field shapes preserved. Additive fields: HaCluster.sync_exclude = 10, HaCluster.Peer.certificate_pin = 3 (previously unused), VrrpState read-only RPC/request/response, EventKind17. The existing HA record/map shape stays unchanged. REST live VRRP and cluster views plus force-sync route have generated client DTOs; private peer delivery is authenticated with cluster key HMAC over trusted HTTPS.
+
+Schema adds optional lowercase SHA256 certificatePin and default empty syncExclude. Priority255 now requires an interface-owned virtual address; existing duplicate/track-reference semantic rules continue. Root explicitly authorized additive CommitService.clusterCommit method, keeping normal validator/apply/promote and kind cluster-sync. The text revision-kind column needs no migration. Backup/restore remains generic full revision snapshots; loop suppression checks the existing kind metadata. No secret value sync: peer refs must already exist, unresolved secret re-encryption boundary remains deferred.
+
+Generated with pinned repository scheduler; all generated Go/TS and YANG changes are generator output. Existing source-only OSPF/setup fields also regenerate baseline stale YANG output; root will regenerate the final integrated tree. Intermediate local contract commit removed generated outputs when fresh worktree lacked dependencies; fixed forward immediately at abfd9bf92, final review tree regenerated in full. No incomplete generation is proposed for integration.

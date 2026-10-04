@@ -40,6 +40,7 @@ import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored
 import { tunnelsFeature } from './features/tunnels/index.js';
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
+import { vrrpConfigSyncFeature } from "./features/vrrp-config-sync/index.js";
 // wave-BC: F-pki
 import { pkiFeature } from './features/pki/index.js';
 // wave-BC: F-ikev2-native
@@ -176,6 +177,7 @@ export class AppModule {
         ...tunnelsFeature.controllers,
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
+    ...vrrpConfigSyncFeature.controllers,
         // wave-BC: F-pki
         ...pkiFeature.controllers,
         // wave-BC: F-ikev2-native
@@ -292,6 +294,7 @@ export class AppModule {
         // wave-BC: F-tunnels
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
+    ...vrrpConfigSyncFeature.providers,
         // wave-BC: F-pki
         ...pkiFeature.providers,
         // wave-BC: F-ikev2-native

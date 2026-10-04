@@ -24,7 +24,18 @@
     "engineLabels": {
       "vpp": "Dataplane",
       "keepalived": "Host service"
-    }
+    },
+    "roles": {
+      "master": "Master",
+      "backup": "Backup",
+      "init": "Initialising",
+      "interface-down": "Interface down",
+      "fault": "Fault",
+      "stop": "Stopped",
+      "unknown": "Unknown"
+    },
+    "currentPriority": "Current priority",
+    "masterInterval": "Master interval (ms)"
   },
   "cluster": {
     "title": "Cluster membership",
@@ -36,6 +47,14 @@
     "stateSync": "State synchronisation",
     "on": "on",
     "off": "off",
-    "pending": "Not committed"
+    "pending": "Not committed",
+    "force": "Force sync",
+    "revision": "Revision",
+    "role": "Role",
+    "lag": "Revision lag",
+    "syncStatus": "Sync status",
+    "synced": "Synced",
+    "waiting": "Waiting for sync",
+    "live": "Live cluster members"
   }
 }

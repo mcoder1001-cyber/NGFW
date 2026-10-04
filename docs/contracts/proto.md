@@ -991,3 +991,7 @@ is_management, bound_to_dpdk, link_up}` per network PCI function, sorted by `pci
 - `management_notes` give the reason class only (never a peer address).
 Errors: an unreadable host fact → `vppstartup.ErrHost` (the API retries). The API seeds the default document from this
 answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/D-192).
+
+### F-vrrp-config-sync: VrrpState
+
+`VrrpState(owner)` is read-only and owner checked. It reports the configured named routers against actual owner-scoped VPP dumps and the same gated keepalived runtime used by Apply. `state` is observed (`init`, `backup`, `master`, `interface-down`, `fault`, `stop`) or explicit `unknown`, with an `error` when an observation is unavailable. Current effective priority and native master advertisement interval in milliseconds are observations; absent keepalived interval remains zero. EventKind 17 publishes owner-scoped native `WatchEvents` transitions and keepalived state observations. Peer field 3 `certificate_pin` and HaCluster field 10 `sync_exclude` are additive API-to-API transport settings; the agent does not perform configuration synchronization.

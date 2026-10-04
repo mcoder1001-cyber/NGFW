@@ -469,6 +469,9 @@ export function driftOf(
   const ignored = report
     .filter((i) => i.severity !== IssueSeverity.ISSUE_SEVERITY_ERROR && COVERAGE_RULES.has(i.rule))
     .map((i) => ({ pointer: i.pointer, rule: i.rule }));
+  // HA membership/transport is API-to-API configuration; VPP Retrieve does not expose it.
+  if (changes.some((c) => c.pointer === '/ha/cluster' || c.pointer.startsWith('/ha/cluster/')))
+    ignored.push({ pointer: '/ha/cluster', rule: 'api.managed-field' });
   const skip = ignored
     .filter((i) => i.rule === 'agent.unimplemented-domain' || parsePointer(i.pointer).length >= 2)
     .map((i) => i.pointer);

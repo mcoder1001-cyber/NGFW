@@ -415,6 +415,8 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	// wave-A: P12
 	if in["interfaces"] {
 		desired.Lcp(p, boundIfs) // wave-BC: F-default-vpp-nics: no pair on an unbound NIC
+		// wave-BC: F-pppoe-client-wiring
+		desired.Pppoe(p, boundIfs, subsystems.PppoeSupervised())
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay
@@ -650,6 +652,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: P12
 	if in["interfaces"] {
 		desired.AssembleLcp(ds, kvs)
+		desired.AssemblePppoe(ds, kvs)
 	}
 	if in["routing"] {
 		desired.AssembleFRR(ds, kvs)

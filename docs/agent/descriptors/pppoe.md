@@ -16,3 +16,13 @@ PPPoE clients and DF-6 sends no packets, so the host test verifies that typed er
 
 `pppoe_add_del_cp` sets VPP's single `cp_if_index` (review M2), so it is a global singleton under D-071; its host test is
 opt-in (`NGFW_DF6_PPPOE_CP_HOST=1`) and never runs on the shared VPP.
+
+## Client desired-state descriptor and hook lifetime
+
+`pppoe.client.config/ngfw` is a singleton `StageDaemon` object carrying a subset of `DesiredState` with PPPoE references and parent LCP mappings. It depends on the logical client interfaces and parent LCP objects. The `Validator` resolves available secrets, stages mode-safe files in a private temporary tree and runs exactly one renderer structural checker; pppd has no offline checker. Missing material is a projection warning during dry-run and an apply-time `passwordRef` error. Checker output is masked with `rfkit.Redactor`.
+
+`ClientConfig.Retrieve` compares real files against the private reference-only manifest, reports file drift, and hydrates process-local session metadata after restart. The runtime retains no resolved password in its applied session registry. Product supervision uses an allowlisted argv-only runner. Slot apply writes only its own renderer paths and performs no supervision. `SetPppoeSecrets` injects the existing sealed versioned socket cache; no additional secret transport or API secret store was introduced.
+
+The `pppoe-watch` source runs a one-second poll under the agent lifetime context. `Env.Exclusive` serializes mirror I/O with config commit/resync/rollback. The combined runtime-address classifier keeps PPPoE-assigned addresses and accepted VRRP VIPs out of static-address reconciliation. Mirroring validates the full negotiated record before writes; additions and withdrawals dump first to remain idempotent. An attempted partial mirror is tracked before I/O, so later down/removal can withdraw it. Route operations carry one path and `IsMultipath=true`; only an exact `api.NO_SUCH_ENTRY` on withdrawal is benign. Globals-owner exit observation deduplicates unit `ExecMainStatus`/`NRestarts` snapshots and resets on up.
+
+Exit messages map pppd statuses 1–8, 10, 11, 15, 16 and 19; other nonzero statuses receive a numeric message. Source: [upstream pppd manual, EXIT STATUS](https://github.com/ppp-project/ppp/blob/master/pppd/pppd.8). No daemon output or credential is copied into state errors. Credentials-only edits receive an explicit unit restart when the existing renderer's peer/unit comparison would otherwise miss them. Clamp-only edits preserve hook state; removed/changed dial sessions delete their owned state file.

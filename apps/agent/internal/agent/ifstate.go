@@ -24,6 +24,7 @@ import (
 	"ngfw/agent/internal/descriptors/core"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/desired"
+	"ngfw/agent/internal/subsystems"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -133,6 +134,15 @@ func (s *Service) interfaceTable(ctx context.Context) (ifTable, error) {
 			}
 		}
 		st.Description = descriptionOf(stored, name, st.Parent)
+		// wave-BC: F-pppoe-client-wiring
+		if stored[name].GetPppoe() != nil {
+			if rt := subsystems.PppoeOf(s.owner); rt != nil {
+				st.Pppoe, err = rt.State(name, 0, "")
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 		out[name] = st
 	}
 	return out, nil

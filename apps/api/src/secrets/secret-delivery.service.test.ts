@@ -367,3 +367,22 @@ describe('OSPF/RIP transaction-selected MD5 password delivery', () => {
     },
   );
 });
+
+it('delivers only enabled PPPoE password references through the versioned channel', async () => {
+  const { delivery, where, encrypt } = setup([]);
+  const ref = 'password/pppoe';
+  const payload = 'NGFW_TEST_PSK_F-pppoe-client-wiring';
+  where.mockResolvedValueOnce([
+    { kind: 'password', ref, version: 4, ciphertext: encrypt(payload, ref) },
+  ]);
+  const ds = DesiredState.fromJSON({
+    interfaces: {
+      'wan/0': { pppoe: { username: 'u', passwordRef: ref } },
+      disabled: { pppoe: { enabled: false, passwordRef: 'password/disabled' } },
+    },
+  });
+  const result = await delivery.resolveVersioned(ds);
+  expect(result.bundle.values[ref]).toEqual(Buffer.from(payload));
+  expect(result.versions).toEqual({ [ref]: 4 });
+  expect(where).toHaveBeenCalledTimes(1);
+});

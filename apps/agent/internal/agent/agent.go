@@ -310,7 +310,10 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 
 	rctx, cancel := context.WithCancel(ctx)
 	a.cancel = cancel
-	a.wg.Add(4)
+	a.wg.Add(7)
+	go func() { defer a.wg.Done(); a.watchNativeAutoBlock(rctx) }()
+	go func() { defer a.wg.Done(); a.watchHostDetectors(rctx) }()
+	go func() { defer a.wg.Done(); a.watchAutoBlock(rctx) }()
 	go func() { defer a.wg.Done(); a.watchWAN(rctx, wan) }()
 	go func() {
 		defer a.wg.Done()

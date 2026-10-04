@@ -47,7 +47,8 @@ function parseIpv6(addr: string): bigint | undefined {
   if (halves.length > 2) return undefined;
   const head = halves[0] === '' ? [] : halves[0]!.split(':');
   const tail = halves.length === 2 ? (halves[1] === '' ? [] : halves[1]!.split(':')) : null;
-  const groups = tail === null ? head : [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail];
+  const groups =
+    tail === null ? head : [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail];
   if (tail === null && groups.length !== 8) return undefined;
   if (tail !== null && head.length + tail.length > 7) return undefined;
   if (groups.length !== 8) return undefined;
@@ -86,8 +87,10 @@ export function parsePrefix(entry: string): ParsedPrefix | undefined {
 
 /** The canonical block key for a source address: `addr/32` or `addr/128` (the source is always a single host). */
 export function canonicalSource(addr: string): string | undefined {
-  const ip = parseIp(addr);
+  let ip = parseIp(addr);
   if (ip === undefined) return undefined;
+  if (ip.family === 6 && ip.value >> 32n === 0xffffn)
+    ip = { family: 4, value: ip.value & 0xffffffffn };
   return `${formatIp(ip.family, ip.value)}/${ip.family === 4 ? 32 : 128}`;
 }
 
@@ -100,7 +103,7 @@ function formatIp(family: Family, value: bigint): string {
   // RFC 5952: compress the longest run (>= 2) of zero groups
   let best = -1;
   let bestLen = 0;
-  for (let i = 0; i < 8; ) {
+  for (let i = 0; i < 8;) {
     if (groups[i] !== 0) {
       i++;
       continue;
@@ -129,15 +132,21 @@ export function compileAllowlist(entries: readonly string[]): ParsedPrefix[] {
   const out: ParsedPrefix[] = [...IMPLICIT_ALLOW];
   for (const e of entries) {
     const p = parsePrefix(e);
-    if (p !== undefined) out.push(p);
+    if (p !== undefined) {
+      out.push(p);
+      if (p.family === 6 && p.first >> 32n === 0xffffn && p.last >> 32n === 0xffffn)
+        out.push({ family: 4, first: p.first & 0xffffffffn, last: p.last & 0xffffffffn });
+    }
   }
   return out;
 }
 
 /** True when the source address falls inside any allow-list prefix (of the same family). */
 export function isAllowlisted(allow: readonly ParsedPrefix[], source: string): boolean {
-  const ip = parseIp(source);
+  let ip = parseIp(source);
   if (ip === undefined) return false;
+  if (ip.family === 6 && ip.value >> 32n === 0xffffn)
+    ip = { family: 4, value: ip.value & 0xffffffffn };
   return allow.some((p) => p.family === ip.family && ip.value >= p.first && ip.value <= p.last);
 }
 

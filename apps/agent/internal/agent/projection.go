@@ -42,7 +42,7 @@ import (
 // Root keys of the configuration document (ROOT_KEYS in packages/schema), documented order.
 var rootKeys = []string{
 	"system", "dataplane", "interfaces", "vrfs", "routing", "nat", "objects",
-	"acl", "vpn", "tunnels", "services", "ha", "management",
+	"acl", "vpn", "tunnels", "services", "ha", "management", "security",
 }
 
 // domainDescriptors maps each implemented domain to the descriptors that realise it (P08: the
@@ -84,6 +84,9 @@ func domainOf(descriptor string) string {
 // scopeOf is the scheduler scope managing exactly the descriptors of domains.
 func scopeOf(domains []string) scheduler.Scope {
 	var names []string
+	if contains(domains, "security") || contains(domains, "interfaces") {
+		names = append(names, domainDescriptors["acl"]...)
+	}
 	for _, d := range domains {
 		names = append(names, domainDescriptors[d]...)
 	}
@@ -366,7 +369,7 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	}
 	// wave-A: F-host-acl-nftables
 	if in["acl"] {
-		desired.HostACL(p, ds.GetAcl(), ds.GetObjects(), in["objects"]) // host firewall (internal/desired/hostacl.go)
+		desired.HostACL(p, ds.GetAcl(), ds.GetObjects(), in["objects"], ds.GetSecurity().GetAutoBlock()) // host firewall (internal/desired/hostacl.go)
 	}
 	// wave-A: F-nat44-ed-sessions
 	if in["nat"] {

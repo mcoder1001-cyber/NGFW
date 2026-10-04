@@ -44,6 +44,9 @@ service Dataplane {
   // operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
   // same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
   // self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+  // Replace the system-owned runtime auto-block snapshot without a configuration commit.
+  rpc AutoBlockSet(AutoBlockSetRequest) returns (AutoBlockSetResponse);
+
   rpc Apply(ApplyRequest) returns (ApplyResponse);
   // Retrieve dumps the ACTUAL state of the selected subsystems from VPP and the daemons, filtered
   // to objects owned by this agent, decoded into the same DesiredState messages (canonicalised),
@@ -675,6 +678,8 @@ message StreamEventsRequest {
 // EventKind classifies an Event.
 enum EventKind {
   EVENT_KIND_UNSPECIFIED = 0;
+  // Host observation; attributes source_ip and detector (ssh | vpnAuth | portScan).
+  EVENT_KIND_AUTOBLOCK_OBSERVED = 25;
   EVENT_KIND_IPSEC_SA_CHANGED = 12;
   // Interface link (or admin, see attributes) state went up; `interface` is set.
   EVENT_KIND_LINK_UP = 1;
@@ -2824,6 +2829,23 @@ message NotificationRule {
 message SecurityConfig {
   // `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking.
   AutoBlock auto_block = 1;
+}
+
+// Full authoritative API snapshot. Entries are host addresses, never prefixes.
+// The agent validates addresses, TTLs, allowlists and caps against running security.autoBlock.
+// Empty entries removes every runtime block; snapshots never modify candidate/running config.
+message AutoBlockSetRequest {
+  string owner = 1;
+  repeated AutoBlockRuntimeEntry entries = 2;
+}
+
+message AutoBlockRuntimeEntry {
+  string source = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message AutoBlockSetResponse {
+  uint32 active_entries = 1;
 }
 
 // AutoBlock mirrors `security.autoBlock`. The thresholds, allow-list and caps are the contract the API and host

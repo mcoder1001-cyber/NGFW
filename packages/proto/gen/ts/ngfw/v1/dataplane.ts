@@ -325,6 +325,8 @@ export function issueSeverityToJSON(object: IssueSeverity): string {
 /** EventKind classifies an Event. */
 export enum EventKind {
   EVENT_KIND_UNSPECIFIED = 0,
+  /** EVENT_KIND_AUTOBLOCK_OBSERVED - Host observation; attributes source_ip and detector (ssh | vpnAuth | portScan). */
+  EVENT_KIND_AUTOBLOCK_OBSERVED = 25,
   EVENT_KIND_IPSEC_SA_CHANGED = 12,
   /** EVENT_KIND_LINK_UP - Interface link (or admin, see attributes) state went up; `interface` is set. */
   EVENT_KIND_LINK_UP = 1,
@@ -394,6 +396,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 0:
     case "EVENT_KIND_UNSPECIFIED":
       return EventKind.EVENT_KIND_UNSPECIFIED;
+    case 25:
+    case "EVENT_KIND_AUTOBLOCK_OBSERVED":
+      return EventKind.EVENT_KIND_AUTOBLOCK_OBSERVED;
     case 12:
     case "EVENT_KIND_IPSEC_SA_CHANGED":
       return EventKind.EVENT_KIND_IPSEC_SA_CHANGED;
@@ -453,6 +458,8 @@ export function eventKindToJSON(object: EventKind): string {
   switch (object) {
     case EventKind.EVENT_KIND_UNSPECIFIED:
       return "EVENT_KIND_UNSPECIFIED";
+    case EventKind.EVENT_KIND_AUTOBLOCK_OBSERVED:
+      return "EVENT_KIND_AUTOBLOCK_OBSERVED";
     case EventKind.EVENT_KIND_IPSEC_SA_CHANGED:
       return "EVENT_KIND_IPSEC_SA_CHANGED";
     case EventKind.EVENT_KIND_LINK_UP:
@@ -3939,6 +3946,25 @@ export interface NotificationRule {
 export interface SecurityConfig {
   /** `security.autoBlock` — brute-force / scan detection with automatic temporary blocking via Global Blocking. */
   autoBlock: AutoBlock | undefined;
+}
+
+/**
+ * Full authoritative API snapshot. Entries are host addresses, never prefixes.
+ * The agent validates addresses, TTLs, allowlists and caps against running security.autoBlock.
+ * Empty entries removes every runtime block; snapshots never modify candidate/running config.
+ */
+export interface AutoBlockSetRequest {
+  owner: string;
+  entries: AutoBlockRuntimeEntry[];
+}
+
+export interface AutoBlockRuntimeEntry {
+  source: string;
+  expiresAt: Date | undefined;
+}
+
+export interface AutoBlockSetResponse {
+  activeEntries: number;
 }
 
 /**
@@ -36969,6 +36995,255 @@ export const SecurityConfig: MessageFns<SecurityConfig> = {
     message.autoBlock = (object.autoBlock !== undefined && object.autoBlock !== null)
       ? AutoBlock.fromPartial(object.autoBlock)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlockSetRequest(): AutoBlockSetRequest {
+  return { owner: "", entries: [] };
+}
+
+export const AutoBlockSetRequest: MessageFns<AutoBlockSetRequest> = {
+  encode(message: AutoBlockSetRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.entries) {
+      AutoBlockRuntimeEntry.encode(v!, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlockSetRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlockSetRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.entries.push(AutoBlockRuntimeEntry.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlockSetRequest {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      entries: globalThis.Array.isArray(object?.entries)
+        ? object.entries.map((e: any) => AutoBlockRuntimeEntry.fromJSON(e))
+        : [],
+    };
+  },
+
+  toJSON(message: AutoBlockSetRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.entries?.length) {
+      obj.entries = message.entries.map((e) => AutoBlockRuntimeEntry.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlockSetRequest>): AutoBlockSetRequest {
+    return AutoBlockSetRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlockSetRequest>): AutoBlockSetRequest {
+    const message = createBaseAutoBlockSetRequest();
+    message.owner = object.owner ?? "";
+    message.entries = object.entries?.map((e) => AutoBlockRuntimeEntry.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBaseAutoBlockRuntimeEntry(): AutoBlockRuntimeEntry {
+  return { source: "", expiresAt: undefined };
+}
+
+export const AutoBlockRuntimeEntry: MessageFns<AutoBlockRuntimeEntry> = {
+  encode(message: AutoBlockRuntimeEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.source !== "") {
+      writer.uint32(10).string(message.source);
+    }
+    if (message.expiresAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.expiresAt), writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlockRuntimeEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlockRuntimeEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.source = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.expiresAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlockRuntimeEntry {
+    return {
+      source: isSet(object.source) ? globalThis.String(object.source) : "",
+      expiresAt: isSet(object.expiresAt)
+        ? fromJsonTimestamp(object.expiresAt)
+        : isSet(object.expires_at)
+        ? fromJsonTimestamp(object.expires_at)
+        : undefined,
+    };
+  },
+
+  toJSON(message: AutoBlockRuntimeEntry): unknown {
+    const obj: any = {};
+    if (message.source !== "") {
+      obj.source = message.source;
+    }
+    if (message.expiresAt !== undefined) {
+      obj.expiresAt = message.expiresAt.toISOString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlockRuntimeEntry>): AutoBlockRuntimeEntry {
+    return AutoBlockRuntimeEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlockRuntimeEntry>): AutoBlockRuntimeEntry {
+    const message = createBaseAutoBlockRuntimeEntry();
+    message.source = object.source ?? "";
+    message.expiresAt = object.expiresAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseAutoBlockSetResponse(): AutoBlockSetResponse {
+  return { activeEntries: 0 };
+}
+
+export const AutoBlockSetResponse: MessageFns<AutoBlockSetResponse> = {
+  encode(message: AutoBlockSetResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.activeEntries !== 0) {
+      writer.uint32(8).uint32(message.activeEntries);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): AutoBlockSetResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseAutoBlockSetResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.activeEntries = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): AutoBlockSetResponse {
+    return {
+      activeEntries: isSet(object.activeEntries)
+        ? globalThis.Number(object.activeEntries)
+        : isSet(object.active_entries)
+        ? globalThis.Number(object.active_entries)
+        : 0,
+    };
+  },
+
+  toJSON(message: AutoBlockSetResponse): unknown {
+    const obj: any = {};
+    if (message.activeEntries !== 0) {
+      obj.activeEntries = Math.round(message.activeEntries);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<AutoBlockSetResponse>): AutoBlockSetResponse {
+    return AutoBlockSetResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<AutoBlockSetResponse>): AutoBlockSetResponse {
+    const message = createBaseAutoBlockSetResponse();
+    message.activeEntries = object.activeEntries ?? 0;
     return message;
   },
 };
@@ -98924,7 +99199,18 @@ export const DataplaneService = {
    * operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
    * same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
    * self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+   * Replace the system-owned runtime auto-block snapshot without a configuration commit.
    */
+  autoBlockSet: {
+    path: "/ngfw.v1.Dataplane/AutoBlockSet" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: AutoBlockSetRequest): Buffer => Buffer.from(AutoBlockSetRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): AutoBlockSetRequest => AutoBlockSetRequest.decode(value),
+    responseSerialize: (value: AutoBlockSetResponse): Buffer =>
+      Buffer.from(AutoBlockSetResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): AutoBlockSetResponse => AutoBlockSetResponse.decode(value),
+  },
   apply: {
     path: "/ngfw.v1.Dataplane/Apply" as const,
     requestStream: false as const,
@@ -99646,7 +99932,9 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
    * same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
    * self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+   * Replace the system-owned runtime auto-block snapshot without a configuration commit.
    */
+  autoBlockSet: handleUnaryCall<AutoBlockSetRequest, AutoBlockSetResponse>;
   apply: handleUnaryCall<ApplyRequest, ApplyResponse>;
   /**
    * Retrieve dumps the ACTUAL state of the selected subsystems from VPP and the daemons, filtered
@@ -99959,7 +100247,23 @@ export interface DataplaneClient extends Client {
    * operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
    * same desired state twice yields an empty plan. With confirm_timeout_sec > 0 the agent
    * self-reverts to the previously confirmed state unless the transaction is confirmed in time.
+   * Replace the system-owned runtime auto-block snapshot without a configuration commit.
    */
+  autoBlockSet(
+    request: AutoBlockSetRequest,
+    callback: (error: ServiceError | null, response: AutoBlockSetResponse) => void,
+  ): ClientUnaryCall;
+  autoBlockSet(
+    request: AutoBlockSetRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: AutoBlockSetResponse) => void,
+  ): ClientUnaryCall;
+  autoBlockSet(
+    request: AutoBlockSetRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: AutoBlockSetResponse) => void,
+  ): ClientUnaryCall;
   apply(
     request: ApplyRequest,
     callback: (error: ServiceError | null, response: ApplyResponse) => void,

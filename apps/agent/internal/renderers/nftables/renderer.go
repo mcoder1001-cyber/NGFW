@@ -140,7 +140,7 @@ func (r *Renderer) nft(ctx context.Context, args ...string) (renderers.Output, e
 
 var (
 	setNameRe   = regexp.MustCompile(`^[ab][46]_[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$`) // a: address object, b: block list
-	chainNameRe = regexp.MustCompile(`^((in|out|fwd)_[A-Za-z0-9][A-Za-z0-9_.-]{0,62}|` + BlockChain + `)$`)
+	chainNameRe = regexp.MustCompile(`^((in|out|fwd)_[A-Za-z0-9][A-Za-z0-9_.-]{0,62}|` + BlockChain + `|in__scan)$`)
 	commentRe   = regexp.MustCompile(`^ngfw:(@[a-z-]+|[A-Za-z0-9][A-Za-z0-9_.-]{0,62}:[0-9]{1,10})/[0-9]{1,4}:[0-9a-f]{8}$`)
 )
 

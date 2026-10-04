@@ -40,8 +40,8 @@ func SetHostACLEnv(e *HostACLEnv) { hostACLEnv.Store(e) }
 
 // HostACL emits the host firewall object of acl. objs is the transaction's objects document; when
 // objectsInTxn is false the running agent's applied objects document is used instead (if it has one).
-func HostACL(s Sink, acl *ngfwv1.AclConfig, objs *ngfwv1.ObjectsConfig, objectsInTxn bool) {
-	if acl == nil {
+func HostACL(s Sink, acl *ngfwv1.AclConfig, objs *ngfwv1.ObjectsConfig, objectsInTxn bool, security ...*ngfwv1.AutoBlock) {
+	if acl == nil && len(security) == 0 {
 		return
 	}
 	for _, leaf := range []struct {
@@ -53,6 +53,9 @@ func HostACL(s Sink, acl *ngfwv1.AclConfig, objs *ngfwv1.ObjectsConfig, objectsI
 		}
 	}
 	in := nftables.Input{ACL: acl, Objects: objs}
+	if len(security) > 0 {
+		in.AutoBlock = security[0]
+	}
 	if env := hostACLEnv.Load(); env != nil {
 		in.FQDN = env.FQDN
 		if !objectsInTxn && env.Applied != nil {

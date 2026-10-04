@@ -811,6 +811,10 @@ export class FakeAgent {
     };
 
     return {
+      autoBlockSet: (call, cb) => {
+        if (!this.checkCommon('AutoBlockSet', call.request, cb)) return;
+        cb(null, { activeEntries: call.request.entries.length });
+      },
       apply,
       dryRun,
       retrieve,

@@ -7,6 +7,8 @@ import {
 } from '@grpc/grpc-js';
 import { Inject, Injectable, Logger, Optional, type OnModuleDestroy } from '@nestjs/common';
 import {
+  type AutoBlockSetRequest,
+  type AutoBlockSetResponse,
   type ApplyRequest,
   type ApplyResponse,
   DataplaneClient,
@@ -233,6 +235,10 @@ export class AgentClient implements OnModuleDestroy {
       req.secretBundle ??
       (req.desiredState ? await this.secretDelivery?.resolve(req.desiredState) : undefined);
     return this.unary(this.c.apply, { ...req, secretBundle, owner: this.owner }, timeoutMs);
+  }
+
+  async autoBlockSet(entries: AutoBlockSetRequest['entries']): Promise<AutoBlockSetResponse> {
+    return this.unary(this.c.autoBlockSet, { entries, owner: this.owner });
   }
 
   async dryRun(

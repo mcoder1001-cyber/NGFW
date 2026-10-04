@@ -137,3 +137,9 @@ describe('auto-block sliding windows', () => {
     expect(w.size).toBe(0);
   });
 });
+
+it('canonicalizes mapped IPv4 and protects mapped management and loopback aliases', () => {
+  expect(canonicalSource('::ffff:192.0.2.7')).toBe('192.0.2.7/32');
+  expect(isAllowlisted(compileAllowlist(['192.0.2.0/24']), '::ffff:c000:207')).toBe(true);
+  expect(isAllowlisted(compileAllowlist([]), '::ffff:127.0.0.1')).toBe(true);
+});

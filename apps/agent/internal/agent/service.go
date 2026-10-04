@@ -21,6 +21,7 @@ import (
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	capturetrace "ngfw/agent/internal/actions/capture-trace"
+	"ngfw/agent/internal/autoblock"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/desired"
@@ -36,14 +37,16 @@ type summaryCounts = scheduler.Summary
 type mode int
 
 const (
-	modeTxn    mode = iota // Apply RPC
-	modeResync             // agent start / VPP reconnect
-	modeRevert             // confirm timeout
+	modeTxn     mode = iota // Apply RPC
+	modeResync              // agent start / VPP reconnect
+	modeRevert              // confirm timeout
+	modeRuntime             // runtime-only ACL reconciliation, no config transaction
 )
 
 // Service implements the ngfw.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
+	autoBlock     autoBlockRuntime
 	captureConfig capturetrace.Config
 	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
 	netdevKind        desired.NetdevKind
@@ -169,6 +172,9 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 		txnTimeout: cfg.TxnTimeout, requestResync: cfg.RequestResync,
+	}
+	if err := s.loadAutoBlock(); err != nil {
+		return nil, err
 	}
 	s.captureConfig = capturetrace.Config{Client: cfg.VPP, Owner: cfg.Owner, GlobalsOwner: cfg.GlobalsOwner, Boot: cfg.CaptureBoot}
 	if cfg.StateDir != "/var/lib/ngfw/agent" {
@@ -303,7 +309,7 @@ func (s *Service) refreshSnapshotLocked() {
 	s.metrics.setPending(s.st.meta.PendingTxnID != "")
 	desired.SetIpfixExporterNames(s.st.desired.GetServices()) // F-ipfix-sflow: names from the stored state only
 	desired.SetNat46Owners(s.st.desired.GetNat())             // F-nat46: shared map-t interface owners, stored state only
-	if len(s.sources) > 0 {
+	{
 		doc := proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
 		s.mu.Lock()
 		s.storedDoc = doc
@@ -602,6 +608,8 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngf
 			s.st.meta.PendingTxnID = ""
 			s.st.meta.ConfirmDeadline = nil
 			s.st.meta.Reverting = false
+		case modeRuntime:
+			// An ACL-only runtime success cannot clear unrelated degraded domains.
 		default:
 			s.setDegraded(false, "")
 		}
@@ -689,6 +697,8 @@ func minus(a, b []string) []string {
 
 func modeName(m mode) string {
 	switch m {
+	case modeRuntime:
+		return "auto-block"
 	case modeResync:
 		return "resync"
 	case modeRevert:
@@ -1049,6 +1059,22 @@ func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*n
 		return "", false
 	}, stored, live)
 	s.addDescriptions(ds)
+	s.mu.Lock()
+	runtimeEnabled := s.storedDoc.GetSecurity().GetAutoBlock().GetEnabled()
+	s.mu.Unlock()
+	if runtimeEnabled && ds.GetAcl().GetGlobalBlocking() != nil {
+		delete(ds.Acl.GlobalBlocking.Lists, "auto-block")
+		if len(ds.Acl.GlobalBlocking.Lists) == 0 {
+			ds.Acl.GlobalBlocking = nil
+		}
+	}
+	if contains(domains, "security") {
+		s.mu.Lock()
+		if s.storedDoc.GetSecurity() != nil {
+			ds.Security = proto.Clone(s.storedDoc.GetSecurity()).(*ngfwv1.SecurityConfig)
+		}
+		s.mu.Unlock()
+	}
 	return &ngfwv1.RetrieveResponse{DesiredState: ds, Subsystems: domains, Owner: s.owner, RetrievedAt: timestamppb.New(s.now())}, nil
 }
 
@@ -1297,7 +1323,28 @@ func claimsNotPersisted(resp *ngfwv1.ApplyResponse, err error) {
 }
 
 func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredState, domains []string) *projected {
-	projection := project(s.routingProjectionState(ds, domains), domains, s.resolveVRF, s.netdevKind)
+	projectionContext := append([]string{}, domains...)
+	for _, key := range rootKeys {
+		if _, implemented := domainDescriptors[key]; !implemented && domainPresent(ds, key) {
+			projectionContext = append(projectionContext, key)
+		}
+	}
+	view := mergeDomains(s.st.desired, ds, projectionContext)
+	projectionDomains := domains
+	if contains(domains, "security") || contains(domains, "interfaces") {
+		projectionDomains = union(domains, []string{"acl"})
+	}
+	effective, overlayErr := autoblock.Overlay(view, s.autoBlock.entries, s.now())
+	if overlayErr != nil {
+		effective = view
+	}
+	projection := project(effective, projectionDomains, s.resolveVRF, s.netdevKind)
+	if overlayErr != nil {
+		projection.Errorf("/security/autoBlock", "security.runtime-overlay", "%v", overlayErr)
+	}
+	if view.GetSecurity().GetAutoBlock().GetEnabled() && view.GetAcl().GetGlobalBlocking().GetLists()["auto-block"] != nil {
+		projection.Errorf("/acl/globalBlocking/lists/auto-block", "security.reserved-list", "auto-block is reserved for runtime enforcement")
+	}
 	for _, domain := range domains {
 		if domain == "interfaces" {
 			subsystems.ProjectBasePolicy(ctx, s.owner, projection, projection.kvs)

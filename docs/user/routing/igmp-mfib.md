@@ -71,3 +71,22 @@ routing.multicast.pim:
 ## Out of scope
 
 IPv6 multicast / MLD / pim6d, MSDP, multicast over tunnels, MPLS multicast, and BIER.
+
+## Agent data-plane wiring
+
+The agent applies configured IGMP interfaces, INCLUDE joins and proxies through the
+VPP IGMP descriptors. Static routes use `ip_mroute_add_del` and live state reads
+`igmp_dump` plus owned `ip_mroute_dump` entries. Ownership records survive agent
+restart and are bound to the VPP boot identity; foreign routes and tables are never
+adopted. Routing dependencies remove static multicast routes before their VRF.
+Only the globals owner can configure SSM ranges; a slot agent does not modify them.
+
+Membership changes are published on `multicast.events` with interface, group,
+source and include/exclude change. Event subscriptions restart after reconnection
+and stop during agent shutdown. The VPP 26.06 IGMP host packet test remains an
+explicit `NGFW_DF7_IGMP_HOST=1` lab operation because of the recorded router-alert
+crash. Static-route integration uses the normal integration gate and sends no IGMP.
+
+The FRR PIM renderer and PIM-to-mFIB dynamic sync remain the separate
+`F-pim-frrsync` task. This wiring reports static mFIB and IGMP groups; PIM neighbour
+output stays empty until that integration is delivered. BIER is not built.

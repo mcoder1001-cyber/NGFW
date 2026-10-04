@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"go.fd.io/govpp/api"
 
@@ -29,7 +30,11 @@ func Watch[E any](ctx context.Context, c vpp.Client, event api.Message, want fun
 	out := make(chan E, 64)
 	go func() {
 		defer close(out)
-		defer func() { _ = want(context.WithoutCancel(ctx), false, pid) }()
+		defer func() {
+			cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
+			defer cancel()
+			_ = want(cleanup, false, pid)
+		}()
 		defer w.Close()
 		for {
 			select {

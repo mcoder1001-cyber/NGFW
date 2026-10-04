@@ -4436,12 +4436,12 @@ tasks:
       "follow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090)\nfollow-up to F-igmp-mfib (PR #52): contract + semantic + state API (MulticastState) + web live view shipped; this wires the VPP mFIB and FRR pimd sync (needs lab VPP/host; VPP-engine IGMP host steps opt-in per D-087/D-090) | 2026-09-28 spawned (Agent tool, developer) slot 15, envelope /root/ngfw-wt/F-igmp-mfib-host.envelope.md, base main@f1f885a6 | 2026-09-28 done 22b2f933 CI PASSED: (a) mfib.route descriptor host-verified; (b) igmp projection + events relay = CONTINUE WIP (F-igmp-mfib-host-wip.md); (c) → F-pim-frrsync; panel RV-H2 | round 1 done c023c88f CI PASSED (R2/R4/R7 items addressed); verify round → merge; (b) CONTINUE remains | verify N1-N5 fixed f60108c1 CI PASSED; manager spot-check (run.txt tracked, 2 new tests pass) → merge queue; (b) stays CONTINUE → next worker | merged 103e0aa6 | item (b) igmp projection + events relay remains → CONTINUE row needed (F-igmp-mfib-wiring)\n\n2026-10-04: scoped reviewed source integrated by PR138, merge 1a3d2ba47c4a93fa6fb4cdb269bd74daa3146515. Six-package race and focused source checks passed; real VPP/IGMP/restart NOT RUN. FRR PIM synchronization remains F-pim-frrsync; optional BIER not built. Aggregate CI deferred by explicit owner publication/merge authorization; no aggregate green or hardware acceptance claimed. See docs/status/2026-10-04-three-ready-tasks.md and docs/status/DEFERRED-ACCEPTANCE.md."
   - template: ''
     parked_on: ''
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: task/F-mpls-ldp-host-20261004
+    worktree: /workspace/scratch/e4f791ef53f7/ldp
+    owner: Codex F-mpls-ldp-host
+    started: 2026-10-04T07:15:00+03:30
     finished: ''
-    state: ready
+    state: review
     wbs: []
     prompt: ''
     id: F-mpls-ldp-host
@@ -4581,7 +4581,7 @@ tasks:
       - F-global-blocking
     priority: 4
     est_hours: 8
-    state: ready
+    state: review
     parked_on: ''
     wbs: []
     scope:
@@ -4591,10 +4591,10 @@ tasks:
     files_owned:
       packages/proto/ngfw/v1/dataplane.proto (additive, contract commit) apps/agent/internal/detectors/** apps/agent/internal/agent/rpc_events_autoblock*.go apps/api/src/features/auto-block/**
       test/topology/autoblock/** docs/user/security/auto-block.md docs/status/tasks/F-bruteforce-detectors*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: contract/F-bruteforce-detectors-20261004
+    worktree: /workspace/scratch/e4f791ef53f7/detectors
+    owner: Codex F-bruteforce-detectors
+    started: 2026-10-04T07:15:00+03:30
     finished: ''
     notes: manager generates the prompt from FEATURE-TEMPLATE before spawn; after F-default-vpp-nics merges (apps/api/src/** grant)
   - id: S-rva-agent-gates
@@ -4778,15 +4778,15 @@ tasks:
       - P12
     priority: 4
     est_hours: 8
-    state: ready
+    state: review
     parked_on: ''
     wbs: []
     scope: 'F-igmp-mfib-host Q1(c): the FRR pim renderer section and the frrsync/pim label→mFIB sync that the igmp/mfib descriptors expect; one FRR host row at a time'
     files_owned: apps/agent/internal/renderers/frr/pim/** apps/agent/internal/frrsync/pim/** docs/agent/renderers/frr-pim.md docs/status/tasks/F-pim-frrsync*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: task/F-pim-frrsync-20261004
+    worktree: /workspace/scratch/e4f791ef53f7/pim
+    owner: Codex F-pim-frrsync
+    started: 2026-10-04T07:15:00+03:30
     finished: ''
     notes: D-174
   - id: F-multiwan-wiring

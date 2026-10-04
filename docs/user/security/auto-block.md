@@ -84,3 +84,19 @@ verify projection, cache replay, rollback and expiry; they do not substitute for
 ## Out of scope
 
 IPS signatures and honeypots are separate features. Auto-block is about rate-based brute-force and scan blocking only.
+
+Port-scan events carry the validated kernel destination port. Repeated probes to one
+port refresh its sliding-window timestamp and count as one distinct port; a probe to
+another port adds a hit. Distinct counting happens in the API, avoiding stale host-side
+first-observation timestamps. Sources are capped by `maxEntries`. Missing or invalid
+port attributes are ignored; deploy the matching agent and API together, since an old
+agent without destination-port observations cannot supply distinct-port evidence.
+The topology driver also supports real SSH authentication failures and explicit manual
+removal; its README describes the required disposable key, pinned host key and log fixture.
+
+Scan tracking has fixed memory budgets: 10,000 source windows, 4,096 distinct ports
+per source and 100,000 port timestamps in total, independent of the blocked-entry
+setting. A scan threshold above 4,096 disables that detector and logs a warning when
+configuration reloads; SSH/web/VPN detectors remain available. At capacity, new scan
+evidence is discarded, so a saturated detector can miss an attack but never creates
+a block from fabricated hits. Expired windows and removed sources free capacity.

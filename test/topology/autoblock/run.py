@@ -7,6 +7,7 @@ import json
 import os
 import socket
 import ssl
+import subprocess
 import time
 import urllib.parse
 
@@ -49,8 +50,15 @@ def main():
     parser.add_argument("--local-port", type=int, default=443)
     parser.add_argument("--through-host", required=True, help="Reachable TCP server behind VPP forwarding")
     parser.add_argument("--through-port", type=int, required=True)
+    parser.add_argument("--detector", choices=("webLogin", "ssh"), default="webLogin")
+    parser.add_argument("--ssh-port", type=int, default=22)
+    parser.add_argument("--ssh-key", help="Dedicated disposable test public-key identity (SSH mode)")
+    parser.add_argument("--ssh-known-hosts", help="Pinned host-key file (SSH mode)")
+    parser.add_argument("--removal", choices=("expiry", "manual"), default="expiry")
     parser.add_argument("--block-sec", type=int, required=True, help="Configured first-offence blockSec")
     args = parser.parse_args()
+    if args.detector == "ssh" and (not args.ssh_key or not args.ssh_known_hosts):
+        parser.error("SSH mode requires --ssh-key and --ssh-known-hosts")
     token = os.environ.get("NGFW_TEST_API_TOKEN")
     if not token:
         parser.error("NGFW_TEST_API_TOKEN is required for control-plane state")
@@ -72,11 +80,26 @@ def main():
 
     def login_failures(address):
         for _ in range(10):
+            if args.detector == "ssh":
+                result = subprocess.run([
+                    "ssh", "-b", address, "-p", str(args.ssh_port), "-i", args.ssh_key,
+                    "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes",
+                    "-o", "PreferredAuthentications=publickey", "-o", "StrictHostKeyChecking=yes",
+                    "-o", "UserKnownHostsFile=" + args.ssh_known_hosts,
+                    "-o", "ConnectTimeout=3", "-o", "ConnectionAttempts=1",
+                    "NGFW_TEST_AUTOBLOCK_NONEXISTENT@" + args.local_host, "true",
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=8, check=False)
+                if result.returncode == 0:
+                    raise AssertionError("test SSH identity unexpectedly authenticated")
+                # Routing, bind and host-key failures are not failed logins.
+                if b"Permission denied" not in result.stderr and not blocked(address):
+                    raise AssertionError("SSH attempt failed before authentication")
+                continue
             try:
                 status, _ = request(args.api, "/auth/login", address,
                                     {"username": "NGFW_TEST_AUTOBLOCK_NONEXISTENT", "password": "NGFW_TEST_PASSWORD_AUTOBLOCK"})
-                if 200 <= status < 300:
-                    raise AssertionError("test identity unexpectedly authenticated")
+                if status != 401:
+                    raise AssertionError("login did not reach authentication: " + str(status))
             except (OSError, http.client.HTTPException):
                 # Threshold may have already cut off the last attempt.
                 pass
@@ -92,16 +115,20 @@ def main():
     assert not probe(args.client_address, args.local_host, args.local_port), "local-in was not blocked"
     assert not probe(args.client_address, args.through_host, args.through_port), "forwarding was not blocked"
     print("PASS: threshold blocked local-in and through traffic")
-    deadline = time.monotonic() + args.block_sec + 40
+    if args.removal == "manual":
+        status, payload = request(args.api, "/actions/auto-block/unblock", args.control_address,
+                                  {"source": args.client_address}, token)
+        assert status == 200 and payload.get("unblocked") is True, "manual removal failed"
+    deadline = time.monotonic() + (10 if args.removal == "manual" else args.block_sec + 40)
     while blocked(args.client_address) and time.monotonic() < deadline:
         time.sleep(1)
-    assert not blocked(args.client_address), "TTL did not expire"
+    assert not blocked(args.client_address), "block was not removed"
     deadline = time.monotonic() + 10
     while not probe(args.client_address, args.through_host, args.through_port) and time.monotonic() < deadline:
         time.sleep(0.25)
     assert probe(args.client_address, args.local_host, args.local_port), "local-in did not reopen"
     assert probe(args.client_address, args.through_host, args.through_port), "forwarding did not reopen"
-    print("PASS: expiry reopened local-in and through traffic")
+    print("PASS: " + args.removal + " reopened local-in and through traffic")
     login_failures(args.allow_address)
     time.sleep(2)
     assert not blocked(args.allow_address), "allowlisted test source was blocked"

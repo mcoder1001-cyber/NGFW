@@ -63,7 +63,7 @@ func (n *Native) Observe(states []ikev2.SAState, ds *ngfwv1.DesiredState, now ti
 			continue
 		}
 		n.seen[key] = now
-		out = append(out, Observation{peer, "vpnAuth"})
+		out = append(out, Observation{Source: peer, Kind: "vpnAuth"})
 	}
 	return out
 }

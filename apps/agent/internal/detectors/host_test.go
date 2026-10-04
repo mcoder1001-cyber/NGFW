@@ -50,17 +50,20 @@ func TestCharonPacketSourceNotIdentity(t *testing.T) {
 		t.Fatal("identity without packet source accepted")
 	}
 }
-func TestDistinctScanPortsAndExpiry(t *testing.T) {
+func TestScanPortRefreshObservations(t *testing.T) {
 	now := time.Now()
 	h := NewHost()
 	emit := func(id, port string, at time.Time) *Observation {
 		return h.Observe(record(t, id, "ngfw:scan IN=eth0 SRC=192.0.2.7 DST=192.0.2.1 PROTO=TCP DPT="+port, "", "", "kernel", at), at, 10*time.Second, 3, 100)
 	}
-	if emit("1", "22", now) == nil || emit("2", "22", now) != nil || emit("3", "443", now) == nil || emit("4", "53", now) == nil {
-		t.Fatal("ports not distinct")
+	if emit("1", "22", now) == nil || emit("2", "22", now) == nil || emit("3", "443", now) == nil || emit("4", "53", now) == nil {
+		t.Fatal("trusted probes missing port refresh observations")
+	}
+	if ob := emit("refresh", "443", now.Add(9*time.Second)); ob == nil || ob.Port != "443" {
+		t.Fatalf("destination port lost: %v", ob)
 	}
 	if emit("5", "22", now.Add(11*time.Second)) == nil {
-		t.Fatal("window did not expire")
+		t.Fatal("new trusted probe was not observed")
 	}
 	if h.Observe(record(t, "6", "ngfw:scan SRC=192.0.2.7 DPT=25", "logger", "0", "journal", now), now, time.Minute, 3, 100) != nil {
 		t.Fatal("spoofed kernel log accepted")

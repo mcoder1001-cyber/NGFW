@@ -18,6 +18,7 @@ import (
 	govpp "go.fd.io/govpp"
 	vppapi "go.fd.io/govpp/api"
 
+	"ngfw/agent/binapi/classify"
 	"ngfw/agent/binapi/feature"
 	greapi "ngfw/agent/binapi/gre"
 	gsoapi "ngfw/agent/binapi/gso"
@@ -245,6 +246,21 @@ func bridgeDomain(t *testing.T, conn vppConn, id uint32) (bdInfo, bool) {
 
 // ---- ERSPAN GRE fixture ------------------------------------------------------------------------------
 
+// resetIPClassify sets the ip4 and ip6 "ip classify table" of a fixture interface explicitly to ~0 right after its
+// create, before any address (INC-vpp-classify-crash M1, D-185/D-191): VPP 26.06 zero-fills that per-index vector, and
+// an interface left at 0 crashes VPP on the first packet to its address once classify table 0 is freed. Mirrors
+// ifsanitize.ResetIPClassify, which this module cannot import (Go's internal rule).
+func resetIPClassify(t *testing.T, conn vppapi.Connection, idx uint32) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, v6 := range []bool{false, true} {
+		if _, err := classify.NewServiceClient(conn).ClassifySetInterfaceIPTable(ctx, &classify.ClassifySetInterfaceIPTable{IsIPv6: v6, SwIfIndex: interface_types.InterfaceIndex(idx), TableIndex: ^uint32(0)}); err != nil {
+			t.Fatalf("classify_set_interface_ip_table (reset, ipv6=%v, sw_if_index %d): %v", v6, idx, err)
+		}
+	}
+}
+
 // greFixture creates the slot-prefixed ERSPAN GRE tunnel gre<inst> exactly as DF-6's gre.tunnel descriptor does —
 // gre_tunnel_add_del_v2 (type erspan, p2p) and the owner tag "<owner>:gre<inst>" (df6.TagInterface) — because
 // apps/agent/internal/** cannot be imported from this module (Go's internal rule); the descriptor itself is exercised on
@@ -267,6 +283,7 @@ func greFixture(t *testing.T, conn vppConn, owner string, inst uint32, src, dst 
 	if err != nil {
 		t.Fatalf("gre_tunnel_add_del_v2 %s: %v", name, err)
 	}
+	resetIPClassify(t, conn, uint32(rep.SwIfIndex)) // D-185 M1: before any address
 	if _, err := interfaces.NewServiceClient(conn).SwInterfaceTagAddDel(ctx, &interfaces.SwInterfaceTagAddDel{IsAdd: true, SwIfIndex: rep.SwIfIndex, Tag: owner + ":" + name}); err != nil {
 		delGre(t, conn, uint32(rep.SwIfIndex), inst, src, dst, session)
 		t.Fatalf("tag %s: %v", name, err)
@@ -404,6 +421,7 @@ func alignedLoopback(t *testing.T, conn vppConn, slot int) (string, uint32, bool
 		if err != nil {
 			t.Fatalf("create_loopback_instance %s: %v", name, err)
 		}
+		resetIPClassify(t, conn, uint32(rep.SwIfIndex)) // D-185 M1: before any address
 		return name, uint32(rep.SwIfIndex)
 	}
 	_, holder := mk(slot*100 + 89)
@@ -428,6 +446,7 @@ func alignedLoopback(t *testing.T, conn vppConn, slot int) (string, uint32, bool
 			if err != nil {
 				t.Fatalf("create_subif on the holder: %v", err)
 			}
+			resetIPClassify(t, conn, uint32(sub.SwIfIndex)) // D-185 M1
 			vlan++
 			v := uint32(sub.SwIfIndex)
 			if v == h {

@@ -1,0 +1,51 @@
+# F-default-vpp-nics — test evidence (2026-09-28T16:32:44+03:30, HEAD bde28f9c)
+
+$ (cd apps/agent && go test -count=1 -v ./internal/renderers/vppstartup/ -run "HostNICs|ReadHost")
+--- PASS: TestReadHost (0.01s)
+--- PASS: TestHostNICs (0.01s)
+--- PASS: TestHostNICsNoManagementDetected (0.01s)
+--- PASS: TestHostNICsFindsDpdkBoundNIC (0.01s)
+--- PASS: TestHostNICsToleratesUnreadableTCPTable (0.01s)
+ok  	ngfw/agent/internal/renderers/vppstartup	0.072s
+
+$ (cd apps/agent && go test -count=1 -v ./internal/agent/ -run "ProjectPhysical|ReasonOnly|ProjectSchemaExamples")
+--- PASS: TestProjectPhysicalNicAwaitingDataplane (0.01s)
+--- PASS: TestProjectPhysicalNicBoundProjectsNormally (0.00s)
+--- PASS: TestProjectPhysicalNicNoLookupProjectsNormally (0.00s)
+--- PASS: TestProjectPhysicalNicLcpTapIsNotUnbound (0.00s)
+--- PASS: TestProjectPhysicalNicUnboundHasNoLcpPair (0.00s)
+--- PASS: TestProjectPhysicalNicReleasedToHost (0.00s)
+--- PASS: TestProjectSchemaExamples (0.10s)
+--- PASS: TestReasonOnlyNotesDropsPeerAddress (0.00s)
+ok  	ngfw/agent/internal/agent	0.231s
+
+$ (cd apps/agent && go test -count=1 ./internal/contracttest/ ./internal/desired/)
+ok  	ngfw/agent/internal/contracttest	0.437s
+ok  	ngfw/agent/internal/desired	9.789s
+
+$ pnpm -F @ngfw/schema exec vitest run src/semantic/default-vpp-nics.test.ts
+ ✓ src/semantic/default-vpp-nics.test.ts (10 tests) 198ms
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+
+$ (cd apps/api && pnpm exec vitest run src/features/default-vpp-nics/)
+ ✓ src/features/default-vpp-nics/drift.test.ts (1 test) 16ms
+ ✓ src/features/default-vpp-nics/seed.service.test.ts (9 tests) 320ms
+ Test Files  2 passed (2)
+      Tests  10 passed (10)
+
+$ eval "$(tools/lab env 1)"; (cd apps/api && pnpm exec vitest run -c vitest.e2e.config.ts test/e2e/default-vpp-nics.e2e.test.ts)   # slot 1 PostgreSQL ngfw_w1 + fake agent
+create database ngfw_w1 (owner ngfw_w1)
+ok     env /run/ngfw-test/w1/pg.env (0600) · DSN postgres://ngfw_w1:<redacted>@127.0.0.1:5432/ngfw_w1
+ ✓ test/e2e/default-vpp-nics.e2e.test.ts (6 tests) 3318ms
+   ✓ default-vpp-nics e2e (PostgreSQL + fake agent) > seeds revision 1 from the host inventory and is idempotent  990ms
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+drop   database ngfw_w1
+drop   role ngfw_w1
+
+$ (cd apps/web && pnpm exec vitest run src/domains/interfaces/InterfacesPage.test.tsx -t "seeded physical")
+ ✓ src/domains/interfaces/InterfacesPage.test.tsx (10 tests | 9 skipped) 5370ms
+   ✓ interfaces screen > a seeded physical NIC: built-in chip, no Delete, the drawer releases it to the host in one root merge patch (F-default-vpp-nics)  5367ms
+ Test Files  1 passed (1)
+      Tests  1 passed | 9 skipped (10)

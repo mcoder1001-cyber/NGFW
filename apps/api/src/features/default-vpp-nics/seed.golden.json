@@ -1,0 +1,354 @@
+{
+  "system": {
+    "hostname": "ngfw",
+    "timezone": "UTC",
+    "banner": {},
+    "dns": {
+      "servers": [],
+      "searchDomains": [],
+      "vrf": "default"
+    }
+  },
+  "dataplane": {
+    "pciWhitelist": [
+      "0000:04:00.0",
+      "0000:0c:00.0",
+      "0000:13:00.0",
+      "0000:14:00.0",
+      "0000:1b:00.0",
+      "0000:1c:00.0",
+      "0000:1d:00.0"
+    ],
+    "managementPci": [
+      "0000:0b:00.0"
+    ],
+    "devices": {
+      "0000:04:00.0": {
+        "name": "ens161"
+      },
+      "0000:0c:00.0": {
+        "name": "ens193"
+      },
+      "0000:13:00.0": {
+        "name": "ens224"
+      },
+      "0000:14:00.0": {
+        "name": "ens225"
+      },
+      "0000:1b:00.0": {
+        "name": "ens256"
+      },
+      "0000:1c:00.0": {
+        "name": "ens257"
+      },
+      "0000:1d:00.0": {
+        "name": "enp29s0f0"
+      }
+    }
+  },
+  "interfaces": {
+    "ens161": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:04:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "ens193": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:0c:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "ens224": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:13:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "ens225": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:14:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "ens256": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:1b:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "ens257": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:1c:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    },
+    "enp29s0f0": {
+      "enabled": true,
+      "physical": {
+        "pci": "0000:1d:00.0",
+        "owner": "dataplane",
+        "builtIn": true
+      }
+    }
+  },
+  "vrfs": {},
+  "routing": {
+    "static": [],
+    "policy": {
+      "prefixLists": {},
+      "routeMaps": {}
+    },
+    "wanGroups": []
+  },
+  "nat": {
+    "mode": "ed",
+    "inside": [],
+    "outside": [],
+    "outputFeature": [],
+    "forwarding": false,
+    "staticMappingOnly": false,
+    "connectionTracking": false,
+    "pools": [],
+    "staticMappings": [],
+    "identityMappings": [],
+    "loadBalancedMappings": [],
+    "timeouts": {
+      "udp": 300,
+      "tcpEstablished": 7440,
+      "tcpTransitory": 240,
+      "icmp": 60
+    },
+    "ipfix": {
+      "enabled": false
+    },
+    "nat64": {
+      "enabled": false,
+      "inside": [],
+      "outside": [],
+      "prefixes": [],
+      "pools": [],
+      "staticBibs": [],
+      "timeouts": {
+        "udp": 300,
+        "tcpEstablished": 7440,
+        "tcpTransitory": 240,
+        "icmp": 60
+      }
+    },
+    "nat66": {
+      "enabled": false,
+      "inside": [],
+      "outside": [],
+      "staticMappings": []
+    },
+    "nptv6": {
+      "bindings": []
+    },
+    "det44": {
+      "enabled": false,
+      "inside": [],
+      "outside": [],
+      "mappings": [],
+      "timeouts": {
+        "udp": 300,
+        "tcpEstablished": 7440,
+        "tcpTransitory": 240,
+        "icmp": 60
+      }
+    },
+    "dslite": {
+      "enabled": false,
+      "pools": []
+    },
+    "map": {
+      "interfaces": [],
+      "domains": [],
+      "parameters": {
+        "fragmentation": {
+          "inner": false,
+          "ignoreDf": false
+        },
+        "icmp6Unreachables": false,
+        "securityCheck": {
+          "enabled": true,
+          "fragments": false
+        },
+        "trafficClass": {
+          "copy": true
+        },
+        "preResolve": {}
+      }
+    },
+    "cnat": {
+      "translations": [],
+      "snat": {
+        "policy": "none",
+        "addresses": {},
+        "interfaces": [],
+        "excludePrefixes": []
+      }
+    }
+  },
+  "objects": {
+    "addresses": {},
+    "addressGroups": {},
+    "services": {},
+    "serviceGroups": {},
+    "schedules": {},
+    "zones": {},
+    "tags": {}
+  },
+  "acl": {
+    "lists": {},
+    "macip": {},
+    "host": {},
+    "attachments": [],
+    "macipAttachments": [],
+    "hostAttachments": []
+  },
+  "vpn": {
+    "ipsec": {
+      "settings": {
+        "cryptoEngine": "auto",
+        "asyncCrypto": false
+      },
+      "proposals": {},
+      "tunnels": {}
+    },
+    "wireguard": {
+      "interfaces": {}
+    },
+    "pki": {
+      "cas": {},
+      "certificates": {}
+    },
+    "remoteAccess": {}
+  },
+  "tunnels": {
+    "gre": {},
+    "vxlan": {},
+    "ipip": {},
+    "vxlanGpe": {},
+    "gtpu": {},
+    "l2tpv3": {},
+    "pppoe": {}
+  },
+  "services": {
+    "dhcp": {
+      "servers": {},
+      "relays": {}
+    },
+    "dns": {
+      "resolvers": {}
+    },
+    "snmp": {
+      "enabled": false,
+      "vrf": "default",
+      "listen": [],
+      "communities": {},
+      "v3Users": {},
+      "trapReceivers": [],
+      "views": {}
+    },
+    "lldp": {
+      "enabled": false,
+      "txHold": 4,
+      "txIntervalSec": 30,
+      "interfaces": []
+    },
+    "ipfix": {
+      "exporters": {},
+      "flowprobe": {
+        "activeTimerSec": 15,
+        "passiveTimerSec": 120,
+        "recordL2": false,
+        "recordL3": true,
+        "recordL4": true,
+        "interfaces": []
+      }
+    },
+    "ntp": {
+      "enabled": false,
+      "vrf": "default",
+      "servers": [],
+      "pools": [],
+      "allow": [],
+      "listen": [],
+      "deny": [],
+      "port": 123,
+      "orphan": false,
+      "rtcSync": true,
+      "makestep": {
+        "thresholdSec": 1,
+        "limit": 3
+      }
+    },
+    "qos": {
+      "policers": {},
+      "shapers": {},
+      "maps": {},
+      "interfaces": {}
+    }
+  },
+  "ha": {
+    "vrrp": {}
+  },
+  "management": {
+    "users": [],
+    "aaa": {
+      "order": [
+        "local"
+      ],
+      "radius": {
+        "servers": []
+      },
+      "tacacs": {
+        "servers": []
+      },
+      "ldap": {
+        "servers": []
+      },
+      "roleMap": [],
+      "mfa": {
+        "required": "none",
+        "issuer": "ngfw"
+      },
+      "fallbackLocal": true
+    },
+    "tls": {
+      "minVersion": "1.2"
+    },
+    "syslog": [],
+    "prometheus": {
+      "enabled": false,
+      "listen": "0.0.0.0",
+      "port": 9101,
+      "allow": []
+    },
+    "alarms": {
+      "rules": {},
+      "targets": {}
+    }
+  },
+  "security": {
+    "autoBlock": {
+      "enabled": false,
+      "rules": [],
+      "allowlist": [],
+      "maxEntries": 10000
+    }
+  }
+}

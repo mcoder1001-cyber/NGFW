@@ -90,6 +90,8 @@ say "agent pid $AGENT, API :$API_PORT up; health: $(apij GET /api/v1/health | jq
 # loop<slot>70 with 10.<slot>.72.1/32, reached from $NS through the tap.
 ip netns add "$NS"
 vppctl create tap id "$TAPID" host-if-name "$HOSTIF" host-ns "$NS" host-ip4-addr "10.$N.70.2/24" >/dev/null
+# INC-vpp-classify-crash M1 (D-185/D-191): explicit ~0 before the address — VPP zero-fills this vector (shared-host-rules §2)
+vppctl set ip classify intfc "$TAP" table-index -1 && vppctl set ip6 classify intfc "$TAP" table-index -1
 vppctl set interface ip address "$TAP" "10.$N.70.1/24"
 vppctl set interface state "$TAP" up
 ip -n "$NS" route add "10.$N.72.1/32" via "10.$N.70.1"

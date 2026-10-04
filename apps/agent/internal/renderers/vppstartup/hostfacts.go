@@ -107,6 +107,109 @@ func ReadHost(src HostSources) (Host, error) {
 	return h, nil
 }
 
+// HostNIC is one physical NIC on the host: a kernel netdev backed directly by a PCI device.
+type HostNIC struct {
+	Netdev       string
+	PCI          string
+	Driver       string
+	MAC          string
+	IsManagement bool
+	LinkUp       bool
+	// BoundToDpdk: the PCI function is bound to a DPDK user-space driver (DPDKDrivers) — it has no kernel netdev.
+	BoundToDpdk bool
+}
+
+// DPDKDrivers are the kernel drivers that hand a PCI NIC to a DPDK user-space process (the NIC then has no netdev).
+var DPDKDrivers = map[string]bool{"vfio-pci": true, "uio_pci_generic": true, "igb_uio": true}
+
+// HostNICs enumerates the host's physical NICs (F-default-vpp-nics, D-164): every /sys/class/net
+// entry backed directly by a PCI device, with its kernel driver, permanent MAC and carrier state,
+// and whether it is a management interface — the same decision ReadHost makes (managementNICs:
+// default-route / sshd-peer NIC + MgmtIfaces/MgmtPCI) — plus every network-class PCI function
+// (/sys/bus/pci/devices/*/class 0x02xxxx) already bound to a DPDK driver (no netdev: Netdev "",
+// BoundToDpdk true), so an already-bound box is inventoried too (review R1R3 #2). NICs without a PCI
+// device (loopback, veth, tun/tap, bond, VLAN, virtio-mmio, USB) are not enumerated. Read-only: it
+// never binds a NIC and never touches VPP. Returns the NICs sorted by PCI plus the notes.
+func HostNICs(src HostSources) ([]HostNIC, []string, error) {
+	root := src.Root
+	if root == "" {
+		root = "/"
+	}
+	at := func(p string) string { return filepath.Join(root, p) }
+	mgmt, notes, err := managementNICs(at, src)
+	if err != nil {
+		return nil, nil, err
+	}
+	entries, _ := filepath.Glob(at("sys/class/net/*"))
+	seen := map[string]bool{}
+	var out []HostNIC
+	for _, dir := range entries {
+		ifname := filepath.Base(dir)
+		if ifname == "" || ifname == "lo" || strings.ContainsAny(ifname, "/\x00") || len(ifname) > 15 {
+			continue
+		}
+		target, err := os.Readlink(filepath.Join(dir, "device"))
+		if err != nil {
+			continue // no PCI device symlink: not a physical NIC (veth, tap, bond, loopback)
+		}
+		pci, err := PCIAddress(filepath.Base(target))
+		if err != nil {
+			continue // a non-PCI device (virtio-mmio, USB): not a DPDK candidate — not enumerated
+		}
+		if seen[pci] {
+			continue
+		}
+		seen[pci] = true
+		out = append(out, HostNIC{
+			Netdev:       ifname,
+			PCI:          pci,
+			Driver:       readNICDriver(dir),
+			MAC:          readNICFile(at, ifname, "address"),
+			IsManagement: mgmt[pci],
+			LinkUp:       readNICFile(at, ifname, "carrier") == "1",
+		})
+		out[len(out)-1].BoundToDpdk = DPDKDrivers[out[len(out)-1].Driver]
+	}
+	// PCI network functions already handed to a DPDK driver have no netdev: find them on the PCI bus
+	devs, _ := filepath.Glob(at("sys/bus/pci/devices/*"))
+	for _, dev := range devs {
+		pci, err := PCIAddress(filepath.Base(dev))
+		if err != nil || seen[pci] {
+			continue
+		}
+		class, err := os.ReadFile(filepath.Join(dev, "class")) //nolint:gosec // sysfs path under the configured root, read only
+		if err != nil || !strings.HasPrefix(strings.TrimSpace(string(class)), "0x02") {
+			continue // not a network controller
+		}
+		target, err := os.Readlink(filepath.Join(dev, "driver"))
+		if err != nil || !DPDKDrivers[filepath.Base(target)] {
+			continue // unbound, or a kernel driver without a netdev (not a DPDK candidate we can name)
+		}
+		seen[pci] = true
+		out = append(out, HostNIC{PCI: pci, Driver: filepath.Base(target), IsManagement: mgmt[pci], BoundToDpdk: true})
+	}
+	slices.SortFunc(out, func(a, b HostNIC) int { return strings.Compare(a.PCI, b.PCI) })
+	return out, notes, nil
+}
+
+// readNICDriver returns the kernel driver bound to a NIC (/sys/class/net/<if>/device/driver), "" if none.
+func readNICDriver(netdevDir string) string {
+	target, err := os.Readlink(filepath.Join(netdevDir, "device", "driver"))
+	if err != nil {
+		return ""
+	}
+	return filepath.Base(target)
+}
+
+// readNICFile reads a single-line /sys/class/net/<if>/<name> attribute, trimmed and lower-cased ("" on error).
+func readNICFile(at func(string) string, ifname, name string) string {
+	b, err := os.ReadFile(at(filepath.Join("sys/class/net", ifname, name))) //nolint:gosec // sysfs path under the configured root, ifname validated above, read only
+	if err != nil {
+		return ""
+	}
+	return strings.ToLower(strings.TrimSpace(string(b)))
+}
+
 // managementNICs returns the PCI addresses of every kernel NIC the host is managed through:
 //
 //   - every interface carrying an IPv4 or IPv6 default route (/proc/net/route, /proc/net/ipv6_route);
@@ -147,7 +250,7 @@ func managementNICs(at func(string) string, src HostSources) (map[string]bool, [
 	if ports == nil {
 		ports = DefaultControlPorts
 	}
-	peers, err := controlPeers(at, ports)
+	peers, denied, err := controlPeers(at, ports)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -166,6 +269,10 @@ func managementNICs(at func(string) string, src HostSources) (map[string]bool, [
 
 	mgmt := map[string]bool{}
 	var notes []string
+	if denied {
+		// D-177: an agent unit without read access to /proc/net/tcp{,6} falls back to the routes and --mgmt-if/--mgmt-pci
+		notes = append(notes, "control connections unreadable (/proc/net/tcp: permission denied): management NIC from routes and --mgmt-if/--mgmt-pci only")
+	}
 	var unresolved []string
 	names := slices.Sorted(maps.Keys(why))
 	for _, ifname := range names {
@@ -282,16 +389,23 @@ func readRoutes6(at func(string) string) ([]route, error) {
 	return out, nil
 }
 
+// readProcNet reads a /proc/net socket table (a seam: tests simulate a confined unit's EACCES as root).
+var readProcNet = func(path string) ([]byte, error) { return os.ReadFile(path) } //nolint:gosec // fixed procfs path under the configured root
+
 // controlPeers returns the remote addresses of ESTABLISHED TCP connections whose local port is
-// one of ports (/proc/net/tcp and /proc/net/tcp6); loopback peers are ignored.
-func controlPeers(at func(string) string, ports []uint16) ([]netip.Addr, error) {
+// one of ports (/proc/net/tcp and /proc/net/tcp6); loopback peers are ignored. denied reports a file
+// the process may not read (a confined agent unit): the caller falls back to the routes (D-177).
+func controlPeers(at func(string) string, ports []uint16) (peers []netip.Addr, denied bool, err error) {
 	seen := map[netip.Addr]bool{}
 	for _, file := range []string{"proc/net/tcp", "proc/net/tcp6"} {
-		b, err := os.ReadFile(at(file)) //nolint:gosec // fixed procfs path
+		b, err := readProcNet(at(file))
 		if errors.Is(err, fs.ErrNotExist) {
 			continue
+		} else if errors.Is(err, fs.ErrPermission) {
+			denied = true
+			continue
 		} else if err != nil {
-			return nil, fmt.Errorf("%w: %v", ErrHost, err)
+			return nil, false, fmt.Errorf("%w: %v", ErrHost, err)
 		}
 		for _, line := range strings.Split(string(b), "\n")[1:] {
 			f := strings.Fields(line)
@@ -311,7 +425,7 @@ func controlPeers(at func(string) string, ports []uint16) ([]netip.Addr, error) 
 			seen[raddr] = true
 		}
 	}
-	return slices.SortedFunc(maps.Keys(seen), func(a, b netip.Addr) int { return a.Compare(b) }), nil
+	return slices.SortedFunc(maps.Keys(seen), func(a, b netip.Addr) int { return a.Compare(b) }), denied, nil
 }
 
 // hexSockAddr parses "0100007F:0016" (IPv4, little-endian) or the 32-hex-digit IPv6 form

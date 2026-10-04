@@ -84,6 +84,29 @@ module ngfw-interfaces {
         description "ask the server to broadcast its replies";
       }
     }
+    container physical {
+      description "set on physical NICs seeded from the host inventory; presence makes the row built-in and non-deletable";
+      leaf pci {
+        type string {
+          pattern "[0-9a-fA-F]{4}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}\\.[0-7]";
+        }
+        mandatory true;
+        description "PCI address of the NIC underneath this interface";
+      }
+      leaf owner {
+        type enumeration {
+          enum "dataplane";
+          enum "host";
+        }
+        default "dataplane";
+        description "'dataplane' = used by the engine; 'host' = released to the host operating system";
+      }
+      leaf builtIn {
+        type boolean;
+        default "true";
+        description "seeded from the host NIC inventory on first boot; a built-in row cannot be deleted, only released";
+      }
+    }
     leaf mac {
       type string {
         pattern "[0-9a-fA-F]{2}([:-])([0-9a-fA-F]{2}\\1){4}[0-9a-fA-F]{2}";

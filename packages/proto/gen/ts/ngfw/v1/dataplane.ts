@@ -1561,12 +1561,33 @@ export interface Interface {
     | InterfaceLcp
     | undefined;
   /** PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client. */
-  pppoe: Pppoe | undefined;
+  pppoe:
+    | Pppoe
+    | undefined;
+  /**
+   * Physical-NIC marker (F-default-vpp-nics, D-164): present = the row is a physical NIC seeded from the host
+   * inventory (built-in, non-deletable). Absent = not a seeded physical NIC.
+   */
+  physical: InterfacePhysical | undefined;
 }
 
 export interface Interface_SubinterfacesEntry {
   key: string;
   value: Subinterface | undefined;
+}
+
+/** InterfacePhysical mirrors `interfaces.<name>.physical` (F-default-vpp-nics, D-164). */
+export interface InterfacePhysical {
+  /** PCI address of the NIC underneath this interface ("0000:0b:00.0"). */
+  pci?:
+    | string
+    | undefined;
+  /** "dataplane" (handed to the engine/VPP) | "host" (released back to the Linux host); Zod default "dataplane". */
+  owner?:
+    | string
+    | undefined;
+  /** Seeded from the host NIC inventory on first boot (built-in, non-deletable); Zod default true. */
+  builtIn?: boolean | undefined;
 }
 
 /** DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`. */
@@ -10926,6 +10947,56 @@ export interface PppoeSession {
   mtu?: number | undefined;
 }
 
+/** HostNicsRequest asks the agent to enumerate the host's physical NICs (read-only). */
+export interface HostNicsRequest {
+  /** Same rules as ApplyRequest.owner. */
+  owner: string;
+}
+
+/** HostNicsResponse is the host NIC inventory the API seeds the default dataplane document from. */
+export interface HostNicsResponse {
+  /** One entry per physical NIC with a PCI address, sorted by pci. */
+  nics: HostNic[];
+  /** The owner whose agent answered. */
+  owner: string;
+  /** When the inventory was read (agent clock). */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** Human-readable notes on how the management NIC(s) were decided (vppstartup.ReadHost ManagementNotes). */
+  managementNotes: string[];
+}
+
+/** HostNic is one physical NIC on the host as the agent's host reader sees it (vppstartup.ReadHost). */
+export interface HostNic {
+  /** Linux netdev name ("ens192"). */
+  netdev?:
+    | string
+    | undefined;
+  /** PCI address ("0000:0b:00.0"). */
+  pci?:
+    | string
+    | undefined;
+  /** Kernel driver bound to the NIC ("vmxnet3", "ixgbe"); empty when unknown. */
+  driver?:
+    | string
+    | undefined;
+  /** Permanent MAC address, lower-case "aa:bb:cc:dd:ee:ff"; empty when unknown. */
+  mac?:
+    | string
+    | undefined;
+  /** True when this NIC is the management interface (default-route / sshd-peer NIC + --mgmt-if/--mgmt-pci). */
+  isManagement?:
+    | boolean
+    | undefined;
+  /** True when VPP already owns this NIC as a DPDK interface (an InterfaceState of type "dpdk" with this PCI). */
+  boundToDpdk?:
+    | boolean
+    | undefined;
+  /** Carrier (link) state as the kernel reports it (/sys/class/net/<netdev>/carrier); false when down or unknown. */
+  linkUp?: boolean | undefined;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return {
     txnId: "",
@@ -17312,6 +17383,7 @@ function createBaseInterface(): Interface {
     mirror: [],
     lcp: undefined,
     pppoe: undefined,
+    physical: undefined,
   };
 }
 
@@ -17385,6 +17457,9 @@ export const Interface: MessageFns<Interface> = {
     }
     if (message.pppoe !== undefined) {
       Pppoe.encode(message.pppoe, writer.uint32(186).fork()).join();
+    }
+    if (message.physical !== undefined) {
+      InterfacePhysical.encode(message.physical, writer.uint32(194).fork()).join();
     }
     return writer;
   },
@@ -17589,6 +17664,14 @@ export const Interface: MessageFns<Interface> = {
             message.pppoe = Pppoe.decode(reader, reader.uint32());
             continue;
           }
+          case 24: {
+            if (tag !== 194) {
+              break;
+            }
+
+            message.physical = InterfacePhysical.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -17661,6 +17744,7 @@ export const Interface: MessageFns<Interface> = {
         : [],
       lcp: isSet(object.lcp) ? InterfaceLcp.fromJSON(object.lcp) : undefined,
       pppoe: isSet(object.pppoe) ? Pppoe.fromJSON(object.pppoe) : undefined,
+      physical: isSet(object.physical) ? InterfacePhysical.fromJSON(object.physical) : undefined,
     };
   },
 
@@ -17741,6 +17825,9 @@ export const Interface: MessageFns<Interface> = {
     if (message.pppoe !== undefined) {
       obj.pppoe = Pppoe.toJSON(message.pppoe);
     }
+    if (message.physical !== undefined) {
+      obj.physical = InterfacePhysical.toJSON(message.physical);
+    }
     return obj;
   },
 
@@ -17786,6 +17873,9 @@ export const Interface: MessageFns<Interface> = {
     message.mirror = object.mirror?.map((e) => MirrorSession.fromPartial(e)) || [];
     message.lcp = (object.lcp !== undefined && object.lcp !== null) ? InterfaceLcp.fromPartial(object.lcp) : undefined;
     message.pppoe = (object.pppoe !== undefined && object.pppoe !== null) ? Pppoe.fromPartial(object.pppoe) : undefined;
+    message.physical = (object.physical !== undefined && object.physical !== null)
+      ? InterfacePhysical.fromPartial(object.physical)
+      : undefined;
     return message;
   },
 };
@@ -17873,6 +17963,111 @@ export const Interface_SubinterfacesEntry: MessageFns<Interface_SubinterfacesEnt
     message.value = (object.value !== undefined && object.value !== null)
       ? Subinterface.fromPartial(object.value)
       : undefined;
+    return message;
+  },
+};
+
+function createBaseInterfacePhysical(): InterfacePhysical {
+  return { pci: undefined, owner: undefined, builtIn: undefined };
+}
+
+export const InterfacePhysical: MessageFns<InterfacePhysical> = {
+  encode(message: InterfacePhysical, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.pci !== undefined) {
+      writer.uint32(10).string(message.pci);
+    }
+    if (message.owner !== undefined) {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.builtIn !== undefined) {
+      writer.uint32(24).bool(message.builtIn);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InterfacePhysical {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseInterfacePhysical();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.pci = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.builtIn = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): InterfacePhysical {
+    return {
+      pci: isSet(object.pci) ? globalThis.String(object.pci) : undefined,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : undefined,
+      builtIn: isSet(object.builtIn)
+        ? globalThis.Boolean(object.builtIn)
+        : isSet(object.built_in)
+        ? globalThis.Boolean(object.built_in)
+        : undefined,
+    };
+  },
+
+  toJSON(message: InterfacePhysical): unknown {
+    const obj: any = {};
+    if (message.pci !== undefined) {
+      obj.pci = message.pci;
+    }
+    if (message.owner !== undefined) {
+      obj.owner = message.owner;
+    }
+    if (message.builtIn !== undefined) {
+      obj.builtIn = message.builtIn;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InterfacePhysical>): InterfacePhysical {
+    return InterfacePhysical.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InterfacePhysical>): InterfacePhysical {
+    const message = createBaseInterfacePhysical();
+    message.pci = object.pci ?? undefined;
+    message.owner = object.owner ?? undefined;
+    message.builtIn = object.builtIn ?? undefined;
     return message;
   },
 };
@@ -99168,6 +99363,383 @@ export const PppoeSession: MessageFns<PppoeSession> = {
   },
 };
 
+function createBaseHostNicsRequest(): HostNicsRequest {
+  return { owner: "" };
+}
+
+export const HostNicsRequest: MessageFns<HostNicsRequest> = {
+  encode(message: HostNicsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostNicsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostNicsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostNicsRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: HostNicsRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostNicsRequest>): HostNicsRequest {
+    return HostNicsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostNicsRequest>): HostNicsRequest {
+    const message = createBaseHostNicsRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseHostNicsResponse(): HostNicsResponse {
+  return { nics: [], owner: "", retrievedAt: undefined, managementNotes: [] };
+}
+
+export const HostNicsResponse: MessageFns<HostNicsResponse> = {
+  encode(message: HostNicsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.nics) {
+      HostNic.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.owner !== "") {
+      writer.uint32(18).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(26).fork()).join();
+    }
+    for (const v of message.managementNotes) {
+      writer.uint32(34).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostNicsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostNicsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.nics.push(HostNic.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.managementNotes.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostNicsResponse {
+    return {
+      nics: globalThis.Array.isArray(object?.nics) ? object.nics.map((e: any) => HostNic.fromJSON(e)) : [],
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      managementNotes: globalThis.Array.isArray(object?.managementNotes)
+        ? object.managementNotes.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.management_notes)
+        ? object.management_notes.map((e: any) => globalThis.String(e))
+        : [],
+    };
+  },
+
+  toJSON(message: HostNicsResponse): unknown {
+    const obj: any = {};
+    if (message.nics?.length) {
+      obj.nics = message.nics.map((e) => HostNic.toJSON(e));
+    }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.managementNotes?.length) {
+      obj.managementNotes = message.managementNotes;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostNicsResponse>): HostNicsResponse {
+    return HostNicsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostNicsResponse>): HostNicsResponse {
+    const message = createBaseHostNicsResponse();
+    message.nics = object.nics?.map((e) => HostNic.fromPartial(e)) || [];
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.managementNotes = object.managementNotes?.map((e) => e) || [];
+    return message;
+  },
+};
+
+function createBaseHostNic(): HostNic {
+  return {
+    netdev: undefined,
+    pci: undefined,
+    driver: undefined,
+    mac: undefined,
+    isManagement: undefined,
+    boundToDpdk: undefined,
+    linkUp: undefined,
+  };
+}
+
+export const HostNic: MessageFns<HostNic> = {
+  encode(message: HostNic, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.netdev !== undefined) {
+      writer.uint32(10).string(message.netdev);
+    }
+    if (message.pci !== undefined) {
+      writer.uint32(18).string(message.pci);
+    }
+    if (message.driver !== undefined) {
+      writer.uint32(26).string(message.driver);
+    }
+    if (message.mac !== undefined) {
+      writer.uint32(34).string(message.mac);
+    }
+    if (message.isManagement !== undefined) {
+      writer.uint32(40).bool(message.isManagement);
+    }
+    if (message.boundToDpdk !== undefined) {
+      writer.uint32(48).bool(message.boundToDpdk);
+    }
+    if (message.linkUp !== undefined) {
+      writer.uint32(56).bool(message.linkUp);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HostNic {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHostNic();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.netdev = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.pci = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.driver = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.mac = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.isManagement = reader.bool();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.boundToDpdk = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.linkUp = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HostNic {
+    return {
+      netdev: isSet(object.netdev) ? globalThis.String(object.netdev) : undefined,
+      pci: isSet(object.pci) ? globalThis.String(object.pci) : undefined,
+      driver: isSet(object.driver) ? globalThis.String(object.driver) : undefined,
+      mac: isSet(object.mac) ? globalThis.String(object.mac) : undefined,
+      isManagement: isSet(object.isManagement)
+        ? globalThis.Boolean(object.isManagement)
+        : isSet(object.is_management)
+        ? globalThis.Boolean(object.is_management)
+        : undefined,
+      boundToDpdk: isSet(object.boundToDpdk)
+        ? globalThis.Boolean(object.boundToDpdk)
+        : isSet(object.bound_to_dpdk)
+        ? globalThis.Boolean(object.bound_to_dpdk)
+        : undefined,
+      linkUp: isSet(object.linkUp)
+        ? globalThis.Boolean(object.linkUp)
+        : isSet(object.link_up)
+        ? globalThis.Boolean(object.link_up)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HostNic): unknown {
+    const obj: any = {};
+    if (message.netdev !== undefined) {
+      obj.netdev = message.netdev;
+    }
+    if (message.pci !== undefined) {
+      obj.pci = message.pci;
+    }
+    if (message.driver !== undefined) {
+      obj.driver = message.driver;
+    }
+    if (message.mac !== undefined) {
+      obj.mac = message.mac;
+    }
+    if (message.isManagement !== undefined) {
+      obj.isManagement = message.isManagement;
+    }
+    if (message.boundToDpdk !== undefined) {
+      obj.boundToDpdk = message.boundToDpdk;
+    }
+    if (message.linkUp !== undefined) {
+      obj.linkUp = message.linkUp;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HostNic>): HostNic {
+    return HostNic.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HostNic>): HostNic {
+    const message = createBaseHostNic();
+    message.netdev = object.netdev ?? undefined;
+    message.pci = object.pci ?? undefined;
+    message.driver = object.driver ?? undefined;
+    message.mac = object.mac ?? undefined;
+    message.isManagement = object.isManagement ?? undefined;
+    message.boundToDpdk = object.boundToDpdk ?? undefined;
+    message.linkUp = object.linkUp ?? undefined;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/ngfw/agent.sock in production, the slot's NGFW_AGENT_SOCKET in tests). One agent process
@@ -99921,6 +100493,22 @@ export const DataplaneService = {
       Buffer.from(MplsLdpStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): MplsLdpStateResponse => MplsLdpStateResponse.decode(value),
   },
+  /**
+   * HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+   * can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+   * sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+   * engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+   * address (virtio-mmio, USB) are not enumerated.
+   */
+  hostNics: {
+    path: "/ngfw.v1.Dataplane/HostNics" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: HostNicsRequest): Buffer => Buffer.from(HostNicsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): HostNicsRequest => HostNicsRequest.decode(value),
+    responseSerialize: (value: HostNicsResponse): Buffer => Buffer.from(HostNicsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): HostNicsResponse => HostNicsResponse.decode(value),
+  },
 } as const;
 
 export interface DataplaneServer extends UntypedServiceImplementation {
@@ -100208,6 +100796,14 @@ export interface DataplaneServer extends UntypedServiceImplementation {
    * agent without LDP (→ 501).
    */
   mplsLdpState: handleUnaryCall<MplsLdpStateRequest, MplsLdpStateResponse>;
+  /**
+   * HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+   * can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+   * sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+   * engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+   * address (virtio-mmio, USB) are not enumerated.
+   */
+  hostNics: handleUnaryCall<HostNicsRequest, HostNicsResponse>;
 }
 
 export interface DataplaneClient extends Client {
@@ -101200,6 +101796,28 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: MplsLdpStateResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+   * can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+   * sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+   * engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+   * address (virtio-mmio, USB) are not enumerated.
+   */
+  hostNics(
+    request: HostNicsRequest,
+    callback: (error: ServiceError | null, response: HostNicsResponse) => void,
+  ): ClientUnaryCall;
+  hostNics(
+    request: HostNicsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: HostNicsResponse) => void,
+  ): ClientUnaryCall;
+  hostNics(
+    request: HostNicsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: HostNicsResponse) => void,
   ): ClientUnaryCall;
 }
 

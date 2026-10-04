@@ -233,8 +233,18 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 		}
 	}
 
+	// wave-BC: F-default-vpp-nics — the interfaces map without seeded NICs that are not bound yet (Interfaces, Lcp)
+	boundIfs, unboundNICs, releasedNICs := desired.SplitUnboundPhysical(ds.GetInterfaces(), netdev)
+
 	if in["interfaces"] {
-		desired.Interfaces(p, ds.GetInterfaces(), vrfID, netdev) // P08: aliases, creators, attributes, sub-interfaces
+		// wave-BC: F-default-vpp-nics — unbound seeded NICs are dropped with a warning (desired/hostnics.go)
+		for _, name := range unboundNICs {
+			p.warnf(ptr("interfaces", name), "agent.nic-not-bound", "physical NIC %q is not bound to the data plane yet (still a Linux kernel interface); its configuration is applied once the NIC is handed to VPP", name)
+		}
+		for _, name := range releasedNICs {
+			p.Infof(ptr("interfaces", name), "agent.nic-released", "physical NIC %q is released to the host (physical.owner = host): nothing is configured on the data plane for it", name)
+		}
+		desired.Interfaces(p, boundIfs, vrfID, netdev) // P08: aliases, creators, attributes, sub-interfaces
 	}
 
 	for _, k := range rootKeys {
@@ -379,7 +389,7 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	desired.Wireguard(p, ds, in, vrfID, subsystems.WireguardEnv()) // vpn.wireguard (internal/desired/wireguard.go)
 	// wave-A: P12
 	if in["interfaces"] {
-		desired.Lcp(p, ds.GetInterfaces())
+		desired.Lcp(p, boundIfs) // wave-BC: F-default-vpp-nics: no pair on an unbound NIC
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay

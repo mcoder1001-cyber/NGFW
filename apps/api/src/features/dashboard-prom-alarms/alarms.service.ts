@@ -11,9 +11,21 @@ import { DB, type Db } from '../../db/db.js';
 import { alarm, secret } from '../../db/schema.js';
 import { Bus } from '../../infra/bus.js';
 import { deliver } from './webhook.js';
-import { evaluate, pruneRules, type RuleState, type Sample } from './engine.js';
+import { evaluate, pruneRules, stateKey, type RuleState, type Sample } from './engine.js';
 
 type Json = Record<string, unknown>;
+
+/**
+ * Why an alarm cleared without a healthy sample: its rule left the running configuration or was disabled
+ * (S-alarms-restart-rebuild). Carried as `reason` on the ALARM_CLEARED event data, the `alarm.events` message and the
+ * webhook payload; absent when the condition itself ended.
+ */
+type ClearReason = 'rule-removed' | 'rule-disabled';
+
+const CLEAR_REASON_TEXT: Record<ClearReason, string> = {
+  'rule-removed': 'its rule is no longer configured',
+  'rule-disabled': 'its rule is disabled',
+};
 
 /** Previous interface counters for rate derivation (bytes/drops are absolute in StreamStats). */
 interface Prev {
@@ -28,7 +40,8 @@ interface Prev {
  * stats stream runs only while a WS client listens) and reads link events off the bus, derives the metric samples,
  * runs the pure `evaluate`, and persists raise/clear transitions to the `alarm` table, notifying the rule's targets.
  * Rules come from `management.alarms` in the running config (reloaded on every commit). Buffer/node metrics are
- * Prometheus-scraped (agent exporter), not evaluated here — see docs.
+ * Prometheus-scraped (agent exporter), not evaluated here — see docs. The raise state lives in memory; `start()`
+ * rebuilds it from the `alarm` rows still active, so an API restart does not strand them (S-alarms-restart-rebuild).
  */
 @Injectable()
 export class AlarmsService implements OnModuleDestroy {
@@ -64,10 +77,31 @@ export class AlarmsService implements OnModuleDestroy {
     });
   }
 
-  /** Called by the module once the app is ready (see index.ts provider factory). */
+  /**
+   * Called once the app is ready (main.ts). Order matters: rebuild the raise state from the database first, then load
+   * the rules — `reload()` clears the rebuilt rows whose rule is gone or disabled — and only then open the stats stream,
+   * so the first sample is evaluated against the rebuilt state.
+   */
   async start(): Promise<void> {
+    await this.rebuildState();
     await this.reload();
     this.openStats();
+  }
+
+  /**
+   * S-alarms-restart-rebuild (D-218): seed the engine with the `alarm` rows still `active` — same key and shape as
+   * `evaluate` keeps (`{since: raisedAt, raised: true}`). The state is memory-only, so without this an API restart
+   * forgets every raised alarm: the next healthy sample clears nothing and the row stays `active` forever.
+   */
+  private async rebuildState(): Promise<void> {
+    const rows = await this.db
+      .select({ rule: alarm.rule, instance: alarm.instance, raisedAt: alarm.raisedAt })
+      .from(alarm)
+      .where(eq(alarm.state, 'active'));
+    for (const r of rows) {
+      this.state.set(stateKey(r.rule, r.instance), { since: r.raisedAt.getTime(), raised: true });
+    }
+    if (rows.length > 0) this.log.log(`rebuilt ${rows.length} active alarm(s) from the database`);
   }
 
   onModuleDestroy(): void {
@@ -78,7 +112,10 @@ export class AlarmsService implements OnModuleDestroy {
     this.stats?.cancel();
   }
 
-  /** Reload the rules/targets from the running configuration; prune state for rules that went away. */
+  /**
+   * Reload the rules/targets from the running configuration; prune state for rules that went away or were disabled,
+   * clearing each of their active rows once with the reason (the same path clears rows rebuilt at start).
+   */
   async reload(): Promise<void> {
     const { doc } = await this.ds.getRunning();
     const mgmt = isPlainObject(doc['management']) ? (doc['management'] as Json) : {};
@@ -92,7 +129,11 @@ export class AlarmsService implements OnModuleDestroy {
       AlarmTarget
     >;
     const clears = pruneRules(this.rules, this.state);
-    for (const c of clears) await this.persistClear(c.rule, c.instance);
+    for (const c of clears) {
+      const reason: ClearReason =
+        this.rules[c.rule] === undefined ? 'rule-removed' : 'rule-disabled';
+      await this.persistClear(c.rule, c.instance, reason);
+    }
   }
 
   // ---- ingestion ----------------------------------------------------------------------------------------------------
@@ -208,7 +249,11 @@ export class AlarmsService implements OnModuleDestroy {
     });
   }
 
-  private async persistClear(rule: string, instance: string): Promise<void> {
+  /**
+   * Flip the active row of (rule, instance) to `cleared`. The conditional UPDATE makes it at-most-once per row: only the
+   * caller that flips it records the event, publishes and notifies. `reason` is set when no healthy sample ended it.
+   */
+  private async persistClear(rule: string, instance: string, reason?: ClearReason): Promise<void> {
     const rows = await this.db
       .update(alarm)
       .set({ state: 'cleared', clearedAt: new Date(this.now()) })
@@ -221,14 +266,23 @@ export class AlarmsService implements OnModuleDestroy {
       });
     const row = rows[0];
     if (row === undefined) return;
-    await this.events.record('info', 'alarms', 'ALARM_CLEARED', row.message, { rule, instance });
-    this.bus.publish('alarm.events', { type: 'cleared', rule, instance });
+    const why = reason === undefined ? {} : { reason };
+    const message =
+      reason === undefined ? row.message : `${row.message} — cleared: ${CLEAR_REASON_TEXT[reason]}`;
+    await this.events.record('info', 'alarms', 'ALARM_CLEARED', message, {
+      rule,
+      instance,
+      ...why,
+    });
+    this.bus.publish('alarm.events', { type: 'cleared', rule, instance, ...why });
+    // a removed rule has no targets left, so notify() sends nothing for it; a disabled one still notifies its targets
     await this.notify(rule, 'cleared', {
       rule,
       instance,
       metric: row.metric,
       severity: row.severity,
       message: row.message,
+      ...why,
     });
   }
 

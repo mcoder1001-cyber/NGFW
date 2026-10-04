@@ -11,6 +11,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/dfkit/dfkittest"
 	"ngfw/agent/internal/descriptors/gso"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -97,6 +98,9 @@ func TestGSONotInheritedOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	idx := rep.SwIfIndex
+	if err := ifsanitize.ResetIPClassify(ctx, c, uint32(idx)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+		t.Fatal(err)
+	}
 	if _, err := gsoapi.NewServiceClient(c).FeatureGsoEnableDisable(ctx, &gsoapi.FeatureGsoEnableDisable{SwIfIndex: idx, EnableDisable: true}); err != nil {
 		t.Fatal(err)
 	}

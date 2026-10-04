@@ -15,6 +15,7 @@ import (
 	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -121,6 +122,9 @@ func assembleDet44(out *ngfwv1.NatConfig, kvs []scheduler.KV) {
 			}
 		case det44.NameInterface:
 			if v, err := natcommon.Decode[det44.InterfaceSpec](kv.Value); err == nil {
+				if strings.HasSuffix(v.Interface, det44.LeftoverSuffix) {
+					continue // F-det44-cnat-fix: a leftover arc node is drift to repair, never a document entry
+				}
 				if v.Side == det44.SideInside {
 					inside = append(inside, v.Interface)
 				} else {

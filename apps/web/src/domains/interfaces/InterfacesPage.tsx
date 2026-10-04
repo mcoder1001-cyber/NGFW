@@ -69,10 +69,17 @@ function cmp(a: unknown, b: unknown): number {
 export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; total: number } {
   let list = rows;
   const q = req.quickFilter.map((x) => x.toLowerCase());
-  if (q.length > 0) list = list.filter((r) => q.every((x) => `${r.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x)));
+  if (q.length > 0)
+    list = list.filter((r) =>
+      q.every((x) => `${r.name} ${r.type} ${r.addresses} ${r.vrf}`.toLowerCase().includes(x)),
+    );
   for (const f of req.filter) {
     const needle = String(f.value ?? '').toLowerCase();
-    list = list.filter((r) => String(r[f.field as keyof Row] ?? '').toLowerCase().includes(needle));
+    list = list.filter((r) =>
+      String(r[f.field as keyof Row] ?? '')
+        .toLowerCase()
+        .includes(needle),
+    );
   }
   if (req.sort.length > 0) {
     list = [...list].sort((a, b) => {
@@ -106,13 +113,20 @@ export function InterfacesPage() {
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
-      const data = await qc.fetchQuery({ queryKey: ifaceKeys.state, queryFn: () => fetchInterfacesState(signal), staleTime: 1000 });
+      const data = await qc.fetchQuery({
+        queryKey: ifaceKeys.state,
+        queryFn: () => fetchInterfacesState(signal),
+        staleTime: 1000,
+      });
       return pageOf(data.items.map(toRow), req);
     },
     [qc],
   );
 
-  const rateOf = useCallback((r: Row): Rate | undefined => rates.get(r.item.state?.vppName ?? r.name), [rates]);
+  const rateOf = useCallback(
+    (r: Row): Rate | undefined => rates.get(r.item.state?.vppName ?? r.name),
+    [rates],
+  );
 
   const columns = useMemo<GridColDef<Row>[]>(
     () => [
@@ -123,10 +137,33 @@ export function InterfacesPage() {
         flex: 1,
         renderCell: (p) => (
           <Stack direction="row" gap={0.5} alignItems="center" sx={{ blockSize: '100%' }}>
-            <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, paddingInlineStart: p.row.item.kind === 'subinterface' ? 2 : 0 }}>
+            <Box
+              component="span"
+              dir="ltr"
+              sx={{
+                fontFamily: (th) => th.ngfw.monoFontFamily,
+                paddingInlineStart: p.row.item.kind === 'subinterface' ? 2 : 0,
+              }}
+            >
               {p.row.name}
             </Box>
-            {p.row.item.hasPendingChange && <Chip size="small" color="warning" variant="outlined" label={t('pending')} />}
+            {p.row.item.builtIn && (
+              <Chip size="small" color="info" variant="outlined" label={t('builtIn')} />
+            )}
+            {p.row.item.awaitingDataplane && (
+              <Chip
+                size="small"
+                color="default"
+                variant="outlined"
+                label={t('awaitingDataplane')}
+              />
+            )}
+            {p.row.item.physical?.owner === 'host' && (
+              <Chip size="small" color="default" variant="outlined" label={t('releasedToHost')} />
+            )}
+            {p.row.item.hasPendingChange && (
+              <Chip size="small" color="warning" variant="outlined" label={t('pending')} />
+            )}
           </Stack>
         ),
       },
@@ -135,22 +172,40 @@ export function InterfacesPage() {
         field: 'admin',
         headerName: t('col.admin'),
         width: 120,
-        renderCell: (p) => (p.row.admin ? <StatusChip size="small" status={adminStatus(p.row.item.state)!} /> : <Typography variant="body2" color="text.secondary">{t('notInVpp')}</Typography>),
+        renderCell: (p) =>
+          p.row.admin ? (
+            <StatusChip size="small" status={adminStatus(p.row.item.state)!} />
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              {t('notInVpp')}
+            </Typography>
+          ),
       },
       {
         field: 'link',
         headerName: t('col.link'),
         width: 120,
-        renderCell: (p) => (p.row.link ? <StatusChip size="small" status={linkStatus(p.row.item.state)!} /> : null),
+        renderCell: (p) =>
+          p.row.link ? <StatusChip size="small" status={linkStatus(p.row.item.state)!} /> : null,
       },
-      { field: 'mtu', headerName: t('col.mtu'), type: 'number', width: 80, valueFormatter: (v: number | null) => (v === null ? '' : fmt.integer(v)) },
+      {
+        field: 'mtu',
+        headerName: t('col.mtu'),
+        type: 'number',
+        width: 80,
+        valueFormatter: (v: number | null) => (v === null ? '' : fmt.integer(v)),
+      },
       {
         field: 'addresses',
         headerName: t('col.addresses'),
         minWidth: 180,
         flex: 1,
         renderCell: (p) => (
-          <Box component="span" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}>
+          <Box
+            component="span"
+            dir="ltr"
+            sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, fontSize: 12 }}
+          >
             {p.row.addresses}
           </Box>
         ),
@@ -164,7 +219,11 @@ export function InterfacesPage() {
         width: 175,
         renderCell: (p) => {
           const r = rateOf(p.row);
-          return r ? <span dir="ltr">{t('rateCell', { bps: fmt.rate(r.rxBps, BPS), pps: fmt.rate(r.rxPps, PPS) })}</span> : null;
+          return r ? (
+            <span dir="ltr">
+              {t('rateCell', { bps: fmt.rate(r.rxBps, BPS), pps: fmt.rate(r.rxPps, PPS) })}
+            </span>
+          ) : null;
         },
       },
       {
@@ -175,7 +234,11 @@ export function InterfacesPage() {
         width: 175,
         renderCell: (p) => {
           const r = rateOf(p.row);
-          return r ? <span dir="ltr">{t('rateCell', { bps: fmt.rate(r.txBps, BPS), pps: fmt.rate(r.txPps, PPS) })}</span> : null;
+          return r ? (
+            <span dir="ltr">
+              {t('rateCell', { bps: fmt.rate(r.txBps, BPS), pps: fmt.rate(r.txPps, PPS) })}
+            </span>
+          ) : null;
         },
       },
       {
@@ -186,10 +249,18 @@ export function InterfacesPage() {
         width: 90,
         renderCell: (p) => {
           const r = rateOf(p.row);
-          return r ? <Sparkline values={r.history} label={t('trendLabel', { name: p.row.name })} /> : null;
+          return r ? (
+            <Sparkline values={r.history} label={t('trendLabel', { name: p.row.name })} />
+          ) : null;
         },
       },
-      { field: 'errors', headerName: t('col.errors'), type: 'number', width: 120, valueFormatter: (v: number) => fmt.integer(v) },
+      {
+        field: 'errors',
+        headerName: t('col.errors'),
+        type: 'number',
+        width: 120,
+        valueFormatter: (v: number) => fmt.integer(v),
+      },
     ],
     [t, fmt, rateOf],
   );
@@ -215,13 +286,23 @@ export function InterfacesPage() {
       <Stack direction="row" gap={1} sx={{ mb: 1 }} alignItems="center">
         <Tooltip title={perms.editConfig ? '' : t('readonly')}>
           <span>
-            <Button variant="contained" startIcon={<AddIcon />} disabled={!perms.editConfig} onClick={() => setAdding(true)}>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              disabled={!perms.editConfig}
+              onClick={() => setAdding(true)}
+            >
               {t('add')}
             </Button>
           </span>
         </Tooltip>
         <Box sx={{ flex: 1 }} />
-        <Chip size="small" variant="outlined" label={t('liveChip', { status: t(`ws.${wsStatus}`, { ns: UI_KIT_NS }) })} color={wsStatus === 'open' ? 'success' : 'default'} />
+        <Chip
+          size="small"
+          variant="outlined"
+          label={t('liveChip', { status: t(`ws.${wsStatus}`, { ns: UI_KIT_NS }) })}
+          color={wsStatus === 'open' ? 'success' : 'default'}
+        />
       </Stack>
       {lastError !== null && <ProblemAlert error={lastError} sx={{ mb: 1 }} />}
       <Paper variant="outlined" sx={{ blockSize: 520 }}>
@@ -255,7 +336,11 @@ export function InterfacesPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAdding(false)}>{t('cancel')}</Button>
-          <Button variant="contained" disabled={!NAME_RE.test(newName.trim()) || patch.isPending} onClick={() => void addInterface()}>
+          <Button
+            variant="contained"
+            disabled={!NAME_RE.test(newName.trim()) || patch.isPending}
+            onClick={() => void addInterface()}
+          >
             {t('add')}
           </Button>
         </DialogActions>

@@ -1,0 +1,127 @@
+run.sh: 2026-09-28T19:09:49 VPP NRestarts=2 before, mode netns
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:536: systemctl show vpp -p NRestarts (before) = 2
+2026/09/28 19:10:12 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ospf_topology_integration_test.go:561: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    ospf_topology_integration_test.go:566: rig up w11 (slot 11, path af_packet)
+          create netns ns-w11-lan
+          create veth w11l0 <-> ns-w11-lan:w11l1
+          create vpp host-w11l0 (af_packet on w11l0)
+          reset  ip/ip6 classify host-w11l0 (table-index ~0)
+          set    addr host-w11l0 10.11.1.1/24
+          create netns ns-w11-wan
+          create veth w11w0 <-> ns-w11-wan:w11w1
+          create vpp host-w11w0 (af_packet on w11w0)
+          reset  ip/ip6 classify host-w11w0 (table-index ~0)
+          set    addr host-w11w0 10.11.2.1/24
+        rig: up
+        prefix: w11
+        slot: 11
+        path: af_packet
+        lan_ns: ns-w11-lan
+        lan_veth: w11l1
+        lan_ip: 10.11.1.2/24
+        lan_gw: 10.11.1.1
+        vpp_lan_if: host-w11l0
+        vpp_lan_addr: 10.11.1.1/24 
+        wan_ns: ns-w11-wan
+        wan_veth: w11w1
+        wan_ip: 10.11.2.2/24
+        wan_gw: 10.11.2.1
+        vpp_wan_if: host-w11w0
+        vpp_wan_addr: 10.11.2.1/24 
+        ping: ip netns exec ns-w11-lan ping -c 3 10.11.2.2
+        
+    ospf_topology_integration_test.go:572: rig VPP side handed to the agent: af_packet_delete w11l0 (veth down)
+    ospf_topology_integration_test.go:572: rig VPP side handed to the agent: af_packet_delete w11w0 (veth down)
+2026/09/28 19:10:46 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w11 component=subsystems
+2026/09/28 19:10:46 INFO pppoe client wired owner=w11 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/09/28 19:10:46 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w11 component=subsystems
+2026/09/28 19:10:46 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w11 component=subsystems
+2026/09/28 19:10:46 INFO fqdn state reloaded owner=w11 component=subsystems family=objects file=/tmp/TestOSPFTopologyOnHost3125036319/001/state/objects-fqdn-w11.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/09/28 19:10:46 INFO objects domain wired owner=w11 component=subsystems store=/tmp/TestOSPFTopologyOnHost3125036319/001/state/objects-w11.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/09/28 19:10:46 INFO acl domain wired owner=w11 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/09/28 19:10:46 INFO host firewall wired owner=w11 component=subsystems table="inet ngfw_w11" mode=check netns="" rules_file=/tmp/TestOSPFTopologyOnHost3125036319/001/state/host-acl-w11.nft
+2026/09/28 19:10:46 INFO VPP binary API connected owner=w11 component=vpp socket=/run/vpp/api.sock
+2026/09/28 19:10:46 INFO kea wired owner=w11 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/09/28 19:10:46 INFO host services wired owner=w11 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-2403888985/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-2403888985/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-2403888985/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/09/28 19:10:46 INFO system identity wired owner=w11 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-2403888985/sysident/etc/hostname
+2026/09/28 19:10:46 INFO subsystems wired owner=w11 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management]" wiring="stores in /tmp/TestOSPFTopologyOnHost3125036319/001/state: claims-iface-w11.json, boot-w11.json; globals owner false" vpp_ids=11000-11999
+2026/09/28 19:10:46 INFO ngfw-agent listening owner=w11 socket=/tmp/TestOSPFTopologyOnHost3125036319/001/agent.sock metrics=off state_dir=/tmp/TestOSPFTopologyOnHost3125036319/001/state vpp_api=/run/vpp/api.sock
+2026/09/28 19:10:46 INFO VPP boot identity owner=w11 component=subsystems identity=35157119-305c-4204-b86c-ce27f894b854/1847057/16855470 complete=true expired_claims=0
+2026/09/28 19:10:46 INFO reconcile start owner=w11 txn_id="" mode=resync domains=[]
+2026/09/28 19:10:46 WARN neighbour events: interface dump owner=w11 component=subsystems err="sw_interface_dump: context canceled"
+2026/09/28 19:10:46 INFO reconcile done owner=w11 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=210.545812ms err=""
+2026/09/28 19:10:46 INFO resync finished owner=w11 why=connect status=APPLY_STATUS_APPLIED summary=""
+    ospf_topology_integration_test.go:636: VPP FIB checks not requested (NGFW_OSPF_FIB=root runs the NGFW-side FRR in the root netns): FRR's RIB is checked
+2026/09/28 19:10:46 INFO reconcile start owner=w11 txn_id=w11-p12-commit mode=apply domains="[interfaces routing]"
+2026/09/28 19:10:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w11l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=af-packet.host-interface/host-w11l0
+2026/09/28 19:10:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w11w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=af-packet.host-interface/host-w11w0
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface/host-w11l0
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface-ip/host-w11l0/10.11.1.1/24
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface.admin-state/host-w11l0
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface/host-w11w0
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface-ip/host-w11w0/10.11.2.1/24
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=interface.admin-state/host-w11w0
+2026/09/28 19:10:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=w11-l0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=lcp.itf-pair/host-w11l0
+2026/09/28 19:10:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=w11-w0 sw_if_index=5 phase=create cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:10:47 INFO created owner=w11 component=scheduler key=lcp.itf-pair/host-w11w0
+2026/09/28 19:10:49 INFO FRR configuration applied owner=w11 component=subsystems component=frr conf=/run/ngfw-test/w11/frr/etc/w11/frr.conf bgp=false
+2026/09/28 19:10:49 INFO created owner=w11 component=scheduler key=frr.config/ngfw
+2026/09/28 19:10:49 INFO reconcile done owner=w11 txn_id=w11-p12-commit mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=2.76900863s err=""
+    ospf_topology_integration_test.go:639: apply commit: {
+          "created":  11
+        }
+    ospf_topology_integration_test.go:641: adjacencies not Full within 1m30s: []
+2026/09/28 19:12:20 INFO reconcile start owner=w11 txn_id=w11-ospf-cleanup mode=apply domains="[interfaces routing]"
+2026/09/28 19:12:23 INFO FRR configuration applied owner=w11 component=subsystems component=frr conf=/run/ngfw-test/w11/frr/etc/w11/frr.conf bgp=false
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=frr.config/ngfw
+2026/09/28 19:12:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=w11-w0 sw_if_index=5 phase=delete cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=lcp.itf-pair/host-w11w0
+2026/09/28 19:12:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=w11-l0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=lcp.itf-pair/host-w11l0
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=interface.admin-state/host-w11w0
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=interface.admin-state/host-w11l0
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=interface-ip/host-w11w0/10.11.2.1/24
+2026/09/28 19:12:23 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w11w0 descriptor=af-packet.host-interface ifindex=61 kind=veth
+2026/09/28 19:12:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w11w0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=af-packet.host-interface/host-w11w0
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=interface-ip/host-w11l0/10.11.1.1/24
+2026/09/28 19:12:23 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w11l0 descriptor=af-packet.host-interface ifindex=59 kind=veth
+2026/09/28 19:12:23 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w11l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[6] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/09/28 19:12:23 INFO deleted owner=w11 component=scheduler key=af-packet.host-interface/host-w11l0
+2026/09/28 19:12:23 INFO reconcile done owner=w11 txn_id=w11-ospf-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=3.372501663s err=""
+    ospf_topology_integration_test.go:616: cleanup apply: <nil> {
+          "deleted":  9
+        }
+2026/09/28 19:12:23 INFO ngfw-agent stopped owner=w11
+    ospf_topology_integration_test.go:569: rig down: <nil>
+        rig down w11
+          delete netns ns-w11-lan (and its veth peer)
+          delete netns ns-w11-wan (and its veth peer)
+        rig: down
+        prefix: w11
+        slot: 11
+        path: af_packet
+        lan_ns: ns-w11-lan
+        lan_veth: w11l1
+        lan_ip: 10.11.1.2/24
+        lan_gw: 10.11.1.1
+        vpp_lan_if: host-w11l0
+        vpp_lan_addr: -
+        wan_ns: ns-w11-wan
+        wan_veth: w11w1
+        wan_ip: 10.11.2.2/24
+        wan_gw: 10.11.2.1
+        vpp_wan_if: host-w11w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w11-lan ping -c 3 10.11.2.2
+    ospf_topology_integration_test.go:539: systemctl show vpp -p NRestarts (after) = 2
+--- FAIL: TestOSPFTopologyOnHost (132.75s)
+FAIL
+FAIL	ngfw/agent/internal/agent	132.992s
+FAIL

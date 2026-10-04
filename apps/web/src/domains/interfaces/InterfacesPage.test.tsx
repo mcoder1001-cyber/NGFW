@@ -481,4 +481,47 @@ describe('interfaces screen', () => {
       'اینترفیس‌ها',
     );
   });
+
+  it('a seeded physical NIC: built-in chip, no Delete, the drawer releases it to the host in one root merge patch (F-default-vpp-nics)', { timeout: 60_000 }, async () => {
+    const api = installFakeApi();
+    const phys = { pci: '0000:0a:00.0', owner: 'dataplane', builtIn: true };
+    const cfg = { enabled: true, ipv4: [], ipv6: [], vrf: 'default', promiscuous: false, subinterfaces: {}, physical: phys };
+    api.on('GET /api/v1/state/interfaces', {
+      body: {
+        items: [
+          { name: 'ens161', kind: 'interface', parent: null, state: null, config: null, running: cfg, counters: null, hasPendingChange: false, physical: phys, builtIn: true, awaitingDataplane: true },
+        ],
+      },
+    });
+    api.on('GET /api/v1/config/candidate/interfaces', { body: { ens161: cfg } });
+    api.on('GET /api/v1/config/candidate/dataplane', { body: { pciWhitelist: ['0000:0A:00.0', '0000:0c:00.0'], devices: { '0000:0A:00.0': { name: 'ens161' } } } });
+    let patched: unknown;
+    api.on('PATCH /api/v1/config', (_r, body) => {
+      patched = body;
+      return { body: { pointer: '', before: null, after: null } };
+    });
+    await signIn();
+    render(app('/interfaces'));
+    const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+    expect(await within(grid).findByText('built-in')).toBeInTheDocument();
+    expect(within(grid).getByText('awaiting engine')).toBeInTheDocument();
+
+    fireEvent.click(within(grid).getByText('ens161'));
+    const drawer = await screen.findByRole('region', { name: 'Interface ens161' });
+    expect(await within(drawer).findByRole('button', { name: 'Release to host' })).toBeInTheDocument();
+    expect(within(drawer).queryByRole('button', { name: 'Remove from configuration' })).toBeNull();
+    // the marker is not an editable form field
+    expect(within(drawer).queryByLabelText(/^Physical NIC/)).toBeNull();
+
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Release to host' }));
+    const dialogs = await screen.findAllByRole('dialog');
+    const dialog = dialogs[dialogs.length - 1]!;
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Release to host' }));
+    await waitFor(() =>
+      expect(patched).toEqual({
+        interfaces: { ens161: { physical: { owner: 'host' } } },
+        dataplane: { pciWhitelist: ['0000:0c:00.0'], devices: { '0000:0A:00.0': null } },
+      }),
+    );
+  });
 });

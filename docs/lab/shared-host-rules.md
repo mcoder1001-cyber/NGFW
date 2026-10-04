@@ -45,6 +45,8 @@ Ports 3000 / 5173 / 9101 and `/run/ngfw/agent.sock` belong to the **integrated m
 - **Nobody restarts or kills VPP while handover is pending** (D-012). Restart-safety = stop *your* agent, delete *your* prefixed objects, restart *your* agent.
 - Integration tests run only with `NGFW_INTEGRATION=1` and under `flock -s /run/lock/ngfw-lab.lock`; `pnpm test`/`make test` are unit-only.
 
+- **Reset ip4 and ip6 classify immediately after creating an interface, before addresses or admin-up** (D-185): Go fixtures call `ifsanitize.ResetIPClassify` or `Sanitize`/`Acquire`; shell fixtures run `set ip classify intfc <if> table-index -1` and the ip6 equivalent. Repair the ip4 binding before address deletion; create-time ip6 reset must precede IPv6 addresses (VPP wrong-FIB-index limitation). The Go and shell guards enforce this ordering.
+
 ## 3. Daemons (frr, strongswan, kea, unbound, chrony, snmpd, keepalived)
 Exactly **one** worker at a time owns a daemon (the manager declares it in the envelope: `daemon-owner: frr`). Others mock or skip. The owner leaves the daemon **stopped and disabled** when the task ends. Never edit `/etc/vpp/*` (handover rule).
 

@@ -131,3 +131,9 @@ This batch requires the unchanged complete hosted quick gate before integration 
 | F-bruteforce-detectors | Actual trusted SSH/native-auth/scan observation through API to agent, distinct-port threshold, allowlist/TTL, enforcement, restart/replay and rollback on provisioned VPP/nft/PostgreSQL/Valkey rig | Bounded source/observation windows fail unavailable beyond supported limits; unit evidence does not prove real traffic blocking |
 
 Capture the exact integrated SHA, topology/slot, commands, raw outcomes and artifacts when running these cases. Scaling follow-up is recorded in `docs/tech-debt.md`; unsupported routes and thresholds must remain explicit.
+
+## Eight historical Review recoveries — 2026-10-04
+
+Owner authorized source recovery and final merging with complete CI waived. See `tasks/eight-review-recovery-20261004.md`. Source completion and live acceptance are separate. Default NIC binding/release on hardware, classify/sentinel current-host lifecycle, det44 current packet acceptance, and alarm rebuild on actual PostgreSQL/API restart remain deferred. Unsafe DS-Lite pool deletion tests are parked until a verified upstream VPP fix and reviewed safe harness exist.
+
+NAT46: scoped descriptor acceptance was run on current VPP slot17 and passed create/retrieve/idempotent apply/delete; full IPv4-to-IPv6 packets, agent-restart timing, rollback and API/browser remain deferred. OSPF: restored FRR live and full topology tests; FRR-only adjacency/redistribution/withdrawal/event/config removal passed on slot11 (41.597s); root FIB mode fails closed on unverified shared-host preconditions. Full FRR/VPP adjacency/FIB, withdrawal/restart/rollback and API acceptance remain owed unless recorded in the recovery report. These two host rows remain parked; historical PASS evidence alone does not complete them.

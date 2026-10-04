@@ -32,6 +32,8 @@ import { UsersService } from './users/users.service.js';
 // Feature modules: `import { <slug>Feature } from './features/<slug>/index.js';` under the feature's anchor.
 // wave-BC: F-det44-map-dslite-cnat
 import { det44MapDsliteCnatFeature } from './features/det44-map-dslite-cnat/index.js';
+// wave-BC: F-default-vpp-nics
+import { defaultVppNicsFeature } from './features/default-vpp-nics/index.js';
 import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored)
 // wave-BC: F-tunnels
 // wave-BC: P10
@@ -161,6 +163,8 @@ export class AppModule {
         AuditController,
         UsersController,
         // Feature controllers: `...<slug>Feature.controllers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-BC: F-default-vpp-nics
+        ...defaultVppNicsFeature.controllers,
         // wave-BC: F-det44-map-dslite-cnat
         ...det44MapDsliteCnatFeature.controllers,
         ...nat46Feature.controllers, // F-nat46 (unanchored)
@@ -274,6 +278,8 @@ export class AppModule {
         RelayService,
         UsersService,
         // Feature providers: `...<slug>Feature.providers,` under the feature's anchor (wave-A-hotspots P1).
+        // wave-BC: F-default-vpp-nics
+        ...defaultVppNicsFeature.providers,
         // wave-BC: F-det44-map-dslite-cnat
         ...det44MapDsliteCnatFeature.providers,
         ...nat46Feature.providers, // F-nat46 (unanchored)

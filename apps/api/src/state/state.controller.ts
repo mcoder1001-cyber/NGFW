@@ -138,6 +138,27 @@ const InterfaceItemOut = z.object({
   hasPendingChange: z
     .boolean()
     .describe('the candidate differs from running for this (sub-)interface'),
+  // wave-BC: F-default-vpp-nics — the physical-NIC marker of a seeded row (from the running/candidate config), and derived flags
+  physical: z
+    .object({
+      pci: z.string(),
+      owner: z.enum(['dataplane', 'host']),
+      builtIn: z.boolean(),
+    })
+    .nullable()
+    .optional()
+    .describe('set on physical NICs seeded from the host inventory; null otherwise'),
+  builtIn: z
+    .boolean()
+    .optional()
+    .describe('a built-in (seeded) physical NIC — non-deletable in the UI/API'),
+  awaitingDataplane: z
+    .boolean()
+    .nullable()
+    .optional()
+    .describe(
+      'a dataplane-owned physical NIC that VPP does not have yet (not handed to DPDK); null when the live state is unavailable (agent older than P08)',
+    ),
 });
 const InterfacesOut = z.object({
   retrievedAt: z.string().optional(),
@@ -295,6 +316,9 @@ export class StateController {
       const cfg = runIfs.get(name) ?? candIfs.get(name) ?? actIfs.get(name);
       const parent = cfg?.parent ?? (st?.parent ? st.parent : null);
       const c = counters.get(st?.vppName ?? name);
+      // wave-BC: F-default-vpp-nics — the physical marker from the running (else candidate) config of this interface
+      const physCfg = (runIfs.get(name)?.value ?? candIfs.get(name)?.value ?? {})['physical'];
+      const physical = physicalView(physCfg);
       return {
         name,
         kind: parent ? ('subinterface' as const) : ('interface' as const),
@@ -307,6 +331,16 @@ export class StateController {
           runIfs.get(name)?.value ?? null,
           candIfs.get(name)?.value ?? null,
         ),
+        physical,
+        builtIn: physical?.builtIn === true,
+        // dataplane-owned physical NIC that VPP does not have yet (not bound): the UI shows "awaiting dataplane"
+        // null = unknown: without the live table we cannot tell whether VPP has the NIC (review R1R3 #13)
+        awaitingDataplane:
+          physical === null || physical.owner !== 'dataplane'
+            ? false
+            : live === undefined
+              ? null
+              : st === undefined,
       };
     });
     return {
@@ -411,6 +445,9 @@ const COVERAGE_RULES = new Set([
   'agent.write-only-field', // D-147 (F-host-stack): applied, but VPP has no dump/getter
   'agent.write-only',
   'rule.expired', // F-rule-expiry: kept in the configuration, removed from the data plane at its expiresAt
+  // wave-BC: F-default-vpp-nics — seeded NICs the data plane does not have (not bound yet / released to the host)
+  'agent.nic-not-bound',
+  'agent.nic-released',
 ]);
 
 function isEmptyContainer(v: unknown): boolean {
@@ -473,4 +510,17 @@ function liveJson(s: InterfaceState): Json {
 
 function countersJson(c: InterfaceCounters): Json {
   return { ...c };
+}
+
+// wave-BC: F-default-vpp-nics
+/** The `physical` marker of an interface config → the state view's typed object (null if none). */
+function physicalView(
+  v: unknown,
+): { pci: string; owner: 'dataplane' | 'host'; builtIn: boolean } | null {
+  if (!isPlainObject(v)) return null;
+  return {
+    pci: typeof v['pci'] === 'string' ? v['pci'] : '',
+    owner: v['owner'] === 'host' ? 'host' : 'dataplane',
+    builtIn: v['builtIn'] !== false,
+  };
 }

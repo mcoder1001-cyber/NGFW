@@ -2659,6 +2659,22 @@ export interface components {
            */
           setBroadcastFlag: boolean;
         };
+        /** Physical NIC */
+        physical?: {
+          /** PCI address */
+          pci: string;
+          /**
+           * Owner
+           * @default dataplane
+           * @enum {string}
+           */
+          owner: 'dataplane' | 'host';
+          /**
+           * Built-in
+           * @default true
+           */
+          builtIn: boolean;
+        };
         /** MAC address */
         mac?: string;
         /**
@@ -12213,6 +12229,17 @@ export interface operations {
               } | null;
               /** @description the candidate differs from running for this (sub-)interface */
               hasPendingChange: boolean;
+              /** @description set on physical NICs seeded from the host inventory; null otherwise */
+              physical?: {
+                pci: string;
+                /** @enum {string} */
+                owner: 'dataplane' | 'host';
+                builtIn: boolean;
+              } | null;
+              /** @description a built-in (seeded) physical NIC — non-deletable in the UI/API */
+              builtIn?: boolean;
+              /** @description a dataplane-owned physical NIC that VPP does not have yet (not handed to DPDK); null when the live state is unavailable (agent older than P08) */
+              awaitingDataplane?: boolean | null;
             }[];
           };
         };

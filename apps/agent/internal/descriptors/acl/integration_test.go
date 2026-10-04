@@ -97,6 +97,9 @@ func createLoopback(ctx context.Context, t *testing.T, c vpp.Client, owner strin
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, c, uint32(rep.SwIfIndex)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+		t.Fatalf("reset ip classify %s: %v", name, err)
+	}
 	if !tagged {
 		t.Logf("created %s sw_if_index %d (untagged)", name, rep.SwIfIndex)
 		return name

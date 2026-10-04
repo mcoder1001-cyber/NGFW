@@ -124,6 +124,9 @@ func (h *Host) Loopback(i int, prefix string) (string, uint32) {
 			h.T.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}
 	})
+	if err := ifsanitize.ResetIPClassify(h.Ctx, h.Client, uint32(idx)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+		h.T.Fatalf("reset ip classify %s: %v", name, err)
+	}
 	tag, err := vpp.OwnerTag(h.Owner, name)
 	if err != nil {
 		h.T.Fatal(err)

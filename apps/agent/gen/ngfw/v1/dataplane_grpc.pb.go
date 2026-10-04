@@ -100,6 +100,7 @@ const (
 	Dataplane_WanState_FullMethodName                = "/ngfw.v1.Dataplane/WanState"
 	Dataplane_MulticastState_FullMethodName          = "/ngfw.v1.Dataplane/MulticastState"
 	Dataplane_MplsLdpState_FullMethodName            = "/ngfw.v1.Dataplane/MplsLdpState"
+	Dataplane_HostNics_FullMethodName                = "/ngfw.v1.Dataplane/HostNics"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -304,6 +305,12 @@ type DataplaneClient interface {
 	// MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
 	// agent without LDP (→ 501).
 	MplsLdpState(ctx context.Context, in *MplsLdpStateRequest, opts ...grpc.CallOption) (*MplsLdpStateResponse, error)
+	// HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+	// can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+	// sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+	// engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+	// address (virtio-mmio, USB) are not enumerated.
+	HostNics(ctx context.Context, in *HostNicsRequest, opts ...grpc.CallOption) (*HostNicsResponse, error)
 }
 
 type dataplaneClient struct {
@@ -880,6 +887,16 @@ func (c *dataplaneClient) MplsLdpState(ctx context.Context, in *MplsLdpStateRequ
 	return out, nil
 }
 
+func (c *dataplaneClient) HostNics(ctx context.Context, in *HostNicsRequest, opts ...grpc.CallOption) (*HostNicsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HostNicsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_HostNics_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DataplaneServer is the server API for Dataplane service.
 // All implementations must embed UnimplementedDataplaneServer
 // for forward compatibility.
@@ -1082,6 +1099,12 @@ type DataplaneServer interface {
 	// MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
 	// agent without LDP (→ 501).
 	MplsLdpState(context.Context, *MplsLdpStateRequest) (*MplsLdpStateResponse, error)
+	// HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+	// can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+	// sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+	// engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+	// address (virtio-mmio, USB) are not enumerated.
+	HostNics(context.Context, *HostNicsRequest) (*HostNicsResponse, error)
 	mustEmbedUnimplementedDataplaneServer()
 }
 
@@ -1250,6 +1273,9 @@ func (UnimplementedDataplaneServer) MulticastState(context.Context, *MulticastSt
 }
 func (UnimplementedDataplaneServer) MplsLdpState(context.Context, *MplsLdpStateRequest) (*MplsLdpStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MplsLdpState not implemented")
+}
+func (UnimplementedDataplaneServer) HostNics(context.Context, *HostNicsRequest) (*HostNicsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HostNics not implemented")
 }
 func (UnimplementedDataplaneServer) mustEmbedUnimplementedDataplaneServer() {}
 func (UnimplementedDataplaneServer) testEmbeddedByValue()                   {}
@@ -2198,6 +2224,24 @@ func _Dataplane_MplsLdpState_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_HostNics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HostNicsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).HostNics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_HostNics_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).HostNics(ctx, req.(*HostNicsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Dataplane_ServiceDesc is the grpc.ServiceDesc for Dataplane service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2400,6 +2444,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MplsLdpState",
 			Handler:    _Dataplane_MplsLdpState_Handler,
+		},
+		{
+			MethodName: "HostNics",
+			Handler:    _Dataplane_HostNics_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

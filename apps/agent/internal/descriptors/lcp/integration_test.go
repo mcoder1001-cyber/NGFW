@@ -79,7 +79,10 @@ func TestLCPOnHost(t *testing.T) {
 		t.Cleanup(func() {
 			_, _ = svc.LcpItfPairAddDelV3(context.Background(), &lcp.LcpItfPairAddDelV3{IsAdd: false, SwIfIndex: interface_types.InterfaceIndex(idx)})
 		})
-		if _, err := ifsanitize.Sanitize(ctx, c, uint32(prep.HostSwIfIndex), h.Owner+"-for0"); err != nil { // Sanitize the freshly created fixture before it can acquire addresses.
+		if err := ifsanitize.ResetIPClassify(ctx, c, uint32(prep.HostSwIfIndex)); err != nil {
+			t.Fatalf("reset ip classify of the foreign pair's host tap: %v", err)
+		}
+		if _, err := ifsanitize.Sanitize(ctx, c, uint32(prep.HostSwIfIndex), h.Owner+"-for0"); err != nil {
 			t.Fatalf("sanitize the foreign pair's host tap: %v", err)
 		}
 		for _, v := range []ItfPair{

@@ -4463,34 +4463,32 @@ tasks:
     template: prompts/FEATURE-TEMPLATE.md
     stage: S4
     deps:
-      - P08
+    - P08
     priority: 2
     est_hours: 8
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
-    scope:
-      'product-owner directive (2026-09-28): on first boot / empty document the agent enumerates host NICs, excludes the management interface (the NIC carrying the management IP/default
-      route, e.g. ens192 on ngfw-a), and seeds the desired state so all remaining physical NICs are dataplane interfaces owned by VPP; Retrieve/UI list these seeded interfaces by default;
-      the web Interfaces screen renders them as built-in rows that can be edited/disabled but never deleted (delete affordance hidden, API refuses removal of a physical dataplane NIC from
-      the document); document the escape hatch (explicitly releasing a NIC back to the host is a config action, not a delete)'
-    files_owned:
-      apps/agent/internal/renderers/vppstartup/hostfacts*.go apps/agent/internal/hostnics/** apps/agent/internal/agent/rpc_hostnics*.go apps/agent/internal/desired/hostnics*.go
-      apps/api/src/datastore/** apps/api/src/seed/** apps/api/src/state/state.controller.ts (interfaces view hunk) apps/api/src/features/interfaces/** packages/schema/src/domains/{interfaces,dataplane}.ts
-      packages/schema/src/semantic/{interfaces,dataplane}.ts packages/proto/ngfw/v1/dataplane.proto (additive section) apps/web/src/domains/interfaces/** apps/web/src/locales/{en,fa}/interfaces.json
-      docs/user/interfaces/** + one anchored hunk each in subsystems.go, projection.go, app.module.ts, semantic/index.ts, i18n.ts (D-174)
-    branch: task/F-default-vpp-nics
+    scope: 'product-owner directive (2026-09-28): on first boot / empty document the agent enumerates host NICs, excludes the management interface (the NIC carrying the management IP/default route, e.g. ens192
+      on ngfw-a), and seeds the desired state so all remaining physical NICs are dataplane interfaces owned by VPP; Retrieve/UI list these seeded interfaces by default; the web Interfaces screen renders them
+      as built-in rows that can be edited/disabled but never deleted (delete affordance hidden, API refuses removal of a physical dataplane NIC from the document); document the escape hatch (explicitly releasing
+      a NIC back to the host is a config action, not a delete)'
+    files_owned: apps/agent/internal/renderers/vppstartup/hostfacts*.go apps/agent/internal/hostnics/** apps/agent/internal/agent/rpc_hostnics*.go apps/agent/internal/desired/hostnics*.go apps/api/src/datastore/**
+      apps/api/src/seed/** apps/api/src/state/state.controller.ts (interfaces view hunk) apps/api/src/features/interfaces/** packages/schema/src/domains/{interfaces,dataplane}.ts packages/schema/src/semantic/{interfaces,dataplane}.ts
+      packages/proto/ngfw/v1/dataplane.proto (additive section) apps/web/src/domains/interfaces/** apps/web/src/locales/{en,fa}/interfaces.json docs/user/interfaces/** + one anchored hunk each in subsystems.go,
+      projection.go, app.module.ts, semantic/index.ts, i18n.ts (D-174)
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/F-default-vpp-nics
     owner: developer slot 1
     started: '2026-09-28'
-    finished: '2026-09-28'
-    notes:
-      'requested by the product owner in chat 2026-09-28; manager generates the prompt from FEATURE-TEMPLATE; mind D-012/handover: binding real NICs to DPDK on vrx-a stays gated —
-      implement seeding + UI + API guard against the fake/vpptest rig, host binding behind the handover flag | 2026-09-28 spawned (Agent tool, developer) slot 1, envelope /root/ngfw-wt/F-default-vpp-nics.envelope.md,
-      base main@f1f885a6 | 2026-09-28 D-174: files_owned narrowed from apps/agent/internal/** + apps/api/src/** to the host-NIC slice above; -host rows add their own family files + anchored
-      lines | done 8f200fe6 CI PASSED; panel R1 R2 R3 R4 R6 R7 + T1 spawned | 2026-09-28 fix round done 0d475dfa (targeted tests + check PASSED); merge queued | merged 79fff64a; seed default
-      off (D-192); screenshots → T4; mlx5 bifurcated NICs = debt in status | 2026-10-03 integration audit: Default host NIC seeding/RPC source absent in current published integration.
-      Historical checkpoint is preserved on the remote recovery archive; completion is not certified.'
+    finished: '2026-10-04'
+    notes: 'requested by the product owner in chat 2026-09-28; manager generates the prompt from FEATURE-TEMPLATE; mind D-012/handover: binding real NICs to DPDK on vrx-a stays gated — implement seeding +
+      UI + API guard against the fake/vpptest rig, host binding behind the handover flag | 2026-09-28 spawned (Agent tool, developer) slot 1, envelope /root/ngfw-wt/F-default-vpp-nics.envelope.md, base main@f1f885a6
+      | 2026-09-28 D-174: files_owned narrowed from apps/agent/internal/** + apps/api/src/** to the host-NIC slice above; -host rows add their own family files + anchored lines | done 8f200fe6 CI PASSED;
+      panel R1 R2 R3 R4 R6 R7 + T1 spawned | 2026-09-28 fix round done 0d475dfa (targeted tests + check PASSED); merge queued | merged 79fff64a; seed default off (D-192); screenshots → T4; mlx5 bifurcated
+      NICs = debt in status | 2026-10-03 integration audit: Default host NIC seeding/RPC source absent in current published integration. Historical checkpoint is preserved on the remote recovery archive;
+      completion is not certified. | 2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery
+      only, live acceptance deferred in eight-review-recovery-20261004.md.'
   - id: F-det44-map-dslite-cnat-host
     title: 'F-det44-map-dslite-cnat host runs: DET44 enable window, MAP/DS-Lite/CNAT packet paths + vppctl show, NRestarts, e2e on PostgreSQL, screenshot, test/topology'
     prompt: prompts/features/F-det44-map-dslite-cnat-host.md
@@ -4522,22 +4520,23 @@ tasks:
     template: prompts/HOST-FOLLOWUP-TEMPLATE.md
     stage: S4
     deps:
-      - F-nat46
+    - F-nat46
     priority: 3
     est_hours: 3
-    state: review
+    state: parked
     wbs: []
     scope: 'host evidence owed by F-nat46 (cloud session without VPP): the "Not built (remaining — for the host)" / "Not done / remains" section of docs/status/tasks/F-nat46.md'
     files_owned: docs/status/tasks/F-nat46-host*
-    branch: task/F-nat46-host
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/F-nat46-host
     owner: developer slot 17
     started: '2026-09-29'
     finished: '2026-09-29'
-    notes:
-      'D-162 | 2026-09-29 spawned slot 17, envelope /root/ngfw-wt/F-nat46-host.envelope.md, base main@4741ff86 | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928);
-      CONTINUE after the owner restarts VPP | parked at ad49180e: driver host.sh ready, no host evidence yet; CONTINUE = `eval "$(tools/lab env 17)"; docs/status/tasks/F-nat46-host-evidence/host.sh
-      run` after the restart + sentinel check | Integration audit: previous completion unverified; host evidence must be reconciled before merge/completion.'
+    notes: 'D-162 | 2026-09-29 spawned slot 17, envelope /root/ngfw-wt/F-nat46-host.envelope.md, base main@4741ff86 | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE after
+      the owner restarts VPP | parked at ad49180e: driver host.sh ready, no host evidence yet; CONTINUE = `eval "$(tools/lab env 17)"; docs/status/tasks/F-nat46-host-evidence/host.sh run` after the restart
+      + sentinel check | Integration audit: previous completion unverified; host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure
+      assertions/preconditions; remaining full host acceptance explicitly deferred, not complete.'
+    parked_on: remaining live packet/FIB/restart/API acceptance
   - id: S-mtu-linkmtu0
     title:
       "interfaces descriptor: defaultMtu treats LinkMtu=0 (mpls_tunnel) as VPP's 9000 fallback so Retrieve stops reporting a stray interface.mtu and MPLS tunnel applies stop rolling
@@ -4672,24 +4671,24 @@ tasks:
     template: prompts/HOST-FOLLOWUP-TEMPLATE.md
     stage: S4
     deps:
-      - F-ospf
+    - F-ospf
     priority: 3
     est_hours: 4
-    state: review
+    state: parked
     wbs: []
-    scope:
-      owed checklist = "Owed on the host" sections of docs/status/tasks/RV-A-review-R7.md, RV-A-review-R4.md and RV-A-review-R1.md for F-ospf; daemon-owner frr; FRR host rows one
-      at a time (launch queue §3)
+    scope: owed checklist = "Owed on the host" sections of docs/status/tasks/RV-A-review-R7.md, RV-A-review-R4.md and RV-A-review-R1.md for F-ospf; daemon-owner frr; FRR host rows one at a time (launch queue
+      §3)
     files_owned: docs/status/tasks/F-ospf-host* test/topology/ospf/**
-    branch: task/F-ospf-host
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/F-ospf-host
     owner: developer slot 11
     started: '2026-09-28'
     finished: '2026-09-29'
-    notes:
-      'D-173; RV-A | 2026-09-28 spawned slot 11, envelope /root/ngfw-wt/F-ospf-host.envelope.md, base main@79fff64a | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928);
-      CONTINUE after the owner restarts VPP | parked at 8a1c852a CI PASSED: frrtest live + API 400 done on host; rig/FIB/restart/rollback drivers ready; Q1-Q3 answered | Integration audit:
-      previous completion unverified; host evidence must be reconciled before merge/completion.'
+    notes: 'D-173; RV-A | 2026-09-28 spawned slot 11, envelope /root/ngfw-wt/F-ospf-host.envelope.md, base main@79fff64a | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE
+      after the owner restarts VPP | parked at 8a1c852a CI PASSED: frrtest live + API 400 done on host; rig/FIB/restart/rollback drivers ready; Q1-Q3 answered | Integration audit: previous completion unverified;
+      host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure assertions/preconditions; remaining full host acceptance explicitly
+      deferred, not complete.'
+    parked_on: remaining live packet/FIB/restart/API acceptance
   - id: F-isis-rip-host
     title: 'F-isis-rip host runs: frrtest isisd/ripd + RIP FIB evidence; IS-IS adjacency only after the OSI punt decision (R7/R4/R1 owed lists)'
     prompt: prompts/features/F-isis-rip-host.md
@@ -5081,40 +5080,36 @@ tasks:
       blocks clean merge gates (seen twice) | 2026-09-28 spawned slot 5, envelope /root/ngfw-wt/S-capture-flake.envelope.md, base main@73fb0b0f | 2026-09-28 done 3969fe79 CI PASSED;
       -race count 50 ok; product race fix capture.go:324; manager spot-check → merge queue | merged 675517bb
   - id: S-ipclassify-zerofill
-    title:
-      'Mitigate the VPP ip-classify zero-fill crash (INC-vpp-classify-crash): tools/lab rig + every test fixture resets ip4/ip6 classify on each created interface before any address
-      add; guard test; host check after rig up; optional table-0 sentinel on the globals owner'
+    title: 'Mitigate the VPP ip-classify zero-fill crash (INC-vpp-classify-crash): tools/lab rig + every test fixture resets ip4/ip6 classify on each created interface before any address add; guard test;
+      host check after rig up; optional table-0 sentinel on the globals owner'
     prompt: ''
     template: ''
     stage: S4
     deps:
-      - INC-vpp-classify-crash
+    - INC-vpp-classify-crash
     priority: 1
     est_hours: 4
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
-    scope:
-      'docs/status/tasks/INC-vpp-classify-crash.md mitigation M1 (+ M2 optional): `set ip classify intfc <if> table-index -1` and ip6 after `create host-interface` in tools/lab rig;
-      fixtures that create loopbacks/interfaces directly call ifsanitize.Sanitize (acl, nattest, df6test, df7test, dfkittest, ifacetest, vpntest, gso, vxlan); guard test that every interface
-      creator in the agent resets classify before address add; repair-before-delete rule; no VPP restart'
-    files_owned:
-      tools/lab (rig functions only) apps/agent/internal/ifsanitize/** apps/agent/internal/**/test fixture helpers named above (*test/*.go, *_test.go helpers only) docs/lab/shared-host-rules.md
+    scope: 'docs/status/tasks/INC-vpp-classify-crash.md mitigation M1 (+ M2 optional): `set ip classify intfc <if> table-index -1` and ip6 after `create host-interface` in tools/lab rig; fixtures that create
+      loopbacks/interfaces directly call ifsanitize.Sanitize (acl, nattest, df6test, df7test, dfkittest, ifacetest, vpntest, gso, vxlan); guard test that every interface creator in the agent resets classify
+      before address add; repair-before-delete rule; no VPP restart'
+    files_owned: tools/lab (rig functions only) apps/agent/internal/ifsanitize/** apps/agent/internal/**/test fixture helpers named above (*test/*.go, *_test.go helpers only) docs/lab/shared-host-rules.md
       (one rule) docs/status/tasks/S-ipclassify-zerofill* apps/agent/internal/descriptors/df2/df2test/df2test.go apps/agent/internal/**/claims_restart_integration_test.go apps/agent/internal/**/alias_integration_test.go
-      apps/agent/internal/descriptors/lcp/integration_test.go test/topology/wireguard/stack.sh test/topology/bonding/vpp_test.go test/topology/loopback-bvi-gso-lldp-span/vpp_test.go (one
-      reset line each, D-191) tools/ci.sh (one grep guard)
-    branch: task/S-ipclassify-zerofill
+      apps/agent/internal/descriptors/lcp/integration_test.go test/topology/wireguard/stack.sh test/topology/bonding/vpp_test.go test/topology/loopback-bvi-gso-lldp-span/vpp_test.go (one reset line each,
+      D-191) tools/ci.sh (one grep guard)
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/S-ipclassify-zerofill
     owner: developer slot 16
     started: '2026-09-28'
-    finished: '2026-09-28'
-    notes:
-      'D-185; priority 1 — every slot rig on the shared VPP is exposed | 2026-09-28 spawned slot 16 at load 35 (priority 1 override), base main@0389d0ba | done 466fcdde CI PASSED;
-      rig + fixtures + guard + host proof on w16 (NRestarts 2→2); Q1: 4 creators in unowned files (df2test etc.) listed by the guard → one-line grants at merge; Q2 table-0 safety net not
-      built; panel R1+R4 | 2026-09-28 review APPROVE WITH CHANGES (F1-F4 MAJOR) → fix round 1 with D-191 grants | round 1 done 8267019f CI PASSED (F1-F8 addressed, guard scans test/ +
-      ci.sh shell guard); manager spot-check → merge queue (front); then the D-191 ascending sweep | merged ada90234 | D-191 sweep done 12:53Z under flock -x (only host-w11w0b live; 0
-      classify DPOs; NRestarts 2); rebase notice sent | 2026-10-03 integration audit: IP classify zerofill mitigation source/regressions absent in current published integration. Historical
-      checkpoint is preserved on the remote recovery archive; completion is not certified.'
+    finished: '2026-10-04'
+    notes: 'D-185; priority 1 — every slot rig on the shared VPP is exposed | 2026-09-28 spawned slot 16 at load 35 (priority 1 override), base main@0389d0ba | done 466fcdde CI PASSED; rig + fixtures + guard
+      + host proof on w16 (NRestarts 2→2); Q1: 4 creators in unowned files (df2test etc.) listed by the guard → one-line grants at merge; Q2 table-0 safety net not built; panel R1+R4 | 2026-09-28 review APPROVE
+      WITH CHANGES (F1-F4 MAJOR) → fix round 1 with D-191 grants | round 1 done 8267019f CI PASSED (F1-F8 addressed, guard scans test/ + ci.sh shell guard); manager spot-check → merge queue (front); then
+      the D-191 ascending sweep | merged ada90234 | D-191 sweep done 12:53Z under flock -x (only host-w11w0b live; 0 classify DPOs; NRestarts 2); rebase notice sent | 2026-10-03 integration audit: IP classify
+      zerofill mitigation source/regressions absent in current published integration. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. | 2026-10-04 recovered
+      historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred in eight-review-recovery-20261004.md.'
   - id: F-pppoe-client-wiring
     title:
       'PPPoE client wiring: interfaces.<name>.pppoe → Session projection (parent linux-cp tap + passwordRef via the secret channel), PppoeSessionState on InterfaceState.Pppoe, pppd
@@ -5191,26 +5186,24 @@ tasks:
     template: ''
     stage: S4
     deps:
-      - S-ipclassify-zerofill
+    - S-ipclassify-zerofill
     priority: 2
     est_hours: 3
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
-    scope:
-      'INC-vpp-classify-crash M2 / S-ipclassify-zerofill review F2: the only protection for free pool indices and non-compliant creators until the VPP fix; globals owner only; test
-      on the fake VPP + one host check under the globals lock'
+    scope: 'INC-vpp-classify-crash M2 / S-ipclassify-zerofill review F2: the only protection for free pool indices and non-compliant creators until the VPP fix; globals owner only; test on the fake VPP +
+      one host check under the globals lock'
     files_owned: apps/agent/internal/vpp/ifsanitize/sentinel*.go apps/agent/internal/subsystems/classify_sentinel*.go (+ one anchored registration line) docs/status/tasks/S-classify-sentinel*
-    branch: task/S-classify-sentinel
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/S-classify-sentinel
     owner: developer slot 5
     started: '2026-09-28'
-    finished: '2026-09-28'
-    notes:
-      'D-191 | 2026-09-28 spawned slot 5, envelope /root/ngfw-wt/S-classify-sentinel.envelope.md, base main@b963a67e | 2026-09-28 done 9a48689f CI PASSED; sentinel left on shared
-      VPP (D-203); full-strength review (VPP-global) | R14 APPROVE, R78 APPROVE WITH CHANGES → fix round (ctx leak); TD-H22/H23; shared-host-rules bullet added | merged 75d12c1f | 2026-10-03
-      integration audit: Classify sentinel source/hook/regressions absent in current published integration. Historical checkpoint is preserved on the remote recovery archive; completion
-      is not certified.'
+    finished: '2026-10-04'
+    notes: 'D-191 | 2026-09-28 spawned slot 5, envelope /root/ngfw-wt/S-classify-sentinel.envelope.md, base main@b963a67e | 2026-09-28 done 9a48689f CI PASSED; sentinel left on shared VPP (D-203); full-strength
+      review (VPP-global) | R14 APPROVE, R78 APPROVE WITH CHANGES → fix round (ctx leak); TD-H22/H23; shared-host-rules bullet added | merged 75d12c1f | 2026-10-03 integration audit: Classify sentinel source/hook/regressions
+      absent in current published integration. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. | 2026-10-04 recovered historical source onto current main, adapted
+      NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred in eight-review-recovery-20261004.md.'
   - id: S-keepalived-validator
     title: keepalived stage TD-13 Validator/StageDaemon with a per-call interface mapper (render() must not mutate the shared lcpmap.Mapper)
     prompt: ''
@@ -5724,48 +5717,47 @@ tasks:
     template: ''
     stage: S4
     deps:
-      - F-det44-map-dslite-cnat-host
+    - F-det44-map-dslite-cnat-host
     priority: 2
     est_hours: 3
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: F-det44-map-dslite-cnat-host-questions.md Q2 (D-218)
     files_owned: apps/agent/internal/descriptors/det44/** apps/agent/internal/descriptors/cnat/** test/topology/det44/** docs/status/tasks/F-det44-cnat-fix*
-    branch: task/F-det44-cnat-fix
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/F-det44-cnat-fix
     owner: developer slot 16
     started: '2026-10-01'
-    finished: ''
-    notes:
-      D-218 | 2026-10-01 spawned (Agent tool, developer) slot 16, envelope /root/ngfw-wt/F-det44-cnat-fix.envelope.md (D-219 resume) | 2026-10-01 dev done 90418916, gate PASSED 7m48s;
-      root cause VPP 26.06 det44_interface_add_del sends enable=1 on delete (feature refcount leak) → config-only fix in descriptors/det44 (feature_is_enabled/feature_enable_disable, leftover
-      Retrieve); CNAT 0/12 → 12/12 (rev 4a and 4); review R4+R1 (shared-VPP write); Q1 V-entry, Q3 det44 dependents re-created on agent restart → tech debt; Q6 rm -rf /tmp/g-w16 refused
-      → owner action
+    finished: '2026-10-04'
+    notes: D-218 | 2026-10-01 spawned (Agent tool, developer) slot 16, envelope /root/ngfw-wt/F-det44-cnat-fix.envelope.md (D-219 resume) | 2026-10-01 dev done 90418916, gate PASSED 7m48s; root cause VPP
+      26.06 det44_interface_add_del sends enable=1 on delete (feature refcount leak) → config-only fix in descriptors/det44 (feature_is_enabled/feature_enable_disable, leftover Retrieve); CNAT 0/12 → 12/12
+      (rev 4a and 4); review R4+R1 (shared-VPP write); Q1 V-entry, Q3 det44 dependents re-created on agent restart → tech debt; Q6 rm -rf /tmp/g-w16 refused → owner action | 2026-10-04 recovered historical
+      source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred in eight-review-recovery-20261004.md.
   - id: S-alarms-restart-rebuild
     title: 'Alarms: API restart forgets active alarms (in-memory) so they never clear; rebuild state from the DB on start'
     prompt: prompts/fixes/S-alarms-restart-rebuild.md
     template: ''
     stage: S4
     deps:
-      - F-dashboard-prom-alarms-host
+    - F-dashboard-prom-alarms-host
     priority: 2
     est_hours: 2
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: F-dashboard-prom-alarms-host-questions.md Q4 (D-218)
     files_owned: apps/api/src/features/dashboard-prom-alarms/** docs/status/tasks/S-alarms-restart-rebuild*
-    branch: task/S-alarms-restart-rebuild
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/S-alarms-restart-rebuild
     owner: developer slot 10
     started: '2026-10-01'
-    finished: '2026-10-01'
-    notes:
-      'D-218 | 2026-10-01 spawned (Agent tool, developer) slot 10, envelope /root/ngfw-wt/S-alarms-restart-rebuild.envelope.md (D-219 resume) | merged 1aa6813b (squash 309555e6);
-      gate PASSED 14m49s compile-only, carried over D-226; no review (outside the three classes); own tests 12/12; follow-ups: rule-changed clear reason (open Q), docs/user dashboard reason
-      line + e2e case → tech debt; /tmp/g-w10 (552 MB, pre-existing) cleanup refused for the worker → owner action | 2026-10-03 integration audit: Active-alarm restart rebuild source and
-      regression absent in current published integration. Historical checkpoint is preserved on the remote recovery archive; completion is not certified.'
+    finished: '2026-10-04'
+    notes: 'D-218 | 2026-10-01 spawned (Agent tool, developer) slot 10, envelope /root/ngfw-wt/S-alarms-restart-rebuild.envelope.md (D-219 resume) | merged 1aa6813b (squash 309555e6); gate PASSED 14m49s compile-only,
+      carried over D-226; no review (outside the three classes); own tests 12/12; follow-ups: rule-changed clear reason (open Q), docs/user dashboard reason line + e2e case → tech debt; /tmp/g-w10 (552 MB,
+      pre-existing) cleanup refused for the worker → owner action | 2026-10-03 integration audit: Active-alarm restart rebuild source and regression absent in current published integration. Historical checkpoint
+      is preserved on the remote recovery archive; completion is not certified. | 2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent
+      review; owner waived full CI; source recovery only, live acceptance deferred in eight-review-recovery-20261004.md.'
   - id: TD-lcp-leftover-local-path
     title: 'lcp: mixed-table refusal ignores a leftover API (*,224/24) local path, which still shadows a later default-netns pair'
     prompt: prompts/fixes/TD-lcp-leftover-local-path.md
@@ -5842,18 +5834,18 @@ tasks:
     deps: []
     priority: 1
     est_hours: 2
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: MANAGER-PROMPT §6 prompt generation for rows with an empty or missing prompt file (list in the prompt); docs only
     files_owned: prompts/features/*.md prompts/fixes/*.md (new files only) docs/status/tasks/M-prompts*
-    branch: task/M-prompts
+    branch: codex/recover-eight-review-20261004
     worktree: /root/ngfw-wt/M-prompts
     owner: developer slot 4
     started: '2026-10-01'
-    finished: '2026-10-01'
-    notes:
-      'D-222 | 2026-10-01 spawned (Agent tool, developer) slot 4, envelope /root/ngfw-wt/M-prompts.envelope.md (D-219 resume) | merged 4343ccd9 (squash 8883a21d), gate PASSED on the
-      rebased tree; 26 prompt files; D-227 board changes NOT applied (D-229: rows not running stay as they are) — proposals in docs/status/tasks/M-prompts.md; /tmp/g-w4 (1.6 MB) cleanup
-      refused → owner action | 2026-10-03 integration audit: Historical generated prompts require scope reconciliation against published main. Historical checkpoint is preserved on the
-      remote recovery archive; completion is not certified.'
+    finished: '2026-10-04'
+    notes: 'D-222 | 2026-10-01 spawned (Agent tool, developer) slot 4, envelope /root/ngfw-wt/M-prompts.envelope.md (D-219 resume) | merged 4343ccd9 (squash 8883a21d), gate PASSED on the rebased tree; 26
+      prompt files; D-227 board changes NOT applied (D-229: rows not running stay as they are) — proposals in docs/status/tasks/M-prompts.md; /tmp/g-w4 (1.6 MB) cleanup refused → owner action | 2026-10-03
+      integration audit: Historical generated prompts require scope reconciliation against published main. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. |
+      2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred
+      in eight-review-recovery-20261004.md.'

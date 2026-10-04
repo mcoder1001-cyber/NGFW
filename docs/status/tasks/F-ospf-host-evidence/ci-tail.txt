@@ -1,0 +1,14 @@
+  slot resource scheme (1..32, no collisions)        0m04s
+  lint · typecheck · unit tests · build (turbo)   2m40s
+  apps/agent: make lint test build                   3m30s
+  apps/cli: make lint test build                     0m20s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/acl test/topology/bonding test/topology/bridge-l2 test/topology/host-acl-nftables test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   1m28s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   7m09s
+  warnings:
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:13:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:20:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+  mode quick · wall time 18m02s · logs /root/ngfw-wt/logs/ci/F-ospf-host-20260929-080547-2923556
+
+CI GATE PASSED

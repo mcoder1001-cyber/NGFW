@@ -12,6 +12,24 @@
   "readonly": "Your role can view but not change the configuration.",
   "pending": "pending",
   "notInVpp": "not in the engine",
+  "builtIn": "built-in",
+  "awaitingDataplane": "awaiting engine",
+  "releasedToHost": "released to host",
+  "physical": {
+    "release": "Release to host",
+    "reclaim": "Reclaim for the engine",
+    "releaseConfirm": "Release {{name}} to the host? The engine will no longer use this NIC.",
+    "reclaimConfirm": "Reclaim {{name}} for the engine? The NIC will be used by the engine again.",
+    "applyHint": "This change is staged in the candidate and takes effect the next time the engine's start-up configuration is applied.",
+    "builtInInfo": "Built-in NIC ({{pci}}) used by the engine. You can edit or disable it, but not delete it — release it to the host instead.",
+    "awaitingInfo": "Built-in NIC ({{pci}}) waiting for the engine: its settings apply once the engine takes the NIC over.",
+    "releasedInfo": "NIC ({{pci}}) released to the host. Reclaim it to give it back to the engine.",
+    "summary": "PCI address {{pci}} · owner: {{owner}}",
+    "owners": {
+      "dataplane": "engine",
+      "host": "host"
+    }
+  },
   "liveChip": "Live counters: {{status}}",
   "trendLabel": "Packet rate trend of {{name}}",
   "col": {

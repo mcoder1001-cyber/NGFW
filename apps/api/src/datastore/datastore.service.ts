@@ -16,6 +16,8 @@ import {
   preserveSecrets,
   redact,
 } from './documents.js';
+// wave-BC: F-default-vpp-nics
+import { assertPhysicalNicEdit } from './physical-nics.js';
 import { checkLock, lockInfo, lockOwnerOf, type LockInfo } from './lock.js';
 import type { ConfigRepo, Doc, Revision } from './repo.js';
 
@@ -193,6 +195,8 @@ export class DatastoreService {
       const unsafe = newUnsafeTextIssues(base, mutated);
       if (unsafe.length > 0) throw problems.validation(unsafe, UNSAFE_TEXT_MESSAGE);
       const next = preserveSecrets(base, parseDocument(mutated));
+      // wave-BC: F-default-vpp-nics — physical NICs: never removed, marker read-only (datastore/physical-nics.ts)
+      assertPhysicalNicEdit(base, next);
       if (user.role !== 'admin') {
         const denied = privilegedChanges(base, next);
         if (denied.length > 0) {

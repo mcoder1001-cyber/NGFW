@@ -965,3 +965,29 @@ supersets under `/vpn/ipsec/tunnels/{}`. API validation rejects them before
 protobuf projection. Schema-only gaps, other mismatches, stale exception entries
 and all deliberate breakage regressions still fail the guard. This does not
 expose unsupported native settings or introduce a policy/daemon fallback.
+
+## F-default-vpp-nics: HostNics (+ Interface.physical 24)
+
+`Interface.physical = 24` (`InterfacePhysical { pci = 1, owner = 2, built_in = 3 }`) mirrors
+`interfaces.<name>.physical`: present = a physical NIC seeded from the host inventory (built-in, non-deletable;
+`owner` `"dataplane"` | `"host"`, Zod default `"dataplane"`; `built_in` Zod default true). The agent treats a
+`physical` row whose name is still a hardware kernel netdev (rtnetlink kind empty) as **not bound**: it projects no
+objects for it (no alias, attributes or linux-cp pair) and reports `agent.nic-not-bound` (WARNING, pointer
+`/interfaces/<name>`) — never an error; Retrieve has no such interface. A linux-cp tap of the same name is not the NIC.
+A row released to the host (`owner: "host"`) is never projected and gets an INFO `agent.nic-released`. The API
+counts both rules as coverage notes, so these rows are not drift (`GET /state/drift`).
+
+`HostNics(HostNicsRequest{owner}) → HostNicsResponse{nics, owner, retrieved_at, management_notes}` is read-only: it
+binds nothing, never touches `/etc/vpp` and never restarts VPP (D-012). One `HostNic{netdev, pci, driver, mac,
+is_management, bound_to_dpdk, link_up}` per network PCI function, sorted by `pci`:
+- every `/sys/class/net/<if>` whose `device` is a PCI address (NICs without one — virtio-mmio, USB — are not
+  enumerated, D-177), plus every PCI function of class `0x02xxxx` bound to a DPDK driver (`vfio-pci`,
+  `uio_pci_generic`, `igb_uio`), which has no netdev (`netdev` empty);
+- `is_management`: the start-up generator's decision (`vppstartup.ReadHost`): default-route NIC(s), the NIC of an
+  established sshd/control connection (`/proc/net/tcp{,6}`; unreadable → route fallback with a note), plus
+  `NGFW_MGMT_IF` / `NGFW_MGMT_PCI`;
+- `bound_to_dpdk`: the PCI function's driver is a DPDK driver, or a live VPP interface of type `dpdk` has the NIC's
+  MAC (bifurcated drivers);
+- `management_notes` give the reason class only (never a peer address).
+Errors: an unreadable host fact → `vppstartup.ErrHost` (the API retries). The API seeds the default document from this
+answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/D-192).

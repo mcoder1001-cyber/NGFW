@@ -5036,17 +5036,17 @@ tasks:
       - S-mgmt-tls-validate-scope
     priority: 3
     est_hours: 3
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope: owed checklist for F-management-ui in docs/status/tasks/RV-B-review-R7.md; run after its S-row fixes merge where they change the behaviour under test
     files_owned: docs/status/tasks/F-management-ui-host* test/topology/management-ui/**
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: D-184
+    branch: "codex/ready-management-ui-host-20261004"
+    worktree: "/root/.codex/worktrees/f796/work-management-ui-host"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
+    notes: "D-184 | Reviewed isolated management acceptance driver source merged PR163 as d1aba878ca5f0f2420e3ca146ffaaa4873a64e1a; final fc6d896c complete cumulative hosted quick37224837911 PASS and five driver tests PASS. Candidate ownership/revision guards, TLS rotation checks, key/certificate mismatch rejection, audit scrub and ambiguous cleanup retention implemented. Real API/DB/browser TLS and anti-lockout acceptance NOT RUN, central campaign."
   - id: S-capture-flake
     title: De-flake TestAgentRestartDuringCapture (capture writer outlives t.TempDir cleanup)
     prompt: ''

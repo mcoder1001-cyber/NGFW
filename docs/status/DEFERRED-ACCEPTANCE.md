@@ -214,3 +214,17 @@ passed at `38cef0cb113789f2576605c9737b96a1277695df`; merge
 VPP/LCP address/routes, peer DNS, exit/restart and rollback remain **NOT RUN**.
 The Setup Wizard PPPoE option remains disabled. Dynamic Multi-WAN gateway
 handoff and non-default namespace PPP are separate unsupported boundaries.
+
+### Seven ready tasks: Management host source closeout (2026-10-04)
+
+PR163 supplies an isolated real-API management acceptance driver with atomic
+candidate ownership/revision guards, private temporary certificate/key material,
+TLS rotation/version/fingerprint checks, mismatched-key validation, audit scrub,
+listener process invariants and guarded cleanup that preserves ambiguous state.
+Five driver regressions and complete cumulative hosted quick
+[37224837911](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37224837911)
+passed at `fc6d896c99514c6403248f7c2b648f60c8dce719`; reviewed merge
+`d1aba878ca5f0f2420e3ca146ffaaa4873a64e1a` followed.
+Actual deployed API/database TLS rotation and anti-lockout, real audit/log scrub,
+rollback and en/fa browser acceptance remain **NOT RUN**. Driver unit fixtures
+are not actual appliance or browser results.

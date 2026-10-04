@@ -1,3 +1,26 @@
+# Wave-A traffic scenario
+
+The complete composed source executor is now `execute.py`; see [COMPOSED.md](COMPOSED.md)
+for manager provisioning, real slot API/agent, lease/window, fixture binary build and execution.
+It configures VLAN100 → bridge/BVI → slot VRF/ECMP → strict-uRPF/PBR → object-group ACL →
+NAT44-ED, then EI, verifies actual two-side packets/readback/counter evidence and performs
+rollback/residue checks. Only a real leased run that also finishes cleanup can emit whole-chain PASS.
+Live laboratory acceptance remains NOTRUN in this environment: no otherwise-idle manager window.
+
+The earlier `run.py plan` / `run.py run` and fixture adapters below are preserved as the reviewed
+foundation API. Their fail-closed `NOTIMPLEMENTED` status describes those legacy adapters,
+which are not invoked by the composed executor. Fixture/correlation tests never execute host code,
+and synthetic bytes remain offline source fixtures. No old validation result becomes live proof.
+
+```sh
+python3 test/topology/traffic-a/check.py
+tools/heavy.sh go -C test/topology/traffic-a/globals vet ./...
+tools/heavy.sh go -C test/topology/traffic-a/globals test ./...
+```
+
+Historical foundation contract and parser rationale follow; its future-gap notes are superseded
+by the composed source and its explicit remaining real laboratory acceptance obligation.
+
 # Wave-A traffic foundation
 
 This source foundation is **not a complete traffic scenario**. `run.py plan`

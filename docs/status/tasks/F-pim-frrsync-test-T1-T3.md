@@ -44,7 +44,7 @@ ok: no Dockerfile/compose files
 ok: no kill-by-pattern in scripts
 ok: no secret-shaped strings
 ok: ngfwtestsecrets only in test code
-ok: gitleaks — scanned ~51641 bytes (51.64 KB) in 192ms no leaks found 
+ok: gitleaks — scanned ~51641 bytes (51.64 KB) in 192ms no leaks found
 
 == packet-trace ban on the shared VPP (D-128) ==
 ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
@@ -77,7 +77,7 @@ ok: no Dockerfile/compose files
 ok: no kill-by-pattern in scripts
 ok: no secret-shaped strings
 ok: ngfwtestsecrets only in test code
-ok: gitleaks — scanned ~45068 bytes (45.07 KB) in 330ms no leaks found 
+ok: gitleaks — scanned ~45068 bytes (45.07 KB) in 330ms no leaks found
 
 == packet-trace ban on the shared VPP (D-128) ==
 ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings

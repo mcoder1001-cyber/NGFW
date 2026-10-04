@@ -4440,8 +4440,8 @@ tasks:
     worktree: /workspace/scratch/e4f791ef53f7/ldp
     owner: Codex F-mpls-ldp-host
     started: 2026-10-04T07:15:00+03:30
-    finished: ''
-    state: review
+    finished: "2026-10-04T05:28:23+00:00"
+    state: merged
     wbs: []
     prompt: ''
     id: F-mpls-ldp-host
@@ -4456,8 +4456,7 @@ tasks:
       mapping); neighbour up/down events -> mpls-ldp.events; host session test (peer ldpd, OPERATIONAL, binding synced to VPP mfib, withdraw removes it, restart re-derives)
     files_owned: apps/agent/internal/**
     notes:
-      'follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0
-      only with VRX_DF7_GLOBALS)'
+      "follow-up to F-mpls-ldp (PR #56): contract + semantic + MplsLdpState API + LDP tab shipped; this adds the FRR section and the V5 FRR->VPP label sync (needs lab FRR/VPP; table-0 only with VRX_DF7_GLOBALS) | Reviewed source integrated via PR #145, main 1a4b7f766076059f05fbfb842415514b300767e6; unchanged complete hosted quick run37178873092 PASS (149 fake-host checks); real lab acceptance NOT RUN per DEFERRED-ACCEPTANCE.md."
   - id: F-default-vpp-nics
     title: 'Default dataplane ownership: every NIC except the management interface belongs to VPP out of the box; web shows them pre-provisioned and non-deletable'
     prompt: prompts/features/F-default-vpp-nics.md
@@ -4581,7 +4580,7 @@ tasks:
       - F-global-blocking
     priority: 4
     est_hours: 8
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope:
@@ -4595,8 +4594,8 @@ tasks:
     worktree: /workspace/scratch/e4f791ef53f7/detectors
     owner: Codex F-bruteforce-detectors
     started: 2026-10-04T07:15:00+03:30
-    finished: ''
-    notes: manager generates the prompt from FEATURE-TEMPLATE before spawn; after F-default-vpp-nics merges (apps/api/src/** grant)
+    finished: "2026-10-04T05:28:23+00:00"
+    notes: "manager generates the prompt from FEATURE-TEMPLATE before spawn; after F-default-vpp-nics merges (apps/api/src/** grant) | Reviewed source integrated via PR #145, main 1a4b7f766076059f05fbfb842415514b300767e6; unchanged complete hosted quick run37178873092 PASS (149 fake-host checks); real lab acceptance NOT RUN per DEFERRED-ACCEPTANCE.md."
   - id: S-rva-agent-gates
     title:
       'RV-A agent fixes: VRRP VPP-engine gate + keepalived stage mode gate (shared host), claim-first vrrp.vr, ha.cluster + isis + bfd unsupported-field warnings, keepalived stage
@@ -4778,7 +4777,7 @@ tasks:
       - P12
     priority: 4
     est_hours: 8
-    state: review
+    state: merged
     parked_on: ''
     wbs: []
     scope: 'F-igmp-mfib-host Q1(c): the FRR pim renderer section and the frrsync/pim label→mFIB sync that the igmp/mfib descriptors expect; one FRR host row at a time'
@@ -4787,8 +4786,8 @@ tasks:
     worktree: /workspace/scratch/e4f791ef53f7/pim
     owner: Codex F-pim-frrsync
     started: 2026-10-04T07:15:00+03:30
-    finished: ''
-    notes: D-174
+    finished: "2026-10-04T05:28:23+00:00"
+    notes: "D-174 | Reviewed source integrated via PR #145, main 1a4b7f766076059f05fbfb842415514b300767e6; unchanged complete hosted quick run37178873092 PASS (149 fake-host checks); real lab acceptance NOT RUN per DEFERRED-ACCEPTANCE.md."
   - id: F-multiwan-wiring
     title:
       'Multi-WAN agent wiring: start wanmon.Monitor from desired WAN groups with a VPP-sourced prober, default-route/weighted-ECMP install, per-member SNAT + sticky + dead-link session

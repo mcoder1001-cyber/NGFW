@@ -1,0 +1,22 @@
+make: Entering directory '/workspace/scratch/e4f791ef53f7/remaining-gate-tests/apps/cli'
+ok: apps/cli talks only to the REST API
+go vet ./...
+0 issues.
+go test -race -count=1 ./...
+?   	ngfw/cli/cmd/ngfw	[no test files]
+?   	ngfw/cli/cmd/ngfw-docgen	[no test files]
+?   	ngfw/cli/cmd/ngfw-opgen	[no test files]
+ok  	ngfw/cli/internal/api	1.667s
+?   	ngfw/cli/internal/api/opgen	[no test files]
+ok  	ngfw/cli/internal/cli	1.356s
+ok  	ngfw/cli/internal/cpath	1.029s
+ok  	ngfw/cli/internal/jschema	1.052s
+?   	ngfw/cli/internal/lineedit	[no test files]
+ok  	ngfw/cli/internal/render	1.032s
+ok  	ngfw/cli/internal/safe	1.028s
+ok  	ngfw/cli/test/e2e	1.023s
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=e0d7e819" -o bin/ngfw ./cmd/ngfw
+error obtaining VCS status: exit status 128
+	Use -buildvcs=false to disable VCS stamping.
+make: *** [Makefile:13: build] Error 1
+make: Leaving directory '/workspace/scratch/e4f791ef53f7/remaining-gate-tests/apps/cli'

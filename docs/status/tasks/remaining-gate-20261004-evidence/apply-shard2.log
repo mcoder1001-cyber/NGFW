@@ -1,0 +1,6 @@
+== 2. dry run: reachability — gateway drops ICMP (ngfw-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+  File "/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/socket.py", line 233, in __init__
+    _socket.socket.__init__(self, family, type, proto, fileno)
+PermissionError: [Errno 1] Operation not permitted

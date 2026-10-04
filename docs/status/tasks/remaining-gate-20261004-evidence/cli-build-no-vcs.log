@@ -1,0 +1,3 @@
+make: Entering directory '/workspace/scratch/e4f791ef53f7/remaining-gate-tests/apps/cli'
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=e0d7e819" -o bin/ngfw ./cmd/ngfw
+make: Leaving directory '/workspace/scratch/e4f791ef53f7/remaining-gate-tests/apps/cli'

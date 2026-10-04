@@ -691,6 +691,7 @@ export type IsisConfig = z.infer<typeof IsisSchema>;
 
 export const RipInterfaceSchema = z.strictObject({
   passive: withUi(z.boolean().default(false), { title: 'Passive', order: 2 }),
+  auth: withUi(OspfAuthSchema.optional(), { title: 'Authentication', order: 3 }),
   // wave-BC: F-isis-rip
 });
 
@@ -715,7 +716,7 @@ export type RipConfig = z.infer<typeof RipSchema>;
 export const RipngSchema = z.strictObject({
   vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 1 }),
   networks: withUi(z.array(ipv6Network).max(256).default([]), { title: 'Networks', order: 2 }),
-  interfaces: withUi(igpInterfaces(RipInterfaceSchema), { order: 3 }),
+  interfaces: withUi(igpInterfaces(RipInterfaceSchema.omit({ auth: true })), { order: 3 }),
   redistribute: withUi(redistributeInto('rip'), { order: 4 }),
   defaultMetric: withUi(z.number().int().min(1).max(16).default(1), {
     title: 'Default metric',

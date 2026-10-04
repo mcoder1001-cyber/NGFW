@@ -1120,6 +1120,27 @@ module ngfw-routing {
           type boolean;
           default "false";
         }
+        container auth {
+          leaf type {
+            type enumeration {
+              enum "none";
+              enum "md5";
+            }
+            mandatory true;
+          }
+          leaf keyId {
+            type uint32 {
+              range "1..255";
+            }
+          }
+          leaf keyRef {
+            type string {
+              pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            description "reference to a stored secret of kind password";
+          }
+        }
       }
       container redistribute {
         description "routes of these sources are announced; presence of a key enables it";

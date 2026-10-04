@@ -103,6 +103,9 @@ export function IsisRipPage() {
         <Tab value={RIPNG} label={t('isisRip.tabs.ripng')} />
       </Tabs>
       <Stack key={tab} direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
+        {tab === 'rip' && (
+          <Typography color="text.secondary">{t('isisRip.authBoundary')}</Typography>
+        )}
         <ProtocolForm proto={tab} label={t(`isisRip.tabs.${tab}`)} />
         <Interfaces proto={tab} />
       </Stack>

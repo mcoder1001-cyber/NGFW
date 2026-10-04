@@ -34,7 +34,17 @@ export class SecretDeliveryService {
     const refs = secretRefs(DesiredState.toJSON(state)).filter(({ pointer }) => {
       const parts = parsePointer(pointer);
       if (parts[0] === 'routing') {
-        return /^\/routing\/isis\/(areaPasswordRef|domainPasswordRef)$/.test(pointer);
+        if (/^\/routing\/isis\/(areaPasswordRef|domainPasswordRef)$/.test(pointer)) return true;
+        if (
+          parts.length !== 6 ||
+          parts[2] !== 'interfaces' ||
+          parts[4] !== 'auth' ||
+          parts[5] !== 'keyRef'
+        )
+          return false;
+        const protocol = parts[1];
+        if (protocol !== 'ospf' && protocol !== 'rip') return false;
+        return state.routing?.[protocol]?.interfaces[parts[3]!]?.auth?.type === 'md5';
       }
       if (parts[0] !== 'vpn') return false;
       if (parts[1] === 'pki') {

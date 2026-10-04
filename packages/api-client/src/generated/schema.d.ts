@@ -4146,6 +4146,14 @@ export interface components {
              * @default false
              */
             passive: boolean;
+            /** Authentication */
+            auth?: {
+              /** @enum {string} */
+              type: 'none' | 'md5';
+              keyId?: number;
+              /** Secret reference */
+              keyRef?: string;
+            };
           };
         };
         /**

@@ -76,6 +76,9 @@ func Render(r *ngfwv1.RipngConfig, mapIf frr.InterfaceMapper) ([]string, error) 
 	var passive []string
 	owner := map[string]string{}
 	for _, vppName := range slices.Sorted(maps.Keys(r.GetInterfaces())) {
+		if r.GetInterfaces()[vppName].GetAuth() != nil {
+			return nil, policy.Errf(base.At("interfaces", vppName, "auth"), "RIPng does not support RIPv2 authentication")
+		}
 		path := base.At("interfaces", vppName)
 		linux, ok := mapIf(vppName)
 		if !ok {

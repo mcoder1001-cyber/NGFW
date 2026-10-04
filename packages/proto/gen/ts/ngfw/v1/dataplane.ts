@@ -2489,7 +2489,11 @@ export interface IsisConfig_InterfacesEntry {
 /** RipInterface mirrors `routing.rip.interfaces.<name>`. */
 export interface RipInterface {
   /** Zod default false. */
-  passive?: boolean | undefined;
+  passive?:
+    | boolean
+    | undefined;
+  /** RIPv2 MD5 authentication. RIPng rejects this field. */
+  auth: OspfAuth | undefined;
 }
 
 /** RipConfig mirrors `routing.rip`. */
@@ -25257,13 +25261,16 @@ export const IsisConfig_InterfacesEntry: MessageFns<IsisConfig_InterfacesEntry> 
 };
 
 function createBaseRipInterface(): RipInterface {
-  return { passive: undefined };
+  return { passive: undefined, auth: undefined };
 }
 
 export const RipInterface: MessageFns<RipInterface> = {
   encode(message: RipInterface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.passive !== undefined) {
       writer.uint32(8).bool(message.passive);
+    }
+    if (message.auth !== undefined) {
+      OspfAuth.encode(message.auth, writer.uint32(18).fork()).join();
     }
     return writer;
   },
@@ -25289,6 +25296,14 @@ export const RipInterface: MessageFns<RipInterface> = {
             message.passive = reader.bool();
             continue;
           }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.auth = OspfAuth.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -25302,13 +25317,19 @@ export const RipInterface: MessageFns<RipInterface> = {
   },
 
   fromJSON(object: any): RipInterface {
-    return { passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined };
+    return {
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined,
+      auth: isSet(object.auth) ? OspfAuth.fromJSON(object.auth) : undefined,
+    };
   },
 
   toJSON(message: RipInterface): unknown {
     const obj: any = {};
     if (message.passive !== undefined) {
       obj.passive = message.passive;
+    }
+    if (message.auth !== undefined) {
+      obj.auth = OspfAuth.toJSON(message.auth);
     }
     return obj;
   },
@@ -25319,6 +25340,7 @@ export const RipInterface: MessageFns<RipInterface> = {
   fromPartial(object: DeepPartial<RipInterface>): RipInterface {
     const message = createBaseRipInterface();
     message.passive = object.passive ?? undefined;
+    message.auth = (object.auth !== undefined && object.auth !== null) ? OspfAuth.fromPartial(object.auth) : undefined;
     return message;
   },
 };

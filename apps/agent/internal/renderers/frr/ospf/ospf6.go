@@ -19,10 +19,14 @@ func error6(err error) error {
 	return err
 }
 
+// Section6 renders the OSPFv3 process configuration.
 type Section6 struct{}
 
+// Name returns the renderer section identifier.
 func (Section6) Name() string { return "ospf6" }
-func (Section6) Order() int   { return 450 }
+
+// Order places OSPFv3 after the other IGP sections.
+func (Section6) Order() int { return 450 }
 func v2(o *ngfwv1.Ospf6Config) *ngfwv1.OspfConfig {
 	if o == nil {
 		return nil
@@ -33,6 +37,8 @@ func v2(o *ngfwv1.Ospf6Config) *ngfwv1.OspfConfig {
 	}
 	return out
 }
+
+// Render validates and renders the desired OSPFv3 process.
 func (Section6) Render(rc *frr.RenderContext) ([]string, error) {
 	lines, err := Render(v2(rc.Desired.GetRouting().GetOspf6()))
 	if err != nil {
@@ -51,6 +57,8 @@ func (Section6) Render(rc *frr.RenderContext) ([]string, error) {
 	}
 	return lines, nil
 }
+
+// InterfaceLines6 renders validated per-interface OSPFv3 commands.
 func InterfaceLines6(rc *frr.RenderContext) (map[string][]string, error) {
 	o := rc.Desired.GetRouting().GetOspf6()
 	for name, iface := range o.GetInterfaces() {

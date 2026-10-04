@@ -120,11 +120,11 @@
     "off": "off"
   },
   "runtime": {
-    "title": "Observed VPP runtime",
+    "title": "Observed data plane runtime",
     "unavailable": "Some runtime probes are unavailable",
     "loadedPlugins": "Loaded plugins",
     "nicQueues": "RX queue placement",
-    "runtimeMemory": "VPP memory and page sizes",
+    "runtimeMemory": "Data plane memory and page sizes",
     "thread": "{{name}} ({{type}}) CPU {{cpu}}, core {{core}}, NUMA {{numa}}"
   }
 }

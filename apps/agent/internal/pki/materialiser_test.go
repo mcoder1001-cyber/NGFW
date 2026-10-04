@@ -117,7 +117,10 @@ func TestPlanApplyRetrieve(t *testing.T) {
 		}
 	}
 	// nothing that looks like key material in what Retrieve/State/the manifest expose
-	man, _ := os.ReadFile(filepath.Join(state, "pki-files-w5.json"))
+	man, _, err := readBounded(filepath.Join(state, "pki-files-w5.json"), MaxCRLSize)
+	if err != nil {
+		t.Fatal(err)
+	}
 	dump := fmt.Sprintf("%v %v %s %v", got, mustState(t, m), man, m.src)
 	for _, bad := range []string{"PRIVATE KEY", "MII", "MHc"} {
 		if strings.Contains(dump, bad) {
@@ -166,7 +169,7 @@ func TestRemovesOnlyUnreferencedOwnFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	foreign := filepath.Join(root, "x509ca", "someone-else.pem")
-	if err := os.WriteFile(foreign, p.caCert, 0o644); err != nil {
+	if err := os.WriteFile(foreign, p.caCert, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	caOnly, errs := m.Plan(ctx, []File{{Kind: KindCA, Name: "w5-ca", Ref: "cert/w5-ca"}})

@@ -1,6 +1,7 @@
 package pki
 
 import (
+	"context"
 	"errors"
 	"google.golang.org/protobuf/proto"
 	"log/slog"
@@ -34,7 +35,7 @@ func (r *rollbackFiles) clear() {
 	}
 }
 func (m *Materialiser) checkpoint(paths []string) (*rollbackFiles, error) {
-	old, err := m.Retrieve(nil)
+	old, err := m.Retrieve(context.Background())
 	if err != nil {
 		return nil, err
 	}

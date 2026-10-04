@@ -1,6 +1,9 @@
 {
   "system": {
     "hostname": "ngfw",
+    "setup": {
+      "completed": false
+    },
     "timezone": "UTC",
     "banner": {},
     "dns": {

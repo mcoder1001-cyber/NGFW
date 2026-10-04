@@ -62,7 +62,7 @@ func PKI(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, o PKIOptions) {
 	if o.Disabled { // no charon for this agent: nothing to materialise (the IPsec builder reports the tunnels)
 		return
 	}
-	needs, ok := pkiNeeds(s, ds)
+	needs, ok := pkiNeeds(ds)
 	if !ok || len(needs) == 0 {
 		return
 	}
@@ -105,7 +105,7 @@ func isMaterialErr(fe *pki.FileError) bool {
 // pkiNeeds lists the files the enabled strongSwan certificate tunnels need, deduplicated, in tunnel order. A tunnel
 // naming a certificate or CA that does not exist is reported at its leaf (the schema's vpn.pki-reference-exists rule
 // says the same at commit time) and makes the projection fail.
-func pkiNeeds(s Sink, ds *ngfwv1.DesiredState) ([]pkiNeed, bool) {
+func pkiNeeds(ds *ngfwv1.DesiredState) ([]pkiNeed, bool) {
 	cfg := ds.GetVpn().GetPki()
 	var out []pkiNeed
 	for _, name := range sortedKeys(cfg.GetCas()) {

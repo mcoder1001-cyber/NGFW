@@ -16,6 +16,9 @@ import { api } from '../../../api';
 import { call } from '../../../api-problem';
 
 type Action = 'ca' | 'csr' | 'sign' | 'import' | 'export' | 'crl' | 'ocsp';
+const keyTypes = ['p256', 'p384', '2048', '3072', '4096'];
+const kinds = { certificate: 'certificate', ca: 'ca' } as const;
+const formats = { pem: 'pem', pkcs12: 'pkcs12' } as const;
 const actions: Action[] = ['ca', 'csr', 'sign', 'import', 'export', 'crl', 'ocsp'];
 
 /** Sensitive inputs live only in this dialog and are cleared on close and after submission. */
@@ -235,7 +238,7 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                   onChange={(e) => setKeyType(e.target.value)}
                   disabled={pending}
                 >
-                  {['p256', 'p384', '2048', '3072', '4096'].map((k) => (
+                  {keyTypes.map((k) => (
                     <MenuItem key={k} value={k}>
                       {t(`actions.keys.${k}`)}
                     </MenuItem>
@@ -276,8 +279,8 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                 onChange={(e) => setKind(e.target.value as typeof kind)}
                 disabled={pending}
               >
-                <MenuItem value="certificate">{t('certificates')}</MenuItem>
-                <MenuItem value="ca">{t('authorities')}</MenuItem>
+                <MenuItem value={kinds.certificate}>{t('certificates')}</MenuItem>
+                <MenuItem value={kinds.ca}>{t('authorities')}</MenuItem>
               </TextField>
             )}
             {action === 'import' && (
@@ -293,8 +296,8 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                 }}
                 disabled={pending}
               >
-                <MenuItem value="pem">{t('actions.pem')}</MenuItem>
-                <MenuItem value="pkcs12">{t('actions.pkcs12')}</MenuItem>
+                <MenuItem value={formats.pem}>{t('actions.pem')}</MenuItem>
+                <MenuItem value={formats.pkcs12}>{t('actions.pkcs12')}</MenuItem>
               </TextField>
             )}
             {(action === 'sign' || action === 'import') && (

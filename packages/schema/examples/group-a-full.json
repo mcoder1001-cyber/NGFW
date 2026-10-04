@@ -121,7 +121,7 @@
       "areas": { "0": {}, "0.0.0.51": { "type": "stub" } },
       "interfaces": {
         "loop0": { "area": "0", "passive": true },
-        "TenGigabitEthernet0/0/1.100": { "area": "51", "cost": 10 }
+        "TenGigabitEthernet0/0/0": { "area": "51", "cost": 10 }
       }
     },
     "bfd": {

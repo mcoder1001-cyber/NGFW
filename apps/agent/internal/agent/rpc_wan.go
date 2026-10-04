@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"crypto/sha256"
 	"time"
 
 	"google.golang.org/grpc/codes"
@@ -10,7 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/multiwan"
+	"ngfw/agent/internal/scheduler"
 )
 
 func (g *server) WanState(ctx context.Context, req *ngfwv1.WanStateRequest) (*ngfwv1.WanStateResponse, error) {
@@ -21,11 +22,41 @@ func (g *server) WanState(ctx context.Context, req *ngfwv1.WanStateRequest) (*ng
 		return nil, status.FromContextError(err).Err()
 	}
 	if g.wan == nil || !g.wan.Ready() {
+		if g.svc.st != nil {
+			if err := g.svc.lock(ctx); err != nil {
+				return nil, err
+			}
+			empty := len(g.svc.st.wanSaved.GetRouting().GetWanGroups()) == 0
+			g.svc.unlock()
+			if empty {
+				if len(req.GetGroups()) > 0 {
+					return nil, status.Error(codes.NotFound, "requested WAN group is not configured")
+				}
+				return &ngfwv1.WanStateResponse{Owner: g.svc.owner, RetrievedAt: timestamppb.New(g.svc.now())}, nil
+			}
+		}
 		return nil, status.Error(codes.Unavailable, "WAN monitor runtime is not wired")
 	}
 	snapshot, unavailable := g.wan.SnapshotWithAvailability()
 	if snapshot == nil {
 		return nil, status.Error(codes.Unavailable, "WAN monitor runtime is not ready")
+	}
+	active := map[string]string{}
+	if g.svc.wan != nil {
+		if err := g.svc.lock(ctx); err != nil {
+			return nil, err
+		}
+		saved := g.svc.st.wanSaved
+		installed, err := g.svc.sched.Retrieve(ctx, scheduler.Only(multiwan.RouteName))
+		if err != nil {
+			g.svc.unlock()
+			return nil, status.Error(codes.Unavailable, "WAN installed routes unavailable")
+		}
+		active = installedWANActive(saved, installed)
+		g.svc.unlock()
+	}
+	for _, group := range snapshot {
+		group.Active = active[group.Name]
 	}
 	filter := len(req.GetGroups()) > 0
 	selected := map[string]bool{}
@@ -59,6 +90,11 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 			a.log.Error("WAN probes failed to drain")
 		}
 	}()
+	var previousHealth []*ngfwv1.WanGroupState
+	previousIdentity := ""
+	pendingDead := map[string]bool{}
+	cleanupProgress := &multiwan.CleanupProgress{}
+	cleaner := nat44ed.New(a.svc.vpp, a.svc.owner)
 	timer := time.NewTicker(time.Second)
 	defer timer.Stop()
 	for {
@@ -71,18 +107,90 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		for _, group := range groups {
 			clone = append(clone, proto.Clone(group).(*ngfwv1.WanGroup))
 		}
-		identityDoc := &ngfwv1.DesiredState{Interfaces: saved.GetInterfaces()}
-		encoded, err := (proto.MarshalOptions{Deterministic: true}).Marshal(identityDoc)
-		identity := sha256.Sum256(encoded)
+		identity := wanIdentity(saved)
 		a.svc.unlock()
-		if err != nil {
-			a.log.Error("WAN interface identity encoding failed")
-			return
-		}
-		if err := runtime.ReplaceWithProbe(ctx, clone, string(identity[:]), multiwan.DeviceProbe(func(member string) (string, error) {
+		if err := runtime.ReplaceWithProbe(ctx, clone, identity, multiwan.DeviceProbe(func(member string) (string, error) {
 			return wanDevice(saved, member)
 		})); err != nil && ctx.Err() == nil {
 			a.log.Error("WAN monitor configuration rejected", "reason", err.Error())
+		}
+		health := runtime.HealthFor(clone, identity)
+		generationBytes, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(saved.GetRouting())
+		generation := identity + string(generationBytes)
+		if generation != previousIdentity {
+			previousHealth = nil
+			pendingDead = map[string]bool{}
+			previousIdentity = generation
+			*cleanupProgress = multiwan.CleanupProgress{}
+		}
+		cleanupHealth, unavailableGroups := runtime.SnapshotWithAvailability()
+		usable := cleanupHealth[:0]
+		for _, g := range cleanupHealth {
+			if !unavailableGroups[g.Name] {
+				usable = append(usable, g)
+			}
+		}
+		for addr := range multiwan.DeadAddresses(saved, previousHealth, usable) {
+			if !pendingDead[addr] {
+				*cleanupProgress = multiwan.CleanupProgress{}
+			}
+			pendingDead[addr] = true
+		}
+		if len(pendingDead) > 0 {
+			cleanupCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+			current, err := a.svc.withCurrentWAN(cleanupCtx, saved, func(c context.Context) error {
+				tables := map[uint32]bool{}
+				for _, g := range saved.GetRouting().GetWanGroups() {
+					for _, m := range g.GetMembers() {
+						iface := saved.GetInterfaces()[m.GetInterface()]
+						vrf := iface.GetVrf()
+						table := uint32(0)
+						if vrf != "" && vrf != "default" {
+							v, ok := saved.GetVrfs()[vrf]
+							if !ok {
+								continue
+							}
+							table = v.GetId()
+						}
+						tables[table] = true
+					}
+				}
+				count, complete, e := multiwan.ClearDeadSessions(c, cleaner, pendingDead, tables, cleanupProgress)
+				if count > 0 {
+					a.log.Info("WAN dead-link NAT sessions cleared", "count", count)
+				}
+				if complete {
+					pendingDead = map[string]bool{}
+				}
+				return e
+			})
+			cancel()
+			if !current && err == nil {
+				pendingDead = map[string]bool{}
+				*cleanupProgress = multiwan.CleanupProgress{}
+			}
+			if err != nil {
+				a.log.Warn("WAN dead-link NAT session cleanup pending", "reason", err.Error())
+			}
+		}
+		// Probe measurements do not trigger a full resync; only forwarding selection changes do.
+		for _, g := range health {
+			for _, m := range g.Members {
+				m.Since = nil
+				m.LossPct = 0
+				m.LatencyMs = 0
+			}
+		}
+		changed := len(health) != len(previousHealth)
+		for i, g := range health {
+			if changed || !proto.Equal(g, previousHealth[i]) {
+				changed = true
+				break
+			}
+		}
+		if changed {
+			requestResync(a.resyncs)
+			previousHealth = health
 		}
 		select {
 		case <-ctx.Done():
@@ -109,6 +217,8 @@ func wanDevice(saved *ngfwv1.DesiredState, member string) (string, error) {
 func wanSnapshot(ds *ngfwv1.DesiredState) *ngfwv1.DesiredState {
 	return proto.Clone(&ngfwv1.DesiredState{
 		Interfaces: ds.GetInterfaces(),
-		Routing:    &ngfwv1.RoutingConfig{WanGroups: ds.GetRouting().GetWanGroups()},
+		Vrfs:       ds.GetVrfs(),
+		Nat:        ds.GetNat(),
+		Routing:    &ngfwv1.RoutingConfig{WanGroups: ds.GetRouting().GetWanGroups(), Pbr: ds.GetRouting().GetPbr()},
 	}).(*ngfwv1.DesiredState)
 }

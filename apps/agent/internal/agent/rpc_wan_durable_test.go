@@ -13,6 +13,7 @@ import (
 
 func TestReviewWANFailedPersistenceMustNotStart(t *testing.T) {
 	s := newSvc(t, coretest.New(), t.TempDir())
+	s.st.desired.Interfaces = map[string]*ngfwv1.Interface{"wan0": {}}
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "baseline", DesiredState: doc(t, `{"routing":{}}`), Subsystems: []string{"routing"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	saveHook = func(stage string) error {
 		if stage == "state" {
@@ -21,7 +22,7 @@ func TestReviewWANFailedPersistenceMustNotStart(t *testing.T) {
 		return nil
 	}
 	t.Cleanup(func() { saveHook = nil })
-	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "failed-monitor", DesiredState: doc(t, `{"routing":{"wanGroups":[{"name":"edge","members":[{"interface":"wan0"}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1}]}]}}`), Subsystems: []string{"routing"}})
+	resp := apply(t, s, &ngfwv1.ApplyRequest{TxnId: "failed-monitor", DesiredState: doc(t, `{"interfaces":{"wan0":{}},"routing":{"wanGroups":[{"name":"edge","members":[{"interface":"wan0"}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1}]}]}}`), Subsystems: []string{"routing"}})
 	mustStatus(t, resp, ngfwv1.ApplyStatus_APPLY_STATUS_DEGRADED)
 	saveHook = nil
 	runtime := multiwan.NewRuntime(func(context.Context, string, *ngfwv1.WanMonitor) multiwan.CheckResult {
@@ -112,8 +113,9 @@ func TestWanSavedSnapshotFailureMirrorRestartAndIsolation(t *testing.T) {
 
 func TestWanSavedSnapshotConfirmedRollback(t *testing.T) {
 	s := newSvc(t, coretest.New(), t.TempDir())
+	s.st.desired.Interfaces = map[string]*ngfwv1.Interface{"wan0": {}}
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "baseline-wan", DesiredState: doc(t, `{"routing":{}}`), Subsystems: []string{"routing"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	ds := doc(t, `{"routing":{"wanGroups":[{"name":"edge","members":[{"interface":"wan0"}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1}]}]}}`)
+	ds := doc(t, `{"interfaces":{"wan0":{}},"routing":{"wanGroups":[{"name":"edge","members":[{"interface":"wan0"}],"monitors":[{"type":"http","target":"probe.test","intervalMs":100,"timeoutMs":50,"lossPct":100,"upAfter":1}]}]}}`)
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "pending-wan", DesiredState: ds, Subsystems: []string{"routing"}, ConfirmTimeoutSec: 60}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	if len(s.st.wanSaved.GetRouting().GetWanGroups()) != 1 {
 		t.Fatal("persisted pending monitor absent")

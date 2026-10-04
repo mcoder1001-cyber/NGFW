@@ -5037,6 +5037,8 @@ message PbrPath {
   optional string vrf = 3;
   // Weight 1–255; Zod default 1.
   optional uint32 weight = 4;
+  // Expand this WAN group into live healthy forwarding members; exclusive with address/interface/vrf.
+  optional string wan_group = 5;
 }
 
 // PbrAttachment binds a policy to an interface for one address family (abf_itf_attach_add_del).

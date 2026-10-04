@@ -26,7 +26,12 @@ type RouteDescriptor struct{ Env }
 var _ scheduler.Descriptor = (*RouteDescriptor)(nil)
 
 // Name implements scheduler.Descriptor.
-func (*RouteDescriptor) Name() string { return RouteName }
+func (d *RouteDescriptor) Name() string {
+	if d.RouteInstance != "" {
+		return d.RouteInstance
+	}
+	return RouteName
+}
 
 func asRoute(obj proto.Message) *Route {
 	v, _ := obj.(*Route)
@@ -37,9 +42,9 @@ func asRoute(obj proto.Message) *Route {
 }
 
 // KeyOf implements scheduler.Descriptor.
-func (*RouteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
+func (d *RouteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	v := asRoute(obj)
-	return RouteKey(v.GetTableId(), v.GetPrefix())
+	return scheduler.Join(d.Name(), RouteKey(v.GetTableId(), v.GetPrefix()).ID())
 }
 
 // Dependencies implements scheduler.Descriptor: the VRF table (unless table 0), the table of every
@@ -301,7 +306,7 @@ func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 
 // Retrieve implements scheduler.Descriptor.
 func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	owned := d.Owned.Keys(RouteName + scheduler.KeySeparator)
+	owned := d.Owned.Keys(d.Name() + scheduler.KeySeparator)
 	if len(owned) == 0 {
 		return nil, nil
 	}
@@ -359,7 +364,7 @@ func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 			if v == nil {
 				continue
 			}
-			out = append(out, scheduler.KV{Key: RouteKey(f.table, p), Value: v})
+			out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v})
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })

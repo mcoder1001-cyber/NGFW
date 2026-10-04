@@ -43,7 +43,8 @@ type Ops[T any] struct {
 	// Claims is the claim store (nil: in-memory). Create claims the key, Delete releases it.
 	Claims ClaimStore
 	// Global marks a VPP-global singleton (built by Global); no claims are recorded.
-	Global bool
+	Global    bool
+	Exclusive bool
 }
 
 // Descriptor adapts Ops[T] to scheduler.Descriptor: it decodes the *structpb.Struct
@@ -120,6 +121,17 @@ func (d *Descriptor[T]) Create(ctx context.Context, obj proto.Message) (any, err
 	}
 	key := string(d.Key(spec))
 	had := d.ops.Claims.Claimed(key)
+	if d.ops.Exclusive && !had {
+		rows, err := d.ops.Retrieve(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, row := range rows {
+			if d.ops.ID(row.Spec) == d.ops.ID(spec) {
+				return nil, fmt.Errorf("%s: VPP object already exists without instance ownership", d.ops.Name)
+			}
+		}
+	}
 	if err := d.ops.Claims.Claim(key); err != nil {
 		return nil, fmt.Errorf("%s: claim: %w", d.ops.Name, err)
 	}
@@ -248,4 +260,32 @@ func BaseName(name string) string {
 		return name[:i]
 	}
 	return name
+}
+
+// Instance reuses a descriptor's VPP operations while keeping dynamic ownership
+// disjoint from configuration descriptors. An existing unclaimed VPP object is
+// refused; retrieval always requires the instance's durable claim.
+func (d *Descriptor[T]) Instance(name string) *Descriptor[T] {
+	ops := d.ops
+	ops.Name = name
+	ops.Exclusive = true
+	retrieve := ops.Retrieve
+	ops.Retrieve = func(ctx context.Context) ([]Item[T], error) {
+		rows, err := retrieve(ctx)
+		for i := range rows {
+			rows[i].NeedsClaim = true
+		}
+		return rows, err
+	}
+	create := ops.Create
+	ops.Create = func(ctx context.Context, spec T) (any, error) {
+		// Claim is acquired before this callback, so inspect the original family as
+		// well. Configuration-owned objects may never gain a second writer.
+		original := string(d.Key(spec))
+		if d.ops.Claims.Claimed(original) {
+			return nil, fmt.Errorf("%s: object owned by configuration", name)
+		}
+		return create(ctx, spec)
+	}
+	return New(ops)
 }

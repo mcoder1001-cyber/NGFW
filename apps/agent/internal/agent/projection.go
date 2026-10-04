@@ -34,6 +34,7 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/desired"
+	"ngfw/agent/internal/multiwan"
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -314,10 +315,30 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 			core.SortPaths(v.Paths)
 			p.add(core.RouteKey(table, pfx), v, pt)
 		}
-		// F-multiwan-host: monitor observations are available through WanState;
-		// routing/NAT is a separate controller and is not falsely certified here.
-		if len(ds.GetRouting().GetWanGroups()) > 0 {
-			p.warnf(ptr("routing", "wanGroups"), "agent.unsupported-field", "WAN health monitors are wired; WAN routing, NAT cleanup and ABF are not yet implemented")
+		_, findings := multiwan.Routes(ds, nil)
+		for _, finding := range findings {
+			p.errorf(finding.Pointer, "multiwan.route-conflict", "%s", finding.Message)
+		}
+		for i, g := range ds.GetRouting().GetWanGroups() {
+			for j, m := range g.GetMembers() {
+				if m.GetNextHop() != "gateway" {
+					p.warnf(fmt.Sprintf("/routing/wanGroups/%d/members/%d/nextHop", i, j), "multiwan.nexthop-runtime", "DHCP/PPPoE gateway handoff is unavailable; member is not routed")
+				}
+			}
+		}
+		occupiedWAN := map[string]bool{}
+		for _, name := range append(append(append([]string{}, ds.GetNat().GetInside()...), ds.GetNat().GetOutside()...), ds.GetNat().GetOutputFeature()...) {
+			occupiedWAN[name] = true
+		}
+		for _, pool := range ds.GetNat().GetPools() {
+			occupiedWAN[pool.GetInterface()] = true
+		}
+		for i, g := range ds.GetRouting().GetWanGroups() {
+			for j, m := range g.GetMembers() {
+				if occupiedWAN[m.GetInterface()] {
+					p.warnf(fmt.Sprintf("/routing/wanGroups/%d/members/%d/interface", i, j), "multiwan.nat-owned-by-config", "explicit NAT configuration owns this member; WAN adds no duplicate NAT objects")
+				}
+			}
 		}
 		// S3 (wave-BC-numbers "Seams"): one row per routing-protocol leaf; a task that renders a leaf flips its row
 		for _, leaf := range routingLeaves {

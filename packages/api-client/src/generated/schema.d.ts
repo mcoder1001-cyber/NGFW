@@ -4971,6 +4971,8 @@ export interface components {
             priority: number;
             /** Paths */
             paths: {
+              /** WAN group */
+              wanGroup?: string;
               /** Next-hop address */
               address?: string;
               /** Egress interface */

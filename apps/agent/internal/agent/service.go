@@ -25,6 +25,7 @@ import (
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/desired"
+	"ngfw/agent/internal/multiwan"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
@@ -49,6 +50,8 @@ type Service struct {
 	// tunnelStateGate bounds live tunnel walks without blocking canceled requests.
 	tunnelStateOnce sync.Once
 	tunnelStateGate chan struct{}
+	wan             *multiwan.Runtime
+	storedWAN       *ngfwv1.DesiredState
 	autoBlock       autoBlockRuntime
 	captureConfig   capturetrace.Config
 	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
@@ -112,6 +115,7 @@ type Service struct {
 
 // ServiceConfig builds a Service.
 type ServiceConfig struct {
+	WAN          *multiwan.Runtime
 	CaptureBoot  dfkit.BootStore
 	GlobalsOwner bool
 	SecretCache  *secretchannel.Store
@@ -171,7 +175,7 @@ func NewService(cfg ServiceConfig) (*Service, error) {
 		cfg.TxnTimeout = DefaultTxnTimeout
 	}
 	s := &Service{
-		owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
+		wan: cfg.WAN, owner: cfg.Owner, version: cfg.Version, log: cfg.Logger, vpp: cfg.VPP, sched: cfg.Scheduler,
 		st: st, bus: cfg.Events, metrics: cfg.Metrics, now: cfg.Now, txn: make(chan struct{}, 1),
 		retryMin: revertRetryFloor, retryMax: revertRetryMax, beforeTxn: cfg.BeforeTxn, netdevKind: cfg.NetdevKind,
 		txnTimeout: cfg.TxnTimeout, requestResync: cfg.RequestResync,
@@ -316,6 +320,7 @@ func (s *Service) refreshSnapshotLocked() {
 		doc := proto.Clone(s.st.desired).(*ngfwv1.DesiredState)
 		s.mu.Lock()
 		s.storedDoc = doc
+		s.storedWAN = s.st.wanSaved
 		s.mu.Unlock()
 	}
 }
@@ -1062,6 +1067,23 @@ func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*n
 		return "", false
 	}, stored, live)
 	s.addDescriptions(ds)
+	if contains(domains, subsystems.Routing) {
+		if ds.Routing == nil {
+			ds.Routing = &ngfwv1.RoutingConfig{}
+		}
+		s.mu.Lock()
+		savedWAN := s.storedWAN
+		s.mu.Unlock()
+		for _, group := range savedWAN.GetRouting().GetWanGroups() {
+			ds.Routing.WanGroups = append(ds.Routing.WanGroups, proto.Clone(group).(*ngfwv1.WanGroup))
+		}
+		var health []*ngfwv1.WanGroupState
+		if s.wan != nil {
+			health = s.wan.HealthFor(savedWAN.GetRouting().GetWanGroups(), wanIdentity(savedWAN))
+		}
+		multiwan.RestorePBRReferences(ds, savedWAN, health)
+	}
+
 	s.mu.Lock()
 	runtimeEnabled := s.storedDoc.GetSecurity().GetAutoBlock().GetEnabled()
 	s.mu.Unlock()
@@ -1342,7 +1364,16 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	if overlayErr != nil {
 		effective = view
 	}
+	effective = proto.Clone(effective).(*ngfwv1.DesiredState)
+	var health []*ngfwv1.WanGroupState
+	if s.wan != nil {
+		health = s.wan.HealthFor(effective.GetRouting().GetWanGroups(), wanIdentity(effective))
+	}
+	findings := multiwan.ExpandPBR(effective, health)
 	projection := project(effective, projectionDomains, s.resolveVRF, s.netdevKind)
+	for _, f := range findings {
+		projection.Errorf(f.Pointer, "multiwan.pbr-group", "%s", f.Message)
+	}
 	if overlayErr != nil {
 		projection.Errorf("/security/autoBlock", "security.runtime-overlay", "%v", overlayErr)
 	}

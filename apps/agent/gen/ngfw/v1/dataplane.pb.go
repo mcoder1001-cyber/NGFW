@@ -22379,7 +22379,9 @@ type PbrPath struct {
 	// Table the next hop is resolved in (or the packet looked up in, without address and interface); Zod default "default".
 	Vrf *string `protobuf:"bytes,3,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
 	// Weight 1–255; Zod default 1.
-	Weight        *uint32 `protobuf:"varint,4,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
+	Weight *uint32 `protobuf:"varint,4,opt,name=weight,proto3,oneof" json:"weight,omitempty"`
+	// Expand this WAN group into live healthy forwarding members; exclusive with address/interface/vrf.
+	WanGroup      *string `protobuf:"bytes,5,opt,name=wan_group,json=wanGroup,proto3,oneof" json:"wan_group,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -22440,6 +22442,13 @@ func (x *PbrPath) GetWeight() uint32 {
 		return *x.Weight
 	}
 	return 0
+}
+
+func (x *PbrPath) GetWanGroup() string {
+	if x != nil && x.WanGroup != nil {
+		return *x.WanGroup
+	}
+	return ""
 }
 
 // PbrAttachment binds a policy to an interface for one address family (abf_itf_attach_add_del).
@@ -49167,18 +49176,21 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\bpriority\x18\x02 \x01(\rH\x01R\bpriority\x88\x01\x01\x12&\n" +
 	"\x05paths\x18\x03 \x03(\v2\x10.ngfw.v1.PbrPathR\x05pathsB\x06\n" +
 	"\x04_aclB\v\n" +
-	"\t_priority\"\xac\x01\n" +
+	"\t_priority\"\xdc\x01\n" +
 	"\aPbrPath\x12\x1d\n" +
 	"\aaddress\x18\x01 \x01(\tH\x00R\aaddress\x88\x01\x01\x12!\n" +
 	"\tinterface\x18\x02 \x01(\tH\x01R\tinterface\x88\x01\x01\x12\x15\n" +
 	"\x03vrf\x18\x03 \x01(\tH\x02R\x03vrf\x88\x01\x01\x12\x1b\n" +
-	"\x06weight\x18\x04 \x01(\rH\x03R\x06weight\x88\x01\x01B\n" +
+	"\x06weight\x18\x04 \x01(\rH\x03R\x06weight\x88\x01\x01\x12 \n" +
+	"\twan_group\x18\x05 \x01(\tH\x04R\bwanGroup\x88\x01\x01B\n" +
 	"\n" +
 	"\b_addressB\f\n" +
 	"\n" +
 	"_interfaceB\x06\n" +
 	"\x04_vrfB\t\n" +
-	"\a_weight\"\x90\x01\n" +
+	"\a_weightB\f\n" +
+	"\n" +
+	"_wan_group\"\x90\x01\n" +
 	"\rPbrAttachment\x12\x1b\n" +
 	"\x06policy\x18\x01 \x01(\tH\x00R\x06policy\x88\x01\x01\x12!\n" +
 	"\tinterface\x18\x02 \x01(\tH\x01R\tinterface\x88\x01\x01\x12\x1b\n" +

@@ -229,6 +229,10 @@ func (r *Runtime) Snapshot() []*ngfwv1.WanGroupState {
 func (r *Runtime) SnapshotWithAvailability() ([]*ngfwv1.WanGroupState, map[string]bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	return r.snapshotLocked()
+}
+
+func (r *Runtime) snapshotLocked() ([]*ngfwv1.WanGroupState, map[string]bool) {
 	if !r.ready {
 		return nil, nil
 	}
@@ -293,3 +297,29 @@ func (r *Runtime) Close(ctx context.Context) error {
 
 // Ready reports whether a configuration is installed and is not draining.
 func (r *Runtime) Ready() bool { r.mu.Lock(); defer r.mu.Unlock(); return r.ready }
+
+// HealthFor refuses observations from a different configuration generation.
+// This prevents candidate input from activating probes or forwarding paths.
+func (r *Runtime) HealthFor(groups []*ngfwv1.WanGroup, identity string) []*ngfwv1.WanGroupState {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	same := r.ready && identity == r.identity && len(groups) == len(r.config)
+	for i, g := range groups {
+		if !same || !proto.Equal(g, r.config[i]) {
+			same = false
+			break
+		}
+	}
+	if !same {
+		return nil
+	}
+	health, unavailable := r.snapshotLocked()
+	for _, g := range health {
+		if unavailable[g.Name] {
+			for _, m := range g.Members {
+				m.Up = false
+			}
+		}
+	}
+	return health
+}

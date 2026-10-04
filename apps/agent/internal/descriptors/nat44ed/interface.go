@@ -166,11 +166,11 @@ func (p *Plugin) newOutputFeature() *natcommon.Descriptor[OutputFeatureSpec] {
 			var out []natcommon.Item[OutputFeatureSpec]
 			for _, idx := range idxs {
 				i, _ := ifaces.ByIndex(idx)
-				ok, nc := p.scope.InterfaceOwnership(i)
+				ok, _ := p.scope.InterfaceOwnership(i)
 				if !ok {
 					continue
 				}
-				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: nc})
+				out = append(out, natcommon.Item[OutputFeatureSpec]{Spec: OutputFeatureSpec{Interface: p.scope.LogicalName(i)}, Meta: IfMeta{SwIfIndex: idx}, NeedsClaim: true})
 			}
 			return out, nil
 		},
@@ -262,14 +262,14 @@ func (p *Plugin) newInterfaceAddress() *natcommon.Descriptor[InterfaceAddressSpe
 					return nil, fmt.Errorf("nat44_interface_addr_dump: %w", err)
 				}
 				i, _ := ifaces.ByIndex(uint32(d.SwIfIndex))
-				ok, nc := p.scope.InterfaceOwnership(i)
+				ok, _ := p.scope.InterfaceOwnership(i)
 				if !ok {
 					continue
 				}
 				out = append(out, natcommon.Item[InterfaceAddressSpec]{
 					Spec:       InterfaceAddressSpec{Interface: p.scope.LogicalName(i), TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0},
 					Meta:       IfMeta{SwIfIndex: uint32(d.SwIfIndex)},
-					NeedsClaim: nc,
+					NeedsClaim: true,
 				})
 			}
 		},

@@ -19,14 +19,17 @@ if not re.fullmatch(r'26\.06-release\+ngfw[1-9][0-9]*', version):
 print(version)
 PY
 )
-# Refuse to package stale or missing compiled applications. Run the unchanged
-# quick gate before this command, then deploy from the same reviewed checkout.
-for input in apps/api/dist/main.js apps/web/dist/index.html; do
-  [[ -f $ROOT/$input ]] || { echo "missing build input: $input" >&2; exit 1; }
-done
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }
 command -v go >/dev/null
 command -v pnpm >/dev/null
+# Build from this checkout before staging: existing ignored dist files can belong
+# to an older source SHA even when git status is clean. A build failure must not
+# publish an output directory containing the previous compiled application.
+(cd "$ROOT" && pnpm exec turbo run build --filter=@ngfw/api --filter=@ngfw/web --concurrency=2)
+for input in apps/api/dist/main.js apps/web/dist/index.html; do
+  [[ -f $ROOT/$input ]] || { echo "missing build input: $input" >&2; exit 1; }
+done
+[[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'build changed tracked source; regenerate and review first' >&2; exit 1; }
 mkdir -p -- "$OUTPUT"
 cp -a -- "$ROOT/deploy/debian/ngfw/debian" "$ROOT/deploy/debian/ngfw/tests" "$ROOT/deploy/debian/ngfw/assets" "$OUTPUT/"
 STAGE=$OUTPUT/stage

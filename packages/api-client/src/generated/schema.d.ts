@@ -813,6 +813,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/tunnels': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read this owner’s live tunnel interfaces, endpoints, FIBs and counters */
+    get: operations['Tunnels_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/actions/pki/ca': {
     parameters: {
       query?: never;
@@ -1077,6 +1094,74 @@ export interface paths {
     };
     /** Paged bounded public OSPFv2/v3 link-state database observations */
     get: operations['Ospf_database'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/isis/adjacencies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bounded observed IS-IS adjacency state */
+    get: operations['IsisRip_adjacencies'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/isis/database': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paged bounded public IS-IS link-state database */
+    get: operations['IsisRip_database'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/rip/peers': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bounded default-VRF RIPv2 or RIPng peer observations */
+    get: operations['IsisRip_peers'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/rip/routes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paged bounded FRR RIPv2 or RIPng routes; VPP FIB remains separate */
+    get: operations['IsisRip_routes'];
     put?: never;
     post?: never;
     delete?: never;
@@ -3878,6 +3963,16 @@ export interface components {
              * @default false
              */
             bfd: boolean;
+            /**
+             * IPv4
+             * @default true
+             */
+            ipv4: boolean;
+            /**
+             * IPv6
+             * @default true
+             */
+            ipv6: boolean;
           };
         };
         /**
@@ -3921,6 +4016,10 @@ export interface components {
             routeMap?: string;
           };
         };
+        /** Area password reference */
+        areaPasswordRef?: string;
+        /** Domain password reference */
+        domainPasswordRef?: string;
       };
       /** RIP */
       rip?: {
@@ -3993,6 +4092,12 @@ export interface components {
          * @default 1
          */
         defaultMetric: number;
+        /**
+         * Version
+         * @default 2
+         * @constant
+         */
+        version: 2;
       };
       /** BFD */
       bfd?: {
@@ -4129,6 +4234,78 @@ export interface components {
             routeMap?: string;
           };
         };
+      };
+      /** RIPng */
+      ripng?: {
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Networks
+         * @default []
+         */
+        networks: string[];
+        /**
+         * Interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /**
+             * Passive
+             * @default false
+             */
+            passive: boolean;
+          };
+        };
+        /**
+         * Redistribute
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute bgp */
+          bgp?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute ospf */
+          ospf?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute isis */
+          isis?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
+        /**
+         * Default metric
+         * @default 1
+         */
+        defaultMetric: number;
       };
       /** MPLS */
       mpls?: {
@@ -14021,6 +14198,69 @@ export interface operations {
       };
     };
   };
+  Tunnels_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            items: {
+              name: string;
+              kind: string;
+              interface: string;
+              swIfIndex: number;
+              adminUp: boolean;
+              linkUp: boolean;
+              mtu: number;
+              deviceClass: string;
+              src: string | null;
+              dst: string | null;
+              underlayTableId: number | null;
+              ipv4TableId: number | null;
+              ipv6TableId: number | null;
+              counters: {
+                rxPackets: string;
+                rxBytes: string;
+                txPackets: string;
+                txBytes: string;
+                drops: string;
+                errors: string;
+              } | null;
+              notes: string[];
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   Pki_ca: {
     parameters: {
       query?: never;
@@ -16025,6 +16265,348 @@ export interface operations {
                   | 'reader-limit-exceeded'
                 )
               | null;
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IsisRip_adjacencies: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            /** @enum {string} */
+            scope: 'all-vrfs' | 'default-vrf';
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IsisRip_database: {
+    parameters: {
+      query?: {
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            /** @enum {string} */
+            scope: 'all-vrfs' | 'default-vrf';
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IsisRip_peers: {
+    parameters: {
+      query?: {
+        version?: '2' | 'ng';
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            /** @enum {string} */
+            scope: 'all-vrfs' | 'default-vrf';
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  IsisRip_routes: {
+    parameters: {
+      query?: {
+        version?: '2' | 'ng';
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            /** @enum {string} */
+            scope: 'all-vrfs' | 'default-vrf';
             offset: number;
             limit: number;
             total: number;

@@ -50,8 +50,34 @@ type area struct {
 // {"areas":[{"area":tag,"circuits":[…]}]}. Entries without an adjacency (a circuit with no neighbour) are skipped.
 func ParseNeighbors(raw json.RawMessage) ([]Adjacency, error) {
 	trimmed := strings.TrimSpace(string(raw))
-	if trimmed == "" || trimmed == "{}" {
+	if trimmed == "{}" {
 		return nil, nil
+	}
+	var shape map[string]json.RawMessage
+	if json.Unmarshal(raw, &shape) != nil || shape == nil {
+		return nil, fmt.Errorf("frr: malformed IS-IS neighbors")
+	}
+	hasArrays := false
+	for _, key := range []string{"areas", "vrfs"} {
+		if value, ok := shape[key]; ok {
+			var rows []json.RawMessage
+			if string(value) == "null" || json.Unmarshal(value, &rows) != nil {
+				return nil, fmt.Errorf("frr: malformed IS-IS %s", key)
+			}
+			hasArrays = true
+			if key == "vrfs" {
+				for _, row := range rows {
+					var vrf map[string]json.RawMessage
+					var areas []json.RawMessage
+					if json.Unmarshal(row, &vrf) != nil || vrf["areas"] == nil || string(vrf["areas"]) == "null" || json.Unmarshal(vrf["areas"], &areas) != nil {
+						return nil, fmt.Errorf("frr: malformed IS-IS VRF areas")
+					}
+				}
+			}
+		}
+	}
+	if !hasArrays {
+		return nil, fmt.Errorf("frr: missing IS-IS neighbor shape")
 	}
 	var top struct {
 		Vrfs []struct {
@@ -65,11 +91,16 @@ func ParseNeighbors(raw json.RawMessage) ([]Adjacency, error) {
 		return nil, fmt.Errorf("frr: decode %s: %w", ShowNeighbors, err)
 	}
 	var out []Adjacency
+	var malformed bool
 	add := func(vrf string, areas []area) {
 		if vrf == "" {
 			vrf = frr.DefaultVRF
 		}
 		for _, a := range areas {
+			if a.Circuits == nil {
+				malformed = true
+				continue
+			}
 			for _, c := range a.Circuits {
 				sid := c.Adj
 				if sid == "" {
@@ -82,6 +113,10 @@ func ParseNeighbors(raw json.RawMessage) ([]Adjacency, error) {
 				if st == "" {
 					st = c.State2
 				}
+				if c.Interface == "" || st == "" || levelText(c.Level) == "" {
+					malformed = true
+					continue
+				}
 				out = append(out, Adjacency{VRF: vrf, Area: a.Area, SystemID: sid, Interface: c.Interface, Level: levelText(c.Level), State: st})
 			}
 		}
@@ -93,6 +128,9 @@ func ParseNeighbors(raw json.RawMessage) ([]Adjacency, error) {
 			name = v.Name
 		}
 		add(name, v.Areas)
+	}
+	if malformed {
+		return nil, fmt.Errorf("frr: malformed IS-IS adjacency row")
 	}
 	slices.SortFunc(out, func(a, b Adjacency) int {
 		return strings.Compare(a.key(), b.key())

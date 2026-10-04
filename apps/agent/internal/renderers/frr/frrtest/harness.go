@@ -47,13 +47,14 @@ const (
 	PimdBin   = "/usr/lib/frr/pimd"
 	IsisdBin  = "/usr/lib/frr/isisd"
 	RipdBin   = "/usr/lib/frr/ripd"
+	RipngdBin = "/usr/lib/frr/ripngd"
 	LdpdBin   = "/usr/lib/frr/ldpd"
 )
 
 var daemonBins = map[string]string{
 	"mgmtd": MgmtdBin, "zebra": ZebraBin, "staticd": StaticdBin,
 	"bgpd": BgpdBin, "ospfd": OspfdBin, "ospf6d": Ospf6dBin, "bfdd": BfddBin,
-	"pimd": PimdBin, "isisd": IsisdBin, "ripd": RipdBin, "ldpd": LdpdBin,
+	"pimd": PimdBin, "isisd": IsisdBin, "ripd": RipdBin, "ripngd": RipngdBin, "ldpd": LdpdBin,
 }
 
 // FrameworkDaemons are started by default, in this order (mgmtd first: FRR 10 routes

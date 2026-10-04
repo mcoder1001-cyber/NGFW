@@ -6,8 +6,7 @@
 // Rendering rules:
 //   - `net` is required and must be an ISO NET (`AA[.AAAA…].SSSS.SSSS.SSSS.00`, area 1–13 bytes, NSEL 00);
 //   - an interface's circuitType must be within the IS level (a level-1 IS cannot run a level-2 circuit);
-//   - every interface runs both address families (`ip router isis` + `ipv6 router isis`): the per-family switch is an
-//     additive contract that does not exist yet;
+//   - interfaces default to both address families, with explicit family switches;
 //   - metrics are wide (`metric-style wide`), 1–16777215;
 //   - redistribution is rendered per family and per level the IS runs; IS-IS never redistributes into itself.
 package isis
@@ -37,7 +36,7 @@ const Tag = "ngfw"
 func init() {
 	frr.RegisterSection(Section{})
 	frr.RegisterInterfaceLines(Name, InterfaceLines)
-	frr.RegisterStateReader(frr.StateReader{Key: NeighborsReader, Command: ShowNeighbors})
+	frr.RegisterStateReader(frr.StateReader{Key: NeighborsReader, Command: ShowNeighbors, OnDemand: true})
 	frr.RegisterPoller(PollerAdjacencies, PollAdjacencies)
 }
 
@@ -52,7 +51,7 @@ func (Section) Order() int { return OrderISIS }
 
 // Render implements frr.Section.
 func (Section) Render(rc *frr.RenderContext) ([]string, error) {
-	return Render(rc.Desired.GetRouting().GetIsis())
+	return RenderWithSecrets(rc.Desired.GetRouting().GetIsis(), rc)
 }
 
 // InterfaceLines is the frr.InterfaceLinesFunc of `routing.isis.interfaces`.
@@ -200,7 +199,16 @@ func RenderInterfaces(o *ngfwv1.IsisConfig, mapIf frr.InterfaceMapper) (map[stri
 			return nil, policy.Errf(path, "interfaces %q and %q map to the same Linux interface %q", prev, vppName, name)
 		}
 		owner[name] = vppName
-		lines := []string{" ip router isis " + Tag, " ipv6 router isis " + Tag}
+		var lines []string
+		if itf.Ipv4 == nil || itf.GetIpv4() {
+			lines = append(lines, " ip router isis "+Tag)
+		}
+		if itf.Ipv6 == nil || itf.GetIpv6() {
+			lines = append(lines, " ipv6 router isis "+Tag)
+		}
+		if len(lines) == 0 {
+			return nil, policy.Errf(path.At("ipv4"), "at least one address family must be enabled")
+		}
 		if ct := itf.GetCircuitType(); ct != "" {
 			c, ok := levels[ct]
 			if !ok {
@@ -235,4 +243,36 @@ func RenderInterfaces(o *ngfwv1.IsisConfig, mapIf frr.InterfaceMapper) (map[stri
 		out[name] = lines
 	}
 	return out, nil
+}
+
+// RenderWithSecrets resolves configured authentication only through the renderer's redacting resolver.
+func RenderWithSecrets(o *ngfwv1.IsisConfig, rc interface{ Secret(string) (string, error) }) ([]string, error) {
+	lines, err := Render(o)
+	if err != nil || o == nil {
+		return lines, err
+	}
+	var auth []string
+	for _, entry := range []struct{ leaf, command, ref string }{
+		{"areaPasswordRef", "area-password", o.GetAreaPasswordRef()},
+		{"domainPasswordRef", "domain-password", o.GetDomainPasswordRef()},
+	} {
+		if entry.ref == "" {
+			continue
+		}
+		if !strings.HasPrefix(entry.ref, "password/") {
+			return nil, policy.Errf(base.At(entry.leaf), "password reference required")
+		}
+		if rc == nil {
+			return nil, policy.Errf(base.At(entry.leaf), "secret resolver unavailable")
+		}
+		value, err := rc.Secret(entry.ref)
+		if err != nil {
+			return nil, policy.Wrap(base.At(entry.leaf), err)
+		}
+		if len(value) == 0 || len(value) > 254 || strings.ContainsAny(value, " \t\r\n|\x00") {
+			return nil, policy.Errf(base.At(entry.leaf), "authentication key must be a bounded CLI token")
+		}
+		auth = append(auth, " "+entry.command+" md5 "+value)
+	}
+	return append(append(lines[:len(lines)-1], auth...), "exit"), nil
 }

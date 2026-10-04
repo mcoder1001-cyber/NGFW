@@ -30,6 +30,7 @@ export const TOPICS = [
   // wave-A: F-object-model
   // wave-A: F-acl
   // wave-A: P11
+  'ipsec.events',
   // wave-A: F-wireguard
   'wireguard.events',
   // wave-A: P12

@@ -1,3 +1,4 @@
+import { isisRipValidators } from './isis-rip.js';
 import { ospfValidators } from './ospf.js';
 import type { RootConfig, RootKey } from '../index.js';
 import { SemanticRegistry, type SemanticIssue, type ValidatorDefinition } from './registry.js';
@@ -114,6 +115,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...ipsecValidators,
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
+  ...isisRipValidators,
   // wave-BC: F-mpls-srmpls
   ...mplsSrmplsValidators,
   // wave-BC: F-srv6

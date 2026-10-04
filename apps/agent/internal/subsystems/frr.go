@@ -109,7 +109,9 @@ type FRR struct {
 
 	// stateSlot serialises State (review M3, D-132): one walk of FRR and VPP in flight; a caller that cannot get the slot
 	// within stateWait gets ErrStateBusy (UNAVAILABLE), like F-vrf-static-ecmp's route dump.
-	stateSlot chan struct{}
+	stateSlot    chan struct{}
+	secretMu     sync.RWMutex
+	secretSource func(string) ([]byte, error)
 }
 
 // stateWait is how long a RoutingState call waits for the one in flight (tests shorten it).
@@ -117,6 +119,8 @@ var stateWait = 3 * time.Second
 
 // ErrStateBusy is returned when another RoutingState walk is in flight for longer than stateWait.
 var ErrStateBusy = errors.New("routing state: another read of FRR and VPP is in flight; retry")
+
+var activeFRR atomic.Pointer[FRR]
 
 var frrRuntimes sync.Map // owner → *FRR
 
@@ -145,7 +149,13 @@ func FRRProjection() desired.FRROptions {
 func CheckFRR(doc *ngfwv1.DesiredState) error {
 	m := &lcpmap.Mapper{}
 	m.Set(lcpmap.FromDesired(doc))
-	_, err := frr.New(renderers.NewRecordingRunner(), frr.WithInterfaceMapper(m.Map)).Render(context.Background(), doc)
+	_, err := frr.New(renderers.NewRecordingRunner(), frr.WithInterfaceMapper(m.Map), frr.WithSecretResolver(frr.SecretResolverFunc(func(ctx context.Context, ref string) (string, error) {
+		rt := activeFRR.Load()
+		if rt == nil {
+			return "", frr.ErrNoSecretResolver
+		}
+		return rt.resolveSecret(ctx, ref)
+	}))).Render(context.Background(), doc)
 	return err
 }
 
@@ -162,7 +172,7 @@ func newFRRAt(env Env, runner renderers.Runner, paths frr.Paths, ok bool, opts .
 	rt := &FRR{owner: env.Owner, client: env.Client, log: env.Log.With("component", "frr"), publish: env.Publish,
 		paths: paths, enabled: ok, mapper: &lcpmap.Mapper{}, stop: make(chan struct{}), stateSlot: make(chan struct{}, 1)}
 	if ok {
-		base := []frr.Option{frr.WithPaths(paths), frr.WithInterfaceMapper(rt.mapper.Map)}
+		base := []frr.Option{frr.WithPaths(paths), frr.WithInterfaceMapper(rt.mapper.Map), frr.WithSecretResolver(frr.SecretResolverFunc(rt.resolveSecret))}
 		rt.r = frr.New(runner, append(base, opts...)...)
 	}
 	return rt
@@ -177,6 +187,7 @@ func registerP12(r scheduler.Registry, w *Wiring) {
 	if old, ok := frrRuntimes.Swap(w.env.Owner, rt); ok {
 		old.(*FRR).Close() // a re-registration (an agent restarted in-process) stops the previous poller
 	}
+	activeFRR.Store(rt)
 	frrEnabled.Store(rt.enabled) // the latest registration wins: one agent per process (tests re-register)
 	r.Register(&frrConfigDescriptor{rt: rt})
 }
@@ -426,6 +437,8 @@ func (rt *FRR) pollLoop() {
 // EVENT_KIND_ROUTING_CHANGED; FRR's interface events are dropped (the agent reports VPP's own link events).
 func EventOf(e frr.Event) *ngfwv1.Event {
 	switch e.Poller {
+	case "isis-adjacencies", "ospf-neighbors", "ospf6-neighbors":
+		return e.ToProto()
 	case bgp.PollerNeighbors:
 		vrf, peer := bgp.SplitNeighborKey(e.Key)
 		return &ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_BGP_NEIGHBOR_CHANGED,
@@ -570,7 +583,7 @@ func (rt *FRR) State(ctx context.Context, readers, prefixes []string, vrf string
 		}
 	}
 	for _, k := range readers {
-		raw, err := rt.r.ShowJSON(ctx, known[k].Command)
+		raw, err := rt.r.ReadState(ctx, known[k])
 		if err != nil {
 			errs = append(errs, err.Error())
 			continue
@@ -672,4 +685,37 @@ func (rt *FRR) LcpPairs(ctx context.Context) ([]*ngfwv1.RoutingLcpPair, error) {
 		out = append(out, rp)
 	}
 	return out, nil
+}
+
+// SetFRRSecrets reuses the sealed transaction-selected cache; no plaintext enters desired state.
+func SetFRRSecrets(owner string, source func(string) ([]byte, error)) error {
+	rt := FRRRuntime(owner)
+	if rt == nil {
+		return ErrFRRUnavailable
+	}
+	rt.secretMu.Lock()
+	rt.secretSource = source
+	rt.secretMu.Unlock()
+	return nil
+}
+func (rt *FRR) resolveSecret(ctx context.Context, ref string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	rt.secretMu.RLock()
+	source := rt.secretSource
+	rt.secretMu.RUnlock()
+	if source == nil || !strings.HasPrefix(ref, "password/") {
+		return "", frr.ErrNoSecretResolver
+	}
+	raw, err := source(ref)
+	if err != nil {
+		return "", frr.ErrNoSecretResolver
+	}
+	defer func() {
+		for i := range raw {
+			raw[i] = 0
+		}
+	}()
+	return string(raw), nil
 }

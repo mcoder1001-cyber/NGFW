@@ -61,6 +61,9 @@ func (e Event) ToProto() *ngfwv1.Event {
 			"source": "frr", "poller": e.Poller, "key": e.Key, "old": e.Old, "new": e.New,
 		},
 	}
+	if e.Poller == "isis-adjacencies" {
+		ev.Kind = ngfwv1.EventKind_EVENT_KIND_ISIS_ADJACENCY_CHANGED
+	}
 	if e.Poller == "ospf-neighbors" || e.Poller == "ospf6-neighbors" {
 		ev.Kind = ngfwv1.EventKind_EVENT_KIND_OSPF_NEIGHBOR_CHANGED
 	}

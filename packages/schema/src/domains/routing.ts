@@ -6,6 +6,7 @@ import {
   ipAddress,
   ipNetwork,
   ipv4Network,
+  ipv6Network,
   objectName,
   routerId,
   secretRefOf,
@@ -663,6 +664,8 @@ export const IsisInterfaceSchema = z.strictObject({
   }),
   bfd: withUi(z.boolean().default(false), { title: 'BFD', order: 6 }),
   // wave-BC: F-isis-rip
+  ipv4: withUi(z.boolean().default(true), { title: 'IPv4', order: 7 }),
+  ipv6: withUi(z.boolean().default(true), { title: 'IPv6', order: 8 }),
   // wave-BC: F-bfd-redistribution
 });
 
@@ -673,6 +676,14 @@ export const IsisSchema = z.strictObject({
   interfaces: withUi(igpInterfaces(IsisInterfaceSchema), { order: 4 }),
   redistribute: withUi(redistributeInto('isis'), { order: 5 }),
   // wave-BC: F-isis-rip
+  areaPasswordRef: withUi(secretRefOf('password').optional(), {
+    title: 'Area password reference',
+    order: 6,
+  }),
+  domainPasswordRef: withUi(secretRefOf('password').optional(), {
+    title: 'Domain password reference',
+    order: 7,
+  }),
 });
 export type IsisConfig = z.infer<typeof IsisSchema>;
 
@@ -697,8 +708,21 @@ export const RipSchema = z.strictObject({
     order: 5,
   }),
   // wave-BC: F-isis-rip
+  version: withUi(z.literal(2).default(2), { title: 'Version', order: 6 }),
 });
 export type RipConfig = z.infer<typeof RipSchema>;
+
+export const RipngSchema = z.strictObject({
+  vrf: withUi(vrfName.default(DEFAULT_VRF), { title: 'VRF', order: 1 }),
+  networks: withUi(z.array(ipv6Network).max(256).default([]), { title: 'Networks', order: 2 }),
+  interfaces: withUi(igpInterfaces(RipInterfaceSchema), { order: 3 }),
+  redistribute: withUi(redistributeInto('rip'), { order: 4 }),
+  defaultMetric: withUi(z.number().int().min(1).max(16).default(1), {
+    title: 'Default metric',
+    order: 5,
+  }),
+});
+export type RipngConfig = z.infer<typeof RipngSchema>;
 
 /* --------------------------------------------------------------------------------------------------- BFD */
 
@@ -769,6 +793,7 @@ export const RoutingSchema = withUi(
     // wave-BC: F-ospf
     ospf6: withUi(Ospf6Schema.optional(), { title: 'OSPFv3', group: 'dynamic', order: 5 }),
     // wave-BC: F-isis-rip
+    ripng: withUi(RipngSchema.optional(), { title: 'RIPng', group: 'dynamic', order: 6 }),
     // wave-BC: F-mpls-srmpls
     mpls: routingMpls,
     // wave-BC: F-igmp-mfib

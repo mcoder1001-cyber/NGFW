@@ -87,6 +87,7 @@ var descriptorReach = map[string]reachEntry{
 	"l3xc":                {wired, "F-bridge-l2"},
 	"lb":                  {wired, "F-lb"},
 	"lcp":                 {wired, "P12"},
+	"lcp_osi":             {wired, "F-isis-rip"},
 	"lisp":                {wired, "F-lisp"},
 	"lldp":                {wired, "F-loopback-bvi-gso-lldp-span"},
 	"mactime":             {wired, "F-bridge-l2"},

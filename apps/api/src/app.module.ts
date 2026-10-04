@@ -37,6 +37,7 @@ import { det44MapDsliteCnatFeature } from './features/det44-map-dslite-cnat/inde
 import { defaultVppNicsFeature } from './features/default-vpp-nics/index.js';
 import { nat46Feature } from './features/nat46/index.js'; // F-nat46 (unanchored)
 // wave-BC: F-tunnels
+import { tunnelsFeature } from './features/tunnels/index.js';
 // wave-BC: P10
 // wave-BC: F-vrrp-config-sync
 // wave-BC: F-pki
@@ -46,6 +47,7 @@ import { ipsecFeature } from './features/ipsec/index.js';
 // wave-BC: F-ospf
 import { ospfFeature } from './features/ospf/index.js';
 // wave-BC: F-isis-rip
+import { isisRipFeature } from './features/isis-rip/index.js';
 // wave-BC: P14
 // wave-BC: F-mpls-srmpls
 import { mplsSrmplsFeature } from './features/mpls-srmpls/index.js';
@@ -171,6 +173,7 @@ export class AppModule {
         ...det44MapDsliteCnatFeature.controllers,
         ...nat46Feature.controllers, // F-nat46 (unanchored)
         // wave-BC: F-tunnels
+        ...tunnelsFeature.controllers,
         // wave-BC: P10
         // wave-BC: F-vrrp-config-sync
         // wave-BC: F-pki
@@ -180,6 +183,7 @@ export class AppModule {
         // wave-BC: F-ospf
         ...ospfFeature.controllers,
         // wave-BC: F-isis-rip
+        ...isisRipFeature.controllers,
         // wave-BC: P14
         // wave-BC: F-mpls-srmpls
         ...mplsSrmplsFeature.controllers,

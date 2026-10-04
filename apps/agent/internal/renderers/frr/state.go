@@ -124,8 +124,10 @@ func (r *Renderer) ShowJSON(ctx context.Context, cmd ShowCommand) (json.RawMessa
 type StateReader struct {
 	// OnDemand excludes optional/large readers from automatic Retrieve; RoutingState may request them explicitly.
 	OnDemand bool
-	Key      string
-	Command  ShowCommand
+	// Parse converts a fixed text show command to structured observed state; nil retains JSON behavior.
+	Parse   func([]byte) (json.RawMessage, error)
+	Key     string
+	Command ShowCommand
 }
 
 var (
@@ -156,7 +158,7 @@ func (sr StateReader) check() error {
 	if !keyRe.MatchString(sr.Key) {
 		return fmt.Errorf("frr: state reader key %q must match %s", sr.Key, keyRe)
 	}
-	if !sr.Command.valid() || !strings.HasSuffix(string(sr.Command), " json") {
+	if !sr.Command.valid() || (sr.Parse == nil && !strings.HasSuffix(string(sr.Command), " json")) {
 		return fmt.Errorf("frr: state reader %q command %q must be a constant `show … json`", sr.Key, sr.Command)
 	}
 	return nil
@@ -252,7 +254,7 @@ func (r *Renderer) State(ctx context.Context) (*State, error) {
 		if sr.OnDemand {
 			continue
 		}
-		if st.Extra[sr.Key], err = r.ShowJSON(ctx, sr.Command); err != nil {
+		if st.Extra[sr.Key], err = r.ReadState(ctx, sr); err != nil {
 			return nil, err
 		}
 	}
@@ -565,4 +567,23 @@ func expectDelim(dec *json.Decoder, d json.Delim) error {
 		return fmt.Errorf("frr: decode RIB: want %v, got %v", d, tok)
 	}
 	return nil
+}
+
+// ReadState executes only a registered constant-shaped command, with existing output bounds.
+func (r *Renderer) ReadState(ctx context.Context, sr StateReader) (json.RawMessage, error) {
+	if err := sr.check(); err != nil {
+		return nil, err
+	}
+	if sr.Parse == nil {
+		return r.ShowJSON(ctx, sr.Command)
+	}
+	raw, err := r.Show(ctx, sr.Command)
+	if err != nil {
+		return nil, err
+	}
+	value, err := sr.Parse(raw)
+	if err != nil || !json.Valid(value) {
+		return nil, fmt.Errorf("frr: invalid observed state for reader %s", sr.Key)
+	}
+	return value, nil
 }

@@ -39,7 +39,14 @@ export interface IsisConfig {
   vrf?: string;
   interfaces?: Record<
     string,
-    { passive?: boolean; metric?: number; circuitType?: string; bfd?: boolean }
+    {
+      passive?: boolean;
+      metric?: number;
+      circuitType?: string;
+      bfd?: boolean;
+      ipv4?: boolean;
+      ipv6?: boolean;
+    }
   >;
   redistribute?: Redistribute;
 }
@@ -65,9 +72,10 @@ export interface RoutingIgp {
   ospf6?: OspfConfig;
   isis?: IsisConfig;
   rip?: RipConfig;
+  ripng?: RipConfig;
   bfd?: { sessions?: BfdSession[] };
 }
-export type Protocol = 'ospf6' | 'ospf' | 'isis' | 'rip' | 'bfd';
+export type Protocol = 'ospf6' | 'ospf' | 'isis' | 'rip' | 'ripng' | 'bfd';
 
 const PATH = 'routing';
 export const routingKeys = { running: ['config', 'running', PATH] as const };

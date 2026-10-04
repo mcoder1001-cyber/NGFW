@@ -269,6 +269,11 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	if err = subsystems.SetFRRSecrets(cfg.Owner, cache.Text); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	if err = subsystems.SetPKISecrets(cfg.Owner, cache.Text); err != nil {
 		wiring.Close()
 		conn.Close()
@@ -315,11 +320,12 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 
 	rctx, cancel := context.WithCancel(ctx)
 	a.cancel = cancel
-	a.wg.Add(7)
+	a.wg.Add(8)
 	go func() { defer a.wg.Done(); a.watchNativeAutoBlock(rctx) }()
 	go func() { defer a.wg.Done(); a.watchHostDetectors(rctx) }()
 	go func() { defer a.wg.Done(); a.watchAutoBlock(rctx) }()
 	go func() { defer a.wg.Done(); a.watchWAN(rctx, wan) }()
+	go func() { defer a.wg.Done(); a.watchNativeIPsec(rctx) }()
 	go func() {
 		defer a.wg.Done()
 		if err := a.grpc.Serve(l); err != nil {

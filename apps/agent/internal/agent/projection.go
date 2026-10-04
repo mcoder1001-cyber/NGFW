@@ -341,6 +341,8 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 		native = nativeEnv[0]
 	}
 	desired.IKEv2(p, ds, in, native)
+	// wave-BC: F-isis-rip
+	desired.IsisOSI(p, ds, in)
 	// wave-BC: F-mpls-srmpls
 	desired.MplsSrmpls(p, ds, in, vrfID)
 	// wave-BC: F-srv6
@@ -458,6 +460,7 @@ var routingLeaves = []routingLeaf{
 	{name: "ospf", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
 	{name: "ospf6", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetOspf6() != nil }, handled: true},
 	// wave-BC: F-isis-rip
+	{name: "ripng", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRipng() != nil }, handled: true},
 	{name: "isis", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
 	{name: "rip", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution

@@ -57,6 +57,9 @@ func Render(r *ngfwv1.RipConfig, mapIf frr.InterfaceMapper) ([]string, error) {
 	if r == nil {
 		return nil, nil
 	}
+	if r.Version != nil && r.GetVersion() != 2 {
+		return nil, policy.Errf(base.At("version"), "only RIPv2 is supported")
+	}
 	head := "router rip"
 	if v := r.GetVrf(); v != "" && v != frr.DefaultVRF {
 		name, err := frr.VRFName(v)

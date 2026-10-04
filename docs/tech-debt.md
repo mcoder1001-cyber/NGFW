@@ -180,3 +180,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
   neighbour poller are F-mpls-ldp-host. The contract, semantics, the MplsLdpState RPC + state routes, and the LDP tab
   are done and tested (the fake agent serves state from the applied config). Ingress label imposition and LDP IPv6 are
   out of scope; table 0 needs NGFW_DF7_GLOBALS.
+
+## Accepted dynamic route scaling debt — 2026-10-04
+
+- F-pim-frrsync and F-mpls-ldp-host: supported dynamic snapshot cap is 256 routes per source. Larger snapshots are rejected while retaining the prior valid cache. Existing safe per-object VPP collision/ownership dumps remain in force. Owner: Codex manager. Due: 2026-10-11. Follow-up: batched ownership-safe conflict retrieval and bounded shared-table snapshots before raising the cap. No throughput or large-table performance acceptance is claimed.

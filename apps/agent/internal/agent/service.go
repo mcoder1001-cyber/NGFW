@@ -531,7 +531,7 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngf
 			view = mergeDomains(s.st.desired, ds, domains)
 		}
 		var left []leftOut
-		res, left = s.applySources(ctx, pj.kvs, scopeOf(domains), domains, view, scheduler.ApplyOptions{Resync: m != modeTxn}, m == modeResync)
+		res, left = s.applySources(ctx, pj.kvs, scopeOf(pj.scopeDomains), pj.scopeDomains, view, scheduler.ApplyOptions{Resync: m != modeTxn}, m == modeResync)
 		fillResponse(resp, res, pj)
 		s.leaveOutLocked(resp, txnID, left, log)
 		if errors.Is(res.Err, scheduler.ErrDescriptorPanic) {
@@ -1331,7 +1331,8 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	}
 	view := mergeDomains(s.st.desired, ds, projectionContext)
 	projectionDomains := domains
-	if contains(domains, "security") || contains(domains, "interfaces") {
+	if (contains(domains, "security") || contains(domains, "interfaces")) &&
+		(aclProjectionContext(view) || aclProjectionContext(s.st.desired) || len(s.autoBlock.entries) > 0) {
 		projectionDomains = union(domains, []string{"acl"})
 	}
 	effective, overlayErr := autoblock.Overlay(view, s.autoBlock.entries, s.now())
@@ -1368,4 +1369,11 @@ func (s *Service) routingProjectionState(ds *ngfwv1.DesiredState, domains []stri
 		}
 	}
 	return ds
+}
+
+// aclProjectionContext guards the dependent ACL projection: unrelated interface
+// updates must not become authoritative for all owner-tagged ACLs. Old context
+// still requires projection when disabling/removing overlay configuration.
+func aclProjectionContext(ds *ngfwv1.DesiredState) bool {
+	return ds.GetAcl() != nil || ds.GetSecurity().GetAutoBlock().GetEnabled()
 }

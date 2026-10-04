@@ -19,7 +19,6 @@ import (
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/agent"
-	"ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/ownertable"
@@ -54,17 +53,10 @@ func (s *syncBuffer) String() string {
 	return s.b.String()
 }
 
-// rpfService builds the product registry (subsystems.Register) plus DF-4's acl.acl descriptor — F-acl
-// registers it in the product; ABF policies depend on acl.acl/<name> — and the agent service over it.
+// rpfService builds the product registry, including F-acl, and the agent service.
+// ABF policies depend on existing acl.acl/<name> objects outside these tests' feature scope.
 // It stands for one agent process: a second call on the same dir is an agent restart.
 func rpfService(t *testing.T, c vpp.Client, owner, dir string, log *slog.Logger) *agent.Service {
-	t.Helper()
-	return rpfServiceWith(t, c, owner, dir, log, true)
-}
-
-// rpfServiceWith: withACL=false is this build's product registry as it is (no acl.acl descriptor until
-// F-acl): the pbr.acl-ref bridge resolves the ACL references.
-func rpfServiceWith(t *testing.T, c vpp.Client, owner, dir string, log *slog.Logger, withACL bool) *agent.Service {
 	t.Helper()
 	owned, err := ownertable.Open(dir, owner)
 	if err != nil {
@@ -76,11 +68,7 @@ func rpfServiceWith(t *testing.T, c vpp.Client, owner, dir string, log *slog.Log
 	if err != nil {
 		t.Fatal(err)
 	}
-	// F-acl's registration in the product (test harness only): only while the name is free — once F-acl registers
-	// acl.acl in subsystems.Register, a second registration would panic (review M2)
-	if _, registered := reg.Get(acl.NameACL); withACL && !registered {
-		reg.Register(acl.NewACL(c, owner))
-	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
 	svc, err := agent.NewService(agent.ServiceConfig{Owner: owner, Version: "test", Logger: log, VPP: c, Scheduler: sched, StateDir: dir, BeforeTxn: w.BeforeTxn, NetdevKind: w.NetdevKind()})
@@ -212,7 +200,7 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 		t.Fatalf("second apply changed something: %s", protojson.Format(resp))
 	}
 	// DryRun: the write-only ADL leaves are marked, nothing else is flagged
-	rep, err := svc.DryRun(ctx, &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing"}})
+	rep, err := svc.DryRun(ctx, &ngfwv1.DryRunRequest{TxnId: "d1", DesiredState: desired})
 	if err != nil || !rep.GetOk() {
 		t.Fatalf("dry run: %v %s", err, protojson.Format(rep))
 	}
@@ -343,19 +331,18 @@ func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
 	}
 }
 
-// TestRpfAdlPbrWithoutFAcl: the product registry of this build has no acl.acl descriptor (F-acl adds it);
-// the observe-only pbr.acl-ref bridge resolves a policy's ACL from the owner-tagged ACLs in VPP, and an ACL
-// VPP does not have is a dependency error with the policy's pointer.
-func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
+// A feature-scoped transaction must reject absent ACL dependencies and resolve an existing
+// owner-tagged ACL through the product's real F-acl registration without deleting that ACL.
+func TestRpfAdlPbrReferencesExistingACL(t *testing.T) {
 	t.Setenv("NGFW_VPP_TABLE_BASE", "3000")
 	pid := 1
 	fakeIdentity(t, &pid)
 	log := slog.New(slog.DiscardHandler)
 	v := coretest.New()
-	svc := rpfServiceWith(t, v, "w3", t.TempDir(), log, false)
+	svc := rpfService(t, v, "w3", t.TempDir(), log)
 	desired, canonical := rpfDocs(t, 3, 3000, "loop301", "loop302")
 	ctx := context.Background()
-	resp, err := svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "no-acl", DesiredState: desired})
+	resp, err := svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "no-acl", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_FAILED {
 		t.Fatalf("apply without the ACL in VPP: %v %s", err, protojson.Format(resp))
 	}
@@ -368,9 +355,27 @@ func TestRpfAdlPbrWithoutFAcl(t *testing.T) {
 	if strings.Join(missing, " ") != "/routing/pbr/policies/lookup-red /routing/pbr/policies/via-l2" {
 		t.Fatalf("dependency errors = %v (%s)", missing, protojson.Format(resp))
 	}
-	v.AddACL("w3:lan-b")
-	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "acl", DesiredState: desired})
+	idx := v.AddACL("w3:lan-b")
+	// Explicit ACL authority remains unchanged. Omitting it while policies
+	// depend on it must fail before any writes; feature scope preserves it.
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "full-omits-acl", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing", "acl"}})
+	if err != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_FAILED || !v.ACL().Has(idx) {
+		t.Fatalf("full snapshot must preserve ACL on dependency failure: err=%v %s", err, protojson.Format(resp))
+	}
+	missing = nil
+	for _, issue := range resp.GetValidation().GetErrors() {
+		if issue.GetRule() == "agent.dependency-missing" {
+			missing = append(missing, issue.GetPointer())
+		}
+	}
+	if len(missing) != 2 {
+		t.Fatalf("full-snapshot dependency errors: %v", missing)
+	}
+	resp, err = svc.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "acl", DesiredState: desired, Subsystems: []string{"interfaces", "vrfs", "routing"}})
 	mustApplied(t, resp, err)
+	if !v.ACL().Has(idx) {
+		t.Fatal("feature-scoped transaction deleted external ACL dependency")
+	}
 	if got := retrieveDomains(t, svc); !proto.Equal(got, canonical) {
 		t.Fatalf("Retrieve:\n got %s\nwant %s", protojson.Format(got), protojson.Format(canonical))
 	}

@@ -11,7 +11,7 @@ import (
 )
 
 // Observation is a validated network source and enabled detector kind.
-type Observation struct{ Source, Kind string }
+type Observation struct{ Source, Kind, Port string }
 
 // Journal holds kernel-attested journal provenance and the log message.
 type Journal struct {
@@ -26,15 +26,10 @@ type peer struct {
 	addr string
 	at   time.Time
 }
-type scan struct {
-	ports map[uint16]time.Time
-	at    time.Time
-}
 
-// Host maintains bounded cursor, IKE context and distinct-port windows.
+// Host maintains bounded cursor deduplication and IKE context.
 type Host struct {
 	peers       map[string]peer
-	scans       map[string]*scan
 	cursors     map[string]bool
 	cursorOrder []string
 }
@@ -47,7 +42,7 @@ var scanPort = regexp.MustCompile(`(?:^| )DPT=([0-9]+)(?: |$)`)
 
 // NewHost creates an empty host detector with no historical observations.
 func NewHost() *Host {
-	return &Host{peers: map[string]peer{}, scans: map[string]*scan{}, cursors: map[string]bool{}}
+	return &Host{peers: map[string]peer{}, cursors: map[string]bool{}}
 }
 func source(raw string) string {
 	a, err := netip.ParseAddr(raw)
@@ -57,10 +52,10 @@ func source(raw string) string {
 	return a.Unmap().String()
 }
 
-// Observe deduplicates overlapping journal polls and emits one distinct-port
-// observation per source within the configured window. IKE auth identities are
+// Observe deduplicates overlapping journal polls and emits each trusted probe
+// with its destination port. Distinct-port sliding windows live in the API. IKE auth identities are
 // never source addresses: only received-packet addresses correlated by SA ID.
-func (h *Host) Observe(line []byte, now time.Time, window time.Duration, threshold, sourceLimit int) *Observation {
+func (h *Host) Observe(line []byte, now time.Time, window time.Duration, threshold, _ int) *Observation {
 	var j Journal
 	if json.Unmarshal(line, &j) != nil || j.Cursor == "" {
 		return nil
@@ -86,7 +81,7 @@ func (h *Host) Observe(line []byte, now time.Time, window time.Duration, thresho
 		m := sshFailure.FindStringSubmatch(j.Message)
 		if len(m) > 1 {
 			if s := source(m[1]); s != "" {
-				return &Observation{s, "ssh"}
+				return &Observation{Source: s, Kind: "ssh"}
 			}
 		}
 		return nil
@@ -114,7 +109,7 @@ func (h *Host) Observe(line []byte, now time.Time, window time.Duration, thresho
 			p := h.peers[key]
 			delete(h.peers, key)
 			if p.addr != "" && now.Sub(p.at) <= time.Minute {
-				return &Observation{p.addr, "vpnAuth"}
+				return &Observation{Source: p.addr, Kind: "vpnAuth"}
 			}
 		}
 		return nil
@@ -134,35 +129,5 @@ func (h *Host) Observe(line []byte, now time.Time, window time.Duration, thresho
 	if err != nil || pn == 0 {
 		return nil
 	}
-	port := uint16(pn)
-	if sourceLimit < 1 || sourceLimit > 10000 {
-		sourceLimit = 10000
-	}
-	for k, s := range h.scans {
-		if now.Sub(s.at) > window {
-			delete(h.scans, k)
-		}
-	}
-	s := h.scans[a]
-	if s == nil {
-		if len(h.scans) >= sourceLimit {
-			return nil
-		}
-		s = &scan{ports: map[uint16]time.Time{}}
-		h.scans[a] = s
-	}
-	s.at = now
-	for p, t := range s.ports {
-		if now.Sub(t) >= window {
-			delete(s.ports, p)
-		}
-	}
-	if _, seen := s.ports[port]; seen {
-		return nil
-	}
-	if len(s.ports) >= threshold {
-		s.ports = map[uint16]time.Time{}
-	}
-	s.ports[port] = now
-	return &Observation{a, "portScan"}
+	return &Observation{Source: a, Kind: "portScan", Port: strconv.FormatUint(pn, 10)}
 }

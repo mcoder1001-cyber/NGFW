@@ -84,9 +84,6 @@ func domainOf(descriptor string) string {
 // scopeOf is the scheduler scope managing exactly the descriptors of domains.
 func scopeOf(domains []string) scheduler.Scope {
 	var names []string
-	if contains(domains, "security") || contains(domains, "interfaces") {
-		names = append(names, domainDescriptors["acl"]...)
-	}
 	for _, d := range domains {
 		names = append(names, domainDescriptors[d]...)
 	}
@@ -121,9 +118,10 @@ type issue struct {
 
 // projected is the result of project.
 type projected struct {
-	kvs      []scheduler.KV
-	pointers map[scheduler.Key]string
-	issues   []issue
+	scopeDomains []string
+	kvs          []scheduler.KV
+	pointers     map[scheduler.Key]string
+	issues       []issue
 }
 
 func (p *projected) add(k scheduler.Key, v proto.Message, pointer string) {
@@ -189,7 +187,7 @@ type vrfResolver func(name string) (uint32, bool)
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
 // netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
 func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, nativeEnv ...desired.IKEv2Env) *projected {
-	p := &projected{pointers: map[scheduler.Key]string{}}
+	p := &projected{pointers: map[scheduler.Key]string{}, scopeDomains: domains}
 	in := map[string]bool{}
 	for _, d := range domains {
 		in[d] = true

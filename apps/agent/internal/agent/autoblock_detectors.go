@@ -69,7 +69,7 @@ func (a *Agent) watchHostDetectors(ctx context.Context) {
 					if err != nil || autoblock.Allowed(ds, addr) {
 						continue
 					}
-					a.svc.bus.publish(&ngfwv1.Event{Kind: ngfwv1.EventKind_EVENT_KIND_AUTOBLOCK_OBSERVED, Attributes: map[string]string{"source_ip": ob.Source, "detector": ob.Kind}})
+					a.svc.bus.publish(autoBlockObserved(*ob))
 				}
 			}
 			since = now.Add(-time.Second)

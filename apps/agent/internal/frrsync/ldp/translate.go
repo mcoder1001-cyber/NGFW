@@ -12,6 +12,9 @@ import (
 	"ngfw/agent/internal/descriptors/mpls"
 )
 
+// MaxRoutes bounds dynamic reconciliation while DF-7 performs per-label collision dumps.
+const MaxRoutes = 256
+
 // Binding is an in-use remote binding joined with its adjacency by the reader.
 type Binding struct {
 	FEC            string
@@ -61,6 +64,9 @@ func Translate(bindings []Binding, table uint32, reverse map[string]string) ([]m
 		}
 		route.Paths = append(route.Paths, path)
 		routes[b.LocalLabel] = route
+		if len(routes) > MaxRoutes {
+			return nil, fmt.Errorf("LDP dynamic route limit of %d exceeded", MaxRoutes)
+		}
 	}
 	labels := make([]uint32, 0, len(routes))
 	for label := range routes {

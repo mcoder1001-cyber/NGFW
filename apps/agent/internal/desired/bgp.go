@@ -58,6 +58,10 @@ func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute
 	rt := ds.GetRouting()
 	out := &ngfwv1.RoutingConfig{}
 	content := false
+	if pim := rt.GetMulticast().GetPim(); pim != nil {
+		out.Multicast = &ngfwv1.MulticastConfig{Pim: proto.Clone(pim).(*ngfwv1.PimConfig)}
+		content = true
+	}
 	if rt.GetBgp() != nil {
 		out.Bgp = proto.Clone(rt.GetBgp()).(*ngfwv1.BgpConfig)
 		content = true

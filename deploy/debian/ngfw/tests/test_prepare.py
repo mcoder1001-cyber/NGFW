@@ -25,6 +25,8 @@ class Preparation(unittest.TestCase):
             (root / 'deploy/vpp/verify.sh').write_text('#!/bin/sh\nexit 0\n')
             (root / 'deploy/vpp/verify.sh').chmod(0o755)
             (root / 'deploy/vpp/apply-startup.sh').write_text('#!/bin/sh\nexit 0\n')
+            for name in ['apply-executor.py', 'apply-executor.service', 'apply-executor.socket']:
+                shutil.copyfile(SOURCE.parents[1] / 'vpp' / name, root / 'deploy/vpp' / name)
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
@@ -71,6 +73,9 @@ fi
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertEqual((root / 'output/stage/usr/lib/ngfw/api/dist/main.js').read_text(), 'fresh API')
                 self.assertEqual((root / 'output/stage/usr/share/ngfw/web/index.html').read_text(), 'fresh web')
+                for name in ['service', 'socket']:
+                    self.assertTrue((root / f'output/stage/usr/lib/systemd/system/apply-executor.{name}').is_file())
+                self.assertTrue((root / 'output/stage/usr/lib/ngfw/apply-executor.py').is_file())
                 self.assertEqual((root / 'commands.log').read_text().splitlines()[0],
                                  'exec turbo run build --filter=@ngfw/api --filter=@ngfw/web --concurrency=2')
             else:

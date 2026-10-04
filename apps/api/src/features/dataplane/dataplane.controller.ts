@@ -56,8 +56,10 @@ export const DataplanePreviewOut = z
       .literal(true)
       .describe('these settings only take effect after a VPP restart'),
     applyAvailable: z
-      .literal(false)
-      .describe('installing the file (apply-startup.sh) is a manager step gated by TD-17'),
+      .boolean()
+      .describe(
+        'product apply actions exist; administrator approval and root executor are required',
+      ),
   })
   .describe('DataplaneStartupPreview RPC: nothing is written, VPP is never restarted');
 
@@ -97,7 +99,7 @@ export function toDataplanePreview(
     warnings: [...r.warnings],
     sha256: r.sha256,
     restartRequired: true,
-    applyAvailable: false,
+    applyAvailable: true,
   };
 }
 

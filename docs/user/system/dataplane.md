@@ -68,3 +68,23 @@ Preview diff (excerpt):
 - **After a manager installed a file:** apply-startup.sh keeps a backup of the previous startup.conf and arms a
   dead-man timer. If VPP or management reachability does not come back within the window, it restores the backup
   and restarts VPP on its own. For a manual rollback, the manager restores the backup it printed and restarts VPP.
+
+## Administrator apply
+
+After previewing the diff, an administrator can choose **Apply and restart the data plane**.
+The confirmation shows a fresh diff and its SHA. Confirming obtains a 120-second,
+single-use approval from the appliance root executor and immediately consumes it.
+The approval covers the authenticated user, exact dataplane document, generated SHA,
+and installed file SHA. A changed candidate, host rendering or installed file requires
+a new preview and approval. An unchanged file is refused.
+
+Both approval and apply require a successful write-ahead audit record. The API sends
+only fixed Unix socket operations; the root executor runs the installed product apply
+script, which retains its existing locks, health checks, dead-man and rollback. Tokens
+are never persisted in the browser or audit log. If the executor socket is unavailable,
+the request returns 503 and the installed file remains protected by the root boundary.
+
+The package registers `apply-executor.socket` for the next appliance boot. This source
+change does not start the service or restart the shared development host. Live apply and
+rollback acceptance require a dedicated appliance window; source/unit checks are not
+live restart evidence.

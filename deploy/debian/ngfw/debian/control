@@ -9,7 +9,7 @@ Homepage: https://github.com/mcoder1001-cyber/NGFW
 
 Package: ngfw-agent
 Architecture: amd64
-Depends: ${misc:Depends}, ${shlibs:Depends}, adduser
+Depends: ${misc:Depends}, ${shlibs:Depends}, adduser, python3
 Description: NGFW privileged declarative dataplane agent
  Reconciles VPP and daemon configuration through the local management socket.
 

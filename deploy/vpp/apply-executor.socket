@@ -1,0 +1,13 @@
+[Unit]
+Description=NGFW root dataplane apply approval socket
+
+[Socket]
+ListenStream=/run/ngfw-apply/executor.sock
+SocketUser=root
+SocketGroup=ngfw
+SocketMode=0660
+DirectoryMode=0755
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

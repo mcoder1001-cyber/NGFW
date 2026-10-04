@@ -41,6 +41,8 @@ const READONLY_MAY = new Set([
 ]);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
+  'POST /api/v1/actions/dataplane/approve',
+  'POST /api/v1/actions/dataplane/apply',
   'POST /api/v1/config/setup/preview',
   'POST /api/v1/config/setup/stage',
   'POST /api/v1/actions/aaa/test', // wave-BC: F-aaa

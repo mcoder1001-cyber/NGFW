@@ -183,7 +183,7 @@ describe('Tunnels page', () => {
       fireEvent.click(screen.getByRole('switch', { name: 'Show advanced kinds' }));
       fireEvent.click(screen.getByRole('tab', { name: 'L2TPv3' }));
       expect(
-        await screen.findByText(/VPP cannot delete L2TPv3 tunnels/, {}, WAIT),
+        await screen.findByText(/This build cannot delete L2TPv3 tunnels/, {}, WAIT),
       ).toBeInTheDocument();
       fireEvent.click(screen.getByRole('switch', { name: 'Show advanced kinds' }));
       expect(screen.getByRole('tab', { name: 'GRE' })).toHaveAttribute('aria-selected', 'true');

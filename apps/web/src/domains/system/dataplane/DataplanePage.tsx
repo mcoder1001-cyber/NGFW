@@ -1,3 +1,4 @@
+import { ApplyDataplane } from './ApplyDataplane';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
@@ -141,12 +142,7 @@ export function DataplanePage() {
         >
           {t('preview.button')}
         </Button>
-        <Button variant="contained" disabled aria-describedby="dp-apply-reason">
-          {t('apply.button')}
-        </Button>
-        <Typography id="dp-apply-reason" variant="body2" color="text.secondary">
-          {t('apply.disabled')}
-        </Typography>
+        <ApplyDataplane />
       </Stack>
       <Stack direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
         {cand.isSuccess && (

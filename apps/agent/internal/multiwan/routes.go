@@ -11,8 +11,10 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// RouteName identifies WAN-owned default routes.
 const RouteName = "ip.route.wan"
 
+// RouteIssue associates a validation failure with its configuration pointer.
 type RouteIssue struct{ Pointer, Message string }
 
 // Routes validates exclusive ownership even while all links are down. Unknown
@@ -127,6 +129,10 @@ func Routes(doc *ngfwv1.DesiredState, health []*ngfwv1.WanGroupState) ([]schedul
 			}
 			route := &core.Route{TableId: table, Prefix: prefix}
 			for _, m := range selected {
+				if m.Weight < 1 || m.Weight > 255 {
+					fail(pt+"/members", "selected WAN weight is outside 1..255")
+					continue
+				}
 				route.Paths = append(route.Paths, &core.RoutePath{Interface: m.Interface, Address: gateways[m.Interface].String(), Weight: uint32(m.Weight)})
 			}
 			if len(route.Paths) > 0 {

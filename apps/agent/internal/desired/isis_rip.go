@@ -10,6 +10,8 @@ var isisOSI atomic.Bool
 
 // ConfigureIsisOSI opts the designated globals owner into irreversible enable.
 func ConfigureIsisOSI(owner, optedIn bool) { isisOSI.Store(owner && optedIn) }
+
+// IsisOSI projects the explicitly authorized global OSI punt setting.
 func IsisOSI(s Sink, ds *ngfwv1.DesiredState, in map[string]bool) {
 	if !in["routing"] || ds.GetRouting().GetIsis() == nil {
 		return

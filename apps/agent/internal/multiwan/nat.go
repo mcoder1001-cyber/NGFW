@@ -8,7 +8,10 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// NATOutputName identifies WAN-owned post-routing NAT features.
 const NATOutputName = "nat44-ed.output-feature.wan"
+
+// NATAddressName identifies WAN-owned interface address pools.
 const NATAddressName = "nat44-ed.interface-address.wan"
 
 // NATObjects configures post-routing SNAT; it requires an explicitly enabled ED

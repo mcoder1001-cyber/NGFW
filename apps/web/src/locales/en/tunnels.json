@@ -176,9 +176,9 @@
   "unavailable": "Unavailable",
   "stateError": "Live tunnel state could not be read. Configuration remains editable.",
   "limits": {
-    "gtpu": "GTP-U uses guarded dump-first operations. Dedicated host acceptance requires NGFW_DF6_GTPU_HOST=1; forwarding defaults to drop.",
-    "l2tpv3": "VPP cannot delete L2TPv3 tunnels. Removal or changes that require recreation fail; cookie changes can update in place. Host creation tests require NGFW_DF6_L2TP_CREATE=1. Only default underlay VRF is supported.",
-    "pppoe": "These are VPP PPPoE session records, not an ISP dialer. PPPoE client discovery and authentication are configured on the Interfaces page.",
-    "sixrd": "6RD is configured inside IPIP. VPP has no getter for its parameters; configured prefixes are not reported as live endpoints."
+    "gtpu": "GTP-U forwarding drops packets by default. Enable forwarding only after validating the configured path.",
+    "l2tpv3": "This build cannot delete L2TPv3 tunnels. Removal or changes requiring recreation fail; cookies can update in place. Only the default underlay VRF is supported.",
+    "pppoe": "These entries configure PPPoE session records. Configure WAN discovery and authentication on the Interfaces page.",
+    "sixrd": "6RD is configured inside IPIP. Its configured prefixes are not reported as live endpoints."
   }
 }

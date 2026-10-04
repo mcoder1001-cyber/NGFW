@@ -62,7 +62,13 @@ func (s *Service) vrrpState(ctx context.Context, req *ngfwv1.VrrpStateRequest) (
 		row := &ngfwv1.VrrpRuntime{Name: n, Engine: engine, State: "unknown"}
 		if engine == "vpp" {
 			row.Error = vppErr
-			key := string(vrrp.KeyVR(vrrp.VR{Interface: v.GetInterface(), VRID: uint8(v.GetVrId()), IPv6: v.GetAddressFamily() == "ipv6"}))
+			vrid := v.GetVrId()
+			if vrid < 1 || vrid > 255 {
+				row.Error = "configured VRID is outside 1..255"
+				out.Routers = append(out.Routers, row)
+				continue
+			}
+			key := string(vrrp.KeyVR(vrrp.VR{Interface: v.GetInterface(), VRID: uint8(vrid), IPv6: v.GetAddressFamily() == "ipv6"}))
 			if obs, ok := observed[key]; ok {
 				row.State = obs.State
 				row.CurrentPriority = uint32(obs.Priority)
@@ -91,7 +97,13 @@ func (s *Service) vrrpState(ctx context.Context, req *ngfwv1.VrrpStateRequest) (
 						}
 						if obs.Dump != nil {
 							row.State = strings.ToLower(obs.Dump.State)
-							row.CurrentPriority = uint32(obs.Dump.EffectivePriority)
+							priority := obs.Dump.EffectivePriority
+							if priority < 0 || priority > 255 {
+								row.State = "unknown"
+								row.Error = "observed VRRP priority is outside 0..255"
+							} else {
+								row.CurrentPriority = uint32(priority)
+							}
 						}
 					}
 				}

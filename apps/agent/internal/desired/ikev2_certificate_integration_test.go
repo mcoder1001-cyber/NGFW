@@ -69,7 +69,11 @@ func TestIKEv2NativeCertificateProduction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer logfile.Close()
+	defer func() {
+		if err := logfile.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	t.Cleanup(func() {
 		if t.Failed() {
 			//nolint:gosec // Integration fixture reads only its own private log file.
@@ -104,7 +108,11 @@ func TestIKEv2NativeCertificateProduction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cc.Close()
+	defer func() {
+		if err := cc.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	client := ngfwv1.NewDataplaneClient(cc)
 	ready := func() {
 		t.Helper()

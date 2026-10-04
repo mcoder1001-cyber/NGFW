@@ -446,7 +446,7 @@ describe('routing', () => {
     for (const bad of ['49.0001.1921.6800.1001', '49.1.2.3.00', '', 'gg.0001.1921.6800.1001.00'])
       expect(isisNet.safeParse(bad).success).toBe(false);
     expect(IsisSchema.parse({ net: NET, interfaces: { loop0: {} } }).interfaces).toEqual({
-      loop0: { passive: false, bfd: false },
+      loop0: { passive: false, bfd: false, ipv4: true, ipv6: true },
     });
     expect(RipSchema.parse({ interfaces: { loop0: { passive: true } } })).toEqual({
       vrf: 'default',
@@ -454,6 +454,7 @@ describe('routing', () => {
       interfaces: { loop0: { passive: true } },
       redistribute: {},
       defaultMetric: 1,
+      version: 2,
     });
   });
 

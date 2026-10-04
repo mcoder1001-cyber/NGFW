@@ -151,3 +151,16 @@ Setup wizard: seven-step staged first boot/re-run and password/confirmed commit 
 PKI: operational secure materializer, sealed cache adapter and mutation UI completed. Real browser/daemon acceptance NOT RUN. Native IKEv2 certificate consumers belong to the separate native task. Public CA/CRL and operational keys only; CA signing keys stay API-side.
 
 OSPF: v3 contracts/rendering, fixture MD5 auth, Event20 and bounded on-demand state/UI completed. Production MD5 delivery remains explicitly PENDING-secret-channel per the task prompt. Real v2/v3 VPP FIB, withdrawal/restart/rollback and browser acceptance NOT RUN.
+
+## Running-task source completion — 2026-10-04
+
+Reviewed source merged through PR151 (tunnels, IS-IS/RIPng, native SA events), PR153 (fresh package staging), PR154 (WAN), PR155 (HA). Existing owner hosted/full CI waiver is retained; focused checks and integrated builds passed, not a complete hosted gate. Evidence: tasks/complete-running-20261004-wip.md, tasks/wan-integration-20261004.md and tasks/ha-integration-20261004.md.
+
+| Task | Deferred laboratory acceptance (NOT RUN) | Source limit / separate decision |
+|---|---|---|
+| F-tunnels | Deployed browser, live tunnel/FIB/stats transitions, packet/restart/rollback exercises | Live unavailable/absent fields remain explicit |
+| F-isis-rip | Dual-peer IPv4/IPv6 adjacency, route/FIB withdrawal, source password rotation, daemon/agent restart and rollback, deployed browser | Sealed production password references implemented; package fixtures are source evidence |
+| F-multiwan-host | Timed packet failover/restore, 1000-flow weighted split/affinity, NAT session preservation, restart/rollback | Static gateways, default namespace/default VRF probes; unsupported VRF/netns unavailable; DHCP/PPPoE handoff not built |
+| F-vrrp-config-sync | Dual-appliance VRRP master change/split-brain, peer-offline recovery, anti-lockout and configuration-sync reconciliation | Single automatic writer; mixed/unknown roles refuse; HA NAT/IPsec/ACL state synchronization unsupported and warns |
+
+P11/native certificate provisioning is a real pending source/trust decision, not deferred laboratory acceptance. P10 file-ownership privileges/license and TD19 bootstrap trust remain pending decisions. No shared VPP restart, service changes or package installation occurred.

@@ -1,0 +1,7 @@
+# F-det44-cnat-fix — review R4+R1 @ 90418916: APPROVE WITH CHANGES (0 BLOCKER, 0 MAJOR, 3 MINOR, 3 NIT)
+Filed by the manager from the read-only reviewer's hand-back. VPP claim verified in /root/vpp v26.06 (det44.c:215-216 enables on delete; config.c no dup check; feature_api.c:78 bool cast).
+1. MINOR (fix in this branch): test/topology/det44/arc_test.go:272-282 calls f.sc.loss(); vpp_test.go:182-187 loss() sends dslite_add_del_pool_addr_range is_add=false for slot pools — D-211 ban. Fix: the split test's cleanup skips o.pool (pool-free loss variant, or log + fail).
+2. MINOR (fix in this branch, manager grants ONE shared hunk in apps/agent/internal/desired/det44.go): assembleDet44 (:122-129) projects det44.interface/<if>#leftover/<side> into nat.det44 inside/outside (enabled:true, invalid name with '#') → /state/drift shows it. Fix: skip keys ending in det44.LeftoverSuffix; unit test.
+3. MINOR (tech debt, not now): det44.go:530-566 leftovers() costs 2 feature_is_enabled per owned interface per plan → note in status Out of scope.
+4. NIT det44.go:438 rollback recreate returns IfMeta{} (SwIfIndex 0) → guard Delete on SwIfIndex==0. 5. NIT docs/agent/descriptors/det44.md table lacks feature_* and #leftover (you may add the rows). 6. NIT fixed sleeps in arc_test.go:303, det44_test.go:382 (pre-existing, optional).
+Fix round: findings 1+2 required (+4,5 optional); unit tests only, no host re-run needed unless you change the harness behaviour beyond the cleanup filter.

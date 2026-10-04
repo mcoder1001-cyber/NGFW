@@ -1,0 +1,1209 @@
+Thu Oct  1 09:33:24 PM +0330 2026
+NRestarts=0
+=== RUN   TestDet44MapDsliteCnatOnHost
+    det44_test.go:197: 21:33:28 before the test: systemctl show vpp -p NRestarts → NRestarts=0
+    det44_test.go:217: GLOBALS WINDOW start 2026-10-01T21:33:28+03:30 (flock -x /run/lock/vrx-globals.lock inside flock -s /run/lock/vrx-lab.lock)
+    det44_test.go:227: det44 plugin enable (V9 window step, VRX_FDET44_DET44_HOST=1): det44_plugin_enable_disable enable=1 inside_vrf=0 outside_vrf=0 → was already enabled: true (never disabled; stays enabled until the next VPP restart)
+    det44_test.go:233: fixture: dslite_set_aftr_addr ipv6=fd00:10::aa ipv4=0.0.0.0 (previous ipv6=:: ipv4=0.0.0.0; restored in Cleanup)
+    det44_test.go:234: 21:33:28 after the global fixtures: systemctl show vpp -p NRestarts → NRestarts=0
+    det44_test.go:237: rig up w16 (slot 16, path af_packet)
+          create netns ns-w16-lan
+          create veth w16l0 <-> ns-w16-lan:w16l1
+          create vpp host-w16l0 (af_packet on w16l0)
+          reset  ip/ip6 classify host-w16l0 (table-index ~0)
+          set    addr host-w16l0 10.16.1.1/24
+          create netns ns-w16-wan
+          create veth w16w0 <-> ns-w16-wan:w16w1
+          create vpp host-w16w0 (af_packet on w16w0)
+          reset  ip/ip6 classify host-w16w0 (table-index ~0)
+          set    addr host-w16w0 10.16.2.1/24
+        rig: up
+        prefix: w16
+        slot: 16
+        path: af_packet
+        lan_ns: ns-w16-lan
+        lan_veth: w16l1
+        lan_ip: 10.16.1.2/24
+        lan_gw: 10.16.1.1
+        vpp_lan_if: host-w16l0
+        vpp_lan_addr: 10.16.1.1/24 
+        wan_ns: ns-w16-wan
+        wan_veth: w16w1
+        wan_ip: 10.16.2.2/24
+        wan_gw: 10.16.2.1
+        vpp_wan_if: host-w16w0
+        vpp_wan_addr: 10.16.2.1/24 
+        ping: ip netns exec ns-w16-lan ping -c 3 10.16.2.2
+        
+    det44_test.go:244: rig VPP side handed to the agent: classify reset (ip4+ip6 → ~0, D-185) + sw_interface_add_del_address sw_if_index=6 (host-w16l0) del_all=true → ok
+    det44_test.go:244: rig VPP side handed to the agent: af_packet_delete host_if_name=w16l0 (tag "") → ok
+    det44_test.go:244: rig VPP side handed to the agent: classify reset (ip4+ip6 → ~0, D-185) + sw_interface_add_del_address sw_if_index=5 (host-w16w0) del_all=true → ok
+    det44_test.go:244: rig VPP side handed to the agent: af_packet_delete host_if_name=w16w0 (tag "") → ok
+    det44_test.go:249: started vrx-agent pid 323025 (log /run/vrx-test/w16/det44/agent.log)
+=== RUN   TestDet44MapDsliteCnatOnHost/config
+    det44_test.go:265: Apply det44-rev1-interfaces → APPLY_STATUS_APPLIED results=10 summary={
+          "txnId": "det44-rev1-interfaces",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "ip.route/0/fd00:10:65::/64",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/routing/static/0",
+              "subsystem": "routing"
+            },
+            {
+              "key": "af-packet.host-interface/host-w16l0",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/interfaces/host-w16l0",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "af-packet.host-interface/host-w16w0",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/interfaces/host-w16w0",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface/host-w16l0",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/interfaces/host-w16l0",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface-ip/host-w16l0/10.16.1.1/24",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/interfaces/host-w16l0/ipv4/0",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface.admin-state/host-w16…
+    det44_test.go:268: interfaces created by the agent: host-w16l0=5 host-w16w0=6
+    det44_test.go:279: Apply det44-rev2-full → APPLY_STATUS_APPLIED results=11: {
+          "txnId": "det44-rev2-full",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "det44.enable/global",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/det44",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.interface/host-w16l0/inside",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/det44/inside/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.interface/host-w16w0/outside",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/det44/outside/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.map/10.16.1.0/24/10.16.3.0/30",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/det44/mappings/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "dslite.aftr/global",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/dslite/aftr",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.domain/lw",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/1",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0/rules/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/2",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0/rules/1",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16l0/map-e",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/interfaces/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16w0/map-e",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/interfaces/1",
+              "subsystem": "nat"
+            },
+            {
+              "key": "cnat.translation/10.16.2.100/tcp/80",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/cnat/translations/0",
+              "subsystem": "nat"
+            }
+          ],
+          "summary": {
+            "created": 11,
+            "unchanged": 10
+          },
+          "appliedAt": "2026-10-01T18:03:35.436841536Z"
+        }
+    det44_test.go:281: Retrieve(nat) after rev 2 = {
+          "det44": {
+            "enabled": true,
+            "inside": [
+              "host-w16l0"
+            ],
+            "outside": [
+              "host-w16w0"
+            ],
+            "mappings": [
+              {
+                "inside": "10.16.1.0/24",
+                "outside": "10.16.3.0/30"
+              }
+            ]
+          },
+          "map": {
+            "domains": [
+              {
+                "name": "lw",
+                "mode": "lw4o6",
+                "ipv4Prefix": "10.16.65.1/32",
+                "ipv6Prefix": "fd00:10:65::/64",
+                "ipv6Source": "fd00:10::1/128",
+                "eaBitsLength": 0,
+                "psidOffset": 6,
+                "psidLength": 4,
+                "rules": [
+                  {
+                    "psid": 1,
+                    "ipv6Destination": "fd00:10:65::1"
+                  },
+                  {
+                    "psid": 2,
+                    "ipv6Destination": "fd00:10:65::2"
+                  }
+                ]
+              }
+            ],
+            "interfaces": [
+              {
+                "interface": "host-w16l0",
+                "mode": "map-e"
+              },
+              {
+                "interface": "host-w16w0",
+                "mode": "map-e"
+              }
+            ]
+          },
+          "cnat": {
+            "translations": [
+              {
+                "protocol": "tcp",
+                "vip": {
+                  "ip": "10.16.2.100",
+                  "port": 80
+                },
+                "backends": [
+                  {
+                    "ip": "10.16.2.2",
+                    "port": 8080
+                  },
+                  {
+                    "ip": "10.16.2.3",
+                    "port": 8080
+                  }
+                ],
+                "lbType": "default"
+              }
+            ]
+          }
+        }
+    det44_test.go:282: Apply det44-rev2-again → APPLY_STATUS_APPLIED results=0 summary={
+          "txnId": "det44-rev2-again",
+          "status": "APPLY_STATUS_APPLIED",
+          "summary": {
+            "unchanged": 21
+          },
+          "appliedAt": "2026-10-01T18:03:35.587550774Z"
+        }
+    det44_test.go:285: re-apply of the same document: no result (nothing changed)
+    det44_test.go:287: slot objects in VPP after rev 2: 5 → det44-if(sw_if_index=6 in=false out=true) det44-if(sw_if_index=5 in=true out=false) det44-map(10.16.1.0/24→10.16.3.0/30 ratio=64 ports/host=1008 sessions=0) map-domain(0 tag="w16:lw" ip4=10.16.65.1/32 ip6=fd00:10:65::/64 src=fd00:10::1/128 ea=0 psid=6+4) cnat-translation(id=0 vip=10.16.2.100:80 proto=6 lb=0 paths=[10.16.2.2:8080 10.16.2.3:8080])
+    det44_test.go:291: vppctl show det44 interfaces (ours):
+         host-w16w0 out
+         host-w16l0 in
+    det44_test.go:291: vppctl show det44 mappings (ours):
+         in 10.16.1.0/24 out 10.16.3.0/30
+    det44_test.go:291: vppctl show map domain (ours):
+        [0] tag {w16:lw} ip4-pfx 10.16.65.1/32 ip6-pfx ::/64 ip6-src fd00:10::1/128 ea-bits-len 0 psid-offset 6 psid-len 4 mtu 0 
+         rule psid: 1 ip6-dst fd00:10:65::1
+         rule psid: 2 ip6-dst fd00:10:65::2
+    det44_test.go:291: vppctl show cnat translation (ours):
+        [0] 10.16.2.100;80 TCP lb:default fhc:0x9f(default)
+        0.0.0.0;0->10.16.2.2;8080
+                [0] [@3]: arp-ipv4: via 10.16.2.2 host-w16w0
+        0.0.0.0;0->10.16.2.3;8080
+                [0] [@3]: arp-ipv4: via 10.16.2.3 host-w16w0
+                  [0] [@3]: arp-ipv4: via 10.16.2.2 host-w16w0
+                  [0] [@3]: arp-ipv4: via 10.16.2.3 host-w16w0
+    det44_test.go:291: vppctl show dslite aftr-tunnel-endpoint-address: fd00:10::aa
+    det44_test.go:291: vppctl show dslite b4-tunnel-endpoint-address: ::
+    det44_test.go:291: vppctl show dslite pool (ours):
+        
+    det44_test.go:292: ARC after rev 2 (det44 inside lan / outside wan):
+            host-w16l0(sw_if_index=5) det44 pool: in=true out=false; feature_is_enabled det44-in2out=true det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-in2out]
+            host-w16w0(sw_if_index=6) det44 pool: in=false out=true; feature_is_enabled det44-in2out=false det44-out2in=true; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-out2in]
+    det44_test.go:293: 21:33:35 after config: systemctl show vpp -p NRestarts → NRestarts=0
+=== RUN   TestDet44MapDsliteCnatOnHost/restart
+    helpers_test.go:208: stopped vrx-agent pid 323025
+    det44_test.go:349: simulated loss: det44_add_del_map is_add=false 10.16.1.0/24 → 10.16.3.0/30 → ok
+    det44_test.go:349: simulated loss: det44_interface_add_del_feature is_add=false sw_if_index=6 (host-w16w0) inside=false → ok
+    det44_test.go:349: simulated loss: det44_interface_add_del_feature is_add=false sw_if_index=5 (host-w16l0) inside=true → ok
+    det44_test.go:349: simulated loss: map_if_enable_disable is_enable=false sw_if_index=6 (host-w16w0) → ok
+    det44_test.go:349: simulated loss: map_if_enable_disable is_enable=false sw_if_index=5 (host-w16l0) → ok
+    det44_test.go:349: simulated loss: map_del_domain index=0 (tag "w16:lw") → ok
+    det44_test.go:349: simulated loss: cnat_translation_del id=0 (vip 10.16.2.100:80) → ok
+    det44_test.go:354: dumps after the loss: no det44 / map / cnat / dslite object of the slot
+    det44_test.go:355: ARC after the loss behind the agent's back (raw det44 delete, VPP 26.06 adds a node):
+            host-w16l0(sw_if_index=5) det44 pool: none; feature_is_enabled det44-in2out=true det44-out2in=false; ip4-unicast arc: [det44-in2out det44-in2out]
+            host-w16w0(sw_if_index=6) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=true; ip4-unicast arc: [det44-out2in det44-out2in]
+    det44_test.go:358: started vrx-agent pid 323139 (log /run/vrx-test/w16/det44/agent.log)
+    det44_test.go:364: NAT back in Retrieve 0.12s after the agent start (agent up at 2026-10-01T21:33:35.978588388+03:30): 5 objects → det44-if(sw_if_index=6 in=false out=true) det44-if(sw_if_index=5 in=true out=false) det44-map(10.16.1.0/24→10.16.3.0/30 ratio=64 ports/host=1008 sessions=0) map-domain(0 tag="w16:lw" ip4=10.16.65.1/32 ip6=fd00:10:65::/64 src=fd00:10::1/128 ea=0 psid=6+4) cnat-translation(id=0 vip=10.16.2.100:80 proto=6 lb=0 paths=[10.16.2.2:8080 10.16.2.3:8080])
+    det44_test.go:368: ARC after the agent restart (resync: leftover nodes repaired, one det44 add each):
+            host-w16l0(sw_if_index=5) det44 pool: in=true out=false; feature_is_enabled det44-in2out=true det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-in2out]
+            host-w16w0(sw_if_index=6) det44 pool: in=false out=true; feature_is_enabled det44-in2out=false det44-out2in=true; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-out2in]
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:32.755826614+03:30","level":"INFO","msg":"acl domain wired","owner":"w16","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.173553959+03:30","level":"INFO","msg":"reconcile start","owner":"w16","txn_id":"","mode":"resync","domains":null}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.255804741+03:30","level":"INFO","msg":"reconcile done","owner":"w16","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":82030337,"err":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.255927646+03:30","level":"INFO","msg":"resync finished","owner":"w16","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.256163099+03:30","level":"INFO","msg":"reconcile start","owner":"w16","txn_id":"det44-rev1-interfaces","mode":"apply","domains":["interfaces","routing","nat"]}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.337352959+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"ip.route/0/fd00:10:65::/64"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:33.512804037+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"af-packet.host-interface/host-w16l0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.179173076+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"af-packet.host-interface/host-w16w0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.181088028+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface/host-w16l0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.183185339+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface-ip/host-w16l0/10.16.1.1/24"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.185145841+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface.admin-state/host-w16l0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.186009194+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface/host-w16w0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.18751802+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface-ip/host-w16w0/10.16.2.1/24"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.188876135+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface-ip/host-w16w0/fd00:10:2::1/64"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.190387885+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"interface.admin-state/host-w16w0"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.250557612+03:30","level":"INFO","msg":"reconcile done","owner":"w16","txn_id":"det44-rev1-interfaces","mode":"apply","domains":["interfaces","routing","nat"],"status":"APPLY_STATUS_APPLIED","summary":"created:10","reapplied":0,"duration":1994212201,"err":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.261863356+03:30","level":"INFO","msg":"reconcile start","owner":"w16","txn_id":"det44-rev2-full","mode":"apply","domains":["interfaces","routing","nat"]}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.353777644+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.enable/global"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.356606895+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.interface/host-w16l0/inside"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.359326565+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.interface/host-w16w0/outside"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.365071698+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.map/10.16.1.0/24/10.16.3.0/30"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.366459967+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"dslite.aftr/global"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.367665089+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.domain/lw"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.369162559+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.rule/lw/1"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.370756183+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.rule/lw/2"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.37240987+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.interface/host-w16l0/map-e"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.37396834+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.interface/host-w16w0/map-e"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.375188806+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"cnat.translation/10.16.2.100/tcp/80"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.439150625+03:30","level":"INFO","msg":"reconcile done","owner":"w16","txn_id":"det44-rev2-full","mode":"apply","domains":["interfaces","routing","nat"],"status":"APPLY_STATUS_APPLIED","summary":"created:11  unchanged:10","reapplied":0,"duration":177253710,"err":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.481597859+03:30","level":"INFO","msg":"reconcile start","owner":"w16","txn_id":"det44-rev2-again","mode":"apply","domains":["interfaces","routing","nat"]}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.589348124+03:30","level":"INFO","msg":"reconcile done","owner":"w16","txn_id":"det44-rev2-again","mode":"apply","domains":["interfaces","routing","nat"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:21","reapplied":0,"duration":107983324,"err":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.883033603+03:30","level":"INFO","msg":"acl domain wired","owner":"w16","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.890353895+03:30","level":"INFO","msg":"reconcile start","owner":"w16","txn_id":"","mode":"resync","domains":["interfaces","routing","nat"]}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.993676005+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.enable/global"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.996178548+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.interface/host-w16l0/inside"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:35.998887253+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.interface/host-w16w0/outside"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.004156451+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"det44.map/10.16.1.0/24/10.16.3.0/30"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.005431446+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"dslite.aftr/global"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.006620022+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.domain/lw"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.00794672+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.rule/lw/1"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.009012851+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.rule/lw/2"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.010568034+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.interface/host-w16l0/map-e"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.012123815+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"map.interface/host-w16w0/map-e"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.013174068+03:30","level":"INFO","msg":"created","owner":"w16","component":"scheduler","key":"cnat.translation/10.16.2.100/tcp/80"}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.07763228+03:30","level":"INFO","msg":"reconcile done","owner":"w16","txn_id":"","mode":"resync","domains":["interfaces","routing","nat"],"status":"APPLY_STATUS_APPLIED","summary":"created:11  deleted:2  unchanged:10","reapplied":0,"duration":187158977,"err":""}
+    det44_test.go:371: agent log: {"time":"2026-10-01T21:33:36.077703169+03:30","level":"INFO","msg":"resync finished","owner":"w16","why":"connect","status":"APPLY_STATUS_APPLIED","summary":"created:11  deleted:2  unchanged:10"}
+    helpers_test.go:208: stopped vrx-agent pid 323139
+    det44_test.go:376: started vrx-agent pid 323158 (log /run/vrx-test/w16/det44/agent.log)
+    det44_test.go:380: second restart (no loss): Retrieve == canonical after 0.04s
+    det44_test.go:384: slot objects after the resync re-apply: 5 → det44-if(sw_if_index=6 in=false out=true) det44-if(sw_if_index=5 in=true out=false) det44-map(10.16.1.0/24→10.16.3.0/30 ratio=64 ports/host=1008 sessions=0) map-domain(0 tag="w16:lw" ip4=10.16.65.1/32 ip6=fd00:10:65::/64 src=fd00:10::1/128 ea=0 psid=6+4) cnat-translation(id=0 vip=10.16.2.100:80 proto=6 lb=0 paths=[10.16.2.2:8080 10.16.2.3:8080])
+    det44_test.go:388: ARC after the second restart (no loss):
+            host-w16l0(sw_if_index=5) det44 pool: in=true out=false; feature_is_enabled det44-in2out=true det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-in2out]
+            host-w16w0(sw_if_index=6) det44 pool: in=false out=true; feature_is_enabled det44-in2out=false det44-out2in=true; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map det44-out2in]
+    det44_test.go:389: 21:33:37 after restart: systemctl show vpp -p NRestarts → NRestarts=0
+=== RUN   TestDet44MapDsliteCnatOnHost/det44-packets
+    det44_test.go:395: Apply det44-rev3-det44-only → APPLY_STATUS_APPLIED results=6 summary={
+          "txnId": "det44-rev3-det44-only",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "cnat.translation/10.16.2.100/tcp/80",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16w0/map-e",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16l0/map-e",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/2",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/1",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.domain/lw",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            }
+          ],
+          "summary": {
+            "deleted": 6,
+            "unchanged": 15
+          },
+          "appliedAt": "2026-10-01T18:03:37.633911613Z"
+        }
+    det44_test.go:396: Retrieve(nat) after rev 3 (det44 + dslite) = {
+          "det44": {
+            "enabled": true,
+            "inside": [
+              "host-w16l0"
+            ],
+            "outside": [
+              "host-w16w0"
+            ],
+            "mappings": [
+              {
+                "inside": "10.16.1.0/24",
+                "outside": "10.16.3.0/30"
+              }
+            ]
+          }
+        }
+    det44_test.go:397: ARC after rev 3 (det44 only):
+            host-w16l0(sw_if_index=5) det44 pool: in=true out=false; feature_is_enabled det44-in2out=true det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature det44-in2out]
+            host-w16w0(sw_if_index=6) det44 pool: in=false out=true; feature_is_enabled det44-in2out=false det44-out2in=true; ip4-unicast arc: [ip4-sv-reassembly-feature det44-out2in]
+    det44_test.go:400: V19 guard: classify_table_by_interface host-w16l0 sw_if_index=5 l2=~0 ip4=~0 ip6=~0
+    det44_test.go:400: V19 guard: acl_interface_list_dump host-w16l0: 0 ACLs
+    det44_test.go:400: V19 guard: classify_table_by_interface host-w16w0 sw_if_index=6 l2=~0 ip4=~0 ip6=~0
+    det44_test.go:400: V19 guard: acl_interface_list_dump host-w16w0: 0 ACLs
+    det44_test.go:400: V19 guard: ipsec_spd_interface_dump: no SPD on the rig interfaces
+    det44_test.go:400: V19 guard: reset write-only ip4/ip6 classify table and l2 in/out tables of host-w16l0 to ~0
+    det44_test.go:400: V19 guard: reset write-only ip4/ip6 classify table and l2 in/out tables of host-w16w0 to ~0
+    det44_test.go:404: vrx-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    det44_test.go:416: started wan-server-8000 pid 323214 (log /run/vrx-test/w16/det44/wan-server-8000.log)
+    det44_test.go:418: started tcpdump-wan-det44 pid 323251 (log /run/vrx-test/w16/det44/tcpdump-wan-det44.log)
+    det44_test.go:419: started lan-client-40001 pid 323287 (log /run/vrx-test/w16/det44/lan-client-40001.log)
+    helpers_test.go:208: stopped tcpdump-wan-det44 pid 323251
+    det44_test.go:422: tcpdump -i w16w1 (netns ns-w16-wan) tcp port 8000:
+        21:33:41.654737 IP 10.16.3.0.3729 > 10.16.2.2.8000: Flags [S], seq 1564343864, win 64240, options [mss 1460,sackOK,TS val 4016579815 ecr 0,nop,wscale 13], length 0
+        21:33:41.654806 IP 10.16.2.2.8000 > 10.16.3.0.3729: Flags [S.], seq 1346153413, ack 1564343865, win 65160, options [mss 1460,sackOK,TS val 619790368 ecr 4016579815,nop,wscale 13], length 0
+        21:33:41.656646 IP 10.16.3.0.3729 > 10.16.2.2.8000: Flags [.], ack 1, win 8, options [nop,nop,TS val 4016579817 ecr 619790368], length 0
+        21:33:41.657095 IP 10.16.2.2.8000 > 10.16.3.0.3729: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 619790370 ecr 4016579817], length 13
+        21:33:41.658639 IP 10.16.3.0.3729 > 10.16.2.2.8000: Flags [.], ack 14, win 8, options [nop,nop,TS val 4016579819 ecr 619790370], length 0
+    det44_test.go:424: lan client (10.16.1.2:40001 → 10.16.2.2:8000) read: "10.16.2.2 ok"
+    det44_test.go:449: Det44Lookup(inside 10.16.1.2) → outside 10.16.3.0 ports 3040-4047
+    det44_test.go:458: Det44Lookup(outside 10.16.3.0:3729) → inside 10.16.1.2
+    det44_test.go:466: Det44Sessions(user 10.16.1.2) → total 2 outside 10.16.3.0 ports 3040-4047 first {
+          "sessions": [
+            {
+              "insidePort": 61052,
+              "outsidePort": 3612,
+              "externalAddress": "10.16.2.2",
+              "state": "icmp-active",
+              "expire": 203648
+            },
+            {
+              "insidePort": 40001,
+              "outsidePort": 3729,
+              "externalAddress": "10.16.2.2",
+              "externalPort": 8000,
+              "state": "tcp-established",
+              "expire": 211031
+            }
+          ],
+          "totalSessions": "2",
+          "outsideAddress": "10.16.3.0",
+          "portLo": 3040,
+          "portHi": 4047,
+          "owner": "w16",
+          "retrievedAt": "2026-10-01T18:03:43.404170920Z"
+        }
+    det44_test.go:468: det44_session_dump user 10.16.1.2: 2 sessions (binary API)
+    det44_test.go:472: vppctl show det44 sessions (ours):
+          in 10.16.1.2:61052 out 10.16.3.0:3612 external host 10.16.2.2:0 state: icmp-active expire: 203648
+          in 10.16.1.2:40001 out 10.16.3.0:3729 external host 10.16.2.2:8000 state: tcp-established expire: 211031
+    det44_test.go:473: DET44 packet path OK (path: af_packet): 10.16.1.2:40001 → 10.16.3.0:3729 → 10.16.2.2:8000; sessions 2
+    det44_test.go:474: 21:33:43 after det44 packets: systemctl show vpp -p NRestarts → NRestarts=0
+    helpers_test.go:208: stopped lan-client-40001 pid 323287
+    helpers_test.go:208: stopped wan-server-8000 pid 323214
+=== RUN   TestDet44MapDsliteCnatOnHost/map-cnat-packets
+    det44_test.go:533: Apply det44-rev4a-cnat → APPLY_STATUS_APPLIED results=5 summary={
+          "txnId": "det44-rev4a-cnat",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "det44.map/10.16.1.0/24/10.16.3.0/30",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.interface/host-w16w0/outside",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.interface/host-w16l0/inside",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "det44.enable/global",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "cnat.translation/10.16.2.100/tcp/80",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/cnat/translations/0",
+              "subsystem": "nat"
+            }
+          ],
+          "summary": {
+            "created": 1,
+            "deleted": 4,
+            "unchanged": 11
+          },
+          "appliedAt": "2026-10-01T18:03:43.627424989Z"
+        }
+    det44_test.go:538: Retrieve(nat) after rev 4a (cnat + dslite) = {
+          "cnat": {
+            "translations": [
+              {
+                "protocol": "tcp",
+                "vip": {
+                  "ip": "10.16.2.100",
+                  "port": 80
+                },
+                "backends": [
+                  {
+                    "ip": "10.16.2.2",
+                    "port": 8080
+                  },
+                  {
+                    "ip": "10.16.2.3",
+                    "port": 8080
+                  }
+                ],
+                "lbType": "default"
+              }
+            ]
+          }
+        }
+    det44_test.go:576: started wan-be1-8080 pid 323396 (log /run/vrx-test/w16/det44/wan-be1-8080.log)
+    det44_test.go:577: started wan-be2-8080 pid 323397 (log /run/vrx-test/w16/det44/wan-be2-8080.log)
+    det44_test.go:579: vppctl show cnat translation (ours):
+        [0] 10.16.2.100;80 TCP lb:default fhc:0x9f(default)
+        0.0.0.0;0->10.16.2.2;8080
+                [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+        0.0.0.0;0->10.16.2.3;8080
+                [0] [@3]: arp-ipv4: via 10.16.2.3 host-w16w0
+                  [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+                  [0] [@3]: arp-ipv4: via 10.16.2.3 host-w16w0
+    det44_test.go:580: ARC after rev 4a (det44 removed from the document):
+            host-w16l0(sw_if_index=5) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: []
+            host-w16w0(sw_if_index=6) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: []
+    det44_test.go:583: started tcpdump-wan-cnat-27620 pid 323407 (log /run/vrx-test/w16/det44/tcpdump-wan-cnat-27620.log)
+    det44_test.go:583: rev 4a (cnat + dslite, no map): lan → VIP 10.16.2.100:80, 12 flows from port 27620: <nil>
+        27620 10.16.2.2 ok
+        27621 10.16.2.2 ok
+        27622 10.16.2.3 ok
+        27623 10.16.2.2 ok
+        27624 10.16.2.3 ok
+        27625 10.16.2.3 ok
+        27626 10.16.2.2 ok
+        27627 10.16.2.2 ok
+        27628 10.16.2.2 ok
+        27629 10.16.2.2 ok
+        27630 10.16.2.3 ok
+        27631 10.16.2.3 ok
+        connected 12 of 12
+    helpers_test.go:208: stopped tcpdump-wan-cnat-27620 pid 323407
+    det44_test.go:583: tcpdump -i w16w1 (netns ns-w16-wan) arp or tcp port 8080:
+        21:33:44.875298 IP 10.16.1.2.27620 > 10.16.2.2.8080: Flags [S], seq 4043019254, win 64240, options [mss 1460,sackOK,TS val 2742113090 ecr 0,nop,wscale 13], length 0
+        21:33:44.875370 IP 10.16.2.2.8080 > 10.16.1.2.27620: Flags [S.], seq 1096648861, ack 4043019255, win 65160, options [mss 1460,sackOK,TS val 60079557 ecr 2742113090,nop,wscale 13], length 0
+        21:33:44.876604 IP 10.16.1.2.27620 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 2742113092 ecr 60079557], length 0
+        21:33:44.877015 IP 10.16.2.2.8080 > 10.16.1.2.27620: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 60079559 ecr 2742113092], length 13: HTTP
+        21:33:44.878790 IP 10.16.1.2.27620 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 2742113094 ecr 60079559], length 0
+        21:33:44.878821 IP 10.16.1.2.27620 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 2742113094 ecr 60079559], length 0
+        21:33:44.878846 IP 10.16.1.2.27621 > 10.16.2.2.8080: Flags [S], seq 3354606156, win 64240, options [mss 1460,sackOK,TS val 3997508254 ecr 0,nop,wscale 13], length 0
+        21:33:44.878884 IP 10.16.2.2.8080 > 10.16.1.2.27621: Flags [S.], seq 3011679776, ack 3354606157, win 65160, options [mss 1460,sackOK,TS val 3860423879 ecr 3997508254,nop,wscale 13], length 0
+        21:33:44.879519 IP 10.16.2.2.8080 > 10.16.1.2.27620: Flags [.], ack 2, win 8, options [nop,nop,TS val 60079562 ecr 2742113094], length 0
+        21:33:44.880743 IP 10.16.1.2.27621 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3997508256 ecr 3860423879], length 0
+        21:33:44.880962 IP 10.16.2.2.8080 > 10.16.1.2.27621: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 3860423881 ecr 3997508256], length 13: HTTP
+        21:33:44.883290 IP 10.16.1.2.27621 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3997508258 ecr 3860423881], length 0
+        21:33:44.883324 IP 10.16.1.2.27621 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3997508258 ecr 3860423881], length 0
+        21:33:44.883522 IP 10.16.2.2.8080 > 10.16.1.2.27621: Flags [.], ack 2, win 8, options [nop,nop,TS val 3860423884 ecr 3997508258], length 0
+        21:33:45.915750 IP 10.16.1.2.27622 > 10.16.2.3.8080: Flags [S], seq 2937170826, win 64240, options [mss 1460,sackOK,TS val 1499640573 ecr 0,nop,wscale 13], length 0
+        21:33:45.915840 IP 10.16.2.3.8080 > 10.16.1.2.27622: Flags [S.], seq 1633197757, ack 2937170827, win 65160, options [mss 1460,sackOK,TS val 1422401775 ecr 1499640573,nop,wscale 13], length 0
+        21:33:45.917749 IP 10.16.1.2.27622 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 1499640575 ecr 1422401775], length 0
+        21:33:45.918262 IP 10.16.2.3.8080 > 10.16.1.2.27622: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 1422401777 ecr 1499640575], length 13: HTTP
+        21:33:45.919642 IP 10.16.1.2.27622 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 1499640577 ecr 1422401777], length 0
+        21:33:45.919669 IP 10.16.1.2.27622 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 1499640577 ecr 1422401777], length 0
+        21:33:45.919687 IP 10.16.1.2.27623 > 10.16.2.2.8080: Flags [S], seq 1863426740, win 64240, options [mss 1460,sackOK,TS val 2147786451 ecr 0,nop,wscale 13], length 0
+        21:33:45.919721 IP 10.16.2.2.8080 > 10.16.1.2.27623: Flags [S.], seq 162541877, ack 1863426741, win 65160, options [mss 1460,sackOK,TS val 94480101 ecr 2147786451,nop,wscale 13], length 0
+        21:33:45.920518 IP 10.16.2.3.8080 > 10.16.1.2.27622: Flags [.], ack 2, win 8, options [nop,nop,TS val 1422401780 ecr 1499640577], length 0
+        21:33:45.921893 IP 10.16.1.2.27623 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 2147786453 ecr 94480101], length 0
+        21:33:45.922208 IP 10.16.2.2.8080 > 10.16.1.2.27623: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 94480103 ecr 2147786453], length 13: HTTP
+        21:33:45.923928 IP 10.16.1.2.27623 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 2147786455 ecr 94480103], length 0
+        21:33:45.923951 IP 10.16.1.2.27623 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 2147786455 ecr 94480103], length 0
+        21:33:45.923969 IP 10.16.1.2.27624 > 10.16.2.3.8080: Flags [S], seq 1107126745, win 64240, options [mss 1460,sackOK,TS val 491966686 ecr 0,nop,wscale 13], length 0
+        21:33:45.923998 IP 10.16.2.3.8080 > 10.16.1.2.27624: Flags [S.], seq 1129456714, ack 1107126746, win 65160, options [mss 1460,sackOK,TS val 2831925795 ecr 491966686,nop,wscale 13], length 0
+        21:33:45.924513 IP 10.16.2.2.8080 > 10.16.1.2.27623: Flags [.], ack 2, win 8, options [nop,nop,TS val 94480106 ecr 2147786455], length 0
+        21:33:45.925636 IP 10.16.1.2.27624 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 491966688 ecr 2831925795], length 0
+        21:33:45.925853 IP 10.16.2.3.8080 > 10.16.1.2.27624: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2831925797 ecr 491966688], length 13: HTTP
+        21:33:45.927828 IP 10.16.1.2.27624 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 491966690 ecr 2831925797], length 0
+        21:33:45.927861 IP 10.16.1.2.27624 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 491966690 ecr 2831925797], length 0
+        21:33:45.927885 IP 10.16.1.2.27625 > 10.16.2.3.8080: Flags [S], seq 621761796, win 64240, options [mss 1460,sackOK,TS val 3820831948 ecr 0,nop,wscale 13], length 0
+        21:33:45.927922 IP 10.16.2.3.8080 > 10.16.1.2.27625: Flags [S.], seq 1085824665, ack 621761797, win 65160, options [mss 1460,sackOK,TS val 600361341 ecr 3820831948,nop,wscale 13], length 0
+        21:33:45.928567 IP 10.16.2.3.8080 > 10.16.1.2.27624: Flags [.], ack 2, win 8, options [nop,nop,TS val 2831925800 ecr 491966690], length 0
+        21:33:45.929682 IP 10.16.1.2.27625 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3820831950 ecr 600361341], length 0
+        21:33:45.929876 IP 10.16.2.3.8080 > 10.16.1.2.27625: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 600361343 ecr 3820831950], length 13: HTTP
+        21:33:45.931921 IP 10.16.1.2.27625 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3820831952 ecr 600361343], length 0
+        21:33:45.931964 IP 10.16.1.2.27625 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3820831952 ecr 600361343], length 0
+        21:33:45.931997 IP 10.16.1.2.27626 > 10.16.2.2.8080: Flags [S], seq 3807906824, win 64240, options [mss 1460,sackOK,TS val 3273253102 ecr 0,nop,wscale 13], length 0
+        21:33:45.932045 IP 10.16.2.2.8080 > 10.16.1.2.27626: Flags [S.], seq 1233931534, ack 3807906825, win 65160, options [mss 1460,sackOK,TS val 2746824940 ecr 3273253102,nop,wscale 13], length 0
+        21:33:45.932562 IP 10.16.2.3.8080 > 10.16.1.2.27625: Flags [.], ack 2, win 8, options [nop,nop,TS val 600361346 ecr 3820831952], length 0
+        21:33:45.933671 IP 10.16.1.2.27626 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3273253104 ecr 2746824940], length 0
+        21:33:45.933899 IP 10.16.2.2.8080 > 10.16.1.2.27626: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2746824942 ecr 3273253104], length 13: HTTP
+        21:33:45.935641 IP 10.16.1.2.27626 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3273253106 ecr 2746824942], length 0
+        21:33:45.935671 IP 10.16.1.2.27626 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3273253106 ecr 2746824942], length 0
+        21:33:45.935695 IP 10.16.1.2.27627 > 10.16.2.2.8080: Flags [S], seq 3040061798, win 64240, options [mss 1460,sackOK,TS val 2607414429 ecr 0,nop,wscale 13], length 0
+        21:33:45.935732 IP 10.16.2.2.8080 > 10.16.1.2.27627: Flags [S.], seq 3420499964, ack 3040061799, win 65160, options [mss 1460,sackOK,TS val 3882155371 ecr 2607414429,nop,wscale 13], length 0
+        21:33:45.936594 IP 10.16.2.2.8080 > 10.16.1.2.27626: Flags [.], ack 2, win 8, options [nop,nop,TS val 2746824945 ecr 3273253106], length 0
+        21:33:45.937713 IP 10.16.1.2.27627 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 2607414431 ecr 3882155371], length 0
+        21:33:45.937943 IP 10.16.2.2.8080 > 10.16.1.2.27627: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 3882155373 ecr 2607414431], length 13: HTTP
+        21:33:45.939958 IP 10.16.1.2.27627 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 2607414433 ecr 3882155373], length 0
+        21:33:45.939989 IP 10.16.1.2.27627 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 2607414433 ecr 3882155373], length 0
+        21:33:45.940013 IP 10.16.1.2.27628 > 10.16.2.2.8080: Flags [S], seq 249041550, win 64240, options [mss 1460,sackOK,TS val 651866724 ecr 0,nop,wscale 13], length 0
+        21:33:45.940049 IP 10.16.2.2.8080 > 10.16.1.2.27628: Flags [S.], seq 374679850, ack 249041551, win 65160, options [mss 1460,sackOK,TS val 2684993075 ecr 651866724,nop,wscale 13], length 0
+        21:33:45.940517 IP 10.16.2.2.8080 > 10.16.1.2.27627: Flags [.], ack 2, win 8, options [nop,nop,TS val 3882155376 ecr 2607414433], length 0
+        21:33:45.941686 IP 10.16.1.2.27628 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 651866726 ecr 2684993075], length 0
+        21:33:45.941905 IP 10.16.2.2.8080 > 10.16.1.2.27628: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2684993077 ecr 651866726], length 13: HTTP
+        21:33:45.944389 IP 10.16.1.2.27628 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 651866728 ecr 2684993077], length 0
+        21:33:45.944421 IP 10.16.1.2.27628 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 651866728 ecr 2684993077], length 0
+        21:33:45.944445 IP 10.16.1.2.27629 > 10.16.2.2.8080: Flags [S], seq 2302655213, win 64240, options [mss 1460,sackOK,TS val 3855854320 ecr 0,nop,wscale 13], length 0
+        21:33:45.944518 IP 10.16.2.2.8080 > 10.16.1.2.27629: Flags [S.], seq 1037936901, ack 2302655214, win 65160, options [mss 1460,sackOK,TS val 612562060 ecr 3855854320,nop,wscale 13], length 0
+        21:33:45.944538 IP 10.16.2.2.8080 > 10.16.1.2.27628: Flags [.], ack 2, win 8, options [nop,nop,TS val 2684993080 ecr 651866728], length 0
+        21:33:45.945701 IP 10.16.1.2.27629 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3855854322 ecr 612562060], length 0
+        21:33:45.945914 IP 10.16.2.2.8080 > 10.16.1.2.27629: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 612562061 ecr 3855854322], length 13: HTTP
+        21:33:45.947895 IP 10.16.1.2.27629 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3855854324 ecr 612562061], length 0
+        21:33:45.947928 IP 10.16.1.2.27629 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3855854324 ecr 612562061], length 0
+        21:33:45.947952 IP 10.16.1.2.27630 > 10.16.2.3.8080: Flags [S], seq 1049810595, win 64240, options [mss 1460,sackOK,TS val 1809094377 ecr 0,nop,wscale 13], length 0
+        21:33:45.947993 IP 10.16.2.3.8080 > 10.16.1.2.27630: Flags [S.], seq 1101000799, ack 1049810596, win 65160, options [mss 1460,sackOK,TS val 1415507086 ecr 1809094377,nop,wscale 13], length 0
+        21:33:45.948564 IP 10.16.2.2.8080 > 10.16.1.2.27629: Flags [.], ack 2, win 8, options [nop,nop,TS val 612562064 ecr 3855854324], length 0
+        21:33:45.949732 IP 10.16.1.2.27630 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 1809094379 ecr 1415507086], length 0
+        21:33:45.949959 IP 10.16.2.3.8080 > 10.16.1.2.27630: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 1415507088 ecr 1809094379], length 13: HTTP
+        21:33:45.951606 IP 10.16.1.2.27630 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 1809094381 ecr 1415507088], length 0
+        21:33:45.951638 IP 10.16.1.2.27630 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 1809094381 ecr 1415507088], length 0
+        21:33:45.951661 IP 10.16.1.2.27631 > 10.16.2.3.8080: Flags [S], seq 2523073607, win 64240, options [mss 1460,sackOK,TS val 3548195044 ecr 0,nop,wscale 13], length 0
+        21:33:45.951699 IP 10.16.2.3.8080 > 10.16.1.2.27631: Flags [S.], seq 1398961481, ack 2523073608, win 65160, options [mss 1460,sackOK,TS val 1967490985 ecr 3548195044,nop,wscale 13], length 0
+        21:33:45.952593 IP 10.16.2.3.8080 > 10.16.1.2.27630: Flags [.], ack 2, win 8, options [nop,nop,TS val 1415507091 ecr 1809094381], length 0
+        21:33:45.953723 IP 10.16.1.2.27631 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3548195046 ecr 1967490985], length 0
+        21:33:45.953992 IP 10.16.2.3.8080 > 10.16.1.2.27631: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 1967490987 ecr 3548195046], length 13: HTTP
+        21:33:45.955647 IP 10.16.1.2.27631 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3548195048 ecr 1967490987], length 0
+        21:33:45.955679 IP 10.16.1.2.27631 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3548195048 ecr 1967490987], length 0
+        21:33:45.956528 IP 10.16.2.3.8080 > 10.16.1.2.27631: Flags [.], ack 2, win 8, options [nop,nop,TS val 1967490990 ecr 3548195048], length 0
+    det44_test.go:583: rev 4a (cnat + dslite, no map): CNAT VIP 10.16.2.100:80 → backends (SYNs per backend): map[10.16.2.2:7 10.16.2.3:5]; client lines: 12 connected
+    det44_test.go:584: 21:33:46 after cnat packets (rev 4a): systemctl show vpp -p NRestarts → NRestarts=0
+    det44_test.go:587: Apply det44-rev4-map-cnat → APPLY_STATUS_APPLIED results=5 summary={
+          "txnId": "det44-rev4-map-cnat",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "map.domain/lw",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/1",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0/rules/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/2",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/domains/0/rules/1",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16l0/map-e",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/interfaces/0",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16w0/map-e",
+              "op": "APPLY_OPERATION_CREATE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "pointer": "/nat/map/interfaces/1",
+              "subsystem": "nat"
+            }
+          ],
+          "summary": {
+            "created": 5,
+            "unchanged": 12
+          },
+          "appliedAt": "2026-10-01T18:03:46.470730045Z"
+        }
+    det44_test.go:588: Retrieve(nat) after rev 4 (map + cnat + dslite) = {
+          "map": {
+            "domains": [
+              {
+                "name": "lw",
+                "mode": "lw4o6",
+                "ipv4Prefix": "10.16.65.1/32",
+                "ipv6Prefix": "fd00:10:65::/64",
+                "ipv6Source": "fd00:10::1/128",
+                "eaBitsLength": 0,
+                "psidOffset": 6,
+                "psidLength": 4,
+                "rules": [
+                  {
+                    "psid": 1,
+                    "ipv6Destination": "fd00:10:65::1"
+                  },
+                  {
+                    "psid": 2,
+                    "ipv6Destination": "fd00:10:65::2"
+                  }
+                ]
+              }
+            ],
+            "interfaces": [
+              {
+                "interface": "host-w16l0",
+                "mode": "map-e"
+              },
+              {
+                "interface": "host-w16w0",
+                "mode": "map-e"
+              }
+            ]
+          },
+          "cnat": {
+            "translations": [
+              {
+                "protocol": "tcp",
+                "vip": {
+                  "ip": "10.16.2.100",
+                  "port": 80
+                },
+                "backends": [
+                  {
+                    "ip": "10.16.2.2",
+                    "port": 8080
+                  },
+                  {
+                    "ip": "10.16.2.3",
+                    "port": 8080
+                  }
+                ],
+                "lbType": "default"
+              }
+            ]
+          }
+        }
+    det44_test.go:589: ARC after rev 4 (map + cnat, no det44):
+            host-w16l0(sw_if_index=5) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map]
+            host-w16w0(sw_if_index=6) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: [ip4-sv-reassembly-feature ip4-map]
+    det44_test.go:590: vppctl show det44 interfaces (ours):
+        
+    det44_test.go:590: vppctl show det44 mappings (ours):
+        
+    det44_test.go:590: vppctl show map domain (ours):
+        [0] tag {w16:lw} ip4-pfx 10.16.65.1/32 ip6-pfx ::/64 ip6-src fd00:10::1/128 ea-bits-len 0 psid-offset 6 psid-len 4 mtu 0 
+         rule psid: 1 ip6-dst fd00:10:65::1
+         rule psid: 2 ip6-dst fd00:10:65::2
+    det44_test.go:590: vppctl show cnat translation (ours):
+        [0] 10.16.2.100;80 TCP lb:default fhc:0x9f(default)
+        0.0.0.0;0->10.16.2.2;8080
+                [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+        0.0.0.0;0->10.16.2.3;8080
+                [0] [@5]: ipv4 via 10.16.2.3 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+                  [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+                  [0] [@5]: ipv4 via 10.16.2.3 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+    det44_test.go:590: vppctl show dslite aftr-tunnel-endpoint-address: fd00:10::aa
+    det44_test.go:590: vppctl show dslite b4-tunnel-endpoint-address: ::
+    det44_test.go:590: vppctl show dslite pool (ours):
+        
+    det44_test.go:594: vppctl show ip6 fib (CE prefix, ours): fd00:10:65::/64 fib:0 index:123 locks:2
+                via fd00:10:2::2 in fib:0 via-fib:20 via-dpo:[dpo-load-balance:126]
+                  [0] [@5]: ipv6 via fd00:10:2::2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b086dd
+    det44_test.go:597: started ce-server-1100 pid 323496 (log /run/vrx-test/w16/det44/ce-server-1100.log)
+    det44_test.go:599: started tcpdump-wan-map pid 323497 (log /run/vrx-test/w16/det44/tcpdump-wan-map.log)
+    det44_test.go:600: started lan-client-map pid 323498 (log /run/vrx-test/w16/det44/lan-client-map.log)
+    helpers_test.go:208: stopped tcpdump-wan-map pid 323497
+    det44_test.go:603: tcpdump -i w16w1 (netns ns-w16-wan) ip6 and not icmp6:
+        21:33:48.598660 IP6 fd00:10::1 > fd00:10:65::1: IP 10.16.1.2.40002 > 10.16.65.1.1100: Flags [S], seq 3243604557, win 64240, options [mss 1460,sackOK,TS val 240407520 ecr 0,nop,wscale 13], length 0
+        21:33:48.598818 IP6 fd00:10:65::1 > fd00:10::1: IP 10.16.65.1.1100 > 10.16.1.2.40002: Flags [S.], seq 2141904408, ack 3243604558, win 64768, options [mss 1420,sackOK,TS val 868805581 ecr 240407520,nop,wscale 13], length 0
+        21:33:48.600638 IP6 fd00:10::1 > fd00:10:65::1: IP 10.16.1.2.40002 > 10.16.65.1.1100: Flags [.], ack 1, win 8, options [nop,nop,TS val 240407522 ecr 868805581], length 0
+        21:33:48.601253 IP6 fd00:10:65::1 > fd00:10::1: IP 10.16.65.1.1100 > 10.16.1.2.40002: Flags [P.], seq 1:15, ack 1, win 8, options [nop,nop,TS val 868805583 ecr 240407522], length 14
+        21:33:48.602650 IP6 fd00:10::1 > fd00:10:65::1: IP 10.16.1.2.40002 > 10.16.65.1.1100: Flags [.], ack 15, win 8, options [nop,nop,TS val 240407524 ecr 868805583], length 0
+    det44_test.go:605: lan client (10.16.1.2:40002 → 10.16.65.1:1100 through the BR) read: "10.16.65.1 ok"
+    det44_test.go:615: MAP-E BR: 3 packet(s) encapsulated by VPP (fd00:10::1 → fd00:10:65::1 carrying 10.16.1.2:40002 → 10.16.65.1:1100), 2 answered by the CE towards the BR
+    det44_test.go:622: vppctl show map domain (ours):
+        [0] tag {w16:lw} ip4-pfx 10.16.65.1/32 ip6-pfx ::/64 ip6-src fd00:10::1/128 ea-bits-len 0 psid-offset 6 psid-len 4 mtu 0 
+         rule psid: 1 ip6-dst fd00:10:65::1
+         rule psid: 2 ip6-dst fd00:10:65::2
+    det44_test.go:623: vppctl show map stats: MAP domains structure: 64
+        MAP domains: 1 (64 bytes)
+        MAP rules: 16 (256 bytes)
+        Total: 320 bytes)
+        MAP pre-resolve: IP6 next-hop: un-set, IP4 next-hop: un-set
+        MAP traffic-class: copy
+        MAP IPv6 inbound security check: enabled, fragmented packet security check: disabled
+        ICMP-relay IPv4 source address: 0.0.0.0
+        ICMP6 unreachables sent for unmatched packets: disabled
+        Inner fragmentation: disabled
+        Fragment packets regardless of DF flag: disabled
+        Encapsulated packets: 3 bytes: 284
+        Decapsulated packets: 2 bytes: 126
+        ICMP relayed packets: 0
+    det44_test.go:626: started tcpdump-wan-cnat-27632 pid 323506 (log /run/vrx-test/w16/det44/tcpdump-wan-cnat-27632.log)
+    det44_test.go:626: rev 4 (map + cnat + dslite): lan → VIP 10.16.2.100:80, 12 flows from port 27632: <nil>
+        27632 10.16.2.3 ok
+        27633 10.16.2.3 ok
+        27634 10.16.2.2 ok
+        27635 10.16.2.2 ok
+        27636 10.16.2.2 ok
+        27637 10.16.2.2 ok
+        27638 10.16.2.2 ok
+        27639 10.16.2.2 ok
+        27640 10.16.2.3 ok
+        27641 10.16.2.2 ok
+        27642 10.16.2.2 ok
+        27643 10.16.2.3 ok
+        connected 12 of 12
+    helpers_test.go:208: stopped tcpdump-wan-cnat-27632 pid 323506
+    det44_test.go:626: tcpdump -i w16w1 (netns ns-w16-wan) arp or tcp port 8080:
+        21:33:51.353966 IP 10.16.1.2.27632 > 10.16.2.3.8080: Flags [S], seq 3983802450, win 64240, options [mss 1460,sackOK,TS val 1774819850 ecr 0,nop,wscale 13], length 0
+        21:33:51.354052 IP 10.16.2.3.8080 > 10.16.1.2.27632: Flags [S.], seq 839547883, ack 3983802451, win 65160, options [mss 1460,sackOK,TS val 2977678403 ecr 1774819850,nop,wscale 13], length 0
+        21:33:51.355672 IP 10.16.1.2.27632 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 1774819852 ecr 2977678403], length 0
+        21:33:51.356707 IP 10.16.2.3.8080 > 10.16.1.2.27632: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2977678406 ecr 1774819852], length 13: HTTP
+        21:33:51.358901 IP 10.16.1.2.27632 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 1774819855 ecr 2977678406], length 0
+        21:33:51.358946 IP 10.16.1.2.27632 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 1774819855 ecr 2977678406], length 0
+        21:33:51.358978 IP 10.16.1.2.27633 > 10.16.2.3.8080: Flags [S], seq 4167740127, win 64240, options [mss 1460,sackOK,TS val 611461357 ecr 0,nop,wscale 13], length 0
+        21:33:51.359029 IP 10.16.2.3.8080 > 10.16.1.2.27633: Flags [S.], seq 2964675547, ack 4167740128, win 65160, options [mss 1460,sackOK,TS val 3417604113 ecr 611461357,nop,wscale 13], length 0
+        21:33:51.359717 IP 10.16.2.3.8080 > 10.16.1.2.27632: Flags [.], ack 2, win 8, options [nop,nop,TS val 2977678409 ecr 1774819855], length 0
+        21:33:51.360724 IP 10.16.1.2.27633 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 611461359 ecr 3417604113], length 0
+        21:33:51.361248 IP 10.16.2.3.8080 > 10.16.1.2.27633: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 3417604115 ecr 611461359], length 13: HTTP
+        21:33:51.367700 IP 10.16.1.2.27633 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 611461361 ecr 3417604115], length 0
+        21:33:51.367753 IP 10.16.1.2.27633 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 611461361 ecr 3417604115], length 0
+        21:33:51.367969 IP 10.16.1.2.27634 > 10.16.2.2.8080: Flags [S], seq 3069723745, win 64240, options [mss 1460,sackOK,TS val 4121061045 ecr 0,nop,wscale 13], length 0
+        21:33:51.368037 IP 10.16.2.2.8080 > 10.16.1.2.27634: Flags [S.], seq 4053516362, ack 3069723746, win 65160, options [mss 1460,sackOK,TS val 1197094241 ecr 4121061045,nop,wscale 13], length 0
+        21:33:51.368524 IP 10.16.2.3.8080 > 10.16.1.2.27633: Flags [.], ack 2, win 8, options [nop,nop,TS val 3417604123 ecr 611461361], length 0
+        21:33:51.369765 IP 10.16.1.2.27634 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 4121061052 ecr 1197094241], length 0
+        21:33:51.370048 IP 10.16.2.2.8080 > 10.16.1.2.27634: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 1197094243 ecr 4121061052], length 13: HTTP
+        21:33:51.372076 IP 10.16.1.2.27634 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 4121061054 ecr 1197094243], length 0
+        21:33:51.372116 IP 10.16.1.2.27634 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 4121061054 ecr 1197094243], length 0
+        21:33:51.372148 IP 10.16.1.2.27635 > 10.16.2.2.8080: Flags [S], seq 3664980433, win 64240, options [mss 1460,sackOK,TS val 873277658 ecr 0,nop,wscale 13], length 0
+        21:33:51.372198 IP 10.16.2.2.8080 > 10.16.1.2.27635: Flags [S.], seq 973899853, ack 3664980434, win 65160, options [mss 1460,sackOK,TS val 3058221562 ecr 873277658,nop,wscale 13], length 0
+        21:33:51.372587 IP 10.16.2.2.8080 > 10.16.1.2.27634: Flags [.], ack 2, win 8, options [nop,nop,TS val 1197094246 ecr 4121061054], length 0
+        21:33:51.373722 IP 10.16.1.2.27635 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 873277660 ecr 3058221562], length 0
+        21:33:51.373940 IP 10.16.2.2.8080 > 10.16.1.2.27635: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 3058221564 ecr 873277660], length 13: HTTP
+        21:33:51.376042 IP 10.16.1.2.27635 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 873277662 ecr 3058221564], length 0
+        21:33:51.376063 IP 10.16.1.2.27635 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 873277662 ecr 3058221564], length 0
+        21:33:51.376077 IP 10.16.1.2.27636 > 10.16.2.2.8080: Flags [S], seq 1949747472, win 64240, options [mss 1460,sackOK,TS val 2927176586 ecr 0,nop,wscale 13], length 0
+        21:33:51.376104 IP 10.16.2.2.8080 > 10.16.1.2.27636: Flags [S.], seq 462088545, ack 1949747473, win 65160, options [mss 1460,sackOK,TS val 2647100569 ecr 2927176586,nop,wscale 13], length 0
+        21:33:51.376505 IP 10.16.2.2.8080 > 10.16.1.2.27635: Flags [.], ack 2, win 8, options [nop,nop,TS val 3058221567 ecr 873277662], length 0
+        21:33:51.377837 IP 10.16.1.2.27636 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 2927176588 ecr 2647100569], length 0
+        21:33:51.378188 IP 10.16.2.2.8080 > 10.16.1.2.27636: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2647100571 ecr 2927176588], length 13: HTTP
+        21:33:51.378616 IP 10.16.1.2.27636 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 2927176590 ecr 2647100571], length 0
+        21:33:51.381857 IP 10.16.1.2.27636 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 2927176590 ecr 2647100571], length 0
+        21:33:51.381903 IP 10.16.1.2.27637 > 10.16.2.2.8080: Flags [S], seq 1489685730, win 64240, options [mss 1460,sackOK,TS val 2171069669 ecr 0,nop,wscale 13], length 0
+        21:33:51.381962 IP 10.16.2.2.8080 > 10.16.1.2.27637: Flags [S.], seq 2079371071, ack 1489685731, win 65160, options [mss 1460,sackOK,TS val 2728787296 ecr 2171069669,nop,wscale 13], length 0
+        21:33:51.382540 IP 10.16.2.2.8080 > 10.16.1.2.27636: Flags [.], ack 2, win 8, options [nop,nop,TS val 2647100576 ecr 2927176590], length 0
+        21:33:51.383750 IP 10.16.1.2.27637 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 2171069673 ecr 2728787296], length 0
+        21:33:51.386650 IP 10.16.2.2.8080 > 10.16.1.2.27637: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2728787301 ecr 2171069673], length 13: HTTP
+        21:33:51.389084 IP 10.16.1.2.27637 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 2171069678 ecr 2728787301], length 0
+        21:33:51.389132 IP 10.16.1.2.27637 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 2171069678 ecr 2728787301], length 0
+        21:33:51.389167 IP 10.16.1.2.27638 > 10.16.2.2.8080: Flags [S], seq 1218828683, win 64240, options [mss 1460,sackOK,TS val 3786687173 ecr 0,nop,wscale 13], length 0
+        21:33:51.389230 IP 10.16.2.2.8080 > 10.16.1.2.27638: Flags [S.], seq 2468314491, ack 1218828684, win 65160, options [mss 1460,sackOK,TS val 721395544 ecr 3786687173,nop,wscale 13], length 0
+        21:33:51.389534 IP 10.16.2.2.8080 > 10.16.1.2.27637: Flags [.], ack 2, win 8, options [nop,nop,TS val 2728787304 ecr 2171069678], length 0
+        21:33:51.390745 IP 10.16.1.2.27638 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3786687175 ecr 721395544], length 0
+        21:33:51.390921 IP 10.16.2.2.8080 > 10.16.1.2.27638: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 721395546 ecr 3786687175], length 13: HTTP
+        21:33:51.392851 IP 10.16.1.2.27638 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3786687177 ecr 721395546], length 0
+        21:33:51.392893 IP 10.16.1.2.27638 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3786687177 ecr 721395546], length 0
+        21:33:51.392926 IP 10.16.1.2.27639 > 10.16.2.2.8080: Flags [S], seq 2310621827, win 64240, options [mss 1460,sackOK,TS val 3479355426 ecr 0,nop,wscale 13], length 0
+        21:33:51.392976 IP 10.16.2.2.8080 > 10.16.1.2.27639: Flags [S.], seq 68365926, ack 2310621828, win 65160, options [mss 1460,sackOK,TS val 2308358065 ecr 3479355426,nop,wscale 13], length 0
+        21:33:51.393563 IP 10.16.2.2.8080 > 10.16.1.2.27638: Flags [.], ack 2, win 8, options [nop,nop,TS val 721395549 ecr 3786687177], length 0
+        21:33:51.394728 IP 10.16.1.2.27639 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3479355428 ecr 2308358065], length 0
+        21:33:51.395031 IP 10.16.2.2.8080 > 10.16.1.2.27639: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2308358067 ecr 3479355428], length 13: HTTP
+        21:33:51.397065 IP 10.16.1.2.27639 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3479355430 ecr 2308358067], length 0
+        21:33:51.397111 IP 10.16.1.2.27639 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3479355430 ecr 2308358067], length 0
+        21:33:51.397144 IP 10.16.1.2.27640 > 10.16.2.3.8080: Flags [S], seq 2712166753, win 64240, options [mss 1460,sackOK,TS val 621513099 ecr 0,nop,wscale 13], length 0
+        21:33:51.397201 IP 10.16.2.3.8080 > 10.16.1.2.27640: Flags [S.], seq 229509925, ack 2712166754, win 65160, options [mss 1460,sackOK,TS val 2053781352 ecr 621513099,nop,wscale 13], length 0
+        21:33:51.397533 IP 10.16.2.2.8080 > 10.16.1.2.27639: Flags [.], ack 2, win 8, options [nop,nop,TS val 2308358070 ecr 3479355430], length 0
+        21:33:51.398738 IP 10.16.1.2.27640 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 621513101 ecr 2053781352], length 0
+        21:33:51.399121 IP 10.16.2.3.8080 > 10.16.1.2.27640: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2053781354 ecr 621513101], length 13: HTTP
+        21:33:51.400850 IP 10.16.1.2.27640 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 621513103 ecr 2053781354], length 0
+        21:33:51.400925 IP 10.16.1.2.27640 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 621513103 ecr 2053781354], length 0
+        21:33:51.400947 IP 10.16.1.2.27641 > 10.16.2.2.8080: Flags [S], seq 1698283539, win 64240, options [mss 1460,sackOK,TS val 322687396 ecr 0,nop,wscale 13], length 0
+        21:33:51.400972 IP 10.16.2.2.8080 > 10.16.1.2.27641: Flags [S.], seq 4065740434, ack 1698283540, win 65160, options [mss 1460,sackOK,TS val 3210664989 ecr 322687396,nop,wscale 13], length 0
+        21:33:51.401530 IP 10.16.2.3.8080 > 10.16.1.2.27640: Flags [.], ack 2, win 8, options [nop,nop,TS val 2053781357 ecr 621513103], length 0
+        21:33:51.402744 IP 10.16.1.2.27641 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 322687398 ecr 3210664989], length 0
+        21:33:51.403114 IP 10.16.2.2.8080 > 10.16.1.2.27641: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 3210664991 ecr 322687398], length 13: HTTP
+        21:33:51.405226 IP 10.16.1.2.27641 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 322687400 ecr 3210664991], length 0
+        21:33:51.405251 IP 10.16.1.2.27641 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 322687400 ecr 3210664991], length 0
+        21:33:51.405269 IP 10.16.1.2.27642 > 10.16.2.2.8080: Flags [S], seq 325939117, win 64240, options [mss 1460,sackOK,TS val 3949899561 ecr 0,nop,wscale 13], length 0
+        21:33:51.405301 IP 10.16.2.2.8080 > 10.16.1.2.27642: Flags [S.], seq 4171089654, ack 325939118, win 65160, options [mss 1460,sackOK,TS val 377569877 ecr 3949899561,nop,wscale 13], length 0
+        21:33:51.405759 IP 10.16.2.2.8080 > 10.16.1.2.27641: Flags [.], ack 2, win 8, options [nop,nop,TS val 3210664994 ecr 322687400], length 0
+        21:33:51.406629 IP 10.16.1.2.27642 > 10.16.2.2.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3949899563 ecr 377569877], length 0
+        21:33:51.408698 IP 10.16.2.2.8080 > 10.16.1.2.27642: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 377569881 ecr 3949899563], length 13: HTTP
+        21:33:51.409629 IP 10.16.1.2.27642 > 10.16.2.2.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3949899566 ecr 377569881], length 0
+        21:33:51.409663 IP 10.16.1.2.27642 > 10.16.2.2.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3949899566 ecr 377569881], length 0
+        21:33:51.409688 IP 10.16.1.2.27643 > 10.16.2.3.8080: Flags [S], seq 158084006, win 64240, options [mss 1460,sackOK,TS val 3453283384 ecr 0,nop,wscale 13], length 0
+        21:33:51.409731 IP 10.16.2.3.8080 > 10.16.1.2.27643: Flags [S.], seq 3570619194, ack 158084007, win 65160, options [mss 1460,sackOK,TS val 2606665976 ecr 3453283384,nop,wscale 13], length 0
+        21:33:51.410576 IP 10.16.2.2.8080 > 10.16.1.2.27642: Flags [.], ack 2, win 8, options [nop,nop,TS val 377569883 ecr 3949899566], length 0
+        21:33:51.411780 IP 10.16.1.2.27643 > 10.16.2.3.8080: Flags [.], ack 1, win 8, options [nop,nop,TS val 3453283386 ecr 2606665976], length 0
+        21:33:51.412039 IP 10.16.2.3.8080 > 10.16.1.2.27643: Flags [P.], seq 1:14, ack 1, win 8, options [nop,nop,TS val 2606665978 ecr 3453283386], length 13: HTTP
+        21:33:51.413697 IP 10.16.1.2.27643 > 10.16.2.3.8080: Flags [.], ack 14, win 8, options [nop,nop,TS val 3453283388 ecr 2606665978], length 0
+        21:33:51.413730 IP 10.16.1.2.27643 > 10.16.2.3.8080: Flags [F.], seq 1, ack 14, win 8, options [nop,nop,TS val 3453283388 ecr 2606665978], length 0
+        21:33:51.414527 IP 10.16.2.3.8080 > 10.16.1.2.27643: Flags [.], ack 2, win 8, options [nop,nop,TS val 2606665981 ecr 3453283388], length 0
+    det44_test.go:626: rev 4 (map + cnat + dslite): CNAT VIP 10.16.2.100:80 → backends (SYNs per backend): map[10.16.2.2:8 10.16.2.3:4]; client lines: 12 connected
+    det44_test.go:627: CNAT with and without map-e on the rig interfaces: rev 4a map[10.16.2.2:7 10.16.2.3:5], rev 4 map[10.16.2.2:8 10.16.2.3:4]
+    det44_test.go:634: CnatSessions → total 242 truncated false first: {
+          "sessions": [
+            {
+              "dstAddress": "10.16.2.3",
+              "dstPort": 36895,
+              "srcAddress": "10.16.1.2",
+              "srcPort": 51558,
+              "protocol": "tcp",
+              "translationIndex": 82,
+              "flags": 17
+            },
+            {
+              "dstAddress": "10.16.2.2",
+              "dstPort": 39142,
+              "srcAddress": "10.16.1.2",
+              "srcPort": 39142,
+              "protocol": "icmp",
+              "translationIndex": 81
+            },
+            {
+              "dstAddress": "10.16.1.2",
+              "dstPort": 29538,
+              "srcAddress": "10.16.2.100",
+              "srcPort": 20480,
+              "protocol": "tcp",
+              "translationIndex": 57
+            },
+            {
+              "dstAddress": "10.16.2.3",
+              "dstPort": 36895,
+              "srcAddress": "10.16.1.2",
+              "srcPort": 61035,
+              "protocol": "tcp",
+              "translationIndex": 112,
+              "flags": 17
+            },
+            {
+              "dstAddress": "10.16.2.2",
+              "dstPort": 36895,
+              "srcAddress": "10.16.1.2",
+              "srcPort": 451…
+    det44_test.go:635: vppctl show cnat translation (ours):
+        [0] 10.16.2.100;80 TCP lb:default fhc:0x9f(default)
+        0.0.0.0;0->10.16.2.2;8080
+                [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+        0.0.0.0;0->10.16.2.3;8080
+                [0] [@5]: ipv4 via 10.16.2.3 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+                  [0] [@5]: ipv4 via 10.16.2.2 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+                  [0] [@5]: ipv4 via 10.16.2.3 host-w16w0: mtu:9000 next:9 flags:[] 9ecba9a7126502fec9a0a0b00800
+    det44_test.go:636: vppctl show cnat session verbose 1 ip 10.16.1.2 max 30:
+        CNat Sessions: now:203601.479724
+        Hash table 'CNat Session DB'
+            242 active elements 242 active buckets
+            1 free lists
+            0 linear search buckets
+            heap: 2 chunk(s) allocated
+                  bytes: used 128.22m, scrap 163.50k
+        
+        TCP [10.16.2.3;8080 -> 10.16.1.2;26313] => [client,return]
+          index:82 fib:0
+            last_seen:202923 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;26313 -> 10.16.2.3;8080] node:2 lbi:62 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;26313] node:65535 lbi:4294967295 fl:48 fib:0
+        ICMP [10.16.2.2;59032 -> 10.16.1.2;59032] => []
+          index:81 fib:0
+            last_seen:203523 lifetime:30 ref:1
+        TCP [10.16.1.2;25203 -> 10.16.2.100;80] => []
+          index:57 fib:0
+            last_seen:202361 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;25203 -> 10.16.2.3;8080] node:2 lbi:119 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;25203] node:65535 lbi:4294967295 fl:48 fib:0
+        TCP [10.16.2.3;8080 -> 10.16.1.2;27630] => [client,return]
+          index:112 fib:0
+            last_seen:203595 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;27630 -> 10.16.2.3;8080] node:2 lbi:62 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;27630] node:65535 lbi:4294967295 fl:48 fib:0
+        TCP [10.16.2.2;8080 -> 10.16.1.2;25520] => [client,return]
+          index:63 fib:0
+            last_seen:202544 lifetime:30 ref:2
+            [ fib] TCP [10.16.1.2;25520 -> 10.16.2.2;8080] node:2 lbi:225 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;25520] node:65535 lbi:4294967295 fl:0 fib:0
+        ICMP [10.16.1.1;11948 -> 10.16.1.2;11948] => []
+          index:8 fib:0
+            last_seen:201633 lifetime:30 ref:1
+        TCP [10.16.2.2;8080 -> 10.16.1.2;26318] => [client,return]
+          index:87 fib:0
+            last_seen:202923 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;26318 -> 10.16.2.2;8080] node:2 lbi:226 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;26318] node:65535 lbi:4294967295 fl:48 fib:0
+        TCP [10.16.1.2;25005 -> 10.16.2.100;80] => []
+          index:15 fib:0
+            last_seen:202277 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;25005 -> 10.16.2.3;8080] node:2 lbi:21 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;25005] node:65535 lbi:4294967295 fl:48 fib:0
+        ICMP [10.16.1.1;56534 -> 10.16.1.2;56534] => []
+          index:27 fib:0
+            last_seen:203490 lifetime:30 ref:1
+        TCP [10.16.1.2;25197 -> 10.16.2.100;80] => []
+          index:51 fib:0
+            last_seen:202361 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;25197 -> 10.16.2.2;8080] node:2 lbi:20 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;25197] node:65535 lbi:4294967295 fl:48 fib:0
+        TCP [10.16.1.2;25186 -> 10.16.2.100;80] => []
+          index:40 fib:0
+            last_seen:202360 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;25186 -> 10.16.2.3;8080] node:2 lbi:119 fl:48 fib:0
+            [rfib] TCP [10.16.2.100;80 -> 10.16.1.2;25186] node:65535 lbi:4294967295 fl:48 fib:0
+        TCP [10.16.2.3;8080 -> 10.16.1.2;25015] => [client,return]
+          index:25 fib:0
+            last_seen:202277 lifetime:5 ref:2
+            [ fib] TCP [10.16.1.2;25015 -> 10.16.2.3;8080] node:2 lbi:21 fl:48 fib:0
+            [rfib] TCP [1…
+    det44_test.go:637: CNAT packet path OK (path: af_packet): 10.16.1.2 → 10.16.2.100:80 → 10.16.2.2:8080 (8) + 10.16.2.3:8080 (4)
+    det44_test.go:638: 21:33:52 after map/cnat packets: systemctl show vpp -p NRestarts → NRestarts=0
+    helpers_test.go:208: stopped lan-client-map pid 323498
+    helpers_test.go:208: stopped ce-server-1100 pid 323496
+    helpers_test.go:208: stopped wan-be2-8080 pid 323397
+    helpers_test.go:208: stopped wan-be1-8080 pid 323396
+=== RUN   TestDet44MapDsliteCnatOnHost/rollback
+    det44_test.go:311: Apply det44-rev5-rollback → APPLY_STATUS_APPLIED results=7 summary={
+          "txnId": "det44-rev5-rollback",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "cnat.translation/10.16.2.100/tcp/80",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16w0/map-e",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.interface/host-w16l0/map-e",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/2",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.rule/lw/1",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "map.domain/lw",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            },
+            {
+              "key": "dslite.aftr/global",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "nat"
+            }
+          ],
+          "summary": {
+            "deleted": 7,
+        …
+    det44_test.go:316: Retrieve(nat) after rollback = <nil> (size 0)
+    det44_test.go:321: slot objects left in det44 / map / cnat / dslite after rollback: 0 
+    det44_test.go:325: ARC after the rollback (nat {}):
+            host-w16l0(sw_if_index=5) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: []
+            host-w16w0(sw_if_index=6) det44 pool: none; feature_is_enabled det44-in2out=false det44-out2in=false; ip4-unicast arc: []
+    det44_test.go:326: vppctl show det44 interfaces (ours):
+        
+    det44_test.go:326: vppctl show det44 mappings (ours):
+        
+    det44_test.go:326: vppctl show map domain (ours):
+        
+    det44_test.go:326: vppctl show cnat translation (ours):
+        
+    det44_test.go:326: vppctl show dslite aftr-tunnel-endpoint-address: fd00:10::aa
+    det44_test.go:326: vppctl show dslite b4-tunnel-endpoint-address: ::
+    det44_test.go:326: vppctl show dslite pool (ours):
+        
+    det44_test.go:328: det44 after rollback: det44_plugin_enable_disable enable=1 → already enabled: true (never disabled, V9/D-068)
+    det44_test.go:329: dslite AFTR after rollback (a non-owner never resets it, D-071): ipv6=fd00:10::aa ipv4=0.0.0.0
+    det44_test.go:330: 21:33:52 after rollback: systemctl show vpp -p NRestarts → NRestarts=0
+=== RUN   TestDet44MapDsliteCnatOnHost/cleanup-through-agent
+    det44_test.go:334: Apply det44-rev6-cleanup (subsystems [interfaces vrfs routing nat]) → APPLY_STATUS_APPLIED results=8 summary={
+          "txnId": "det44-rev6-cleanup",
+          "status": "APPLY_STATUS_APPLIED",
+          "results": [
+            {
+              "key": "interface.admin-state/host-w16w0",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface.admin-state/host-w16l0",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface-ip/host-w16w0/fd00:10:2::1/64",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface-ip/host-w16w0/10.16.2.1/24",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "af-packet.host-interface/host-w16w0",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "interface-ip/host-w16l0/10.16.1.1/24",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "af-packet.host-interface/host-w16l0",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "interfaces"
+            },
+            {
+              "key": "ip.route/0/fd00:10:65::/64",
+              "op": "APPLY_OPERATION_DELETE",
+              "code": "OBJECT_RESULT_CODE_OK",
+              "subsystem": "routing"
+            }
+          ],
+          "summary": {
+            "deleted": …
+    det44_test.go:338: after the interfaces were deleted through the agent: host-w16l0 present=false host-w16w0 present=false
+=== NAME  TestDet44MapDsliteCnatOnHost
+    helpers_test.go:208: stopped vrx-agent pid 323158
+    det44_test.go:248: route cleanup fd00:10:65::/64: not in table 0 (ip_route_lookup exact: VPPApiError: No such entry (-6))
+    det44_test.go:240: rig down: <nil>
+        rig down w16
+          delete netns ns-w16-lan (and its veth peer)
+          delete veth w16l0
+          delete netns ns-w16-wan (and its veth peer)
+          delete veth w16w0
+        rig: down
+        prefix: w16
+        slot: 16
+        path: af_packet
+        lan_ns: ns-w16-lan
+        lan_veth: w16l1
+        lan_ip: 10.16.1.2/24
+        lan_gw: 10.16.1.1
+        vpp_lan_if: host-w16l0
+        vpp_lan_addr: -
+        wan_ns: ns-w16-wan
+        wan_veth: w16w1
+        wan_ip: 10.16.2.2/24
+        wan_gw: 10.16.2.1
+        vpp_wan_if: host-w16w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w16-lan ping -c 3 10.16.2.2
+    vpp_test.go:274: fixture: AFTR restored to the previous value (ipv6=:: ipv4=0.0.0.0); dslite_get_aftr_addr now ipv6=:: ipv4=0.0.0.0
+    det44_test.go:220: GLOBALS WINDOW end 2026-10-01T21:33:53+03:30 (held 25s)
+    det44_test.go:199: 21:33:53 after the test: systemctl show vpp -p NRestarts → NRestarts=0
+--- PASS: TestDet44MapDsliteCnatOnHost (24.95s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/config (2.86s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/restart (1.77s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/det44-packets (6.01s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/map-cnat-packets (8.91s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/rollback (0.26s)
+    --- PASS: TestDet44MapDsliteCnatOnHost/cleanup-through-agent (0.27s)
+PASS
+ok  	ngfw/test/topology/det44	24.996s
+Thu Oct  1 09:33:53 PM +0330 2026
+NRestarts=0

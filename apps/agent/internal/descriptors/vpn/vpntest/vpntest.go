@@ -19,6 +19,7 @@ import (
 	"ngfw/agent/binapi/tunnel_types"
 	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -80,6 +81,9 @@ func UntaggedLoopback(ctx context.Context, t testing.TB, c vpp.Client, i int) (s
 	t.Cleanup(func() {
 		_, _ = svc.DeleteLoopback(context.Background(), &interfaces.DeleteLoopback{SwIfIndex: rep.SwIfIndex})
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, c, uint32(rep.SwIfIndex)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+		t.Fatalf("reset ip classify loop%d: %v", inst, err)
+	}
 	return fmt.Sprintf("loop%d", inst), rep.SwIfIndex
 }
 
@@ -106,6 +110,9 @@ func Ipip(ctx context.Context, t testing.TB, c vpp.Client, owner string, instanc
 	t.Cleanup(func() {
 		_, _ = svc.IpipDelTunnel(context.Background(), &ipip.IpipDelTunnel{SwIfIndex: rep.SwIfIndex})
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, c, uint32(rep.SwIfIndex)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+		t.Fatalf("reset ip classify ipip%d: %v", instance, err)
+	}
 	name := fmt.Sprintf("ipip%d", instance)
 	if err := vpn.TagInterface(ctx, c, rep.SwIfIndex, owner, name); err != nil {
 		t.Fatal(err)

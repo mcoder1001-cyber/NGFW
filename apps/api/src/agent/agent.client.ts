@@ -28,6 +28,8 @@ import {
   type StreamStatsRequest,
   type ValidationReport,
   // Feature RPC types: one import line under the feature's anchor (wave-A-hotspots P4).
+  // wave-BC: F-default-vpp-nics
+  type HostNicsResponse,
   // wave-BC: F-det44-map-dslite-cnat
   type CnatSessionsRequest,
   type CnatSessionsResponse,
@@ -296,6 +298,12 @@ export class AgentClient implements OnModuleDestroy {
 
   // Feature RPCs: one method per RPC under the feature's anchor, e.g.
   // `natSessions(req: …): Promise<…> { return this.unary(this.c.natSessions, { ...req, owner: this.owner }); }`
+  // wave-BC: F-default-vpp-nics
+  /** F-default-vpp-nics: enumerate the host's physical NICs so the API can seed the default dataplane document. */
+  hostNics(): Promise<HostNicsResponse> {
+    return this.unary(this.c.hostNics, { owner: this.owner });
+  }
+
   // wave-BC: F-det44-map-dslite-cnat
   /** F-det44-map-dslite-cnat: one page of one DET44 user's sessions + the user's port block. */
   det44Sessions(req: Omit<Det44SessionsRequest, 'owner'>): Promise<Det44SessionsResponse> {

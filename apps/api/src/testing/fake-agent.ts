@@ -24,6 +24,9 @@ import {
   EventKind,
   type HealthRequest,
   type HealthResponse,
+  // wave-BC: F-default-vpp-nics
+  type HostNic,
+  type HostNicsResponse,
   type InterfaceState,
   type InterfaceStateRequest,
   type PppoeSessionState,
@@ -183,6 +186,9 @@ export class FakeAgent {
   liveExtra: Partial<InterfaceState>[] = [];
   liveMissing = new Set<string>();
   interfaceStateUnimplemented = false;
+  /** F-default-vpp-nics: the host NIC inventory the HostNics RPC returns (tests set it to seed the default document). */
+  hostNicList: HostNic[] = [];
+  hostNicNotes: string[] = [];
 
   private server: Server | undefined;
   private socketPath = '';
@@ -947,6 +953,16 @@ export class FakeAgent {
       action,
       // Feature RPCs: one handler line under the feature's anchor (the contract commit's UNIMPLEMENTED stub;
       // real fake behaviour lives in features/<slug>/fake.ts, wired by the same line — wave-A-hotspots P5).
+      // wave-BC: F-default-vpp-nics
+      hostNics: (call, cb: sendUnaryData<HostNicsResponse>) => {
+        if (!this.checkCommon('HostNics', call.request, cb)) return;
+        cb(null, {
+          owner: this.owner,
+          retrievedAt: new Date('2026-09-28T00:00:00.000Z'),
+          nics: this.hostNicList,
+          managementNotes: this.hostNicNotes,
+        });
+      },
       // wave-BC: F-det44-map-dslite-cnat
       ...det44MapDsliteCnatFake(this), // Det44Sessions/Det44Lookup/CnatSessions + det44SessionClose/cnatSessionPurge
       // wave-BC: F-tunnels

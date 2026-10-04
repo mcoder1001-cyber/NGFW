@@ -107,3 +107,4 @@ See also: [Bond interfaces (link aggregation, LACP)](bonding.md).
 See also: [Bridging](bridge-l2.md) — bridge domains, cross-connects, VLAN tag rewrite on L2 ports and the time-range MAC filter (`interfaces.<if>.l2`, `routing.l2`).
 See also: [Loopbacks as BVI, GSO, port mirroring, LLDP and the delay simulator](loopback-bvi-gso-lldp-span.md) — `interfaces.<if>.gso`, `interfaces.<if>.mirror`, `services.lldp`, `services.nsim`.
 See also: [Tunnels](../vpn/tunnels.md) — GRE, VXLAN and IPIP tunnel interfaces (`tunnels.*`).
+See also: [Default data-plane NICs](default-dataplane-nics.md) — built-in physical NICs seeded on first boot, release to / reclaim from the host (`interfaces.<if>.physical`).

@@ -10,7 +10,7 @@ ngfw-a). Entry point `det44.Register(registry, client, owner)`. No "is enabled" 
 |---|---|---|---|---|---|---|
 | `det44.enable` | `global` | Create `det44_plugin_enable_disable(enable=1)` (`inside_vrf`, `outside_vrf`; retval 1 "already" tolerated). **Delete never disables** (see below) | `ErrVRFChangeUnsafe` (VRF change needs a disable) | `ErrRetrieveUnsupported` (write-only) | optional `vrf/<inside>`, `vrf/<outside>` | No getter for "enabled" or the VRFs. The re-apply on every resync is idempotent (retval 1 tolerated). |
 | `det44.timeouts` | `global` | `det44_set_timeouts`; Delete restores 300/7440/240/60 | in place | `det44_get_timeouts` — object only when non-default | enable | Presence = non-default values. |
-| `det44.interface` | `<interface>/<inside\|outside>` | `det44_interface_add_del_feature` (`is_inside`) | recreate | `det44_interface_dump` (`is_inside` / `is_outside`) | enable, `interface/<name>` | |
+| `det44.interface` | `<interface>/<inside\|outside>` | `det44_interface_add_del_feature` (`is_inside`) | recreate | `det44_interface_dump` (`is_inside` / `is_outside`) | enable, `interface/<name>` | Repairs unheld det44 nodes using `feature_is_enabled` / `feature_enable_disable`; never enables a held side twice. |
 | `det44.map` | `<inside prefix>/<outside prefix>` | `det44_add_del_map` | recreate | `det44_map_dump` (sharing ratio / ports per host are derived, not part of the value) | enable | Ownership: inside or outside prefix inside the slot v4 block. |
 
 Retrieve-only / actions: `Sessions(userIP, offset, limit)` over `det44_session_dump` (per user, paged),
@@ -25,7 +25,7 @@ removed crashes VPP (this happened twice on ngfw-a). `det44.enable` Delete there
 agent: the plugin stays enabled but idle until the next VPP restart, and a later Create finds it "already enabled".
 A second bug: `det44_interface_add_del(is_del)` calls `vnet_feature_enable_disable(..., 1)`, so the
 `det44-in2out/out2in` node stays on the interface after the det44 interface is deleted. The dump is correct, but the
-feature node lingers until the interface is deleted.
+feature node lingers unless repaired. The interface descriptor now removes every unheld node instance through the generic feature API, bounded at 256 disables. Retrieve exposes owned stale nodes as `<interface>#leftover/<side>` so reconciliation removes them; desired-state assembly filters these repair-only objects. Ambiguous answers with both nodes enabled are ignored because VPP reports missing features as enabled.
 
 Tests: `det44_test.go` (fake), `det44_integration_test.go` (loopbacks `loop920/921`, map `10.9.44.0/24 → 10.9.45.0/30`).
 The integration test never disables det44, and it touches the det44 timeouts only when they are at VPP's defaults.

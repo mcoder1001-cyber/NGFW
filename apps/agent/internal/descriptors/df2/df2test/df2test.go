@@ -105,6 +105,9 @@ func loopback(t testing.TB, c vpp.Client, i int, tagged bool) (name string, swIf
 			t.Errorf("cleanup delete_loopback %s: %v", name, err)
 		}
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, c, swIfIndex); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185/D-191)
+		t.Fatalf("reset ip classify %s: %v", name, err)
+	}
 	if !tagged {
 		if _, err := svc.SwInterfaceSetFlags(ctx, &interfaces.SwInterfaceSetFlags{SwIfIndex: rep.SwIfIndex, Flags: interface_types.IF_STATUS_API_FLAG_ADMIN_UP}); err != nil {
 			t.Fatalf("sw_interface_set_flags %s: %v", name, err)

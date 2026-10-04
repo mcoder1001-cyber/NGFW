@@ -15,7 +15,8 @@ import { pageRows } from '../widgets/paging';
 import { collectionModel, collectionRows, createMergePatch, itemPointer, localizeSchema, problemAt } from './model';
 
 // F-bonding: P08's form also leaves `bond` out (edited on the Bonds page); the kit expresses it with omit.
-const IFACES = collectionModel({ domain: 'interfaces', ns: 'interfaces', omit: ['subinterfaces', 'bond'] });
+// wave-BC: F-default-vpp-nics — `physical` is read-only (release/reclaim only), left out of the form too.
+const IFACES = collectionModel({ domain: 'interfaces', ns: 'interfaces', omit: ['subinterfaces', 'bond', 'physical'] });
 const SUBS = collectionModel({ domain: 'interfaces', ns: 'interfaces' });
 const USERS = collectionModel({ domain: 'management', path: ['users'], ns: 'users' });
 

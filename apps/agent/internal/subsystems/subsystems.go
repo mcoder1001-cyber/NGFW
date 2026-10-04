@@ -469,7 +469,8 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
-	w.igmpMfibConnected() // wave-BC: F-igmp-mfib-host
+	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
+	w.igmpMfibConnected()            // wave-BC: F-igmp-mfib-host
 	w.index.Invalidate()
 	id, err := bootid.Current(ctx, w.env.Client)
 	if err != nil {

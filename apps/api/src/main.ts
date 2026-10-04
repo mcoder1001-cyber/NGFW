@@ -7,6 +7,7 @@ import { DB, runMigrations, type Db } from './db/db.js';
 import { RelayService } from './telemetry/relay.service.js';
 import { AlarmsService } from './features/dashboard-prom-alarms/index.js';
 import { AutoBlockService } from './features/auto-block/index.js';
+import { SeedService } from './features/default-vpp-nics/index.js'; // wave-BC: F-default-vpp-nics
 
 const env = loadEnv();
 const app = await createApp({ env });
@@ -23,6 +24,8 @@ app.get(RelayService).start();
 await app.get(AlarmsService).start();
 // F-bruteforce-block: load thresholds/allow-list and start the auto-block expiry sweep
 await app.get(AutoBlockService).start();
+// wave-BC: F-default-vpp-nics — seed the default dataplane document on first boot (retried on agent connect; never blocks start)
+app.get(SeedService).start();
 await app.listen({ port: env.NGFW_HTTP_PORT, host: env.NGFW_HTTP_HOST });
 console.log(
   `ngfw-api listening on http://${env.NGFW_HTTP_HOST}:${env.NGFW_HTTP_PORT} (docs at /api/docs)`,

@@ -30,6 +30,9 @@ export function interfaceFormSchema(): JsonSchema {
   const props = { ...((item.properties ?? {}) as Record<string, JsonSchema>) };
   delete props['subinterfaces'];
   delete props['bond']; // F-bonding: edited on the Bonds page; its required `mode` would block every save here (phantom default)
+  // F-default-vpp-nics (review R6-1): the physical-NIC marker is set only by the first-boot seed; the drawer shows pci/owner
+  // read-only and Release / Reclaim is the only way to change the owner
+  delete props['physical'];
   const required = Array.isArray(item.required) ? item.required.filter((r) => r !== 'subinterfaces') : undefined;
   return { ...item, properties: props, ...(required ? { required } : {}) } as JsonSchema;
 }

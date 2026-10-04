@@ -323,6 +323,22 @@ vpp_wan_addr: ${wa:--}
 ping: ip netns exec $NS_LAN ping -c 3 $WAN_IP
 EOR
 }
+rig_reset_classify() {  # <vpp-if> — INC-vpp-classify-crash M1 (D-185): set ip4 AND ip6 classify of the interface explicitly to ~0.
+  # VPP 26.06 grows classify_table_index_by_sw_if_index with a ZERO fill (ip4_forward.c:2800, ip6_forward.c:2993) and 0 is a valid
+  # table: an interface nobody reset reads "classify table 0", its next address add installs a classify /32 → table 0, and the first
+  # packet to that address after table 0 is freed crashes VPP (vnet_classify_find_entry, 2026-09-28 14:10:40 + 14:13:00). An
+  # explicitly set slot can never be zero-filled later. With the address present the reset also removes an armed /32 (repair).
+  # <fams> defaults to "ip ip6" (the create-time reset: no address yet). With an address present pass "ip" only: VPP's ip6
+  # reset removes the /128 through the interface's IPv4 FIB index (ip6_forward.c:3006, review F6) — wrong table.
+  local vif="$1" fams="${2:-ip ip6}" fam out
+  for fam in $fams; do
+    out="$(vpp_cli_ok set "$fam" classify intfc "$vif" table-index -1)" \
+      || die "rig: VPP refused 'set $fam classify intfc $vif table-index -1': ${out:-<no message>}"
+  done
+}
+rig_reset_classify_soft() {  # <vpp-if> — the ip4 reset on the way down (address present: ip4 only, F6); a refusal is a warning
+  vpp_cli_ok set ip classify intfc "$1" table-index -1 >/dev/null || warn "rig: could not reset ip classify on $1"
+}
 rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
   local ns="$1" h="$2" v="$3" vif="$4" gw="$5" ip="$6"
   if ip netns list | awk '{print $1}' | grep -qx "$ns"; then echo "  reuse  netns $ns"; else ip netns add "$ns"; echo "  create netns $ns"; fi
@@ -344,6 +360,9 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
     local out; out="$(vpp_cli_ok create host-interface name "$h" tx-size 67584 tx-per-block 16 rx-size 2048 rx-per-block 8)" || die "rig: VPP refused 'create host-interface name $h': $out"
     [[ "$out" == *"$vif"* ]] || die "rig: expected VPP to create $vif, got: $out"
     echo "  create vpp $vif (af_packet on $h)"; fi
+  # M1 (D-185): before any address add, on create AND on reuse (a reused interface may have been zero-filled since). ip6 too:
+  # the rig never gives its interfaces an IPv6 address, so the ip6 reset never reaches VPP's wrong-FIB-index /128 path (F6)
+  rig_reset_classify "$vif"; echo "  reset  ip/ip6 classify $vif (table-index ~0)"
   vpp_cli_ok set interface state "$vif" up >/dev/null || die "rig: set interface state $vif up failed"
   vpp_cli_ok set interface mtu packet 1500 "$vif" >/dev/null || die "rig: set interface mtu packet 1500 $vif failed"   # match the veth MTU (review F7)
   if grep -qx -- "$gw/24" <<<"$(vpp_if_addrs "$vif")"; then echo "  reuse  addr $vif $gw/24"; else
@@ -352,10 +371,14 @@ rig_side_up() {  # <ns> <host-veth> <ns-veth> <vpp-if> <gw> <ip>
       || die "rig: VPP refused 'set interface ip address $vif $gw/24': ${aout:-<no message>} — is 10.$SLOT.x.x already used by another rig? (vppctl show interface addr)"
     grep -qx -- "$gw/24" <<<"$(vpp_if_addrs "$vif")" || die "rig: $vif has no $gw/24 after 'set interface ip address' (VPP said: ${aout:-<nothing>})"
     echo "  set    addr $vif $gw/24"; fi
+  # again with the address present: removes a classify /32 armed before this up (a stale one survives an address delete, D-185)
+  rig_reset_classify "$vif" ip
 }
 rig_side_down() {  # <ns> <host-veth> <vpp-if>
   local ns="$1" h="$2" vif="$3"
   if vpp_if_exists "$vif"; then
+    # D-185 repair-before-delete: reset while the address is still there, so an armed classify /32 is removed with it
+    rig_reset_classify_soft "$vif"
     # V24/D-101: quiesce the socket first — af_packet_delete_if closes the fds before clib_file_del, so the epoll DEL fails
     # (EBADF) and a packet arriving during/after the delete can call a freed file handler (SIGSEGV PC 0x0, 2026-09-24 07:27)
     ip link set "$h" down 2>/dev/null || true; sleep 0.2
@@ -413,6 +436,7 @@ cmd_rig() {
       hdr "rig gc $P (exactly: ns-$P-lan|wan, ${P}[lw]<n>, host-${P}[lw]<n> — nothing of any other prefix)"
       local n
       for n in $(rig_own_vpp); do
+        rig_reset_classify_soft "$n"   # D-185 repair-before-delete
         ip link set "${n#host-}" down 2>/dev/null || true; sleep 0.2   # V24/D-101: quiesce before af_packet delete
         if vpp_cli_ok delete host-interface name "${n#host-}" >/dev/null && echo "  delete vpp $n"; then :; else warn "could not delete $n"; fi; done
       for n in $(rig_own_netns); do if ip netns del "$n" 2>/dev/null && echo "  delete netns $n"; then :; else true; fi; done

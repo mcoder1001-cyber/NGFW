@@ -14,6 +14,8 @@ import { servicesValidators } from './services.js';
 import { haValidators } from './ha.js';
 import { managementValidators } from './management.js';
 // Feature rule files (semantic/<slug>.ts exporting `<slug>Validators`): one import under the feature's anchor.
+// wave-BC: F-default-vpp-nics
+import { defaultVppNicsValidators } from './default-vpp-nics.js';
 // wave-BC: F-det44-map-dslite-cnat
 import { det44MapDsliteCnatValidators } from './det44-map-dslite-cnat.js';
 import { nat46Validators } from './nat46.js'; // F-nat46 (unanchored)
@@ -98,6 +100,8 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...haValidators,
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
+  // wave-BC: F-default-vpp-nics
+  ...defaultVppNicsValidators,
   // wave-BC: F-det44-map-dslite-cnat
   ...det44MapDsliteCnatValidators,
   ...nat46Validators, // F-nat46 (unanchored)

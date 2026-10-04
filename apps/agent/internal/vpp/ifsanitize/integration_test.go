@@ -48,12 +48,24 @@ func (h *host) must(what string, err error) {
 	}
 }
 
+// loopback creates a tagged loopback and resets its ip classify at once (INC-vpp-classify-crash M1,
+// D-185): a fresh index must never keep a zero-filled "table 0" slot.
 func (h *host) loopback(i int) (uint32, string) {
+	h.t.Helper()
+	idx, name := h.inheritingLoopback(i)
+	h.must("reset ip classify "+name, ifsanitize.ResetIPClassify(h.ctx, h.c, idx))
+	return idx, name
+}
+
+// inheritingLoopback creates a tagged loopback WITHOUT the ip classify reset: only for the V19
+// reproduction, whose point is that the reused index still carries the old binding (to a live
+// table, no packet is ever sent) until Sanitize clears it.
+func (h *host) inheritingLoopback(i int) (uint32, string) {
 	h.t.Helper()
 	inst := vpptest.LoopbackInstance(h.t, i)
 	name := fmt.Sprintf("loop%d", inst)
 	svc := interfaces.NewServiceClient(h.c)
-	rep, err := svc.CreateLoopbackInstance(h.ctx, &interfaces.CreateLoopbackInstance{IsSpecified: true, UserInstance: inst})
+	rep, err := svc.CreateLoopbackInstance(h.ctx, &interfaces.CreateLoopbackInstance{IsSpecified: true, UserInstance: inst}) // ipclassify:inherit (V19 reproduction; Sanitize follows)
 	h.must("create_loopback_instance "+name, err)
 	tag, err := vpp.OwnerTag(h.owner, name)
 	h.must("tag", err)
@@ -212,7 +224,7 @@ func TestV19InheritanceClearedOnHost(t *testing.T) {
 	h.keep = true                                                                                                                             // until the freed index is back in our hands
 	_, err = interfaces.NewServiceClient(h.c).DeleteLoopback(h.ctx, &interfaces.DeleteLoopback{SwIfIndex: interface_types.InterfaceIndex(a)}) // raw: leave the bindings behind
 	h.must("delete_loopback "+aName, err)
-	b, bName := h.loopback(92)
+	b, bName := h.inheritingLoopback(92) // must inherit a's ip classify binding (the V19 reproduction)
 	defer h.deleteLoopback(b)
 	if b != a {
 		t.Fatalf("%s got sw_if_index %d, not the freed %d (another creator took it)", bName, b, a)

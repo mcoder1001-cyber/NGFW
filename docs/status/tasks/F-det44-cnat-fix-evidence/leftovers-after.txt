@@ -1,0 +1,40 @@
+$ timeout 10 vppctl show interface
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+local0                            0     down          0/0/0/0       
+$ timeout 10 vppctl show det44 interfaces
+DET44 interfaces:
+$ timeout 10 vppctl show det44 mappings
+NAT44 deterministic mappings:
+$ timeout 10 vppctl show cnat translation
+$ timeout 10 vppctl show map domain
+$ timeout 10 vppctl show dslite pool
+DS-Lite pool:
+$ timeout 10 vppctl show dslite aftr-tunnel-endpoint-address
+::
+$ timeout 10 vppctl show ip6 fib fd00:10:65::/64
+ipv6-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, ]
+::/0 fib:0 index:5 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[7] locks:2 flags:drop, uPRF-list:5 len:0 itfs:[]
+      path:[7] pl-index:7 ip6 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip6
+
+ forwarding:   unicast-ip6-chain
+  [@0]: dpo-load-balance: [proto:ip6 index:6 buckets:1 uRPF:5 to:[22:1928]]
+    [0] [@0]: dpo-drop ip6
+$ timeout 10 vppctl show cnat client
+[0] cnat-client:[10.16.2.100] tr:0 sess:169 locks:5 flags: 10 exclusive
+[1] cnat-client:[10.16.1.2] tr:0 sess:139 locks:3 flags: 00
+2 clients
+$ timeout 10 vppctl show cnat session | head -4
+CNat Sessions: now:203650.600487
+Hash table 'CNat Session DB'
+    289 active elements 289 active buckets
+    1 free lists
+$ ip netns list | grep -c w16; ip link | grep -c w16
+0
+0
+$ tools/lab rig show w16 | head -1
+rig: down
+$ systemctl show vpp -p NRestarts
+NRestarts=0

@@ -109,6 +109,7 @@ func createTaps(t *testing.T, conn vppapi.Connection, taps []fixtureTap) {
 		if err != nil {
 			t.Fatalf("tap_create_v3 %s (%s): %v", tp.name, tp.hostDev, err)
 		}
+		resetIPClassify(t, conn, uint32(r.SwIfIndex)) // D-185 M1: before any address
 		t.Logf("fixture tap %s sw_if_index=%d host %s (untagged)", tp.name, r.SwIfIndex, tp.hostDev)
 		_, _ = run(t, "sysctl", "-qw", "net.ipv6.conf."+tp.hostDev+".disable_ipv6=1")
 		mustRun(t, "ip", "link", "set", tp.hostDev, "down")
@@ -118,6 +119,21 @@ func createTaps(t *testing.T, conn vppapi.Connection, taps []fixtureTap) {
 			deleteTap(t, conn, tp)
 		}
 	})
+}
+
+// resetIPClassify sets the ip4 and ip6 "ip classify table" of a fixture interface explicitly to ~0 right after its
+// create, before any address (INC-vpp-classify-crash M1, D-185/D-191): VPP 26.06 zero-fills that per-index vector, and
+// an interface left at 0 crashes VPP on the first packet to its address once classify table 0 is freed. Mirrors
+// ifsanitize.ResetIPClassify, which this module cannot import (Go's internal rule).
+func resetIPClassify(t *testing.T, conn vppapi.Connection, idx uint32) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, v6 := range []bool{false, true} {
+		if _, err := classify.NewServiceClient(conn).ClassifySetInterfaceIPTable(ctx, &classify.ClassifySetInterfaceIPTable{IsIPv6: v6, SwIfIndex: interface_types.InterfaceIndex(idx), TableIndex: ^uint32(0)}); err != nil {
+			t.Fatalf("classify_set_interface_ip_table (reset, ipv6=%v, sw_if_index %d): %v", v6, idx, err)
+		}
+	}
 }
 
 // deleteTap deletes the fixture tap if it exists and is untagged (never another owner's interface).

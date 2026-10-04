@@ -20,3 +20,13 @@ Recovered source from preserved local Git objects rather than replacing current 
 - Further component results and independent review are recorded in individual recovery reports.
 
 Complete CI is NOT RUN by owner instruction. Historical packet evidence is historical. Real hardware, FRR/VPP packet forwarding, restart and rollback acceptance is NOT RUN for the recovered integration tree unless explicitly recorded below.
+
+## Integration review
+
+Independent reviewer approved classify recovery and the combined product source. Det44 reviewer identified prohibited historical DS-Lite pool deletion; full unsafe topology test now skips before any host mutation, retaining pool-free arc tests. NIC reviewer identified PCI device-key casing mismatch; matching actual keys without case sensitivity and an uppercase-key release regression fix it.
+
+Scoped real NAT46 descriptor command: `NGFW_INTEGRATION=1 go test -count=1 -v -timeout 90s -run '^TestNat46OnHost$' ./internal/descriptors/nat46` with `tools/lab env 17`: PASS, real VPP, create/retrieve/idempotent apply/delete/cleanup, 0.086s. An initial invocation without slot env failed closed before creating objects; corrected invocation passed. Packet/restart/API acceptance is not inferred from this result.
+
+Six implementation/documentation rows record source integration; NAT46/OSPF host rows remain parked for remaining live acceptance.
+
+Final combined API scope: 23 tests PASS (NIC seed/drift + alarm state/engine). Restored OSPF FRR live test was run on slot11 with `NGFW_INTEGRATION=1 go test -count=1 -v -timeout 90s -run '^TestOSPFLive$' ./internal/renderers/frr/ospf`: PASS, 41.597s, real FRR10.7.1, adjacency/state readers/50-prefix redistribution/withdrawal/neighbour-loss event/config removal. This FRR-only test does not prove VPP FIB or packet forwarding.

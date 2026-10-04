@@ -4,6 +4,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
 import Divider from '@mui/material/Divider';
@@ -35,7 +36,14 @@ import {
   type InterfaceItem,
   type SubinterfaceConfig,
 } from './model';
-import { useCandidateInterfaces, useFreshCandidate, useInterfacesState, usePatchInterfaces, usePppoeReconnect } from './queries';
+import {
+  useCandidateInterfaces,
+  useFreshCandidate,
+  useInterfacesState,
+  usePatchInterfaces,
+  usePppoeReconnect,
+  useSetPhysicalOwner,
+} from './queries';
 import type { Rate } from './rates';
 import { Sparkline } from './Sparkline';
 import { SubinterfaceTable } from './subinterfaces/SubinterfaceTable';
@@ -46,7 +54,10 @@ export function problemFor(error: unknown, prefix: string): ProblemDetails | nul
   const p = error.toFormProblem();
   return {
     ...p,
-    errors: (p.errors ?? []).map((e) => ({ ...e, pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) : e.pointer })),
+    errors: (p.errors ?? []).map((e) => ({
+      ...e,
+      pointer: e.pointer.startsWith(prefix) ? e.pointer.slice(prefix.length) : e.pointer,
+    })),
   };
 }
 
@@ -61,22 +72,50 @@ function sameValue(a: unknown, b: unknown): boolean {
   return typeof p === 'object' && p !== null && Object.keys(p).length === 0;
 }
 
-/** The interface without its `subinterfaces` member (edited in their own table). */
+/**
+ * The interface without the members the form does not edit: `subinterfaces` (their own table) and `physical`
+ * (F-default-vpp-nics: read-only, changed only through Release / Reclaim) — so a save never sends `physical: null`.
+ */
+const NOT_IN_FORM = new Set(['subinterfaces', 'physical']);
 function withoutSubs(c: InterfaceConfig | undefined): Partial<InterfaceConfig> | undefined {
   if (!c) return undefined;
-  return Object.fromEntries(Object.entries(c).filter(([k]) => k !== 'subinterfaces')) as Partial<InterfaceConfig>;
+  return Object.fromEntries(
+    Object.entries(c).filter(([k]) => !NOT_IN_FORM.has(k)),
+  ) as Partial<InterfaceConfig>;
 }
 
 /** Opens from the end of the reading direction: MUI flips `anchor="right"` to the left in RTL. */
-export function InterfaceDrawer({ name, onClose, rates }: { name: string | null; onClose: () => void; rates: Map<string, Rate> }) {
+export function InterfaceDrawer({
+  name,
+  onClose,
+  rates,
+}: {
+  name: string | null;
+  onClose: () => void;
+  rates: Map<string, Rate>;
+}) {
   return (
-    <Drawer anchor="right" open={name !== null} onClose={onClose} sx={{ zIndex: (th) => th.zIndex.modal }} slotProps={{ paper: { sx: { inlineSize: { xs: '100%', md: 640 } } } }}>
+    <Drawer
+      anchor="right"
+      open={name !== null}
+      onClose={onClose}
+      sx={{ zIndex: (th) => th.zIndex.modal }}
+      slotProps={{ paper: { sx: { inlineSize: { xs: '100%', md: 640 } } } }}
+    >
       {name !== null && <DrawerBody key={name} name={name} onClose={onClose} rates={rates} />}
     </Drawer>
   );
 }
 
-function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => void; rates: Map<string, Rate> }) {
+function DrawerBody({
+  name,
+  onClose,
+  rates,
+}: {
+  name: string;
+  onClose: () => void;
+  rates: Map<string, Rate>;
+}) {
   const { t } = useTranslation('interfaces');
   const fmt = useFormatters();
   const perms = usePermissions();
@@ -84,17 +123,34 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
   const candidate = useCandidateInterfaces();
   const fresh = useFreshCandidate();
   const patch = usePatchInterfaces();
+  const setOwner = useSetPhysicalOwner();
   const [saved, setSaved] = useState(false);
-  const [subDialog, setSubDialog] = useState<{ id: string; value: SubinterfaceConfig | undefined } | null>(null);
+  // F-default-vpp-nics: pending release/reclaim confirmation ('host' = release, 'dataplane' = reclaim)
+  const [ownerAction, setOwnerAction] = useState<'host' | 'dataplane' | null>(null);
+  const [subDialog, setSubDialog] = useState<{
+    id: string;
+    value: SubinterfaceConfig | undefined;
+  } | null>(null);
   const [subError, setSubError] = useState<unknown>(null);
 
   const item: InterfaceItem | undefined = state.data?.items.find((i) => i.name === name);
+  const physical = item?.physical ?? null; // F-default-vpp-nics: seeded physical NIC marker
+  // the owner this NIC would flip to (dataplane → host = release, host → dataplane = reclaim); computed outside JSX
+  const nextOwner: 'host' | 'dataplane' = physical?.owner === 'dataplane' ? 'host' : 'dataplane';
   const parentName = item?.kind === 'subinterface' ? (item.parent ?? '') : name;
   const isSub = item?.kind === 'subinterface';
   const config: InterfaceConfig | undefined = candidate.data?.[parentName];
-  const formSchema = useMemo(() => localizeSchema(interfaceFormSchema(), (k, o) => t(k, o ?? {})), [t]);
-  const subSchema = useMemo(() => localizeSchema(subinterfaceSchema(), (k, o) => t(k, o ?? {})), [t]);
-  const subs = Object.entries(config?.subinterfaces ?? {}).sort(([a], [b]) => Number(a) - Number(b));
+  const formSchema = useMemo(
+    () => localizeSchema(interfaceFormSchema(), (k, o) => t(k, o ?? {})),
+    [t],
+  );
+  const subSchema = useMemo(
+    () => localizeSchema(subinterfaceSchema(), (k, o) => t(k, o ?? {})),
+    [t],
+  );
+  const subs = Object.entries(config?.subinterfaces ?? {}).sort(
+    ([a], [b]) => Number(a) - Number(b),
+  );
   const live = item?.state;
   const rate = rates.get(live?.vppName ?? name);
   const readOnly = !perms.editConfig;
@@ -103,7 +159,10 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
   // stay), and Save sends only what changed against that value — a field another session changed meanwhile is not
   // written back with a stale value. "Reload" opens the form again on the current candidate.
   const [reload, setReload] = useState(0);
-  const [opened, setOpened] = useState<{ reload: number; value: Partial<InterfaceConfig> | undefined } | null>(null);
+  const [opened, setOpened] = useState<{
+    reload: number;
+    value: Partial<InterfaceConfig> | undefined;
+  } | null>(null);
   const [changedElsewhere, setChangedElsewhere] = useState(false);
   if (candidate.isSuccess && (opened === null || opened.reload !== reload)) {
     setOpened({ reload, value: withoutSubs(config) });
@@ -143,7 +202,8 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
     setSubError(null);
     const base = subDialog?.value;
     const current = (await fresh())[parentName]?.subinterfaces?.[id];
-    const body = current === undefined || base === undefined ? value : createMergePatch(base, value);
+    const body =
+      current === undefined || base === undefined ? value : createMergePatch(base, value);
     try {
       await patch.mutateAsync({ [parentName]: { subinterfaces: { [id]: body } } });
       setSubDialog(null);
@@ -166,7 +226,10 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
         [t('live.type'), live.type],
         [t('live.swIfIndex'), String(live.swIfIndex)],
         [t('live.mac'), live.mac],
-        [t('live.mtu'), `${fmt.integer(live.mtu)} (${t('live.linkMtu')} ${fmt.integer(live.linkMtu)})`],
+        [
+          t('live.mtu'),
+          `${fmt.integer(live.mtu)} (${t('live.linkMtu')} ${fmt.integer(live.linkMtu)})`,
+        ],
         [t('live.addresses'), [...live.ipv4, ...live.ipv6].join(' ') || '—'],
         [t('live.vrf'), `${live.vrf} (${live.tableId})`],
         [t('live.rxMode'), live.rxMode || '—'],
@@ -176,11 +239,28 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
   return (
     <Box sx={{ p: 2 }} role="region" aria-label={t('drawer.label', { name })}>
       <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-        <Typography component="h3" variant="h6" dir="ltr" sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}>
+        <Typography
+          component="h3"
+          variant="h6"
+          dir="ltr"
+          sx={{ fontFamily: (th) => th.ngfw.monoFontFamily, flex: 1, textAlign: 'start' }}
+        >
           {name}
         </Typography>
-        {live && <StatusChip size="small" status={adminStatus(live)!} label={`${t('col.admin')}: ${t(`status.${adminStatus(live)!}`)}`} />}
-        {live && <StatusChip size="small" status={linkStatus(live)!} label={`${t('col.link')}: ${t(`status.${linkStatus(live)!}`)}`} />}
+        {live && (
+          <StatusChip
+            size="small"
+            status={adminStatus(live)!}
+            label={`${t('col.admin')}: ${t(`status.${adminStatus(live)!}`)}`}
+          />
+        )}
+        {live && (
+          <StatusChip
+            size="small"
+            status={linkStatus(live)!}
+            label={`${t('col.link')}: ${t(`status.${linkStatus(live)!}`)}`}
+          />
+        )}
         <IconButton aria-label={t('close')} onClick={onClose}>
           <CloseIcon />
         </IconButton>
@@ -229,7 +309,28 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
           <Typography component="h4" variant="subtitle1" gutterBottom>
             {t('drawer.configTitle')}
           </Typography>
-          {!config && candidate.isSuccess && <Alert severity="info" sx={{ mb: 1 }}>{t('drawer.notConfigured')}</Alert>}
+          {physical !== null && (
+            <Alert severity="info" sx={{ mb: 1 }}>
+              {physical.owner === 'host'
+                ? t('physical.releasedInfo', { pci: physical.pci })
+                : item?.awaitingDataplane
+                  ? t('physical.awaitingInfo', { pci: physical.pci })
+                  : t('physical.builtInInfo', { pci: physical.pci })}
+            </Alert>
+          )}
+          {physical !== null && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {t('physical.summary', {
+                pci: `\u2068${physical.pci}\u2069`,
+                owner: t(`physical.owners.${physical.owner}`),
+              })}
+            </Typography>
+          )}
+          {!config && candidate.isSuccess && (
+            <Alert severity="info" sx={{ mb: 1 }}>
+              {t('drawer.notConfigured')}
+            </Alert>
+          )}
           {patch.isError && !subDialog && <ProblemAlert error={patch.error} sx={{ mb: 1 }} />}
           {saved && !patch.isError && (
             <Alert severity="success" sx={{ mb: 1 }}>
@@ -241,7 +342,15 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
               severity="warning"
               sx={{ mb: 1 }}
               action={
-                <Button color="inherit" size="small" onClick={() => { setChangedElsewhere(false); setSaved(false); setReload((r) => r + 1); }}>
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    setChangedElsewhere(false);
+                    setSaved(false);
+                    setReload((r) => r + 1);
+                  }}
+                >
                   {t('drawer.reload')}
                 </Button>
               }
@@ -260,9 +369,26 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
               problem={problemFor(patch.error, `/interfaces/${esc(name)}`)}
               onSubmit={saveInterface}
             >
-              {config && (
-                <Button color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={readOnly || patch.isPending} onClick={() => void removeInterface()}>
+              {config && physical === null && (
+                <Button
+                  color="error"
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  disabled={readOnly || patch.isPending}
+                  onClick={() => void removeInterface()}
+                >
                   {t('drawer.remove')}
+                </Button>
+              )}
+              {/* F-default-vpp-nics: built-in physical NICs are never deleted; they are released to / reclaimed from the host */}
+              {config && physical !== null && (
+                <Button
+                  color={physical.owner === 'dataplane' ? 'warning' : 'primary'}
+                  variant="outlined"
+                  disabled={readOnly || setOwner.isPending}
+                  onClick={() => setOwnerAction(nextOwner)}
+                >
+                  {physical.owner === 'dataplane' ? t('physical.release') : t('physical.reclaim')}
                 </Button>
               )}
             </SchemaForm>
@@ -284,8 +410,58 @@ function DrawerBody({ name, onClose, rates }: { name: string; onClose: () => voi
         </>
       )}
 
+      {/* F-default-vpp-nics: release / reclaim confirmation — the change applies with the next dataplane apply */}
+      <Dialog
+        open={ownerAction !== null}
+        onClose={() => setOwnerAction(null)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>
+          {ownerAction === 'host' ? t('physical.release') : t('physical.reclaim')}
+        </DialogTitle>
+        <DialogContent>
+          <Typography sx={{ mb: 1 }}>
+            {ownerAction === 'host'
+              ? t('physical.releaseConfirm', { name })
+              : t('physical.reclaimConfirm', { name })}
+          </Typography>
+          <Alert severity="warning">{t('physical.applyHint')}</Alert>
+          {setOwner.isError && <ProblemAlert error={setOwner.error} sx={{ mt: 1 }} />}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setOwner.reset();
+              setOwnerAction(null);
+            }}
+          >
+            {t('cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color={ownerAction === 'host' ? 'warning' : 'primary'}
+            disabled={setOwner.isPending}
+            onClick={() => {
+              if (physical && ownerAction) {
+                setOwner.mutate(
+                  { name, pci: physical.pci, owner: ownerAction },
+                  { onSuccess: () => setOwnerAction(null) },
+                );
+              }
+            }}
+          >
+            {ownerAction === 'host' ? t('physical.release') : t('physical.reclaim')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog open={subDialog !== null} onClose={() => setSubDialog(null)} fullWidth maxWidth="sm">
-        <DialogTitle>{subDialog?.value ? t('sub.editTitle', { name: `${name}.${subDialog.id}` }) : t('sub.addTitle', { name })}</DialogTitle>
+        <DialogTitle>
+          {subDialog?.value
+            ? t('sub.editTitle', { name: `${name}.${subDialog.id}` })
+            : t('sub.addTitle', { name })}
+        </DialogTitle>
         <DialogContent>
           {subDialog && (
             <SubForm
@@ -369,7 +545,15 @@ function SubForm({
 type PppoeLive = NonNullable<NonNullable<InterfaceItem['state']>['pppoe']>;
 
 /** F-pppoe-client: the live PPPoE session on a WAN interface, with a Reconnect action. */
-function PppoePanel({ name, pppoe, readOnly }: { name: string; pppoe: PppoeLive; readOnly: boolean }) {
+function PppoePanel({
+  name,
+  pppoe,
+  readOnly,
+}: {
+  name: string;
+  pppoe: PppoeLive;
+  readOnly: boolean;
+}) {
   const { t } = useTranslation('interfaces');
   const reconnect = usePppoeReconnect();
   const phase = pppoe.phase === 'up' ? 'up' : pppoe.phase === 'failed' ? 'degraded' : 'down';
@@ -389,7 +573,11 @@ function PppoePanel({ name, pppoe, readOnly }: { name: string; pppoe: PppoeLive;
         <Typography component="h4" variant="subtitle1" sx={{ flex: 1 }}>
           {t('pppoe.title')}
         </Typography>
-        <StatusChip size="small" status={phase} label={`${t('pppoe.phase')}: ${t(`pppoe.phases.${pppoe.phase}`, { defaultValue: pppoe.phase })}`} />
+        <StatusChip
+          size="small"
+          status={phase}
+          label={`${t('pppoe.phase')}: ${t(`pppoe.phases.${pppoe.phase}`, { defaultValue: pppoe.phase })}`}
+        />
         <Button
           size="small"
           variant="outlined"

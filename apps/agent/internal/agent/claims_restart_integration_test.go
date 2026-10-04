@@ -58,6 +58,9 @@ func TestUntaggedClaimsSurviveAgentRestartOnHost(t *testing.T) {
 			t.Errorf("cleanup tap_delete_v2: %v", err)
 		}
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, raw, tapIdx); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185/D-191)
+		t.Fatalf("reset ip classify %s: %v", nic, err)
+	}
 	t.Logf("untagged %s sw_if_index %d (no tag: ours only through a claim)", nic, tapIdx)
 
 	bin := filepath.Join(t.TempDir(), "ngfw-agent")

@@ -98,6 +98,18 @@ const Env = z
     /** Master key of the secret store (AES-256-GCM): a file with 32 random bytes; created 0600 when missing. */
     NGFW_SECRET_KEY_FILE: z.string().default('/var/lib/ngfw/secret.key'),
 
+    // wave-BC: F-default-vpp-nics
+    /**
+     * F-default-vpp-nics (D-164, D-192): seed the default dataplane document on first boot (no revision, empty
+     * candidate) — every non-management host NIC becomes a dataplane interface owned by VPP. Fail-closed: the default is
+     * `0` (off), so dev stacks, lab slots and tests never seed the shared host's real NICs; the product unit/firstboot
+     * (P10) sets `NGFW_SEED_DEFAULT_NICS=1`.
+     */
+    NGFW_SEED_DEFAULT_NICS: z
+      .enum(['0', '1', 'true', 'false'])
+      .default('0')
+      .transform((v) => v === '1' || v === 'true'),
+
     /** First admin (D-048): created at boot when app_user is empty. */
     NGFW_BOOTSTRAP_ADMIN_USER: z.string().default('admin'),
     NGFW_BOOTSTRAP_ADMIN_PASSWORD: z.string().min(8).optional(),

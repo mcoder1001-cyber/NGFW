@@ -407,6 +407,31 @@ do_slot_check() {  # D-156: 30 developer slots - every per-slot port/table/db is
   say "$out"
 }
 
+# D-185/D-191 (INC-vpp-classify-crash M1): VPP 26.06 zero-fills the per-interface ip classify vector, so an interface whose
+# ip4/ip6 classify was never reset reads "table 0" and crashes VPP on the first packet to its address once table 0 is freed.
+# Every shell fixture that creates an interface (vppctl / vpp_cli* `create tap|host-interface|loopback|sub-interface`) must
+# reset it within the next 15 lines: `set ip classify intfc <if> table-index -1` (and ip6), or tools/lab's rig_reset_classify.
+# Go creators are checked by apps/agent/internal/vpp/ifsanitize TestEveryInterfaceCreatorResetsIPClassify.
+do_classify_reset_guard() {
+  step "ip classify reset after every shell interface create (D-185)"
+  CUR_LOG=""  # a static scan, no step log
+  local f hits=""
+  while IFS= read -r f; do
+    [[ -f $f ]] || continue
+    local h; h=$(awk -v F="$f" '
+      /^[[:space:]]*#/ { next }
+      /(vppctl|vpp_cli[a-z_]*)([^a-z_].*)?[[:space:]]create[[:space:]]+(tap|host-interface|loopback|sub-interfaces?)([^a-z-]|$)/ { pend[NR]=$0; next }
+      /classify[[:space:]]+intfc.*table-index[[:space:]]+-1|rig_reset_classify/ { for (l in pend) if (NR - l <= 15) delete pend[l] }
+      { for (l in pend) if (NR - l > 15) { printf "%s:%d: %s\n", F, l, pend[l]; delete pend[l] } }
+      END { for (l in pend) printf "%s:%d: %s\n", F, l, pend[l] }' "$f")
+    [[ -z $h ]] || hits+="$h"$'\n'
+  done < <(git ls-files --cached --others --exclude-standard -- '*.sh' tools/lab ':(exclude)docs' ':(exclude)prompts' 2>/dev/null)
+  [[ -z $hits ]] || fail "INTERFACE CREATED WITHOUT AN IP CLASSIFY RESET (D-185, docs/lab/shared-host-rules.md §2): add
+  vppctl set ip classify intfc <if> table-index -1 && vppctl set ip6 classify intfc <if> table-index -1
+  right after the create, before any address or admin-up:\n$(sed 's/\\/\\\\/g; s/^/    /' <<<"${hits%$'\n'}")"
+  say "ok: every shell interface create is followed by an ip4/ip6 classify reset"
+}
+
 do_trace_ban() {
   step "packet-trace ban on the shared VPP (D-128)"
   CUR_LOG=""  # a static grep, no step log: a failure must not print the previous step's log
@@ -703,7 +728,7 @@ case $MODE in
   gen-check)
     init_logs; do_gen_check; end_step; say "gen-check PASSED ($(fmt_dur "$SECONDS"))" ;;
   check)
-    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; do_slot_check; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
+    init_logs; [[ -z $BASE ]] || do_contract_guard; do_forbidden; do_trace_ban; do_classify_reset_guard; do_slot_check; end_step; say "check PASSED ($(fmt_dur "$SECONDS"))" ;;
   quick|full)
     init_logs
     preflight
@@ -713,6 +738,7 @@ case $MODE in
     do_gen_check
     do_forbidden
     do_trace_ban
+    do_classify_reset_guard
     do_slot_check
     do_turbo
     do_agent

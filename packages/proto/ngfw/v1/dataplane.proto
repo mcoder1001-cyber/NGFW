@@ -333,6 +333,15 @@ service Dataplane {
   // MplsLdpState reports live LDP neighbours, LIB bindings and the FRR→VPP sync status. Read-only. Unimplemented on an
   // agent without LDP (→ 501).
   rpc MplsLdpState(MplsLdpStateRequest) returns (MplsLdpStateResponse);
+
+  // wave-BC: F-default-vpp-nics
+
+  // HostNics enumerates the physical NICs on the host (F-default-vpp-nics, D-164), one entry per PCI NIC, so the API
+  // can seed the default dataplane document on first boot: which NIC is the management interface (default-route /
+  // sshd-peer NIC + --mgmt-if/--mgmt-pci, exactly as the start-up generator decides it) and which are handed to the
+  // engine. Read-only: never binds a NIC, never touches /etc/vpp, never restarts VPP (D-012). NICs without a PCI
+  // address (virtio-mmio, USB) are not enumerated.
+  rpc HostNics(HostNicsRequest) returns (HostNicsResponse);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1231,6 +1240,22 @@ message Interface {
 
   // PPPoE client dial-up on this interface (pppd on a linux-cp tap; F-pppoe-client); unset = not a PPPoE client.
   Pppoe pppoe = 23;
+
+  // wave-BC: F-default-vpp-nics
+
+  // Physical-NIC marker (F-default-vpp-nics, D-164): present = the row is a physical NIC seeded from the host
+  // inventory (built-in, non-deletable). Absent = not a seeded physical NIC.
+  InterfacePhysical physical = 24;
+}
+
+// InterfacePhysical mirrors `interfaces.<name>.physical` (F-default-vpp-nics, D-164).
+message InterfacePhysical {
+  // PCI address of the NIC underneath this interface ("0000:0b:00.0").
+  optional string pci = 1;
+  // "dataplane" (handed to the engine/VPP) | "host" (released back to the Linux host); Zod default "dataplane".
+  optional string owner = 2;
+  // Seeded from the host NIC inventory on first boot (built-in, non-deletable); Zod default true.
+  optional bool built_in = 3;
 }
 
 // DhcpClient mirrors `interfaces.<name>.dhcpClient` / `….subinterfaces.<id>.dhcpClient`.
@@ -8259,4 +8284,42 @@ message PppoeSession {
   optional string vrf = 6;
   // MTU; unset = VPP default.
   optional uint32 mtu = 7;
+}
+
+// ----- F-default-vpp-nics -----
+
+// HostNicsRequest asks the agent to enumerate the host's physical NICs (read-only).
+message HostNicsRequest {
+  // Same rules as ApplyRequest.owner.
+  string owner = 1;
+}
+
+// HostNicsResponse is the host NIC inventory the API seeds the default dataplane document from.
+message HostNicsResponse {
+  // One entry per physical NIC with a PCI address, sorted by pci.
+  repeated HostNic nics = 1;
+  // The owner whose agent answered.
+  string owner = 2;
+  // When the inventory was read (agent clock).
+  google.protobuf.Timestamp retrieved_at = 3;
+  // Human-readable notes on how the management NIC(s) were decided (vppstartup.ReadHost ManagementNotes).
+  repeated string management_notes = 4;
+}
+
+// HostNic is one physical NIC on the host as the agent's host reader sees it (vppstartup.ReadHost).
+message HostNic {
+  // Linux netdev name ("ens192").
+  optional string netdev = 1;
+  // PCI address ("0000:0b:00.0").
+  optional string pci = 2;
+  // Kernel driver bound to the NIC ("vmxnet3", "ixgbe"); empty when unknown.
+  optional string driver = 3;
+  // Permanent MAC address, lower-case "aa:bb:cc:dd:ee:ff"; empty when unknown.
+  optional string mac = 4;
+  // True when this NIC is the management interface (default-route / sshd-peer NIC + --mgmt-if/--mgmt-pci).
+  optional bool is_management = 5;
+  // True when VPP already owns this NIC as a DPDK interface (an InterfaceState of type "dpdk" with this PCI).
+  optional bool bound_to_dpdk = 6;
+  // Carrier (link) state as the kernel reports it (/sys/class/net/<netdev>/carrier); false when down or unknown.
+  optional bool link_up = 7;
 }

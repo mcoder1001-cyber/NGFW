@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/descriptors/df6/df6test"
 	"ngfw/agent/internal/descriptors/vxlan"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/ifsanitize"
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
@@ -28,6 +29,9 @@ func TestBypassInterfaceRecreatedOnHost(t *testing.T) {
 		rep, err := svc.CreateLoopbackInstance(h.Ctx, &interfaces.CreateLoopbackInstance{IsSpecified: true, UserInstance: inst})
 		if err != nil {
 			t.Fatalf("create %s: %v", name, err)
+		}
+		if err := ifsanitize.ResetIPClassify(h.Ctx, h.Client, uint32(rep.SwIfIndex)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+			t.Fatalf("reset ip classify %s: %v", name, err)
 		}
 		tag, _ := vpp.OwnerTag(h.Owner, name)
 		if _, err := svc.SwInterfaceTagAddDel(h.Ctx, &interfaces.SwInterfaceTagAddDel{IsAdd: true, SwIfIndex: rep.SwIfIndex, Tag: tag}); err != nil {

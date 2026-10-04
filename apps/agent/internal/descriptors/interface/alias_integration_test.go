@@ -44,6 +44,9 @@ func TestAliasOnHost(t *testing.T) {
 			t.Errorf("cleanup tap_delete_v2: %v", err)
 		}
 	})
+	if err := ifsanitize.ResetIPClassify(ctx, c, tapIdx); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185/D-191)
+		t.Fatalf("reset ip classify %s: %v", host, err)
+	}
 
 	d := iface.NewAlias(c, owner)
 	loopName := fmt.Sprintf("loop%d", vpptest.LoopbackInstance(t, 70))

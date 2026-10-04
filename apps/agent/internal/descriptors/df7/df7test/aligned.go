@@ -64,6 +64,9 @@ func (h *Host) AlignedLoopback(first, tries int) (name string, swIfIndex uint32,
 				h.T.Errorf("cleanup delete_subif %d: %v", sub, err)
 			}
 		})
+		if err := ifsanitize.ResetIPClassify(h.Ctx, h.C, uint32(sub)); err != nil { // INC-vpp-classify-crash M1: explicit ~0 before any address (VPP zero-fill, D-185)
+			h.T.Fatalf("reset ip classify subif %d: %v", sub, err)
+		}
 	}
 	return "", 0, false
 }

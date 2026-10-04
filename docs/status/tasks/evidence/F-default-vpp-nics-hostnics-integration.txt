@@ -1,0 +1,17 @@
+$ date; NGFW_INTEGRATION=1 go test ./internal/agent/ -run TestHostNicsOnHost -v -count=1   (slot 1, lab lock taken by vpptest.LockLab)
+2026-09-28T16:20:12+03:30
+=== RUN   TestHostNicsOnHost
+    rpc_host_nics_integration_test.go:51: before: vpp NRestarts=2 /etc/vpp/startup.conf sha256=a4763491ad8b173929546ba0cf83f438e7cdfa9aecd9068f15e202852ee22af0
+    rpc_host_nics_integration_test.go:69: HostNics: 7 NIC(s)
+    rpc_host_nics_integration_test.go:71:   ens161   pci=0000:04:00.0 driver=vmxnet3  mac=00:50:56:9f:46:f2 management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:71:   ens192   pci=0000:0b:00.0 driver=vmxnet3  mac=00:50:56:9f:1e:53 management=true bound_to_dpdk=false link_up=true
+    rpc_host_nics_integration_test.go:71:   ens193   pci=0000:0c:00.0 driver=vmxnet3  mac=00:50:56:9f:4b:c6 management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:71:   ens224   pci=0000:13:00.0 driver=vmxnet3  mac=00:50:56:9f:32:8c management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:71:   ens225   pci=0000:14:00.0 driver=vmxnet3  mac=00:50:56:9f:85:ce management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:71:   ens256   pci=0000:1b:00.0 driver=vmxnet3  mac=00:50:56:9f:73:f8 management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:71:   ens257   pci=0000:1c:00.0 driver=vmxnet3  mac=00:50:56:9f:cd:88 management=false bound_to_dpdk=false link_up=false
+    rpc_host_nics_integration_test.go:75:   note: ens192 → 0000:0b:00.0 (default route)
+    rpc_host_nics_integration_test.go:122: after:  vpp NRestarts=2 /etc/vpp/startup.conf sha256=a4763491ad8b173929546ba0cf83f438e7cdfa9aecd9068f15e202852ee22af0
+--- PASS: TestHostNicsOnHost (0.28s)
+PASS
+ok  	ngfw/agent/internal/agent	0.411s

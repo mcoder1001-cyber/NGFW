@@ -7,6 +7,7 @@ import {
   ipv6Cidr,
   macAddress,
   mtu,
+  pciAddress,
   vlanId,
   vppInterfaceName,
   vrfName,
@@ -187,9 +188,43 @@ export const SubinterfaceSchema = z
 
 export type SubinterfaceConfig = z.infer<typeof SubinterfaceSchema>;
 
+/**
+ * `interfaces.<name>.physical` (F-default-vpp-nics, D-164) — presence marks the row as a physical NIC seeded from the
+ * host inventory (product-owner directive 2026-09-28): out of the box every non-management NIC belongs to the engine
+ * (VPP). Such a row can be edited or disabled but is never deleted (the API refuses removal); releasing a NIC back to
+ * the host is `owner: 'host'`, a configuration action, not a delete. `dataplane.pciWhitelist`/`devices` and `owner`
+ * are kept consistent by the `dataplane.owner-consistent` semantic rule.
+ */
+export const InterfacePhysicalSchema = z.strictObject({
+  pci: withUi(pciAddress, {
+    title: 'PCI address',
+    help: 'PCI address of the NIC underneath this interface',
+    order: 1,
+  }),
+  owner: withUi(z.enum(['dataplane', 'host']).default('dataplane'), {
+    title: 'Owner',
+    help: "'dataplane' = used by the engine; 'host' = released to the host operating system",
+    widget: 'select',
+    order: 2,
+  }),
+  builtIn: withUi(z.boolean().default(true), {
+    title: 'Built-in',
+    help: 'seeded from the host NIC inventory on first boot; a built-in row cannot be deleted, only released',
+    order: 3,
+  }),
+});
+export type InterfacePhysicalConfig = z.infer<typeof InterfacePhysicalSchema>;
+
 export const InterfaceSchema = z
   .strictObject({
     ...commonFields,
+    // wave-BC: F-default-vpp-nics — physical-NIC marker (InterfacePhysicalSchema); absent = not a seeded physical NIC.
+    physical: withUi(InterfacePhysicalSchema.optional(), {
+      title: 'Physical NIC',
+      help: 'set on physical NICs seeded from the host inventory; presence makes the row built-in and non-deletable',
+      group: 'general',
+      order: 7,
+    }),
     mac: withUi(macAddress.optional(), {
       title: 'MAC address',
       help: 'override the hardware address; absent = keep the burned-in MAC',

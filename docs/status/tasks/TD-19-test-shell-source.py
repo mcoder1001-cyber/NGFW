@@ -32,6 +32,7 @@ class ShellSource(unittest.TestCase):
         stubs = '''
 set -euo pipefail
 vpp_if_exists() { return 0; }
+rig_reset_classify_soft() { printf 'classify reset:%s\\n' "$*" >&2; }
 vpp_cli_ok() { printf 'vpp argv:%s\\n' "$*" >&2; return "$VPP_RC"; }
 ip() { [[ "$*" != 'netns list' ]] && return 1; return 0; }
 sleep() { :; }
@@ -42,7 +43,7 @@ warn() { printf 'fallback:%s\\n' "$*"; }
             result = subprocess.run(['bash', '-c', stubs + '\n' + function + f'\nVPP_RC={vpp_rc}; ECHO_RC={echo_rc}; rig_side_down ns-w1-lan w1l0 host-w1l0'], text=True, capture_output=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, expected)
-            self.assertEqual(result.stderr, 'vpp argv:delete host-interface name w1l0\n')
+            self.assertEqual(result.stderr, 'classify reset:host-w1l0\nvpp argv:delete host-interface name w1l0\n')
 
     def test_leftover_format_preserves_each_line(self):
         result = subprocess.run(['bash', '-c', "left=$'host-w1l0\\nns-w1-lan'; printf '  LEFTOVER %s\\n' \"${left//$'\\n'/$'\\n  LEFTOVER '}\""], text=True, capture_output=True, check=True)

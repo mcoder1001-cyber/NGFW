@@ -9,4 +9,3 @@ packaging or installer deltas only when justified by actual observed failures.
 No board/main edits, no host installation or activation. Agent privileges and
 atomic global `/etc` write architecture await the manager's owner-decision relay.
 VPP build uses an isolated copied clone; `/root/vpp` is read-only reference.
-

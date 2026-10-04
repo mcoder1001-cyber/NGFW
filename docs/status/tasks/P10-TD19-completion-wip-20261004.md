@@ -49,3 +49,29 @@ or expected failures. Local source checkpoint `d3a3db82b`; CLI push attempted
 and rejected with HTTP403, so publication is not established. Manager notified
 to use the authorized GitHub connector. Online VPP build passed pinned wheel
 and external source validation and entered isolated source compilation.
+
+Connector publication subsequently succeeded. Remote checkpoint
+`f367c442fbc6497681e636892eb95daeece99b73`, tree
+`1894a39894ffcce56fa5de6599fdcc0e756f08c6`, equals local `b0c411dcb` tree,
+including fixture correction, independent review and exact trust-material report.
+The original active session ended during worker handoff; detached nohup retry
+also had no persistent-process evidence. Actual build restarted in live session
+56026, log `/tmp/ngfw-packaging-vpp-build-active-20261004.log`. Do not call this
+a persistent runner. Cached wheel/source inputs verified; product version remains
+26.06-release+ngfw3. No completed runtime Debian manifest exists yet.
+
+Actual isolated static Go builds for agent/startupgen/vppcheck all succeeded;
+inputs are this source checkpoint, output `.scratch/product-build/bin/`.
+Own frozen pnpm installation PASS5.4s; API/web build in progress, log
+`/tmp/ngfw-packaging-app-build-20261004.log`. Authoritative license and privilege
+questions remain pending; no product release readiness is claimed.
+
+API/web build finished:14/14 Turbo tasks PASS,7 cached,1m0.627s. Generator
+created two pre-existing stale YANG differences on baseline4c8; those generated
+paths were restored rather than published as a clean release. Bounded source
+correction: prepare.sh now rebuilds API/web dependencies before staging, refuses
+build failure or tracked generation drift before creating output, and cannot
+mislabel old ignored dist outputs with the current source SHA. Three actual
+driver fixtures PASS1.393s: stale output refreshed; build failure refused;
+tracked mutation refused. Shell syntax, shellcheck and whitespace PASS.
+Independent manager review still required. No privilege or licensing deviation.

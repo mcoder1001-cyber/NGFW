@@ -333,6 +333,7 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib
+	desired.IgmpMfib(p, ds, in, vrfID, desired.IgmpGlobalsOwner())
 	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
 	if in["interfaces"] {
@@ -561,6 +562,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	}
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-igmp-mfib
+	if in["routing"] {
+		desired.AssembleIgmpMfib(ds, kvs, nameOf)
+	}
 	// wave-BC: F-ha-state-sync
 	// wave-A: F-bonding
 	if in["interfaces"] {

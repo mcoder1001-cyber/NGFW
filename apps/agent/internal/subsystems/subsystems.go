@@ -352,6 +352,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// wave-BC: F-bfd-redistribution
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib
+	if err := w.registerIgmpMfib(r); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-ha-state-sync
 	registerSnmp(r, w) // F-snmp (unanchored: no wave-BC: F-snmp anchor in register())
 	// wave-A: F-bonding
@@ -437,6 +440,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 // (TD-3 Q2, ifsanitize.Release), so the index is free for the next creator. A holder that is still
 // unclearable stays (admin down, owns the dirty index).
 func (w *Wiring) AfterResync(ctx context.Context) {
+	w.igmpMfibAfterResync(ctx) // wave-BC: F-igmp-mfib-host
 	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	n, err := ifsanitize.Release(rctx, w.env.Client, w.env.Owner)
@@ -457,6 +461,7 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
+	w.igmpMfibConnected() // wave-BC: F-igmp-mfib-host
 	w.index.Invalidate()
 	id, err := bootid.Current(ctx, w.env.Client)
 	if err != nil {

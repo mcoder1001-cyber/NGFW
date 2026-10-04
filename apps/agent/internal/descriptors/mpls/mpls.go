@@ -557,10 +557,20 @@ func NewRoute(c vpp.Client, owner string, opts ...df7.Option) *RouteDescriptor {
 	return &RouteDescriptor{df7.NewBase(NameRoute, c, owner, opts)}
 }
 
+// NewNamedRoute reuses the MPLS route implementation with an isolated record scope.
+// Named instances record every route, including routes in slot tables.
+func NewNamedRoute(name string, c vpp.Client, owner string, opts ...df7.Option) *RouteDescriptor {
+	return &RouteDescriptor{df7.NewBase(name, c, owner, opts)}
+}
+
+func (d *RouteDescriptor) routeKey(r Route) scheduler.Key {
+	return d.Key(u32(r.Table), u32(r.Label), eosID(r.EOS))
+}
+
 // KeyOf implements scheduler.Descriptor.
 func (d *RouteDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	r, _ := df7.Decode[Route](obj)
-	return KeyRoute(r.Table, r.Label, r.EOS)
+	return d.routeKey(r)
 }
 
 // Dependencies implements scheduler.Descriptor: the table, and (optional) the next-hop
@@ -608,7 +618,7 @@ func (d *RouteDescriptor) addDel(ctx context.Context, r Route, add bool) error {
 		route.MrEos, route.MrEosProto = 1, payloads[r.EOSProto]
 	}
 	_, err = mpls.NewServiceClient(d.Client).MplsRouteAddDel(ctx, &mpls.MplsRouteAddDel{MrIsAdd: add, MrRoute: route})
-	return d.Wrap(fmt.Sprintf("mpls_route_add_del %s add=%v", KeyRoute(r.Table, r.Label, r.EOS), add), err)
+	return d.Wrap(fmt.Sprintf("mpls_route_add_del %s add=%v", d.routeKey(r), add), err)
 }
 
 // SharedTable is the MPLS table other features program too (SR-MPLS BSIDs of DF-6, the local
@@ -616,7 +626,9 @@ func (d *RouteDescriptor) addDel(ctx context.Context, r Route, add bool) error {
 // this table only labels this owner recorded after its own successful add are ours (review H2).
 const SharedTable = 0
 
-func (d *RouteDescriptor) shared(r Route) bool { return r.Table == SharedTable }
+func (d *RouteDescriptor) shared(r Route) bool {
+	return r.Table == SharedTable || d.Name() != NameRoute
+}
 
 // exists reports whether (label, eos) has an entry in table r.Table.
 func (d *RouteDescriptor) exists(ctx context.Context, r Route) (bool, error) {
@@ -645,7 +657,16 @@ func (d *RouteDescriptor) Create(ctx context.Context, obj proto.Message) (any, e
 	if err != nil {
 		return nil, err
 	}
-	key := string(KeyRoute(r.Table, r.Label, r.EOS))
+	if d.Name() == NameRoute {
+		held, err := d.Recorded(ctx, string(scheduler.Join("mpls-route.ldp", u32(r.Table), u32(r.Label), eosID(r.EOS))))
+		if err != nil {
+			return nil, err
+		}
+		if held {
+			return nil, fmt.Errorf("%w: label belongs to LDP", dfkit.ErrNotOurs)
+		}
+	}
+	key := string(d.routeKey(r))
 	recorded := false // this Create wrote the record (and so drops it again on failure)
 	if d.shared(r) {
 		ours, err := d.Recorded(ctx, key)
@@ -691,11 +712,20 @@ func (d *RouteDescriptor) Update(ctx context.Context, oldObj, newObj proto.Messa
 	if err != nil {
 		return nil, err
 	}
+	if d.Name() == NameRoute {
+		held, err := d.Recorded(ctx, string(scheduler.Join("mpls-route.ldp", u32(n.Table), u32(n.Label), eosID(n.EOS))))
+		if err != nil {
+			return nil, err
+		}
+		if held {
+			return nil, fmt.Errorf("%w: label belongs to LDP", dfkit.ErrNotOurs)
+		}
+	}
 	if o.Multicast != n.Multicast || o.EOSProto != n.EOSProto {
 		return nil, scheduler.ErrRecreate
 	}
 	if d.shared(n) {
-		ours, err := d.Recorded(ctx, string(KeyRoute(n.Table, n.Label, n.EOS)))
+		ours, err := d.Recorded(ctx, string(d.routeKey(n)))
 		if err != nil {
 			return nil, err
 		}
@@ -713,7 +743,7 @@ func (d *RouteDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) 
 	if err != nil {
 		return err
 	}
-	key := string(KeyRoute(r.Table, r.Label, r.EOS))
+	key := string(d.routeKey(r))
 	readable, err := readableTables(ctx, d.Client, d.Owner)
 	if err != nil {
 		return d.Wrap("retrieve", err)
@@ -770,8 +800,18 @@ func (d *RouteDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) 
 					}
 				}
 			}
-			k := KeyRoute(r.Table, r.Label, r.EOS)
-			if id == SharedTable {
+			k := d.routeKey(r)
+			if d.Name() == NameRoute {
+				named := scheduler.Join("mpls-route.ldp", u32(r.Table), u32(r.Label), eosID(r.EOS))
+				held, err := d.Recorded(ctx, string(named))
+				if err != nil {
+					return nil, err
+				}
+				if held {
+					continue
+				}
+			}
+			if d.shared(r) {
 				ours, err := d.Recorded(ctx, string(k))
 				if err != nil {
 					return nil, err
@@ -825,6 +865,17 @@ func (d *IPBindDescriptor) Dependencies(obj proto.Message) []scheduler.Dependenc
 }
 
 func (d *IPBindDescriptor) bind(ctx context.Context, b IPBind, bind bool) error {
+	if bind {
+		for _, eos := range []bool{true, false} {
+			held, err := d.Recorded(ctx, string(scheduler.Join("mpls-route.ldp", u32(b.MPLSTable), u32(b.Label), eosID(eos))))
+			if err != nil {
+				return err
+			}
+			if held {
+				return fmt.Errorf("%w: label belongs to LDP", dfkit.ErrNotOurs)
+			}
+		}
+	}
 	p, err := df7.ParsePrefix(b.Prefix)
 	if err != nil {
 		return err

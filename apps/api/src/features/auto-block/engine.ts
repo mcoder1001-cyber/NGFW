@@ -208,3 +208,89 @@ export class SlidingWindows {
     return this.hits.size;
   }
 }
+
+/** Fixed detector budgets independent of the configurable blocked-entry cap. */
+export const MAX_SCAN_PORTS_PER_SOURCE = 4096;
+const MAX_SCAN_PORT_OBSERVATIONS = 100_000;
+const MAX_SCAN_SOURCES = 10_000;
+
+/** Repeated ports refresh rather than adding hits; exhausted budgets discard evidence. */
+export class DistinctPortWindows {
+  private readonly sources = new Map<string, Map<number, number>>();
+  private entries = 0;
+  private lastCapacityPrune = -Infinity;
+
+  observe(
+    source: string,
+    port: number,
+    nowMs: number,
+    windowSec: number,
+    threshold: number,
+    maxSources: number,
+  ): { count: number; tripped: boolean } {
+    if (threshold > MAX_SCAN_PORTS_PER_SOURCE) return { count: 0, tripped: false };
+    const cutoff = nowMs - windowSec * 1000;
+    let ports = this.sources.get(source);
+    if (ports !== undefined) {
+      for (const [seenPort, at] of ports)
+        if (at <= cutoff) {
+          ports.delete(seenPort);
+          this.entries--;
+        }
+    }
+    // Reclaim globally at most once per second when capacity is exhausted.
+    // Ordinary traffic scans only its own bounded window.
+    if (
+      (ports === undefined && this.sources.size >= Math.min(maxSources, MAX_SCAN_SOURCES)) ||
+      this.entries >= MAX_SCAN_PORT_OBSERVATIONS
+    ) {
+      if (nowMs >= this.lastCapacityPrune + 1000) {
+        this.prune(cutoff);
+        this.lastCapacityPrune = nowMs;
+        ports = this.sources.get(source);
+      }
+    }
+    if (ports === undefined) {
+      if (
+        this.sources.size >= Math.min(maxSources, MAX_SCAN_SOURCES) ||
+        this.entries >= MAX_SCAN_PORT_OBSERVATIONS
+      )
+        return { count: 0, tripped: false };
+      ports = new Map<number, number>();
+      this.sources.set(source, ports);
+    }
+    if (!ports.has(port)) {
+      if (
+        ports.size >= Math.min(threshold, MAX_SCAN_PORTS_PER_SOURCE) ||
+        this.entries >= MAX_SCAN_PORT_OBSERVATIONS
+      )
+        return { count: ports.size, tripped: false };
+      this.entries++;
+    }
+    ports.set(port, nowMs);
+    return { count: ports.size, tripped: ports.size >= threshold };
+  }
+
+  clear(source: string): void {
+    this.entries -= this.sources.get(source)?.size ?? 0;
+    this.sources.delete(source);
+  }
+
+  prune(cutoffMs: number): void {
+    for (const [source, ports] of this.sources) {
+      for (const [port, at] of ports)
+        if (at <= cutoffMs) {
+          ports.delete(port);
+          this.entries--;
+        }
+      if (ports.size === 0) this.sources.delete(source);
+    }
+  }
+
+  get size(): number {
+    return this.sources.size;
+  }
+  get observationCount(): number {
+    return this.entries;
+  }
+}

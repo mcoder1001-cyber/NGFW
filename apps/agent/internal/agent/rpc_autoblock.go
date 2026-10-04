@@ -126,6 +126,14 @@ func (a *Agent) watchAutoBlock(ctx context.Context) {
 				if a.svc.closed {
 					return
 				}
+				// An inactive, clean runtime has no authority to reconcile the
+				// ACL domain merely because its initial fingerprint is empty.
+				// Dirty empty snapshots and retained entries still need cleanup;
+				// enabled protection still needs expiry/recovery maintenance.
+				if !a.svc.autoBlock.dirty && len(a.svc.autoBlock.entries) == 0 &&
+					!a.svc.st.desired.GetSecurity().GetAutoBlock().GetEnabled() {
+					return
+				}
 				view, err := autoblock.Overlay(a.svc.st.desired, a.svc.autoBlock.entries, a.svc.now())
 				if err != nil {
 					return

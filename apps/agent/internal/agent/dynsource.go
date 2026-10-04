@@ -812,7 +812,11 @@ func joinResults(first, second *scheduler.TxnResult) *scheduler.TxnResult {
 // out (a panic, a key outside its descriptors, another plan issue on one of its keys) becomes a
 // WARNING issue "agent.dynamic-source-skipped", and the plan is the configuration's alone.
 func (s *Service) planSources(ctx context.Context, pj *projected, domains []string, update *ngfwv1.DesiredState) (*scheduler.TxnPlan, error) {
-	scope := scopeOf(domains)
+	effectiveDomains := pj.scopeDomains
+	if effectiveDomains == nil {
+		effectiveDomains = domains
+	}
+	scope := scopeOf(effectiveDomains)
 	active := s.activeSources()
 	if len(active) == 0 {
 		return s.sched.Plan(ctx, pj.kvs, scope)
@@ -832,7 +836,7 @@ func (s *Service) planSources(ctx context.Context, pj *projected, domains []stri
 	}
 	again := map[scheduler.Key]bool{}
 	for reruns := 0; ; reruns++ {
-		plan, err := s.sched.Plan(ctx, mg.kvs, mg.scope(domains))
+		plan, err := s.sched.Plan(ctx, mg.kvs, mg.scope(effectiveDomains))
 		los, ok := culprit(&scheduler.TxnResult{Outcome: scheduler.OutcomeFailed, Plan: plan, Err: err}, mg)
 		if !ok {
 			return plan, err

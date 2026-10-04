@@ -119,3 +119,15 @@ Marking these rows merged records source integration only. The cases below remai
 | F-capture-trace-host | Actual API e2e with PostgreSQL/Valkey, dedicated-VPP recovery and rig packets, BPF globals restoration, file lifecycle and real T4 screenshot | Shared-VPP dispatch capture remains banned; a missing dedicated socket produces explicit NOTRUN/SKIP, never packet acceptance |
 
 Aggregate CI for the combined integration tree remains deferred by this authorization. Existing local quick attempts encountered Unix-socket permission failures; no aggregate green result is claimed. Run the unchanged complete gate on the exact integrated SHA in an environment with the required socket permissions, preserve its failures and rerun after fixes. Record host SHA, slot, commands, actual results and artifacts for every live case.
+
+## LDP, PIM and detector source batch — 2026-10-04
+
+This batch requires the unchanged complete hosted quick gate before integration (D-233). The earlier three-row aggregate-CI exception above does not apply. Host-independent implementation and review are recorded per task; laboratory acceptance below remains **NOT RUN**, and source integration does not assert packet acceptance.
+
+| Task | Required deferred acceptance | Supported source boundary |
+|---|---|---|
+| F-mpls-ldp-host | Real FRR LDP peers/labels, IPv4 EOS VPP forwarding, label ownership collision, LCP/label-range changes, withdrawal, restart and failed-apply recovery | At most 256 dynamic EOS IPv4 routes; NEOS and IPv6 forwarding are not built |
+| F-pim-frrsync | Real FRR PIM neighbors/mroutes, VPP mFIB packet replication, remapping/withdrawal, reconnect/restart and failed-apply recovery | Default/global table 0; at most 256 dynamic routes; non-default VRFs are not built |
+| F-bruteforce-detectors | Actual trusted SSH/native-auth/scan observation through API to agent, distinct-port threshold, allowlist/TTL, enforcement, restart/replay and rollback on provisioned VPP/nft/PostgreSQL/Valkey rig | Bounded source/observation windows fail unavailable beyond supported limits; unit evidence does not prove real traffic blocking |
+
+Capture the exact integrated SHA, topology/slot, commands, raw outcomes and artifacts when running these cases. Scaling follow-up is recorded in `docs/tech-debt.md`; unsupported routes and thresholds must remain explicit.

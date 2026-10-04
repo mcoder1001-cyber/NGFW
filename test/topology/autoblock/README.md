@@ -23,3 +23,25 @@ provisioning and listening services are prerequisites; this script does not bypa
 
 No live topology execution has been performed in the cloud workspace; acceptance is NOTRUN until output from the
 real lab is attached. `python3 -m py_compile` only verifies driver syntax.
+
+For host SSH detector acceptance, configure an enabled `ssh` rule with threshold 10
+and the same window/block settings, and add:
+
+```sh
+--detector ssh --ssh-port 22 --ssh-key /path/to/disposable-test-identity \
+  --ssh-known-hosts /path/to/pinned-known-hosts --removal manual
+```
+
+The lab SSH server must log rejected public-key authentication (`Failed publickey`;
+configure `LogLevel VERBOSE` as part of the authorized test fixture). The disposable
+identity must not authorize the nonexistent test account. Host keys must already be
+pinned; the driver never accepts unknown host keys automatically. Each attempt binds
+to the requested source address. Host-key, bind or network errors before blocking
+fail the driver instead of being counted as rejected authentication. Web mode similarly
+requires HTTP 401; rate-limiting and server errors are not authentication evidence.
+`--removal manual` calls the authenticated administrator unblock action and checks
+both paths reopen; the default remains `--removal expiry`. This mode exercises the
+host journal → event → API bridge rather than only the web audit detector.
+
+Driver-only unit checks: `python3 -m unittest discover -s test/topology/autoblock -p 'test_*.py' -v`.
+These simulated HTTP/SSH results verify driver assertions, not real packet acceptance.

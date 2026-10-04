@@ -40,11 +40,16 @@ type Route struct {
 
 // Key identifies a route by table, group and source.
 func Key(r Route) scheduler.Key {
+	return NamedKey(Name, r)
+}
+
+// NamedKey identifies a route in an exclusive descriptor scope.
+func NamedKey(name string, r Route) scheduler.Key {
 	source := r.Source
 	if source == "" {
 		source = "*"
 	}
-	return scheduler.Join(Name, strconv.FormatUint(uint64(r.Table), 10), r.Group, source)
+	return scheduler.Join(name, strconv.FormatUint(uint64(r.Table), 10), r.Group, source)
 }
 
 // Validate rejects unsupported groups, sources and path flags.
@@ -90,15 +95,23 @@ type Descriptor struct {
 }
 
 // CheckPersistent requires a durable ownership record store.
-func (d *Descriptor) CheckPersistent() error { return dfkit.CheckBoot(Name, d.Store) }
+func (d *Descriptor) CheckPersistent() error { return dfkit.CheckBoot(d.Name(), d.Store) }
 
 // New constructs a static mFIB descriptor with explicit ownership storage.
 func New(c vpp.Client, owner string, store dfkit.BootStore, opts ...df7.Option) *Descriptor {
-	return &Descriptor{df7.NewBase(Name, c, owner, opts), store}
+	return NewNamed(Name, c, owner, store, opts...)
+}
+
+// NewNamed creates an exclusive dynamic route descriptor; callers must use NamedKey.
+func NewNamed(name string, c vpp.Client, owner string, store dfkit.BootStore, opts ...df7.Option) *Descriptor {
+	return &Descriptor{df7.NewBase(name, c, owner, opts), store}
 }
 
 // KeyOf implements scheduler.Descriptor.
-func (*Descriptor) KeyOf(m proto.Message) scheduler.Key { r, _ := df7.Decode[Route](m); return Key(r) }
+func (d *Descriptor) KeyOf(m proto.Message) scheduler.Key {
+	r, _ := df7.Decode[Route](m)
+	return NamedKey(d.Name(), r)
+}
 
 // Dependencies orders routes after their VRF and interfaces.
 func (d *Descriptor) Dependencies(m proto.Message) []scheduler.Dependency {
@@ -251,7 +264,7 @@ func (d *Descriptor) Create(ctx context.Context, m proto.Message) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	rec, claimed := d.Store.Get(string(Key(r)))
+	rec, claimed := d.Store.Get(string(NamedKey(d.Name(), r)))
 	for _, raw := range have {
 		key, ok := rawKey(raw)
 		if ok && key == Key(r) && (!claimed || rec.Identity != boot) {
@@ -266,7 +279,7 @@ func (d *Descriptor) Create(ctx context.Context, m proto.Message) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	if e = d.Store.Put(dfkit.BootRecord{Key: string(Key(r)), Identity: boot, Value: string(value)}); e != nil {
+	if e = d.Store.Put(dfkit.BootRecord{Key: string(NamedKey(d.Name(), r)), Identity: boot, Value: string(value)}); e != nil {
 		return nil, e
 	}
 	_, e = ip.NewServiceClient(d.Client).IPMrouteAddDel(ctx, &ip.IPMrouteAddDel{IsAdd: true, Route: encoded})
@@ -275,7 +288,7 @@ func (d *Descriptor) Create(ctx context.Context, m proto.Message) (any, error) {
 		if claimed {
 			release = d.Store.Put(rec)
 		} else {
-			release = d.Store.Delete(string(Key(r)))
+			release = d.Store.Delete(string(NamedKey(d.Name(), r)))
 		}
 		if release != nil {
 			return nil, fmt.Errorf("%w; ownership restore: %v", e, release)
@@ -299,7 +312,7 @@ func (d *Descriptor) Delete(ctx context.Context, m proto.Message, _ any) error {
 	if e != nil {
 		return e
 	}
-	rec, ok := d.Store.Get(string(Key(r)))
+	rec, ok := d.Store.Get(string(NamedKey(d.Name(), r)))
 	if !ok || rec.Identity != boot {
 		return nil
 	}
@@ -308,7 +321,7 @@ func (d *Descriptor) Delete(ctx context.Context, m proto.Message, _ any) error {
 		return e
 	}
 	if !tables[r.Table] {
-		return d.Store.Delete(string(Key(r)))
+		return d.Store.Delete(string(NamedKey(d.Name(), r)))
 	}
 	raws, e := d.dump(ctx, r.Table)
 	if e != nil {
@@ -324,7 +337,7 @@ func (d *Descriptor) Delete(ctx context.Context, m proto.Message, _ any) error {
 			break
 		}
 	}
-	return d.Store.Delete(string(Key(r)))
+	return d.Store.Delete(string(NamedKey(d.Name(), r)))
 }
 
 // Retrieve returns only owned routes on the current VPP boot.
@@ -348,7 +361,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 			if !ok {
 				continue
 			}
-			rec, ok := d.Store.Get(string(Key(r)))
+			rec, ok := d.Store.Get(string(NamedKey(d.Name(), r)))
 			if ok {
 				boot, e := d.records(ctx)
 				if e != nil {
@@ -357,7 +370,7 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 				if rec.Identity != boot {
 					continue
 				}
-				out = append(out, df7.KV(Key(r), r, nil))
+				out = append(out, df7.KV(NamedKey(d.Name(), r), r, nil))
 			}
 		}
 	}

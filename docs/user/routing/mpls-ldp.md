@@ -28,19 +28,18 @@ Rules enforced at commit (with a JSON pointer to the offending entry):
 
 ## Live state (LDP tab)
 
-- **Neighbours** — the LDP adjacencies and their state (e.g. OPERATIONAL) and uptime.
+- **Neighbours** — the LDP adjacencies and their state (e.g. OPERATIONAL) (uptime reporting requires the remaining FRR time-format adapter).
 - **Label bindings (LIB)** — the label ↔ FEC bindings, paged.
 - **FRR → VPP sync** — the last sync, how many routes were installed, any label conflicts, and the source in use.
 
 ## What is and is not synced (V5)
 
-- The agent reads FRR's LDP label state and programs the VPP MPLS FIB. On this build the kernel MPLS modules are not
-  loaded, so zebra may not build its LFIB; the sync then uses ldpd's in-use remote bindings plus the LDP adjacency.
-- **Ingress label imposition** (pushing LDP labels onto IP routes at the head end) is **not** in this release — IP
-  prefixes belong to the kernel/linux-cp route programmer (one programmer per route). This box acts as a transit LSR
-  and penultimate hop (implicit-null → pop).
-- The FRR ldpd section rendering and the live FRR→VPP label sync arrive with the host build; the contract, the
-  validation, the API and the LDP tab are active now.
+- The agent reads FRR's in-use IPv4 label bindings, neighbors, link discovery and active RIB next hops, then reconciles a separate owned MPLS route scope through the scheduler. Linux interfaces must have configured LCP mappings.
+- The supported limit is **256 distinct dynamic label routes**. An oversized or failed read retains the previous set for 60 seconds, then flushes it. A successful withdrawal removes its routes immediately.
+- **EOS IPv4** label switching and remote implicit-null (PHP/pop) are supported by the implementation. Non-EOS label stacks and explicit-null remain unsupported pending host verification; do not use this build for stacked service-label transit.
+- **Ingress label imposition** (pushing LDP labels onto IP routes at the head end) is outside this release. IP prefixes remain owned by the kernel/linux-cp route programmer.
+- Renderer, synchronization, neighbor events and the live state RPC are wired in this build. The installed count comes from the source's current owned VPP routes, including configuration-triggered withdrawals. Live FRR/VPP acceptance remains deferred; no operational lab session or canonical configuration verification is claimed here.
+- Kernel MPLS requirements and linux-cp delivery of LDP hellos still require the designated host probes. No kernel modules, sysctls or FRR daemon configuration are changed by this task.
 
 ## CLI equivalent (FRR)
 
@@ -49,10 +48,15 @@ mpls ldp
  router-id 10.0.0.1
  address-family ipv4
   discovery transport-address 10.0.0.1
-  interface TenGigabitEthernet0
+  interface host-wan0
+  exit
  exit-address-family
 exit
 ```
+
+The CLI uses the **Linux LCP name** (`host-wan0` in this example), while the NGFW
+configuration uses the VPP logical name (`TenGigabitEthernet0`). Configure the
+interface's `lcp.hostIfName` mapping accordingly.
 
 ## Out of scope
 

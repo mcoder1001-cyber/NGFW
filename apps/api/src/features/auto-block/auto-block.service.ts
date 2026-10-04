@@ -23,6 +23,8 @@ import {
   compileAllowlist,
   isAllowlisted,
   SlidingWindows,
+  DistinctPortWindows,
+  MAX_SCAN_PORTS_PER_SOURCE,
   type ParsedPrefix,
 } from './engine.js';
 
@@ -65,6 +67,7 @@ export class AutoBlockService implements OnModuleDestroy {
   private cfg: AutoBlock | undefined;
   private allow: ParsedPrefix[] = compileAllowlist([]);
   private readonly windows = new SlidingWindows();
+  private readonly scanWindows = new DistinctPortWindows();
   private sweepTimer: NodeJS.Timeout | undefined;
   private readonly offAudit: () => void;
   private readonly offCommit: () => void;
@@ -93,7 +96,12 @@ export class AutoBlockService implements OnModuleDestroy {
     this.offAgent = this.bus.onAgentEvent((e) => {
       if (e.kind !== EventKind.EVENT_KIND_AUTOBLOCK_OBSERVED) return;
       const kind = e.attributes['detector'];
-      if (kind === 'ssh' || kind === 'vpnAuth' || kind === 'portScan') {
+      if (kind === 'portScan') {
+        const raw = e.attributes['destination_port'];
+        if (raw !== undefined && /^[1-9][0-9]{0,4}$/.test(raw) && Number(raw) <= 65535) {
+          this.observe(e.attributes['source_ip'] ?? '', kind, Number(raw));
+        }
+      } else if (kind === 'ssh' || kind === 'vpnAuth') {
         this.observe(e.attributes['source_ip'] ?? '', kind);
       }
     });
@@ -141,6 +149,16 @@ export class AutoBlockService implements OnModuleDestroy {
       ? lockout['sources'].filter((s): s is string => typeof s === 'string')
       : [];
     this.allow = compileAllowlist([...(this.cfg?.allowlist ?? []), ...management]);
+    const scanRule = this.cfg?.rules.find((r) => r.enabled && r.source === 'portScan');
+    if (
+      this.cfg?.enabled &&
+      scanRule !== undefined &&
+      scanRule.threshold > MAX_SCAN_PORTS_PER_SOURCE
+    ) {
+      this.log.warn(
+        `portScan detector unavailable: threshold exceeds ${MAX_SCAN_PORTS_PER_SOURCE} distinct-port budget`,
+      );
+    }
     this.publisher.request();
   }
 
@@ -160,22 +178,36 @@ export class AutoBlockService implements OnModuleDestroy {
    * Record one failed authentication from `sourceRaw` for `kind`. Fire-and-forget: never throws into the caller (the
    * login path). When the detector's threshold trips and the source is not allow-listed, it is blocked.
    */
-  observe(sourceRaw: string, kind: AutoBlockSourceKind): void {
+  observe(sourceRaw: string, kind: AutoBlockSourceKind, destinationPort?: number): void {
     try {
       const rule = this.ruleFor(kind);
       if (rule === undefined) return;
       const source = canonicalSource(sourceRaw);
       if (source === undefined) return;
       if (isAllowlisted(this.allow, sourceRaw)) return;
-      const { count, tripped } = this.windows.observe(
-        kind,
-        source,
-        this.now(),
-        rule.windowSec,
-        rule.threshold,
-      );
+      // Legacy port-less events cannot establish a distinct-port count.
+      if (
+        kind === 'portScan' &&
+        (destinationPort === undefined ||
+          !Number.isInteger(destinationPort) ||
+          destinationPort < 1 ||
+          destinationPort > 65535)
+      )
+        return;
+      const { count, tripped } =
+        kind === 'portScan'
+          ? this.scanWindows.observe(
+              source,
+              destinationPort!,
+              this.now(),
+              rule.windowSec,
+              rule.threshold,
+              this.cfg!.maxEntries,
+            )
+          : this.windows.observe(kind, source, this.now(), rule.windowSec, rule.threshold);
       if (tripped) {
         this.windows.clear(kind, source);
+        if (kind === 'portScan') this.scanWindows.clear(source);
         void this.block(source, kind, rule, count).catch((err) =>
           this.log.error(`auto-block of ${source} failed: ${String(err)}`),
         );
@@ -377,6 +409,7 @@ export class AutoBlockService implements OnModuleDestroy {
       for (const e of expired) this.emit('unblocked', e.source, { reason: 'expired' });
       // forget windows quiet for a day (the longest reasonable detector window plus slack)
       this.windows.prune(this.now(), 86_400_000);
+      this.scanWindows.prune(this.now() - 86_400_000);
     } catch (err) {
       this.log.warn(`sweep failed: ${String(err)}`);
     }

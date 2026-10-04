@@ -146,7 +146,7 @@ Management UI: certificate removal/rotation listener lifecycle and accurate revi
 
 The owner waived hosted/full CI for this campaign. Focused tests, typechecks and independent source review are recorded separately; no waived gate is claimed passed.
 
-Setup wizard: seven-step staged first boot/re-run and password/confirmed commit source completed. PPPoE disabled pending the real client. Real DHCP/NAT/LAN management, session-loss rollback and browser screenshots NOT RUN.
+Setup wizard: seven-step staged first boot/re-run and password/confirmed commit source completed. The wizard PPPoE option remains disabled; PR165 integrates agent client wiring, while real ISP/kernel PPP and deployed wizard acceptance remain NOT RUN. Real DHCP/NAT/LAN management, session-loss rollback and browser screenshots NOT RUN.
 
 PKI: operational secure materializer, sealed cache adapter and mutation UI completed. Real browser/daemon acceptance NOT RUN. Native IKEv2 certificate consumers belong to the separate native task. Public CA/CRL and operational keys only; CA signing keys stay API-side.
 
@@ -200,3 +200,17 @@ passed at `2dd48e0afa3456e4494651995a233c02290a7663`; merge
 Real failover/restore, 1000-flow weighted split and affinity, NAT cleanup,
 agent-originated ABF/readback and rollback remain **NOT RUN**. Dynamic
 DHCP/PPPoE gateway handoff remains separate implementation work.
+
+### Seven ready tasks: PPPoE client wiring source closeout (2026-10-04)
+
+PR165 integrates desired sessions, parent LCP tap selection, versioned sealed
+password delivery, runtime dial/exit/failCount/lastError state, credential-only
+redial, withdrawal/removal and idempotent address/default-route mirror cleanup.
+Complete cumulative hosted quick
+[37223559490](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37223559490)
+passed at `38cef0cb113789f2576605c9737b96a1277695df`; merge
+`12472a11ca21d9f0bc5ab330b72250069159c72e` followed independent review and
+19 successful combined IGP/PPPoE delivery cases. Real ISP/kernel PPP dial,
+VPP/LCP address/routes, peer DNS, exit/restart and rollback remain **NOT RUN**.
+The Setup Wizard PPPoE option remains disabled. Dynamic Multi-WAN gateway
+handoff and non-default namespace PPP are separate unsupported boundaries.

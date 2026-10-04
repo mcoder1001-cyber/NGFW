@@ -5115,7 +5115,7 @@ tasks:
       - F-pppoe-client-host
     priority: 4
     est_hours: 8
-    state: ready
+    state: "merged"
     parked_on: ''
     wbs: []
     scope:
@@ -5124,12 +5124,12 @@ tasks:
     files_owned:
       apps/agent/internal/desired/pppoe*.go apps/agent/internal/agent/ifstate.go (pppoe hunk) apps/agent/internal/agent/projection.go (one anchored hunk) apps/agent/internal/subsystems/pppoe*.go
       apps/agent/internal/descriptors/pppoe/** test/topology/pppoe/** docs/user/network/pppoe.md docs/status/tasks/F-pppoe-client-wiring*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
-    finished: ''
-    notes: D-186; after F-default-vpp-nics merges (projection.go/ifstate.go hunks) and F-pppoe-client-host merges
+    branch: "codex/F-pppoe-client-wiring-20261004"
+    worktree: "/root/ngfw-wt/F-pppoe-client-wiring-20261004"
+    owner: "codex/root"
+    started: "2026-10-04"
+    finished: "2026-10-04"
+    notes: "D-186; after F-default-vpp-nics merges (projection.go/ifstate.go hunks) and F-pppoe-client-host merges | Reviewed desired session projection, lifecycle/redial/removal/mirror state and sealed delivery source merged PR165 as12472a11ca21d9f0bc5ab330b72250069159c72e; final38cef0cb complete cumulative hosted quick37223559490 PASS, combined delivery19 tests PASS after sequential proto/schema builds, independent integration review APPROVE. Real ISP/kernel PPP/VPP-LCP dial, peer DNS, restart/rollback acceptance NOT RUN. Wizard PPP option and dynamic MultiWAN gateway handoff are separate boundaries, central campaign."
   - prompt: ''
     template: ''
     stage: S4

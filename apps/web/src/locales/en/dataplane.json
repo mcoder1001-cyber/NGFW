@@ -118,5 +118,13 @@
   "switch": {
     "on": "on",
     "off": "off"
+  },
+  "runtime": {
+    "title": "Observed VPP runtime",
+    "unavailable": "Some runtime probes are unavailable",
+    "loadedPlugins": "Loaded plugins",
+    "nicQueues": "RX queue placement",
+    "runtimeMemory": "VPP memory and page sizes",
+    "thread": "{{name}} ({{type}}) CPU {{cpu}}, core {{core}}, NUMA {{numa}}"
   }
 }

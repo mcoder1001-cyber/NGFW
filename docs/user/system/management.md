@@ -46,10 +46,12 @@ served. If no certificate is configured, the HTTPS listener does not start. No s
 this release. If the first valid certificate is committed after startup, the listener starts then without
 restarting the API. The listener status reports whether the server is actually listening, rather than whether a
 port was requested. Reloads run in sequence so slow earlier secret reads cannot overwrite later committed certificates.
-Removing the certificate references still leaves an existing listener using its previous certificate until restart;
-that removal behavior remains an open lifecycle issue. While retained, the state still shows the certificate
-actually served and its loaded revision, with `configured: false`. A failed listener bind reports disabled and
-can be retried on a subsequent configuration reload once the requested port is available. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
+Removing certificate references while HTTPS is listening is rejected before commit to preserve management access.
+To remove them, an operator first disables `NGFW_HTTPS_PORT` and restarts the API with an alternate management path.
+If rollback or external recovery removes the pair, the listener closes its HTTP and WebSocket connections and clears
+its certificate context. A later valid commit can start it again. Failed certificate rotation keeps the actual loaded
+revision and protocol floor in the status panel. Unexpected secret-store errors are reported without exception payloads.
+A failed listener bind reports disabled and can be retried on a subsequent reload once the port is available. The same HTTPS listener accepts `wss://<host>:<port>/api/v1/stream` through the existing
 stream authentication and subscription handlers. Missing or invalid credentials are refused before the WebSocket
 upgrade. The web UI on :8080 is a separate front end: fronting it with TLS is outside this screen.
 
@@ -60,8 +62,9 @@ the service becomes available again.
 اگر نخستین گواهی معتبر پس از شروع API ثبت شود، شنوندهٔ HTTPS بدون راه‌اندازی مجدد فعال می‌شود.
 وضعیت listener نشان می‌دهد که سرور واقعاً در حال گوش‌دادن است؛ تنظیم پورت به‌تنهایی به معنی فعال‌بودن نیست.
 اگر پورت در دسترس نباشد، بارگذاری مجدد بعدی می‌تواند شروع شنونده را دوباره امتحان کند.
-حذف ارجاع‌های گواهی، گواهیِ شنوندهٔ فعال را تا راه‌اندازی مجدد کنار نمی‌گذارد؛ این رفتار هنوز مسئلهٔ باز چرخهٔ عمر است.
-در این حالت، `configured: false` همراه با مشخصات گواهیِ واقعاً ارائه‌شده و نسخهٔ بارگذاری‌شده نمایش داده می‌شود.
+حذف گواهی هنگامی که HTTPS فعال است، برای حفظ دسترسی مدیریتی پیش از ثبت رد می‌شود.
+ابتدا پورت HTTPS را غیرفعال و API را با مسیر مدیریت جایگزین راه‌اندازی مجدد کنید.
+اگر rollback یا بازیابی خارجی گواهی را حذف کند، شنونده و اتصال‌های آن بسته و گواهی پاک می‌شوند.
 مسیر `wss://<host>:<port>/api/v1/stream` از همان احراز هویت و اشتراک‌های موجود استفاده می‌کند؛
 درخواست فاقد اعتبار یا دارای اعتبار نامعتبر پیش از ارتقای WebSocket رد می‌شود.
 

@@ -1281,17 +1281,17 @@ tasks:
       - F-startup-apply
     priority: 4
     est_hours: 6
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D0.6
     scope: UI + API state/preview for the `dataplane` domain; the apply button stays disabled until TD-17 merges
     files_owned: apps/web/src/domains/system/dataplane/** apps/web/src/locales/*/dataplane.json apps/api/src/features/dataplane/** docs/user/system/dataplane.md
-    branch: claude/modest-keller-upaw4m
+    branch: codex/complete-dataplane-ui-20261004
     worktree: ''
-    owner: cloud session modest-keller
+    owner: Codex completion campaign 2026-10-04
     started: '2026-09-27'
-    finished: '2026-09-27'
+    finished: '2026-10-04'
     notes:
       'Added 2026-09-26 (D-152). The backend exists (F-startup-gen renderer apps/agent/internal/renderers/vppstartup, F-startup-apply deploy/vpp/apply-startup.sh); only the screen
       and a read-only preview route are missing. Applying startup.conf restarts VPP: the UI only stages + previews until TD-17 (appliance approval gate) and PENDING-handover allow it.
@@ -1302,7 +1302,7 @@ tasks:
       the "soon" chip from the Dataplane nav entry. | 2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel
       review batch RV-B on main@f1f885a6, reports in /root/ngfw-wt/RV-B (D-161) | 2026-09-28 RV-B post-merge panel: combined BLOCK (docs/status/tasks/RV-B-review.md) → follow-ups S-sysident-issue-escape,
       S-system-identity-state, S-apply-startup-mode, S-mgmt-tls-validate-scope, S-dataplane-ui-fixes, <id>-host; code stays on main (D-161/D-184)'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    worker_status: source completed, focused tests and independent review passed; remote 4067bfb7f29bf966c60e7634fa46046c9ff87294; lab acceptance deferred
   - id: F-management-ui
     title: 'Management screen: tabbed shell (local users, AAA, API TLS, remote syslog) + apply of management.tls'
     prompt: prompts/features/F-management-ui.md
@@ -1315,18 +1315,18 @@ tasks:
       - F-unbound-chrony-syslog
     priority: 1
     est_hours: 6
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D0.9
       - D0.10
     scope: one Management page (DomainTabsPage shell) whose tabs other rows fill; this row builds the shell, the users/syslog/TLS tabs and the API TLS apply
     files_owned: apps/web/src/domains/system/management/** apps/web/src/locales/*/management.json apps/api/src/features/mgmt-tls/** docs/user/system/management.md
-    branch: claude/modest-keller-upaw4m
+    branch: codex/complete-management-ui-20261004
     worktree: ''
-    owner: cloud session modest-keller
+    owner: Codex completion campaign 2026-10-04
     started: '2026-09-27'
-    finished: ''
+    finished: '2026-10-04'
     notes:
       'Added 2026-09-26 (D-152). The `management` domain is split across rows (users: P07b/TD-4, syslog: F-unbound-chrony-syslog, AAA: F-aaa) and no row owns its screen or applies
       `management.tls` (grep apps/api/src: nothing reads it). F-aaa registers its tab here when it lands. Removes the "soon" chip from the Management nav entry. | Integrated partial scope,
@@ -1337,7 +1337,7 @@ tasks:
       on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-B on main@f1f885a6, reports in /root/ngfw-wt/RV-B (D-161) | 2026-09-28
       RV-B post-merge panel: combined BLOCK (docs/status/tasks/RV-B-review.md) → follow-ups S-sysident-issue-escape, S-system-identity-state, S-apply-startup-mode, S-mgmt-tls-validate-scope,
       S-dataplane-ui-fixes, <id>-host; code stays on main (D-161/D-184)'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    worker_status: source completed, focused tests and independent review passed; remote 33e774485eca185cf3bcc9c4035393279d4bcd4b; lab acceptance deferred
   - id: WEB-dashboard
     title:
       'Dashboard: status banner, device CPU/memory/storage gauges and history, throughput, traffic chart, packet engine (hugepages, threads), interface donut, busiest interfaces,

@@ -176,11 +176,14 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
       expect(s2.loadedRevision).toBe(8);
       expect(svc.secureContext()).not.toBe(ctx1);
 
-      holder.doc = tlsDoc('cert/a', 'key/b');
+      holder.doc = tlsDoc('cert/a', 'key/b', '1.3');
+      holder.revision = 9;
       await svc.reload();
       const s3 = await svc.state();
       expect(s3.active?.subject).toBe('CN=b.ngfw.test');
       expect(s3.error).toContain('does not match');
+      expect(s3.loadedRevision).toBe(8);
+      expect(s3.minVersion).toBe('1.2');
       expect(JSON.stringify(s3)).not.toContain('PRIVATE KEY');
     });
 
@@ -426,16 +429,22 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
             req.end();
           });
         expect(await peer()).toBe('CN=a.ngfw.test');
+        expect(await svc.validate({})).toMatchObject([
+          { pointer: CERT_POINTER, rule: 'management.tls.active-listener' },
+        ]);
         holder.doc = {};
         holder.revision = 8;
         await svc.reload();
         expect(await svc.state()).toMatchObject({
           configured: false,
-          active: { subject: 'CN=a.ngfw.test' },
-          listener: { enabled: true },
-          loadedRevision: 7,
+          active: null,
+          listener: { enabled: false },
+          loadedRevision: 8,
         });
-        expect(svc.secureContext()).not.toBeNull();
+        expect(svc.secureContext()).toBeNull();
+        await expect(peer()).rejects.toThrow();
+        holder.doc = tlsDoc('cert/a', 'key/a');
+        await svc.reload();
         expect(await peer()).toBe('CN=a.ngfw.test');
         await svc.onApplicationShutdown();
         expect((await svc.state()).listener.enabled).toBe(false);
@@ -510,6 +519,19 @@ describe.skipIf(!hasOpenssl())('management.tls (F-management-ui)', () => {
         loadedRevision: 8,
         active: { subject: 'CN=b.ngfw.test' },
       });
+    });
+
+    it('never returns secret-reader exception text in TLS state', async () => {
+      const { svc } = service(tlsDoc('cert/a', 'key/a'), {});
+      svc.secretReader = async () => {
+        throw new Error('sensitive-decrypt-payload');
+      };
+      const state = await svc.state();
+      expect(state.error).toBe('could not read TLS certificate or key from the secret store');
+      expect(await svc.validate(tlsDoc('cert/a', 'key/a'))).toMatchObject([
+        { rule: 'management.tls.secret-store' },
+      ]);
+      expect(JSON.stringify(state)).not.toContain('sensitive-decrypt-payload');
     });
 
     it('no refs → no certificate, honest state', async () => {

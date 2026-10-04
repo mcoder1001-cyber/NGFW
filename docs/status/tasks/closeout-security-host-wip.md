@@ -1,0 +1,6 @@
+# closeout-security host acceptance WIP
+Branch codex/closeout-traffic-audit, worktree /root/ngfw-wt/codex-closeout-traffic-audit. Owned test/topology/security-host-acceptance/** and docs/status/tasks/closeout-security-host*.
+Completed live scoped tests: TestRuleExpiryRealAPI PASS35.68s and TestGlobalBlockingRealAPI PASS32.54s; final runner EXIT0/no skips68.242s. Real API/product/VPP and official isolated nft netns; actual agent restart after deleted owned ACLs; rollback/cleanup passed. Both task results and wider remaining acceptance in closeout-security-host.md.
+Slot8 released; all4 namespace names absent, database/role dropped, own processes and disposable VPP stopped. No product changes, no board changes, no PR/push. Local implementation checkpoint eca0fde51; fresh evidence committed next. Publication root-owned, not yet claimed.
+Checks: tools/ci.sh check PASS12s, Python syntax/dry-run PASS. Full quick gate root-owned final-tree campaign, not repeated here.
+Exact next command: independent reviewer reads test/topology/security-host-acceptance/{run.py,acceptance_test.go} and docs/status/tasks/closeout-security-host.md; root publishes reviewed checkpoint and reconciles scoped evidence with remaining acceptance.

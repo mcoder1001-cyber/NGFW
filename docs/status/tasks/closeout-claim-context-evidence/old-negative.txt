@@ -1,0 +1,24 @@
+2026/10/04 20:08:39 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:08:39 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:08:39 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext3031764351/001/pki-w1r2 source=true
+2026/10/04 20:08:39 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:08:39 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:08:39 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:08:39 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:08:39 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:08:39 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext3031764351/001/objects-fqdn-w1r2.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:08:39 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext3031764351/001/objects-w1r2.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:08:39 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:08:39 INFO host firewall wired table="inet ngfw_w1r2" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext3031764351/001/host-acl-w1r2.nft
+2026/10/04 20:08:39 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:08:39 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:08:39 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4068013924/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4068013924/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4068013924/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:08:39 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:08:39 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-4068013924/sysident/etc/hostname
+2026/10/04 20:08:39 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:08:39 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+--- FAIL: TestClaimRefreshBoundedByCallerContext (10.48s)
+    claims_td11b_test.go:100: claim not recorded
+FAIL
+FAIL	ngfw/agent/internal/subsystems	10.799s
+FAIL

@@ -47,7 +47,7 @@ GITLEAKS_VERSION="${GITLEAKS_VERSION:-8.30.1}"
 
 # ---------------------------------------------------------------- constants
 # generated output that is committed and must equal what `pnpm gen` produces (never hand-edited)
-GEN_PATHS=(packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated)
+GEN_PATHS=(packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go)
 # the contract: changing any of these needs a commit whose subject starts with `contract(` (see docs/contributing.md)
 CONTRACT_PATHS=(packages/schema packages/proto apps/agent/gen packages/api-client/src/generated)
 # the control plane: never shells out, never talks to VPP directly (00-CONTEXT rules 1 and 9)
@@ -297,9 +297,10 @@ do_install() {
 do_gen_check() {
   step "generate + generated-output gate"
   local before after
-  before=$(git hash-object apps/agent/go.mod apps/agent/go.sum 2>/dev/null | tr '\n' ' ' || true)
+  before=$(git hash-object apps/agent/go.mod apps/agent/go.sum apps/cli/go.mod apps/cli/go.sum 2>/dev/null | tr '\n' ' ' || true)
   run pnpm-gen pnpm gen || fail "'pnpm gen' failed"
-  after=$(git hash-object apps/agent/go.mod apps/agent/go.sum 2>/dev/null | tr '\n' ' ' || true)
+  run cli-gen make -C apps/cli gen || fail "CLI operation generation failed"
+  after=$(git hash-object apps/agent/go.mod apps/agent/go.sum apps/cli/go.mod apps/cli/go.sum 2>/dev/null | tr '\n' ' ' || true)
   # what did the generators change? working tree vs INDEX (plus untracked files) — never vs HEAD, so a staged but not yet
   # committed merge (the pre-merge-commit hook runs before the merge commit exists) is not mistaken for hand-edited output
   local dirty
@@ -307,12 +308,12 @@ do_gen_check() {
   if [[ -n $dirty ]]; then
     say "$dirty"
     git --no-pager diff --stat -- "${GEN_PATHS[@]}" | tail -n 20 || true
-    fail "GENERATED OUTPUT IS DIRTY: the committed files under [${GEN_PATHS[*]}] differ from what 'pnpm gen' produces.
+    fail "GENERATED OUTPUT IS DIRTY: the committed files under [${GEN_PATHS[*]}] differ from the repository generators.
   Generated code is never hand-edited. Change the source instead (.proto in packages/proto, Zod in packages/schema/src,
-  controllers in apps/api), run 'pnpm gen' and commit the regenerated files. Offending paths are listed above."
+  controllers in apps/api), run 'pnpm gen' and 'make -C apps/cli gen', then commit the regenerated files. Offending paths are listed above."
   fi
   if [[ $before != "$after" ]]; then
-    fail "'pnpm gen' (go mod tidy) changed apps/agent/go.mod or go.sum — commit them:\n$(git status --short -- apps/agent/go.mod apps/agent/go.sum)"
+    fail "generation changed agent or CLI go.mod/go.sum — commit them:\n$(git status --short -- apps/agent/go.mod apps/agent/go.sum apps/cli/go.mod apps/cli/go.sum)"
   fi
   say "clean: ${GEN_PATHS[*]}"
 }

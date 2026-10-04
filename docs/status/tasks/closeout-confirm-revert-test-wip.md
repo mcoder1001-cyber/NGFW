@@ -1,0 +1,9 @@
+# Confirm revert test WIP
+
+Branch codex/closeout-confirm-revert-test; base64fffb9d; isolated worktree /root/ngfw-wt/codex-closeout-confirm-revert-test. Owned service_test.go shared revertObstacle helper (parent authorized) and closeout-confirm-revert-test* docs; td9_test.go inspected unchanged. No product source edits.
+
+Observed prior quick failure td9:468 originates helperservice_test.go1051:3s wall-time polling expired under load immediately before actual confirm revert callback finished and marked degraded. Raw original root log f638-verified-ci/.../10-agent.log6233..6240 preserves failure. Helper's purpose is staged failed owed revert, not timer delivery timing; now invokes actual service revert callback after foreign obstacle installation with bounded10s completion, retaining degraded/pending assertions and all consumer failure/retry/restoration assertions. Dedicated timer/window tests remain unchanged. Focused repeated race checks pending; independent review/publication manager-owned.
+
+Next command: tools/heavy.sh go -C apps/agent test -race -count=10 -timeout=3m -run 'Test(FailedApplyKeepsTheOwedRevert|NewApplySupersedesOwedRevert|OwedRevertRetriedByTimer|ConfirmWindowStartsAtAppliedAt)$' ./internal/agent
+
+Completed: focused four tests x10 race PASS15.618s (40cases); dedicated actual TestConfirmTimeoutReverts x10 race PASS13.601s, retaining timer execution coverage. Root independent read-only review of sourcebb65e4b8 APPROVE conditional on these checks and fresh complete integration gate. Checks now satisfied; fresh complete gate manager-owned. No product bug demonstrated; original callback correctly failed staged foreign-route revert, scheduling only caused premature fixture observation. Evidence raw focused-race.txt/timer-race.txt. Remote publication manager-owned, finallocalSHA from this commit.

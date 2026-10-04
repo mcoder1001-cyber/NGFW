@@ -1,0 +1,1139 @@
+$ make -C apps/agent lint test build
+make: Entering directory '/root/ngfw-wt/codex-lb-browser-closeout-publish/apps/agent'
+NGFW_TIMING BEGIN agent.vet 2026-10-04T19:57:32.172856726Z
+go vet ./...
+NGFW_TIMING END agent.vet 2026-10-04T19:57:58.884405134Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-04T19:57:59.279990106Z
+0 issues.
+NGFW_TIMING END agent.lint-dispatch 2026-10-04T19:58:15.851381435Z
+NGFW_TIMING BEGIN agent.race-test 2026-10-04T19:58:15.876237174Z
+go test -race -count=1 ./...
+?   	ngfw/agent/binapi/abf	[no test files]
+?   	ngfw/agent/binapi/acl	[no test files]
+?   	ngfw/agent/binapi/acl_types	[no test files]
+?   	ngfw/agent/binapi/adl	[no test files]
+?   	ngfw/agent/binapi/af_packet	[no test files]
+?   	ngfw/agent/binapi/af_xdp	[no test files]
+?   	ngfw/agent/binapi/arp	[no test files]
+?   	ngfw/agent/binapi/arping	[no test files]
+?   	ngfw/agent/binapi/auto_sdl	[no test files]
+?   	ngfw/agent/binapi/bfd	[no test files]
+?   	ngfw/agent/binapi/bier	[no test files]
+?   	ngfw/agent/binapi/bond	[no test files]
+?   	ngfw/agent/binapi/bpf_trace_filter	[no test files]
+?   	ngfw/agent/binapi/cdp	[no test files]
+?   	ngfw/agent/binapi/classify	[no test files]
+?   	ngfw/agent/binapi/cnat	[no test files]
+?   	ngfw/agent/binapi/crypto	[no test files]
+?   	ngfw/agent/binapi/crypto_sw_scheduler	[no test files]
+?   	ngfw/agent/binapi/ct6	[no test files]
+?   	ngfw/agent/binapi/det44	[no test files]
+?   	ngfw/agent/binapi/dev	[no test files]
+?   	ngfw/agent/binapi/dhcp	[no test files]
+?   	ngfw/agent/binapi/dhcp6_ia_na_client_cp	[no test files]
+?   	ngfw/agent/binapi/dhcp6_pd_client_cp	[no test files]
+?   	ngfw/agent/binapi/dns	[no test files]
+?   	ngfw/agent/binapi/dslite	[no test files]
+?   	ngfw/agent/binapi/ethernet_types	[no test files]
+?   	ngfw/agent/binapi/feature	[no test files]
+?   	ngfw/agent/binapi/fib	[no test files]
+?   	ngfw/agent/binapi/fib_types	[no test files]
+?   	ngfw/agent/binapi/flow	[no test files]
+?   	ngfw/agent/binapi/flow_types	[no test files]
+?   	ngfw/agent/binapi/flowprobe	[no test files]
+?   	ngfw/agent/binapi/gateway	[no test files]
+?   	ngfw/agent/binapi/geneve	[no test files]
+?   	ngfw/agent/binapi/gre	[no test files]
+?   	ngfw/agent/binapi/gso	[no test files]
+?   	ngfw/agent/binapi/gtpu	[no test files]
+?   	ngfw/agent/binapi/http_static	[no test files]
+?   	ngfw/agent/binapi/idpf	[no test files]
+?   	ngfw/agent/binapi/igmp	[no test files]
+?   	ngfw/agent/binapi/ikev2	[no test files]
+?   	ngfw/agent/binapi/ikev2_types	[no test files]
+?   	ngfw/agent/binapi/interface	[no test files]
+?   	ngfw/agent/binapi/interface_input	[no test files]
+?   	ngfw/agent/binapi/interface_types	[no test files]
+?   	ngfw/agent/binapi/ioam_cache	[no test files]
+?   	ngfw/agent/binapi/ioam_export	[no test files]
+?   	ngfw/agent/binapi/ioam_vxlan_gpe	[no test files]
+?   	ngfw/agent/binapi/ip	[no test files]
+?   	ngfw/agent/binapi/ip6_dad	[no test files]
+?   	ngfw/agent/binapi/ip6_nd	[no test files]
+?   	ngfw/agent/binapi/ip_neighbor	[no test files]
+?   	ngfw/agent/binapi/ip_session_redirect	[no test files]
+?   	ngfw/agent/binapi/ip_types	[no test files]
+?   	ngfw/agent/binapi/ipfix_export	[no test files]
+?   	ngfw/agent/binapi/ipip	[no test files]
+?   	ngfw/agent/binapi/ipsec	[no test files]
+?   	ngfw/agent/binapi/ipsec_types	[no test files]
+?   	ngfw/agent/binapi/l2	[no test files]
+?   	ngfw/agent/binapi/l2tp	[no test files]
+?   	ngfw/agent/binapi/l3xc	[no test files]
+?   	ngfw/agent/binapi/lacp	[no test files]
+?   	ngfw/agent/binapi/lb	[no test files]
+?   	ngfw/agent/binapi/lb_types	[no test files]
+?   	ngfw/agent/binapi/lcp	[no test files]
+?   	ngfw/agent/binapi/lisp	[no test files]
+?   	ngfw/agent/binapi/lisp_gpe	[no test files]
+?   	ngfw/agent/binapi/lisp_types	[no test files]
+?   	ngfw/agent/binapi/lldp	[no test files]
+?   	ngfw/agent/binapi/mactime	[no test files]
+?   	ngfw/agent/binapi/map	[no test files]
+?   	ngfw/agent/binapi/mdata	[no test files]
+?   	ngfw/agent/binapi/memclnt	[no test files]
+?   	ngfw/agent/binapi/memif	[no test files]
+?   	ngfw/agent/binapi/mfib_types	[no test files]
+?   	ngfw/agent/binapi/mpls	[no test files]
+?   	ngfw/agent/binapi/mss_clamp	[no test files]
+?   	ngfw/agent/binapi/nat	[no test files]
+?   	ngfw/agent/binapi/nat44_ed	[no test files]
+?   	ngfw/agent/binapi/nat44_ei	[no test files]
+?   	ngfw/agent/binapi/nat64	[no test files]
+?   	ngfw/agent/binapi/nat66	[no test files]
+?   	ngfw/agent/binapi/nat_types	[no test files]
+?   	ngfw/agent/binapi/npol	[no test files]
+?   	ngfw/agent/binapi/npt66	[no test files]
+?   	ngfw/agent/binapi/nsh	[no test files]
+?   	ngfw/agent/binapi/nsim	[no test files]
+?   	ngfw/agent/binapi/one	[no test files]
+?   	ngfw/agent/binapi/p2p_ethernet	[no test files]
+?   	ngfw/agent/binapi/pci_types	[no test files]
+?   	ngfw/agent/binapi/pg	[no test files]
+?   	ngfw/agent/binapi/ping	[no test files]
+?   	ngfw/agent/binapi/pipe	[no test files]
+?   	ngfw/agent/binapi/pnat	[no test files]
+?   	ngfw/agent/binapi/policer	[no test files]
+?   	ngfw/agent/binapi/policer_types	[no test files]
+?   	ngfw/agent/binapi/pot	[no test files]
+?   	ngfw/agent/binapi/pppoe	[no test files]
+?   	ngfw/agent/binapi/punt	[no test files]
+?   	ngfw/agent/binapi/pvti	[no test files]
+?   	ngfw/agent/binapi/qos	[no test files]
+?   	ngfw/agent/binapi/rd_cp	[no test files]
+?   	ngfw/agent/binapi/rdma	[no test files]
+?   	ngfw/agent/binapi/sasc	[no test files]
+?   	ngfw/agent/binapi/selog	[no test files]
+?   	ngfw/agent/binapi/session	[no test files]
+?   	ngfw/agent/binapi/sfdp	[no test files]
+?   	ngfw/agent/binapi/sfdp_types	[no test files]
+?   	ngfw/agent/binapi/sflow	[no test files]
+?   	ngfw/agent/binapi/span	[no test files]
+?   	ngfw/agent/binapi/sr	[no test files]
+?   	ngfw/agent/binapi/sr_mobile	[no test files]
+?   	ngfw/agent/binapi/sr_mobile_types	[no test files]
+?   	ngfw/agent/binapi/sr_mpls	[no test files]
+?   	ngfw/agent/binapi/sr_pt	[no test files]
+?   	ngfw/agent/binapi/sr_types	[no test files]
+?   	ngfw/agent/binapi/stn	[no test files]
+?   	ngfw/agent/binapi/svs	[no test files]
+?   	ngfw/agent/binapi/syslog	[no test files]
+?   	ngfw/agent/binapi/tapv2	[no test files]
+?   	ngfw/agent/binapi/tcp	[no test files]
+?   	ngfw/agent/binapi/tcp_check	[no test files]
+?   	ngfw/agent/binapi/teib	[no test files]
+?   	ngfw/agent/binapi/tls_openssl	[no test files]
+?   	ngfw/agent/binapi/tm	[no test files]
+?   	ngfw/agent/binapi/trace	[no test files]
+?   	ngfw/agent/binapi/tunnel_types	[no test files]
+?   	ngfw/agent/binapi/udp	[no test files]
+?   	ngfw/agent/binapi/udp_ping	[no test files]
+?   	ngfw/agent/binapi/urpf	[no test files]
+?   	ngfw/agent/binapi/vhost_user	[no test files]
+?   	ngfw/agent/binapi/virtio	[no test files]
+?   	ngfw/agent/binapi/virtio_types	[no test files]
+?   	ngfw/agent/binapi/vlib	[no test files]
+?   	ngfw/agent/binapi/vmxnet3	[no test files]
+?   	ngfw/agent/binapi/vpe	[no test files]
+?   	ngfw/agent/binapi/vpe_types	[no test files]
+?   	ngfw/agent/binapi/vrrp	[no test files]
+?   	ngfw/agent/binapi/vxlan	[no test files]
+?   	ngfw/agent/binapi/vxlan_gpe	[no test files]
+?   	ngfw/agent/binapi/vxlan_gpe_ioam_export	[no test files]
+?   	ngfw/agent/binapi/wireguard	[no test files]
+?   	ngfw/agent/cmd/ngfw-agent	[no test files]
+?   	ngfw/agent/cmd/ngfw-agentctl	[no test files]
+ok  	ngfw/agent/cmd/ngfw-startupgen	3.108s
+?   	ngfw/agent/cmd/ngfw-vpp-preflight	[no test files]
+ok  	ngfw/agent/cmd/ngfw-vppcheck	2.057s
+?   	ngfw/agent/gen/ngfw/model/acl/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/model/iface/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/model/nat/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/v1	[no test files]
+ok  	ngfw/agent/internal/actions/acl	1.230s
+ok  	ngfw/agent/internal/actions/capture-trace	61.700s
+ok  	ngfw/agent/internal/actions/nat44-ed-sessions	1.476s
+ok  	ngfw/agent/internal/actions/nat44-ei-64-66-nptv6	1.106s
+ok  	ngfw/agent/internal/actions/neighbors-ra	1.174s
+ok  	ngfw/agent/internal/actions/unbound-chrony-syslog	1.147s
+ok  	ngfw/agent/internal/actions/vrf-static-ecmp	4.637s
+ok  	ngfw/agent/internal/agent	134.925s
+ok  	ngfw/agent/internal/autoblock	1.755s
+ok  	ngfw/agent/internal/contracttest	2.961s
+ok  	ngfw/agent/internal/descriptors/abf	1.168s
+ok  	ngfw/agent/internal/descriptors/acl	1.296s
+ok  	ngfw/agent/internal/descriptors/adl	1.173s
+ok  	ngfw/agent/internal/descriptors/af_packet	10.669s
+ok  	ngfw/agent/internal/descriptors/arp	1.109s
+ok  	ngfw/agent/internal/descriptors/auto_sdl	1.170s
+ok  	ngfw/agent/internal/descriptors/bfd	1.186s
+ok  	ngfw/agent/internal/descriptors/bond	1.164s
+ok  	ngfw/agent/internal/descriptors/classify	14.758s
+ok  	ngfw/agent/internal/descriptors/cnat	1.201s
+ok  	ngfw/agent/internal/descriptors/core	1.502s
+ok  	ngfw/agent/internal/descriptors/core/coretest	1.262s
+ok  	ngfw/agent/internal/descriptors/det44	1.194s
+ok  	ngfw/agent/internal/descriptors/df2	10.301s
+?   	ngfw/agent/internal/descriptors/df2/df2test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.122s
+ok  	ngfw/agent/internal/descriptors/df6	4.182s
+?   	ngfw/agent/internal/descriptors/df6/df6test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df7	1.183s
+?   	ngfw/agent/internal/descriptors/df7/df7test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df7/registry	1.127s
+ok  	ngfw/agent/internal/descriptors/dfkit	9.114s
+?   	ngfw/agent/internal/descriptors/dfkit/dfkittest	[no test files]
+ok  	ngfw/agent/internal/descriptors/dfkit/persist	1.100s
+ok  	ngfw/agent/internal/descriptors/dfkit/restarttest	1.164s
+ok  	ngfw/agent/internal/descriptors/dhcp	12.393s
+ok  	ngfw/agent/internal/descriptors/dns	10.593s
+ok  	ngfw/agent/internal/descriptors/dslite	1.139s
+ok  	ngfw/agent/internal/descriptors/flowprobe	1.186s
+ok  	ngfw/agent/internal/descriptors/gre	1.244s
+ok  	ngfw/agent/internal/descriptors/gso	1.111s
+ok  	ngfw/agent/internal/descriptors/gtpu	1.161s
+ok  	ngfw/agent/internal/descriptors/hoststack	1.270s
+ok  	ngfw/agent/internal/descriptors/igmp	1.109s
+ok  	ngfw/agent/internal/descriptors/ikev2	11.835s
+ok  	ngfw/agent/internal/descriptors/interface	1.274s
+?   	ngfw/agent/internal/descriptors/interface/ifacetest	[no test files]
+ok  	ngfw/agent/internal/descriptors/ip6_nd	2.441s
+ok  	ngfw/agent/internal/descriptors/ip_neighbor	1.068s
+ok  	ngfw/agent/internal/descriptors/ip_session_redirect	1.120s
+ok  	ngfw/agent/internal/descriptors/ipfix	1.277s
+ok  	ngfw/agent/internal/descriptors/ipip	1.126s
+ok  	ngfw/agent/internal/descriptors/ipsec	12.729s
+ok  	ngfw/agent/internal/descriptors/kit	2.869s
+ok  	ngfw/agent/internal/descriptors/l2	1.138s
+ok  	ngfw/agent/internal/descriptors/l2tp	1.107s
+ok  	ngfw/agent/internal/descriptors/l3xc	1.093s
+ok  	ngfw/agent/internal/descriptors/lb	1.298s
+ok  	ngfw/agent/internal/descriptors/lcp	1.387s
+ok  	ngfw/agent/internal/descriptors/lcp_osi	1.111s
+ok  	ngfw/agent/internal/descriptors/lisp	1.134s
+ok  	ngfw/agent/internal/descriptors/lldp	1.110s
+ok  	ngfw/agent/internal/descriptors/mactime	1.113s
+ok  	ngfw/agent/internal/descriptors/mapnat	1.143s
+ok  	ngfw/agent/internal/descriptors/memif	1.080s
+ok  	ngfw/agent/internal/descriptors/mfib	1.133s
+ok  	ngfw/agent/internal/descriptors/mpls	1.301s
+ok  	ngfw/agent/internal/descriptors/nat44ed	1.213s
+ok  	ngfw/agent/internal/descriptors/nat44ei	1.162s
+ok  	ngfw/agent/internal/descriptors/nat46	1.121s
+ok  	ngfw/agent/internal/descriptors/nat64	1.124s
+ok  	ngfw/agent/internal/descriptors/nat66	1.104s
+ok  	ngfw/agent/internal/descriptors/natcommon	1.116s
+?   	ngfw/agent/internal/descriptors/natcommon/nattest	[no test files]
+ok  	ngfw/agent/internal/descriptors/npt66	1.145s
+ok  	ngfw/agent/internal/descriptors/nsim	1.130s
+ok  	ngfw/agent/internal/descriptors/pcap	1.122s
+ok  	ngfw/agent/internal/descriptors/pnat	1.177s
+ok  	ngfw/agent/internal/descriptors/policer	1.178s
+ok  	ngfw/agent/internal/descriptors/pppoe	12.540s
+ok  	ngfw/agent/internal/descriptors/qos	6.155s
+ok  	ngfw/agent/internal/descriptors/sflow	1.129s
+ok  	ngfw/agent/internal/descriptors/span	1.123s
+ok  	ngfw/agent/internal/descriptors/sr	1.153s
+ok  	ngfw/agent/internal/descriptors/sr_mpls	1.223s
+ok  	ngfw/agent/internal/descriptors/svs	1.236s
+ok  	ngfw/agent/internal/descriptors/tapv2	1.113s
+ok  	ngfw/agent/internal/descriptors/trace	1.134s
+ok  	ngfw/agent/internal/descriptors/urpf	1.106s
+ok  	ngfw/agent/internal/descriptors/vpn	5.590s
+?   	ngfw/agent/internal/descriptors/vpn/pb	[no test files]
+?   	ngfw/agent/internal/descriptors/vpn/vpntest	[no test files]
+ok  	ngfw/agent/internal/descriptors/vrrp	1.315s
+ok  	ngfw/agent/internal/descriptors/vxlan	1.122s
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	1.111s
+ok  	ngfw/agent/internal/descriptors/wireguard	9.453s
+ok  	ngfw/agent/internal/desired	47.009s
+ok  	ngfw/agent/internal/detectors	1.148s
+ok  	ngfw/agent/internal/frrsync/ldp	1.897s
+ok  	ngfw/agent/internal/frrsync/pim	1.467s
+ok  	ngfw/agent/internal/lcpmap	1.224s
+ok  	ngfw/agent/internal/multiwan	2.088s
+ok  	ngfw/agent/internal/objects	43.983s
+ok  	ngfw/agent/internal/ownertable	9.267s
+ok  	ngfw/agent/internal/pki	40.938s
+ok  	ngfw/agent/internal/promexport	2.124s
+ok  	ngfw/agent/internal/renderers	9.387s
+ok  	ngfw/agent/internal/renderers/basepolicy	1.241s
+ok  	ngfw/agent/internal/renderers/chrony	38.537s
+ok  	ngfw/agent/internal/renderers/frr	36.470s
+ok  	ngfw/agent/internal/renderers/frr/bgp	1.274s
+ok  	ngfw/agent/internal/renderers/frr/frrtest	1.125s
+ok  	ngfw/agent/internal/renderers/frr/isis	1.274s
+ok  	ngfw/agent/internal/renderers/frr/ldp	4.832s
+ok  	ngfw/agent/internal/renderers/frr/ospf	1.288s
+ok  	ngfw/agent/internal/renderers/frr/pim	1.128s
+?   	ngfw/agent/internal/renderers/frr/policy	[no test files]
+ok  	ngfw/agent/internal/renderers/frr/rip	1.280s
+ok  	ngfw/agent/internal/renderers/frr/ripng	1.138s
+ok  	ngfw/agent/internal/renderers/kea	35.298s
+ok  	ngfw/agent/internal/renderers/keepalived	7.944s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/ngfw-keepalived-notify	1.102s
+ok  	ngfw/agent/internal/renderers/nftables	10.002s
+?   	ngfw/agent/internal/renderers/nftables/nftest	[no test files]
+ok  	ngfw/agent/internal/renderers/pppoe	21.705s
+ok  	ngfw/agent/internal/renderers/rfkit	6.552s
+ok  	ngfw/agent/internal/renderers/rsyslog	36.818s
+ok  	ngfw/agent/internal/renderers/snmpd	18.521s
+ok  	ngfw/agent/internal/renderers/strongswan	46.401s
+?   	ngfw/agent/internal/renderers/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/renderers/sysident	7.624s
+ok  	ngfw/agent/internal/renderers/unbound	24.105s
+ok  	ngfw/agent/internal/renderers/vppstartup	6.491s
+ok  	ngfw/agent/internal/scheduler	4.360s
+ok  	ngfw/agent/internal/secretchannel	5.285s
+ok  	ngfw/agent/internal/snmpagent	2.148s
+2026/10/04 19:59:34 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:34 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:35 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestPBRPolicyNamesFACLList1139703781/001/pki-w3 source=true
+2026/10/04 19:59:35 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:35 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:35 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestPBRPolicyNamesFACLList1139703781/001/objects-fqdn-w3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:35 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestPBRPolicyNamesFACLList1139703781/001/objects-w3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
+2026/10/04 19:59:35 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:35 INFO host firewall wired table="inet ngfw_w3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestPBRPolicyNamesFACLList1139703781/001/host-acl-w3.nft
+2026/10/04 19:59:35 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:35 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:35 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:35 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:35 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/04 19:59:35 INFO acl re-projection: resync requested reason="list \"l\" rule 10: schedule \"office\" turned off"
+2026/10/04 19:59:35 WARN acl re-projection needed but the agent's resync hook is not wired (F-acl questions Q1); it is applied with the next commit reason="list \"l\" rule 10: schedule \"office\" turned off"
+2026/10/04 19:59:35 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:35 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:35 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterACLWiring1573401698/001/pki-w3 source=true
+2026/10/04 19:59:35 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 19:59:35 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterACLWiring1573401698/001/objects-fqdn-w3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:35 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterACLWiring1573401698/001/objects-w3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
+2026/10/04 19:59:35 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 19:59:35 INFO host firewall wired table="inet ngfw_w3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterACLWiring1573401698/001/host-acl-w3.nft
+2026/10/04 19:59:35 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:35 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 19:59:35 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 19:59:35 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 19:59:35 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:35 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:35 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestBondingWiring3692098912/001/pki-wb source=true
+2026/10/04 19:59:35 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:35 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:35 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:35 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestBondingWiring3692098912/001/objects-fqdn-wb.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:36 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestBondingWiring3692098912/001/objects-wb.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 19:59:36 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:36 INFO host firewall wired table="inet ngfw_wb" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestBondingWiring3692098912/001/host-acl-wb.nft
+2026/10/04 19:59:36 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:36 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:36 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:36 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:36 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:36 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:36 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext1798452431/001/pki-w1r2 source=true
+2026/10/04 19:59:36 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:36 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:36 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext1798452431/001/objects-fqdn-w1r2.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:36 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext1798452431/001/objects-w1r2.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 19:59:36 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:36 INFO host firewall wired table="inet ngfw_w1r2" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestClaimRefreshBoundedByCallerContext1798452431/001/host-acl-w1r2.nft
+2026/10/04 19:59:36 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:36 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:36 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:36 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:36 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:36 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+--- FAIL: TestClaimRefreshBoundedByCallerContext (12.24s)
+    claims_td11b_test.go:99: claim not recorded
+2026/10/04 19:59:48 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:48 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:50 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestClaimRefreshCancelledWithCaller202296581/001/pki-w1r3 source=true
+2026/10/04 19:59:50 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:50 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:50 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:50 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:50 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:50 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestClaimRefreshCancelledWithCaller202296581/001/objects-fqdn-w1r3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:50 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestClaimRefreshCancelledWithCaller202296581/001/objects-w1r3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 19:59:50 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:50 INFO host firewall wired table="inet ngfw_w1r3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestClaimRefreshCancelledWithCaller202296581/001/host-acl-w1r3.nft
+2026/10/04 19:59:50 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:50 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:50 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:50 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:50 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:50 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:50 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+2026/10/04 19:59:52 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:52 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:52 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/001/pki-w1g source=true
+2026/10/04 19:59:52 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:52 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:52 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:52 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:52 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:52 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/001/objects-fqdn-w1g.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:54 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/001/objects-w1g.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 19:59:54 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:54 INFO host firewall wired table="inet ngfw_w1g" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/001/host-acl-w1g.nft
+2026/10/04 19:59:54 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:54 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:54 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:54 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:54 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:54 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:54 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+2026/10/04 19:59:54 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:54 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:56 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/002/pki-w1g source=true
+2026/10/04 19:59:56 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:56 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:56 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:56 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:56 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:56 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/002/objects-fqdn-w1g.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 19:59:57 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/002/objects-w1g.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 19:59:57 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 19:59:57 INFO host firewall wired table="inet ngfw_w1g" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterGuardsEveryDescriptor471639617/002/host-acl-w1g.nft
+2026/10/04 19:59:57 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:57 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 19:59:57 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 19:59:57 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:57 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 19:59:57 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 19:59:59 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 19:59:59 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 19:59:59 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRequirePersistentPerFamily3168049051/001/pki-w1f source=true
+2026/10/04 19:59:59 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:59 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 19:59:59 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:59 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 19:59:59 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 19:59:59 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRequirePersistentPerFamily3168049051/001/objects-fqdn-w1f.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:00 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRequirePersistentPerFamily3168049051/001/objects-w1f.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:00 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:00 INFO host firewall wired table="inet ngfw_w1f" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRequirePersistentPerFamily3168049051/001/host-acl-w1f.nft
+2026/10/04 20:00:00 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:00 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:00 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:00 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:00 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:00 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:00 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+2026/10/04 20:00:01 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:01 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:02 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestPairClaims2607083901/001/pki-w1p source=true
+2026/10/04 20:00:02 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:02 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:02 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:02 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:02 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:02 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestPairClaims2607083901/001/objects-fqdn-w1p.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:03 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestPairClaims2607083901/001/objects-w1p.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:03 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:03 INFO host firewall wired table="inet ngfw_w1p" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestPairClaims2607083901/001/host-acl-w1p.nft
+2026/10/04 20:00:03 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:03 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:03 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:03 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:03 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:03 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:03 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/4242/? complete=false expired_claims=0
+2026/10/04 20:00:10 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRConfigLifecycle1566975249/001/etc/frr.conf bgp=true
+2026/10/04 20:00:10 WARN FRR running configuration drifted from the applied one component=frr diff="Lines To Delete\n===============\nLines To Add\n============\nrouter bgp 65080\n neighbor 10.8.1.2 remote-as 65081\n"
+2026/10/04 20:00:10 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRConfigLifecycle1566975249/001/etc/frr.conf bgp=true
+2026/10/04 20:00:10 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRConfigLifecycle1566975249/001/etc/frr.conf bgp=false
+2026/10/04 20:00:10 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestEventsArePublished2931479533/001/etc/frr.conf bgp=true
+2026/10/04 20:00:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop701 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop702 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-a sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:10 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-b sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:11 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRStageSurvivesPairChanges3239026073/001/etc/frr.conf bgp=true
+2026/10/04 20:00:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-b sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:11 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRStageSurvivesPairChanges3239026073/001/etc/frr.conf bgp=true
+2026/10/04 20:00:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-a sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:11 INFO interface sanitized (VPP V19/V21 inherited state) interface=w7-a sw_if_index=5 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:12 INFO FRR configuration applied component=frr conf=/root/.cache/ngfw-ci-host/TestFRRStageSurvivesPairChanges3239026073/001/etc/frr.conf bgp=true
+2026/10/04 20:00:12 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:12 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:12 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestIgmpMfibRegisteredWithPersistedStores2047867375/001/pki-w1 source=true
+2026/10/04 20:00:12 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:12 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:12 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestIgmpMfibRegisteredWithPersistedStores2047867375/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:12 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestIgmpMfibRegisteredWithPersistedStores2047867375/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:12 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:12 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestIgmpMfibRegisteredWithPersistedStores2047867375/001/host-acl-w1.nft
+2026/10/04 20:00:12 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:12 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:12 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:12 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:12 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:12 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:12 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_fail_closed2378604886/001/pki-wk3 source=true
+2026/10/04 20:00:12 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:12 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:12 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_fail_closed2378604886/001/objects-fqdn-wk3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:12 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_fail_closed2378604886/001/objects-wk3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:12 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:12 INFO host firewall wired table="inet ngfw_wk3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_fail_closed2378604886/001/host-acl-wk3.nft
+2026/10/04 20:00:12 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:12 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:12 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:12 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:12 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:12 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:12 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_table_0_too423319956/001/pki-wk3 source=true
+2026/10/04 20:00:12 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:12 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:12 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_table_0_too423319956/001/objects-fqdn-wk3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:12 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_table_0_too423319956/001/objects-wk3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:12 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:12 INFO host firewall wired table="inet ngfw_wk3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeno_range_table_0_too423319956/001/host-acl-wk3.nft
+2026/10/04 20:00:12 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:12 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:12 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:12 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:12 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:12 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:12 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:12 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_inside2288646572/001/pki-wk3 source=true
+2026/10/04 20:00:12 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:12 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:12 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_inside2288646572/001/objects-fqdn-wk3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:12 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_inside2288646572/001/objects-wk3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:12 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:12 INFO host firewall wired table="inet ngfw_wk3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_inside2288646572/001/host-acl-wk3.nft
+2026/10/04 20:00:12 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:12 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:12 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:12 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:13 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:13 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:13 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_outside1028731527/001/pki-wk3 source=true
+2026/10/04 20:00:13 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:13 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:13 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_outside1028731527/001/objects-fqdn-wk3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:13 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_outside1028731527/001/objects-wk3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:13 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:13 INFO host firewall wired table="inet ngfw_wk3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeslot_range,_outside1028731527/001/host-acl-wk3.nft
+2026/10/04 20:00:13 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:13 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:13 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:13 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:13 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeproduct_every_VRF533612135/001/pki-wk3 source=true
+2026/10/04 20:00:13 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:13 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:13 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeproduct_every_VRF533612135/001/objects-fqdn-wk3.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:13 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeproduct_every_VRF533612135/001/objects-wk3.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:13 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:13 INFO host firewall wired table="inet ngfw_wk3" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaRelayScopeproduct_every_VRF533612135/001/host-acl-wk3.nft
+2026/10/04 20:00:13 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:13 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:14 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:14 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:14 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:14 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:14 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesdefault_is_product2694684676/001/pki-wk4 source=true
+2026/10/04 20:00:14 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:14 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:14 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesdefault_is_product2694684676/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:14 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesdefault_is_product2694684676/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:14 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:14 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesdefault_is_product2694684676/001/host-acl-wk4.nft
+2026/10/04 20:00:14 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:14 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:14 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:14 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:14 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:14 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesproduct2615784872/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesproduct2615784872/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesproduct2615784872/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesproduct2615784872/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:15 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:15 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:15 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesoff1906848257/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesoff1906848257/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesoff1906848257/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesoff1906848257/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO kea descriptors off (NGFW_KEA_MODE=off)
+2026/10/04 20:00:15 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:15 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:15 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesbogus_mode_refuses_to_start490009956/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesbogus_mode_refuses_to_start490009956/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesbogus_mode_refuses_to_start490009956/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesbogus_mode_refuses_to_start490009956/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest802609965/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest802609965/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest802609965/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest802609965/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO kea wired mode="test (netns ns-wk4-wan, 2 mapped interfaces)" conf=/run/ngfw-test/wk4/kea/etc sockets=/run/ngfw-test/wk4/kea/run
+2026/10/04 20:00:15 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:15 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:15 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_default_netns1920242526/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_default_netns1920242526/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_default_netns1920242526/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_default_netns1920242526/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO kea wired mode="test (netns ns-wk4-a, 0 mapped interfaces)" conf=/run/ngfw-test/wk4/kea/etc sockets=/run/ngfw-test/wk4/kea/run
+2026/10/04 20:00:15 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:15 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:15 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_map_pair655585321/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_map_pair655585321/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_map_pair655585321/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_map_pair655585321/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_linux_name_too_long3327716090/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_linux_name_too_long3327716090/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_linux_name_too_long3327716090/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_linux_name_too_long3327716090/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:15 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_netns201782659/001/pki-wk4 source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_netns201782659/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_netns201782659/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModestest,_bad_netns201782659/001/host-acl-wk4.nft
+2026/10/04 20:00:15 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw2118540091/001/pki-ngfw source=true
+2026/10/04 20:00:15 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:15 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:15 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw2118540091/001/objects-fqdn-ngfw.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:15 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw2118540091/001/objects-ngfw.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:15 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:15 INFO host firewall wired table="inet ngfw" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw2118540091/001/host-acl-ngfw.nft
+2026/10/04 20:00:16 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_with_id_range_all3631045306/001/pki-wk4 source=true
+2026/10/04 20:00:16 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:16 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:16 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_with_id_range_all3631045306/001/objects-fqdn-wk4.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:16 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_with_id_range_all3631045306/001/objects-wk4.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:16 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:16 INFO host firewall wired table="inet ngfw_wk4" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_with_id_range_all3631045306/001/host-acl-wk4.nft
+2026/10/04 20:00:16 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:16 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:16 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw_on_a_range2516078655/001/pki-ngfw source=true
+2026/10/04 20:00:16 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:16 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:16 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw_on_a_range2516078655/001/objects-fqdn-ngfw.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:16 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw_on_a_range2516078655/001/objects-ngfw.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:16 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:16 INFO host firewall wired table="inet ngfw" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterKeaModesQ7_test_refused_for_owner_ngfw_on_a_range2516078655/001/host-acl-ngfw.nft
+2026/10/04 20:00:18 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:18 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:18 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestLbSlotAgentNeverCollects1661801027/002/pki-w2s source=true
+2026/10/04 20:00:18 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:18 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:18 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:18 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:18 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:18 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestLbSlotAgentNeverCollects1661801027/002/objects-fqdn-w2s.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:18 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestLbSlotAgentNeverCollects1661801027/002/objects-w2s.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:18 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:18 INFO host firewall wired table="inet ngfw_w2s" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestLbSlotAgentNeverCollects1661801027/002/host-acl-w2s.nft
+2026/10/04 20:00:18 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:18 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:18 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:18 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:18 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:18 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:18 INFO VPP boot identity identity=boot-lb/4732/7 complete=true expired_claims=0
+2026/10/04 20:00:18 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:18 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:19 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestLbGlobalsOwnerCollectsOnce3472537187/002/pki-w2g source=true
+2026/10/04 20:00:19 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:19 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 20:00:19 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:19 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:19 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestLbGlobalsOwnerCollectsOnce3472537187/002/objects-fqdn-w2g.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:19 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestLbGlobalsOwnerCollectsOnce3472537187/002/objects-w2g.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:19 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:19 INFO host firewall wired table="inet ngfw_w2g" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestLbGlobalsOwnerCollectsOnce3472537187/002/host-acl-w2g.nft
+2026/10/04 20:00:19 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:19 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:19 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:19 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:19 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:19 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:19 INFO classify table sentinel created at index 0 (INC-vpp-classify-crash M2) family=classify-sentinel state=created left=[] report="state=created pops=0"
+2026/10/04 20:00:19 INFO VPP boot identity identity=boot-lb/4732/7 complete=true expired_claims=0
+2026/10/04 20:00:21 INFO lb garbage collection ran (D-090) command="lb vip 0.0.0.0/32 del"
+2026/10/04 20:00:22 INFO lb garbage collection ran (D-090) command="lb vip 0.0.0.0/32 del"
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/001/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/001/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/002/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN nsim (lab tool) is on: configuring it keeps VPP's main thread polling until VPP restarts
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/002/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/002/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestLoopbackBviGsoLldpSpanWiring475460886/002/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/001/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/001/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/002/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/002/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/002/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/002/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/003/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/003/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/003/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/003/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/004/pki-w7 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN nsim (lab tool) is on: configuring it keeps VPP's main thread polling until VPP restarts
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/004/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/004/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNsimLabGate2082835225/004/host-acl-w7.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNeighborsRaIDRange3180298861/001/pki-w9 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNeighborsRaIDRange3180298861/001/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNeighborsRaIDRange3180298861/001/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNeighborsRaIDRange3180298861/001/host-acl-w9.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/001/pki-w9 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/001/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/001/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/001/host-acl-w9.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/002/pki-w9 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN proxy ND is enabled (experimental, VPP V12: the shared VPP aborted after ip6nd_proxy_add_del on 2026-09-23) env=NGFW_DF2_PROXY_ND
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/002/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/002/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/002/host-acl-w9.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/003/pki-w9 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/003/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/003/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestRegisterNeighborsRa671485567/003/host-acl-w9.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:22 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:22 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/001/pki-w9 source=true
+2026/10/04 20:00:22 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:22 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:22 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/001/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:22 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/001/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:22 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:22 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/001/host-acl-w9.nft
+2026/10/04 20:00:22 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:22 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:22 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:22 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:22 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:22 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/04 20:00:23 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:23 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:23 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/002/pki-w9 source=true
+2026/10/04 20:00:23 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:23 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:23 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:23 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:23 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:23 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/002/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:23 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/002/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:23 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:23 INFO host firewall wired table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestNeighborsRaConnectedNeedsASink1696593269/002/host-acl-w9.nft
+2026/10/04 20:00:23 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:23 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:23 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:23 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:23 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:23 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:23 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/04 20:00:24 INFO pppoe reconnect interface=wan0 unit=ngfw-pppoe-wan0.service
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=true local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=false local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:24 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:24 WARN pppoe.not-supervised feature=pppoe-client owner=w9-slot
+2026/10/04 20:00:24 WARN pppoe.not-supervised owner=w9
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=true local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=true local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=true local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=false local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=true local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=false local4=198.51.100.5/32 local6="" default_route=true mss_clamp=true
+2026/10/04 20:00:24 WARN pppoe.not-supervised owner=w9
+2026/10/04 20:00:24 WARN pppoe.not-supervised owner=w9
+2026/10/04 20:00:24 WARN pppoe.not-supervised owner=w9
+2026/10/04 20:00:24 INFO pppoe mirror interface=wan0 sw_if_index=1 up=false local4=192.0.2.4/32 local6="" default_route=true mss_clamp=false
+2026/10/04 20:00:24 WARN pppoe.not-supervised owner=w9
+2026/10/04 20:00:27 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:27 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:27 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestAfterResyncReleasesQuarantine4214362803/001/pki-w1 source=true
+2026/10/04 20:00:27 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:27 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:27 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:27 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:27 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:27 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestAfterResyncReleasesQuarantine4214362803/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:27 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestAfterResyncReleasesQuarantine4214362803/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:27 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:27 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestAfterResyncReleasesQuarantine4214362803/001/host-acl-w1.nft
+2026/10/04 20:00:27 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:27 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:27 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:27 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:27 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:27 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:27 INFO interface sanitized (VPP V19/V21 inherited state) interface="quarantine holder 1" sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:27 INFO quarantined sw_if_index released: its stale bindings are gone (VPP V19) sw_if_index=1 tag=quarantine:w1
+2026/10/04 20:00:27 INFO quarantine holders released after resync (VPP V19) released=1
+2026/10/04 20:00:28 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:28 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:28 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/001/pki-w4a source=true
+2026/10/04 20:00:28 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:28 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:28 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/001/objects-fqdn-w4a.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:28 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/001/objects-w4a.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:28 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:28 INFO host firewall wired table="inet ngfw_w4a" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/001/host-acl-w4a.nft
+2026/10/04 20:00:28 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:28 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:28 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:28 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:28 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/04 20:00:28 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:28 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:28 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/002/pki-w4b source=true
+2026/10/04 20:00:28 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim
+2026/10/04 20:00:28 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/002/objects-fqdn-w4b.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:28 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/002/objects-w4b.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:28 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=true resync_hook=false
+2026/10/04 20:00:28 INFO host firewall wired table="inet ngfw_w4b" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestSrv6Wiring3042009180/002/host-acl-w4b.nft
+2026/10/04 20:00:28 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:28 INFO host services wired feature=unbound-chrony-syslog product_paths=true unbound_conf=/etc/unbound/unbound.conf chrony_conf=/etc/chrony/chrony.conf rsyslog_conf=/etc/rsyslog.d/50-ngfw-export.conf vpp_dns_cache="applied (globals owner)"
+2026/10/04 20:00:28 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO system identity wired product_paths=true hostname_file=/etc/hostname
+2026/10/04 20:00:28 INFO pppoe client wired feature=pppoe-client globals_owner=true product_paths=true
+2026/10/04 20:00:28 INFO classify table sentinel created at index 0 (INC-vpp-classify-crash M2) family=classify-sentinel state=created left=[] report="state=created pops=0"
+2026/10/04 20:00:28 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/04 20:00:28 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:28 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:28 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestKeyedClaimsFlushOncePerTxn1769096852/001/pki-w1 source=true
+2026/10/04 20:00:28 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:28 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:28 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestKeyedClaimsFlushOncePerTxn1769096852/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:28 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestKeyedClaimsFlushOncePerTxn1769096852/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:28 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:28 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestKeyedClaimsFlushOncePerTxn1769096852/001/host-acl-w1.nft
+2026/10/04 20:00:28 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:28 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:28 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:28 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:28 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:28 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:28 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/pki-w1 source=true
+2026/10/04 20:00:28 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:28 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:28 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:28 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:28 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:28 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/host-acl-w1.nft
+2026/10/04 20:00:28 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:28 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:28 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:28 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:28 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:28 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:28 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/pki-w1 source=true
+2026/10/04 20:00:28 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:28 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:28 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:28 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:28 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:28 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestKeyedClaimsSurviveAgentDeathMidTransaction428509009/001/host-acl-w1.nft
+2026/10/04 20:00:28 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:28 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:28 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:28 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:28 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:29 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/04 20:00:29 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:29 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestVPNOptionsArePersisted1679686856/001/pki-w1 source=true
+2026/10/04 20:00:29 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:29 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:29 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestVPNOptionsArePersisted1679686856/001/objects-fqdn-w1.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:29 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestVPNOptionsArePersisted1679686856/001/objects-w1.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:29 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:29 INFO host firewall wired table="inet ngfw_w1" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestVPNOptionsArePersisted1679686856/001/host-acl-w1.nft
+2026/10/04 20:00:29 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:29 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:29 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:29 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:29 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/04 20:00:29 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestVrrpProductWiringFiltersOwnedMasterVIP2376097700/001/pki-w7 source=true
+2026/10/04 20:00:29 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/04 20:00:29 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/04 20:00:29 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestVrrpProductWiringFiltersOwnedMasterVIP2376097700/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:00:29 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestVrrpProductWiringFiltersOwnedMasterVIP2376097700/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:00:29 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/04 20:00:29 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestVrrpProductWiringFiltersOwnedMasterVIP2376097700/001/host-acl-w7.nft
+2026/10/04 20:00:29 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:00:29 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:00:29 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/04 20:00:29 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-3775495177/sysident/etc/hostname
+2026/10/04 20:00:29 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:00:29 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop301 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:29 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop302 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop301 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop302 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop301 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:00:30 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop302 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+FAIL
+FAIL	ngfw/agent/internal/subsystems	57.199s
+ok  	ngfw/agent/internal/subsystems/ruleexpiry	1.383s
+?   	ngfw/agent/internal/testpeer/strongswan	[no test files]
+?   	ngfw/agent/internal/testpeer/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/vpp	3.175s
+ok  	ngfw/agent/internal/vpp/bootid	1.501s
+ok  	ngfw/agent/internal/vpp/fake	1.087s
+ok  	ngfw/agent/internal/vpp/ifsanitize	21.684s
+?   	ngfw/agent/internal/vpp/ifsanitize/sanitizetest	[no test files]
+ok  	ngfw/agent/internal/vpp/vpptest	1.742s
+FAIL
+make: *** [Makefile:19: test] Error 1
+make: Leaving directory '/root/ngfw-wt/codex-lb-browser-closeout-publish/apps/agent'

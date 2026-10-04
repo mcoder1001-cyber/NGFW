@@ -2,15 +2,15 @@
 
 Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 88.1% by hours (1390.0/1577.5 h), 87.7% by tasks (185/211)**
+**Overall: 88.2% by hours (1392.0/1577.5 h), 88.2% by tasks (186/211)**
 
 | state | tasks |
 |---|---|
-| merged | 185 |
+| merged | 186 |
 | review | 0 |
 | running | 0 |
 | ready | 7 |
-| parked | 11 |
+| parked | 10 |
 | failed | 0 |
 | todo | 8 |
 
@@ -20,7 +20,7 @@ Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 929.0 / 1002.0 | 92.7% | 136/150 | 0 | 3 | 8 |
+| S4 | 931.0 / 1002.0 | 92.9% | 137/150 | 0 | 3 | 7 |
 | S5 | 102 / 155.5 | 65.6% | 10/16 | 0 | 4 | 1 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -37,7 +37,6 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 - F-lb-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-srv6-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-mpls-srmpls-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
-- F-rule-expiry-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-global-blocking-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-pppoe-client-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-nat46-host — parked_on: remaining live packet/FIB/restart/API acceptance

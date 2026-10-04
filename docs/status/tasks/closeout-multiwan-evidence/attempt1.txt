@@ -1,0 +1,8 @@
+DISPOSABLE_VPP pid=3818508 runtime=/root/ngfw-wt/codex-closeout-multiwan-live/.scratch/isolated-vpp-3818505
+# ngfw/test/topology/acl [ngfw/test/topology/acl.test]
+./acceptance_test.go:143:2: undefined: out
+./acceptance_test.go:144:23: undefined: out
+./acceptance_test.go:145:33: undefined: out
+FAIL	ngfw/test/topology/acl [build failed]
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3818508

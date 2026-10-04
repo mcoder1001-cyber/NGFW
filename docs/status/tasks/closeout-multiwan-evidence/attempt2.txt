@@ -1,0 +1,38 @@
+DISPOSABLE_VPP pid=3819793 runtime=/root/ngfw-wt/codex-closeout-multiwan-live/.scratch/isolated-vpp-3819790
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:78: create role ngfw_w7
+        create database ngfw_w7 (owner ngfw_w7)
+        check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w7/pg.env (0600) · DSN postgres://ngfw_w7:<redacted>@127.0.0.1:5432/ngfw_w7
+        
+    acceptance_test.go:78: started ngfw-agent pid 3820289 (log /run/ngfw-test/w7/acl/agent.log)
+    acceptance_test.go:78: started ngfw-api pid 3820307 (log /run/ngfw-test/w7/acl/api.log)
+    acceptance_test.go:107: ngfw-vpp-preflight: exit 0
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    acceptance_test.go:115: probe device w7c1 readiness: PING 198.18.7.1 (198.18.7.1) from 10.7.2.1 w7c1: 56(84) bytes of data.
+        64 bytes from 198.18.7.1: icmp_seq=1 ttl=64 time=2.40 ms
+        64 bytes from 198.18.7.1: icmp_seq=2 ttl=64 time=0.494 ms
+        
+        --- 198.18.7.1 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+        rtt min/avg/max/mdev = 0.494/1.448/2.402/0.954 ms
+    acceptance_test.go:115: probe device w7c2 readiness: PING 198.18.7.1 (198.18.7.1) from 10.7.3.1 w7c2: 56(84) bytes of data.
+        64 bytes from 198.18.7.1: icmp_seq=1 ttl=64 time=1.87 ms
+        64 bytes from 198.18.7.1: icmp_seq=2 ttl=64 time=0.755 ms
+        
+        --- 198.18.7.1 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+        rtt min/avg/max/mdev = 0.755/1.311/1.868/0.556 ms
+    acceptance_test.go:126: real commit={"notApplied":[],"results":[],"revision":{"author":"admin","authorId":1,"comment":"multiwan-live","createdAt":"2026-10-04T15:51:54.812Z","hash":"614cdb75e502379bcbf48d3df34f1d0a6e2743f760e98d64db93ab76eed03624","id":2,"kind":"commit","parentId":1,"secretChanges":[],"secretVersions":null,"txnId":"201026c8-6e2f-4db7-8933-3d47786bde7d"},"status":"applied","summary":{"created":0,"deleted":0,"failed":0,"reverted":0,"unchanged":15,"updated":0},"sync":{"reason":"","since":"1970-01-01T00:00:00.000Z","state":"in-sync","txnId":null},"txnId":"201026c8-6e2f-4db7-8933-3d47786bde7d","warnings":[{"message":"management.aaa is not applied by this agent build","pointer":"/management/aaa","rule":"agent.unsupported-field"},{"message":"management.tls is not applied by this agent build","pointer":"/management/tls","rule":"agent.unsupported-field"},{"message":"nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))","pointer":"/nat/ipfix","rule":"agent.unsupported-field"},{"message":"flowprobe parameters are applied only with at least one monitored interface","pointer":"/services/ipfix/flowprobe","rule":"agent.unsupported-field"},{"message":"services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)","pointer":"/services/lldp","rule":"agent.write-only"},{"message":"services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare","pointer":"/services/ntp","rule":"agent.unsupported-field"},{"message":"vpn.ipsec is not implemented by this agent build (P11)","pointer":"/vpn/ipsec","rule":"agent.unsupported-field"}]}
+    acceptance_test.go:127: WAN did not converge to host-w7m1: {"agentError":"agent: configured WAN probe is unavailable under host policy","retrievedAt":null,"groups":[]}
+    stack_test.go:199: stopped ngfw-api pid 3820307
+    stack_test.go:199: stopped ngfw-agent pid 3820289
+    acl_test.go:177: pg-test drop w7: <nil>
+        drop   database ngfw_w7
+        drop   role ngfw_w7
+        ok     nothing named ngfw_w7 / ngfw_w7 remains
+--- FAIL: TestMultiWANRealAPI (30.73s)
+FAIL
+FAIL	ngfw/test/topology/acl	30.754s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=3819793

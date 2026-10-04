@@ -3,7 +3,7 @@ package desired
 // F-nat46: `nat.nat46` (stateless SIIT 1:1) onto DF-3's map descriptors through the descriptors/nat46 projection
 // library (docs/agent/descriptors/nat46.md) and back.
 //
-//	nat.nat46.mappings[i]   → map.domain/nat46-<name> (IPv4 /32 ↔ IPv6 /128, ea_bits_len 0, ip6_src = clientPrefix)
+//	nat.nat46.mappings[i]   → map.domain/nat46-<name> (IPv4 /32 ↔ IPv6 /128 or embedded /64, ea_bits_len 0, ip6_src = clientPrefix)
 //	nat.nat46.interfaces[i] → map.interface/<if>/map-t — shared with nat.map: when nat.map binds the same interface
 //	                          map-t, nat.map's builder emits the one key and NAT46 does not (one object, two owners)
 //
@@ -75,6 +75,15 @@ func nat46Build(s Sink, nat *ngfwv1.NatConfig) {
 		s.Errorf(base+"/"+e.Field, RuleNat46, "%s", e.Message)
 		bad = true
 	}
+	projection, projectionErr := nat46.Project(c)
+	projectedKeys := map[string]netip.Prefix{}
+	if projectionErr == nil {
+		for _, domain := range projection.Domains {
+			if key, err := netip.ParsePrefix(domain.IP6Prefix); err == nil {
+				projectedKeys[domain.Name] = key.Masked()
+			}
+		}
+	}
 	// Cross-checks with nat.map: one VPP domain table (a /32 inside a MAP rule prefix would be shadowed or steal
 	// traffic by longest match) and one MAP mode per interface.
 	for i, m := range c.Mappings {
@@ -83,6 +92,15 @@ func nat46Build(s Sink, nat *ngfwv1.NatConfig) {
 			continue
 		}
 		for _, d := range nat.GetMap().GetDomains() {
+			// VPP map.c keys every domain in one IPv6 LPM table, independent
+			// of MAP-E/T mode, IPv4 prefix and ownership tag. Refuse an exact
+			// projected key collision before it can overwrite another domain.
+			if key, ok := projectedKeys[nat46.DomainName(m.Name)]; ok {
+				if other, err := netip.ParsePrefix(d.GetIpv6Prefix()); err == nil && key == other.Masked() {
+					s.Errorf(base+"/mappings/"+strconv.Itoa(i)+"/ipv6", RuleNat46, "projected IPv6 key %s collides with MAP domain %q", key, d.GetName())
+					bad = true
+				}
+			}
 			if p, err := netip.ParsePrefix(d.GetIpv4Prefix()); err == nil && p.Contains(a) {
 				s.Errorf(base+"/mappings/"+strconv.Itoa(i)+"/ipv4", RuleNat46, "%s is inside MAP domain %q (%s)", a, d.GetName(), p)
 				bad = true
@@ -106,7 +124,7 @@ func nat46Build(s Sink, nat *ngfwv1.NatConfig) {
 	if bad {
 		return
 	}
-	proj, err := nat46.Project(c)
+	proj, err := projection, projectionErr
 	if err != nil {
 		s.Errorf(base, RuleNat46, "%v", err)
 		return

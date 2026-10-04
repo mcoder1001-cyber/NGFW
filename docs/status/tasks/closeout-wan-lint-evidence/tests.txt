@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/multiwan	1.197s
+ok  	ngfw/agent/internal/agent	1.750s

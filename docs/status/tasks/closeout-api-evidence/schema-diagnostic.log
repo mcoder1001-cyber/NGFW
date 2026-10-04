@@ -1,0 +1,50 @@
+
+ RUN  v3.2.7 /root/ngfw-wt/codex-closeout-api-nat46/apps/api
+
+create role ngfw_w9
+create database ngfw_w9 (owner ngfw_w9)
+check  ngfw_w9 as ngfw_w9 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+ok     env /run/ngfw-test/w9/pg.env (0600) · DSN postgres://ngfw_w9:<redacted>@127.0.0.1:5432/ngfw_w9
+ ❯ test/e2e/nat46.e2e.test.ts (4 tests | 1 failed) 3535ms
+   ✓ nat46 e2e (PostgreSQL + fake agent) > commits nat.nat46 through the generic nat routes  321ms
+   × nat46 e2e (PostgreSQL + fake agent) > refuses invalid NAT46 with 400 problem+json and the pointer 70ms
+     → /nat/nat46/mappings/1/ipv4: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/nat","errors":[{"pointer":"/nat/nat46/mappings/1/ipv4","message":"IPv4 service address 10.1.2.80 used twice"}]}: expected 400 to be 200 // Object.is equality
+   ✓ nat46 e2e (PostgreSQL + fake agent) > reads the running mappings and the client address (readonly may read) 42ms
+   ✓ nat46 e2e (PostgreSQL + fake agent) > refuses unauthenticated reads 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/e2e/nat46.e2e.test.ts > nat46 e2e (PostgreSQL + fake agent) > refuses invalid NAT46 with 400 problem+json and the pointer
+AssertionError: /nat/nat46/mappings/1/ipv4: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"detail":"the document does not match the schema","instance":"/api/v1/config/nat","errors":[{"pointer":"/nat/nat46/mappings/1/ipv4","message":"IPv4 service address 10.1.2.80 used twice"}]}: expected 400 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 400
+
+ ❯ test/e2e/nat46.e2e.test.ts:85:58
+     83|     ] as const) {
+     84|       const edited = await h.call(admin, 'PATCH', '/api/v1/config/nat'…
+     85|       expect(edited.status, `${pointer}: ${edited.raw}`).toBe(200);
+       |                                                          ^
+     86|       const c = await h.call(admin, 'POST', '/api/v1/config/commit');
+     87|       expect(c.status, pointer).toBe(400);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  18:37:05
+   Duration  28.34s (transform 13.98s, setup 0ms, collect 22.06s, tests 3.53s, environment 4ms, prepare 279ms)
+
+e2e teardown: deleted 7 Valkey keys ngfw:w9:e2e:* in db 9
+drop   database ngfw_w9
+drop   role ngfw_w9
+ok     nothing named ngfw_w9 / ngfw_w9 remains
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × "pnpm recursive exec" failed in /root/ngfw-wt/codex-closeout-api-nat46/
+  │ apps/api
+

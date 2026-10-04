@@ -1,0 +1,5 @@
+internal/agent/ospf_topology_integration_test.go:203:23: Error return value of `launchLog.Close` is not checked (errcheck)
+	defer launchLog.Close()
+	                     ^
+1 issues:
+* errcheck: 1

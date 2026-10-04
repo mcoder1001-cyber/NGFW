@@ -1058,10 +1058,13 @@ func revertObstacle(t *testing.T, v *coretest.VPP, s *Service) *scheduler.Schedu
 	if r := other.Apply(context.Background(), []scheduler.KV{{Key: "ip.route/0/10.7.99.0/24", Value: &core.Route{Prefix: "10.7.99.0/24"}}}, nil); r.Outcome != scheduler.OutcomeApplied {
 		t.Fatal(r.Err)
 	}
-	deadline := time.Now().Add(3 * time.Second)
-	for !s.Health().GetDegraded() && time.Now().Before(deadline) {
-		time.Sleep(20 * time.Millisecond)
-	}
+	// This helper stages an owed revert, rather than testing timer scheduling.
+	// Invoke the timer's actual callback after installing the foreign obstacle;
+	// wait for completion so loaded CI cannot observe its intermediate snapshot.
+	within(t, 10*time.Second, "staged confirm revert", func() struct{} {
+		s.revert("p1")
+		return struct{}{}
+	})
 	if h := s.Health(); !h.GetDegraded() || h.GetPendingConfirmTxnId() != "p1" {
 		t.Fatalf("revert did not fail as staged: %v", h)
 	}

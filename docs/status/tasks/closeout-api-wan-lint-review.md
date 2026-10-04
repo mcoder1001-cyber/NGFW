@@ -1,0 +1,7 @@
+# Independent WAN/VRRP bounds and diagnostic cleanup review
+
+Read-only management_acceptance review, 2026-10-04. APPROVE author source ea1714ca33d50e991ef2788b49dc96632724165d, integrated root9100ebabc. VRID1..255 is checked before uint8 conversion; invalid configured IDs retain unknown state with explicit error. Effective priority accepts0 shutdown through255, rejects negative/256 with unknown/error instead of unsigned wrap. Selected WAN path weight is guarded1..255 before uint32 conversion, preserving existing configured zero-to-one normalization. Routes returns nil for the entire projection when any issue exists, preventing partial forwarding. Tests cover lower/upper/overflow boundaries including maxuint32; author focused race evidence multiwan1.197s/agent1.750s PASS. Comments-only additions have no behavior effect; lint rules unchanged.
+
+APPROVE root937129438644bfb1ed764e3a68b0ff7df2a54a23: deferred diagnostic launchLog Close now explicitly discards its previously ignored result. Launch/open/process errors, 30s timeout and lifecycle assertions unchanged. No host repeat required for this expression-only cleanup change. Reviewer made no product/test edits or host mutations.
+
+Earlier bounded Multi-WAN proof source0b1343a4a1664f0c83e2dba6e763443997f900ef now has durable author evidence/report commit da16135f2929fff35f6fe123490c024c9a6f7e0a, exact source unchanged, source guard PASS11s and live PASS32.73s/no skips. Broader campaign exclusions remain as recorded in closeout-api-multiwan-review.md.

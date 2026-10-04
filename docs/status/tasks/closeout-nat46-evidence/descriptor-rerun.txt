@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/descriptors/nat46	1.124s
+ok  	ngfw/agent/internal/descriptors/mapnat	1.152s

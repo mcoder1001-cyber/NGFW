@@ -97,13 +97,7 @@ func (s *Service) vrrpState(ctx context.Context, req *ngfwv1.VrrpStateRequest) (
 						}
 						if obs.Dump != nil {
 							row.State = strings.ToLower(obs.Dump.State)
-							priority := obs.Dump.EffectivePriority
-							if priority < 0 || priority > 255 {
-								row.State = "unknown"
-								row.Error = "observed VRRP priority is outside 0..255"
-							} else {
-								row.CurrentPriority = uint32(priority)
-							}
+							setVrrpObservedPriority(row, obs.Dump.EffectivePriority)
 						}
 					}
 				}
@@ -115,6 +109,17 @@ func (s *Service) vrrpState(ctx context.Context, req *ngfwv1.VrrpStateRequest) (
 		return nil, status.Error(codes.DeadlineExceeded, err.Error())
 	}
 	return out, nil
+}
+
+// setVrrpObservedPriority preserves the protocol's zero-priority shutdown
+// observation and rejects corrupt values without unsigned wraparound.
+func setVrrpObservedPriority(row *ngfwv1.VrrpRuntime, priority int) {
+	if priority < 0 || priority > 255 {
+		row.State = "unknown"
+		row.Error = "observed VRRP priority is outside 0..255"
+		return
+	}
+	row.CurrentPriority = uint32(priority)
 }
 
 // watchVrrp publishes changes in bounded, owner-scoped observations; failed reads erase the baseline.

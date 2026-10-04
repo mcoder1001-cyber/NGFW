@@ -1,0 +1,5 @@
+ok  	ngfw/agent/internal/descriptors/lcp_osi	0.015s
+ok  	ngfw/agent/internal/renderers/frr/isis	0.059s
+ok  	ngfw/agent/internal/renderers/frr/rip	0.071s
+ok  	ngfw/agent/internal/renderers/frr/ripng	0.028s
+ok  	ngfw/agent/internal/desired	8.913s

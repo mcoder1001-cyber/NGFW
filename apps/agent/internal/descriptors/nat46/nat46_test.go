@@ -3,6 +3,7 @@ package nat46_test
 import (
 	"context"
 	"errors"
+	"net/netip"
 	"reflect"
 	"testing"
 
@@ -250,5 +251,71 @@ func TestApplyThroughMapnat(t *testing.T) {
 	nattest.Apply(t, p.Domain)
 	if len(f.domains) != 0 || f.trans[1] || f.trans[2] {
 		t.Fatalf("left behind: domains %v trans %v", f.domains, f.trans)
+	}
+}
+
+// TestEmbeddedReturnPath (F-nat46-return-path): a server <P>::<ipv4> projects to ip6-pfx P/64 —
+// the only shape VPP 26.06's ip6-map-t finds for replies (its LPM never matches > /64 and it takes
+// the IPv4 source from the last 32 bits) — and assembles back to the configured server.
+func TestEmbeddedReturnPath(t *testing.T) {
+	yes := [][2]string{{"10.17.46.10", "fd00:11:46::a11:2e0a"}, {"203.0.113.10", "2001:db8:46::cb00:710a"}}
+	no := [][2]string{{"10.17.46.10", "fd00:11:2::46"}, {"10.17.46.10", "fd00:11:46:0:1::a11:2e0a"}, {"10.17.46.10", "fd00:11:46::a11:2e0b"}}
+	for _, c := range yes {
+		if !nat46.Embedded(netip.MustParseAddr(c[0]), netip.MustParseAddr(c[1])) {
+			t.Errorf("Embedded(%s, %s) = false", c[0], c[1])
+		}
+	}
+	for _, c := range no {
+		if nat46.Embedded(netip.MustParseAddr(c[0]), netip.MustParseAddr(c[1])) {
+			t.Errorf("Embedded(%s, %s) = true", c[0], c[1])
+		}
+	}
+	cfg := nat46.Config{ClientPrefix: "fd00:11:4646::/96", Interfaces: []string{"a", "b"}, Mappings: []nat46.Mapping{
+		{Name: "web", IPv4: "10.17.46.10", IPv6: "fd00:11:46::a11:2e0a"},
+		{Name: "legacy", IPv4: "10.17.46.11", IPv6: "fd00:11:2::46"},
+	}}
+	p, err := nat46.Project(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []mapnat.DomainSpec{
+		{Name: "nat46-legacy", IP4Prefix: "10.17.46.11/32", IP6Prefix: "fd00:11:2::46/128", IP6Src: "fd00:11:4646::/96"},
+		{Name: "nat46-web", IP4Prefix: "10.17.46.10/32", IP6Prefix: "fd00:11:46::/64", IP6Src: "fd00:11:4646::/96"},
+	}
+	if !reflect.DeepEqual(p.Domains, want) {
+		t.Fatalf("domains %+v", p.Domains)
+	}
+	for _, d := range p.Domains {
+		if !nat46.IsNAT46Domain(d) {
+			t.Fatalf("IsNAT46Domain(%+v) = false", d)
+		}
+	}
+	back, err := nat46.Assemble(p.Domains, p.Interfaces)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back.Mappings[1] != cfg.Mappings[0] || back.Mappings[0] != cfg.Mappings[1] {
+		t.Fatalf("assemble %+v", back.Mappings)
+	}
+	// two embedded servers in one /64 share one VPP LPM entry → refused with a pointer
+	cfg.Mappings[1] = nat46.Mapping{Name: "mail", IPv4: "10.17.46.25", IPv6: "fd00:11:46::a11:2e19"}
+	errs := nat46.Validate(cfg)
+	if len(errs) != 1 || errs[0].Field != "mappings/1/ipv6" {
+		t.Fatalf("shared /64: %v", errs)
+	}
+}
+
+func TestEmbeddedForeignFamilyRefused(t *testing.T) {
+	for _, d := range []mapnat.DomainSpec{
+		{Name: "nat46-foreign", IP4Prefix: "2001:db8::/32", IP6Prefix: "2001:db8:46::/64", IP6Src: "64:ff9b::/96"},
+		{Name: "nat46-foreign", IP4Prefix: "192.0.2.1/32", IP6Prefix: "::ffff:192.0.2.1/128", IP6Src: "64:ff9b::/96"},
+	} {
+		if nat46.IsNAT46Domain(d) {
+			t.Fatalf("foreign family accepted: %+v", d)
+		}
+		got, err := nat46.Assemble([]mapnat.DomainSpec{d}, nil)
+		if err != nil || len(got.Mappings) != 0 {
+			t.Fatalf("foreign family assembled: %+v error %v", got, err)
+		}
 	}
 }

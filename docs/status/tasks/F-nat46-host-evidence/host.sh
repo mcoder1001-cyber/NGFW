@@ -22,26 +22,36 @@ ROOT="$(cd "$HERE/../../../.." && pwd)"
 : "${NGFW_TEST_PREFIX:?eval \"\$(tools/lab env <slot>)\" first}"
 : "${NGFW_SLOT:?eval \"\$(tools/lab env <slot>)\" first}"
 CMD=${1:-run}; EVID=${2:-$HERE}
+# A flag alone cannot certify socket isolation: require the root-owned marker
+# written by isolated-vpp.py and a mount namespace distinct from PID1 before
+# creating runtime directories, touching rig devices or connecting an agent.
+[[ "${NGFW_DISPOSABLE_VPP:-}" == 1 && -f /run/vpp/startup.conf && ! -L /run/vpp/startup.conf ]] || { echo "private VPP required" >&2; exit 64; }
+[[ "$(stat -c %u /run/vpp/startup.conf)" == 0 ]] && grep -Eq '^api-segment \{ prefix fulltest[0-9]+ \}$' /run/vpp/startup.conf &&
+  [[ "$(readlink /proc/self/ns/mnt)" != "$(readlink /proc/1/ns/mnt)" ]] || { echo "private VPP startup marker/mount namespace not verified" >&2; exit 64; }
 [[ "$NGFW_TEST_PREFIX" == "w$NGFW_SLOT" && "$NGFW_SLOT" =~ ^([1-9]|[12][0-9]|3[0-2])$ ]] || { echo "invalid slot/prefix" >&2; exit 64; }
 case $CMD in run|step1) ;; *) echo "usage: $0 run|step1 [evidence-dir]" >&2; exit 64 ;; esac
 P=$NGFW_TEST_PREFIX N=$NGFW_SLOT OWNER=$NGFW_TEST_PREFIX BASE=$NGFW_VPP_TABLE_BASE
 H=$(printf '%x' "$N")                       # slot in hex: the slot's IPv6 block is fd00:<hex>::/32
 LAN_IF=host-${P}l0 WAN_IF=host-${P}w0 NS_LAN=ns-$P-lan NS_WAN=ns-$P-wan LAN_PEER=${P}l1 WAN_PEER=${P}w1
 LAN_GW=10.$N.1.1 WAN_GW=10.$N.2.1 CLIENT=10.$N.1.2 SVC4=10.$N.46.10
-WAN6_GW=fd00:$H:2::1 SERVER6=fd00:$H:2::46 CPFX=fd00:$H:4646::/96
+WAN6_GW=fd00:$H:2::1 LINK6=fd00:$H:2::46 SRV64=fd00:$H:46::/64
+SERVER6=fd00:$H:46::$(printf '%x:%x' $((10 * 256 + N)) $((46 * 256 + 10))) CPFX=fd00:$H:4646::/96
 CLIENT6=fd00:$H:4646::$(printf '%x' $((10 * 256 + N))):$(printf '%x' $((1 * 256 + 2)))   # RFC 6052: CPFX + 10.N.1.2
 PORT=$((NGFW_HTTP_PORT + 46))                 # sub-port of the slot block (shared-host-rules §1)
 RUN=/run/ngfw-test/$P/nat46
-BIN=/tmp/g-$P/bin
+BIN=${NGFW_NAT46_BIN_DIR:-/tmp/g-$P/bin}
 mkdir -p "$EVID" "$RUN"
 LOG=$RUN/evidence.log
 : > "$LOG"
 die() { say "FAIL: $*"; exit 1; }
 say() { printf '%s %s\n' "$(date +%T)" "$*" | tee -a "$LOG"; }
 nres() { say "NRestarts $1: $(systemctl show vpp -p NRestarts)"; }
-V() { timeout 60 vppctl "$@" 2>&1; }
+V() { timeout 10 vppctl "$@" 2>&1; }
 PIDS=()
-CTL="$BIN/ngfw-agentctl -s $RUN/agent.sock"
+CTL=("$BIN/ngfw-agentctl" -s "$RUN/agent.sock")
+for executable in ngfw-agent ngfw-agentctl ngfw-vpp-preflight; do
+  [[ -x "$BIN/$executable" ]] || die "missing executable $BIN/$executable (select NGFW_NAT46_BIN_DIR)"
+done
 
 agent_env() {
   exec env -i PATH="$PATH" HOME="$HOME" NGFW_OWNER="$OWNER" NGFW_GLOBALS_OWNER=0 NGFW_AGENT_SOCKET="$RUN/agent.sock" \
@@ -49,16 +59,17 @@ agent_env() {
     NGFW_VPP_TABLE_BASE="$BASE" NGFW_TEST_PREFIX="$P" "$@"
 }
 start_agent() { ( agent_env "$BIN/ngfw-agent" ) >> "$RUN/agent.log" 2>&1 9>&- & AGENT=$!; PIDS+=("$AGENT"); say "agent started pid $AGENT"; }
-wait_agent() { local i; for i in $(seq 1 60); do $CTL health >/dev/null 2>&1 && return 0; sleep 0.5; done; say "agent did not answer health"; return 1; }
+wait_agent() { local i; for i in $(seq 1 60); do "${CTL[@]}" health >/dev/null 2>&1 && return 0; sleep 0.5; done; say "agent did not answer health"; return 1; }
 stop_agent() { [[ -n "${AGENT:-}" ]] || return 0; kill "$AGENT" 2>/dev/null; wait "$AGENT" 2>/dev/null; say "agent pid $AGENT stopped"; AGENT=; }
 agent_log_since() { tail -c +"$(( ${1:-0} + 1 ))" "$RUN/agent.log" | grep -E "$2" | cut -c1-"${3:-400}"; }
-retrieve_nat() { $CTL retrieve -subsystems nat 2>/dev/null | jq -cS '.desiredState.nat // {}'; }
+retrieve_nat() { "${CTL[@]}" retrieve -subsystems nat 2>/dev/null | jq -cS '.desiredState.nat // {}'; }
 show_domains() { V show map domain | grep -E "^\[[0-9]+\] tag \{$OWNER:" || true; }
 
 doc_full() { cat <<EOF
 {"interfaces": {
    "$LAN_IF": {"enabled": true, "description": "nat46 IPv4 side (rig lan)", "ipv4": ["$LAN_GW/24"]},
    "$WAN_IF": {"enabled": true, "description": "nat46 IPv6 side (rig wan)", "ipv4": ["$WAN_GW/24"], "ipv6": ["$WAN6_GW/64"]}},
+ "routing": {"static":[{"prefix":"$SRV64","nextHops":[{"address":"$LINK6","interface":"$WAN_IF"}]}]},
  "nat": {"nat46": {"clientPrefix": "$CPFX", "interfaces": ["$LAN_IF", "$WAN_IF"],
    "mappings": [{"name": "web", "ipv4": "$SVC4", "ipv6": "$SERVER6"}]}}}
 EOF
@@ -67,13 +78,14 @@ doc_ifs_only() { cat <<EOF
 {"interfaces": {
    "$LAN_IF": {"enabled": true, "description": "nat46 IPv4 side (rig lan)", "ipv4": ["$LAN_GW/24"]},
    "$WAN_IF": {"enabled": true, "description": "nat46 IPv6 side (rig wan)", "ipv4": ["$WAN_GW/24"], "ipv6": ["$WAN6_GW/64"]}},
- "nat": {}}
+ "routing": {"static": []}, "nat": {}}
 EOF
 }
 doc_dup() { cat <<EOF
 {"interfaces": {
    "$LAN_IF": {"enabled": true, "ipv4": ["$LAN_GW/24"]},
    "$WAN_IF": {"enabled": true, "ipv4": ["$WAN_GW/24"], "ipv6": ["$WAN6_GW/64"]}},
+ "routing": {"static":[{"prefix":"$SRV64","nextHops":[{"address":"$LINK6","interface":"$WAN_IF"}]}]},
  "nat": {"nat46": {"clientPrefix": "$CPFX", "interfaces": ["$LAN_IF", "$WAN_IF"],
    "mappings": [{"name": "web", "ipv4": "$SVC4", "ipv6": "$SERVER6"}, {"name": "dup", "ipv4": "$SVC4", "ipv6": "fd00:$H:2::47"}]}}}
 EOF
@@ -86,9 +98,17 @@ EOF
 cleanup() {
   set +e
   say "=== cleanup ==="
+  if [[ -n "${AGENT:-}" ]] && "${CTL[@]}" health >/dev/null 2>&1; then
+    ip -n "$NS_LAN" link set "$LAN_PEER" down 2>/dev/null
+    ip -n "$NS_WAN" link set "$WAN_PEER" down 2>/dev/null
+    printf '{"nat":{},"interfaces":{},"routing":{"static":[]}}\n' > "$RUN/cleanup.json"
+    local result
+    result=$("${CTL[@]}" apply "$RUN/cleanup.json" -txn nat46-cleanup 2>&1)
+    say "owned object cleanup: $result"
+  fi
   for ((i=${#PIDS[@]}-1; i>=0; i--)); do kill "${PIDS[$i]}" 2>/dev/null; wait "${PIDS[$i]}" 2>/dev/null; done
   ip -n "$NS_WAN" -6 route del "$CPFX" 2>/dev/null
-  ip -n "$NS_WAN" -6 addr del "$SERVER6/64" dev "$WAN_PEER" 2>/dev/null
+  ip -n "$NS_WAN" -6 addr del "$SERVER6/128" dev lo 2>/dev/null
   "$ROOT/tools/lab" rig down "$P" >> "$LOG" 2>&1 9>&-
   say "leftover map domains of $OWNER: $(show_domains | wc -l) · rig: $("$ROOT/tools/lab" rig show "$P" 2>&1 9>&- | grep -E '^state' || true)"
   nres "after cleanup"
@@ -126,6 +146,8 @@ step1_test() {
   fi
   local rc=0; wait "$tpid" || rc=$?
   [[ "$rc" == 0 ]] || die "TestNat46OnHost exited $rc"
+  grep -Eq '^--- PASS: TestNat46OnHost ' "$RUN/step1.txt" || die "selected host test did not execute and pass"
+  ! grep -q '^--- SKIP:' "$RUN/step1.txt" || die "host test skipped"
   say "go test rc=$rc:"; grep -E '^(=== RUN|--- |PASS|FAIL|ok|\s+nat46_integration_test)' "$RUN/step1.txt" | cut -c1-300 | tee -a "$LOG"
   cp "$RUN/step1.txt" "$EVID/step1-test-nat46-on-host.txt"
   say "map domains of $OWNER after the test: $(show_domains | wc -l)"
@@ -140,10 +162,50 @@ step2_rig() {
   for kv in accept_ra=0 autoconf=0 accept_dad=0 disable_ipv6=0; do
     ip netns exec "$NS_WAN" sysctl -qw "net.ipv6.conf.$WAN_PEER.$kv"
   done
-  ip -n "$NS_WAN" -6 addr add "$SERVER6/64" dev "$WAN_PEER" nodad
+  ip -n "$NS_WAN" -6 addr add "$LINK6/64" dev "$WAN_PEER" nodad
+  ip -n "$NS_WAN" -6 addr add "$SERVER6/128" dev lo nodad
   ip -n "$NS_WAN" -6 route replace "$CPFX" via "$WAN6_GW"
   say "ns $NS_WAN: $(ip -n "$NS_WAN" -6 addr show dev "$WAN_PEER" | grep -E 'inet6 fd00' | xargs) · route: $(ip -n "$NS_WAN" -6 route show "$CPFX" | xargs)"
   say "ns $NS_LAN: $(ip -n "$NS_LAN" -4 addr show dev "$LAN_PEER" | grep -E 'inet ' | xargs) · route: $(ip -n "$NS_LAN" route show default | xargs)"
+  # The rig creates unowned VPP ports; the declarative agent must create its
+  # own tagged ports. Quiesce the Linux peers before handing over VPP sides.
+  ip -n "$NS_LAN" link set "$LAN_PEER" down || return 1
+  ip -n "$NS_WAN" link set "$WAN_PEER" down || return 1
+  ip link set "${P}l0" down || return 1
+  ip link set "${P}w0" down || return 1
+  cat > "$RUN/handoff.go" <<'GO'
+package main
+import (
+ "context"
+ "fmt"
+ "regexp"
+ "syscall"
+ "os"
+ "strings"
+ "time"
+ "go.fd.io/govpp"
+ "ngfw/agent/binapi/af_packet"
+ interfaces "ngfw/agent/binapi/interface"
+ "ngfw/agent/binapi/interface_types"
+)
+func main() {
+ info,err:=os.Lstat("/run/vpp/startup.conf");if err!=nil{panic(err)}
+ stat,ok:=info.Sys().(*syscall.Stat_t);if !ok||stat.Uid!=0||!info.Mode().IsRegular(){panic("private startup file identity refused")}
+ marker,err:=os.ReadFile("/run/vpp/startup.conf");if err!=nil{panic(err)}
+ ownns,e1:=os.Readlink("/proc/self/ns/mnt");rootns,e2:=os.Readlink("/proc/1/ns/mnt")
+ if os.Getenv("NGFW_DISPOSABLE_VPP")!="1"||!regexp.MustCompile(`(?m)^api-segment \{ prefix fulltest[0-9]+ \}$`).Match(marker)||e1!=nil||e2!=nil||ownns==rootns{panic("private VPP marker/namespace refused before handoff")}
+ c,err:=govpp.Connect("/run/vpp/api.sock");if err!=nil{panic(err)};defer c.Disconnect()
+ ctx,cancel:=context.WithTimeout(context.Background(),10*time.Second);defer cancel()
+ client:=interfaces.NewServiceClient(c)
+ stream,err:=client.SwInterfaceDump(ctx,&interfaces.SwInterfaceDump{});if err!=nil{panic(err)}
+ targets:=map[string]interface_types.InterfaceIndex{}
+ names:=[]string{os.Args[1]+"l0",os.Args[1]+"w0"}
+ for {r,e:=stream.Recv();if e!=nil{if e.Error()!="EOF"{panic(e)};break};for _,n:=range names{if r.InterfaceName=="host-"+n{if strings.Trim(r.Tag,"\x00")!=""{panic("refuse tagged/nonfixture port: "+r.InterfaceName)};targets[n]=r.SwIfIndex}}}
+ if len(targets)!=2{panic("both exact unowned rig ports required before handoff")}
+ for _,n:=range names {idx:=targets[n];if _,e:=client.SwInterfaceAddDelAddress(ctx,&interfaces.SwInterfaceAddDelAddress{SwIfIndex:idx,DelAll:true});e!=nil{panic(e)};if _,e:=af_packet.NewServiceClient(c).AfPacketDelete(ctx,&af_packet.AfPacketDelete{HostIfName:n});e!=nil{panic(e)};fmt.Printf("handoff: removed unowned VPP host-%s index%d; Linux veth retained\n",n,idx)}
+}
+GO
+  go -C "$ROOT/apps/agent" run "$RUN/handoff.go" "$P" 9>&- | tee -a "$LOG" || return 1
   nres "after step 2"
 }
 
@@ -152,13 +214,29 @@ step3_agent() {
   nres "before step 3"
   rm -rf "$RUN/agent-state" "$RUN/agent.log"; start_agent; wait_agent || return 1
   doc_full > "$RUN/full.json"; doc_ifs_only > "$RUN/ifs.json"; doc_dup > "$RUN/dup.json"
-  say "apply full.json: $($CTL apply "$RUN/full.json" -txn nat46-1 | jq -c '{txnId,status,results:[.results[]?|{key,op,code}],errors:(.errors//[]|map({pointer,message}))}')"
+  local result
+  result=$("${CTL[@]}" apply "$RUN/full.json" -txn nat46-1) || die "apply transport failed"
+  say "apply full.json: $(jq -c '{txnId,status,results:[.results[]?|{key,op,code}],errors}' <<< "$result")"
+  jq -e '.status=="APPLY_STATUS_APPLIED" and ((.errors//[])|length)==0' <<< "$result" >/dev/null || die "configuration was not applied"
   local got; got=$(retrieve_nat)
   say "Retrieve nat: $got"
   say "canonical  : $CANON"
   [[ "$got" == "$CANON" ]] || die "Retrieve != canonical"
   say "Retrieve == canonical: OK"
-  say "re-apply full.json (results must be empty): $($CTL apply "$RUN/full.json" -txn nat46-2 | jq -c '{status,results:[.results[]?|{key,op}]}')"
+  result=$("${CTL[@]}" apply "$RUN/full.json" -txn nat46-2) || die "re-apply transport failed"
+  say "re-apply full.json: $(jq -c '{status,results}' <<< "$result")"
+  jq -e '.status=="APPLY_STATUS_APPLIED" and ((.results//[])|length)==0' <<< "$result" >/dev/null || die "re-apply did not converge with empty plan"
+  for side in l w; do ip link set "${P}${side}0" up || return 1; done
+  ip -n "$NS_LAN" link set "$LAN_PEER" up || return 1
+  ip -n "$NS_WAN" link set "$WAN_PEER" up || return 1
+  # Bringing veths down withdraws their Linux routes/IPv6 state; restore the
+  # fixture endpoints after ownership transfer, before sending any packets.
+  ip -n "$NS_LAN" route replace default via "$LAN_GW" || return 1
+  ip -n "$NS_WAN" route replace default via "$WAN_GW" || return 1
+  ip -n "$NS_WAN" -6 addr replace "$LINK6/64" dev "$WAN_PEER" nodad
+  ip -n "$NS_WAN" -6 addr replace "$SERVER6/128" dev lo nodad || return 1
+  ip -n "$NS_WAN" -6 route replace "$CPFX" via "$WAN6_GW" || return 1
+  "$BIN/ngfw-vpp-preflight" | tee -a "$LOG" || die "V19 preflight failed"
   say "vppctl show map domain (ours):"; show_domains | tee -a "$LOG"
   say "vppctl show interface features $LAN_IF / $WAN_IF (map-t):"
   V show interface features "$LAN_IF" | grep -E 'map-t' | sed "s/^/  $LAN_IF /" | tee -a "$LOG"
@@ -193,7 +271,13 @@ c.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 c.bind((sys.argv[1], int(sys.argv[2])))
 c.settimeout(5)
 c.connect((sys.argv[3], int(sys.argv[4])))
-print("client4: read", c.recv(64).decode().strip(), flush=True)
+data=b""
+while len(data)<len(b"ngfw-nat46-ok\n"):
+    part=c.recv(64)
+    if not part: break
+    data+=part
+assert data==b"ngfw-nat46-ok\n",repr(data)
+print("client4: verified exact payload", data.decode().strip(), flush=True)
 c.close()
 EOF
   ip netns exec "$NS_WAN" python3 "$srv" "$SERVER6" "$PORT" > "$RUN/server6.txt" 2>&1 9>&- & PIDS+=("$!")
@@ -202,7 +286,12 @@ EOF
   local rx0 tx0
   rx0=$(V show interface "$LAN_IF" | awk '/rx packets/ {print $NF}' | head -1); tx0=$(V show interface "$WAN_IF" | awk '/tx packets/ {print $NF}' | head -1)
   say "ping $SVC4 from $NS_LAN (ICMP → ICMPv6 → ICMP):"
-  ip netns exec "$NS_LAN" ping -c 3 -W 2 "$SVC4" 2>&1 | tail -3 | tee -a "$LOG"
+  # Warm neighbour resolution before strict three-request acceptance.
+  ip netns exec "$NS_LAN" ping -c 1 -W 2 "$SVC4" >/dev/null 2>&1 || true
+  local pingout
+  pingout=$(ip netns exec "$NS_LAN" ping -c 3 -W 2 "$SVC4" 2>&1) || die "NAT46 ICMP round trip failed: $pingout"
+  say "$pingout"
+  grep -Eq '3 packets transmitted, 3 (packets )?received' <<< "$pingout" || die "ICMP did not receive all three replies"
   local response
   response=$(ip netns exec "$NS_LAN" python3 "$cli" "$CLIENT" 46001 "$SVC4" "$PORT" 2>&1) || die "IPv4-to-IPv6 TCP failed: $response"
   say "tcp: $response"
@@ -235,18 +324,28 @@ step5_restart() {
   start_agent; wait_agent || return 1
   local i got; for i in $(seq 1 120); do got=$(retrieve_nat); [[ "$got" == "$CANON" ]] && break; sleep 0.25; done
   [[ "$got" == "$CANON" ]] || die "restart did not converge within 30 seconds"
+  local elapsed; elapsed=$(awk -v a="$(date +%s.%N)" -v b="$t0" 'BEGIN{printf "%.2f", a-b}')
+  awk -v elapsed="$elapsed" 'BEGIN{exit !(elapsed<=30)}' || die "restart exceeded 30 seconds ($elapsed)"
+  [[ "$(show_domains | wc -l)" == 1 ]] || die "restart did not recreate exactly one owned MAP domain"
   say "Retrieve == canonical again after $(awk -v a="$(date +%s.%N)" -v b="$t0" 'BEGIN{printf "%.2f", a-b}') s (limit 30 s): $([[ "$got" == "$CANON" ]] && echo OK || echo "NOT YET: $got")"
   say "vppctl show map domain (ours, recreated):"; show_domains | tee -a "$LOG"
   say "agent log (reconcile/resync lines since the restart):"
   agent_log_since "$off" 'reconcile|resync|map\.domain|nat46' 300 | head -12 | tee -a "$LOG"
-  say "tcp again after the restart: $(ip netns exec "$NS_LAN" python3 "$RUN/client4.py" "$CLIENT" 46002 "$SVC4" "$PORT" 2>&1)"
+  local response
+  response=$(ip netns exec "$NS_LAN" python3 "$RUN/client4.py" "$CLIENT" 46002 "$SVC4" "$PORT" 2>&1) || die "post-restart TCP failed: $response"
+  say "tcp again after the restart: $response"
   nres "after step 5"
 }
 
 step6_dup() {
   say "=== step 6: duplicate IPv4 service address → dryrun refusal with pointer (agent level; no API stack on slot $N) ==="
-  say "dryrun dup.json: $($CTL dryrun "$RUN/dup.json" 2>&1 | jq -c '{ok,errors:[.errors[]?|{rule,pointer,message}]}' 2>/dev/null || $CTL dryrun "$RUN/dup.json" 2>&1 | head -3)"
-  say "apply dup.json: $($CTL apply "$RUN/dup.json" -txn nat46-dup 2>&1 | jq -c '{status,errors:[.errors[]?|{rule,pointer,message}]}' 2>/dev/null || true)"
+  local result
+  result=$("${CTL[@]}" dryrun "$RUN/dup.json") || die "duplicate dryrun transport failure"
+  say "dryrun dup.json: $(jq -c '{ok,errors}' <<< "$result")"
+  jq -e '(.ok//false)==false and any(.errors[]?; .pointer=="/nat/nat46/mappings/1/ipv4")' <<< "$result" >/dev/null || die "duplicate dryrun did not refuse with expected pointer"
+  result=$("${CTL[@]}" apply "$RUN/dup.json" -txn nat46-dup) || die "duplicate apply transport failure"
+  say "apply dup.json: $(jq -c '{status,errors}' <<< "$result")"
+  jq -e '.status=="APPLY_STATUS_FAILED"' <<< "$result" >/dev/null || die "duplicate apply was not refused"
   [[ "$(retrieve_nat)" == "$CANON" ]] || die "invalid duplicate configuration changed state"
   say "Retrieve nat unchanged: OK"
 }
@@ -254,11 +353,19 @@ step6_dup() {
 step7_rollback() {
   say "=== step 7: rollback (nat: {}) → nothing left ==="
   nres "before step 7"
-  say "apply ifs.json: $($CTL apply "$RUN/ifs.json" -txn nat46-rb | jq -c '{status,results:[.results[]?|{key,op,code}]}')"
-  say "Retrieve nat after rollback: $(retrieve_nat)"
+  local result; result=$("${CTL[@]}" apply "$RUN/ifs.json" -txn nat46-rb) || die "rollback transport failure"
+  say "apply ifs.json: $(jq -c '{status,results}' <<< "$result")"
+  jq -e '.status=="APPLY_STATUS_APPLIED"' <<< "$result" >/dev/null || die "rollback not applied"
+  [[ "$(retrieve_nat)" == '{}' ]] || die "NAT remains in Retrieve after rollback"
   [[ "$(show_domains | wc -l)" == 0 ]] || die "MAP domains remain after rollback"
   say "map domains of $OWNER after rollback: 0"
-  say "map-t features left on $LAN_IF/$WAN_IF: $(V show interface features "$LAN_IF" "$WAN_IF" | grep -c 'map-t')"
+  for iface in "$LAN_IF" "$WAN_IF"; do
+    local features; features=$(V show interface features "$iface") || die "feature readback failed"
+    ! grep -q 'map-t' <<< "$features" || die "MAP-T feature remains on $iface"
+  done
+  local fib; fib=$(V show ip6 fib "$SRV64") || die "route readback failed"
+  ! grep -Fq "$SRV64" <<< "$fib" || die "owned server route remains after rollback"
+  say "MAP-T features and owned server route removed"
   stop_agent
   nres "after step 7"
 }

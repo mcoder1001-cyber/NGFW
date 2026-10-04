@@ -21,5 +21,40 @@
   "attention": "Needs attention",
   "agentUnavailable": "Agent certificate inventory is unavailable.",
   "bounded": "Showing {{shown}} of {{total}} entries.",
-  "checked": "Inventory generated: {{time}}"
+  "checked": "Inventory generated: {{time}}",
+  "actions": {
+    "ca": "Create CA",
+    "csr": "Create CSR",
+    "sign": "Sign CSR",
+    "import": "Import",
+    "export": "Export public PEM",
+    "crl": "Refresh CRL",
+    "ocsp": "Check OCSP",
+    "staging": "Certificate changes are staged in the candidate. Review and commit them to apply. Creating a CSR stores its private key without applying configuration.",
+    "failed": "The action failed. Check the input, configuration lock and permissions. Secret inputs were cleared.",
+    "done": "Action completed. Review the candidate before committing configuration changes.",
+    "keyType": "Key type",
+    "keys": {
+      "p256": "ECDSA P-256",
+      "p384": "ECDSA P-384",
+      "2048": "RSA 2048",
+      "3072": "RSA 3072",
+      "4096": "RSA 4096"
+    },
+    "san": "Alternative names (comma separated)",
+    "days": "Validity (days)",
+    "caName": "CA name",
+    "kind": "Object kind",
+    "format": "Import format",
+    "pem": "PEM",
+    "pkcs12": "PKCS#12 (base64)",
+    "csrPem": "CSR PEM",
+    "certificatePem": "Certificate PEM",
+    "privateKey": "Private key PEM (optional, write only)",
+    "passphrase": "PKCS#12 passphrase (write only)",
+    "publicResult": "Public output",
+    "close": "Close",
+    "submit": "Submit",
+    "storedOnly": "Material was stored, but the candidate was not changed. Acquire the configuration lock and stage the saved object before committing."
+  }
 }

@@ -68,6 +68,10 @@ export class ValidationService {
   /** The agent's DesiredState for a parsed document: protobuf JSON projection without secret leaves (D-040). */
   static desiredState(config: Doc): DesiredState {
     const doc = redact(config);
+    const system = doc['system'];
+    if (system && typeof system === 'object' && !Array.isArray(system)) {
+      delete (system as Record<string, unknown>)['setup']; // API-owned first-boot completion metadata
+    }
     const management = doc['management'];
     if (management && typeof management === 'object' && !Array.isArray(management)) {
       delete (management as Record<string, unknown>)['notifications'];

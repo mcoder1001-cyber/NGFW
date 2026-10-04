@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { diff, mergePatchAt, type Change } from '@ngfw/schema';
+import { diff, mergePatchAt, validateConfig, type Change } from '@ngfw/schema';
 import { ENV, type Env } from '../config.js';
 import { getAt, PointerNotFoundError, removeAt, setAt } from '../common/json.js';
 import { problems } from '../common/problem.js';
@@ -165,16 +165,35 @@ export class DatastoreService {
     return r;
   }
 
+  /** Preview semantic checks need stored credentials, but hashes never leave this service. */
+  async validateSetupPreview(doc: Doc): Promise<void> {
+    const checked = validateConfig(hydrateHashes(doc, await this.repo.userHashes()));
+    if (!checked.ok) throw problems.validation(checked.issues);
+  }
+
+  /** Wizard-only entry: all touched fields including its marker are staged together. */
+  stageSetup(user: Principal, doc: unknown, expectedRevision: number): Promise<EditResult> {
+    return this.edit(user, '', () => doc, true, expectedRevision);
+  }
+
   private edit(
     user: Principal,
     pointer: string,
     mutate: (doc: Doc) => unknown,
+    setup = false,
+    expectedRevision?: number,
   ): Promise<EditResult> {
     return this.repo.tx(async (tx) => {
       const c = await tx.lockCandidate();
       const decision = checkLock(c, user, this.now(), this.ttl);
       const running = await tx.latestRevision();
       const runningDoc = running?.payload ?? emptyDocument();
+      if (setup && ((running?.id ?? 0) !== expectedRevision || c.payload !== null)) {
+        throw problems.conflict(
+          'setup-stale',
+          'running or candidate changed while preparing setup; reload or discard first',
+        );
+      }
       let staged = c.payload;
       let discarded = false;
       if (staged !== null && decision === 'stale' && user.role !== 'admin') {
@@ -197,6 +216,13 @@ export class DatastoreService {
       const next = preserveSecrets(base, parseDocument(mutated));
       // wave-BC: F-default-vpp-nics — physical NICs: never removed, marker read-only (datastore/physical-nics.ts)
       assertPhysicalNicEdit(base, next);
+      if (
+        !setup &&
+        JSON.stringify(getAt(base, '/system/setup') ?? { completed: false }) !==
+          JSON.stringify(getAt(next, '/system/setup') ?? { completed: false })
+      ) {
+        throw problems.forbidden('setup completion is managed by the setup wizard');
+      }
       if (user.role !== 'admin') {
         const denied = privilegedChanges(base, next);
         if (denied.length > 0) {

@@ -130,3 +130,5 @@ export * from './validate.js';
 export * from './secrets.js';
 
 export * from './domains/ext/notifications.js';
+
+export * from './setup.js';

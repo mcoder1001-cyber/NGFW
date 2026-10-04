@@ -339,6 +339,9 @@ const (
 	EventKind_EVENT_KIND_VPP_DISCONNECTED EventKind = 8
 	// A rollback failed; the agent is degraded until an Apply succeeds (AD-4).
 	EventKind_EVENT_KIND_DEGRADED EventKind = 9
+	// wave-BC: F-vrrp-config-sync
+	// wave-BC: F-ospf
+	EventKind_EVENT_KIND_OSPF_NEIGHBOR_CHANGED EventKind = 20
 	// The ARP/ND table of an interface changed (F-neighbors-ra): learned, updated or removed entries, coalesced to at
 	// most one event per interface per second (`interface` set; attributes "added", "removed", "updated" — counts), or
 	// one event with `interface` unset (plus attribute "interfaces") when more than 16 interfaces changed in that second.
@@ -377,6 +380,7 @@ var (
 		7:  "EVENT_KIND_VPP_CONNECTED",
 		8:  "EVENT_KIND_VPP_DISCONNECTED",
 		9:  "EVENT_KIND_DEGRADED",
+		20: "EVENT_KIND_OSPF_NEIGHBOR_CHANGED",
 		10: "EVENT_KIND_NEIGHBOR_CHANGED",
 		13: "EVENT_KIND_WIREGUARD_PEER_CHANGED",
 		14: "EVENT_KIND_ROUTING_CHANGED",
@@ -397,6 +401,7 @@ var (
 		"EVENT_KIND_VPP_CONNECTED":          7,
 		"EVENT_KIND_VPP_DISCONNECTED":       8,
 		"EVENT_KIND_DEGRADED":               9,
+		"EVENT_KIND_OSPF_NEIGHBOR_CHANGED":  20,
 		"EVENT_KIND_NEIGHBOR_CHANGED":       10,
 		"EVENT_KIND_WIREGUARD_PEER_CHANGED": 13,
 		"EVENT_KIND_ROUTING_CHANGED":        14,
@@ -4542,6 +4547,8 @@ type RoutingConfig struct {
 	Bfd *BfdConfig `protobuf:"bytes,8,opt,name=bfd,proto3" json:"bfd,omitempty"`
 	// Routing policy: prefix lists and route maps (FRR).
 	Policy *RoutingPolicy `protobuf:"bytes,9,opt,name=policy,proto3" json:"policy,omitempty"`
+	// wave-BC: F-ospf
+	Ospf6 *Ospf6Config `protobuf:"bytes,13,opt,name=ospf6,proto3" json:"ospf6,omitempty"`
 	// Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls).
 	Mpls *MplsConfig `protobuf:"bytes,15,opt,name=mpls,proto3" json:"mpls,omitempty"`
 	// wave-BC: F-igmp-mfib
@@ -4637,6 +4644,13 @@ func (x *RoutingConfig) GetBfd() *BfdConfig {
 func (x *RoutingConfig) GetPolicy() *RoutingPolicy {
 	if x != nil {
 		return x.Policy
+	}
+	return nil
+}
+
+func (x *RoutingConfig) GetOspf6() *Ospf6Config {
+	if x != nil {
+		return x.Ospf6
 	}
 	return nil
 }
@@ -6775,7 +6789,9 @@ type OspfInterface struct {
 	// DR priority, 0–255.
 	Priority *uint32 `protobuf:"varint,7,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
 	// Zod default false.
-	Bfd           *bool `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	Bfd *bool `protobuf:"varint,8,opt,name=bfd,proto3,oneof" json:"bfd,omitempty"`
+	// wave-BC: F-ospf
+	Auth          *OspfAuth `protobuf:"bytes,9,opt,name=auth,proto3" json:"auth,omitempty"` // wave-BC: F-bfd-redistribution
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6866,6 +6882,241 @@ func (x *OspfInterface) GetBfd() bool {
 	return false
 }
 
+func (x *OspfInterface) GetAuth() *OspfAuth {
+	if x != nil {
+		return x.Auth
+	}
+	return nil
+}
+
+type OspfAuth struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          *string                `protobuf:"bytes,1,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	KeyId         *uint32                `protobuf:"varint,2,opt,name=key_id,json=keyId,proto3,oneof" json:"key_id,omitempty"`
+	KeyRef        *string                `protobuf:"bytes,3,opt,name=key_ref,json=keyRef,proto3,oneof" json:"key_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OspfAuth) Reset() {
+	*x = OspfAuth{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OspfAuth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OspfAuth) ProtoMessage() {}
+
+func (x *OspfAuth) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OspfAuth.ProtoReflect.Descriptor instead.
+func (*OspfAuth) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *OspfAuth) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *OspfAuth) GetKeyId() uint32 {
+	if x != nil && x.KeyId != nil {
+		return *x.KeyId
+	}
+	return 0
+}
+
+func (x *OspfAuth) GetKeyRef() string {
+	if x != nil && x.KeyRef != nil {
+		return *x.KeyRef
+	}
+	return ""
+}
+
+type Ospf6Interface struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Area             *string                `protobuf:"bytes,1,opt,name=area,proto3,oneof" json:"area,omitempty"`
+	Cost             *uint32                `protobuf:"varint,2,opt,name=cost,proto3,oneof" json:"cost,omitempty"`
+	Passive          *bool                  `protobuf:"varint,3,opt,name=passive,proto3,oneof" json:"passive,omitempty"`
+	NetworkType      *string                `protobuf:"bytes,4,opt,name=network_type,json=networkType,proto3,oneof" json:"network_type,omitempty"`
+	HelloIntervalSec *uint32                `protobuf:"varint,5,opt,name=hello_interval_sec,json=helloIntervalSec,proto3,oneof" json:"hello_interval_sec,omitempty"`
+	DeadIntervalSec  *uint32                `protobuf:"varint,6,opt,name=dead_interval_sec,json=deadIntervalSec,proto3,oneof" json:"dead_interval_sec,omitempty"`
+	Priority         *uint32                `protobuf:"varint,7,opt,name=priority,proto3,oneof" json:"priority,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *Ospf6Interface) Reset() {
+	*x = Ospf6Interface{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ospf6Interface) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ospf6Interface) ProtoMessage() {}
+
+func (x *Ospf6Interface) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ospf6Interface.ProtoReflect.Descriptor instead.
+func (*Ospf6Interface) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *Ospf6Interface) GetArea() string {
+	if x != nil && x.Area != nil {
+		return *x.Area
+	}
+	return ""
+}
+
+func (x *Ospf6Interface) GetCost() uint32 {
+	if x != nil && x.Cost != nil {
+		return *x.Cost
+	}
+	return 0
+}
+
+func (x *Ospf6Interface) GetPassive() bool {
+	if x != nil && x.Passive != nil {
+		return *x.Passive
+	}
+	return false
+}
+
+func (x *Ospf6Interface) GetNetworkType() string {
+	if x != nil && x.NetworkType != nil {
+		return *x.NetworkType
+	}
+	return ""
+}
+
+func (x *Ospf6Interface) GetHelloIntervalSec() uint32 {
+	if x != nil && x.HelloIntervalSec != nil {
+		return *x.HelloIntervalSec
+	}
+	return 0
+}
+
+func (x *Ospf6Interface) GetDeadIntervalSec() uint32 {
+	if x != nil && x.DeadIntervalSec != nil {
+		return *x.DeadIntervalSec
+	}
+	return 0
+}
+
+func (x *Ospf6Interface) GetPriority() uint32 {
+	if x != nil && x.Priority != nil {
+		return *x.Priority
+	}
+	return 0
+}
+
+type Ospf6Config struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	RouterId      *string                    `protobuf:"bytes,1,opt,name=router_id,json=routerId,proto3,oneof" json:"router_id,omitempty"`
+	Vrf           *string                    `protobuf:"bytes,2,opt,name=vrf,proto3,oneof" json:"vrf,omitempty"`
+	Areas         map[string]*OspfArea       `protobuf:"bytes,3,rep,name=areas,proto3" json:"areas,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Interfaces    map[string]*Ospf6Interface `protobuf:"bytes,4,rep,name=interfaces,proto3" json:"interfaces,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Redistribute  *Redistribute              `protobuf:"bytes,5,opt,name=redistribute,proto3" json:"redistribute,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Ospf6Config) Reset() {
+	*x = Ospf6Config{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Ospf6Config) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Ospf6Config) ProtoMessage() {}
+
+func (x *Ospf6Config) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Ospf6Config.ProtoReflect.Descriptor instead.
+func (*Ospf6Config) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *Ospf6Config) GetRouterId() string {
+	if x != nil && x.RouterId != nil {
+		return *x.RouterId
+	}
+	return ""
+}
+
+func (x *Ospf6Config) GetVrf() string {
+	if x != nil && x.Vrf != nil {
+		return *x.Vrf
+	}
+	return ""
+}
+
+func (x *Ospf6Config) GetAreas() map[string]*OspfArea {
+	if x != nil {
+		return x.Areas
+	}
+	return nil
+}
+
+func (x *Ospf6Config) GetInterfaces() map[string]*Ospf6Interface {
+	if x != nil {
+		return x.Interfaces
+	}
+	return nil
+}
+
+func (x *Ospf6Config) GetRedistribute() *Redistribute {
+	if x != nil {
+		return x.Redistribute
+	}
+	return nil
+}
+
 // OspfConfig mirrors `routing.ospf`.
 type OspfConfig struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6887,7 +7138,7 @@ type OspfConfig struct {
 
 func (x *OspfConfig) Reset() {
 	*x = OspfConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[69]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6899,7 +7150,7 @@ func (x *OspfConfig) String() string {
 func (*OspfConfig) ProtoMessage() {}
 
 func (x *OspfConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[69]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6912,7 +7163,7 @@ func (x *OspfConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OspfConfig.ProtoReflect.Descriptor instead.
 func (*OspfConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{69}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *OspfConfig) GetRouterId() string {
@@ -6976,7 +7227,7 @@ type IsisInterface struct {
 
 func (x *IsisInterface) Reset() {
 	*x = IsisInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[70]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6988,7 +7239,7 @@ func (x *IsisInterface) String() string {
 func (*IsisInterface) ProtoMessage() {}
 
 func (x *IsisInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[70]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7001,7 +7252,7 @@ func (x *IsisInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsisInterface.ProtoReflect.Descriptor instead.
 func (*IsisInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{70}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *IsisInterface) GetPassive() bool {
@@ -7058,7 +7309,7 @@ type IsisConfig struct {
 
 func (x *IsisConfig) Reset() {
 	*x = IsisConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[71]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7070,7 +7321,7 @@ func (x *IsisConfig) String() string {
 func (*IsisConfig) ProtoMessage() {}
 
 func (x *IsisConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[71]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7083,7 +7334,7 @@ func (x *IsisConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IsisConfig.ProtoReflect.Descriptor instead.
 func (*IsisConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{71}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *IsisConfig) GetNet() string {
@@ -7132,7 +7383,7 @@ type RipInterface struct {
 
 func (x *RipInterface) Reset() {
 	*x = RipInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[72]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7144,7 +7395,7 @@ func (x *RipInterface) String() string {
 func (*RipInterface) ProtoMessage() {}
 
 func (x *RipInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[72]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7157,7 +7408,7 @@ func (x *RipInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RipInterface.ProtoReflect.Descriptor instead.
 func (*RipInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{72}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *RipInterface) GetPassive() bool {
@@ -7186,7 +7437,7 @@ type RipConfig struct {
 
 func (x *RipConfig) Reset() {
 	*x = RipConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[73]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7198,7 +7449,7 @@ func (x *RipConfig) String() string {
 func (*RipConfig) ProtoMessage() {}
 
 func (x *RipConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[73]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7211,7 +7462,7 @@ func (x *RipConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RipConfig.ProtoReflect.Descriptor instead.
 func (*RipConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{73}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *RipConfig) GetVrf() string {
@@ -7272,7 +7523,7 @@ type BfdSession struct {
 
 func (x *BfdSession) Reset() {
 	*x = BfdSession{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[74]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7284,7 +7535,7 @@ func (x *BfdSession) String() string {
 func (*BfdSession) ProtoMessage() {}
 
 func (x *BfdSession) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[74]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7297,7 +7548,7 @@ func (x *BfdSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BfdSession.ProtoReflect.Descriptor instead.
 func (*BfdSession) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{74}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *BfdSession) GetInterface() string {
@@ -7360,7 +7611,7 @@ type BfdConfig struct {
 
 func (x *BfdConfig) Reset() {
 	*x = BfdConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[75]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7372,7 +7623,7 @@ func (x *BfdConfig) String() string {
 func (*BfdConfig) ProtoMessage() {}
 
 func (x *BfdConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[75]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7385,7 +7636,7 @@ func (x *BfdConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BfdConfig.ProtoReflect.Descriptor instead.
 func (*BfdConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{75}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *BfdConfig) GetSessions() []*BfdSession {
@@ -7416,7 +7667,7 @@ type TunnelsConfig struct {
 
 func (x *TunnelsConfig) Reset() {
 	*x = TunnelsConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[76]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7428,7 +7679,7 @@ func (x *TunnelsConfig) String() string {
 func (*TunnelsConfig) ProtoMessage() {}
 
 func (x *TunnelsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[76]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7441,7 +7692,7 @@ func (x *TunnelsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelsConfig.ProtoReflect.Descriptor instead.
 func (*TunnelsConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{76}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *TunnelsConfig) GetGre() map[string]*GreTunnel {
@@ -7535,7 +7786,7 @@ type GreTunnel struct {
 
 func (x *GreTunnel) Reset() {
 	*x = GreTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[77]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7547,7 +7798,7 @@ func (x *GreTunnel) String() string {
 func (*GreTunnel) ProtoMessage() {}
 
 func (x *GreTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[77]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7560,7 +7811,7 @@ func (x *GreTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GreTunnel.ProtoReflect.Descriptor instead.
 func (*GreTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{77}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *GreTunnel) GetEnabled() bool {
@@ -7695,7 +7946,7 @@ type VxlanTunnel struct {
 
 func (x *VxlanTunnel) Reset() {
 	*x = VxlanTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[78]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7707,7 +7958,7 @@ func (x *VxlanTunnel) String() string {
 func (*VxlanTunnel) ProtoMessage() {}
 
 func (x *VxlanTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[78]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7720,7 +7971,7 @@ func (x *VxlanTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VxlanTunnel.ProtoReflect.Descriptor instead.
 func (*VxlanTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{78}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *VxlanTunnel) GetEnabled() bool {
@@ -7872,7 +8123,7 @@ type IpipTunnel struct {
 
 func (x *IpipTunnel) Reset() {
 	*x = IpipTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[79]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7884,7 +8135,7 @@ func (x *IpipTunnel) String() string {
 func (*IpipTunnel) ProtoMessage() {}
 
 func (x *IpipTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[79]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7897,7 +8148,7 @@ func (x *IpipTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpipTunnel.ProtoReflect.Descriptor instead.
 func (*IpipTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{79}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *IpipTunnel) GetEnabled() bool {
@@ -8029,7 +8280,7 @@ type ServicesConfig struct {
 
 func (x *ServicesConfig) Reset() {
 	*x = ServicesConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[80]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8041,7 +8292,7 @@ func (x *ServicesConfig) String() string {
 func (*ServicesConfig) ProtoMessage() {}
 
 func (x *ServicesConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[80]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8054,7 +8305,7 @@ func (x *ServicesConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServicesConfig.ProtoReflect.Descriptor instead.
 func (*ServicesConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{80}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *ServicesConfig) GetDhcp() *DhcpService {
@@ -8147,7 +8398,7 @@ type SocketAddress struct {
 
 func (x *SocketAddress) Reset() {
 	*x = SocketAddress{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[81]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8159,7 +8410,7 @@ func (x *SocketAddress) String() string {
 func (*SocketAddress) ProtoMessage() {}
 
 func (x *SocketAddress) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[81]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8172,7 +8423,7 @@ func (x *SocketAddress) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SocketAddress.ProtoReflect.Descriptor instead.
 func (*SocketAddress) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{81}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *SocketAddress) GetAddress() string {
@@ -8202,7 +8453,7 @@ type DhcpService struct {
 
 func (x *DhcpService) Reset() {
 	*x = DhcpService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[82]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8214,7 +8465,7 @@ func (x *DhcpService) String() string {
 func (*DhcpService) ProtoMessage() {}
 
 func (x *DhcpService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[82]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8227,7 +8478,7 @@ func (x *DhcpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpService.ProtoReflect.Descriptor instead.
 func (*DhcpService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{82}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *DhcpService) GetServers() map[string]*DhcpServer {
@@ -8259,7 +8510,7 @@ type DhcpOption struct {
 
 func (x *DhcpOption) Reset() {
 	*x = DhcpOption{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[83]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8271,7 +8522,7 @@ func (x *DhcpOption) String() string {
 func (*DhcpOption) ProtoMessage() {}
 
 func (x *DhcpOption) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[83]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8284,7 +8535,7 @@ func (x *DhcpOption) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpOption.ProtoReflect.Descriptor instead.
 func (*DhcpOption) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{83}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *DhcpOption) GetCode() uint32 {
@@ -8321,7 +8572,7 @@ type DhcpPool struct {
 
 func (x *DhcpPool) Reset() {
 	*x = DhcpPool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[84]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8333,7 +8584,7 @@ func (x *DhcpPool) String() string {
 func (*DhcpPool) ProtoMessage() {}
 
 func (x *DhcpPool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[84]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8346,7 +8597,7 @@ func (x *DhcpPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpPool.ProtoReflect.Descriptor instead.
 func (*DhcpPool) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{84}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *DhcpPool) GetStart() string {
@@ -8382,7 +8633,7 @@ type DhcpReservation struct {
 
 func (x *DhcpReservation) Reset() {
 	*x = DhcpReservation{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[85]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8394,7 +8645,7 @@ func (x *DhcpReservation) String() string {
 func (*DhcpReservation) ProtoMessage() {}
 
 func (x *DhcpReservation) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[85]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8407,7 +8658,7 @@ func (x *DhcpReservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpReservation.ProtoReflect.Descriptor instead.
 func (*DhcpReservation) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{85}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *DhcpReservation) GetMac() string {
@@ -8476,7 +8727,7 @@ type DhcpSubnet struct {
 
 func (x *DhcpSubnet) Reset() {
 	*x = DhcpSubnet{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[86]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8488,7 +8739,7 @@ func (x *DhcpSubnet) String() string {
 func (*DhcpSubnet) ProtoMessage() {}
 
 func (x *DhcpSubnet) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[86]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8501,7 +8752,7 @@ func (x *DhcpSubnet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpSubnet.ProtoReflect.Descriptor instead.
 func (*DhcpSubnet) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{86}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *DhcpSubnet) GetDescription() string {
@@ -8612,7 +8863,7 @@ type DhcpServer struct {
 
 func (x *DhcpServer) Reset() {
 	*x = DhcpServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[87]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8624,7 +8875,7 @@ func (x *DhcpServer) String() string {
 func (*DhcpServer) ProtoMessage() {}
 
 func (x *DhcpServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[87]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8637,7 +8888,7 @@ func (x *DhcpServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpServer.ProtoReflect.Descriptor instead.
 func (*DhcpServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{87}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *DhcpServer) GetEnabled() bool {
@@ -8742,7 +8993,7 @@ type DhcpRelay struct {
 
 func (x *DhcpRelay) Reset() {
 	*x = DhcpRelay{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[88]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8754,7 +9005,7 @@ func (x *DhcpRelay) String() string {
 func (*DhcpRelay) ProtoMessage() {}
 
 func (x *DhcpRelay) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[88]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8767,7 +9018,7 @@ func (x *DhcpRelay) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpRelay.ProtoReflect.Descriptor instead.
 func (*DhcpRelay) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{88}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *DhcpRelay) GetEnabled() bool {
@@ -8839,7 +9090,7 @@ type DnsService struct {
 
 func (x *DnsService) Reset() {
 	*x = DnsService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[89]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8851,7 +9102,7 @@ func (x *DnsService) String() string {
 func (*DnsService) ProtoMessage() {}
 
 func (x *DnsService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[89]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8864,7 +9115,7 @@ func (x *DnsService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsService.ProtoReflect.Descriptor instead.
 func (*DnsService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{89}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *DnsService) GetResolvers() map[string]*DnsResolver {
@@ -8898,7 +9149,7 @@ type DnsUpstream struct {
 
 func (x *DnsUpstream) Reset() {
 	*x = DnsUpstream{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[90]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8910,7 +9161,7 @@ func (x *DnsUpstream) String() string {
 func (*DnsUpstream) ProtoMessage() {}
 
 func (x *DnsUpstream) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[90]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8923,7 +9174,7 @@ func (x *DnsUpstream) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsUpstream.ProtoReflect.Descriptor instead.
 func (*DnsUpstream) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{90}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *DnsUpstream) GetAddress() string {
@@ -8969,7 +9220,7 @@ type DnsForwardZone struct {
 
 func (x *DnsForwardZone) Reset() {
 	*x = DnsForwardZone{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[91]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8981,7 +9232,7 @@ func (x *DnsForwardZone) String() string {
 func (*DnsForwardZone) ProtoMessage() {}
 
 func (x *DnsForwardZone) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[91]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8994,7 +9245,7 @@ func (x *DnsForwardZone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsForwardZone.ProtoReflect.Descriptor instead.
 func (*DnsForwardZone) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{91}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *DnsForwardZone) GetZone() string {
@@ -9035,7 +9286,7 @@ type DnsRecord struct {
 
 func (x *DnsRecord) Reset() {
 	*x = DnsRecord{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[92]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9047,7 +9298,7 @@ func (x *DnsRecord) String() string {
 func (*DnsRecord) ProtoMessage() {}
 
 func (x *DnsRecord) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[92]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9060,7 +9311,7 @@ func (x *DnsRecord) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsRecord.ProtoReflect.Descriptor instead.
 func (*DnsRecord) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{92}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *DnsRecord) GetName() string {
@@ -9106,7 +9357,7 @@ type DnsLocalZone struct {
 
 func (x *DnsLocalZone) Reset() {
 	*x = DnsLocalZone{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[93]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9118,7 +9369,7 @@ func (x *DnsLocalZone) String() string {
 func (*DnsLocalZone) ProtoMessage() {}
 
 func (x *DnsLocalZone) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[93]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9131,7 +9382,7 @@ func (x *DnsLocalZone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsLocalZone.ProtoReflect.Descriptor instead.
 func (*DnsLocalZone) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{93}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *DnsLocalZone) GetZone() string {
@@ -9168,7 +9419,7 @@ type DnsAccessControl struct {
 
 func (x *DnsAccessControl) Reset() {
 	*x = DnsAccessControl{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[94]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9180,7 +9431,7 @@ func (x *DnsAccessControl) String() string {
 func (*DnsAccessControl) ProtoMessage() {}
 
 func (x *DnsAccessControl) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[94]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9193,7 +9444,7 @@ func (x *DnsAccessControl) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsAccessControl.ProtoReflect.Descriptor instead.
 func (*DnsAccessControl) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{94}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *DnsAccessControl) GetPrefix() string {
@@ -9249,7 +9500,7 @@ type DnsResolver struct {
 
 func (x *DnsResolver) Reset() {
 	*x = DnsResolver{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[95]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9261,7 +9512,7 @@ func (x *DnsResolver) String() string {
 func (*DnsResolver) ProtoMessage() {}
 
 func (x *DnsResolver) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[95]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9274,7 +9525,7 @@ func (x *DnsResolver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsResolver.ProtoReflect.Descriptor instead.
 func (*DnsResolver) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{95}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *DnsResolver) GetEnabled() bool {
@@ -9422,7 +9673,7 @@ type SnmpService struct {
 
 func (x *SnmpService) Reset() {
 	*x = SnmpService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[96]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9434,7 +9685,7 @@ func (x *SnmpService) String() string {
 func (*SnmpService) ProtoMessage() {}
 
 func (x *SnmpService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[96]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9447,7 +9698,7 @@ func (x *SnmpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpService.ProtoReflect.Descriptor instead.
 func (*SnmpService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{96}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *SnmpService) GetEnabled() bool {
@@ -9574,7 +9825,7 @@ type LldpService struct {
 
 func (x *LldpService) Reset() {
 	*x = LldpService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[97]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9586,7 +9837,7 @@ func (x *LldpService) String() string {
 func (*LldpService) ProtoMessage() {}
 
 func (x *LldpService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[97]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9599,7 +9850,7 @@ func (x *LldpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpService.ProtoReflect.Descriptor instead.
 func (*LldpService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{97}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *LldpService) GetEnabled() bool {
@@ -9652,7 +9903,7 @@ type IpfixService struct {
 
 func (x *IpfixService) Reset() {
 	*x = IpfixService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[98]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9664,7 +9915,7 @@ func (x *IpfixService) String() string {
 func (*IpfixService) ProtoMessage() {}
 
 func (x *IpfixService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[98]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9677,7 +9928,7 @@ func (x *IpfixService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService.ProtoReflect.Descriptor instead.
 func (*IpfixService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *IpfixService) GetExporters() map[string]*IpfixService_Exporter {
@@ -9738,7 +9989,7 @@ type NtpService struct {
 
 func (x *NtpService) Reset() {
 	*x = NtpService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[99]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9750,7 +10001,7 @@ func (x *NtpService) String() string {
 func (*NtpService) ProtoMessage() {}
 
 func (x *NtpService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[99]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9763,7 +10014,7 @@ func (x *NtpService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpService.ProtoReflect.Descriptor instead.
 func (*NtpService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *NtpService) GetEnabled() bool {
@@ -9881,7 +10132,7 @@ type QosService struct {
 
 func (x *QosService) Reset() {
 	*x = QosService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[100]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9893,7 +10144,7 @@ func (x *QosService) String() string {
 func (*QosService) ProtoMessage() {}
 
 func (x *QosService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[100]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9906,7 +10157,7 @@ func (x *QosService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosService.ProtoReflect.Descriptor instead.
 func (*QosService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{100}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{103}
 }
 
 func (x *QosService) GetPolicers() map[string]*QosPolicer {
@@ -9950,7 +10201,7 @@ type QosPolicerAction struct {
 
 func (x *QosPolicerAction) Reset() {
 	*x = QosPolicerAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[101]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9962,7 +10213,7 @@ func (x *QosPolicerAction) String() string {
 func (*QosPolicerAction) ProtoMessage() {}
 
 func (x *QosPolicerAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[101]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9975,7 +10226,7 @@ func (x *QosPolicerAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerAction.ProtoReflect.Descriptor instead.
 func (*QosPolicerAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *QosPolicerAction) GetAction() string {
@@ -10025,7 +10276,7 @@ type QosPolicer struct {
 
 func (x *QosPolicer) Reset() {
 	*x = QosPolicer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[102]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10037,7 +10288,7 @@ func (x *QosPolicer) String() string {
 func (*QosPolicer) ProtoMessage() {}
 
 func (x *QosPolicer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[102]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10050,7 +10301,7 @@ func (x *QosPolicer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicer.ProtoReflect.Descriptor instead.
 func (*QosPolicer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *QosPolicer) GetDescription() string {
@@ -10152,7 +10403,7 @@ type QosShaper struct {
 
 func (x *QosShaper) Reset() {
 	*x = QosShaper{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[103]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10164,7 +10415,7 @@ func (x *QosShaper) String() string {
 func (*QosShaper) ProtoMessage() {}
 
 func (x *QosShaper) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[103]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10177,7 +10428,7 @@ func (x *QosShaper) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosShaper.ProtoReflect.Descriptor instead.
 func (*QosShaper) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{103}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *QosShaper) GetDescription() string {
@@ -10214,7 +10465,7 @@ type QosMapEntry struct {
 
 func (x *QosMapEntry) Reset() {
 	*x = QosMapEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[104]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10226,7 +10477,7 @@ func (x *QosMapEntry) String() string {
 func (*QosMapEntry) ProtoMessage() {}
 
 func (x *QosMapEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[104]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10239,7 +10490,7 @@ func (x *QosMapEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosMapEntry.ProtoReflect.Descriptor instead.
 func (*QosMapEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{104}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *QosMapEntry) GetFrom() uint32 {
@@ -10271,7 +10522,7 @@ type QosMap struct {
 
 func (x *QosMap) Reset() {
 	*x = QosMap{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[105]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10283,7 +10534,7 @@ func (x *QosMap) String() string {
 func (*QosMap) ProtoMessage() {}
 
 func (x *QosMap) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[105]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10296,7 +10547,7 @@ func (x *QosMap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosMap.ProtoReflect.Descriptor instead.
 func (*QosMap) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{105}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *QosMap) GetDescription() string {
@@ -10341,7 +10592,7 @@ type QosInterface struct {
 
 func (x *QosInterface) Reset() {
 	*x = QosInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[106]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10353,7 +10604,7 @@ func (x *QosInterface) String() string {
 func (*QosInterface) ProtoMessage() {}
 
 func (x *QosInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[106]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10366,7 +10617,7 @@ func (x *QosInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosInterface.ProtoReflect.Descriptor instead.
 func (*QosInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{106}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *QosInterface) GetDescription() string {
@@ -10424,7 +10675,7 @@ type HaConfig struct {
 
 func (x *HaConfig) Reset() {
 	*x = HaConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[107]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10436,7 +10687,7 @@ func (x *HaConfig) String() string {
 func (*HaConfig) ProtoMessage() {}
 
 func (x *HaConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[107]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10449,7 +10700,7 @@ func (x *HaConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaConfig.ProtoReflect.Descriptor instead.
 func (*HaConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{107}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *HaConfig) GetVrrp() map[string]*VrrpInstance {
@@ -10503,7 +10754,7 @@ type VrrpInstance struct {
 
 func (x *VrrpInstance) Reset() {
 	*x = VrrpInstance{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[108]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10515,7 +10766,7 @@ func (x *VrrpInstance) String() string {
 func (*VrrpInstance) ProtoMessage() {}
 
 func (x *VrrpInstance) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[108]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10528,7 +10779,7 @@ func (x *VrrpInstance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VrrpInstance.ProtoReflect.Descriptor instead.
 func (*VrrpInstance) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{108}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *VrrpInstance) GetEnabled() bool {
@@ -10656,7 +10907,7 @@ type HaCluster struct {
 
 func (x *HaCluster) Reset() {
 	*x = HaCluster{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[109]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10668,7 +10919,7 @@ func (x *HaCluster) String() string {
 func (*HaCluster) ProtoMessage() {}
 
 func (x *HaCluster) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[109]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10681,7 +10932,7 @@ func (x *HaCluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaCluster.ProtoReflect.Descriptor instead.
 func (*HaCluster) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *HaCluster) GetEnabled() bool {
@@ -10773,7 +11024,7 @@ type ManagementConfig struct {
 
 func (x *ManagementConfig) Reset() {
 	*x = ManagementConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[110]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10785,7 +11036,7 @@ func (x *ManagementConfig) String() string {
 func (*ManagementConfig) ProtoMessage() {}
 
 func (x *ManagementConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[110]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10798,7 +11049,7 @@ func (x *ManagementConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementConfig.ProtoReflect.Descriptor instead.
 func (*ManagementConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{110}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *ManagementConfig) GetUsers() []*ManagementUser {
@@ -10861,7 +11112,7 @@ type ManagementNotifications struct {
 
 func (x *ManagementNotifications) Reset() {
 	*x = ManagementNotifications{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[111]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10873,7 +11124,7 @@ func (x *ManagementNotifications) String() string {
 func (*ManagementNotifications) ProtoMessage() {}
 
 func (x *ManagementNotifications) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[111]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10886,7 +11137,7 @@ func (x *ManagementNotifications) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementNotifications.ProtoReflect.Descriptor instead.
 func (*ManagementNotifications) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{111}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *ManagementNotifications) GetChannels() []*NotificationChannel {
@@ -10918,7 +11169,7 @@ type NotificationChannel struct {
 
 func (x *NotificationChannel) Reset() {
 	*x = NotificationChannel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[112]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10930,7 +11181,7 @@ func (x *NotificationChannel) String() string {
 func (*NotificationChannel) ProtoMessage() {}
 
 func (x *NotificationChannel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[112]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10943,7 +11194,7 @@ func (x *NotificationChannel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationChannel.ProtoReflect.Descriptor instead.
 func (*NotificationChannel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{112}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *NotificationChannel) GetName() string {
@@ -11004,7 +11255,7 @@ type NotificationEmail struct {
 
 func (x *NotificationEmail) Reset() {
 	*x = NotificationEmail{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[113]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11016,7 +11267,7 @@ func (x *NotificationEmail) String() string {
 func (*NotificationEmail) ProtoMessage() {}
 
 func (x *NotificationEmail) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[113]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11029,7 +11280,7 @@ func (x *NotificationEmail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationEmail.ProtoReflect.Descriptor instead.
 func (*NotificationEmail) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{113}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *NotificationEmail) GetSmtpHost() string {
@@ -11092,7 +11343,7 @@ type NotificationWebhook struct {
 
 func (x *NotificationWebhook) Reset() {
 	*x = NotificationWebhook{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[114]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11104,7 +11355,7 @@ func (x *NotificationWebhook) String() string {
 func (*NotificationWebhook) ProtoMessage() {}
 
 func (x *NotificationWebhook) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[114]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11117,7 +11368,7 @@ func (x *NotificationWebhook) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationWebhook.ProtoReflect.Descriptor instead.
 func (*NotificationWebhook) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{114}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *NotificationWebhook) GetUrl() string {
@@ -11149,7 +11400,7 @@ type NotificationRule struct {
 
 func (x *NotificationRule) Reset() {
 	*x = NotificationRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[115]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11161,7 +11412,7 @@ func (x *NotificationRule) String() string {
 func (*NotificationRule) ProtoMessage() {}
 
 func (x *NotificationRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[115]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11174,7 +11425,7 @@ func (x *NotificationRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationRule.ProtoReflect.Descriptor instead.
 func (*NotificationRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{115}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *NotificationRule) GetName() string {
@@ -11230,7 +11481,7 @@ type SecurityConfig struct {
 
 func (x *SecurityConfig) Reset() {
 	*x = SecurityConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[116]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[119]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11242,7 +11493,7 @@ func (x *SecurityConfig) String() string {
 func (*SecurityConfig) ProtoMessage() {}
 
 func (x *SecurityConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[116]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[119]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11255,7 +11506,7 @@ func (x *SecurityConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SecurityConfig.ProtoReflect.Descriptor instead.
 func (*SecurityConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{116}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{119}
 }
 
 func (x *SecurityConfig) GetAutoBlock() *AutoBlock {
@@ -11278,7 +11529,7 @@ type AutoBlockSetRequest struct {
 
 func (x *AutoBlockSetRequest) Reset() {
 	*x = AutoBlockSetRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[117]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11290,7 +11541,7 @@ func (x *AutoBlockSetRequest) String() string {
 func (*AutoBlockSetRequest) ProtoMessage() {}
 
 func (x *AutoBlockSetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[117]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11303,7 +11554,7 @@ func (x *AutoBlockSetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoBlockSetRequest.ProtoReflect.Descriptor instead.
 func (*AutoBlockSetRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{117}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *AutoBlockSetRequest) GetOwner() string {
@@ -11330,7 +11581,7 @@ type AutoBlockRuntimeEntry struct {
 
 func (x *AutoBlockRuntimeEntry) Reset() {
 	*x = AutoBlockRuntimeEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[118]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11342,7 +11593,7 @@ func (x *AutoBlockRuntimeEntry) String() string {
 func (*AutoBlockRuntimeEntry) ProtoMessage() {}
 
 func (x *AutoBlockRuntimeEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[118]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11355,7 +11606,7 @@ func (x *AutoBlockRuntimeEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoBlockRuntimeEntry.ProtoReflect.Descriptor instead.
 func (*AutoBlockRuntimeEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{118}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *AutoBlockRuntimeEntry) GetSource() string {
@@ -11381,7 +11632,7 @@ type AutoBlockSetResponse struct {
 
 func (x *AutoBlockSetResponse) Reset() {
 	*x = AutoBlockSetResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[119]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11393,7 +11644,7 @@ func (x *AutoBlockSetResponse) String() string {
 func (*AutoBlockSetResponse) ProtoMessage() {}
 
 func (x *AutoBlockSetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[119]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11406,7 +11657,7 @@ func (x *AutoBlockSetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoBlockSetResponse.ProtoReflect.Descriptor instead.
 func (*AutoBlockSetResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{119}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *AutoBlockSetResponse) GetActiveEntries() uint32 {
@@ -11437,7 +11688,7 @@ type AutoBlock struct {
 
 func (x *AutoBlock) Reset() {
 	*x = AutoBlock{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[120]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11449,7 +11700,7 @@ func (x *AutoBlock) String() string {
 func (*AutoBlock) ProtoMessage() {}
 
 func (x *AutoBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[120]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11462,7 +11713,7 @@ func (x *AutoBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoBlock.ProtoReflect.Descriptor instead.
 func (*AutoBlock) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{120}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *AutoBlock) GetEnabled() bool {
@@ -11523,7 +11774,7 @@ type AutoBlockRule struct {
 
 func (x *AutoBlockRule) Reset() {
 	*x = AutoBlockRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[121]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11535,7 +11786,7 @@ func (x *AutoBlockRule) String() string {
 func (*AutoBlockRule) ProtoMessage() {}
 
 func (x *AutoBlockRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[121]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11548,7 +11799,7 @@ func (x *AutoBlockRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoBlockRule.ProtoReflect.Descriptor instead.
 func (*AutoBlockRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{121}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *AutoBlockRule) GetSource() string {
@@ -11621,7 +11872,7 @@ type ManagementUser struct {
 
 func (x *ManagementUser) Reset() {
 	*x = ManagementUser{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[122]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11633,7 +11884,7 @@ func (x *ManagementUser) String() string {
 func (*ManagementUser) ProtoMessage() {}
 
 func (x *ManagementUser) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[122]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11646,7 +11897,7 @@ func (x *ManagementUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementUser.ProtoReflect.Descriptor instead.
 func (*ManagementUser) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{122}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *ManagementUser) GetUsername() string {
@@ -11718,7 +11969,7 @@ type ManagementAaa struct {
 
 func (x *ManagementAaa) Reset() {
 	*x = ManagementAaa{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[123]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11730,7 +11981,7 @@ func (x *ManagementAaa) String() string {
 func (*ManagementAaa) ProtoMessage() {}
 
 func (x *ManagementAaa) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[123]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11743,7 +11994,7 @@ func (x *ManagementAaa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementAaa.ProtoReflect.Descriptor instead.
 func (*ManagementAaa) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{123}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *ManagementAaa) GetOrder() []string {
@@ -11813,7 +12064,7 @@ type AaaRadius struct {
 
 func (x *AaaRadius) Reset() {
 	*x = AaaRadius{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[124]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[127]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11825,7 +12076,7 @@ func (x *AaaRadius) String() string {
 func (*AaaRadius) ProtoMessage() {}
 
 func (x *AaaRadius) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[124]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[127]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11838,7 +12089,7 @@ func (x *AaaRadius) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaRadius.ProtoReflect.Descriptor instead.
 func (*AaaRadius) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{124}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{127}
 }
 
 func (x *AaaRadius) GetServers() []*RadiusServer {
@@ -11869,7 +12120,7 @@ type RadiusServer struct {
 
 func (x *RadiusServer) Reset() {
 	*x = RadiusServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[125]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[128]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11881,7 +12132,7 @@ func (x *RadiusServer) String() string {
 func (*RadiusServer) ProtoMessage() {}
 
 func (x *RadiusServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[125]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[128]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11894,7 +12145,7 @@ func (x *RadiusServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RadiusServer.ProtoReflect.Descriptor instead.
 func (*RadiusServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{125}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{128}
 }
 
 func (x *RadiusServer) GetAddress() string {
@@ -11950,7 +12201,7 @@ type AaaTacacs struct {
 
 func (x *AaaTacacs) Reset() {
 	*x = AaaTacacs{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[126]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[129]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -11962,7 +12213,7 @@ func (x *AaaTacacs) String() string {
 func (*AaaTacacs) ProtoMessage() {}
 
 func (x *AaaTacacs) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[126]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[129]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -11975,7 +12226,7 @@ func (x *AaaTacacs) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaTacacs.ProtoReflect.Descriptor instead.
 func (*AaaTacacs) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{126}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{129}
 }
 
 func (x *AaaTacacs) GetServers() []*TacacsServer {
@@ -12004,7 +12255,7 @@ type TacacsServer struct {
 
 func (x *TacacsServer) Reset() {
 	*x = TacacsServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[127]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[130]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12016,7 +12267,7 @@ func (x *TacacsServer) String() string {
 func (*TacacsServer) ProtoMessage() {}
 
 func (x *TacacsServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[127]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[130]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12029,7 +12280,7 @@ func (x *TacacsServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TacacsServer.ProtoReflect.Descriptor instead.
 func (*TacacsServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{127}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{130}
 }
 
 func (x *TacacsServer) GetAddress() string {
@@ -12082,7 +12333,7 @@ type ManagementTls struct {
 
 func (x *ManagementTls) Reset() {
 	*x = ManagementTls{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[128]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12094,7 +12345,7 @@ func (x *ManagementTls) String() string {
 func (*ManagementTls) ProtoMessage() {}
 
 func (x *ManagementTls) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[128]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12107,7 +12358,7 @@ func (x *ManagementTls) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementTls.ProtoReflect.Descriptor instead.
 func (*ManagementTls) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{128}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *ManagementTls) GetCertificateRef() string {
@@ -12159,7 +12410,7 @@ type SyslogTarget struct {
 
 func (x *SyslogTarget) Reset() {
 	*x = SyslogTarget{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[129]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12171,7 +12422,7 @@ func (x *SyslogTarget) String() string {
 func (*SyslogTarget) ProtoMessage() {}
 
 func (x *SyslogTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[129]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12184,7 +12435,7 @@ func (x *SyslogTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogTarget.ProtoReflect.Descriptor instead.
 func (*SyslogTarget) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{129}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *SyslogTarget) GetAddress() string {
@@ -12312,7 +12563,7 @@ type NatConfig struct {
 
 func (x *NatConfig) Reset() {
 	*x = NatConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[130]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[133]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12324,7 +12575,7 @@ func (x *NatConfig) String() string {
 func (*NatConfig) ProtoMessage() {}
 
 func (x *NatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[130]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[133]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12337,7 +12588,7 @@ func (x *NatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatConfig.ProtoReflect.Descriptor instead.
 func (*NatConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{130}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{133}
 }
 
 func (x *NatConfig) GetEnabled() bool {
@@ -12539,7 +12790,7 @@ type NatTimeouts struct {
 
 func (x *NatTimeouts) Reset() {
 	*x = NatTimeouts{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[131]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[134]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12551,7 +12802,7 @@ func (x *NatTimeouts) String() string {
 func (*NatTimeouts) ProtoMessage() {}
 
 func (x *NatTimeouts) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[131]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[134]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12564,7 +12815,7 @@ func (x *NatTimeouts) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatTimeouts.ProtoReflect.Descriptor instead.
 func (*NatTimeouts) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{131}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{134}
 }
 
 func (x *NatTimeouts) GetUdp() uint32 {
@@ -12616,7 +12867,7 @@ type NatPool struct {
 
 func (x *NatPool) Reset() {
 	*x = NatPool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[132]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[135]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12628,7 +12879,7 @@ func (x *NatPool) String() string {
 func (*NatPool) ProtoMessage() {}
 
 func (x *NatPool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[132]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[135]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12641,7 +12892,7 @@ func (x *NatPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatPool.ProtoReflect.Descriptor instead.
 func (*NatPool) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{132}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{135}
 }
 
 func (x *NatPool) GetName() string {
@@ -12719,7 +12970,7 @@ type NatStaticMapping struct {
 
 func (x *NatStaticMapping) Reset() {
 	*x = NatStaticMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[133]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[136]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12731,7 +12982,7 @@ func (x *NatStaticMapping) String() string {
 func (*NatStaticMapping) ProtoMessage() {}
 
 func (x *NatStaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[133]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[136]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12744,7 +12995,7 @@ func (x *NatStaticMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{133}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{136}
 }
 
 func (x *NatStaticMapping) GetName() string {
@@ -12852,7 +13103,7 @@ type NatIdentityMapping struct {
 
 func (x *NatIdentityMapping) Reset() {
 	*x = NatIdentityMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[134]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[137]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12864,7 +13115,7 @@ func (x *NatIdentityMapping) String() string {
 func (*NatIdentityMapping) ProtoMessage() {}
 
 func (x *NatIdentityMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[134]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[137]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12877,7 +13128,7 @@ func (x *NatIdentityMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatIdentityMapping.ProtoReflect.Descriptor instead.
 func (*NatIdentityMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{134}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137}
 }
 
 func (x *NatIdentityMapping) GetDescription() string {
@@ -12949,7 +13200,7 @@ type NatLoadBalancedMapping struct {
 
 func (x *NatLoadBalancedMapping) Reset() {
 	*x = NatLoadBalancedMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[135]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[138]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -12961,7 +13212,7 @@ func (x *NatLoadBalancedMapping) String() string {
 func (*NatLoadBalancedMapping) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[135]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[138]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -12974,7 +13225,7 @@ func (x *NatLoadBalancedMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{135}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{138}
 }
 
 func (x *NatLoadBalancedMapping) GetName() string {
@@ -13055,7 +13306,7 @@ type NatIpfix struct {
 
 func (x *NatIpfix) Reset() {
 	*x = NatIpfix{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[136]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[139]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13067,7 +13318,7 @@ func (x *NatIpfix) String() string {
 func (*NatIpfix) ProtoMessage() {}
 
 func (x *NatIpfix) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[136]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[139]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13080,7 +13331,7 @@ func (x *NatIpfix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatIpfix.ProtoReflect.Descriptor instead.
 func (*NatIpfix) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{136}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{139}
 }
 
 func (x *NatIpfix) GetEnabled() bool {
@@ -13127,7 +13378,7 @@ type Nat64Config struct {
 
 func (x *Nat64Config) Reset() {
 	*x = Nat64Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[137]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[140]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13139,7 +13390,7 @@ func (x *Nat64Config) String() string {
 func (*Nat64Config) ProtoMessage() {}
 
 func (x *Nat64Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[137]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[140]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13152,7 +13403,7 @@ func (x *Nat64Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config.ProtoReflect.Descriptor instead.
 func (*Nat64Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140}
 }
 
 func (x *Nat64Config) GetEnabled() bool {
@@ -13221,7 +13472,7 @@ type Nat66Config struct {
 
 func (x *Nat66Config) Reset() {
 	*x = Nat66Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[138]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[141]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13233,7 +13484,7 @@ func (x *Nat66Config) String() string {
 func (*Nat66Config) ProtoMessage() {}
 
 func (x *Nat66Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[138]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[141]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13246,7 +13497,7 @@ func (x *Nat66Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat66Config.ProtoReflect.Descriptor instead.
 func (*Nat66Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{138}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{141}
 }
 
 func (x *Nat66Config) GetEnabled() bool {
@@ -13288,7 +13539,7 @@ type Nptv6Config struct {
 
 func (x *Nptv6Config) Reset() {
 	*x = Nptv6Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[139]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[142]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13300,7 +13551,7 @@ func (x *Nptv6Config) String() string {
 func (*Nptv6Config) ProtoMessage() {}
 
 func (x *Nptv6Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[139]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[142]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13313,7 +13564,7 @@ func (x *Nptv6Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nptv6Config.ProtoReflect.Descriptor instead.
 func (*Nptv6Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{139}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{142}
 }
 
 func (x *Nptv6Config) GetBindings() []*Nptv6Config_Binding {
@@ -13346,7 +13597,7 @@ type Det44Config struct {
 
 func (x *Det44Config) Reset() {
 	*x = Det44Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[140]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[143]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13358,7 +13609,7 @@ func (x *Det44Config) String() string {
 func (*Det44Config) ProtoMessage() {}
 
 func (x *Det44Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[140]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[143]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13371,7 +13622,7 @@ func (x *Det44Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44Config.ProtoReflect.Descriptor instead.
 func (*Det44Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143}
 }
 
 func (x *Det44Config) GetEnabled() bool {
@@ -13440,7 +13691,7 @@ type DsliteConfig struct {
 
 func (x *DsliteConfig) Reset() {
 	*x = DsliteConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[141]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[144]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13452,7 +13703,7 @@ func (x *DsliteConfig) String() string {
 func (*DsliteConfig) ProtoMessage() {}
 
 func (x *DsliteConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[141]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[144]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13465,7 +13716,7 @@ func (x *DsliteConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig.ProtoReflect.Descriptor instead.
 func (*DsliteConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{141}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{144}
 }
 
 func (x *DsliteConfig) GetEnabled() bool {
@@ -13527,7 +13778,7 @@ type MapDomain struct {
 
 func (x *MapDomain) Reset() {
 	*x = MapDomain{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[142]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[145]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13539,7 +13790,7 @@ func (x *MapDomain) String() string {
 func (*MapDomain) ProtoMessage() {}
 
 func (x *MapDomain) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[142]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[145]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13552,7 +13803,7 @@ func (x *MapDomain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDomain.ProtoReflect.Descriptor instead.
 func (*MapDomain) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{142}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{145}
 }
 
 func (x *MapDomain) GetName() string {
@@ -13655,7 +13906,7 @@ type MapParameters struct {
 
 func (x *MapParameters) Reset() {
 	*x = MapParameters{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[143]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[146]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13667,7 +13918,7 @@ func (x *MapParameters) String() string {
 func (*MapParameters) ProtoMessage() {}
 
 func (x *MapParameters) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[143]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[146]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13680,7 +13931,7 @@ func (x *MapParameters) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters.ProtoReflect.Descriptor instead.
 func (*MapParameters) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146}
 }
 
 func (x *MapParameters) GetFragmentation() *MapParameters_Fragmentation {
@@ -13745,7 +13996,7 @@ type MapInterface struct {
 
 func (x *MapInterface) Reset() {
 	*x = MapInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[144]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[147]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13757,7 +14008,7 @@ func (x *MapInterface) String() string {
 func (*MapInterface) ProtoMessage() {}
 
 func (x *MapInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[144]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[147]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13770,7 +14021,7 @@ func (x *MapInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapInterface.ProtoReflect.Descriptor instead.
 func (*MapInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{144}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{147}
 }
 
 func (x *MapInterface) GetInterface() string {
@@ -13802,7 +14053,7 @@ type MapConfig struct {
 
 func (x *MapConfig) Reset() {
 	*x = MapConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[145]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[148]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13814,7 +14065,7 @@ func (x *MapConfig) String() string {
 func (*MapConfig) ProtoMessage() {}
 
 func (x *MapConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[145]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[148]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13827,7 +14078,7 @@ func (x *MapConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapConfig.ProtoReflect.Descriptor instead.
 func (*MapConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{145}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{148}
 }
 
 func (x *MapConfig) GetDomains() []*MapDomain {
@@ -13864,7 +14115,7 @@ type CnatEndpoint struct {
 
 func (x *CnatEndpoint) Reset() {
 	*x = CnatEndpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[146]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[149]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13876,7 +14127,7 @@ func (x *CnatEndpoint) String() string {
 func (*CnatEndpoint) ProtoMessage() {}
 
 func (x *CnatEndpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[146]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[149]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13889,7 +14140,7 @@ func (x *CnatEndpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatEndpoint.ProtoReflect.Descriptor instead.
 func (*CnatEndpoint) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{149}
 }
 
 func (x *CnatEndpoint) GetIp() string {
@@ -13927,7 +14178,7 @@ type CnatTranslation struct {
 
 func (x *CnatTranslation) Reset() {
 	*x = CnatTranslation{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[147]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[150]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -13939,7 +14190,7 @@ func (x *CnatTranslation) String() string {
 func (*CnatTranslation) ProtoMessage() {}
 
 func (x *CnatTranslation) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[147]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[150]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -13952,7 +14203,7 @@ func (x *CnatTranslation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatTranslation.ProtoReflect.Descriptor instead.
 func (*CnatTranslation) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{147}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{150}
 }
 
 func (x *CnatTranslation) GetName() string {
@@ -14010,7 +14261,7 @@ type CnatConfig struct {
 
 func (x *CnatConfig) Reset() {
 	*x = CnatConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[148]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[151]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14022,7 +14273,7 @@ func (x *CnatConfig) String() string {
 func (*CnatConfig) ProtoMessage() {}
 
 func (x *CnatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[148]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[151]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14035,7 +14286,7 @@ func (x *CnatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig.ProtoReflect.Descriptor instead.
 func (*CnatConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{148}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{151}
 }
 
 func (x *CnatConfig) GetTranslations() []*CnatTranslation {
@@ -14076,7 +14327,7 @@ type ObjectsConfig struct {
 
 func (x *ObjectsConfig) Reset() {
 	*x = ObjectsConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[149]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[152]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14088,7 +14339,7 @@ func (x *ObjectsConfig) String() string {
 func (*ObjectsConfig) ProtoMessage() {}
 
 func (x *ObjectsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[149]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[152]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14101,7 +14352,7 @@ func (x *ObjectsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectsConfig.ProtoReflect.Descriptor instead.
 func (*ObjectsConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{149}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{152}
 }
 
 func (x *ObjectsConfig) GetAddresses() map[string]*AddressObject {
@@ -14178,7 +14429,7 @@ type AddressObject struct {
 
 func (x *AddressObject) Reset() {
 	*x = AddressObject{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[150]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[153]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14190,7 +14441,7 @@ func (x *AddressObject) String() string {
 func (*AddressObject) ProtoMessage() {}
 
 func (x *AddressObject) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[150]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[153]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14203,7 +14454,7 @@ func (x *AddressObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressObject.ProtoReflect.Descriptor instead.
 func (*AddressObject) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{150}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{153}
 }
 
 func (x *AddressObject) GetType() string {
@@ -14277,7 +14528,7 @@ type AddressGroup struct {
 
 func (x *AddressGroup) Reset() {
 	*x = AddressGroup{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[151]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[154]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14289,7 +14540,7 @@ func (x *AddressGroup) String() string {
 func (*AddressGroup) ProtoMessage() {}
 
 func (x *AddressGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[151]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[154]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14302,7 +14553,7 @@ func (x *AddressGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressGroup.ProtoReflect.Descriptor instead.
 func (*AddressGroup) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{151}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{154}
 }
 
 func (x *AddressGroup) GetDescription() string {
@@ -14339,7 +14590,7 @@ type TcpFlags struct {
 
 func (x *TcpFlags) Reset() {
 	*x = TcpFlags{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[152]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[155]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14351,7 +14602,7 @@ func (x *TcpFlags) String() string {
 func (*TcpFlags) ProtoMessage() {}
 
 func (x *TcpFlags) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[152]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[155]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14364,7 +14615,7 @@ func (x *TcpFlags) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TcpFlags.ProtoReflect.Descriptor instead.
 func (*TcpFlags) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{152}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{155}
 }
 
 func (x *TcpFlags) GetMask() uint32 {
@@ -14404,7 +14655,7 @@ type ServiceSpec struct {
 
 func (x *ServiceSpec) Reset() {
 	*x = ServiceSpec{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[153]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[156]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14416,7 +14667,7 @@ func (x *ServiceSpec) String() string {
 func (*ServiceSpec) ProtoMessage() {}
 
 func (x *ServiceSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[153]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[156]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14429,7 +14680,7 @@ func (x *ServiceSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceSpec.ProtoReflect.Descriptor instead.
 func (*ServiceSpec) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{153}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{156}
 }
 
 func (x *ServiceSpec) GetProtocol() string {
@@ -14508,7 +14759,7 @@ type ServiceObject struct {
 
 func (x *ServiceObject) Reset() {
 	*x = ServiceObject{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[154]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[157]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14520,7 +14771,7 @@ func (x *ServiceObject) String() string {
 func (*ServiceObject) ProtoMessage() {}
 
 func (x *ServiceObject) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[154]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[157]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14533,7 +14784,7 @@ func (x *ServiceObject) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceObject.ProtoReflect.Descriptor instead.
 func (*ServiceObject) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{154}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{157}
 }
 
 func (x *ServiceObject) GetProtocol() string {
@@ -14614,7 +14865,7 @@ type ServiceGroup struct {
 
 func (x *ServiceGroup) Reset() {
 	*x = ServiceGroup{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[155]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[158]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14626,7 +14877,7 @@ func (x *ServiceGroup) String() string {
 func (*ServiceGroup) ProtoMessage() {}
 
 func (x *ServiceGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[155]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[158]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14639,7 +14890,7 @@ func (x *ServiceGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceGroup.ProtoReflect.Descriptor instead.
 func (*ServiceGroup) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{155}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{158}
 }
 
 func (x *ServiceGroup) GetDescription() string {
@@ -14684,7 +14935,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[156]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[159]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14696,7 +14947,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[156]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[159]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14709,7 +14960,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{156}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{159}
 }
 
 func (x *Schedule) GetType() string {
@@ -14769,7 +15020,7 @@ type Zone struct {
 
 func (x *Zone) Reset() {
 	*x = Zone{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[157]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[160]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14781,7 +15032,7 @@ func (x *Zone) String() string {
 func (*Zone) ProtoMessage() {}
 
 func (x *Zone) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[157]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[160]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14794,7 +15045,7 @@ func (x *Zone) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Zone.ProtoReflect.Descriptor instead.
 func (*Zone) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{157}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{160}
 }
 
 func (x *Zone) GetDescription() string {
@@ -14831,7 +15082,7 @@ type Tag struct {
 
 func (x *Tag) Reset() {
 	*x = Tag{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[158]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[161]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14843,7 +15094,7 @@ func (x *Tag) String() string {
 func (*Tag) ProtoMessage() {}
 
 func (x *Tag) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[158]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[161]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14856,7 +15107,7 @@ func (x *Tag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tag.ProtoReflect.Descriptor instead.
 func (*Tag) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{158}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{161}
 }
 
 func (x *Tag) GetDescription() string {
@@ -14898,7 +15149,7 @@ type AclConfig struct {
 
 func (x *AclConfig) Reset() {
 	*x = AclConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[159]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[162]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -14910,7 +15161,7 @@ func (x *AclConfig) String() string {
 func (*AclConfig) ProtoMessage() {}
 
 func (x *AclConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[159]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[162]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -14923,7 +15174,7 @@ func (x *AclConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclConfig.ProtoReflect.Descriptor instead.
 func (*AclConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{159}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{162}
 }
 
 func (x *AclConfig) GetLists() map[string]*AclList {
@@ -14993,7 +15244,7 @@ type GlobalBlocking struct {
 
 func (x *GlobalBlocking) Reset() {
 	*x = GlobalBlocking{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[160]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[163]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15005,7 +15256,7 @@ func (x *GlobalBlocking) String() string {
 func (*GlobalBlocking) ProtoMessage() {}
 
 func (x *GlobalBlocking) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[160]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[163]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15018,7 +15269,7 @@ func (x *GlobalBlocking) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlobalBlocking.ProtoReflect.Descriptor instead.
 func (*GlobalBlocking) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{160}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{163}
 }
 
 func (x *GlobalBlocking) GetLists() map[string]*GlobalBlockingList {
@@ -15049,7 +15300,7 @@ type GlobalBlockingSource struct {
 
 func (x *GlobalBlockingSource) Reset() {
 	*x = GlobalBlockingSource{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[161]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[164]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15061,7 +15312,7 @@ func (x *GlobalBlockingSource) String() string {
 func (*GlobalBlockingSource) ProtoMessage() {}
 
 func (x *GlobalBlockingSource) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[161]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[164]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15074,7 +15325,7 @@ func (x *GlobalBlockingSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlobalBlockingSource.ProtoReflect.Descriptor instead.
 func (*GlobalBlockingSource) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{161}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{164}
 }
 
 func (x *GlobalBlockingSource) GetKind() string {
@@ -15146,7 +15397,7 @@ type GlobalBlockingList struct {
 
 func (x *GlobalBlockingList) Reset() {
 	*x = GlobalBlockingList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[162]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[165]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15158,7 +15409,7 @@ func (x *GlobalBlockingList) String() string {
 func (*GlobalBlockingList) ProtoMessage() {}
 
 func (x *GlobalBlockingList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[162]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[165]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15171,7 +15422,7 @@ func (x *GlobalBlockingList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GlobalBlockingList.ProtoReflect.Descriptor instead.
 func (*GlobalBlockingList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{162}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{165}
 }
 
 func (x *GlobalBlockingList) GetEnabled() bool {
@@ -15252,7 +15503,7 @@ type AddressMatch struct {
 
 func (x *AddressMatch) Reset() {
 	*x = AddressMatch{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[163]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[166]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15264,7 +15515,7 @@ func (x *AddressMatch) String() string {
 func (*AddressMatch) ProtoMessage() {}
 
 func (x *AddressMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[163]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[166]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15277,7 +15528,7 @@ func (x *AddressMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddressMatch.ProtoReflect.Descriptor instead.
 func (*AddressMatch) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{163}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{166}
 }
 
 func (x *AddressMatch) GetKind() string {
@@ -15316,7 +15567,7 @@ type ServiceMatch struct {
 
 func (x *ServiceMatch) Reset() {
 	*x = ServiceMatch{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[164]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[167]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15328,7 +15579,7 @@ func (x *ServiceMatch) String() string {
 func (*ServiceMatch) ProtoMessage() {}
 
 func (x *ServiceMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[164]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[167]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15341,7 +15592,7 @@ func (x *ServiceMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceMatch.ProtoReflect.Descriptor instead.
 func (*ServiceMatch) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{164}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{167}
 }
 
 func (x *ServiceMatch) GetKind() string {
@@ -15400,7 +15651,7 @@ type AclRule struct {
 
 func (x *AclRule) Reset() {
 	*x = AclRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[165]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[168]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15412,7 +15663,7 @@ func (x *AclRule) String() string {
 func (*AclRule) ProtoMessage() {}
 
 func (x *AclRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[165]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[168]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15425,7 +15676,7 @@ func (x *AclRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclRule.ProtoReflect.Descriptor instead.
 func (*AclRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{165}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{168}
 }
 
 func (x *AclRule) GetSequence() uint32 {
@@ -15534,7 +15785,7 @@ type AclList struct {
 
 func (x *AclList) Reset() {
 	*x = AclList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[166]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[169]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15546,7 +15797,7 @@ func (x *AclList) String() string {
 func (*AclList) ProtoMessage() {}
 
 func (x *AclList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[166]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[169]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15559,7 +15810,7 @@ func (x *AclList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclList.ProtoReflect.Descriptor instead.
 func (*AclList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{166}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{169}
 }
 
 func (x *AclList) GetDescription() string {
@@ -15604,7 +15855,7 @@ type MacipRule struct {
 
 func (x *MacipRule) Reset() {
 	*x = MacipRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[167]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[170]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15616,7 +15867,7 @@ func (x *MacipRule) String() string {
 func (*MacipRule) ProtoMessage() {}
 
 func (x *MacipRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[167]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[170]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15629,7 +15880,7 @@ func (x *MacipRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipRule.ProtoReflect.Descriptor instead.
 func (*MacipRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{167}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{170}
 }
 
 func (x *MacipRule) GetSequence() uint32 {
@@ -15689,7 +15940,7 @@ type MacipList struct {
 
 func (x *MacipList) Reset() {
 	*x = MacipList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[168]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[171]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15701,7 +15952,7 @@ func (x *MacipList) String() string {
 func (*MacipList) ProtoMessage() {}
 
 func (x *MacipList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[168]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[171]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15714,7 +15965,7 @@ func (x *MacipList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipList.ProtoReflect.Descriptor instead.
 func (*MacipList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{168}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{171}
 }
 
 func (x *MacipList) GetDescription() string {
@@ -15773,7 +16024,7 @@ type HostRule struct {
 
 func (x *HostRule) Reset() {
 	*x = HostRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[169]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[172]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15785,7 +16036,7 @@ func (x *HostRule) String() string {
 func (*HostRule) ProtoMessage() {}
 
 func (x *HostRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[169]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[172]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15798,7 +16049,7 @@ func (x *HostRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostRule.ProtoReflect.Descriptor instead.
 func (*HostRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{169}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{172}
 }
 
 func (x *HostRule) GetSequence() uint32 {
@@ -15907,7 +16158,7 @@ type HostList struct {
 
 func (x *HostList) Reset() {
 	*x = HostList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[170]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[173]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15919,7 +16170,7 @@ func (x *HostList) String() string {
 func (*HostList) ProtoMessage() {}
 
 func (x *HostList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[170]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[173]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15932,7 +16183,7 @@ func (x *HostList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostList.ProtoReflect.Descriptor instead.
 func (*HostList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{170}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{173}
 }
 
 func (x *HostList) GetDescription() string {
@@ -15971,7 +16222,7 @@ type AttachmentTarget struct {
 
 func (x *AttachmentTarget) Reset() {
 	*x = AttachmentTarget{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[171]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[174]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -15983,7 +16234,7 @@ func (x *AttachmentTarget) String() string {
 func (*AttachmentTarget) ProtoMessage() {}
 
 func (x *AttachmentTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[171]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[174]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -15996,7 +16247,7 @@ func (x *AttachmentTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AttachmentTarget.ProtoReflect.Descriptor instead.
 func (*AttachmentTarget) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{171}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{174}
 }
 
 func (x *AttachmentTarget) GetKind() string {
@@ -16043,7 +16294,7 @@ type AclAttachment struct {
 
 func (x *AclAttachment) Reset() {
 	*x = AclAttachment{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[172]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[175]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16055,7 +16306,7 @@ func (x *AclAttachment) String() string {
 func (*AclAttachment) ProtoMessage() {}
 
 func (x *AclAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[172]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[175]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16068,7 +16319,7 @@ func (x *AclAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclAttachment.ProtoReflect.Descriptor instead.
 func (*AclAttachment) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{172}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{175}
 }
 
 func (x *AclAttachment) GetList() string {
@@ -16139,7 +16390,7 @@ type MacipAttachment struct {
 
 func (x *MacipAttachment) Reset() {
 	*x = MacipAttachment{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[173]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[176]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16151,7 +16402,7 @@ func (x *MacipAttachment) String() string {
 func (*MacipAttachment) ProtoMessage() {}
 
 func (x *MacipAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[173]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[176]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16164,7 +16415,7 @@ func (x *MacipAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MacipAttachment.ProtoReflect.Descriptor instead.
 func (*MacipAttachment) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{173}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{176}
 }
 
 func (x *MacipAttachment) GetList() string {
@@ -16221,7 +16472,7 @@ type HostAttachment struct {
 
 func (x *HostAttachment) Reset() {
 	*x = HostAttachment{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[174]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[177]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16233,7 +16484,7 @@ func (x *HostAttachment) String() string {
 func (*HostAttachment) ProtoMessage() {}
 
 func (x *HostAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[174]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[177]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16246,7 +16497,7 @@ func (x *HostAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAttachment.ProtoReflect.Descriptor instead.
 func (*HostAttachment) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{174}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{177}
 }
 
 func (x *HostAttachment) GetList() string {
@@ -16301,7 +16552,7 @@ type VpnConfig struct {
 
 func (x *VpnConfig) Reset() {
 	*x = VpnConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[175]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[178]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16313,7 +16564,7 @@ func (x *VpnConfig) String() string {
 func (*VpnConfig) ProtoMessage() {}
 
 func (x *VpnConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[175]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[178]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16326,7 +16577,7 @@ func (x *VpnConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VpnConfig.ProtoReflect.Descriptor instead.
 func (*VpnConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{175}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{178}
 }
 
 func (x *VpnConfig) GetIpsec() *IpsecConfig {
@@ -16374,7 +16625,7 @@ type IkeProposal struct {
 
 func (x *IkeProposal) Reset() {
 	*x = IkeProposal{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[176]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[179]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16386,7 +16637,7 @@ func (x *IkeProposal) String() string {
 func (*IkeProposal) ProtoMessage() {}
 
 func (x *IkeProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[176]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[179]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16399,7 +16650,7 @@ func (x *IkeProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IkeProposal.ProtoReflect.Descriptor instead.
 func (*IkeProposal) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{176}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{179}
 }
 
 func (x *IkeProposal) GetEncr() string {
@@ -16445,7 +16696,7 @@ type EspProposal struct {
 
 func (x *EspProposal) Reset() {
 	*x = EspProposal{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[177]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[180]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16457,7 +16708,7 @@ func (x *EspProposal) String() string {
 func (*EspProposal) ProtoMessage() {}
 
 func (x *EspProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[177]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[180]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16470,7 +16721,7 @@ func (x *EspProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EspProposal.ProtoReflect.Descriptor instead.
 func (*EspProposal) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{177}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{180}
 }
 
 func (x *EspProposal) GetEncr() string {
@@ -16509,7 +16760,7 @@ type IpsecProposal struct {
 
 func (x *IpsecProposal) Reset() {
 	*x = IpsecProposal{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[178]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[181]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16521,7 +16772,7 @@ func (x *IpsecProposal) String() string {
 func (*IpsecProposal) ProtoMessage() {}
 
 func (x *IpsecProposal) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[178]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[181]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16534,7 +16785,7 @@ func (x *IpsecProposal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecProposal.ProtoReflect.Descriptor instead.
 func (*IpsecProposal) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{178}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{181}
 }
 
 func (x *IpsecProposal) GetDescription() string {
@@ -16575,7 +16826,7 @@ type IpsecAuth struct {
 
 func (x *IpsecAuth) Reset() {
 	*x = IpsecAuth{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[179]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[182]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16587,7 +16838,7 @@ func (x *IpsecAuth) String() string {
 func (*IpsecAuth) ProtoMessage() {}
 
 func (x *IpsecAuth) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[179]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[182]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16600,7 +16851,7 @@ func (x *IpsecAuth) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecAuth.ProtoReflect.Descriptor instead.
 func (*IpsecAuth) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{179}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{182}
 }
 
 func (x *IpsecAuth) GetMethod() string {
@@ -16648,7 +16899,7 @@ type IpsecDpd struct {
 
 func (x *IpsecDpd) Reset() {
 	*x = IpsecDpd{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[180]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[183]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16660,7 +16911,7 @@ func (x *IpsecDpd) String() string {
 func (*IpsecDpd) ProtoMessage() {}
 
 func (x *IpsecDpd) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[180]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[183]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16673,7 +16924,7 @@ func (x *IpsecDpd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecDpd.ProtoReflect.Descriptor instead.
 func (*IpsecDpd) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{180}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{183}
 }
 
 func (x *IpsecDpd) GetEnabled() bool {
@@ -16723,7 +16974,7 @@ type IpsecRekey struct {
 
 func (x *IpsecRekey) Reset() {
 	*x = IpsecRekey{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[181]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[184]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16735,7 +16986,7 @@ func (x *IpsecRekey) String() string {
 func (*IpsecRekey) ProtoMessage() {}
 
 func (x *IpsecRekey) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[181]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[184]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16748,7 +16999,7 @@ func (x *IpsecRekey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecRekey.ProtoReflect.Descriptor instead.
 func (*IpsecRekey) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{181}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{184}
 }
 
 func (x *IpsecRekey) GetIkeSec() uint32 {
@@ -16847,7 +17098,7 @@ type IpsecTunnel struct {
 
 func (x *IpsecTunnel) Reset() {
 	*x = IpsecTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[182]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[185]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -16859,7 +17110,7 @@ func (x *IpsecTunnel) String() string {
 func (*IpsecTunnel) ProtoMessage() {}
 
 func (x *IpsecTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[182]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[185]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -16872,7 +17123,7 @@ func (x *IpsecTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecTunnel.ProtoReflect.Descriptor instead.
 func (*IpsecTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{182}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{185}
 }
 
 func (x *IpsecTunnel) GetEnabled() bool {
@@ -17070,7 +17321,7 @@ type IpsecSettings struct {
 
 func (x *IpsecSettings) Reset() {
 	*x = IpsecSettings{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[183]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[186]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17082,7 +17333,7 @@ func (x *IpsecSettings) String() string {
 func (*IpsecSettings) ProtoMessage() {}
 
 func (x *IpsecSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[183]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[186]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17095,7 +17346,7 @@ func (x *IpsecSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecSettings.ProtoReflect.Descriptor instead.
 func (*IpsecSettings) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{183}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{186}
 }
 
 func (x *IpsecSettings) GetCryptoEngine() string {
@@ -17127,7 +17378,7 @@ type IpsecConfig struct {
 
 func (x *IpsecConfig) Reset() {
 	*x = IpsecConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[184]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[187]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17139,7 +17390,7 @@ func (x *IpsecConfig) String() string {
 func (*IpsecConfig) ProtoMessage() {}
 
 func (x *IpsecConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[184]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[187]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17152,7 +17403,7 @@ func (x *IpsecConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecConfig.ProtoReflect.Descriptor instead.
 func (*IpsecConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{184}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{187}
 }
 
 func (x *IpsecConfig) GetSettings() *IpsecSettings {
@@ -17197,7 +17448,7 @@ type WireguardPeer struct {
 
 func (x *WireguardPeer) Reset() {
 	*x = WireguardPeer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[185]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[188]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17209,7 +17460,7 @@ func (x *WireguardPeer) String() string {
 func (*WireguardPeer) ProtoMessage() {}
 
 func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[185]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[188]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17222,7 +17473,7 @@ func (x *WireguardPeer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeer.ProtoReflect.Descriptor instead.
 func (*WireguardPeer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{185}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{188}
 }
 
 func (x *WireguardPeer) GetDescription() string {
@@ -17300,7 +17551,7 @@ type WireguardInterface struct {
 
 func (x *WireguardInterface) Reset() {
 	*x = WireguardInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[186]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[189]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17312,7 +17563,7 @@ func (x *WireguardInterface) String() string {
 func (*WireguardInterface) ProtoMessage() {}
 
 func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[186]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[189]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17325,7 +17576,7 @@ func (x *WireguardInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardInterface.ProtoReflect.Descriptor instead.
 func (*WireguardInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{186}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{189}
 }
 
 func (x *WireguardInterface) GetEnabled() bool {
@@ -17423,7 +17674,7 @@ type WireguardConfig struct {
 
 func (x *WireguardConfig) Reset() {
 	*x = WireguardConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[187]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[190]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17435,7 +17686,7 @@ func (x *WireguardConfig) String() string {
 func (*WireguardConfig) ProtoMessage() {}
 
 func (x *WireguardConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[187]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[190]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17448,7 +17699,7 @@ func (x *WireguardConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardConfig.ProtoReflect.Descriptor instead.
 func (*WireguardConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{187}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{190}
 }
 
 func (x *WireguardConfig) GetInterfaces() map[string]*WireguardInterface {
@@ -17479,7 +17730,7 @@ type PkiCa struct {
 
 func (x *PkiCa) Reset() {
 	*x = PkiCa{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[188]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[191]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17491,7 +17742,7 @@ func (x *PkiCa) String() string {
 func (*PkiCa) ProtoMessage() {}
 
 func (x *PkiCa) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[188]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[191]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17504,7 +17755,7 @@ func (x *PkiCa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCa.ProtoReflect.Descriptor instead.
 func (*PkiCa) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{188}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{191}
 }
 
 func (x *PkiCa) GetDescription() string {
@@ -17574,7 +17825,7 @@ type PkiCertificate struct {
 
 func (x *PkiCertificate) Reset() {
 	*x = PkiCertificate{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[189]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[192]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17586,7 +17837,7 @@ func (x *PkiCertificate) String() string {
 func (*PkiCertificate) ProtoMessage() {}
 
 func (x *PkiCertificate) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[189]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[192]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17599,7 +17850,7 @@ func (x *PkiCertificate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCertificate.ProtoReflect.Descriptor instead.
 func (*PkiCertificate) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{189}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{192}
 }
 
 func (x *PkiCertificate) GetDescription() string {
@@ -17673,7 +17924,7 @@ type PkiConfig struct {
 
 func (x *PkiConfig) Reset() {
 	*x = PkiConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[190]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[193]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17685,7 +17936,7 @@ func (x *PkiConfig) String() string {
 func (*PkiConfig) ProtoMessage() {}
 
 func (x *PkiConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[190]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[193]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17698,7 +17949,7 @@ func (x *PkiConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiConfig.ProtoReflect.Descriptor instead.
 func (*PkiConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{190}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{193}
 }
 
 func (x *PkiConfig) GetCas() map[string]*PkiCa {
@@ -17737,7 +17988,7 @@ type RemoteAccessPool struct {
 
 func (x *RemoteAccessPool) Reset() {
 	*x = RemoteAccessPool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[191]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[194]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17749,7 +18000,7 @@ func (x *RemoteAccessPool) String() string {
 func (*RemoteAccessPool) ProtoMessage() {}
 
 func (x *RemoteAccessPool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[191]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[194]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17762,7 +18013,7 @@ func (x *RemoteAccessPool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessPool.ProtoReflect.Descriptor instead.
 func (*RemoteAccessPool) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{191}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{194}
 }
 
 func (x *RemoteAccessPool) GetName() string {
@@ -17799,7 +18050,7 @@ type RemoteAccessUser struct {
 
 func (x *RemoteAccessUser) Reset() {
 	*x = RemoteAccessUser{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[192]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[195]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17811,7 +18062,7 @@ func (x *RemoteAccessUser) String() string {
 func (*RemoteAccessUser) ProtoMessage() {}
 
 func (x *RemoteAccessUser) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[192]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[195]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17824,7 +18075,7 @@ func (x *RemoteAccessUser) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessUser.ProtoReflect.Descriptor instead.
 func (*RemoteAccessUser) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{192}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{195}
 }
 
 func (x *RemoteAccessUser) GetUsername() string {
@@ -17882,7 +18133,7 @@ type RemoteAccessProfile struct {
 
 func (x *RemoteAccessProfile) Reset() {
 	*x = RemoteAccessProfile{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[193]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[196]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -17894,7 +18145,7 @@ func (x *RemoteAccessProfile) String() string {
 func (*RemoteAccessProfile) ProtoMessage() {}
 
 func (x *RemoteAccessProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[193]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[196]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -17907,7 +18158,7 @@ func (x *RemoteAccessProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessProfile.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{193}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{196}
 }
 
 func (x *RemoteAccessProfile) GetEnabled() bool {
@@ -18042,7 +18293,7 @@ type Bond struct {
 
 func (x *Bond) Reset() {
 	*x = Bond{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[194]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[197]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18054,7 +18305,7 @@ func (x *Bond) String() string {
 func (*Bond) ProtoMessage() {}
 
 func (x *Bond) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[194]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[197]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18067,7 +18318,7 @@ func (x *Bond) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bond.ProtoReflect.Descriptor instead.
 func (*Bond) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{194}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{197}
 }
 
 func (x *Bond) GetMode() string {
@@ -18120,7 +18371,7 @@ type BondMember struct {
 
 func (x *BondMember) Reset() {
 	*x = BondMember{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[195]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[198]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18132,7 +18383,7 @@ func (x *BondMember) String() string {
 func (*BondMember) ProtoMessage() {}
 
 func (x *BondMember) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[195]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[198]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18145,7 +18396,7 @@ func (x *BondMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondMember.ProtoReflect.Descriptor instead.
 func (*BondMember) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{195}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{198}
 }
 
 func (x *BondMember) GetPassive() bool {
@@ -18181,7 +18432,7 @@ type BondStateRequest struct {
 
 func (x *BondStateRequest) Reset() {
 	*x = BondStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[196]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[199]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18193,7 +18444,7 @@ func (x *BondStateRequest) String() string {
 func (*BondStateRequest) ProtoMessage() {}
 
 func (x *BondStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[196]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[199]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18206,7 +18457,7 @@ func (x *BondStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondStateRequest.ProtoReflect.Descriptor instead.
 func (*BondStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{196}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{199}
 }
 
 func (x *BondStateRequest) GetNames() []string {
@@ -18236,7 +18487,7 @@ type BondStateResponse struct {
 
 func (x *BondStateResponse) Reset() {
 	*x = BondStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[197]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[200]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18248,7 +18499,7 @@ func (x *BondStateResponse) String() string {
 func (*BondStateResponse) ProtoMessage() {}
 
 func (x *BondStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[197]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[200]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18261,7 +18512,7 @@ func (x *BondStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondStateResponse.ProtoReflect.Descriptor instead.
 func (*BondStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{197}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{200}
 }
 
 func (x *BondStateResponse) GetBonds() []*BondStatus {
@@ -18314,7 +18565,7 @@ type BondStatus struct {
 
 func (x *BondStatus) Reset() {
 	*x = BondStatus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[198]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[201]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18326,7 +18577,7 @@ func (x *BondStatus) String() string {
 func (*BondStatus) ProtoMessage() {}
 
 func (x *BondStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[198]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[201]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18339,7 +18590,7 @@ func (x *BondStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondStatus.ProtoReflect.Descriptor instead.
 func (*BondStatus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{198}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{201}
 }
 
 func (x *BondStatus) GetName() string {
@@ -18447,7 +18698,7 @@ type BondMemberStatus struct {
 
 func (x *BondMemberStatus) Reset() {
 	*x = BondMemberStatus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[199]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[202]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18459,7 +18710,7 @@ func (x *BondMemberStatus) String() string {
 func (*BondMemberStatus) ProtoMessage() {}
 
 func (x *BondMemberStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[199]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[202]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18472,7 +18723,7 @@ func (x *BondMemberStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondMemberStatus.ProtoReflect.Descriptor instead.
 func (*BondMemberStatus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{199}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{202}
 }
 
 func (x *BondMemberStatus) GetInterface() string {
@@ -18556,7 +18807,7 @@ type BondLacpState struct {
 
 func (x *BondLacpState) Reset() {
 	*x = BondLacpState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[200]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[203]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18568,7 +18819,7 @@ func (x *BondLacpState) String() string {
 func (*BondLacpState) ProtoMessage() {}
 
 func (x *BondLacpState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[200]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[203]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18581,7 +18832,7 @@ func (x *BondLacpState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondLacpState.ProtoReflect.Descriptor instead.
 func (*BondLacpState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{200}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{203}
 }
 
 func (x *BondLacpState) GetRxState() string {
@@ -18646,7 +18897,7 @@ type BondLacpPort struct {
 
 func (x *BondLacpPort) Reset() {
 	*x = BondLacpPort{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[201]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[204]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18658,7 +18909,7 @@ func (x *BondLacpPort) String() string {
 func (*BondLacpPort) ProtoMessage() {}
 
 func (x *BondLacpPort) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[201]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[204]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18671,7 +18922,7 @@ func (x *BondLacpPort) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BondLacpPort.ProtoReflect.Descriptor instead.
 func (*BondLacpPort) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{201}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{204}
 }
 
 func (x *BondLacpPort) GetSystemPriority() uint32 {
@@ -18745,7 +18996,7 @@ type BridgeL2Port struct {
 
 func (x *BridgeL2Port) Reset() {
 	*x = BridgeL2Port{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[202]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[205]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18757,7 +19008,7 @@ func (x *BridgeL2Port) String() string {
 func (*BridgeL2Port) ProtoMessage() {}
 
 func (x *BridgeL2Port) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[202]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[205]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18770,7 +19021,7 @@ func (x *BridgeL2Port) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2Port.ProtoReflect.Descriptor instead.
 func (*BridgeL2Port) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{202}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{205}
 }
 
 func (x *BridgeL2Port) GetBridgeDomain() string {
@@ -18832,7 +19083,7 @@ type BridgeL2TagRewrite struct {
 
 func (x *BridgeL2TagRewrite) Reset() {
 	*x = BridgeL2TagRewrite{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[203]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[206]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18844,7 +19095,7 @@ func (x *BridgeL2TagRewrite) String() string {
 func (*BridgeL2TagRewrite) ProtoMessage() {}
 
 func (x *BridgeL2TagRewrite) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[203]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[206]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18857,7 +19108,7 @@ func (x *BridgeL2TagRewrite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2TagRewrite.ProtoReflect.Descriptor instead.
 func (*BridgeL2TagRewrite) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{203}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{206}
 }
 
 func (x *BridgeL2TagRewrite) GetOp() string {
@@ -18905,7 +19156,7 @@ type BridgeL2Config struct {
 
 func (x *BridgeL2Config) Reset() {
 	*x = BridgeL2Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[204]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[207]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18917,7 +19168,7 @@ func (x *BridgeL2Config) String() string {
 func (*BridgeL2Config) ProtoMessage() {}
 
 func (x *BridgeL2Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[204]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[207]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -18930,7 +19181,7 @@ func (x *BridgeL2Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2Config.ProtoReflect.Descriptor instead.
 func (*BridgeL2Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{204}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{207}
 }
 
 func (x *BridgeL2Config) GetBridgeDomains() map[string]*BridgeL2Domain {
@@ -18986,7 +19237,7 @@ type BridgeL2Domain struct {
 
 func (x *BridgeL2Domain) Reset() {
 	*x = BridgeL2Domain{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[205]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[208]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -18998,7 +19249,7 @@ func (x *BridgeL2Domain) String() string {
 func (*BridgeL2Domain) ProtoMessage() {}
 
 func (x *BridgeL2Domain) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[205]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[208]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19011,7 +19262,7 @@ func (x *BridgeL2Domain) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2Domain.ProtoReflect.Descriptor instead.
 func (*BridgeL2Domain) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{205}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{208}
 }
 
 func (x *BridgeL2Domain) GetId() uint32 {
@@ -19083,7 +19334,7 @@ type BridgeL2StaticMac struct {
 
 func (x *BridgeL2StaticMac) Reset() {
 	*x = BridgeL2StaticMac{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[206]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[209]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19095,7 +19346,7 @@ func (x *BridgeL2StaticMac) String() string {
 func (*BridgeL2StaticMac) ProtoMessage() {}
 
 func (x *BridgeL2StaticMac) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[206]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[209]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19108,7 +19359,7 @@ func (x *BridgeL2StaticMac) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2StaticMac.ProtoReflect.Descriptor instead.
 func (*BridgeL2StaticMac) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{206}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{209}
 }
 
 func (x *BridgeL2StaticMac) GetMac() string {
@@ -19136,7 +19387,7 @@ type BridgeL2Xconnect struct {
 
 func (x *BridgeL2Xconnect) Reset() {
 	*x = BridgeL2Xconnect{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[207]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[210]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19148,7 +19399,7 @@ func (x *BridgeL2Xconnect) String() string {
 func (*BridgeL2Xconnect) ProtoMessage() {}
 
 func (x *BridgeL2Xconnect) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[207]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[210]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19161,7 +19412,7 @@ func (x *BridgeL2Xconnect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2Xconnect.ProtoReflect.Descriptor instead.
 func (*BridgeL2Xconnect) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{207}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{210}
 }
 
 func (x *BridgeL2Xconnect) GetTx() string {
@@ -19184,7 +19435,7 @@ type BridgeL2L3Xc struct {
 
 func (x *BridgeL2L3Xc) Reset() {
 	*x = BridgeL2L3Xc{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[208]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[211]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19196,7 +19447,7 @@ func (x *BridgeL2L3Xc) String() string {
 func (*BridgeL2L3Xc) ProtoMessage() {}
 
 func (x *BridgeL2L3Xc) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[208]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[211]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19209,7 +19460,7 @@ func (x *BridgeL2L3Xc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2L3Xc.ProtoReflect.Descriptor instead.
 func (*BridgeL2L3Xc) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{208}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{211}
 }
 
 func (x *BridgeL2L3Xc) GetIpv4Paths() []*BridgeL2L3XcPath {
@@ -19245,7 +19496,7 @@ type BridgeL2L3XcPath struct {
 
 func (x *BridgeL2L3XcPath) Reset() {
 	*x = BridgeL2L3XcPath{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[209]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[212]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19257,7 +19508,7 @@ func (x *BridgeL2L3XcPath) String() string {
 func (*BridgeL2L3XcPath) ProtoMessage() {}
 
 func (x *BridgeL2L3XcPath) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[209]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[212]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19270,7 +19521,7 @@ func (x *BridgeL2L3XcPath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2L3XcPath.ProtoReflect.Descriptor instead.
 func (*BridgeL2L3XcPath) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{209}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{212}
 }
 
 func (x *BridgeL2L3XcPath) GetNextHop() string {
@@ -19323,7 +19574,7 @@ type BridgeL2MacFilter struct {
 
 func (x *BridgeL2MacFilter) Reset() {
 	*x = BridgeL2MacFilter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[210]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[213]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19335,7 +19586,7 @@ func (x *BridgeL2MacFilter) String() string {
 func (*BridgeL2MacFilter) ProtoMessage() {}
 
 func (x *BridgeL2MacFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[210]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[213]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19348,7 +19599,7 @@ func (x *BridgeL2MacFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2MacFilter.ProtoReflect.Descriptor instead.
 func (*BridgeL2MacFilter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{210}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{213}
 }
 
 func (x *BridgeL2MacFilter) GetMac() string {
@@ -19387,7 +19638,7 @@ type BridgeL2MacFilterRange struct {
 
 func (x *BridgeL2MacFilterRange) Reset() {
 	*x = BridgeL2MacFilterRange{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[211]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[214]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19399,7 +19650,7 @@ func (x *BridgeL2MacFilterRange) String() string {
 func (*BridgeL2MacFilterRange) ProtoMessage() {}
 
 func (x *BridgeL2MacFilterRange) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[211]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[214]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19412,7 +19663,7 @@ func (x *BridgeL2MacFilterRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeL2MacFilterRange.ProtoReflect.Descriptor instead.
 func (*BridgeL2MacFilterRange) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{211}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{214}
 }
 
 func (x *BridgeL2MacFilterRange) GetDays() []string {
@@ -19448,7 +19699,7 @@ type BridgeDomainStateRequest struct {
 
 func (x *BridgeDomainStateRequest) Reset() {
 	*x = BridgeDomainStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[212]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[215]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19460,7 +19711,7 @@ func (x *BridgeDomainStateRequest) String() string {
 func (*BridgeDomainStateRequest) ProtoMessage() {}
 
 func (x *BridgeDomainStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[212]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[215]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19473,7 +19724,7 @@ func (x *BridgeDomainStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainStateRequest.ProtoReflect.Descriptor instead.
 func (*BridgeDomainStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{212}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{215}
 }
 
 func (x *BridgeDomainStateRequest) GetIds() []uint32 {
@@ -19502,7 +19753,7 @@ type BridgeDomainStateResponse struct {
 
 func (x *BridgeDomainStateResponse) Reset() {
 	*x = BridgeDomainStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[213]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[216]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19514,7 +19765,7 @@ func (x *BridgeDomainStateResponse) String() string {
 func (*BridgeDomainStateResponse) ProtoMessage() {}
 
 func (x *BridgeDomainStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[213]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[216]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19527,7 +19778,7 @@ func (x *BridgeDomainStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainStateResponse.ProtoReflect.Descriptor instead.
 func (*BridgeDomainStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{213}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{216}
 }
 
 func (x *BridgeDomainStateResponse) GetBridgeDomains() []*BridgeDomainStatus {
@@ -19580,7 +19831,7 @@ type BridgeDomainStatus struct {
 
 func (x *BridgeDomainStatus) Reset() {
 	*x = BridgeDomainStatus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[214]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[217]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19592,7 +19843,7 @@ func (x *BridgeDomainStatus) String() string {
 func (*BridgeDomainStatus) ProtoMessage() {}
 
 func (x *BridgeDomainStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[214]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[217]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19605,7 +19856,7 @@ func (x *BridgeDomainStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainStatus.ProtoReflect.Descriptor instead.
 func (*BridgeDomainStatus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{214}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{217}
 }
 
 func (x *BridgeDomainStatus) GetId() uint32 {
@@ -19724,7 +19975,7 @@ type BridgeDomainMember struct {
 
 func (x *BridgeDomainMember) Reset() {
 	*x = BridgeDomainMember{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[215]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[218]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19736,7 +19987,7 @@ func (x *BridgeDomainMember) String() string {
 func (*BridgeDomainMember) ProtoMessage() {}
 
 func (x *BridgeDomainMember) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[215]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[218]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19749,7 +20000,7 @@ func (x *BridgeDomainMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainMember.ProtoReflect.Descriptor instead.
 func (*BridgeDomainMember) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{215}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{218}
 }
 
 func (x *BridgeDomainMember) GetInterface() string {
@@ -19804,7 +20055,7 @@ type BridgeDomainMacsRequest struct {
 
 func (x *BridgeDomainMacsRequest) Reset() {
 	*x = BridgeDomainMacsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[216]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[219]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19816,7 +20067,7 @@ func (x *BridgeDomainMacsRequest) String() string {
 func (*BridgeDomainMacsRequest) ProtoMessage() {}
 
 func (x *BridgeDomainMacsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[216]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[219]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19829,7 +20080,7 @@ func (x *BridgeDomainMacsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainMacsRequest.ProtoReflect.Descriptor instead.
 func (*BridgeDomainMacsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{216}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{219}
 }
 
 func (x *BridgeDomainMacsRequest) GetBdId() uint32 {
@@ -19874,7 +20125,7 @@ type BridgeDomainMacsResponse struct {
 
 func (x *BridgeDomainMacsResponse) Reset() {
 	*x = BridgeDomainMacsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[217]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[220]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19886,7 +20137,7 @@ func (x *BridgeDomainMacsResponse) String() string {
 func (*BridgeDomainMacsResponse) ProtoMessage() {}
 
 func (x *BridgeDomainMacsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[217]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[220]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19899,7 +20150,7 @@ func (x *BridgeDomainMacsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainMacsResponse.ProtoReflect.Descriptor instead.
 func (*BridgeDomainMacsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{217}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{220}
 }
 
 func (x *BridgeDomainMacsResponse) GetMacs() []*BridgeDomainMac {
@@ -19950,7 +20201,7 @@ type BridgeDomainMac struct {
 
 func (x *BridgeDomainMac) Reset() {
 	*x = BridgeDomainMac{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[218]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[221]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -19962,7 +20213,7 @@ func (x *BridgeDomainMac) String() string {
 func (*BridgeDomainMac) ProtoMessage() {}
 
 func (x *BridgeDomainMac) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[218]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[221]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -19975,7 +20226,7 @@ func (x *BridgeDomainMac) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BridgeDomainMac.ProtoReflect.Descriptor instead.
 func (*BridgeDomainMac) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{218}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{221}
 }
 
 func (x *BridgeDomainMac) GetMac() string {
@@ -20035,7 +20286,7 @@ type MirrorSession struct {
 
 func (x *MirrorSession) Reset() {
 	*x = MirrorSession{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[219]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[222]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20047,7 +20298,7 @@ func (x *MirrorSession) String() string {
 func (*MirrorSession) ProtoMessage() {}
 
 func (x *MirrorSession) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[219]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[222]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20060,7 +20311,7 @@ func (x *MirrorSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MirrorSession.ProtoReflect.Descriptor instead.
 func (*MirrorSession) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{219}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{222}
 }
 
 func (x *MirrorSession) GetDestination() string {
@@ -20106,7 +20357,7 @@ type NsimService struct {
 
 func (x *NsimService) Reset() {
 	*x = NsimService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[220]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[223]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20118,7 +20369,7 @@ func (x *NsimService) String() string {
 func (*NsimService) ProtoMessage() {}
 
 func (x *NsimService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[220]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[223]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20131,7 +20382,7 @@ func (x *NsimService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NsimService.ProtoReflect.Descriptor instead.
 func (*NsimService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{220}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{223}
 }
 
 func (x *NsimService) GetDelayMs() float64 {
@@ -20191,7 +20442,7 @@ type LldpNeighborsRequest struct {
 
 func (x *LldpNeighborsRequest) Reset() {
 	*x = LldpNeighborsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[221]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[224]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20203,7 +20454,7 @@ func (x *LldpNeighborsRequest) String() string {
 func (*LldpNeighborsRequest) ProtoMessage() {}
 
 func (x *LldpNeighborsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[221]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[224]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20216,7 +20467,7 @@ func (x *LldpNeighborsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpNeighborsRequest.ProtoReflect.Descriptor instead.
 func (*LldpNeighborsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{221}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{224}
 }
 
 func (x *LldpNeighborsRequest) GetOffset() uint32 {
@@ -20254,7 +20505,7 @@ type LldpNeighborsResponse struct {
 
 func (x *LldpNeighborsResponse) Reset() {
 	*x = LldpNeighborsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[222]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[225]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20266,7 +20517,7 @@ func (x *LldpNeighborsResponse) String() string {
 func (*LldpNeighborsResponse) ProtoMessage() {}
 
 func (x *LldpNeighborsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[222]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[225]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20279,7 +20530,7 @@ func (x *LldpNeighborsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpNeighborsResponse.ProtoReflect.Descriptor instead.
 func (*LldpNeighborsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{222}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{225}
 }
 
 func (x *LldpNeighborsResponse) GetNeighbors() []*LldpNeighbor {
@@ -20340,7 +20591,7 @@ type LldpNeighbor struct {
 
 func (x *LldpNeighbor) Reset() {
 	*x = LldpNeighbor{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[223]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[226]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20352,7 +20603,7 @@ func (x *LldpNeighbor) String() string {
 func (*LldpNeighbor) ProtoMessage() {}
 
 func (x *LldpNeighbor) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[223]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[226]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20365,7 +20616,7 @@ func (x *LldpNeighbor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpNeighbor.ProtoReflect.Descriptor instead.
 func (*LldpNeighbor) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{223}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{226}
 }
 
 func (x *LldpNeighbor) GetInterface() string {
@@ -20451,7 +20702,7 @@ type VrfSourceSelect struct {
 
 func (x *VrfSourceSelect) Reset() {
 	*x = VrfSourceSelect{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[224]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[227]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20463,7 +20714,7 @@ func (x *VrfSourceSelect) String() string {
 func (*VrfSourceSelect) ProtoMessage() {}
 
 func (x *VrfSourceSelect) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[224]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[227]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20476,7 +20727,7 @@ func (x *VrfSourceSelect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VrfSourceSelect.ProtoReflect.Descriptor instead.
 func (*VrfSourceSelect) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{224}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{227}
 }
 
 func (x *VrfSourceSelect) GetPrefix() string {
@@ -20517,7 +20768,7 @@ type ListRoutesRequest struct {
 
 func (x *ListRoutesRequest) Reset() {
 	*x = ListRoutesRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[225]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[228]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20529,7 +20780,7 @@ func (x *ListRoutesRequest) String() string {
 func (*ListRoutesRequest) ProtoMessage() {}
 
 func (x *ListRoutesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[225]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[228]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20542,7 +20793,7 @@ func (x *ListRoutesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutesRequest.ProtoReflect.Descriptor instead.
 func (*ListRoutesRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{225}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{228}
 }
 
 func (x *ListRoutesRequest) GetOwner() string {
@@ -20614,7 +20865,7 @@ type ListRoutesResponse struct {
 
 func (x *ListRoutesResponse) Reset() {
 	*x = ListRoutesResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[226]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[229]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20626,7 +20877,7 @@ func (x *ListRoutesResponse) String() string {
 func (*ListRoutesResponse) ProtoMessage() {}
 
 func (x *ListRoutesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[226]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[229]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20639,7 +20890,7 @@ func (x *ListRoutesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutesResponse.ProtoReflect.Descriptor instead.
 func (*ListRoutesResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{226}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{229}
 }
 
 func (x *ListRoutesResponse) GetRoutes() []*ListRoutesEntry {
@@ -20701,7 +20952,7 @@ type ListRoutesEntry struct {
 
 func (x *ListRoutesEntry) Reset() {
 	*x = ListRoutesEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[227]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[230]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20713,7 +20964,7 @@ func (x *ListRoutesEntry) String() string {
 func (*ListRoutesEntry) ProtoMessage() {}
 
 func (x *ListRoutesEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[227]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[230]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20726,7 +20977,7 @@ func (x *ListRoutesEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutesEntry.ProtoReflect.Descriptor instead.
 func (*ListRoutesEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{227}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{230}
 }
 
 func (x *ListRoutesEntry) GetPrefix() string {
@@ -20780,7 +21031,7 @@ type ListRoutesPath struct {
 
 func (x *ListRoutesPath) Reset() {
 	*x = ListRoutesPath{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[228]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[231]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20792,7 +21043,7 @@ func (x *ListRoutesPath) String() string {
 func (*ListRoutesPath) ProtoMessage() {}
 
 func (x *ListRoutesPath) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[228]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[231]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20805,7 +21056,7 @@ func (x *ListRoutesPath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListRoutesPath.ProtoReflect.Descriptor instead.
 func (*ListRoutesPath) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{228}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{231}
 }
 
 func (x *ListRoutesPath) GetType() string {
@@ -20881,7 +21132,7 @@ type Ipv6Ra struct {
 
 func (x *Ipv6Ra) Reset() {
 	*x = Ipv6Ra{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[229]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[232]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20893,7 +21144,7 @@ func (x *Ipv6Ra) String() string {
 func (*Ipv6Ra) ProtoMessage() {}
 
 func (x *Ipv6Ra) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[229]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[232]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -20906,7 +21157,7 @@ func (x *Ipv6Ra) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ipv6Ra.ProtoReflect.Descriptor instead.
 func (*Ipv6Ra) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{229}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{232}
 }
 
 func (x *Ipv6Ra) GetSuppress() bool {
@@ -20975,7 +21226,7 @@ type Ipv6RaPrefix struct {
 
 func (x *Ipv6RaPrefix) Reset() {
 	*x = Ipv6RaPrefix{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[230]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[233]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -20987,7 +21238,7 @@ func (x *Ipv6RaPrefix) String() string {
 func (*Ipv6RaPrefix) ProtoMessage() {}
 
 func (x *Ipv6RaPrefix) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[230]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[233]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21000,7 +21251,7 @@ func (x *Ipv6RaPrefix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ipv6RaPrefix.ProtoReflect.Descriptor instead.
 func (*Ipv6RaPrefix) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{230}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{233}
 }
 
 func (x *Ipv6RaPrefix) GetValidSec() uint32 {
@@ -21044,7 +21295,7 @@ type ProxyArpRange struct {
 
 func (x *ProxyArpRange) Reset() {
 	*x = ProxyArpRange{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[231]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[234]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21056,7 +21307,7 @@ func (x *ProxyArpRange) String() string {
 func (*ProxyArpRange) ProtoMessage() {}
 
 func (x *ProxyArpRange) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[231]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[234]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21069,7 +21320,7 @@ func (x *ProxyArpRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProxyArpRange.ProtoReflect.Descriptor instead.
 func (*ProxyArpRange) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{231}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{234}
 }
 
 func (x *ProxyArpRange) GetLow() string {
@@ -21103,7 +21354,7 @@ type NeighborsConfig struct {
 
 func (x *NeighborsConfig) Reset() {
 	*x = NeighborsConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[232]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[235]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21115,7 +21366,7 @@ func (x *NeighborsConfig) String() string {
 func (*NeighborsConfig) ProtoMessage() {}
 
 func (x *NeighborsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[232]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[235]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21128,7 +21379,7 @@ func (x *NeighborsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NeighborsConfig.ProtoReflect.Descriptor instead.
 func (*NeighborsConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{232}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{235}
 }
 
 func (x *NeighborsConfig) GetStatic() []*StaticNeighbor {
@@ -21176,7 +21427,7 @@ type StaticNeighbor struct {
 
 func (x *StaticNeighbor) Reset() {
 	*x = StaticNeighbor{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[233]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[236]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21188,7 +21439,7 @@ func (x *StaticNeighbor) String() string {
 func (*StaticNeighbor) ProtoMessage() {}
 
 func (x *StaticNeighbor) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[233]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[236]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21201,7 +21452,7 @@ func (x *StaticNeighbor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StaticNeighbor.ProtoReflect.Descriptor instead.
 func (*StaticNeighbor) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{233}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{236}
 }
 
 func (x *StaticNeighbor) GetInterface() string {
@@ -21247,7 +21498,7 @@ type NeighborLimits struct {
 
 func (x *NeighborLimits) Reset() {
 	*x = NeighborLimits{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[234]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[237]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21259,7 +21510,7 @@ func (x *NeighborLimits) String() string {
 func (*NeighborLimits) ProtoMessage() {}
 
 func (x *NeighborLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[234]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[237]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21272,7 +21523,7 @@ func (x *NeighborLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NeighborLimits.ProtoReflect.Descriptor instead.
 func (*NeighborLimits) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{234}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{237}
 }
 
 func (x *NeighborLimits) GetMaxNumber() uint32 {
@@ -21309,7 +21560,7 @@ type NeighborDad struct {
 
 func (x *NeighborDad) Reset() {
 	*x = NeighborDad{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[235]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[238]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21321,7 +21572,7 @@ func (x *NeighborDad) String() string {
 func (*NeighborDad) ProtoMessage() {}
 
 func (x *NeighborDad) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[235]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[238]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21334,7 +21585,7 @@ func (x *NeighborDad) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NeighborDad.ProtoReflect.Descriptor instead.
 func (*NeighborDad) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{235}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{238}
 }
 
 func (x *NeighborDad) GetTransmits() uint32 {
@@ -21380,7 +21631,7 @@ type ListNeighborsRequest struct {
 
 func (x *ListNeighborsRequest) Reset() {
 	*x = ListNeighborsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[236]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[239]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21392,7 +21643,7 @@ func (x *ListNeighborsRequest) String() string {
 func (*ListNeighborsRequest) ProtoMessage() {}
 
 func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[236]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[239]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21405,7 +21656,7 @@ func (x *ListNeighborsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborsRequest.ProtoReflect.Descriptor instead.
 func (*ListNeighborsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{236}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{239}
 }
 
 func (x *ListNeighborsRequest) GetOwner() string {
@@ -21495,7 +21746,7 @@ type ListNeighborsResponse struct {
 
 func (x *ListNeighborsResponse) Reset() {
 	*x = ListNeighborsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[237]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[240]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21507,7 +21758,7 @@ func (x *ListNeighborsResponse) String() string {
 func (*ListNeighborsResponse) ProtoMessage() {}
 
 func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[237]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[240]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21520,7 +21771,7 @@ func (x *ListNeighborsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListNeighborsResponse.ProtoReflect.Descriptor instead.
 func (*ListNeighborsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{237}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{240}
 }
 
 func (x *ListNeighborsResponse) GetNeighbors() []*NeighborEntry {
@@ -21579,7 +21830,7 @@ type NeighborEntry struct {
 
 func (x *NeighborEntry) Reset() {
 	*x = NeighborEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[238]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[241]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21591,7 +21842,7 @@ func (x *NeighborEntry) String() string {
 func (*NeighborEntry) ProtoMessage() {}
 
 func (x *NeighborEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[238]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[241]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21604,7 +21855,7 @@ func (x *NeighborEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NeighborEntry.ProtoReflect.Descriptor instead.
 func (*NeighborEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{238}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{241}
 }
 
 func (x *NeighborEntry) GetInterface() string {
@@ -21685,7 +21936,7 @@ type ArpFlushAction struct {
 
 func (x *ArpFlushAction) Reset() {
 	*x = ArpFlushAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[239]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[242]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21697,7 +21948,7 @@ func (x *ArpFlushAction) String() string {
 func (*ArpFlushAction) ProtoMessage() {}
 
 func (x *ArpFlushAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[239]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[242]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21710,7 +21961,7 @@ func (x *ArpFlushAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArpFlushAction.ProtoReflect.Descriptor instead.
 func (*ArpFlushAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{239}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{242}
 }
 
 func (x *ArpFlushAction) GetInterface() string {
@@ -21743,7 +21994,7 @@ type UrpfConfig struct {
 
 func (x *UrpfConfig) Reset() {
 	*x = UrpfConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[240]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[243]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21755,7 +22006,7 @@ func (x *UrpfConfig) String() string {
 func (*UrpfConfig) ProtoMessage() {}
 
 func (x *UrpfConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[240]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[243]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21768,7 +22019,7 @@ func (x *UrpfConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UrpfConfig.ProtoReflect.Descriptor instead.
 func (*UrpfConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{240}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{243}
 }
 
 func (x *UrpfConfig) GetIpv4() string {
@@ -21810,7 +22061,7 @@ type AdlConfig struct {
 
 func (x *AdlConfig) Reset() {
 	*x = AdlConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[241]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[244]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21822,7 +22073,7 @@ func (x *AdlConfig) String() string {
 func (*AdlConfig) ProtoMessage() {}
 
 func (x *AdlConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[241]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[244]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21835,7 +22086,7 @@ func (x *AdlConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdlConfig.ProtoReflect.Descriptor instead.
 func (*AdlConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{241}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{244}
 }
 
 func (x *AdlConfig) GetIpv4() bool {
@@ -21879,7 +22130,7 @@ type PbrConfig struct {
 
 func (x *PbrConfig) Reset() {
 	*x = PbrConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[242]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[245]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21891,7 +22142,7 @@ func (x *PbrConfig) String() string {
 func (*PbrConfig) ProtoMessage() {}
 
 func (x *PbrConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[242]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[245]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21904,7 +22155,7 @@ func (x *PbrConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PbrConfig.ProtoReflect.Descriptor instead.
 func (*PbrConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{242}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{245}
 }
 
 func (x *PbrConfig) GetPolicies() map[string]*PbrPolicy {
@@ -21936,7 +22187,7 @@ type PbrPolicy struct {
 
 func (x *PbrPolicy) Reset() {
 	*x = PbrPolicy{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[243]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[246]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -21948,7 +22199,7 @@ func (x *PbrPolicy) String() string {
 func (*PbrPolicy) ProtoMessage() {}
 
 func (x *PbrPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[243]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[246]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -21961,7 +22212,7 @@ func (x *PbrPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PbrPolicy.ProtoReflect.Descriptor instead.
 func (*PbrPolicy) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{243}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{246}
 }
 
 func (x *PbrPolicy) GetAcl() string {
@@ -22002,7 +22253,7 @@ type PbrPath struct {
 
 func (x *PbrPath) Reset() {
 	*x = PbrPath{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[244]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[247]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22014,7 +22265,7 @@ func (x *PbrPath) String() string {
 func (*PbrPath) ProtoMessage() {}
 
 func (x *PbrPath) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[244]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[247]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22027,7 +22278,7 @@ func (x *PbrPath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PbrPath.ProtoReflect.Descriptor instead.
 func (*PbrPath) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{244}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{247}
 }
 
 func (x *PbrPath) GetAddress() string {
@@ -22073,7 +22324,7 @@ type PbrAttachment struct {
 
 func (x *PbrAttachment) Reset() {
 	*x = PbrAttachment{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[245]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[248]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22085,7 +22336,7 @@ func (x *PbrAttachment) String() string {
 func (*PbrAttachment) ProtoMessage() {}
 
 func (x *PbrAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[245]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[248]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22098,7 +22349,7 @@ func (x *PbrAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PbrAttachment.ProtoReflect.Descriptor instead.
 func (*PbrAttachment) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{245}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{248}
 }
 
 func (x *PbrAttachment) GetPolicy() string {
@@ -22137,7 +22388,7 @@ type AutoSdlConfig struct {
 
 func (x *AutoSdlConfig) Reset() {
 	*x = AutoSdlConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[246]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[249]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22149,7 +22400,7 @@ func (x *AutoSdlConfig) String() string {
 func (*AutoSdlConfig) ProtoMessage() {}
 
 func (x *AutoSdlConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[246]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[249]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22162,7 +22413,7 @@ func (x *AutoSdlConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoSdlConfig.ProtoReflect.Descriptor instead.
 func (*AutoSdlConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{246}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{249}
 }
 
 func (x *AutoSdlConfig) GetEnabled() bool {
@@ -22199,7 +22450,7 @@ type FqdnObjectStateRequest struct {
 
 func (x *FqdnObjectStateRequest) Reset() {
 	*x = FqdnObjectStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[247]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[250]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22211,7 +22462,7 @@ func (x *FqdnObjectStateRequest) String() string {
 func (*FqdnObjectStateRequest) ProtoMessage() {}
 
 func (x *FqdnObjectStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[247]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[250]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22224,7 +22475,7 @@ func (x *FqdnObjectStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FqdnObjectStateRequest.ProtoReflect.Descriptor instead.
 func (*FqdnObjectStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{247}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{250}
 }
 
 func (x *FqdnObjectStateRequest) GetNames() []string {
@@ -22256,7 +22507,7 @@ type FqdnObjectStateResponse struct {
 
 func (x *FqdnObjectStateResponse) Reset() {
 	*x = FqdnObjectStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[248]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[251]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22268,7 +22519,7 @@ func (x *FqdnObjectStateResponse) String() string {
 func (*FqdnObjectStateResponse) ProtoMessage() {}
 
 func (x *FqdnObjectStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[248]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[251]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22281,7 +22532,7 @@ func (x *FqdnObjectStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FqdnObjectStateResponse.ProtoReflect.Descriptor instead.
 func (*FqdnObjectStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{248}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{251}
 }
 
 func (x *FqdnObjectStateResponse) GetObjects() []*FqdnObjectState {
@@ -22329,7 +22580,7 @@ type FqdnObjectState struct {
 
 func (x *FqdnObjectState) Reset() {
 	*x = FqdnObjectState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[249]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[252]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22341,7 +22592,7 @@ func (x *FqdnObjectState) String() string {
 func (*FqdnObjectState) ProtoMessage() {}
 
 func (x *FqdnObjectState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[249]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[252]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22354,7 +22605,7 @@ func (x *FqdnObjectState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FqdnObjectState.ProtoReflect.Descriptor instead.
 func (*FqdnObjectState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{249}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{252}
 }
 
 func (x *FqdnObjectState) GetName() string {
@@ -22427,7 +22678,7 @@ type AclStateRequest struct {
 
 func (x *AclStateRequest) Reset() {
 	*x = AclStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[250]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[253]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22439,7 +22690,7 @@ func (x *AclStateRequest) String() string {
 func (*AclStateRequest) ProtoMessage() {}
 
 func (x *AclStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[250]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[253]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22452,7 +22703,7 @@ func (x *AclStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclStateRequest.ProtoReflect.Descriptor instead.
 func (*AclStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{250}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{253}
 }
 
 func (x *AclStateRequest) GetOwner() string {
@@ -22510,7 +22761,7 @@ type AclStateFilter struct {
 
 func (x *AclStateFilter) Reset() {
 	*x = AclStateFilter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[251]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[254]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22522,7 +22773,7 @@ func (x *AclStateFilter) String() string {
 func (*AclStateFilter) ProtoMessage() {}
 
 func (x *AclStateFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[251]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[254]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22535,7 +22786,7 @@ func (x *AclStateFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclStateFilter.ProtoReflect.Descriptor instead.
 func (*AclStateFilter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{251}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{254}
 }
 
 func (x *AclStateFilter) GetSequences() []uint32 {
@@ -22580,7 +22831,7 @@ type AclStateResponse struct {
 
 func (x *AclStateResponse) Reset() {
 	*x = AclStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[252]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[255]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22592,7 +22843,7 @@ func (x *AclStateResponse) String() string {
 func (*AclStateResponse) ProtoMessage() {}
 
 func (x *AclStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[252]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[255]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22605,7 +22856,7 @@ func (x *AclStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclStateResponse.ProtoReflect.Descriptor instead.
 func (*AclStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{252}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{255}
 }
 
 func (x *AclStateResponse) GetOwner() string {
@@ -22694,7 +22945,7 @@ type AclListState struct {
 
 func (x *AclListState) Reset() {
 	*x = AclListState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[253]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[256]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22706,7 +22957,7 @@ func (x *AclListState) String() string {
 func (*AclListState) ProtoMessage() {}
 
 func (x *AclListState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[253]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[256]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22719,7 +22970,7 @@ func (x *AclListState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclListState.ProtoReflect.Descriptor instead.
 func (*AclListState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{253}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{256}
 }
 
 func (x *AclListState) GetName() string {
@@ -22792,7 +23043,7 @@ type AclRuleState struct {
 
 func (x *AclRuleState) Reset() {
 	*x = AclRuleState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[254]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[257]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22804,7 +23055,7 @@ func (x *AclRuleState) String() string {
 func (*AclRuleState) ProtoMessage() {}
 
 func (x *AclRuleState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[254]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[257]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22817,7 +23068,7 @@ func (x *AclRuleState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclRuleState.ProtoReflect.Descriptor instead.
 func (*AclRuleState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{254}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{257}
 }
 
 func (x *AclRuleState) GetSequence() uint32 {
@@ -22881,7 +23132,7 @@ type AclInterfaceState struct {
 
 func (x *AclInterfaceState) Reset() {
 	*x = AclInterfaceState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[255]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[258]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22893,7 +23144,7 @@ func (x *AclInterfaceState) String() string {
 func (*AclInterfaceState) ProtoMessage() {}
 
 func (x *AclInterfaceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[255]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[258]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22906,7 +23157,7 @@ func (x *AclInterfaceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclInterfaceState.ProtoReflect.Descriptor instead.
 func (*AclInterfaceState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{255}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{258}
 }
 
 func (x *AclInterfaceState) GetInterface() string {
@@ -22961,7 +23212,7 @@ type AclBoundAcl struct {
 
 func (x *AclBoundAcl) Reset() {
 	*x = AclBoundAcl{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[256]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[259]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -22973,7 +23224,7 @@ func (x *AclBoundAcl) String() string {
 func (*AclBoundAcl) ProtoMessage() {}
 
 func (x *AclBoundAcl) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[256]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[259]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -22986,7 +23237,7 @@ func (x *AclBoundAcl) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AclBoundAcl.ProtoReflect.Descriptor instead.
 func (*AclBoundAcl) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{256}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{259}
 }
 
 func (x *AclBoundAcl) GetAclIndex() uint32 {
@@ -23034,7 +23285,7 @@ type HostAclSettings struct {
 
 func (x *HostAclSettings) Reset() {
 	*x = HostAclSettings{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[257]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[260]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23046,7 +23297,7 @@ func (x *HostAclSettings) String() string {
 func (*HostAclSettings) ProtoMessage() {}
 
 func (x *HostAclSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[257]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[260]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23059,7 +23310,7 @@ func (x *HostAclSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclSettings.ProtoReflect.Descriptor instead.
 func (*HostAclSettings) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{257}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{260}
 }
 
 func (x *HostAclSettings) GetDefaultInput() string {
@@ -23102,7 +23353,7 @@ type HostAclAntiLockout struct {
 
 func (x *HostAclAntiLockout) Reset() {
 	*x = HostAclAntiLockout{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[258]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[261]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23114,7 +23365,7 @@ func (x *HostAclAntiLockout) String() string {
 func (*HostAclAntiLockout) ProtoMessage() {}
 
 func (x *HostAclAntiLockout) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[258]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[261]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23127,7 +23378,7 @@ func (x *HostAclAntiLockout) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclAntiLockout.ProtoReflect.Descriptor instead.
 func (*HostAclAntiLockout) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{258}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{261}
 }
 
 func (x *HostAclAntiLockout) GetEnabled() bool {
@@ -23169,7 +23420,7 @@ type HostAclStateRequest struct {
 
 func (x *HostAclStateRequest) Reset() {
 	*x = HostAclStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[259]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[262]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23181,7 +23432,7 @@ func (x *HostAclStateRequest) String() string {
 func (*HostAclStateRequest) ProtoMessage() {}
 
 func (x *HostAclStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[259]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[262]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23194,7 +23445,7 @@ func (x *HostAclStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclStateRequest.ProtoReflect.Descriptor instead.
 func (*HostAclStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{259}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{262}
 }
 
 func (x *HostAclStateRequest) GetOwner() string {
@@ -23232,7 +23483,7 @@ type HostAclStateResponse struct {
 
 func (x *HostAclStateResponse) Reset() {
 	*x = HostAclStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[260]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[263]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23244,7 +23495,7 @@ func (x *HostAclStateResponse) String() string {
 func (*HostAclStateResponse) ProtoMessage() {}
 
 func (x *HostAclStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[260]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[263]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23257,7 +23508,7 @@ func (x *HostAclStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclStateResponse.ProtoReflect.Descriptor instead.
 func (*HostAclStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{260}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{263}
 }
 
 func (x *HostAclStateResponse) GetOwner() string {
@@ -23333,7 +23584,7 @@ type HostAclSetState struct {
 
 func (x *HostAclSetState) Reset() {
 	*x = HostAclSetState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[261]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[264]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23345,7 +23596,7 @@ func (x *HostAclSetState) String() string {
 func (*HostAclSetState) ProtoMessage() {}
 
 func (x *HostAclSetState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[261]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[264]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23358,7 +23609,7 @@ func (x *HostAclSetState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclSetState.ProtoReflect.Descriptor instead.
 func (*HostAclSetState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{261}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{264}
 }
 
 func (x *HostAclSetState) GetName() string {
@@ -23410,7 +23661,7 @@ type HostAclChainState struct {
 
 func (x *HostAclChainState) Reset() {
 	*x = HostAclChainState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[262]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[265]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23422,7 +23673,7 @@ func (x *HostAclChainState) String() string {
 func (*HostAclChainState) ProtoMessage() {}
 
 func (x *HostAclChainState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[262]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[265]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23435,7 +23686,7 @@ func (x *HostAclChainState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclChainState.ProtoReflect.Descriptor instead.
 func (*HostAclChainState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{262}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{265}
 }
 
 func (x *HostAclChainState) GetName() string {
@@ -23507,7 +23758,7 @@ type HostAclRuleState struct {
 
 func (x *HostAclRuleState) Reset() {
 	*x = HostAclRuleState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[263]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[266]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23519,7 +23770,7 @@ func (x *HostAclRuleState) String() string {
 func (*HostAclRuleState) ProtoMessage() {}
 
 func (x *HostAclRuleState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[263]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[266]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23532,7 +23783,7 @@ func (x *HostAclRuleState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostAclRuleState.ProtoReflect.Descriptor instead.
 func (*HostAclRuleState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{263}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{266}
 }
 
 func (x *HostAclRuleState) GetKind() string {
@@ -23619,7 +23870,7 @@ type NatSessionFilter struct {
 
 func (x *NatSessionFilter) Reset() {
 	*x = NatSessionFilter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[264]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[267]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23631,7 +23882,7 @@ func (x *NatSessionFilter) String() string {
 func (*NatSessionFilter) ProtoMessage() {}
 
 func (x *NatSessionFilter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[264]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[267]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23644,7 +23895,7 @@ func (x *NatSessionFilter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSessionFilter.ProtoReflect.Descriptor instead.
 func (*NatSessionFilter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{264}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{267}
 }
 
 func (x *NatSessionFilter) GetInsideAddress() string {
@@ -23710,7 +23961,7 @@ type NatSessionsRequest struct {
 
 func (x *NatSessionsRequest) Reset() {
 	*x = NatSessionsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[265]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[268]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23722,7 +23973,7 @@ func (x *NatSessionsRequest) String() string {
 func (*NatSessionsRequest) ProtoMessage() {}
 
 func (x *NatSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[265]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[268]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23735,7 +23986,7 @@ func (x *NatSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSessionsRequest.ProtoReflect.Descriptor instead.
 func (*NatSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{265}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{268}
 }
 
 func (x *NatSessionsRequest) GetOwner() string {
@@ -23817,7 +24068,7 @@ type NatSession struct {
 
 func (x *NatSession) Reset() {
 	*x = NatSession{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[266]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[269]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -23829,7 +24080,7 @@ func (x *NatSession) String() string {
 func (*NatSession) ProtoMessage() {}
 
 func (x *NatSession) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[266]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[269]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -23842,7 +24093,7 @@ func (x *NatSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSession.ProtoReflect.Descriptor instead.
 func (*NatSession) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{266}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{269}
 }
 
 func (x *NatSession) GetInsideAddress() string {
@@ -23991,7 +24242,7 @@ type NatSessionsResponse struct {
 
 func (x *NatSessionsResponse) Reset() {
 	*x = NatSessionsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[267]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[270]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24003,7 +24254,7 @@ func (x *NatSessionsResponse) String() string {
 func (*NatSessionsResponse) ProtoMessage() {}
 
 func (x *NatSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[267]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[270]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24016,7 +24267,7 @@ func (x *NatSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSessionsResponse.ProtoReflect.Descriptor instead.
 func (*NatSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{267}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{270}
 }
 
 func (x *NatSessionsResponse) GetSessions() []*NatSession {
@@ -24086,7 +24337,7 @@ type NatSummaryRequest struct {
 
 func (x *NatSummaryRequest) Reset() {
 	*x = NatSummaryRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[268]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[271]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24098,7 +24349,7 @@ func (x *NatSummaryRequest) String() string {
 func (*NatSummaryRequest) ProtoMessage() {}
 
 func (x *NatSummaryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[268]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[271]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24111,7 +24362,7 @@ func (x *NatSummaryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSummaryRequest.ProtoReflect.Descriptor instead.
 func (*NatSummaryRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{268}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{271}
 }
 
 func (x *NatSummaryRequest) GetOwner() string {
@@ -24144,7 +24395,7 @@ type NatPoolUsage struct {
 
 func (x *NatPoolUsage) Reset() {
 	*x = NatPoolUsage{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[269]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[272]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24156,7 +24407,7 @@ func (x *NatPoolUsage) String() string {
 func (*NatPoolUsage) ProtoMessage() {}
 
 func (x *NatPoolUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[269]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[272]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24169,7 +24420,7 @@ func (x *NatPoolUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatPoolUsage.ProtoReflect.Descriptor instead.
 func (*NatPoolUsage) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{269}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{272}
 }
 
 func (x *NatPoolUsage) GetFirstAddress() string {
@@ -24251,7 +24502,7 @@ type NatSummaryResponse struct {
 
 func (x *NatSummaryResponse) Reset() {
 	*x = NatSummaryResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[270]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[273]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24263,7 +24514,7 @@ func (x *NatSummaryResponse) String() string {
 func (*NatSummaryResponse) ProtoMessage() {}
 
 func (x *NatSummaryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[270]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[273]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24276,7 +24527,7 @@ func (x *NatSummaryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSummaryResponse.ProtoReflect.Descriptor instead.
 func (*NatSummaryResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{270}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{273}
 }
 
 func (x *NatSummaryResponse) GetEnabled() bool {
@@ -24376,7 +24627,7 @@ type NatSessionKillAction struct {
 
 func (x *NatSessionKillAction) Reset() {
 	*x = NatSessionKillAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[271]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[274]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24388,7 +24639,7 @@ func (x *NatSessionKillAction) String() string {
 func (*NatSessionKillAction) ProtoMessage() {}
 
 func (x *NatSessionKillAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[271]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[274]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24401,7 +24652,7 @@ func (x *NatSessionKillAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatSessionKillAction.ProtoReflect.Descriptor instead.
 func (*NatSessionKillAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{271}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{274}
 }
 
 func (x *NatSessionKillAction) GetProtocol() string {
@@ -24466,7 +24717,7 @@ type WireguardStateRequest struct {
 
 func (x *WireguardStateRequest) Reset() {
 	*x = WireguardStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[272]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[275]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24478,7 +24729,7 @@ func (x *WireguardStateRequest) String() string {
 func (*WireguardStateRequest) ProtoMessage() {}
 
 func (x *WireguardStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[272]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[275]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24491,7 +24742,7 @@ func (x *WireguardStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardStateRequest.ProtoReflect.Descriptor instead.
 func (*WireguardStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{272}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{275}
 }
 
 func (x *WireguardStateRequest) GetInterfaces() []string {
@@ -24525,7 +24776,7 @@ type WireguardStateResponse struct {
 
 func (x *WireguardStateResponse) Reset() {
 	*x = WireguardStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[273]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[276]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24537,7 +24788,7 @@ func (x *WireguardStateResponse) String() string {
 func (*WireguardStateResponse) ProtoMessage() {}
 
 func (x *WireguardStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[273]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[276]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24550,7 +24801,7 @@ func (x *WireguardStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardStateResponse.ProtoReflect.Descriptor instead.
 func (*WireguardStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{273}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{276}
 }
 
 func (x *WireguardStateResponse) GetInterfaces() []*WireguardInterfaceState {
@@ -24613,7 +24864,7 @@ type WireguardInterfaceState struct {
 
 func (x *WireguardInterfaceState) Reset() {
 	*x = WireguardInterfaceState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[274]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[277]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24625,7 +24876,7 @@ func (x *WireguardInterfaceState) String() string {
 func (*WireguardInterfaceState) ProtoMessage() {}
 
 func (x *WireguardInterfaceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[274]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[277]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24638,7 +24889,7 @@ func (x *WireguardInterfaceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardInterfaceState.ProtoReflect.Descriptor instead.
 func (*WireguardInterfaceState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{274}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{277}
 }
 
 func (x *WireguardInterfaceState) GetName() string {
@@ -24757,7 +25008,7 @@ type WireguardPeerState struct {
 
 func (x *WireguardPeerState) Reset() {
 	*x = WireguardPeerState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[275]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[278]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24769,7 +25020,7 @@ func (x *WireguardPeerState) String() string {
 func (*WireguardPeerState) ProtoMessage() {}
 
 func (x *WireguardPeerState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[275]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[278]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24782,7 +25033,7 @@ func (x *WireguardPeerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeerState.ProtoReflect.Descriptor instead.
 func (*WireguardPeerState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{275}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{278}
 }
 
 func (x *WireguardPeerState) GetPublicKey() string {
@@ -24863,7 +25114,7 @@ type InterfaceLcp struct {
 
 func (x *InterfaceLcp) Reset() {
 	*x = InterfaceLcp{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[276]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[279]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24875,7 +25126,7 @@ func (x *InterfaceLcp) String() string {
 func (*InterfaceLcp) ProtoMessage() {}
 
 func (x *InterfaceLcp) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[276]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[279]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24888,7 +25139,7 @@ func (x *InterfaceLcp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InterfaceLcp.ProtoReflect.Descriptor instead.
 func (*InterfaceLcp) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{276}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{279}
 }
 
 func (x *InterfaceLcp) GetHostIfName() string {
@@ -24944,7 +25195,7 @@ type Pppoe struct {
 
 func (x *Pppoe) Reset() {
 	*x = Pppoe{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[277]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[280]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -24956,7 +25207,7 @@ func (x *Pppoe) String() string {
 func (*Pppoe) ProtoMessage() {}
 
 func (x *Pppoe) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[277]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[280]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -24969,7 +25220,7 @@ func (x *Pppoe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pppoe.ProtoReflect.Descriptor instead.
 func (*Pppoe) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{277}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{280}
 }
 
 func (x *Pppoe) GetEnabled() bool {
@@ -25062,7 +25313,7 @@ type PppoeReconnect struct {
 
 func (x *PppoeReconnect) Reset() {
 	*x = PppoeReconnect{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[278]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[281]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25074,7 +25325,7 @@ func (x *PppoeReconnect) String() string {
 func (*PppoeReconnect) ProtoMessage() {}
 
 func (x *PppoeReconnect) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[278]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[281]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25087,7 +25338,7 @@ func (x *PppoeReconnect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PppoeReconnect.ProtoReflect.Descriptor instead.
 func (*PppoeReconnect) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{278}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{281}
 }
 
 func (x *PppoeReconnect) GetHoldoffSec() uint32 {
@@ -25117,7 +25368,7 @@ type PppoeReconnectRequest struct {
 
 func (x *PppoeReconnectRequest) Reset() {
 	*x = PppoeReconnectRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[279]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[282]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25129,7 +25380,7 @@ func (x *PppoeReconnectRequest) String() string {
 func (*PppoeReconnectRequest) ProtoMessage() {}
 
 func (x *PppoeReconnectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[279]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[282]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25142,7 +25393,7 @@ func (x *PppoeReconnectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PppoeReconnectRequest.ProtoReflect.Descriptor instead.
 func (*PppoeReconnectRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{279}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{282}
 }
 
 func (x *PppoeReconnectRequest) GetOwner() string {
@@ -25172,7 +25423,7 @@ type PppoeReconnectResponse struct {
 
 func (x *PppoeReconnectResponse) Reset() {
 	*x = PppoeReconnectResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[280]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[283]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25184,7 +25435,7 @@ func (x *PppoeReconnectResponse) String() string {
 func (*PppoeReconnectResponse) ProtoMessage() {}
 
 func (x *PppoeReconnectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[280]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[283]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25197,7 +25448,7 @@ func (x *PppoeReconnectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PppoeReconnectResponse.ProtoReflect.Descriptor instead.
 func (*PppoeReconnectResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{280}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{283}
 }
 
 func (x *PppoeReconnectResponse) GetAccepted() bool {
@@ -25245,7 +25496,7 @@ type PppoeSessionState struct {
 
 func (x *PppoeSessionState) Reset() {
 	*x = PppoeSessionState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[281]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[284]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25257,7 +25508,7 @@ func (x *PppoeSessionState) String() string {
 func (*PppoeSessionState) ProtoMessage() {}
 
 func (x *PppoeSessionState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[281]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[284]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25270,7 +25521,7 @@ func (x *PppoeSessionState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PppoeSessionState.ProtoReflect.Descriptor instead.
 func (*PppoeSessionState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{281}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{284}
 }
 
 func (x *PppoeSessionState) GetPhase() string {
@@ -25367,7 +25618,7 @@ type RoutingStateRequest struct {
 
 func (x *RoutingStateRequest) Reset() {
 	*x = RoutingStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[282]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[285]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25379,7 +25630,7 @@ func (x *RoutingStateRequest) String() string {
 func (*RoutingStateRequest) ProtoMessage() {}
 
 func (x *RoutingStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[282]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[285]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25392,7 +25643,7 @@ func (x *RoutingStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingStateRequest.ProtoReflect.Descriptor instead.
 func (*RoutingStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{282}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{285}
 }
 
 func (x *RoutingStateRequest) GetOwner() string {
@@ -25453,7 +25704,7 @@ type RoutingStateResponse struct {
 
 func (x *RoutingStateResponse) Reset() {
 	*x = RoutingStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[283]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[286]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25465,7 +25716,7 @@ func (x *RoutingStateResponse) String() string {
 func (*RoutingStateResponse) ProtoMessage() {}
 
 func (x *RoutingStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[283]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[286]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25478,7 +25729,7 @@ func (x *RoutingStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingStateResponse.ProtoReflect.Descriptor instead.
 func (*RoutingStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{283}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{286}
 }
 
 func (x *RoutingStateResponse) GetOwner() string {
@@ -25568,7 +25819,7 @@ type BgpInstanceState struct {
 
 func (x *BgpInstanceState) Reset() {
 	*x = BgpInstanceState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[284]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[287]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25580,7 +25831,7 @@ func (x *BgpInstanceState) String() string {
 func (*BgpInstanceState) ProtoMessage() {}
 
 func (x *BgpInstanceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[284]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[287]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25593,7 +25844,7 @@ func (x *BgpInstanceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BgpInstanceState.ProtoReflect.Descriptor instead.
 func (*BgpInstanceState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{284}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{287}
 }
 
 func (x *BgpInstanceState) GetVrf() string {
@@ -25656,7 +25907,7 @@ type BgpNeighborState struct {
 
 func (x *BgpNeighborState) Reset() {
 	*x = BgpNeighborState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[285]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[288]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25668,7 +25919,7 @@ func (x *BgpNeighborState) String() string {
 func (*BgpNeighborState) ProtoMessage() {}
 
 func (x *BgpNeighborState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[285]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[288]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25681,7 +25932,7 @@ func (x *BgpNeighborState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BgpNeighborState.ProtoReflect.Descriptor instead.
 func (*BgpNeighborState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{285}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{288}
 }
 
 func (x *BgpNeighborState) GetAddress() string {
@@ -25781,7 +26032,7 @@ type BgpNeighborAfiState struct {
 
 func (x *BgpNeighborAfiState) Reset() {
 	*x = BgpNeighborAfiState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[286]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[289]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25793,7 +26044,7 @@ func (x *BgpNeighborAfiState) String() string {
 func (*BgpNeighborAfiState) ProtoMessage() {}
 
 func (x *BgpNeighborAfiState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[286]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[289]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25806,7 +26057,7 @@ func (x *BgpNeighborAfiState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BgpNeighborAfiState.ProtoReflect.Descriptor instead.
 func (*BgpNeighborAfiState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{286}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{289}
 }
 
 func (x *BgpNeighborAfiState) GetAfi() string {
@@ -25851,7 +26102,7 @@ type RoutingLcpPair struct {
 
 func (x *RoutingLcpPair) Reset() {
 	*x = RoutingLcpPair{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[287]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[290]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25863,7 +26114,7 @@ func (x *RoutingLcpPair) String() string {
 func (*RoutingLcpPair) ProtoMessage() {}
 
 func (x *RoutingLcpPair) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[287]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[290]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25876,7 +26127,7 @@ func (x *RoutingLcpPair) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingLcpPair.ProtoReflect.Descriptor instead.
 func (*RoutingLcpPair) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{287}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{290}
 }
 
 func (x *RoutingLcpPair) GetInterface() string {
@@ -25951,7 +26202,7 @@ type RoutingRibEntry struct {
 
 func (x *RoutingRibEntry) Reset() {
 	*x = RoutingRibEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[288]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[291]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -25963,7 +26214,7 @@ func (x *RoutingRibEntry) String() string {
 func (*RoutingRibEntry) ProtoMessage() {}
 
 func (x *RoutingRibEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[288]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[291]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -25976,7 +26227,7 @@ func (x *RoutingRibEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingRibEntry.ProtoReflect.Descriptor instead.
 func (*RoutingRibEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{288}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{291}
 }
 
 func (x *RoutingRibEntry) GetPrefix() string {
@@ -26051,7 +26302,7 @@ type RoutingRibNextHop struct {
 
 func (x *RoutingRibNextHop) Reset() {
 	*x = RoutingRibNextHop{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[289]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[292]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26063,7 +26314,7 @@ func (x *RoutingRibNextHop) String() string {
 func (*RoutingRibNextHop) ProtoMessage() {}
 
 func (x *RoutingRibNextHop) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[289]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[292]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26076,7 +26327,7 @@ func (x *RoutingRibNextHop) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingRibNextHop.ProtoReflect.Descriptor instead.
 func (*RoutingRibNextHop) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{289}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{292}
 }
 
 func (x *RoutingRibNextHop) GetAddress() string {
@@ -26131,7 +26382,7 @@ type DhcpLeasesRequest struct {
 
 func (x *DhcpLeasesRequest) Reset() {
 	*x = DhcpLeasesRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[290]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[293]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26143,7 +26394,7 @@ func (x *DhcpLeasesRequest) String() string {
 func (*DhcpLeasesRequest) ProtoMessage() {}
 
 func (x *DhcpLeasesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[290]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[293]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26156,7 +26407,7 @@ func (x *DhcpLeasesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpLeasesRequest.ProtoReflect.Descriptor instead.
 func (*DhcpLeasesRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{290}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{293}
 }
 
 func (x *DhcpLeasesRequest) GetOwner() string {
@@ -26245,7 +26496,7 @@ type DhcpLease struct {
 
 func (x *DhcpLease) Reset() {
 	*x = DhcpLease{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[291]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[294]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26257,7 +26508,7 @@ func (x *DhcpLease) String() string {
 func (*DhcpLease) ProtoMessage() {}
 
 func (x *DhcpLease) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[291]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[294]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26270,7 +26521,7 @@ func (x *DhcpLease) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpLease.ProtoReflect.Descriptor instead.
 func (*DhcpLease) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{291}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{294}
 }
 
 func (x *DhcpLease) GetFamily() string {
@@ -26395,7 +26646,7 @@ type DhcpSubnetUsage struct {
 
 func (x *DhcpSubnetUsage) Reset() {
 	*x = DhcpSubnetUsage{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[292]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[295]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26407,7 +26658,7 @@ func (x *DhcpSubnetUsage) String() string {
 func (*DhcpSubnetUsage) ProtoMessage() {}
 
 func (x *DhcpSubnetUsage) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[292]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[295]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26420,7 +26671,7 @@ func (x *DhcpSubnetUsage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpSubnetUsage.ProtoReflect.Descriptor instead.
 func (*DhcpSubnetUsage) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{292}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{295}
 }
 
 func (x *DhcpSubnetUsage) GetServer() string {
@@ -26497,7 +26748,7 @@ type DhcpServerStatus struct {
 
 func (x *DhcpServerStatus) Reset() {
 	*x = DhcpServerStatus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[293]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[296]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26509,7 +26760,7 @@ func (x *DhcpServerStatus) String() string {
 func (*DhcpServerStatus) ProtoMessage() {}
 
 func (x *DhcpServerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[293]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[296]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26522,7 +26773,7 @@ func (x *DhcpServerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpServerStatus.ProtoReflect.Descriptor instead.
 func (*DhcpServerStatus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{293}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{296}
 }
 
 func (x *DhcpServerStatus) GetFamily() string {
@@ -26599,7 +26850,7 @@ type DhcpClientLease struct {
 
 func (x *DhcpClientLease) Reset() {
 	*x = DhcpClientLease{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[294]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[297]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26611,7 +26862,7 @@ func (x *DhcpClientLease) String() string {
 func (*DhcpClientLease) ProtoMessage() {}
 
 func (x *DhcpClientLease) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[294]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[297]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26624,7 +26875,7 @@ func (x *DhcpClientLease) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpClientLease.ProtoReflect.Descriptor instead.
 func (*DhcpClientLease) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{294}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{297}
 }
 
 func (x *DhcpClientLease) GetInterface() string {
@@ -26710,7 +26961,7 @@ type DhcpLeasesResponse struct {
 
 func (x *DhcpLeasesResponse) Reset() {
 	*x = DhcpLeasesResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[295]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[298]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26722,7 +26973,7 @@ func (x *DhcpLeasesResponse) String() string {
 func (*DhcpLeasesResponse) ProtoMessage() {}
 
 func (x *DhcpLeasesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[295]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[298]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26735,7 +26986,7 @@ func (x *DhcpLeasesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DhcpLeasesResponse.ProtoReflect.Descriptor instead.
 func (*DhcpLeasesResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{295}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{298}
 }
 
 func (x *DhcpLeasesResponse) GetOwner() string {
@@ -26821,7 +27072,7 @@ type SyslogTls struct {
 
 func (x *SyslogTls) Reset() {
 	*x = SyslogTls{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[296]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[299]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26833,7 +27084,7 @@ func (x *SyslogTls) String() string {
 func (*SyslogTls) ProtoMessage() {}
 
 func (x *SyslogTls) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[296]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[299]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26846,7 +27097,7 @@ func (x *SyslogTls) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogTls.ProtoReflect.Descriptor instead.
 func (*SyslogTls) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{296}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{299}
 }
 
 func (x *SyslogTls) GetCaRef() string {
@@ -26899,7 +27150,7 @@ type DnsLookupAction struct {
 
 func (x *DnsLookupAction) Reset() {
 	*x = DnsLookupAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[297]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[300]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26911,7 +27162,7 @@ func (x *DnsLookupAction) String() string {
 func (*DnsLookupAction) ProtoMessage() {}
 
 func (x *DnsLookupAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[297]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[300]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26924,7 +27175,7 @@ func (x *DnsLookupAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsLookupAction.ProtoReflect.Descriptor instead.
 func (*DnsLookupAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{297}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{300}
 }
 
 func (x *DnsLookupAction) GetName() string {
@@ -26960,7 +27211,7 @@ type ServiceDaemonAction struct {
 
 func (x *ServiceDaemonAction) Reset() {
 	*x = ServiceDaemonAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[298]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[301]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -26972,7 +27223,7 @@ func (x *ServiceDaemonAction) String() string {
 func (*ServiceDaemonAction) ProtoMessage() {}
 
 func (x *ServiceDaemonAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[298]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[301]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -26985,7 +27236,7 @@ func (x *ServiceDaemonAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServiceDaemonAction.ProtoReflect.Descriptor instead.
 func (*ServiceDaemonAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{298}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{301}
 }
 
 func (x *ServiceDaemonAction) GetDaemon() string {
@@ -27026,7 +27277,7 @@ type DnsStateRequest struct {
 
 func (x *DnsStateRequest) Reset() {
 	*x = DnsStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[299]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[302]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27038,7 +27289,7 @@ func (x *DnsStateRequest) String() string {
 func (*DnsStateRequest) ProtoMessage() {}
 
 func (x *DnsStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[299]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[302]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27051,7 +27302,7 @@ func (x *DnsStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsStateRequest.ProtoReflect.Descriptor instead.
 func (*DnsStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{299}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{302}
 }
 
 func (x *DnsStateRequest) GetOwner() string {
@@ -27098,7 +27349,7 @@ type DnsStateResponse struct {
 
 func (x *DnsStateResponse) Reset() {
 	*x = DnsStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[300]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[303]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27110,7 +27361,7 @@ func (x *DnsStateResponse) String() string {
 func (*DnsStateResponse) ProtoMessage() {}
 
 func (x *DnsStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[300]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[303]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27123,7 +27374,7 @@ func (x *DnsStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsStateResponse.ProtoReflect.Descriptor instead.
 func (*DnsStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{300}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{303}
 }
 
 func (x *DnsStateResponse) GetOwner() string {
@@ -27239,7 +27490,7 @@ type DnsZoneState struct {
 
 func (x *DnsZoneState) Reset() {
 	*x = DnsZoneState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[301]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[304]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27251,7 +27502,7 @@ func (x *DnsZoneState) String() string {
 func (*DnsZoneState) ProtoMessage() {}
 
 func (x *DnsZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[301]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[304]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27264,7 +27515,7 @@ func (x *DnsZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsZoneState.ProtoReflect.Descriptor instead.
 func (*DnsZoneState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{301}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{304}
 }
 
 func (x *DnsZoneState) GetZone() string {
@@ -27306,7 +27557,7 @@ type DnsLocalZoneState struct {
 
 func (x *DnsLocalZoneState) Reset() {
 	*x = DnsLocalZoneState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[302]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[305]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27318,7 +27569,7 @@ func (x *DnsLocalZoneState) String() string {
 func (*DnsLocalZoneState) ProtoMessage() {}
 
 func (x *DnsLocalZoneState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[302]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[305]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27331,7 +27582,7 @@ func (x *DnsLocalZoneState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsLocalZoneState.ProtoReflect.Descriptor instead.
 func (*DnsLocalZoneState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{302}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{305}
 }
 
 func (x *DnsLocalZoneState) GetZone() string {
@@ -27363,7 +27614,7 @@ type DnsVppCacheState struct {
 
 func (x *DnsVppCacheState) Reset() {
 	*x = DnsVppCacheState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[303]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[306]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27375,7 +27626,7 @@ func (x *DnsVppCacheState) String() string {
 func (*DnsVppCacheState) ProtoMessage() {}
 
 func (x *DnsVppCacheState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[303]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[306]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27388,7 +27639,7 @@ func (x *DnsVppCacheState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsVppCacheState.ProtoReflect.Descriptor instead.
 func (*DnsVppCacheState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{303}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{306}
 }
 
 func (x *DnsVppCacheState) GetConfigured() bool {
@@ -27422,7 +27673,7 @@ type NtpStateRequest struct {
 
 func (x *NtpStateRequest) Reset() {
 	*x = NtpStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[304]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[307]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27434,7 +27685,7 @@ func (x *NtpStateRequest) String() string {
 func (*NtpStateRequest) ProtoMessage() {}
 
 func (x *NtpStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[304]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[307]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27447,7 +27698,7 @@ func (x *NtpStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpStateRequest.ProtoReflect.Descriptor instead.
 func (*NtpStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{304}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{307}
 }
 
 func (x *NtpStateRequest) GetOwner() string {
@@ -27484,7 +27735,7 @@ type NtpStateResponse struct {
 
 func (x *NtpStateResponse) Reset() {
 	*x = NtpStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[305]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[308]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27496,7 +27747,7 @@ func (x *NtpStateResponse) String() string {
 func (*NtpStateResponse) ProtoMessage() {}
 
 func (x *NtpStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[305]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[308]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27509,7 +27760,7 @@ func (x *NtpStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpStateResponse.ProtoReflect.Descriptor instead.
 func (*NtpStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{305}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{308}
 }
 
 func (x *NtpStateResponse) GetOwner() string {
@@ -27605,7 +27856,7 @@ type NtpTracking struct {
 
 func (x *NtpTracking) Reset() {
 	*x = NtpTracking{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[306]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[309]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27617,7 +27868,7 @@ func (x *NtpTracking) String() string {
 func (*NtpTracking) ProtoMessage() {}
 
 func (x *NtpTracking) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[306]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[309]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27630,7 +27881,7 @@ func (x *NtpTracking) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpTracking.ProtoReflect.Descriptor instead.
 func (*NtpTracking) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{306}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{309}
 }
 
 func (x *NtpTracking) GetRefId() string {
@@ -27753,7 +28004,7 @@ type NtpSource struct {
 
 func (x *NtpSource) Reset() {
 	*x = NtpSource{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[307]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[310]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27765,7 +28016,7 @@ func (x *NtpSource) String() string {
 func (*NtpSource) ProtoMessage() {}
 
 func (x *NtpSource) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[307]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[310]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27778,7 +28029,7 @@ func (x *NtpSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpSource.ProtoReflect.Descriptor instead.
 func (*NtpSource) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{307}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{310}
 }
 
 func (x *NtpSource) GetMode() string {
@@ -27868,7 +28119,7 @@ type NtpSourceStats struct {
 
 func (x *NtpSourceStats) Reset() {
 	*x = NtpSourceStats{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[308]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[311]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27880,7 +28131,7 @@ func (x *NtpSourceStats) String() string {
 func (*NtpSourceStats) ProtoMessage() {}
 
 func (x *NtpSourceStats) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[308]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[311]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27893,7 +28144,7 @@ func (x *NtpSourceStats) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpSourceStats.ProtoReflect.Descriptor instead.
 func (*NtpSourceStats) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{308}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{311}
 }
 
 func (x *NtpSourceStats) GetName() string {
@@ -27962,7 +28213,7 @@ type SyslogStateRequest struct {
 
 func (x *SyslogStateRequest) Reset() {
 	*x = SyslogStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[309]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[312]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -27974,7 +28225,7 @@ func (x *SyslogStateRequest) String() string {
 func (*SyslogStateRequest) ProtoMessage() {}
 
 func (x *SyslogStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[309]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[312]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -27987,7 +28238,7 @@ func (x *SyslogStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogStateRequest.ProtoReflect.Descriptor instead.
 func (*SyslogStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{309}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{312}
 }
 
 func (x *SyslogStateRequest) GetOwner() string {
@@ -28018,7 +28269,7 @@ type SyslogStateResponse struct {
 
 func (x *SyslogStateResponse) Reset() {
 	*x = SyslogStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[310]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[313]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28030,7 +28281,7 @@ func (x *SyslogStateResponse) String() string {
 func (*SyslogStateResponse) ProtoMessage() {}
 
 func (x *SyslogStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[310]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[313]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28043,7 +28294,7 @@ func (x *SyslogStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogStateResponse.ProtoReflect.Descriptor instead.
 func (*SyslogStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{310}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{313}
 }
 
 func (x *SyslogStateResponse) GetOwner() string {
@@ -28125,7 +28376,7 @@ type SyslogTargetState struct {
 
 func (x *SyslogTargetState) Reset() {
 	*x = SyslogTargetState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[311]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[314]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28137,7 +28388,7 @@ func (x *SyslogTargetState) String() string {
 func (*SyslogTargetState) ProtoMessage() {}
 
 func (x *SyslogTargetState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[311]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[314]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28150,7 +28401,7 @@ func (x *SyslogTargetState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogTargetState.ProtoReflect.Descriptor instead.
 func (*SyslogTargetState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{311}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{314}
 }
 
 func (x *SyslogTargetState) GetIndex() uint32 {
@@ -28288,7 +28539,7 @@ type SyslogEntriesRequest struct {
 
 func (x *SyslogEntriesRequest) Reset() {
 	*x = SyslogEntriesRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[312]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[315]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28300,7 +28551,7 @@ func (x *SyslogEntriesRequest) String() string {
 func (*SyslogEntriesRequest) ProtoMessage() {}
 
 func (x *SyslogEntriesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[312]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[315]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28313,7 +28564,7 @@ func (x *SyslogEntriesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogEntriesRequest.ProtoReflect.Descriptor instead.
 func (*SyslogEntriesRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{312}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{315}
 }
 
 func (x *SyslogEntriesRequest) GetOwner() string {
@@ -28387,7 +28638,7 @@ type SyslogEntriesResponse struct {
 
 func (x *SyslogEntriesResponse) Reset() {
 	*x = SyslogEntriesResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[313]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[316]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28399,7 +28650,7 @@ func (x *SyslogEntriesResponse) String() string {
 func (*SyslogEntriesResponse) ProtoMessage() {}
 
 func (x *SyslogEntriesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[313]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[316]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28412,7 +28663,7 @@ func (x *SyslogEntriesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogEntriesResponse.ProtoReflect.Descriptor instead.
 func (*SyslogEntriesResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{313}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{316}
 }
 
 func (x *SyslogEntriesResponse) GetOwner() string {
@@ -28500,7 +28751,7 @@ type SyslogEntry struct {
 
 func (x *SyslogEntry) Reset() {
 	*x = SyslogEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[314]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[317]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28512,7 +28763,7 @@ func (x *SyslogEntry) String() string {
 func (*SyslogEntry) ProtoMessage() {}
 
 func (x *SyslogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[314]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[317]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28525,7 +28776,7 @@ func (x *SyslogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyslogEntry.ProtoReflect.Descriptor instead.
 func (*SyslogEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{314}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{317}
 }
 
 func (x *SyslogEntry) GetTime() *timestamppb.Timestamp {
@@ -28597,7 +28848,7 @@ type PnatConfig struct {
 
 func (x *PnatConfig) Reset() {
 	*x = PnatConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[315]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[318]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28609,7 +28860,7 @@ func (x *PnatConfig) String() string {
 func (*PnatConfig) ProtoMessage() {}
 
 func (x *PnatConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[315]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[318]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28622,7 +28873,7 @@ func (x *PnatConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PnatConfig.ProtoReflect.Descriptor instead.
 func (*PnatConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{315}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{318}
 }
 
 func (x *PnatConfig) GetBindings() []*PnatBinding {
@@ -28654,7 +28905,7 @@ type PnatBinding struct {
 
 func (x *PnatBinding) Reset() {
 	*x = PnatBinding{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[316]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[319]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28666,7 +28917,7 @@ func (x *PnatBinding) String() string {
 func (*PnatBinding) ProtoMessage() {}
 
 func (x *PnatBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[316]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[319]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28679,7 +28930,7 @@ func (x *PnatBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PnatBinding.ProtoReflect.Descriptor instead.
 func (*PnatBinding) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{316}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{319}
 }
 
 func (x *PnatBinding) GetName() string {
@@ -28722,7 +28973,7 @@ type PnatMatch struct {
 
 func (x *PnatMatch) Reset() {
 	*x = PnatMatch{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[317]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[320]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28734,7 +28985,7 @@ func (x *PnatMatch) String() string {
 func (*PnatMatch) ProtoMessage() {}
 
 func (x *PnatMatch) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[317]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[320]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28747,7 +28998,7 @@ func (x *PnatMatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PnatMatch.ProtoReflect.Descriptor instead.
 func (*PnatMatch) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{317}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{320}
 }
 
 func (x *PnatMatch) GetProto() string {
@@ -28802,7 +29053,7 @@ type PnatRewrite struct {
 
 func (x *PnatRewrite) Reset() {
 	*x = PnatRewrite{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[318]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[321]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28814,7 +29065,7 @@ func (x *PnatRewrite) String() string {
 func (*PnatRewrite) ProtoMessage() {}
 
 func (x *PnatRewrite) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[318]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[321]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28827,7 +29078,7 @@ func (x *PnatRewrite) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PnatRewrite.ProtoReflect.Descriptor instead.
 func (*PnatRewrite) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{318}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{321}
 }
 
 func (x *PnatRewrite) GetSrc() string {
@@ -28873,7 +29124,7 @@ type PnatAttachment struct {
 
 func (x *PnatAttachment) Reset() {
 	*x = PnatAttachment{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[319]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[322]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28885,7 +29136,7 @@ func (x *PnatAttachment) String() string {
 func (*PnatAttachment) ProtoMessage() {}
 
 func (x *PnatAttachment) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[319]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[322]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28898,7 +29149,7 @@ func (x *PnatAttachment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PnatAttachment.ProtoReflect.Descriptor instead.
 func (*PnatAttachment) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{319}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{322}
 }
 
 func (x *PnatAttachment) GetBinding() string {
@@ -28939,7 +29190,7 @@ type Det44SessionsRequest struct {
 
 func (x *Det44SessionsRequest) Reset() {
 	*x = Det44SessionsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[320]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[323]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -28951,7 +29202,7 @@ func (x *Det44SessionsRequest) String() string {
 func (*Det44SessionsRequest) ProtoMessage() {}
 
 func (x *Det44SessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[320]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[323]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -28964,7 +29215,7 @@ func (x *Det44SessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44SessionsRequest.ProtoReflect.Descriptor instead.
 func (*Det44SessionsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{320}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{323}
 }
 
 func (x *Det44SessionsRequest) GetOwner() string {
@@ -29017,7 +29268,7 @@ type Det44Session struct {
 
 func (x *Det44Session) Reset() {
 	*x = Det44Session{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[321]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[324]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29029,7 +29280,7 @@ func (x *Det44Session) String() string {
 func (*Det44Session) ProtoMessage() {}
 
 func (x *Det44Session) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[321]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[324]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29042,7 +29293,7 @@ func (x *Det44Session) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44Session.ProtoReflect.Descriptor instead.
 func (*Det44Session) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{321}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{324}
 }
 
 func (x *Det44Session) GetInsidePort() uint32 {
@@ -29112,7 +29363,7 @@ type Det44SessionsResponse struct {
 
 func (x *Det44SessionsResponse) Reset() {
 	*x = Det44SessionsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[322]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[325]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29124,7 +29375,7 @@ func (x *Det44SessionsResponse) String() string {
 func (*Det44SessionsResponse) ProtoMessage() {}
 
 func (x *Det44SessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[322]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[325]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29137,7 +29388,7 @@ func (x *Det44SessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44SessionsResponse.ProtoReflect.Descriptor instead.
 func (*Det44SessionsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{322}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{325}
 }
 
 func (x *Det44SessionsResponse) GetSessions() []*Det44Session {
@@ -29213,7 +29464,7 @@ type Det44LookupRequest struct {
 
 func (x *Det44LookupRequest) Reset() {
 	*x = Det44LookupRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[323]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[326]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29225,7 +29476,7 @@ func (x *Det44LookupRequest) String() string {
 func (*Det44LookupRequest) ProtoMessage() {}
 
 func (x *Det44LookupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[323]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[326]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29238,7 +29489,7 @@ func (x *Det44LookupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44LookupRequest.ProtoReflect.Descriptor instead.
 func (*Det44LookupRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{323}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{326}
 }
 
 func (x *Det44LookupRequest) GetOwner() string {
@@ -29286,7 +29537,7 @@ type Det44LookupResponse struct {
 
 func (x *Det44LookupResponse) Reset() {
 	*x = Det44LookupResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[324]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[327]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29298,7 +29549,7 @@ func (x *Det44LookupResponse) String() string {
 func (*Det44LookupResponse) ProtoMessage() {}
 
 func (x *Det44LookupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[324]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[327]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29311,7 +29562,7 @@ func (x *Det44LookupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44LookupResponse.ProtoReflect.Descriptor instead.
 func (*Det44LookupResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{324}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{327}
 }
 
 func (x *Det44LookupResponse) GetInsideAddress() string {
@@ -29357,7 +29608,7 @@ type CnatSessionsRequest struct {
 
 func (x *CnatSessionsRequest) Reset() {
 	*x = CnatSessionsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[325]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[328]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29369,7 +29620,7 @@ func (x *CnatSessionsRequest) String() string {
 func (*CnatSessionsRequest) ProtoMessage() {}
 
 func (x *CnatSessionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[325]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[328]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29382,7 +29633,7 @@ func (x *CnatSessionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatSessionsRequest.ProtoReflect.Descriptor instead.
 func (*CnatSessionsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{325}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{328}
 }
 
 func (x *CnatSessionsRequest) GetOwner() string {
@@ -29429,7 +29680,7 @@ type CnatSession struct {
 
 func (x *CnatSession) Reset() {
 	*x = CnatSession{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[326]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[329]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29441,7 +29692,7 @@ func (x *CnatSession) String() string {
 func (*CnatSession) ProtoMessage() {}
 
 func (x *CnatSession) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[326]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[329]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29454,7 +29705,7 @@ func (x *CnatSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatSession.ProtoReflect.Descriptor instead.
 func (*CnatSession) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{326}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{329}
 }
 
 func (x *CnatSession) GetDstAddress() string {
@@ -29528,7 +29779,7 @@ type CnatSessionsResponse struct {
 
 func (x *CnatSessionsResponse) Reset() {
 	*x = CnatSessionsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[327]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[330]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29540,7 +29791,7 @@ func (x *CnatSessionsResponse) String() string {
 func (*CnatSessionsResponse) ProtoMessage() {}
 
 func (x *CnatSessionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[327]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[330]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29553,7 +29804,7 @@ func (x *CnatSessionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatSessionsResponse.ProtoReflect.Descriptor instead.
 func (*CnatSessionsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{327}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{330}
 }
 
 func (x *CnatSessionsResponse) GetSessions() []*CnatSession {
@@ -29617,7 +29868,7 @@ type Det44SessionCloseAction struct {
 
 func (x *Det44SessionCloseAction) Reset() {
 	*x = Det44SessionCloseAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[328]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[331]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29629,7 +29880,7 @@ func (x *Det44SessionCloseAction) String() string {
 func (*Det44SessionCloseAction) ProtoMessage() {}
 
 func (x *Det44SessionCloseAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[328]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[331]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29642,7 +29893,7 @@ func (x *Det44SessionCloseAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44SessionCloseAction.ProtoReflect.Descriptor instead.
 func (*Det44SessionCloseAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{328}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{331}
 }
 
 func (x *Det44SessionCloseAction) GetDirection() string {
@@ -29689,7 +29940,7 @@ type CnatSessionPurgeAction struct {
 
 func (x *CnatSessionPurgeAction) Reset() {
 	*x = CnatSessionPurgeAction{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[329]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[332]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29701,7 +29952,7 @@ func (x *CnatSessionPurgeAction) String() string {
 func (*CnatSessionPurgeAction) ProtoMessage() {}
 
 func (x *CnatSessionPurgeAction) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[329]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[332]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29714,7 +29965,7 @@ func (x *CnatSessionPurgeAction) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatSessionPurgeAction.ProtoReflect.Descriptor instead.
 func (*CnatSessionPurgeAction) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{329}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{332}
 }
 
 // PkiKeySpec mirrors `vpn.pki.cas.<name>.keySpec` and `vpn.pki.certificates.<name>.csr.keySpec`.
@@ -29732,7 +29983,7 @@ type PkiKeySpec struct {
 
 func (x *PkiKeySpec) Reset() {
 	*x = PkiKeySpec{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[330]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[333]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29744,7 +29995,7 @@ func (x *PkiKeySpec) String() string {
 func (*PkiKeySpec) ProtoMessage() {}
 
 func (x *PkiKeySpec) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[330]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[333]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29757,7 +30008,7 @@ func (x *PkiKeySpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiKeySpec.ProtoReflect.Descriptor instead.
 func (*PkiKeySpec) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{330}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{333}
 }
 
 func (x *PkiKeySpec) GetType() string {
@@ -29796,7 +30047,7 @@ type PkiCsr struct {
 
 func (x *PkiCsr) Reset() {
 	*x = PkiCsr{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[331]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[334]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29808,7 +30059,7 @@ func (x *PkiCsr) String() string {
 func (*PkiCsr) ProtoMessage() {}
 
 func (x *PkiCsr) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[331]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[334]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29821,7 +30072,7 @@ func (x *PkiCsr) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCsr.ProtoReflect.Descriptor instead.
 func (*PkiCsr) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{331}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{334}
 }
 
 func (x *PkiCsr) GetSubject() string {
@@ -29869,7 +30120,7 @@ type PkiIssued struct {
 
 func (x *PkiIssued) Reset() {
 	*x = PkiIssued{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[332]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[335]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29881,7 +30132,7 @@ func (x *PkiIssued) String() string {
 func (*PkiIssued) ProtoMessage() {}
 
 func (x *PkiIssued) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[332]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[335]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29894,7 +30145,7 @@ func (x *PkiIssued) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiIssued.ProtoReflect.Descriptor instead.
 func (*PkiIssued) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{332}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{335}
 }
 
 func (x *PkiIssued) GetSerial() string {
@@ -29957,7 +30208,7 @@ type PkiFileStateRequest struct {
 
 func (x *PkiFileStateRequest) Reset() {
 	*x = PkiFileStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[333]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[336]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -29969,7 +30220,7 @@ func (x *PkiFileStateRequest) String() string {
 func (*PkiFileStateRequest) ProtoMessage() {}
 
 func (x *PkiFileStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[333]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[336]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -29982,7 +30233,7 @@ func (x *PkiFileStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiFileStateRequest.ProtoReflect.Descriptor instead.
 func (*PkiFileStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{333}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{336}
 }
 
 func (x *PkiFileStateRequest) GetOwner() string {
@@ -30017,7 +30268,7 @@ type PkiFileStateFile struct {
 
 func (x *PkiFileStateFile) Reset() {
 	*x = PkiFileStateFile{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[334]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[337]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30029,7 +30280,7 @@ func (x *PkiFileStateFile) String() string {
 func (*PkiFileStateFile) ProtoMessage() {}
 
 func (x *PkiFileStateFile) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[334]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[337]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30042,7 +30293,7 @@ func (x *PkiFileStateFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiFileStateFile.ProtoReflect.Descriptor instead.
 func (*PkiFileStateFile) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{334}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{337}
 }
 
 func (x *PkiFileStateFile) GetKind() string {
@@ -30106,7 +30357,7 @@ type PkiFileStateSet struct {
 
 func (x *PkiFileStateSet) Reset() {
 	*x = PkiFileStateSet{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[335]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[338]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30118,7 +30369,7 @@ func (x *PkiFileStateSet) String() string {
 func (*PkiFileStateSet) ProtoMessage() {}
 
 func (x *PkiFileStateSet) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[335]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[338]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30131,7 +30382,7 @@ func (x *PkiFileStateSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiFileStateSet.ProtoReflect.Descriptor instead.
 func (*PkiFileStateSet) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{335}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{338}
 }
 
 func (x *PkiFileStateSet) GetFiles() []*PkiFileStateFile {
@@ -30158,7 +30409,7 @@ type PkiFileStateResponse struct {
 
 func (x *PkiFileStateResponse) Reset() {
 	*x = PkiFileStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[336]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[339]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30170,7 +30421,7 @@ func (x *PkiFileStateResponse) String() string {
 func (*PkiFileStateResponse) ProtoMessage() {}
 
 func (x *PkiFileStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[336]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[339]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30183,7 +30434,7 @@ func (x *PkiFileStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiFileStateResponse.ProtoReflect.Descriptor instead.
 func (*PkiFileStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{336}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{339}
 }
 
 func (x *PkiFileStateResponse) GetOwner() string {
@@ -30245,7 +30496,7 @@ type MplsConfig struct {
 
 func (x *MplsConfig) Reset() {
 	*x = MplsConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[337]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[340]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30257,7 +30508,7 @@ func (x *MplsConfig) String() string {
 func (*MplsConfig) ProtoMessage() {}
 
 func (x *MplsConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[337]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[340]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30270,7 +30521,7 @@ func (x *MplsConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsConfig.ProtoReflect.Descriptor instead.
 func (*MplsConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{337}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{340}
 }
 
 func (x *MplsConfig) GetInterfaces() []string {
@@ -30331,7 +30582,7 @@ type MplsTable struct {
 
 func (x *MplsTable) Reset() {
 	*x = MplsTable{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[338]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[341]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30343,7 +30594,7 @@ func (x *MplsTable) String() string {
 func (*MplsTable) ProtoMessage() {}
 
 func (x *MplsTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[338]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[341]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30356,7 +30607,7 @@ func (x *MplsTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsTable.ProtoReflect.Descriptor instead.
 func (*MplsTable) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{338}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{341}
 }
 
 // MplsLabelRoute mirrors one entry of `routing.mpls.labelRoutes`.
@@ -30378,7 +30629,7 @@ type MplsLabelRoute struct {
 
 func (x *MplsLabelRoute) Reset() {
 	*x = MplsLabelRoute{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[339]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[342]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30390,7 +30641,7 @@ func (x *MplsLabelRoute) String() string {
 func (*MplsLabelRoute) ProtoMessage() {}
 
 func (x *MplsLabelRoute) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[339]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[342]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30403,7 +30654,7 @@ func (x *MplsLabelRoute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsLabelRoute.ProtoReflect.Descriptor instead.
 func (*MplsLabelRoute) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{339}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{342}
 }
 
 func (x *MplsLabelRoute) GetTable() uint32 {
@@ -30460,7 +30711,7 @@ type MplsPath struct {
 
 func (x *MplsPath) Reset() {
 	*x = MplsPath{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[340]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[343]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30472,7 +30723,7 @@ func (x *MplsPath) String() string {
 func (*MplsPath) ProtoMessage() {}
 
 func (x *MplsPath) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[340]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[343]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30485,7 +30736,7 @@ func (x *MplsPath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsPath.ProtoReflect.Descriptor instead.
 func (*MplsPath) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{340}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{343}
 }
 
 func (x *MplsPath) GetNextHop() string {
@@ -30538,7 +30789,7 @@ type MplsIpBinding struct {
 
 func (x *MplsIpBinding) Reset() {
 	*x = MplsIpBinding{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[341]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[344]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30550,7 +30801,7 @@ func (x *MplsIpBinding) String() string {
 func (*MplsIpBinding) ProtoMessage() {}
 
 func (x *MplsIpBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[341]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[344]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30563,7 +30814,7 @@ func (x *MplsIpBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsIpBinding.ProtoReflect.Descriptor instead.
 func (*MplsIpBinding) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{341}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{344}
 }
 
 func (x *MplsIpBinding) GetLabel() uint32 {
@@ -30600,7 +30851,7 @@ type MplsTunnel struct {
 
 func (x *MplsTunnel) Reset() {
 	*x = MplsTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[342]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[345]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30612,7 +30863,7 @@ func (x *MplsTunnel) String() string {
 func (*MplsTunnel) ProtoMessage() {}
 
 func (x *MplsTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[342]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[345]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30625,7 +30876,7 @@ func (x *MplsTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsTunnel.ProtoReflect.Descriptor instead.
 func (*MplsTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{342}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{345}
 }
 
 func (x *MplsTunnel) GetPaths() []*MplsPath {
@@ -30655,7 +30906,7 @@ type MplsSr struct {
 
 func (x *MplsSr) Reset() {
 	*x = MplsSr{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[343]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[346]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30667,7 +30918,7 @@ func (x *MplsSr) String() string {
 func (*MplsSr) ProtoMessage() {}
 
 func (x *MplsSr) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[343]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[346]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30680,7 +30931,7 @@ func (x *MplsSr) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsSr.ProtoReflect.Descriptor instead.
 func (*MplsSr) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{343}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{346}
 }
 
 func (x *MplsSr) GetPolicies() map[string]*MplsSrPolicy {
@@ -30710,7 +30961,7 @@ type MplsSrPolicy struct {
 
 func (x *MplsSrPolicy) Reset() {
 	*x = MplsSrPolicy{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[344]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[347]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30722,7 +30973,7 @@ func (x *MplsSrPolicy) String() string {
 func (*MplsSrPolicy) ProtoMessage() {}
 
 func (x *MplsSrPolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[344]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[347]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30735,7 +30986,7 @@ func (x *MplsSrPolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsSrPolicy.ProtoReflect.Descriptor instead.
 func (*MplsSrPolicy) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{344}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{347}
 }
 
 func (x *MplsSrPolicy) GetSegmentLists() []*MplsSrSegmentList {
@@ -30765,7 +31016,7 @@ type MplsSrSegmentList struct {
 
 func (x *MplsSrSegmentList) Reset() {
 	*x = MplsSrSegmentList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[345]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[348]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30777,7 +31028,7 @@ func (x *MplsSrSegmentList) String() string {
 func (*MplsSrSegmentList) ProtoMessage() {}
 
 func (x *MplsSrSegmentList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[345]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[348]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30790,7 +31041,7 @@ func (x *MplsSrSegmentList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsSrSegmentList.ProtoReflect.Descriptor instead.
 func (*MplsSrSegmentList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{345}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{348}
 }
 
 func (x *MplsSrSegmentList) GetLabels() []uint32 {
@@ -30824,7 +31075,7 @@ type MplsSrSteering struct {
 
 func (x *MplsSrSteering) Reset() {
 	*x = MplsSrSteering{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[346]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[349]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30836,7 +31087,7 @@ func (x *MplsSrSteering) String() string {
 func (*MplsSrSteering) ProtoMessage() {}
 
 func (x *MplsSrSteering) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[346]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[349]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30849,7 +31100,7 @@ func (x *MplsSrSteering) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsSrSteering.ProtoReflect.Descriptor instead.
 func (*MplsSrSteering) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{346}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{349}
 }
 
 func (x *MplsSrSteering) GetVrf() string {
@@ -30903,7 +31154,7 @@ type MplsStateRequest struct {
 
 func (x *MplsStateRequest) Reset() {
 	*x = MplsStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[347]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[350]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -30915,7 +31166,7 @@ func (x *MplsStateRequest) String() string {
 func (*MplsStateRequest) ProtoMessage() {}
 
 func (x *MplsStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[347]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[350]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -30928,7 +31179,7 @@ func (x *MplsStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStateRequest.ProtoReflect.Descriptor instead.
 func (*MplsStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{347}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{350}
 }
 
 func (x *MplsStateRequest) GetOwner() string {
@@ -30998,7 +31249,7 @@ type MplsStateResponse struct {
 
 func (x *MplsStateResponse) Reset() {
 	*x = MplsStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[348]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[351]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31010,7 +31261,7 @@ func (x *MplsStateResponse) String() string {
 func (*MplsStateResponse) ProtoMessage() {}
 
 func (x *MplsStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[348]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[351]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31023,7 +31274,7 @@ func (x *MplsStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStateResponse.ProtoReflect.Descriptor instead.
 func (*MplsStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{348}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{351}
 }
 
 func (x *MplsStateResponse) GetOwner() string {
@@ -31094,7 +31345,7 @@ type MplsStateTable struct {
 
 func (x *MplsStateTable) Reset() {
 	*x = MplsStateTable{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[349]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[352]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31106,7 +31357,7 @@ func (x *MplsStateTable) String() string {
 func (*MplsStateTable) ProtoMessage() {}
 
 func (x *MplsStateTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[349]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[352]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31119,7 +31370,7 @@ func (x *MplsStateTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStateTable.ProtoReflect.Descriptor instead.
 func (*MplsStateTable) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{349}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{352}
 }
 
 func (x *MplsStateTable) GetTableId() uint32 {
@@ -31153,7 +31404,7 @@ type MplsStateFibEntry struct {
 
 func (x *MplsStateFibEntry) Reset() {
 	*x = MplsStateFibEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[350]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[353]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31165,7 +31416,7 @@ func (x *MplsStateFibEntry) String() string {
 func (*MplsStateFibEntry) ProtoMessage() {}
 
 func (x *MplsStateFibEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[350]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[353]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31178,7 +31429,7 @@ func (x *MplsStateFibEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStateFibEntry.ProtoReflect.Descriptor instead.
 func (*MplsStateFibEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{350}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{353}
 }
 
 func (x *MplsStateFibEntry) GetLabel() uint32 {
@@ -31232,7 +31483,7 @@ type MplsStatePath struct {
 
 func (x *MplsStatePath) Reset() {
 	*x = MplsStatePath{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[351]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[354]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31244,7 +31495,7 @@ func (x *MplsStatePath) String() string {
 func (*MplsStatePath) ProtoMessage() {}
 
 func (x *MplsStatePath) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[351]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[354]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31257,7 +31508,7 @@ func (x *MplsStatePath) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStatePath.ProtoReflect.Descriptor instead.
 func (*MplsStatePath) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{351}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{354}
 }
 
 func (x *MplsStatePath) GetType() string {
@@ -31337,7 +31588,7 @@ type MplsStateTunnel struct {
 
 func (x *MplsStateTunnel) Reset() {
 	*x = MplsStateTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[352]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[355]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31349,7 +31600,7 @@ func (x *MplsStateTunnel) String() string {
 func (*MplsStateTunnel) ProtoMessage() {}
 
 func (x *MplsStateTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[352]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[355]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31362,7 +31613,7 @@ func (x *MplsStateTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsStateTunnel.ProtoReflect.Descriptor instead.
 func (*MplsStateTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{352}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{355}
 }
 
 func (x *MplsStateTunnel) GetName() string {
@@ -31437,7 +31688,7 @@ type LbService struct {
 
 func (x *LbService) Reset() {
 	*x = LbService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[353]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[356]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31449,7 +31700,7 @@ func (x *LbService) String() string {
 func (*LbService) ProtoMessage() {}
 
 func (x *LbService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[353]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[356]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31462,7 +31713,7 @@ func (x *LbService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbService.ProtoReflect.Descriptor instead.
 func (*LbService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{353}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{356}
 }
 
 func (x *LbService) GetSettings() *LbSettings {
@@ -31503,7 +31754,7 @@ type LbSettings struct {
 
 func (x *LbSettings) Reset() {
 	*x = LbSettings{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[354]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[357]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31515,7 +31766,7 @@ func (x *LbSettings) String() string {
 func (*LbSettings) ProtoMessage() {}
 
 func (x *LbSettings) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[354]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[357]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31528,7 +31779,7 @@ func (x *LbSettings) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbSettings.ProtoReflect.Descriptor instead.
 func (*LbSettings) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{354}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{357}
 }
 
 func (x *LbSettings) GetIp4Source() string {
@@ -31590,7 +31841,7 @@ type LbVip struct {
 
 func (x *LbVip) Reset() {
 	*x = LbVip{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[355]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[358]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31602,7 +31853,7 @@ func (x *LbVip) String() string {
 func (*LbVip) ProtoMessage() {}
 
 func (x *LbVip) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[355]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[358]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31615,7 +31866,7 @@ func (x *LbVip) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbVip.ProtoReflect.Descriptor instead.
 func (*LbVip) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{355}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{358}
 }
 
 func (x *LbVip) GetPrefix() string {
@@ -31708,7 +31959,7 @@ type LbServer struct {
 
 func (x *LbServer) Reset() {
 	*x = LbServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[356]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[359]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31720,7 +31971,7 @@ func (x *LbServer) String() string {
 func (*LbServer) ProtoMessage() {}
 
 func (x *LbServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[356]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[359]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31733,7 +31984,7 @@ func (x *LbServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbServer.ProtoReflect.Descriptor instead.
 func (*LbServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{356}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{359}
 }
 
 func (x *LbServer) GetAddress() string {
@@ -31763,7 +32014,7 @@ type LbNatInterface struct {
 
 func (x *LbNatInterface) Reset() {
 	*x = LbNatInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[357]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[360]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31775,7 +32026,7 @@ func (x *LbNatInterface) String() string {
 func (*LbNatInterface) ProtoMessage() {}
 
 func (x *LbNatInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[357]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[360]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31788,7 +32039,7 @@ func (x *LbNatInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbNatInterface.ProtoReflect.Descriptor instead.
 func (*LbNatInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{357}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{360}
 }
 
 func (x *LbNatInterface) GetInterface() string {
@@ -31818,7 +32069,7 @@ type LbStateRequest struct {
 
 func (x *LbStateRequest) Reset() {
 	*x = LbStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[358]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[361]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31830,7 +32081,7 @@ func (x *LbStateRequest) String() string {
 func (*LbStateRequest) ProtoMessage() {}
 
 func (x *LbStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[358]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[361]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31843,7 +32094,7 @@ func (x *LbStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbStateRequest.ProtoReflect.Descriptor instead.
 func (*LbStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{358}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{361}
 }
 
 func (x *LbStateRequest) GetOwner() string {
@@ -31877,7 +32128,7 @@ type LbStateResponse struct {
 
 func (x *LbStateResponse) Reset() {
 	*x = LbStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[359]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[362]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31889,7 +32140,7 @@ func (x *LbStateResponse) String() string {
 func (*LbStateResponse) ProtoMessage() {}
 
 func (x *LbStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[359]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[362]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31902,7 +32153,7 @@ func (x *LbStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbStateResponse.ProtoReflect.Descriptor instead.
 func (*LbStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{359}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{362}
 }
 
 func (x *LbStateResponse) GetVips() []*LbVipState {
@@ -31948,7 +32199,7 @@ type LbServerState struct {
 
 func (x *LbServerState) Reset() {
 	*x = LbServerState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[360]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[363]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -31960,7 +32211,7 @@ func (x *LbServerState) String() string {
 func (*LbServerState) ProtoMessage() {}
 
 func (x *LbServerState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[360]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[363]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -31973,7 +32224,7 @@ func (x *LbServerState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbServerState.ProtoReflect.Descriptor instead.
 func (*LbServerState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{360}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{363}
 }
 
 func (x *LbServerState) GetAddress() string {
@@ -32027,7 +32278,7 @@ type LbVipState struct {
 
 func (x *LbVipState) Reset() {
 	*x = LbVipState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[361]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[364]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32039,7 +32290,7 @@ func (x *LbVipState) String() string {
 func (*LbVipState) ProtoMessage() {}
 
 func (x *LbVipState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[361]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[364]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32052,7 +32303,7 @@ func (x *LbVipState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbVipState.ProtoReflect.Descriptor instead.
 func (*LbVipState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{361}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{364}
 }
 
 func (x *LbVipState) GetName() string {
@@ -32138,7 +32389,7 @@ type LbFlushVipRequest struct {
 
 func (x *LbFlushVipRequest) Reset() {
 	*x = LbFlushVipRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[362]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[365]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32150,7 +32401,7 @@ func (x *LbFlushVipRequest) String() string {
 func (*LbFlushVipRequest) ProtoMessage() {}
 
 func (x *LbFlushVipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[362]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[365]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32163,7 +32414,7 @@ func (x *LbFlushVipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbFlushVipRequest.ProtoReflect.Descriptor instead.
 func (*LbFlushVipRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{362}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{365}
 }
 
 func (x *LbFlushVipRequest) GetOwner() string {
@@ -32191,7 +32442,7 @@ type LbFlushVipResponse struct {
 
 func (x *LbFlushVipResponse) Reset() {
 	*x = LbFlushVipResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[363]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[366]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32203,7 +32454,7 @@ func (x *LbFlushVipResponse) String() string {
 func (*LbFlushVipResponse) ProtoMessage() {}
 
 func (x *LbFlushVipResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[363]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[366]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32216,7 +32467,7 @@ func (x *LbFlushVipResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LbFlushVipResponse.ProtoReflect.Descriptor instead.
 func (*LbFlushVipResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{363}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{366}
 }
 
 func (x *LbFlushVipResponse) GetVip() string {
@@ -32239,7 +32490,7 @@ type QosPolicerStateRequest struct {
 
 func (x *QosPolicerStateRequest) Reset() {
 	*x = QosPolicerStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[364]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[367]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32251,7 +32502,7 @@ func (x *QosPolicerStateRequest) String() string {
 func (*QosPolicerStateRequest) ProtoMessage() {}
 
 func (x *QosPolicerStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[364]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[367]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32264,7 +32515,7 @@ func (x *QosPolicerStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerStateRequest.ProtoReflect.Descriptor instead.
 func (*QosPolicerStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{364}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{367}
 }
 
 func (x *QosPolicerStateRequest) GetOwner() string {
@@ -32294,7 +32545,7 @@ type QosPolicerCounter struct {
 
 func (x *QosPolicerCounter) Reset() {
 	*x = QosPolicerCounter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[365]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[368]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32306,7 +32557,7 @@ func (x *QosPolicerCounter) String() string {
 func (*QosPolicerCounter) ProtoMessage() {}
 
 func (x *QosPolicerCounter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[365]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[368]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32319,7 +32570,7 @@ func (x *QosPolicerCounter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerCounter.ProtoReflect.Descriptor instead.
 func (*QosPolicerCounter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{365}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{368}
 }
 
 func (x *QosPolicerCounter) GetPackets() uint64 {
@@ -32377,7 +32628,7 @@ type QosPolicerStatus struct {
 
 func (x *QosPolicerStatus) Reset() {
 	*x = QosPolicerStatus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[366]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[369]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32389,7 +32640,7 @@ func (x *QosPolicerStatus) String() string {
 func (*QosPolicerStatus) ProtoMessage() {}
 
 func (x *QosPolicerStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[366]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[369]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32402,7 +32653,7 @@ func (x *QosPolicerStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerStatus.ProtoReflect.Descriptor instead.
 func (*QosPolicerStatus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{366}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{369}
 }
 
 func (x *QosPolicerStatus) GetName() string {
@@ -32534,7 +32785,7 @@ type QosPolicerStateResponse struct {
 
 func (x *QosPolicerStateResponse) Reset() {
 	*x = QosPolicerStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[367]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[370]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32546,7 +32797,7 @@ func (x *QosPolicerStateResponse) String() string {
 func (*QosPolicerStateResponse) ProtoMessage() {}
 
 func (x *QosPolicerStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[367]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[370]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32559,7 +32810,7 @@ func (x *QosPolicerStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerStateResponse.ProtoReflect.Descriptor instead.
 func (*QosPolicerStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{367}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{370}
 }
 
 func (x *QosPolicerStateResponse) GetPolicers() []*QosPolicerStatus {
@@ -32603,7 +32854,7 @@ type QosPolicerResetRequest struct {
 
 func (x *QosPolicerResetRequest) Reset() {
 	*x = QosPolicerResetRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[368]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[371]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32615,7 +32866,7 @@ func (x *QosPolicerResetRequest) String() string {
 func (*QosPolicerResetRequest) ProtoMessage() {}
 
 func (x *QosPolicerResetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[368]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[371]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32628,7 +32879,7 @@ func (x *QosPolicerResetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerResetRequest.ProtoReflect.Descriptor instead.
 func (*QosPolicerResetRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{368}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{371}
 }
 
 func (x *QosPolicerResetRequest) GetOwner() string {
@@ -32662,7 +32913,7 @@ type QosPolicerResetResponse struct {
 
 func (x *QosPolicerResetResponse) Reset() {
 	*x = QosPolicerResetResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[369]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[372]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32674,7 +32925,7 @@ func (x *QosPolicerResetResponse) String() string {
 func (*QosPolicerResetResponse) ProtoMessage() {}
 
 func (x *QosPolicerResetResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[369]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[372]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32687,7 +32938,7 @@ func (x *QosPolicerResetResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosPolicerResetResponse.ProtoReflect.Descriptor instead.
 func (*QosPolicerResetResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{369}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{372}
 }
 
 func (x *QosPolicerResetResponse) GetOwner() string {
@@ -32737,7 +32988,7 @@ type HostStackService struct {
 
 func (x *HostStackService) Reset() {
 	*x = HostStackService{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[370]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[373]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32749,7 +33000,7 @@ func (x *HostStackService) String() string {
 func (*HostStackService) ProtoMessage() {}
 
 func (x *HostStackService) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[370]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[373]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32762,7 +33013,7 @@ func (x *HostStackService) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackService.ProtoReflect.Descriptor instead.
 func (*HostStackService) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{370}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{373}
 }
 
 func (x *HostStackService) GetEnabled() bool {
@@ -32815,7 +33066,7 @@ type HostStackNamespace struct {
 
 func (x *HostStackNamespace) Reset() {
 	*x = HostStackNamespace{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[371]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[374]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32827,7 +33078,7 @@ func (x *HostStackNamespace) String() string {
 func (*HostStackNamespace) ProtoMessage() {}
 
 func (x *HostStackNamespace) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[371]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[374]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32840,7 +33091,7 @@ func (x *HostStackNamespace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackNamespace.ProtoReflect.Descriptor instead.
 func (*HostStackNamespace) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{371}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{374}
 }
 
 func (x *HostStackNamespace) GetSecretRef() string {
@@ -32893,7 +33144,7 @@ type HostStackSessionRule struct {
 
 func (x *HostStackSessionRule) Reset() {
 	*x = HostStackSessionRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[372]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[375]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -32905,7 +33156,7 @@ func (x *HostStackSessionRule) String() string {
 func (*HostStackSessionRule) ProtoMessage() {}
 
 func (x *HostStackSessionRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[372]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[375]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -32918,7 +33169,7 @@ func (x *HostStackSessionRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackSessionRule.ProtoReflect.Descriptor instead.
 func (*HostStackSessionRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{372}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{375}
 }
 
 func (x *HostStackSessionRule) GetTag() string {
@@ -33006,7 +33257,7 @@ type HostStackTcpSource struct {
 
 func (x *HostStackTcpSource) Reset() {
 	*x = HostStackTcpSource{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[373]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[376]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33018,7 +33269,7 @@ func (x *HostStackTcpSource) String() string {
 func (*HostStackTcpSource) ProtoMessage() {}
 
 func (x *HostStackTcpSource) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[373]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[376]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33031,7 +33282,7 @@ func (x *HostStackTcpSource) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackTcpSource.ProtoReflect.Descriptor instead.
 func (*HostStackTcpSource) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{373}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{376}
 }
 
 func (x *HostStackTcpSource) GetFirst() string {
@@ -33072,7 +33323,7 @@ type HostStackHttpStatic struct {
 
 func (x *HostStackHttpStatic) Reset() {
 	*x = HostStackHttpStatic{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[374]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[377]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33084,7 +33335,7 @@ func (x *HostStackHttpStatic) String() string {
 func (*HostStackHttpStatic) ProtoMessage() {}
 
 func (x *HostStackHttpStatic) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[374]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[377]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33097,7 +33348,7 @@ func (x *HostStackHttpStatic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackHttpStatic.ProtoReflect.Descriptor instead.
 func (*HostStackHttpStatic) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{374}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{377}
 }
 
 func (x *HostStackHttpStatic) GetEnabled() bool {
@@ -33139,7 +33390,7 @@ type HostStackStateRequest struct {
 
 func (x *HostStackStateRequest) Reset() {
 	*x = HostStackStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[375]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[378]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33151,7 +33402,7 @@ func (x *HostStackStateRequest) String() string {
 func (*HostStackStateRequest) ProtoMessage() {}
 
 func (x *HostStackStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[375]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[378]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33164,7 +33415,7 @@ func (x *HostStackStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackStateRequest.ProtoReflect.Descriptor instead.
 func (*HostStackStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{375}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{378}
 }
 
 func (x *HostStackStateRequest) GetOwner() string {
@@ -33201,7 +33452,7 @@ type HostStackRuleState struct {
 
 func (x *HostStackRuleState) Reset() {
 	*x = HostStackRuleState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[376]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[379]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33213,7 +33464,7 @@ func (x *HostStackRuleState) String() string {
 func (*HostStackRuleState) ProtoMessage() {}
 
 func (x *HostStackRuleState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[376]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[379]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33226,7 +33477,7 @@ func (x *HostStackRuleState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackRuleState.ProtoReflect.Descriptor instead.
 func (*HostStackRuleState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{376}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{379}
 }
 
 func (x *HostStackRuleState) GetTag() string {
@@ -33313,7 +33564,7 @@ type HostStackStateResponse struct {
 
 func (x *HostStackStateResponse) Reset() {
 	*x = HostStackStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[377]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[380]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33325,7 +33576,7 @@ func (x *HostStackStateResponse) String() string {
 func (*HostStackStateResponse) ProtoMessage() {}
 
 func (x *HostStackStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[377]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[380]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33338,7 +33589,7 @@ func (x *HostStackStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostStackStateResponse.ProtoReflect.Descriptor instead.
 func (*HostStackStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{377}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{380}
 }
 
 func (x *HostStackStateResponse) GetSessionEnabled() bool {
@@ -33396,7 +33647,7 @@ type SnmpView struct {
 
 func (x *SnmpView) Reset() {
 	*x = SnmpView{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[378]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[381]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33408,7 +33659,7 @@ func (x *SnmpView) String() string {
 func (*SnmpView) ProtoMessage() {}
 
 func (x *SnmpView) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[378]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[381]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33421,7 +33672,7 @@ func (x *SnmpView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpView.ProtoReflect.Descriptor instead.
 func (*SnmpView) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{378}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{381}
 }
 
 func (x *SnmpView) GetInclude() []string {
@@ -33451,7 +33702,7 @@ type SnmpMonitors struct {
 
 func (x *SnmpMonitors) Reset() {
 	*x = SnmpMonitors{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[379]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[382]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33463,7 +33714,7 @@ func (x *SnmpMonitors) String() string {
 func (*SnmpMonitors) ProtoMessage() {}
 
 func (x *SnmpMonitors) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[379]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[382]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33476,7 +33727,7 @@ func (x *SnmpMonitors) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpMonitors.ProtoReflect.Descriptor instead.
 func (*SnmpMonitors) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{379}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{382}
 }
 
 func (x *SnmpMonitors) GetDisks() []*SnmpMonitorDisk {
@@ -33506,7 +33757,7 @@ type SnmpMonitorDisk struct {
 
 func (x *SnmpMonitorDisk) Reset() {
 	*x = SnmpMonitorDisk{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[380]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[383]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33518,7 +33769,7 @@ func (x *SnmpMonitorDisk) String() string {
 func (*SnmpMonitorDisk) ProtoMessage() {}
 
 func (x *SnmpMonitorDisk) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[380]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[383]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33531,7 +33782,7 @@ func (x *SnmpMonitorDisk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpMonitorDisk.ProtoReflect.Descriptor instead.
 func (*SnmpMonitorDisk) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{380}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{383}
 }
 
 func (x *SnmpMonitorDisk) GetPath() string {
@@ -33563,7 +33814,7 @@ type SnmpMonitorLoad struct {
 
 func (x *SnmpMonitorLoad) Reset() {
 	*x = SnmpMonitorLoad{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[381]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[384]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33575,7 +33826,7 @@ func (x *SnmpMonitorLoad) String() string {
 func (*SnmpMonitorLoad) ProtoMessage() {}
 
 func (x *SnmpMonitorLoad) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[381]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[384]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33588,7 +33839,7 @@ func (x *SnmpMonitorLoad) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpMonitorLoad.ProtoReflect.Descriptor instead.
 func (*SnmpMonitorLoad) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{381}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{384}
 }
 
 func (x *SnmpMonitorLoad) GetMax1() uint32 {
@@ -33623,7 +33874,7 @@ type SnmpSubagent struct {
 
 func (x *SnmpSubagent) Reset() {
 	*x = SnmpSubagent{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[382]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[385]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33635,7 +33886,7 @@ func (x *SnmpSubagent) String() string {
 func (*SnmpSubagent) ProtoMessage() {}
 
 func (x *SnmpSubagent) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[382]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[385]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33648,7 +33899,7 @@ func (x *SnmpSubagent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpSubagent.ProtoReflect.Descriptor instead.
 func (*SnmpSubagent) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{382}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{385}
 }
 
 func (x *SnmpSubagent) GetEnabled() bool {
@@ -33669,7 +33920,7 @@ type SnmpStateRequest struct {
 
 func (x *SnmpStateRequest) Reset() {
 	*x = SnmpStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[383]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[386]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33681,7 +33932,7 @@ func (x *SnmpStateRequest) String() string {
 func (*SnmpStateRequest) ProtoMessage() {}
 
 func (x *SnmpStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[383]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[386]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33694,7 +33945,7 @@ func (x *SnmpStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpStateRequest.ProtoReflect.Descriptor instead.
 func (*SnmpStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{383}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{386}
 }
 
 func (x *SnmpStateRequest) GetOwner() string {
@@ -33740,7 +33991,7 @@ type SnmpStateResponse struct {
 
 func (x *SnmpStateResponse) Reset() {
 	*x = SnmpStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[384]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[387]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33752,7 +34003,7 @@ func (x *SnmpStateResponse) String() string {
 func (*SnmpStateResponse) ProtoMessage() {}
 
 func (x *SnmpStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[384]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[387]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33765,7 +34016,7 @@ func (x *SnmpStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpStateResponse.ProtoReflect.Descriptor instead.
 func (*SnmpStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{384}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{387}
 }
 
 func (x *SnmpStateResponse) GetConfigured() bool {
@@ -33884,7 +34135,7 @@ type IpfixStateRequest struct {
 
 func (x *IpfixStateRequest) Reset() {
 	*x = IpfixStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[385]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[388]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33896,7 +34147,7 @@ func (x *IpfixStateRequest) String() string {
 func (*IpfixStateRequest) ProtoMessage() {}
 
 func (x *IpfixStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[385]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[388]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33909,7 +34160,7 @@ func (x *IpfixStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixStateRequest.ProtoReflect.Descriptor instead.
 func (*IpfixStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{385}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{388}
 }
 
 func (x *IpfixStateRequest) GetOwner() string {
@@ -33949,7 +34200,7 @@ type IpfixStateResponse struct {
 
 func (x *IpfixStateResponse) Reset() {
 	*x = IpfixStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[386]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[389]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -33961,7 +34212,7 @@ func (x *IpfixStateResponse) String() string {
 func (*IpfixStateResponse) ProtoMessage() {}
 
 func (x *IpfixStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[386]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[389]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -33974,7 +34225,7 @@ func (x *IpfixStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixStateResponse.ProtoReflect.Descriptor instead.
 func (*IpfixStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{386}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{389}
 }
 
 func (x *IpfixStateResponse) GetExporters() []*IpfixExporterState {
@@ -34077,7 +34328,7 @@ type IpfixExporterState struct {
 
 func (x *IpfixExporterState) Reset() {
 	*x = IpfixExporterState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[387]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[390]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34089,7 +34340,7 @@ func (x *IpfixExporterState) String() string {
 func (*IpfixExporterState) ProtoMessage() {}
 
 func (x *IpfixExporterState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[387]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[390]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34102,7 +34353,7 @@ func (x *IpfixExporterState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixExporterState.ProtoReflect.Descriptor instead.
 func (*IpfixExporterState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{387}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{390}
 }
 
 func (x *IpfixExporterState) GetName() string {
@@ -34194,7 +34445,7 @@ type IpfixFlowprobeParamsState struct {
 
 func (x *IpfixFlowprobeParamsState) Reset() {
 	*x = IpfixFlowprobeParamsState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[388]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[391]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34206,7 +34457,7 @@ func (x *IpfixFlowprobeParamsState) String() string {
 func (*IpfixFlowprobeParamsState) ProtoMessage() {}
 
 func (x *IpfixFlowprobeParamsState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[388]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[391]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34219,7 +34470,7 @@ func (x *IpfixFlowprobeParamsState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixFlowprobeParamsState.ProtoReflect.Descriptor instead.
 func (*IpfixFlowprobeParamsState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{388}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{391}
 }
 
 func (x *IpfixFlowprobeParamsState) GetRecordL2() bool {
@@ -34272,7 +34523,7 @@ type IpfixFlowprobeInterfaceState struct {
 
 func (x *IpfixFlowprobeInterfaceState) Reset() {
 	*x = IpfixFlowprobeInterfaceState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[389]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[392]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34284,7 +34535,7 @@ func (x *IpfixFlowprobeInterfaceState) String() string {
 func (*IpfixFlowprobeInterfaceState) ProtoMessage() {}
 
 func (x *IpfixFlowprobeInterfaceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[389]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[392]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34297,7 +34548,7 @@ func (x *IpfixFlowprobeInterfaceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixFlowprobeInterfaceState.ProtoReflect.Descriptor instead.
 func (*IpfixFlowprobeInterfaceState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{389}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{392}
 }
 
 func (x *IpfixFlowprobeInterfaceState) GetInterface() string {
@@ -34340,7 +34591,7 @@ type IpfixSflowGlobalState struct {
 
 func (x *IpfixSflowGlobalState) Reset() {
 	*x = IpfixSflowGlobalState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[390]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[393]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34352,7 +34603,7 @@ func (x *IpfixSflowGlobalState) String() string {
 func (*IpfixSflowGlobalState) ProtoMessage() {}
 
 func (x *IpfixSflowGlobalState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[390]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[393]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34365,7 +34616,7 @@ func (x *IpfixSflowGlobalState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixSflowGlobalState.ProtoReflect.Descriptor instead.
 func (*IpfixSflowGlobalState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{390}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{393}
 }
 
 func (x *IpfixSflowGlobalState) GetSamplingN() uint32 {
@@ -34416,7 +34667,7 @@ type IpfixSflowInterfaceState struct {
 
 func (x *IpfixSflowInterfaceState) Reset() {
 	*x = IpfixSflowInterfaceState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[391]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[394]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34428,7 +34679,7 @@ func (x *IpfixSflowInterfaceState) String() string {
 func (*IpfixSflowInterfaceState) ProtoMessage() {}
 
 func (x *IpfixSflowInterfaceState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[391]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[394]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34441,7 +34692,7 @@ func (x *IpfixSflowInterfaceState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixSflowInterfaceState.ProtoReflect.Descriptor instead.
 func (*IpfixSflowInterfaceState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{391}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{394}
 }
 
 func (x *IpfixSflowInterfaceState) GetInterface() string {
@@ -34471,7 +34722,7 @@ type IpfixCounter struct {
 
 func (x *IpfixCounter) Reset() {
 	*x = IpfixCounter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[392]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[395]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34483,7 +34734,7 @@ func (x *IpfixCounter) String() string {
 func (*IpfixCounter) ProtoMessage() {}
 
 func (x *IpfixCounter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[392]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[395]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34496,7 +34747,7 @@ func (x *IpfixCounter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixCounter.ProtoReflect.Descriptor instead.
 func (*IpfixCounter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{392}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{395}
 }
 
 func (x *IpfixCounter) GetName() string {
@@ -34523,7 +34774,7 @@ type CaptureListRequest struct {
 
 func (x *CaptureListRequest) Reset() {
 	*x = CaptureListRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[393]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[396]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34535,7 +34786,7 @@ func (x *CaptureListRequest) String() string {
 func (*CaptureListRequest) ProtoMessage() {}
 
 func (x *CaptureListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[393]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[396]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34548,7 +34799,7 @@ func (x *CaptureListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureListRequest.ProtoReflect.Descriptor instead.
 func (*CaptureListRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{393}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{396}
 }
 
 func (x *CaptureListRequest) GetOwner() string {
@@ -34593,7 +34844,7 @@ type CaptureFile struct {
 
 func (x *CaptureFile) Reset() {
 	*x = CaptureFile{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[394]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[397]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34605,7 +34856,7 @@ func (x *CaptureFile) String() string {
 func (*CaptureFile) ProtoMessage() {}
 
 func (x *CaptureFile) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[394]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[397]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34618,7 +34869,7 @@ func (x *CaptureFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureFile.ProtoReflect.Descriptor instead.
 func (*CaptureFile) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{394}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{397}
 }
 
 func (x *CaptureFile) GetId() string {
@@ -34739,7 +34990,7 @@ type CaptureListResponse struct {
 
 func (x *CaptureListResponse) Reset() {
 	*x = CaptureListResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[395]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[398]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34751,7 +35002,7 @@ func (x *CaptureListResponse) String() string {
 func (*CaptureListResponse) ProtoMessage() {}
 
 func (x *CaptureListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[395]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[398]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34764,7 +35015,7 @@ func (x *CaptureListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureListResponse.ProtoReflect.Descriptor instead.
 func (*CaptureListResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{395}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{398}
 }
 
 func (x *CaptureListResponse) GetCaptures() []*CaptureFile {
@@ -34826,7 +35077,7 @@ type CaptureReadRequest struct {
 
 func (x *CaptureReadRequest) Reset() {
 	*x = CaptureReadRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[396]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[399]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34838,7 +35089,7 @@ func (x *CaptureReadRequest) String() string {
 func (*CaptureReadRequest) ProtoMessage() {}
 
 func (x *CaptureReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[396]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[399]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34851,7 +35102,7 @@ func (x *CaptureReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureReadRequest.ProtoReflect.Descriptor instead.
 func (*CaptureReadRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{396}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{399}
 }
 
 func (x *CaptureReadRequest) GetOwner() string {
@@ -34878,7 +35129,7 @@ type CaptureChunk struct {
 
 func (x *CaptureChunk) Reset() {
 	*x = CaptureChunk{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[397]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[400]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34890,7 +35141,7 @@ func (x *CaptureChunk) String() string {
 func (*CaptureChunk) ProtoMessage() {}
 
 func (x *CaptureChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[397]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[400]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34903,7 +35154,7 @@ func (x *CaptureChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureChunk.ProtoReflect.Descriptor instead.
 func (*CaptureChunk) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{397}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{400}
 }
 
 func (x *CaptureChunk) GetData() []byte {
@@ -34923,7 +35174,7 @@ type CaptureDeleteRequest struct {
 
 func (x *CaptureDeleteRequest) Reset() {
 	*x = CaptureDeleteRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[398]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[401]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34935,7 +35186,7 @@ func (x *CaptureDeleteRequest) String() string {
 func (*CaptureDeleteRequest) ProtoMessage() {}
 
 func (x *CaptureDeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[398]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[401]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -34948,7 +35199,7 @@ func (x *CaptureDeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureDeleteRequest.ProtoReflect.Descriptor instead.
 func (*CaptureDeleteRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{398}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{401}
 }
 
 func (x *CaptureDeleteRequest) GetOwner() string {
@@ -34975,7 +35226,7 @@ type CaptureDeleteResponse struct {
 
 func (x *CaptureDeleteResponse) Reset() {
 	*x = CaptureDeleteResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[399]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[402]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -34987,7 +35238,7 @@ func (x *CaptureDeleteResponse) String() string {
 func (*CaptureDeleteResponse) ProtoMessage() {}
 
 func (x *CaptureDeleteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[399]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[402]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35000,7 +35251,7 @@ func (x *CaptureDeleteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CaptureDeleteResponse.ProtoReflect.Descriptor instead.
 func (*CaptureDeleteResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{399}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{402}
 }
 
 func (x *CaptureDeleteResponse) GetSize() uint64 {
@@ -35031,7 +35282,7 @@ type Srv6Config struct {
 
 func (x *Srv6Config) Reset() {
 	*x = Srv6Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[400]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[403]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35043,7 +35294,7 @@ func (x *Srv6Config) String() string {
 func (*Srv6Config) ProtoMessage() {}
 
 func (x *Srv6Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[400]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[403]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35056,7 +35307,7 @@ func (x *Srv6Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6Config.ProtoReflect.Descriptor instead.
 func (*Srv6Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{400}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{403}
 }
 
 func (x *Srv6Config) GetEncapSource() string {
@@ -35115,7 +35366,7 @@ type Srv6LocalSid struct {
 
 func (x *Srv6LocalSid) Reset() {
 	*x = Srv6LocalSid{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[401]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[404]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35127,7 +35378,7 @@ func (x *Srv6LocalSid) String() string {
 func (*Srv6LocalSid) ProtoMessage() {}
 
 func (x *Srv6LocalSid) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[401]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[404]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35140,7 +35391,7 @@ func (x *Srv6LocalSid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6LocalSid.ProtoReflect.Descriptor instead.
 func (*Srv6LocalSid) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{401}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{404}
 }
 
 func (x *Srv6LocalSid) GetBehavior() string {
@@ -35204,7 +35455,7 @@ type Srv6Policy struct {
 
 func (x *Srv6Policy) Reset() {
 	*x = Srv6Policy{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[402]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[405]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35216,7 +35467,7 @@ func (x *Srv6Policy) String() string {
 func (*Srv6Policy) ProtoMessage() {}
 
 func (x *Srv6Policy) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[402]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[405]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35229,7 +35480,7 @@ func (x *Srv6Policy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6Policy.ProtoReflect.Descriptor instead.
 func (*Srv6Policy) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{402}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{405}
 }
 
 func (x *Srv6Policy) GetType() string {
@@ -35280,7 +35531,7 @@ type Srv6SidList struct {
 
 func (x *Srv6SidList) Reset() {
 	*x = Srv6SidList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[403]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[406]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35292,7 +35543,7 @@ func (x *Srv6SidList) String() string {
 func (*Srv6SidList) ProtoMessage() {}
 
 func (x *Srv6SidList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[403]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[406]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35305,7 +35556,7 @@ func (x *Srv6SidList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6SidList.ProtoReflect.Descriptor instead.
 func (*Srv6SidList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{403}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{406}
 }
 
 func (x *Srv6SidList) GetSids() []string {
@@ -35342,7 +35593,7 @@ type Srv6Steering struct {
 
 func (x *Srv6Steering) Reset() {
 	*x = Srv6Steering{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[404]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[407]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35354,7 +35605,7 @@ func (x *Srv6Steering) String() string {
 func (*Srv6Steering) ProtoMessage() {}
 
 func (x *Srv6Steering) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[404]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[407]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35367,7 +35618,7 @@ func (x *Srv6Steering) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6Steering.ProtoReflect.Descriptor instead.
 func (*Srv6Steering) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{404}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{407}
 }
 
 func (x *Srv6Steering) GetType() string {
@@ -35416,7 +35667,7 @@ type Srv6StateRequest struct {
 
 func (x *Srv6StateRequest) Reset() {
 	*x = Srv6StateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[405]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[408]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35428,7 +35679,7 @@ func (x *Srv6StateRequest) String() string {
 func (*Srv6StateRequest) ProtoMessage() {}
 
 func (x *Srv6StateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[405]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[408]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35441,7 +35692,7 @@ func (x *Srv6StateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StateRequest.ProtoReflect.Descriptor instead.
 func (*Srv6StateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{405}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{408}
 }
 
 func (x *Srv6StateRequest) GetOwner() string {
@@ -35470,7 +35721,7 @@ type Srv6StateResponse struct {
 
 func (x *Srv6StateResponse) Reset() {
 	*x = Srv6StateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[406]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[409]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35482,7 +35733,7 @@ func (x *Srv6StateResponse) String() string {
 func (*Srv6StateResponse) ProtoMessage() {}
 
 func (x *Srv6StateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[406]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[409]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35495,7 +35746,7 @@ func (x *Srv6StateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StateResponse.ProtoReflect.Descriptor instead.
 func (*Srv6StateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{406}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{409}
 }
 
 func (x *Srv6StateResponse) GetLocalSids() []*Srv6StateLocalSid {
@@ -35560,7 +35811,7 @@ type Srv6StateLocalSid struct {
 
 func (x *Srv6StateLocalSid) Reset() {
 	*x = Srv6StateLocalSid{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[407]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[410]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35572,7 +35823,7 @@ func (x *Srv6StateLocalSid) String() string {
 func (*Srv6StateLocalSid) ProtoMessage() {}
 
 func (x *Srv6StateLocalSid) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[407]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[410]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35585,7 +35836,7 @@ func (x *Srv6StateLocalSid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StateLocalSid.ProtoReflect.Descriptor instead.
 func (*Srv6StateLocalSid) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{407}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{410}
 }
 
 func (x *Srv6StateLocalSid) GetSid() string {
@@ -35685,7 +35936,7 @@ type Srv6StatePolicy struct {
 
 func (x *Srv6StatePolicy) Reset() {
 	*x = Srv6StatePolicy{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[408]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[411]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35697,7 +35948,7 @@ func (x *Srv6StatePolicy) String() string {
 func (*Srv6StatePolicy) ProtoMessage() {}
 
 func (x *Srv6StatePolicy) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[408]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[411]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35710,7 +35961,7 @@ func (x *Srv6StatePolicy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StatePolicy.ProtoReflect.Descriptor instead.
 func (*Srv6StatePolicy) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{408}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{411}
 }
 
 func (x *Srv6StatePolicy) GetBsid() string {
@@ -35766,7 +36017,7 @@ type Srv6StateSidList struct {
 
 func (x *Srv6StateSidList) Reset() {
 	*x = Srv6StateSidList{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[409]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[412]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35778,7 +36029,7 @@ func (x *Srv6StateSidList) String() string {
 func (*Srv6StateSidList) ProtoMessage() {}
 
 func (x *Srv6StateSidList) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[409]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[412]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35791,7 +36042,7 @@ func (x *Srv6StateSidList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StateSidList.ProtoReflect.Descriptor instead.
 func (*Srv6StateSidList) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{409}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{412}
 }
 
 func (x *Srv6StateSidList) GetSids() []string {
@@ -35826,7 +36077,7 @@ type Srv6StateSteering struct {
 
 func (x *Srv6StateSteering) Reset() {
 	*x = Srv6StateSteering{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[410]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[413]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35838,7 +36089,7 @@ func (x *Srv6StateSteering) String() string {
 func (*Srv6StateSteering) ProtoMessage() {}
 
 func (x *Srv6StateSteering) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[410]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[413]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35851,7 +36102,7 @@ func (x *Srv6StateSteering) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Srv6StateSteering.ProtoReflect.Descriptor instead.
 func (*Srv6StateSteering) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{410}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{413}
 }
 
 func (x *Srv6StateSteering) GetTrafficType() string {
@@ -35920,7 +36171,7 @@ type LispConfig struct {
 
 func (x *LispConfig) Reset() {
 	*x = LispConfig{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[411]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[414]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -35932,7 +36183,7 @@ func (x *LispConfig) String() string {
 func (*LispConfig) ProtoMessage() {}
 
 func (x *LispConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[411]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[414]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -35945,7 +36196,7 @@ func (x *LispConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispConfig.ProtoReflect.Descriptor instead.
 func (*LispConfig) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{411}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{414}
 }
 
 func (x *LispConfig) GetEnabled() bool {
@@ -36035,7 +36286,7 @@ type LispLocatorSet struct {
 
 func (x *LispLocatorSet) Reset() {
 	*x = LispLocatorSet{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[412]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[415]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36047,7 +36298,7 @@ func (x *LispLocatorSet) String() string {
 func (*LispLocatorSet) ProtoMessage() {}
 
 func (x *LispLocatorSet) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[412]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[415]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36060,7 +36311,7 @@ func (x *LispLocatorSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocatorSet.ProtoReflect.Descriptor instead.
 func (*LispLocatorSet) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{412}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{415}
 }
 
 func (x *LispLocatorSet) GetLocators() []*LispLocator {
@@ -36082,7 +36333,7 @@ type LispLocator struct {
 
 func (x *LispLocator) Reset() {
 	*x = LispLocator{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[413]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[416]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36094,7 +36345,7 @@ func (x *LispLocator) String() string {
 func (*LispLocator) ProtoMessage() {}
 
 func (x *LispLocator) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[413]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[416]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36107,7 +36358,7 @@ func (x *LispLocator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocator.ProtoReflect.Descriptor instead.
 func (*LispLocator) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{413}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{416}
 }
 
 func (x *LispLocator) GetInterface() string {
@@ -36143,7 +36394,7 @@ type LispLocalEid struct {
 
 func (x *LispLocalEid) Reset() {
 	*x = LispLocalEid{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[414]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[417]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36155,7 +36406,7 @@ func (x *LispLocalEid) String() string {
 func (*LispLocalEid) ProtoMessage() {}
 
 func (x *LispLocalEid) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[414]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[417]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36168,7 +36419,7 @@ func (x *LispLocalEid) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocalEid.ProtoReflect.Descriptor instead.
 func (*LispLocalEid) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{414}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{417}
 }
 
 func (x *LispLocalEid) GetVni() uint32 {
@@ -36203,7 +36454,7 @@ type LispEidTable struct {
 
 func (x *LispEidTable) Reset() {
 	*x = LispEidTable{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[415]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[418]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36215,7 +36466,7 @@ func (x *LispEidTable) String() string {
 func (*LispEidTable) ProtoMessage() {}
 
 func (x *LispEidTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[415]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[418]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36228,7 +36479,7 @@ func (x *LispEidTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispEidTable.ProtoReflect.Descriptor instead.
 func (*LispEidTable) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{415}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{418}
 }
 
 func (x *LispEidTable) GetVrf() string {
@@ -36257,7 +36508,7 @@ type LispRloc struct {
 
 func (x *LispRloc) Reset() {
 	*x = LispRloc{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[416]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[419]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36269,7 +36520,7 @@ func (x *LispRloc) String() string {
 func (*LispRloc) ProtoMessage() {}
 
 func (x *LispRloc) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[416]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[419]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36282,7 +36533,7 @@ func (x *LispRloc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispRloc.ProtoReflect.Descriptor instead.
 func (*LispRloc) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{416}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{419}
 }
 
 func (x *LispRloc) GetAddress() string {
@@ -36320,7 +36571,7 @@ type LispRemoteMapping struct {
 
 func (x *LispRemoteMapping) Reset() {
 	*x = LispRemoteMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[417]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[420]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36332,7 +36583,7 @@ func (x *LispRemoteMapping) String() string {
 func (*LispRemoteMapping) ProtoMessage() {}
 
 func (x *LispRemoteMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[417]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[420]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36345,7 +36596,7 @@ func (x *LispRemoteMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispRemoteMapping.ProtoReflect.Descriptor instead.
 func (*LispRemoteMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{417}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{420}
 }
 
 func (x *LispRemoteMapping) GetVni() uint32 {
@@ -36388,7 +36639,7 @@ type LispAdjacency struct {
 
 func (x *LispAdjacency) Reset() {
 	*x = LispAdjacency{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[418]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[421]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36400,7 +36651,7 @@ func (x *LispAdjacency) String() string {
 func (*LispAdjacency) ProtoMessage() {}
 
 func (x *LispAdjacency) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[418]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[421]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36413,7 +36664,7 @@ func (x *LispAdjacency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispAdjacency.ProtoReflect.Descriptor instead.
 func (*LispAdjacency) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{418}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{421}
 }
 
 func (x *LispAdjacency) GetVni() uint32 {
@@ -36449,7 +36700,7 @@ type LispLocatorPair struct {
 
 func (x *LispLocatorPair) Reset() {
 	*x = LispLocatorPair{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[419]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[422]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36461,7 +36712,7 @@ func (x *LispLocatorPair) String() string {
 func (*LispLocatorPair) ProtoMessage() {}
 
 func (x *LispLocatorPair) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[419]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[422]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36474,7 +36725,7 @@ func (x *LispLocatorPair) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispLocatorPair.ProtoReflect.Descriptor instead.
 func (*LispLocatorPair) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{419}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{422}
 }
 
 func (x *LispLocatorPair) GetLocal() string {
@@ -36513,7 +36764,7 @@ type LispGpeEntry struct {
 
 func (x *LispGpeEntry) Reset() {
 	*x = LispGpeEntry{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[420]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[423]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36525,7 +36776,7 @@ func (x *LispGpeEntry) String() string {
 func (*LispGpeEntry) ProtoMessage() {}
 
 func (x *LispGpeEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[420]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[423]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36538,7 +36789,7 @@ func (x *LispGpeEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispGpeEntry.ProtoReflect.Descriptor instead.
 func (*LispGpeEntry) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{420}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{423}
 }
 
 func (x *LispGpeEntry) GetVni() uint32 {
@@ -36594,7 +36845,7 @@ type LispStateRequest struct {
 
 func (x *LispStateRequest) Reset() {
 	*x = LispStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[421]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[424]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36606,7 +36857,7 @@ func (x *LispStateRequest) String() string {
 func (*LispStateRequest) ProtoMessage() {}
 
 func (x *LispStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[421]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[424]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36619,7 +36870,7 @@ func (x *LispStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateRequest.ProtoReflect.Descriptor instead.
 func (*LispStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{421}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{424}
 }
 
 func (x *LispStateRequest) GetOwner() string {
@@ -36643,7 +36894,7 @@ type LispStateLocator struct {
 
 func (x *LispStateLocator) Reset() {
 	*x = LispStateLocator{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[422]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[425]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36655,7 +36906,7 @@ func (x *LispStateLocator) String() string {
 func (*LispStateLocator) ProtoMessage() {}
 
 func (x *LispStateLocator) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[422]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[425]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36668,7 +36919,7 @@ func (x *LispStateLocator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateLocator.ProtoReflect.Descriptor instead.
 func (*LispStateLocator) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{422}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{425}
 }
 
 func (x *LispStateLocator) GetInterface() string {
@@ -36710,7 +36961,7 @@ type LispStateLocatorSet struct {
 
 func (x *LispStateLocatorSet) Reset() {
 	*x = LispStateLocatorSet{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[423]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[426]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36722,7 +36973,7 @@ func (x *LispStateLocatorSet) String() string {
 func (*LispStateLocatorSet) ProtoMessage() {}
 
 func (x *LispStateLocatorSet) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[423]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[426]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36735,7 +36986,7 @@ func (x *LispStateLocatorSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateLocatorSet.ProtoReflect.Descriptor instead.
 func (*LispStateLocatorSet) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{423}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{426}
 }
 
 func (x *LispStateLocatorSet) GetName() string {
@@ -36775,7 +37026,7 @@ type LispStateMapping struct {
 
 func (x *LispStateMapping) Reset() {
 	*x = LispStateMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[424]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[427]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36787,7 +37038,7 @@ func (x *LispStateMapping) String() string {
 func (*LispStateMapping) ProtoMessage() {}
 
 func (x *LispStateMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[424]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[427]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36800,7 +37051,7 @@ func (x *LispStateMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateMapping.ProtoReflect.Descriptor instead.
 func (*LispStateMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{424}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{427}
 }
 
 func (x *LispStateMapping) GetVni() uint32 {
@@ -36871,7 +37122,7 @@ type LispStateAdjacency struct {
 
 func (x *LispStateAdjacency) Reset() {
 	*x = LispStateAdjacency{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[425]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[428]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36883,7 +37134,7 @@ func (x *LispStateAdjacency) String() string {
 func (*LispStateAdjacency) ProtoMessage() {}
 
 func (x *LispStateAdjacency) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[425]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[428]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36896,7 +37147,7 @@ func (x *LispStateAdjacency) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateAdjacency.ProtoReflect.Descriptor instead.
 func (*LispStateAdjacency) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{425}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{428}
 }
 
 func (x *LispStateAdjacency) GetVni() uint32 {
@@ -36932,7 +37183,7 @@ type LispStateEidTable struct {
 
 func (x *LispStateEidTable) Reset() {
 	*x = LispStateEidTable{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[426]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[429]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -36944,7 +37195,7 @@ func (x *LispStateEidTable) String() string {
 func (*LispStateEidTable) ProtoMessage() {}
 
 func (x *LispStateEidTable) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[426]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[429]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -36957,7 +37208,7 @@ func (x *LispStateEidTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateEidTable.ProtoReflect.Descriptor instead.
 func (*LispStateEidTable) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{426}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{429}
 }
 
 func (x *LispStateEidTable) GetVni() uint32 {
@@ -37005,7 +37256,7 @@ type LispStateResponse struct {
 
 func (x *LispStateResponse) Reset() {
 	*x = LispStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[427]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[430]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37017,7 +37268,7 @@ func (x *LispStateResponse) String() string {
 func (*LispStateResponse) ProtoMessage() {}
 
 func (x *LispStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[427]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[430]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37030,7 +37281,7 @@ func (x *LispStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LispStateResponse.ProtoReflect.Descriptor instead.
 func (*LispStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{427}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{430}
 }
 
 func (x *LispStateResponse) GetOwner() string {
@@ -37136,7 +37387,7 @@ type MplsLdp struct {
 
 func (x *MplsLdp) Reset() {
 	*x = MplsLdp{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[428]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[431]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37148,7 +37399,7 @@ func (x *MplsLdp) String() string {
 func (*MplsLdp) ProtoMessage() {}
 
 func (x *MplsLdp) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[428]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[431]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37161,7 +37412,7 @@ func (x *MplsLdp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsLdp.ProtoReflect.Descriptor instead.
 func (*MplsLdp) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{428}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{431}
 }
 
 func (x *MplsLdp) GetRouterId() string {
@@ -37210,7 +37461,7 @@ type LdpNeighbor struct {
 
 func (x *LdpNeighbor) Reset() {
 	*x = LdpNeighbor{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[429]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[432]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37222,7 +37473,7 @@ func (x *LdpNeighbor) String() string {
 func (*LdpNeighbor) ProtoMessage() {}
 
 func (x *LdpNeighbor) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[429]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[432]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37235,7 +37486,7 @@ func (x *LdpNeighbor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LdpNeighbor.ProtoReflect.Descriptor instead.
 func (*LdpNeighbor) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{429}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{432}
 }
 
 func (x *LdpNeighbor) GetPasswordRef() string {
@@ -37256,7 +37507,7 @@ type LdpLabelRange struct {
 
 func (x *LdpLabelRange) Reset() {
 	*x = LdpLabelRange{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[430]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[433]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37268,7 +37519,7 @@ func (x *LdpLabelRange) String() string {
 func (*LdpLabelRange) ProtoMessage() {}
 
 func (x *LdpLabelRange) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[430]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[433]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37281,7 +37532,7 @@ func (x *LdpLabelRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LdpLabelRange.ProtoReflect.Descriptor instead.
 func (*LdpLabelRange) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{430}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{433}
 }
 
 func (x *LdpLabelRange) GetMin() uint32 {
@@ -37308,7 +37559,7 @@ type MplsLdpStateRequest struct {
 
 func (x *MplsLdpStateRequest) Reset() {
 	*x = MplsLdpStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[431]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[434]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37320,7 +37571,7 @@ func (x *MplsLdpStateRequest) String() string {
 func (*MplsLdpStateRequest) ProtoMessage() {}
 
 func (x *MplsLdpStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[431]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[434]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37333,7 +37584,7 @@ func (x *MplsLdpStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsLdpStateRequest.ProtoReflect.Descriptor instead.
 func (*MplsLdpStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{431}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{434}
 }
 
 func (x *MplsLdpStateRequest) GetOwner() string {
@@ -37357,7 +37608,7 @@ type MplsLdpStateResponse struct {
 
 func (x *MplsLdpStateResponse) Reset() {
 	*x = MplsLdpStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[432]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[435]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37369,7 +37620,7 @@ func (x *MplsLdpStateResponse) String() string {
 func (*MplsLdpStateResponse) ProtoMessage() {}
 
 func (x *MplsLdpStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[432]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[435]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37382,7 +37633,7 @@ func (x *MplsLdpStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MplsLdpStateResponse.ProtoReflect.Descriptor instead.
 func (*MplsLdpStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{432}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{435}
 }
 
 func (x *MplsLdpStateResponse) GetOwner() string {
@@ -37434,7 +37685,7 @@ type LdpNeighborState struct {
 
 func (x *LdpNeighborState) Reset() {
 	*x = LdpNeighborState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[433]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[436]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37446,7 +37697,7 @@ func (x *LdpNeighborState) String() string {
 func (*LdpNeighborState) ProtoMessage() {}
 
 func (x *LdpNeighborState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[433]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[436]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37459,7 +37710,7 @@ func (x *LdpNeighborState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LdpNeighborState.ProtoReflect.Descriptor instead.
 func (*LdpNeighborState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{433}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{436}
 }
 
 func (x *LdpNeighborState) GetLsrId() string {
@@ -37504,7 +37755,7 @@ type LdpBindingState struct {
 
 func (x *LdpBindingState) Reset() {
 	*x = LdpBindingState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[434]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[437]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37516,7 +37767,7 @@ func (x *LdpBindingState) String() string {
 func (*LdpBindingState) ProtoMessage() {}
 
 func (x *LdpBindingState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[434]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[437]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37529,7 +37780,7 @@ func (x *LdpBindingState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LdpBindingState.ProtoReflect.Descriptor instead.
 func (*LdpBindingState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{434}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{437}
 }
 
 func (x *LdpBindingState) GetPrefix() string {
@@ -37585,7 +37836,7 @@ type LdpSyncState struct {
 
 func (x *LdpSyncState) Reset() {
 	*x = LdpSyncState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[435]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[438]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37597,7 +37848,7 @@ func (x *LdpSyncState) String() string {
 func (*LdpSyncState) ProtoMessage() {}
 
 func (x *LdpSyncState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[435]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[438]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37610,7 +37861,7 @@ func (x *LdpSyncState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LdpSyncState.ProtoReflect.Descriptor instead.
 func (*LdpSyncState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{435}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{438}
 }
 
 func (x *LdpSyncState) GetLastSyncAt() *timestamppb.Timestamp {
@@ -37665,7 +37916,7 @@ type ManagementPrometheus struct {
 
 func (x *ManagementPrometheus) Reset() {
 	*x = ManagementPrometheus{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[436]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[439]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37677,7 +37928,7 @@ func (x *ManagementPrometheus) String() string {
 func (*ManagementPrometheus) ProtoMessage() {}
 
 func (x *ManagementPrometheus) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[436]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[439]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37690,7 +37941,7 @@ func (x *ManagementPrometheus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementPrometheus.ProtoReflect.Descriptor instead.
 func (*ManagementPrometheus) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{436}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{439}
 }
 
 func (x *ManagementPrometheus) GetEnabled() bool {
@@ -37734,7 +37985,7 @@ type ManagementAlarms struct {
 
 func (x *ManagementAlarms) Reset() {
 	*x = ManagementAlarms{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[437]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[440]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37746,7 +37997,7 @@ func (x *ManagementAlarms) String() string {
 func (*ManagementAlarms) ProtoMessage() {}
 
 func (x *ManagementAlarms) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[437]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[440]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37759,7 +38010,7 @@ func (x *ManagementAlarms) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ManagementAlarms.ProtoReflect.Descriptor instead.
 func (*ManagementAlarms) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{437}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{440}
 }
 
 func (x *ManagementAlarms) GetRules() map[string]*AlarmRule {
@@ -37803,7 +38054,7 @@ type AlarmRule struct {
 
 func (x *AlarmRule) Reset() {
 	*x = AlarmRule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[438]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[441]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37815,7 +38066,7 @@ func (x *AlarmRule) String() string {
 func (*AlarmRule) ProtoMessage() {}
 
 func (x *AlarmRule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[438]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[441]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37828,7 +38079,7 @@ func (x *AlarmRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AlarmRule.ProtoReflect.Descriptor instead.
 func (*AlarmRule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{438}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{441}
 }
 
 func (x *AlarmRule) GetMetric() string {
@@ -37911,7 +38162,7 @@ type AlarmTarget struct {
 
 func (x *AlarmTarget) Reset() {
 	*x = AlarmTarget{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[439]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[442]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37923,7 +38174,7 @@ func (x *AlarmTarget) String() string {
 func (*AlarmTarget) ProtoMessage() {}
 
 func (x *AlarmTarget) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[439]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[442]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -37936,7 +38187,7 @@ func (x *AlarmTarget) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AlarmTarget.ProtoReflect.Descriptor instead.
 func (*AlarmTarget) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{439}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{442}
 }
 
 func (x *AlarmTarget) GetKind() string {
@@ -37986,7 +38237,7 @@ type WanGroup struct {
 
 func (x *WanGroup) Reset() {
 	*x = WanGroup{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[440]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[443]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -37998,7 +38249,7 @@ func (x *WanGroup) String() string {
 func (*WanGroup) ProtoMessage() {}
 
 func (x *WanGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[440]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[443]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38011,7 +38262,7 @@ func (x *WanGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanGroup.ProtoReflect.Descriptor instead.
 func (*WanGroup) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{440}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{443}
 }
 
 func (x *WanGroup) GetName() string {
@@ -38068,7 +38319,7 @@ type WanMember struct {
 
 func (x *WanMember) Reset() {
 	*x = WanMember{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[441]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[444]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38080,7 +38331,7 @@ func (x *WanMember) String() string {
 func (*WanMember) ProtoMessage() {}
 
 func (x *WanMember) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[441]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[444]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38093,7 +38344,7 @@ func (x *WanMember) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanMember.ProtoReflect.Descriptor instead.
 func (*WanMember) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{441}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{444}
 }
 
 func (x *WanMember) GetInterface() string {
@@ -38156,7 +38407,7 @@ type WanMonitor struct {
 
 func (x *WanMonitor) Reset() {
 	*x = WanMonitor{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[442]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[445]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38168,7 +38419,7 @@ func (x *WanMonitor) String() string {
 func (*WanMonitor) ProtoMessage() {}
 
 func (x *WanMonitor) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[442]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[445]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38181,7 +38432,7 @@ func (x *WanMonitor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanMonitor.ProtoReflect.Descriptor instead.
 func (*WanMonitor) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{442}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{445}
 }
 
 func (x *WanMonitor) GetType() string {
@@ -38253,7 +38504,7 @@ type WanStateRequest struct {
 
 func (x *WanStateRequest) Reset() {
 	*x = WanStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[443]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[446]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38265,7 +38516,7 @@ func (x *WanStateRequest) String() string {
 func (*WanStateRequest) ProtoMessage() {}
 
 func (x *WanStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[443]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[446]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38278,7 +38529,7 @@ func (x *WanStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanStateRequest.ProtoReflect.Descriptor instead.
 func (*WanStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{443}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{446}
 }
 
 func (x *WanStateRequest) GetOwner() string {
@@ -38310,7 +38561,7 @@ type WanStateResponse struct {
 
 func (x *WanStateResponse) Reset() {
 	*x = WanStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[444]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[447]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38322,7 +38573,7 @@ func (x *WanStateResponse) String() string {
 func (*WanStateResponse) ProtoMessage() {}
 
 func (x *WanStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[444]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[447]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38335,7 +38586,7 @@ func (x *WanStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanStateResponse.ProtoReflect.Descriptor instead.
 func (*WanStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{444}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{447}
 }
 
 func (x *WanStateResponse) GetOwner() string {
@@ -38376,7 +38627,7 @@ type WanGroupState struct {
 
 func (x *WanGroupState) Reset() {
 	*x = WanGroupState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[445]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[448]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38388,7 +38639,7 @@ func (x *WanGroupState) String() string {
 func (*WanGroupState) ProtoMessage() {}
 
 func (x *WanGroupState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[445]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[448]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38401,7 +38652,7 @@ func (x *WanGroupState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanGroupState.ProtoReflect.Descriptor instead.
 func (*WanGroupState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{445}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{448}
 }
 
 func (x *WanGroupState) GetName() string {
@@ -38454,7 +38705,7 @@ type WanMemberState struct {
 
 func (x *WanMemberState) Reset() {
 	*x = WanMemberState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[446]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[449]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38466,7 +38717,7 @@ func (x *WanMemberState) String() string {
 func (*WanMemberState) ProtoMessage() {}
 
 func (x *WanMemberState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[446]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[449]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38479,7 +38730,7 @@ func (x *WanMemberState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WanMemberState.ProtoReflect.Descriptor instead.
 func (*WanMemberState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{446}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{449}
 }
 
 func (x *WanMemberState) GetInterface() string {
@@ -38542,7 +38793,7 @@ type MulticastStateRequest struct {
 
 func (x *MulticastStateRequest) Reset() {
 	*x = MulticastStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[447]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[450]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38554,7 +38805,7 @@ func (x *MulticastStateRequest) String() string {
 func (*MulticastStateRequest) ProtoMessage() {}
 
 func (x *MulticastStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[447]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[450]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38567,7 +38818,7 @@ func (x *MulticastStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MulticastStateRequest.ProtoReflect.Descriptor instead.
 func (*MulticastStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{447}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{450}
 }
 
 func (x *MulticastStateRequest) GetOwner() string {
@@ -38594,7 +38845,7 @@ type MulticastStateResponse struct {
 
 func (x *MulticastStateResponse) Reset() {
 	*x = MulticastStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[448]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[451]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38606,7 +38857,7 @@ func (x *MulticastStateResponse) String() string {
 func (*MulticastStateResponse) ProtoMessage() {}
 
 func (x *MulticastStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[448]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[451]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38619,7 +38870,7 @@ func (x *MulticastStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MulticastStateResponse.ProtoReflect.Descriptor instead.
 func (*MulticastStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{448}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{451}
 }
 
 func (x *MulticastStateResponse) GetOwner() string {
@@ -38669,7 +38920,7 @@ type IgmpGroupState struct {
 
 func (x *IgmpGroupState) Reset() {
 	*x = IgmpGroupState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[449]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[452]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38681,7 +38932,7 @@ func (x *IgmpGroupState) String() string {
 func (*IgmpGroupState) ProtoMessage() {}
 
 func (x *IgmpGroupState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[449]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[452]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38694,7 +38945,7 @@ func (x *IgmpGroupState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IgmpGroupState.ProtoReflect.Descriptor instead.
 func (*IgmpGroupState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{449}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{452}
 }
 
 func (x *IgmpGroupState) GetInterface() string {
@@ -38738,7 +38989,7 @@ type MrouteState struct {
 
 func (x *MrouteState) Reset() {
 	*x = MrouteState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[450]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[453]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38750,7 +39001,7 @@ func (x *MrouteState) String() string {
 func (*MrouteState) ProtoMessage() {}
 
 func (x *MrouteState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[450]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[453]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38763,7 +39014,7 @@ func (x *MrouteState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MrouteState.ProtoReflect.Descriptor instead.
 func (*MrouteState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{450}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{453}
 }
 
 func (x *MrouteState) GetVrf() string {
@@ -38828,7 +39079,7 @@ type PimNeighborState struct {
 
 func (x *PimNeighborState) Reset() {
 	*x = PimNeighborState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[451]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[454]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38840,7 +39091,7 @@ func (x *PimNeighborState) String() string {
 func (*PimNeighborState) ProtoMessage() {}
 
 func (x *PimNeighborState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[451]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[454]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38853,7 +39104,7 @@ func (x *PimNeighborState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PimNeighborState.ProtoReflect.Descriptor instead.
 func (*PimNeighborState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{451}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{454}
 }
 
 func (x *PimNeighborState) GetInterface() string {
@@ -38887,7 +39138,7 @@ type AaaLdap struct {
 
 func (x *AaaLdap) Reset() {
 	*x = AaaLdap{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[452]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[455]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38899,7 +39150,7 @@ func (x *AaaLdap) String() string {
 func (*AaaLdap) ProtoMessage() {}
 
 func (x *AaaLdap) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[452]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[455]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38912,7 +39163,7 @@ func (x *AaaLdap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaLdap.ProtoReflect.Descriptor instead.
 func (*AaaLdap) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{452}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{455}
 }
 
 func (x *AaaLdap) GetServers() []*AaaLdapServer {
@@ -38945,7 +39196,7 @@ type AaaLdapServer struct {
 
 func (x *AaaLdapServer) Reset() {
 	*x = AaaLdapServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[453]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[456]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -38957,7 +39208,7 @@ func (x *AaaLdapServer) String() string {
 func (*AaaLdapServer) ProtoMessage() {}
 
 func (x *AaaLdapServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[453]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[456]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -38970,7 +39221,7 @@ func (x *AaaLdapServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaLdapServer.ProtoReflect.Descriptor instead.
 func (*AaaLdapServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{453}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{456}
 }
 
 func (x *AaaLdapServer) GetUrl() string {
@@ -39035,7 +39286,7 @@ type AaaRoleMapping struct {
 
 func (x *AaaRoleMapping) Reset() {
 	*x = AaaRoleMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[454]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[457]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39047,7 +39298,7 @@ func (x *AaaRoleMapping) String() string {
 func (*AaaRoleMapping) ProtoMessage() {}
 
 func (x *AaaRoleMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[454]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[457]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39060,7 +39311,7 @@ func (x *AaaRoleMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaRoleMapping.ProtoReflect.Descriptor instead.
 func (*AaaRoleMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{454}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{457}
 }
 
 func (x *AaaRoleMapping) GetGroup() string {
@@ -39090,7 +39341,7 @@ type AaaMfa struct {
 
 func (x *AaaMfa) Reset() {
 	*x = AaaMfa{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[455]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[458]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39102,7 +39353,7 @@ func (x *AaaMfa) String() string {
 func (*AaaMfa) ProtoMessage() {}
 
 func (x *AaaMfa) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[455]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[458]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39115,7 +39366,7 @@ func (x *AaaMfa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaMfa.ProtoReflect.Descriptor instead.
 func (*AaaMfa) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{455}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{458}
 }
 
 func (x *AaaMfa) GetRequired() string {
@@ -39155,7 +39406,7 @@ type AaaOidc struct {
 
 func (x *AaaOidc) Reset() {
 	*x = AaaOidc{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[456]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[459]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39167,7 +39418,7 @@ func (x *AaaOidc) String() string {
 func (*AaaOidc) ProtoMessage() {}
 
 func (x *AaaOidc) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[456]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[459]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39180,7 +39431,7 @@ func (x *AaaOidc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AaaOidc.ProtoReflect.Descriptor instead.
 func (*AaaOidc) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{456}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{459}
 }
 
 func (x *AaaOidc) GetIssuer() string {
@@ -39242,7 +39493,7 @@ type DataplaneStartupStateRequest struct {
 
 func (x *DataplaneStartupStateRequest) Reset() {
 	*x = DataplaneStartupStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[457]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[460]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39254,7 +39505,7 @@ func (x *DataplaneStartupStateRequest) String() string {
 func (*DataplaneStartupStateRequest) ProtoMessage() {}
 
 func (x *DataplaneStartupStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[457]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[460]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39267,7 +39518,7 @@ func (x *DataplaneStartupStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataplaneStartupStateRequest.ProtoReflect.Descriptor instead.
 func (*DataplaneStartupStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{457}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{460}
 }
 
 func (x *DataplaneStartupStateRequest) GetOwner() string {
@@ -39312,7 +39563,7 @@ type DataplaneStartupStateResponse struct {
 
 func (x *DataplaneStartupStateResponse) Reset() {
 	*x = DataplaneStartupStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[458]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[461]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39324,7 +39575,7 @@ func (x *DataplaneStartupStateResponse) String() string {
 func (*DataplaneStartupStateResponse) ProtoMessage() {}
 
 func (x *DataplaneStartupStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[458]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[461]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39337,7 +39588,7 @@ func (x *DataplaneStartupStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataplaneStartupStateResponse.ProtoReflect.Descriptor instead.
 func (*DataplaneStartupStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{458}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{461}
 }
 
 func (x *DataplaneStartupStateResponse) GetStartupPath() string {
@@ -39466,7 +39717,7 @@ type DataplaneRuntimeThread struct {
 
 func (x *DataplaneRuntimeThread) Reset() {
 	*x = DataplaneRuntimeThread{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[459]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[462]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39478,7 +39729,7 @@ func (x *DataplaneRuntimeThread) String() string {
 func (*DataplaneRuntimeThread) ProtoMessage() {}
 
 func (x *DataplaneRuntimeThread) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[459]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[462]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39491,7 +39742,7 @@ func (x *DataplaneRuntimeThread) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataplaneRuntimeThread.ProtoReflect.Descriptor instead.
 func (*DataplaneRuntimeThread) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{459}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{462}
 }
 
 func (x *DataplaneRuntimeThread) GetId() uint32 {
@@ -39548,7 +39799,7 @@ type DataplaneStartupPreviewRequest struct {
 
 func (x *DataplaneStartupPreviewRequest) Reset() {
 	*x = DataplaneStartupPreviewRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[460]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[463]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39560,7 +39811,7 @@ func (x *DataplaneStartupPreviewRequest) String() string {
 func (*DataplaneStartupPreviewRequest) ProtoMessage() {}
 
 func (x *DataplaneStartupPreviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[460]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[463]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39573,7 +39824,7 @@ func (x *DataplaneStartupPreviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataplaneStartupPreviewRequest.ProtoReflect.Descriptor instead.
 func (*DataplaneStartupPreviewRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{460}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{463}
 }
 
 func (x *DataplaneStartupPreviewRequest) GetOwner() string {
@@ -39610,7 +39861,7 @@ type DataplaneStartupPreviewResponse struct {
 
 func (x *DataplaneStartupPreviewResponse) Reset() {
 	*x = DataplaneStartupPreviewResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[461]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[464]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39622,7 +39873,7 @@ func (x *DataplaneStartupPreviewResponse) String() string {
 func (*DataplaneStartupPreviewResponse) ProtoMessage() {}
 
 func (x *DataplaneStartupPreviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[461]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[464]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39635,7 +39886,7 @@ func (x *DataplaneStartupPreviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataplaneStartupPreviewResponse.ProtoReflect.Descriptor instead.
 func (*DataplaneStartupPreviewResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{461}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{464}
 }
 
 func (x *DataplaneStartupPreviewResponse) GetRendered() string {
@@ -39696,7 +39947,7 @@ type Nat46Config struct {
 
 func (x *Nat46Config) Reset() {
 	*x = Nat46Config{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[462]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[465]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39708,7 +39959,7 @@ func (x *Nat46Config) String() string {
 func (*Nat46Config) ProtoMessage() {}
 
 func (x *Nat46Config) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[462]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[465]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39721,7 +39972,7 @@ func (x *Nat46Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat46Config.ProtoReflect.Descriptor instead.
 func (*Nat46Config) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{462}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{465}
 }
 
 func (x *Nat46Config) GetClientPrefix() string {
@@ -39762,7 +40013,7 @@ type Nat46Mapping struct {
 
 func (x *Nat46Mapping) Reset() {
 	*x = Nat46Mapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[463]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[466]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39774,7 +40025,7 @@ func (x *Nat46Mapping) String() string {
 func (*Nat46Mapping) ProtoMessage() {}
 
 func (x *Nat46Mapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[463]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[466]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39787,7 +40038,7 @@ func (x *Nat46Mapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat46Mapping.ProtoReflect.Descriptor instead.
 func (*Nat46Mapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{463}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{466}
 }
 
 func (x *Nat46Mapping) GetName() string {
@@ -39828,7 +40079,7 @@ type SystemIdentityStateRequest struct {
 
 func (x *SystemIdentityStateRequest) Reset() {
 	*x = SystemIdentityStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[464]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[467]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39840,7 +40091,7 @@ func (x *SystemIdentityStateRequest) String() string {
 func (*SystemIdentityStateRequest) ProtoMessage() {}
 
 func (x *SystemIdentityStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[464]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[467]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39853,7 +40104,7 @@ func (x *SystemIdentityStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemIdentityStateRequest.ProtoReflect.Descriptor instead.
 func (*SystemIdentityStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{464}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{467}
 }
 
 func (x *SystemIdentityStateRequest) GetOwner() string {
@@ -39887,7 +40138,7 @@ type SystemIdentityStateResponse struct {
 
 func (x *SystemIdentityStateResponse) Reset() {
 	*x = SystemIdentityStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[465]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[468]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -39899,7 +40150,7 @@ func (x *SystemIdentityStateResponse) String() string {
 func (*SystemIdentityStateResponse) ProtoMessage() {}
 
 func (x *SystemIdentityStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[465]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[468]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -39912,7 +40163,7 @@ func (x *SystemIdentityStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemIdentityStateResponse.ProtoReflect.Descriptor instead.
 func (*SystemIdentityStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{465}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{468}
 }
 
 func (x *SystemIdentityStateResponse) GetOwner() string {
@@ -40009,7 +40260,7 @@ type IpsecStateRequest struct {
 
 func (x *IpsecStateRequest) Reset() {
 	*x = IpsecStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[466]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[469]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40021,7 +40272,7 @@ func (x *IpsecStateRequest) String() string {
 func (*IpsecStateRequest) ProtoMessage() {}
 
 func (x *IpsecStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[466]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[469]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40034,7 +40285,7 @@ func (x *IpsecStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecStateRequest.ProtoReflect.Descriptor instead.
 func (*IpsecStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{466}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{469}
 }
 
 func (x *IpsecStateRequest) GetTunnels() []string {
@@ -40093,7 +40344,7 @@ type IpsecStateResponse struct {
 
 func (x *IpsecStateResponse) Reset() {
 	*x = IpsecStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[467]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[470]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40105,7 +40356,7 @@ func (x *IpsecStateResponse) String() string {
 func (*IpsecStateResponse) ProtoMessage() {}
 
 func (x *IpsecStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[467]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[470]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40118,7 +40369,7 @@ func (x *IpsecStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecStateResponse.ProtoReflect.Descriptor instead.
 func (*IpsecStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{467}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{470}
 }
 
 func (x *IpsecStateResponse) GetConns() []*IpsecConnState {
@@ -40211,7 +40462,7 @@ type IpsecConnState struct {
 
 func (x *IpsecConnState) Reset() {
 	*x = IpsecConnState{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[468]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[471]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40223,7 +40474,7 @@ func (x *IpsecConnState) String() string {
 func (*IpsecConnState) ProtoMessage() {}
 
 func (x *IpsecConnState) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[468]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[471]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40236,7 +40487,7 @@ func (x *IpsecConnState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecConnState.ProtoReflect.Descriptor instead.
 func (*IpsecConnState) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{468}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{471}
 }
 
 func (x *IpsecConnState) GetName() string {
@@ -40336,7 +40587,7 @@ type IpsecChildConn struct {
 
 func (x *IpsecChildConn) Reset() {
 	*x = IpsecChildConn{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[469]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[472]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40348,7 +40599,7 @@ func (x *IpsecChildConn) String() string {
 func (*IpsecChildConn) ProtoMessage() {}
 
 func (x *IpsecChildConn) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[469]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[472]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40361,7 +40612,7 @@ func (x *IpsecChildConn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecChildConn.ProtoReflect.Descriptor instead.
 func (*IpsecChildConn) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{469}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{472}
 }
 
 func (x *IpsecChildConn) GetName() string {
@@ -40429,7 +40680,7 @@ type IpsecIkeSa struct {
 
 func (x *IpsecIkeSa) Reset() {
 	*x = IpsecIkeSa{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[470]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[473]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40441,7 +40692,7 @@ func (x *IpsecIkeSa) String() string {
 func (*IpsecIkeSa) ProtoMessage() {}
 
 func (x *IpsecIkeSa) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[470]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[473]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40454,7 +40705,7 @@ func (x *IpsecIkeSa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecIkeSa.ProtoReflect.Descriptor instead.
 func (*IpsecIkeSa) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{470}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{473}
 }
 
 func (x *IpsecIkeSa) GetName() string {
@@ -40644,7 +40895,7 @@ type IpsecChildSa struct {
 
 func (x *IpsecChildSa) Reset() {
 	*x = IpsecChildSa{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[471]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[474]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40656,7 +40907,7 @@ func (x *IpsecChildSa) String() string {
 func (*IpsecChildSa) ProtoMessage() {}
 
 func (x *IpsecChildSa) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[471]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[474]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40669,7 +40920,7 @@ func (x *IpsecChildSa) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecChildSa.ProtoReflect.Descriptor instead.
 func (*IpsecChildSa) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{471}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{474}
 }
 
 func (x *IpsecChildSa) GetName() string {
@@ -40857,7 +41108,7 @@ type TunnelStateRequest struct {
 
 func (x *TunnelStateRequest) Reset() {
 	*x = TunnelStateRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[472]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[475]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40869,7 +41120,7 @@ func (x *TunnelStateRequest) String() string {
 func (*TunnelStateRequest) ProtoMessage() {}
 
 func (x *TunnelStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[472]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[475]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40882,7 +41133,7 @@ func (x *TunnelStateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelStateRequest.ProtoReflect.Descriptor instead.
 func (*TunnelStateRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{472}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{475}
 }
 
 func (x *TunnelStateRequest) GetOwner() string {
@@ -40913,7 +41164,7 @@ type TunnelStateTunnel struct {
 
 func (x *TunnelStateTunnel) Reset() {
 	*x = TunnelStateTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[473]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[476]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -40925,7 +41176,7 @@ func (x *TunnelStateTunnel) String() string {
 func (*TunnelStateTunnel) ProtoMessage() {}
 
 func (x *TunnelStateTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[473]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[476]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -40938,7 +41189,7 @@ func (x *TunnelStateTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelStateTunnel.ProtoReflect.Descriptor instead.
 func (*TunnelStateTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{473}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{476}
 }
 
 func (x *TunnelStateTunnel) GetName() string {
@@ -41009,7 +41260,7 @@ type TunnelStateResponse struct {
 
 func (x *TunnelStateResponse) Reset() {
 	*x = TunnelStateResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[474]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[477]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41021,7 +41272,7 @@ func (x *TunnelStateResponse) String() string {
 func (*TunnelStateResponse) ProtoMessage() {}
 
 func (x *TunnelStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[474]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[477]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41034,7 +41285,7 @@ func (x *TunnelStateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelStateResponse.ProtoReflect.Descriptor instead.
 func (*TunnelStateResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{474}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{477}
 }
 
 func (x *TunnelStateResponse) GetOwner() string {
@@ -41074,7 +41325,7 @@ type IpipSixrd struct {
 
 func (x *IpipSixrd) Reset() {
 	*x = IpipSixrd{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[475]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[478]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41086,7 +41337,7 @@ func (x *IpipSixrd) String() string {
 func (*IpipSixrd) ProtoMessage() {}
 
 func (x *IpipSixrd) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[475]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[478]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41099,7 +41350,7 @@ func (x *IpipSixrd) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpipSixrd.ProtoReflect.Descriptor instead.
 func (*IpipSixrd) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{475}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{478}
 }
 
 func (x *IpipSixrd) GetIp6Prefix() string {
@@ -41168,7 +41419,7 @@ type VxlanGpeTunnel struct {
 
 func (x *VxlanGpeTunnel) Reset() {
 	*x = VxlanGpeTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[476]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[479]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41180,7 +41431,7 @@ func (x *VxlanGpeTunnel) String() string {
 func (*VxlanGpeTunnel) ProtoMessage() {}
 
 func (x *VxlanGpeTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[476]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[479]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41193,7 +41444,7 @@ func (x *VxlanGpeTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VxlanGpeTunnel.ProtoReflect.Descriptor instead.
 func (*VxlanGpeTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{476}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{479}
 }
 
 func (x *VxlanGpeTunnel) GetEnabled() bool {
@@ -41341,7 +41592,7 @@ type GtpuTunnel struct {
 
 func (x *GtpuTunnel) Reset() {
 	*x = GtpuTunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[477]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[480]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41353,7 +41604,7 @@ func (x *GtpuTunnel) String() string {
 func (*GtpuTunnel) ProtoMessage() {}
 
 func (x *GtpuTunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[477]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[480]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41366,7 +41617,7 @@ func (x *GtpuTunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GtpuTunnel.ProtoReflect.Descriptor instead.
 func (*GtpuTunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{477}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{480}
 }
 
 func (x *GtpuTunnel) GetEnabled() bool {
@@ -41519,7 +41770,7 @@ type L2Tpv3Tunnel struct {
 
 func (x *L2Tpv3Tunnel) Reset() {
 	*x = L2Tpv3Tunnel{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[478]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[481]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41531,7 +41782,7 @@ func (x *L2Tpv3Tunnel) String() string {
 func (*L2Tpv3Tunnel) ProtoMessage() {}
 
 func (x *L2Tpv3Tunnel) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[478]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[481]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41544,7 +41795,7 @@ func (x *L2Tpv3Tunnel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use L2Tpv3Tunnel.ProtoReflect.Descriptor instead.
 func (*L2Tpv3Tunnel) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{478}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{481}
 }
 
 func (x *L2Tpv3Tunnel) GetEnabled() bool {
@@ -41674,7 +41925,7 @@ type PppoeSession struct {
 
 func (x *PppoeSession) Reset() {
 	*x = PppoeSession{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[479]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[482]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41686,7 +41937,7 @@ func (x *PppoeSession) String() string {
 func (*PppoeSession) ProtoMessage() {}
 
 func (x *PppoeSession) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[479]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[482]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41699,7 +41950,7 @@ func (x *PppoeSession) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PppoeSession.ProtoReflect.Descriptor instead.
 func (*PppoeSession) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{479}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{482}
 }
 
 func (x *PppoeSession) GetEnabled() bool {
@@ -41762,7 +42013,7 @@ type HostNicsRequest struct {
 
 func (x *HostNicsRequest) Reset() {
 	*x = HostNicsRequest{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[480]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[483]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41774,7 +42025,7 @@ func (x *HostNicsRequest) String() string {
 func (*HostNicsRequest) ProtoMessage() {}
 
 func (x *HostNicsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[480]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[483]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41787,7 +42038,7 @@ func (x *HostNicsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostNicsRequest.ProtoReflect.Descriptor instead.
 func (*HostNicsRequest) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{480}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{483}
 }
 
 func (x *HostNicsRequest) GetOwner() string {
@@ -41814,7 +42065,7 @@ type HostNicsResponse struct {
 
 func (x *HostNicsResponse) Reset() {
 	*x = HostNicsResponse{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[481]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[484]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41826,7 +42077,7 @@ func (x *HostNicsResponse) String() string {
 func (*HostNicsResponse) ProtoMessage() {}
 
 func (x *HostNicsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[481]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[484]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41839,7 +42090,7 @@ func (x *HostNicsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostNicsResponse.ProtoReflect.Descriptor instead.
 func (*HostNicsResponse) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{481}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{484}
 }
 
 func (x *HostNicsResponse) GetNics() []*HostNic {
@@ -41893,7 +42144,7 @@ type HostNic struct {
 
 func (x *HostNic) Reset() {
 	*x = HostNic{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[482]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[485]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41905,7 +42156,7 @@ func (x *HostNic) String() string {
 func (*HostNic) ProtoMessage() {}
 
 func (x *HostNic) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[482]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[485]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -41918,7 +42169,7 @@ func (x *HostNic) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HostNic.ProtoReflect.Descriptor instead.
 func (*HostNic) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{482}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{485}
 }
 
 func (x *HostNic) GetNetdev() string {
@@ -41983,7 +42234,7 @@ type DnsService_VppCache struct {
 
 func (x *DnsService_VppCache) Reset() {
 	*x = DnsService_VppCache{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[512]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[517]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41995,7 +42246,7 @@ func (x *DnsService_VppCache) String() string {
 func (*DnsService_VppCache) ProtoMessage() {}
 
 func (x *DnsService_VppCache) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[512]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[517]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42008,7 +42259,7 @@ func (x *DnsService_VppCache) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsService_VppCache.ProtoReflect.Descriptor instead.
 func (*DnsService_VppCache) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{89, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{92, 0}
 }
 
 func (x *DnsService_VppCache) GetEnabled() bool {
@@ -42038,7 +42289,7 @@ type DnsResolver_Dnssec struct {
 
 func (x *DnsResolver_Dnssec) Reset() {
 	*x = DnsResolver_Dnssec{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[514]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[519]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42050,7 +42301,7 @@ func (x *DnsResolver_Dnssec) String() string {
 func (*DnsResolver_Dnssec) ProtoMessage() {}
 
 func (x *DnsResolver_Dnssec) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[514]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[519]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42063,7 +42314,7 @@ func (x *DnsResolver_Dnssec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsResolver_Dnssec.ProtoReflect.Descriptor instead.
 func (*DnsResolver_Dnssec) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{95, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 0}
 }
 
 func (x *DnsResolver_Dnssec) GetEnabled() bool {
@@ -42099,7 +42350,7 @@ type DnsResolver_Cache struct {
 
 func (x *DnsResolver_Cache) Reset() {
 	*x = DnsResolver_Cache{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[515]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[520]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42111,7 +42362,7 @@ func (x *DnsResolver_Cache) String() string {
 func (*DnsResolver_Cache) ProtoMessage() {}
 
 func (x *DnsResolver_Cache) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[515]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[520]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42124,7 +42375,7 @@ func (x *DnsResolver_Cache) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DnsResolver_Cache.ProtoReflect.Descriptor instead.
 func (*DnsResolver_Cache) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{95, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 1}
 }
 
 func (x *DnsResolver_Cache) GetMinTtlSec() uint32 {
@@ -42180,7 +42431,7 @@ type SnmpService_Community struct {
 
 func (x *SnmpService_Community) Reset() {
 	*x = SnmpService_Community{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[516]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[521]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42192,7 +42443,7 @@ func (x *SnmpService_Community) String() string {
 func (*SnmpService_Community) ProtoMessage() {}
 
 func (x *SnmpService_Community) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[516]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[521]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42205,7 +42456,7 @@ func (x *SnmpService_Community) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpService_Community.ProtoReflect.Descriptor instead.
 func (*SnmpService_Community) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{96, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 0}
 }
 
 func (x *SnmpService_Community) GetSecretRef() string {
@@ -42260,7 +42511,7 @@ type SnmpService_V3User struct {
 
 func (x *SnmpService_V3User) Reset() {
 	*x = SnmpService_V3User{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[517]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42272,7 +42523,7 @@ func (x *SnmpService_V3User) String() string {
 func (*SnmpService_V3User) ProtoMessage() {}
 
 func (x *SnmpService_V3User) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[517]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42285,7 +42536,7 @@ func (x *SnmpService_V3User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpService_V3User.ProtoReflect.Descriptor instead.
 func (*SnmpService_V3User) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{96, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 1}
 }
 
 func (x *SnmpService_V3User) GetSecurityLevel() string {
@@ -42358,7 +42609,7 @@ type SnmpService_TrapReceiver struct {
 
 func (x *SnmpService_TrapReceiver) Reset() {
 	*x = SnmpService_TrapReceiver{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[518]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42370,7 +42621,7 @@ func (x *SnmpService_TrapReceiver) String() string {
 func (*SnmpService_TrapReceiver) ProtoMessage() {}
 
 func (x *SnmpService_TrapReceiver) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[518]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42383,7 +42634,7 @@ func (x *SnmpService_TrapReceiver) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnmpService_TrapReceiver.ProtoReflect.Descriptor instead.
 func (*SnmpService_TrapReceiver) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{96, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 2}
 }
 
 func (x *SnmpService_TrapReceiver) GetAddress() string {
@@ -42447,7 +42698,7 @@ type LldpService_Interface struct {
 
 func (x *LldpService_Interface) Reset() {
 	*x = LldpService_Interface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42459,7 +42710,7 @@ func (x *LldpService_Interface) String() string {
 func (*LldpService_Interface) ProtoMessage() {}
 
 func (x *LldpService_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42472,7 +42723,7 @@ func (x *LldpService_Interface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LldpService_Interface.ProtoReflect.Descriptor instead.
 func (*LldpService_Interface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{97, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{100, 0}
 }
 
 func (x *LldpService_Interface) GetInterface() string {
@@ -42535,7 +42786,7 @@ type IpfixService_Exporter struct {
 
 func (x *IpfixService_Exporter) Reset() {
 	*x = IpfixService_Exporter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42547,7 +42798,7 @@ func (x *IpfixService_Exporter) String() string {
 func (*IpfixService_Exporter) ProtoMessage() {}
 
 func (x *IpfixService_Exporter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42560,7 +42811,7 @@ func (x *IpfixService_Exporter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService_Exporter.ProtoReflect.Descriptor instead.
 func (*IpfixService_Exporter) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101, 0}
 }
 
 func (x *IpfixService_Exporter) GetEnabled() bool {
@@ -42640,7 +42891,7 @@ type IpfixService_Flowprobe struct {
 
 func (x *IpfixService_Flowprobe) Reset() {
 	*x = IpfixService_Flowprobe{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42652,7 +42903,7 @@ func (x *IpfixService_Flowprobe) String() string {
 func (*IpfixService_Flowprobe) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42665,7 +42916,7 @@ func (x *IpfixService_Flowprobe) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService_Flowprobe.ProtoReflect.Descriptor instead.
 func (*IpfixService_Flowprobe) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101, 1}
 }
 
 func (x *IpfixService_Flowprobe) GetActiveTimerSec() uint32 {
@@ -42735,7 +42986,7 @@ type IpfixService_Sflow struct {
 
 func (x *IpfixService_Sflow) Reset() {
 	*x = IpfixService_Sflow{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42747,7 +42998,7 @@ func (x *IpfixService_Sflow) String() string {
 func (*IpfixService_Sflow) ProtoMessage() {}
 
 func (x *IpfixService_Sflow) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42760,7 +43011,7 @@ func (x *IpfixService_Sflow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService_Sflow.ProtoReflect.Descriptor instead.
 func (*IpfixService_Sflow) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101, 2}
 }
 
 func (x *IpfixService_Sflow) GetEnabled() bool {
@@ -42838,7 +43089,7 @@ type IpfixService_Flowprobe_Interface struct {
 
 func (x *IpfixService_Flowprobe_Interface) Reset() {
 	*x = IpfixService_Flowprobe_Interface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42850,7 +43101,7 @@ func (x *IpfixService_Flowprobe_Interface) String() string {
 func (*IpfixService_Flowprobe_Interface) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42863,7 +43114,7 @@ func (x *IpfixService_Flowprobe_Interface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpfixService_Flowprobe_Interface.ProtoReflect.Descriptor instead.
 func (*IpfixService_Flowprobe_Interface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{98, 1, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{101, 1, 0}
 }
 
 func (x *IpfixService_Flowprobe_Interface) GetInterface() string {
@@ -42924,7 +43175,7 @@ type NtpService_Server struct {
 
 func (x *NtpService_Server) Reset() {
 	*x = NtpService_Server{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[533]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42936,7 +43187,7 @@ func (x *NtpService_Server) String() string {
 func (*NtpService_Server) ProtoMessage() {}
 
 func (x *NtpService_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[533]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42949,7 +43200,7 @@ func (x *NtpService_Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpService_Server.ProtoReflect.Descriptor instead.
 func (*NtpService_Server) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102, 0}
 }
 
 func (x *NtpService_Server) GetAddress() string {
@@ -43016,7 +43267,7 @@ type NtpService_RateLimit struct {
 
 func (x *NtpService_RateLimit) Reset() {
 	*x = NtpService_RateLimit{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43028,7 +43279,7 @@ func (x *NtpService_RateLimit) String() string {
 func (*NtpService_RateLimit) ProtoMessage() {}
 
 func (x *NtpService_RateLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43041,7 +43292,7 @@ func (x *NtpService_RateLimit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpService_RateLimit.ProtoReflect.Descriptor instead.
 func (*NtpService_RateLimit) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102, 1}
 }
 
 func (x *NtpService_RateLimit) GetInterval() int32 {
@@ -43080,7 +43331,7 @@ type NtpService_NtsServer struct {
 
 func (x *NtpService_NtsServer) Reset() {
 	*x = NtpService_NtsServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43092,7 +43343,7 @@ func (x *NtpService_NtsServer) String() string {
 func (*NtpService_NtsServer) ProtoMessage() {}
 
 func (x *NtpService_NtsServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43105,7 +43356,7 @@ func (x *NtpService_NtsServer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpService_NtsServer.ProtoReflect.Descriptor instead.
 func (*NtpService_NtsServer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102, 2}
 }
 
 func (x *NtpService_NtsServer) GetCertificateRef() string {
@@ -43142,7 +43393,7 @@ type NtpService_Makestep struct {
 
 func (x *NtpService_Makestep) Reset() {
 	*x = NtpService_Makestep{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[531]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43154,7 +43405,7 @@ func (x *NtpService_Makestep) String() string {
 func (*NtpService_Makestep) ProtoMessage() {}
 
 func (x *NtpService_Makestep) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[531]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43167,7 +43418,7 @@ func (x *NtpService_Makestep) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NtpService_Makestep.ProtoReflect.Descriptor instead.
 func (*NtpService_Makestep) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{99, 3}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{102, 3}
 }
 
 func (x *NtpService_Makestep) GetThresholdSec() float64 {
@@ -43201,7 +43452,7 @@ type QosMap_Rows struct {
 
 func (x *QosMap_Rows) Reset() {
 	*x = QosMap_Rows{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43213,7 +43464,7 @@ func (x *QosMap_Rows) String() string {
 func (*QosMap_Rows) ProtoMessage() {}
 
 func (x *QosMap_Rows) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43226,7 +43477,7 @@ func (x *QosMap_Rows) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosMap_Rows.ProtoReflect.Descriptor instead.
 func (*QosMap_Rows) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{105, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{108, 0}
 }
 
 func (x *QosMap_Rows) GetExt() []*QosMapEntry {
@@ -43270,7 +43521,7 @@ type QosInterface_Policer struct {
 
 func (x *QosInterface_Policer) Reset() {
 	*x = QosInterface_Policer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[542]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43282,7 +43533,7 @@ func (x *QosInterface_Policer) String() string {
 func (*QosInterface_Policer) ProtoMessage() {}
 
 func (x *QosInterface_Policer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[542]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43295,7 +43546,7 @@ func (x *QosInterface_Policer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosInterface_Policer.ProtoReflect.Descriptor instead.
 func (*QosInterface_Policer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{106, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109, 0}
 }
 
 func (x *QosInterface_Policer) GetInput() string {
@@ -43325,7 +43576,7 @@ type QosInterface_Store struct {
 
 func (x *QosInterface_Store) Reset() {
 	*x = QosInterface_Store{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43337,7 +43588,7 @@ func (x *QosInterface_Store) String() string {
 func (*QosInterface_Store) ProtoMessage() {}
 
 func (x *QosInterface_Store) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43350,7 +43601,7 @@ func (x *QosInterface_Store) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosInterface_Store.ProtoReflect.Descriptor instead.
 func (*QosInterface_Store) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{106, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109, 1}
 }
 
 func (x *QosInterface_Store) GetSource() string {
@@ -43380,7 +43631,7 @@ type QosInterface_Mark struct {
 
 func (x *QosInterface_Mark) Reset() {
 	*x = QosInterface_Mark{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[539]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43392,7 +43643,7 @@ func (x *QosInterface_Mark) String() string {
 func (*QosInterface_Mark) ProtoMessage() {}
 
 func (x *QosInterface_Mark) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[539]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43405,7 +43656,7 @@ func (x *QosInterface_Mark) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QosInterface_Mark.ProtoReflect.Descriptor instead.
 func (*QosInterface_Mark) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{106, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109, 2}
 }
 
 func (x *QosInterface_Mark) GetMap() string {
@@ -43433,7 +43684,7 @@ type VrrpInstance_Unicast struct {
 
 func (x *VrrpInstance_Unicast) Reset() {
 	*x = VrrpInstance_Unicast{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43445,7 +43696,7 @@ func (x *VrrpInstance_Unicast) String() string {
 func (*VrrpInstance_Unicast) ProtoMessage() {}
 
 func (x *VrrpInstance_Unicast) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43458,7 +43709,7 @@ func (x *VrrpInstance_Unicast) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VrrpInstance_Unicast.ProtoReflect.Descriptor instead.
 func (*VrrpInstance_Unicast) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{108, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{111, 0}
 }
 
 func (x *VrrpInstance_Unicast) GetPeers() []string {
@@ -43481,7 +43732,7 @@ type VrrpInstance_Track struct {
 
 func (x *VrrpInstance_Track) Reset() {
 	*x = VrrpInstance_Track{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[542]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43493,7 +43744,7 @@ func (x *VrrpInstance_Track) String() string {
 func (*VrrpInstance_Track) ProtoMessage() {}
 
 func (x *VrrpInstance_Track) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[542]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43506,7 +43757,7 @@ func (x *VrrpInstance_Track) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VrrpInstance_Track.ProtoReflect.Descriptor instead.
 func (*VrrpInstance_Track) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{108, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{111, 1}
 }
 
 func (x *VrrpInstance_Track) GetInterface() string {
@@ -43536,7 +43787,7 @@ type HaCluster_Peer struct {
 
 func (x *HaCluster_Peer) Reset() {
 	*x = HaCluster_Peer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43548,7 +43799,7 @@ func (x *HaCluster_Peer) String() string {
 func (*HaCluster_Peer) ProtoMessage() {}
 
 func (x *HaCluster_Peer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43561,7 +43812,7 @@ func (x *HaCluster_Peer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaCluster_Peer.ProtoReflect.Descriptor instead.
 func (*HaCluster_Peer) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{112, 0}
 }
 
 func (x *HaCluster_Peer) GetName() string {
@@ -43593,7 +43844,7 @@ type HaCluster_StateSync struct {
 
 func (x *HaCluster_StateSync) Reset() {
 	*x = HaCluster_StateSync{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43605,7 +43856,7 @@ func (x *HaCluster_StateSync) String() string {
 func (*HaCluster_StateSync) ProtoMessage() {}
 
 func (x *HaCluster_StateSync) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43618,7 +43869,7 @@ func (x *HaCluster_StateSync) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HaCluster_StateSync.ProtoReflect.Descriptor instead.
 func (*HaCluster_StateSync) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{109, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{112, 1}
 }
 
 func (x *HaCluster_StateSync) GetNat() bool {
@@ -43655,7 +43906,7 @@ type NatStaticMapping_Local struct {
 
 func (x *NatStaticMapping_Local) Reset() {
 	*x = NatStaticMapping_Local{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[545]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43667,7 +43918,7 @@ func (x *NatStaticMapping_Local) String() string {
 func (*NatStaticMapping_Local) ProtoMessage() {}
 
 func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[545]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43680,7 +43931,7 @@ func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping_Local.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping_Local) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{133, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{136, 0}
 }
 
 func (x *NatStaticMapping_Local) GetIp() string {
@@ -43714,7 +43965,7 @@ type NatStaticMapping_External struct {
 
 func (x *NatStaticMapping_External) Reset() {
 	*x = NatStaticMapping_External{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43726,7 +43977,7 @@ func (x *NatStaticMapping_External) String() string {
 func (*NatStaticMapping_External) ProtoMessage() {}
 
 func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43739,7 +43990,7 @@ func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatStaticMapping_External.ProtoReflect.Descriptor instead.
 func (*NatStaticMapping_External) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{133, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{136, 1}
 }
 
 func (x *NatStaticMapping_External) GetIp() string {
@@ -43783,7 +44034,7 @@ type NatLoadBalancedMapping_External struct {
 
 func (x *NatLoadBalancedMapping_External) Reset() {
 	*x = NatLoadBalancedMapping_External{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43795,7 +44046,7 @@ func (x *NatLoadBalancedMapping_External) String() string {
 func (*NatLoadBalancedMapping_External) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43808,7 +44059,7 @@ func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping_External.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping_External) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{135, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{138, 0}
 }
 
 func (x *NatLoadBalancedMapping_External) GetIp() string {
@@ -43842,7 +44093,7 @@ type NatLoadBalancedMapping_Local struct {
 
 func (x *NatLoadBalancedMapping_Local) Reset() {
 	*x = NatLoadBalancedMapping_Local{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43854,7 +44105,7 @@ func (x *NatLoadBalancedMapping_Local) String() string {
 func (*NatLoadBalancedMapping_Local) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43867,7 +44118,7 @@ func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NatLoadBalancedMapping_Local.ProtoReflect.Descriptor instead.
 func (*NatLoadBalancedMapping_Local) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{135, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{138, 1}
 }
 
 func (x *NatLoadBalancedMapping_Local) GetIp() string {
@@ -43911,7 +44162,7 @@ type Nat64Config_Prefix struct {
 
 func (x *Nat64Config_Prefix) Reset() {
 	*x = Nat64Config_Prefix{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43923,7 +44174,7 @@ func (x *Nat64Config_Prefix) String() string {
 func (*Nat64Config_Prefix) ProtoMessage() {}
 
 func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43936,7 +44187,7 @@ func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_Prefix.ProtoReflect.Descriptor instead.
 func (*Nat64Config_Prefix) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140, 0}
 }
 
 func (x *Nat64Config_Prefix) GetPrefix() string {
@@ -43966,7 +44217,7 @@ type Nat64Config_Pool struct {
 
 func (x *Nat64Config_Pool) Reset() {
 	*x = Nat64Config_Pool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43978,7 +44229,7 @@ func (x *Nat64Config_Pool) String() string {
 func (*Nat64Config_Pool) ProtoMessage() {}
 
 func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43991,7 +44242,7 @@ func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_Pool.ProtoReflect.Descriptor instead.
 func (*Nat64Config_Pool) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140, 1}
 }
 
 func (x *Nat64Config_Pool) GetRange() string {
@@ -44027,7 +44278,7 @@ type Nat64Config_StaticBib struct {
 
 func (x *Nat64Config_StaticBib) Reset() {
 	*x = Nat64Config_StaticBib{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44039,7 +44290,7 @@ func (x *Nat64Config_StaticBib) String() string {
 func (*Nat64Config_StaticBib) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44052,7 +44303,7 @@ func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_StaticBib.ProtoReflect.Descriptor instead.
 func (*Nat64Config_StaticBib) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140, 2}
 }
 
 func (x *Nat64Config_StaticBib) GetDescription() string {
@@ -44103,7 +44354,7 @@ type Nat64Config_StaticBib_Endpoint struct {
 
 func (x *Nat64Config_StaticBib_Endpoint) Reset() {
 	*x = Nat64Config_StaticBib_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44115,7 +44366,7 @@ func (x *Nat64Config_StaticBib_Endpoint) String() string {
 func (*Nat64Config_StaticBib_Endpoint) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44128,7 +44379,7 @@ func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat64Config_StaticBib_Endpoint.ProtoReflect.Descriptor instead.
 func (*Nat64Config_StaticBib_Endpoint) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{137, 2, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140, 2, 0}
 }
 
 func (x *Nat64Config_StaticBib_Endpoint) GetIp() string {
@@ -44162,7 +44413,7 @@ type Nat66Config_StaticMapping struct {
 
 func (x *Nat66Config_StaticMapping) Reset() {
 	*x = Nat66Config_StaticMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44174,7 +44425,7 @@ func (x *Nat66Config_StaticMapping) String() string {
 func (*Nat66Config_StaticMapping) ProtoMessage() {}
 
 func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44187,7 +44438,7 @@ func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nat66Config_StaticMapping.ProtoReflect.Descriptor instead.
 func (*Nat66Config_StaticMapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{138, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{141, 0}
 }
 
 func (x *Nat66Config_StaticMapping) GetDescription() string {
@@ -44235,7 +44486,7 @@ type Nptv6Config_Binding struct {
 
 func (x *Nptv6Config_Binding) Reset() {
 	*x = Nptv6Config_Binding{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44247,7 +44498,7 @@ func (x *Nptv6Config_Binding) String() string {
 func (*Nptv6Config_Binding) ProtoMessage() {}
 
 func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44260,7 +44511,7 @@ func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Nptv6Config_Binding.ProtoReflect.Descriptor instead.
 func (*Nptv6Config_Binding) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{139, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{142, 0}
 }
 
 func (x *Nptv6Config_Binding) GetDescription() string {
@@ -44306,7 +44557,7 @@ type Det44Config_Mapping struct {
 
 func (x *Det44Config_Mapping) Reset() {
 	*x = Det44Config_Mapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44318,7 +44569,7 @@ func (x *Det44Config_Mapping) String() string {
 func (*Det44Config_Mapping) ProtoMessage() {}
 
 func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44331,7 +44582,7 @@ func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Det44Config_Mapping.ProtoReflect.Descriptor instead.
 func (*Det44Config_Mapping) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{140, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143, 0}
 }
 
 func (x *Det44Config_Mapping) GetDescription() string {
@@ -44368,7 +44619,7 @@ type DsliteConfig_Endpoint struct {
 
 func (x *DsliteConfig_Endpoint) Reset() {
 	*x = DsliteConfig_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44380,7 +44631,7 @@ func (x *DsliteConfig_Endpoint) String() string {
 func (*DsliteConfig_Endpoint) ProtoMessage() {}
 
 func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44393,7 +44644,7 @@ func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig_Endpoint.ProtoReflect.Descriptor instead.
 func (*DsliteConfig_Endpoint) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{141, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{144, 0}
 }
 
 func (x *DsliteConfig_Endpoint) GetIpv6() string {
@@ -44421,7 +44672,7 @@ type DsliteConfig_Pool struct {
 
 func (x *DsliteConfig_Pool) Reset() {
 	*x = DsliteConfig_Pool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44433,7 +44684,7 @@ func (x *DsliteConfig_Pool) String() string {
 func (*DsliteConfig_Pool) ProtoMessage() {}
 
 func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44446,7 +44697,7 @@ func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DsliteConfig_Pool.ProtoReflect.Descriptor instead.
 func (*DsliteConfig_Pool) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{141, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{144, 1}
 }
 
 func (x *DsliteConfig_Pool) GetRange() string {
@@ -44469,7 +44720,7 @@ type MapDomain_Rule struct {
 
 func (x *MapDomain_Rule) Reset() {
 	*x = MapDomain_Rule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44481,7 +44732,7 @@ func (x *MapDomain_Rule) String() string {
 func (*MapDomain_Rule) ProtoMessage() {}
 
 func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44494,7 +44745,7 @@ func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapDomain_Rule.ProtoReflect.Descriptor instead.
 func (*MapDomain_Rule) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{142, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{145, 0}
 }
 
 func (x *MapDomain_Rule) GetPsid() uint32 {
@@ -44524,7 +44775,7 @@ type MapParameters_Fragmentation struct {
 
 func (x *MapParameters_Fragmentation) Reset() {
 	*x = MapParameters_Fragmentation{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44536,7 +44787,7 @@ func (x *MapParameters_Fragmentation) String() string {
 func (*MapParameters_Fragmentation) ProtoMessage() {}
 
 func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44549,7 +44800,7 @@ func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_Fragmentation.ProtoReflect.Descriptor instead.
 func (*MapParameters_Fragmentation) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146, 0}
 }
 
 func (x *MapParameters_Fragmentation) GetInner() bool {
@@ -44579,7 +44830,7 @@ type MapParameters_SecurityCheck struct {
 
 func (x *MapParameters_SecurityCheck) Reset() {
 	*x = MapParameters_SecurityCheck{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44591,7 +44842,7 @@ func (x *MapParameters_SecurityCheck) String() string {
 func (*MapParameters_SecurityCheck) ProtoMessage() {}
 
 func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44604,7 +44855,7 @@ func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_SecurityCheck.ProtoReflect.Descriptor instead.
 func (*MapParameters_SecurityCheck) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146, 1}
 }
 
 func (x *MapParameters_SecurityCheck) GetEnabled() bool {
@@ -44634,7 +44885,7 @@ type MapParameters_TrafficClass struct {
 
 func (x *MapParameters_TrafficClass) Reset() {
 	*x = MapParameters_TrafficClass{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44646,7 +44897,7 @@ func (x *MapParameters_TrafficClass) String() string {
 func (*MapParameters_TrafficClass) ProtoMessage() {}
 
 func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44659,7 +44910,7 @@ func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_TrafficClass.ProtoReflect.Descriptor instead.
 func (*MapParameters_TrafficClass) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143, 2}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146, 2}
 }
 
 func (x *MapParameters_TrafficClass) GetCopy() bool {
@@ -44689,7 +44940,7 @@ type MapParameters_PreResolve struct {
 
 func (x *MapParameters_PreResolve) Reset() {
 	*x = MapParameters_PreResolve{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44701,7 +44952,7 @@ func (x *MapParameters_PreResolve) String() string {
 func (*MapParameters_PreResolve) ProtoMessage() {}
 
 func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44714,7 +44965,7 @@ func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MapParameters_PreResolve.ProtoReflect.Descriptor instead.
 func (*MapParameters_PreResolve) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{143, 3}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{146, 3}
 }
 
 func (x *MapParameters_PreResolve) GetIpv4() string {
@@ -44748,7 +44999,7 @@ type CnatConfig_Snat struct {
 
 func (x *CnatConfig_Snat) Reset() {
 	*x = CnatConfig_Snat{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44760,7 +45011,7 @@ func (x *CnatConfig_Snat) String() string {
 func (*CnatConfig_Snat) ProtoMessage() {}
 
 func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44773,7 +45024,7 @@ func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{148, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{151, 0}
 }
 
 func (x *CnatConfig_Snat) GetPolicy() string {
@@ -44819,7 +45070,7 @@ type CnatConfig_Snat_Addresses struct {
 
 func (x *CnatConfig_Snat_Addresses) Reset() {
 	*x = CnatConfig_Snat_Addresses{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44831,7 +45082,7 @@ func (x *CnatConfig_Snat_Addresses) String() string {
 func (*CnatConfig_Snat_Addresses) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44844,7 +45095,7 @@ func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat_Addresses.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat_Addresses) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{148, 0, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{151, 0, 0}
 }
 
 func (x *CnatConfig_Snat_Addresses) GetIpv4() string {
@@ -44881,7 +45132,7 @@ type CnatConfig_Snat_PolicyInterface struct {
 
 func (x *CnatConfig_Snat_PolicyInterface) Reset() {
 	*x = CnatConfig_Snat_PolicyInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44893,7 +45144,7 @@ func (x *CnatConfig_Snat_PolicyInterface) String() string {
 func (*CnatConfig_Snat_PolicyInterface) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44906,7 +45157,7 @@ func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CnatConfig_Snat_PolicyInterface.ProtoReflect.Descriptor instead.
 func (*CnatConfig_Snat_PolicyInterface) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{148, 0, 1}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{151, 0, 1}
 }
 
 func (x *CnatConfig_Snat_PolicyInterface) GetInterface() string {
@@ -44935,7 +45186,7 @@ type IpsecTunnel_RouteBased struct {
 
 func (x *IpsecTunnel_RouteBased) Reset() {
 	*x = IpsecTunnel_RouteBased{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[578]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[583]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44947,7 +45198,7 @@ func (x *IpsecTunnel_RouteBased) String() string {
 func (*IpsecTunnel_RouteBased) ProtoMessage() {}
 
 func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[578]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[583]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44960,7 +45211,7 @@ func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IpsecTunnel_RouteBased.ProtoReflect.Descriptor instead.
 func (*IpsecTunnel_RouteBased) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{182, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{185, 0}
 }
 
 func (x *IpsecTunnel_RouteBased) GetIpipInterface() string {
@@ -44983,7 +45234,7 @@ type WireguardPeer_Endpoint struct {
 
 func (x *WireguardPeer_Endpoint) Reset() {
 	*x = WireguardPeer_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[581]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[586]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44995,7 +45246,7 @@ func (x *WireguardPeer_Endpoint) String() string {
 func (*WireguardPeer_Endpoint) ProtoMessage() {}
 
 func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[581]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[586]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45008,7 +45259,7 @@ func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WireguardPeer_Endpoint.ProtoReflect.Descriptor instead.
 func (*WireguardPeer_Endpoint) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{185, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{188, 0}
 }
 
 func (x *WireguardPeer_Endpoint) GetAddress() string {
@@ -45038,7 +45289,7 @@ type PkiCa_Crl struct {
 
 func (x *PkiCa_Crl) Reset() {
 	*x = PkiCa_Crl{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[584]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[589]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45050,7 +45301,7 @@ func (x *PkiCa_Crl) String() string {
 func (*PkiCa_Crl) ProtoMessage() {}
 
 func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[584]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[589]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45063,7 +45314,7 @@ func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCa_Crl.ProtoReflect.Descriptor instead.
 func (*PkiCa_Crl) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{188, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{191, 0}
 }
 
 func (x *PkiCa_Crl) GetUrl() string {
@@ -45097,7 +45348,7 @@ type PkiCertificate_Acme struct {
 
 func (x *PkiCertificate_Acme) Reset() {
 	*x = PkiCertificate_Acme{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[585]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[590]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45109,7 +45360,7 @@ func (x *PkiCertificate_Acme) String() string {
 func (*PkiCertificate_Acme) ProtoMessage() {}
 
 func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[585]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[590]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45122,7 +45373,7 @@ func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiCertificate_Acme.ProtoReflect.Descriptor instead.
 func (*PkiCertificate_Acme) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{189, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{192, 0}
 }
 
 func (x *PkiCertificate_Acme) GetDirectoryUrl() string {
@@ -45170,7 +45421,7 @@ type PkiConfig_Hsm struct {
 
 func (x *PkiConfig_Hsm) Reset() {
 	*x = PkiConfig_Hsm{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[586]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45182,7 +45433,7 @@ func (x *PkiConfig_Hsm) String() string {
 func (*PkiConfig_Hsm) ProtoMessage() {}
 
 func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[586]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45195,7 +45446,7 @@ func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PkiConfig_Hsm.ProtoReflect.Descriptor instead.
 func (*PkiConfig_Hsm) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{190, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{193, 0}
 }
 
 func (x *PkiConfig_Hsm) GetEnabled() bool {
@@ -45237,7 +45488,7 @@ type RemoteAccessProfile_Radius struct {
 
 func (x *RemoteAccessProfile_Radius) Reset() {
 	*x = RemoteAccessProfile_Radius{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[589]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[594]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45249,7 +45500,7 @@ func (x *RemoteAccessProfile_Radius) String() string {
 func (*RemoteAccessProfile_Radius) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[589]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[594]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45262,7 +45513,7 @@ func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoteAccessProfile_Radius.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile_Radius) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{193, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{196, 0}
 }
 
 func (x *RemoteAccessProfile_Radius) GetServers() []*RemoteAccessProfile_Radius_Server {
@@ -45287,7 +45538,7 @@ type RemoteAccessProfile_Radius_Server struct {
 
 func (x *RemoteAccessProfile_Radius_Server) Reset() {
 	*x = RemoteAccessProfile_Radius_Server{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[590]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[595]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45299,7 +45550,7 @@ func (x *RemoteAccessProfile_Radius_Server) String() string {
 func (*RemoteAccessProfile_Radius_Server) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[590]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[595]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45312,7 +45563,7 @@ func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use RemoteAccessProfile_Radius_Server.ProtoReflect.Descriptor instead.
 func (*RemoteAccessProfile_Radius_Server) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{193, 0, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{196, 0, 0}
 }
 
 func (x *RemoteAccessProfile_Radius_Server) GetAddress() string {
@@ -45347,7 +45598,7 @@ type NsimService_CrossConnect struct {
 
 func (x *NsimService_CrossConnect) Reset() {
 	*x = NsimService_CrossConnect{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[601]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45359,7 +45610,7 @@ func (x *NsimService_CrossConnect) String() string {
 func (*NsimService_CrossConnect) ProtoMessage() {}
 
 func (x *NsimService_CrossConnect) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[601]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45372,7 +45623,7 @@ func (x *NsimService_CrossConnect) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NsimService_CrossConnect.ProtoReflect.Descriptor instead.
 func (*NsimService_CrossConnect) Descriptor() ([]byte, []int) {
-	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{220, 0}
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{223, 0}
 }
 
 func (x *NsimService_CrossConnect) GetA() string {
@@ -45827,7 +46078,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\rsource_select\x18\x03 \x03(\v2\x18.ngfw.v1.VrfSourceSelectR\fsourceSelect\x12@\n" +
 	"\x10proxy_arp_ranges\x18\x04 \x03(\v2\x16.ngfw.v1.ProxyArpRangeR\x0eproxyArpRangesB\x05\n" +
 	"\x03_idB\x0e\n" +
-	"\f_description\"\x9a\x05\n" +
+	"\f_description\"\xc6\x05\n" +
 	"\rRoutingConfig\x12,\n" +
 	"\x06static\x18\x01 \x03(\v2\x14.ngfw.v1.StaticRouteR\x06static\x12$\n" +
 	"\x03bgp\x18\x04 \x01(\v2\x12.ngfw.v1.BgpConfigR\x03bgp\x12'\n" +
@@ -45835,7 +46086,8 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x04isis\x18\x06 \x01(\v2\x13.ngfw.v1.IsisConfigR\x04isis\x12$\n" +
 	"\x03rip\x18\a \x01(\v2\x12.ngfw.v1.RipConfigR\x03rip\x12$\n" +
 	"\x03bfd\x18\b \x01(\v2\x12.ngfw.v1.BfdConfigR\x03bfd\x12.\n" +
-	"\x06policy\x18\t \x01(\v2\x16.ngfw.v1.RoutingPolicyR\x06policy\x12'\n" +
+	"\x06policy\x18\t \x01(\v2\x16.ngfw.v1.RoutingPolicyR\x06policy\x12*\n" +
+	"\x05ospf6\x18\r \x01(\v2\x14.ngfw.v1.Ospf6ConfigR\x05ospf6\x12'\n" +
 	"\x04mpls\x18\x0f \x01(\v2\x13.ngfw.v1.MplsConfigR\x04mpls\x126\n" +
 	"\tmulticast\x18\x10 \x01(\v2\x18.ngfw.v1.MulticastConfigR\tmulticast\x12'\n" +
 	"\x02l2\x18\x14 \x01(\v2\x17.ngfw.v1.BridgeL2ConfigR\x02l2\x12'\n" +
@@ -46124,7 +46376,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\n" +
 	"no_summary\x18\x02 \x01(\bH\x01R\tnoSummary\x88\x01\x01B\a\n" +
 	"\x05_typeB\r\n" +
-	"\v_no_summary\"\x95\x03\n" +
+	"\v_no_summary\"\xbc\x03\n" +
 	"\rOspfInterface\x12\x17\n" +
 	"\x04area\x18\x01 \x01(\tH\x00R\x04area\x88\x01\x01\x12\x17\n" +
 	"\x04cost\x18\x02 \x01(\rH\x01R\x04cost\x88\x01\x01\x12\x1d\n" +
@@ -46133,7 +46385,8 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x12hello_interval_sec\x18\x05 \x01(\rH\x04R\x10helloIntervalSec\x88\x01\x01\x12/\n" +
 	"\x11dead_interval_sec\x18\x06 \x01(\rH\x05R\x0fdeadIntervalSec\x88\x01\x01\x12\x1f\n" +
 	"\bpriority\x18\a \x01(\rH\x06R\bpriority\x88\x01\x01\x12\x15\n" +
-	"\x03bfd\x18\b \x01(\bH\aR\x03bfd\x88\x01\x01B\a\n" +
+	"\x03bfd\x18\b \x01(\bH\aR\x03bfd\x88\x01\x01\x12%\n" +
+	"\x04auth\x18\t \x01(\v2\x11.ngfw.v1.OspfAuthR\x04authB\a\n" +
 	"\x05_areaB\a\n" +
 	"\x05_costB\n" +
 	"\n" +
@@ -46142,7 +46395,49 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x13_hello_interval_secB\x14\n" +
 	"\x12_dead_interval_secB\v\n" +
 	"\t_priorityB\x06\n" +
-	"\x04_bfd\"\xa0\x04\n" +
+	"\x04_bfd\"}\n" +
+	"\bOspfAuth\x12\x17\n" +
+	"\x04type\x18\x01 \x01(\tH\x00R\x04type\x88\x01\x01\x12\x1a\n" +
+	"\x06key_id\x18\x02 \x01(\rH\x01R\x05keyId\x88\x01\x01\x12\x1c\n" +
+	"\akey_ref\x18\x03 \x01(\tH\x02R\x06keyRef\x88\x01\x01B\a\n" +
+	"\x05_typeB\t\n" +
+	"\a_key_idB\n" +
+	"\n" +
+	"\b_key_ref\"\xf7\x02\n" +
+	"\x0eOspf6Interface\x12\x17\n" +
+	"\x04area\x18\x01 \x01(\tH\x00R\x04area\x88\x01\x01\x12\x17\n" +
+	"\x04cost\x18\x02 \x01(\rH\x01R\x04cost\x88\x01\x01\x12\x1d\n" +
+	"\apassive\x18\x03 \x01(\bH\x02R\apassive\x88\x01\x01\x12&\n" +
+	"\fnetwork_type\x18\x04 \x01(\tH\x03R\vnetworkType\x88\x01\x01\x121\n" +
+	"\x12hello_interval_sec\x18\x05 \x01(\rH\x04R\x10helloIntervalSec\x88\x01\x01\x12/\n" +
+	"\x11dead_interval_sec\x18\x06 \x01(\rH\x05R\x0fdeadIntervalSec\x88\x01\x01\x12\x1f\n" +
+	"\bpriority\x18\a \x01(\rH\x06R\bpriority\x88\x01\x01B\a\n" +
+	"\x05_areaB\a\n" +
+	"\x05_costB\n" +
+	"\n" +
+	"\b_passiveB\x0f\n" +
+	"\r_network_typeB\x15\n" +
+	"\x13_hello_interval_secB\x14\n" +
+	"\x12_dead_interval_secB\v\n" +
+	"\t_priority\"\xb9\x03\n" +
+	"\vOspf6Config\x12 \n" +
+	"\trouter_id\x18\x01 \x01(\tH\x00R\brouterId\x88\x01\x01\x12\x15\n" +
+	"\x03vrf\x18\x02 \x01(\tH\x01R\x03vrf\x88\x01\x01\x125\n" +
+	"\x05areas\x18\x03 \x03(\v2\x1f.ngfw.v1.Ospf6Config.AreasEntryR\x05areas\x12D\n" +
+	"\n" +
+	"interfaces\x18\x04 \x03(\v2$.ngfw.v1.Ospf6Config.InterfacesEntryR\n" +
+	"interfaces\x129\n" +
+	"\fredistribute\x18\x05 \x01(\v2\x15.ngfw.v1.RedistributeR\fredistribute\x1aK\n" +
+	"\n" +
+	"AreasEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12'\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.ngfw.v1.OspfAreaR\x05value:\x028\x01\x1aV\n" +
+	"\x0fInterfacesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.ngfw.v1.Ospf6InterfaceR\x05value:\x028\x01B\f\n" +
+	"\n" +
+	"_router_idB\x06\n" +
+	"\x04_vrf\"\xa0\x04\n" +
 	"\n" +
 	"OspfConfig\x12 \n" +
 	"\trouter_id\x18\x01 \x01(\tH\x00R\brouterId\x88\x01\x01\x12\x15\n" +
@@ -50806,7 +51101,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1aISSUE_SEVERITY_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14ISSUE_SEVERITY_ERROR\x10\x01\x12\x1a\n" +
 	"\x16ISSUE_SEVERITY_WARNING\x10\x02\x12\x17\n" +
-	"\x13ISSUE_SEVERITY_INFO\x10\x03*\xc0\x04\n" +
+	"\x13ISSUE_SEVERITY_INFO\x10\x03*\xe6\x04\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dEVENT_KIND_AUTOBLOCK_OBSERVED\x10\x19\x12\x1f\n" +
@@ -50819,7 +51114,8 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1bEVENT_KIND_CONFIRM_REVERTED\x10\x06\x12\x1c\n" +
 	"\x18EVENT_KIND_VPP_CONNECTED\x10\a\x12\x1f\n" +
 	"\x1bEVENT_KIND_VPP_DISCONNECTED\x10\b\x12\x17\n" +
-	"\x13EVENT_KIND_DEGRADED\x10\t\x12\x1f\n" +
+	"\x13EVENT_KIND_DEGRADED\x10\t\x12$\n" +
+	" EVENT_KIND_OSPF_NEIGHBOR_CHANGED\x10\x14\x12\x1f\n" +
 	"\x1bEVENT_KIND_NEIGHBOR_CHANGED\x10\n" +
 	"\x12%\n" +
 	"!EVENT_KIND_WIREGUARD_PEER_CHANGED\x10\r\x12\x1e\n" +
@@ -50919,7 +51215,7 @@ func file_ngfw_v1_dataplane_proto_rawDescGZIP() []byte {
 }
 
 var file_ngfw_v1_dataplane_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_ngfw_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 619)
+var file_ngfw_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 624)
 var file_ngfw_v1_dataplane_proto_goTypes = []any{
 	(ApplyStatus)(0),                          // 0: ngfw.v1.ApplyStatus
 	(ApplyOperation)(0),                       // 1: ngfw.v1.ApplyOperation
@@ -50998,557 +51294,562 @@ var file_ngfw_v1_dataplane_proto_goTypes = []any{
 	(*BgpConfig)(nil),                         // 74: ngfw.v1.BgpConfig
 	(*OspfArea)(nil),                          // 75: ngfw.v1.OspfArea
 	(*OspfInterface)(nil),                     // 76: ngfw.v1.OspfInterface
-	(*OspfConfig)(nil),                        // 77: ngfw.v1.OspfConfig
-	(*IsisInterface)(nil),                     // 78: ngfw.v1.IsisInterface
-	(*IsisConfig)(nil),                        // 79: ngfw.v1.IsisConfig
-	(*RipInterface)(nil),                      // 80: ngfw.v1.RipInterface
-	(*RipConfig)(nil),                         // 81: ngfw.v1.RipConfig
-	(*BfdSession)(nil),                        // 82: ngfw.v1.BfdSession
-	(*BfdConfig)(nil),                         // 83: ngfw.v1.BfdConfig
-	(*TunnelsConfig)(nil),                     // 84: ngfw.v1.TunnelsConfig
-	(*GreTunnel)(nil),                         // 85: ngfw.v1.GreTunnel
-	(*VxlanTunnel)(nil),                       // 86: ngfw.v1.VxlanTunnel
-	(*IpipTunnel)(nil),                        // 87: ngfw.v1.IpipTunnel
-	(*ServicesConfig)(nil),                    // 88: ngfw.v1.ServicesConfig
-	(*SocketAddress)(nil),                     // 89: ngfw.v1.SocketAddress
-	(*DhcpService)(nil),                       // 90: ngfw.v1.DhcpService
-	(*DhcpOption)(nil),                        // 91: ngfw.v1.DhcpOption
-	(*DhcpPool)(nil),                          // 92: ngfw.v1.DhcpPool
-	(*DhcpReservation)(nil),                   // 93: ngfw.v1.DhcpReservation
-	(*DhcpSubnet)(nil),                        // 94: ngfw.v1.DhcpSubnet
-	(*DhcpServer)(nil),                        // 95: ngfw.v1.DhcpServer
-	(*DhcpRelay)(nil),                         // 96: ngfw.v1.DhcpRelay
-	(*DnsService)(nil),                        // 97: ngfw.v1.DnsService
-	(*DnsUpstream)(nil),                       // 98: ngfw.v1.DnsUpstream
-	(*DnsForwardZone)(nil),                    // 99: ngfw.v1.DnsForwardZone
-	(*DnsRecord)(nil),                         // 100: ngfw.v1.DnsRecord
-	(*DnsLocalZone)(nil),                      // 101: ngfw.v1.DnsLocalZone
-	(*DnsAccessControl)(nil),                  // 102: ngfw.v1.DnsAccessControl
-	(*DnsResolver)(nil),                       // 103: ngfw.v1.DnsResolver
-	(*SnmpService)(nil),                       // 104: ngfw.v1.SnmpService
-	(*LldpService)(nil),                       // 105: ngfw.v1.LldpService
-	(*IpfixService)(nil),                      // 106: ngfw.v1.IpfixService
-	(*NtpService)(nil),                        // 107: ngfw.v1.NtpService
-	(*QosService)(nil),                        // 108: ngfw.v1.QosService
-	(*QosPolicerAction)(nil),                  // 109: ngfw.v1.QosPolicerAction
-	(*QosPolicer)(nil),                        // 110: ngfw.v1.QosPolicer
-	(*QosShaper)(nil),                         // 111: ngfw.v1.QosShaper
-	(*QosMapEntry)(nil),                       // 112: ngfw.v1.QosMapEntry
-	(*QosMap)(nil),                            // 113: ngfw.v1.QosMap
-	(*QosInterface)(nil),                      // 114: ngfw.v1.QosInterface
-	(*HaConfig)(nil),                          // 115: ngfw.v1.HaConfig
-	(*VrrpInstance)(nil),                      // 116: ngfw.v1.VrrpInstance
-	(*HaCluster)(nil),                         // 117: ngfw.v1.HaCluster
-	(*ManagementConfig)(nil),                  // 118: ngfw.v1.ManagementConfig
-	(*ManagementNotifications)(nil),           // 119: ngfw.v1.ManagementNotifications
-	(*NotificationChannel)(nil),               // 120: ngfw.v1.NotificationChannel
-	(*NotificationEmail)(nil),                 // 121: ngfw.v1.NotificationEmail
-	(*NotificationWebhook)(nil),               // 122: ngfw.v1.NotificationWebhook
-	(*NotificationRule)(nil),                  // 123: ngfw.v1.NotificationRule
-	(*SecurityConfig)(nil),                    // 124: ngfw.v1.SecurityConfig
-	(*AutoBlockSetRequest)(nil),               // 125: ngfw.v1.AutoBlockSetRequest
-	(*AutoBlockRuntimeEntry)(nil),             // 126: ngfw.v1.AutoBlockRuntimeEntry
-	(*AutoBlockSetResponse)(nil),              // 127: ngfw.v1.AutoBlockSetResponse
-	(*AutoBlock)(nil),                         // 128: ngfw.v1.AutoBlock
-	(*AutoBlockRule)(nil),                     // 129: ngfw.v1.AutoBlockRule
-	(*ManagementUser)(nil),                    // 130: ngfw.v1.ManagementUser
-	(*ManagementAaa)(nil),                     // 131: ngfw.v1.ManagementAaa
-	(*AaaRadius)(nil),                         // 132: ngfw.v1.AaaRadius
-	(*RadiusServer)(nil),                      // 133: ngfw.v1.RadiusServer
-	(*AaaTacacs)(nil),                         // 134: ngfw.v1.AaaTacacs
-	(*TacacsServer)(nil),                      // 135: ngfw.v1.TacacsServer
-	(*ManagementTls)(nil),                     // 136: ngfw.v1.ManagementTls
-	(*SyslogTarget)(nil),                      // 137: ngfw.v1.SyslogTarget
-	(*NatConfig)(nil),                         // 138: ngfw.v1.NatConfig
-	(*NatTimeouts)(nil),                       // 139: ngfw.v1.NatTimeouts
-	(*NatPool)(nil),                           // 140: ngfw.v1.NatPool
-	(*NatStaticMapping)(nil),                  // 141: ngfw.v1.NatStaticMapping
-	(*NatIdentityMapping)(nil),                // 142: ngfw.v1.NatIdentityMapping
-	(*NatLoadBalancedMapping)(nil),            // 143: ngfw.v1.NatLoadBalancedMapping
-	(*NatIpfix)(nil),                          // 144: ngfw.v1.NatIpfix
-	(*Nat64Config)(nil),                       // 145: ngfw.v1.Nat64Config
-	(*Nat66Config)(nil),                       // 146: ngfw.v1.Nat66Config
-	(*Nptv6Config)(nil),                       // 147: ngfw.v1.Nptv6Config
-	(*Det44Config)(nil),                       // 148: ngfw.v1.Det44Config
-	(*DsliteConfig)(nil),                      // 149: ngfw.v1.DsliteConfig
-	(*MapDomain)(nil),                         // 150: ngfw.v1.MapDomain
-	(*MapParameters)(nil),                     // 151: ngfw.v1.MapParameters
-	(*MapInterface)(nil),                      // 152: ngfw.v1.MapInterface
-	(*MapConfig)(nil),                         // 153: ngfw.v1.MapConfig
-	(*CnatEndpoint)(nil),                      // 154: ngfw.v1.CnatEndpoint
-	(*CnatTranslation)(nil),                   // 155: ngfw.v1.CnatTranslation
-	(*CnatConfig)(nil),                        // 156: ngfw.v1.CnatConfig
-	(*ObjectsConfig)(nil),                     // 157: ngfw.v1.ObjectsConfig
-	(*AddressObject)(nil),                     // 158: ngfw.v1.AddressObject
-	(*AddressGroup)(nil),                      // 159: ngfw.v1.AddressGroup
-	(*TcpFlags)(nil),                          // 160: ngfw.v1.TcpFlags
-	(*ServiceSpec)(nil),                       // 161: ngfw.v1.ServiceSpec
-	(*ServiceObject)(nil),                     // 162: ngfw.v1.ServiceObject
-	(*ServiceGroup)(nil),                      // 163: ngfw.v1.ServiceGroup
-	(*Schedule)(nil),                          // 164: ngfw.v1.Schedule
-	(*Zone)(nil),                              // 165: ngfw.v1.Zone
-	(*Tag)(nil),                               // 166: ngfw.v1.Tag
-	(*AclConfig)(nil),                         // 167: ngfw.v1.AclConfig
-	(*GlobalBlocking)(nil),                    // 168: ngfw.v1.GlobalBlocking
-	(*GlobalBlockingSource)(nil),              // 169: ngfw.v1.GlobalBlockingSource
-	(*GlobalBlockingList)(nil),                // 170: ngfw.v1.GlobalBlockingList
-	(*AddressMatch)(nil),                      // 171: ngfw.v1.AddressMatch
-	(*ServiceMatch)(nil),                      // 172: ngfw.v1.ServiceMatch
-	(*AclRule)(nil),                           // 173: ngfw.v1.AclRule
-	(*AclList)(nil),                           // 174: ngfw.v1.AclList
-	(*MacipRule)(nil),                         // 175: ngfw.v1.MacipRule
-	(*MacipList)(nil),                         // 176: ngfw.v1.MacipList
-	(*HostRule)(nil),                          // 177: ngfw.v1.HostRule
-	(*HostList)(nil),                          // 178: ngfw.v1.HostList
-	(*AttachmentTarget)(nil),                  // 179: ngfw.v1.AttachmentTarget
-	(*AclAttachment)(nil),                     // 180: ngfw.v1.AclAttachment
-	(*MacipAttachment)(nil),                   // 181: ngfw.v1.MacipAttachment
-	(*HostAttachment)(nil),                    // 182: ngfw.v1.HostAttachment
-	(*VpnConfig)(nil),                         // 183: ngfw.v1.VpnConfig
-	(*IkeProposal)(nil),                       // 184: ngfw.v1.IkeProposal
-	(*EspProposal)(nil),                       // 185: ngfw.v1.EspProposal
-	(*IpsecProposal)(nil),                     // 186: ngfw.v1.IpsecProposal
-	(*IpsecAuth)(nil),                         // 187: ngfw.v1.IpsecAuth
-	(*IpsecDpd)(nil),                          // 188: ngfw.v1.IpsecDpd
-	(*IpsecRekey)(nil),                        // 189: ngfw.v1.IpsecRekey
-	(*IpsecTunnel)(nil),                       // 190: ngfw.v1.IpsecTunnel
-	(*IpsecSettings)(nil),                     // 191: ngfw.v1.IpsecSettings
-	(*IpsecConfig)(nil),                       // 192: ngfw.v1.IpsecConfig
-	(*WireguardPeer)(nil),                     // 193: ngfw.v1.WireguardPeer
-	(*WireguardInterface)(nil),                // 194: ngfw.v1.WireguardInterface
-	(*WireguardConfig)(nil),                   // 195: ngfw.v1.WireguardConfig
-	(*PkiCa)(nil),                             // 196: ngfw.v1.PkiCa
-	(*PkiCertificate)(nil),                    // 197: ngfw.v1.PkiCertificate
-	(*PkiConfig)(nil),                         // 198: ngfw.v1.PkiConfig
-	(*RemoteAccessPool)(nil),                  // 199: ngfw.v1.RemoteAccessPool
-	(*RemoteAccessUser)(nil),                  // 200: ngfw.v1.RemoteAccessUser
-	(*RemoteAccessProfile)(nil),               // 201: ngfw.v1.RemoteAccessProfile
-	(*Bond)(nil),                              // 202: ngfw.v1.Bond
-	(*BondMember)(nil),                        // 203: ngfw.v1.BondMember
-	(*BondStateRequest)(nil),                  // 204: ngfw.v1.BondStateRequest
-	(*BondStateResponse)(nil),                 // 205: ngfw.v1.BondStateResponse
-	(*BondStatus)(nil),                        // 206: ngfw.v1.BondStatus
-	(*BondMemberStatus)(nil),                  // 207: ngfw.v1.BondMemberStatus
-	(*BondLacpState)(nil),                     // 208: ngfw.v1.BondLacpState
-	(*BondLacpPort)(nil),                      // 209: ngfw.v1.BondLacpPort
-	(*BridgeL2Port)(nil),                      // 210: ngfw.v1.BridgeL2Port
-	(*BridgeL2TagRewrite)(nil),                // 211: ngfw.v1.BridgeL2TagRewrite
-	(*BridgeL2Config)(nil),                    // 212: ngfw.v1.BridgeL2Config
-	(*BridgeL2Domain)(nil),                    // 213: ngfw.v1.BridgeL2Domain
-	(*BridgeL2StaticMac)(nil),                 // 214: ngfw.v1.BridgeL2StaticMac
-	(*BridgeL2Xconnect)(nil),                  // 215: ngfw.v1.BridgeL2Xconnect
-	(*BridgeL2L3Xc)(nil),                      // 216: ngfw.v1.BridgeL2L3xc
-	(*BridgeL2L3XcPath)(nil),                  // 217: ngfw.v1.BridgeL2L3xcPath
-	(*BridgeL2MacFilter)(nil),                 // 218: ngfw.v1.BridgeL2MacFilter
-	(*BridgeL2MacFilterRange)(nil),            // 219: ngfw.v1.BridgeL2MacFilterRange
-	(*BridgeDomainStateRequest)(nil),          // 220: ngfw.v1.BridgeDomainStateRequest
-	(*BridgeDomainStateResponse)(nil),         // 221: ngfw.v1.BridgeDomainStateResponse
-	(*BridgeDomainStatus)(nil),                // 222: ngfw.v1.BridgeDomainStatus
-	(*BridgeDomainMember)(nil),                // 223: ngfw.v1.BridgeDomainMember
-	(*BridgeDomainMacsRequest)(nil),           // 224: ngfw.v1.BridgeDomainMacsRequest
-	(*BridgeDomainMacsResponse)(nil),          // 225: ngfw.v1.BridgeDomainMacsResponse
-	(*BridgeDomainMac)(nil),                   // 226: ngfw.v1.BridgeDomainMac
-	(*MirrorSession)(nil),                     // 227: ngfw.v1.MirrorSession
-	(*NsimService)(nil),                       // 228: ngfw.v1.NsimService
-	(*LldpNeighborsRequest)(nil),              // 229: ngfw.v1.LldpNeighborsRequest
-	(*LldpNeighborsResponse)(nil),             // 230: ngfw.v1.LldpNeighborsResponse
-	(*LldpNeighbor)(nil),                      // 231: ngfw.v1.LldpNeighbor
-	(*VrfSourceSelect)(nil),                   // 232: ngfw.v1.VrfSourceSelect
-	(*ListRoutesRequest)(nil),                 // 233: ngfw.v1.ListRoutesRequest
-	(*ListRoutesResponse)(nil),                // 234: ngfw.v1.ListRoutesResponse
-	(*ListRoutesEntry)(nil),                   // 235: ngfw.v1.ListRoutesEntry
-	(*ListRoutesPath)(nil),                    // 236: ngfw.v1.ListRoutesPath
-	(*Ipv6Ra)(nil),                            // 237: ngfw.v1.Ipv6Ra
-	(*Ipv6RaPrefix)(nil),                      // 238: ngfw.v1.Ipv6RaPrefix
-	(*ProxyArpRange)(nil),                     // 239: ngfw.v1.ProxyArpRange
-	(*NeighborsConfig)(nil),                   // 240: ngfw.v1.NeighborsConfig
-	(*StaticNeighbor)(nil),                    // 241: ngfw.v1.StaticNeighbor
-	(*NeighborLimits)(nil),                    // 242: ngfw.v1.NeighborLimits
-	(*NeighborDad)(nil),                       // 243: ngfw.v1.NeighborDad
-	(*ListNeighborsRequest)(nil),              // 244: ngfw.v1.ListNeighborsRequest
-	(*ListNeighborsResponse)(nil),             // 245: ngfw.v1.ListNeighborsResponse
-	(*NeighborEntry)(nil),                     // 246: ngfw.v1.NeighborEntry
-	(*ArpFlushAction)(nil),                    // 247: ngfw.v1.ArpFlushAction
-	(*UrpfConfig)(nil),                        // 248: ngfw.v1.UrpfConfig
-	(*AdlConfig)(nil),                         // 249: ngfw.v1.AdlConfig
-	(*PbrConfig)(nil),                         // 250: ngfw.v1.PbrConfig
-	(*PbrPolicy)(nil),                         // 251: ngfw.v1.PbrPolicy
-	(*PbrPath)(nil),                           // 252: ngfw.v1.PbrPath
-	(*PbrAttachment)(nil),                     // 253: ngfw.v1.PbrAttachment
-	(*AutoSdlConfig)(nil),                     // 254: ngfw.v1.AutoSdlConfig
-	(*FqdnObjectStateRequest)(nil),            // 255: ngfw.v1.FqdnObjectStateRequest
-	(*FqdnObjectStateResponse)(nil),           // 256: ngfw.v1.FqdnObjectStateResponse
-	(*FqdnObjectState)(nil),                   // 257: ngfw.v1.FqdnObjectState
-	(*AclStateRequest)(nil),                   // 258: ngfw.v1.AclStateRequest
-	(*AclStateFilter)(nil),                    // 259: ngfw.v1.AclStateFilter
-	(*AclStateResponse)(nil),                  // 260: ngfw.v1.AclStateResponse
-	(*AclListState)(nil),                      // 261: ngfw.v1.AclListState
-	(*AclRuleState)(nil),                      // 262: ngfw.v1.AclRuleState
-	(*AclInterfaceState)(nil),                 // 263: ngfw.v1.AclInterfaceState
-	(*AclBoundAcl)(nil),                       // 264: ngfw.v1.AclBoundAcl
-	(*HostAclSettings)(nil),                   // 265: ngfw.v1.HostAclSettings
-	(*HostAclAntiLockout)(nil),                // 266: ngfw.v1.HostAclAntiLockout
-	(*HostAclStateRequest)(nil),               // 267: ngfw.v1.HostAclStateRequest
-	(*HostAclStateResponse)(nil),              // 268: ngfw.v1.HostAclStateResponse
-	(*HostAclSetState)(nil),                   // 269: ngfw.v1.HostAclSetState
-	(*HostAclChainState)(nil),                 // 270: ngfw.v1.HostAclChainState
-	(*HostAclRuleState)(nil),                  // 271: ngfw.v1.HostAclRuleState
-	(*NatSessionFilter)(nil),                  // 272: ngfw.v1.NatSessionFilter
-	(*NatSessionsRequest)(nil),                // 273: ngfw.v1.NatSessionsRequest
-	(*NatSession)(nil),                        // 274: ngfw.v1.NatSession
-	(*NatSessionsResponse)(nil),               // 275: ngfw.v1.NatSessionsResponse
-	(*NatSummaryRequest)(nil),                 // 276: ngfw.v1.NatSummaryRequest
-	(*NatPoolUsage)(nil),                      // 277: ngfw.v1.NatPoolUsage
-	(*NatSummaryResponse)(nil),                // 278: ngfw.v1.NatSummaryResponse
-	(*NatSessionKillAction)(nil),              // 279: ngfw.v1.NatSessionKillAction
-	(*WireguardStateRequest)(nil),             // 280: ngfw.v1.WireguardStateRequest
-	(*WireguardStateResponse)(nil),            // 281: ngfw.v1.WireguardStateResponse
-	(*WireguardInterfaceState)(nil),           // 282: ngfw.v1.WireguardInterfaceState
-	(*WireguardPeerState)(nil),                // 283: ngfw.v1.WireguardPeerState
-	(*InterfaceLcp)(nil),                      // 284: ngfw.v1.InterfaceLcp
-	(*Pppoe)(nil),                             // 285: ngfw.v1.Pppoe
-	(*PppoeReconnect)(nil),                    // 286: ngfw.v1.PppoeReconnect
-	(*PppoeReconnectRequest)(nil),             // 287: ngfw.v1.PppoeReconnectRequest
-	(*PppoeReconnectResponse)(nil),            // 288: ngfw.v1.PppoeReconnectResponse
-	(*PppoeSessionState)(nil),                 // 289: ngfw.v1.PppoeSessionState
-	(*RoutingStateRequest)(nil),               // 290: ngfw.v1.RoutingStateRequest
-	(*RoutingStateResponse)(nil),              // 291: ngfw.v1.RoutingStateResponse
-	(*BgpInstanceState)(nil),                  // 292: ngfw.v1.BgpInstanceState
-	(*BgpNeighborState)(nil),                  // 293: ngfw.v1.BgpNeighborState
-	(*BgpNeighborAfiState)(nil),               // 294: ngfw.v1.BgpNeighborAfiState
-	(*RoutingLcpPair)(nil),                    // 295: ngfw.v1.RoutingLcpPair
-	(*RoutingRibEntry)(nil),                   // 296: ngfw.v1.RoutingRibEntry
-	(*RoutingRibNextHop)(nil),                 // 297: ngfw.v1.RoutingRibNextHop
-	(*DhcpLeasesRequest)(nil),                 // 298: ngfw.v1.DhcpLeasesRequest
-	(*DhcpLease)(nil),                         // 299: ngfw.v1.DhcpLease
-	(*DhcpSubnetUsage)(nil),                   // 300: ngfw.v1.DhcpSubnetUsage
-	(*DhcpServerStatus)(nil),                  // 301: ngfw.v1.DhcpServerStatus
-	(*DhcpClientLease)(nil),                   // 302: ngfw.v1.DhcpClientLease
-	(*DhcpLeasesResponse)(nil),                // 303: ngfw.v1.DhcpLeasesResponse
-	(*SyslogTls)(nil),                         // 304: ngfw.v1.SyslogTls
-	(*DnsLookupAction)(nil),                   // 305: ngfw.v1.DnsLookupAction
-	(*ServiceDaemonAction)(nil),               // 306: ngfw.v1.ServiceDaemonAction
-	(*DnsStateRequest)(nil),                   // 307: ngfw.v1.DnsStateRequest
-	(*DnsStateResponse)(nil),                  // 308: ngfw.v1.DnsStateResponse
-	(*DnsZoneState)(nil),                      // 309: ngfw.v1.DnsZoneState
-	(*DnsLocalZoneState)(nil),                 // 310: ngfw.v1.DnsLocalZoneState
-	(*DnsVppCacheState)(nil),                  // 311: ngfw.v1.DnsVppCacheState
-	(*NtpStateRequest)(nil),                   // 312: ngfw.v1.NtpStateRequest
-	(*NtpStateResponse)(nil),                  // 313: ngfw.v1.NtpStateResponse
-	(*NtpTracking)(nil),                       // 314: ngfw.v1.NtpTracking
-	(*NtpSource)(nil),                         // 315: ngfw.v1.NtpSource
-	(*NtpSourceStats)(nil),                    // 316: ngfw.v1.NtpSourceStats
-	(*SyslogStateRequest)(nil),                // 317: ngfw.v1.SyslogStateRequest
-	(*SyslogStateResponse)(nil),               // 318: ngfw.v1.SyslogStateResponse
-	(*SyslogTargetState)(nil),                 // 319: ngfw.v1.SyslogTargetState
-	(*SyslogEntriesRequest)(nil),              // 320: ngfw.v1.SyslogEntriesRequest
-	(*SyslogEntriesResponse)(nil),             // 321: ngfw.v1.SyslogEntriesResponse
-	(*SyslogEntry)(nil),                       // 322: ngfw.v1.SyslogEntry
-	(*PnatConfig)(nil),                        // 323: ngfw.v1.PnatConfig
-	(*PnatBinding)(nil),                       // 324: ngfw.v1.PnatBinding
-	(*PnatMatch)(nil),                         // 325: ngfw.v1.PnatMatch
-	(*PnatRewrite)(nil),                       // 326: ngfw.v1.PnatRewrite
-	(*PnatAttachment)(nil),                    // 327: ngfw.v1.PnatAttachment
-	(*Det44SessionsRequest)(nil),              // 328: ngfw.v1.Det44SessionsRequest
-	(*Det44Session)(nil),                      // 329: ngfw.v1.Det44Session
-	(*Det44SessionsResponse)(nil),             // 330: ngfw.v1.Det44SessionsResponse
-	(*Det44LookupRequest)(nil),                // 331: ngfw.v1.Det44LookupRequest
-	(*Det44LookupResponse)(nil),               // 332: ngfw.v1.Det44LookupResponse
-	(*CnatSessionsRequest)(nil),               // 333: ngfw.v1.CnatSessionsRequest
-	(*CnatSession)(nil),                       // 334: ngfw.v1.CnatSession
-	(*CnatSessionsResponse)(nil),              // 335: ngfw.v1.CnatSessionsResponse
-	(*Det44SessionCloseAction)(nil),           // 336: ngfw.v1.Det44SessionCloseAction
-	(*CnatSessionPurgeAction)(nil),            // 337: ngfw.v1.CnatSessionPurgeAction
-	(*PkiKeySpec)(nil),                        // 338: ngfw.v1.PkiKeySpec
-	(*PkiCsr)(nil),                            // 339: ngfw.v1.PkiCsr
-	(*PkiIssued)(nil),                         // 340: ngfw.v1.PkiIssued
-	(*PkiFileStateRequest)(nil),               // 341: ngfw.v1.PkiFileStateRequest
-	(*PkiFileStateFile)(nil),                  // 342: ngfw.v1.PkiFileStateFile
-	(*PkiFileStateSet)(nil),                   // 343: ngfw.v1.PkiFileStateSet
-	(*PkiFileStateResponse)(nil),              // 344: ngfw.v1.PkiFileStateResponse
-	(*MplsConfig)(nil),                        // 345: ngfw.v1.MplsConfig
-	(*MplsTable)(nil),                         // 346: ngfw.v1.MplsTable
-	(*MplsLabelRoute)(nil),                    // 347: ngfw.v1.MplsLabelRoute
-	(*MplsPath)(nil),                          // 348: ngfw.v1.MplsPath
-	(*MplsIpBinding)(nil),                     // 349: ngfw.v1.MplsIpBinding
-	(*MplsTunnel)(nil),                        // 350: ngfw.v1.MplsTunnel
-	(*MplsSr)(nil),                            // 351: ngfw.v1.MplsSr
-	(*MplsSrPolicy)(nil),                      // 352: ngfw.v1.MplsSrPolicy
-	(*MplsSrSegmentList)(nil),                 // 353: ngfw.v1.MplsSrSegmentList
-	(*MplsSrSteering)(nil),                    // 354: ngfw.v1.MplsSrSteering
-	(*MplsStateRequest)(nil),                  // 355: ngfw.v1.MplsStateRequest
-	(*MplsStateResponse)(nil),                 // 356: ngfw.v1.MplsStateResponse
-	(*MplsStateTable)(nil),                    // 357: ngfw.v1.MplsStateTable
-	(*MplsStateFibEntry)(nil),                 // 358: ngfw.v1.MplsStateFibEntry
-	(*MplsStatePath)(nil),                     // 359: ngfw.v1.MplsStatePath
-	(*MplsStateTunnel)(nil),                   // 360: ngfw.v1.MplsStateTunnel
-	(*LbService)(nil),                         // 361: ngfw.v1.LbService
-	(*LbSettings)(nil),                        // 362: ngfw.v1.LbSettings
-	(*LbVip)(nil),                             // 363: ngfw.v1.LbVip
-	(*LbServer)(nil),                          // 364: ngfw.v1.LbServer
-	(*LbNatInterface)(nil),                    // 365: ngfw.v1.LbNatInterface
-	(*LbStateRequest)(nil),                    // 366: ngfw.v1.LbStateRequest
-	(*LbStateResponse)(nil),                   // 367: ngfw.v1.LbStateResponse
-	(*LbServerState)(nil),                     // 368: ngfw.v1.LbServerState
-	(*LbVipState)(nil),                        // 369: ngfw.v1.LbVipState
-	(*LbFlushVipRequest)(nil),                 // 370: ngfw.v1.LbFlushVipRequest
-	(*LbFlushVipResponse)(nil),                // 371: ngfw.v1.LbFlushVipResponse
-	(*QosPolicerStateRequest)(nil),            // 372: ngfw.v1.QosPolicerStateRequest
-	(*QosPolicerCounter)(nil),                 // 373: ngfw.v1.QosPolicerCounter
-	(*QosPolicerStatus)(nil),                  // 374: ngfw.v1.QosPolicerStatus
-	(*QosPolicerStateResponse)(nil),           // 375: ngfw.v1.QosPolicerStateResponse
-	(*QosPolicerResetRequest)(nil),            // 376: ngfw.v1.QosPolicerResetRequest
-	(*QosPolicerResetResponse)(nil),           // 377: ngfw.v1.QosPolicerResetResponse
-	(*HostStackService)(nil),                  // 378: ngfw.v1.HostStackService
-	(*HostStackNamespace)(nil),                // 379: ngfw.v1.HostStackNamespace
-	(*HostStackSessionRule)(nil),              // 380: ngfw.v1.HostStackSessionRule
-	(*HostStackTcpSource)(nil),                // 381: ngfw.v1.HostStackTcpSource
-	(*HostStackHttpStatic)(nil),               // 382: ngfw.v1.HostStackHttpStatic
-	(*HostStackStateRequest)(nil),             // 383: ngfw.v1.HostStackStateRequest
-	(*HostStackRuleState)(nil),                // 384: ngfw.v1.HostStackRuleState
-	(*HostStackStateResponse)(nil),            // 385: ngfw.v1.HostStackStateResponse
-	(*SnmpView)(nil),                          // 386: ngfw.v1.SnmpView
-	(*SnmpMonitors)(nil),                      // 387: ngfw.v1.SnmpMonitors
-	(*SnmpMonitorDisk)(nil),                   // 388: ngfw.v1.SnmpMonitorDisk
-	(*SnmpMonitorLoad)(nil),                   // 389: ngfw.v1.SnmpMonitorLoad
-	(*SnmpSubagent)(nil),                      // 390: ngfw.v1.SnmpSubagent
-	(*SnmpStateRequest)(nil),                  // 391: ngfw.v1.SnmpStateRequest
-	(*SnmpStateResponse)(nil),                 // 392: ngfw.v1.SnmpStateResponse
-	(*IpfixStateRequest)(nil),                 // 393: ngfw.v1.IpfixStateRequest
-	(*IpfixStateResponse)(nil),                // 394: ngfw.v1.IpfixStateResponse
-	(*IpfixExporterState)(nil),                // 395: ngfw.v1.IpfixExporterState
-	(*IpfixFlowprobeParamsState)(nil),         // 396: ngfw.v1.IpfixFlowprobeParamsState
-	(*IpfixFlowprobeInterfaceState)(nil),      // 397: ngfw.v1.IpfixFlowprobeInterfaceState
-	(*IpfixSflowGlobalState)(nil),             // 398: ngfw.v1.IpfixSflowGlobalState
-	(*IpfixSflowInterfaceState)(nil),          // 399: ngfw.v1.IpfixSflowInterfaceState
-	(*IpfixCounter)(nil),                      // 400: ngfw.v1.IpfixCounter
-	(*CaptureListRequest)(nil),                // 401: ngfw.v1.CaptureListRequest
-	(*CaptureFile)(nil),                       // 402: ngfw.v1.CaptureFile
-	(*CaptureListResponse)(nil),               // 403: ngfw.v1.CaptureListResponse
-	(*CaptureReadRequest)(nil),                // 404: ngfw.v1.CaptureReadRequest
-	(*CaptureChunk)(nil),                      // 405: ngfw.v1.CaptureChunk
-	(*CaptureDeleteRequest)(nil),              // 406: ngfw.v1.CaptureDeleteRequest
-	(*CaptureDeleteResponse)(nil),             // 407: ngfw.v1.CaptureDeleteResponse
-	(*Srv6Config)(nil),                        // 408: ngfw.v1.Srv6Config
-	(*Srv6LocalSid)(nil),                      // 409: ngfw.v1.Srv6LocalSid
-	(*Srv6Policy)(nil),                        // 410: ngfw.v1.Srv6Policy
-	(*Srv6SidList)(nil),                       // 411: ngfw.v1.Srv6SidList
-	(*Srv6Steering)(nil),                      // 412: ngfw.v1.Srv6Steering
-	(*Srv6StateRequest)(nil),                  // 413: ngfw.v1.Srv6StateRequest
-	(*Srv6StateResponse)(nil),                 // 414: ngfw.v1.Srv6StateResponse
-	(*Srv6StateLocalSid)(nil),                 // 415: ngfw.v1.Srv6StateLocalSid
-	(*Srv6StatePolicy)(nil),                   // 416: ngfw.v1.Srv6StatePolicy
-	(*Srv6StateSidList)(nil),                  // 417: ngfw.v1.Srv6StateSidList
-	(*Srv6StateSteering)(nil),                 // 418: ngfw.v1.Srv6StateSteering
-	(*LispConfig)(nil),                        // 419: ngfw.v1.LispConfig
-	(*LispLocatorSet)(nil),                    // 420: ngfw.v1.LispLocatorSet
-	(*LispLocator)(nil),                       // 421: ngfw.v1.LispLocator
-	(*LispLocalEid)(nil),                      // 422: ngfw.v1.LispLocalEid
-	(*LispEidTable)(nil),                      // 423: ngfw.v1.LispEidTable
-	(*LispRloc)(nil),                          // 424: ngfw.v1.LispRloc
-	(*LispRemoteMapping)(nil),                 // 425: ngfw.v1.LispRemoteMapping
-	(*LispAdjacency)(nil),                     // 426: ngfw.v1.LispAdjacency
-	(*LispLocatorPair)(nil),                   // 427: ngfw.v1.LispLocatorPair
-	(*LispGpeEntry)(nil),                      // 428: ngfw.v1.LispGpeEntry
-	(*LispStateRequest)(nil),                  // 429: ngfw.v1.LispStateRequest
-	(*LispStateLocator)(nil),                  // 430: ngfw.v1.LispStateLocator
-	(*LispStateLocatorSet)(nil),               // 431: ngfw.v1.LispStateLocatorSet
-	(*LispStateMapping)(nil),                  // 432: ngfw.v1.LispStateMapping
-	(*LispStateAdjacency)(nil),                // 433: ngfw.v1.LispStateAdjacency
-	(*LispStateEidTable)(nil),                 // 434: ngfw.v1.LispStateEidTable
-	(*LispStateResponse)(nil),                 // 435: ngfw.v1.LispStateResponse
-	(*MplsLdp)(nil),                           // 436: ngfw.v1.MplsLdp
-	(*LdpNeighbor)(nil),                       // 437: ngfw.v1.LdpNeighbor
-	(*LdpLabelRange)(nil),                     // 438: ngfw.v1.LdpLabelRange
-	(*MplsLdpStateRequest)(nil),               // 439: ngfw.v1.MplsLdpStateRequest
-	(*MplsLdpStateResponse)(nil),              // 440: ngfw.v1.MplsLdpStateResponse
-	(*LdpNeighborState)(nil),                  // 441: ngfw.v1.LdpNeighborState
-	(*LdpBindingState)(nil),                   // 442: ngfw.v1.LdpBindingState
-	(*LdpSyncState)(nil),                      // 443: ngfw.v1.LdpSyncState
-	(*ManagementPrometheus)(nil),              // 444: ngfw.v1.ManagementPrometheus
-	(*ManagementAlarms)(nil),                  // 445: ngfw.v1.ManagementAlarms
-	(*AlarmRule)(nil),                         // 446: ngfw.v1.AlarmRule
-	(*AlarmTarget)(nil),                       // 447: ngfw.v1.AlarmTarget
-	(*WanGroup)(nil),                          // 448: ngfw.v1.WanGroup
-	(*WanMember)(nil),                         // 449: ngfw.v1.WanMember
-	(*WanMonitor)(nil),                        // 450: ngfw.v1.WanMonitor
-	(*WanStateRequest)(nil),                   // 451: ngfw.v1.WanStateRequest
-	(*WanStateResponse)(nil),                  // 452: ngfw.v1.WanStateResponse
-	(*WanGroupState)(nil),                     // 453: ngfw.v1.WanGroupState
-	(*WanMemberState)(nil),                    // 454: ngfw.v1.WanMemberState
-	(*MulticastStateRequest)(nil),             // 455: ngfw.v1.MulticastStateRequest
-	(*MulticastStateResponse)(nil),            // 456: ngfw.v1.MulticastStateResponse
-	(*IgmpGroupState)(nil),                    // 457: ngfw.v1.IgmpGroupState
-	(*MrouteState)(nil),                       // 458: ngfw.v1.MrouteState
-	(*PimNeighborState)(nil),                  // 459: ngfw.v1.PimNeighborState
-	(*AaaLdap)(nil),                           // 460: ngfw.v1.AaaLdap
-	(*AaaLdapServer)(nil),                     // 461: ngfw.v1.AaaLdapServer
-	(*AaaRoleMapping)(nil),                    // 462: ngfw.v1.AaaRoleMapping
-	(*AaaMfa)(nil),                            // 463: ngfw.v1.AaaMfa
-	(*AaaOidc)(nil),                           // 464: ngfw.v1.AaaOidc
-	(*DataplaneStartupStateRequest)(nil),      // 465: ngfw.v1.DataplaneStartupStateRequest
-	(*DataplaneStartupStateResponse)(nil),     // 466: ngfw.v1.DataplaneStartupStateResponse
-	(*DataplaneRuntimeThread)(nil),            // 467: ngfw.v1.DataplaneRuntimeThread
-	(*DataplaneStartupPreviewRequest)(nil),    // 468: ngfw.v1.DataplaneStartupPreviewRequest
-	(*DataplaneStartupPreviewResponse)(nil),   // 469: ngfw.v1.DataplaneStartupPreviewResponse
-	(*Nat46Config)(nil),                       // 470: ngfw.v1.Nat46Config
-	(*Nat46Mapping)(nil),                      // 471: ngfw.v1.Nat46Mapping
-	(*SystemIdentityStateRequest)(nil),        // 472: ngfw.v1.SystemIdentityStateRequest
-	(*SystemIdentityStateResponse)(nil),       // 473: ngfw.v1.SystemIdentityStateResponse
-	(*IpsecStateRequest)(nil),                 // 474: ngfw.v1.IpsecStateRequest
-	(*IpsecStateResponse)(nil),                // 475: ngfw.v1.IpsecStateResponse
-	(*IpsecConnState)(nil),                    // 476: ngfw.v1.IpsecConnState
-	(*IpsecChildConn)(nil),                    // 477: ngfw.v1.IpsecChildConn
-	(*IpsecIkeSa)(nil),                        // 478: ngfw.v1.IpsecIkeSa
-	(*IpsecChildSa)(nil),                      // 479: ngfw.v1.IpsecChildSa
-	(*TunnelStateRequest)(nil),                // 480: ngfw.v1.TunnelStateRequest
-	(*TunnelStateTunnel)(nil),                 // 481: ngfw.v1.TunnelStateTunnel
-	(*TunnelStateResponse)(nil),               // 482: ngfw.v1.TunnelStateResponse
-	(*IpipSixrd)(nil),                         // 483: ngfw.v1.IpipSixrd
-	(*VxlanGpeTunnel)(nil),                    // 484: ngfw.v1.VxlanGpeTunnel
-	(*GtpuTunnel)(nil),                        // 485: ngfw.v1.GtpuTunnel
-	(*L2Tpv3Tunnel)(nil),                      // 486: ngfw.v1.L2tpv3Tunnel
-	(*PppoeSession)(nil),                      // 487: ngfw.v1.PppoeSession
-	(*HostNicsRequest)(nil),                   // 488: ngfw.v1.HostNicsRequest
-	(*HostNicsResponse)(nil),                  // 489: ngfw.v1.HostNicsResponse
-	(*HostNic)(nil),                           // 490: ngfw.v1.HostNic
-	nil,                                       // 491: ngfw.v1.SecretBundle.ValuesEntry
-	nil,                                       // 492: ngfw.v1.Event.AttributesEntry
-	nil,                                       // 493: ngfw.v1.ActionDone.StatsEntry
-	nil,                                       // 494: ngfw.v1.DesiredState.InterfacesEntry
-	nil,                                       // 495: ngfw.v1.DesiredState.VrfsEntry
-	nil,                                       // 496: ngfw.v1.DataplaneConfig.DevicesEntry
-	nil,                                       // 497: ngfw.v1.PluginSet.SwitchesEntry
-	nil,                                       // 498: ngfw.v1.Interface.SubinterfacesEntry
-	nil,                                       // 499: ngfw.v1.IgmpConfig.InterfacesEntry
-	nil,                                       // 500: ngfw.v1.IgmpConfig.ProxiesEntry
-	nil,                                       // 501: ngfw.v1.RoutingPolicy.PrefixListsEntry
-	nil,                                       // 502: ngfw.v1.RoutingPolicy.RouteMapsEntry
-	nil,                                       // 503: ngfw.v1.BgpConfig.PeerGroupsEntry
-	nil,                                       // 504: ngfw.v1.BgpConfig.NeighborsEntry
-	nil,                                       // 505: ngfw.v1.OspfConfig.AreasEntry
-	nil,                                       // 506: ngfw.v1.OspfConfig.InterfacesEntry
-	nil,                                       // 507: ngfw.v1.IsisConfig.InterfacesEntry
-	nil,                                       // 508: ngfw.v1.RipConfig.InterfacesEntry
-	nil,                                       // 509: ngfw.v1.TunnelsConfig.GreEntry
-	nil,                                       // 510: ngfw.v1.TunnelsConfig.VxlanEntry
-	nil,                                       // 511: ngfw.v1.TunnelsConfig.IpipEntry
-	nil,                                       // 512: ngfw.v1.TunnelsConfig.VxlanGpeEntry
-	nil,                                       // 513: ngfw.v1.TunnelsConfig.GtpuEntry
-	nil,                                       // 514: ngfw.v1.TunnelsConfig.L2tpv3Entry
-	nil,                                       // 515: ngfw.v1.TunnelsConfig.PppoeEntry
-	nil,                                       // 516: ngfw.v1.DhcpService.ServersEntry
-	nil,                                       // 517: ngfw.v1.DhcpService.RelaysEntry
-	nil,                                       // 518: ngfw.v1.DhcpSubnet.ReservationsEntry
-	nil,                                       // 519: ngfw.v1.DhcpServer.SubnetsEntry
-	(*DnsService_VppCache)(nil),               // 520: ngfw.v1.DnsService.VppCache
-	nil,                                       // 521: ngfw.v1.DnsService.ResolversEntry
-	(*DnsResolver_Dnssec)(nil),                // 522: ngfw.v1.DnsResolver.Dnssec
-	(*DnsResolver_Cache)(nil),                 // 523: ngfw.v1.DnsResolver.Cache
-	(*SnmpService_Community)(nil),             // 524: ngfw.v1.SnmpService.Community
-	(*SnmpService_V3User)(nil),                // 525: ngfw.v1.SnmpService.V3User
-	(*SnmpService_TrapReceiver)(nil),          // 526: ngfw.v1.SnmpService.TrapReceiver
-	nil,                                       // 527: ngfw.v1.SnmpService.CommunitiesEntry
-	nil,                                       // 528: ngfw.v1.SnmpService.V3UsersEntry
-	nil,                                       // 529: ngfw.v1.SnmpService.ViewsEntry
-	(*LldpService_Interface)(nil),             // 530: ngfw.v1.LldpService.Interface
-	(*IpfixService_Exporter)(nil),             // 531: ngfw.v1.IpfixService.Exporter
-	(*IpfixService_Flowprobe)(nil),            // 532: ngfw.v1.IpfixService.Flowprobe
-	(*IpfixService_Sflow)(nil),                // 533: ngfw.v1.IpfixService.Sflow
-	nil,                                       // 534: ngfw.v1.IpfixService.ExportersEntry
-	(*IpfixService_Flowprobe_Interface)(nil),  // 535: ngfw.v1.IpfixService.Flowprobe.Interface
-	(*NtpService_Server)(nil),                 // 536: ngfw.v1.NtpService.Server
-	(*NtpService_RateLimit)(nil),              // 537: ngfw.v1.NtpService.RateLimit
-	(*NtpService_NtsServer)(nil),              // 538: ngfw.v1.NtpService.NtsServer
-	(*NtpService_Makestep)(nil),               // 539: ngfw.v1.NtpService.Makestep
-	nil,                                       // 540: ngfw.v1.QosService.PolicersEntry
-	nil,                                       // 541: ngfw.v1.QosService.ShapersEntry
-	nil,                                       // 542: ngfw.v1.QosService.MapsEntry
-	nil,                                       // 543: ngfw.v1.QosService.InterfacesEntry
-	(*QosMap_Rows)(nil),                       // 544: ngfw.v1.QosMap.Rows
-	(*QosInterface_Policer)(nil),              // 545: ngfw.v1.QosInterface.Policer
-	(*QosInterface_Store)(nil),                // 546: ngfw.v1.QosInterface.Store
-	(*QosInterface_Mark)(nil),                 // 547: ngfw.v1.QosInterface.Mark
-	nil,                                       // 548: ngfw.v1.HaConfig.VrrpEntry
-	(*VrrpInstance_Unicast)(nil),              // 549: ngfw.v1.VrrpInstance.Unicast
-	(*VrrpInstance_Track)(nil),                // 550: ngfw.v1.VrrpInstance.Track
-	(*HaCluster_Peer)(nil),                    // 551: ngfw.v1.HaCluster.Peer
-	(*HaCluster_StateSync)(nil),               // 552: ngfw.v1.HaCluster.StateSync
-	(*NatStaticMapping_Local)(nil),            // 553: ngfw.v1.NatStaticMapping.Local
-	(*NatStaticMapping_External)(nil),         // 554: ngfw.v1.NatStaticMapping.External
-	(*NatLoadBalancedMapping_External)(nil),   // 555: ngfw.v1.NatLoadBalancedMapping.External
-	(*NatLoadBalancedMapping_Local)(nil),      // 556: ngfw.v1.NatLoadBalancedMapping.Local
-	(*Nat64Config_Prefix)(nil),                // 557: ngfw.v1.Nat64Config.Prefix
-	(*Nat64Config_Pool)(nil),                  // 558: ngfw.v1.Nat64Config.Pool
-	(*Nat64Config_StaticBib)(nil),             // 559: ngfw.v1.Nat64Config.StaticBib
-	(*Nat64Config_StaticBib_Endpoint)(nil),    // 560: ngfw.v1.Nat64Config.StaticBib.Endpoint
-	(*Nat66Config_StaticMapping)(nil),         // 561: ngfw.v1.Nat66Config.StaticMapping
-	(*Nptv6Config_Binding)(nil),               // 562: ngfw.v1.Nptv6Config.Binding
-	(*Det44Config_Mapping)(nil),               // 563: ngfw.v1.Det44Config.Mapping
-	(*DsliteConfig_Endpoint)(nil),             // 564: ngfw.v1.DsliteConfig.Endpoint
-	(*DsliteConfig_Pool)(nil),                 // 565: ngfw.v1.DsliteConfig.Pool
-	(*MapDomain_Rule)(nil),                    // 566: ngfw.v1.MapDomain.Rule
-	(*MapParameters_Fragmentation)(nil),       // 567: ngfw.v1.MapParameters.Fragmentation
-	(*MapParameters_SecurityCheck)(nil),       // 568: ngfw.v1.MapParameters.SecurityCheck
-	(*MapParameters_TrafficClass)(nil),        // 569: ngfw.v1.MapParameters.TrafficClass
-	(*MapParameters_PreResolve)(nil),          // 570: ngfw.v1.MapParameters.PreResolve
-	(*CnatConfig_Snat)(nil),                   // 571: ngfw.v1.CnatConfig.Snat
-	(*CnatConfig_Snat_Addresses)(nil),         // 572: ngfw.v1.CnatConfig.Snat.Addresses
-	(*CnatConfig_Snat_PolicyInterface)(nil),   // 573: ngfw.v1.CnatConfig.Snat.PolicyInterface
-	nil,                                       // 574: ngfw.v1.ObjectsConfig.AddressesEntry
-	nil,                                       // 575: ngfw.v1.ObjectsConfig.AddressGroupsEntry
-	nil,                                       // 576: ngfw.v1.ObjectsConfig.ServicesEntry
-	nil,                                       // 577: ngfw.v1.ObjectsConfig.ServiceGroupsEntry
-	nil,                                       // 578: ngfw.v1.ObjectsConfig.SchedulesEntry
-	nil,                                       // 579: ngfw.v1.ObjectsConfig.ZonesEntry
-	nil,                                       // 580: ngfw.v1.ObjectsConfig.TagsEntry
-	nil,                                       // 581: ngfw.v1.AclConfig.ListsEntry
-	nil,                                       // 582: ngfw.v1.AclConfig.MacipEntry
-	nil,                                       // 583: ngfw.v1.AclConfig.HostEntry
-	nil,                                       // 584: ngfw.v1.GlobalBlocking.ListsEntry
-	nil,                                       // 585: ngfw.v1.VpnConfig.RemoteAccessEntry
-	(*IpsecTunnel_RouteBased)(nil),            // 586: ngfw.v1.IpsecTunnel.RouteBased
-	nil,                                       // 587: ngfw.v1.IpsecConfig.ProposalsEntry
-	nil,                                       // 588: ngfw.v1.IpsecConfig.TunnelsEntry
-	(*WireguardPeer_Endpoint)(nil),            // 589: ngfw.v1.WireguardPeer.Endpoint
-	nil,                                       // 590: ngfw.v1.WireguardInterface.PeersEntry
-	nil,                                       // 591: ngfw.v1.WireguardConfig.InterfacesEntry
-	(*PkiCa_Crl)(nil),                         // 592: ngfw.v1.PkiCa.Crl
-	(*PkiCertificate_Acme)(nil),               // 593: ngfw.v1.PkiCertificate.Acme
-	(*PkiConfig_Hsm)(nil),                     // 594: ngfw.v1.PkiConfig.Hsm
-	nil,                                       // 595: ngfw.v1.PkiConfig.CasEntry
-	nil,                                       // 596: ngfw.v1.PkiConfig.CertificatesEntry
-	(*RemoteAccessProfile_Radius)(nil),        // 597: ngfw.v1.RemoteAccessProfile.Radius
-	(*RemoteAccessProfile_Radius_Server)(nil), // 598: ngfw.v1.RemoteAccessProfile.Radius.Server
-	nil,                              // 599: ngfw.v1.Bond.MembersEntry
-	nil,                              // 600: ngfw.v1.BridgeL2Config.BridgeDomainsEntry
-	nil,                              // 601: ngfw.v1.BridgeL2Config.XconnectsEntry
-	nil,                              // 602: ngfw.v1.BridgeL2Config.L3xcEntry
-	nil,                              // 603: ngfw.v1.BridgeL2Config.MacFiltersEntry
-	(*NsimService_CrossConnect)(nil), // 604: ngfw.v1.NsimService.CrossConnect
-	nil,                              // 605: ngfw.v1.Ipv6Ra.PrefixesEntry
-	nil,                              // 606: ngfw.v1.PbrConfig.PoliciesEntry
-	nil,                              // 607: ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
-	nil,                              // 608: ngfw.v1.RoutingStateResponse.RibCountsEntry
-	nil,                              // 609: ngfw.v1.RoutingStateResponse.ReadersEntry
-	nil,                              // 610: ngfw.v1.DnsStateResponse.StatusEntry
-	nil,                              // 611: ngfw.v1.DnsStateResponse.StatsEntry
-	nil,                              // 612: ngfw.v1.NtpStateResponse.ServerStatsEntry
-	nil,                              // 613: ngfw.v1.SyslogStateResponse.InputsEntry
-	nil,                              // 614: ngfw.v1.MplsConfig.TablesEntry
-	nil,                              // 615: ngfw.v1.MplsConfig.TunnelsEntry
-	nil,                              // 616: ngfw.v1.MplsSr.PoliciesEntry
-	nil,                              // 617: ngfw.v1.LbService.VipsEntry
-	nil,                              // 618: ngfw.v1.HostStackService.NamespacesEntry
-	nil,                              // 619: ngfw.v1.Srv6Config.LocalSidsEntry
-	nil,                              // 620: ngfw.v1.Srv6Config.PoliciesEntry
-	nil,                              // 621: ngfw.v1.LispConfig.LocatorSetsEntry
-	nil,                              // 622: ngfw.v1.LispConfig.EidTablesEntry
-	nil,                              // 623: ngfw.v1.MplsLdp.NeighborsEntry
-	nil,                              // 624: ngfw.v1.ManagementAlarms.RulesEntry
-	nil,                              // 625: ngfw.v1.ManagementAlarms.TargetsEntry
-	nil,                              // 626: ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
-	(*timestamppb.Timestamp)(nil),    // 627: google.protobuf.Timestamp
+	(*OspfAuth)(nil),                          // 77: ngfw.v1.OspfAuth
+	(*Ospf6Interface)(nil),                    // 78: ngfw.v1.Ospf6Interface
+	(*Ospf6Config)(nil),                       // 79: ngfw.v1.Ospf6Config
+	(*OspfConfig)(nil),                        // 80: ngfw.v1.OspfConfig
+	(*IsisInterface)(nil),                     // 81: ngfw.v1.IsisInterface
+	(*IsisConfig)(nil),                        // 82: ngfw.v1.IsisConfig
+	(*RipInterface)(nil),                      // 83: ngfw.v1.RipInterface
+	(*RipConfig)(nil),                         // 84: ngfw.v1.RipConfig
+	(*BfdSession)(nil),                        // 85: ngfw.v1.BfdSession
+	(*BfdConfig)(nil),                         // 86: ngfw.v1.BfdConfig
+	(*TunnelsConfig)(nil),                     // 87: ngfw.v1.TunnelsConfig
+	(*GreTunnel)(nil),                         // 88: ngfw.v1.GreTunnel
+	(*VxlanTunnel)(nil),                       // 89: ngfw.v1.VxlanTunnel
+	(*IpipTunnel)(nil),                        // 90: ngfw.v1.IpipTunnel
+	(*ServicesConfig)(nil),                    // 91: ngfw.v1.ServicesConfig
+	(*SocketAddress)(nil),                     // 92: ngfw.v1.SocketAddress
+	(*DhcpService)(nil),                       // 93: ngfw.v1.DhcpService
+	(*DhcpOption)(nil),                        // 94: ngfw.v1.DhcpOption
+	(*DhcpPool)(nil),                          // 95: ngfw.v1.DhcpPool
+	(*DhcpReservation)(nil),                   // 96: ngfw.v1.DhcpReservation
+	(*DhcpSubnet)(nil),                        // 97: ngfw.v1.DhcpSubnet
+	(*DhcpServer)(nil),                        // 98: ngfw.v1.DhcpServer
+	(*DhcpRelay)(nil),                         // 99: ngfw.v1.DhcpRelay
+	(*DnsService)(nil),                        // 100: ngfw.v1.DnsService
+	(*DnsUpstream)(nil),                       // 101: ngfw.v1.DnsUpstream
+	(*DnsForwardZone)(nil),                    // 102: ngfw.v1.DnsForwardZone
+	(*DnsRecord)(nil),                         // 103: ngfw.v1.DnsRecord
+	(*DnsLocalZone)(nil),                      // 104: ngfw.v1.DnsLocalZone
+	(*DnsAccessControl)(nil),                  // 105: ngfw.v1.DnsAccessControl
+	(*DnsResolver)(nil),                       // 106: ngfw.v1.DnsResolver
+	(*SnmpService)(nil),                       // 107: ngfw.v1.SnmpService
+	(*LldpService)(nil),                       // 108: ngfw.v1.LldpService
+	(*IpfixService)(nil),                      // 109: ngfw.v1.IpfixService
+	(*NtpService)(nil),                        // 110: ngfw.v1.NtpService
+	(*QosService)(nil),                        // 111: ngfw.v1.QosService
+	(*QosPolicerAction)(nil),                  // 112: ngfw.v1.QosPolicerAction
+	(*QosPolicer)(nil),                        // 113: ngfw.v1.QosPolicer
+	(*QosShaper)(nil),                         // 114: ngfw.v1.QosShaper
+	(*QosMapEntry)(nil),                       // 115: ngfw.v1.QosMapEntry
+	(*QosMap)(nil),                            // 116: ngfw.v1.QosMap
+	(*QosInterface)(nil),                      // 117: ngfw.v1.QosInterface
+	(*HaConfig)(nil),                          // 118: ngfw.v1.HaConfig
+	(*VrrpInstance)(nil),                      // 119: ngfw.v1.VrrpInstance
+	(*HaCluster)(nil),                         // 120: ngfw.v1.HaCluster
+	(*ManagementConfig)(nil),                  // 121: ngfw.v1.ManagementConfig
+	(*ManagementNotifications)(nil),           // 122: ngfw.v1.ManagementNotifications
+	(*NotificationChannel)(nil),               // 123: ngfw.v1.NotificationChannel
+	(*NotificationEmail)(nil),                 // 124: ngfw.v1.NotificationEmail
+	(*NotificationWebhook)(nil),               // 125: ngfw.v1.NotificationWebhook
+	(*NotificationRule)(nil),                  // 126: ngfw.v1.NotificationRule
+	(*SecurityConfig)(nil),                    // 127: ngfw.v1.SecurityConfig
+	(*AutoBlockSetRequest)(nil),               // 128: ngfw.v1.AutoBlockSetRequest
+	(*AutoBlockRuntimeEntry)(nil),             // 129: ngfw.v1.AutoBlockRuntimeEntry
+	(*AutoBlockSetResponse)(nil),              // 130: ngfw.v1.AutoBlockSetResponse
+	(*AutoBlock)(nil),                         // 131: ngfw.v1.AutoBlock
+	(*AutoBlockRule)(nil),                     // 132: ngfw.v1.AutoBlockRule
+	(*ManagementUser)(nil),                    // 133: ngfw.v1.ManagementUser
+	(*ManagementAaa)(nil),                     // 134: ngfw.v1.ManagementAaa
+	(*AaaRadius)(nil),                         // 135: ngfw.v1.AaaRadius
+	(*RadiusServer)(nil),                      // 136: ngfw.v1.RadiusServer
+	(*AaaTacacs)(nil),                         // 137: ngfw.v1.AaaTacacs
+	(*TacacsServer)(nil),                      // 138: ngfw.v1.TacacsServer
+	(*ManagementTls)(nil),                     // 139: ngfw.v1.ManagementTls
+	(*SyslogTarget)(nil),                      // 140: ngfw.v1.SyslogTarget
+	(*NatConfig)(nil),                         // 141: ngfw.v1.NatConfig
+	(*NatTimeouts)(nil),                       // 142: ngfw.v1.NatTimeouts
+	(*NatPool)(nil),                           // 143: ngfw.v1.NatPool
+	(*NatStaticMapping)(nil),                  // 144: ngfw.v1.NatStaticMapping
+	(*NatIdentityMapping)(nil),                // 145: ngfw.v1.NatIdentityMapping
+	(*NatLoadBalancedMapping)(nil),            // 146: ngfw.v1.NatLoadBalancedMapping
+	(*NatIpfix)(nil),                          // 147: ngfw.v1.NatIpfix
+	(*Nat64Config)(nil),                       // 148: ngfw.v1.Nat64Config
+	(*Nat66Config)(nil),                       // 149: ngfw.v1.Nat66Config
+	(*Nptv6Config)(nil),                       // 150: ngfw.v1.Nptv6Config
+	(*Det44Config)(nil),                       // 151: ngfw.v1.Det44Config
+	(*DsliteConfig)(nil),                      // 152: ngfw.v1.DsliteConfig
+	(*MapDomain)(nil),                         // 153: ngfw.v1.MapDomain
+	(*MapParameters)(nil),                     // 154: ngfw.v1.MapParameters
+	(*MapInterface)(nil),                      // 155: ngfw.v1.MapInterface
+	(*MapConfig)(nil),                         // 156: ngfw.v1.MapConfig
+	(*CnatEndpoint)(nil),                      // 157: ngfw.v1.CnatEndpoint
+	(*CnatTranslation)(nil),                   // 158: ngfw.v1.CnatTranslation
+	(*CnatConfig)(nil),                        // 159: ngfw.v1.CnatConfig
+	(*ObjectsConfig)(nil),                     // 160: ngfw.v1.ObjectsConfig
+	(*AddressObject)(nil),                     // 161: ngfw.v1.AddressObject
+	(*AddressGroup)(nil),                      // 162: ngfw.v1.AddressGroup
+	(*TcpFlags)(nil),                          // 163: ngfw.v1.TcpFlags
+	(*ServiceSpec)(nil),                       // 164: ngfw.v1.ServiceSpec
+	(*ServiceObject)(nil),                     // 165: ngfw.v1.ServiceObject
+	(*ServiceGroup)(nil),                      // 166: ngfw.v1.ServiceGroup
+	(*Schedule)(nil),                          // 167: ngfw.v1.Schedule
+	(*Zone)(nil),                              // 168: ngfw.v1.Zone
+	(*Tag)(nil),                               // 169: ngfw.v1.Tag
+	(*AclConfig)(nil),                         // 170: ngfw.v1.AclConfig
+	(*GlobalBlocking)(nil),                    // 171: ngfw.v1.GlobalBlocking
+	(*GlobalBlockingSource)(nil),              // 172: ngfw.v1.GlobalBlockingSource
+	(*GlobalBlockingList)(nil),                // 173: ngfw.v1.GlobalBlockingList
+	(*AddressMatch)(nil),                      // 174: ngfw.v1.AddressMatch
+	(*ServiceMatch)(nil),                      // 175: ngfw.v1.ServiceMatch
+	(*AclRule)(nil),                           // 176: ngfw.v1.AclRule
+	(*AclList)(nil),                           // 177: ngfw.v1.AclList
+	(*MacipRule)(nil),                         // 178: ngfw.v1.MacipRule
+	(*MacipList)(nil),                         // 179: ngfw.v1.MacipList
+	(*HostRule)(nil),                          // 180: ngfw.v1.HostRule
+	(*HostList)(nil),                          // 181: ngfw.v1.HostList
+	(*AttachmentTarget)(nil),                  // 182: ngfw.v1.AttachmentTarget
+	(*AclAttachment)(nil),                     // 183: ngfw.v1.AclAttachment
+	(*MacipAttachment)(nil),                   // 184: ngfw.v1.MacipAttachment
+	(*HostAttachment)(nil),                    // 185: ngfw.v1.HostAttachment
+	(*VpnConfig)(nil),                         // 186: ngfw.v1.VpnConfig
+	(*IkeProposal)(nil),                       // 187: ngfw.v1.IkeProposal
+	(*EspProposal)(nil),                       // 188: ngfw.v1.EspProposal
+	(*IpsecProposal)(nil),                     // 189: ngfw.v1.IpsecProposal
+	(*IpsecAuth)(nil),                         // 190: ngfw.v1.IpsecAuth
+	(*IpsecDpd)(nil),                          // 191: ngfw.v1.IpsecDpd
+	(*IpsecRekey)(nil),                        // 192: ngfw.v1.IpsecRekey
+	(*IpsecTunnel)(nil),                       // 193: ngfw.v1.IpsecTunnel
+	(*IpsecSettings)(nil),                     // 194: ngfw.v1.IpsecSettings
+	(*IpsecConfig)(nil),                       // 195: ngfw.v1.IpsecConfig
+	(*WireguardPeer)(nil),                     // 196: ngfw.v1.WireguardPeer
+	(*WireguardInterface)(nil),                // 197: ngfw.v1.WireguardInterface
+	(*WireguardConfig)(nil),                   // 198: ngfw.v1.WireguardConfig
+	(*PkiCa)(nil),                             // 199: ngfw.v1.PkiCa
+	(*PkiCertificate)(nil),                    // 200: ngfw.v1.PkiCertificate
+	(*PkiConfig)(nil),                         // 201: ngfw.v1.PkiConfig
+	(*RemoteAccessPool)(nil),                  // 202: ngfw.v1.RemoteAccessPool
+	(*RemoteAccessUser)(nil),                  // 203: ngfw.v1.RemoteAccessUser
+	(*RemoteAccessProfile)(nil),               // 204: ngfw.v1.RemoteAccessProfile
+	(*Bond)(nil),                              // 205: ngfw.v1.Bond
+	(*BondMember)(nil),                        // 206: ngfw.v1.BondMember
+	(*BondStateRequest)(nil),                  // 207: ngfw.v1.BondStateRequest
+	(*BondStateResponse)(nil),                 // 208: ngfw.v1.BondStateResponse
+	(*BondStatus)(nil),                        // 209: ngfw.v1.BondStatus
+	(*BondMemberStatus)(nil),                  // 210: ngfw.v1.BondMemberStatus
+	(*BondLacpState)(nil),                     // 211: ngfw.v1.BondLacpState
+	(*BondLacpPort)(nil),                      // 212: ngfw.v1.BondLacpPort
+	(*BridgeL2Port)(nil),                      // 213: ngfw.v1.BridgeL2Port
+	(*BridgeL2TagRewrite)(nil),                // 214: ngfw.v1.BridgeL2TagRewrite
+	(*BridgeL2Config)(nil),                    // 215: ngfw.v1.BridgeL2Config
+	(*BridgeL2Domain)(nil),                    // 216: ngfw.v1.BridgeL2Domain
+	(*BridgeL2StaticMac)(nil),                 // 217: ngfw.v1.BridgeL2StaticMac
+	(*BridgeL2Xconnect)(nil),                  // 218: ngfw.v1.BridgeL2Xconnect
+	(*BridgeL2L3Xc)(nil),                      // 219: ngfw.v1.BridgeL2L3xc
+	(*BridgeL2L3XcPath)(nil),                  // 220: ngfw.v1.BridgeL2L3xcPath
+	(*BridgeL2MacFilter)(nil),                 // 221: ngfw.v1.BridgeL2MacFilter
+	(*BridgeL2MacFilterRange)(nil),            // 222: ngfw.v1.BridgeL2MacFilterRange
+	(*BridgeDomainStateRequest)(nil),          // 223: ngfw.v1.BridgeDomainStateRequest
+	(*BridgeDomainStateResponse)(nil),         // 224: ngfw.v1.BridgeDomainStateResponse
+	(*BridgeDomainStatus)(nil),                // 225: ngfw.v1.BridgeDomainStatus
+	(*BridgeDomainMember)(nil),                // 226: ngfw.v1.BridgeDomainMember
+	(*BridgeDomainMacsRequest)(nil),           // 227: ngfw.v1.BridgeDomainMacsRequest
+	(*BridgeDomainMacsResponse)(nil),          // 228: ngfw.v1.BridgeDomainMacsResponse
+	(*BridgeDomainMac)(nil),                   // 229: ngfw.v1.BridgeDomainMac
+	(*MirrorSession)(nil),                     // 230: ngfw.v1.MirrorSession
+	(*NsimService)(nil),                       // 231: ngfw.v1.NsimService
+	(*LldpNeighborsRequest)(nil),              // 232: ngfw.v1.LldpNeighborsRequest
+	(*LldpNeighborsResponse)(nil),             // 233: ngfw.v1.LldpNeighborsResponse
+	(*LldpNeighbor)(nil),                      // 234: ngfw.v1.LldpNeighbor
+	(*VrfSourceSelect)(nil),                   // 235: ngfw.v1.VrfSourceSelect
+	(*ListRoutesRequest)(nil),                 // 236: ngfw.v1.ListRoutesRequest
+	(*ListRoutesResponse)(nil),                // 237: ngfw.v1.ListRoutesResponse
+	(*ListRoutesEntry)(nil),                   // 238: ngfw.v1.ListRoutesEntry
+	(*ListRoutesPath)(nil),                    // 239: ngfw.v1.ListRoutesPath
+	(*Ipv6Ra)(nil),                            // 240: ngfw.v1.Ipv6Ra
+	(*Ipv6RaPrefix)(nil),                      // 241: ngfw.v1.Ipv6RaPrefix
+	(*ProxyArpRange)(nil),                     // 242: ngfw.v1.ProxyArpRange
+	(*NeighborsConfig)(nil),                   // 243: ngfw.v1.NeighborsConfig
+	(*StaticNeighbor)(nil),                    // 244: ngfw.v1.StaticNeighbor
+	(*NeighborLimits)(nil),                    // 245: ngfw.v1.NeighborLimits
+	(*NeighborDad)(nil),                       // 246: ngfw.v1.NeighborDad
+	(*ListNeighborsRequest)(nil),              // 247: ngfw.v1.ListNeighborsRequest
+	(*ListNeighborsResponse)(nil),             // 248: ngfw.v1.ListNeighborsResponse
+	(*NeighborEntry)(nil),                     // 249: ngfw.v1.NeighborEntry
+	(*ArpFlushAction)(nil),                    // 250: ngfw.v1.ArpFlushAction
+	(*UrpfConfig)(nil),                        // 251: ngfw.v1.UrpfConfig
+	(*AdlConfig)(nil),                         // 252: ngfw.v1.AdlConfig
+	(*PbrConfig)(nil),                         // 253: ngfw.v1.PbrConfig
+	(*PbrPolicy)(nil),                         // 254: ngfw.v1.PbrPolicy
+	(*PbrPath)(nil),                           // 255: ngfw.v1.PbrPath
+	(*PbrAttachment)(nil),                     // 256: ngfw.v1.PbrAttachment
+	(*AutoSdlConfig)(nil),                     // 257: ngfw.v1.AutoSdlConfig
+	(*FqdnObjectStateRequest)(nil),            // 258: ngfw.v1.FqdnObjectStateRequest
+	(*FqdnObjectStateResponse)(nil),           // 259: ngfw.v1.FqdnObjectStateResponse
+	(*FqdnObjectState)(nil),                   // 260: ngfw.v1.FqdnObjectState
+	(*AclStateRequest)(nil),                   // 261: ngfw.v1.AclStateRequest
+	(*AclStateFilter)(nil),                    // 262: ngfw.v1.AclStateFilter
+	(*AclStateResponse)(nil),                  // 263: ngfw.v1.AclStateResponse
+	(*AclListState)(nil),                      // 264: ngfw.v1.AclListState
+	(*AclRuleState)(nil),                      // 265: ngfw.v1.AclRuleState
+	(*AclInterfaceState)(nil),                 // 266: ngfw.v1.AclInterfaceState
+	(*AclBoundAcl)(nil),                       // 267: ngfw.v1.AclBoundAcl
+	(*HostAclSettings)(nil),                   // 268: ngfw.v1.HostAclSettings
+	(*HostAclAntiLockout)(nil),                // 269: ngfw.v1.HostAclAntiLockout
+	(*HostAclStateRequest)(nil),               // 270: ngfw.v1.HostAclStateRequest
+	(*HostAclStateResponse)(nil),              // 271: ngfw.v1.HostAclStateResponse
+	(*HostAclSetState)(nil),                   // 272: ngfw.v1.HostAclSetState
+	(*HostAclChainState)(nil),                 // 273: ngfw.v1.HostAclChainState
+	(*HostAclRuleState)(nil),                  // 274: ngfw.v1.HostAclRuleState
+	(*NatSessionFilter)(nil),                  // 275: ngfw.v1.NatSessionFilter
+	(*NatSessionsRequest)(nil),                // 276: ngfw.v1.NatSessionsRequest
+	(*NatSession)(nil),                        // 277: ngfw.v1.NatSession
+	(*NatSessionsResponse)(nil),               // 278: ngfw.v1.NatSessionsResponse
+	(*NatSummaryRequest)(nil),                 // 279: ngfw.v1.NatSummaryRequest
+	(*NatPoolUsage)(nil),                      // 280: ngfw.v1.NatPoolUsage
+	(*NatSummaryResponse)(nil),                // 281: ngfw.v1.NatSummaryResponse
+	(*NatSessionKillAction)(nil),              // 282: ngfw.v1.NatSessionKillAction
+	(*WireguardStateRequest)(nil),             // 283: ngfw.v1.WireguardStateRequest
+	(*WireguardStateResponse)(nil),            // 284: ngfw.v1.WireguardStateResponse
+	(*WireguardInterfaceState)(nil),           // 285: ngfw.v1.WireguardInterfaceState
+	(*WireguardPeerState)(nil),                // 286: ngfw.v1.WireguardPeerState
+	(*InterfaceLcp)(nil),                      // 287: ngfw.v1.InterfaceLcp
+	(*Pppoe)(nil),                             // 288: ngfw.v1.Pppoe
+	(*PppoeReconnect)(nil),                    // 289: ngfw.v1.PppoeReconnect
+	(*PppoeReconnectRequest)(nil),             // 290: ngfw.v1.PppoeReconnectRequest
+	(*PppoeReconnectResponse)(nil),            // 291: ngfw.v1.PppoeReconnectResponse
+	(*PppoeSessionState)(nil),                 // 292: ngfw.v1.PppoeSessionState
+	(*RoutingStateRequest)(nil),               // 293: ngfw.v1.RoutingStateRequest
+	(*RoutingStateResponse)(nil),              // 294: ngfw.v1.RoutingStateResponse
+	(*BgpInstanceState)(nil),                  // 295: ngfw.v1.BgpInstanceState
+	(*BgpNeighborState)(nil),                  // 296: ngfw.v1.BgpNeighborState
+	(*BgpNeighborAfiState)(nil),               // 297: ngfw.v1.BgpNeighborAfiState
+	(*RoutingLcpPair)(nil),                    // 298: ngfw.v1.RoutingLcpPair
+	(*RoutingRibEntry)(nil),                   // 299: ngfw.v1.RoutingRibEntry
+	(*RoutingRibNextHop)(nil),                 // 300: ngfw.v1.RoutingRibNextHop
+	(*DhcpLeasesRequest)(nil),                 // 301: ngfw.v1.DhcpLeasesRequest
+	(*DhcpLease)(nil),                         // 302: ngfw.v1.DhcpLease
+	(*DhcpSubnetUsage)(nil),                   // 303: ngfw.v1.DhcpSubnetUsage
+	(*DhcpServerStatus)(nil),                  // 304: ngfw.v1.DhcpServerStatus
+	(*DhcpClientLease)(nil),                   // 305: ngfw.v1.DhcpClientLease
+	(*DhcpLeasesResponse)(nil),                // 306: ngfw.v1.DhcpLeasesResponse
+	(*SyslogTls)(nil),                         // 307: ngfw.v1.SyslogTls
+	(*DnsLookupAction)(nil),                   // 308: ngfw.v1.DnsLookupAction
+	(*ServiceDaemonAction)(nil),               // 309: ngfw.v1.ServiceDaemonAction
+	(*DnsStateRequest)(nil),                   // 310: ngfw.v1.DnsStateRequest
+	(*DnsStateResponse)(nil),                  // 311: ngfw.v1.DnsStateResponse
+	(*DnsZoneState)(nil),                      // 312: ngfw.v1.DnsZoneState
+	(*DnsLocalZoneState)(nil),                 // 313: ngfw.v1.DnsLocalZoneState
+	(*DnsVppCacheState)(nil),                  // 314: ngfw.v1.DnsVppCacheState
+	(*NtpStateRequest)(nil),                   // 315: ngfw.v1.NtpStateRequest
+	(*NtpStateResponse)(nil),                  // 316: ngfw.v1.NtpStateResponse
+	(*NtpTracking)(nil),                       // 317: ngfw.v1.NtpTracking
+	(*NtpSource)(nil),                         // 318: ngfw.v1.NtpSource
+	(*NtpSourceStats)(nil),                    // 319: ngfw.v1.NtpSourceStats
+	(*SyslogStateRequest)(nil),                // 320: ngfw.v1.SyslogStateRequest
+	(*SyslogStateResponse)(nil),               // 321: ngfw.v1.SyslogStateResponse
+	(*SyslogTargetState)(nil),                 // 322: ngfw.v1.SyslogTargetState
+	(*SyslogEntriesRequest)(nil),              // 323: ngfw.v1.SyslogEntriesRequest
+	(*SyslogEntriesResponse)(nil),             // 324: ngfw.v1.SyslogEntriesResponse
+	(*SyslogEntry)(nil),                       // 325: ngfw.v1.SyslogEntry
+	(*PnatConfig)(nil),                        // 326: ngfw.v1.PnatConfig
+	(*PnatBinding)(nil),                       // 327: ngfw.v1.PnatBinding
+	(*PnatMatch)(nil),                         // 328: ngfw.v1.PnatMatch
+	(*PnatRewrite)(nil),                       // 329: ngfw.v1.PnatRewrite
+	(*PnatAttachment)(nil),                    // 330: ngfw.v1.PnatAttachment
+	(*Det44SessionsRequest)(nil),              // 331: ngfw.v1.Det44SessionsRequest
+	(*Det44Session)(nil),                      // 332: ngfw.v1.Det44Session
+	(*Det44SessionsResponse)(nil),             // 333: ngfw.v1.Det44SessionsResponse
+	(*Det44LookupRequest)(nil),                // 334: ngfw.v1.Det44LookupRequest
+	(*Det44LookupResponse)(nil),               // 335: ngfw.v1.Det44LookupResponse
+	(*CnatSessionsRequest)(nil),               // 336: ngfw.v1.CnatSessionsRequest
+	(*CnatSession)(nil),                       // 337: ngfw.v1.CnatSession
+	(*CnatSessionsResponse)(nil),              // 338: ngfw.v1.CnatSessionsResponse
+	(*Det44SessionCloseAction)(nil),           // 339: ngfw.v1.Det44SessionCloseAction
+	(*CnatSessionPurgeAction)(nil),            // 340: ngfw.v1.CnatSessionPurgeAction
+	(*PkiKeySpec)(nil),                        // 341: ngfw.v1.PkiKeySpec
+	(*PkiCsr)(nil),                            // 342: ngfw.v1.PkiCsr
+	(*PkiIssued)(nil),                         // 343: ngfw.v1.PkiIssued
+	(*PkiFileStateRequest)(nil),               // 344: ngfw.v1.PkiFileStateRequest
+	(*PkiFileStateFile)(nil),                  // 345: ngfw.v1.PkiFileStateFile
+	(*PkiFileStateSet)(nil),                   // 346: ngfw.v1.PkiFileStateSet
+	(*PkiFileStateResponse)(nil),              // 347: ngfw.v1.PkiFileStateResponse
+	(*MplsConfig)(nil),                        // 348: ngfw.v1.MplsConfig
+	(*MplsTable)(nil),                         // 349: ngfw.v1.MplsTable
+	(*MplsLabelRoute)(nil),                    // 350: ngfw.v1.MplsLabelRoute
+	(*MplsPath)(nil),                          // 351: ngfw.v1.MplsPath
+	(*MplsIpBinding)(nil),                     // 352: ngfw.v1.MplsIpBinding
+	(*MplsTunnel)(nil),                        // 353: ngfw.v1.MplsTunnel
+	(*MplsSr)(nil),                            // 354: ngfw.v1.MplsSr
+	(*MplsSrPolicy)(nil),                      // 355: ngfw.v1.MplsSrPolicy
+	(*MplsSrSegmentList)(nil),                 // 356: ngfw.v1.MplsSrSegmentList
+	(*MplsSrSteering)(nil),                    // 357: ngfw.v1.MplsSrSteering
+	(*MplsStateRequest)(nil),                  // 358: ngfw.v1.MplsStateRequest
+	(*MplsStateResponse)(nil),                 // 359: ngfw.v1.MplsStateResponse
+	(*MplsStateTable)(nil),                    // 360: ngfw.v1.MplsStateTable
+	(*MplsStateFibEntry)(nil),                 // 361: ngfw.v1.MplsStateFibEntry
+	(*MplsStatePath)(nil),                     // 362: ngfw.v1.MplsStatePath
+	(*MplsStateTunnel)(nil),                   // 363: ngfw.v1.MplsStateTunnel
+	(*LbService)(nil),                         // 364: ngfw.v1.LbService
+	(*LbSettings)(nil),                        // 365: ngfw.v1.LbSettings
+	(*LbVip)(nil),                             // 366: ngfw.v1.LbVip
+	(*LbServer)(nil),                          // 367: ngfw.v1.LbServer
+	(*LbNatInterface)(nil),                    // 368: ngfw.v1.LbNatInterface
+	(*LbStateRequest)(nil),                    // 369: ngfw.v1.LbStateRequest
+	(*LbStateResponse)(nil),                   // 370: ngfw.v1.LbStateResponse
+	(*LbServerState)(nil),                     // 371: ngfw.v1.LbServerState
+	(*LbVipState)(nil),                        // 372: ngfw.v1.LbVipState
+	(*LbFlushVipRequest)(nil),                 // 373: ngfw.v1.LbFlushVipRequest
+	(*LbFlushVipResponse)(nil),                // 374: ngfw.v1.LbFlushVipResponse
+	(*QosPolicerStateRequest)(nil),            // 375: ngfw.v1.QosPolicerStateRequest
+	(*QosPolicerCounter)(nil),                 // 376: ngfw.v1.QosPolicerCounter
+	(*QosPolicerStatus)(nil),                  // 377: ngfw.v1.QosPolicerStatus
+	(*QosPolicerStateResponse)(nil),           // 378: ngfw.v1.QosPolicerStateResponse
+	(*QosPolicerResetRequest)(nil),            // 379: ngfw.v1.QosPolicerResetRequest
+	(*QosPolicerResetResponse)(nil),           // 380: ngfw.v1.QosPolicerResetResponse
+	(*HostStackService)(nil),                  // 381: ngfw.v1.HostStackService
+	(*HostStackNamespace)(nil),                // 382: ngfw.v1.HostStackNamespace
+	(*HostStackSessionRule)(nil),              // 383: ngfw.v1.HostStackSessionRule
+	(*HostStackTcpSource)(nil),                // 384: ngfw.v1.HostStackTcpSource
+	(*HostStackHttpStatic)(nil),               // 385: ngfw.v1.HostStackHttpStatic
+	(*HostStackStateRequest)(nil),             // 386: ngfw.v1.HostStackStateRequest
+	(*HostStackRuleState)(nil),                // 387: ngfw.v1.HostStackRuleState
+	(*HostStackStateResponse)(nil),            // 388: ngfw.v1.HostStackStateResponse
+	(*SnmpView)(nil),                          // 389: ngfw.v1.SnmpView
+	(*SnmpMonitors)(nil),                      // 390: ngfw.v1.SnmpMonitors
+	(*SnmpMonitorDisk)(nil),                   // 391: ngfw.v1.SnmpMonitorDisk
+	(*SnmpMonitorLoad)(nil),                   // 392: ngfw.v1.SnmpMonitorLoad
+	(*SnmpSubagent)(nil),                      // 393: ngfw.v1.SnmpSubagent
+	(*SnmpStateRequest)(nil),                  // 394: ngfw.v1.SnmpStateRequest
+	(*SnmpStateResponse)(nil),                 // 395: ngfw.v1.SnmpStateResponse
+	(*IpfixStateRequest)(nil),                 // 396: ngfw.v1.IpfixStateRequest
+	(*IpfixStateResponse)(nil),                // 397: ngfw.v1.IpfixStateResponse
+	(*IpfixExporterState)(nil),                // 398: ngfw.v1.IpfixExporterState
+	(*IpfixFlowprobeParamsState)(nil),         // 399: ngfw.v1.IpfixFlowprobeParamsState
+	(*IpfixFlowprobeInterfaceState)(nil),      // 400: ngfw.v1.IpfixFlowprobeInterfaceState
+	(*IpfixSflowGlobalState)(nil),             // 401: ngfw.v1.IpfixSflowGlobalState
+	(*IpfixSflowInterfaceState)(nil),          // 402: ngfw.v1.IpfixSflowInterfaceState
+	(*IpfixCounter)(nil),                      // 403: ngfw.v1.IpfixCounter
+	(*CaptureListRequest)(nil),                // 404: ngfw.v1.CaptureListRequest
+	(*CaptureFile)(nil),                       // 405: ngfw.v1.CaptureFile
+	(*CaptureListResponse)(nil),               // 406: ngfw.v1.CaptureListResponse
+	(*CaptureReadRequest)(nil),                // 407: ngfw.v1.CaptureReadRequest
+	(*CaptureChunk)(nil),                      // 408: ngfw.v1.CaptureChunk
+	(*CaptureDeleteRequest)(nil),              // 409: ngfw.v1.CaptureDeleteRequest
+	(*CaptureDeleteResponse)(nil),             // 410: ngfw.v1.CaptureDeleteResponse
+	(*Srv6Config)(nil),                        // 411: ngfw.v1.Srv6Config
+	(*Srv6LocalSid)(nil),                      // 412: ngfw.v1.Srv6LocalSid
+	(*Srv6Policy)(nil),                        // 413: ngfw.v1.Srv6Policy
+	(*Srv6SidList)(nil),                       // 414: ngfw.v1.Srv6SidList
+	(*Srv6Steering)(nil),                      // 415: ngfw.v1.Srv6Steering
+	(*Srv6StateRequest)(nil),                  // 416: ngfw.v1.Srv6StateRequest
+	(*Srv6StateResponse)(nil),                 // 417: ngfw.v1.Srv6StateResponse
+	(*Srv6StateLocalSid)(nil),                 // 418: ngfw.v1.Srv6StateLocalSid
+	(*Srv6StatePolicy)(nil),                   // 419: ngfw.v1.Srv6StatePolicy
+	(*Srv6StateSidList)(nil),                  // 420: ngfw.v1.Srv6StateSidList
+	(*Srv6StateSteering)(nil),                 // 421: ngfw.v1.Srv6StateSteering
+	(*LispConfig)(nil),                        // 422: ngfw.v1.LispConfig
+	(*LispLocatorSet)(nil),                    // 423: ngfw.v1.LispLocatorSet
+	(*LispLocator)(nil),                       // 424: ngfw.v1.LispLocator
+	(*LispLocalEid)(nil),                      // 425: ngfw.v1.LispLocalEid
+	(*LispEidTable)(nil),                      // 426: ngfw.v1.LispEidTable
+	(*LispRloc)(nil),                          // 427: ngfw.v1.LispRloc
+	(*LispRemoteMapping)(nil),                 // 428: ngfw.v1.LispRemoteMapping
+	(*LispAdjacency)(nil),                     // 429: ngfw.v1.LispAdjacency
+	(*LispLocatorPair)(nil),                   // 430: ngfw.v1.LispLocatorPair
+	(*LispGpeEntry)(nil),                      // 431: ngfw.v1.LispGpeEntry
+	(*LispStateRequest)(nil),                  // 432: ngfw.v1.LispStateRequest
+	(*LispStateLocator)(nil),                  // 433: ngfw.v1.LispStateLocator
+	(*LispStateLocatorSet)(nil),               // 434: ngfw.v1.LispStateLocatorSet
+	(*LispStateMapping)(nil),                  // 435: ngfw.v1.LispStateMapping
+	(*LispStateAdjacency)(nil),                // 436: ngfw.v1.LispStateAdjacency
+	(*LispStateEidTable)(nil),                 // 437: ngfw.v1.LispStateEidTable
+	(*LispStateResponse)(nil),                 // 438: ngfw.v1.LispStateResponse
+	(*MplsLdp)(nil),                           // 439: ngfw.v1.MplsLdp
+	(*LdpNeighbor)(nil),                       // 440: ngfw.v1.LdpNeighbor
+	(*LdpLabelRange)(nil),                     // 441: ngfw.v1.LdpLabelRange
+	(*MplsLdpStateRequest)(nil),               // 442: ngfw.v1.MplsLdpStateRequest
+	(*MplsLdpStateResponse)(nil),              // 443: ngfw.v1.MplsLdpStateResponse
+	(*LdpNeighborState)(nil),                  // 444: ngfw.v1.LdpNeighborState
+	(*LdpBindingState)(nil),                   // 445: ngfw.v1.LdpBindingState
+	(*LdpSyncState)(nil),                      // 446: ngfw.v1.LdpSyncState
+	(*ManagementPrometheus)(nil),              // 447: ngfw.v1.ManagementPrometheus
+	(*ManagementAlarms)(nil),                  // 448: ngfw.v1.ManagementAlarms
+	(*AlarmRule)(nil),                         // 449: ngfw.v1.AlarmRule
+	(*AlarmTarget)(nil),                       // 450: ngfw.v1.AlarmTarget
+	(*WanGroup)(nil),                          // 451: ngfw.v1.WanGroup
+	(*WanMember)(nil),                         // 452: ngfw.v1.WanMember
+	(*WanMonitor)(nil),                        // 453: ngfw.v1.WanMonitor
+	(*WanStateRequest)(nil),                   // 454: ngfw.v1.WanStateRequest
+	(*WanStateResponse)(nil),                  // 455: ngfw.v1.WanStateResponse
+	(*WanGroupState)(nil),                     // 456: ngfw.v1.WanGroupState
+	(*WanMemberState)(nil),                    // 457: ngfw.v1.WanMemberState
+	(*MulticastStateRequest)(nil),             // 458: ngfw.v1.MulticastStateRequest
+	(*MulticastStateResponse)(nil),            // 459: ngfw.v1.MulticastStateResponse
+	(*IgmpGroupState)(nil),                    // 460: ngfw.v1.IgmpGroupState
+	(*MrouteState)(nil),                       // 461: ngfw.v1.MrouteState
+	(*PimNeighborState)(nil),                  // 462: ngfw.v1.PimNeighborState
+	(*AaaLdap)(nil),                           // 463: ngfw.v1.AaaLdap
+	(*AaaLdapServer)(nil),                     // 464: ngfw.v1.AaaLdapServer
+	(*AaaRoleMapping)(nil),                    // 465: ngfw.v1.AaaRoleMapping
+	(*AaaMfa)(nil),                            // 466: ngfw.v1.AaaMfa
+	(*AaaOidc)(nil),                           // 467: ngfw.v1.AaaOidc
+	(*DataplaneStartupStateRequest)(nil),      // 468: ngfw.v1.DataplaneStartupStateRequest
+	(*DataplaneStartupStateResponse)(nil),     // 469: ngfw.v1.DataplaneStartupStateResponse
+	(*DataplaneRuntimeThread)(nil),            // 470: ngfw.v1.DataplaneRuntimeThread
+	(*DataplaneStartupPreviewRequest)(nil),    // 471: ngfw.v1.DataplaneStartupPreviewRequest
+	(*DataplaneStartupPreviewResponse)(nil),   // 472: ngfw.v1.DataplaneStartupPreviewResponse
+	(*Nat46Config)(nil),                       // 473: ngfw.v1.Nat46Config
+	(*Nat46Mapping)(nil),                      // 474: ngfw.v1.Nat46Mapping
+	(*SystemIdentityStateRequest)(nil),        // 475: ngfw.v1.SystemIdentityStateRequest
+	(*SystemIdentityStateResponse)(nil),       // 476: ngfw.v1.SystemIdentityStateResponse
+	(*IpsecStateRequest)(nil),                 // 477: ngfw.v1.IpsecStateRequest
+	(*IpsecStateResponse)(nil),                // 478: ngfw.v1.IpsecStateResponse
+	(*IpsecConnState)(nil),                    // 479: ngfw.v1.IpsecConnState
+	(*IpsecChildConn)(nil),                    // 480: ngfw.v1.IpsecChildConn
+	(*IpsecIkeSa)(nil),                        // 481: ngfw.v1.IpsecIkeSa
+	(*IpsecChildSa)(nil),                      // 482: ngfw.v1.IpsecChildSa
+	(*TunnelStateRequest)(nil),                // 483: ngfw.v1.TunnelStateRequest
+	(*TunnelStateTunnel)(nil),                 // 484: ngfw.v1.TunnelStateTunnel
+	(*TunnelStateResponse)(nil),               // 485: ngfw.v1.TunnelStateResponse
+	(*IpipSixrd)(nil),                         // 486: ngfw.v1.IpipSixrd
+	(*VxlanGpeTunnel)(nil),                    // 487: ngfw.v1.VxlanGpeTunnel
+	(*GtpuTunnel)(nil),                        // 488: ngfw.v1.GtpuTunnel
+	(*L2Tpv3Tunnel)(nil),                      // 489: ngfw.v1.L2tpv3Tunnel
+	(*PppoeSession)(nil),                      // 490: ngfw.v1.PppoeSession
+	(*HostNicsRequest)(nil),                   // 491: ngfw.v1.HostNicsRequest
+	(*HostNicsResponse)(nil),                  // 492: ngfw.v1.HostNicsResponse
+	(*HostNic)(nil),                           // 493: ngfw.v1.HostNic
+	nil,                                       // 494: ngfw.v1.SecretBundle.ValuesEntry
+	nil,                                       // 495: ngfw.v1.Event.AttributesEntry
+	nil,                                       // 496: ngfw.v1.ActionDone.StatsEntry
+	nil,                                       // 497: ngfw.v1.DesiredState.InterfacesEntry
+	nil,                                       // 498: ngfw.v1.DesiredState.VrfsEntry
+	nil,                                       // 499: ngfw.v1.DataplaneConfig.DevicesEntry
+	nil,                                       // 500: ngfw.v1.PluginSet.SwitchesEntry
+	nil,                                       // 501: ngfw.v1.Interface.SubinterfacesEntry
+	nil,                                       // 502: ngfw.v1.IgmpConfig.InterfacesEntry
+	nil,                                       // 503: ngfw.v1.IgmpConfig.ProxiesEntry
+	nil,                                       // 504: ngfw.v1.RoutingPolicy.PrefixListsEntry
+	nil,                                       // 505: ngfw.v1.RoutingPolicy.RouteMapsEntry
+	nil,                                       // 506: ngfw.v1.BgpConfig.PeerGroupsEntry
+	nil,                                       // 507: ngfw.v1.BgpConfig.NeighborsEntry
+	nil,                                       // 508: ngfw.v1.Ospf6Config.AreasEntry
+	nil,                                       // 509: ngfw.v1.Ospf6Config.InterfacesEntry
+	nil,                                       // 510: ngfw.v1.OspfConfig.AreasEntry
+	nil,                                       // 511: ngfw.v1.OspfConfig.InterfacesEntry
+	nil,                                       // 512: ngfw.v1.IsisConfig.InterfacesEntry
+	nil,                                       // 513: ngfw.v1.RipConfig.InterfacesEntry
+	nil,                                       // 514: ngfw.v1.TunnelsConfig.GreEntry
+	nil,                                       // 515: ngfw.v1.TunnelsConfig.VxlanEntry
+	nil,                                       // 516: ngfw.v1.TunnelsConfig.IpipEntry
+	nil,                                       // 517: ngfw.v1.TunnelsConfig.VxlanGpeEntry
+	nil,                                       // 518: ngfw.v1.TunnelsConfig.GtpuEntry
+	nil,                                       // 519: ngfw.v1.TunnelsConfig.L2tpv3Entry
+	nil,                                       // 520: ngfw.v1.TunnelsConfig.PppoeEntry
+	nil,                                       // 521: ngfw.v1.DhcpService.ServersEntry
+	nil,                                       // 522: ngfw.v1.DhcpService.RelaysEntry
+	nil,                                       // 523: ngfw.v1.DhcpSubnet.ReservationsEntry
+	nil,                                       // 524: ngfw.v1.DhcpServer.SubnetsEntry
+	(*DnsService_VppCache)(nil),               // 525: ngfw.v1.DnsService.VppCache
+	nil,                                       // 526: ngfw.v1.DnsService.ResolversEntry
+	(*DnsResolver_Dnssec)(nil),                // 527: ngfw.v1.DnsResolver.Dnssec
+	(*DnsResolver_Cache)(nil),                 // 528: ngfw.v1.DnsResolver.Cache
+	(*SnmpService_Community)(nil),             // 529: ngfw.v1.SnmpService.Community
+	(*SnmpService_V3User)(nil),                // 530: ngfw.v1.SnmpService.V3User
+	(*SnmpService_TrapReceiver)(nil),          // 531: ngfw.v1.SnmpService.TrapReceiver
+	nil,                                       // 532: ngfw.v1.SnmpService.CommunitiesEntry
+	nil,                                       // 533: ngfw.v1.SnmpService.V3UsersEntry
+	nil,                                       // 534: ngfw.v1.SnmpService.ViewsEntry
+	(*LldpService_Interface)(nil),             // 535: ngfw.v1.LldpService.Interface
+	(*IpfixService_Exporter)(nil),             // 536: ngfw.v1.IpfixService.Exporter
+	(*IpfixService_Flowprobe)(nil),            // 537: ngfw.v1.IpfixService.Flowprobe
+	(*IpfixService_Sflow)(nil),                // 538: ngfw.v1.IpfixService.Sflow
+	nil,                                       // 539: ngfw.v1.IpfixService.ExportersEntry
+	(*IpfixService_Flowprobe_Interface)(nil),  // 540: ngfw.v1.IpfixService.Flowprobe.Interface
+	(*NtpService_Server)(nil),                 // 541: ngfw.v1.NtpService.Server
+	(*NtpService_RateLimit)(nil),              // 542: ngfw.v1.NtpService.RateLimit
+	(*NtpService_NtsServer)(nil),              // 543: ngfw.v1.NtpService.NtsServer
+	(*NtpService_Makestep)(nil),               // 544: ngfw.v1.NtpService.Makestep
+	nil,                                       // 545: ngfw.v1.QosService.PolicersEntry
+	nil,                                       // 546: ngfw.v1.QosService.ShapersEntry
+	nil,                                       // 547: ngfw.v1.QosService.MapsEntry
+	nil,                                       // 548: ngfw.v1.QosService.InterfacesEntry
+	(*QosMap_Rows)(nil),                       // 549: ngfw.v1.QosMap.Rows
+	(*QosInterface_Policer)(nil),              // 550: ngfw.v1.QosInterface.Policer
+	(*QosInterface_Store)(nil),                // 551: ngfw.v1.QosInterface.Store
+	(*QosInterface_Mark)(nil),                 // 552: ngfw.v1.QosInterface.Mark
+	nil,                                       // 553: ngfw.v1.HaConfig.VrrpEntry
+	(*VrrpInstance_Unicast)(nil),              // 554: ngfw.v1.VrrpInstance.Unicast
+	(*VrrpInstance_Track)(nil),                // 555: ngfw.v1.VrrpInstance.Track
+	(*HaCluster_Peer)(nil),                    // 556: ngfw.v1.HaCluster.Peer
+	(*HaCluster_StateSync)(nil),               // 557: ngfw.v1.HaCluster.StateSync
+	(*NatStaticMapping_Local)(nil),            // 558: ngfw.v1.NatStaticMapping.Local
+	(*NatStaticMapping_External)(nil),         // 559: ngfw.v1.NatStaticMapping.External
+	(*NatLoadBalancedMapping_External)(nil),   // 560: ngfw.v1.NatLoadBalancedMapping.External
+	(*NatLoadBalancedMapping_Local)(nil),      // 561: ngfw.v1.NatLoadBalancedMapping.Local
+	(*Nat64Config_Prefix)(nil),                // 562: ngfw.v1.Nat64Config.Prefix
+	(*Nat64Config_Pool)(nil),                  // 563: ngfw.v1.Nat64Config.Pool
+	(*Nat64Config_StaticBib)(nil),             // 564: ngfw.v1.Nat64Config.StaticBib
+	(*Nat64Config_StaticBib_Endpoint)(nil),    // 565: ngfw.v1.Nat64Config.StaticBib.Endpoint
+	(*Nat66Config_StaticMapping)(nil),         // 566: ngfw.v1.Nat66Config.StaticMapping
+	(*Nptv6Config_Binding)(nil),               // 567: ngfw.v1.Nptv6Config.Binding
+	(*Det44Config_Mapping)(nil),               // 568: ngfw.v1.Det44Config.Mapping
+	(*DsliteConfig_Endpoint)(nil),             // 569: ngfw.v1.DsliteConfig.Endpoint
+	(*DsliteConfig_Pool)(nil),                 // 570: ngfw.v1.DsliteConfig.Pool
+	(*MapDomain_Rule)(nil),                    // 571: ngfw.v1.MapDomain.Rule
+	(*MapParameters_Fragmentation)(nil),       // 572: ngfw.v1.MapParameters.Fragmentation
+	(*MapParameters_SecurityCheck)(nil),       // 573: ngfw.v1.MapParameters.SecurityCheck
+	(*MapParameters_TrafficClass)(nil),        // 574: ngfw.v1.MapParameters.TrafficClass
+	(*MapParameters_PreResolve)(nil),          // 575: ngfw.v1.MapParameters.PreResolve
+	(*CnatConfig_Snat)(nil),                   // 576: ngfw.v1.CnatConfig.Snat
+	(*CnatConfig_Snat_Addresses)(nil),         // 577: ngfw.v1.CnatConfig.Snat.Addresses
+	(*CnatConfig_Snat_PolicyInterface)(nil),   // 578: ngfw.v1.CnatConfig.Snat.PolicyInterface
+	nil,                                       // 579: ngfw.v1.ObjectsConfig.AddressesEntry
+	nil,                                       // 580: ngfw.v1.ObjectsConfig.AddressGroupsEntry
+	nil,                                       // 581: ngfw.v1.ObjectsConfig.ServicesEntry
+	nil,                                       // 582: ngfw.v1.ObjectsConfig.ServiceGroupsEntry
+	nil,                                       // 583: ngfw.v1.ObjectsConfig.SchedulesEntry
+	nil,                                       // 584: ngfw.v1.ObjectsConfig.ZonesEntry
+	nil,                                       // 585: ngfw.v1.ObjectsConfig.TagsEntry
+	nil,                                       // 586: ngfw.v1.AclConfig.ListsEntry
+	nil,                                       // 587: ngfw.v1.AclConfig.MacipEntry
+	nil,                                       // 588: ngfw.v1.AclConfig.HostEntry
+	nil,                                       // 589: ngfw.v1.GlobalBlocking.ListsEntry
+	nil,                                       // 590: ngfw.v1.VpnConfig.RemoteAccessEntry
+	(*IpsecTunnel_RouteBased)(nil),            // 591: ngfw.v1.IpsecTunnel.RouteBased
+	nil,                                       // 592: ngfw.v1.IpsecConfig.ProposalsEntry
+	nil,                                       // 593: ngfw.v1.IpsecConfig.TunnelsEntry
+	(*WireguardPeer_Endpoint)(nil),            // 594: ngfw.v1.WireguardPeer.Endpoint
+	nil,                                       // 595: ngfw.v1.WireguardInterface.PeersEntry
+	nil,                                       // 596: ngfw.v1.WireguardConfig.InterfacesEntry
+	(*PkiCa_Crl)(nil),                         // 597: ngfw.v1.PkiCa.Crl
+	(*PkiCertificate_Acme)(nil),               // 598: ngfw.v1.PkiCertificate.Acme
+	(*PkiConfig_Hsm)(nil),                     // 599: ngfw.v1.PkiConfig.Hsm
+	nil,                                       // 600: ngfw.v1.PkiConfig.CasEntry
+	nil,                                       // 601: ngfw.v1.PkiConfig.CertificatesEntry
+	(*RemoteAccessProfile_Radius)(nil),        // 602: ngfw.v1.RemoteAccessProfile.Radius
+	(*RemoteAccessProfile_Radius_Server)(nil), // 603: ngfw.v1.RemoteAccessProfile.Radius.Server
+	nil,                              // 604: ngfw.v1.Bond.MembersEntry
+	nil,                              // 605: ngfw.v1.BridgeL2Config.BridgeDomainsEntry
+	nil,                              // 606: ngfw.v1.BridgeL2Config.XconnectsEntry
+	nil,                              // 607: ngfw.v1.BridgeL2Config.L3xcEntry
+	nil,                              // 608: ngfw.v1.BridgeL2Config.MacFiltersEntry
+	(*NsimService_CrossConnect)(nil), // 609: ngfw.v1.NsimService.CrossConnect
+	nil,                              // 610: ngfw.v1.Ipv6Ra.PrefixesEntry
+	nil,                              // 611: ngfw.v1.PbrConfig.PoliciesEntry
+	nil,                              // 612: ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
+	nil,                              // 613: ngfw.v1.RoutingStateResponse.RibCountsEntry
+	nil,                              // 614: ngfw.v1.RoutingStateResponse.ReadersEntry
+	nil,                              // 615: ngfw.v1.DnsStateResponse.StatusEntry
+	nil,                              // 616: ngfw.v1.DnsStateResponse.StatsEntry
+	nil,                              // 617: ngfw.v1.NtpStateResponse.ServerStatsEntry
+	nil,                              // 618: ngfw.v1.SyslogStateResponse.InputsEntry
+	nil,                              // 619: ngfw.v1.MplsConfig.TablesEntry
+	nil,                              // 620: ngfw.v1.MplsConfig.TunnelsEntry
+	nil,                              // 621: ngfw.v1.MplsSr.PoliciesEntry
+	nil,                              // 622: ngfw.v1.LbService.VipsEntry
+	nil,                              // 623: ngfw.v1.HostStackService.NamespacesEntry
+	nil,                              // 624: ngfw.v1.Srv6Config.LocalSidsEntry
+	nil,                              // 625: ngfw.v1.Srv6Config.PoliciesEntry
+	nil,                              // 626: ngfw.v1.LispConfig.LocatorSetsEntry
+	nil,                              // 627: ngfw.v1.LispConfig.EidTablesEntry
+	nil,                              // 628: ngfw.v1.MplsLdp.NeighborsEntry
+	nil,                              // 629: ngfw.v1.ManagementAlarms.RulesEntry
+	nil,                              // 630: ngfw.v1.ManagementAlarms.TargetsEntry
+	nil,                              // 631: ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
+	(*timestamppb.Timestamp)(nil),    // 632: google.protobuf.Timestamp
 }
 var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	36,  // 0: ngfw.v1.ApplyRequest.desired_state:type_name -> ngfw.v1.DesiredState
@@ -51557,751 +51858,758 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	10,  // 3: ngfw.v1.ApplyResponse.results:type_name -> ngfw.v1.ObjectResult
 	11,  // 4: ngfw.v1.ApplyResponse.summary:type_name -> ngfw.v1.ApplySummary
 	15,  // 5: ngfw.v1.ApplyResponse.validation:type_name -> ngfw.v1.ValidationReport
-	627, // 6: ngfw.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
-	627, // 7: ngfw.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	632, // 6: ngfw.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
+	632, // 7: ngfw.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
 	1,   // 8: ngfw.v1.ObjectResult.op:type_name -> ngfw.v1.ApplyOperation
 	2,   // 9: ngfw.v1.ObjectResult.code:type_name -> ngfw.v1.ObjectResultCode
 	36,  // 10: ngfw.v1.DryRunRequest.desired_state:type_name -> ngfw.v1.DesiredState
 	13,  // 11: ngfw.v1.DryRunRequest.secret_bundle:type_name -> ngfw.v1.SecretBundle
-	491, // 12: ngfw.v1.SecretBundle.values:type_name -> ngfw.v1.SecretBundle.ValuesEntry
+	494, // 12: ngfw.v1.SecretBundle.values:type_name -> ngfw.v1.SecretBundle.ValuesEntry
 	3,   // 13: ngfw.v1.ValidationIssue.severity:type_name -> ngfw.v1.IssueSeverity
 	14,  // 14: ngfw.v1.ValidationReport.errors:type_name -> ngfw.v1.ValidationIssue
 	10,  // 15: ngfw.v1.ValidationReport.plan:type_name -> ngfw.v1.ObjectResult
 	11,  // 16: ngfw.v1.ValidationReport.summary:type_name -> ngfw.v1.ApplySummary
 	36,  // 17: ngfw.v1.RetrieveResponse.desired_state:type_name -> ngfw.v1.DesiredState
-	627, // 18: ngfw.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	627, // 19: ngfw.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
+	632, // 18: ngfw.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	632, // 19: ngfw.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
 	20,  // 20: ngfw.v1.StatsBatch.interface_counters:type_name -> ngfw.v1.InterfaceCounters
 	21,  // 21: ngfw.v1.StatsBatch.worker_cpu:type_name -> ngfw.v1.WorkerCpu
 	4,   // 22: ngfw.v1.StreamEventsRequest.kinds:type_name -> ngfw.v1.EventKind
-	627, // 23: ngfw.v1.Event.ts:type_name -> google.protobuf.Timestamp
+	632, // 23: ngfw.v1.Event.ts:type_name -> google.protobuf.Timestamp
 	4,   // 24: ngfw.v1.Event.kind:type_name -> ngfw.v1.EventKind
 	11,  // 25: ngfw.v1.Event.summary:type_name -> ngfw.v1.ApplySummary
-	492, // 26: ngfw.v1.Event.attributes:type_name -> ngfw.v1.Event.AttributesEntry
+	495, // 26: ngfw.v1.Event.attributes:type_name -> ngfw.v1.Event.AttributesEntry
 	26,  // 27: ngfw.v1.ActionRequest.ping:type_name -> ngfw.v1.PingAction
 	27,  // 28: ngfw.v1.ActionRequest.traceroute:type_name -> ngfw.v1.TracerouteAction
 	28,  // 29: ngfw.v1.ActionRequest.capture:type_name -> ngfw.v1.CaptureAction
-	336, // 30: ngfw.v1.ActionRequest.det44_session_close:type_name -> ngfw.v1.Det44SessionCloseAction
-	337, // 31: ngfw.v1.ActionRequest.cnat_session_purge:type_name -> ngfw.v1.CnatSessionPurgeAction
+	339, // 30: ngfw.v1.ActionRequest.det44_session_close:type_name -> ngfw.v1.Det44SessionCloseAction
+	340, // 31: ngfw.v1.ActionRequest.cnat_session_purge:type_name -> ngfw.v1.CnatSessionPurgeAction
 	25,  // 32: ngfw.v1.ActionRequest.ikev2:type_name -> ngfw.v1.Ikev2Action
-	247, // 33: ngfw.v1.ActionRequest.arp_flush:type_name -> ngfw.v1.ArpFlushAction
-	279, // 34: ngfw.v1.ActionRequest.nat_session_kill:type_name -> ngfw.v1.NatSessionKillAction
-	305, // 35: ngfw.v1.ActionRequest.dns_lookup:type_name -> ngfw.v1.DnsLookupAction
+	250, // 33: ngfw.v1.ActionRequest.arp_flush:type_name -> ngfw.v1.ArpFlushAction
+	282, // 34: ngfw.v1.ActionRequest.nat_session_kill:type_name -> ngfw.v1.NatSessionKillAction
+	308, // 35: ngfw.v1.ActionRequest.dns_lookup:type_name -> ngfw.v1.DnsLookupAction
 	5,   // 36: ngfw.v1.CaptureAction.direction:type_name -> ngfw.v1.CaptureDirection
 	30,  // 37: ngfw.v1.ActionOutput.done:type_name -> ngfw.v1.ActionDone
-	493, // 38: ngfw.v1.ActionDone.stats:type_name -> ngfw.v1.ActionDone.StatsEntry
-	627, // 39: ngfw.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
-	627, // 40: ngfw.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
+	496, // 38: ngfw.v1.ActionDone.stats:type_name -> ngfw.v1.ActionDone.StatsEntry
+	632, // 39: ngfw.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	632, // 40: ngfw.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
 	35,  // 41: ngfw.v1.InterfaceStateResponse.interfaces:type_name -> ngfw.v1.InterfaceState
-	627, // 42: ngfw.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	289, // 43: ngfw.v1.InterfaceState.pppoe:type_name -> ngfw.v1.PppoeSessionState
+	632, // 42: ngfw.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	292, // 43: ngfw.v1.InterfaceState.pppoe:type_name -> ngfw.v1.PppoeSessionState
 	37,  // 44: ngfw.v1.DesiredState.system:type_name -> ngfw.v1.SystemConfig
 	40,  // 45: ngfw.v1.DesiredState.dataplane:type_name -> ngfw.v1.DataplaneConfig
-	494, // 46: ngfw.v1.DesiredState.interfaces:type_name -> ngfw.v1.DesiredState.InterfacesEntry
-	495, // 47: ngfw.v1.DesiredState.vrfs:type_name -> ngfw.v1.DesiredState.VrfsEntry
+	497, // 46: ngfw.v1.DesiredState.interfaces:type_name -> ngfw.v1.DesiredState.InterfacesEntry
+	498, // 47: ngfw.v1.DesiredState.vrfs:type_name -> ngfw.v1.DesiredState.VrfsEntry
 	48,  // 48: ngfw.v1.DesiredState.routing:type_name -> ngfw.v1.RoutingConfig
-	138, // 49: ngfw.v1.DesiredState.nat:type_name -> ngfw.v1.NatConfig
-	157, // 50: ngfw.v1.DesiredState.objects:type_name -> ngfw.v1.ObjectsConfig
-	167, // 51: ngfw.v1.DesiredState.acl:type_name -> ngfw.v1.AclConfig
-	183, // 52: ngfw.v1.DesiredState.vpn:type_name -> ngfw.v1.VpnConfig
-	84,  // 53: ngfw.v1.DesiredState.tunnels:type_name -> ngfw.v1.TunnelsConfig
-	88,  // 54: ngfw.v1.DesiredState.services:type_name -> ngfw.v1.ServicesConfig
-	115, // 55: ngfw.v1.DesiredState.ha:type_name -> ngfw.v1.HaConfig
-	118, // 56: ngfw.v1.DesiredState.management:type_name -> ngfw.v1.ManagementConfig
-	124, // 57: ngfw.v1.DesiredState.security:type_name -> ngfw.v1.SecurityConfig
+	141, // 49: ngfw.v1.DesiredState.nat:type_name -> ngfw.v1.NatConfig
+	160, // 50: ngfw.v1.DesiredState.objects:type_name -> ngfw.v1.ObjectsConfig
+	170, // 51: ngfw.v1.DesiredState.acl:type_name -> ngfw.v1.AclConfig
+	186, // 52: ngfw.v1.DesiredState.vpn:type_name -> ngfw.v1.VpnConfig
+	87,  // 53: ngfw.v1.DesiredState.tunnels:type_name -> ngfw.v1.TunnelsConfig
+	91,  // 54: ngfw.v1.DesiredState.services:type_name -> ngfw.v1.ServicesConfig
+	118, // 55: ngfw.v1.DesiredState.ha:type_name -> ngfw.v1.HaConfig
+	121, // 56: ngfw.v1.DesiredState.management:type_name -> ngfw.v1.ManagementConfig
+	127, // 57: ngfw.v1.DesiredState.security:type_name -> ngfw.v1.SecurityConfig
 	38,  // 58: ngfw.v1.SystemConfig.banner:type_name -> ngfw.v1.SystemBanner
 	39,  // 59: ngfw.v1.SystemConfig.dns:type_name -> ngfw.v1.SystemDns
-	496, // 60: ngfw.v1.DataplaneConfig.devices:type_name -> ngfw.v1.DataplaneConfig.DevicesEntry
+	499, // 60: ngfw.v1.DataplaneConfig.devices:type_name -> ngfw.v1.DataplaneConfig.DevicesEntry
 	41,  // 61: ngfw.v1.DataplaneConfig.plugins:type_name -> ngfw.v1.PluginSet
-	497, // 62: ngfw.v1.PluginSet.switches:type_name -> ngfw.v1.PluginSet.SwitchesEntry
-	498, // 63: ngfw.v1.Interface.subinterfaces:type_name -> ngfw.v1.Interface.SubinterfacesEntry
+	500, // 62: ngfw.v1.PluginSet.switches:type_name -> ngfw.v1.PluginSet.SwitchesEntry
+	501, // 63: ngfw.v1.Interface.subinterfaces:type_name -> ngfw.v1.Interface.SubinterfacesEntry
 	45,  // 64: ngfw.v1.Interface.dhcp_client:type_name -> ngfw.v1.DhcpClient
-	202, // 65: ngfw.v1.Interface.bond:type_name -> ngfw.v1.Bond
-	210, // 66: ngfw.v1.Interface.l2:type_name -> ngfw.v1.BridgeL2Port
-	237, // 67: ngfw.v1.Interface.ipv6_ra:type_name -> ngfw.v1.Ipv6Ra
-	248, // 68: ngfw.v1.Interface.urpf:type_name -> ngfw.v1.UrpfConfig
-	249, // 69: ngfw.v1.Interface.adl:type_name -> ngfw.v1.AdlConfig
-	227, // 70: ngfw.v1.Interface.mirror:type_name -> ngfw.v1.MirrorSession
-	284, // 71: ngfw.v1.Interface.lcp:type_name -> ngfw.v1.InterfaceLcp
-	285, // 72: ngfw.v1.Interface.pppoe:type_name -> ngfw.v1.Pppoe
+	205, // 65: ngfw.v1.Interface.bond:type_name -> ngfw.v1.Bond
+	213, // 66: ngfw.v1.Interface.l2:type_name -> ngfw.v1.BridgeL2Port
+	240, // 67: ngfw.v1.Interface.ipv6_ra:type_name -> ngfw.v1.Ipv6Ra
+	251, // 68: ngfw.v1.Interface.urpf:type_name -> ngfw.v1.UrpfConfig
+	252, // 69: ngfw.v1.Interface.adl:type_name -> ngfw.v1.AdlConfig
+	230, // 70: ngfw.v1.Interface.mirror:type_name -> ngfw.v1.MirrorSession
+	287, // 71: ngfw.v1.Interface.lcp:type_name -> ngfw.v1.InterfaceLcp
+	288, // 72: ngfw.v1.Interface.pppoe:type_name -> ngfw.v1.Pppoe
 	44,  // 73: ngfw.v1.Interface.physical:type_name -> ngfw.v1.InterfacePhysical
 	45,  // 74: ngfw.v1.Subinterface.dhcp_client:type_name -> ngfw.v1.DhcpClient
-	210, // 75: ngfw.v1.Subinterface.l2:type_name -> ngfw.v1.BridgeL2Port
-	237, // 76: ngfw.v1.Subinterface.ipv6_ra:type_name -> ngfw.v1.Ipv6Ra
-	232, // 77: ngfw.v1.Vrf.source_select:type_name -> ngfw.v1.VrfSourceSelect
-	239, // 78: ngfw.v1.Vrf.proxy_arp_ranges:type_name -> ngfw.v1.ProxyArpRange
+	213, // 75: ngfw.v1.Subinterface.l2:type_name -> ngfw.v1.BridgeL2Port
+	240, // 76: ngfw.v1.Subinterface.ipv6_ra:type_name -> ngfw.v1.Ipv6Ra
+	235, // 77: ngfw.v1.Vrf.source_select:type_name -> ngfw.v1.VrfSourceSelect
+	242, // 78: ngfw.v1.Vrf.proxy_arp_ranges:type_name -> ngfw.v1.ProxyArpRange
 	58,  // 79: ngfw.v1.RoutingConfig.static:type_name -> ngfw.v1.StaticRoute
 	74,  // 80: ngfw.v1.RoutingConfig.bgp:type_name -> ngfw.v1.BgpConfig
-	77,  // 81: ngfw.v1.RoutingConfig.ospf:type_name -> ngfw.v1.OspfConfig
-	79,  // 82: ngfw.v1.RoutingConfig.isis:type_name -> ngfw.v1.IsisConfig
-	81,  // 83: ngfw.v1.RoutingConfig.rip:type_name -> ngfw.v1.RipConfig
-	83,  // 84: ngfw.v1.RoutingConfig.bfd:type_name -> ngfw.v1.BfdConfig
+	80,  // 81: ngfw.v1.RoutingConfig.ospf:type_name -> ngfw.v1.OspfConfig
+	82,  // 82: ngfw.v1.RoutingConfig.isis:type_name -> ngfw.v1.IsisConfig
+	84,  // 83: ngfw.v1.RoutingConfig.rip:type_name -> ngfw.v1.RipConfig
+	86,  // 84: ngfw.v1.RoutingConfig.bfd:type_name -> ngfw.v1.BfdConfig
 	60,  // 85: ngfw.v1.RoutingConfig.policy:type_name -> ngfw.v1.RoutingPolicy
-	345, // 86: ngfw.v1.RoutingConfig.mpls:type_name -> ngfw.v1.MplsConfig
-	49,  // 87: ngfw.v1.RoutingConfig.multicast:type_name -> ngfw.v1.MulticastConfig
-	212, // 88: ngfw.v1.RoutingConfig.l2:type_name -> ngfw.v1.BridgeL2Config
-	408, // 89: ngfw.v1.RoutingConfig.srv6:type_name -> ngfw.v1.Srv6Config
-	240, // 90: ngfw.v1.RoutingConfig.neighbors:type_name -> ngfw.v1.NeighborsConfig
-	250, // 91: ngfw.v1.RoutingConfig.pbr:type_name -> ngfw.v1.PbrConfig
-	448, // 92: ngfw.v1.RoutingConfig.wan_groups:type_name -> ngfw.v1.WanGroup
-	50,  // 93: ngfw.v1.MulticastConfig.igmp:type_name -> ngfw.v1.IgmpConfig
-	54,  // 94: ngfw.v1.MulticastConfig.mroutes:type_name -> ngfw.v1.Mroute
-	56,  // 95: ngfw.v1.MulticastConfig.pim:type_name -> ngfw.v1.PimConfig
-	499, // 96: ngfw.v1.IgmpConfig.interfaces:type_name -> ngfw.v1.IgmpConfig.InterfacesEntry
-	500, // 97: ngfw.v1.IgmpConfig.proxies:type_name -> ngfw.v1.IgmpConfig.ProxiesEntry
-	52,  // 98: ngfw.v1.IgmpInterface.joins:type_name -> ngfw.v1.IgmpJoin
-	55,  // 99: ngfw.v1.Mroute.paths:type_name -> ngfw.v1.MroutePath
-	57,  // 100: ngfw.v1.PimConfig.rp:type_name -> ngfw.v1.PimRp
-	59,  // 101: ngfw.v1.StaticRoute.next_hops:type_name -> ngfw.v1.NextHop
-	501, // 102: ngfw.v1.RoutingPolicy.prefix_lists:type_name -> ngfw.v1.RoutingPolicy.PrefixListsEntry
-	502, // 103: ngfw.v1.RoutingPolicy.route_maps:type_name -> ngfw.v1.RoutingPolicy.RouteMapsEntry
-	62,  // 104: ngfw.v1.PrefixList.rules:type_name -> ngfw.v1.PrefixListRule
-	64,  // 105: ngfw.v1.RouteMap.entries:type_name -> ngfw.v1.RouteMapEntry
-	65,  // 106: ngfw.v1.RouteMapEntry.match:type_name -> ngfw.v1.RouteMapMatch
-	66,  // 107: ngfw.v1.RouteMapEntry.set:type_name -> ngfw.v1.RouteMapSet
-	67,  // 108: ngfw.v1.Redistribute.connected:type_name -> ngfw.v1.RedistributeOptions
-	67,  // 109: ngfw.v1.Redistribute.static:type_name -> ngfw.v1.RedistributeOptions
-	67,  // 110: ngfw.v1.Redistribute.bgp:type_name -> ngfw.v1.RedistributeOptions
-	67,  // 111: ngfw.v1.Redistribute.ospf:type_name -> ngfw.v1.RedistributeOptions
-	67,  // 112: ngfw.v1.Redistribute.isis:type_name -> ngfw.v1.RedistributeOptions
-	67,  // 113: ngfw.v1.Redistribute.rip:type_name -> ngfw.v1.RedistributeOptions
-	69,  // 114: ngfw.v1.BgpAfi.ipv4_unicast:type_name -> ngfw.v1.BgpAddressFamily
-	69,  // 115: ngfw.v1.BgpAfi.ipv6_unicast:type_name -> ngfw.v1.BgpAddressFamily
-	70,  // 116: ngfw.v1.BgpPeerGroup.afi:type_name -> ngfw.v1.BgpAfi
-	70,  // 117: ngfw.v1.BgpNeighbor.afi:type_name -> ngfw.v1.BgpAfi
-	503, // 118: ngfw.v1.BgpConfig.peer_groups:type_name -> ngfw.v1.BgpConfig.PeerGroupsEntry
-	504, // 119: ngfw.v1.BgpConfig.neighbors:type_name -> ngfw.v1.BgpConfig.NeighborsEntry
-	73,  // 120: ngfw.v1.BgpConfig.networks:type_name -> ngfw.v1.BgpNetwork
-	68,  // 121: ngfw.v1.BgpConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	505, // 122: ngfw.v1.OspfConfig.areas:type_name -> ngfw.v1.OspfConfig.AreasEntry
-	506, // 123: ngfw.v1.OspfConfig.interfaces:type_name -> ngfw.v1.OspfConfig.InterfacesEntry
-	68,  // 124: ngfw.v1.OspfConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	507, // 125: ngfw.v1.IsisConfig.interfaces:type_name -> ngfw.v1.IsisConfig.InterfacesEntry
-	68,  // 126: ngfw.v1.IsisConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	508, // 127: ngfw.v1.RipConfig.interfaces:type_name -> ngfw.v1.RipConfig.InterfacesEntry
-	68,  // 128: ngfw.v1.RipConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	82,  // 129: ngfw.v1.BfdConfig.sessions:type_name -> ngfw.v1.BfdSession
-	509, // 130: ngfw.v1.TunnelsConfig.gre:type_name -> ngfw.v1.TunnelsConfig.GreEntry
-	510, // 131: ngfw.v1.TunnelsConfig.vxlan:type_name -> ngfw.v1.TunnelsConfig.VxlanEntry
-	511, // 132: ngfw.v1.TunnelsConfig.ipip:type_name -> ngfw.v1.TunnelsConfig.IpipEntry
-	512, // 133: ngfw.v1.TunnelsConfig.vxlan_gpe:type_name -> ngfw.v1.TunnelsConfig.VxlanGpeEntry
-	513, // 134: ngfw.v1.TunnelsConfig.gtpu:type_name -> ngfw.v1.TunnelsConfig.GtpuEntry
-	514, // 135: ngfw.v1.TunnelsConfig.l2tpv3:type_name -> ngfw.v1.TunnelsConfig.L2tpv3Entry
-	515, // 136: ngfw.v1.TunnelsConfig.pppoe:type_name -> ngfw.v1.TunnelsConfig.PppoeEntry
-	419, // 137: ngfw.v1.TunnelsConfig.lisp:type_name -> ngfw.v1.LispConfig
-	483, // 138: ngfw.v1.IpipTunnel.sixrd:type_name -> ngfw.v1.IpipSixrd
-	90,  // 139: ngfw.v1.ServicesConfig.dhcp:type_name -> ngfw.v1.DhcpService
-	97,  // 140: ngfw.v1.ServicesConfig.dns:type_name -> ngfw.v1.DnsService
-	104, // 141: ngfw.v1.ServicesConfig.snmp:type_name -> ngfw.v1.SnmpService
-	105, // 142: ngfw.v1.ServicesConfig.lldp:type_name -> ngfw.v1.LldpService
-	106, // 143: ngfw.v1.ServicesConfig.ipfix:type_name -> ngfw.v1.IpfixService
-	107, // 144: ngfw.v1.ServicesConfig.ntp:type_name -> ngfw.v1.NtpService
-	108, // 145: ngfw.v1.ServicesConfig.qos:type_name -> ngfw.v1.QosService
-	378, // 146: ngfw.v1.ServicesConfig.host_stack:type_name -> ngfw.v1.HostStackService
-	361, // 147: ngfw.v1.ServicesConfig.lb:type_name -> ngfw.v1.LbService
-	254, // 148: ngfw.v1.ServicesConfig.auto_sdl:type_name -> ngfw.v1.AutoSdlConfig
-	228, // 149: ngfw.v1.ServicesConfig.nsim:type_name -> ngfw.v1.NsimService
-	516, // 150: ngfw.v1.DhcpService.servers:type_name -> ngfw.v1.DhcpService.ServersEntry
-	517, // 151: ngfw.v1.DhcpService.relays:type_name -> ngfw.v1.DhcpService.RelaysEntry
-	91,  // 152: ngfw.v1.DhcpReservation.options:type_name -> ngfw.v1.DhcpOption
-	92,  // 153: ngfw.v1.DhcpSubnet.pools:type_name -> ngfw.v1.DhcpPool
-	91,  // 154: ngfw.v1.DhcpSubnet.options:type_name -> ngfw.v1.DhcpOption
-	518, // 155: ngfw.v1.DhcpSubnet.reservations:type_name -> ngfw.v1.DhcpSubnet.ReservationsEntry
-	519, // 156: ngfw.v1.DhcpServer.subnets:type_name -> ngfw.v1.DhcpServer.SubnetsEntry
-	91,  // 157: ngfw.v1.DhcpServer.options:type_name -> ngfw.v1.DhcpOption
-	521, // 158: ngfw.v1.DnsService.resolvers:type_name -> ngfw.v1.DnsService.ResolversEntry
-	520, // 159: ngfw.v1.DnsService.vpp_cache:type_name -> ngfw.v1.DnsService.VppCache
-	98,  // 160: ngfw.v1.DnsForwardZone.forwarders:type_name -> ngfw.v1.DnsUpstream
-	100, // 161: ngfw.v1.DnsLocalZone.records:type_name -> ngfw.v1.DnsRecord
-	89,  // 162: ngfw.v1.DnsResolver.listen:type_name -> ngfw.v1.SocketAddress
-	102, // 163: ngfw.v1.DnsResolver.access_control:type_name -> ngfw.v1.DnsAccessControl
-	98,  // 164: ngfw.v1.DnsResolver.forwarders:type_name -> ngfw.v1.DnsUpstream
-	99,  // 165: ngfw.v1.DnsResolver.forward_zones:type_name -> ngfw.v1.DnsForwardZone
-	101, // 166: ngfw.v1.DnsResolver.local_zones:type_name -> ngfw.v1.DnsLocalZone
-	522, // 167: ngfw.v1.DnsResolver.dnssec:type_name -> ngfw.v1.DnsResolver.Dnssec
-	523, // 168: ngfw.v1.DnsResolver.cache:type_name -> ngfw.v1.DnsResolver.Cache
-	89,  // 169: ngfw.v1.SnmpService.listen:type_name -> ngfw.v1.SocketAddress
-	527, // 170: ngfw.v1.SnmpService.communities:type_name -> ngfw.v1.SnmpService.CommunitiesEntry
-	528, // 171: ngfw.v1.SnmpService.v3_users:type_name -> ngfw.v1.SnmpService.V3UsersEntry
-	526, // 172: ngfw.v1.SnmpService.trap_receivers:type_name -> ngfw.v1.SnmpService.TrapReceiver
-	529, // 173: ngfw.v1.SnmpService.views:type_name -> ngfw.v1.SnmpService.ViewsEntry
-	387, // 174: ngfw.v1.SnmpService.monitors:type_name -> ngfw.v1.SnmpMonitors
-	390, // 175: ngfw.v1.SnmpService.subagent:type_name -> ngfw.v1.SnmpSubagent
-	530, // 176: ngfw.v1.LldpService.interfaces:type_name -> ngfw.v1.LldpService.Interface
-	534, // 177: ngfw.v1.IpfixService.exporters:type_name -> ngfw.v1.IpfixService.ExportersEntry
-	532, // 178: ngfw.v1.IpfixService.flowprobe:type_name -> ngfw.v1.IpfixService.Flowprobe
-	533, // 179: ngfw.v1.IpfixService.sflow:type_name -> ngfw.v1.IpfixService.Sflow
-	536, // 180: ngfw.v1.NtpService.servers:type_name -> ngfw.v1.NtpService.Server
-	537, // 181: ngfw.v1.NtpService.rate_limit:type_name -> ngfw.v1.NtpService.RateLimit
-	538, // 182: ngfw.v1.NtpService.nts_server:type_name -> ngfw.v1.NtpService.NtsServer
-	539, // 183: ngfw.v1.NtpService.makestep:type_name -> ngfw.v1.NtpService.Makestep
-	540, // 184: ngfw.v1.QosService.policers:type_name -> ngfw.v1.QosService.PolicersEntry
-	541, // 185: ngfw.v1.QosService.shapers:type_name -> ngfw.v1.QosService.ShapersEntry
-	542, // 186: ngfw.v1.QosService.maps:type_name -> ngfw.v1.QosService.MapsEntry
-	543, // 187: ngfw.v1.QosService.interfaces:type_name -> ngfw.v1.QosService.InterfacesEntry
-	109, // 188: ngfw.v1.QosPolicer.conform_action:type_name -> ngfw.v1.QosPolicerAction
-	109, // 189: ngfw.v1.QosPolicer.exceed_action:type_name -> ngfw.v1.QosPolicerAction
-	109, // 190: ngfw.v1.QosPolicer.violate_action:type_name -> ngfw.v1.QosPolicerAction
-	544, // 191: ngfw.v1.QosMap.rows:type_name -> ngfw.v1.QosMap.Rows
-	545, // 192: ngfw.v1.QosInterface.policer:type_name -> ngfw.v1.QosInterface.Policer
-	546, // 193: ngfw.v1.QosInterface.store:type_name -> ngfw.v1.QosInterface.Store
-	547, // 194: ngfw.v1.QosInterface.mark:type_name -> ngfw.v1.QosInterface.Mark
-	548, // 195: ngfw.v1.HaConfig.vrrp:type_name -> ngfw.v1.HaConfig.VrrpEntry
-	117, // 196: ngfw.v1.HaConfig.cluster:type_name -> ngfw.v1.HaCluster
-	549, // 197: ngfw.v1.VrrpInstance.unicast:type_name -> ngfw.v1.VrrpInstance.Unicast
-	550, // 198: ngfw.v1.VrrpInstance.track:type_name -> ngfw.v1.VrrpInstance.Track
-	551, // 199: ngfw.v1.HaCluster.peers:type_name -> ngfw.v1.HaCluster.Peer
-	552, // 200: ngfw.v1.HaCluster.state_sync:type_name -> ngfw.v1.HaCluster.StateSync
-	130, // 201: ngfw.v1.ManagementConfig.users:type_name -> ngfw.v1.ManagementUser
-	131, // 202: ngfw.v1.ManagementConfig.aaa:type_name -> ngfw.v1.ManagementAaa
-	136, // 203: ngfw.v1.ManagementConfig.tls:type_name -> ngfw.v1.ManagementTls
-	137, // 204: ngfw.v1.ManagementConfig.syslog:type_name -> ngfw.v1.SyslogTarget
-	444, // 205: ngfw.v1.ManagementConfig.prometheus:type_name -> ngfw.v1.ManagementPrometheus
-	445, // 206: ngfw.v1.ManagementConfig.alarms:type_name -> ngfw.v1.ManagementAlarms
-	119, // 207: ngfw.v1.ManagementConfig.notifications:type_name -> ngfw.v1.ManagementNotifications
-	120, // 208: ngfw.v1.ManagementNotifications.channels:type_name -> ngfw.v1.NotificationChannel
-	123, // 209: ngfw.v1.ManagementNotifications.rules:type_name -> ngfw.v1.NotificationRule
-	121, // 210: ngfw.v1.NotificationChannel.email:type_name -> ngfw.v1.NotificationEmail
-	122, // 211: ngfw.v1.NotificationChannel.webhook:type_name -> ngfw.v1.NotificationWebhook
-	128, // 212: ngfw.v1.SecurityConfig.auto_block:type_name -> ngfw.v1.AutoBlock
-	126, // 213: ngfw.v1.AutoBlockSetRequest.entries:type_name -> ngfw.v1.AutoBlockRuntimeEntry
-	627, // 214: ngfw.v1.AutoBlockRuntimeEntry.expires_at:type_name -> google.protobuf.Timestamp
-	129, // 215: ngfw.v1.AutoBlock.rules:type_name -> ngfw.v1.AutoBlockRule
-	132, // 216: ngfw.v1.ManagementAaa.radius:type_name -> ngfw.v1.AaaRadius
-	134, // 217: ngfw.v1.ManagementAaa.tacacs:type_name -> ngfw.v1.AaaTacacs
-	460, // 218: ngfw.v1.ManagementAaa.ldap:type_name -> ngfw.v1.AaaLdap
-	464, // 219: ngfw.v1.ManagementAaa.oidc:type_name -> ngfw.v1.AaaOidc
-	462, // 220: ngfw.v1.ManagementAaa.role_map:type_name -> ngfw.v1.AaaRoleMapping
-	463, // 221: ngfw.v1.ManagementAaa.mfa:type_name -> ngfw.v1.AaaMfa
-	133, // 222: ngfw.v1.AaaRadius.servers:type_name -> ngfw.v1.RadiusServer
-	135, // 223: ngfw.v1.AaaTacacs.servers:type_name -> ngfw.v1.TacacsServer
-	304, // 224: ngfw.v1.SyslogTarget.tls:type_name -> ngfw.v1.SyslogTls
-	140, // 225: ngfw.v1.NatConfig.pools:type_name -> ngfw.v1.NatPool
-	141, // 226: ngfw.v1.NatConfig.static_mappings:type_name -> ngfw.v1.NatStaticMapping
-	142, // 227: ngfw.v1.NatConfig.identity_mappings:type_name -> ngfw.v1.NatIdentityMapping
-	143, // 228: ngfw.v1.NatConfig.load_balanced_mappings:type_name -> ngfw.v1.NatLoadBalancedMapping
-	139, // 229: ngfw.v1.NatConfig.timeouts:type_name -> ngfw.v1.NatTimeouts
-	144, // 230: ngfw.v1.NatConfig.ipfix:type_name -> ngfw.v1.NatIpfix
-	145, // 231: ngfw.v1.NatConfig.nat64:type_name -> ngfw.v1.Nat64Config
-	146, // 232: ngfw.v1.NatConfig.nat66:type_name -> ngfw.v1.Nat66Config
-	147, // 233: ngfw.v1.NatConfig.nptv6:type_name -> ngfw.v1.Nptv6Config
-	148, // 234: ngfw.v1.NatConfig.det44:type_name -> ngfw.v1.Det44Config
-	149, // 235: ngfw.v1.NatConfig.dslite:type_name -> ngfw.v1.DsliteConfig
-	153, // 236: ngfw.v1.NatConfig.map:type_name -> ngfw.v1.MapConfig
-	156, // 237: ngfw.v1.NatConfig.cnat:type_name -> ngfw.v1.CnatConfig
-	323, // 238: ngfw.v1.NatConfig.pnat:type_name -> ngfw.v1.PnatConfig
-	470, // 239: ngfw.v1.NatConfig.nat46:type_name -> ngfw.v1.Nat46Config
-	553, // 240: ngfw.v1.NatStaticMapping.local:type_name -> ngfw.v1.NatStaticMapping.Local
-	554, // 241: ngfw.v1.NatStaticMapping.external:type_name -> ngfw.v1.NatStaticMapping.External
-	555, // 242: ngfw.v1.NatLoadBalancedMapping.external:type_name -> ngfw.v1.NatLoadBalancedMapping.External
-	556, // 243: ngfw.v1.NatLoadBalancedMapping.locals:type_name -> ngfw.v1.NatLoadBalancedMapping.Local
-	557, // 244: ngfw.v1.Nat64Config.prefixes:type_name -> ngfw.v1.Nat64Config.Prefix
-	558, // 245: ngfw.v1.Nat64Config.pools:type_name -> ngfw.v1.Nat64Config.Pool
-	559, // 246: ngfw.v1.Nat64Config.static_bibs:type_name -> ngfw.v1.Nat64Config.StaticBib
-	139, // 247: ngfw.v1.Nat64Config.timeouts:type_name -> ngfw.v1.NatTimeouts
-	561, // 248: ngfw.v1.Nat66Config.static_mappings:type_name -> ngfw.v1.Nat66Config.StaticMapping
-	562, // 249: ngfw.v1.Nptv6Config.bindings:type_name -> ngfw.v1.Nptv6Config.Binding
-	563, // 250: ngfw.v1.Det44Config.mappings:type_name -> ngfw.v1.Det44Config.Mapping
-	139, // 251: ngfw.v1.Det44Config.timeouts:type_name -> ngfw.v1.NatTimeouts
-	564, // 252: ngfw.v1.DsliteConfig.aftr:type_name -> ngfw.v1.DsliteConfig.Endpoint
-	564, // 253: ngfw.v1.DsliteConfig.b4:type_name -> ngfw.v1.DsliteConfig.Endpoint
-	565, // 254: ngfw.v1.DsliteConfig.pools:type_name -> ngfw.v1.DsliteConfig.Pool
-	566, // 255: ngfw.v1.MapDomain.rules:type_name -> ngfw.v1.MapDomain.Rule
-	567, // 256: ngfw.v1.MapParameters.fragmentation:type_name -> ngfw.v1.MapParameters.Fragmentation
-	568, // 257: ngfw.v1.MapParameters.security_check:type_name -> ngfw.v1.MapParameters.SecurityCheck
-	569, // 258: ngfw.v1.MapParameters.traffic_class:type_name -> ngfw.v1.MapParameters.TrafficClass
-	570, // 259: ngfw.v1.MapParameters.pre_resolve:type_name -> ngfw.v1.MapParameters.PreResolve
-	150, // 260: ngfw.v1.MapConfig.domains:type_name -> ngfw.v1.MapDomain
-	151, // 261: ngfw.v1.MapConfig.parameters:type_name -> ngfw.v1.MapParameters
-	152, // 262: ngfw.v1.MapConfig.interfaces:type_name -> ngfw.v1.MapInterface
-	154, // 263: ngfw.v1.CnatTranslation.vip:type_name -> ngfw.v1.CnatEndpoint
-	154, // 264: ngfw.v1.CnatTranslation.backends:type_name -> ngfw.v1.CnatEndpoint
-	155, // 265: ngfw.v1.CnatConfig.translations:type_name -> ngfw.v1.CnatTranslation
-	571, // 266: ngfw.v1.CnatConfig.snat:type_name -> ngfw.v1.CnatConfig.Snat
-	574, // 267: ngfw.v1.ObjectsConfig.addresses:type_name -> ngfw.v1.ObjectsConfig.AddressesEntry
-	575, // 268: ngfw.v1.ObjectsConfig.address_groups:type_name -> ngfw.v1.ObjectsConfig.AddressGroupsEntry
-	576, // 269: ngfw.v1.ObjectsConfig.services:type_name -> ngfw.v1.ObjectsConfig.ServicesEntry
-	577, // 270: ngfw.v1.ObjectsConfig.service_groups:type_name -> ngfw.v1.ObjectsConfig.ServiceGroupsEntry
-	578, // 271: ngfw.v1.ObjectsConfig.schedules:type_name -> ngfw.v1.ObjectsConfig.SchedulesEntry
-	579, // 272: ngfw.v1.ObjectsConfig.zones:type_name -> ngfw.v1.ObjectsConfig.ZonesEntry
-	580, // 273: ngfw.v1.ObjectsConfig.tags:type_name -> ngfw.v1.ObjectsConfig.TagsEntry
-	160, // 274: ngfw.v1.ServiceSpec.tcp_flags:type_name -> ngfw.v1.TcpFlags
-	160, // 275: ngfw.v1.ServiceObject.tcp_flags:type_name -> ngfw.v1.TcpFlags
-	581, // 276: ngfw.v1.AclConfig.lists:type_name -> ngfw.v1.AclConfig.ListsEntry
-	582, // 277: ngfw.v1.AclConfig.macip:type_name -> ngfw.v1.AclConfig.MacipEntry
-	583, // 278: ngfw.v1.AclConfig.host:type_name -> ngfw.v1.AclConfig.HostEntry
-	180, // 279: ngfw.v1.AclConfig.attachments:type_name -> ngfw.v1.AclAttachment
-	181, // 280: ngfw.v1.AclConfig.macip_attachments:type_name -> ngfw.v1.MacipAttachment
-	182, // 281: ngfw.v1.AclConfig.host_attachments:type_name -> ngfw.v1.HostAttachment
-	265, // 282: ngfw.v1.AclConfig.host_settings:type_name -> ngfw.v1.HostAclSettings
-	168, // 283: ngfw.v1.AclConfig.global_blocking:type_name -> ngfw.v1.GlobalBlocking
-	584, // 284: ngfw.v1.GlobalBlocking.lists:type_name -> ngfw.v1.GlobalBlocking.ListsEntry
-	169, // 285: ngfw.v1.GlobalBlockingList.source:type_name -> ngfw.v1.GlobalBlockingSource
-	161, // 286: ngfw.v1.ServiceMatch.spec:type_name -> ngfw.v1.ServiceSpec
-	171, // 287: ngfw.v1.AclRule.source:type_name -> ngfw.v1.AddressMatch
-	171, // 288: ngfw.v1.AclRule.destination:type_name -> ngfw.v1.AddressMatch
-	172, // 289: ngfw.v1.AclRule.service:type_name -> ngfw.v1.ServiceMatch
-	173, // 290: ngfw.v1.AclList.rules:type_name -> ngfw.v1.AclRule
-	175, // 291: ngfw.v1.MacipList.rules:type_name -> ngfw.v1.MacipRule
-	171, // 292: ngfw.v1.HostRule.source:type_name -> ngfw.v1.AddressMatch
-	171, // 293: ngfw.v1.HostRule.destination:type_name -> ngfw.v1.AddressMatch
-	172, // 294: ngfw.v1.HostRule.service:type_name -> ngfw.v1.ServiceMatch
-	177, // 295: ngfw.v1.HostList.rules:type_name -> ngfw.v1.HostRule
-	179, // 296: ngfw.v1.AclAttachment.target:type_name -> ngfw.v1.AttachmentTarget
-	192, // 297: ngfw.v1.VpnConfig.ipsec:type_name -> ngfw.v1.IpsecConfig
-	195, // 298: ngfw.v1.VpnConfig.wireguard:type_name -> ngfw.v1.WireguardConfig
-	198, // 299: ngfw.v1.VpnConfig.pki:type_name -> ngfw.v1.PkiConfig
-	585, // 300: ngfw.v1.VpnConfig.remote_access:type_name -> ngfw.v1.VpnConfig.RemoteAccessEntry
-	184, // 301: ngfw.v1.IpsecProposal.ike:type_name -> ngfw.v1.IkeProposal
-	185, // 302: ngfw.v1.IpsecProposal.esp:type_name -> ngfw.v1.EspProposal
-	187, // 303: ngfw.v1.IpsecTunnel.auth:type_name -> ngfw.v1.IpsecAuth
-	188, // 304: ngfw.v1.IpsecTunnel.dpd:type_name -> ngfw.v1.IpsecDpd
-	189, // 305: ngfw.v1.IpsecTunnel.rekey:type_name -> ngfw.v1.IpsecRekey
-	586, // 306: ngfw.v1.IpsecTunnel.route_based:type_name -> ngfw.v1.IpsecTunnel.RouteBased
-	191, // 307: ngfw.v1.IpsecConfig.settings:type_name -> ngfw.v1.IpsecSettings
-	587, // 308: ngfw.v1.IpsecConfig.proposals:type_name -> ngfw.v1.IpsecConfig.ProposalsEntry
-	588, // 309: ngfw.v1.IpsecConfig.tunnels:type_name -> ngfw.v1.IpsecConfig.TunnelsEntry
-	589, // 310: ngfw.v1.WireguardPeer.endpoint:type_name -> ngfw.v1.WireguardPeer.Endpoint
-	590, // 311: ngfw.v1.WireguardInterface.peers:type_name -> ngfw.v1.WireguardInterface.PeersEntry
-	591, // 312: ngfw.v1.WireguardConfig.interfaces:type_name -> ngfw.v1.WireguardConfig.InterfacesEntry
-	592, // 313: ngfw.v1.PkiCa.crl:type_name -> ngfw.v1.PkiCa.Crl
-	338, // 314: ngfw.v1.PkiCa.key_spec:type_name -> ngfw.v1.PkiKeySpec
-	340, // 315: ngfw.v1.PkiCa.issued:type_name -> ngfw.v1.PkiIssued
-	593, // 316: ngfw.v1.PkiCertificate.acme:type_name -> ngfw.v1.PkiCertificate.Acme
-	339, // 317: ngfw.v1.PkiCertificate.csr:type_name -> ngfw.v1.PkiCsr
-	340, // 318: ngfw.v1.PkiCertificate.issued:type_name -> ngfw.v1.PkiIssued
-	595, // 319: ngfw.v1.PkiConfig.cas:type_name -> ngfw.v1.PkiConfig.CasEntry
-	596, // 320: ngfw.v1.PkiConfig.certificates:type_name -> ngfw.v1.PkiConfig.CertificatesEntry
-	594, // 321: ngfw.v1.PkiConfig.hsm:type_name -> ngfw.v1.PkiConfig.Hsm
-	199, // 322: ngfw.v1.RemoteAccessProfile.pools:type_name -> ngfw.v1.RemoteAccessPool
-	200, // 323: ngfw.v1.RemoteAccessProfile.users:type_name -> ngfw.v1.RemoteAccessUser
-	597, // 324: ngfw.v1.RemoteAccessProfile.radius:type_name -> ngfw.v1.RemoteAccessProfile.Radius
-	188, // 325: ngfw.v1.RemoteAccessProfile.dpd:type_name -> ngfw.v1.IpsecDpd
-	189, // 326: ngfw.v1.RemoteAccessProfile.rekey:type_name -> ngfw.v1.IpsecRekey
-	599, // 327: ngfw.v1.Bond.members:type_name -> ngfw.v1.Bond.MembersEntry
-	206, // 328: ngfw.v1.BondStateResponse.bonds:type_name -> ngfw.v1.BondStatus
-	627, // 329: ngfw.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	207, // 330: ngfw.v1.BondStatus.members:type_name -> ngfw.v1.BondMemberStatus
-	208, // 331: ngfw.v1.BondMemberStatus.lacp:type_name -> ngfw.v1.BondLacpState
-	209, // 332: ngfw.v1.BondLacpState.actor:type_name -> ngfw.v1.BondLacpPort
-	209, // 333: ngfw.v1.BondLacpState.partner:type_name -> ngfw.v1.BondLacpPort
-	211, // 334: ngfw.v1.BridgeL2Port.tag_rewrite:type_name -> ngfw.v1.BridgeL2TagRewrite
-	600, // 335: ngfw.v1.BridgeL2Config.bridge_domains:type_name -> ngfw.v1.BridgeL2Config.BridgeDomainsEntry
-	601, // 336: ngfw.v1.BridgeL2Config.xconnects:type_name -> ngfw.v1.BridgeL2Config.XconnectsEntry
-	602, // 337: ngfw.v1.BridgeL2Config.l3xc:type_name -> ngfw.v1.BridgeL2Config.L3xcEntry
-	603, // 338: ngfw.v1.BridgeL2Config.mac_filters:type_name -> ngfw.v1.BridgeL2Config.MacFiltersEntry
-	214, // 339: ngfw.v1.BridgeL2Domain.static_macs:type_name -> ngfw.v1.BridgeL2StaticMac
-	217, // 340: ngfw.v1.BridgeL2L3xc.ipv4_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
-	217, // 341: ngfw.v1.BridgeL2L3xc.ipv6_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
-	219, // 342: ngfw.v1.BridgeL2MacFilter.ranges:type_name -> ngfw.v1.BridgeL2MacFilterRange
-	222, // 343: ngfw.v1.BridgeDomainStateResponse.bridge_domains:type_name -> ngfw.v1.BridgeDomainStatus
-	627, // 344: ngfw.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	223, // 345: ngfw.v1.BridgeDomainStatus.members:type_name -> ngfw.v1.BridgeDomainMember
-	226, // 346: ngfw.v1.BridgeDomainMacsResponse.macs:type_name -> ngfw.v1.BridgeDomainMac
-	627, // 347: ngfw.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	604, // 348: ngfw.v1.NsimService.cross_connect:type_name -> ngfw.v1.NsimService.CrossConnect
-	231, // 349: ngfw.v1.LldpNeighborsResponse.neighbors:type_name -> ngfw.v1.LldpNeighbor
-	627, // 350: ngfw.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	235, // 351: ngfw.v1.ListRoutesResponse.routes:type_name -> ngfw.v1.ListRoutesEntry
-	627, // 352: ngfw.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	236, // 353: ngfw.v1.ListRoutesEntry.paths:type_name -> ngfw.v1.ListRoutesPath
-	605, // 354: ngfw.v1.Ipv6Ra.prefixes:type_name -> ngfw.v1.Ipv6Ra.PrefixesEntry
-	241, // 355: ngfw.v1.NeighborsConfig.static:type_name -> ngfw.v1.StaticNeighbor
-	242, // 356: ngfw.v1.NeighborsConfig.ipv4_limits:type_name -> ngfw.v1.NeighborLimits
-	242, // 357: ngfw.v1.NeighborsConfig.ipv6_limits:type_name -> ngfw.v1.NeighborLimits
-	243, // 358: ngfw.v1.NeighborsConfig.dad:type_name -> ngfw.v1.NeighborDad
-	246, // 359: ngfw.v1.ListNeighborsResponse.neighbors:type_name -> ngfw.v1.NeighborEntry
-	627, // 360: ngfw.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	606, // 361: ngfw.v1.PbrConfig.policies:type_name -> ngfw.v1.PbrConfig.PoliciesEntry
-	253, // 362: ngfw.v1.PbrConfig.attachments:type_name -> ngfw.v1.PbrAttachment
-	252, // 363: ngfw.v1.PbrPolicy.paths:type_name -> ngfw.v1.PbrPath
-	257, // 364: ngfw.v1.FqdnObjectStateResponse.objects:type_name -> ngfw.v1.FqdnObjectState
-	627, // 365: ngfw.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	627, // 366: ngfw.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
-	627, // 367: ngfw.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
-	259, // 368: ngfw.v1.AclStateRequest.filter:type_name -> ngfw.v1.AclStateFilter
-	627, // 369: ngfw.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	261, // 370: ngfw.v1.AclStateResponse.lists:type_name -> ngfw.v1.AclListState
-	262, // 371: ngfw.v1.AclStateResponse.rules:type_name -> ngfw.v1.AclRuleState
-	263, // 372: ngfw.v1.AclStateResponse.interfaces:type_name -> ngfw.v1.AclInterfaceState
-	261, // 373: ngfw.v1.AclStateResponse.macip_lists:type_name -> ngfw.v1.AclListState
-	6,   // 374: ngfw.v1.AclRuleState.status:type_name -> ngfw.v1.AclRuleStatus
-	264, // 375: ngfw.v1.AclInterfaceState.input:type_name -> ngfw.v1.AclBoundAcl
-	264, // 376: ngfw.v1.AclInterfaceState.output:type_name -> ngfw.v1.AclBoundAcl
-	264, // 377: ngfw.v1.AclInterfaceState.macip:type_name -> ngfw.v1.AclBoundAcl
-	266, // 378: ngfw.v1.HostAclSettings.anti_lockout:type_name -> ngfw.v1.HostAclAntiLockout
-	627, // 379: ngfw.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	269, // 380: ngfw.v1.HostAclStateResponse.sets:type_name -> ngfw.v1.HostAclSetState
-	270, // 381: ngfw.v1.HostAclStateResponse.chains:type_name -> ngfw.v1.HostAclChainState
-	271, // 382: ngfw.v1.HostAclChainState.rules:type_name -> ngfw.v1.HostAclRuleState
-	272, // 383: ngfw.v1.NatSessionsRequest.filter:type_name -> ngfw.v1.NatSessionFilter
-	7,   // 384: ngfw.v1.NatSessionsRequest.variant:type_name -> ngfw.v1.NatSessionVariant
-	274, // 385: ngfw.v1.NatSessionsResponse.sessions:type_name -> ngfw.v1.NatSession
-	627, // 386: ngfw.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	7,   // 387: ngfw.v1.NatSessionsResponse.variant:type_name -> ngfw.v1.NatSessionVariant
-	277, // 388: ngfw.v1.NatSummaryResponse.pools:type_name -> ngfw.v1.NatPoolUsage
-	607, // 389: ngfw.v1.NatSummaryResponse.sessions_by_protocol:type_name -> ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
-	627, // 390: ngfw.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	7,   // 391: ngfw.v1.NatSessionKillAction.variant:type_name -> ngfw.v1.NatSessionVariant
-	282, // 392: ngfw.v1.WireguardStateResponse.interfaces:type_name -> ngfw.v1.WireguardInterfaceState
-	627, // 393: ngfw.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	283, // 394: ngfw.v1.WireguardInterfaceState.peers:type_name -> ngfw.v1.WireguardPeerState
-	627, // 395: ngfw.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
-	286, // 396: ngfw.v1.Pppoe.reconnect:type_name -> ngfw.v1.PppoeReconnect
-	627, // 397: ngfw.v1.PppoeSessionState.since:type_name -> google.protobuf.Timestamp
-	627, // 398: ngfw.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	292, // 399: ngfw.v1.RoutingStateResponse.bgp:type_name -> ngfw.v1.BgpInstanceState
-	608, // 400: ngfw.v1.RoutingStateResponse.rib_counts:type_name -> ngfw.v1.RoutingStateResponse.RibCountsEntry
-	295, // 401: ngfw.v1.RoutingStateResponse.lcp_pairs:type_name -> ngfw.v1.RoutingLcpPair
-	609, // 402: ngfw.v1.RoutingStateResponse.readers:type_name -> ngfw.v1.RoutingStateResponse.ReadersEntry
-	296, // 403: ngfw.v1.RoutingStateResponse.rib:type_name -> ngfw.v1.RoutingRibEntry
-	293, // 404: ngfw.v1.BgpInstanceState.neighbors:type_name -> ngfw.v1.BgpNeighborState
-	294, // 405: ngfw.v1.BgpNeighborState.afis:type_name -> ngfw.v1.BgpNeighborAfiState
-	297, // 406: ngfw.v1.RoutingRibEntry.next_hops:type_name -> ngfw.v1.RoutingRibNextHop
-	627, // 407: ngfw.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
-	300, // 408: ngfw.v1.DhcpServerStatus.subnets:type_name -> ngfw.v1.DhcpSubnetUsage
-	299, // 409: ngfw.v1.DhcpLeasesResponse.leases:type_name -> ngfw.v1.DhcpLease
-	301, // 410: ngfw.v1.DhcpLeasesResponse.servers:type_name -> ngfw.v1.DhcpServerStatus
-	302, // 411: ngfw.v1.DhcpLeasesResponse.client:type_name -> ngfw.v1.DhcpClientLease
-	627, // 412: ngfw.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	627, // 413: ngfw.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	610, // 414: ngfw.v1.DnsStateResponse.status:type_name -> ngfw.v1.DnsStateResponse.StatusEntry
-	611, // 415: ngfw.v1.DnsStateResponse.stats:type_name -> ngfw.v1.DnsStateResponse.StatsEntry
-	309, // 416: ngfw.v1.DnsStateResponse.forwards:type_name -> ngfw.v1.DnsZoneState
-	309, // 417: ngfw.v1.DnsStateResponse.stubs:type_name -> ngfw.v1.DnsZoneState
-	310, // 418: ngfw.v1.DnsStateResponse.local_zones:type_name -> ngfw.v1.DnsLocalZoneState
-	306, // 419: ngfw.v1.DnsStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
-	311, // 420: ngfw.v1.DnsStateResponse.vpp_cache:type_name -> ngfw.v1.DnsVppCacheState
-	627, // 421: ngfw.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	314, // 422: ngfw.v1.NtpStateResponse.tracking:type_name -> ngfw.v1.NtpTracking
-	315, // 423: ngfw.v1.NtpStateResponse.sources:type_name -> ngfw.v1.NtpSource
-	316, // 424: ngfw.v1.NtpStateResponse.source_stats:type_name -> ngfw.v1.NtpSourceStats
-	612, // 425: ngfw.v1.NtpStateResponse.server_stats:type_name -> ngfw.v1.NtpStateResponse.ServerStatsEntry
-	306, // 426: ngfw.v1.NtpStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
-	627, // 427: ngfw.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	319, // 428: ngfw.v1.SyslogStateResponse.targets:type_name -> ngfw.v1.SyslogTargetState
-	613, // 429: ngfw.v1.SyslogStateResponse.inputs:type_name -> ngfw.v1.SyslogStateResponse.InputsEntry
-	306, // 430: ngfw.v1.SyslogStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
-	627, // 431: ngfw.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
-	627, // 432: ngfw.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	322, // 433: ngfw.v1.SyslogEntriesResponse.entries:type_name -> ngfw.v1.SyslogEntry
-	627, // 434: ngfw.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
-	324, // 435: ngfw.v1.PnatConfig.bindings:type_name -> ngfw.v1.PnatBinding
-	327, // 436: ngfw.v1.PnatConfig.attachments:type_name -> ngfw.v1.PnatAttachment
-	325, // 437: ngfw.v1.PnatBinding.match:type_name -> ngfw.v1.PnatMatch
-	326, // 438: ngfw.v1.PnatBinding.rewrite:type_name -> ngfw.v1.PnatRewrite
-	329, // 439: ngfw.v1.Det44SessionsResponse.sessions:type_name -> ngfw.v1.Det44Session
-	627, // 440: ngfw.v1.Det44SessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	334, // 441: ngfw.v1.CnatSessionsResponse.sessions:type_name -> ngfw.v1.CnatSession
-	627, // 442: ngfw.v1.CnatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	338, // 443: ngfw.v1.PkiCsr.key_spec:type_name -> ngfw.v1.PkiKeySpec
-	342, // 444: ngfw.v1.PkiFileStateSet.files:type_name -> ngfw.v1.PkiFileStateFile
-	627, // 445: ngfw.v1.PkiFileStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	342, // 446: ngfw.v1.PkiFileStateResponse.files:type_name -> ngfw.v1.PkiFileStateFile
-	614, // 447: ngfw.v1.MplsConfig.tables:type_name -> ngfw.v1.MplsConfig.TablesEntry
-	347, // 448: ngfw.v1.MplsConfig.label_routes:type_name -> ngfw.v1.MplsLabelRoute
-	349, // 449: ngfw.v1.MplsConfig.ip_bindings:type_name -> ngfw.v1.MplsIpBinding
-	615, // 450: ngfw.v1.MplsConfig.tunnels:type_name -> ngfw.v1.MplsConfig.TunnelsEntry
-	351, // 451: ngfw.v1.MplsConfig.sr:type_name -> ngfw.v1.MplsSr
-	436, // 452: ngfw.v1.MplsConfig.ldp:type_name -> ngfw.v1.MplsLdp
-	348, // 453: ngfw.v1.MplsLabelRoute.paths:type_name -> ngfw.v1.MplsPath
-	348, // 454: ngfw.v1.MplsTunnel.paths:type_name -> ngfw.v1.MplsPath
-	616, // 455: ngfw.v1.MplsSr.policies:type_name -> ngfw.v1.MplsSr.PoliciesEntry
-	354, // 456: ngfw.v1.MplsSr.steering:type_name -> ngfw.v1.MplsSrSteering
-	353, // 457: ngfw.v1.MplsSrPolicy.segment_lists:type_name -> ngfw.v1.MplsSrSegmentList
-	358, // 458: ngfw.v1.MplsStateResponse.entries:type_name -> ngfw.v1.MplsStateFibEntry
-	360, // 459: ngfw.v1.MplsStateResponse.tunnels:type_name -> ngfw.v1.MplsStateTunnel
-	357, // 460: ngfw.v1.MplsStateResponse.tables:type_name -> ngfw.v1.MplsStateTable
-	627, // 461: ngfw.v1.MplsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	359, // 462: ngfw.v1.MplsStateFibEntry.paths:type_name -> ngfw.v1.MplsStatePath
-	359, // 463: ngfw.v1.MplsStateTunnel.paths:type_name -> ngfw.v1.MplsStatePath
-	362, // 464: ngfw.v1.LbService.settings:type_name -> ngfw.v1.LbSettings
-	617, // 465: ngfw.v1.LbService.vips:type_name -> ngfw.v1.LbService.VipsEntry
-	365, // 466: ngfw.v1.LbService.nat_interfaces:type_name -> ngfw.v1.LbNatInterface
-	364, // 467: ngfw.v1.LbVip.servers:type_name -> ngfw.v1.LbServer
-	369, // 468: ngfw.v1.LbStateResponse.vips:type_name -> ngfw.v1.LbVipState
-	627, // 469: ngfw.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	368, // 470: ngfw.v1.LbVipState.servers:type_name -> ngfw.v1.LbServerState
-	373, // 471: ngfw.v1.QosPolicerStatus.conform:type_name -> ngfw.v1.QosPolicerCounter
-	373, // 472: ngfw.v1.QosPolicerStatus.exceed:type_name -> ngfw.v1.QosPolicerCounter
-	373, // 473: ngfw.v1.QosPolicerStatus.violate:type_name -> ngfw.v1.QosPolicerCounter
-	374, // 474: ngfw.v1.QosPolicerStateResponse.policers:type_name -> ngfw.v1.QosPolicerStatus
-	627, // 475: ngfw.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	627, // 476: ngfw.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
-	618, // 477: ngfw.v1.HostStackService.namespaces:type_name -> ngfw.v1.HostStackService.NamespacesEntry
-	380, // 478: ngfw.v1.HostStackService.session_rules:type_name -> ngfw.v1.HostStackSessionRule
-	381, // 479: ngfw.v1.HostStackService.tcp_source_addresses:type_name -> ngfw.v1.HostStackTcpSource
-	382, // 480: ngfw.v1.HostStackService.http_static:type_name -> ngfw.v1.HostStackHttpStatic
-	384, // 481: ngfw.v1.HostStackStateResponse.rules:type_name -> ngfw.v1.HostStackRuleState
-	627, // 482: ngfw.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	388, // 483: ngfw.v1.SnmpMonitors.disks:type_name -> ngfw.v1.SnmpMonitorDisk
-	389, // 484: ngfw.v1.SnmpMonitors.load:type_name -> ngfw.v1.SnmpMonitorLoad
-	395, // 485: ngfw.v1.IpfixStateResponse.exporters:type_name -> ngfw.v1.IpfixExporterState
-	396, // 486: ngfw.v1.IpfixStateResponse.flowprobe_params:type_name -> ngfw.v1.IpfixFlowprobeParamsState
-	397, // 487: ngfw.v1.IpfixStateResponse.flowprobe_interfaces:type_name -> ngfw.v1.IpfixFlowprobeInterfaceState
-	398, // 488: ngfw.v1.IpfixStateResponse.sflow_global:type_name -> ngfw.v1.IpfixSflowGlobalState
-	399, // 489: ngfw.v1.IpfixStateResponse.sflow_interfaces:type_name -> ngfw.v1.IpfixSflowInterfaceState
-	400, // 490: ngfw.v1.IpfixStateResponse.sflow_counters:type_name -> ngfw.v1.IpfixCounter
-	627, // 491: ngfw.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	627, // 492: ngfw.v1.CaptureFile.started_at:type_name -> google.protobuf.Timestamp
-	627, // 493: ngfw.v1.CaptureFile.stopped_at:type_name -> google.protobuf.Timestamp
-	402, // 494: ngfw.v1.CaptureListResponse.captures:type_name -> ngfw.v1.CaptureFile
-	619, // 495: ngfw.v1.Srv6Config.local_sids:type_name -> ngfw.v1.Srv6Config.LocalSidsEntry
-	620, // 496: ngfw.v1.Srv6Config.policies:type_name -> ngfw.v1.Srv6Config.PoliciesEntry
-	412, // 497: ngfw.v1.Srv6Config.steering:type_name -> ngfw.v1.Srv6Steering
-	411, // 498: ngfw.v1.Srv6Policy.sid_lists:type_name -> ngfw.v1.Srv6SidList
-	415, // 499: ngfw.v1.Srv6StateResponse.local_sids:type_name -> ngfw.v1.Srv6StateLocalSid
-	416, // 500: ngfw.v1.Srv6StateResponse.policies:type_name -> ngfw.v1.Srv6StatePolicy
-	418, // 501: ngfw.v1.Srv6StateResponse.steering:type_name -> ngfw.v1.Srv6StateSteering
-	627, // 502: ngfw.v1.Srv6StateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	417, // 503: ngfw.v1.Srv6StatePolicy.sid_lists:type_name -> ngfw.v1.Srv6StateSidList
-	621, // 504: ngfw.v1.LispConfig.locator_sets:type_name -> ngfw.v1.LispConfig.LocatorSetsEntry
-	422, // 505: ngfw.v1.LispConfig.local_eids:type_name -> ngfw.v1.LispLocalEid
-	622, // 506: ngfw.v1.LispConfig.eid_tables:type_name -> ngfw.v1.LispConfig.EidTablesEntry
-	425, // 507: ngfw.v1.LispConfig.remote_mappings:type_name -> ngfw.v1.LispRemoteMapping
-	426, // 508: ngfw.v1.LispConfig.adjacencies:type_name -> ngfw.v1.LispAdjacency
-	428, // 509: ngfw.v1.LispConfig.gpe_entries:type_name -> ngfw.v1.LispGpeEntry
-	421, // 510: ngfw.v1.LispLocatorSet.locators:type_name -> ngfw.v1.LispLocator
-	424, // 511: ngfw.v1.LispRemoteMapping.rlocs:type_name -> ngfw.v1.LispRloc
-	427, // 512: ngfw.v1.LispGpeEntry.pairs:type_name -> ngfw.v1.LispLocatorPair
-	430, // 513: ngfw.v1.LispStateLocatorSet.locators:type_name -> ngfw.v1.LispStateLocator
-	431, // 514: ngfw.v1.LispStateResponse.locator_sets:type_name -> ngfw.v1.LispStateLocatorSet
-	432, // 515: ngfw.v1.LispStateResponse.mappings:type_name -> ngfw.v1.LispStateMapping
-	433, // 516: ngfw.v1.LispStateResponse.adjacencies:type_name -> ngfw.v1.LispStateAdjacency
-	434, // 517: ngfw.v1.LispStateResponse.eid_tables:type_name -> ngfw.v1.LispStateEidTable
-	627, // 518: ngfw.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	623, // 519: ngfw.v1.MplsLdp.neighbors:type_name -> ngfw.v1.MplsLdp.NeighborsEntry
-	438, // 520: ngfw.v1.MplsLdp.label_range:type_name -> ngfw.v1.LdpLabelRange
-	627, // 521: ngfw.v1.MplsLdpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	441, // 522: ngfw.v1.MplsLdpStateResponse.neighbors:type_name -> ngfw.v1.LdpNeighborState
-	442, // 523: ngfw.v1.MplsLdpStateResponse.bindings:type_name -> ngfw.v1.LdpBindingState
-	443, // 524: ngfw.v1.MplsLdpStateResponse.sync:type_name -> ngfw.v1.LdpSyncState
-	627, // 525: ngfw.v1.LdpSyncState.last_sync_at:type_name -> google.protobuf.Timestamp
-	624, // 526: ngfw.v1.ManagementAlarms.rules:type_name -> ngfw.v1.ManagementAlarms.RulesEntry
-	625, // 527: ngfw.v1.ManagementAlarms.targets:type_name -> ngfw.v1.ManagementAlarms.TargetsEntry
-	449, // 528: ngfw.v1.WanGroup.members:type_name -> ngfw.v1.WanMember
-	450, // 529: ngfw.v1.WanGroup.monitors:type_name -> ngfw.v1.WanMonitor
-	627, // 530: ngfw.v1.WanStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	453, // 531: ngfw.v1.WanStateResponse.groups:type_name -> ngfw.v1.WanGroupState
-	454, // 532: ngfw.v1.WanGroupState.members:type_name -> ngfw.v1.WanMemberState
-	627, // 533: ngfw.v1.WanMemberState.since:type_name -> google.protobuf.Timestamp
-	627, // 534: ngfw.v1.MulticastStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	457, // 535: ngfw.v1.MulticastStateResponse.groups:type_name -> ngfw.v1.IgmpGroupState
-	458, // 536: ngfw.v1.MulticastStateResponse.mroutes:type_name -> ngfw.v1.MrouteState
-	459, // 537: ngfw.v1.MulticastStateResponse.pim_neighbors:type_name -> ngfw.v1.PimNeighborState
-	461, // 538: ngfw.v1.AaaLdap.servers:type_name -> ngfw.v1.AaaLdapServer
-	626, // 539: ngfw.v1.DataplaneStartupStateResponse.plugins:type_name -> ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
-	627, // 540: ngfw.v1.DataplaneStartupStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	467, // 541: ngfw.v1.DataplaneStartupStateResponse.runtime_threads:type_name -> ngfw.v1.DataplaneRuntimeThread
-	40,  // 542: ngfw.v1.DataplaneStartupPreviewRequest.dataplane:type_name -> ngfw.v1.DataplaneConfig
-	471, // 543: ngfw.v1.Nat46Config.mappings:type_name -> ngfw.v1.Nat46Mapping
-	627, // 544: ngfw.v1.SystemIdentityStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	476, // 545: ngfw.v1.IpsecStateResponse.conns:type_name -> ngfw.v1.IpsecConnState
-	478, // 546: ngfw.v1.IpsecStateResponse.sas:type_name -> ngfw.v1.IpsecIkeSa
-	627, // 547: ngfw.v1.IpsecStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	477, // 548: ngfw.v1.IpsecConnState.children:type_name -> ngfw.v1.IpsecChildConn
-	479, // 549: ngfw.v1.IpsecIkeSa.children:type_name -> ngfw.v1.IpsecChildSa
-	627, // 550: ngfw.v1.TunnelStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	481, // 551: ngfw.v1.TunnelStateResponse.tunnels:type_name -> ngfw.v1.TunnelStateTunnel
-	490, // 552: ngfw.v1.HostNicsResponse.nics:type_name -> ngfw.v1.HostNic
-	627, // 553: ngfw.v1.HostNicsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	43,  // 554: ngfw.v1.DesiredState.InterfacesEntry.value:type_name -> ngfw.v1.Interface
-	47,  // 555: ngfw.v1.DesiredState.VrfsEntry.value:type_name -> ngfw.v1.Vrf
-	42,  // 556: ngfw.v1.DataplaneConfig.DevicesEntry.value:type_name -> ngfw.v1.DataplaneDevice
-	46,  // 557: ngfw.v1.Interface.SubinterfacesEntry.value:type_name -> ngfw.v1.Subinterface
-	51,  // 558: ngfw.v1.IgmpConfig.InterfacesEntry.value:type_name -> ngfw.v1.IgmpInterface
-	53,  // 559: ngfw.v1.IgmpConfig.ProxiesEntry.value:type_name -> ngfw.v1.IgmpProxy
-	61,  // 560: ngfw.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> ngfw.v1.PrefixList
-	63,  // 561: ngfw.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> ngfw.v1.RouteMap
-	71,  // 562: ngfw.v1.BgpConfig.PeerGroupsEntry.value:type_name -> ngfw.v1.BgpPeerGroup
-	72,  // 563: ngfw.v1.BgpConfig.NeighborsEntry.value:type_name -> ngfw.v1.BgpNeighbor
-	75,  // 564: ngfw.v1.OspfConfig.AreasEntry.value:type_name -> ngfw.v1.OspfArea
-	76,  // 565: ngfw.v1.OspfConfig.InterfacesEntry.value:type_name -> ngfw.v1.OspfInterface
-	78,  // 566: ngfw.v1.IsisConfig.InterfacesEntry.value:type_name -> ngfw.v1.IsisInterface
-	80,  // 567: ngfw.v1.RipConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
-	85,  // 568: ngfw.v1.TunnelsConfig.GreEntry.value:type_name -> ngfw.v1.GreTunnel
-	86,  // 569: ngfw.v1.TunnelsConfig.VxlanEntry.value:type_name -> ngfw.v1.VxlanTunnel
-	87,  // 570: ngfw.v1.TunnelsConfig.IpipEntry.value:type_name -> ngfw.v1.IpipTunnel
-	484, // 571: ngfw.v1.TunnelsConfig.VxlanGpeEntry.value:type_name -> ngfw.v1.VxlanGpeTunnel
-	485, // 572: ngfw.v1.TunnelsConfig.GtpuEntry.value:type_name -> ngfw.v1.GtpuTunnel
-	486, // 573: ngfw.v1.TunnelsConfig.L2tpv3Entry.value:type_name -> ngfw.v1.L2tpv3Tunnel
-	487, // 574: ngfw.v1.TunnelsConfig.PppoeEntry.value:type_name -> ngfw.v1.PppoeSession
-	95,  // 575: ngfw.v1.DhcpService.ServersEntry.value:type_name -> ngfw.v1.DhcpServer
-	96,  // 576: ngfw.v1.DhcpService.RelaysEntry.value:type_name -> ngfw.v1.DhcpRelay
-	93,  // 577: ngfw.v1.DhcpSubnet.ReservationsEntry.value:type_name -> ngfw.v1.DhcpReservation
-	94,  // 578: ngfw.v1.DhcpServer.SubnetsEntry.value:type_name -> ngfw.v1.DhcpSubnet
-	103, // 579: ngfw.v1.DnsService.ResolversEntry.value:type_name -> ngfw.v1.DnsResolver
-	524, // 580: ngfw.v1.SnmpService.CommunitiesEntry.value:type_name -> ngfw.v1.SnmpService.Community
-	525, // 581: ngfw.v1.SnmpService.V3UsersEntry.value:type_name -> ngfw.v1.SnmpService.V3User
-	386, // 582: ngfw.v1.SnmpService.ViewsEntry.value:type_name -> ngfw.v1.SnmpView
-	89,  // 583: ngfw.v1.IpfixService.Exporter.collector:type_name -> ngfw.v1.SocketAddress
-	535, // 584: ngfw.v1.IpfixService.Flowprobe.interfaces:type_name -> ngfw.v1.IpfixService.Flowprobe.Interface
-	89,  // 585: ngfw.v1.IpfixService.Sflow.collectors:type_name -> ngfw.v1.SocketAddress
-	531, // 586: ngfw.v1.IpfixService.ExportersEntry.value:type_name -> ngfw.v1.IpfixService.Exporter
-	110, // 587: ngfw.v1.QosService.PolicersEntry.value:type_name -> ngfw.v1.QosPolicer
-	111, // 588: ngfw.v1.QosService.ShapersEntry.value:type_name -> ngfw.v1.QosShaper
-	113, // 589: ngfw.v1.QosService.MapsEntry.value:type_name -> ngfw.v1.QosMap
-	114, // 590: ngfw.v1.QosService.InterfacesEntry.value:type_name -> ngfw.v1.QosInterface
-	112, // 591: ngfw.v1.QosMap.Rows.ext:type_name -> ngfw.v1.QosMapEntry
-	112, // 592: ngfw.v1.QosMap.Rows.vlan:type_name -> ngfw.v1.QosMapEntry
-	112, // 593: ngfw.v1.QosMap.Rows.mpls:type_name -> ngfw.v1.QosMapEntry
-	112, // 594: ngfw.v1.QosMap.Rows.ip:type_name -> ngfw.v1.QosMapEntry
-	116, // 595: ngfw.v1.HaConfig.VrrpEntry.value:type_name -> ngfw.v1.VrrpInstance
-	560, // 596: ngfw.v1.Nat64Config.StaticBib.inside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
-	560, // 597: ngfw.v1.Nat64Config.StaticBib.outside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
-	572, // 598: ngfw.v1.CnatConfig.Snat.addresses:type_name -> ngfw.v1.CnatConfig.Snat.Addresses
-	573, // 599: ngfw.v1.CnatConfig.Snat.interfaces:type_name -> ngfw.v1.CnatConfig.Snat.PolicyInterface
-	158, // 600: ngfw.v1.ObjectsConfig.AddressesEntry.value:type_name -> ngfw.v1.AddressObject
-	159, // 601: ngfw.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> ngfw.v1.AddressGroup
-	162, // 602: ngfw.v1.ObjectsConfig.ServicesEntry.value:type_name -> ngfw.v1.ServiceObject
-	163, // 603: ngfw.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> ngfw.v1.ServiceGroup
-	164, // 604: ngfw.v1.ObjectsConfig.SchedulesEntry.value:type_name -> ngfw.v1.Schedule
-	165, // 605: ngfw.v1.ObjectsConfig.ZonesEntry.value:type_name -> ngfw.v1.Zone
-	166, // 606: ngfw.v1.ObjectsConfig.TagsEntry.value:type_name -> ngfw.v1.Tag
-	174, // 607: ngfw.v1.AclConfig.ListsEntry.value:type_name -> ngfw.v1.AclList
-	176, // 608: ngfw.v1.AclConfig.MacipEntry.value:type_name -> ngfw.v1.MacipList
-	178, // 609: ngfw.v1.AclConfig.HostEntry.value:type_name -> ngfw.v1.HostList
-	170, // 610: ngfw.v1.GlobalBlocking.ListsEntry.value:type_name -> ngfw.v1.GlobalBlockingList
-	201, // 611: ngfw.v1.VpnConfig.RemoteAccessEntry.value:type_name -> ngfw.v1.RemoteAccessProfile
-	186, // 612: ngfw.v1.IpsecConfig.ProposalsEntry.value:type_name -> ngfw.v1.IpsecProposal
-	190, // 613: ngfw.v1.IpsecConfig.TunnelsEntry.value:type_name -> ngfw.v1.IpsecTunnel
-	193, // 614: ngfw.v1.WireguardInterface.PeersEntry.value:type_name -> ngfw.v1.WireguardPeer
-	194, // 615: ngfw.v1.WireguardConfig.InterfacesEntry.value:type_name -> ngfw.v1.WireguardInterface
-	196, // 616: ngfw.v1.PkiConfig.CasEntry.value:type_name -> ngfw.v1.PkiCa
-	197, // 617: ngfw.v1.PkiConfig.CertificatesEntry.value:type_name -> ngfw.v1.PkiCertificate
-	598, // 618: ngfw.v1.RemoteAccessProfile.Radius.servers:type_name -> ngfw.v1.RemoteAccessProfile.Radius.Server
-	203, // 619: ngfw.v1.Bond.MembersEntry.value:type_name -> ngfw.v1.BondMember
-	213, // 620: ngfw.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> ngfw.v1.BridgeL2Domain
-	215, // 621: ngfw.v1.BridgeL2Config.XconnectsEntry.value:type_name -> ngfw.v1.BridgeL2Xconnect
-	216, // 622: ngfw.v1.BridgeL2Config.L3xcEntry.value:type_name -> ngfw.v1.BridgeL2L3xc
-	218, // 623: ngfw.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> ngfw.v1.BridgeL2MacFilter
-	238, // 624: ngfw.v1.Ipv6Ra.PrefixesEntry.value:type_name -> ngfw.v1.Ipv6RaPrefix
-	251, // 625: ngfw.v1.PbrConfig.PoliciesEntry.value:type_name -> ngfw.v1.PbrPolicy
-	346, // 626: ngfw.v1.MplsConfig.TablesEntry.value:type_name -> ngfw.v1.MplsTable
-	350, // 627: ngfw.v1.MplsConfig.TunnelsEntry.value:type_name -> ngfw.v1.MplsTunnel
-	352, // 628: ngfw.v1.MplsSr.PoliciesEntry.value:type_name -> ngfw.v1.MplsSrPolicy
-	363, // 629: ngfw.v1.LbService.VipsEntry.value:type_name -> ngfw.v1.LbVip
-	379, // 630: ngfw.v1.HostStackService.NamespacesEntry.value:type_name -> ngfw.v1.HostStackNamespace
-	409, // 631: ngfw.v1.Srv6Config.LocalSidsEntry.value:type_name -> ngfw.v1.Srv6LocalSid
-	410, // 632: ngfw.v1.Srv6Config.PoliciesEntry.value:type_name -> ngfw.v1.Srv6Policy
-	420, // 633: ngfw.v1.LispConfig.LocatorSetsEntry.value:type_name -> ngfw.v1.LispLocatorSet
-	423, // 634: ngfw.v1.LispConfig.EidTablesEntry.value:type_name -> ngfw.v1.LispEidTable
-	437, // 635: ngfw.v1.MplsLdp.NeighborsEntry.value:type_name -> ngfw.v1.LdpNeighbor
-	446, // 636: ngfw.v1.ManagementAlarms.RulesEntry.value:type_name -> ngfw.v1.AlarmRule
-	447, // 637: ngfw.v1.ManagementAlarms.TargetsEntry.value:type_name -> ngfw.v1.AlarmTarget
-	474, // 638: ngfw.v1.Dataplane.IpsecState:input_type -> ngfw.v1.IpsecStateRequest
-	480, // 639: ngfw.v1.Dataplane.TunnelState:input_type -> ngfw.v1.TunnelStateRequest
-	125, // 640: ngfw.v1.Dataplane.AutoBlockSet:input_type -> ngfw.v1.AutoBlockSetRequest
-	8,   // 641: ngfw.v1.Dataplane.Apply:input_type -> ngfw.v1.ApplyRequest
-	16,  // 642: ngfw.v1.Dataplane.Retrieve:input_type -> ngfw.v1.RetrieveRequest
-	12,  // 643: ngfw.v1.Dataplane.DryRun:input_type -> ngfw.v1.DryRunRequest
-	18,  // 644: ngfw.v1.Dataplane.StreamStats:input_type -> ngfw.v1.StreamStatsRequest
-	22,  // 645: ngfw.v1.Dataplane.StreamEvents:input_type -> ngfw.v1.StreamEventsRequest
-	24,  // 646: ngfw.v1.Dataplane.Action:input_type -> ngfw.v1.ActionRequest
-	31,  // 647: ngfw.v1.Dataplane.Health:input_type -> ngfw.v1.HealthRequest
-	33,  // 648: ngfw.v1.Dataplane.InterfaceState:input_type -> ngfw.v1.InterfaceStateRequest
-	328, // 649: ngfw.v1.Dataplane.Det44Sessions:input_type -> ngfw.v1.Det44SessionsRequest
-	331, // 650: ngfw.v1.Dataplane.Det44Lookup:input_type -> ngfw.v1.Det44LookupRequest
-	333, // 651: ngfw.v1.Dataplane.CnatSessions:input_type -> ngfw.v1.CnatSessionsRequest
-	341, // 652: ngfw.v1.Dataplane.PkiFileState:input_type -> ngfw.v1.PkiFileStateRequest
-	355, // 653: ngfw.v1.Dataplane.MplsState:input_type -> ngfw.v1.MplsStateRequest
-	366, // 654: ngfw.v1.Dataplane.LbState:input_type -> ngfw.v1.LbStateRequest
-	370, // 655: ngfw.v1.Dataplane.LbFlushVip:input_type -> ngfw.v1.LbFlushVipRequest
-	372, // 656: ngfw.v1.Dataplane.QosPolicerState:input_type -> ngfw.v1.QosPolicerStateRequest
-	376, // 657: ngfw.v1.Dataplane.QosPolicerReset:input_type -> ngfw.v1.QosPolicerResetRequest
-	383, // 658: ngfw.v1.Dataplane.HostStackState:input_type -> ngfw.v1.HostStackStateRequest
-	391, // 659: ngfw.v1.Dataplane.SnmpState:input_type -> ngfw.v1.SnmpStateRequest
-	393, // 660: ngfw.v1.Dataplane.IpfixState:input_type -> ngfw.v1.IpfixStateRequest
-	401, // 661: ngfw.v1.Dataplane.CaptureList:input_type -> ngfw.v1.CaptureListRequest
-	404, // 662: ngfw.v1.Dataplane.CaptureRead:input_type -> ngfw.v1.CaptureReadRequest
-	406, // 663: ngfw.v1.Dataplane.CaptureDelete:input_type -> ngfw.v1.CaptureDeleteRequest
-	413, // 664: ngfw.v1.Dataplane.Srv6State:input_type -> ngfw.v1.Srv6StateRequest
-	429, // 665: ngfw.v1.Dataplane.LispState:input_type -> ngfw.v1.LispStateRequest
-	204, // 666: ngfw.v1.Dataplane.BondState:input_type -> ngfw.v1.BondStateRequest
-	220, // 667: ngfw.v1.Dataplane.BridgeDomainState:input_type -> ngfw.v1.BridgeDomainStateRequest
-	224, // 668: ngfw.v1.Dataplane.BridgeDomainMacs:input_type -> ngfw.v1.BridgeDomainMacsRequest
-	229, // 669: ngfw.v1.Dataplane.LldpNeighbors:input_type -> ngfw.v1.LldpNeighborsRequest
-	233, // 670: ngfw.v1.Dataplane.ListRoutes:input_type -> ngfw.v1.ListRoutesRequest
-	244, // 671: ngfw.v1.Dataplane.ListNeighbors:input_type -> ngfw.v1.ListNeighborsRequest
-	255, // 672: ngfw.v1.Dataplane.FqdnObjectState:input_type -> ngfw.v1.FqdnObjectStateRequest
-	258, // 673: ngfw.v1.Dataplane.AclState:input_type -> ngfw.v1.AclStateRequest
-	267, // 674: ngfw.v1.Dataplane.HostAclState:input_type -> ngfw.v1.HostAclStateRequest
-	273, // 675: ngfw.v1.Dataplane.NatSessions:input_type -> ngfw.v1.NatSessionsRequest
-	276, // 676: ngfw.v1.Dataplane.NatSummary:input_type -> ngfw.v1.NatSummaryRequest
-	280, // 677: ngfw.v1.Dataplane.WireguardState:input_type -> ngfw.v1.WireguardStateRequest
-	290, // 678: ngfw.v1.Dataplane.RoutingState:input_type -> ngfw.v1.RoutingStateRequest
-	298, // 679: ngfw.v1.Dataplane.DhcpLeases:input_type -> ngfw.v1.DhcpLeasesRequest
-	307, // 680: ngfw.v1.Dataplane.DnsState:input_type -> ngfw.v1.DnsStateRequest
-	472, // 681: ngfw.v1.Dataplane.SystemIdentityState:input_type -> ngfw.v1.SystemIdentityStateRequest
-	312, // 682: ngfw.v1.Dataplane.NtpState:input_type -> ngfw.v1.NtpStateRequest
-	317, // 683: ngfw.v1.Dataplane.SyslogState:input_type -> ngfw.v1.SyslogStateRequest
-	320, // 684: ngfw.v1.Dataplane.SyslogEntries:input_type -> ngfw.v1.SyslogEntriesRequest
-	465, // 685: ngfw.v1.Dataplane.DataplaneStartupState:input_type -> ngfw.v1.DataplaneStartupStateRequest
-	468, // 686: ngfw.v1.Dataplane.DataplaneStartupPreview:input_type -> ngfw.v1.DataplaneStartupPreviewRequest
-	287, // 687: ngfw.v1.Dataplane.PppoeReconnect:input_type -> ngfw.v1.PppoeReconnectRequest
-	451, // 688: ngfw.v1.Dataplane.WanState:input_type -> ngfw.v1.WanStateRequest
-	455, // 689: ngfw.v1.Dataplane.MulticastState:input_type -> ngfw.v1.MulticastStateRequest
-	439, // 690: ngfw.v1.Dataplane.MplsLdpState:input_type -> ngfw.v1.MplsLdpStateRequest
-	488, // 691: ngfw.v1.Dataplane.HostNics:input_type -> ngfw.v1.HostNicsRequest
-	475, // 692: ngfw.v1.Dataplane.IpsecState:output_type -> ngfw.v1.IpsecStateResponse
-	482, // 693: ngfw.v1.Dataplane.TunnelState:output_type -> ngfw.v1.TunnelStateResponse
-	127, // 694: ngfw.v1.Dataplane.AutoBlockSet:output_type -> ngfw.v1.AutoBlockSetResponse
-	9,   // 695: ngfw.v1.Dataplane.Apply:output_type -> ngfw.v1.ApplyResponse
-	17,  // 696: ngfw.v1.Dataplane.Retrieve:output_type -> ngfw.v1.RetrieveResponse
-	15,  // 697: ngfw.v1.Dataplane.DryRun:output_type -> ngfw.v1.ValidationReport
-	19,  // 698: ngfw.v1.Dataplane.StreamStats:output_type -> ngfw.v1.StatsBatch
-	23,  // 699: ngfw.v1.Dataplane.StreamEvents:output_type -> ngfw.v1.Event
-	29,  // 700: ngfw.v1.Dataplane.Action:output_type -> ngfw.v1.ActionOutput
-	32,  // 701: ngfw.v1.Dataplane.Health:output_type -> ngfw.v1.HealthResponse
-	34,  // 702: ngfw.v1.Dataplane.InterfaceState:output_type -> ngfw.v1.InterfaceStateResponse
-	330, // 703: ngfw.v1.Dataplane.Det44Sessions:output_type -> ngfw.v1.Det44SessionsResponse
-	332, // 704: ngfw.v1.Dataplane.Det44Lookup:output_type -> ngfw.v1.Det44LookupResponse
-	335, // 705: ngfw.v1.Dataplane.CnatSessions:output_type -> ngfw.v1.CnatSessionsResponse
-	344, // 706: ngfw.v1.Dataplane.PkiFileState:output_type -> ngfw.v1.PkiFileStateResponse
-	356, // 707: ngfw.v1.Dataplane.MplsState:output_type -> ngfw.v1.MplsStateResponse
-	367, // 708: ngfw.v1.Dataplane.LbState:output_type -> ngfw.v1.LbStateResponse
-	371, // 709: ngfw.v1.Dataplane.LbFlushVip:output_type -> ngfw.v1.LbFlushVipResponse
-	375, // 710: ngfw.v1.Dataplane.QosPolicerState:output_type -> ngfw.v1.QosPolicerStateResponse
-	377, // 711: ngfw.v1.Dataplane.QosPolicerReset:output_type -> ngfw.v1.QosPolicerResetResponse
-	385, // 712: ngfw.v1.Dataplane.HostStackState:output_type -> ngfw.v1.HostStackStateResponse
-	392, // 713: ngfw.v1.Dataplane.SnmpState:output_type -> ngfw.v1.SnmpStateResponse
-	394, // 714: ngfw.v1.Dataplane.IpfixState:output_type -> ngfw.v1.IpfixStateResponse
-	403, // 715: ngfw.v1.Dataplane.CaptureList:output_type -> ngfw.v1.CaptureListResponse
-	405, // 716: ngfw.v1.Dataplane.CaptureRead:output_type -> ngfw.v1.CaptureChunk
-	407, // 717: ngfw.v1.Dataplane.CaptureDelete:output_type -> ngfw.v1.CaptureDeleteResponse
-	414, // 718: ngfw.v1.Dataplane.Srv6State:output_type -> ngfw.v1.Srv6StateResponse
-	435, // 719: ngfw.v1.Dataplane.LispState:output_type -> ngfw.v1.LispStateResponse
-	205, // 720: ngfw.v1.Dataplane.BondState:output_type -> ngfw.v1.BondStateResponse
-	221, // 721: ngfw.v1.Dataplane.BridgeDomainState:output_type -> ngfw.v1.BridgeDomainStateResponse
-	225, // 722: ngfw.v1.Dataplane.BridgeDomainMacs:output_type -> ngfw.v1.BridgeDomainMacsResponse
-	230, // 723: ngfw.v1.Dataplane.LldpNeighbors:output_type -> ngfw.v1.LldpNeighborsResponse
-	234, // 724: ngfw.v1.Dataplane.ListRoutes:output_type -> ngfw.v1.ListRoutesResponse
-	245, // 725: ngfw.v1.Dataplane.ListNeighbors:output_type -> ngfw.v1.ListNeighborsResponse
-	256, // 726: ngfw.v1.Dataplane.FqdnObjectState:output_type -> ngfw.v1.FqdnObjectStateResponse
-	260, // 727: ngfw.v1.Dataplane.AclState:output_type -> ngfw.v1.AclStateResponse
-	268, // 728: ngfw.v1.Dataplane.HostAclState:output_type -> ngfw.v1.HostAclStateResponse
-	275, // 729: ngfw.v1.Dataplane.NatSessions:output_type -> ngfw.v1.NatSessionsResponse
-	278, // 730: ngfw.v1.Dataplane.NatSummary:output_type -> ngfw.v1.NatSummaryResponse
-	281, // 731: ngfw.v1.Dataplane.WireguardState:output_type -> ngfw.v1.WireguardStateResponse
-	291, // 732: ngfw.v1.Dataplane.RoutingState:output_type -> ngfw.v1.RoutingStateResponse
-	303, // 733: ngfw.v1.Dataplane.DhcpLeases:output_type -> ngfw.v1.DhcpLeasesResponse
-	308, // 734: ngfw.v1.Dataplane.DnsState:output_type -> ngfw.v1.DnsStateResponse
-	473, // 735: ngfw.v1.Dataplane.SystemIdentityState:output_type -> ngfw.v1.SystemIdentityStateResponse
-	313, // 736: ngfw.v1.Dataplane.NtpState:output_type -> ngfw.v1.NtpStateResponse
-	318, // 737: ngfw.v1.Dataplane.SyslogState:output_type -> ngfw.v1.SyslogStateResponse
-	321, // 738: ngfw.v1.Dataplane.SyslogEntries:output_type -> ngfw.v1.SyslogEntriesResponse
-	466, // 739: ngfw.v1.Dataplane.DataplaneStartupState:output_type -> ngfw.v1.DataplaneStartupStateResponse
-	469, // 740: ngfw.v1.Dataplane.DataplaneStartupPreview:output_type -> ngfw.v1.DataplaneStartupPreviewResponse
-	288, // 741: ngfw.v1.Dataplane.PppoeReconnect:output_type -> ngfw.v1.PppoeReconnectResponse
-	452, // 742: ngfw.v1.Dataplane.WanState:output_type -> ngfw.v1.WanStateResponse
-	456, // 743: ngfw.v1.Dataplane.MulticastState:output_type -> ngfw.v1.MulticastStateResponse
-	440, // 744: ngfw.v1.Dataplane.MplsLdpState:output_type -> ngfw.v1.MplsLdpStateResponse
-	489, // 745: ngfw.v1.Dataplane.HostNics:output_type -> ngfw.v1.HostNicsResponse
-	692, // [692:746] is the sub-list for method output_type
-	638, // [638:692] is the sub-list for method input_type
-	638, // [638:638] is the sub-list for extension type_name
-	638, // [638:638] is the sub-list for extension extendee
-	0,   // [0:638] is the sub-list for field type_name
+	79,  // 86: ngfw.v1.RoutingConfig.ospf6:type_name -> ngfw.v1.Ospf6Config
+	348, // 87: ngfw.v1.RoutingConfig.mpls:type_name -> ngfw.v1.MplsConfig
+	49,  // 88: ngfw.v1.RoutingConfig.multicast:type_name -> ngfw.v1.MulticastConfig
+	215, // 89: ngfw.v1.RoutingConfig.l2:type_name -> ngfw.v1.BridgeL2Config
+	411, // 90: ngfw.v1.RoutingConfig.srv6:type_name -> ngfw.v1.Srv6Config
+	243, // 91: ngfw.v1.RoutingConfig.neighbors:type_name -> ngfw.v1.NeighborsConfig
+	253, // 92: ngfw.v1.RoutingConfig.pbr:type_name -> ngfw.v1.PbrConfig
+	451, // 93: ngfw.v1.RoutingConfig.wan_groups:type_name -> ngfw.v1.WanGroup
+	50,  // 94: ngfw.v1.MulticastConfig.igmp:type_name -> ngfw.v1.IgmpConfig
+	54,  // 95: ngfw.v1.MulticastConfig.mroutes:type_name -> ngfw.v1.Mroute
+	56,  // 96: ngfw.v1.MulticastConfig.pim:type_name -> ngfw.v1.PimConfig
+	502, // 97: ngfw.v1.IgmpConfig.interfaces:type_name -> ngfw.v1.IgmpConfig.InterfacesEntry
+	503, // 98: ngfw.v1.IgmpConfig.proxies:type_name -> ngfw.v1.IgmpConfig.ProxiesEntry
+	52,  // 99: ngfw.v1.IgmpInterface.joins:type_name -> ngfw.v1.IgmpJoin
+	55,  // 100: ngfw.v1.Mroute.paths:type_name -> ngfw.v1.MroutePath
+	57,  // 101: ngfw.v1.PimConfig.rp:type_name -> ngfw.v1.PimRp
+	59,  // 102: ngfw.v1.StaticRoute.next_hops:type_name -> ngfw.v1.NextHop
+	504, // 103: ngfw.v1.RoutingPolicy.prefix_lists:type_name -> ngfw.v1.RoutingPolicy.PrefixListsEntry
+	505, // 104: ngfw.v1.RoutingPolicy.route_maps:type_name -> ngfw.v1.RoutingPolicy.RouteMapsEntry
+	62,  // 105: ngfw.v1.PrefixList.rules:type_name -> ngfw.v1.PrefixListRule
+	64,  // 106: ngfw.v1.RouteMap.entries:type_name -> ngfw.v1.RouteMapEntry
+	65,  // 107: ngfw.v1.RouteMapEntry.match:type_name -> ngfw.v1.RouteMapMatch
+	66,  // 108: ngfw.v1.RouteMapEntry.set:type_name -> ngfw.v1.RouteMapSet
+	67,  // 109: ngfw.v1.Redistribute.connected:type_name -> ngfw.v1.RedistributeOptions
+	67,  // 110: ngfw.v1.Redistribute.static:type_name -> ngfw.v1.RedistributeOptions
+	67,  // 111: ngfw.v1.Redistribute.bgp:type_name -> ngfw.v1.RedistributeOptions
+	67,  // 112: ngfw.v1.Redistribute.ospf:type_name -> ngfw.v1.RedistributeOptions
+	67,  // 113: ngfw.v1.Redistribute.isis:type_name -> ngfw.v1.RedistributeOptions
+	67,  // 114: ngfw.v1.Redistribute.rip:type_name -> ngfw.v1.RedistributeOptions
+	69,  // 115: ngfw.v1.BgpAfi.ipv4_unicast:type_name -> ngfw.v1.BgpAddressFamily
+	69,  // 116: ngfw.v1.BgpAfi.ipv6_unicast:type_name -> ngfw.v1.BgpAddressFamily
+	70,  // 117: ngfw.v1.BgpPeerGroup.afi:type_name -> ngfw.v1.BgpAfi
+	70,  // 118: ngfw.v1.BgpNeighbor.afi:type_name -> ngfw.v1.BgpAfi
+	506, // 119: ngfw.v1.BgpConfig.peer_groups:type_name -> ngfw.v1.BgpConfig.PeerGroupsEntry
+	507, // 120: ngfw.v1.BgpConfig.neighbors:type_name -> ngfw.v1.BgpConfig.NeighborsEntry
+	73,  // 121: ngfw.v1.BgpConfig.networks:type_name -> ngfw.v1.BgpNetwork
+	68,  // 122: ngfw.v1.BgpConfig.redistribute:type_name -> ngfw.v1.Redistribute
+	77,  // 123: ngfw.v1.OspfInterface.auth:type_name -> ngfw.v1.OspfAuth
+	508, // 124: ngfw.v1.Ospf6Config.areas:type_name -> ngfw.v1.Ospf6Config.AreasEntry
+	509, // 125: ngfw.v1.Ospf6Config.interfaces:type_name -> ngfw.v1.Ospf6Config.InterfacesEntry
+	68,  // 126: ngfw.v1.Ospf6Config.redistribute:type_name -> ngfw.v1.Redistribute
+	510, // 127: ngfw.v1.OspfConfig.areas:type_name -> ngfw.v1.OspfConfig.AreasEntry
+	511, // 128: ngfw.v1.OspfConfig.interfaces:type_name -> ngfw.v1.OspfConfig.InterfacesEntry
+	68,  // 129: ngfw.v1.OspfConfig.redistribute:type_name -> ngfw.v1.Redistribute
+	512, // 130: ngfw.v1.IsisConfig.interfaces:type_name -> ngfw.v1.IsisConfig.InterfacesEntry
+	68,  // 131: ngfw.v1.IsisConfig.redistribute:type_name -> ngfw.v1.Redistribute
+	513, // 132: ngfw.v1.RipConfig.interfaces:type_name -> ngfw.v1.RipConfig.InterfacesEntry
+	68,  // 133: ngfw.v1.RipConfig.redistribute:type_name -> ngfw.v1.Redistribute
+	85,  // 134: ngfw.v1.BfdConfig.sessions:type_name -> ngfw.v1.BfdSession
+	514, // 135: ngfw.v1.TunnelsConfig.gre:type_name -> ngfw.v1.TunnelsConfig.GreEntry
+	515, // 136: ngfw.v1.TunnelsConfig.vxlan:type_name -> ngfw.v1.TunnelsConfig.VxlanEntry
+	516, // 137: ngfw.v1.TunnelsConfig.ipip:type_name -> ngfw.v1.TunnelsConfig.IpipEntry
+	517, // 138: ngfw.v1.TunnelsConfig.vxlan_gpe:type_name -> ngfw.v1.TunnelsConfig.VxlanGpeEntry
+	518, // 139: ngfw.v1.TunnelsConfig.gtpu:type_name -> ngfw.v1.TunnelsConfig.GtpuEntry
+	519, // 140: ngfw.v1.TunnelsConfig.l2tpv3:type_name -> ngfw.v1.TunnelsConfig.L2tpv3Entry
+	520, // 141: ngfw.v1.TunnelsConfig.pppoe:type_name -> ngfw.v1.TunnelsConfig.PppoeEntry
+	422, // 142: ngfw.v1.TunnelsConfig.lisp:type_name -> ngfw.v1.LispConfig
+	486, // 143: ngfw.v1.IpipTunnel.sixrd:type_name -> ngfw.v1.IpipSixrd
+	93,  // 144: ngfw.v1.ServicesConfig.dhcp:type_name -> ngfw.v1.DhcpService
+	100, // 145: ngfw.v1.ServicesConfig.dns:type_name -> ngfw.v1.DnsService
+	107, // 146: ngfw.v1.ServicesConfig.snmp:type_name -> ngfw.v1.SnmpService
+	108, // 147: ngfw.v1.ServicesConfig.lldp:type_name -> ngfw.v1.LldpService
+	109, // 148: ngfw.v1.ServicesConfig.ipfix:type_name -> ngfw.v1.IpfixService
+	110, // 149: ngfw.v1.ServicesConfig.ntp:type_name -> ngfw.v1.NtpService
+	111, // 150: ngfw.v1.ServicesConfig.qos:type_name -> ngfw.v1.QosService
+	381, // 151: ngfw.v1.ServicesConfig.host_stack:type_name -> ngfw.v1.HostStackService
+	364, // 152: ngfw.v1.ServicesConfig.lb:type_name -> ngfw.v1.LbService
+	257, // 153: ngfw.v1.ServicesConfig.auto_sdl:type_name -> ngfw.v1.AutoSdlConfig
+	231, // 154: ngfw.v1.ServicesConfig.nsim:type_name -> ngfw.v1.NsimService
+	521, // 155: ngfw.v1.DhcpService.servers:type_name -> ngfw.v1.DhcpService.ServersEntry
+	522, // 156: ngfw.v1.DhcpService.relays:type_name -> ngfw.v1.DhcpService.RelaysEntry
+	94,  // 157: ngfw.v1.DhcpReservation.options:type_name -> ngfw.v1.DhcpOption
+	95,  // 158: ngfw.v1.DhcpSubnet.pools:type_name -> ngfw.v1.DhcpPool
+	94,  // 159: ngfw.v1.DhcpSubnet.options:type_name -> ngfw.v1.DhcpOption
+	523, // 160: ngfw.v1.DhcpSubnet.reservations:type_name -> ngfw.v1.DhcpSubnet.ReservationsEntry
+	524, // 161: ngfw.v1.DhcpServer.subnets:type_name -> ngfw.v1.DhcpServer.SubnetsEntry
+	94,  // 162: ngfw.v1.DhcpServer.options:type_name -> ngfw.v1.DhcpOption
+	526, // 163: ngfw.v1.DnsService.resolvers:type_name -> ngfw.v1.DnsService.ResolversEntry
+	525, // 164: ngfw.v1.DnsService.vpp_cache:type_name -> ngfw.v1.DnsService.VppCache
+	101, // 165: ngfw.v1.DnsForwardZone.forwarders:type_name -> ngfw.v1.DnsUpstream
+	103, // 166: ngfw.v1.DnsLocalZone.records:type_name -> ngfw.v1.DnsRecord
+	92,  // 167: ngfw.v1.DnsResolver.listen:type_name -> ngfw.v1.SocketAddress
+	105, // 168: ngfw.v1.DnsResolver.access_control:type_name -> ngfw.v1.DnsAccessControl
+	101, // 169: ngfw.v1.DnsResolver.forwarders:type_name -> ngfw.v1.DnsUpstream
+	102, // 170: ngfw.v1.DnsResolver.forward_zones:type_name -> ngfw.v1.DnsForwardZone
+	104, // 171: ngfw.v1.DnsResolver.local_zones:type_name -> ngfw.v1.DnsLocalZone
+	527, // 172: ngfw.v1.DnsResolver.dnssec:type_name -> ngfw.v1.DnsResolver.Dnssec
+	528, // 173: ngfw.v1.DnsResolver.cache:type_name -> ngfw.v1.DnsResolver.Cache
+	92,  // 174: ngfw.v1.SnmpService.listen:type_name -> ngfw.v1.SocketAddress
+	532, // 175: ngfw.v1.SnmpService.communities:type_name -> ngfw.v1.SnmpService.CommunitiesEntry
+	533, // 176: ngfw.v1.SnmpService.v3_users:type_name -> ngfw.v1.SnmpService.V3UsersEntry
+	531, // 177: ngfw.v1.SnmpService.trap_receivers:type_name -> ngfw.v1.SnmpService.TrapReceiver
+	534, // 178: ngfw.v1.SnmpService.views:type_name -> ngfw.v1.SnmpService.ViewsEntry
+	390, // 179: ngfw.v1.SnmpService.monitors:type_name -> ngfw.v1.SnmpMonitors
+	393, // 180: ngfw.v1.SnmpService.subagent:type_name -> ngfw.v1.SnmpSubagent
+	535, // 181: ngfw.v1.LldpService.interfaces:type_name -> ngfw.v1.LldpService.Interface
+	539, // 182: ngfw.v1.IpfixService.exporters:type_name -> ngfw.v1.IpfixService.ExportersEntry
+	537, // 183: ngfw.v1.IpfixService.flowprobe:type_name -> ngfw.v1.IpfixService.Flowprobe
+	538, // 184: ngfw.v1.IpfixService.sflow:type_name -> ngfw.v1.IpfixService.Sflow
+	541, // 185: ngfw.v1.NtpService.servers:type_name -> ngfw.v1.NtpService.Server
+	542, // 186: ngfw.v1.NtpService.rate_limit:type_name -> ngfw.v1.NtpService.RateLimit
+	543, // 187: ngfw.v1.NtpService.nts_server:type_name -> ngfw.v1.NtpService.NtsServer
+	544, // 188: ngfw.v1.NtpService.makestep:type_name -> ngfw.v1.NtpService.Makestep
+	545, // 189: ngfw.v1.QosService.policers:type_name -> ngfw.v1.QosService.PolicersEntry
+	546, // 190: ngfw.v1.QosService.shapers:type_name -> ngfw.v1.QosService.ShapersEntry
+	547, // 191: ngfw.v1.QosService.maps:type_name -> ngfw.v1.QosService.MapsEntry
+	548, // 192: ngfw.v1.QosService.interfaces:type_name -> ngfw.v1.QosService.InterfacesEntry
+	112, // 193: ngfw.v1.QosPolicer.conform_action:type_name -> ngfw.v1.QosPolicerAction
+	112, // 194: ngfw.v1.QosPolicer.exceed_action:type_name -> ngfw.v1.QosPolicerAction
+	112, // 195: ngfw.v1.QosPolicer.violate_action:type_name -> ngfw.v1.QosPolicerAction
+	549, // 196: ngfw.v1.QosMap.rows:type_name -> ngfw.v1.QosMap.Rows
+	550, // 197: ngfw.v1.QosInterface.policer:type_name -> ngfw.v1.QosInterface.Policer
+	551, // 198: ngfw.v1.QosInterface.store:type_name -> ngfw.v1.QosInterface.Store
+	552, // 199: ngfw.v1.QosInterface.mark:type_name -> ngfw.v1.QosInterface.Mark
+	553, // 200: ngfw.v1.HaConfig.vrrp:type_name -> ngfw.v1.HaConfig.VrrpEntry
+	120, // 201: ngfw.v1.HaConfig.cluster:type_name -> ngfw.v1.HaCluster
+	554, // 202: ngfw.v1.VrrpInstance.unicast:type_name -> ngfw.v1.VrrpInstance.Unicast
+	555, // 203: ngfw.v1.VrrpInstance.track:type_name -> ngfw.v1.VrrpInstance.Track
+	556, // 204: ngfw.v1.HaCluster.peers:type_name -> ngfw.v1.HaCluster.Peer
+	557, // 205: ngfw.v1.HaCluster.state_sync:type_name -> ngfw.v1.HaCluster.StateSync
+	133, // 206: ngfw.v1.ManagementConfig.users:type_name -> ngfw.v1.ManagementUser
+	134, // 207: ngfw.v1.ManagementConfig.aaa:type_name -> ngfw.v1.ManagementAaa
+	139, // 208: ngfw.v1.ManagementConfig.tls:type_name -> ngfw.v1.ManagementTls
+	140, // 209: ngfw.v1.ManagementConfig.syslog:type_name -> ngfw.v1.SyslogTarget
+	447, // 210: ngfw.v1.ManagementConfig.prometheus:type_name -> ngfw.v1.ManagementPrometheus
+	448, // 211: ngfw.v1.ManagementConfig.alarms:type_name -> ngfw.v1.ManagementAlarms
+	122, // 212: ngfw.v1.ManagementConfig.notifications:type_name -> ngfw.v1.ManagementNotifications
+	123, // 213: ngfw.v1.ManagementNotifications.channels:type_name -> ngfw.v1.NotificationChannel
+	126, // 214: ngfw.v1.ManagementNotifications.rules:type_name -> ngfw.v1.NotificationRule
+	124, // 215: ngfw.v1.NotificationChannel.email:type_name -> ngfw.v1.NotificationEmail
+	125, // 216: ngfw.v1.NotificationChannel.webhook:type_name -> ngfw.v1.NotificationWebhook
+	131, // 217: ngfw.v1.SecurityConfig.auto_block:type_name -> ngfw.v1.AutoBlock
+	129, // 218: ngfw.v1.AutoBlockSetRequest.entries:type_name -> ngfw.v1.AutoBlockRuntimeEntry
+	632, // 219: ngfw.v1.AutoBlockRuntimeEntry.expires_at:type_name -> google.protobuf.Timestamp
+	132, // 220: ngfw.v1.AutoBlock.rules:type_name -> ngfw.v1.AutoBlockRule
+	135, // 221: ngfw.v1.ManagementAaa.radius:type_name -> ngfw.v1.AaaRadius
+	137, // 222: ngfw.v1.ManagementAaa.tacacs:type_name -> ngfw.v1.AaaTacacs
+	463, // 223: ngfw.v1.ManagementAaa.ldap:type_name -> ngfw.v1.AaaLdap
+	467, // 224: ngfw.v1.ManagementAaa.oidc:type_name -> ngfw.v1.AaaOidc
+	465, // 225: ngfw.v1.ManagementAaa.role_map:type_name -> ngfw.v1.AaaRoleMapping
+	466, // 226: ngfw.v1.ManagementAaa.mfa:type_name -> ngfw.v1.AaaMfa
+	136, // 227: ngfw.v1.AaaRadius.servers:type_name -> ngfw.v1.RadiusServer
+	138, // 228: ngfw.v1.AaaTacacs.servers:type_name -> ngfw.v1.TacacsServer
+	307, // 229: ngfw.v1.SyslogTarget.tls:type_name -> ngfw.v1.SyslogTls
+	143, // 230: ngfw.v1.NatConfig.pools:type_name -> ngfw.v1.NatPool
+	144, // 231: ngfw.v1.NatConfig.static_mappings:type_name -> ngfw.v1.NatStaticMapping
+	145, // 232: ngfw.v1.NatConfig.identity_mappings:type_name -> ngfw.v1.NatIdentityMapping
+	146, // 233: ngfw.v1.NatConfig.load_balanced_mappings:type_name -> ngfw.v1.NatLoadBalancedMapping
+	142, // 234: ngfw.v1.NatConfig.timeouts:type_name -> ngfw.v1.NatTimeouts
+	147, // 235: ngfw.v1.NatConfig.ipfix:type_name -> ngfw.v1.NatIpfix
+	148, // 236: ngfw.v1.NatConfig.nat64:type_name -> ngfw.v1.Nat64Config
+	149, // 237: ngfw.v1.NatConfig.nat66:type_name -> ngfw.v1.Nat66Config
+	150, // 238: ngfw.v1.NatConfig.nptv6:type_name -> ngfw.v1.Nptv6Config
+	151, // 239: ngfw.v1.NatConfig.det44:type_name -> ngfw.v1.Det44Config
+	152, // 240: ngfw.v1.NatConfig.dslite:type_name -> ngfw.v1.DsliteConfig
+	156, // 241: ngfw.v1.NatConfig.map:type_name -> ngfw.v1.MapConfig
+	159, // 242: ngfw.v1.NatConfig.cnat:type_name -> ngfw.v1.CnatConfig
+	326, // 243: ngfw.v1.NatConfig.pnat:type_name -> ngfw.v1.PnatConfig
+	473, // 244: ngfw.v1.NatConfig.nat46:type_name -> ngfw.v1.Nat46Config
+	558, // 245: ngfw.v1.NatStaticMapping.local:type_name -> ngfw.v1.NatStaticMapping.Local
+	559, // 246: ngfw.v1.NatStaticMapping.external:type_name -> ngfw.v1.NatStaticMapping.External
+	560, // 247: ngfw.v1.NatLoadBalancedMapping.external:type_name -> ngfw.v1.NatLoadBalancedMapping.External
+	561, // 248: ngfw.v1.NatLoadBalancedMapping.locals:type_name -> ngfw.v1.NatLoadBalancedMapping.Local
+	562, // 249: ngfw.v1.Nat64Config.prefixes:type_name -> ngfw.v1.Nat64Config.Prefix
+	563, // 250: ngfw.v1.Nat64Config.pools:type_name -> ngfw.v1.Nat64Config.Pool
+	564, // 251: ngfw.v1.Nat64Config.static_bibs:type_name -> ngfw.v1.Nat64Config.StaticBib
+	142, // 252: ngfw.v1.Nat64Config.timeouts:type_name -> ngfw.v1.NatTimeouts
+	566, // 253: ngfw.v1.Nat66Config.static_mappings:type_name -> ngfw.v1.Nat66Config.StaticMapping
+	567, // 254: ngfw.v1.Nptv6Config.bindings:type_name -> ngfw.v1.Nptv6Config.Binding
+	568, // 255: ngfw.v1.Det44Config.mappings:type_name -> ngfw.v1.Det44Config.Mapping
+	142, // 256: ngfw.v1.Det44Config.timeouts:type_name -> ngfw.v1.NatTimeouts
+	569, // 257: ngfw.v1.DsliteConfig.aftr:type_name -> ngfw.v1.DsliteConfig.Endpoint
+	569, // 258: ngfw.v1.DsliteConfig.b4:type_name -> ngfw.v1.DsliteConfig.Endpoint
+	570, // 259: ngfw.v1.DsliteConfig.pools:type_name -> ngfw.v1.DsliteConfig.Pool
+	571, // 260: ngfw.v1.MapDomain.rules:type_name -> ngfw.v1.MapDomain.Rule
+	572, // 261: ngfw.v1.MapParameters.fragmentation:type_name -> ngfw.v1.MapParameters.Fragmentation
+	573, // 262: ngfw.v1.MapParameters.security_check:type_name -> ngfw.v1.MapParameters.SecurityCheck
+	574, // 263: ngfw.v1.MapParameters.traffic_class:type_name -> ngfw.v1.MapParameters.TrafficClass
+	575, // 264: ngfw.v1.MapParameters.pre_resolve:type_name -> ngfw.v1.MapParameters.PreResolve
+	153, // 265: ngfw.v1.MapConfig.domains:type_name -> ngfw.v1.MapDomain
+	154, // 266: ngfw.v1.MapConfig.parameters:type_name -> ngfw.v1.MapParameters
+	155, // 267: ngfw.v1.MapConfig.interfaces:type_name -> ngfw.v1.MapInterface
+	157, // 268: ngfw.v1.CnatTranslation.vip:type_name -> ngfw.v1.CnatEndpoint
+	157, // 269: ngfw.v1.CnatTranslation.backends:type_name -> ngfw.v1.CnatEndpoint
+	158, // 270: ngfw.v1.CnatConfig.translations:type_name -> ngfw.v1.CnatTranslation
+	576, // 271: ngfw.v1.CnatConfig.snat:type_name -> ngfw.v1.CnatConfig.Snat
+	579, // 272: ngfw.v1.ObjectsConfig.addresses:type_name -> ngfw.v1.ObjectsConfig.AddressesEntry
+	580, // 273: ngfw.v1.ObjectsConfig.address_groups:type_name -> ngfw.v1.ObjectsConfig.AddressGroupsEntry
+	581, // 274: ngfw.v1.ObjectsConfig.services:type_name -> ngfw.v1.ObjectsConfig.ServicesEntry
+	582, // 275: ngfw.v1.ObjectsConfig.service_groups:type_name -> ngfw.v1.ObjectsConfig.ServiceGroupsEntry
+	583, // 276: ngfw.v1.ObjectsConfig.schedules:type_name -> ngfw.v1.ObjectsConfig.SchedulesEntry
+	584, // 277: ngfw.v1.ObjectsConfig.zones:type_name -> ngfw.v1.ObjectsConfig.ZonesEntry
+	585, // 278: ngfw.v1.ObjectsConfig.tags:type_name -> ngfw.v1.ObjectsConfig.TagsEntry
+	163, // 279: ngfw.v1.ServiceSpec.tcp_flags:type_name -> ngfw.v1.TcpFlags
+	163, // 280: ngfw.v1.ServiceObject.tcp_flags:type_name -> ngfw.v1.TcpFlags
+	586, // 281: ngfw.v1.AclConfig.lists:type_name -> ngfw.v1.AclConfig.ListsEntry
+	587, // 282: ngfw.v1.AclConfig.macip:type_name -> ngfw.v1.AclConfig.MacipEntry
+	588, // 283: ngfw.v1.AclConfig.host:type_name -> ngfw.v1.AclConfig.HostEntry
+	183, // 284: ngfw.v1.AclConfig.attachments:type_name -> ngfw.v1.AclAttachment
+	184, // 285: ngfw.v1.AclConfig.macip_attachments:type_name -> ngfw.v1.MacipAttachment
+	185, // 286: ngfw.v1.AclConfig.host_attachments:type_name -> ngfw.v1.HostAttachment
+	268, // 287: ngfw.v1.AclConfig.host_settings:type_name -> ngfw.v1.HostAclSettings
+	171, // 288: ngfw.v1.AclConfig.global_blocking:type_name -> ngfw.v1.GlobalBlocking
+	589, // 289: ngfw.v1.GlobalBlocking.lists:type_name -> ngfw.v1.GlobalBlocking.ListsEntry
+	172, // 290: ngfw.v1.GlobalBlockingList.source:type_name -> ngfw.v1.GlobalBlockingSource
+	164, // 291: ngfw.v1.ServiceMatch.spec:type_name -> ngfw.v1.ServiceSpec
+	174, // 292: ngfw.v1.AclRule.source:type_name -> ngfw.v1.AddressMatch
+	174, // 293: ngfw.v1.AclRule.destination:type_name -> ngfw.v1.AddressMatch
+	175, // 294: ngfw.v1.AclRule.service:type_name -> ngfw.v1.ServiceMatch
+	176, // 295: ngfw.v1.AclList.rules:type_name -> ngfw.v1.AclRule
+	178, // 296: ngfw.v1.MacipList.rules:type_name -> ngfw.v1.MacipRule
+	174, // 297: ngfw.v1.HostRule.source:type_name -> ngfw.v1.AddressMatch
+	174, // 298: ngfw.v1.HostRule.destination:type_name -> ngfw.v1.AddressMatch
+	175, // 299: ngfw.v1.HostRule.service:type_name -> ngfw.v1.ServiceMatch
+	180, // 300: ngfw.v1.HostList.rules:type_name -> ngfw.v1.HostRule
+	182, // 301: ngfw.v1.AclAttachment.target:type_name -> ngfw.v1.AttachmentTarget
+	195, // 302: ngfw.v1.VpnConfig.ipsec:type_name -> ngfw.v1.IpsecConfig
+	198, // 303: ngfw.v1.VpnConfig.wireguard:type_name -> ngfw.v1.WireguardConfig
+	201, // 304: ngfw.v1.VpnConfig.pki:type_name -> ngfw.v1.PkiConfig
+	590, // 305: ngfw.v1.VpnConfig.remote_access:type_name -> ngfw.v1.VpnConfig.RemoteAccessEntry
+	187, // 306: ngfw.v1.IpsecProposal.ike:type_name -> ngfw.v1.IkeProposal
+	188, // 307: ngfw.v1.IpsecProposal.esp:type_name -> ngfw.v1.EspProposal
+	190, // 308: ngfw.v1.IpsecTunnel.auth:type_name -> ngfw.v1.IpsecAuth
+	191, // 309: ngfw.v1.IpsecTunnel.dpd:type_name -> ngfw.v1.IpsecDpd
+	192, // 310: ngfw.v1.IpsecTunnel.rekey:type_name -> ngfw.v1.IpsecRekey
+	591, // 311: ngfw.v1.IpsecTunnel.route_based:type_name -> ngfw.v1.IpsecTunnel.RouteBased
+	194, // 312: ngfw.v1.IpsecConfig.settings:type_name -> ngfw.v1.IpsecSettings
+	592, // 313: ngfw.v1.IpsecConfig.proposals:type_name -> ngfw.v1.IpsecConfig.ProposalsEntry
+	593, // 314: ngfw.v1.IpsecConfig.tunnels:type_name -> ngfw.v1.IpsecConfig.TunnelsEntry
+	594, // 315: ngfw.v1.WireguardPeer.endpoint:type_name -> ngfw.v1.WireguardPeer.Endpoint
+	595, // 316: ngfw.v1.WireguardInterface.peers:type_name -> ngfw.v1.WireguardInterface.PeersEntry
+	596, // 317: ngfw.v1.WireguardConfig.interfaces:type_name -> ngfw.v1.WireguardConfig.InterfacesEntry
+	597, // 318: ngfw.v1.PkiCa.crl:type_name -> ngfw.v1.PkiCa.Crl
+	341, // 319: ngfw.v1.PkiCa.key_spec:type_name -> ngfw.v1.PkiKeySpec
+	343, // 320: ngfw.v1.PkiCa.issued:type_name -> ngfw.v1.PkiIssued
+	598, // 321: ngfw.v1.PkiCertificate.acme:type_name -> ngfw.v1.PkiCertificate.Acme
+	342, // 322: ngfw.v1.PkiCertificate.csr:type_name -> ngfw.v1.PkiCsr
+	343, // 323: ngfw.v1.PkiCertificate.issued:type_name -> ngfw.v1.PkiIssued
+	600, // 324: ngfw.v1.PkiConfig.cas:type_name -> ngfw.v1.PkiConfig.CasEntry
+	601, // 325: ngfw.v1.PkiConfig.certificates:type_name -> ngfw.v1.PkiConfig.CertificatesEntry
+	599, // 326: ngfw.v1.PkiConfig.hsm:type_name -> ngfw.v1.PkiConfig.Hsm
+	202, // 327: ngfw.v1.RemoteAccessProfile.pools:type_name -> ngfw.v1.RemoteAccessPool
+	203, // 328: ngfw.v1.RemoteAccessProfile.users:type_name -> ngfw.v1.RemoteAccessUser
+	602, // 329: ngfw.v1.RemoteAccessProfile.radius:type_name -> ngfw.v1.RemoteAccessProfile.Radius
+	191, // 330: ngfw.v1.RemoteAccessProfile.dpd:type_name -> ngfw.v1.IpsecDpd
+	192, // 331: ngfw.v1.RemoteAccessProfile.rekey:type_name -> ngfw.v1.IpsecRekey
+	604, // 332: ngfw.v1.Bond.members:type_name -> ngfw.v1.Bond.MembersEntry
+	209, // 333: ngfw.v1.BondStateResponse.bonds:type_name -> ngfw.v1.BondStatus
+	632, // 334: ngfw.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	210, // 335: ngfw.v1.BondStatus.members:type_name -> ngfw.v1.BondMemberStatus
+	211, // 336: ngfw.v1.BondMemberStatus.lacp:type_name -> ngfw.v1.BondLacpState
+	212, // 337: ngfw.v1.BondLacpState.actor:type_name -> ngfw.v1.BondLacpPort
+	212, // 338: ngfw.v1.BondLacpState.partner:type_name -> ngfw.v1.BondLacpPort
+	214, // 339: ngfw.v1.BridgeL2Port.tag_rewrite:type_name -> ngfw.v1.BridgeL2TagRewrite
+	605, // 340: ngfw.v1.BridgeL2Config.bridge_domains:type_name -> ngfw.v1.BridgeL2Config.BridgeDomainsEntry
+	606, // 341: ngfw.v1.BridgeL2Config.xconnects:type_name -> ngfw.v1.BridgeL2Config.XconnectsEntry
+	607, // 342: ngfw.v1.BridgeL2Config.l3xc:type_name -> ngfw.v1.BridgeL2Config.L3xcEntry
+	608, // 343: ngfw.v1.BridgeL2Config.mac_filters:type_name -> ngfw.v1.BridgeL2Config.MacFiltersEntry
+	217, // 344: ngfw.v1.BridgeL2Domain.static_macs:type_name -> ngfw.v1.BridgeL2StaticMac
+	220, // 345: ngfw.v1.BridgeL2L3xc.ipv4_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
+	220, // 346: ngfw.v1.BridgeL2L3xc.ipv6_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
+	222, // 347: ngfw.v1.BridgeL2MacFilter.ranges:type_name -> ngfw.v1.BridgeL2MacFilterRange
+	225, // 348: ngfw.v1.BridgeDomainStateResponse.bridge_domains:type_name -> ngfw.v1.BridgeDomainStatus
+	632, // 349: ngfw.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	226, // 350: ngfw.v1.BridgeDomainStatus.members:type_name -> ngfw.v1.BridgeDomainMember
+	229, // 351: ngfw.v1.BridgeDomainMacsResponse.macs:type_name -> ngfw.v1.BridgeDomainMac
+	632, // 352: ngfw.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	609, // 353: ngfw.v1.NsimService.cross_connect:type_name -> ngfw.v1.NsimService.CrossConnect
+	234, // 354: ngfw.v1.LldpNeighborsResponse.neighbors:type_name -> ngfw.v1.LldpNeighbor
+	632, // 355: ngfw.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	238, // 356: ngfw.v1.ListRoutesResponse.routes:type_name -> ngfw.v1.ListRoutesEntry
+	632, // 357: ngfw.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	239, // 358: ngfw.v1.ListRoutesEntry.paths:type_name -> ngfw.v1.ListRoutesPath
+	610, // 359: ngfw.v1.Ipv6Ra.prefixes:type_name -> ngfw.v1.Ipv6Ra.PrefixesEntry
+	244, // 360: ngfw.v1.NeighborsConfig.static:type_name -> ngfw.v1.StaticNeighbor
+	245, // 361: ngfw.v1.NeighborsConfig.ipv4_limits:type_name -> ngfw.v1.NeighborLimits
+	245, // 362: ngfw.v1.NeighborsConfig.ipv6_limits:type_name -> ngfw.v1.NeighborLimits
+	246, // 363: ngfw.v1.NeighborsConfig.dad:type_name -> ngfw.v1.NeighborDad
+	249, // 364: ngfw.v1.ListNeighborsResponse.neighbors:type_name -> ngfw.v1.NeighborEntry
+	632, // 365: ngfw.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	611, // 366: ngfw.v1.PbrConfig.policies:type_name -> ngfw.v1.PbrConfig.PoliciesEntry
+	256, // 367: ngfw.v1.PbrConfig.attachments:type_name -> ngfw.v1.PbrAttachment
+	255, // 368: ngfw.v1.PbrPolicy.paths:type_name -> ngfw.v1.PbrPath
+	260, // 369: ngfw.v1.FqdnObjectStateResponse.objects:type_name -> ngfw.v1.FqdnObjectState
+	632, // 370: ngfw.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	632, // 371: ngfw.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
+	632, // 372: ngfw.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
+	262, // 373: ngfw.v1.AclStateRequest.filter:type_name -> ngfw.v1.AclStateFilter
+	632, // 374: ngfw.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	264, // 375: ngfw.v1.AclStateResponse.lists:type_name -> ngfw.v1.AclListState
+	265, // 376: ngfw.v1.AclStateResponse.rules:type_name -> ngfw.v1.AclRuleState
+	266, // 377: ngfw.v1.AclStateResponse.interfaces:type_name -> ngfw.v1.AclInterfaceState
+	264, // 378: ngfw.v1.AclStateResponse.macip_lists:type_name -> ngfw.v1.AclListState
+	6,   // 379: ngfw.v1.AclRuleState.status:type_name -> ngfw.v1.AclRuleStatus
+	267, // 380: ngfw.v1.AclInterfaceState.input:type_name -> ngfw.v1.AclBoundAcl
+	267, // 381: ngfw.v1.AclInterfaceState.output:type_name -> ngfw.v1.AclBoundAcl
+	267, // 382: ngfw.v1.AclInterfaceState.macip:type_name -> ngfw.v1.AclBoundAcl
+	269, // 383: ngfw.v1.HostAclSettings.anti_lockout:type_name -> ngfw.v1.HostAclAntiLockout
+	632, // 384: ngfw.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	272, // 385: ngfw.v1.HostAclStateResponse.sets:type_name -> ngfw.v1.HostAclSetState
+	273, // 386: ngfw.v1.HostAclStateResponse.chains:type_name -> ngfw.v1.HostAclChainState
+	274, // 387: ngfw.v1.HostAclChainState.rules:type_name -> ngfw.v1.HostAclRuleState
+	275, // 388: ngfw.v1.NatSessionsRequest.filter:type_name -> ngfw.v1.NatSessionFilter
+	7,   // 389: ngfw.v1.NatSessionsRequest.variant:type_name -> ngfw.v1.NatSessionVariant
+	277, // 390: ngfw.v1.NatSessionsResponse.sessions:type_name -> ngfw.v1.NatSession
+	632, // 391: ngfw.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	7,   // 392: ngfw.v1.NatSessionsResponse.variant:type_name -> ngfw.v1.NatSessionVariant
+	280, // 393: ngfw.v1.NatSummaryResponse.pools:type_name -> ngfw.v1.NatPoolUsage
+	612, // 394: ngfw.v1.NatSummaryResponse.sessions_by_protocol:type_name -> ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
+	632, // 395: ngfw.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	7,   // 396: ngfw.v1.NatSessionKillAction.variant:type_name -> ngfw.v1.NatSessionVariant
+	285, // 397: ngfw.v1.WireguardStateResponse.interfaces:type_name -> ngfw.v1.WireguardInterfaceState
+	632, // 398: ngfw.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	286, // 399: ngfw.v1.WireguardInterfaceState.peers:type_name -> ngfw.v1.WireguardPeerState
+	632, // 400: ngfw.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
+	289, // 401: ngfw.v1.Pppoe.reconnect:type_name -> ngfw.v1.PppoeReconnect
+	632, // 402: ngfw.v1.PppoeSessionState.since:type_name -> google.protobuf.Timestamp
+	632, // 403: ngfw.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	295, // 404: ngfw.v1.RoutingStateResponse.bgp:type_name -> ngfw.v1.BgpInstanceState
+	613, // 405: ngfw.v1.RoutingStateResponse.rib_counts:type_name -> ngfw.v1.RoutingStateResponse.RibCountsEntry
+	298, // 406: ngfw.v1.RoutingStateResponse.lcp_pairs:type_name -> ngfw.v1.RoutingLcpPair
+	614, // 407: ngfw.v1.RoutingStateResponse.readers:type_name -> ngfw.v1.RoutingStateResponse.ReadersEntry
+	299, // 408: ngfw.v1.RoutingStateResponse.rib:type_name -> ngfw.v1.RoutingRibEntry
+	296, // 409: ngfw.v1.BgpInstanceState.neighbors:type_name -> ngfw.v1.BgpNeighborState
+	297, // 410: ngfw.v1.BgpNeighborState.afis:type_name -> ngfw.v1.BgpNeighborAfiState
+	300, // 411: ngfw.v1.RoutingRibEntry.next_hops:type_name -> ngfw.v1.RoutingRibNextHop
+	632, // 412: ngfw.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
+	303, // 413: ngfw.v1.DhcpServerStatus.subnets:type_name -> ngfw.v1.DhcpSubnetUsage
+	302, // 414: ngfw.v1.DhcpLeasesResponse.leases:type_name -> ngfw.v1.DhcpLease
+	304, // 415: ngfw.v1.DhcpLeasesResponse.servers:type_name -> ngfw.v1.DhcpServerStatus
+	305, // 416: ngfw.v1.DhcpLeasesResponse.client:type_name -> ngfw.v1.DhcpClientLease
+	632, // 417: ngfw.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	632, // 418: ngfw.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	615, // 419: ngfw.v1.DnsStateResponse.status:type_name -> ngfw.v1.DnsStateResponse.StatusEntry
+	616, // 420: ngfw.v1.DnsStateResponse.stats:type_name -> ngfw.v1.DnsStateResponse.StatsEntry
+	312, // 421: ngfw.v1.DnsStateResponse.forwards:type_name -> ngfw.v1.DnsZoneState
+	312, // 422: ngfw.v1.DnsStateResponse.stubs:type_name -> ngfw.v1.DnsZoneState
+	313, // 423: ngfw.v1.DnsStateResponse.local_zones:type_name -> ngfw.v1.DnsLocalZoneState
+	309, // 424: ngfw.v1.DnsStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
+	314, // 425: ngfw.v1.DnsStateResponse.vpp_cache:type_name -> ngfw.v1.DnsVppCacheState
+	632, // 426: ngfw.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	317, // 427: ngfw.v1.NtpStateResponse.tracking:type_name -> ngfw.v1.NtpTracking
+	318, // 428: ngfw.v1.NtpStateResponse.sources:type_name -> ngfw.v1.NtpSource
+	319, // 429: ngfw.v1.NtpStateResponse.source_stats:type_name -> ngfw.v1.NtpSourceStats
+	617, // 430: ngfw.v1.NtpStateResponse.server_stats:type_name -> ngfw.v1.NtpStateResponse.ServerStatsEntry
+	309, // 431: ngfw.v1.NtpStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
+	632, // 432: ngfw.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	322, // 433: ngfw.v1.SyslogStateResponse.targets:type_name -> ngfw.v1.SyslogTargetState
+	618, // 434: ngfw.v1.SyslogStateResponse.inputs:type_name -> ngfw.v1.SyslogStateResponse.InputsEntry
+	309, // 435: ngfw.v1.SyslogStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
+	632, // 436: ngfw.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
+	632, // 437: ngfw.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	325, // 438: ngfw.v1.SyslogEntriesResponse.entries:type_name -> ngfw.v1.SyslogEntry
+	632, // 439: ngfw.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
+	327, // 440: ngfw.v1.PnatConfig.bindings:type_name -> ngfw.v1.PnatBinding
+	330, // 441: ngfw.v1.PnatConfig.attachments:type_name -> ngfw.v1.PnatAttachment
+	328, // 442: ngfw.v1.PnatBinding.match:type_name -> ngfw.v1.PnatMatch
+	329, // 443: ngfw.v1.PnatBinding.rewrite:type_name -> ngfw.v1.PnatRewrite
+	332, // 444: ngfw.v1.Det44SessionsResponse.sessions:type_name -> ngfw.v1.Det44Session
+	632, // 445: ngfw.v1.Det44SessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	337, // 446: ngfw.v1.CnatSessionsResponse.sessions:type_name -> ngfw.v1.CnatSession
+	632, // 447: ngfw.v1.CnatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	341, // 448: ngfw.v1.PkiCsr.key_spec:type_name -> ngfw.v1.PkiKeySpec
+	345, // 449: ngfw.v1.PkiFileStateSet.files:type_name -> ngfw.v1.PkiFileStateFile
+	632, // 450: ngfw.v1.PkiFileStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	345, // 451: ngfw.v1.PkiFileStateResponse.files:type_name -> ngfw.v1.PkiFileStateFile
+	619, // 452: ngfw.v1.MplsConfig.tables:type_name -> ngfw.v1.MplsConfig.TablesEntry
+	350, // 453: ngfw.v1.MplsConfig.label_routes:type_name -> ngfw.v1.MplsLabelRoute
+	352, // 454: ngfw.v1.MplsConfig.ip_bindings:type_name -> ngfw.v1.MplsIpBinding
+	620, // 455: ngfw.v1.MplsConfig.tunnels:type_name -> ngfw.v1.MplsConfig.TunnelsEntry
+	354, // 456: ngfw.v1.MplsConfig.sr:type_name -> ngfw.v1.MplsSr
+	439, // 457: ngfw.v1.MplsConfig.ldp:type_name -> ngfw.v1.MplsLdp
+	351, // 458: ngfw.v1.MplsLabelRoute.paths:type_name -> ngfw.v1.MplsPath
+	351, // 459: ngfw.v1.MplsTunnel.paths:type_name -> ngfw.v1.MplsPath
+	621, // 460: ngfw.v1.MplsSr.policies:type_name -> ngfw.v1.MplsSr.PoliciesEntry
+	357, // 461: ngfw.v1.MplsSr.steering:type_name -> ngfw.v1.MplsSrSteering
+	356, // 462: ngfw.v1.MplsSrPolicy.segment_lists:type_name -> ngfw.v1.MplsSrSegmentList
+	361, // 463: ngfw.v1.MplsStateResponse.entries:type_name -> ngfw.v1.MplsStateFibEntry
+	363, // 464: ngfw.v1.MplsStateResponse.tunnels:type_name -> ngfw.v1.MplsStateTunnel
+	360, // 465: ngfw.v1.MplsStateResponse.tables:type_name -> ngfw.v1.MplsStateTable
+	632, // 466: ngfw.v1.MplsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	362, // 467: ngfw.v1.MplsStateFibEntry.paths:type_name -> ngfw.v1.MplsStatePath
+	362, // 468: ngfw.v1.MplsStateTunnel.paths:type_name -> ngfw.v1.MplsStatePath
+	365, // 469: ngfw.v1.LbService.settings:type_name -> ngfw.v1.LbSettings
+	622, // 470: ngfw.v1.LbService.vips:type_name -> ngfw.v1.LbService.VipsEntry
+	368, // 471: ngfw.v1.LbService.nat_interfaces:type_name -> ngfw.v1.LbNatInterface
+	367, // 472: ngfw.v1.LbVip.servers:type_name -> ngfw.v1.LbServer
+	372, // 473: ngfw.v1.LbStateResponse.vips:type_name -> ngfw.v1.LbVipState
+	632, // 474: ngfw.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	371, // 475: ngfw.v1.LbVipState.servers:type_name -> ngfw.v1.LbServerState
+	376, // 476: ngfw.v1.QosPolicerStatus.conform:type_name -> ngfw.v1.QosPolicerCounter
+	376, // 477: ngfw.v1.QosPolicerStatus.exceed:type_name -> ngfw.v1.QosPolicerCounter
+	376, // 478: ngfw.v1.QosPolicerStatus.violate:type_name -> ngfw.v1.QosPolicerCounter
+	377, // 479: ngfw.v1.QosPolicerStateResponse.policers:type_name -> ngfw.v1.QosPolicerStatus
+	632, // 480: ngfw.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	632, // 481: ngfw.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
+	623, // 482: ngfw.v1.HostStackService.namespaces:type_name -> ngfw.v1.HostStackService.NamespacesEntry
+	383, // 483: ngfw.v1.HostStackService.session_rules:type_name -> ngfw.v1.HostStackSessionRule
+	384, // 484: ngfw.v1.HostStackService.tcp_source_addresses:type_name -> ngfw.v1.HostStackTcpSource
+	385, // 485: ngfw.v1.HostStackService.http_static:type_name -> ngfw.v1.HostStackHttpStatic
+	387, // 486: ngfw.v1.HostStackStateResponse.rules:type_name -> ngfw.v1.HostStackRuleState
+	632, // 487: ngfw.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	391, // 488: ngfw.v1.SnmpMonitors.disks:type_name -> ngfw.v1.SnmpMonitorDisk
+	392, // 489: ngfw.v1.SnmpMonitors.load:type_name -> ngfw.v1.SnmpMonitorLoad
+	398, // 490: ngfw.v1.IpfixStateResponse.exporters:type_name -> ngfw.v1.IpfixExporterState
+	399, // 491: ngfw.v1.IpfixStateResponse.flowprobe_params:type_name -> ngfw.v1.IpfixFlowprobeParamsState
+	400, // 492: ngfw.v1.IpfixStateResponse.flowprobe_interfaces:type_name -> ngfw.v1.IpfixFlowprobeInterfaceState
+	401, // 493: ngfw.v1.IpfixStateResponse.sflow_global:type_name -> ngfw.v1.IpfixSflowGlobalState
+	402, // 494: ngfw.v1.IpfixStateResponse.sflow_interfaces:type_name -> ngfw.v1.IpfixSflowInterfaceState
+	403, // 495: ngfw.v1.IpfixStateResponse.sflow_counters:type_name -> ngfw.v1.IpfixCounter
+	632, // 496: ngfw.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	632, // 497: ngfw.v1.CaptureFile.started_at:type_name -> google.protobuf.Timestamp
+	632, // 498: ngfw.v1.CaptureFile.stopped_at:type_name -> google.protobuf.Timestamp
+	405, // 499: ngfw.v1.CaptureListResponse.captures:type_name -> ngfw.v1.CaptureFile
+	624, // 500: ngfw.v1.Srv6Config.local_sids:type_name -> ngfw.v1.Srv6Config.LocalSidsEntry
+	625, // 501: ngfw.v1.Srv6Config.policies:type_name -> ngfw.v1.Srv6Config.PoliciesEntry
+	415, // 502: ngfw.v1.Srv6Config.steering:type_name -> ngfw.v1.Srv6Steering
+	414, // 503: ngfw.v1.Srv6Policy.sid_lists:type_name -> ngfw.v1.Srv6SidList
+	418, // 504: ngfw.v1.Srv6StateResponse.local_sids:type_name -> ngfw.v1.Srv6StateLocalSid
+	419, // 505: ngfw.v1.Srv6StateResponse.policies:type_name -> ngfw.v1.Srv6StatePolicy
+	421, // 506: ngfw.v1.Srv6StateResponse.steering:type_name -> ngfw.v1.Srv6StateSteering
+	632, // 507: ngfw.v1.Srv6StateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	420, // 508: ngfw.v1.Srv6StatePolicy.sid_lists:type_name -> ngfw.v1.Srv6StateSidList
+	626, // 509: ngfw.v1.LispConfig.locator_sets:type_name -> ngfw.v1.LispConfig.LocatorSetsEntry
+	425, // 510: ngfw.v1.LispConfig.local_eids:type_name -> ngfw.v1.LispLocalEid
+	627, // 511: ngfw.v1.LispConfig.eid_tables:type_name -> ngfw.v1.LispConfig.EidTablesEntry
+	428, // 512: ngfw.v1.LispConfig.remote_mappings:type_name -> ngfw.v1.LispRemoteMapping
+	429, // 513: ngfw.v1.LispConfig.adjacencies:type_name -> ngfw.v1.LispAdjacency
+	431, // 514: ngfw.v1.LispConfig.gpe_entries:type_name -> ngfw.v1.LispGpeEntry
+	424, // 515: ngfw.v1.LispLocatorSet.locators:type_name -> ngfw.v1.LispLocator
+	427, // 516: ngfw.v1.LispRemoteMapping.rlocs:type_name -> ngfw.v1.LispRloc
+	430, // 517: ngfw.v1.LispGpeEntry.pairs:type_name -> ngfw.v1.LispLocatorPair
+	433, // 518: ngfw.v1.LispStateLocatorSet.locators:type_name -> ngfw.v1.LispStateLocator
+	434, // 519: ngfw.v1.LispStateResponse.locator_sets:type_name -> ngfw.v1.LispStateLocatorSet
+	435, // 520: ngfw.v1.LispStateResponse.mappings:type_name -> ngfw.v1.LispStateMapping
+	436, // 521: ngfw.v1.LispStateResponse.adjacencies:type_name -> ngfw.v1.LispStateAdjacency
+	437, // 522: ngfw.v1.LispStateResponse.eid_tables:type_name -> ngfw.v1.LispStateEidTable
+	632, // 523: ngfw.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	628, // 524: ngfw.v1.MplsLdp.neighbors:type_name -> ngfw.v1.MplsLdp.NeighborsEntry
+	441, // 525: ngfw.v1.MplsLdp.label_range:type_name -> ngfw.v1.LdpLabelRange
+	632, // 526: ngfw.v1.MplsLdpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	444, // 527: ngfw.v1.MplsLdpStateResponse.neighbors:type_name -> ngfw.v1.LdpNeighborState
+	445, // 528: ngfw.v1.MplsLdpStateResponse.bindings:type_name -> ngfw.v1.LdpBindingState
+	446, // 529: ngfw.v1.MplsLdpStateResponse.sync:type_name -> ngfw.v1.LdpSyncState
+	632, // 530: ngfw.v1.LdpSyncState.last_sync_at:type_name -> google.protobuf.Timestamp
+	629, // 531: ngfw.v1.ManagementAlarms.rules:type_name -> ngfw.v1.ManagementAlarms.RulesEntry
+	630, // 532: ngfw.v1.ManagementAlarms.targets:type_name -> ngfw.v1.ManagementAlarms.TargetsEntry
+	452, // 533: ngfw.v1.WanGroup.members:type_name -> ngfw.v1.WanMember
+	453, // 534: ngfw.v1.WanGroup.monitors:type_name -> ngfw.v1.WanMonitor
+	632, // 535: ngfw.v1.WanStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	456, // 536: ngfw.v1.WanStateResponse.groups:type_name -> ngfw.v1.WanGroupState
+	457, // 537: ngfw.v1.WanGroupState.members:type_name -> ngfw.v1.WanMemberState
+	632, // 538: ngfw.v1.WanMemberState.since:type_name -> google.protobuf.Timestamp
+	632, // 539: ngfw.v1.MulticastStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	460, // 540: ngfw.v1.MulticastStateResponse.groups:type_name -> ngfw.v1.IgmpGroupState
+	461, // 541: ngfw.v1.MulticastStateResponse.mroutes:type_name -> ngfw.v1.MrouteState
+	462, // 542: ngfw.v1.MulticastStateResponse.pim_neighbors:type_name -> ngfw.v1.PimNeighborState
+	464, // 543: ngfw.v1.AaaLdap.servers:type_name -> ngfw.v1.AaaLdapServer
+	631, // 544: ngfw.v1.DataplaneStartupStateResponse.plugins:type_name -> ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
+	632, // 545: ngfw.v1.DataplaneStartupStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	470, // 546: ngfw.v1.DataplaneStartupStateResponse.runtime_threads:type_name -> ngfw.v1.DataplaneRuntimeThread
+	40,  // 547: ngfw.v1.DataplaneStartupPreviewRequest.dataplane:type_name -> ngfw.v1.DataplaneConfig
+	474, // 548: ngfw.v1.Nat46Config.mappings:type_name -> ngfw.v1.Nat46Mapping
+	632, // 549: ngfw.v1.SystemIdentityStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	479, // 550: ngfw.v1.IpsecStateResponse.conns:type_name -> ngfw.v1.IpsecConnState
+	481, // 551: ngfw.v1.IpsecStateResponse.sas:type_name -> ngfw.v1.IpsecIkeSa
+	632, // 552: ngfw.v1.IpsecStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	480, // 553: ngfw.v1.IpsecConnState.children:type_name -> ngfw.v1.IpsecChildConn
+	482, // 554: ngfw.v1.IpsecIkeSa.children:type_name -> ngfw.v1.IpsecChildSa
+	632, // 555: ngfw.v1.TunnelStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	484, // 556: ngfw.v1.TunnelStateResponse.tunnels:type_name -> ngfw.v1.TunnelStateTunnel
+	493, // 557: ngfw.v1.HostNicsResponse.nics:type_name -> ngfw.v1.HostNic
+	632, // 558: ngfw.v1.HostNicsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	43,  // 559: ngfw.v1.DesiredState.InterfacesEntry.value:type_name -> ngfw.v1.Interface
+	47,  // 560: ngfw.v1.DesiredState.VrfsEntry.value:type_name -> ngfw.v1.Vrf
+	42,  // 561: ngfw.v1.DataplaneConfig.DevicesEntry.value:type_name -> ngfw.v1.DataplaneDevice
+	46,  // 562: ngfw.v1.Interface.SubinterfacesEntry.value:type_name -> ngfw.v1.Subinterface
+	51,  // 563: ngfw.v1.IgmpConfig.InterfacesEntry.value:type_name -> ngfw.v1.IgmpInterface
+	53,  // 564: ngfw.v1.IgmpConfig.ProxiesEntry.value:type_name -> ngfw.v1.IgmpProxy
+	61,  // 565: ngfw.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> ngfw.v1.PrefixList
+	63,  // 566: ngfw.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> ngfw.v1.RouteMap
+	71,  // 567: ngfw.v1.BgpConfig.PeerGroupsEntry.value:type_name -> ngfw.v1.BgpPeerGroup
+	72,  // 568: ngfw.v1.BgpConfig.NeighborsEntry.value:type_name -> ngfw.v1.BgpNeighbor
+	75,  // 569: ngfw.v1.Ospf6Config.AreasEntry.value:type_name -> ngfw.v1.OspfArea
+	78,  // 570: ngfw.v1.Ospf6Config.InterfacesEntry.value:type_name -> ngfw.v1.Ospf6Interface
+	75,  // 571: ngfw.v1.OspfConfig.AreasEntry.value:type_name -> ngfw.v1.OspfArea
+	76,  // 572: ngfw.v1.OspfConfig.InterfacesEntry.value:type_name -> ngfw.v1.OspfInterface
+	81,  // 573: ngfw.v1.IsisConfig.InterfacesEntry.value:type_name -> ngfw.v1.IsisInterface
+	83,  // 574: ngfw.v1.RipConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
+	88,  // 575: ngfw.v1.TunnelsConfig.GreEntry.value:type_name -> ngfw.v1.GreTunnel
+	89,  // 576: ngfw.v1.TunnelsConfig.VxlanEntry.value:type_name -> ngfw.v1.VxlanTunnel
+	90,  // 577: ngfw.v1.TunnelsConfig.IpipEntry.value:type_name -> ngfw.v1.IpipTunnel
+	487, // 578: ngfw.v1.TunnelsConfig.VxlanGpeEntry.value:type_name -> ngfw.v1.VxlanGpeTunnel
+	488, // 579: ngfw.v1.TunnelsConfig.GtpuEntry.value:type_name -> ngfw.v1.GtpuTunnel
+	489, // 580: ngfw.v1.TunnelsConfig.L2tpv3Entry.value:type_name -> ngfw.v1.L2tpv3Tunnel
+	490, // 581: ngfw.v1.TunnelsConfig.PppoeEntry.value:type_name -> ngfw.v1.PppoeSession
+	98,  // 582: ngfw.v1.DhcpService.ServersEntry.value:type_name -> ngfw.v1.DhcpServer
+	99,  // 583: ngfw.v1.DhcpService.RelaysEntry.value:type_name -> ngfw.v1.DhcpRelay
+	96,  // 584: ngfw.v1.DhcpSubnet.ReservationsEntry.value:type_name -> ngfw.v1.DhcpReservation
+	97,  // 585: ngfw.v1.DhcpServer.SubnetsEntry.value:type_name -> ngfw.v1.DhcpSubnet
+	106, // 586: ngfw.v1.DnsService.ResolversEntry.value:type_name -> ngfw.v1.DnsResolver
+	529, // 587: ngfw.v1.SnmpService.CommunitiesEntry.value:type_name -> ngfw.v1.SnmpService.Community
+	530, // 588: ngfw.v1.SnmpService.V3UsersEntry.value:type_name -> ngfw.v1.SnmpService.V3User
+	389, // 589: ngfw.v1.SnmpService.ViewsEntry.value:type_name -> ngfw.v1.SnmpView
+	92,  // 590: ngfw.v1.IpfixService.Exporter.collector:type_name -> ngfw.v1.SocketAddress
+	540, // 591: ngfw.v1.IpfixService.Flowprobe.interfaces:type_name -> ngfw.v1.IpfixService.Flowprobe.Interface
+	92,  // 592: ngfw.v1.IpfixService.Sflow.collectors:type_name -> ngfw.v1.SocketAddress
+	536, // 593: ngfw.v1.IpfixService.ExportersEntry.value:type_name -> ngfw.v1.IpfixService.Exporter
+	113, // 594: ngfw.v1.QosService.PolicersEntry.value:type_name -> ngfw.v1.QosPolicer
+	114, // 595: ngfw.v1.QosService.ShapersEntry.value:type_name -> ngfw.v1.QosShaper
+	116, // 596: ngfw.v1.QosService.MapsEntry.value:type_name -> ngfw.v1.QosMap
+	117, // 597: ngfw.v1.QosService.InterfacesEntry.value:type_name -> ngfw.v1.QosInterface
+	115, // 598: ngfw.v1.QosMap.Rows.ext:type_name -> ngfw.v1.QosMapEntry
+	115, // 599: ngfw.v1.QosMap.Rows.vlan:type_name -> ngfw.v1.QosMapEntry
+	115, // 600: ngfw.v1.QosMap.Rows.mpls:type_name -> ngfw.v1.QosMapEntry
+	115, // 601: ngfw.v1.QosMap.Rows.ip:type_name -> ngfw.v1.QosMapEntry
+	119, // 602: ngfw.v1.HaConfig.VrrpEntry.value:type_name -> ngfw.v1.VrrpInstance
+	565, // 603: ngfw.v1.Nat64Config.StaticBib.inside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
+	565, // 604: ngfw.v1.Nat64Config.StaticBib.outside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
+	577, // 605: ngfw.v1.CnatConfig.Snat.addresses:type_name -> ngfw.v1.CnatConfig.Snat.Addresses
+	578, // 606: ngfw.v1.CnatConfig.Snat.interfaces:type_name -> ngfw.v1.CnatConfig.Snat.PolicyInterface
+	161, // 607: ngfw.v1.ObjectsConfig.AddressesEntry.value:type_name -> ngfw.v1.AddressObject
+	162, // 608: ngfw.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> ngfw.v1.AddressGroup
+	165, // 609: ngfw.v1.ObjectsConfig.ServicesEntry.value:type_name -> ngfw.v1.ServiceObject
+	166, // 610: ngfw.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> ngfw.v1.ServiceGroup
+	167, // 611: ngfw.v1.ObjectsConfig.SchedulesEntry.value:type_name -> ngfw.v1.Schedule
+	168, // 612: ngfw.v1.ObjectsConfig.ZonesEntry.value:type_name -> ngfw.v1.Zone
+	169, // 613: ngfw.v1.ObjectsConfig.TagsEntry.value:type_name -> ngfw.v1.Tag
+	177, // 614: ngfw.v1.AclConfig.ListsEntry.value:type_name -> ngfw.v1.AclList
+	179, // 615: ngfw.v1.AclConfig.MacipEntry.value:type_name -> ngfw.v1.MacipList
+	181, // 616: ngfw.v1.AclConfig.HostEntry.value:type_name -> ngfw.v1.HostList
+	173, // 617: ngfw.v1.GlobalBlocking.ListsEntry.value:type_name -> ngfw.v1.GlobalBlockingList
+	204, // 618: ngfw.v1.VpnConfig.RemoteAccessEntry.value:type_name -> ngfw.v1.RemoteAccessProfile
+	189, // 619: ngfw.v1.IpsecConfig.ProposalsEntry.value:type_name -> ngfw.v1.IpsecProposal
+	193, // 620: ngfw.v1.IpsecConfig.TunnelsEntry.value:type_name -> ngfw.v1.IpsecTunnel
+	196, // 621: ngfw.v1.WireguardInterface.PeersEntry.value:type_name -> ngfw.v1.WireguardPeer
+	197, // 622: ngfw.v1.WireguardConfig.InterfacesEntry.value:type_name -> ngfw.v1.WireguardInterface
+	199, // 623: ngfw.v1.PkiConfig.CasEntry.value:type_name -> ngfw.v1.PkiCa
+	200, // 624: ngfw.v1.PkiConfig.CertificatesEntry.value:type_name -> ngfw.v1.PkiCertificate
+	603, // 625: ngfw.v1.RemoteAccessProfile.Radius.servers:type_name -> ngfw.v1.RemoteAccessProfile.Radius.Server
+	206, // 626: ngfw.v1.Bond.MembersEntry.value:type_name -> ngfw.v1.BondMember
+	216, // 627: ngfw.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> ngfw.v1.BridgeL2Domain
+	218, // 628: ngfw.v1.BridgeL2Config.XconnectsEntry.value:type_name -> ngfw.v1.BridgeL2Xconnect
+	219, // 629: ngfw.v1.BridgeL2Config.L3xcEntry.value:type_name -> ngfw.v1.BridgeL2L3xc
+	221, // 630: ngfw.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> ngfw.v1.BridgeL2MacFilter
+	241, // 631: ngfw.v1.Ipv6Ra.PrefixesEntry.value:type_name -> ngfw.v1.Ipv6RaPrefix
+	254, // 632: ngfw.v1.PbrConfig.PoliciesEntry.value:type_name -> ngfw.v1.PbrPolicy
+	349, // 633: ngfw.v1.MplsConfig.TablesEntry.value:type_name -> ngfw.v1.MplsTable
+	353, // 634: ngfw.v1.MplsConfig.TunnelsEntry.value:type_name -> ngfw.v1.MplsTunnel
+	355, // 635: ngfw.v1.MplsSr.PoliciesEntry.value:type_name -> ngfw.v1.MplsSrPolicy
+	366, // 636: ngfw.v1.LbService.VipsEntry.value:type_name -> ngfw.v1.LbVip
+	382, // 637: ngfw.v1.HostStackService.NamespacesEntry.value:type_name -> ngfw.v1.HostStackNamespace
+	412, // 638: ngfw.v1.Srv6Config.LocalSidsEntry.value:type_name -> ngfw.v1.Srv6LocalSid
+	413, // 639: ngfw.v1.Srv6Config.PoliciesEntry.value:type_name -> ngfw.v1.Srv6Policy
+	423, // 640: ngfw.v1.LispConfig.LocatorSetsEntry.value:type_name -> ngfw.v1.LispLocatorSet
+	426, // 641: ngfw.v1.LispConfig.EidTablesEntry.value:type_name -> ngfw.v1.LispEidTable
+	440, // 642: ngfw.v1.MplsLdp.NeighborsEntry.value:type_name -> ngfw.v1.LdpNeighbor
+	449, // 643: ngfw.v1.ManagementAlarms.RulesEntry.value:type_name -> ngfw.v1.AlarmRule
+	450, // 644: ngfw.v1.ManagementAlarms.TargetsEntry.value:type_name -> ngfw.v1.AlarmTarget
+	477, // 645: ngfw.v1.Dataplane.IpsecState:input_type -> ngfw.v1.IpsecStateRequest
+	483, // 646: ngfw.v1.Dataplane.TunnelState:input_type -> ngfw.v1.TunnelStateRequest
+	128, // 647: ngfw.v1.Dataplane.AutoBlockSet:input_type -> ngfw.v1.AutoBlockSetRequest
+	8,   // 648: ngfw.v1.Dataplane.Apply:input_type -> ngfw.v1.ApplyRequest
+	16,  // 649: ngfw.v1.Dataplane.Retrieve:input_type -> ngfw.v1.RetrieveRequest
+	12,  // 650: ngfw.v1.Dataplane.DryRun:input_type -> ngfw.v1.DryRunRequest
+	18,  // 651: ngfw.v1.Dataplane.StreamStats:input_type -> ngfw.v1.StreamStatsRequest
+	22,  // 652: ngfw.v1.Dataplane.StreamEvents:input_type -> ngfw.v1.StreamEventsRequest
+	24,  // 653: ngfw.v1.Dataplane.Action:input_type -> ngfw.v1.ActionRequest
+	31,  // 654: ngfw.v1.Dataplane.Health:input_type -> ngfw.v1.HealthRequest
+	33,  // 655: ngfw.v1.Dataplane.InterfaceState:input_type -> ngfw.v1.InterfaceStateRequest
+	331, // 656: ngfw.v1.Dataplane.Det44Sessions:input_type -> ngfw.v1.Det44SessionsRequest
+	334, // 657: ngfw.v1.Dataplane.Det44Lookup:input_type -> ngfw.v1.Det44LookupRequest
+	336, // 658: ngfw.v1.Dataplane.CnatSessions:input_type -> ngfw.v1.CnatSessionsRequest
+	344, // 659: ngfw.v1.Dataplane.PkiFileState:input_type -> ngfw.v1.PkiFileStateRequest
+	358, // 660: ngfw.v1.Dataplane.MplsState:input_type -> ngfw.v1.MplsStateRequest
+	369, // 661: ngfw.v1.Dataplane.LbState:input_type -> ngfw.v1.LbStateRequest
+	373, // 662: ngfw.v1.Dataplane.LbFlushVip:input_type -> ngfw.v1.LbFlushVipRequest
+	375, // 663: ngfw.v1.Dataplane.QosPolicerState:input_type -> ngfw.v1.QosPolicerStateRequest
+	379, // 664: ngfw.v1.Dataplane.QosPolicerReset:input_type -> ngfw.v1.QosPolicerResetRequest
+	386, // 665: ngfw.v1.Dataplane.HostStackState:input_type -> ngfw.v1.HostStackStateRequest
+	394, // 666: ngfw.v1.Dataplane.SnmpState:input_type -> ngfw.v1.SnmpStateRequest
+	396, // 667: ngfw.v1.Dataplane.IpfixState:input_type -> ngfw.v1.IpfixStateRequest
+	404, // 668: ngfw.v1.Dataplane.CaptureList:input_type -> ngfw.v1.CaptureListRequest
+	407, // 669: ngfw.v1.Dataplane.CaptureRead:input_type -> ngfw.v1.CaptureReadRequest
+	409, // 670: ngfw.v1.Dataplane.CaptureDelete:input_type -> ngfw.v1.CaptureDeleteRequest
+	416, // 671: ngfw.v1.Dataplane.Srv6State:input_type -> ngfw.v1.Srv6StateRequest
+	432, // 672: ngfw.v1.Dataplane.LispState:input_type -> ngfw.v1.LispStateRequest
+	207, // 673: ngfw.v1.Dataplane.BondState:input_type -> ngfw.v1.BondStateRequest
+	223, // 674: ngfw.v1.Dataplane.BridgeDomainState:input_type -> ngfw.v1.BridgeDomainStateRequest
+	227, // 675: ngfw.v1.Dataplane.BridgeDomainMacs:input_type -> ngfw.v1.BridgeDomainMacsRequest
+	232, // 676: ngfw.v1.Dataplane.LldpNeighbors:input_type -> ngfw.v1.LldpNeighborsRequest
+	236, // 677: ngfw.v1.Dataplane.ListRoutes:input_type -> ngfw.v1.ListRoutesRequest
+	247, // 678: ngfw.v1.Dataplane.ListNeighbors:input_type -> ngfw.v1.ListNeighborsRequest
+	258, // 679: ngfw.v1.Dataplane.FqdnObjectState:input_type -> ngfw.v1.FqdnObjectStateRequest
+	261, // 680: ngfw.v1.Dataplane.AclState:input_type -> ngfw.v1.AclStateRequest
+	270, // 681: ngfw.v1.Dataplane.HostAclState:input_type -> ngfw.v1.HostAclStateRequest
+	276, // 682: ngfw.v1.Dataplane.NatSessions:input_type -> ngfw.v1.NatSessionsRequest
+	279, // 683: ngfw.v1.Dataplane.NatSummary:input_type -> ngfw.v1.NatSummaryRequest
+	283, // 684: ngfw.v1.Dataplane.WireguardState:input_type -> ngfw.v1.WireguardStateRequest
+	293, // 685: ngfw.v1.Dataplane.RoutingState:input_type -> ngfw.v1.RoutingStateRequest
+	301, // 686: ngfw.v1.Dataplane.DhcpLeases:input_type -> ngfw.v1.DhcpLeasesRequest
+	310, // 687: ngfw.v1.Dataplane.DnsState:input_type -> ngfw.v1.DnsStateRequest
+	475, // 688: ngfw.v1.Dataplane.SystemIdentityState:input_type -> ngfw.v1.SystemIdentityStateRequest
+	315, // 689: ngfw.v1.Dataplane.NtpState:input_type -> ngfw.v1.NtpStateRequest
+	320, // 690: ngfw.v1.Dataplane.SyslogState:input_type -> ngfw.v1.SyslogStateRequest
+	323, // 691: ngfw.v1.Dataplane.SyslogEntries:input_type -> ngfw.v1.SyslogEntriesRequest
+	468, // 692: ngfw.v1.Dataplane.DataplaneStartupState:input_type -> ngfw.v1.DataplaneStartupStateRequest
+	471, // 693: ngfw.v1.Dataplane.DataplaneStartupPreview:input_type -> ngfw.v1.DataplaneStartupPreviewRequest
+	290, // 694: ngfw.v1.Dataplane.PppoeReconnect:input_type -> ngfw.v1.PppoeReconnectRequest
+	454, // 695: ngfw.v1.Dataplane.WanState:input_type -> ngfw.v1.WanStateRequest
+	458, // 696: ngfw.v1.Dataplane.MulticastState:input_type -> ngfw.v1.MulticastStateRequest
+	442, // 697: ngfw.v1.Dataplane.MplsLdpState:input_type -> ngfw.v1.MplsLdpStateRequest
+	491, // 698: ngfw.v1.Dataplane.HostNics:input_type -> ngfw.v1.HostNicsRequest
+	478, // 699: ngfw.v1.Dataplane.IpsecState:output_type -> ngfw.v1.IpsecStateResponse
+	485, // 700: ngfw.v1.Dataplane.TunnelState:output_type -> ngfw.v1.TunnelStateResponse
+	130, // 701: ngfw.v1.Dataplane.AutoBlockSet:output_type -> ngfw.v1.AutoBlockSetResponse
+	9,   // 702: ngfw.v1.Dataplane.Apply:output_type -> ngfw.v1.ApplyResponse
+	17,  // 703: ngfw.v1.Dataplane.Retrieve:output_type -> ngfw.v1.RetrieveResponse
+	15,  // 704: ngfw.v1.Dataplane.DryRun:output_type -> ngfw.v1.ValidationReport
+	19,  // 705: ngfw.v1.Dataplane.StreamStats:output_type -> ngfw.v1.StatsBatch
+	23,  // 706: ngfw.v1.Dataplane.StreamEvents:output_type -> ngfw.v1.Event
+	29,  // 707: ngfw.v1.Dataplane.Action:output_type -> ngfw.v1.ActionOutput
+	32,  // 708: ngfw.v1.Dataplane.Health:output_type -> ngfw.v1.HealthResponse
+	34,  // 709: ngfw.v1.Dataplane.InterfaceState:output_type -> ngfw.v1.InterfaceStateResponse
+	333, // 710: ngfw.v1.Dataplane.Det44Sessions:output_type -> ngfw.v1.Det44SessionsResponse
+	335, // 711: ngfw.v1.Dataplane.Det44Lookup:output_type -> ngfw.v1.Det44LookupResponse
+	338, // 712: ngfw.v1.Dataplane.CnatSessions:output_type -> ngfw.v1.CnatSessionsResponse
+	347, // 713: ngfw.v1.Dataplane.PkiFileState:output_type -> ngfw.v1.PkiFileStateResponse
+	359, // 714: ngfw.v1.Dataplane.MplsState:output_type -> ngfw.v1.MplsStateResponse
+	370, // 715: ngfw.v1.Dataplane.LbState:output_type -> ngfw.v1.LbStateResponse
+	374, // 716: ngfw.v1.Dataplane.LbFlushVip:output_type -> ngfw.v1.LbFlushVipResponse
+	378, // 717: ngfw.v1.Dataplane.QosPolicerState:output_type -> ngfw.v1.QosPolicerStateResponse
+	380, // 718: ngfw.v1.Dataplane.QosPolicerReset:output_type -> ngfw.v1.QosPolicerResetResponse
+	388, // 719: ngfw.v1.Dataplane.HostStackState:output_type -> ngfw.v1.HostStackStateResponse
+	395, // 720: ngfw.v1.Dataplane.SnmpState:output_type -> ngfw.v1.SnmpStateResponse
+	397, // 721: ngfw.v1.Dataplane.IpfixState:output_type -> ngfw.v1.IpfixStateResponse
+	406, // 722: ngfw.v1.Dataplane.CaptureList:output_type -> ngfw.v1.CaptureListResponse
+	408, // 723: ngfw.v1.Dataplane.CaptureRead:output_type -> ngfw.v1.CaptureChunk
+	410, // 724: ngfw.v1.Dataplane.CaptureDelete:output_type -> ngfw.v1.CaptureDeleteResponse
+	417, // 725: ngfw.v1.Dataplane.Srv6State:output_type -> ngfw.v1.Srv6StateResponse
+	438, // 726: ngfw.v1.Dataplane.LispState:output_type -> ngfw.v1.LispStateResponse
+	208, // 727: ngfw.v1.Dataplane.BondState:output_type -> ngfw.v1.BondStateResponse
+	224, // 728: ngfw.v1.Dataplane.BridgeDomainState:output_type -> ngfw.v1.BridgeDomainStateResponse
+	228, // 729: ngfw.v1.Dataplane.BridgeDomainMacs:output_type -> ngfw.v1.BridgeDomainMacsResponse
+	233, // 730: ngfw.v1.Dataplane.LldpNeighbors:output_type -> ngfw.v1.LldpNeighborsResponse
+	237, // 731: ngfw.v1.Dataplane.ListRoutes:output_type -> ngfw.v1.ListRoutesResponse
+	248, // 732: ngfw.v1.Dataplane.ListNeighbors:output_type -> ngfw.v1.ListNeighborsResponse
+	259, // 733: ngfw.v1.Dataplane.FqdnObjectState:output_type -> ngfw.v1.FqdnObjectStateResponse
+	263, // 734: ngfw.v1.Dataplane.AclState:output_type -> ngfw.v1.AclStateResponse
+	271, // 735: ngfw.v1.Dataplane.HostAclState:output_type -> ngfw.v1.HostAclStateResponse
+	278, // 736: ngfw.v1.Dataplane.NatSessions:output_type -> ngfw.v1.NatSessionsResponse
+	281, // 737: ngfw.v1.Dataplane.NatSummary:output_type -> ngfw.v1.NatSummaryResponse
+	284, // 738: ngfw.v1.Dataplane.WireguardState:output_type -> ngfw.v1.WireguardStateResponse
+	294, // 739: ngfw.v1.Dataplane.RoutingState:output_type -> ngfw.v1.RoutingStateResponse
+	306, // 740: ngfw.v1.Dataplane.DhcpLeases:output_type -> ngfw.v1.DhcpLeasesResponse
+	311, // 741: ngfw.v1.Dataplane.DnsState:output_type -> ngfw.v1.DnsStateResponse
+	476, // 742: ngfw.v1.Dataplane.SystemIdentityState:output_type -> ngfw.v1.SystemIdentityStateResponse
+	316, // 743: ngfw.v1.Dataplane.NtpState:output_type -> ngfw.v1.NtpStateResponse
+	321, // 744: ngfw.v1.Dataplane.SyslogState:output_type -> ngfw.v1.SyslogStateResponse
+	324, // 745: ngfw.v1.Dataplane.SyslogEntries:output_type -> ngfw.v1.SyslogEntriesResponse
+	469, // 746: ngfw.v1.Dataplane.DataplaneStartupState:output_type -> ngfw.v1.DataplaneStartupStateResponse
+	472, // 747: ngfw.v1.Dataplane.DataplaneStartupPreview:output_type -> ngfw.v1.DataplaneStartupPreviewResponse
+	291, // 748: ngfw.v1.Dataplane.PppoeReconnect:output_type -> ngfw.v1.PppoeReconnectResponse
+	455, // 749: ngfw.v1.Dataplane.WanState:output_type -> ngfw.v1.WanStateResponse
+	459, // 750: ngfw.v1.Dataplane.MulticastState:output_type -> ngfw.v1.MulticastStateResponse
+	443, // 751: ngfw.v1.Dataplane.MplsLdpState:output_type -> ngfw.v1.MplsLdpStateResponse
+	492, // 752: ngfw.v1.Dataplane.HostNics:output_type -> ngfw.v1.HostNicsResponse
+	699, // [699:753] is the sub-list for method output_type
+	645, // [645:699] is the sub-list for method input_type
+	645, // [645:645] is the sub-list for extension type_name
+	645, // [645:645] is the sub-list for extension extendee
+	0,   // [0:645] is the sub-list for field type_name
 }
 
 func init() { file_ngfw_v1_dataplane_proto_init() }
@@ -52364,45 +52672,45 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[72].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[73].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[74].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[75].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[76].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[77].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[78].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[79].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[80].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[81].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[83].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[82].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[84].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[85].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[86].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[87].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[88].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[89].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[90].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[91].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[92].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[93].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[94].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[95].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[96].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[97].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[98].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[99].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[101].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[100].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[102].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[103].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[104].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[105].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[106].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[107].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[108].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[109].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[111].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[112].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[113].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[114].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[115].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[120].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[121].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[122].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[116].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[117].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[118].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[123].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[124].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[125].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[127].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[126].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[128].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[129].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[130].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[131].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[132].OneofWrappers = []any{}
@@ -52412,25 +52720,25 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[136].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[137].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[138].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[139].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[140].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[141].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[142].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[143].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[144].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[145].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[146].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[147].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[149].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[150].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[151].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[152].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[153].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[154].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[155].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[156].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[157].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[158].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[159].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[160].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[161].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[162].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[163].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[164].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[165].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[166].OneofWrappers = []any{}
@@ -52442,146 +52750,144 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[172].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[173].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[174].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[175].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[176].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[177].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[178].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[179].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[180].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[181].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[182].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[183].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[184].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[185].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[186].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[188].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[189].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[191].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[192].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[193].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[194].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[195].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[202].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[203].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[196].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[197].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[198].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[205].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[206].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[207].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[208].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[209].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[210].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[211].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[219].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[220].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[224].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[229].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[230].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[231].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[212].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[213].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[214].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[222].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[223].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[227].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[232].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[233].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[234].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[235].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[240].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[241].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[236].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[237].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[238].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[243].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[244].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[245].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[246].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[257].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[258].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[264].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[265].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[247].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[248].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[249].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[260].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[261].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[267].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[271].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[276].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[277].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[278].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[296].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[316].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[317].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[318].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[268].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[270].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[274].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[279].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[280].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[281].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[299].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[319].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[320].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[321].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[322].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[323].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[327].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[325].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[326].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[330].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[331].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[332].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[339].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[340].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[341].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[333].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[334].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[335].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[342].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[343].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[344].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[345].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[346].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[354].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[355].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[356].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[347].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[348].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[349].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[357].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[370].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[371].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[372].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[358].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[359].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[360].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[373].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[374].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[380].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[381].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[382].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[387].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[400].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[401].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[402].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[375].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[376].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[377].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[383].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[384].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[385].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[390].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[403].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[404].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[411].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[413].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[405].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[406].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[407].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[414].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[415].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[416].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[417].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[418].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[419].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[420].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[428].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[429].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[430].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[436].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[438].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[421].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[422].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[423].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[431].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[432].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[433].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[439].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[440].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[441].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[442].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[453].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[454].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[455].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[443].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[444].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[445].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[456].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[457].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[458].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[462].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[463].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[459].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[461].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[465].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[475].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[476].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[477].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[466].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[468].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[478].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[479].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[480].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[481].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[482].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[512].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[514].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[515].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[516].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[485].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[517].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[518].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[519].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[520].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[521].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[522].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[523].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[524].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[525].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[527].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[528].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[529].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[530].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[531].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[537].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[538].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[539].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[532].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[533].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[534].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[535].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[536].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[542].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[543].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[544].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[545].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[546].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[547].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[548].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[549].OneofWrappers = []any{}
@@ -52601,20 +52907,25 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[563].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[564].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[565].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[578].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[581].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[584].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[585].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[566].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[567].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[568].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[569].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[570].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[583].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[586].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[589].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[590].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[596].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[591].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[595].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[601].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ngfw_v1_dataplane_proto_rawDesc), len(file_ngfw_v1_dataplane_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   619,
+			NumMessages:   624,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

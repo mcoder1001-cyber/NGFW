@@ -356,6 +356,11 @@ export enum EventKind {
   /** EVENT_KIND_DEGRADED - A rollback failed; the agent is degraded until an Apply succeeds (AD-4). */
   EVENT_KIND_DEGRADED = 9,
   /**
+   * EVENT_KIND_OSPF_NEIGHBOR_CHANGED - wave-BC: F-vrrp-config-sync
+   * wave-BC: F-ospf
+   */
+  EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20,
+  /**
    * EVENT_KIND_NEIGHBOR_CHANGED - The ARP/ND table of an interface changed (F-neighbors-ra): learned, updated or removed entries, coalesced to at
    * most one event per interface per second (`interface` set; attributes "added", "removed", "updated" — counts), or
    * one event with `interface` unset (plus attribute "interfaces") when more than 16 interfaces changed in that second.
@@ -429,6 +434,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 9:
     case "EVENT_KIND_DEGRADED":
       return EventKind.EVENT_KIND_DEGRADED;
+    case 20:
+    case "EVENT_KIND_OSPF_NEIGHBOR_CHANGED":
+      return EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED;
     case 10:
     case "EVENT_KIND_NEIGHBOR_CHANGED":
       return EventKind.EVENT_KIND_NEIGHBOR_CHANGED;
@@ -480,6 +488,8 @@ export function eventKindToJSON(object: EventKind): string {
       return "EVENT_KIND_VPP_DISCONNECTED";
     case EventKind.EVENT_KIND_DEGRADED:
       return "EVENT_KIND_DEGRADED";
+    case EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED:
+      return "EVENT_KIND_OSPF_NEIGHBOR_CHANGED";
     case EventKind.EVENT_KIND_NEIGHBOR_CHANGED:
       return "EVENT_KIND_NEIGHBOR_CHANGED";
     case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
@@ -1713,6 +1723,10 @@ export interface RoutingConfig {
   policy:
     | RoutingPolicy
     | undefined;
+  /** wave-BC: F-ospf */
+  ospf6:
+    | Ospf6Config
+    | undefined;
   /** Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls). */
   mpls:
     | MplsConfig
@@ -2324,7 +2338,45 @@ export interface OspfInterface {
     | number
     | undefined;
   /** Zod default false. */
-  bfd?: boolean | undefined;
+  bfd?:
+    | boolean
+    | undefined;
+  /** wave-BC: F-ospf */
+  auth: OspfAuth | undefined;
+}
+
+export interface OspfAuth {
+  type?: string | undefined;
+  keyId?: number | undefined;
+  keyRef?: string | undefined;
+}
+
+export interface Ospf6Interface {
+  area?: string | undefined;
+  cost?: number | undefined;
+  passive?: boolean | undefined;
+  networkType?: string | undefined;
+  helloIntervalSec?: number | undefined;
+  deadIntervalSec?: number | undefined;
+  priority?: number | undefined;
+}
+
+export interface Ospf6Config {
+  routerId?: string | undefined;
+  vrf?: string | undefined;
+  areas: { [key: string]: OspfArea };
+  interfaces: { [key: string]: Ospf6Interface };
+  redistribute: Redistribute | undefined;
+}
+
+export interface Ospf6Config_AreasEntry {
+  key: string;
+  value: OspfArea | undefined;
+}
+
+export interface Ospf6Config_InterfacesEntry {
+  key: string;
+  value: Ospf6Interface | undefined;
 }
 
 /** OspfConfig mirrors `routing.ospf`. */
@@ -18673,6 +18725,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     rip: undefined,
     bfd: undefined,
     policy: undefined,
+    ospf6: undefined,
     mpls: undefined,
     multicast: undefined,
     l2: undefined,
@@ -18705,6 +18758,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       RoutingPolicy.encode(message.policy, writer.uint32(74).fork()).join();
+    }
+    if (message.ospf6 !== undefined) {
+      Ospf6Config.encode(message.ospf6, writer.uint32(106).fork()).join();
     }
     if (message.mpls !== undefined) {
       MplsConfig.encode(message.mpls, writer.uint32(122).fork()).join();
@@ -18799,6 +18855,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.policy = RoutingPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.ospf6 = Ospf6Config.decode(reader, reader.uint32());
+            continue;
+          }
           case 15: {
             if (tag !== 122) {
               break;
@@ -18876,6 +18940,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       rip: isSet(object.rip) ? RipConfig.fromJSON(object.rip) : undefined,
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
+      ospf6: isSet(object.ospf6) ? Ospf6Config.fromJSON(object.ospf6) : undefined,
       mpls: isSet(object.mpls) ? MplsConfig.fromJSON(object.mpls) : undefined,
       multicast: isSet(object.multicast) ? MulticastConfig.fromJSON(object.multicast) : undefined,
       l2: isSet(object.l2) ? BridgeL2Config.fromJSON(object.l2) : undefined,
@@ -18912,6 +18977,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.policy !== undefined) {
       obj.policy = RoutingPolicy.toJSON(message.policy);
+    }
+    if (message.ospf6 !== undefined) {
+      obj.ospf6 = Ospf6Config.toJSON(message.ospf6);
     }
     if (message.mpls !== undefined) {
       obj.mpls = MplsConfig.toJSON(message.mpls);
@@ -18954,6 +19022,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     message.bfd = (object.bfd !== undefined && object.bfd !== null) ? BfdConfig.fromPartial(object.bfd) : undefined;
     message.policy = (object.policy !== undefined && object.policy !== null)
       ? RoutingPolicy.fromPartial(object.policy)
+      : undefined;
+    message.ospf6 = (object.ospf6 !== undefined && object.ospf6 !== null)
+      ? Ospf6Config.fromPartial(object.ospf6)
       : undefined;
     message.mpls = (object.mpls !== undefined && object.mpls !== null)
       ? MplsConfig.fromPartial(object.mpls)
@@ -23312,6 +23383,7 @@ function createBaseOspfInterface(): OspfInterface {
     deadIntervalSec: undefined,
     priority: undefined,
     bfd: undefined,
+    auth: undefined,
   };
 }
 
@@ -23340,6 +23412,9 @@ export const OspfInterface: MessageFns<OspfInterface> = {
     }
     if (message.bfd !== undefined) {
       writer.uint32(64).bool(message.bfd);
+    }
+    if (message.auth !== undefined) {
+      OspfAuth.encode(message.auth, writer.uint32(74).fork()).join();
     }
     return writer;
   },
@@ -23421,6 +23496,14 @@ export const OspfInterface: MessageFns<OspfInterface> = {
             message.bfd = reader.bool();
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.auth = OspfAuth.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -23455,6 +23538,7 @@ export const OspfInterface: MessageFns<OspfInterface> = {
         : undefined,
       priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
       bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+      auth: isSet(object.auth) ? OspfAuth.fromJSON(object.auth) : undefined,
     };
   },
 
@@ -23484,6 +23568,9 @@ export const OspfInterface: MessageFns<OspfInterface> = {
     if (message.bfd !== undefined) {
       obj.bfd = message.bfd;
     }
+    if (message.auth !== undefined) {
+      obj.auth = OspfAuth.toJSON(message.auth);
+    }
     return obj;
   },
 
@@ -23500,6 +23587,674 @@ export const OspfInterface: MessageFns<OspfInterface> = {
     message.deadIntervalSec = object.deadIntervalSec ?? undefined;
     message.priority = object.priority ?? undefined;
     message.bfd = object.bfd ?? undefined;
+    message.auth = (object.auth !== undefined && object.auth !== null) ? OspfAuth.fromPartial(object.auth) : undefined;
+    return message;
+  },
+};
+
+function createBaseOspfAuth(): OspfAuth {
+  return { type: undefined, keyId: undefined, keyRef: undefined };
+}
+
+export const OspfAuth: MessageFns<OspfAuth> = {
+  encode(message: OspfAuth, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.keyId !== undefined) {
+      writer.uint32(16).uint32(message.keyId);
+    }
+    if (message.keyRef !== undefined) {
+      writer.uint32(26).string(message.keyRef);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): OspfAuth {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspfAuth();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.keyId = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.keyRef = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): OspfAuth {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      keyId: isSet(object.keyId)
+        ? globalThis.Number(object.keyId)
+        : isSet(object.key_id)
+        ? globalThis.Number(object.key_id)
+        : undefined,
+      keyRef: isSet(object.keyRef)
+        ? globalThis.String(object.keyRef)
+        : isSet(object.key_ref)
+        ? globalThis.String(object.key_ref)
+        : undefined,
+    };
+  },
+
+  toJSON(message: OspfAuth): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.keyId !== undefined) {
+      obj.keyId = Math.round(message.keyId);
+    }
+    if (message.keyRef !== undefined) {
+      obj.keyRef = message.keyRef;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<OspfAuth>): OspfAuth {
+    return OspfAuth.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<OspfAuth>): OspfAuth {
+    const message = createBaseOspfAuth();
+    message.type = object.type ?? undefined;
+    message.keyId = object.keyId ?? undefined;
+    message.keyRef = object.keyRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseOspf6Interface(): Ospf6Interface {
+  return {
+    area: undefined,
+    cost: undefined,
+    passive: undefined,
+    networkType: undefined,
+    helloIntervalSec: undefined,
+    deadIntervalSec: undefined,
+    priority: undefined,
+  };
+}
+
+export const Ospf6Interface: MessageFns<Ospf6Interface> = {
+  encode(message: Ospf6Interface, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.area !== undefined) {
+      writer.uint32(10).string(message.area);
+    }
+    if (message.cost !== undefined) {
+      writer.uint32(16).uint32(message.cost);
+    }
+    if (message.passive !== undefined) {
+      writer.uint32(24).bool(message.passive);
+    }
+    if (message.networkType !== undefined) {
+      writer.uint32(34).string(message.networkType);
+    }
+    if (message.helloIntervalSec !== undefined) {
+      writer.uint32(40).uint32(message.helloIntervalSec);
+    }
+    if (message.deadIntervalSec !== undefined) {
+      writer.uint32(48).uint32(message.deadIntervalSec);
+    }
+    if (message.priority !== undefined) {
+      writer.uint32(56).uint32(message.priority);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Ospf6Interface {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspf6Interface();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.area = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.cost = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.passive = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.networkType = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.helloIntervalSec = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.deadIntervalSec = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.priority = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Ospf6Interface {
+    return {
+      area: isSet(object.area) ? globalThis.String(object.area) : undefined,
+      cost: isSet(object.cost) ? globalThis.Number(object.cost) : undefined,
+      passive: isSet(object.passive) ? globalThis.Boolean(object.passive) : undefined,
+      networkType: isSet(object.networkType)
+        ? globalThis.String(object.networkType)
+        : isSet(object.network_type)
+        ? globalThis.String(object.network_type)
+        : undefined,
+      helloIntervalSec: isSet(object.helloIntervalSec)
+        ? globalThis.Number(object.helloIntervalSec)
+        : isSet(object.hello_interval_sec)
+        ? globalThis.Number(object.hello_interval_sec)
+        : undefined,
+      deadIntervalSec: isSet(object.deadIntervalSec)
+        ? globalThis.Number(object.deadIntervalSec)
+        : isSet(object.dead_interval_sec)
+        ? globalThis.Number(object.dead_interval_sec)
+        : undefined,
+      priority: isSet(object.priority) ? globalThis.Number(object.priority) : undefined,
+    };
+  },
+
+  toJSON(message: Ospf6Interface): unknown {
+    const obj: any = {};
+    if (message.area !== undefined) {
+      obj.area = message.area;
+    }
+    if (message.cost !== undefined) {
+      obj.cost = Math.round(message.cost);
+    }
+    if (message.passive !== undefined) {
+      obj.passive = message.passive;
+    }
+    if (message.networkType !== undefined) {
+      obj.networkType = message.networkType;
+    }
+    if (message.helloIntervalSec !== undefined) {
+      obj.helloIntervalSec = Math.round(message.helloIntervalSec);
+    }
+    if (message.deadIntervalSec !== undefined) {
+      obj.deadIntervalSec = Math.round(message.deadIntervalSec);
+    }
+    if (message.priority !== undefined) {
+      obj.priority = Math.round(message.priority);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Ospf6Interface>): Ospf6Interface {
+    return Ospf6Interface.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Ospf6Interface>): Ospf6Interface {
+    const message = createBaseOspf6Interface();
+    message.area = object.area ?? undefined;
+    message.cost = object.cost ?? undefined;
+    message.passive = object.passive ?? undefined;
+    message.networkType = object.networkType ?? undefined;
+    message.helloIntervalSec = object.helloIntervalSec ?? undefined;
+    message.deadIntervalSec = object.deadIntervalSec ?? undefined;
+    message.priority = object.priority ?? undefined;
+    return message;
+  },
+};
+
+function createBaseOspf6Config(): Ospf6Config {
+  return { routerId: undefined, vrf: undefined, areas: {}, interfaces: {}, redistribute: undefined };
+}
+
+export const Ospf6Config: MessageFns<Ospf6Config> = {
+  encode(message: Ospf6Config, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.routerId !== undefined) {
+      writer.uint32(10).string(message.routerId);
+    }
+    if (message.vrf !== undefined) {
+      writer.uint32(18).string(message.vrf);
+    }
+    globalThis.Object.entries(message.areas).forEach(([key, value]: [string, OspfArea]) => {
+      Ospf6Config_AreasEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, Ospf6Interface]) => {
+      Ospf6Config_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(34).fork()).join();
+    });
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(42).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Ospf6Config {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspf6Config();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.routerId = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = Ospf6Config_AreasEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.areas[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            const entry4 = Ospf6Config_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry4.value !== undefined) {
+              message.interfaces[entry4.key] = entry4.value;
+            }
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Ospf6Config {
+    return {
+      routerId: isSet(object.routerId)
+        ? globalThis.String(object.routerId)
+        : isSet(object.router_id)
+        ? globalThis.String(object.router_id)
+        : undefined,
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      areas: isObject(object.areas)
+        ? (globalThis.Object.entries(object.areas) as [string, any][]).reduce(
+          (acc: { [key: string]: OspfArea }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: OspfArea.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: Ospf6Interface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: Ospf6Interface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+    };
+  },
+
+  toJSON(message: Ospf6Config): unknown {
+    const obj: any = {};
+    if (message.routerId !== undefined) {
+      obj.routerId = message.routerId;
+    }
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.areas) {
+      const entries = globalThis.Object.entries(message.areas) as [string, OspfArea][];
+      if (entries.length > 0) {
+        obj.areas = {};
+        entries.forEach(([k, v]) => {
+          obj.areas[k] = OspfArea.toJSON(v);
+        });
+      }
+    }
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, Ospf6Interface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = Ospf6Interface.toJSON(v);
+        });
+      }
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Ospf6Config>): Ospf6Config {
+    return Ospf6Config.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Ospf6Config>): Ospf6Config {
+    const message = createBaseOspf6Config();
+    message.routerId = object.routerId ?? undefined;
+    message.vrf = object.vrf ?? undefined;
+    message.areas = (globalThis.Object.entries(object.areas ?? {}) as [string, OspfArea][]).reduce(
+      (acc: { [key: string]: OspfArea }, [key, value]: [string, OspfArea]) => {
+        if (value !== undefined) {
+          acc[key] = OspfArea.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, Ospf6Interface][]).reduce(
+      (acc: { [key: string]: Ospf6Interface }, [key, value]: [string, Ospf6Interface]) => {
+        if (value !== undefined) {
+          acc[key] = Ospf6Interface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseOspf6Config_AreasEntry(): Ospf6Config_AreasEntry {
+  return { key: "", value: undefined };
+}
+
+export const Ospf6Config_AreasEntry: MessageFns<Ospf6Config_AreasEntry> = {
+  encode(message: Ospf6Config_AreasEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      OspfArea.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Ospf6Config_AreasEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspf6Config_AreasEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = OspfArea.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Ospf6Config_AreasEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? OspfArea.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Ospf6Config_AreasEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = OspfArea.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Ospf6Config_AreasEntry>): Ospf6Config_AreasEntry {
+    return Ospf6Config_AreasEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Ospf6Config_AreasEntry>): Ospf6Config_AreasEntry {
+    const message = createBaseOspf6Config_AreasEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? OspfArea.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseOspf6Config_InterfacesEntry(): Ospf6Config_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const Ospf6Config_InterfacesEntry: MessageFns<Ospf6Config_InterfacesEntry> = {
+  encode(message: Ospf6Config_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      Ospf6Interface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): Ospf6Config_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseOspf6Config_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = Ospf6Interface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): Ospf6Config_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? Ospf6Interface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: Ospf6Config_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = Ospf6Interface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<Ospf6Config_InterfacesEntry>): Ospf6Config_InterfacesEntry {
+    return Ospf6Config_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<Ospf6Config_InterfacesEntry>): Ospf6Config_InterfacesEntry {
+    const message = createBaseOspf6Config_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? Ospf6Interface.fromPartial(object.value)
+      : undefined;
     return message;
   },
 };

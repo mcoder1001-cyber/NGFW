@@ -12,7 +12,7 @@
 //     interface is an error at its pointer;
 //   - redistribution lines are the router block's own (`redistribute <src> [metric N] [route-map R]`), in FRR's
 //     route-type order; OSPF never redistributes into itself;
-//   - OSPFv3 (`ospf6`, order 450) has no model yet (additive contract pending, see the doc) and is not registered.
+//   - OSPFv3 (`ospf6`, order 450) is registered separately, using the same validated area/timer semantics.
 package ospf
 
 import (
@@ -36,7 +36,14 @@ const OrderOSPF = 440
 const Name = "ospf"
 
 func init() {
+	frr.RegisterStateReader(frr.StateReader{Key: "ospfDatabase", OnDemand: true, Command: "show ip ospf vrf all database json"})
+	frr.RegisterStateReader(frr.StateReader{Key: "ospf6Database", OnDemand: true, Command: "show ipv6 ospf6 vrf all database json"})
 	frr.RegisterSection(Section{})
+	frr.RegisterSection(Section6{})
+	frr.RegisterInterfaceLines("ospf6", InterfaceLines6)
+	frr.RegisterStateReader(frr.StateReader{Key: NeighborsReader6, OnDemand: true, Command: ShowNeighbors6})
+	frr.RegisterStateReader(frr.StateReader{Key: InterfacesReader6, OnDemand: true, Command: ShowInterfaces6})
+	frr.RegisterPoller("ospf6-neighbors", PollNeighbors6)
 	frr.RegisterInterfaceLines(Name, InterfaceLines)
 	frr.RegisterStateReader(frr.StateReader{Key: NeighborsReader, Command: ShowNeighbors})
 	frr.RegisterStateReader(frr.StateReader{Key: InterfacesReader, Command: ShowInterfaces})
@@ -59,7 +66,41 @@ func (Section) Render(rc *frr.RenderContext) ([]string, error) {
 
 // InterfaceLines is the frr.InterfaceLinesFunc of `routing.ospf.interfaces`.
 func InterfaceLines(rc *frr.RenderContext) (map[string][]string, error) {
-	return RenderInterfaces(rc.Desired.GetRouting().GetOspf(), rc.MapInterface)
+	o := rc.Desired.GetRouting().GetOspf()
+	out, err := RenderInterfaces(o, rc.MapInterface)
+	if err != nil {
+		return nil, err
+	}
+	for vppName, iface := range o.GetInterfaces() {
+		auth := iface.GetAuth()
+		if auth == nil {
+			continue
+		}
+		linux, _ := rc.MapInterface(vppName)
+		path := base.At("interfaces", vppName, "auth")
+		switch auth.GetType() {
+		case "none":
+			if auth.GetKeyRef() != "" || auth.KeyId != nil {
+				return nil, policy.Errf(path, "authentication none cannot carry a key")
+			}
+			out[linux] = append(out[linux], " ip ospf authentication null")
+		case "md5":
+			if auth.GetKeyId() < 1 || auth.GetKeyId() > 255 || !strings.HasPrefix(auth.GetKeyRef(), "password/") {
+				return nil, policy.Errf(path, "MD5 requires key id 1–255 and a password reference")
+			}
+			key, err := rc.Secret(auth.GetKeyRef())
+			if err != nil {
+				return nil, policy.Wrap(path.At("keyRef"), err)
+			}
+			if len(key) > 16 {
+				return nil, policy.Errf(path.At("keyRef"), "OSPF MD5 key must not exceed 16 bytes")
+			}
+			out[linux] = append(out[linux], " ip ospf authentication message-digest", fmt.Sprintf(" ip ospf message-digest-key %d md5 %s", auth.GetKeyId(), key))
+		default:
+			return nil, policy.Errf(path.At("type"), "unsupported authentication type")
+		}
+	}
+	return out, nil
 }
 
 var base = policy.P("routing", "ospf")

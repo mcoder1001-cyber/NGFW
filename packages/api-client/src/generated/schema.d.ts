@@ -469,6 +469,40 @@ export interface paths {
     patch: operations['Config_patchAt'];
     trace?: never;
   };
+  '/api/v1/config/setup/preview': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview the exact setup diff without editing candidate or applying configuration */
+    post: operations['Setup_preview'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config/setup/stage': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stage setup and policy-checked own password together; use normal validate and confirmed commit */
+    post: operations['Setup_stage'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/system': {
     parameters: {
       query?: never;
@@ -990,8 +1024,59 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Bounded observed OSPFv2 neighbors; unavailable readers are explicit */
-    get: operations['Ospf_state'];
+    /** Bounded observed OSPFv2/v3 neighbors; unavailable readers are explicit */
+    get: operations['Ospf_state[0]'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/ospf/neighbors': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bounded observed OSPFv2/v3 neighbors; unavailable readers are explicit */
+    get: operations['Ospf_state[1]'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/ospf/interfaces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Bounded observed OSPFv2/v3 interface state */
+    get: operations['Ospf_interfaces'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/ospf/database': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Paged bounded public OSPFv2/v3 link-state database observations */
+    get: operations['Ospf_database'];
     put?: never;
     post?: never;
     delete?: never;
@@ -2513,6 +2598,13 @@ export interface components {
      * @default {}
      */
     SystemConfig: {
+      /** @default {} */
+      readonly setup: {
+        /** @default false */
+        completed: boolean;
+        /** Format: date-time */
+        completedAt?: string;
+      };
       /**
        * Hostname
        * @default ngfw
@@ -3685,6 +3777,14 @@ export interface components {
              * @default false
              */
             bfd: boolean;
+            /** Authentication */
+            auth?: {
+              /** @enum {string} */
+              type: 'none' | 'md5';
+              keyId?: number;
+              /** Secret reference */
+              keyRef?: string;
+            };
           };
         };
         /**
@@ -3928,6 +4028,107 @@ export interface components {
            */
           enabled: boolean;
         }[];
+      };
+      /** OSPFv3 */
+      ospf6?: {
+        /**
+         * Router ID
+         * Format: ipv4
+         */
+        routerId?: string;
+        /**
+         * VRF
+         * @default default
+         */
+        vrf: string;
+        /**
+         * Areas
+         * @default {}
+         */
+        areas: {
+          [key: string]: {
+            /**
+             * Area type
+             * @default normal
+             * @enum {string}
+             */
+            type: 'normal' | 'stub' | 'nssa';
+            /**
+             * No summary
+             * @default false
+             */
+            noSummary: boolean;
+          };
+        };
+        /**
+         * Interfaces
+         * @default {}
+         */
+        interfaces: {
+          [key: string]: {
+            /** Area */
+            area: string;
+            /** Cost */
+            cost?: number;
+            /**
+             * Passive
+             * @default false
+             */
+            passive: boolean;
+            /**
+             * Network type
+             * @enum {string}
+             */
+            networkType?: 'broadcast' | 'point-to-point' | 'point-to-multipoint';
+            /** Hello interval (s) */
+            helloIntervalSec?: number;
+            /** Dead interval (s) */
+            deadIntervalSec?: number;
+            /** DR priority */
+            priority?: number;
+          };
+        };
+        /**
+         * Redistribution
+         * @default {}
+         */
+        redistribute: {
+          /** Redistribute connected */
+          connected?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute static */
+          static?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute bgp */
+          bgp?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute isis */
+          isis?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+          /** Redistribute rip */
+          rip?: {
+            /** Metric */
+            metric?: number;
+            /** Route map */
+            routeMap?: string;
+          };
+        };
       };
       /** MPLS */
       mpls?: {
@@ -12077,6 +12278,219 @@ export interface operations {
       };
     };
   };
+  Setup_preview: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          input: {
+            /** @enum {string} */
+            language: 'en' | 'fa';
+            /** Time zone */
+            timezone: string;
+            ntp: string[];
+            /** Hostname */
+            hostname: string;
+            /** Interface */
+            wan: string;
+            /** @enum {string} */
+            wanMode: 'dhcp' | 'static';
+            /**
+             * IPv4 CIDR
+             * Format: cidrv4
+             */
+            wanAddress?: string;
+            /** Format: ipv4 */
+            wanGateway?: string;
+            /** Interface */
+            lan: string;
+            /**
+             * IPv4 CIDR
+             * Format: cidrv4
+             */
+            lanAddress: string;
+            dhcp: boolean;
+            /** @default false */
+            rerun?: boolean;
+          };
+          baseRevision: number;
+          /** Format: date-time */
+          completedAt: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            changes: {
+              /** @enum {string} */
+              op: 'add' | 'remove' | 'replace';
+              pointer: string;
+              from?: unknown;
+              to?: unknown;
+              redacted?: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Setup_stage: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          input: {
+            /** @enum {string} */
+            language: 'en' | 'fa';
+            /** Time zone */
+            timezone: string;
+            ntp: string[];
+            /** Hostname */
+            hostname: string;
+            /** Interface */
+            wan: string;
+            /** @enum {string} */
+            wanMode: 'dhcp' | 'static';
+            /**
+             * IPv4 CIDR
+             * Format: cidrv4
+             */
+            wanAddress?: string;
+            /** Format: ipv4 */
+            wanGateway?: string;
+            /** Interface */
+            lan: string;
+            /**
+             * IPv4 CIDR
+             * Format: cidrv4
+             */
+            lanAddress: string;
+            dhcp: boolean;
+            /** @default false */
+            rerun?: boolean;
+          };
+          baseRevision: number;
+          /** Format: date-time */
+          completedAt: string;
+          current: string;
+          password: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @constant */
+            staged: true;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description `audit-unavailable` (TD-10b): the audit row could not be written before the change, so nothing was changed; also `unavailable` when the database or agent is down */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   State_system: {
     parameters: {
       query?: never;
@@ -15325,9 +15739,11 @@ export interface operations {
       };
     };
   };
-  Ospf_state: {
+  'Ospf_state[0]': {
     parameters: {
-      query?: never;
+      query?: {
+        version?: '2' | '3';
+      };
       header?: never;
       path?: never;
       cookie?: never;
@@ -15362,6 +15778,269 @@ export interface operations {
               priority: number | null;
             }[];
           };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  'Ospf_state[1]': {
+    parameters: {
+      query?: {
+        version?: '2' | '3';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            retrievedAt: string | null;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            warning: 'routing-observation-partial' | null;
+            truncated: boolean;
+            neighbors: {
+              vrf: string;
+              routerId: string;
+              address: string | null;
+              interface: string | null;
+              /** @description Observed FRR adjacency state, or Unknown */
+              state: string;
+              priority: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ospf_interfaces: {
+    parameters: {
+      query?: {
+        version?: '2' | '3';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  Ospf_database: {
+    parameters: {
+      query?: {
+        version?: '2' | '3';
+        offset?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            frrRunning: boolean;
+            unavailable:
+              | (
+                  | 'frr-unavailable'
+                  | 'reader-unavailable'
+                  | 'reader-invalid'
+                  | 'reader-limit-exceeded'
+                )
+              | null;
+            offset: number;
+            limit: number;
+            total: number;
+            rows: {
+              [key: string]: string | number | boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
         };
       };
       /** @description Not authenticated */

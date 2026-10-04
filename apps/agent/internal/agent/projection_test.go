@@ -22,6 +22,9 @@ import (
 // modulo the leaves the core descriptors cannot represent.
 func TestProjectSchemaExamples(t *testing.T) {
 	t.Setenv(subsystems.EnvIDRange, subsystems.IDRangeAll) // F-tunnels: tunnel instances must lie in the agent's id range (TD-8b)
+	// This schema corpus has references without secret material; PKI behavior is covered with sealed-cache fixtures separately.
+	restorePKI := subsystems.SetPKIRuntimeForTest("schema-corpus", nil, "schema corpus without secrets")
+	t.Cleanup(restorePKI)
 	// F-snmp: no daemon parse run / secret resolution here (the examples hold refs only); restore after.
 	saved := desired.SnapshotSnmpChecks()
 	desired.RestoreSnmpChecks(nil)

@@ -1,8 +1,8 @@
-# Secret channel: native IPsec implemented; other consumers pending
+# Secret channel: native IPsec and operational PKI implemented; other consumers pending
 
 - raised: 2026-09-24 15:00 by the manager (ngfw-46), from the wave-A prep: the P11 envelope, the F-wireguard/P12/F-unbound prompts, and P08's note "P11 adds the secret resolver"
-- decision: **2026-10-03: implement recommended API-push channel for native route-based IPsec PSKs within the owner-authorized implementation; other consumers remain pending.**
-- parked tasks: none as whole tasks. Only the **end-to-end secret steps** wait: P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`), F-unbound-chrony-syslog (TLS key), and since D-119 also F-pki, F-ra-vpn, F-snmp (community/USM keys), F-ospf/F-isis-rip/F-bfd/F-mpls-ldp (auth keys), F-host-stack, F-vrrp-config-sync (keepalived auth + cluster sync key). Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`NGFW_TEST_PSK_<id>_*`).
+- decision: **2026-10-03: implement recommended API-push channel for native route-based IPsec PSKs within the owner-authorized implementation; other consumers remain pending. Operational PKI file delivery reuses this design in the owner-authorized 2026-10-04 F-pki completion below.**
+- parked tasks: none as whole tasks. Only the **end-to-end secret steps** wait: P11 (IKE PSK/private key), F-wireguard (private key), P12 (`passwordRef`), F-unbound-chrony-syslog (TLS key), and since D-119 also F-ra-vpn, F-snmp (community/USM keys), F-ospf/F-isis-rip/F-bfd/F-mpls-ldp (auth keys), F-host-stack, F-vrrp-config-sync (keepalived auth + cluster sync key). Their schema, descriptors, renderers, UI and tests proceed with a slot-local `vpn.MapResolver` fixture (`NGFW_TEST_PSK_<id>_*`).
 
 ## Implemented native scope (2026-10-03)
 
@@ -14,6 +14,14 @@ recorded under `docs/status/tasks/ipsec-prerequisites-2026-10-03-evidence/`.
 No WireGuard, routing authentication, TLS, certificate or other consumer is claimed
 complete by this change. The options and original rationale below remain historical
 context; native PSK delivery is no longer parked.
+
+## Operational PKI scope (2026-10-04)
+
+Owner-authorized F-pki completion reuses the implemented API-push/socket/sealed-cache design for configured operational certificate material. This follows the F-pki file-delivery requirement and introduces no socket permission, master-key sharing, new endpoint or agent privilege change. Independent security review covers actual X.509 CA exclusion, reference-kind separation, redacted errors, literal-reference cache access, rollback with candidate-only cache and available public state.
+
+Selected material: configured public CA references; end-entity certificate references plus their matching operational private-key references; available configured-CA CRLs. CSR-only keys and CA signing keys remain API-side. CA certificates masquerading as operational leaves are rejected before their keys are decrypted for delivery. Other consumers, including routing MD5 authentication, remain pending under their existing prompts.
+
+Files are isolated under `<agent StateDir>/pki-<owner>`, never a removed product strongSwan/system directory. The agent loads the sealed cache before startup reconciliation. Public state carries fingerprints/modes only; each transport item is limited to64KiB, rollback checkpoints to8MiB. Native IKEv2 certificate authentication is outside this scoped completion; no live tunnel acceptance is claimed.
 
 ## Historical context and options (before 2026-10-03)
 The API stores secrets encrypted in PostgreSQL: AES-GCM, with the secret name as AAD (D-091). It strips secret leaves before sending desired state to the agent (D-040), and `desired.pb` must never hold plaintext (rule 10). The agent needs the plaintext to render swanctl/WireGuard/FRR/TLS files. Nothing carries secret material from the API to the agent today. `docs/04-api-datamodel.md` specifies only the `secret` table, not the channel. That makes this a security-boundary and secret-storage decision (decision-policy always-ask #4).

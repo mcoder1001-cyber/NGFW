@@ -1,3 +1,4 @@
+import { ospfValidators } from './ospf.js';
 import type { RootConfig, RootKey } from '../index.js';
 import { SemanticRegistry, type SemanticIssue, type ValidatorDefinition } from './registry.js';
 import { systemValidators } from './system.js';
@@ -91,6 +92,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...interfacesValidators,
   ...vrfsValidators,
   ...routingValidators,
+  ...ospfValidators,
   ...natValidators,
   ...objectsValidators,
   ...aclValidators,

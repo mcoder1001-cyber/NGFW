@@ -56,10 +56,15 @@ afterEach(async () => {
 describe('Routing → OSPF (WEB-4a, routed by F-ospf)', () => {
   it('is reachable from nav at /routing/ospf; BFD is not yet', () => {
     const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
-    expect(items.find((i) => i.id === 'ospf')).toMatchObject({ path: '/routing/ospf', available: true });
-    expect(items.find((i) => i.id === 'isis-rip')).toMatchObject({ path: '/routing/isis-rip', available: true });
-    for (const id of ['bfd'])
-      expect(items.find((i) => i.id === id)?.available).not.toBe(true);
+    expect(items.find((i) => i.id === 'ospf')).toMatchObject({
+      path: '/routing/ospf',
+      available: true,
+    });
+    expect(items.find((i) => i.id === 'isis-rip')).toMatchObject({
+      path: '/routing/isis-rip',
+      available: true,
+    });
+    for (const id of ['bfd']) expect(items.find((i) => i.id === id)?.available).not.toBe(true);
   });
 
   it('lists areas and interfaces and shows committed state', async () => {
@@ -72,6 +77,37 @@ describe('Routing → OSPF (WEB-4a, routed by F-ospf)', () => {
     const ge = screen.getByTestId('ospf-if-GigabitEthernet0/8/0');
     expect(within(ge).getByText('10')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('ospf-status')).toHaveTextContent('Committed'));
+  });
+
+  it('shows observed neighbors and switches to the v3 configuration without substituting candidate state', async () => {
+    const api = fake();
+    api.on('GET /api/v1/state/ospf', () => ({
+      body: {
+        frrRunning: true,
+        retrievedAt: null,
+        unavailable: null,
+        warning: null,
+        truncated: false,
+        neighbors: [
+          {
+            vrf: 'default',
+            routerId: '192.0.2.2',
+            interface: 'observed-tap',
+            address: null,
+            state: 'Full',
+            priority: 1,
+          },
+        ],
+      },
+    }));
+    await signIn();
+    render(app());
+    expect(await screen.findByText('observed-tap')).toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'OSPFv3' }));
+    expect(await screen.findByText(/OSPFv3 is not configured/)).toBeInTheDocument();
+    expect(screen.queryByTestId('ospf-if-GigabitEthernet0/8/0')).not.toBeInTheDocument();
+    expect(api.calls.some((c) => c.path === '/api/v1/state/ospf')).toBe(true);
   });
 
   it('removes the protocol with a null merge patch', async () => {

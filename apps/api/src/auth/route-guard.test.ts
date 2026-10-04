@@ -40,6 +40,8 @@ const READONLY_MAY = new Set([
 ]);
 /** Routes that need the admin role (@MinRole('admin')). */
 const ADMIN_ONLY = new Set([
+  'POST /api/v1/config/setup/preview',
+  'POST /api/v1/config/setup/stage',
   'POST /api/v1/actions/aaa/test', // wave-BC: F-aaa
   'POST /api/v1/actions/auto-block/unblock', // F-bruteforce-block
   'POST /api/v1/actions/auto-block/block', // F-bruteforce-block

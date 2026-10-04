@@ -12,6 +12,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../../../api';
 import { call } from '../../../api-problem';
 
+import { PkiActions } from './PkiActions';
+
 const NS = 'pkiInventory';
 const LIMIT = 100;
 const ROW_SCOPE = 'row';
@@ -43,6 +45,7 @@ export function PkiInventoryPanel() {
     <Stack spacing={2} aria-label={t('title')} aria-busy={query.isFetching}>
       <Typography variant="h3">{t('title')}</Typography>
       <Typography>{t('help')}</Typography>
+      <PkiActions onChanged={() => void query.refetch()} />
       {query.isPending && <Typography role="status">{t('loading')}</Typography>}
       {query.isError && <Alert severity="error">{t('error')}</Alert>}
       <Button disabled={query.isFetching} onClick={() => void query.refetch()}>

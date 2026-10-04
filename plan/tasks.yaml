@@ -1516,7 +1516,7 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D6.4
@@ -1524,17 +1524,13 @@ tasks:
     files_owned:
       '- apps/agent/internal/pki/** (materialiser + its singleton scheduler descriptor), apps/agent/internal/subsystems/pki*.go, apps/agent/internal/desired/pki*.go, apps/agent/internal/agent/rpc_pki*.go
       (`PkiFileState`)'
-    branch: ''
+    branch: codex/complete-pki-20261004
     worktree: ''
-    owner: ''
+    owner: Codex completion campaign 2026-10-04
     started: ''
-    finished: ''
-    notes:
-      '2026-10-01 spawned (Agent tool, developer) slot 5, envelope /root/ngfw-wt/F-pki.envelope.md; backend first, web after M-origin-sync
-
-      Published reconciliation:  | 2026-10-03 reconciliation: Partial API/crypto/inventory UI/RPC/expiry source merged via PR116/123/124. Agent materializer and mutation UI remain source
-      work.'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    finished: '2026-10-04'
+    notes: 'Completed reviewed source on 2026-10-04. Operational materializer and CA/CSR/sign/import/export/CRL/OCSP UI completed; native cert consumer remains separate; deployed acceptance deferred.'
+    worker_status: source complete, focused verification and independent APPROVE; remote 85747e3a6cad1148a0af5969594fad81c8565db8; acceptance boundaries documented
   - id: P12
     title: 'Wave B (day 10-12): FRR + linux-cp framework, BGP'
     prompt: prompts/P12-frr-linuxcp.md
@@ -1587,28 +1583,20 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D3.4
       - D3.5
     scope: OSPFv2/v3 via FRR
     files_owned: '- apps/agent/internal/renderers/frr/ospf/** (both sections `ospf` and `ospf6`: orders 440/450 per wave-BC-numbers.md), docs/agent/renderers/frr-ospf.md'
-    branch: claude/modest-keller-upaw4m
+    branch: codex/complete-ospf-20261004
     worktree: ''
-    owner: cloud session modest-keller
+    owner: Codex completion campaign 2026-10-04
     started: '2026-09-27'
-    finished: ''
-    notes:
-      '| Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.
-
-      2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-A on main@f1f885a6, reports in
-      /root/ngfw-wt/RV-A (D-161) | 2026-09-28 RV-A post-merge panel: combined BLOCK (docs/status/tasks/RV-A-review.md) → findings carried by S-rva-agent-gates, S-rva-web-fixes, F-ospf-host
-      (features) and F-igp-followups; code stays on main (D-161/D-173)
-
-      Published reconciliation:  | Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker. | 2026-10-03: PR127 bounded neighbor API merged; OSPFv3/authentication/EventKind20/live-neighbor
-      UI remain source work.'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    finished: '2026-10-04'
+    notes: 'Completed reviewed source on 2026-10-04. OSPFv3, MD5 renderer, Event20 and bounded live state/UI completed; production MD5 delivery remains PENDING-secret-channel; FIB/restart acceptance deferred.'
+    worker_status: source complete, focused verification and independent APPROVE; remote b21e40cbbe8a4c64342985352cc2f242b5045848; acceptance boundaries documented
   - id: F-isis-rip
     title: 'Wave B (day 10-12): IS-IS, RIPv2/RIPng via FRR'
     prompt: prompts/features/F-isis-rip.md
@@ -4113,22 +4101,18 @@ tasks:
       - F-host-acl-nftables
     priority: 1
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs: []
     scope: see prompt
     files_owned: '- apps/web/src/pages/setup-wizard/**, docs/user/getting-started.md'
-    branch: task/F-setup-wizard-codex
+    branch: codex/complete-setup-wizard-20261004
     worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-setup
-    owner: setup_build
+    owner: Codex completion campaign 2026-10-04
     started: '2026-10-01T20:33:27.076593+00:00'
-    finished: ''
-    notes:
-      'promoted from backlog BL-OPS-10 by the product owner (2026-09-27) | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing
-      review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned setup_build
-
-      promoted from backlog BL-OPS-10 by the product owner (2026-09-27)'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    finished: '2026-10-04'
+    notes: 'Completed reviewed source on 2026-10-04. Seven-step bilingual staged setup, password and confirmed commit; PPPoE disabled pending real client; live rig/browser acceptance deferred.'
+    worker_status: source complete, focused verification and independent APPROVE; remote b496d619b49a5f6f57c377e68c5022c4dcf66a4b; acceptance boundaries documented
   - id: F-rule-expiry
     title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
     prompt: prompts/features/F-rule-expiry.md

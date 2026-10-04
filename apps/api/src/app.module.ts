@@ -13,6 +13,7 @@ import { TokensService } from './auth/tokens.service.js';
 import { CommitService } from './commit/commit.service.js';
 import { ValidationService } from './commit/validation.service.js';
 import { ProblemFilter } from './common/problem.js';
+import { SetupController } from './features/setup/controller.js';
 import { ConfigController } from './config/config.controller.js';
 import { ENV, loadEnv, type Env } from './config.js';
 import { CONFIG_REPO, DatastoreService } from './datastore/datastore.service.js';
@@ -156,6 +157,7 @@ export class AppModule {
         HealthController,
         AuthController,
         ConfigController,
+        SetupController,
         StateController,
         LoginBannerController,
         ActionsController,

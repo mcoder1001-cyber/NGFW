@@ -1387,6 +1387,16 @@ export class AuthService {
    * refused before argon2 (it could not mint anyway, and must not feed the lockout); a wrong password counts like
    * a failed login (`registerFailure`).
    */
+  /** Step-up for staging an atomic setup password; the commit engine performs the credential promotion. */
+  async checkSetupPassword(user: Principal, current: string, secure: boolean): Promise<void> {
+    if (!secure) throw tlsRequired();
+    if (user.via !== 'jwt') throw problems.forbidden('setup requires an interactive login');
+    if ((await this.tokens.hit(`pwset:${user.id}`, 60)) > this.env.NGFW_PASSWORD_RATE_PER_MIN) {
+      throw problems.tooMany('too many password checks');
+    }
+    await this.checkCurrent(user, current);
+  }
+
   private async checkCurrent(user: Principal, current: string): Promise<number> {
     const [u] = await this.db
       .select({

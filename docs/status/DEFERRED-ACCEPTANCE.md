@@ -145,3 +145,9 @@ Dataplane UI: observed VPP runtime/probe errors and actual startup preview/diff 
 Management UI: certificate removal/rotation listener lifecycle and accurate revision/protocol status completed. Focused TLS/WSS15 and UI/locale11 tests passed with independent review. Real deployed API/DB/browser anti-lockout acceptance remains NOT RUN.
 
 The owner waived hosted/full CI for this campaign. Focused tests, typechecks and independent source review are recorded separately; no waived gate is claimed passed.
+
+Setup wizard: seven-step staged first boot/re-run and password/confirmed commit source completed. PPPoE disabled pending the real client. Real DHCP/NAT/LAN management, session-loss rollback and browser screenshots NOT RUN.
+
+PKI: operational secure materializer, sealed cache adapter and mutation UI completed. Real browser/daemon acceptance NOT RUN. Native IKEv2 certificate consumers belong to the separate native task. Public CA/CRL and operational keys only; CA signing keys stay API-side.
+
+OSPF: v3 contracts/rendering, fixture MD5 auth, Event20 and bounded on-demand state/UI completed. Production MD5 delivery remains explicitly PENDING-secret-channel per the task prompt. Real v2/v3 VPP FIB, withdrawal/restart/rollback and browser acceptance NOT RUN.

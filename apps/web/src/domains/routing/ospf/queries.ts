@@ -62,11 +62,12 @@ export interface BfdSession {
 export interface RoutingIgp {
   bgp?: { redistribute?: Redistribute };
   ospf?: OspfConfig;
+  ospf6?: OspfConfig;
   isis?: IsisConfig;
   rip?: RipConfig;
   bfd?: { sessions?: BfdSession[] };
 }
-export type Protocol = 'ospf' | 'isis' | 'rip' | 'bfd';
+export type Protocol = 'ospf6' | 'ospf' | 'isis' | 'rip' | 'bfd';
 
 const PATH = 'routing';
 export const routingKeys = { running: ['config', 'running', PATH] as const };
@@ -144,3 +145,17 @@ export function problemUnder(error: unknown, base: string): ProblemDetails | nul
 }
 
 export const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/** Fixed bounded observed-state endpoint; never substitute configured interfaces for neighbors. */
+export function useOspfNeighbors(version: '2' | '3') {
+  return useQuery({
+    queryKey: ['state', 'ospf', version],
+    queryFn: async ({ signal }) =>
+      (
+        await call(
+          api.GET('/api/v1/state/ospf', { signal, params: { query: { version } as never } }),
+        )
+      ).data,
+    refetchInterval: 5000,
+  });
+}

@@ -17,6 +17,18 @@ export const igpEn = {
   no: 'no',
   ospf: {
     title: 'OSPF',
+    v2: 'OSPFv2',
+    v3: 'OSPFv3',
+    authBoundary:
+      'MD5 requires an approved agent secret resolver. Without one, commit is refused; authentication is never silently disabled.',
+    versions: 'OSPF versions',
+    neighbors: 'Live neighbors',
+    noNeighbors: 'No observed neighbors',
+    observationWarning:
+      'Observation unavailable, partial or truncated; configuration is not runtime state.',
+    vrf: 'VRF',
+    routerId: 'Router ID',
+    state: 'State',
     intro:
       'Configure the OSPFv2 process, areas and interfaces. Changes are staged in the candidate and committed from the pending-change bar.',
     areas: 'Areas',
@@ -72,6 +84,17 @@ export const igpFa: typeof igpEn = {
   no: 'خیر',
   ospf: {
     title: 'OSPF',
+    v2: 'OSPFv2',
+    v3: 'OSPFv3',
+    authBoundary:
+      'MD5 نیازمند حل‌کنندهٔ راز مجاز در ایجنت است. بدون آن ثبت تنظیمات رد می‌شود؛ احراز هویت هرگز خودکار غیرفعال نمی‌شود.',
+    versions: 'نسخه‌های OSPF',
+    neighbors: 'همسایه‌های زنده',
+    noNeighbors: 'همسایه‌ای مشاهده نشد',
+    observationWarning: 'مشاهده در دسترس نیست، ناقص است یا محدود شده؛ پیکربندی وضعیت زنده نیست.',
+    vrf: 'VRF',
+    routerId: 'شناسهٔ روتر',
+    state: 'وضعیت',
     intro:
       'فرایند OSPFv2، ناحیه‌ها و رابط‌ها را تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.',
     areas: 'ناحیه‌ها',

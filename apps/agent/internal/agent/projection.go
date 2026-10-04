@@ -333,6 +333,8 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	desired.Tunnels(p, ds.GetTunnels(), in, vrfID, subsystems.TunnelsIDSpan()) // tunnels.gre/ipip/vxlan (internal/desired/tunnels.go)
 	// wave-BC: F-vrrp-config-sync
 	desired.Vrrp(p, ds, in, subsystems.VrrpEnv()) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
+	// wave-BC: F-pki
+	desired.PKI(p, ds, in, subsystems.PKIProjection())
 	// wave-BC: F-ikev2-native
 	native := subsystems.IKEv2Projection()
 	if len(nativeEnv) > 0 {
@@ -454,6 +456,7 @@ var routingLeaves = []routingLeaf{
 	{name: "policy", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetPolicy() != nil }, handled: true}, // P12
 	// wave-BC: F-ospf
 	{name: "ospf", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetOspf() != nil }, handled: true}, // F-ospf
+	{name: "ospf6", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetOspf6() != nil }, handled: true},
 	// wave-BC: F-isis-rip
 	{name: "isis", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
 	{name: "rip", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip

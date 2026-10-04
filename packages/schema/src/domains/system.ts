@@ -51,6 +51,13 @@ export const SystemDnsSchema = z.strictObject({
 
 export const SystemSchema = withUi(
   z.strictObject({
+    setup: z
+      .strictObject({
+        completed: z.boolean().default(false),
+        completedAt: z.iso.datetime().optional(),
+      })
+      .prefault({})
+      .meta({ readOnly: true }),
     hostname: withUi(hostname.default('ngfw'), {
       title: 'Hostname',
       help: 'RFC 1123 host name, e.g. ngfw-a or ngfw-a.lab.example',

@@ -714,6 +714,7 @@ enum EventKind {
 
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-ospf
+  EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20;
   // wave-BC: F-isis-rip
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
@@ -1356,6 +1357,7 @@ message RoutingConfig {
   RoutingPolicy policy = 9;
 
   // wave-BC: F-ospf
+  Ospf6Config ospf6 = 13;
   // wave-BC: F-isis-rip
   // wave-BC: F-mpls-srmpls
 
@@ -1767,7 +1769,32 @@ message OspfInterface {
   optional bool bfd = 8;
 
   // wave-BC: F-ospf
+  OspfAuth auth = 9;
   // wave-BC: F-bfd-redistribution
+}
+
+message OspfAuth {
+  optional string type = 1;
+  optional uint32 key_id = 2;
+  optional string key_ref = 3;
+}
+
+message Ospf6Interface {
+  optional string area = 1;
+  optional uint32 cost = 2;
+  optional bool passive = 3;
+  optional string network_type = 4;
+  optional uint32 hello_interval_sec = 5;
+  optional uint32 dead_interval_sec = 6;
+  optional uint32 priority = 7;
+}
+
+message Ospf6Config {
+  optional string router_id = 1;
+  optional string vrf = 2;
+  map<string, OspfArea> areas = 3;
+  map<string, Ospf6Interface> interfaces = 4;
+  Redistribute redistribute = 5;
 }
 
 // OspfConfig mirrors `routing.ospf`.

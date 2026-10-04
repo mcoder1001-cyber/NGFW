@@ -269,6 +269,11 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	if err = subsystems.SetPKISecrets(cfg.Owner, cache.Text); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	sched := scheduler.New(reg, log.With("component", "scheduler"))
 	svc, err := NewService(ServiceConfig{CaptureBoot: wiring.BootStore(), GlobalsOwner: cfg.GlobalsOwner, SecretCache: cache, Owner: cfg.Owner, Version: version, Logger: log, VPP: conn, Scheduler: sched, StateDir: cfg.StateDir, Metrics: m, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(),

@@ -1,13 +1,8 @@
-# Codex task envelope: F-setup-wizard
-
-- Branch: `task/F-setup-wizard-codex`
-- Worktree: `/workspace/scratch/96b8b6fbc8a7/NGFW-setup`
-- Task scope: First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit
-- Dependencies: F-system-identity, F-management-ui, F-kea-dhcp-relay, F-nat44-ed-sessions, F-host-acl-nftables
-- Scope source: `prompts/features/F-setup-wizard.md`
-- Manager alone updates board and merges. Worker commits code, tests and real evidence.
-- Architecture/security: `prompts/00-CONTEXT.md`; gates: `docs/contributing.md`.
-- Cloud execution; shared production lab is unreachable. Do not alter host VPP or claim live tests passed.
-- Preserve pending secret channel and host hardening decisions. Develop independent components only.
-- Generated code is regenerated only; additive contract commits precede implementation.
-- No branch is merged without required test gate and independent review approval.
+# F-setup-wizard execution envelope, 2026-10-04
+Branch: codex/complete-setup-wizard-20261004
+Worktree: /tmp/ngfw-complete-setup
+Owner: setup worker; manager owns integration and board.
+Base: origin/main 121c09747.
+Scope: shared schema builder, completion marker, atomic candidate/password staging with existing commit engine, seven-step bilingual UI, factory redirect and acknowledged rerun, focused verification and getting-started docs.
+Full hosted CI waived by explicit user instruction carried by manager. No real NIC binding or VPP/daemon restart. Actual DHCP/Internet and LAN-management host acceptance deferred explicitly.
+Independent reviewer required before integration. Checkpoints published via authorized GitHub connector; do not expose credentials.

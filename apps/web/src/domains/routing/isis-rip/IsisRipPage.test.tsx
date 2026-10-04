@@ -40,20 +40,47 @@ afterEach(async () => {
 describe('Routing → IS-IS and RIP (WEB-4a, routed by F-isis-rip)', () => {
   it('is reachable from nav at /routing/isis-rip', () => {
     const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
-    expect(items.find((i) => i.id === 'isis-rip')).toMatchObject({ path: '/routing/isis-rip', available: true });
+    expect(items.find((i) => i.id === 'isis-rip')).toMatchObject({
+      path: '/routing/isis-rip',
+      available: true,
+    });
   });
 
   it('shows IS-IS interfaces and an unconfigured RIP tab', async () => {
     const api = installFakeApi('admin');
     api.on('GET /api/v1/config/candidate/routing', () => ({ body: CAND }));
     api.on('GET /api/v1/config/routing', () => ({ body: CAND }));
+    api.on('GET /api/v1/state/routing/isis/adjacencies', () => ({
+      body: {
+        frrRunning: true,
+        unavailable: null,
+        scope: 'all-vrfs',
+        total: 1,
+        rows: [
+          { vrf: 'default', systemId: '0000.0000.0002', interface: 'eth0', level: 2, state: 'Up' },
+        ],
+      },
+    }));
+    api.on('GET /api/v1/state/routing/rip/peers', () => ({
+      body: {
+        frrRunning: false,
+        unavailable: 'frr-unavailable',
+        scope: 'default-vrf',
+        total: 0,
+        rows: [],
+      },
+    }));
     await signIn();
     render(app());
     const row = await screen.findByTestId('isis-if-loop0');
     expect(within(row).getByText('20')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByTestId('isis-status')).toHaveTextContent('Committed'));
+    expect(await screen.findByText('0000.0000.0002')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: 'RIP' }));
     expect(await screen.findByText(/RIP is not configured/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Remove from configuration' })).toBeNull();
+    expect(await screen.findByText('FRR is unavailable')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: 'RIPng' }));
+    expect(await screen.findByText(/RIPng is not configured/)).toBeInTheDocument();
   });
 });

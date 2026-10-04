@@ -160,6 +160,7 @@ var Domains = map[string][]string{
 		rpfAdlPbrPolicyName,
 		// wave-A: P12
 		frrConfigName,
+		"lcp.osi-proto", // F-isis-rip globals-only descriptor
 	},
 	// New domain entries: one `<Const>: {…}` entry under the feature's anchor (wave-A-hotspots A1).
 	// wave-BC: F-det44-map-dslite-cnat
@@ -341,6 +342,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-BC: F-ospf
 	// wave-BC: F-isis-rip
+	registerIsisOSI(r, w)
 	// wave-BC: F-mpls-srmpls
 	if err := registerMplsSrmpls(r, w); err != nil {
 		return nil, err

@@ -21,9 +21,9 @@ import { duplicateIssues } from './unique.js';
  */
 
 type Path = readonly (string | number)[];
-type Protocol = 'bgp' | 'ospf' | 'isis' | 'rip';
-const PROTOCOLS: readonly Protocol[] = ['bgp', 'ospf', 'isis', 'rip'];
-const IGPS = ['ospf', 'isis', 'rip'] as const;
+type Protocol = 'bgp' | 'ospf' | 'isis' | 'rip' | 'ripng';
+const PROTOCOLS: readonly Protocol[] = ['bgp', 'ospf', 'isis', 'rip', 'ripng'];
+const IGPS = ['ospf', 'isis', 'rip', 'ripng'] as const;
 
 function routingInterfaceNames(config: RootConfig): Set<string> {
   return new Set(interfaceIndex(config, true).keys());

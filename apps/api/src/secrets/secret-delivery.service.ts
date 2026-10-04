@@ -33,6 +33,9 @@ export class SecretDeliveryService {
   ): Promise<DeliveredSecrets> {
     const refs = secretRefs(DesiredState.toJSON(state)).filter(({ pointer }) => {
       const parts = parsePointer(pointer);
+      if (parts[0] === 'routing') {
+        return /^\/routing\/isis\/(areaPasswordRef|domainPasswordRef)$/.test(pointer);
+      }
       if (parts[0] !== 'vpn') return false;
       if (parts[1] === 'pki') {
         if (parts.length !== 5) return false;
@@ -79,11 +82,13 @@ export class SecretDeliveryService {
       const selections = refs.filter((r) => r.ref === ref);
       const kinds = new Set(
         selections.map(({ pointer }) =>
-          pointer.startsWith('/vpn/pki/')
-            ? pointer.endsWith('/privateKeyRef')
-              ? 'key'
-              : 'cert'
-            : 'psk',
+          pointer.startsWith('/routing/')
+            ? 'password'
+            : pointer.startsWith('/vpn/pki/')
+              ? pointer.endsWith('/privateKeyRef')
+                ? 'key'
+                : 'cert'
+              : 'psk',
         ),
       );
       const kind = [...kinds][0]!;

@@ -231,3 +231,46 @@ it('does not add a newly available implicit CRL to a revision that had no CRL ve
   expect(Object.keys(result.bundle.values)).toEqual(['cert/root']);
   expect(where).toHaveBeenCalledTimes(2);
 });
+
+describe('IS-IS transaction-selected password delivery', () => {
+  it('delivers only the two configured routing authentication leaves', async () => {
+    const { delivery, where, encrypt } = setup([]);
+    const passwordRef = 'password/isis';
+    where.mockResolvedValueOnce([
+      {
+        kind: 'password',
+        ref: passwordRef,
+        version: 3,
+        ciphertext: encrypt('NGFW_TEST_PSK_isis', passwordRef),
+      },
+    ]);
+    const ds = DesiredState.fromJSON({
+      routing: {
+        isis: {
+          areaPasswordRef: passwordRef,
+          domainPasswordRef: passwordRef,
+        },
+      },
+      management: { aaa: { radius: { servers: [{ secretRef: 'psk/other' }] } } },
+    });
+    const result = await delivery.resolveVersioned(ds);
+    expect(result.bundle.values[passwordRef]).toEqual(Buffer.from('NGFW_TEST_PSK_isis'));
+    expect(result.versions).toEqual({ [passwordRef]: 3 });
+    expect(where).toHaveBeenCalledTimes(1);
+  });
+  it('refuses a key reference at a routing password leaf before database access', async () => {
+    const { delivery, select } = setup([]);
+    await expect(
+      delivery.resolve(
+        DesiredState.fromJSON({
+          routing: {
+            isis: {
+              areaPasswordRef: 'key/ca',
+            },
+          },
+        }),
+      ),
+    ).rejects.toThrow('operational secret kind is invalid');
+    expect(select).not.toHaveBeenCalled();
+  });
+});

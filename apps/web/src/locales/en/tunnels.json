@@ -1,8 +1,16 @@
 {
   "title": "Tunnels",
-  "intro": "GRE, VXLAN and IPIP tunnel interfaces. Each tunnel needs a fixed instance: it names the engine interface (gre<n>, vxlan_tunnel<n>, ipip<n>) and must lie in this agent's id range. Addresses, MTU and VRF are set on the tunnel itself; L2 tunnels join a bridge domain by its numeric id.",
+  "intro": "Configure tunnel interfaces in the candidate. Live engine identities, endpoints, IPv4/IPv6 FIBs and counters come from agent readback; unavailable values remain unknown.",
   "kinds": "Tunnel kinds",
-  "kind": { "gre": "GRE", "vxlan": "VXLAN", "ipip": "IPIP" },
+  "kind": {
+    "gre": "GRE",
+    "vxlan": "VXLAN",
+    "ipip": "IPIP",
+    "vxlanGpe": "VXLAN-GPE",
+    "gtpu": "GTP-U",
+    "l2tpv3": "L2TPv3",
+    "pppoe": "PPPoE"
+  },
   "item": "{{kind}} tunnel {{name}}",
   "add": "Add {{kind}} tunnel",
   "noInstance": "no instance",
@@ -14,28 +22,163 @@
     "vni": "VNI",
     "type": "Type",
     "mode": "Mode",
-    "status": "Status"
+    "status": "Status",
+    "liveSrc": "Live source",
+    "liveDst": "Live destination",
+    "liveVrf": "FIB IPv4 / IPv6",
+    "counters": "Packets RX / TX",
+    "underlay": "Underlay FIB"
   },
   "field": {
-    "enabled": { "title": "Enabled" },
-    "description": { "title": "Description" },
-    "instance": { "title": "Instance", "help": "Fixes the engine interface name; required by this build and inside the agent's id range" },
-    "src": { "title": "Source address", "help": "Must be configured on an interface in the underlay VRF" },
-    "dst": { "title": "Destination address" },
-    "underlayVrf": { "title": "Underlay VRF", "help": "FIB used to reach the tunnel destination" },
-    "vrf": { "title": "VRF", "help": "FIB the tunnel interface belongs to (overlay)" },
-    "mtu": { "title": "MTU" },
-    "ipv4": { "title": "IPv4 addresses" },
-    "ipv6": { "title": "IPv6 addresses" },
-    "bridgeDomain": { "title": "Bridge domain", "help": "L2 tunnels only: numeric id of the bridge domain" },
-    "type": { "title": "Type", "help": "l3 = IP over GRE, teb = Ethernet over GRE, erspan = ERSPAN type II", "enum": { "l3": "L3", "teb": "TEB (L2)", "erspan": "ERSPAN" } },
-    "sessionId": { "title": "ERSPAN session id" },
-    "mode": { "title": "Mode", "help": "p2mp has no fixed destination", "enum": { "p2p": "Point-to-point", "p2mp": "Point-to-multipoint" } },
-    "dscp": { "title": "Outer DSCP", "help": "Omit to copy the inner DSCP" },
-    "vni": { "title": "VNI" },
-    "srcPort": { "title": "Source UDP port" },
-    "dstPort": { "title": "Destination UDP port" },
-    "mcastInterface": { "title": "Multicast interface", "help": "Interface used to join the multicast group (multicast destination only)" },
-    "decap": { "title": "Decapsulation", "help": "l2 bridges the inner frame; ip4/ip6 route the inner packet in the tunnel VRF", "enum": { "l2": "L2 (bridge)", "ip4": "IPv4", "ip6": "IPv6" } }
+    "enabled": {
+      "title": "Enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "instance": {
+      "title": "Instance",
+      "help": "Fixes the engine interface name; required by this build and inside the agent's id range"
+    },
+    "src": {
+      "title": "Source address",
+      "help": "Must be configured on an interface in the underlay VRF"
+    },
+    "dst": {
+      "title": "Destination address"
+    },
+    "underlayVrf": {
+      "title": "Underlay VRF",
+      "help": "FIB used to reach the tunnel destination"
+    },
+    "vrf": {
+      "title": "VRF",
+      "help": "FIB the tunnel interface belongs to (overlay)"
+    },
+    "mtu": {
+      "title": "MTU"
+    },
+    "ipv4": {
+      "title": "IPv4 addresses"
+    },
+    "ipv6": {
+      "title": "IPv6 addresses"
+    },
+    "bridgeDomain": {
+      "title": "Bridge domain",
+      "help": "L2 tunnels only: numeric id of the bridge domain"
+    },
+    "type": {
+      "title": "Type",
+      "help": "l3 = IP over GRE, teb = Ethernet over GRE, erspan = ERSPAN type II",
+      "enum": {
+        "l3": "L3",
+        "teb": "TEB (L2)",
+        "erspan": "ERSPAN"
+      }
+    },
+    "sessionId": {
+      "title": "Session id"
+    },
+    "mode": {
+      "title": "Mode",
+      "help": "p2mp has no fixed destination",
+      "enum": {
+        "p2p": "Point-to-point",
+        "p2mp": "Point-to-multipoint"
+      }
+    },
+    "dscp": {
+      "title": "Outer DSCP",
+      "help": "Omit to copy the inner DSCP"
+    },
+    "vni": {
+      "title": "VNI"
+    },
+    "srcPort": {
+      "title": "Source UDP port"
+    },
+    "dstPort": {
+      "title": "Destination UDP port"
+    },
+    "mcastInterface": {
+      "title": "Multicast interface",
+      "help": "Interface used to join the multicast group (multicast destination only)"
+    },
+    "decap": {
+      "title": "Decapsulation",
+      "help": "l2 bridges the inner frame; ip4/ip6 route the inner packet in the tunnel VRF",
+      "enum": {
+        "l2": "L2 (bridge)",
+        "ip4": "IPv4",
+        "ip6": "IPv6"
+      }
+    },
+    "sixrd": {
+      "title": "6RD domain"
+    },
+    "ip6Prefix": {
+      "title": "Delegated IPv6 prefix"
+    },
+    "ip4Prefix": {
+      "title": "Common IPv4 prefix"
+    },
+    "securityCheck": {
+      "title": "Validate embedded source"
+    },
+    "tcTos": {
+      "title": "Outer TOS"
+    },
+    "protocol": {
+      "title": "Inner protocol"
+    },
+    "teid": {
+      "title": "Receive TEID"
+    },
+    "tteid": {
+      "title": "Transmit TEID"
+    },
+    "pduExtension": {
+      "title": "PDU session extension"
+    },
+    "qfi": {
+      "title": "QFI"
+    },
+    "ourAddress": {
+      "title": "Local IPv6 address"
+    },
+    "clientAddress": {
+      "title": "Client IPv6 address"
+    },
+    "localSessionId": {
+      "title": "Local session id"
+    },
+    "remoteSessionId": {
+      "title": "Remote session id"
+    },
+    "localCookie": {
+      "title": "Local cookie"
+    },
+    "remoteCookie": {
+      "title": "Remote cookie"
+    },
+    "l2SublayerPresent": {
+      "title": "L2 sublayer"
+    },
+    "clientIp": {
+      "title": "Client IP address"
+    },
+    "clientMac": {
+      "title": "Client MAC address"
+    }
+  },
+  "advanced": "Show advanced kinds",
+  "unavailable": "Unavailable",
+  "stateError": "Live tunnel state could not be read. Configuration remains editable.",
+  "limits": {
+    "gtpu": "GTP-U uses guarded dump-first operations. Dedicated host acceptance requires NGFW_DF6_GTPU_HOST=1; forwarding defaults to drop.",
+    "l2tpv3": "VPP cannot delete L2TPv3 tunnels. Removal or changes that require recreation fail; cookie changes can update in place. Host creation tests require NGFW_DF6_L2TP_CREATE=1. Only default underlay VRF is supported.",
+    "pppoe": "These are VPP PPPoE session records, not an ISP dialer. PPPoE client discovery and authentication are configured on the Interfaces page.",
+    "sixrd": "6RD is configured inside IPIP. VPP has no getter for its parameters; configured prefixes are not reported as live endpoints."
   }
 }

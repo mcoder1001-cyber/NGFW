@@ -360,6 +360,8 @@ export enum EventKind {
    * wave-BC: F-ospf
    */
   EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20,
+  /** EVENT_KIND_ISIS_ADJACENCY_CHANGED - wave-BC: F-isis-rip */
+  EVENT_KIND_ISIS_ADJACENCY_CHANGED = 21,
   /**
    * EVENT_KIND_NEIGHBOR_CHANGED - The ARP/ND table of an interface changed (F-neighbors-ra): learned, updated or removed entries, coalesced to at
    * most one event per interface per second (`interface` set; attributes "added", "removed", "updated" — counts), or
@@ -437,6 +439,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 20:
     case "EVENT_KIND_OSPF_NEIGHBOR_CHANGED":
       return EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED;
+    case 21:
+    case "EVENT_KIND_ISIS_ADJACENCY_CHANGED":
+      return EventKind.EVENT_KIND_ISIS_ADJACENCY_CHANGED;
     case 10:
     case "EVENT_KIND_NEIGHBOR_CHANGED":
       return EventKind.EVENT_KIND_NEIGHBOR_CHANGED;
@@ -490,6 +495,8 @@ export function eventKindToJSON(object: EventKind): string {
       return "EVENT_KIND_DEGRADED";
     case EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED:
       return "EVENT_KIND_OSPF_NEIGHBOR_CHANGED";
+    case EventKind.EVENT_KIND_ISIS_ADJACENCY_CHANGED:
+      return "EVENT_KIND_ISIS_ADJACENCY_CHANGED";
     case EventKind.EVENT_KIND_NEIGHBOR_CHANGED:
       return "EVENT_KIND_NEIGHBOR_CHANGED";
     case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
@@ -1727,6 +1734,10 @@ export interface RoutingConfig {
   ospf6:
     | Ospf6Config
     | undefined;
+  /** wave-BC: F-isis-rip */
+  ripng:
+    | RipngConfig
+    | undefined;
   /** Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls). */
   mpls:
     | MplsConfig
@@ -2430,7 +2441,15 @@ export interface IsisInterface {
     | string
     | undefined;
   /** Zod default false. */
-  bfd?: boolean | undefined;
+  bfd?:
+    | boolean
+    | undefined;
+  /** wave-BC: F-isis-rip */
+  ipv4?:
+    | boolean
+    | undefined;
+  /** wave-BC: F-bfd-redistribution */
+  ipv6?: boolean | undefined;
 }
 
 /** IsisConfig mirrors `routing.isis`. */
@@ -2450,7 +2469,12 @@ export interface IsisConfig {
   /** Interfaces keyed by interface name. */
   interfaces: { [key: string]: IsisInterface };
   /** Redistribution into IS-IS (the `isis` key is never set). */
-  redistribute: Redistribute | undefined;
+  redistribute:
+    | Redistribute
+    | undefined;
+  /** wave-BC: F-isis-rip */
+  areaPasswordRef?: string | undefined;
+  domainPasswordRef?: string | undefined;
 }
 
 export interface IsisConfig_InterfacesEntry {
@@ -2479,10 +2503,28 @@ export interface RipConfig {
     | Redistribute
     | undefined;
   /** Zod default 1. */
-  defaultMetric?: number | undefined;
+  defaultMetric?:
+    | number
+    | undefined;
+  /** wave-BC: F-isis-rip */
+  version?: number | undefined;
 }
 
 export interface RipConfig_InterfacesEntry {
+  key: string;
+  value: RipInterface | undefined;
+}
+
+/** RipngConfig mirrors routing.ripng (IPv6 only). */
+export interface RipngConfig {
+  vrf?: string | undefined;
+  networks: string[];
+  interfaces: { [key: string]: RipInterface };
+  redistribute: Redistribute | undefined;
+  defaultMetric?: number | undefined;
+}
+
+export interface RipngConfig_InterfacesEntry {
   key: string;
   value: RipInterface | undefined;
 }
@@ -10788,6 +10830,21 @@ export interface TunnelStateTunnel {
   mtu: number;
   /** VPP's device class of the interface ("GRE tunnel device", "VXLAN_GPE" …). */
   deviceClass: string;
+  /** Read back from the tunnel descriptor dump; absent when VPP provides no getter (6RD). */
+  src?: string | undefined;
+  dst?: string | undefined;
+  underlayTableId?:
+    | number
+    | undefined;
+  /** Live IPv4 interface FIB; absent when the read fails, never filled from candidate. */
+  ipv4TableId?:
+    | number
+    | undefined;
+  /** Stats segment snapshot, absent when unavailable; absence is not a zero count. */
+  counters: InterfaceCounters | undefined;
+  notes: string[];
+  /** Live IPv6 interface FIB, independently read from the IPv4 FIB. */
+  ipv6TableId?: number | undefined;
 }
 
 export interface TunnelStateResponse {
@@ -18726,6 +18783,7 @@ function createBaseRoutingConfig(): RoutingConfig {
     bfd: undefined,
     policy: undefined,
     ospf6: undefined,
+    ripng: undefined,
     mpls: undefined,
     multicast: undefined,
     l2: undefined,
@@ -18761,6 +18819,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.ospf6 !== undefined) {
       Ospf6Config.encode(message.ospf6, writer.uint32(106).fork()).join();
+    }
+    if (message.ripng !== undefined) {
+      RipngConfig.encode(message.ripng, writer.uint32(114).fork()).join();
     }
     if (message.mpls !== undefined) {
       MplsConfig.encode(message.mpls, writer.uint32(122).fork()).join();
@@ -18863,6 +18924,14 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
             message.ospf6 = Ospf6Config.decode(reader, reader.uint32());
             continue;
           }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.ripng = RipngConfig.decode(reader, reader.uint32());
+            continue;
+          }
           case 15: {
             if (tag !== 122) {
               break;
@@ -18941,6 +19010,7 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       bfd: isSet(object.bfd) ? BfdConfig.fromJSON(object.bfd) : undefined,
       policy: isSet(object.policy) ? RoutingPolicy.fromJSON(object.policy) : undefined,
       ospf6: isSet(object.ospf6) ? Ospf6Config.fromJSON(object.ospf6) : undefined,
+      ripng: isSet(object.ripng) ? RipngConfig.fromJSON(object.ripng) : undefined,
       mpls: isSet(object.mpls) ? MplsConfig.fromJSON(object.mpls) : undefined,
       multicast: isSet(object.multicast) ? MulticastConfig.fromJSON(object.multicast) : undefined,
       l2: isSet(object.l2) ? BridgeL2Config.fromJSON(object.l2) : undefined,
@@ -18980,6 +19050,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
     }
     if (message.ospf6 !== undefined) {
       obj.ospf6 = Ospf6Config.toJSON(message.ospf6);
+    }
+    if (message.ripng !== undefined) {
+      obj.ripng = RipngConfig.toJSON(message.ripng);
     }
     if (message.mpls !== undefined) {
       obj.mpls = MplsConfig.toJSON(message.mpls);
@@ -19025,6 +19098,9 @@ export const RoutingConfig: MessageFns<RoutingConfig> = {
       : undefined;
     message.ospf6 = (object.ospf6 !== undefined && object.ospf6 !== null)
       ? Ospf6Config.fromPartial(object.ospf6)
+      : undefined;
+    message.ripng = (object.ripng !== undefined && object.ripng !== null)
+      ? RipngConfig.fromPartial(object.ripng)
       : undefined;
     message.mpls = (object.mpls !== undefined && object.mpls !== null)
       ? MplsConfig.fromPartial(object.mpls)
@@ -24660,7 +24736,15 @@ export const OspfConfig_InterfacesEntry: MessageFns<OspfConfig_InterfacesEntry> 
 };
 
 function createBaseIsisInterface(): IsisInterface {
-  return { passive: undefined, metric: undefined, circuitType: undefined, networkType: undefined, bfd: undefined };
+  return {
+    passive: undefined,
+    metric: undefined,
+    circuitType: undefined,
+    networkType: undefined,
+    bfd: undefined,
+    ipv4: undefined,
+    ipv6: undefined,
+  };
 }
 
 export const IsisInterface: MessageFns<IsisInterface> = {
@@ -24679,6 +24763,12 @@ export const IsisInterface: MessageFns<IsisInterface> = {
     }
     if (message.bfd !== undefined) {
       writer.uint32(40).bool(message.bfd);
+    }
+    if (message.ipv4 !== undefined) {
+      writer.uint32(48).bool(message.ipv4);
+    }
+    if (message.ipv6 !== undefined) {
+      writer.uint32(56).bool(message.ipv6);
     }
     return writer;
   },
@@ -24736,6 +24826,22 @@ export const IsisInterface: MessageFns<IsisInterface> = {
             message.bfd = reader.bool();
             continue;
           }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.ipv4 = reader.bool();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.ipv6 = reader.bool();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -24763,6 +24869,8 @@ export const IsisInterface: MessageFns<IsisInterface> = {
         ? globalThis.String(object.network_type)
         : undefined,
       bfd: isSet(object.bfd) ? globalThis.Boolean(object.bfd) : undefined,
+      ipv4: isSet(object.ipv4) ? globalThis.Boolean(object.ipv4) : undefined,
+      ipv6: isSet(object.ipv6) ? globalThis.Boolean(object.ipv6) : undefined,
     };
   },
 
@@ -24783,6 +24891,12 @@ export const IsisInterface: MessageFns<IsisInterface> = {
     if (message.bfd !== undefined) {
       obj.bfd = message.bfd;
     }
+    if (message.ipv4 !== undefined) {
+      obj.ipv4 = message.ipv4;
+    }
+    if (message.ipv6 !== undefined) {
+      obj.ipv6 = message.ipv6;
+    }
     return obj;
   },
 
@@ -24796,12 +24910,22 @@ export const IsisInterface: MessageFns<IsisInterface> = {
     message.circuitType = object.circuitType ?? undefined;
     message.networkType = object.networkType ?? undefined;
     message.bfd = object.bfd ?? undefined;
+    message.ipv4 = object.ipv4 ?? undefined;
+    message.ipv6 = object.ipv6 ?? undefined;
     return message;
   },
 };
 
 function createBaseIsisConfig(): IsisConfig {
-  return { net: undefined, level: undefined, vrf: undefined, interfaces: {}, redistribute: undefined };
+  return {
+    net: undefined,
+    level: undefined,
+    vrf: undefined,
+    interfaces: {},
+    redistribute: undefined,
+    areaPasswordRef: undefined,
+    domainPasswordRef: undefined,
+  };
 }
 
 export const IsisConfig: MessageFns<IsisConfig> = {
@@ -24820,6 +24944,12 @@ export const IsisConfig: MessageFns<IsisConfig> = {
     });
     if (message.redistribute !== undefined) {
       Redistribute.encode(message.redistribute, writer.uint32(42).fork()).join();
+    }
+    if (message.areaPasswordRef !== undefined) {
+      writer.uint32(50).string(message.areaPasswordRef);
+    }
+    if (message.domainPasswordRef !== undefined) {
+      writer.uint32(58).string(message.domainPasswordRef);
     }
     return writer;
   },
@@ -24880,6 +25010,22 @@ export const IsisConfig: MessageFns<IsisConfig> = {
             message.redistribute = Redistribute.decode(reader, reader.uint32());
             continue;
           }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.areaPasswordRef = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.domainPasswordRef = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -24912,6 +25058,16 @@ export const IsisConfig: MessageFns<IsisConfig> = {
         )
         : {},
       redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+      areaPasswordRef: isSet(object.areaPasswordRef)
+        ? globalThis.String(object.areaPasswordRef)
+        : isSet(object.area_password_ref)
+        ? globalThis.String(object.area_password_ref)
+        : undefined,
+      domainPasswordRef: isSet(object.domainPasswordRef)
+        ? globalThis.String(object.domainPasswordRef)
+        : isSet(object.domain_password_ref)
+        ? globalThis.String(object.domain_password_ref)
+        : undefined,
     };
   },
 
@@ -24938,6 +25094,12 @@ export const IsisConfig: MessageFns<IsisConfig> = {
     if (message.redistribute !== undefined) {
       obj.redistribute = Redistribute.toJSON(message.redistribute);
     }
+    if (message.areaPasswordRef !== undefined) {
+      obj.areaPasswordRef = message.areaPasswordRef;
+    }
+    if (message.domainPasswordRef !== undefined) {
+      obj.domainPasswordRef = message.domainPasswordRef;
+    }
     return obj;
   },
 
@@ -24961,6 +25123,8 @@ export const IsisConfig: MessageFns<IsisConfig> = {
     message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
       ? Redistribute.fromPartial(object.redistribute)
       : undefined;
+    message.areaPasswordRef = object.areaPasswordRef ?? undefined;
+    message.domainPasswordRef = object.domainPasswordRef ?? undefined;
     return message;
   },
 };
@@ -25120,7 +25284,14 @@ export const RipInterface: MessageFns<RipInterface> = {
 };
 
 function createBaseRipConfig(): RipConfig {
-  return { vrf: undefined, networks: [], interfaces: {}, redistribute: undefined, defaultMetric: undefined };
+  return {
+    vrf: undefined,
+    networks: [],
+    interfaces: {},
+    redistribute: undefined,
+    defaultMetric: undefined,
+    version: undefined,
+  };
 }
 
 export const RipConfig: MessageFns<RipConfig> = {
@@ -25139,6 +25310,9 @@ export const RipConfig: MessageFns<RipConfig> = {
     }
     if (message.defaultMetric !== undefined) {
       writer.uint32(40).uint32(message.defaultMetric);
+    }
+    if (message.version !== undefined) {
+      writer.uint32(48).uint32(message.version);
     }
     return writer;
   },
@@ -25199,6 +25373,14 @@ export const RipConfig: MessageFns<RipConfig> = {
             message.defaultMetric = reader.uint32();
             continue;
           }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.version = reader.uint32();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -25235,6 +25417,7 @@ export const RipConfig: MessageFns<RipConfig> = {
         : isSet(object.default_metric)
         ? globalThis.Number(object.default_metric)
         : undefined,
+      version: isSet(object.version) ? globalThis.Number(object.version) : undefined,
     };
   },
 
@@ -25261,6 +25444,9 @@ export const RipConfig: MessageFns<RipConfig> = {
     if (message.defaultMetric !== undefined) {
       obj.defaultMetric = Math.round(message.defaultMetric);
     }
+    if (message.version !== undefined) {
+      obj.version = Math.round(message.version);
+    }
     return obj;
   },
 
@@ -25284,6 +25470,7 @@ export const RipConfig: MessageFns<RipConfig> = {
       ? Redistribute.fromPartial(object.redistribute)
       : undefined;
     message.defaultMetric = object.defaultMetric ?? undefined;
+    message.version = object.version ?? undefined;
     return message;
   },
 };
@@ -25367,6 +25554,262 @@ export const RipConfig_InterfacesEntry: MessageFns<RipConfig_InterfacesEntry> = 
   },
   fromPartial(object: DeepPartial<RipConfig_InterfacesEntry>): RipConfig_InterfacesEntry {
     const message = createBaseRipConfig_InterfacesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? RipInterface.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseRipngConfig(): RipngConfig {
+  return { vrf: undefined, networks: [], interfaces: {}, redistribute: undefined, defaultMetric: undefined };
+}
+
+export const RipngConfig: MessageFns<RipngConfig> = {
+  encode(message: RipngConfig, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vrf !== undefined) {
+      writer.uint32(10).string(message.vrf);
+    }
+    for (const v of message.networks) {
+      writer.uint32(18).string(v!);
+    }
+    globalThis.Object.entries(message.interfaces).forEach(([key, value]: [string, RipInterface]) => {
+      RipngConfig_InterfacesEntry.encode({ key: key as any, value }, writer.uint32(26).fork()).join();
+    });
+    if (message.redistribute !== undefined) {
+      Redistribute.encode(message.redistribute, writer.uint32(34).fork()).join();
+    }
+    if (message.defaultMetric !== undefined) {
+      writer.uint32(40).uint32(message.defaultMetric);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RipngConfig {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRipngConfig();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vrf = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.networks.push(reader.string());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            const entry3 = RipngConfig_InterfacesEntry.decode(reader, reader.uint32());
+            if (entry3.value !== undefined) {
+              message.interfaces[entry3.key] = entry3.value;
+            }
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.redistribute = Redistribute.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.defaultMetric = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RipngConfig {
+    return {
+      vrf: isSet(object.vrf) ? globalThis.String(object.vrf) : undefined,
+      networks: globalThis.Array.isArray(object?.networks) ? object.networks.map((e: any) => globalThis.String(e)) : [],
+      interfaces: isObject(object.interfaces)
+        ? (globalThis.Object.entries(object.interfaces) as [string, any][]).reduce(
+          (acc: { [key: string]: RipInterface }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: RipInterface.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      redistribute: isSet(object.redistribute) ? Redistribute.fromJSON(object.redistribute) : undefined,
+      defaultMetric: isSet(object.defaultMetric)
+        ? globalThis.Number(object.defaultMetric)
+        : isSet(object.default_metric)
+        ? globalThis.Number(object.default_metric)
+        : undefined,
+    };
+  },
+
+  toJSON(message: RipngConfig): unknown {
+    const obj: any = {};
+    if (message.vrf !== undefined) {
+      obj.vrf = message.vrf;
+    }
+    if (message.networks?.length) {
+      obj.networks = message.networks;
+    }
+    if (message.interfaces) {
+      const entries = globalThis.Object.entries(message.interfaces) as [string, RipInterface][];
+      if (entries.length > 0) {
+        obj.interfaces = {};
+        entries.forEach(([k, v]) => {
+          obj.interfaces[k] = RipInterface.toJSON(v);
+        });
+      }
+    }
+    if (message.redistribute !== undefined) {
+      obj.redistribute = Redistribute.toJSON(message.redistribute);
+    }
+    if (message.defaultMetric !== undefined) {
+      obj.defaultMetric = Math.round(message.defaultMetric);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RipngConfig>): RipngConfig {
+    return RipngConfig.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RipngConfig>): RipngConfig {
+    const message = createBaseRipngConfig();
+    message.vrf = object.vrf ?? undefined;
+    message.networks = object.networks?.map((e) => e) || [];
+    message.interfaces = (globalThis.Object.entries(object.interfaces ?? {}) as [string, RipInterface][]).reduce(
+      (acc: { [key: string]: RipInterface }, [key, value]: [string, RipInterface]) => {
+        if (value !== undefined) {
+          acc[key] = RipInterface.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.redistribute = (object.redistribute !== undefined && object.redistribute !== null)
+      ? Redistribute.fromPartial(object.redistribute)
+      : undefined;
+    message.defaultMetric = object.defaultMetric ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRipngConfig_InterfacesEntry(): RipngConfig_InterfacesEntry {
+  return { key: "", value: undefined };
+}
+
+export const RipngConfig_InterfacesEntry: MessageFns<RipngConfig_InterfacesEntry> = {
+  encode(message: RipngConfig_InterfacesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      RipInterface.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RipngConfig_InterfacesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRipngConfig_InterfacesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = RipInterface.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RipngConfig_InterfacesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? RipInterface.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: RipngConfig_InterfacesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = RipInterface.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RipngConfig_InterfacesEntry>): RipngConfig_InterfacesEntry {
+    return RipngConfig_InterfacesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RipngConfig_InterfacesEntry>): RipngConfig_InterfacesEntry {
+    const message = createBaseRipngConfig_InterfacesEntry();
     message.key = object.key ?? "";
     message.value = (object.value !== undefined && object.value !== null)
       ? RipInterface.fromPartial(object.value)
@@ -98772,7 +99215,23 @@ export const TunnelStateRequest: MessageFns<TunnelStateRequest> = {
 };
 
 function createBaseTunnelStateTunnel(): TunnelStateTunnel {
-  return { name: "", kind: "", interface: "", swIfIndex: 0, adminUp: false, linkUp: false, mtu: 0, deviceClass: "" };
+  return {
+    name: "",
+    kind: "",
+    interface: "",
+    swIfIndex: 0,
+    adminUp: false,
+    linkUp: false,
+    mtu: 0,
+    deviceClass: "",
+    src: undefined,
+    dst: undefined,
+    underlayTableId: undefined,
+    ipv4TableId: undefined,
+    counters: undefined,
+    notes: [],
+    ipv6TableId: undefined,
+  };
 }
 
 export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
@@ -98800,6 +99259,27 @@ export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
     }
     if (message.deviceClass !== "") {
       writer.uint32(66).string(message.deviceClass);
+    }
+    if (message.src !== undefined) {
+      writer.uint32(74).string(message.src);
+    }
+    if (message.dst !== undefined) {
+      writer.uint32(82).string(message.dst);
+    }
+    if (message.underlayTableId !== undefined) {
+      writer.uint32(88).uint32(message.underlayTableId);
+    }
+    if (message.ipv4TableId !== undefined) {
+      writer.uint32(96).uint32(message.ipv4TableId);
+    }
+    if (message.counters !== undefined) {
+      InterfaceCounters.encode(message.counters, writer.uint32(106).fork()).join();
+    }
+    for (const v of message.notes) {
+      writer.uint32(114).string(v!);
+    }
+    if (message.ipv6TableId !== undefined) {
+      writer.uint32(120).uint32(message.ipv6TableId);
     }
     return writer;
   },
@@ -98881,6 +99361,62 @@ export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
             message.deviceClass = reader.string();
             continue;
           }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            message.src = reader.string();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.dst = reader.string();
+            continue;
+          }
+          case 11: {
+            if (tag !== 88) {
+              break;
+            }
+
+            message.underlayTableId = reader.uint32();
+            continue;
+          }
+          case 12: {
+            if (tag !== 96) {
+              break;
+            }
+
+            message.ipv4TableId = reader.uint32();
+            continue;
+          }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.counters = InterfaceCounters.decode(reader, reader.uint32());
+            continue;
+          }
+          case 14: {
+            if (tag !== 114) {
+              break;
+            }
+
+            message.notes.push(reader.string());
+            continue;
+          }
+          case 15: {
+            if (tag !== 120) {
+              break;
+            }
+
+            message.ipv6TableId = reader.uint32();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -98919,6 +99455,27 @@ export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
         : isSet(object.device_class)
         ? globalThis.String(object.device_class)
         : "",
+      src: isSet(object.src) ? globalThis.String(object.src) : undefined,
+      dst: isSet(object.dst) ? globalThis.String(object.dst) : undefined,
+      underlayTableId: isSet(object.underlayTableId)
+        ? globalThis.Number(object.underlayTableId)
+        : isSet(object.underlay_table_id)
+        ? globalThis.Number(object.underlay_table_id)
+        : undefined,
+      ipv4TableId: isSet(object.ipv4TableId)
+        ? globalThis.Number(object.ipv4TableId)
+        : isSet(object.ipv4_table_id)
+        ? globalThis.Number(object.ipv4_table_id)
+        : undefined,
+      counters: isSet(object.counters) ? InterfaceCounters.fromJSON(object.counters) : undefined,
+      notes: globalThis.Array.isArray(object?.notes)
+        ? object.notes.map((e: any) => globalThis.String(e))
+        : [],
+      ipv6TableId: isSet(object.ipv6TableId)
+        ? globalThis.Number(object.ipv6TableId)
+        : isSet(object.ipv6_table_id)
+        ? globalThis.Number(object.ipv6_table_id)
+        : undefined,
     };
   },
 
@@ -98948,6 +99505,27 @@ export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
     if (message.deviceClass !== "") {
       obj.deviceClass = message.deviceClass;
     }
+    if (message.src !== undefined) {
+      obj.src = message.src;
+    }
+    if (message.dst !== undefined) {
+      obj.dst = message.dst;
+    }
+    if (message.underlayTableId !== undefined) {
+      obj.underlayTableId = Math.round(message.underlayTableId);
+    }
+    if (message.ipv4TableId !== undefined) {
+      obj.ipv4TableId = Math.round(message.ipv4TableId);
+    }
+    if (message.counters !== undefined) {
+      obj.counters = InterfaceCounters.toJSON(message.counters);
+    }
+    if (message.notes?.length) {
+      obj.notes = message.notes;
+    }
+    if (message.ipv6TableId !== undefined) {
+      obj.ipv6TableId = Math.round(message.ipv6TableId);
+    }
     return obj;
   },
 
@@ -98964,6 +99542,15 @@ export const TunnelStateTunnel: MessageFns<TunnelStateTunnel> = {
     message.linkUp = object.linkUp ?? false;
     message.mtu = object.mtu ?? 0;
     message.deviceClass = object.deviceClass ?? "";
+    message.src = object.src ?? undefined;
+    message.dst = object.dst ?? undefined;
+    message.underlayTableId = object.underlayTableId ?? undefined;
+    message.ipv4TableId = object.ipv4TableId ?? undefined;
+    message.counters = (object.counters !== undefined && object.counters !== null)
+      ? InterfaceCounters.fromPartial(object.counters)
+      : undefined;
+    message.notes = object.notes?.map((e) => e) || [];
+    message.ipv6TableId = object.ipv6TableId ?? undefined;
     return message;
   },
 };

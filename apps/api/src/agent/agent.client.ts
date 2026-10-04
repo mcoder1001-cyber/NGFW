@@ -39,6 +39,7 @@ import {
   type Det44SessionsRequest,
   type Det44SessionsResponse,
   // wave-BC: F-tunnels
+  type TunnelStateResponse,
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
@@ -337,6 +338,10 @@ export class AgentClient implements OnModuleDestroy {
     return r.done;
   }
   // wave-BC: F-tunnels
+  tunnelState(): Promise<TunnelStateResponse> {
+    return this.unary(this.c.tunnelState, { owner: this.owner });
+  }
+
   // wave-BC: F-vrrp-config-sync
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native

@@ -716,6 +716,7 @@ enum EventKind {
   // wave-BC: F-ospf
   EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20;
   // wave-BC: F-isis-rip
+  EVENT_KIND_ISIS_ADJACENCY_CHANGED = 21;
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
@@ -1359,6 +1360,7 @@ message RoutingConfig {
   // wave-BC: F-ospf
   Ospf6Config ospf6 = 13;
   // wave-BC: F-isis-rip
+  RipngConfig ripng = 14;
   // wave-BC: F-mpls-srmpls
 
   // Static MPLS and SR-MPLS (`routing.mpls`); unset = MPLS not configured (F-mpls-srmpls).
@@ -1827,6 +1829,8 @@ message IsisInterface {
   optional bool bfd = 5;
 
   // wave-BC: F-isis-rip
+  optional bool ipv4 = 6;
+  optional bool ipv6 = 7;
   // wave-BC: F-bfd-redistribution
 }
 
@@ -1844,6 +1848,8 @@ message IsisConfig {
   Redistribute redistribute = 5;
 
   // wave-BC: F-isis-rip
+  optional string area_password_ref = 6;
+  optional string domain_password_ref = 7;
 }
 
 // RipInterface mirrors `routing.rip.interfaces.<name>`.
@@ -1868,6 +1874,16 @@ message RipConfig {
   optional uint32 default_metric = 5;
 
   // wave-BC: F-isis-rip
+  optional uint32 version = 6;
+}
+
+// RipngConfig mirrors routing.ripng (IPv6 only).
+message RipngConfig {
+  optional string vrf = 1;
+  repeated string networks = 2;
+  map<string, RipInterface> interfaces = 3;
+  Redistribute redistribute = 4;
+  optional uint32 default_metric = 5;
 }
 
 // BfdSession mirrors one entry of `routing.bfd.sessions` (bfd_udp_add).
@@ -8185,6 +8201,17 @@ message TunnelStateTunnel {
   uint32 mtu = 7;
   // VPP's device class of the interface ("GRE tunnel device", "VXLAN_GPE" …).
   string device_class = 8;
+  // Read back from the tunnel descriptor dump; absent when VPP provides no getter (6RD).
+  optional string src = 9;
+  optional string dst = 10;
+  optional uint32 underlay_table_id = 11;
+  // Live IPv4 interface FIB; absent when the read fails, never filled from candidate.
+  optional uint32 ipv4_table_id = 12;
+  // Stats segment snapshot, absent when unavailable; absence is not a zero count.
+  InterfaceCounters counters = 13;
+  repeated string notes = 14;
+  // Live IPv6 interface FIB, independently read from the IPv4 FIB.
+  optional uint32 ipv6_table_id = 15;
 }
 
 message TunnelStateResponse {

@@ -846,6 +846,27 @@ module ngfw-routing {
           type boolean;
           default "false";
         }
+        container auth {
+          leaf type {
+            type enumeration {
+              enum "none";
+              enum "md5";
+            }
+            mandatory true;
+          }
+          leaf keyId {
+            type uint32 {
+              range "1..255";
+            }
+          }
+          leaf keyRef {
+            type string {
+              pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            description "reference to a stored secret of kind password";
+          }
+        }
       }
       container redistribute {
         description "routes of these sources are announced; presence of a key enables it";
@@ -981,6 +1002,14 @@ module ngfw-routing {
           type boolean;
           default "false";
         }
+        leaf ipv4 {
+          type boolean;
+          default "true";
+        }
+        leaf ipv6 {
+          type boolean;
+          default "true";
+        }
       }
       container redistribute {
         description "routes of these sources are announced; presence of a key enables it";
@@ -1049,6 +1078,20 @@ module ngfw-routing {
             }
           }
         }
+      }
+      leaf areaPasswordRef {
+        type string {
+          pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+          length "0..127";
+        }
+        description "reference to a stored secret of kind password";
+      }
+      leaf domainPasswordRef {
+        type string {
+          pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+          length "0..127";
+        }
+        description "reference to a stored secret of kind password";
       }
     }
     container rip {
@@ -1152,6 +1195,12 @@ module ngfw-routing {
         }
         default "1";
       }
+      leaf version {
+        type uint32 {
+          range "2";
+        }
+        default "2";
+      }
     }
     container bfd {
       list sessions {
@@ -1207,6 +1256,263 @@ module ngfw-routing {
           type boolean;
           default "true";
         }
+      }
+    }
+    container ospf6 {
+      leaf routerId {
+        type string {
+          pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+        }
+        description "dotted quad, e.g. 10.255.0.1";
+      }
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "routing table this object belongs to; `default` is table 0";
+      }
+      list areas {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        leaf type {
+          type enumeration {
+            enum "normal";
+            enum "stub";
+            enum "nssa";
+          }
+          default "normal";
+        }
+        leaf noSummary {
+          type boolean;
+          default "false";
+          description "totally stubby / totally NSSA: do not inject inter-area routes";
+        }
+      }
+      list interfaces {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        description "keyed by interface name";
+        leaf area {
+          type union {
+            type string {
+              pattern "(0|[1-9][0-9]{0,9})";
+            }
+            type string {
+              pattern "((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])";
+            }
+          }
+          mandatory true;
+          description "decimal or dotted quad, e.g. 0 or 0.0.0.51";
+        }
+        leaf cost {
+          type uint32 {
+            range "1..65535";
+          }
+        }
+        leaf passive {
+          type boolean;
+          default "false";
+          description "advertise the subnet but form no adjacencies";
+        }
+        leaf networkType {
+          type enumeration {
+            enum "broadcast";
+            enum "point-to-point";
+            enum "point-to-multipoint";
+          }
+        }
+        leaf helloIntervalSec {
+          type uint32 {
+            range "1..65535";
+          }
+        }
+        leaf deadIntervalSec {
+          type uint32 {
+            range "1..65535";
+          }
+        }
+        leaf priority {
+          type uint32 {
+            range "0..255";
+          }
+        }
+      }
+      container redistribute {
+        description "routes of these sources are announced; presence of a key enables it";
+        container connected {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container static {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container bgp {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container isis {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container rip {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+      }
+    }
+    container ripng {
+      leaf vrf {
+        type string {
+          pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+          length "1..63";
+        }
+        default "default";
+        description "routing table this object belongs to; `default` is table 0";
+      }
+      leaf-list networks {
+        type string {
+          pattern "(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))/(12[0-8]|1[01][0-9]|[1-9]?[0-9])";
+        }
+      }
+      list interfaces {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        description "keyed by interface name";
+        leaf passive {
+          type boolean;
+          default "false";
+        }
+      }
+      container redistribute {
+        description "routes of these sources are announced; presence of a key enables it";
+        container connected {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container static {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container bgp {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container ospf {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+        container isis {
+          leaf metric {
+            type uint32 {
+              range "0..4294967295";
+            }
+          }
+          leaf routeMap {
+            type string {
+              pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+              length "1..63";
+            }
+          }
+        }
+      }
+      leaf defaultMetric {
+        type uint32 {
+          range "1..16";
+        }
+        default "1";
       }
     }
     container mpls {

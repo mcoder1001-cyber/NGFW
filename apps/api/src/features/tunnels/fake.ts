@@ -70,6 +70,8 @@ export function tunnelStateFake(
           adminUp: up,
           linkUp: up,
           mtu: typeof item['mtu'] === 'number' ? item['mtu'] : 9000,
+          notes: [],
+          counters: undefined,
           deviceClass: sixrd ? 'ip6ip-6rd' : (DEVICE_CLASS[k.key] ?? ''),
         });
       }

@@ -46,8 +46,11 @@ const (
 // Service implements the ngfw.v1.Dataplane semantics (docs/contracts/proto.md) on top of the
 // scheduler. The gRPC adapter (server.go) only translates.
 type Service struct {
-	autoBlock     autoBlockRuntime
-	captureConfig capturetrace.Config
+	// tunnelStateGate bounds live tunnel walks without blocking canceled requests.
+	tunnelStateOnce sync.Once
+	tunnelStateGate chan struct{}
+	autoBlock       autoBlockRuntime
+	captureConfig   capturetrace.Config
 	// netdevKind: the af_packet veth rule's Linux netdev lookup (D-105), nil = no check
 	netdevKind        desired.NetdevKind
 	owner             string

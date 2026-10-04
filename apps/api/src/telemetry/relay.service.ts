@@ -43,12 +43,16 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-A: F-object-model
     // wave-A: F-acl
     // wave-A: P11
+    case EventKind.EVENT_KIND_IPSEC_SA_CHANGED:
+      return 'ipsec.events';
     // wave-A: F-wireguard
     case EventKind.EVENT_KIND_WIREGUARD_PEER_CHANGED:
       return 'wireguard.events';
     // wave-A: P12
     case EventKind.EVENT_KIND_ROUTING_CHANGED:
     case EventKind.EVENT_KIND_BGP_NEIGHBOR_CHANGED:
+    case EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED:
+    case EventKind.EVENT_KIND_ISIS_ADJACENCY_CHANGED:
       return 'routing.events';
     default:
       return 'agent.events';

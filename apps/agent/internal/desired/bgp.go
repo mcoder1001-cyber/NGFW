@@ -78,6 +78,10 @@ func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute
 		out.Isis = proto.Clone(rt.GetIsis()).(*ngfwv1.IsisConfig)
 		content = true
 	}
+	if rt.GetRipng() != nil {
+		out.Ripng = proto.Clone(rt.GetRipng()).(*ngfwv1.RipngConfig)
+		content = true
+	}
 	if rt.GetRip() != nil { // F-isis-rip
 		out.Rip = proto.Clone(rt.GetRip()).(*ngfwv1.RipConfig)
 		content = true
@@ -254,7 +258,8 @@ func AssembleFRR(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 		ds.Routing.Ospf = rt.GetOspf() // F-ospf
 		ds.Routing.Ospf6 = rt.GetOspf6()
 		ds.Routing.Isis = rt.GetIsis() // F-isis-rip
-		ds.Routing.Rip = rt.GetRip()   // F-isis-rip
+		ds.Routing.Ripng = rt.GetRipng()
+		ds.Routing.Rip = rt.GetRip() // F-isis-rip
 		if len(rt.GetStatic()) > 0 {
 			ds.Routing.Static = append(ds.Routing.Static, rt.GetStatic()...)
 			sort.SliceStable(ds.Routing.Static, func(a, b int) bool {

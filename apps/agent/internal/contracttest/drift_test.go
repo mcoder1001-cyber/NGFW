@@ -90,6 +90,7 @@ var acceptedDrift = map[string]string{
 	protoToSchema + " /routing/ospf/redistribute/ospf": "shared Redistribute message; own protocol excluded by the schema",
 	protoToSchema + " /routing/isis/redistribute/isis": "shared Redistribute message; own protocol excluded by the schema",
 	protoToSchema + " /routing/rip/redistribute/rip":   "shared Redistribute message; own protocol excluded by the schema",
+	protoToSchema + " /routing/ripng/redistribute/rip": "shared Redistribute message; RIPng uses the IPv6 RIP process and excludes its own source",
 }
 
 // checkDrift compares a JSON Schema object (the document root) with a message descriptor. Findings

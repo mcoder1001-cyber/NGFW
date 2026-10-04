@@ -1,3 +1,4 @@
+import { LiveState } from './LiveState';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -21,8 +22,9 @@ registerIgpLocale();
 
 const ISIS = 'isis' as const;
 const RIP = 'rip' as const;
+const RIPNG = 'ripng' as const;
 
-type TabKey = 'isis' | 'rip';
+export type TabKey = 'isis' | 'rip' | 'ripng';
 
 function Interfaces({ proto }: { proto: TabKey }) {
   const { t } = useTranslation(NS);
@@ -32,7 +34,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
     string,
     { passive?: boolean; metric?: number; circuitType?: string },
   ][];
-  const networks = proto === 'rip' ? (cand.data?.rip?.networks ?? []) : [];
+  const networks = proto !== 'isis' ? (cand.data?.[proto]?.networks ?? []) : [];
   return (
     <Paper variant="outlined" sx={{ p: 2, flex: 1, width: '100%' }}>
       <Typography component="h3" variant="h6" gutterBottom>
@@ -62,7 +64,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
           </TableBody>
         </Table>
       )}
-      {proto === 'rip' && (
+      {proto !== 'isis' && (
         <>
           <Typography component="h3" variant="h6" gutterBottom sx={{ mt: 3 }}>
             {t('isisRip.networks')}
@@ -78,7 +80,7 @@ function Interfaces({ proto }: { proto: TabKey }) {
 
 /**
  * Routing › IS-IS and RIP (WEB-4a, D-123): schema-driven `routing.isis` / `routing.rip` forms with interface summaries.
- * Routed at /routing/isis-rip by F-isis-rip (live adjacency state not yet wired).
+ * Routed at /routing/isis-rip by F-isis-rip (bounded live adjacency and peer state).
  */
 export function IsisRipPage() {
   const { t } = useTranslation([NS, 'config']);
@@ -98,11 +100,13 @@ export function IsisRipPage() {
       <Tabs value={tab} onChange={(_, v: TabKey) => setTab(v)} sx={{ mb: 2 }}>
         <Tab value={ISIS} label={t('isisRip.tabs.isis')} />
         <Tab value={RIP} label={t('isisRip.tabs.rip')} />
+        <Tab value={RIPNG} label={t('isisRip.tabs.ripng')} />
       </Tabs>
       <Stack key={tab} direction={{ xs: 'column', lg: 'row' }} spacing={3} alignItems="flex-start">
         <ProtocolForm proto={tab} label={t(`isisRip.tabs.${tab}`)} />
         <Interfaces proto={tab} />
       </Stack>
+      <LiveState proto={tab} />
     </PageHeader>
   );
 }

@@ -367,3 +367,7 @@ The patch was compiled and tested in disposable VPP instances, including product
 ## V27 — LCP multicast pair/address lifecycle (2026-10-03)
 
 Product patch [0003](../deploy/vpp/patches/0003-lcp-multicast-reconcile.patch) repairs plugin-low IPv4/IPv6 multicast acceptance across pair recreation, address changes, link-local lifecycle and pair deletion. Stock reproduction fails, while private plugin lifecycle and strict full ISIS/RIP restart/withdraw/relearn/rollback tests pass. See [review and evidence](status/tasks/V27-lcp-multicast-reconcile-2026-10-03.md). Product series version is `26.06-release+ngfw3`; no patched plugin/package was installed on the shared appliance.
+
+### V-new — IS-IS OSI passthrough has no disable (F-isis-rip, 2026-10-04)
+
+Generated VPP 26.06 `lcp.LcpOsiProtoEnable` enables OSI discriminator 0x83 globally; `LcpOsiProtoGet` reads enabled discriminators. No disable exists. The globals-only `lcp.osi-proto` descriptor is explicitly opted in (`NGFW_ISIS_OSI_ENABLE=1`, designated globals owner); default projection warns and does not enable. Delete/rollback cannot revoke the punt, and the user documentation records that only separately authorized VPP restart clears it. No host enable, frame trace or VPP FIB proof was executed; laboratory acceptance remains deferred. No VPP C change proposed in this task.

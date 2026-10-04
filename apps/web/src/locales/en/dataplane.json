@@ -15,7 +15,11 @@
   },
   "apply": {
     "button": "Apply and restart the data plane",
-    "disabled": "Applying startup settings from this page is not available yet."
+    "disabled": "Applying startup settings from this page is not available yet.",
+    "confirm": "Applying restarts the data plane and briefly interrupts traffic. Review the diff before confirming. The appliance checks health and rolls back on failure.",
+    "confirmButton": "Confirm apply and restart",
+    "accepted": "Apply accepted. Refresh the installed state after the restart.",
+    "close": "Close"
   },
   "field": {
     "group": {

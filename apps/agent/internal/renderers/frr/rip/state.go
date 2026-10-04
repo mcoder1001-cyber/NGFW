@@ -9,12 +9,22 @@ import (
 	"strings"
 )
 
+// StatusReader identifies the on-demand RIP peer status reader.
 const StatusReader = "ripStatus"
+
+// RoutesReader identifies the on-demand RIP route reader.
 const RoutesReader = "ripRoutes"
+
+// ShowStatus reads public RIP peer status.
 const ShowStatus frr.ShowCommand = "show ip rip status"
+
+// ShowRoutes reads RIP routes across VRFs as JSON.
 const ShowRoutes frr.ShowCommand = "show ip route vrf all rip json"
+
+// MaxStatusBytes bounds input accepted by the status parser.
 const MaxStatusBytes = 1 << 20
 
+// Peer contains public RIP peer counters and last update metadata.
 type Peer struct {
 	Address    string `json:"address"`
 	BadPackets uint32 `json:"badPackets"`
@@ -22,6 +32,8 @@ type Peer struct {
 	Distance   uint32 `json:"distance"`
 	LastUpdate string `json:"lastUpdate"`
 }
+
+// Status contains the observed RIP protocol and peer table for one VRF.
 type Status struct {
 	VRF      string `json:"vrf"`
 	Protocol string `json:"protocol"`

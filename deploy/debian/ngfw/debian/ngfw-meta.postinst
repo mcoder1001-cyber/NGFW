@@ -2,7 +2,7 @@
 set -eu
 if [ "$1" = configure ]; then
     # Register future appliance boot. Never start/restart VPP from installation.
-    for unit in ngfw-firstboot.service ngfw-agent.service ngfw-api.service; do
+    for unit in apply-executor.socket ngfw-firstboot.service ngfw-agent.service ngfw-api.service; do
         deb-systemd-helper enable "$unit" >/dev/null
     done
 fi

@@ -78,7 +78,7 @@ describe('System → Dataplane (F-dataplane-ui)', () => {
     expect(item).toMatchObject({ path: '/system/dataplane', available: true });
   });
 
-  it('shows the restart banner, candidate vs running, the installed file and a disabled apply', async () => {
+  it('shows the restart banner, candidate vs running, the installed file and an admin apply confirmation', async () => {
     const api = fake();
     await signIn();
     render(app('/system/dataplane'));
@@ -90,8 +90,8 @@ describe('System → Dataplane (F-dataplane-ui)', () => {
     const installed = screen.getByTestId('dp-installed');
     await waitFor(() => expect(within(installed).getByText('0-7')).toBeInTheDocument());
     const apply = screen.getByRole('button', { name: 'Apply and restart the data plane' });
-    expect(apply).toBeDisabled();
-    expect(screen.getByText(/not available yet/)).toBeInTheDocument();
+    expect(apply).toBeEnabled();
+    expect(screen.queryByText(/not available yet/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Preview startup settings' }));
     expect(await screen.findByTestId('dp-preview-summary')).toHaveTextContent(
       'Review candidate and running settings',

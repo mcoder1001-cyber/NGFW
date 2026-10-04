@@ -296,3 +296,21 @@ func TestVrrpStateObservedAndOwnerScoped(t *testing.T) {
 		t.Fatal("foreign owner accepted")
 	}
 }
+
+func TestVrrpStateRejectsOutOfRangeStoredID(t *testing.T) {
+	vrrpGates(t, "on", "off", testOwner)
+	for _, id := range []uint32{0, 256, ^uint32(0)} {
+		s := newSvc(t, coretest.New(), t.TempDir())
+		stored := doc(t, vrrpDoc)
+		stored.Ha.Vrrp["lan-v4"].VrId = proto.Uint32(id)
+		s.st.desired = stored
+		out, err := s.vrrpState(context.Background(), &ngfwv1.VrrpStateRequest{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		row := out.Routers[0]
+		if row.Name != "lan-v4" || row.State != "unknown" || row.Error != "configured VRID is outside 1..255" {
+			t.Fatalf("invalid stored id %d was truncated into a runtime identity: %v", id, row)
+		}
+	}
+}

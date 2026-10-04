@@ -32,7 +32,7 @@ func NativePaths(root, keyRef, peerRef string) (string, string, error) {
 
 // snapshot never overwrites generations; rollback and confirmed-commit revert
 // may need historical files after the ordinary PKI file set has changed.
-func (c Config) snapshot(ctx context.Context, path string, key bool) error {
+func (c Config) snapshot(ctx context.Context, path string, key bool) (resultErr error) {
 	if c.NativeRoot == "" {
 		return nil
 	} // descriptor-only tooling owns its explicit files
@@ -63,11 +63,11 @@ func (c Config) snapshot(ctx context.Context, path string, key bool) error {
 		return fmt.Errorf("native certificate snapshot material unavailable: %w", err)
 	}
 	defer vpn.Zero(material)
-	max := 64 << 10
+	materialLimit := 64 << 10
 	if key {
-		max = 16 << 10
+		materialLimit = 16 << 10
 	}
-	if len(material) == 0 || len(material) > max {
+	if len(material) == 0 || len(material) > materialLimit {
 		return errors.New("native certificate snapshot material exceeds its size bound")
 	}
 	// The configured state directory is trusted, but refuse a symlink anywhere in
@@ -101,15 +101,19 @@ func (c Config) snapshot(ctx context.Context, path string, key bool) error {
 			return err
 		}
 		f := os.NewFile(uintptr(fd), path)
-		defer f.Close()
+		defer func() {
+			if closeErr := f.Close(); resultErr == nil {
+				resultErr = closeErr
+			}
+		}()
 		st, err := f.Stat()
 		if err != nil {
 			return err
 		}
-		if !st.Mode().IsRegular() || st.Mode().Perm() != 0600 || st.Size() > int64(max) {
+		if !st.Mode().IsRegular() || st.Mode().Perm() != 0600 || st.Size() > int64(materialLimit) {
 			return errors.New("native certificate snapshot has unsafe metadata")
 		}
-		existing, err := io.ReadAll(io.LimitReader(f, int64(max)+1))
+		existing, err := io.ReadAll(io.LimitReader(f, int64(materialLimit)+1))
 		defer vpn.Zero(existing)
 		if err != nil {
 			return err

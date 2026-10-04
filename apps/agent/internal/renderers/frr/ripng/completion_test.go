@@ -1,3 +1,4 @@
+// Package ripng renders and observes RIPng routing configuration.
 package ripng
 
 import (

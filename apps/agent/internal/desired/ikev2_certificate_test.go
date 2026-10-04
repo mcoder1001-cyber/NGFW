@@ -77,22 +77,22 @@ func TestNativeCertificateProjectionAndPreflight(t *testing.T) {
 		name  string
 		alter func(*ngfwv1.DesiredState, *IKEv2Env)
 	}{
-		{"ca-only", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		{"ca-only", func(d *ngfwv1.DesiredState, _ *IKEv2Env) {
 			d.Vpn.Ipsec.Tunnels["site"].Auth.RemoteCa = proto.String("ca")
 		}},
-		{"missing-peer", func(d *ngfwv1.DesiredState, e *IKEv2Env) { d.Vpn.Ipsec.Tunnels["site"].Auth.PeerCertificate = nil }},
-		{"missing-local-key", func(d *ngfwv1.DesiredState, e *IKEv2Env) { d.Vpn.Pki.Certificates["local"].PrivateKeyRef = nil }},
-		{"wrong-remote-id", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		{"missing-peer", func(d *ngfwv1.DesiredState, _ *IKEv2Env) { d.Vpn.Ipsec.Tunnels["site"].Auth.PeerCertificate = nil }},
+		{"missing-local-key", func(d *ngfwv1.DesiredState, _ *IKEv2Env) { d.Vpn.Pki.Certificates["local"].PrivateKeyRef = nil }},
+		{"wrong-remote-id", func(d *ngfwv1.DesiredState, _ *IKEv2Env) {
 			d.Vpn.Ipsec.Tunnels["site"].RemoteId = proto.String("@wrong.test")
 		}},
-		{"wrong-local-id", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		{"wrong-local-id", func(d *ngfwv1.DesiredState, _ *IKEv2Env) {
 			d.Vpn.Ipsec.Tunnels["site"].LocalId = proto.String("@wrong.test")
 		}},
-		{"non-globals-owner", func(d *ngfwv1.DesiredState, e *IKEv2Env) { e.GlobalsOwner = false }},
-		{"unavailable-material", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		{"non-globals-owner", func(_ *ngfwv1.DesiredState, e *IKEv2Env) { e.GlobalsOwner = false }},
+		{"unavailable-material", func(_ *ngfwv1.DesiredState, e *IKEv2Env) {
 			e.Resolve = func(context.Context, string) ([]byte, error) { return nil, fmt.Errorf("unavailable") }
 		}},
-		{"foreign-owner", func(d *ngfwv1.DesiredState, e *IKEv2Env) {
+		{"foreign-owner", func(_ *ngfwv1.DesiredState, e *IKEv2Env) {
 			e.CertificateReady = func(context.Context) error { return fmt.Errorf("foreign profile") }
 		}},
 	} {

@@ -8,12 +8,14 @@ import (
 	"strings"
 )
 
+// SessionSource exposes bounded NAT session enumeration and deletion.
 type SessionSource interface {
 	Users(context.Context) ([]nat44ed.User, error)
 	UserSessions(context.Context, nat44ed.User, int, int) ([]nat44ed.Session, error)
 	DeleteSession(context.Context, nat44ed.Endpoint, string, uint32, nat44ed.Endpoint) error
 }
 
+// CleanupProgress retains the cursor for a bounded dead-session scan.
 type CleanupProgress struct {
 	UsersIdentity string
 	User, Offset  int

@@ -36,7 +36,7 @@ describe('F-dataplane-ui state + preview', () => {
     expect(out.changed).toBe(true);
     expect(out.diff).toContain('-  workers 2');
     expect(out.diff).toContain('+  workers 4');
-    expect(out).toMatchObject({ restartRequired: true, applyAvailable: false });
+    expect(out).toMatchObject({ restartRequired: true, applyAvailable: true });
   });
 
   it('an unchanged candidate has no diff', async () => {

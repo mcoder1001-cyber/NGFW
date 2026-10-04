@@ -87,7 +87,7 @@ func nativeCertificates(ds *ngfwv1.DesiredState, env IKEv2Env) (map[string]nativ
 			return nil, fail(err.Error())
 		}
 		pub := localCert.PublicKey.(*rsa.PublicKey)
-		matches := key.PublicKey.N.Cmp(pub.N) == 0 && key.PublicKey.E == pub.E
+		matches := key.N.Cmp(pub.N) == 0 && key.E == pub.E
 		// Private RSA integers are transient; never persist them in projection values.
 		key.D.SetInt64(0)
 		for _, p := range key.Primes {

@@ -23,7 +23,7 @@ func (d *InterfaceDescriptor) CheckPersistent() error {
 // owner's DF-7 BootStore (review H2); the product wiring installs Wiring.BootStore() with
 // df7.SetBootStore.
 func (d *RouteDescriptor) CheckPersistent() error {
-	return dfkit.CheckBoot(NameRoute, df7.BootStoreFor(d.Owner))
+	return dfkit.CheckBoot(d.Name(), df7.BootStoreFor(d.Owner))
 }
 
 // RecordsNoOwnership declares that a label binding records nothing: it is write-only (D-063),

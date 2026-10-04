@@ -403,6 +403,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-A: P12
 	registerP12(r, w)
+	// wave-BC: F-mpls-ldp
+	if err := registerMplsLdp(r, w); err != nil {
+		return nil, err
+	}
 	if err := registerBasePolicy(r, w); err != nil {
 		return nil, err
 	}

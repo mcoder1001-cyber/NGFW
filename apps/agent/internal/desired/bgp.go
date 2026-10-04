@@ -74,6 +74,11 @@ func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute
 		out.Rip = proto.Clone(rt.GetRip()).(*ngfwv1.RipConfig)
 		content = true
 	}
+	// wave-BC: F-mpls-ldp
+	if cfg := rt.GetMpls().GetLdp(); cfg != nil {
+		out.Mpls = &ngfwv1.MplsConfig{Ldp: proto.Clone(cfg).(*ngfwv1.MplsLdp)}
+		content = true
+	}
 	if pol := rt.GetPolicy(); len(pol.GetPrefixLists()) > 0 || len(pol.GetRouteMaps()) > 0 {
 		out.Policy = proto.Clone(pol).(*ngfwv1.RoutingPolicy)
 		content = true

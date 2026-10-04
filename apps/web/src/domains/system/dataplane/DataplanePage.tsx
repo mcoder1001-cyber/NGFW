@@ -34,6 +34,7 @@ import {
 
 export const NS = 'dataplane';
 const BASE = '/dataplane';
+const RUNTIME_FIELDS = ['loadedPlugins', 'nicQueues', 'runtimeMemory'] as const;
 
 /** Server problem with pointers made relative to the form's root (`/dataplane/corelist` → `/corelist`). */
 function problemUnder(error: unknown): ProblemDetails | null {
@@ -190,7 +191,7 @@ export function DataplanePage() {
                     )
                     .join('\n') || none}
                 </Typography>
-                {(['loadedPlugins', 'nicQueues', 'runtimeMemory'] as const).map((key) => (
+                {RUNTIME_FIELDS.map((key) => (
                   <Stack key={key}>
                     <Typography variant="subtitle2">{t(`runtime.${key}`)}</Typography>
                     <Typography

@@ -409,7 +409,7 @@ func TestProfileRSASigAndDependencies(t *testing.T) {
 	want := []scheduler.Dependency{
 		{Key: "interface/loop401", Optional: true},
 		{Key: "interface/ipsec4001", Optional: true}, // D-065 alias, provided by ipsec.itf
-		{Key: ikev2d.LocalKeyKey, Optional: true},
+		{Key: ikev2d.LocalKeyKey},
 	}
 	if fmt.Sprint(deps) != fmt.Sprint(want) {
 		t.Fatalf("deps %v, want %v", deps, want)

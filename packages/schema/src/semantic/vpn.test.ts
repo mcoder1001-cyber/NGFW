@@ -624,3 +624,70 @@ describe('vpn.no-inline-secret-material', () => {
     expect(paths(ntp)).toEqual(['services/ntp/servers/0/keyRef']);
   });
 });
+
+describe('native certificate identity', () => {
+  const certificateConfig = (second = 'local', peer = 'peer') => ({
+    ...BASE,
+    vpn: {
+      pki: {
+        certificates: {
+          local: { certificateRef: 'cert/local', privateKeyRef: 'key/local' },
+          other: { certificateRef: 'cert/other', privateKeyRef: 'key/other' },
+          peer: { certificateRef: 'cert/peer' },
+        },
+      },
+      ipsec: {
+        proposals: { p: PROPOSAL },
+        tunnels: {
+          a: tunnel({ auth: { method: 'cert', certificate: 'local', peerCertificate: peer } }),
+          b: tunnel({
+            remoteAddr: '203.0.113.11',
+            auth: { method: 'cert', certificate: second, peerCertificate: 'peer' },
+          }),
+        },
+      },
+    },
+  });
+  it('accepts a public-only peer leaf and shared local certificate', () => {
+    expect(run(certificateConfig(), 'vpn.native-certificate-identity')).toEqual([]);
+    expect(run(certificateConfig(), 'vpn.pki-reference-exists')).toEqual([]);
+  });
+  it('rejects different local identities before native global-key mutation', () => {
+    expect(run(certificateConfig('other'), 'vpn.native-certificate-identity')).toEqual([
+      {
+        pointer: '/vpn/ipsec/tunnels/b/auth/certificate',
+        message:
+          'native certificate tunnels must share one local certificate identity because the private key is global',
+      },
+    ]);
+  });
+  it('reports an unknown peer pin reference', () => {
+    expect(run(certificateConfig('local', 'missing'), 'vpn.pki-reference-exists')[0]?.pointer).toBe(
+      '/vpn/ipsec/tunnels/a/auth/peerCertificate',
+    );
+  });
+});
+
+it('requires a private key for remote-access local certificates even when peer inventory is public-only', () => {
+  const doc = {
+    ...BASE,
+    vpn: {
+      pki: { certificates: { peer: { certificateRef: 'cert/peer' } } },
+      remoteAccess: {
+        ra: {
+          localAddr: '198.51.100.2',
+          certificate: 'peer',
+          proposal: 'p',
+          pools: [{ name: 'p', prefix: '10.250.0.0/24' }],
+          users: [{ username: 'a', passwordRef: 'password/a' }],
+        },
+      },
+    },
+  };
+  expect(run(doc, 'vpn.pki-reference-exists')).toEqual([
+    {
+      pointer: '/vpn/remoteAccess/ra/certificate',
+      message: 'remote-access local certificate requires its private key reference',
+    },
+  ]);
+});

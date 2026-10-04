@@ -19,6 +19,7 @@ import (
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/vpn"
 	vpnpb "ngfw/agent/internal/descriptors/vpn/pb"
+	"ngfw/agent/internal/pki"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -64,7 +65,7 @@ func (*Profile) KeyOf(obj proto.Message) scheduler.Key {
 
 // Dependencies implements scheduler.Descriptor: the responder and tunnel interfaces (Optional)
 // and, for rsa-sig auth, the local key (Optional).
-func (*Profile) Dependencies(obj proto.Message) []scheduler.Dependency {
+func (d *Profile) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o, _ := obj.(*vpnpb.Ikev2Profile)
 	var deps []scheduler.Dependency
 	if i := o.GetResponder().GetInterface(); i != "" {
@@ -74,7 +75,10 @@ func (*Profile) Dependencies(obj proto.Message) []scheduler.Dependency {
 		deps = append(deps, scheduler.Dependency{Key: vpn.InterfaceKey(i), Optional: true})
 	}
 	if o.GetAuth().GetMethod() == AuthRSASig {
-		deps = append(deps, scheduler.Dependency{Key: LocalKeyKey, Optional: true})
+		deps = append(deps, scheduler.Dependency{Key: LocalKeyKey})
+		if d.cfg.NativeRoot != "" {
+			deps = append(deps, scheduler.Dependency{Key: pki.Key})
+		}
 	}
 	return deps
 }
@@ -141,6 +145,9 @@ func (d *Profile) Update(ctx context.Context, oldObj, newObj proto.Message, meta
 	}
 	if err := validate(n); err != nil {
 		return nil, err
+	}
+	if (o.GetAuth().GetMethod() == AuthRSASig || n.GetAuth().GetMethod() == AuthRSASig) && !proto.Equal(o, n) {
+		return nil, scheduler.ErrRecreate
 	}
 	if removed(o, n) {
 		return nil, scheduler.ErrRecreate
@@ -488,6 +495,9 @@ func (d *Profile) setAuth(ctx context.Context, name string, a *vpnpb.Ikev2Auth) 
 		}
 		data = mat
 	default:
+		if err := d.cfg.snapshot(ctx, a.GetCertFile(), false); err != nil {
+			return err
+		}
 		method = authRSASig
 		data = []byte(a.GetCertFile())
 	}

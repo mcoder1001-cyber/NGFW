@@ -5779,8 +5779,12 @@ export interface IpsecAuth {
   certificate?:
     | string
     | undefined;
-  /** method=cert: CA name in vpn.pki.cas trusted for the peer; unset = any configured CA. */
-  remoteCa?: string | undefined;
+  /** Reserved CA reference; native IPsec rejects it because CA-chain verification is unsupported. */
+  remoteCa?:
+    | string
+    | undefined;
+  /** method=cert: explicit peer leaf certificate name in vpn.pki.certificates. */
+  peerCertificate?: string | undefined;
 }
 
 /** IpsecDpd mirrors a dead-peer-detection block. */
@@ -51245,7 +51249,13 @@ export const IpsecProposal: MessageFns<IpsecProposal> = {
 };
 
 function createBaseIpsecAuth(): IpsecAuth {
-  return { method: undefined, secretRef: undefined, certificate: undefined, remoteCa: undefined };
+  return {
+    method: undefined,
+    secretRef: undefined,
+    certificate: undefined,
+    remoteCa: undefined,
+    peerCertificate: undefined,
+  };
 }
 
 export const IpsecAuth: MessageFns<IpsecAuth> = {
@@ -51261,6 +51271,9 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
     }
     if (message.remoteCa !== undefined) {
       writer.uint32(34).string(message.remoteCa);
+    }
+    if (message.peerCertificate !== undefined) {
+      writer.uint32(42).string(message.peerCertificate);
     }
     return writer;
   },
@@ -51310,6 +51323,14 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
             message.remoteCa = reader.string();
             continue;
           }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.peerCertificate = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -51336,6 +51357,11 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
         : isSet(object.remote_ca)
         ? globalThis.String(object.remote_ca)
         : undefined,
+      peerCertificate: isSet(object.peerCertificate)
+        ? globalThis.String(object.peerCertificate)
+        : isSet(object.peer_certificate)
+        ? globalThis.String(object.peer_certificate)
+        : undefined,
     };
   },
 
@@ -51353,6 +51379,9 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
     if (message.remoteCa !== undefined) {
       obj.remoteCa = message.remoteCa;
     }
+    if (message.peerCertificate !== undefined) {
+      obj.peerCertificate = message.peerCertificate;
+    }
     return obj;
   },
 
@@ -51365,6 +51394,7 @@ export const IpsecAuth: MessageFns<IpsecAuth> = {
     message.secretRef = object.secretRef ?? undefined;
     message.certificate = object.certificate ?? undefined;
     message.remoteCa = object.remoteCa ?? undefined;
+    message.peerCertificate = object.peerCertificate ?? undefined;
     return message;
   },
 };

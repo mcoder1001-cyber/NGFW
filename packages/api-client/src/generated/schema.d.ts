@@ -7217,6 +7217,8 @@ export interface components {
                   method: 'cert';
                   /** Local certificate */
                   certificate: string;
+                  /** Pinned peer certificate */
+                  peerCertificate?: string;
                   /** Remote CA */
                   remoteCa?: string;
                 };
@@ -7467,7 +7469,7 @@ export interface components {
             /** Certificate (reference) */
             certificateRef?: string;
             /** Private key (reference) */
-            privateKeyRef: string;
+            privateKeyRef?: string;
             /** Issuing CA */
             ca?: string;
             /** ACME */
@@ -15144,6 +15146,11 @@ export interface operations {
               /** @description vpn.pki object name (≤ 59 characters) */
               name: string;
               certificatePem: string;
+              /**
+               * @description Import a peer public leaf certificate without a private key
+               * @default false
+               */
+              publicOnly?: boolean;
               /** @description write-only; never returned */
               privateKeyPem?: string;
               privateKeyRef?: string;

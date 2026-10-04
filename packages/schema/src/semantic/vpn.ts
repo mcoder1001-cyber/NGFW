@@ -77,16 +77,67 @@ const pkiReferenceExists: ValidatorDefinition = {
     for (const [name, t] of tunnelsOf(config)) {
       if (t.auth.method === 'cert') {
         needCert(P('ipsec', 'tunnels', name, 'auth', 'certificate'), t.auth.certificate);
+        if (t.auth.peerCertificate !== undefined)
+          needCert(P('ipsec', 'tunnels', name, 'auth', 'peerCertificate'), t.auth.peerCertificate);
         if (t.auth.remoteCa !== undefined)
           needCa(P('ipsec', 'tunnels', name, 'auth', 'remoteCa'), t.auth.remoteCa);
       }
     }
     for (const [name, r] of remoteAccessOf(config)) {
       needCert(P('remoteAccess', name, 'certificate'), r.certificate);
+      const cert = certificates[r.certificate];
+      if (cert && !cert.privateKeyRef)
+        issues.push({
+          pointer: P('remoteAccess', name, 'certificate'),
+          message: 'remote-access local certificate requires its private key reference',
+        });
       if (r.clientCa !== undefined) needCa(P('remoteAccess', name, 'clientCa'), r.clientCa);
     }
     for (const [name, c] of Object.entries(certificates)) {
       if (c.ca !== undefined) needCa(P('pki', 'certificates', name, 'ca'), c.ca);
+    }
+    return issues;
+  },
+};
+
+const nativeCertificateIdentity: ValidatorDefinition = {
+  name: 'vpn.native-certificate-identity',
+  domains: ['vpn'],
+  validate(config) {
+    const issues: SemanticIssue[] = [];
+    let identity: string | undefined;
+    for (const [name, tunnel] of tunnelsOf(config)) {
+      if (!tunnel.enabled || tunnel.auth.method !== 'cert') continue;
+      if (identity === undefined) identity = tunnel.auth.certificate;
+      else if (identity !== tunnel.auth.certificate)
+        issues.push({
+          pointer: P('ipsec', 'tunnels', name, 'auth', 'certificate'),
+          message:
+            'native certificate tunnels must share one local certificate identity because the private key is global',
+        });
+      for (const [field, certificateName] of [
+        ['certificate', tunnel.auth.certificate],
+        ['peerCertificate', tunnel.auth.peerCertificate],
+      ] as const) {
+        if (certificateName === undefined) continue;
+        const certificate = config.vpn.pki.certificates[certificateName];
+        if (!certificate) continue;
+        if (!certificate.certificateRef)
+          issues.push({
+            pointer: P('ipsec', 'tunnels', name, 'auth', field),
+            message: 'native certificate authentication requires an imported leaf certificate',
+          });
+        if (certificate.issued?.ca === true)
+          issues.push({
+            pointer: P('ipsec', 'tunnels', name, 'auth', field),
+            message: 'native certificate authentication requires a leaf certificate, not a CA',
+          });
+        if (field === 'certificate' && !certificate.privateKeyRef)
+          issues.push({
+            pointer: P('ipsec', 'tunnels', name, 'auth', field),
+            message: 'native local certificate requires its private key reference',
+          });
+      }
     }
     return issues;
   },
@@ -490,6 +541,7 @@ const noInlineSecretMaterial: ValidatorDefinition = {
 export const vpnValidators: readonly ValidatorDefinition[] = [
   proposalExists,
   pkiReferenceExists,
+  nativeCertificateIdentity,
   vrfExists,
   localAddressConfigured,
   routeBasedIpip,

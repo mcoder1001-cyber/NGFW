@@ -62,6 +62,46 @@ describe('PKI actions', () => {
     });
     expect(changed).toHaveBeenCalledOnce();
   });
+  it('imports a public-only peer certificate without sending a private key', async () => {
+    const fake = installFakeApi('admin');
+    await signIn();
+    render(<PkiActions onChanged={vi.fn()} />);
+    fake.on('POST /api/v1/actions/pki/import', {
+      body: {
+        name: 'peer',
+        as: 'certificate',
+        certificateRef: 'cert/peer',
+        keyRef: null,
+        chainLength: 1,
+        issued: {},
+        staged: true,
+      },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'peer' } });
+    fireEvent.change(screen.getByLabelText('Certificate PEM'), {
+      target: { value: 'PUBLIC CERT' },
+    });
+    fireEvent.change(screen.getByLabelText('Private key PEM (optional, write only)'), {
+      target: { value: 'DISCARDED_INPUT' },
+    });
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Peer public certificate only (no private key)' }),
+    );
+    expect(
+      screen.queryByLabelText('Private key PEM (optional, write only)'),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+    await waitFor(() =>
+      expect(fake.calls.find((c) => c.path.endsWith('/pki/import'))?.body).toMatchObject({
+        publicOnly: true,
+        certificatePem: 'PUBLIC CERT',
+      }),
+    );
+    expect(fake.calls.find((c) => c.path.endsWith('/pki/import'))?.body).not.toHaveProperty(
+      'privateKeyPem',
+    );
+  });
   it('failed PEM import clears sensitive fields and hides server diagnostics', async () => {
     const fake = installFakeApi('admin');
     await signIn();

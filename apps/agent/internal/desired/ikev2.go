@@ -18,8 +18,12 @@ import (
 // IKEv2Env resolves configuration references to keyed descriptor references. No
 // plaintext key enters the desired object or its persisted metadata.
 type IKEv2Env struct {
-	SecretRef  func(context.Context, string) (string, error)
-	CheckReady func(context.Context) error
+	SecretRef        func(context.Context, string) (string, error)
+	CheckReady       func(context.Context) error
+	Resolve          func(context.Context, string) ([]byte, error)
+	NativeRoot       string
+	GlobalsOwner     bool
+	CertificateReady func(context.Context) error
 }
 
 // IKEv2 projects native route based VPN profiles into scheduler values.
@@ -58,6 +62,19 @@ func IKEv2(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, env IKEv2Env) {
 	}
 	if conflicting {
 		return
+	}
+	certs, err := nativeCertificates(ds, env)
+	if err != nil {
+		s.Errorf(Ptr("vpn", "ipsec", "tunnels"), "vpn.ipsec-native-certificate", "%s", err)
+		return
+	}
+	var localKey string
+	for _, c := range certs {
+		localKey = c.keyFile
+		break
+	}
+	if localKey != "" {
+		s.Add(ikev2.LocalKeyKey, &vpnpb.Ikev2LocalKey{KeyFile: localKey}, Ptr("vpn", "ipsec"))
 	}
 	for _, name := range sortedKeys(ip.GetTunnels()) {
 		t := ip.GetTunnels()[name]
@@ -149,20 +166,20 @@ func IKEv2(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, env IKEv2Env) {
 				}
 			}
 		}
-		if t.GetAuth().GetMethod() != "psk" {
-			fail("auth", "native certificate authentication requires peer-certificate trust mapping and plugin-global private-key provisioning, which are unavailable")
-			continue
+		if t.GetAuth().GetMethod() == "cert" {
+			v.Auth = &vpnpb.Ikev2Auth{Method: ikev2.AuthRSASig, CertFile: certs[name].peerFile}
+		} else {
+			if t.GetAuth().GetMethod() != "psk" || env.SecretRef == nil {
+				fail("auth/secretRef", "native IPsec secret resolver is unavailable")
+				continue
+			}
+			ref, err := env.SecretRef(context.Background(), t.GetAuth().GetSecretRef())
+			if err != nil {
+				fail("auth/secretRef", "native IPsec secret reference cannot be resolved")
+				continue
+			}
+			v.Auth = &vpnpb.Ikev2Auth{Method: ikev2.AuthPSK, Psk: ref}
 		}
-		if env.SecretRef == nil {
-			fail("auth/secretRef", "native IPsec secret resolver is unavailable")
-			continue
-		}
-		ref, err := env.SecretRef(context.Background(), t.GetAuth().GetSecretRef())
-		if err != nil {
-			fail("auth/secretRef", "native IPsec secret reference cannot be resolved")
-			continue
-		}
-		v.Auth = &vpnpb.Ikev2Auth{Method: ikev2.AuthPSK, Psk: ref}
 		if err := ikev2.ValidateProfile(v); err != nil {
 			fail("localId", err.Error())
 			continue

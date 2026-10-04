@@ -481,6 +481,20 @@ export class PkiService implements OnApplicationBootstrap, OnModuleDestroy {
         },
       ]);
     }
+    if (
+      body.format === 'pem' &&
+      body.publicOnly &&
+      (body.as !== 'certificate' ||
+        body.privateKeyPem !== undefined ||
+        body.privateKeyRef !== undefined ||
+        body.ca !== undefined)
+    )
+      throw problems.validation([
+        {
+          pointer: '/publicOnly',
+          message: 'publicOnly imports require a leaf certificate without any private key',
+        },
+      ]);
     const now = this.now();
     let chain: Buffer[];
     let key: KeyObject | undefined;
@@ -599,6 +613,51 @@ export class PkiService implements OnApplicationBootstrap, OnModuleDestroy {
         as: 'ca' as const,
         certificateRef: refs.cert(body.name),
         keyRef: key !== undefined ? refs.key(body.name) : null,
+        chainLength: certs.length,
+        issued: issuedOf(leaf),
+        ...staging,
+      };
+    }
+    if (body.format === 'pem' && body.publicOnly) {
+      if (leaf.ca)
+        throw problems.validation([
+          {
+            pointer: '/certificatePem',
+            message: 'publicOnly peer imports require a leaf, not a CA certificate',
+          },
+        ]);
+      if (certs.length !== 1)
+        throw problems.validation([
+          {
+            pointer: '/certificatePem',
+            message: 'publicOnly peer import requires exactly one leaf certificate',
+          },
+        ]);
+      if (body.as !== 'certificate' || key !== undefined || body.privateKeyRef !== undefined)
+        throw problems.validation([
+          {
+            pointer: '/publicOnly',
+            message: 'publicOnly imports require a leaf certificate without any private key',
+          },
+        ]);
+      await this.refuseExisting([refs.cert(body.name)], body.replace);
+      await this.store(refs.cert(body.name), pem, user, body.replace);
+      const staging = await this.stage(
+        user,
+        `/vpn/pki/certificates/${body.name}`,
+        {
+          certificateRef: refs.cert(body.name),
+          privateKeyRef: null,
+          issued: issuedOf(leaf),
+          ...(await this.alertDaysFix(body.name, leaf)),
+        },
+        body.stage,
+      );
+      return {
+        name: body.name,
+        as: 'certificate' as const,
+        certificateRef: refs.cert(body.name),
+        keyRef: null,
         chainLength: certs.length,
         issued: issuedOf(leaf),
         ...staging,
@@ -1104,6 +1163,7 @@ export type ImportBody =
       as: 'ca' | 'certificate';
       name: string;
       certificatePem: string;
+      publicOnly?: boolean | undefined;
       privateKeyPem?: string | undefined;
       privateKeyRef?: string | undefined;
       ca?: string | undefined;

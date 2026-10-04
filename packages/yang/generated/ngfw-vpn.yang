@@ -672,7 +672,6 @@ module ngfw-vpn {
             pattern "(key)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
             length "1..127";
           }
-          mandatory true;
           description "Reference to a stored secret of kind key. The secret itself is never part of the configuration.";
         }
         leaf ca {

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Checkbox,
+  FormControlLabel,
   Button,
   Dialog,
   DialogActions,
@@ -27,6 +29,7 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
   const [role, setRole] = useState(session.state.user?.role ?? null);
 
   const [action, setAction] = useState<Action | null>(null);
+  const [publicOnly, setPublicOnly] = useState(false);
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [san, setSan] = useState('');
@@ -66,6 +69,7 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
   function close() {
     if (pending) return;
     setAction(null);
+    setPublicOnly(false);
     setName('');
     setSubject('');
     setSan('');
@@ -137,7 +141,8 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                     format,
                     as: kind,
                     certificatePem: pem,
-                    ...(key ? { privateKeyPem: key } : {}),
+                    publicOnly: kind === 'certificate' && publicOnly,
+                    ...(!publicOnly && key ? { privateKeyPem: key } : {}),
                     ...(ca ? { ca } : {}),
                   }
                 : { ...base, format, as: kind, pkcs12: pem, passphrase, ...(ca ? { ca } : {}) },
@@ -276,7 +281,10 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                 select
                 label={t('actions.kind')}
                 value={kind}
-                onChange={(e) => setKind(e.target.value as typeof kind)}
+                onChange={(e) => {
+                  setKind(e.target.value as typeof kind);
+                  setPublicOnly(false);
+                }}
                 disabled={pending}
               >
                 <MenuItem value={kinds.certificate}>{t('certificates')}</MenuItem>
@@ -290,6 +298,7 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                 value={format}
                 onChange={(e) => {
                   setFormat(e.target.value as typeof format);
+                  setPublicOnly(false);
                   setPem('');
                   setKey('');
                   setPassphrase('');
@@ -316,7 +325,24 @@ export function PkiActions({ onChanged }: { onChanged: () => void }) {
                 disabled={pending}
               />
             )}
+            {action === 'import' && format === 'pem' && kind === 'certificate' && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={publicOnly}
+                    onChange={(e) => {
+                      setPublicOnly(e.target.checked);
+                      setKey('');
+                      setCa('');
+                    }}
+                    disabled={pending}
+                  />
+                }
+                label={t('actions.publicOnly')}
+              />
+            )}
             {action === 'import' &&
+              !publicOnly &&
               (format === 'pem' ? (
                 <TextField
                   multiline

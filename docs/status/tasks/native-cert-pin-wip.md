@@ -1,0 +1,20 @@
+# Native IPsec certificate pin — recovery
+
+Branch: codex/native-cert-pin-20261004. Worktree: /root/.codex/worktrees/8c19/developers/native-cert. Base: 1af871f0b. Owner approved bounded peer-leaf public-key pin and a shared local identity on 2026-10-04.
+
+Owned files: handwritten Go under apps/agent/internal/{desired,descriptors/ikev2,subsystems}; focused tests; native certificate user documentation. Contract/API/UI changes are owned by the separate native-cert-contracts agent. Board/decision/status integration belongs to manager.
+
+Completed: source inspection confirms sealed cache supports historical HMAC references for rollback; PKI materializer writes owner state files; native VPP key is global with no unset/getter. No product code changed yet; no lab mutations.
+
+Design: preflight RSA/validity/SAN/pair/shared identity before writes; immutable HMAC-addressed owner-private snapshots retained for rollback; mandatory pki.files -> local-key -> profiles dependencies. Only globals owner may provision; reject foreign RSA profiles. Setter failure restores prior immutable key or reports uncertain outcome. Last-profile deletion leaves global key inert because native VPP has no unset. Peer trust pins a public key from the leaf, not presented certificate DER equality.
+
+Tests: none yet. Current failure: none; certificate consumers remain unimplemented until this task finishes. Next command: inspect descriptor lifecycle, implement native certificate validation/snapshot support, cherry-pick contracts before compiling consumers. Remote publication recorded by manager/tool result; this file never claims an unpublished checkpoint durable.
+
+
+2026-10-04 source checkpoint: local 39812470d published exact tree as remote a424735f2389abe6117a37e956c672773c37f13e on codex/native-cert-pin-checkpoint-39812470d. Native sealed certificate/key projection and immutable native snapshots implemented; mandatory dependencies and compensating global-key lifecycle wired. Later local hardening/tests add dry-run foreign-profile checks, shared certificate fingerprint validation, RSA profile recreation, session retirement uncertainty and focused tests.
+
+Actual validation: original desired/subsystems focused tests passed; updated descriptor test expectation passed. Focused race desired/subsystems/secretchannel/pki passed (31.125s/23.927s/1.138s/1.771s), while new descriptor tests exposed and then fixed a filename slice bug. After correction, new native descriptor and certificate projection race tests passed (1.168s/2.969s). Entire focused race suites are rerun below on final source. tools/ci.sh check --base origin/main passed in 11s; complete hosted/full CI remain owner-waived, never counted as passed. No shared lab globals, packages or services touched. Manager owns disposable real-VPP integration proof and deferred packet interoperability.
+
+Remaining: final focused suite and independent review, remote checkpoint publication, manager integration/merge. Next command: cd apps/agent && go test -race -count=1 ./internal/desired ./internal/descriptors/ikev2 ./internal/subsystems ./internal/secretchannel ./internal/pki.
+
+Final frozen source local 4211f098e4ad599d3e227560a61a6ce834e36538 published exactly as remote 02b21071d6f99e8f14222b8380cc23010e8fdb46 on codex/native-cert-pin-checkpoint-4211f098e (parent a424735f2389abe6117a37e956c672773c37f13e). Actual final command `go test -race -count=1 ./internal/desired ./internal/descriptors/ikev2 ./internal/subsystems ./internal/secretchannel ./internal/pki && go vet ./internal/descriptors/ikev2 ./internal/desired ./internal/subsystems` exited 0: desired 41.384s, ikev2 1.234s, subsystems 27.979s, secretchannel 1.134s, pki 1.661s; vet exited 0. Unchanged `tools/ci.sh check --base origin/main` passed in 18s and git diff --check passed. Independent safety reviewer approved this frozen product SHA; separate focused descriptor race rerun passed 1.225s. Product code is ready for manager integration with the contract/API/UI follow-ups and disposable real-VPP proof; the task is not declared merged by this worker.

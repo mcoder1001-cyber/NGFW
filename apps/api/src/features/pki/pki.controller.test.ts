@@ -20,7 +20,9 @@ describe('PKI action security boundaries', () => {
       createCsr: vi.fn().mockRejectedValue(new PkiError('invalid subject', '/subject')),
     };
     const controller = new PkiController(service as unknown as PkiService);
-    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as NgfwRequest;
+    const req = {
+      principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' },
+    } as NgfwRequest;
     const error = await controller
       .csr({ name: 'server', subject: 'bad', san: [], replace: false }, req)
       .catch((e: unknown) => e);
@@ -42,7 +44,9 @@ describe('PKI action security boundaries', () => {
       }),
     };
     const controller = new PkiController(service as unknown as PkiService);
-    const req = { principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' } } as NgfwRequest;
+    const req = {
+      principal: { id: 1, username: 'test', role: 'admin', via: 'jwt' },
+    } as NgfwRequest;
     await controller.import(
       {
         format: 'pkcs12',
@@ -195,5 +199,101 @@ describe('PKI action security boundaries', () => {
       status: 400,
       errors: [{ pointer: '/privateKeyRef', message: expect.stringContaining('never both') }],
     });
+  });
+});
+
+describe('public-only peer imports', () => {
+  const principal = { id: 1, username: 'test', role: 'admin' as const, via: 'jwt' as const };
+  const make = () => {
+    const service = new PkiService(
+      ...([{}, {}, {}, {}, {}] as unknown as ConstructorParameters<typeof PkiService>),
+    );
+    const internals = service as unknown as {
+      refuseExisting: (refs: string[], replace: boolean) => Promise<void>;
+      store: (ref: string, value: string, user: unknown, replace: boolean) => Promise<void>;
+      stage: (
+        user: unknown,
+        pointer: string,
+        patch: Record<string, unknown>,
+        stage: boolean,
+      ) => Promise<{ staged: boolean }>;
+      alertDaysFix: () => Promise<Record<string, unknown>>;
+    };
+    vi.spyOn(internals, 'refuseExisting').mockResolvedValue(undefined);
+    const store = vi.spyOn(internals, 'store').mockResolvedValue(undefined);
+    const stage = vi.spyOn(internals, 'stage').mockResolvedValue({ staged: true });
+    vi.spyOn(internals, 'alertDaysFix').mockResolvedValue({});
+    return { service, store, stage };
+  };
+  it('stores and stages a peer leaf without creating a private key', async () => {
+    const { service, store, stage } = make();
+    const caKey = generateKey({ type: 'rsa', bits: 2048 });
+    const ca = selfSignedCa(parseDn('CN=Root'), caKey, 365);
+    const peerKey = generateKey({ type: 'rsa', bits: 2048 });
+    const peer = signCsr(
+      parseCsr(buildCsr(parseDn('CN=Peer'), [], peerKey)),
+      { facts: ca.facts, key: caKey.privateKey },
+      { days: 30 },
+    );
+    const got = await service.import(
+      {
+        format: 'pem',
+        as: 'certificate',
+        name: 'peer',
+        certificatePem: peer.pem,
+        publicOnly: true,
+        stage: true,
+        replace: false,
+      },
+      principal,
+    );
+    expect(got.keyRef).toBeNull();
+    expect(store).toHaveBeenCalledTimes(1);
+    expect(store.mock.calls[0]?.[0]).toBe('cert/peer');
+    expect(stage.mock.calls[0]?.[2]).toMatchObject({
+      certificateRef: 'cert/peer',
+      privateKeyRef: null,
+    });
+  });
+  it('rejects a CA as a peer leaf before writes', async () => {
+    const { service, store } = make();
+    const key = generateKey({ type: 'rsa', bits: 2048 });
+    const ca = selfSignedCa(parseDn('CN=Root'), key, 365);
+    await expect(
+      service.import(
+        {
+          format: 'pem',
+          as: 'certificate',
+          name: 'peer',
+          certificatePem: ca.pem,
+          publicOnly: true,
+          stage: true,
+          replace: false,
+        },
+        principal,
+      ),
+    ).rejects.toBeInstanceOf(ProblemError);
+    expect(store).not.toHaveBeenCalled();
+  });
+  it('rejects supplied key and CA options before crypto or writes', async () => {
+    for (const extra of [{ privateKeyPem: 'unused' }, { ca: 'root' }]) {
+      const { service, store } = make();
+      await expect(
+        service.import(
+          {
+            format: 'pem',
+            as: 'certificate',
+            name: 'peer',
+            certificatePem: 'unused',
+            publicOnly: true,
+            stage: true,
+            replace: false,
+            ...extra,
+          },
+          principal,
+        ),
+      ).rejects.toBeInstanceOf(ProblemError);
+      expect(store).not.toHaveBeenCalled();
+    }
   });
 });

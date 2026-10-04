@@ -48,9 +48,14 @@ type Config struct {
 	Boot dfkit.BootStore
 	// GlobalsOwner registers the setters of the local key / sleep interval / liveness globals.
 	GlobalsOwner bool
+	// NativeRoot holds immutable certificate/key generations in the owner state directory.
+	NativeRoot string
 }
 
 func (c Config) records() vpn.Records { return vpn.Records{Client: c.Client, Store: c.Boot} }
+
+// WithNativeRoot enables sealed native certificate snapshots.
+func WithNativeRoot(root string) Option { return func(c *Config) { c.NativeRoot = root } }
 
 // WithBootStore sets the owner's persisted record store (shared by every DF-5 package).
 func WithBootStore(s dfkit.BootStore) Option { return func(c *Config) { c.Boot = s } }

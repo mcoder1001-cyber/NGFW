@@ -184,9 +184,13 @@ export const IpsecAuthSchema = withUi(
         title: 'Local certificate',
         help: 'Name in vpn.pki.certificates',
       }),
+      peerCertificate: withUi(objectName, {
+        title: 'Pinned peer certificate',
+        help: 'Peer leaf certificate name in vpn.pki.certificates; its public key verifies peer AUTH, without CA-chain or presented-certificate verification',
+      }).optional(),
       remoteCa: withUi(objectName, {
         title: 'Remote CA',
-        help: 'Name in vpn.pki.cas trusted for the peer certificate',
+        help: 'CA-chain trust is not supported by native IPsec; use peerCertificate',
       }).optional(),
     }),
   ]),
@@ -329,12 +333,22 @@ export const IpsecTunnelSchema = z
       ctx.addIssue({ code: 'custom', path: [path], message });
     };
     if (t.engine === 'vpp-ikev2') {
-      if (t.enabled && t.auth.method !== 'psk')
-        ctx.addIssue({
-          code: 'custom',
-          path: ['auth', 'method'],
-          message: 'native IPsec currently supports pre-shared keys only',
-        });
+      if (t.enabled && t.auth.method === 'cert') {
+        if (t.auth.peerCertificate === undefined)
+          ctx.addIssue({
+            code: 'custom',
+            path: ['auth', 'peerCertificate'],
+            message:
+              'native certificate authentication requires an explicit pinned peer certificate',
+          });
+        if (t.auth.remoteCa !== undefined)
+          ctx.addIssue({
+            code: 'custom',
+            path: ['auth', 'remoteCa'],
+            message:
+              'native IPsec does not verify CA chains; omit remoteCa and use peerCertificate',
+          });
+      }
       if (t.startAction !== 'none')
         issue('startAction', 'native IPsec initiation is an explicit runtime action; use none');
       if (t.routeBased === undefined)
@@ -657,7 +671,7 @@ export const PkiCertificateSchema = z
   .strictObject({
     description: descriptionField.optional(),
     certificateRef: withUi(secretRefOf('cert'), { title: 'Certificate (reference)' }).optional(),
-    privateKeyRef: withUi(secretRefOf('key'), { title: 'Private key (reference)' }),
+    privateKeyRef: withUi(secretRefOf('key'), { title: 'Private key (reference)' }).optional(),
     ca: withUi(objectName, { title: 'Issuing CA', help: 'Name in vpn.pki.cas' }).optional(),
     acme: withUi(
       z.strictObject({

@@ -274,3 +274,46 @@ describe('IS-IS transaction-selected password delivery', () => {
     expect(select).not.toHaveBeenCalled();
   });
 });
+
+it('delivers native local key and public-only peer certificate without inventing a peer key', async () => {
+  const { delivery, where, encrypt } = setup([]);
+  const caKey = generateKey(normaliseKeySpec({ type: 'rsa', bits: 2048 }));
+  const ca = selfSignedCa(parseDn('CN=Root'), caKey, 365);
+  const leafKey = generateKey(normaliseKeySpec({ type: 'rsa', bits: 2048 }));
+  const csr = parseCsr(toPem('CERTIFICATE REQUEST', buildCsr(parseDn('CN=Leaf'), [], leafKey)));
+  const leaf = signCsr(csr, { facts: ca.facts, key: caKey.privateKey }, { days: 30 });
+  const ds = DesiredState.fromJSON({
+    vpn: {
+      ipsec: {
+        tunnels: {
+          native: {
+            enabled: true,
+            engine: 'vpp-ikev2',
+            auth: { method: 'cert', certificate: 'local', peerCertificate: 'peer' },
+          },
+        },
+      },
+      pki: {
+        certificates: {
+          local: { certificateRef: 'cert/local', privateKeyRef: 'key/local' },
+          peer: { certificateRef: 'cert/peer' },
+        },
+      },
+    },
+  });
+  const payloads: Record<string, string> = {
+    'cert/local': leaf.pem,
+    'key/local': 'operational-key-test',
+    'cert/peer': leaf.pem,
+  };
+  where.mockResolvedValue([]);
+  for (const [ref, payload] of Object.entries(payloads).sort(
+    ([a], [b]) => Number(a.startsWith('key/')) - Number(b.startsWith('key/')),
+  ))
+    where.mockResolvedValueOnce([
+      { ref, kind: ref.split('/')[0], version: 1, ciphertext: encrypt(payload, ref) },
+    ]);
+  const got = await delivery.resolveVersioned(ds);
+  expect(Object.keys(got.bundle.values).sort()).toEqual(Object.keys(payloads).sort());
+  expect(got.bundle.values['key/peer']).toBeUndefined();
+});

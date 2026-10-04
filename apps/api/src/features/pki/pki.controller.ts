@@ -63,6 +63,10 @@ const ImportIn = z.discriminatedUnion('format', [
     as: z.enum(['ca', 'certificate']),
     name: pkiName,
     certificatePem: z.string().min(1).max(262144),
+    publicOnly: z
+      .boolean()
+      .default(false)
+      .describe('Import a peer public leaf certificate without a private key'),
     privateKeyPem: z.string().min(1).max(65536).optional().describe('write-only; never returned'),
     privateKeyRef: z
       .string()

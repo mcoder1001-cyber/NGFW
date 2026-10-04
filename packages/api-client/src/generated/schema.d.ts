@@ -830,6 +830,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/ha/vrrp': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Observed owner-scoped VRRP roles */
+    get: operations['VrrpConfigSync_vrrp'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ha/cluster': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Cluster peers and last successful configuration sync */
+    get: operations['VrrpConfigSync_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/ha/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Force sync the confirmed running configuration to cluster peers */
+    post: operations['VrrpConfigSync_force'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/ha/receive': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** HTTPS cluster-key authenticated peer delivery */
+    post: operations['VrrpConfigSync_receive'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/actions/pki/ca': {
     parameters: {
       query?: never;
@@ -9670,6 +9738,8 @@ export interface components {
           name: string;
           /** Peer address */
           address: string;
+          /** Peer TLS certificate SHA256 */
+          certificatePin?: string;
         }[];
         /**
          * Cluster port
@@ -9711,6 +9781,8 @@ export interface components {
            */
           acl: boolean;
         };
+        /** @default [] */
+        syncExclude: string[];
       };
     };
     /**
@@ -14260,6 +14332,187 @@ export interface operations {
         content: {
           'application/problem+json': components['schemas']['Problem'];
         };
+      };
+    };
+  };
+  VrrpConfigSync_vrrp: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string;
+            routers: {
+              name: string;
+              engine: string;
+              state: string;
+              currentPriority: number;
+              masterAdvertisementIntervalMs: number;
+              error: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  VrrpConfigSync_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            nodeName: string;
+            enabled: boolean;
+            revision: number | null;
+            members: {
+              name: string;
+              role: string;
+              address: string;
+              revision: number | null;
+              sourceRevision: number | null;
+              error: string;
+              syncedAt: string | null;
+              lag: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  VrrpConfigSync_force: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            nodeName: string;
+            enabled: boolean;
+            revision: number | null;
+            members: {
+              name: string;
+              role: string;
+              address: string;
+              revision: number | null;
+              sourceRevision: number | null;
+              error: string;
+              syncedAt: string | null;
+              lag: number | null;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  VrrpConfigSync_receive: {
+    parameters: {
+      query?: never;
+      header: {
+        'x-ngfw-cluster-signature': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          origin: string;
+          revision: number;
+          timestamp: number;
+          /** Format: uuid */
+          nonce: string;
+          document: {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

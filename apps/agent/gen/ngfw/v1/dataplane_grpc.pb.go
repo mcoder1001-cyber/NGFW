@@ -61,6 +61,7 @@ const (
 	Dataplane_Det44Sessions_FullMethodName           = "/ngfw.v1.Dataplane/Det44Sessions"
 	Dataplane_Det44Lookup_FullMethodName             = "/ngfw.v1.Dataplane/Det44Lookup"
 	Dataplane_CnatSessions_FullMethodName            = "/ngfw.v1.Dataplane/CnatSessions"
+	Dataplane_VrrpState_FullMethodName               = "/ngfw.v1.Dataplane/VrrpState"
 	Dataplane_PkiFileState_FullMethodName            = "/ngfw.v1.Dataplane/PkiFileState"
 	Dataplane_MplsState_FullMethodName               = "/ngfw.v1.Dataplane/MplsState"
 	Dataplane_LbState_FullMethodName                 = "/ngfw.v1.Dataplane/LbState"
@@ -150,6 +151,9 @@ type DataplaneClient interface {
 	Det44Lookup(ctx context.Context, in *Det44LookupRequest, opts ...grpc.CallOption) (*Det44LookupResponse, error)
 	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
 	CnatSessions(ctx context.Context, in *CnatSessionsRequest, opts ...grpc.CallOption) (*CnatSessionsResponse, error)
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	VrrpState(ctx context.Context, in *VrrpStateRequest, opts ...grpc.CallOption) (*VrrpStateResponse, error)
 	// PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
 	// its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
 	// HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
@@ -482,6 +486,16 @@ func (c *dataplaneClient) CnatSessions(ctx context.Context, in *CnatSessionsRequ
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(CnatSessionsResponse)
 	err := c.cc.Invoke(ctx, Dataplane_CnatSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) VrrpState(ctx context.Context, in *VrrpStateRequest, opts ...grpc.CallOption) (*VrrpStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(VrrpStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_VrrpState_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -944,6 +958,9 @@ type DataplaneServer interface {
 	Det44Lookup(context.Context, *Det44LookupRequest) (*Det44LookupResponse, error)
 	// CnatSessions pages the CNAT session table (cnat_session_dump; read-only).
 	CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error)
+	// wave-BC: F-tunnels
+	// wave-BC: F-vrrp-config-sync
+	VrrpState(context.Context, *VrrpStateRequest) (*VrrpStateResponse, error)
 	// PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
 	// its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
 	// HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
@@ -1156,6 +1173,9 @@ func (UnimplementedDataplaneServer) Det44Lookup(context.Context, *Det44LookupReq
 }
 func (UnimplementedDataplaneServer) CnatSessions(context.Context, *CnatSessionsRequest) (*CnatSessionsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CnatSessions not implemented")
+}
+func (UnimplementedDataplaneServer) VrrpState(context.Context, *VrrpStateRequest) (*VrrpStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method VrrpState not implemented")
 }
 func (UnimplementedDataplaneServer) PkiFileState(context.Context, *PkiFileStateRequest) (*PkiFileStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PkiFileState not implemented")
@@ -1525,6 +1545,24 @@ func _Dataplane_CnatSessions_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).CnatSessions(ctx, req.(*CnatSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_VrrpState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VrrpStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).VrrpState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_VrrpState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).VrrpState(ctx, req.(*VrrpStateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2292,6 +2330,10 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CnatSessions",
 			Handler:    _Dataplane_CnatSessions_Handler,
+		},
+		{
+			MethodName: "VrrpState",
+			Handler:    _Dataplane_VrrpState_Handler,
 		},
 		{
 			MethodName: "PkiFileState",

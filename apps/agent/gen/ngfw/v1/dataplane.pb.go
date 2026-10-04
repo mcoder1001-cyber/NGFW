@@ -340,6 +340,7 @@ const (
 	// A rollback failed; the agent is degraded until an Apply succeeds (AD-4).
 	EventKind_EVENT_KIND_DEGRADED EventKind = 9
 	// wave-BC: F-vrrp-config-sync
+	EventKind_EVENT_KIND_VRRP_STATE_CHANGED EventKind = 17
 	// wave-BC: F-ospf
 	EventKind_EVENT_KIND_OSPF_NEIGHBOR_CHANGED EventKind = 20
 	// wave-BC: F-isis-rip
@@ -382,6 +383,7 @@ var (
 		7:  "EVENT_KIND_VPP_CONNECTED",
 		8:  "EVENT_KIND_VPP_DISCONNECTED",
 		9:  "EVENT_KIND_DEGRADED",
+		17: "EVENT_KIND_VRRP_STATE_CHANGED",
 		20: "EVENT_KIND_OSPF_NEIGHBOR_CHANGED",
 		21: "EVENT_KIND_ISIS_ADJACENCY_CHANGED",
 		10: "EVENT_KIND_NEIGHBOR_CHANGED",
@@ -404,6 +406,7 @@ var (
 		"EVENT_KIND_VPP_CONNECTED":          7,
 		"EVENT_KIND_VPP_DISCONNECTED":       8,
 		"EVENT_KIND_DEGRADED":               9,
+		"EVENT_KIND_VRRP_STATE_CHANGED":     17,
 		"EVENT_KIND_OSPF_NEIGHBOR_CHANGED":  20,
 		"EVENT_KIND_ISIS_ADJACENCY_CHANGED": 21,
 		"EVENT_KIND_NEIGHBOR_CHANGED":       10,
@@ -11033,7 +11036,9 @@ type HaCluster struct {
 	// Configuration sync.
 	ConfigSync *bool `protobuf:"varint,8,opt,name=config_sync,json=configSync,proto3,oneof" json:"config_sync,omitempty"`
 	// State sync.
-	StateSync     *HaCluster_StateSync `protobuf:"bytes,9,opt,name=state_sync,json=stateSync,proto3" json:"state_sync,omitempty"`
+	StateSync *HaCluster_StateSync `protobuf:"bytes,9,opt,name=state_sync,json=stateSync,proto3" json:"state_sync,omitempty"`
+	// wave-BC: F-vrrp-config-sync
+	SyncExclude   []string `protobuf:"bytes,10,rep,name=sync_exclude,json=syncExclude,proto3" json:"sync_exclude,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -11127,6 +11132,13 @@ func (x *HaCluster) GetConfigSync() bool {
 func (x *HaCluster) GetStateSync() *HaCluster_StateSync {
 	if x != nil {
 		return x.StateSync
+	}
+	return nil
+}
+
+func (x *HaCluster) GetSyncExclude() []string {
+	if x != nil {
+		return x.SyncExclude
 	}
 	return nil
 }
@@ -42423,6 +42435,195 @@ func (x *HostNic) GetLinkUp() bool {
 	return false
 }
 
+// Live observed roles; unknown is explicit, never inferred from configured priority.
+type VrrpStateRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VrrpStateRequest) Reset() {
+	*x = VrrpStateRequest{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[487]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VrrpStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VrrpStateRequest) ProtoMessage() {}
+
+func (x *VrrpStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[487]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VrrpStateRequest.ProtoReflect.Descriptor instead.
+func (*VrrpStateRequest) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{487}
+}
+
+func (x *VrrpStateRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+type VrrpRuntime struct {
+	state                         protoimpl.MessageState `protogen:"open.v1"`
+	Name                          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Engine                        string                 `protobuf:"bytes,2,opt,name=engine,proto3" json:"engine,omitempty"`
+	State                         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	CurrentPriority               uint32                 `protobuf:"varint,4,opt,name=current_priority,json=currentPriority,proto3" json:"current_priority,omitempty"`
+	MasterAdvertisementIntervalMs uint32                 `protobuf:"varint,5,opt,name=master_advertisement_interval_ms,json=masterAdvertisementIntervalMs,proto3" json:"master_advertisement_interval_ms,omitempty"`
+	Error                         string                 `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
+}
+
+func (x *VrrpRuntime) Reset() {
+	*x = VrrpRuntime{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[488]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VrrpRuntime) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VrrpRuntime) ProtoMessage() {}
+
+func (x *VrrpRuntime) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[488]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VrrpRuntime.ProtoReflect.Descriptor instead.
+func (*VrrpRuntime) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{488}
+}
+
+func (x *VrrpRuntime) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *VrrpRuntime) GetEngine() string {
+	if x != nil {
+		return x.Engine
+	}
+	return ""
+}
+
+func (x *VrrpRuntime) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *VrrpRuntime) GetCurrentPriority() uint32 {
+	if x != nil {
+		return x.CurrentPriority
+	}
+	return 0
+}
+
+func (x *VrrpRuntime) GetMasterAdvertisementIntervalMs() uint32 {
+	if x != nil {
+		return x.MasterAdvertisementIntervalMs
+	}
+	return 0
+}
+
+func (x *VrrpRuntime) GetError() string {
+	if x != nil {
+		return x.Error
+	}
+	return ""
+}
+
+type VrrpStateResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
+	RetrievedAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=retrieved_at,json=retrievedAt,proto3" json:"retrieved_at,omitempty"`
+	Routers       []*VrrpRuntime         `protobuf:"bytes,3,rep,name=routers,proto3" json:"routers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *VrrpStateResponse) Reset() {
+	*x = VrrpStateResponse{}
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[489]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *VrrpStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*VrrpStateResponse) ProtoMessage() {}
+
+func (x *VrrpStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[489]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use VrrpStateResponse.ProtoReflect.Descriptor instead.
+func (*VrrpStateResponse) Descriptor() ([]byte, []int) {
+	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{489}
+}
+
+func (x *VrrpStateResponse) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
+}
+
+func (x *VrrpStateResponse) GetRetrievedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetrievedAt
+	}
+	return nil
+}
+
+func (x *VrrpStateResponse) GetRouters() []*VrrpRuntime {
+	if x != nil {
+		return x.Routers
+	}
+	return nil
+}
+
 // VPP dns cache plugin.
 type DnsService_VppCache struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -42436,7 +42637,7 @@ type DnsService_VppCache struct {
 
 func (x *DnsService_VppCache) Reset() {
 	*x = DnsService_VppCache{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[519]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42448,7 +42649,7 @@ func (x *DnsService_VppCache) String() string {
 func (*DnsService_VppCache) ProtoMessage() {}
 
 func (x *DnsService_VppCache) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[519]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42491,7 +42692,7 @@ type DnsResolver_Dnssec struct {
 
 func (x *DnsResolver_Dnssec) Reset() {
 	*x = DnsResolver_Dnssec{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[521]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42503,7 +42704,7 @@ func (x *DnsResolver_Dnssec) String() string {
 func (*DnsResolver_Dnssec) ProtoMessage() {}
 
 func (x *DnsResolver_Dnssec) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[521]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42552,7 +42753,7 @@ type DnsResolver_Cache struct {
 
 func (x *DnsResolver_Cache) Reset() {
 	*x = DnsResolver_Cache{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42564,7 +42765,7 @@ func (x *DnsResolver_Cache) String() string {
 func (*DnsResolver_Cache) ProtoMessage() {}
 
 func (x *DnsResolver_Cache) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[522]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42633,7 +42834,7 @@ type SnmpService_Community struct {
 
 func (x *SnmpService_Community) Reset() {
 	*x = SnmpService_Community{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[526]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42645,7 +42846,7 @@ func (x *SnmpService_Community) String() string {
 func (*SnmpService_Community) ProtoMessage() {}
 
 func (x *SnmpService_Community) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[523]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[526]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42713,7 +42914,7 @@ type SnmpService_V3User struct {
 
 func (x *SnmpService_V3User) Reset() {
 	*x = SnmpService_V3User{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42725,7 +42926,7 @@ func (x *SnmpService_V3User) String() string {
 func (*SnmpService_V3User) ProtoMessage() {}
 
 func (x *SnmpService_V3User) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[524]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[527]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42811,7 +43012,7 @@ type SnmpService_TrapReceiver struct {
 
 func (x *SnmpService_TrapReceiver) Reset() {
 	*x = SnmpService_TrapReceiver{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42823,7 +43024,7 @@ func (x *SnmpService_TrapReceiver) String() string {
 func (*SnmpService_TrapReceiver) ProtoMessage() {}
 
 func (x *SnmpService_TrapReceiver) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[525]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[528]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42900,7 +43101,7 @@ type LldpService_Interface struct {
 
 func (x *LldpService_Interface) Reset() {
 	*x = LldpService_Interface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42912,7 +43113,7 @@ func (x *LldpService_Interface) String() string {
 func (*LldpService_Interface) ProtoMessage() {}
 
 func (x *LldpService_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[529]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -42988,7 +43189,7 @@ type IpfixService_Exporter struct {
 
 func (x *IpfixService_Exporter) Reset() {
 	*x = IpfixService_Exporter{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[533]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43000,7 +43201,7 @@ func (x *IpfixService_Exporter) String() string {
 func (*IpfixService_Exporter) ProtoMessage() {}
 
 func (x *IpfixService_Exporter) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[530]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[533]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43093,7 +43294,7 @@ type IpfixService_Flowprobe struct {
 
 func (x *IpfixService_Flowprobe) Reset() {
 	*x = IpfixService_Flowprobe{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[531]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43105,7 +43306,7 @@ func (x *IpfixService_Flowprobe) String() string {
 func (*IpfixService_Flowprobe) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[531]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43188,7 +43389,7 @@ type IpfixService_Sflow struct {
 
 func (x *IpfixService_Sflow) Reset() {
 	*x = IpfixService_Sflow{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43200,7 +43401,7 @@ func (x *IpfixService_Sflow) String() string {
 func (*IpfixService_Sflow) ProtoMessage() {}
 
 func (x *IpfixService_Sflow) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[532]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43291,7 +43492,7 @@ type IpfixService_Flowprobe_Interface struct {
 
 func (x *IpfixService_Flowprobe_Interface) Reset() {
 	*x = IpfixService_Flowprobe_Interface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43303,7 +43504,7 @@ func (x *IpfixService_Flowprobe_Interface) String() string {
 func (*IpfixService_Flowprobe_Interface) ProtoMessage() {}
 
 func (x *IpfixService_Flowprobe_Interface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[534]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43377,7 +43578,7 @@ type NtpService_Server struct {
 
 func (x *NtpService_Server) Reset() {
 	*x = NtpService_Server{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43389,7 +43590,7 @@ func (x *NtpService_Server) String() string {
 func (*NtpService_Server) ProtoMessage() {}
 
 func (x *NtpService_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[535]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43469,7 +43670,7 @@ type NtpService_RateLimit struct {
 
 func (x *NtpService_RateLimit) Reset() {
 	*x = NtpService_RateLimit{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[539]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43481,7 +43682,7 @@ func (x *NtpService_RateLimit) String() string {
 func (*NtpService_RateLimit) ProtoMessage() {}
 
 func (x *NtpService_RateLimit) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[536]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[539]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43533,7 +43734,7 @@ type NtpService_NtsServer struct {
 
 func (x *NtpService_NtsServer) Reset() {
 	*x = NtpService_NtsServer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[540]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43545,7 +43746,7 @@ func (x *NtpService_NtsServer) String() string {
 func (*NtpService_NtsServer) ProtoMessage() {}
 
 func (x *NtpService_NtsServer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[537]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[540]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43595,7 +43796,7 @@ type NtpService_Makestep struct {
 
 func (x *NtpService_Makestep) Reset() {
 	*x = NtpService_Makestep{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43607,7 +43808,7 @@ func (x *NtpService_Makestep) String() string {
 func (*NtpService_Makestep) ProtoMessage() {}
 
 func (x *NtpService_Makestep) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[538]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[541]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43654,7 +43855,7 @@ type QosMap_Rows struct {
 
 func (x *QosMap_Rows) Reset() {
 	*x = QosMap_Rows{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43666,7 +43867,7 @@ func (x *QosMap_Rows) String() string {
 func (*QosMap_Rows) ProtoMessage() {}
 
 func (x *QosMap_Rows) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[543]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43723,7 +43924,7 @@ type QosInterface_Policer struct {
 
 func (x *QosInterface_Policer) Reset() {
 	*x = QosInterface_Policer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43735,7 +43936,7 @@ func (x *QosInterface_Policer) String() string {
 func (*QosInterface_Policer) ProtoMessage() {}
 
 func (x *QosInterface_Policer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[544]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[547]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43778,7 +43979,7 @@ type QosInterface_Store struct {
 
 func (x *QosInterface_Store) Reset() {
 	*x = QosInterface_Store{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[545]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43790,7 +43991,7 @@ func (x *QosInterface_Store) String() string {
 func (*QosInterface_Store) ProtoMessage() {}
 
 func (x *QosInterface_Store) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[545]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43833,7 +44034,7 @@ type QosInterface_Mark struct {
 
 func (x *QosInterface_Mark) Reset() {
 	*x = QosInterface_Mark{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43845,7 +44046,7 @@ func (x *QosInterface_Mark) String() string {
 func (*QosInterface_Mark) ProtoMessage() {}
 
 func (x *QosInterface_Mark) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[546]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43886,7 +44087,7 @@ type VrrpInstance_Unicast struct {
 
 func (x *VrrpInstance_Unicast) Reset() {
 	*x = VrrpInstance_Unicast{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43898,7 +44099,7 @@ func (x *VrrpInstance_Unicast) String() string {
 func (*VrrpInstance_Unicast) ProtoMessage() {}
 
 func (x *VrrpInstance_Unicast) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[548]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43934,7 +44135,7 @@ type VrrpInstance_Track struct {
 
 func (x *VrrpInstance_Track) Reset() {
 	*x = VrrpInstance_Track{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43946,7 +44147,7 @@ func (x *VrrpInstance_Track) String() string {
 func (*VrrpInstance_Track) ProtoMessage() {}
 
 func (x *VrrpInstance_Track) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[549]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -43982,14 +44183,16 @@ type HaCluster_Peer struct {
 	// Peer name.
 	Name *string `protobuf:"bytes,1,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	// Peer address.
-	Address       *string `protobuf:"bytes,2,opt,name=address,proto3,oneof" json:"address,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Address *string `protobuf:"bytes,2,opt,name=address,proto3,oneof" json:"address,omitempty"`
+	// SHA256 of the peer leaf TLS certificate (lowercase hex).
+	CertificatePin *string `protobuf:"bytes,3,opt,name=certificate_pin,json=certificatePin,proto3,oneof" json:"certificate_pin,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *HaCluster_Peer) Reset() {
 	*x = HaCluster_Peer{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44001,7 +44204,7 @@ func (x *HaCluster_Peer) String() string {
 func (*HaCluster_Peer) ProtoMessage() {}
 
 func (x *HaCluster_Peer) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[550]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44031,6 +44234,13 @@ func (x *HaCluster_Peer) GetAddress() string {
 	return ""
 }
 
+func (x *HaCluster_Peer) GetCertificatePin() string {
+	if x != nil && x.CertificatePin != nil {
+		return *x.CertificatePin
+	}
+	return ""
+}
+
 // State synchronisation flags.
 type HaCluster_StateSync struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -44046,7 +44256,7 @@ type HaCluster_StateSync struct {
 
 func (x *HaCluster_StateSync) Reset() {
 	*x = HaCluster_StateSync{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44058,7 +44268,7 @@ func (x *HaCluster_StateSync) String() string {
 func (*HaCluster_StateSync) ProtoMessage() {}
 
 func (x *HaCluster_StateSync) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[551]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44108,7 +44318,7 @@ type NatStaticMapping_Local struct {
 
 func (x *NatStaticMapping_Local) Reset() {
 	*x = NatStaticMapping_Local{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44120,7 +44330,7 @@ func (x *NatStaticMapping_Local) String() string {
 func (*NatStaticMapping_Local) ProtoMessage() {}
 
 func (x *NatStaticMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[552]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44167,7 +44377,7 @@ type NatStaticMapping_External struct {
 
 func (x *NatStaticMapping_External) Reset() {
 	*x = NatStaticMapping_External{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44179,7 +44389,7 @@ func (x *NatStaticMapping_External) String() string {
 func (*NatStaticMapping_External) ProtoMessage() {}
 
 func (x *NatStaticMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[553]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44236,7 +44446,7 @@ type NatLoadBalancedMapping_External struct {
 
 func (x *NatLoadBalancedMapping_External) Reset() {
 	*x = NatLoadBalancedMapping_External{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44248,7 +44458,7 @@ func (x *NatLoadBalancedMapping_External) String() string {
 func (*NatLoadBalancedMapping_External) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_External) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[554]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44295,7 +44505,7 @@ type NatLoadBalancedMapping_Local struct {
 
 func (x *NatLoadBalancedMapping_Local) Reset() {
 	*x = NatLoadBalancedMapping_Local{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44307,7 +44517,7 @@ func (x *NatLoadBalancedMapping_Local) String() string {
 func (*NatLoadBalancedMapping_Local) ProtoMessage() {}
 
 func (x *NatLoadBalancedMapping_Local) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[555]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44364,7 +44574,7 @@ type Nat64Config_Prefix struct {
 
 func (x *Nat64Config_Prefix) Reset() {
 	*x = Nat64Config_Prefix{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44376,7 +44586,7 @@ func (x *Nat64Config_Prefix) String() string {
 func (*Nat64Config_Prefix) ProtoMessage() {}
 
 func (x *Nat64Config_Prefix) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[556]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44419,7 +44629,7 @@ type Nat64Config_Pool struct {
 
 func (x *Nat64Config_Pool) Reset() {
 	*x = Nat64Config_Pool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44431,7 +44641,7 @@ func (x *Nat64Config_Pool) String() string {
 func (*Nat64Config_Pool) ProtoMessage() {}
 
 func (x *Nat64Config_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[557]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44480,7 +44690,7 @@ type Nat64Config_StaticBib struct {
 
 func (x *Nat64Config_StaticBib) Reset() {
 	*x = Nat64Config_StaticBib{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44492,7 +44702,7 @@ func (x *Nat64Config_StaticBib) String() string {
 func (*Nat64Config_StaticBib) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[558]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44556,7 +44766,7 @@ type Nat64Config_StaticBib_Endpoint struct {
 
 func (x *Nat64Config_StaticBib_Endpoint) Reset() {
 	*x = Nat64Config_StaticBib_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44568,7 +44778,7 @@ func (x *Nat64Config_StaticBib_Endpoint) String() string {
 func (*Nat64Config_StaticBib_Endpoint) ProtoMessage() {}
 
 func (x *Nat64Config_StaticBib_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[559]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44615,7 +44825,7 @@ type Nat66Config_StaticMapping struct {
 
 func (x *Nat66Config_StaticMapping) Reset() {
 	*x = Nat66Config_StaticMapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44627,7 +44837,7 @@ func (x *Nat66Config_StaticMapping) String() string {
 func (*Nat66Config_StaticMapping) ProtoMessage() {}
 
 func (x *Nat66Config_StaticMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[560]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44688,7 +44898,7 @@ type Nptv6Config_Binding struct {
 
 func (x *Nptv6Config_Binding) Reset() {
 	*x = Nptv6Config_Binding{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44700,7 +44910,7 @@ func (x *Nptv6Config_Binding) String() string {
 func (*Nptv6Config_Binding) ProtoMessage() {}
 
 func (x *Nptv6Config_Binding) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[561]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44759,7 +44969,7 @@ type Det44Config_Mapping struct {
 
 func (x *Det44Config_Mapping) Reset() {
 	*x = Det44Config_Mapping{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44771,7 +44981,7 @@ func (x *Det44Config_Mapping) String() string {
 func (*Det44Config_Mapping) ProtoMessage() {}
 
 func (x *Det44Config_Mapping) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[562]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44821,7 +45031,7 @@ type DsliteConfig_Endpoint struct {
 
 func (x *DsliteConfig_Endpoint) Reset() {
 	*x = DsliteConfig_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44833,7 +45043,7 @@ func (x *DsliteConfig_Endpoint) String() string {
 func (*DsliteConfig_Endpoint) ProtoMessage() {}
 
 func (x *DsliteConfig_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[563]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44874,7 +45084,7 @@ type DsliteConfig_Pool struct {
 
 func (x *DsliteConfig_Pool) Reset() {
 	*x = DsliteConfig_Pool{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44886,7 +45096,7 @@ func (x *DsliteConfig_Pool) String() string {
 func (*DsliteConfig_Pool) ProtoMessage() {}
 
 func (x *DsliteConfig_Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[564]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44922,7 +45132,7 @@ type MapDomain_Rule struct {
 
 func (x *MapDomain_Rule) Reset() {
 	*x = MapDomain_Rule{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44934,7 +45144,7 @@ func (x *MapDomain_Rule) String() string {
 func (*MapDomain_Rule) ProtoMessage() {}
 
 func (x *MapDomain_Rule) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[565]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -44977,7 +45187,7 @@ type MapParameters_Fragmentation struct {
 
 func (x *MapParameters_Fragmentation) Reset() {
 	*x = MapParameters_Fragmentation{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44989,7 +45199,7 @@ func (x *MapParameters_Fragmentation) String() string {
 func (*MapParameters_Fragmentation) ProtoMessage() {}
 
 func (x *MapParameters_Fragmentation) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[566]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45032,7 +45242,7 @@ type MapParameters_SecurityCheck struct {
 
 func (x *MapParameters_SecurityCheck) Reset() {
 	*x = MapParameters_SecurityCheck{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45044,7 +45254,7 @@ func (x *MapParameters_SecurityCheck) String() string {
 func (*MapParameters_SecurityCheck) ProtoMessage() {}
 
 func (x *MapParameters_SecurityCheck) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[567]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45087,7 +45297,7 @@ type MapParameters_TrafficClass struct {
 
 func (x *MapParameters_TrafficClass) Reset() {
 	*x = MapParameters_TrafficClass{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[571]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45099,7 +45309,7 @@ func (x *MapParameters_TrafficClass) String() string {
 func (*MapParameters_TrafficClass) ProtoMessage() {}
 
 func (x *MapParameters_TrafficClass) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[568]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[571]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45142,7 +45352,7 @@ type MapParameters_PreResolve struct {
 
 func (x *MapParameters_PreResolve) Reset() {
 	*x = MapParameters_PreResolve{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[572]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45154,7 +45364,7 @@ func (x *MapParameters_PreResolve) String() string {
 func (*MapParameters_PreResolve) ProtoMessage() {}
 
 func (x *MapParameters_PreResolve) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[569]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[572]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45201,7 +45411,7 @@ type CnatConfig_Snat struct {
 
 func (x *CnatConfig_Snat) Reset() {
 	*x = CnatConfig_Snat{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[573]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45213,7 +45423,7 @@ func (x *CnatConfig_Snat) String() string {
 func (*CnatConfig_Snat) ProtoMessage() {}
 
 func (x *CnatConfig_Snat) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[570]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[573]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45272,7 +45482,7 @@ type CnatConfig_Snat_Addresses struct {
 
 func (x *CnatConfig_Snat_Addresses) Reset() {
 	*x = CnatConfig_Snat_Addresses{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[571]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[574]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45284,7 +45494,7 @@ func (x *CnatConfig_Snat_Addresses) String() string {
 func (*CnatConfig_Snat_Addresses) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_Addresses) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[571]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[574]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45334,7 +45544,7 @@ type CnatConfig_Snat_PolicyInterface struct {
 
 func (x *CnatConfig_Snat_PolicyInterface) Reset() {
 	*x = CnatConfig_Snat_PolicyInterface{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[572]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[575]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45346,7 +45556,7 @@ func (x *CnatConfig_Snat_PolicyInterface) String() string {
 func (*CnatConfig_Snat_PolicyInterface) ProtoMessage() {}
 
 func (x *CnatConfig_Snat_PolicyInterface) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[572]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[575]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45388,7 +45598,7 @@ type IpsecTunnel_RouteBased struct {
 
 func (x *IpsecTunnel_RouteBased) Reset() {
 	*x = IpsecTunnel_RouteBased{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[585]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[588]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45400,7 +45610,7 @@ func (x *IpsecTunnel_RouteBased) String() string {
 func (*IpsecTunnel_RouteBased) ProtoMessage() {}
 
 func (x *IpsecTunnel_RouteBased) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[585]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[588]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45436,7 +45646,7 @@ type WireguardPeer_Endpoint struct {
 
 func (x *WireguardPeer_Endpoint) Reset() {
 	*x = WireguardPeer_Endpoint{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[588]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45448,7 +45658,7 @@ func (x *WireguardPeer_Endpoint) String() string {
 func (*WireguardPeer_Endpoint) ProtoMessage() {}
 
 func (x *WireguardPeer_Endpoint) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[588]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45491,7 +45701,7 @@ type PkiCa_Crl struct {
 
 func (x *PkiCa_Crl) Reset() {
 	*x = PkiCa_Crl{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[594]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45503,7 +45713,7 @@ func (x *PkiCa_Crl) String() string {
 func (*PkiCa_Crl) ProtoMessage() {}
 
 func (x *PkiCa_Crl) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[591]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[594]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45550,7 +45760,7 @@ type PkiCertificate_Acme struct {
 
 func (x *PkiCertificate_Acme) Reset() {
 	*x = PkiCertificate_Acme{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[592]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[595]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45562,7 +45772,7 @@ func (x *PkiCertificate_Acme) String() string {
 func (*PkiCertificate_Acme) ProtoMessage() {}
 
 func (x *PkiCertificate_Acme) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[592]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[595]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45623,7 +45833,7 @@ type PkiConfig_Hsm struct {
 
 func (x *PkiConfig_Hsm) Reset() {
 	*x = PkiConfig_Hsm{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[593]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45635,7 +45845,7 @@ func (x *PkiConfig_Hsm) String() string {
 func (*PkiConfig_Hsm) ProtoMessage() {}
 
 func (x *PkiConfig_Hsm) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[593]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45690,7 +45900,7 @@ type RemoteAccessProfile_Radius struct {
 
 func (x *RemoteAccessProfile_Radius) Reset() {
 	*x = RemoteAccessProfile_Radius{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[599]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45702,7 +45912,7 @@ func (x *RemoteAccessProfile_Radius) String() string {
 func (*RemoteAccessProfile_Radius) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[596]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[599]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45740,7 +45950,7 @@ type RemoteAccessProfile_Radius_Server struct {
 
 func (x *RemoteAccessProfile_Radius_Server) Reset() {
 	*x = RemoteAccessProfile_Radius_Server{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[597]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[600]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45752,7 +45962,7 @@ func (x *RemoteAccessProfile_Radius_Server) String() string {
 func (*RemoteAccessProfile_Radius_Server) ProtoMessage() {}
 
 func (x *RemoteAccessProfile_Radius_Server) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[597]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[600]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -45800,7 +46010,7 @@ type NsimService_CrossConnect struct {
 
 func (x *NsimService_CrossConnect) Reset() {
 	*x = NsimService_CrossConnect{}
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[603]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[606]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -45812,7 +46022,7 @@ func (x *NsimService_CrossConnect) String() string {
 func (*NsimService_CrossConnect) ProtoMessage() {}
 
 func (x *NsimService_CrossConnect) ProtoReflect() protoreflect.Message {
-	mi := &file_ngfw_v1_dataplane_proto_msgTypes[603]
+	mi := &file_ngfw_v1_dataplane_proto_msgTypes[606]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -47494,7 +47704,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\b_preemptB\x0e\n" +
 	"\f_accept_modeB\x06\n" +
 	"\x04_vrfB\t\n" +
-	"\a_engine\"\xf2\x04\n" +
+	"\a_engine\"\xd8\x05\n" +
 	"\tHaCluster\x12\x1d\n" +
 	"\aenabled\x18\x01 \x01(\bH\x00R\aenabled\x88\x01\x01\x12 \n" +
 	"\tnode_name\x18\x02 \x01(\tH\x01R\bnodeName\x88\x01\x01\x12-\n" +
@@ -47507,13 +47717,17 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\vconfig_sync\x18\b \x01(\bH\x06R\n" +
 	"configSync\x88\x01\x01\x12;\n" +
 	"\n" +
-	"state_sync\x18\t \x01(\v2\x1c.ngfw.v1.HaCluster.StateSyncR\tstateSync\x1aS\n" +
+	"state_sync\x18\t \x01(\v2\x1c.ngfw.v1.HaCluster.StateSyncR\tstateSync\x12!\n" +
+	"\fsync_exclude\x18\n" +
+	" \x03(\tR\vsyncExclude\x1a\x95\x01\n" +
 	"\x04Peer\x12\x17\n" +
 	"\x04name\x18\x01 \x01(\tH\x00R\x04name\x88\x01\x01\x12\x1d\n" +
-	"\aaddress\x18\x02 \x01(\tH\x01R\aaddress\x88\x01\x01B\a\n" +
+	"\aaddress\x18\x02 \x01(\tH\x01R\aaddress\x88\x01\x01\x12,\n" +
+	"\x0fcertificate_pin\x18\x03 \x01(\tH\x02R\x0ecertificatePin\x88\x01\x01B\a\n" +
 	"\x05_nameB\n" +
 	"\n" +
-	"\b_address\x1an\n" +
+	"\b_addressB\x12\n" +
+	"\x10_certificate_pin\x1an\n" +
 	"\tStateSync\x12\x15\n" +
 	"\x03nat\x18\x01 \x01(\bH\x00R\x03nat\x88\x01\x01\x12\x19\n" +
 	"\x05ipsec\x18\x02 \x01(\bH\x01R\x05ipsec\x88\x01\x01\x12\x15\n" +
@@ -51316,7 +51530,20 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x0e_is_managementB\x10\n" +
 	"\x0e_bound_to_dpdkB\n" +
 	"\n" +
-	"\b_link_up*\xb3\x01\n" +
+	"\b_link_up\"(\n" +
+	"\x10VrrpStateRequest\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\"\xd9\x01\n" +
+	"\vVrrpRuntime\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
+	"\x06engine\x18\x02 \x01(\tR\x06engine\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12)\n" +
+	"\x10current_priority\x18\x04 \x01(\rR\x0fcurrentPriority\x12G\n" +
+	" master_advertisement_interval_ms\x18\x05 \x01(\rR\x1dmasterAdvertisementIntervalMs\x12\x14\n" +
+	"\x05error\x18\x06 \x01(\tR\x05error\"\x98\x01\n" +
+	"\x11VrrpStateResponse\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\x12=\n" +
+	"\fretrieved_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vretrievedAt\x12.\n" +
+	"\arouters\x18\x03 \x03(\v2\x14.ngfw.v1.VrrpRuntimeR\arouters*\xb3\x01\n" +
 	"\vApplyStatus\x12\x1c\n" +
 	"\x18APPLY_STATUS_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14APPLY_STATUS_APPLIED\x10\x01\x12\x17\n" +
@@ -51344,7 +51571,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1aISSUE_SEVERITY_UNSPECIFIED\x10\x00\x12\x18\n" +
 	"\x14ISSUE_SEVERITY_ERROR\x10\x01\x12\x1a\n" +
 	"\x16ISSUE_SEVERITY_WARNING\x10\x02\x12\x17\n" +
-	"\x13ISSUE_SEVERITY_INFO\x10\x03*\x8d\x05\n" +
+	"\x13ISSUE_SEVERITY_INFO\x10\x03*\xb0\x05\n" +
 	"\tEventKind\x12\x1a\n" +
 	"\x16EVENT_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dEVENT_KIND_AUTOBLOCK_OBSERVED\x10\x19\x12\x1f\n" +
@@ -51357,7 +51584,8 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1bEVENT_KIND_CONFIRM_REVERTED\x10\x06\x12\x1c\n" +
 	"\x18EVENT_KIND_VPP_CONNECTED\x10\a\x12\x1f\n" +
 	"\x1bEVENT_KIND_VPP_DISCONNECTED\x10\b\x12\x17\n" +
-	"\x13EVENT_KIND_DEGRADED\x10\t\x12$\n" +
+	"\x13EVENT_KIND_DEGRADED\x10\t\x12!\n" +
+	"\x1dEVENT_KIND_VRRP_STATE_CHANGED\x10\x11\x12$\n" +
 	" EVENT_KIND_OSPF_NEIGHBOR_CHANGED\x10\x14\x12%\n" +
 	"!EVENT_KIND_ISIS_ADJACENCY_CHANGED\x10\x15\x12\x1f\n" +
 	"\x1bEVENT_KIND_NEIGHBOR_CHANGED\x10\n" +
@@ -51383,7 +51611,7 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1fNAT_SESSION_VARIANT_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16NAT_SESSION_VARIANT_ED\x10\x01\x12\x1a\n" +
 	"\x16NAT_SESSION_VARIANT_EI\x10\x02\x12\x1d\n" +
-	"\x19NAT_SESSION_VARIANT_NAT64\x10\x032\xde\x1f\n" +
+	"\x19NAT_SESSION_VARIANT_NAT64\x10\x032\xa2 \n" +
 	"\tDataplane\x12E\n" +
 	"\n" +
 	"IpsecState\x12\x1a.ngfw.v1.IpsecStateRequest\x1a\x1b.ngfw.v1.IpsecStateResponse\x12H\n" +
@@ -51399,7 +51627,8 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x0eInterfaceState\x12\x1e.ngfw.v1.InterfaceStateRequest\x1a\x1f.ngfw.v1.InterfaceStateResponse\x12N\n" +
 	"\rDet44Sessions\x12\x1d.ngfw.v1.Det44SessionsRequest\x1a\x1e.ngfw.v1.Det44SessionsResponse\x12H\n" +
 	"\vDet44Lookup\x12\x1b.ngfw.v1.Det44LookupRequest\x1a\x1c.ngfw.v1.Det44LookupResponse\x12K\n" +
-	"\fCnatSessions\x12\x1c.ngfw.v1.CnatSessionsRequest\x1a\x1d.ngfw.v1.CnatSessionsResponse\x12K\n" +
+	"\fCnatSessions\x12\x1c.ngfw.v1.CnatSessionsRequest\x1a\x1d.ngfw.v1.CnatSessionsResponse\x12B\n" +
+	"\tVrrpState\x12\x19.ngfw.v1.VrrpStateRequest\x1a\x1a.ngfw.v1.VrrpStateResponse\x12K\n" +
 	"\fPkiFileState\x12\x1c.ngfw.v1.PkiFileStateRequest\x1a\x1d.ngfw.v1.PkiFileStateResponse\x12B\n" +
 	"\tMplsState\x12\x19.ngfw.v1.MplsStateRequest\x1a\x1a.ngfw.v1.MplsStateResponse\x12<\n" +
 	"\aLbState\x12\x17.ngfw.v1.LbStateRequest\x1a\x18.ngfw.v1.LbStateResponse\x12E\n" +
@@ -51459,7 +51688,7 @@ func file_ngfw_v1_dataplane_proto_rawDescGZIP() []byte {
 }
 
 var file_ngfw_v1_dataplane_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_ngfw_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 626)
+var file_ngfw_v1_dataplane_proto_msgTypes = make([]protoimpl.MessageInfo, 629)
 var file_ngfw_v1_dataplane_proto_goTypes = []any{
 	(ApplyStatus)(0),                          // 0: ngfw.v1.ApplyStatus
 	(ApplyOperation)(0),                       // 1: ngfw.v1.ApplyOperation
@@ -51956,146 +52185,149 @@ var file_ngfw_v1_dataplane_proto_goTypes = []any{
 	(*HostNicsRequest)(nil),                   // 492: ngfw.v1.HostNicsRequest
 	(*HostNicsResponse)(nil),                  // 493: ngfw.v1.HostNicsResponse
 	(*HostNic)(nil),                           // 494: ngfw.v1.HostNic
-	nil,                                       // 495: ngfw.v1.SecretBundle.ValuesEntry
-	nil,                                       // 496: ngfw.v1.Event.AttributesEntry
-	nil,                                       // 497: ngfw.v1.ActionDone.StatsEntry
-	nil,                                       // 498: ngfw.v1.DesiredState.InterfacesEntry
-	nil,                                       // 499: ngfw.v1.DesiredState.VrfsEntry
-	nil,                                       // 500: ngfw.v1.DataplaneConfig.DevicesEntry
-	nil,                                       // 501: ngfw.v1.PluginSet.SwitchesEntry
-	nil,                                       // 502: ngfw.v1.Interface.SubinterfacesEntry
-	nil,                                       // 503: ngfw.v1.IgmpConfig.InterfacesEntry
-	nil,                                       // 504: ngfw.v1.IgmpConfig.ProxiesEntry
-	nil,                                       // 505: ngfw.v1.RoutingPolicy.PrefixListsEntry
-	nil,                                       // 506: ngfw.v1.RoutingPolicy.RouteMapsEntry
-	nil,                                       // 507: ngfw.v1.BgpConfig.PeerGroupsEntry
-	nil,                                       // 508: ngfw.v1.BgpConfig.NeighborsEntry
-	nil,                                       // 509: ngfw.v1.Ospf6Config.AreasEntry
-	nil,                                       // 510: ngfw.v1.Ospf6Config.InterfacesEntry
-	nil,                                       // 511: ngfw.v1.OspfConfig.AreasEntry
-	nil,                                       // 512: ngfw.v1.OspfConfig.InterfacesEntry
-	nil,                                       // 513: ngfw.v1.IsisConfig.InterfacesEntry
-	nil,                                       // 514: ngfw.v1.RipConfig.InterfacesEntry
-	nil,                                       // 515: ngfw.v1.RipngConfig.InterfacesEntry
-	nil,                                       // 516: ngfw.v1.TunnelsConfig.GreEntry
-	nil,                                       // 517: ngfw.v1.TunnelsConfig.VxlanEntry
-	nil,                                       // 518: ngfw.v1.TunnelsConfig.IpipEntry
-	nil,                                       // 519: ngfw.v1.TunnelsConfig.VxlanGpeEntry
-	nil,                                       // 520: ngfw.v1.TunnelsConfig.GtpuEntry
-	nil,                                       // 521: ngfw.v1.TunnelsConfig.L2tpv3Entry
-	nil,                                       // 522: ngfw.v1.TunnelsConfig.PppoeEntry
-	nil,                                       // 523: ngfw.v1.DhcpService.ServersEntry
-	nil,                                       // 524: ngfw.v1.DhcpService.RelaysEntry
-	nil,                                       // 525: ngfw.v1.DhcpSubnet.ReservationsEntry
-	nil,                                       // 526: ngfw.v1.DhcpServer.SubnetsEntry
-	(*DnsService_VppCache)(nil),               // 527: ngfw.v1.DnsService.VppCache
-	nil,                                       // 528: ngfw.v1.DnsService.ResolversEntry
-	(*DnsResolver_Dnssec)(nil),                // 529: ngfw.v1.DnsResolver.Dnssec
-	(*DnsResolver_Cache)(nil),                 // 530: ngfw.v1.DnsResolver.Cache
-	(*SnmpService_Community)(nil),             // 531: ngfw.v1.SnmpService.Community
-	(*SnmpService_V3User)(nil),                // 532: ngfw.v1.SnmpService.V3User
-	(*SnmpService_TrapReceiver)(nil),          // 533: ngfw.v1.SnmpService.TrapReceiver
-	nil,                                       // 534: ngfw.v1.SnmpService.CommunitiesEntry
-	nil,                                       // 535: ngfw.v1.SnmpService.V3UsersEntry
-	nil,                                       // 536: ngfw.v1.SnmpService.ViewsEntry
-	(*LldpService_Interface)(nil),             // 537: ngfw.v1.LldpService.Interface
-	(*IpfixService_Exporter)(nil),             // 538: ngfw.v1.IpfixService.Exporter
-	(*IpfixService_Flowprobe)(nil),            // 539: ngfw.v1.IpfixService.Flowprobe
-	(*IpfixService_Sflow)(nil),                // 540: ngfw.v1.IpfixService.Sflow
-	nil,                                       // 541: ngfw.v1.IpfixService.ExportersEntry
-	(*IpfixService_Flowprobe_Interface)(nil),  // 542: ngfw.v1.IpfixService.Flowprobe.Interface
-	(*NtpService_Server)(nil),                 // 543: ngfw.v1.NtpService.Server
-	(*NtpService_RateLimit)(nil),              // 544: ngfw.v1.NtpService.RateLimit
-	(*NtpService_NtsServer)(nil),              // 545: ngfw.v1.NtpService.NtsServer
-	(*NtpService_Makestep)(nil),               // 546: ngfw.v1.NtpService.Makestep
-	nil,                                       // 547: ngfw.v1.QosService.PolicersEntry
-	nil,                                       // 548: ngfw.v1.QosService.ShapersEntry
-	nil,                                       // 549: ngfw.v1.QosService.MapsEntry
-	nil,                                       // 550: ngfw.v1.QosService.InterfacesEntry
-	(*QosMap_Rows)(nil),                       // 551: ngfw.v1.QosMap.Rows
-	(*QosInterface_Policer)(nil),              // 552: ngfw.v1.QosInterface.Policer
-	(*QosInterface_Store)(nil),                // 553: ngfw.v1.QosInterface.Store
-	(*QosInterface_Mark)(nil),                 // 554: ngfw.v1.QosInterface.Mark
-	nil,                                       // 555: ngfw.v1.HaConfig.VrrpEntry
-	(*VrrpInstance_Unicast)(nil),              // 556: ngfw.v1.VrrpInstance.Unicast
-	(*VrrpInstance_Track)(nil),                // 557: ngfw.v1.VrrpInstance.Track
-	(*HaCluster_Peer)(nil),                    // 558: ngfw.v1.HaCluster.Peer
-	(*HaCluster_StateSync)(nil),               // 559: ngfw.v1.HaCluster.StateSync
-	(*NatStaticMapping_Local)(nil),            // 560: ngfw.v1.NatStaticMapping.Local
-	(*NatStaticMapping_External)(nil),         // 561: ngfw.v1.NatStaticMapping.External
-	(*NatLoadBalancedMapping_External)(nil),   // 562: ngfw.v1.NatLoadBalancedMapping.External
-	(*NatLoadBalancedMapping_Local)(nil),      // 563: ngfw.v1.NatLoadBalancedMapping.Local
-	(*Nat64Config_Prefix)(nil),                // 564: ngfw.v1.Nat64Config.Prefix
-	(*Nat64Config_Pool)(nil),                  // 565: ngfw.v1.Nat64Config.Pool
-	(*Nat64Config_StaticBib)(nil),             // 566: ngfw.v1.Nat64Config.StaticBib
-	(*Nat64Config_StaticBib_Endpoint)(nil),    // 567: ngfw.v1.Nat64Config.StaticBib.Endpoint
-	(*Nat66Config_StaticMapping)(nil),         // 568: ngfw.v1.Nat66Config.StaticMapping
-	(*Nptv6Config_Binding)(nil),               // 569: ngfw.v1.Nptv6Config.Binding
-	(*Det44Config_Mapping)(nil),               // 570: ngfw.v1.Det44Config.Mapping
-	(*DsliteConfig_Endpoint)(nil),             // 571: ngfw.v1.DsliteConfig.Endpoint
-	(*DsliteConfig_Pool)(nil),                 // 572: ngfw.v1.DsliteConfig.Pool
-	(*MapDomain_Rule)(nil),                    // 573: ngfw.v1.MapDomain.Rule
-	(*MapParameters_Fragmentation)(nil),       // 574: ngfw.v1.MapParameters.Fragmentation
-	(*MapParameters_SecurityCheck)(nil),       // 575: ngfw.v1.MapParameters.SecurityCheck
-	(*MapParameters_TrafficClass)(nil),        // 576: ngfw.v1.MapParameters.TrafficClass
-	(*MapParameters_PreResolve)(nil),          // 577: ngfw.v1.MapParameters.PreResolve
-	(*CnatConfig_Snat)(nil),                   // 578: ngfw.v1.CnatConfig.Snat
-	(*CnatConfig_Snat_Addresses)(nil),         // 579: ngfw.v1.CnatConfig.Snat.Addresses
-	(*CnatConfig_Snat_PolicyInterface)(nil),   // 580: ngfw.v1.CnatConfig.Snat.PolicyInterface
-	nil,                                       // 581: ngfw.v1.ObjectsConfig.AddressesEntry
-	nil,                                       // 582: ngfw.v1.ObjectsConfig.AddressGroupsEntry
-	nil,                                       // 583: ngfw.v1.ObjectsConfig.ServicesEntry
-	nil,                                       // 584: ngfw.v1.ObjectsConfig.ServiceGroupsEntry
-	nil,                                       // 585: ngfw.v1.ObjectsConfig.SchedulesEntry
-	nil,                                       // 586: ngfw.v1.ObjectsConfig.ZonesEntry
-	nil,                                       // 587: ngfw.v1.ObjectsConfig.TagsEntry
-	nil,                                       // 588: ngfw.v1.AclConfig.ListsEntry
-	nil,                                       // 589: ngfw.v1.AclConfig.MacipEntry
-	nil,                                       // 590: ngfw.v1.AclConfig.HostEntry
-	nil,                                       // 591: ngfw.v1.GlobalBlocking.ListsEntry
-	nil,                                       // 592: ngfw.v1.VpnConfig.RemoteAccessEntry
-	(*IpsecTunnel_RouteBased)(nil),            // 593: ngfw.v1.IpsecTunnel.RouteBased
-	nil,                                       // 594: ngfw.v1.IpsecConfig.ProposalsEntry
-	nil,                                       // 595: ngfw.v1.IpsecConfig.TunnelsEntry
-	(*WireguardPeer_Endpoint)(nil),            // 596: ngfw.v1.WireguardPeer.Endpoint
-	nil,                                       // 597: ngfw.v1.WireguardInterface.PeersEntry
-	nil,                                       // 598: ngfw.v1.WireguardConfig.InterfacesEntry
-	(*PkiCa_Crl)(nil),                         // 599: ngfw.v1.PkiCa.Crl
-	(*PkiCertificate_Acme)(nil),               // 600: ngfw.v1.PkiCertificate.Acme
-	(*PkiConfig_Hsm)(nil),                     // 601: ngfw.v1.PkiConfig.Hsm
-	nil,                                       // 602: ngfw.v1.PkiConfig.CasEntry
-	nil,                                       // 603: ngfw.v1.PkiConfig.CertificatesEntry
-	(*RemoteAccessProfile_Radius)(nil),        // 604: ngfw.v1.RemoteAccessProfile.Radius
-	(*RemoteAccessProfile_Radius_Server)(nil), // 605: ngfw.v1.RemoteAccessProfile.Radius.Server
-	nil,                              // 606: ngfw.v1.Bond.MembersEntry
-	nil,                              // 607: ngfw.v1.BridgeL2Config.BridgeDomainsEntry
-	nil,                              // 608: ngfw.v1.BridgeL2Config.XconnectsEntry
-	nil,                              // 609: ngfw.v1.BridgeL2Config.L3xcEntry
-	nil,                              // 610: ngfw.v1.BridgeL2Config.MacFiltersEntry
-	(*NsimService_CrossConnect)(nil), // 611: ngfw.v1.NsimService.CrossConnect
-	nil,                              // 612: ngfw.v1.Ipv6Ra.PrefixesEntry
-	nil,                              // 613: ngfw.v1.PbrConfig.PoliciesEntry
-	nil,                              // 614: ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
-	nil,                              // 615: ngfw.v1.RoutingStateResponse.RibCountsEntry
-	nil,                              // 616: ngfw.v1.RoutingStateResponse.ReadersEntry
-	nil,                              // 617: ngfw.v1.DnsStateResponse.StatusEntry
-	nil,                              // 618: ngfw.v1.DnsStateResponse.StatsEntry
-	nil,                              // 619: ngfw.v1.NtpStateResponse.ServerStatsEntry
-	nil,                              // 620: ngfw.v1.SyslogStateResponse.InputsEntry
-	nil,                              // 621: ngfw.v1.MplsConfig.TablesEntry
-	nil,                              // 622: ngfw.v1.MplsConfig.TunnelsEntry
-	nil,                              // 623: ngfw.v1.MplsSr.PoliciesEntry
-	nil,                              // 624: ngfw.v1.LbService.VipsEntry
-	nil,                              // 625: ngfw.v1.HostStackService.NamespacesEntry
-	nil,                              // 626: ngfw.v1.Srv6Config.LocalSidsEntry
-	nil,                              // 627: ngfw.v1.Srv6Config.PoliciesEntry
-	nil,                              // 628: ngfw.v1.LispConfig.LocatorSetsEntry
-	nil,                              // 629: ngfw.v1.LispConfig.EidTablesEntry
-	nil,                              // 630: ngfw.v1.MplsLdp.NeighborsEntry
-	nil,                              // 631: ngfw.v1.ManagementAlarms.RulesEntry
-	nil,                              // 632: ngfw.v1.ManagementAlarms.TargetsEntry
-	nil,                              // 633: ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
-	(*timestamppb.Timestamp)(nil),    // 634: google.protobuf.Timestamp
+	(*VrrpStateRequest)(nil),                  // 495: ngfw.v1.VrrpStateRequest
+	(*VrrpRuntime)(nil),                       // 496: ngfw.v1.VrrpRuntime
+	(*VrrpStateResponse)(nil),                 // 497: ngfw.v1.VrrpStateResponse
+	nil,                                       // 498: ngfw.v1.SecretBundle.ValuesEntry
+	nil,                                       // 499: ngfw.v1.Event.AttributesEntry
+	nil,                                       // 500: ngfw.v1.ActionDone.StatsEntry
+	nil,                                       // 501: ngfw.v1.DesiredState.InterfacesEntry
+	nil,                                       // 502: ngfw.v1.DesiredState.VrfsEntry
+	nil,                                       // 503: ngfw.v1.DataplaneConfig.DevicesEntry
+	nil,                                       // 504: ngfw.v1.PluginSet.SwitchesEntry
+	nil,                                       // 505: ngfw.v1.Interface.SubinterfacesEntry
+	nil,                                       // 506: ngfw.v1.IgmpConfig.InterfacesEntry
+	nil,                                       // 507: ngfw.v1.IgmpConfig.ProxiesEntry
+	nil,                                       // 508: ngfw.v1.RoutingPolicy.PrefixListsEntry
+	nil,                                       // 509: ngfw.v1.RoutingPolicy.RouteMapsEntry
+	nil,                                       // 510: ngfw.v1.BgpConfig.PeerGroupsEntry
+	nil,                                       // 511: ngfw.v1.BgpConfig.NeighborsEntry
+	nil,                                       // 512: ngfw.v1.Ospf6Config.AreasEntry
+	nil,                                       // 513: ngfw.v1.Ospf6Config.InterfacesEntry
+	nil,                                       // 514: ngfw.v1.OspfConfig.AreasEntry
+	nil,                                       // 515: ngfw.v1.OspfConfig.InterfacesEntry
+	nil,                                       // 516: ngfw.v1.IsisConfig.InterfacesEntry
+	nil,                                       // 517: ngfw.v1.RipConfig.InterfacesEntry
+	nil,                                       // 518: ngfw.v1.RipngConfig.InterfacesEntry
+	nil,                                       // 519: ngfw.v1.TunnelsConfig.GreEntry
+	nil,                                       // 520: ngfw.v1.TunnelsConfig.VxlanEntry
+	nil,                                       // 521: ngfw.v1.TunnelsConfig.IpipEntry
+	nil,                                       // 522: ngfw.v1.TunnelsConfig.VxlanGpeEntry
+	nil,                                       // 523: ngfw.v1.TunnelsConfig.GtpuEntry
+	nil,                                       // 524: ngfw.v1.TunnelsConfig.L2tpv3Entry
+	nil,                                       // 525: ngfw.v1.TunnelsConfig.PppoeEntry
+	nil,                                       // 526: ngfw.v1.DhcpService.ServersEntry
+	nil,                                       // 527: ngfw.v1.DhcpService.RelaysEntry
+	nil,                                       // 528: ngfw.v1.DhcpSubnet.ReservationsEntry
+	nil,                                       // 529: ngfw.v1.DhcpServer.SubnetsEntry
+	(*DnsService_VppCache)(nil),               // 530: ngfw.v1.DnsService.VppCache
+	nil,                                       // 531: ngfw.v1.DnsService.ResolversEntry
+	(*DnsResolver_Dnssec)(nil),                // 532: ngfw.v1.DnsResolver.Dnssec
+	(*DnsResolver_Cache)(nil),                 // 533: ngfw.v1.DnsResolver.Cache
+	(*SnmpService_Community)(nil),             // 534: ngfw.v1.SnmpService.Community
+	(*SnmpService_V3User)(nil),                // 535: ngfw.v1.SnmpService.V3User
+	(*SnmpService_TrapReceiver)(nil),          // 536: ngfw.v1.SnmpService.TrapReceiver
+	nil,                                       // 537: ngfw.v1.SnmpService.CommunitiesEntry
+	nil,                                       // 538: ngfw.v1.SnmpService.V3UsersEntry
+	nil,                                       // 539: ngfw.v1.SnmpService.ViewsEntry
+	(*LldpService_Interface)(nil),             // 540: ngfw.v1.LldpService.Interface
+	(*IpfixService_Exporter)(nil),             // 541: ngfw.v1.IpfixService.Exporter
+	(*IpfixService_Flowprobe)(nil),            // 542: ngfw.v1.IpfixService.Flowprobe
+	(*IpfixService_Sflow)(nil),                // 543: ngfw.v1.IpfixService.Sflow
+	nil,                                       // 544: ngfw.v1.IpfixService.ExportersEntry
+	(*IpfixService_Flowprobe_Interface)(nil),  // 545: ngfw.v1.IpfixService.Flowprobe.Interface
+	(*NtpService_Server)(nil),                 // 546: ngfw.v1.NtpService.Server
+	(*NtpService_RateLimit)(nil),              // 547: ngfw.v1.NtpService.RateLimit
+	(*NtpService_NtsServer)(nil),              // 548: ngfw.v1.NtpService.NtsServer
+	(*NtpService_Makestep)(nil),               // 549: ngfw.v1.NtpService.Makestep
+	nil,                                       // 550: ngfw.v1.QosService.PolicersEntry
+	nil,                                       // 551: ngfw.v1.QosService.ShapersEntry
+	nil,                                       // 552: ngfw.v1.QosService.MapsEntry
+	nil,                                       // 553: ngfw.v1.QosService.InterfacesEntry
+	(*QosMap_Rows)(nil),                       // 554: ngfw.v1.QosMap.Rows
+	(*QosInterface_Policer)(nil),              // 555: ngfw.v1.QosInterface.Policer
+	(*QosInterface_Store)(nil),                // 556: ngfw.v1.QosInterface.Store
+	(*QosInterface_Mark)(nil),                 // 557: ngfw.v1.QosInterface.Mark
+	nil,                                       // 558: ngfw.v1.HaConfig.VrrpEntry
+	(*VrrpInstance_Unicast)(nil),              // 559: ngfw.v1.VrrpInstance.Unicast
+	(*VrrpInstance_Track)(nil),                // 560: ngfw.v1.VrrpInstance.Track
+	(*HaCluster_Peer)(nil),                    // 561: ngfw.v1.HaCluster.Peer
+	(*HaCluster_StateSync)(nil),               // 562: ngfw.v1.HaCluster.StateSync
+	(*NatStaticMapping_Local)(nil),            // 563: ngfw.v1.NatStaticMapping.Local
+	(*NatStaticMapping_External)(nil),         // 564: ngfw.v1.NatStaticMapping.External
+	(*NatLoadBalancedMapping_External)(nil),   // 565: ngfw.v1.NatLoadBalancedMapping.External
+	(*NatLoadBalancedMapping_Local)(nil),      // 566: ngfw.v1.NatLoadBalancedMapping.Local
+	(*Nat64Config_Prefix)(nil),                // 567: ngfw.v1.Nat64Config.Prefix
+	(*Nat64Config_Pool)(nil),                  // 568: ngfw.v1.Nat64Config.Pool
+	(*Nat64Config_StaticBib)(nil),             // 569: ngfw.v1.Nat64Config.StaticBib
+	(*Nat64Config_StaticBib_Endpoint)(nil),    // 570: ngfw.v1.Nat64Config.StaticBib.Endpoint
+	(*Nat66Config_StaticMapping)(nil),         // 571: ngfw.v1.Nat66Config.StaticMapping
+	(*Nptv6Config_Binding)(nil),               // 572: ngfw.v1.Nptv6Config.Binding
+	(*Det44Config_Mapping)(nil),               // 573: ngfw.v1.Det44Config.Mapping
+	(*DsliteConfig_Endpoint)(nil),             // 574: ngfw.v1.DsliteConfig.Endpoint
+	(*DsliteConfig_Pool)(nil),                 // 575: ngfw.v1.DsliteConfig.Pool
+	(*MapDomain_Rule)(nil),                    // 576: ngfw.v1.MapDomain.Rule
+	(*MapParameters_Fragmentation)(nil),       // 577: ngfw.v1.MapParameters.Fragmentation
+	(*MapParameters_SecurityCheck)(nil),       // 578: ngfw.v1.MapParameters.SecurityCheck
+	(*MapParameters_TrafficClass)(nil),        // 579: ngfw.v1.MapParameters.TrafficClass
+	(*MapParameters_PreResolve)(nil),          // 580: ngfw.v1.MapParameters.PreResolve
+	(*CnatConfig_Snat)(nil),                   // 581: ngfw.v1.CnatConfig.Snat
+	(*CnatConfig_Snat_Addresses)(nil),         // 582: ngfw.v1.CnatConfig.Snat.Addresses
+	(*CnatConfig_Snat_PolicyInterface)(nil),   // 583: ngfw.v1.CnatConfig.Snat.PolicyInterface
+	nil,                                       // 584: ngfw.v1.ObjectsConfig.AddressesEntry
+	nil,                                       // 585: ngfw.v1.ObjectsConfig.AddressGroupsEntry
+	nil,                                       // 586: ngfw.v1.ObjectsConfig.ServicesEntry
+	nil,                                       // 587: ngfw.v1.ObjectsConfig.ServiceGroupsEntry
+	nil,                                       // 588: ngfw.v1.ObjectsConfig.SchedulesEntry
+	nil,                                       // 589: ngfw.v1.ObjectsConfig.ZonesEntry
+	nil,                                       // 590: ngfw.v1.ObjectsConfig.TagsEntry
+	nil,                                       // 591: ngfw.v1.AclConfig.ListsEntry
+	nil,                                       // 592: ngfw.v1.AclConfig.MacipEntry
+	nil,                                       // 593: ngfw.v1.AclConfig.HostEntry
+	nil,                                       // 594: ngfw.v1.GlobalBlocking.ListsEntry
+	nil,                                       // 595: ngfw.v1.VpnConfig.RemoteAccessEntry
+	(*IpsecTunnel_RouteBased)(nil),            // 596: ngfw.v1.IpsecTunnel.RouteBased
+	nil,                                       // 597: ngfw.v1.IpsecConfig.ProposalsEntry
+	nil,                                       // 598: ngfw.v1.IpsecConfig.TunnelsEntry
+	(*WireguardPeer_Endpoint)(nil),            // 599: ngfw.v1.WireguardPeer.Endpoint
+	nil,                                       // 600: ngfw.v1.WireguardInterface.PeersEntry
+	nil,                                       // 601: ngfw.v1.WireguardConfig.InterfacesEntry
+	(*PkiCa_Crl)(nil),                         // 602: ngfw.v1.PkiCa.Crl
+	(*PkiCertificate_Acme)(nil),               // 603: ngfw.v1.PkiCertificate.Acme
+	(*PkiConfig_Hsm)(nil),                     // 604: ngfw.v1.PkiConfig.Hsm
+	nil,                                       // 605: ngfw.v1.PkiConfig.CasEntry
+	nil,                                       // 606: ngfw.v1.PkiConfig.CertificatesEntry
+	(*RemoteAccessProfile_Radius)(nil),        // 607: ngfw.v1.RemoteAccessProfile.Radius
+	(*RemoteAccessProfile_Radius_Server)(nil), // 608: ngfw.v1.RemoteAccessProfile.Radius.Server
+	nil,                              // 609: ngfw.v1.Bond.MembersEntry
+	nil,                              // 610: ngfw.v1.BridgeL2Config.BridgeDomainsEntry
+	nil,                              // 611: ngfw.v1.BridgeL2Config.XconnectsEntry
+	nil,                              // 612: ngfw.v1.BridgeL2Config.L3xcEntry
+	nil,                              // 613: ngfw.v1.BridgeL2Config.MacFiltersEntry
+	(*NsimService_CrossConnect)(nil), // 614: ngfw.v1.NsimService.CrossConnect
+	nil,                              // 615: ngfw.v1.Ipv6Ra.PrefixesEntry
+	nil,                              // 616: ngfw.v1.PbrConfig.PoliciesEntry
+	nil,                              // 617: ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
+	nil,                              // 618: ngfw.v1.RoutingStateResponse.RibCountsEntry
+	nil,                              // 619: ngfw.v1.RoutingStateResponse.ReadersEntry
+	nil,                              // 620: ngfw.v1.DnsStateResponse.StatusEntry
+	nil,                              // 621: ngfw.v1.DnsStateResponse.StatsEntry
+	nil,                              // 622: ngfw.v1.NtpStateResponse.ServerStatsEntry
+	nil,                              // 623: ngfw.v1.SyslogStateResponse.InputsEntry
+	nil,                              // 624: ngfw.v1.MplsConfig.TablesEntry
+	nil,                              // 625: ngfw.v1.MplsConfig.TunnelsEntry
+	nil,                              // 626: ngfw.v1.MplsSr.PoliciesEntry
+	nil,                              // 627: ngfw.v1.LbService.VipsEntry
+	nil,                              // 628: ngfw.v1.HostStackService.NamespacesEntry
+	nil,                              // 629: ngfw.v1.Srv6Config.LocalSidsEntry
+	nil,                              // 630: ngfw.v1.Srv6Config.PoliciesEntry
+	nil,                              // 631: ngfw.v1.LispConfig.LocatorSetsEntry
+	nil,                              // 632: ngfw.v1.LispConfig.EidTablesEntry
+	nil,                              // 633: ngfw.v1.MplsLdp.NeighborsEntry
+	nil,                              // 634: ngfw.v1.ManagementAlarms.RulesEntry
+	nil,                              // 635: ngfw.v1.ManagementAlarms.TargetsEntry
+	nil,                              // 636: ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
+	(*timestamppb.Timestamp)(nil),    // 637: google.protobuf.Timestamp
 }
 var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	36,  // 0: ngfw.v1.ApplyRequest.desired_state:type_name -> ngfw.v1.DesiredState
@@ -52104,27 +52336,27 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	10,  // 3: ngfw.v1.ApplyResponse.results:type_name -> ngfw.v1.ObjectResult
 	11,  // 4: ngfw.v1.ApplyResponse.summary:type_name -> ngfw.v1.ApplySummary
 	15,  // 5: ngfw.v1.ApplyResponse.validation:type_name -> ngfw.v1.ValidationReport
-	634, // 6: ngfw.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
-	634, // 7: ngfw.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	637, // 6: ngfw.v1.ApplyResponse.applied_at:type_name -> google.protobuf.Timestamp
+	637, // 7: ngfw.v1.ApplyResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
 	1,   // 8: ngfw.v1.ObjectResult.op:type_name -> ngfw.v1.ApplyOperation
 	2,   // 9: ngfw.v1.ObjectResult.code:type_name -> ngfw.v1.ObjectResultCode
 	36,  // 10: ngfw.v1.DryRunRequest.desired_state:type_name -> ngfw.v1.DesiredState
 	13,  // 11: ngfw.v1.DryRunRequest.secret_bundle:type_name -> ngfw.v1.SecretBundle
-	495, // 12: ngfw.v1.SecretBundle.values:type_name -> ngfw.v1.SecretBundle.ValuesEntry
+	498, // 12: ngfw.v1.SecretBundle.values:type_name -> ngfw.v1.SecretBundle.ValuesEntry
 	3,   // 13: ngfw.v1.ValidationIssue.severity:type_name -> ngfw.v1.IssueSeverity
 	14,  // 14: ngfw.v1.ValidationReport.errors:type_name -> ngfw.v1.ValidationIssue
 	10,  // 15: ngfw.v1.ValidationReport.plan:type_name -> ngfw.v1.ObjectResult
 	11,  // 16: ngfw.v1.ValidationReport.summary:type_name -> ngfw.v1.ApplySummary
 	36,  // 17: ngfw.v1.RetrieveResponse.desired_state:type_name -> ngfw.v1.DesiredState
-	634, // 18: ngfw.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	634, // 19: ngfw.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
+	637, // 18: ngfw.v1.RetrieveResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 19: ngfw.v1.StatsBatch.ts:type_name -> google.protobuf.Timestamp
 	20,  // 20: ngfw.v1.StatsBatch.interface_counters:type_name -> ngfw.v1.InterfaceCounters
 	21,  // 21: ngfw.v1.StatsBatch.worker_cpu:type_name -> ngfw.v1.WorkerCpu
 	4,   // 22: ngfw.v1.StreamEventsRequest.kinds:type_name -> ngfw.v1.EventKind
-	634, // 23: ngfw.v1.Event.ts:type_name -> google.protobuf.Timestamp
+	637, // 23: ngfw.v1.Event.ts:type_name -> google.protobuf.Timestamp
 	4,   // 24: ngfw.v1.Event.kind:type_name -> ngfw.v1.EventKind
 	11,  // 25: ngfw.v1.Event.summary:type_name -> ngfw.v1.ApplySummary
-	496, // 26: ngfw.v1.Event.attributes:type_name -> ngfw.v1.Event.AttributesEntry
+	499, // 26: ngfw.v1.Event.attributes:type_name -> ngfw.v1.Event.AttributesEntry
 	26,  // 27: ngfw.v1.ActionRequest.ping:type_name -> ngfw.v1.PingAction
 	27,  // 28: ngfw.v1.ActionRequest.traceroute:type_name -> ngfw.v1.TracerouteAction
 	28,  // 29: ngfw.v1.ActionRequest.capture:type_name -> ngfw.v1.CaptureAction
@@ -52136,16 +52368,16 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	309, // 35: ngfw.v1.ActionRequest.dns_lookup:type_name -> ngfw.v1.DnsLookupAction
 	5,   // 36: ngfw.v1.CaptureAction.direction:type_name -> ngfw.v1.CaptureDirection
 	30,  // 37: ngfw.v1.ActionOutput.done:type_name -> ngfw.v1.ActionDone
-	497, // 38: ngfw.v1.ActionDone.stats:type_name -> ngfw.v1.ActionDone.StatsEntry
-	634, // 39: ngfw.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
-	634, // 40: ngfw.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
+	500, // 38: ngfw.v1.ActionDone.stats:type_name -> ngfw.v1.ActionDone.StatsEntry
+	637, // 39: ngfw.v1.HealthResponse.confirm_deadline:type_name -> google.protobuf.Timestamp
+	637, // 40: ngfw.v1.HealthResponse.last_reconcile_at:type_name -> google.protobuf.Timestamp
 	35,  // 41: ngfw.v1.InterfaceStateResponse.interfaces:type_name -> ngfw.v1.InterfaceState
-	634, // 42: ngfw.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 42: ngfw.v1.InterfaceStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	293, // 43: ngfw.v1.InterfaceState.pppoe:type_name -> ngfw.v1.PppoeSessionState
 	37,  // 44: ngfw.v1.DesiredState.system:type_name -> ngfw.v1.SystemConfig
 	40,  // 45: ngfw.v1.DesiredState.dataplane:type_name -> ngfw.v1.DataplaneConfig
-	498, // 46: ngfw.v1.DesiredState.interfaces:type_name -> ngfw.v1.DesiredState.InterfacesEntry
-	499, // 47: ngfw.v1.DesiredState.vrfs:type_name -> ngfw.v1.DesiredState.VrfsEntry
+	501, // 46: ngfw.v1.DesiredState.interfaces:type_name -> ngfw.v1.DesiredState.InterfacesEntry
+	502, // 47: ngfw.v1.DesiredState.vrfs:type_name -> ngfw.v1.DesiredState.VrfsEntry
 	48,  // 48: ngfw.v1.DesiredState.routing:type_name -> ngfw.v1.RoutingConfig
 	142, // 49: ngfw.v1.DesiredState.nat:type_name -> ngfw.v1.NatConfig
 	161, // 50: ngfw.v1.DesiredState.objects:type_name -> ngfw.v1.ObjectsConfig
@@ -52158,10 +52390,10 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	128, // 57: ngfw.v1.DesiredState.security:type_name -> ngfw.v1.SecurityConfig
 	38,  // 58: ngfw.v1.SystemConfig.banner:type_name -> ngfw.v1.SystemBanner
 	39,  // 59: ngfw.v1.SystemConfig.dns:type_name -> ngfw.v1.SystemDns
-	500, // 60: ngfw.v1.DataplaneConfig.devices:type_name -> ngfw.v1.DataplaneConfig.DevicesEntry
+	503, // 60: ngfw.v1.DataplaneConfig.devices:type_name -> ngfw.v1.DataplaneConfig.DevicesEntry
 	41,  // 61: ngfw.v1.DataplaneConfig.plugins:type_name -> ngfw.v1.PluginSet
-	501, // 62: ngfw.v1.PluginSet.switches:type_name -> ngfw.v1.PluginSet.SwitchesEntry
-	502, // 63: ngfw.v1.Interface.subinterfaces:type_name -> ngfw.v1.Interface.SubinterfacesEntry
+	504, // 62: ngfw.v1.PluginSet.switches:type_name -> ngfw.v1.PluginSet.SwitchesEntry
+	505, // 63: ngfw.v1.Interface.subinterfaces:type_name -> ngfw.v1.Interface.SubinterfacesEntry
 	45,  // 64: ngfw.v1.Interface.dhcp_client:type_name -> ngfw.v1.DhcpClient
 	206, // 65: ngfw.v1.Interface.bond:type_name -> ngfw.v1.Bond
 	214, // 66: ngfw.v1.Interface.l2:type_name -> ngfw.v1.BridgeL2Port
@@ -52196,14 +52428,14 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	50,  // 95: ngfw.v1.MulticastConfig.igmp:type_name -> ngfw.v1.IgmpConfig
 	54,  // 96: ngfw.v1.MulticastConfig.mroutes:type_name -> ngfw.v1.Mroute
 	56,  // 97: ngfw.v1.MulticastConfig.pim:type_name -> ngfw.v1.PimConfig
-	503, // 98: ngfw.v1.IgmpConfig.interfaces:type_name -> ngfw.v1.IgmpConfig.InterfacesEntry
-	504, // 99: ngfw.v1.IgmpConfig.proxies:type_name -> ngfw.v1.IgmpConfig.ProxiesEntry
+	506, // 98: ngfw.v1.IgmpConfig.interfaces:type_name -> ngfw.v1.IgmpConfig.InterfacesEntry
+	507, // 99: ngfw.v1.IgmpConfig.proxies:type_name -> ngfw.v1.IgmpConfig.ProxiesEntry
 	52,  // 100: ngfw.v1.IgmpInterface.joins:type_name -> ngfw.v1.IgmpJoin
 	55,  // 101: ngfw.v1.Mroute.paths:type_name -> ngfw.v1.MroutePath
 	57,  // 102: ngfw.v1.PimConfig.rp:type_name -> ngfw.v1.PimRp
 	59,  // 103: ngfw.v1.StaticRoute.next_hops:type_name -> ngfw.v1.NextHop
-	505, // 104: ngfw.v1.RoutingPolicy.prefix_lists:type_name -> ngfw.v1.RoutingPolicy.PrefixListsEntry
-	506, // 105: ngfw.v1.RoutingPolicy.route_maps:type_name -> ngfw.v1.RoutingPolicy.RouteMapsEntry
+	508, // 104: ngfw.v1.RoutingPolicy.prefix_lists:type_name -> ngfw.v1.RoutingPolicy.PrefixListsEntry
+	509, // 105: ngfw.v1.RoutingPolicy.route_maps:type_name -> ngfw.v1.RoutingPolicy.RouteMapsEntry
 	62,  // 106: ngfw.v1.PrefixList.rules:type_name -> ngfw.v1.PrefixListRule
 	64,  // 107: ngfw.v1.RouteMap.entries:type_name -> ngfw.v1.RouteMapEntry
 	65,  // 108: ngfw.v1.RouteMapEntry.match:type_name -> ngfw.v1.RouteMapMatch
@@ -52218,31 +52450,31 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	69,  // 117: ngfw.v1.BgpAfi.ipv6_unicast:type_name -> ngfw.v1.BgpAddressFamily
 	70,  // 118: ngfw.v1.BgpPeerGroup.afi:type_name -> ngfw.v1.BgpAfi
 	70,  // 119: ngfw.v1.BgpNeighbor.afi:type_name -> ngfw.v1.BgpAfi
-	507, // 120: ngfw.v1.BgpConfig.peer_groups:type_name -> ngfw.v1.BgpConfig.PeerGroupsEntry
-	508, // 121: ngfw.v1.BgpConfig.neighbors:type_name -> ngfw.v1.BgpConfig.NeighborsEntry
+	510, // 120: ngfw.v1.BgpConfig.peer_groups:type_name -> ngfw.v1.BgpConfig.PeerGroupsEntry
+	511, // 121: ngfw.v1.BgpConfig.neighbors:type_name -> ngfw.v1.BgpConfig.NeighborsEntry
 	73,  // 122: ngfw.v1.BgpConfig.networks:type_name -> ngfw.v1.BgpNetwork
 	68,  // 123: ngfw.v1.BgpConfig.redistribute:type_name -> ngfw.v1.Redistribute
 	77,  // 124: ngfw.v1.OspfInterface.auth:type_name -> ngfw.v1.OspfAuth
-	509, // 125: ngfw.v1.Ospf6Config.areas:type_name -> ngfw.v1.Ospf6Config.AreasEntry
-	510, // 126: ngfw.v1.Ospf6Config.interfaces:type_name -> ngfw.v1.Ospf6Config.InterfacesEntry
+	512, // 125: ngfw.v1.Ospf6Config.areas:type_name -> ngfw.v1.Ospf6Config.AreasEntry
+	513, // 126: ngfw.v1.Ospf6Config.interfaces:type_name -> ngfw.v1.Ospf6Config.InterfacesEntry
 	68,  // 127: ngfw.v1.Ospf6Config.redistribute:type_name -> ngfw.v1.Redistribute
-	511, // 128: ngfw.v1.OspfConfig.areas:type_name -> ngfw.v1.OspfConfig.AreasEntry
-	512, // 129: ngfw.v1.OspfConfig.interfaces:type_name -> ngfw.v1.OspfConfig.InterfacesEntry
+	514, // 128: ngfw.v1.OspfConfig.areas:type_name -> ngfw.v1.OspfConfig.AreasEntry
+	515, // 129: ngfw.v1.OspfConfig.interfaces:type_name -> ngfw.v1.OspfConfig.InterfacesEntry
 	68,  // 130: ngfw.v1.OspfConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	513, // 131: ngfw.v1.IsisConfig.interfaces:type_name -> ngfw.v1.IsisConfig.InterfacesEntry
+	516, // 131: ngfw.v1.IsisConfig.interfaces:type_name -> ngfw.v1.IsisConfig.InterfacesEntry
 	68,  // 132: ngfw.v1.IsisConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	514, // 133: ngfw.v1.RipConfig.interfaces:type_name -> ngfw.v1.RipConfig.InterfacesEntry
+	517, // 133: ngfw.v1.RipConfig.interfaces:type_name -> ngfw.v1.RipConfig.InterfacesEntry
 	68,  // 134: ngfw.v1.RipConfig.redistribute:type_name -> ngfw.v1.Redistribute
-	515, // 135: ngfw.v1.RipngConfig.interfaces:type_name -> ngfw.v1.RipngConfig.InterfacesEntry
+	518, // 135: ngfw.v1.RipngConfig.interfaces:type_name -> ngfw.v1.RipngConfig.InterfacesEntry
 	68,  // 136: ngfw.v1.RipngConfig.redistribute:type_name -> ngfw.v1.Redistribute
 	86,  // 137: ngfw.v1.BfdConfig.sessions:type_name -> ngfw.v1.BfdSession
-	516, // 138: ngfw.v1.TunnelsConfig.gre:type_name -> ngfw.v1.TunnelsConfig.GreEntry
-	517, // 139: ngfw.v1.TunnelsConfig.vxlan:type_name -> ngfw.v1.TunnelsConfig.VxlanEntry
-	518, // 140: ngfw.v1.TunnelsConfig.ipip:type_name -> ngfw.v1.TunnelsConfig.IpipEntry
-	519, // 141: ngfw.v1.TunnelsConfig.vxlan_gpe:type_name -> ngfw.v1.TunnelsConfig.VxlanGpeEntry
-	520, // 142: ngfw.v1.TunnelsConfig.gtpu:type_name -> ngfw.v1.TunnelsConfig.GtpuEntry
-	521, // 143: ngfw.v1.TunnelsConfig.l2tpv3:type_name -> ngfw.v1.TunnelsConfig.L2tpv3Entry
-	522, // 144: ngfw.v1.TunnelsConfig.pppoe:type_name -> ngfw.v1.TunnelsConfig.PppoeEntry
+	519, // 138: ngfw.v1.TunnelsConfig.gre:type_name -> ngfw.v1.TunnelsConfig.GreEntry
+	520, // 139: ngfw.v1.TunnelsConfig.vxlan:type_name -> ngfw.v1.TunnelsConfig.VxlanEntry
+	521, // 140: ngfw.v1.TunnelsConfig.ipip:type_name -> ngfw.v1.TunnelsConfig.IpipEntry
+	522, // 141: ngfw.v1.TunnelsConfig.vxlan_gpe:type_name -> ngfw.v1.TunnelsConfig.VxlanGpeEntry
+	523, // 142: ngfw.v1.TunnelsConfig.gtpu:type_name -> ngfw.v1.TunnelsConfig.GtpuEntry
+	524, // 143: ngfw.v1.TunnelsConfig.l2tpv3:type_name -> ngfw.v1.TunnelsConfig.L2tpv3Entry
+	525, // 144: ngfw.v1.TunnelsConfig.pppoe:type_name -> ngfw.v1.TunnelsConfig.PppoeEntry
 	423, // 145: ngfw.v1.TunnelsConfig.lisp:type_name -> ngfw.v1.LispConfig
 	487, // 146: ngfw.v1.IpipTunnel.sixrd:type_name -> ngfw.v1.IpipSixrd
 	94,  // 147: ngfw.v1.ServicesConfig.dhcp:type_name -> ngfw.v1.DhcpService
@@ -52256,16 +52488,16 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	365, // 155: ngfw.v1.ServicesConfig.lb:type_name -> ngfw.v1.LbService
 	258, // 156: ngfw.v1.ServicesConfig.auto_sdl:type_name -> ngfw.v1.AutoSdlConfig
 	232, // 157: ngfw.v1.ServicesConfig.nsim:type_name -> ngfw.v1.NsimService
-	523, // 158: ngfw.v1.DhcpService.servers:type_name -> ngfw.v1.DhcpService.ServersEntry
-	524, // 159: ngfw.v1.DhcpService.relays:type_name -> ngfw.v1.DhcpService.RelaysEntry
+	526, // 158: ngfw.v1.DhcpService.servers:type_name -> ngfw.v1.DhcpService.ServersEntry
+	527, // 159: ngfw.v1.DhcpService.relays:type_name -> ngfw.v1.DhcpService.RelaysEntry
 	95,  // 160: ngfw.v1.DhcpReservation.options:type_name -> ngfw.v1.DhcpOption
 	96,  // 161: ngfw.v1.DhcpSubnet.pools:type_name -> ngfw.v1.DhcpPool
 	95,  // 162: ngfw.v1.DhcpSubnet.options:type_name -> ngfw.v1.DhcpOption
-	525, // 163: ngfw.v1.DhcpSubnet.reservations:type_name -> ngfw.v1.DhcpSubnet.ReservationsEntry
-	526, // 164: ngfw.v1.DhcpServer.subnets:type_name -> ngfw.v1.DhcpServer.SubnetsEntry
+	528, // 163: ngfw.v1.DhcpSubnet.reservations:type_name -> ngfw.v1.DhcpSubnet.ReservationsEntry
+	529, // 164: ngfw.v1.DhcpServer.subnets:type_name -> ngfw.v1.DhcpServer.SubnetsEntry
 	95,  // 165: ngfw.v1.DhcpServer.options:type_name -> ngfw.v1.DhcpOption
-	528, // 166: ngfw.v1.DnsService.resolvers:type_name -> ngfw.v1.DnsService.ResolversEntry
-	527, // 167: ngfw.v1.DnsService.vpp_cache:type_name -> ngfw.v1.DnsService.VppCache
+	531, // 166: ngfw.v1.DnsService.resolvers:type_name -> ngfw.v1.DnsService.ResolversEntry
+	530, // 167: ngfw.v1.DnsService.vpp_cache:type_name -> ngfw.v1.DnsService.VppCache
 	102, // 168: ngfw.v1.DnsForwardZone.forwarders:type_name -> ngfw.v1.DnsUpstream
 	104, // 169: ngfw.v1.DnsLocalZone.records:type_name -> ngfw.v1.DnsRecord
 	93,  // 170: ngfw.v1.DnsResolver.listen:type_name -> ngfw.v1.SocketAddress
@@ -52273,40 +52505,40 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	102, // 172: ngfw.v1.DnsResolver.forwarders:type_name -> ngfw.v1.DnsUpstream
 	103, // 173: ngfw.v1.DnsResolver.forward_zones:type_name -> ngfw.v1.DnsForwardZone
 	105, // 174: ngfw.v1.DnsResolver.local_zones:type_name -> ngfw.v1.DnsLocalZone
-	529, // 175: ngfw.v1.DnsResolver.dnssec:type_name -> ngfw.v1.DnsResolver.Dnssec
-	530, // 176: ngfw.v1.DnsResolver.cache:type_name -> ngfw.v1.DnsResolver.Cache
+	532, // 175: ngfw.v1.DnsResolver.dnssec:type_name -> ngfw.v1.DnsResolver.Dnssec
+	533, // 176: ngfw.v1.DnsResolver.cache:type_name -> ngfw.v1.DnsResolver.Cache
 	93,  // 177: ngfw.v1.SnmpService.listen:type_name -> ngfw.v1.SocketAddress
-	534, // 178: ngfw.v1.SnmpService.communities:type_name -> ngfw.v1.SnmpService.CommunitiesEntry
-	535, // 179: ngfw.v1.SnmpService.v3_users:type_name -> ngfw.v1.SnmpService.V3UsersEntry
-	533, // 180: ngfw.v1.SnmpService.trap_receivers:type_name -> ngfw.v1.SnmpService.TrapReceiver
-	536, // 181: ngfw.v1.SnmpService.views:type_name -> ngfw.v1.SnmpService.ViewsEntry
+	537, // 178: ngfw.v1.SnmpService.communities:type_name -> ngfw.v1.SnmpService.CommunitiesEntry
+	538, // 179: ngfw.v1.SnmpService.v3_users:type_name -> ngfw.v1.SnmpService.V3UsersEntry
+	536, // 180: ngfw.v1.SnmpService.trap_receivers:type_name -> ngfw.v1.SnmpService.TrapReceiver
+	539, // 181: ngfw.v1.SnmpService.views:type_name -> ngfw.v1.SnmpService.ViewsEntry
 	391, // 182: ngfw.v1.SnmpService.monitors:type_name -> ngfw.v1.SnmpMonitors
 	394, // 183: ngfw.v1.SnmpService.subagent:type_name -> ngfw.v1.SnmpSubagent
-	537, // 184: ngfw.v1.LldpService.interfaces:type_name -> ngfw.v1.LldpService.Interface
-	541, // 185: ngfw.v1.IpfixService.exporters:type_name -> ngfw.v1.IpfixService.ExportersEntry
-	539, // 186: ngfw.v1.IpfixService.flowprobe:type_name -> ngfw.v1.IpfixService.Flowprobe
-	540, // 187: ngfw.v1.IpfixService.sflow:type_name -> ngfw.v1.IpfixService.Sflow
-	543, // 188: ngfw.v1.NtpService.servers:type_name -> ngfw.v1.NtpService.Server
-	544, // 189: ngfw.v1.NtpService.rate_limit:type_name -> ngfw.v1.NtpService.RateLimit
-	545, // 190: ngfw.v1.NtpService.nts_server:type_name -> ngfw.v1.NtpService.NtsServer
-	546, // 191: ngfw.v1.NtpService.makestep:type_name -> ngfw.v1.NtpService.Makestep
-	547, // 192: ngfw.v1.QosService.policers:type_name -> ngfw.v1.QosService.PolicersEntry
-	548, // 193: ngfw.v1.QosService.shapers:type_name -> ngfw.v1.QosService.ShapersEntry
-	549, // 194: ngfw.v1.QosService.maps:type_name -> ngfw.v1.QosService.MapsEntry
-	550, // 195: ngfw.v1.QosService.interfaces:type_name -> ngfw.v1.QosService.InterfacesEntry
+	540, // 184: ngfw.v1.LldpService.interfaces:type_name -> ngfw.v1.LldpService.Interface
+	544, // 185: ngfw.v1.IpfixService.exporters:type_name -> ngfw.v1.IpfixService.ExportersEntry
+	542, // 186: ngfw.v1.IpfixService.flowprobe:type_name -> ngfw.v1.IpfixService.Flowprobe
+	543, // 187: ngfw.v1.IpfixService.sflow:type_name -> ngfw.v1.IpfixService.Sflow
+	546, // 188: ngfw.v1.NtpService.servers:type_name -> ngfw.v1.NtpService.Server
+	547, // 189: ngfw.v1.NtpService.rate_limit:type_name -> ngfw.v1.NtpService.RateLimit
+	548, // 190: ngfw.v1.NtpService.nts_server:type_name -> ngfw.v1.NtpService.NtsServer
+	549, // 191: ngfw.v1.NtpService.makestep:type_name -> ngfw.v1.NtpService.Makestep
+	550, // 192: ngfw.v1.QosService.policers:type_name -> ngfw.v1.QosService.PolicersEntry
+	551, // 193: ngfw.v1.QosService.shapers:type_name -> ngfw.v1.QosService.ShapersEntry
+	552, // 194: ngfw.v1.QosService.maps:type_name -> ngfw.v1.QosService.MapsEntry
+	553, // 195: ngfw.v1.QosService.interfaces:type_name -> ngfw.v1.QosService.InterfacesEntry
 	113, // 196: ngfw.v1.QosPolicer.conform_action:type_name -> ngfw.v1.QosPolicerAction
 	113, // 197: ngfw.v1.QosPolicer.exceed_action:type_name -> ngfw.v1.QosPolicerAction
 	113, // 198: ngfw.v1.QosPolicer.violate_action:type_name -> ngfw.v1.QosPolicerAction
-	551, // 199: ngfw.v1.QosMap.rows:type_name -> ngfw.v1.QosMap.Rows
-	552, // 200: ngfw.v1.QosInterface.policer:type_name -> ngfw.v1.QosInterface.Policer
-	553, // 201: ngfw.v1.QosInterface.store:type_name -> ngfw.v1.QosInterface.Store
-	554, // 202: ngfw.v1.QosInterface.mark:type_name -> ngfw.v1.QosInterface.Mark
-	555, // 203: ngfw.v1.HaConfig.vrrp:type_name -> ngfw.v1.HaConfig.VrrpEntry
+	554, // 199: ngfw.v1.QosMap.rows:type_name -> ngfw.v1.QosMap.Rows
+	555, // 200: ngfw.v1.QosInterface.policer:type_name -> ngfw.v1.QosInterface.Policer
+	556, // 201: ngfw.v1.QosInterface.store:type_name -> ngfw.v1.QosInterface.Store
+	557, // 202: ngfw.v1.QosInterface.mark:type_name -> ngfw.v1.QosInterface.Mark
+	558, // 203: ngfw.v1.HaConfig.vrrp:type_name -> ngfw.v1.HaConfig.VrrpEntry
 	121, // 204: ngfw.v1.HaConfig.cluster:type_name -> ngfw.v1.HaCluster
-	556, // 205: ngfw.v1.VrrpInstance.unicast:type_name -> ngfw.v1.VrrpInstance.Unicast
-	557, // 206: ngfw.v1.VrrpInstance.track:type_name -> ngfw.v1.VrrpInstance.Track
-	558, // 207: ngfw.v1.HaCluster.peers:type_name -> ngfw.v1.HaCluster.Peer
-	559, // 208: ngfw.v1.HaCluster.state_sync:type_name -> ngfw.v1.HaCluster.StateSync
+	559, // 205: ngfw.v1.VrrpInstance.unicast:type_name -> ngfw.v1.VrrpInstance.Unicast
+	560, // 206: ngfw.v1.VrrpInstance.track:type_name -> ngfw.v1.VrrpInstance.Track
+	561, // 207: ngfw.v1.HaCluster.peers:type_name -> ngfw.v1.HaCluster.Peer
+	562, // 208: ngfw.v1.HaCluster.state_sync:type_name -> ngfw.v1.HaCluster.StateSync
 	134, // 209: ngfw.v1.ManagementConfig.users:type_name -> ngfw.v1.ManagementUser
 	135, // 210: ngfw.v1.ManagementConfig.aaa:type_name -> ngfw.v1.ManagementAaa
 	140, // 211: ngfw.v1.ManagementConfig.tls:type_name -> ngfw.v1.ManagementTls
@@ -52320,7 +52552,7 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	126, // 219: ngfw.v1.NotificationChannel.webhook:type_name -> ngfw.v1.NotificationWebhook
 	132, // 220: ngfw.v1.SecurityConfig.auto_block:type_name -> ngfw.v1.AutoBlock
 	130, // 221: ngfw.v1.AutoBlockSetRequest.entries:type_name -> ngfw.v1.AutoBlockRuntimeEntry
-	634, // 222: ngfw.v1.AutoBlockRuntimeEntry.expires_at:type_name -> google.protobuf.Timestamp
+	637, // 222: ngfw.v1.AutoBlockRuntimeEntry.expires_at:type_name -> google.protobuf.Timestamp
 	133, // 223: ngfw.v1.AutoBlock.rules:type_name -> ngfw.v1.AutoBlockRule
 	136, // 224: ngfw.v1.ManagementAaa.radius:type_name -> ngfw.v1.AaaRadius
 	138, // 225: ngfw.v1.ManagementAaa.tacacs:type_name -> ngfw.v1.AaaTacacs
@@ -52346,51 +52578,51 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	160, // 245: ngfw.v1.NatConfig.cnat:type_name -> ngfw.v1.CnatConfig
 	327, // 246: ngfw.v1.NatConfig.pnat:type_name -> ngfw.v1.PnatConfig
 	474, // 247: ngfw.v1.NatConfig.nat46:type_name -> ngfw.v1.Nat46Config
-	560, // 248: ngfw.v1.NatStaticMapping.local:type_name -> ngfw.v1.NatStaticMapping.Local
-	561, // 249: ngfw.v1.NatStaticMapping.external:type_name -> ngfw.v1.NatStaticMapping.External
-	562, // 250: ngfw.v1.NatLoadBalancedMapping.external:type_name -> ngfw.v1.NatLoadBalancedMapping.External
-	563, // 251: ngfw.v1.NatLoadBalancedMapping.locals:type_name -> ngfw.v1.NatLoadBalancedMapping.Local
-	564, // 252: ngfw.v1.Nat64Config.prefixes:type_name -> ngfw.v1.Nat64Config.Prefix
-	565, // 253: ngfw.v1.Nat64Config.pools:type_name -> ngfw.v1.Nat64Config.Pool
-	566, // 254: ngfw.v1.Nat64Config.static_bibs:type_name -> ngfw.v1.Nat64Config.StaticBib
+	563, // 248: ngfw.v1.NatStaticMapping.local:type_name -> ngfw.v1.NatStaticMapping.Local
+	564, // 249: ngfw.v1.NatStaticMapping.external:type_name -> ngfw.v1.NatStaticMapping.External
+	565, // 250: ngfw.v1.NatLoadBalancedMapping.external:type_name -> ngfw.v1.NatLoadBalancedMapping.External
+	566, // 251: ngfw.v1.NatLoadBalancedMapping.locals:type_name -> ngfw.v1.NatLoadBalancedMapping.Local
+	567, // 252: ngfw.v1.Nat64Config.prefixes:type_name -> ngfw.v1.Nat64Config.Prefix
+	568, // 253: ngfw.v1.Nat64Config.pools:type_name -> ngfw.v1.Nat64Config.Pool
+	569, // 254: ngfw.v1.Nat64Config.static_bibs:type_name -> ngfw.v1.Nat64Config.StaticBib
 	143, // 255: ngfw.v1.Nat64Config.timeouts:type_name -> ngfw.v1.NatTimeouts
-	568, // 256: ngfw.v1.Nat66Config.static_mappings:type_name -> ngfw.v1.Nat66Config.StaticMapping
-	569, // 257: ngfw.v1.Nptv6Config.bindings:type_name -> ngfw.v1.Nptv6Config.Binding
-	570, // 258: ngfw.v1.Det44Config.mappings:type_name -> ngfw.v1.Det44Config.Mapping
+	571, // 256: ngfw.v1.Nat66Config.static_mappings:type_name -> ngfw.v1.Nat66Config.StaticMapping
+	572, // 257: ngfw.v1.Nptv6Config.bindings:type_name -> ngfw.v1.Nptv6Config.Binding
+	573, // 258: ngfw.v1.Det44Config.mappings:type_name -> ngfw.v1.Det44Config.Mapping
 	143, // 259: ngfw.v1.Det44Config.timeouts:type_name -> ngfw.v1.NatTimeouts
-	571, // 260: ngfw.v1.DsliteConfig.aftr:type_name -> ngfw.v1.DsliteConfig.Endpoint
-	571, // 261: ngfw.v1.DsliteConfig.b4:type_name -> ngfw.v1.DsliteConfig.Endpoint
-	572, // 262: ngfw.v1.DsliteConfig.pools:type_name -> ngfw.v1.DsliteConfig.Pool
-	573, // 263: ngfw.v1.MapDomain.rules:type_name -> ngfw.v1.MapDomain.Rule
-	574, // 264: ngfw.v1.MapParameters.fragmentation:type_name -> ngfw.v1.MapParameters.Fragmentation
-	575, // 265: ngfw.v1.MapParameters.security_check:type_name -> ngfw.v1.MapParameters.SecurityCheck
-	576, // 266: ngfw.v1.MapParameters.traffic_class:type_name -> ngfw.v1.MapParameters.TrafficClass
-	577, // 267: ngfw.v1.MapParameters.pre_resolve:type_name -> ngfw.v1.MapParameters.PreResolve
+	574, // 260: ngfw.v1.DsliteConfig.aftr:type_name -> ngfw.v1.DsliteConfig.Endpoint
+	574, // 261: ngfw.v1.DsliteConfig.b4:type_name -> ngfw.v1.DsliteConfig.Endpoint
+	575, // 262: ngfw.v1.DsliteConfig.pools:type_name -> ngfw.v1.DsliteConfig.Pool
+	576, // 263: ngfw.v1.MapDomain.rules:type_name -> ngfw.v1.MapDomain.Rule
+	577, // 264: ngfw.v1.MapParameters.fragmentation:type_name -> ngfw.v1.MapParameters.Fragmentation
+	578, // 265: ngfw.v1.MapParameters.security_check:type_name -> ngfw.v1.MapParameters.SecurityCheck
+	579, // 266: ngfw.v1.MapParameters.traffic_class:type_name -> ngfw.v1.MapParameters.TrafficClass
+	580, // 267: ngfw.v1.MapParameters.pre_resolve:type_name -> ngfw.v1.MapParameters.PreResolve
 	154, // 268: ngfw.v1.MapConfig.domains:type_name -> ngfw.v1.MapDomain
 	155, // 269: ngfw.v1.MapConfig.parameters:type_name -> ngfw.v1.MapParameters
 	156, // 270: ngfw.v1.MapConfig.interfaces:type_name -> ngfw.v1.MapInterface
 	158, // 271: ngfw.v1.CnatTranslation.vip:type_name -> ngfw.v1.CnatEndpoint
 	158, // 272: ngfw.v1.CnatTranslation.backends:type_name -> ngfw.v1.CnatEndpoint
 	159, // 273: ngfw.v1.CnatConfig.translations:type_name -> ngfw.v1.CnatTranslation
-	578, // 274: ngfw.v1.CnatConfig.snat:type_name -> ngfw.v1.CnatConfig.Snat
-	581, // 275: ngfw.v1.ObjectsConfig.addresses:type_name -> ngfw.v1.ObjectsConfig.AddressesEntry
-	582, // 276: ngfw.v1.ObjectsConfig.address_groups:type_name -> ngfw.v1.ObjectsConfig.AddressGroupsEntry
-	583, // 277: ngfw.v1.ObjectsConfig.services:type_name -> ngfw.v1.ObjectsConfig.ServicesEntry
-	584, // 278: ngfw.v1.ObjectsConfig.service_groups:type_name -> ngfw.v1.ObjectsConfig.ServiceGroupsEntry
-	585, // 279: ngfw.v1.ObjectsConfig.schedules:type_name -> ngfw.v1.ObjectsConfig.SchedulesEntry
-	586, // 280: ngfw.v1.ObjectsConfig.zones:type_name -> ngfw.v1.ObjectsConfig.ZonesEntry
-	587, // 281: ngfw.v1.ObjectsConfig.tags:type_name -> ngfw.v1.ObjectsConfig.TagsEntry
+	581, // 274: ngfw.v1.CnatConfig.snat:type_name -> ngfw.v1.CnatConfig.Snat
+	584, // 275: ngfw.v1.ObjectsConfig.addresses:type_name -> ngfw.v1.ObjectsConfig.AddressesEntry
+	585, // 276: ngfw.v1.ObjectsConfig.address_groups:type_name -> ngfw.v1.ObjectsConfig.AddressGroupsEntry
+	586, // 277: ngfw.v1.ObjectsConfig.services:type_name -> ngfw.v1.ObjectsConfig.ServicesEntry
+	587, // 278: ngfw.v1.ObjectsConfig.service_groups:type_name -> ngfw.v1.ObjectsConfig.ServiceGroupsEntry
+	588, // 279: ngfw.v1.ObjectsConfig.schedules:type_name -> ngfw.v1.ObjectsConfig.SchedulesEntry
+	589, // 280: ngfw.v1.ObjectsConfig.zones:type_name -> ngfw.v1.ObjectsConfig.ZonesEntry
+	590, // 281: ngfw.v1.ObjectsConfig.tags:type_name -> ngfw.v1.ObjectsConfig.TagsEntry
 	164, // 282: ngfw.v1.ServiceSpec.tcp_flags:type_name -> ngfw.v1.TcpFlags
 	164, // 283: ngfw.v1.ServiceObject.tcp_flags:type_name -> ngfw.v1.TcpFlags
-	588, // 284: ngfw.v1.AclConfig.lists:type_name -> ngfw.v1.AclConfig.ListsEntry
-	589, // 285: ngfw.v1.AclConfig.macip:type_name -> ngfw.v1.AclConfig.MacipEntry
-	590, // 286: ngfw.v1.AclConfig.host:type_name -> ngfw.v1.AclConfig.HostEntry
+	591, // 284: ngfw.v1.AclConfig.lists:type_name -> ngfw.v1.AclConfig.ListsEntry
+	592, // 285: ngfw.v1.AclConfig.macip:type_name -> ngfw.v1.AclConfig.MacipEntry
+	593, // 286: ngfw.v1.AclConfig.host:type_name -> ngfw.v1.AclConfig.HostEntry
 	184, // 287: ngfw.v1.AclConfig.attachments:type_name -> ngfw.v1.AclAttachment
 	185, // 288: ngfw.v1.AclConfig.macip_attachments:type_name -> ngfw.v1.MacipAttachment
 	186, // 289: ngfw.v1.AclConfig.host_attachments:type_name -> ngfw.v1.HostAttachment
 	269, // 290: ngfw.v1.AclConfig.host_settings:type_name -> ngfw.v1.HostAclSettings
 	172, // 291: ngfw.v1.AclConfig.global_blocking:type_name -> ngfw.v1.GlobalBlocking
-	591, // 292: ngfw.v1.GlobalBlocking.lists:type_name -> ngfw.v1.GlobalBlocking.ListsEntry
+	594, // 292: ngfw.v1.GlobalBlocking.lists:type_name -> ngfw.v1.GlobalBlocking.ListsEntry
 	173, // 293: ngfw.v1.GlobalBlockingList.source:type_name -> ngfw.v1.GlobalBlockingSource
 	165, // 294: ngfw.v1.ServiceMatch.spec:type_name -> ngfw.v1.ServiceSpec
 	175, // 295: ngfw.v1.AclRule.source:type_name -> ngfw.v1.AddressMatch
@@ -52406,76 +52638,76 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	196, // 305: ngfw.v1.VpnConfig.ipsec:type_name -> ngfw.v1.IpsecConfig
 	199, // 306: ngfw.v1.VpnConfig.wireguard:type_name -> ngfw.v1.WireguardConfig
 	202, // 307: ngfw.v1.VpnConfig.pki:type_name -> ngfw.v1.PkiConfig
-	592, // 308: ngfw.v1.VpnConfig.remote_access:type_name -> ngfw.v1.VpnConfig.RemoteAccessEntry
+	595, // 308: ngfw.v1.VpnConfig.remote_access:type_name -> ngfw.v1.VpnConfig.RemoteAccessEntry
 	188, // 309: ngfw.v1.IpsecProposal.ike:type_name -> ngfw.v1.IkeProposal
 	189, // 310: ngfw.v1.IpsecProposal.esp:type_name -> ngfw.v1.EspProposal
 	191, // 311: ngfw.v1.IpsecTunnel.auth:type_name -> ngfw.v1.IpsecAuth
 	192, // 312: ngfw.v1.IpsecTunnel.dpd:type_name -> ngfw.v1.IpsecDpd
 	193, // 313: ngfw.v1.IpsecTunnel.rekey:type_name -> ngfw.v1.IpsecRekey
-	593, // 314: ngfw.v1.IpsecTunnel.route_based:type_name -> ngfw.v1.IpsecTunnel.RouteBased
+	596, // 314: ngfw.v1.IpsecTunnel.route_based:type_name -> ngfw.v1.IpsecTunnel.RouteBased
 	195, // 315: ngfw.v1.IpsecConfig.settings:type_name -> ngfw.v1.IpsecSettings
-	594, // 316: ngfw.v1.IpsecConfig.proposals:type_name -> ngfw.v1.IpsecConfig.ProposalsEntry
-	595, // 317: ngfw.v1.IpsecConfig.tunnels:type_name -> ngfw.v1.IpsecConfig.TunnelsEntry
-	596, // 318: ngfw.v1.WireguardPeer.endpoint:type_name -> ngfw.v1.WireguardPeer.Endpoint
-	597, // 319: ngfw.v1.WireguardInterface.peers:type_name -> ngfw.v1.WireguardInterface.PeersEntry
-	598, // 320: ngfw.v1.WireguardConfig.interfaces:type_name -> ngfw.v1.WireguardConfig.InterfacesEntry
-	599, // 321: ngfw.v1.PkiCa.crl:type_name -> ngfw.v1.PkiCa.Crl
+	597, // 316: ngfw.v1.IpsecConfig.proposals:type_name -> ngfw.v1.IpsecConfig.ProposalsEntry
+	598, // 317: ngfw.v1.IpsecConfig.tunnels:type_name -> ngfw.v1.IpsecConfig.TunnelsEntry
+	599, // 318: ngfw.v1.WireguardPeer.endpoint:type_name -> ngfw.v1.WireguardPeer.Endpoint
+	600, // 319: ngfw.v1.WireguardInterface.peers:type_name -> ngfw.v1.WireguardInterface.PeersEntry
+	601, // 320: ngfw.v1.WireguardConfig.interfaces:type_name -> ngfw.v1.WireguardConfig.InterfacesEntry
+	602, // 321: ngfw.v1.PkiCa.crl:type_name -> ngfw.v1.PkiCa.Crl
 	342, // 322: ngfw.v1.PkiCa.key_spec:type_name -> ngfw.v1.PkiKeySpec
 	344, // 323: ngfw.v1.PkiCa.issued:type_name -> ngfw.v1.PkiIssued
-	600, // 324: ngfw.v1.PkiCertificate.acme:type_name -> ngfw.v1.PkiCertificate.Acme
+	603, // 324: ngfw.v1.PkiCertificate.acme:type_name -> ngfw.v1.PkiCertificate.Acme
 	343, // 325: ngfw.v1.PkiCertificate.csr:type_name -> ngfw.v1.PkiCsr
 	344, // 326: ngfw.v1.PkiCertificate.issued:type_name -> ngfw.v1.PkiIssued
-	602, // 327: ngfw.v1.PkiConfig.cas:type_name -> ngfw.v1.PkiConfig.CasEntry
-	603, // 328: ngfw.v1.PkiConfig.certificates:type_name -> ngfw.v1.PkiConfig.CertificatesEntry
-	601, // 329: ngfw.v1.PkiConfig.hsm:type_name -> ngfw.v1.PkiConfig.Hsm
+	605, // 327: ngfw.v1.PkiConfig.cas:type_name -> ngfw.v1.PkiConfig.CasEntry
+	606, // 328: ngfw.v1.PkiConfig.certificates:type_name -> ngfw.v1.PkiConfig.CertificatesEntry
+	604, // 329: ngfw.v1.PkiConfig.hsm:type_name -> ngfw.v1.PkiConfig.Hsm
 	203, // 330: ngfw.v1.RemoteAccessProfile.pools:type_name -> ngfw.v1.RemoteAccessPool
 	204, // 331: ngfw.v1.RemoteAccessProfile.users:type_name -> ngfw.v1.RemoteAccessUser
-	604, // 332: ngfw.v1.RemoteAccessProfile.radius:type_name -> ngfw.v1.RemoteAccessProfile.Radius
+	607, // 332: ngfw.v1.RemoteAccessProfile.radius:type_name -> ngfw.v1.RemoteAccessProfile.Radius
 	192, // 333: ngfw.v1.RemoteAccessProfile.dpd:type_name -> ngfw.v1.IpsecDpd
 	193, // 334: ngfw.v1.RemoteAccessProfile.rekey:type_name -> ngfw.v1.IpsecRekey
-	606, // 335: ngfw.v1.Bond.members:type_name -> ngfw.v1.Bond.MembersEntry
+	609, // 335: ngfw.v1.Bond.members:type_name -> ngfw.v1.Bond.MembersEntry
 	210, // 336: ngfw.v1.BondStateResponse.bonds:type_name -> ngfw.v1.BondStatus
-	634, // 337: ngfw.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 337: ngfw.v1.BondStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	211, // 338: ngfw.v1.BondStatus.members:type_name -> ngfw.v1.BondMemberStatus
 	212, // 339: ngfw.v1.BondMemberStatus.lacp:type_name -> ngfw.v1.BondLacpState
 	213, // 340: ngfw.v1.BondLacpState.actor:type_name -> ngfw.v1.BondLacpPort
 	213, // 341: ngfw.v1.BondLacpState.partner:type_name -> ngfw.v1.BondLacpPort
 	215, // 342: ngfw.v1.BridgeL2Port.tag_rewrite:type_name -> ngfw.v1.BridgeL2TagRewrite
-	607, // 343: ngfw.v1.BridgeL2Config.bridge_domains:type_name -> ngfw.v1.BridgeL2Config.BridgeDomainsEntry
-	608, // 344: ngfw.v1.BridgeL2Config.xconnects:type_name -> ngfw.v1.BridgeL2Config.XconnectsEntry
-	609, // 345: ngfw.v1.BridgeL2Config.l3xc:type_name -> ngfw.v1.BridgeL2Config.L3xcEntry
-	610, // 346: ngfw.v1.BridgeL2Config.mac_filters:type_name -> ngfw.v1.BridgeL2Config.MacFiltersEntry
+	610, // 343: ngfw.v1.BridgeL2Config.bridge_domains:type_name -> ngfw.v1.BridgeL2Config.BridgeDomainsEntry
+	611, // 344: ngfw.v1.BridgeL2Config.xconnects:type_name -> ngfw.v1.BridgeL2Config.XconnectsEntry
+	612, // 345: ngfw.v1.BridgeL2Config.l3xc:type_name -> ngfw.v1.BridgeL2Config.L3xcEntry
+	613, // 346: ngfw.v1.BridgeL2Config.mac_filters:type_name -> ngfw.v1.BridgeL2Config.MacFiltersEntry
 	218, // 347: ngfw.v1.BridgeL2Domain.static_macs:type_name -> ngfw.v1.BridgeL2StaticMac
 	221, // 348: ngfw.v1.BridgeL2L3xc.ipv4_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
 	221, // 349: ngfw.v1.BridgeL2L3xc.ipv6_paths:type_name -> ngfw.v1.BridgeL2L3xcPath
 	223, // 350: ngfw.v1.BridgeL2MacFilter.ranges:type_name -> ngfw.v1.BridgeL2MacFilterRange
 	226, // 351: ngfw.v1.BridgeDomainStateResponse.bridge_domains:type_name -> ngfw.v1.BridgeDomainStatus
-	634, // 352: ngfw.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 352: ngfw.v1.BridgeDomainStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	227, // 353: ngfw.v1.BridgeDomainStatus.members:type_name -> ngfw.v1.BridgeDomainMember
 	230, // 354: ngfw.v1.BridgeDomainMacsResponse.macs:type_name -> ngfw.v1.BridgeDomainMac
-	634, // 355: ngfw.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	611, // 356: ngfw.v1.NsimService.cross_connect:type_name -> ngfw.v1.NsimService.CrossConnect
+	637, // 355: ngfw.v1.BridgeDomainMacsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	614, // 356: ngfw.v1.NsimService.cross_connect:type_name -> ngfw.v1.NsimService.CrossConnect
 	235, // 357: ngfw.v1.LldpNeighborsResponse.neighbors:type_name -> ngfw.v1.LldpNeighbor
-	634, // 358: ngfw.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 358: ngfw.v1.LldpNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	239, // 359: ngfw.v1.ListRoutesResponse.routes:type_name -> ngfw.v1.ListRoutesEntry
-	634, // 360: ngfw.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 360: ngfw.v1.ListRoutesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	240, // 361: ngfw.v1.ListRoutesEntry.paths:type_name -> ngfw.v1.ListRoutesPath
-	612, // 362: ngfw.v1.Ipv6Ra.prefixes:type_name -> ngfw.v1.Ipv6Ra.PrefixesEntry
+	615, // 362: ngfw.v1.Ipv6Ra.prefixes:type_name -> ngfw.v1.Ipv6Ra.PrefixesEntry
 	245, // 363: ngfw.v1.NeighborsConfig.static:type_name -> ngfw.v1.StaticNeighbor
 	246, // 364: ngfw.v1.NeighborsConfig.ipv4_limits:type_name -> ngfw.v1.NeighborLimits
 	246, // 365: ngfw.v1.NeighborsConfig.ipv6_limits:type_name -> ngfw.v1.NeighborLimits
 	247, // 366: ngfw.v1.NeighborsConfig.dad:type_name -> ngfw.v1.NeighborDad
 	250, // 367: ngfw.v1.ListNeighborsResponse.neighbors:type_name -> ngfw.v1.NeighborEntry
-	634, // 368: ngfw.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	613, // 369: ngfw.v1.PbrConfig.policies:type_name -> ngfw.v1.PbrConfig.PoliciesEntry
+	637, // 368: ngfw.v1.ListNeighborsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	616, // 369: ngfw.v1.PbrConfig.policies:type_name -> ngfw.v1.PbrConfig.PoliciesEntry
 	257, // 370: ngfw.v1.PbrConfig.attachments:type_name -> ngfw.v1.PbrAttachment
 	256, // 371: ngfw.v1.PbrPolicy.paths:type_name -> ngfw.v1.PbrPath
 	261, // 372: ngfw.v1.FqdnObjectStateResponse.objects:type_name -> ngfw.v1.FqdnObjectState
-	634, // 373: ngfw.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	634, // 374: ngfw.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
-	634, // 375: ngfw.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
+	637, // 373: ngfw.v1.FqdnObjectStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 374: ngfw.v1.FqdnObjectState.last_resolved:type_name -> google.protobuf.Timestamp
+	637, // 375: ngfw.v1.FqdnObjectState.next_refresh:type_name -> google.protobuf.Timestamp
 	263, // 376: ngfw.v1.AclStateRequest.filter:type_name -> ngfw.v1.AclStateFilter
-	634, // 377: ngfw.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 377: ngfw.v1.AclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	265, // 378: ngfw.v1.AclStateResponse.lists:type_name -> ngfw.v1.AclListState
 	266, // 379: ngfw.v1.AclStateResponse.rules:type_name -> ngfw.v1.AclRuleState
 	267, // 380: ngfw.v1.AclStateResponse.interfaces:type_name -> ngfw.v1.AclInterfaceState
@@ -52485,110 +52717,110 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	268, // 384: ngfw.v1.AclInterfaceState.output:type_name -> ngfw.v1.AclBoundAcl
 	268, // 385: ngfw.v1.AclInterfaceState.macip:type_name -> ngfw.v1.AclBoundAcl
 	270, // 386: ngfw.v1.HostAclSettings.anti_lockout:type_name -> ngfw.v1.HostAclAntiLockout
-	634, // 387: ngfw.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 387: ngfw.v1.HostAclStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	273, // 388: ngfw.v1.HostAclStateResponse.sets:type_name -> ngfw.v1.HostAclSetState
 	274, // 389: ngfw.v1.HostAclStateResponse.chains:type_name -> ngfw.v1.HostAclChainState
 	275, // 390: ngfw.v1.HostAclChainState.rules:type_name -> ngfw.v1.HostAclRuleState
 	276, // 391: ngfw.v1.NatSessionsRequest.filter:type_name -> ngfw.v1.NatSessionFilter
 	7,   // 392: ngfw.v1.NatSessionsRequest.variant:type_name -> ngfw.v1.NatSessionVariant
 	278, // 393: ngfw.v1.NatSessionsResponse.sessions:type_name -> ngfw.v1.NatSession
-	634, // 394: ngfw.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 394: ngfw.v1.NatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	7,   // 395: ngfw.v1.NatSessionsResponse.variant:type_name -> ngfw.v1.NatSessionVariant
 	281, // 396: ngfw.v1.NatSummaryResponse.pools:type_name -> ngfw.v1.NatPoolUsage
-	614, // 397: ngfw.v1.NatSummaryResponse.sessions_by_protocol:type_name -> ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
-	634, // 398: ngfw.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	617, // 397: ngfw.v1.NatSummaryResponse.sessions_by_protocol:type_name -> ngfw.v1.NatSummaryResponse.SessionsByProtocolEntry
+	637, // 398: ngfw.v1.NatSummaryResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	7,   // 399: ngfw.v1.NatSessionKillAction.variant:type_name -> ngfw.v1.NatSessionVariant
 	286, // 400: ngfw.v1.WireguardStateResponse.interfaces:type_name -> ngfw.v1.WireguardInterfaceState
-	634, // 401: ngfw.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 401: ngfw.v1.WireguardStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	287, // 402: ngfw.v1.WireguardInterfaceState.peers:type_name -> ngfw.v1.WireguardPeerState
-	634, // 403: ngfw.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
+	637, // 403: ngfw.v1.WireguardPeerState.last_handshake:type_name -> google.protobuf.Timestamp
 	290, // 404: ngfw.v1.Pppoe.reconnect:type_name -> ngfw.v1.PppoeReconnect
-	634, // 405: ngfw.v1.PppoeSessionState.since:type_name -> google.protobuf.Timestamp
-	634, // 406: ngfw.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 405: ngfw.v1.PppoeSessionState.since:type_name -> google.protobuf.Timestamp
+	637, // 406: ngfw.v1.RoutingStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	296, // 407: ngfw.v1.RoutingStateResponse.bgp:type_name -> ngfw.v1.BgpInstanceState
-	615, // 408: ngfw.v1.RoutingStateResponse.rib_counts:type_name -> ngfw.v1.RoutingStateResponse.RibCountsEntry
+	618, // 408: ngfw.v1.RoutingStateResponse.rib_counts:type_name -> ngfw.v1.RoutingStateResponse.RibCountsEntry
 	299, // 409: ngfw.v1.RoutingStateResponse.lcp_pairs:type_name -> ngfw.v1.RoutingLcpPair
-	616, // 410: ngfw.v1.RoutingStateResponse.readers:type_name -> ngfw.v1.RoutingStateResponse.ReadersEntry
+	619, // 410: ngfw.v1.RoutingStateResponse.readers:type_name -> ngfw.v1.RoutingStateResponse.ReadersEntry
 	300, // 411: ngfw.v1.RoutingStateResponse.rib:type_name -> ngfw.v1.RoutingRibEntry
 	297, // 412: ngfw.v1.BgpInstanceState.neighbors:type_name -> ngfw.v1.BgpNeighborState
 	298, // 413: ngfw.v1.BgpNeighborState.afis:type_name -> ngfw.v1.BgpNeighborAfiState
 	301, // 414: ngfw.v1.RoutingRibEntry.next_hops:type_name -> ngfw.v1.RoutingRibNextHop
-	634, // 415: ngfw.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
+	637, // 415: ngfw.v1.DhcpLease.expires_at:type_name -> google.protobuf.Timestamp
 	304, // 416: ngfw.v1.DhcpServerStatus.subnets:type_name -> ngfw.v1.DhcpSubnetUsage
 	303, // 417: ngfw.v1.DhcpLeasesResponse.leases:type_name -> ngfw.v1.DhcpLease
 	305, // 418: ngfw.v1.DhcpLeasesResponse.servers:type_name -> ngfw.v1.DhcpServerStatus
 	306, // 419: ngfw.v1.DhcpLeasesResponse.client:type_name -> ngfw.v1.DhcpClientLease
-	634, // 420: ngfw.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	634, // 421: ngfw.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	617, // 422: ngfw.v1.DnsStateResponse.status:type_name -> ngfw.v1.DnsStateResponse.StatusEntry
-	618, // 423: ngfw.v1.DnsStateResponse.stats:type_name -> ngfw.v1.DnsStateResponse.StatsEntry
+	637, // 420: ngfw.v1.DhcpLeasesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 421: ngfw.v1.DnsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	620, // 422: ngfw.v1.DnsStateResponse.status:type_name -> ngfw.v1.DnsStateResponse.StatusEntry
+	621, // 423: ngfw.v1.DnsStateResponse.stats:type_name -> ngfw.v1.DnsStateResponse.StatsEntry
 	313, // 424: ngfw.v1.DnsStateResponse.forwards:type_name -> ngfw.v1.DnsZoneState
 	313, // 425: ngfw.v1.DnsStateResponse.stubs:type_name -> ngfw.v1.DnsZoneState
 	314, // 426: ngfw.v1.DnsStateResponse.local_zones:type_name -> ngfw.v1.DnsLocalZoneState
 	310, // 427: ngfw.v1.DnsStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
 	315, // 428: ngfw.v1.DnsStateResponse.vpp_cache:type_name -> ngfw.v1.DnsVppCacheState
-	634, // 429: ngfw.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 429: ngfw.v1.NtpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	318, // 430: ngfw.v1.NtpStateResponse.tracking:type_name -> ngfw.v1.NtpTracking
 	319, // 431: ngfw.v1.NtpStateResponse.sources:type_name -> ngfw.v1.NtpSource
 	320, // 432: ngfw.v1.NtpStateResponse.source_stats:type_name -> ngfw.v1.NtpSourceStats
-	619, // 433: ngfw.v1.NtpStateResponse.server_stats:type_name -> ngfw.v1.NtpStateResponse.ServerStatsEntry
+	622, // 433: ngfw.v1.NtpStateResponse.server_stats:type_name -> ngfw.v1.NtpStateResponse.ServerStatsEntry
 	310, // 434: ngfw.v1.NtpStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
-	634, // 435: ngfw.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 435: ngfw.v1.SyslogStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	323, // 436: ngfw.v1.SyslogStateResponse.targets:type_name -> ngfw.v1.SyslogTargetState
-	620, // 437: ngfw.v1.SyslogStateResponse.inputs:type_name -> ngfw.v1.SyslogStateResponse.InputsEntry
+	623, // 437: ngfw.v1.SyslogStateResponse.inputs:type_name -> ngfw.v1.SyslogStateResponse.InputsEntry
 	310, // 438: ngfw.v1.SyslogStateResponse.pending_actions:type_name -> ngfw.v1.ServiceDaemonAction
-	634, // 439: ngfw.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
-	634, // 440: ngfw.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 439: ngfw.v1.SyslogEntriesRequest.since:type_name -> google.protobuf.Timestamp
+	637, // 440: ngfw.v1.SyslogEntriesResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	326, // 441: ngfw.v1.SyslogEntriesResponse.entries:type_name -> ngfw.v1.SyslogEntry
-	634, // 442: ngfw.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
+	637, // 442: ngfw.v1.SyslogEntry.time:type_name -> google.protobuf.Timestamp
 	328, // 443: ngfw.v1.PnatConfig.bindings:type_name -> ngfw.v1.PnatBinding
 	331, // 444: ngfw.v1.PnatConfig.attachments:type_name -> ngfw.v1.PnatAttachment
 	329, // 445: ngfw.v1.PnatBinding.match:type_name -> ngfw.v1.PnatMatch
 	330, // 446: ngfw.v1.PnatBinding.rewrite:type_name -> ngfw.v1.PnatRewrite
 	333, // 447: ngfw.v1.Det44SessionsResponse.sessions:type_name -> ngfw.v1.Det44Session
-	634, // 448: ngfw.v1.Det44SessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 448: ngfw.v1.Det44SessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	338, // 449: ngfw.v1.CnatSessionsResponse.sessions:type_name -> ngfw.v1.CnatSession
-	634, // 450: ngfw.v1.CnatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 450: ngfw.v1.CnatSessionsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	342, // 451: ngfw.v1.PkiCsr.key_spec:type_name -> ngfw.v1.PkiKeySpec
 	346, // 452: ngfw.v1.PkiFileStateSet.files:type_name -> ngfw.v1.PkiFileStateFile
-	634, // 453: ngfw.v1.PkiFileStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 453: ngfw.v1.PkiFileStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	346, // 454: ngfw.v1.PkiFileStateResponse.files:type_name -> ngfw.v1.PkiFileStateFile
-	621, // 455: ngfw.v1.MplsConfig.tables:type_name -> ngfw.v1.MplsConfig.TablesEntry
+	624, // 455: ngfw.v1.MplsConfig.tables:type_name -> ngfw.v1.MplsConfig.TablesEntry
 	351, // 456: ngfw.v1.MplsConfig.label_routes:type_name -> ngfw.v1.MplsLabelRoute
 	353, // 457: ngfw.v1.MplsConfig.ip_bindings:type_name -> ngfw.v1.MplsIpBinding
-	622, // 458: ngfw.v1.MplsConfig.tunnels:type_name -> ngfw.v1.MplsConfig.TunnelsEntry
+	625, // 458: ngfw.v1.MplsConfig.tunnels:type_name -> ngfw.v1.MplsConfig.TunnelsEntry
 	355, // 459: ngfw.v1.MplsConfig.sr:type_name -> ngfw.v1.MplsSr
 	440, // 460: ngfw.v1.MplsConfig.ldp:type_name -> ngfw.v1.MplsLdp
 	352, // 461: ngfw.v1.MplsLabelRoute.paths:type_name -> ngfw.v1.MplsPath
 	352, // 462: ngfw.v1.MplsTunnel.paths:type_name -> ngfw.v1.MplsPath
-	623, // 463: ngfw.v1.MplsSr.policies:type_name -> ngfw.v1.MplsSr.PoliciesEntry
+	626, // 463: ngfw.v1.MplsSr.policies:type_name -> ngfw.v1.MplsSr.PoliciesEntry
 	358, // 464: ngfw.v1.MplsSr.steering:type_name -> ngfw.v1.MplsSrSteering
 	357, // 465: ngfw.v1.MplsSrPolicy.segment_lists:type_name -> ngfw.v1.MplsSrSegmentList
 	362, // 466: ngfw.v1.MplsStateResponse.entries:type_name -> ngfw.v1.MplsStateFibEntry
 	364, // 467: ngfw.v1.MplsStateResponse.tunnels:type_name -> ngfw.v1.MplsStateTunnel
 	361, // 468: ngfw.v1.MplsStateResponse.tables:type_name -> ngfw.v1.MplsStateTable
-	634, // 469: ngfw.v1.MplsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 469: ngfw.v1.MplsStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	363, // 470: ngfw.v1.MplsStateFibEntry.paths:type_name -> ngfw.v1.MplsStatePath
 	363, // 471: ngfw.v1.MplsStateTunnel.paths:type_name -> ngfw.v1.MplsStatePath
 	366, // 472: ngfw.v1.LbService.settings:type_name -> ngfw.v1.LbSettings
-	624, // 473: ngfw.v1.LbService.vips:type_name -> ngfw.v1.LbService.VipsEntry
+	627, // 473: ngfw.v1.LbService.vips:type_name -> ngfw.v1.LbService.VipsEntry
 	369, // 474: ngfw.v1.LbService.nat_interfaces:type_name -> ngfw.v1.LbNatInterface
 	368, // 475: ngfw.v1.LbVip.servers:type_name -> ngfw.v1.LbServer
 	373, // 476: ngfw.v1.LbStateResponse.vips:type_name -> ngfw.v1.LbVipState
-	634, // 477: ngfw.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 477: ngfw.v1.LbStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	372, // 478: ngfw.v1.LbVipState.servers:type_name -> ngfw.v1.LbServerState
 	377, // 479: ngfw.v1.QosPolicerStatus.conform:type_name -> ngfw.v1.QosPolicerCounter
 	377, // 480: ngfw.v1.QosPolicerStatus.exceed:type_name -> ngfw.v1.QosPolicerCounter
 	377, // 481: ngfw.v1.QosPolicerStatus.violate:type_name -> ngfw.v1.QosPolicerCounter
 	378, // 482: ngfw.v1.QosPolicerStateResponse.policers:type_name -> ngfw.v1.QosPolicerStatus
-	634, // 483: ngfw.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	634, // 484: ngfw.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
-	625, // 485: ngfw.v1.HostStackService.namespaces:type_name -> ngfw.v1.HostStackService.NamespacesEntry
+	637, // 483: ngfw.v1.QosPolicerStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 484: ngfw.v1.QosPolicerResetResponse.reset_at:type_name -> google.protobuf.Timestamp
+	628, // 485: ngfw.v1.HostStackService.namespaces:type_name -> ngfw.v1.HostStackService.NamespacesEntry
 	384, // 486: ngfw.v1.HostStackService.session_rules:type_name -> ngfw.v1.HostStackSessionRule
 	385, // 487: ngfw.v1.HostStackService.tcp_source_addresses:type_name -> ngfw.v1.HostStackTcpSource
 	386, // 488: ngfw.v1.HostStackService.http_static:type_name -> ngfw.v1.HostStackHttpStatic
 	388, // 489: ngfw.v1.HostStackStateResponse.rules:type_name -> ngfw.v1.HostStackRuleState
-	634, // 490: ngfw.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 490: ngfw.v1.HostStackStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	392, // 491: ngfw.v1.SnmpMonitors.disks:type_name -> ngfw.v1.SnmpMonitorDisk
 	393, // 492: ngfw.v1.SnmpMonitors.load:type_name -> ngfw.v1.SnmpMonitorLoad
 	399, // 493: ngfw.v1.IpfixStateResponse.exporters:type_name -> ngfw.v1.IpfixExporterState
@@ -52597,22 +52829,22 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	402, // 496: ngfw.v1.IpfixStateResponse.sflow_global:type_name -> ngfw.v1.IpfixSflowGlobalState
 	403, // 497: ngfw.v1.IpfixStateResponse.sflow_interfaces:type_name -> ngfw.v1.IpfixSflowInterfaceState
 	404, // 498: ngfw.v1.IpfixStateResponse.sflow_counters:type_name -> ngfw.v1.IpfixCounter
-	634, // 499: ngfw.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	634, // 500: ngfw.v1.CaptureFile.started_at:type_name -> google.protobuf.Timestamp
-	634, // 501: ngfw.v1.CaptureFile.stopped_at:type_name -> google.protobuf.Timestamp
+	637, // 499: ngfw.v1.IpfixStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 500: ngfw.v1.CaptureFile.started_at:type_name -> google.protobuf.Timestamp
+	637, // 501: ngfw.v1.CaptureFile.stopped_at:type_name -> google.protobuf.Timestamp
 	406, // 502: ngfw.v1.CaptureListResponse.captures:type_name -> ngfw.v1.CaptureFile
-	626, // 503: ngfw.v1.Srv6Config.local_sids:type_name -> ngfw.v1.Srv6Config.LocalSidsEntry
-	627, // 504: ngfw.v1.Srv6Config.policies:type_name -> ngfw.v1.Srv6Config.PoliciesEntry
+	629, // 503: ngfw.v1.Srv6Config.local_sids:type_name -> ngfw.v1.Srv6Config.LocalSidsEntry
+	630, // 504: ngfw.v1.Srv6Config.policies:type_name -> ngfw.v1.Srv6Config.PoliciesEntry
 	416, // 505: ngfw.v1.Srv6Config.steering:type_name -> ngfw.v1.Srv6Steering
 	415, // 506: ngfw.v1.Srv6Policy.sid_lists:type_name -> ngfw.v1.Srv6SidList
 	419, // 507: ngfw.v1.Srv6StateResponse.local_sids:type_name -> ngfw.v1.Srv6StateLocalSid
 	420, // 508: ngfw.v1.Srv6StateResponse.policies:type_name -> ngfw.v1.Srv6StatePolicy
 	422, // 509: ngfw.v1.Srv6StateResponse.steering:type_name -> ngfw.v1.Srv6StateSteering
-	634, // 510: ngfw.v1.Srv6StateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 510: ngfw.v1.Srv6StateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	421, // 511: ngfw.v1.Srv6StatePolicy.sid_lists:type_name -> ngfw.v1.Srv6StateSidList
-	628, // 512: ngfw.v1.LispConfig.locator_sets:type_name -> ngfw.v1.LispConfig.LocatorSetsEntry
+	631, // 512: ngfw.v1.LispConfig.locator_sets:type_name -> ngfw.v1.LispConfig.LocatorSetsEntry
 	426, // 513: ngfw.v1.LispConfig.local_eids:type_name -> ngfw.v1.LispLocalEid
-	629, // 514: ngfw.v1.LispConfig.eid_tables:type_name -> ngfw.v1.LispConfig.EidTablesEntry
+	632, // 514: ngfw.v1.LispConfig.eid_tables:type_name -> ngfw.v1.LispConfig.EidTablesEntry
 	429, // 515: ngfw.v1.LispConfig.remote_mappings:type_name -> ngfw.v1.LispRemoteMapping
 	430, // 516: ngfw.v1.LispConfig.adjacencies:type_name -> ngfw.v1.LispAdjacency
 	432, // 517: ngfw.v1.LispConfig.gpe_entries:type_name -> ngfw.v1.LispGpeEntry
@@ -52624,243 +52856,247 @@ var file_ngfw_v1_dataplane_proto_depIdxs = []int32{
 	436, // 523: ngfw.v1.LispStateResponse.mappings:type_name -> ngfw.v1.LispStateMapping
 	437, // 524: ngfw.v1.LispStateResponse.adjacencies:type_name -> ngfw.v1.LispStateAdjacency
 	438, // 525: ngfw.v1.LispStateResponse.eid_tables:type_name -> ngfw.v1.LispStateEidTable
-	634, // 526: ngfw.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	630, // 527: ngfw.v1.MplsLdp.neighbors:type_name -> ngfw.v1.MplsLdp.NeighborsEntry
+	637, // 526: ngfw.v1.LispStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	633, // 527: ngfw.v1.MplsLdp.neighbors:type_name -> ngfw.v1.MplsLdp.NeighborsEntry
 	442, // 528: ngfw.v1.MplsLdp.label_range:type_name -> ngfw.v1.LdpLabelRange
-	634, // 529: ngfw.v1.MplsLdpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 529: ngfw.v1.MplsLdpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	445, // 530: ngfw.v1.MplsLdpStateResponse.neighbors:type_name -> ngfw.v1.LdpNeighborState
 	446, // 531: ngfw.v1.MplsLdpStateResponse.bindings:type_name -> ngfw.v1.LdpBindingState
 	447, // 532: ngfw.v1.MplsLdpStateResponse.sync:type_name -> ngfw.v1.LdpSyncState
-	634, // 533: ngfw.v1.LdpSyncState.last_sync_at:type_name -> google.protobuf.Timestamp
-	631, // 534: ngfw.v1.ManagementAlarms.rules:type_name -> ngfw.v1.ManagementAlarms.RulesEntry
-	632, // 535: ngfw.v1.ManagementAlarms.targets:type_name -> ngfw.v1.ManagementAlarms.TargetsEntry
+	637, // 533: ngfw.v1.LdpSyncState.last_sync_at:type_name -> google.protobuf.Timestamp
+	634, // 534: ngfw.v1.ManagementAlarms.rules:type_name -> ngfw.v1.ManagementAlarms.RulesEntry
+	635, // 535: ngfw.v1.ManagementAlarms.targets:type_name -> ngfw.v1.ManagementAlarms.TargetsEntry
 	453, // 536: ngfw.v1.WanGroup.members:type_name -> ngfw.v1.WanMember
 	454, // 537: ngfw.v1.WanGroup.monitors:type_name -> ngfw.v1.WanMonitor
-	634, // 538: ngfw.v1.WanStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 538: ngfw.v1.WanStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	457, // 539: ngfw.v1.WanStateResponse.groups:type_name -> ngfw.v1.WanGroupState
 	458, // 540: ngfw.v1.WanGroupState.members:type_name -> ngfw.v1.WanMemberState
-	634, // 541: ngfw.v1.WanMemberState.since:type_name -> google.protobuf.Timestamp
-	634, // 542: ngfw.v1.MulticastStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 541: ngfw.v1.WanMemberState.since:type_name -> google.protobuf.Timestamp
+	637, // 542: ngfw.v1.MulticastStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	461, // 543: ngfw.v1.MulticastStateResponse.groups:type_name -> ngfw.v1.IgmpGroupState
 	462, // 544: ngfw.v1.MulticastStateResponse.mroutes:type_name -> ngfw.v1.MrouteState
 	463, // 545: ngfw.v1.MulticastStateResponse.pim_neighbors:type_name -> ngfw.v1.PimNeighborState
 	465, // 546: ngfw.v1.AaaLdap.servers:type_name -> ngfw.v1.AaaLdapServer
-	633, // 547: ngfw.v1.DataplaneStartupStateResponse.plugins:type_name -> ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
-	634, // 548: ngfw.v1.DataplaneStartupStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	636, // 547: ngfw.v1.DataplaneStartupStateResponse.plugins:type_name -> ngfw.v1.DataplaneStartupStateResponse.PluginsEntry
+	637, // 548: ngfw.v1.DataplaneStartupStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	471, // 549: ngfw.v1.DataplaneStartupStateResponse.runtime_threads:type_name -> ngfw.v1.DataplaneRuntimeThread
 	40,  // 550: ngfw.v1.DataplaneStartupPreviewRequest.dataplane:type_name -> ngfw.v1.DataplaneConfig
 	475, // 551: ngfw.v1.Nat46Config.mappings:type_name -> ngfw.v1.Nat46Mapping
-	634, // 552: ngfw.v1.SystemIdentityStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 552: ngfw.v1.SystemIdentityStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	480, // 553: ngfw.v1.IpsecStateResponse.conns:type_name -> ngfw.v1.IpsecConnState
 	482, // 554: ngfw.v1.IpsecStateResponse.sas:type_name -> ngfw.v1.IpsecIkeSa
-	634, // 555: ngfw.v1.IpsecStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 555: ngfw.v1.IpsecStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	481, // 556: ngfw.v1.IpsecConnState.children:type_name -> ngfw.v1.IpsecChildConn
 	483, // 557: ngfw.v1.IpsecIkeSa.children:type_name -> ngfw.v1.IpsecChildSa
 	20,  // 558: ngfw.v1.TunnelStateTunnel.counters:type_name -> ngfw.v1.InterfaceCounters
-	634, // 559: ngfw.v1.TunnelStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 559: ngfw.v1.TunnelStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
 	485, // 560: ngfw.v1.TunnelStateResponse.tunnels:type_name -> ngfw.v1.TunnelStateTunnel
 	494, // 561: ngfw.v1.HostNicsResponse.nics:type_name -> ngfw.v1.HostNic
-	634, // 562: ngfw.v1.HostNicsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
-	43,  // 563: ngfw.v1.DesiredState.InterfacesEntry.value:type_name -> ngfw.v1.Interface
-	47,  // 564: ngfw.v1.DesiredState.VrfsEntry.value:type_name -> ngfw.v1.Vrf
-	42,  // 565: ngfw.v1.DataplaneConfig.DevicesEntry.value:type_name -> ngfw.v1.DataplaneDevice
-	46,  // 566: ngfw.v1.Interface.SubinterfacesEntry.value:type_name -> ngfw.v1.Subinterface
-	51,  // 567: ngfw.v1.IgmpConfig.InterfacesEntry.value:type_name -> ngfw.v1.IgmpInterface
-	53,  // 568: ngfw.v1.IgmpConfig.ProxiesEntry.value:type_name -> ngfw.v1.IgmpProxy
-	61,  // 569: ngfw.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> ngfw.v1.PrefixList
-	63,  // 570: ngfw.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> ngfw.v1.RouteMap
-	71,  // 571: ngfw.v1.BgpConfig.PeerGroupsEntry.value:type_name -> ngfw.v1.BgpPeerGroup
-	72,  // 572: ngfw.v1.BgpConfig.NeighborsEntry.value:type_name -> ngfw.v1.BgpNeighbor
-	75,  // 573: ngfw.v1.Ospf6Config.AreasEntry.value:type_name -> ngfw.v1.OspfArea
-	78,  // 574: ngfw.v1.Ospf6Config.InterfacesEntry.value:type_name -> ngfw.v1.Ospf6Interface
-	75,  // 575: ngfw.v1.OspfConfig.AreasEntry.value:type_name -> ngfw.v1.OspfArea
-	76,  // 576: ngfw.v1.OspfConfig.InterfacesEntry.value:type_name -> ngfw.v1.OspfInterface
-	81,  // 577: ngfw.v1.IsisConfig.InterfacesEntry.value:type_name -> ngfw.v1.IsisInterface
-	83,  // 578: ngfw.v1.RipConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
-	83,  // 579: ngfw.v1.RipngConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
-	89,  // 580: ngfw.v1.TunnelsConfig.GreEntry.value:type_name -> ngfw.v1.GreTunnel
-	90,  // 581: ngfw.v1.TunnelsConfig.VxlanEntry.value:type_name -> ngfw.v1.VxlanTunnel
-	91,  // 582: ngfw.v1.TunnelsConfig.IpipEntry.value:type_name -> ngfw.v1.IpipTunnel
-	488, // 583: ngfw.v1.TunnelsConfig.VxlanGpeEntry.value:type_name -> ngfw.v1.VxlanGpeTunnel
-	489, // 584: ngfw.v1.TunnelsConfig.GtpuEntry.value:type_name -> ngfw.v1.GtpuTunnel
-	490, // 585: ngfw.v1.TunnelsConfig.L2tpv3Entry.value:type_name -> ngfw.v1.L2tpv3Tunnel
-	491, // 586: ngfw.v1.TunnelsConfig.PppoeEntry.value:type_name -> ngfw.v1.PppoeSession
-	99,  // 587: ngfw.v1.DhcpService.ServersEntry.value:type_name -> ngfw.v1.DhcpServer
-	100, // 588: ngfw.v1.DhcpService.RelaysEntry.value:type_name -> ngfw.v1.DhcpRelay
-	97,  // 589: ngfw.v1.DhcpSubnet.ReservationsEntry.value:type_name -> ngfw.v1.DhcpReservation
-	98,  // 590: ngfw.v1.DhcpServer.SubnetsEntry.value:type_name -> ngfw.v1.DhcpSubnet
-	107, // 591: ngfw.v1.DnsService.ResolversEntry.value:type_name -> ngfw.v1.DnsResolver
-	531, // 592: ngfw.v1.SnmpService.CommunitiesEntry.value:type_name -> ngfw.v1.SnmpService.Community
-	532, // 593: ngfw.v1.SnmpService.V3UsersEntry.value:type_name -> ngfw.v1.SnmpService.V3User
-	390, // 594: ngfw.v1.SnmpService.ViewsEntry.value:type_name -> ngfw.v1.SnmpView
-	93,  // 595: ngfw.v1.IpfixService.Exporter.collector:type_name -> ngfw.v1.SocketAddress
-	542, // 596: ngfw.v1.IpfixService.Flowprobe.interfaces:type_name -> ngfw.v1.IpfixService.Flowprobe.Interface
-	93,  // 597: ngfw.v1.IpfixService.Sflow.collectors:type_name -> ngfw.v1.SocketAddress
-	538, // 598: ngfw.v1.IpfixService.ExportersEntry.value:type_name -> ngfw.v1.IpfixService.Exporter
-	114, // 599: ngfw.v1.QosService.PolicersEntry.value:type_name -> ngfw.v1.QosPolicer
-	115, // 600: ngfw.v1.QosService.ShapersEntry.value:type_name -> ngfw.v1.QosShaper
-	117, // 601: ngfw.v1.QosService.MapsEntry.value:type_name -> ngfw.v1.QosMap
-	118, // 602: ngfw.v1.QosService.InterfacesEntry.value:type_name -> ngfw.v1.QosInterface
-	116, // 603: ngfw.v1.QosMap.Rows.ext:type_name -> ngfw.v1.QosMapEntry
-	116, // 604: ngfw.v1.QosMap.Rows.vlan:type_name -> ngfw.v1.QosMapEntry
-	116, // 605: ngfw.v1.QosMap.Rows.mpls:type_name -> ngfw.v1.QosMapEntry
-	116, // 606: ngfw.v1.QosMap.Rows.ip:type_name -> ngfw.v1.QosMapEntry
-	120, // 607: ngfw.v1.HaConfig.VrrpEntry.value:type_name -> ngfw.v1.VrrpInstance
-	567, // 608: ngfw.v1.Nat64Config.StaticBib.inside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
-	567, // 609: ngfw.v1.Nat64Config.StaticBib.outside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
-	579, // 610: ngfw.v1.CnatConfig.Snat.addresses:type_name -> ngfw.v1.CnatConfig.Snat.Addresses
-	580, // 611: ngfw.v1.CnatConfig.Snat.interfaces:type_name -> ngfw.v1.CnatConfig.Snat.PolicyInterface
-	162, // 612: ngfw.v1.ObjectsConfig.AddressesEntry.value:type_name -> ngfw.v1.AddressObject
-	163, // 613: ngfw.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> ngfw.v1.AddressGroup
-	166, // 614: ngfw.v1.ObjectsConfig.ServicesEntry.value:type_name -> ngfw.v1.ServiceObject
-	167, // 615: ngfw.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> ngfw.v1.ServiceGroup
-	168, // 616: ngfw.v1.ObjectsConfig.SchedulesEntry.value:type_name -> ngfw.v1.Schedule
-	169, // 617: ngfw.v1.ObjectsConfig.ZonesEntry.value:type_name -> ngfw.v1.Zone
-	170, // 618: ngfw.v1.ObjectsConfig.TagsEntry.value:type_name -> ngfw.v1.Tag
-	178, // 619: ngfw.v1.AclConfig.ListsEntry.value:type_name -> ngfw.v1.AclList
-	180, // 620: ngfw.v1.AclConfig.MacipEntry.value:type_name -> ngfw.v1.MacipList
-	182, // 621: ngfw.v1.AclConfig.HostEntry.value:type_name -> ngfw.v1.HostList
-	174, // 622: ngfw.v1.GlobalBlocking.ListsEntry.value:type_name -> ngfw.v1.GlobalBlockingList
-	205, // 623: ngfw.v1.VpnConfig.RemoteAccessEntry.value:type_name -> ngfw.v1.RemoteAccessProfile
-	190, // 624: ngfw.v1.IpsecConfig.ProposalsEntry.value:type_name -> ngfw.v1.IpsecProposal
-	194, // 625: ngfw.v1.IpsecConfig.TunnelsEntry.value:type_name -> ngfw.v1.IpsecTunnel
-	197, // 626: ngfw.v1.WireguardInterface.PeersEntry.value:type_name -> ngfw.v1.WireguardPeer
-	198, // 627: ngfw.v1.WireguardConfig.InterfacesEntry.value:type_name -> ngfw.v1.WireguardInterface
-	200, // 628: ngfw.v1.PkiConfig.CasEntry.value:type_name -> ngfw.v1.PkiCa
-	201, // 629: ngfw.v1.PkiConfig.CertificatesEntry.value:type_name -> ngfw.v1.PkiCertificate
-	605, // 630: ngfw.v1.RemoteAccessProfile.Radius.servers:type_name -> ngfw.v1.RemoteAccessProfile.Radius.Server
-	207, // 631: ngfw.v1.Bond.MembersEntry.value:type_name -> ngfw.v1.BondMember
-	217, // 632: ngfw.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> ngfw.v1.BridgeL2Domain
-	219, // 633: ngfw.v1.BridgeL2Config.XconnectsEntry.value:type_name -> ngfw.v1.BridgeL2Xconnect
-	220, // 634: ngfw.v1.BridgeL2Config.L3xcEntry.value:type_name -> ngfw.v1.BridgeL2L3xc
-	222, // 635: ngfw.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> ngfw.v1.BridgeL2MacFilter
-	242, // 636: ngfw.v1.Ipv6Ra.PrefixesEntry.value:type_name -> ngfw.v1.Ipv6RaPrefix
-	255, // 637: ngfw.v1.PbrConfig.PoliciesEntry.value:type_name -> ngfw.v1.PbrPolicy
-	350, // 638: ngfw.v1.MplsConfig.TablesEntry.value:type_name -> ngfw.v1.MplsTable
-	354, // 639: ngfw.v1.MplsConfig.TunnelsEntry.value:type_name -> ngfw.v1.MplsTunnel
-	356, // 640: ngfw.v1.MplsSr.PoliciesEntry.value:type_name -> ngfw.v1.MplsSrPolicy
-	367, // 641: ngfw.v1.LbService.VipsEntry.value:type_name -> ngfw.v1.LbVip
-	383, // 642: ngfw.v1.HostStackService.NamespacesEntry.value:type_name -> ngfw.v1.HostStackNamespace
-	413, // 643: ngfw.v1.Srv6Config.LocalSidsEntry.value:type_name -> ngfw.v1.Srv6LocalSid
-	414, // 644: ngfw.v1.Srv6Config.PoliciesEntry.value:type_name -> ngfw.v1.Srv6Policy
-	424, // 645: ngfw.v1.LispConfig.LocatorSetsEntry.value:type_name -> ngfw.v1.LispLocatorSet
-	427, // 646: ngfw.v1.LispConfig.EidTablesEntry.value:type_name -> ngfw.v1.LispEidTable
-	441, // 647: ngfw.v1.MplsLdp.NeighborsEntry.value:type_name -> ngfw.v1.LdpNeighbor
-	450, // 648: ngfw.v1.ManagementAlarms.RulesEntry.value:type_name -> ngfw.v1.AlarmRule
-	451, // 649: ngfw.v1.ManagementAlarms.TargetsEntry.value:type_name -> ngfw.v1.AlarmTarget
-	478, // 650: ngfw.v1.Dataplane.IpsecState:input_type -> ngfw.v1.IpsecStateRequest
-	484, // 651: ngfw.v1.Dataplane.TunnelState:input_type -> ngfw.v1.TunnelStateRequest
-	129, // 652: ngfw.v1.Dataplane.AutoBlockSet:input_type -> ngfw.v1.AutoBlockSetRequest
-	8,   // 653: ngfw.v1.Dataplane.Apply:input_type -> ngfw.v1.ApplyRequest
-	16,  // 654: ngfw.v1.Dataplane.Retrieve:input_type -> ngfw.v1.RetrieveRequest
-	12,  // 655: ngfw.v1.Dataplane.DryRun:input_type -> ngfw.v1.DryRunRequest
-	18,  // 656: ngfw.v1.Dataplane.StreamStats:input_type -> ngfw.v1.StreamStatsRequest
-	22,  // 657: ngfw.v1.Dataplane.StreamEvents:input_type -> ngfw.v1.StreamEventsRequest
-	24,  // 658: ngfw.v1.Dataplane.Action:input_type -> ngfw.v1.ActionRequest
-	31,  // 659: ngfw.v1.Dataplane.Health:input_type -> ngfw.v1.HealthRequest
-	33,  // 660: ngfw.v1.Dataplane.InterfaceState:input_type -> ngfw.v1.InterfaceStateRequest
-	332, // 661: ngfw.v1.Dataplane.Det44Sessions:input_type -> ngfw.v1.Det44SessionsRequest
-	335, // 662: ngfw.v1.Dataplane.Det44Lookup:input_type -> ngfw.v1.Det44LookupRequest
-	337, // 663: ngfw.v1.Dataplane.CnatSessions:input_type -> ngfw.v1.CnatSessionsRequest
-	345, // 664: ngfw.v1.Dataplane.PkiFileState:input_type -> ngfw.v1.PkiFileStateRequest
-	359, // 665: ngfw.v1.Dataplane.MplsState:input_type -> ngfw.v1.MplsStateRequest
-	370, // 666: ngfw.v1.Dataplane.LbState:input_type -> ngfw.v1.LbStateRequest
-	374, // 667: ngfw.v1.Dataplane.LbFlushVip:input_type -> ngfw.v1.LbFlushVipRequest
-	376, // 668: ngfw.v1.Dataplane.QosPolicerState:input_type -> ngfw.v1.QosPolicerStateRequest
-	380, // 669: ngfw.v1.Dataplane.QosPolicerReset:input_type -> ngfw.v1.QosPolicerResetRequest
-	387, // 670: ngfw.v1.Dataplane.HostStackState:input_type -> ngfw.v1.HostStackStateRequest
-	395, // 671: ngfw.v1.Dataplane.SnmpState:input_type -> ngfw.v1.SnmpStateRequest
-	397, // 672: ngfw.v1.Dataplane.IpfixState:input_type -> ngfw.v1.IpfixStateRequest
-	405, // 673: ngfw.v1.Dataplane.CaptureList:input_type -> ngfw.v1.CaptureListRequest
-	408, // 674: ngfw.v1.Dataplane.CaptureRead:input_type -> ngfw.v1.CaptureReadRequest
-	410, // 675: ngfw.v1.Dataplane.CaptureDelete:input_type -> ngfw.v1.CaptureDeleteRequest
-	417, // 676: ngfw.v1.Dataplane.Srv6State:input_type -> ngfw.v1.Srv6StateRequest
-	433, // 677: ngfw.v1.Dataplane.LispState:input_type -> ngfw.v1.LispStateRequest
-	208, // 678: ngfw.v1.Dataplane.BondState:input_type -> ngfw.v1.BondStateRequest
-	224, // 679: ngfw.v1.Dataplane.BridgeDomainState:input_type -> ngfw.v1.BridgeDomainStateRequest
-	228, // 680: ngfw.v1.Dataplane.BridgeDomainMacs:input_type -> ngfw.v1.BridgeDomainMacsRequest
-	233, // 681: ngfw.v1.Dataplane.LldpNeighbors:input_type -> ngfw.v1.LldpNeighborsRequest
-	237, // 682: ngfw.v1.Dataplane.ListRoutes:input_type -> ngfw.v1.ListRoutesRequest
-	248, // 683: ngfw.v1.Dataplane.ListNeighbors:input_type -> ngfw.v1.ListNeighborsRequest
-	259, // 684: ngfw.v1.Dataplane.FqdnObjectState:input_type -> ngfw.v1.FqdnObjectStateRequest
-	262, // 685: ngfw.v1.Dataplane.AclState:input_type -> ngfw.v1.AclStateRequest
-	271, // 686: ngfw.v1.Dataplane.HostAclState:input_type -> ngfw.v1.HostAclStateRequest
-	277, // 687: ngfw.v1.Dataplane.NatSessions:input_type -> ngfw.v1.NatSessionsRequest
-	280, // 688: ngfw.v1.Dataplane.NatSummary:input_type -> ngfw.v1.NatSummaryRequest
-	284, // 689: ngfw.v1.Dataplane.WireguardState:input_type -> ngfw.v1.WireguardStateRequest
-	294, // 690: ngfw.v1.Dataplane.RoutingState:input_type -> ngfw.v1.RoutingStateRequest
-	302, // 691: ngfw.v1.Dataplane.DhcpLeases:input_type -> ngfw.v1.DhcpLeasesRequest
-	311, // 692: ngfw.v1.Dataplane.DnsState:input_type -> ngfw.v1.DnsStateRequest
-	476, // 693: ngfw.v1.Dataplane.SystemIdentityState:input_type -> ngfw.v1.SystemIdentityStateRequest
-	316, // 694: ngfw.v1.Dataplane.NtpState:input_type -> ngfw.v1.NtpStateRequest
-	321, // 695: ngfw.v1.Dataplane.SyslogState:input_type -> ngfw.v1.SyslogStateRequest
-	324, // 696: ngfw.v1.Dataplane.SyslogEntries:input_type -> ngfw.v1.SyslogEntriesRequest
-	469, // 697: ngfw.v1.Dataplane.DataplaneStartupState:input_type -> ngfw.v1.DataplaneStartupStateRequest
-	472, // 698: ngfw.v1.Dataplane.DataplaneStartupPreview:input_type -> ngfw.v1.DataplaneStartupPreviewRequest
-	291, // 699: ngfw.v1.Dataplane.PppoeReconnect:input_type -> ngfw.v1.PppoeReconnectRequest
-	455, // 700: ngfw.v1.Dataplane.WanState:input_type -> ngfw.v1.WanStateRequest
-	459, // 701: ngfw.v1.Dataplane.MulticastState:input_type -> ngfw.v1.MulticastStateRequest
-	443, // 702: ngfw.v1.Dataplane.MplsLdpState:input_type -> ngfw.v1.MplsLdpStateRequest
-	492, // 703: ngfw.v1.Dataplane.HostNics:input_type -> ngfw.v1.HostNicsRequest
-	479, // 704: ngfw.v1.Dataplane.IpsecState:output_type -> ngfw.v1.IpsecStateResponse
-	486, // 705: ngfw.v1.Dataplane.TunnelState:output_type -> ngfw.v1.TunnelStateResponse
-	131, // 706: ngfw.v1.Dataplane.AutoBlockSet:output_type -> ngfw.v1.AutoBlockSetResponse
-	9,   // 707: ngfw.v1.Dataplane.Apply:output_type -> ngfw.v1.ApplyResponse
-	17,  // 708: ngfw.v1.Dataplane.Retrieve:output_type -> ngfw.v1.RetrieveResponse
-	15,  // 709: ngfw.v1.Dataplane.DryRun:output_type -> ngfw.v1.ValidationReport
-	19,  // 710: ngfw.v1.Dataplane.StreamStats:output_type -> ngfw.v1.StatsBatch
-	23,  // 711: ngfw.v1.Dataplane.StreamEvents:output_type -> ngfw.v1.Event
-	29,  // 712: ngfw.v1.Dataplane.Action:output_type -> ngfw.v1.ActionOutput
-	32,  // 713: ngfw.v1.Dataplane.Health:output_type -> ngfw.v1.HealthResponse
-	34,  // 714: ngfw.v1.Dataplane.InterfaceState:output_type -> ngfw.v1.InterfaceStateResponse
-	334, // 715: ngfw.v1.Dataplane.Det44Sessions:output_type -> ngfw.v1.Det44SessionsResponse
-	336, // 716: ngfw.v1.Dataplane.Det44Lookup:output_type -> ngfw.v1.Det44LookupResponse
-	339, // 717: ngfw.v1.Dataplane.CnatSessions:output_type -> ngfw.v1.CnatSessionsResponse
-	348, // 718: ngfw.v1.Dataplane.PkiFileState:output_type -> ngfw.v1.PkiFileStateResponse
-	360, // 719: ngfw.v1.Dataplane.MplsState:output_type -> ngfw.v1.MplsStateResponse
-	371, // 720: ngfw.v1.Dataplane.LbState:output_type -> ngfw.v1.LbStateResponse
-	375, // 721: ngfw.v1.Dataplane.LbFlushVip:output_type -> ngfw.v1.LbFlushVipResponse
-	379, // 722: ngfw.v1.Dataplane.QosPolicerState:output_type -> ngfw.v1.QosPolicerStateResponse
-	381, // 723: ngfw.v1.Dataplane.QosPolicerReset:output_type -> ngfw.v1.QosPolicerResetResponse
-	389, // 724: ngfw.v1.Dataplane.HostStackState:output_type -> ngfw.v1.HostStackStateResponse
-	396, // 725: ngfw.v1.Dataplane.SnmpState:output_type -> ngfw.v1.SnmpStateResponse
-	398, // 726: ngfw.v1.Dataplane.IpfixState:output_type -> ngfw.v1.IpfixStateResponse
-	407, // 727: ngfw.v1.Dataplane.CaptureList:output_type -> ngfw.v1.CaptureListResponse
-	409, // 728: ngfw.v1.Dataplane.CaptureRead:output_type -> ngfw.v1.CaptureChunk
-	411, // 729: ngfw.v1.Dataplane.CaptureDelete:output_type -> ngfw.v1.CaptureDeleteResponse
-	418, // 730: ngfw.v1.Dataplane.Srv6State:output_type -> ngfw.v1.Srv6StateResponse
-	439, // 731: ngfw.v1.Dataplane.LispState:output_type -> ngfw.v1.LispStateResponse
-	209, // 732: ngfw.v1.Dataplane.BondState:output_type -> ngfw.v1.BondStateResponse
-	225, // 733: ngfw.v1.Dataplane.BridgeDomainState:output_type -> ngfw.v1.BridgeDomainStateResponse
-	229, // 734: ngfw.v1.Dataplane.BridgeDomainMacs:output_type -> ngfw.v1.BridgeDomainMacsResponse
-	234, // 735: ngfw.v1.Dataplane.LldpNeighbors:output_type -> ngfw.v1.LldpNeighborsResponse
-	238, // 736: ngfw.v1.Dataplane.ListRoutes:output_type -> ngfw.v1.ListRoutesResponse
-	249, // 737: ngfw.v1.Dataplane.ListNeighbors:output_type -> ngfw.v1.ListNeighborsResponse
-	260, // 738: ngfw.v1.Dataplane.FqdnObjectState:output_type -> ngfw.v1.FqdnObjectStateResponse
-	264, // 739: ngfw.v1.Dataplane.AclState:output_type -> ngfw.v1.AclStateResponse
-	272, // 740: ngfw.v1.Dataplane.HostAclState:output_type -> ngfw.v1.HostAclStateResponse
-	279, // 741: ngfw.v1.Dataplane.NatSessions:output_type -> ngfw.v1.NatSessionsResponse
-	282, // 742: ngfw.v1.Dataplane.NatSummary:output_type -> ngfw.v1.NatSummaryResponse
-	285, // 743: ngfw.v1.Dataplane.WireguardState:output_type -> ngfw.v1.WireguardStateResponse
-	295, // 744: ngfw.v1.Dataplane.RoutingState:output_type -> ngfw.v1.RoutingStateResponse
-	307, // 745: ngfw.v1.Dataplane.DhcpLeases:output_type -> ngfw.v1.DhcpLeasesResponse
-	312, // 746: ngfw.v1.Dataplane.DnsState:output_type -> ngfw.v1.DnsStateResponse
-	477, // 747: ngfw.v1.Dataplane.SystemIdentityState:output_type -> ngfw.v1.SystemIdentityStateResponse
-	317, // 748: ngfw.v1.Dataplane.NtpState:output_type -> ngfw.v1.NtpStateResponse
-	322, // 749: ngfw.v1.Dataplane.SyslogState:output_type -> ngfw.v1.SyslogStateResponse
-	325, // 750: ngfw.v1.Dataplane.SyslogEntries:output_type -> ngfw.v1.SyslogEntriesResponse
-	470, // 751: ngfw.v1.Dataplane.DataplaneStartupState:output_type -> ngfw.v1.DataplaneStartupStateResponse
-	473, // 752: ngfw.v1.Dataplane.DataplaneStartupPreview:output_type -> ngfw.v1.DataplaneStartupPreviewResponse
-	292, // 753: ngfw.v1.Dataplane.PppoeReconnect:output_type -> ngfw.v1.PppoeReconnectResponse
-	456, // 754: ngfw.v1.Dataplane.WanState:output_type -> ngfw.v1.WanStateResponse
-	460, // 755: ngfw.v1.Dataplane.MulticastState:output_type -> ngfw.v1.MulticastStateResponse
-	444, // 756: ngfw.v1.Dataplane.MplsLdpState:output_type -> ngfw.v1.MplsLdpStateResponse
-	493, // 757: ngfw.v1.Dataplane.HostNics:output_type -> ngfw.v1.HostNicsResponse
-	704, // [704:758] is the sub-list for method output_type
-	650, // [650:704] is the sub-list for method input_type
-	650, // [650:650] is the sub-list for extension type_name
-	650, // [650:650] is the sub-list for extension extendee
-	0,   // [0:650] is the sub-list for field type_name
+	637, // 562: ngfw.v1.HostNicsResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	637, // 563: ngfw.v1.VrrpStateResponse.retrieved_at:type_name -> google.protobuf.Timestamp
+	496, // 564: ngfw.v1.VrrpStateResponse.routers:type_name -> ngfw.v1.VrrpRuntime
+	43,  // 565: ngfw.v1.DesiredState.InterfacesEntry.value:type_name -> ngfw.v1.Interface
+	47,  // 566: ngfw.v1.DesiredState.VrfsEntry.value:type_name -> ngfw.v1.Vrf
+	42,  // 567: ngfw.v1.DataplaneConfig.DevicesEntry.value:type_name -> ngfw.v1.DataplaneDevice
+	46,  // 568: ngfw.v1.Interface.SubinterfacesEntry.value:type_name -> ngfw.v1.Subinterface
+	51,  // 569: ngfw.v1.IgmpConfig.InterfacesEntry.value:type_name -> ngfw.v1.IgmpInterface
+	53,  // 570: ngfw.v1.IgmpConfig.ProxiesEntry.value:type_name -> ngfw.v1.IgmpProxy
+	61,  // 571: ngfw.v1.RoutingPolicy.PrefixListsEntry.value:type_name -> ngfw.v1.PrefixList
+	63,  // 572: ngfw.v1.RoutingPolicy.RouteMapsEntry.value:type_name -> ngfw.v1.RouteMap
+	71,  // 573: ngfw.v1.BgpConfig.PeerGroupsEntry.value:type_name -> ngfw.v1.BgpPeerGroup
+	72,  // 574: ngfw.v1.BgpConfig.NeighborsEntry.value:type_name -> ngfw.v1.BgpNeighbor
+	75,  // 575: ngfw.v1.Ospf6Config.AreasEntry.value:type_name -> ngfw.v1.OspfArea
+	78,  // 576: ngfw.v1.Ospf6Config.InterfacesEntry.value:type_name -> ngfw.v1.Ospf6Interface
+	75,  // 577: ngfw.v1.OspfConfig.AreasEntry.value:type_name -> ngfw.v1.OspfArea
+	76,  // 578: ngfw.v1.OspfConfig.InterfacesEntry.value:type_name -> ngfw.v1.OspfInterface
+	81,  // 579: ngfw.v1.IsisConfig.InterfacesEntry.value:type_name -> ngfw.v1.IsisInterface
+	83,  // 580: ngfw.v1.RipConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
+	83,  // 581: ngfw.v1.RipngConfig.InterfacesEntry.value:type_name -> ngfw.v1.RipInterface
+	89,  // 582: ngfw.v1.TunnelsConfig.GreEntry.value:type_name -> ngfw.v1.GreTunnel
+	90,  // 583: ngfw.v1.TunnelsConfig.VxlanEntry.value:type_name -> ngfw.v1.VxlanTunnel
+	91,  // 584: ngfw.v1.TunnelsConfig.IpipEntry.value:type_name -> ngfw.v1.IpipTunnel
+	488, // 585: ngfw.v1.TunnelsConfig.VxlanGpeEntry.value:type_name -> ngfw.v1.VxlanGpeTunnel
+	489, // 586: ngfw.v1.TunnelsConfig.GtpuEntry.value:type_name -> ngfw.v1.GtpuTunnel
+	490, // 587: ngfw.v1.TunnelsConfig.L2tpv3Entry.value:type_name -> ngfw.v1.L2tpv3Tunnel
+	491, // 588: ngfw.v1.TunnelsConfig.PppoeEntry.value:type_name -> ngfw.v1.PppoeSession
+	99,  // 589: ngfw.v1.DhcpService.ServersEntry.value:type_name -> ngfw.v1.DhcpServer
+	100, // 590: ngfw.v1.DhcpService.RelaysEntry.value:type_name -> ngfw.v1.DhcpRelay
+	97,  // 591: ngfw.v1.DhcpSubnet.ReservationsEntry.value:type_name -> ngfw.v1.DhcpReservation
+	98,  // 592: ngfw.v1.DhcpServer.SubnetsEntry.value:type_name -> ngfw.v1.DhcpSubnet
+	107, // 593: ngfw.v1.DnsService.ResolversEntry.value:type_name -> ngfw.v1.DnsResolver
+	534, // 594: ngfw.v1.SnmpService.CommunitiesEntry.value:type_name -> ngfw.v1.SnmpService.Community
+	535, // 595: ngfw.v1.SnmpService.V3UsersEntry.value:type_name -> ngfw.v1.SnmpService.V3User
+	390, // 596: ngfw.v1.SnmpService.ViewsEntry.value:type_name -> ngfw.v1.SnmpView
+	93,  // 597: ngfw.v1.IpfixService.Exporter.collector:type_name -> ngfw.v1.SocketAddress
+	545, // 598: ngfw.v1.IpfixService.Flowprobe.interfaces:type_name -> ngfw.v1.IpfixService.Flowprobe.Interface
+	93,  // 599: ngfw.v1.IpfixService.Sflow.collectors:type_name -> ngfw.v1.SocketAddress
+	541, // 600: ngfw.v1.IpfixService.ExportersEntry.value:type_name -> ngfw.v1.IpfixService.Exporter
+	114, // 601: ngfw.v1.QosService.PolicersEntry.value:type_name -> ngfw.v1.QosPolicer
+	115, // 602: ngfw.v1.QosService.ShapersEntry.value:type_name -> ngfw.v1.QosShaper
+	117, // 603: ngfw.v1.QosService.MapsEntry.value:type_name -> ngfw.v1.QosMap
+	118, // 604: ngfw.v1.QosService.InterfacesEntry.value:type_name -> ngfw.v1.QosInterface
+	116, // 605: ngfw.v1.QosMap.Rows.ext:type_name -> ngfw.v1.QosMapEntry
+	116, // 606: ngfw.v1.QosMap.Rows.vlan:type_name -> ngfw.v1.QosMapEntry
+	116, // 607: ngfw.v1.QosMap.Rows.mpls:type_name -> ngfw.v1.QosMapEntry
+	116, // 608: ngfw.v1.QosMap.Rows.ip:type_name -> ngfw.v1.QosMapEntry
+	120, // 609: ngfw.v1.HaConfig.VrrpEntry.value:type_name -> ngfw.v1.VrrpInstance
+	570, // 610: ngfw.v1.Nat64Config.StaticBib.inside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
+	570, // 611: ngfw.v1.Nat64Config.StaticBib.outside:type_name -> ngfw.v1.Nat64Config.StaticBib.Endpoint
+	582, // 612: ngfw.v1.CnatConfig.Snat.addresses:type_name -> ngfw.v1.CnatConfig.Snat.Addresses
+	583, // 613: ngfw.v1.CnatConfig.Snat.interfaces:type_name -> ngfw.v1.CnatConfig.Snat.PolicyInterface
+	162, // 614: ngfw.v1.ObjectsConfig.AddressesEntry.value:type_name -> ngfw.v1.AddressObject
+	163, // 615: ngfw.v1.ObjectsConfig.AddressGroupsEntry.value:type_name -> ngfw.v1.AddressGroup
+	166, // 616: ngfw.v1.ObjectsConfig.ServicesEntry.value:type_name -> ngfw.v1.ServiceObject
+	167, // 617: ngfw.v1.ObjectsConfig.ServiceGroupsEntry.value:type_name -> ngfw.v1.ServiceGroup
+	168, // 618: ngfw.v1.ObjectsConfig.SchedulesEntry.value:type_name -> ngfw.v1.Schedule
+	169, // 619: ngfw.v1.ObjectsConfig.ZonesEntry.value:type_name -> ngfw.v1.Zone
+	170, // 620: ngfw.v1.ObjectsConfig.TagsEntry.value:type_name -> ngfw.v1.Tag
+	178, // 621: ngfw.v1.AclConfig.ListsEntry.value:type_name -> ngfw.v1.AclList
+	180, // 622: ngfw.v1.AclConfig.MacipEntry.value:type_name -> ngfw.v1.MacipList
+	182, // 623: ngfw.v1.AclConfig.HostEntry.value:type_name -> ngfw.v1.HostList
+	174, // 624: ngfw.v1.GlobalBlocking.ListsEntry.value:type_name -> ngfw.v1.GlobalBlockingList
+	205, // 625: ngfw.v1.VpnConfig.RemoteAccessEntry.value:type_name -> ngfw.v1.RemoteAccessProfile
+	190, // 626: ngfw.v1.IpsecConfig.ProposalsEntry.value:type_name -> ngfw.v1.IpsecProposal
+	194, // 627: ngfw.v1.IpsecConfig.TunnelsEntry.value:type_name -> ngfw.v1.IpsecTunnel
+	197, // 628: ngfw.v1.WireguardInterface.PeersEntry.value:type_name -> ngfw.v1.WireguardPeer
+	198, // 629: ngfw.v1.WireguardConfig.InterfacesEntry.value:type_name -> ngfw.v1.WireguardInterface
+	200, // 630: ngfw.v1.PkiConfig.CasEntry.value:type_name -> ngfw.v1.PkiCa
+	201, // 631: ngfw.v1.PkiConfig.CertificatesEntry.value:type_name -> ngfw.v1.PkiCertificate
+	608, // 632: ngfw.v1.RemoteAccessProfile.Radius.servers:type_name -> ngfw.v1.RemoteAccessProfile.Radius.Server
+	207, // 633: ngfw.v1.Bond.MembersEntry.value:type_name -> ngfw.v1.BondMember
+	217, // 634: ngfw.v1.BridgeL2Config.BridgeDomainsEntry.value:type_name -> ngfw.v1.BridgeL2Domain
+	219, // 635: ngfw.v1.BridgeL2Config.XconnectsEntry.value:type_name -> ngfw.v1.BridgeL2Xconnect
+	220, // 636: ngfw.v1.BridgeL2Config.L3xcEntry.value:type_name -> ngfw.v1.BridgeL2L3xc
+	222, // 637: ngfw.v1.BridgeL2Config.MacFiltersEntry.value:type_name -> ngfw.v1.BridgeL2MacFilter
+	242, // 638: ngfw.v1.Ipv6Ra.PrefixesEntry.value:type_name -> ngfw.v1.Ipv6RaPrefix
+	255, // 639: ngfw.v1.PbrConfig.PoliciesEntry.value:type_name -> ngfw.v1.PbrPolicy
+	350, // 640: ngfw.v1.MplsConfig.TablesEntry.value:type_name -> ngfw.v1.MplsTable
+	354, // 641: ngfw.v1.MplsConfig.TunnelsEntry.value:type_name -> ngfw.v1.MplsTunnel
+	356, // 642: ngfw.v1.MplsSr.PoliciesEntry.value:type_name -> ngfw.v1.MplsSrPolicy
+	367, // 643: ngfw.v1.LbService.VipsEntry.value:type_name -> ngfw.v1.LbVip
+	383, // 644: ngfw.v1.HostStackService.NamespacesEntry.value:type_name -> ngfw.v1.HostStackNamespace
+	413, // 645: ngfw.v1.Srv6Config.LocalSidsEntry.value:type_name -> ngfw.v1.Srv6LocalSid
+	414, // 646: ngfw.v1.Srv6Config.PoliciesEntry.value:type_name -> ngfw.v1.Srv6Policy
+	424, // 647: ngfw.v1.LispConfig.LocatorSetsEntry.value:type_name -> ngfw.v1.LispLocatorSet
+	427, // 648: ngfw.v1.LispConfig.EidTablesEntry.value:type_name -> ngfw.v1.LispEidTable
+	441, // 649: ngfw.v1.MplsLdp.NeighborsEntry.value:type_name -> ngfw.v1.LdpNeighbor
+	450, // 650: ngfw.v1.ManagementAlarms.RulesEntry.value:type_name -> ngfw.v1.AlarmRule
+	451, // 651: ngfw.v1.ManagementAlarms.TargetsEntry.value:type_name -> ngfw.v1.AlarmTarget
+	478, // 652: ngfw.v1.Dataplane.IpsecState:input_type -> ngfw.v1.IpsecStateRequest
+	484, // 653: ngfw.v1.Dataplane.TunnelState:input_type -> ngfw.v1.TunnelStateRequest
+	129, // 654: ngfw.v1.Dataplane.AutoBlockSet:input_type -> ngfw.v1.AutoBlockSetRequest
+	8,   // 655: ngfw.v1.Dataplane.Apply:input_type -> ngfw.v1.ApplyRequest
+	16,  // 656: ngfw.v1.Dataplane.Retrieve:input_type -> ngfw.v1.RetrieveRequest
+	12,  // 657: ngfw.v1.Dataplane.DryRun:input_type -> ngfw.v1.DryRunRequest
+	18,  // 658: ngfw.v1.Dataplane.StreamStats:input_type -> ngfw.v1.StreamStatsRequest
+	22,  // 659: ngfw.v1.Dataplane.StreamEvents:input_type -> ngfw.v1.StreamEventsRequest
+	24,  // 660: ngfw.v1.Dataplane.Action:input_type -> ngfw.v1.ActionRequest
+	31,  // 661: ngfw.v1.Dataplane.Health:input_type -> ngfw.v1.HealthRequest
+	33,  // 662: ngfw.v1.Dataplane.InterfaceState:input_type -> ngfw.v1.InterfaceStateRequest
+	332, // 663: ngfw.v1.Dataplane.Det44Sessions:input_type -> ngfw.v1.Det44SessionsRequest
+	335, // 664: ngfw.v1.Dataplane.Det44Lookup:input_type -> ngfw.v1.Det44LookupRequest
+	337, // 665: ngfw.v1.Dataplane.CnatSessions:input_type -> ngfw.v1.CnatSessionsRequest
+	495, // 666: ngfw.v1.Dataplane.VrrpState:input_type -> ngfw.v1.VrrpStateRequest
+	345, // 667: ngfw.v1.Dataplane.PkiFileState:input_type -> ngfw.v1.PkiFileStateRequest
+	359, // 668: ngfw.v1.Dataplane.MplsState:input_type -> ngfw.v1.MplsStateRequest
+	370, // 669: ngfw.v1.Dataplane.LbState:input_type -> ngfw.v1.LbStateRequest
+	374, // 670: ngfw.v1.Dataplane.LbFlushVip:input_type -> ngfw.v1.LbFlushVipRequest
+	376, // 671: ngfw.v1.Dataplane.QosPolicerState:input_type -> ngfw.v1.QosPolicerStateRequest
+	380, // 672: ngfw.v1.Dataplane.QosPolicerReset:input_type -> ngfw.v1.QosPolicerResetRequest
+	387, // 673: ngfw.v1.Dataplane.HostStackState:input_type -> ngfw.v1.HostStackStateRequest
+	395, // 674: ngfw.v1.Dataplane.SnmpState:input_type -> ngfw.v1.SnmpStateRequest
+	397, // 675: ngfw.v1.Dataplane.IpfixState:input_type -> ngfw.v1.IpfixStateRequest
+	405, // 676: ngfw.v1.Dataplane.CaptureList:input_type -> ngfw.v1.CaptureListRequest
+	408, // 677: ngfw.v1.Dataplane.CaptureRead:input_type -> ngfw.v1.CaptureReadRequest
+	410, // 678: ngfw.v1.Dataplane.CaptureDelete:input_type -> ngfw.v1.CaptureDeleteRequest
+	417, // 679: ngfw.v1.Dataplane.Srv6State:input_type -> ngfw.v1.Srv6StateRequest
+	433, // 680: ngfw.v1.Dataplane.LispState:input_type -> ngfw.v1.LispStateRequest
+	208, // 681: ngfw.v1.Dataplane.BondState:input_type -> ngfw.v1.BondStateRequest
+	224, // 682: ngfw.v1.Dataplane.BridgeDomainState:input_type -> ngfw.v1.BridgeDomainStateRequest
+	228, // 683: ngfw.v1.Dataplane.BridgeDomainMacs:input_type -> ngfw.v1.BridgeDomainMacsRequest
+	233, // 684: ngfw.v1.Dataplane.LldpNeighbors:input_type -> ngfw.v1.LldpNeighborsRequest
+	237, // 685: ngfw.v1.Dataplane.ListRoutes:input_type -> ngfw.v1.ListRoutesRequest
+	248, // 686: ngfw.v1.Dataplane.ListNeighbors:input_type -> ngfw.v1.ListNeighborsRequest
+	259, // 687: ngfw.v1.Dataplane.FqdnObjectState:input_type -> ngfw.v1.FqdnObjectStateRequest
+	262, // 688: ngfw.v1.Dataplane.AclState:input_type -> ngfw.v1.AclStateRequest
+	271, // 689: ngfw.v1.Dataplane.HostAclState:input_type -> ngfw.v1.HostAclStateRequest
+	277, // 690: ngfw.v1.Dataplane.NatSessions:input_type -> ngfw.v1.NatSessionsRequest
+	280, // 691: ngfw.v1.Dataplane.NatSummary:input_type -> ngfw.v1.NatSummaryRequest
+	284, // 692: ngfw.v1.Dataplane.WireguardState:input_type -> ngfw.v1.WireguardStateRequest
+	294, // 693: ngfw.v1.Dataplane.RoutingState:input_type -> ngfw.v1.RoutingStateRequest
+	302, // 694: ngfw.v1.Dataplane.DhcpLeases:input_type -> ngfw.v1.DhcpLeasesRequest
+	311, // 695: ngfw.v1.Dataplane.DnsState:input_type -> ngfw.v1.DnsStateRequest
+	476, // 696: ngfw.v1.Dataplane.SystemIdentityState:input_type -> ngfw.v1.SystemIdentityStateRequest
+	316, // 697: ngfw.v1.Dataplane.NtpState:input_type -> ngfw.v1.NtpStateRequest
+	321, // 698: ngfw.v1.Dataplane.SyslogState:input_type -> ngfw.v1.SyslogStateRequest
+	324, // 699: ngfw.v1.Dataplane.SyslogEntries:input_type -> ngfw.v1.SyslogEntriesRequest
+	469, // 700: ngfw.v1.Dataplane.DataplaneStartupState:input_type -> ngfw.v1.DataplaneStartupStateRequest
+	472, // 701: ngfw.v1.Dataplane.DataplaneStartupPreview:input_type -> ngfw.v1.DataplaneStartupPreviewRequest
+	291, // 702: ngfw.v1.Dataplane.PppoeReconnect:input_type -> ngfw.v1.PppoeReconnectRequest
+	455, // 703: ngfw.v1.Dataplane.WanState:input_type -> ngfw.v1.WanStateRequest
+	459, // 704: ngfw.v1.Dataplane.MulticastState:input_type -> ngfw.v1.MulticastStateRequest
+	443, // 705: ngfw.v1.Dataplane.MplsLdpState:input_type -> ngfw.v1.MplsLdpStateRequest
+	492, // 706: ngfw.v1.Dataplane.HostNics:input_type -> ngfw.v1.HostNicsRequest
+	479, // 707: ngfw.v1.Dataplane.IpsecState:output_type -> ngfw.v1.IpsecStateResponse
+	486, // 708: ngfw.v1.Dataplane.TunnelState:output_type -> ngfw.v1.TunnelStateResponse
+	131, // 709: ngfw.v1.Dataplane.AutoBlockSet:output_type -> ngfw.v1.AutoBlockSetResponse
+	9,   // 710: ngfw.v1.Dataplane.Apply:output_type -> ngfw.v1.ApplyResponse
+	17,  // 711: ngfw.v1.Dataplane.Retrieve:output_type -> ngfw.v1.RetrieveResponse
+	15,  // 712: ngfw.v1.Dataplane.DryRun:output_type -> ngfw.v1.ValidationReport
+	19,  // 713: ngfw.v1.Dataplane.StreamStats:output_type -> ngfw.v1.StatsBatch
+	23,  // 714: ngfw.v1.Dataplane.StreamEvents:output_type -> ngfw.v1.Event
+	29,  // 715: ngfw.v1.Dataplane.Action:output_type -> ngfw.v1.ActionOutput
+	32,  // 716: ngfw.v1.Dataplane.Health:output_type -> ngfw.v1.HealthResponse
+	34,  // 717: ngfw.v1.Dataplane.InterfaceState:output_type -> ngfw.v1.InterfaceStateResponse
+	334, // 718: ngfw.v1.Dataplane.Det44Sessions:output_type -> ngfw.v1.Det44SessionsResponse
+	336, // 719: ngfw.v1.Dataplane.Det44Lookup:output_type -> ngfw.v1.Det44LookupResponse
+	339, // 720: ngfw.v1.Dataplane.CnatSessions:output_type -> ngfw.v1.CnatSessionsResponse
+	497, // 721: ngfw.v1.Dataplane.VrrpState:output_type -> ngfw.v1.VrrpStateResponse
+	348, // 722: ngfw.v1.Dataplane.PkiFileState:output_type -> ngfw.v1.PkiFileStateResponse
+	360, // 723: ngfw.v1.Dataplane.MplsState:output_type -> ngfw.v1.MplsStateResponse
+	371, // 724: ngfw.v1.Dataplane.LbState:output_type -> ngfw.v1.LbStateResponse
+	375, // 725: ngfw.v1.Dataplane.LbFlushVip:output_type -> ngfw.v1.LbFlushVipResponse
+	379, // 726: ngfw.v1.Dataplane.QosPolicerState:output_type -> ngfw.v1.QosPolicerStateResponse
+	381, // 727: ngfw.v1.Dataplane.QosPolicerReset:output_type -> ngfw.v1.QosPolicerResetResponse
+	389, // 728: ngfw.v1.Dataplane.HostStackState:output_type -> ngfw.v1.HostStackStateResponse
+	396, // 729: ngfw.v1.Dataplane.SnmpState:output_type -> ngfw.v1.SnmpStateResponse
+	398, // 730: ngfw.v1.Dataplane.IpfixState:output_type -> ngfw.v1.IpfixStateResponse
+	407, // 731: ngfw.v1.Dataplane.CaptureList:output_type -> ngfw.v1.CaptureListResponse
+	409, // 732: ngfw.v1.Dataplane.CaptureRead:output_type -> ngfw.v1.CaptureChunk
+	411, // 733: ngfw.v1.Dataplane.CaptureDelete:output_type -> ngfw.v1.CaptureDeleteResponse
+	418, // 734: ngfw.v1.Dataplane.Srv6State:output_type -> ngfw.v1.Srv6StateResponse
+	439, // 735: ngfw.v1.Dataplane.LispState:output_type -> ngfw.v1.LispStateResponse
+	209, // 736: ngfw.v1.Dataplane.BondState:output_type -> ngfw.v1.BondStateResponse
+	225, // 737: ngfw.v1.Dataplane.BridgeDomainState:output_type -> ngfw.v1.BridgeDomainStateResponse
+	229, // 738: ngfw.v1.Dataplane.BridgeDomainMacs:output_type -> ngfw.v1.BridgeDomainMacsResponse
+	234, // 739: ngfw.v1.Dataplane.LldpNeighbors:output_type -> ngfw.v1.LldpNeighborsResponse
+	238, // 740: ngfw.v1.Dataplane.ListRoutes:output_type -> ngfw.v1.ListRoutesResponse
+	249, // 741: ngfw.v1.Dataplane.ListNeighbors:output_type -> ngfw.v1.ListNeighborsResponse
+	260, // 742: ngfw.v1.Dataplane.FqdnObjectState:output_type -> ngfw.v1.FqdnObjectStateResponse
+	264, // 743: ngfw.v1.Dataplane.AclState:output_type -> ngfw.v1.AclStateResponse
+	272, // 744: ngfw.v1.Dataplane.HostAclState:output_type -> ngfw.v1.HostAclStateResponse
+	279, // 745: ngfw.v1.Dataplane.NatSessions:output_type -> ngfw.v1.NatSessionsResponse
+	282, // 746: ngfw.v1.Dataplane.NatSummary:output_type -> ngfw.v1.NatSummaryResponse
+	285, // 747: ngfw.v1.Dataplane.WireguardState:output_type -> ngfw.v1.WireguardStateResponse
+	295, // 748: ngfw.v1.Dataplane.RoutingState:output_type -> ngfw.v1.RoutingStateResponse
+	307, // 749: ngfw.v1.Dataplane.DhcpLeases:output_type -> ngfw.v1.DhcpLeasesResponse
+	312, // 750: ngfw.v1.Dataplane.DnsState:output_type -> ngfw.v1.DnsStateResponse
+	477, // 751: ngfw.v1.Dataplane.SystemIdentityState:output_type -> ngfw.v1.SystemIdentityStateResponse
+	317, // 752: ngfw.v1.Dataplane.NtpState:output_type -> ngfw.v1.NtpStateResponse
+	322, // 753: ngfw.v1.Dataplane.SyslogState:output_type -> ngfw.v1.SyslogStateResponse
+	325, // 754: ngfw.v1.Dataplane.SyslogEntries:output_type -> ngfw.v1.SyslogEntriesResponse
+	470, // 755: ngfw.v1.Dataplane.DataplaneStartupState:output_type -> ngfw.v1.DataplaneStartupStateResponse
+	473, // 756: ngfw.v1.Dataplane.DataplaneStartupPreview:output_type -> ngfw.v1.DataplaneStartupPreviewResponse
+	292, // 757: ngfw.v1.Dataplane.PppoeReconnect:output_type -> ngfw.v1.PppoeReconnectResponse
+	456, // 758: ngfw.v1.Dataplane.WanState:output_type -> ngfw.v1.WanStateResponse
+	460, // 759: ngfw.v1.Dataplane.MulticastState:output_type -> ngfw.v1.MulticastStateResponse
+	444, // 760: ngfw.v1.Dataplane.MplsLdpState:output_type -> ngfw.v1.MplsLdpStateResponse
+	493, // 761: ngfw.v1.Dataplane.HostNics:output_type -> ngfw.v1.HostNicsResponse
+	707, // [707:762] is the sub-list for method output_type
+	652, // [652:707] is the sub-list for method input_type
+	652, // [652:652] is the sub-list for extension type_name
+	652, // [652:652] is the sub-list for extension extendee
+	0,   // [0:652] is the sub-list for field type_name
 }
 
 func init() { file_ngfw_v1_dataplane_proto_init() }
@@ -53123,27 +53359,24 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[482].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[483].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[486].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[519].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[521].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[522].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[523].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[524].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[525].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[529].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[530].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[531].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[526].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[527].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[528].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[532].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[533].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[534].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[535].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[536].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[537].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[538].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[544].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[545].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[546].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[539].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[540].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[541].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[547].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[548].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[549].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[550].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[551].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[552].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[553].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[554].OneofWrappers = []any{}
@@ -53165,20 +53398,23 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[570].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[571].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[572].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[585].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[573].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[574].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[575].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[588].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[591].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[592].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[593].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[597].OneofWrappers = []any{}
-	file_ngfw_v1_dataplane_proto_msgTypes[603].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[594].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[595].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[596].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[600].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[606].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ngfw_v1_dataplane_proto_rawDesc), len(file_ngfw_v1_dataplane_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   626,
+			NumMessages:   629,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

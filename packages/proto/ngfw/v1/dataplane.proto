@@ -87,6 +87,7 @@ service Dataplane {
 
   // wave-BC: F-tunnels
   // wave-BC: F-vrrp-config-sync
+  rpc VrrpState(VrrpStateRequest) returns (VrrpStateResponse);
   // wave-BC: F-pki
 
   // PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
@@ -713,6 +714,7 @@ enum EventKind {
   EVENT_KIND_DEGRADED = 9;
 
   // wave-BC: F-vrrp-config-sync
+  EVENT_KIND_VRRP_STATE_CHANGED = 17;
   // wave-BC: F-ospf
   EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20;
   // wave-BC: F-isis-rip
@@ -2789,6 +2791,8 @@ message HaCluster {
     optional string name = 1;
     // Peer address.
     optional string address = 2;
+    // SHA256 of the peer leaf TLS certificate (lowercase hex).
+    optional string certificate_pin = 3;
   }
   // State synchronisation flags.
   message StateSync {
@@ -2821,6 +2825,7 @@ message HaCluster {
   StateSync state_sync = 9;
 
   // wave-BC: F-vrrp-config-sync
+  repeated string sync_exclude = 10;
 }
 
 // ----- management (P02a, mirrors packages/schema/src/domains/management.ts) -----
@@ -8393,4 +8398,20 @@ message HostNic {
   optional bool bound_to_dpdk = 6;
   // Carrier (link) state as the kernel reports it (/sys/class/net/<netdev>/carrier); false when down or unknown.
   optional bool link_up = 7;
+}
+
+// Live observed roles; unknown is explicit, never inferred from configured priority.
+message VrrpStateRequest { string owner = 1; }
+message VrrpRuntime {
+  string name = 1;
+  string engine = 2;
+  string state = 3;
+  uint32 current_priority = 4;
+  uint32 master_advertisement_interval_ms = 5;
+  string error = 6;
+}
+message VrrpStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated VrrpRuntime routers = 3;
 }

@@ -79,3 +79,26 @@ export function vrrpPatch(
   for (const k of Object.keys(before)) if (!(k in after)) out[k] = null;
   return out;
 }
+
+export function useVrrpRuntime() {
+  return useQuery({
+    queryKey: ['ha', 'vrrp', 'live'],
+    queryFn: async ({ signal }) => (await call(api.GET('/api/v1/state/ha/vrrp', { signal }))).data,
+    refetchInterval: 5000,
+  });
+}
+export function useClusterRuntime() {
+  return useQuery({
+    queryKey: ['ha', 'cluster', 'live'],
+    queryFn: async ({ signal }) =>
+      (await call(api.GET('/api/v1/state/ha/cluster', { signal }))).data,
+    refetchInterval: 5000,
+  });
+}
+export function useForceClusterSync() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => call(api.POST('/api/v1/actions/ha/sync')),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['ha', 'cluster', 'live'] }),
+  });
+}

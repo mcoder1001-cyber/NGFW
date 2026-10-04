@@ -355,10 +355,9 @@ export enum EventKind {
   EVENT_KIND_VPP_DISCONNECTED = 8,
   /** EVENT_KIND_DEGRADED - A rollback failed; the agent is degraded until an Apply succeeds (AD-4). */
   EVENT_KIND_DEGRADED = 9,
-  /**
-   * EVENT_KIND_OSPF_NEIGHBOR_CHANGED - wave-BC: F-vrrp-config-sync
-   * wave-BC: F-ospf
-   */
+  /** EVENT_KIND_VRRP_STATE_CHANGED - wave-BC: F-vrrp-config-sync */
+  EVENT_KIND_VRRP_STATE_CHANGED = 17,
+  /** EVENT_KIND_OSPF_NEIGHBOR_CHANGED - wave-BC: F-ospf */
   EVENT_KIND_OSPF_NEIGHBOR_CHANGED = 20,
   /** EVENT_KIND_ISIS_ADJACENCY_CHANGED - wave-BC: F-isis-rip */
   EVENT_KIND_ISIS_ADJACENCY_CHANGED = 21,
@@ -436,6 +435,9 @@ export function eventKindFromJSON(object: any): EventKind {
     case 9:
     case "EVENT_KIND_DEGRADED":
       return EventKind.EVENT_KIND_DEGRADED;
+    case 17:
+    case "EVENT_KIND_VRRP_STATE_CHANGED":
+      return EventKind.EVENT_KIND_VRRP_STATE_CHANGED;
     case 20:
     case "EVENT_KIND_OSPF_NEIGHBOR_CHANGED":
       return EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED;
@@ -493,6 +495,8 @@ export function eventKindToJSON(object: EventKind): string {
       return "EVENT_KIND_VPP_DISCONNECTED";
     case EventKind.EVENT_KIND_DEGRADED:
       return "EVENT_KIND_DEGRADED";
+    case EventKind.EVENT_KIND_VRRP_STATE_CHANGED:
+      return "EVENT_KIND_VRRP_STATE_CHANGED";
     case EventKind.EVENT_KIND_OSPF_NEIGHBOR_CHANGED:
       return "EVENT_KIND_OSPF_NEIGHBOR_CHANGED";
     case EventKind.EVENT_KIND_ISIS_ADJACENCY_CHANGED:
@@ -3954,7 +3958,11 @@ export interface HaCluster {
     | boolean
     | undefined;
   /** State sync. */
-  stateSync: HaCluster_StateSync | undefined;
+  stateSync:
+    | HaCluster_StateSync
+    | undefined;
+  /** wave-BC: F-vrrp-config-sync */
+  syncExclude: string[];
 }
 
 /** Cluster peer. */
@@ -3964,7 +3972,11 @@ export interface HaCluster_Peer {
     | string
     | undefined;
   /** Peer address. */
-  address?: string | undefined;
+  address?:
+    | string
+    | undefined;
+  /** SHA256 of the peer leaf TLS certificate (lowercase hex). */
+  certificatePin?: string | undefined;
 }
 
 /** State synchronisation flags. */
@@ -11129,6 +11141,26 @@ export interface HostNic {
     | undefined;
   /** Carrier (link) state as the kernel reports it (/sys/class/net/<netdev>/carrier); false when down or unknown. */
   linkUp?: boolean | undefined;
+}
+
+/** Live observed roles; unknown is explicit, never inferred from configured priority. */
+export interface VrrpStateRequest {
+  owner: string;
+}
+
+export interface VrrpRuntime {
+  name: string;
+  engine: string;
+  state: string;
+  currentPriority: number;
+  masterAdvertisementIntervalMs: number;
+  error: string;
+}
+
+export interface VrrpStateResponse {
+  owner: string;
+  retrievedAt: Date | undefined;
+  routers: VrrpRuntime[];
 }
 
 function createBaseApplyRequest(): ApplyRequest {
@@ -37089,6 +37121,7 @@ function createBaseHaCluster(): HaCluster {
     vrf: undefined,
     configSync: undefined,
     stateSync: undefined,
+    syncExclude: [],
   };
 }
 
@@ -37120,6 +37153,9 @@ export const HaCluster: MessageFns<HaCluster> = {
     }
     if (message.stateSync !== undefined) {
       HaCluster_StateSync.encode(message.stateSync, writer.uint32(74).fork()).join();
+    }
+    for (const v of message.syncExclude) {
+      writer.uint32(82).string(v!);
     }
     return writer;
   },
@@ -37209,6 +37245,14 @@ export const HaCluster: MessageFns<HaCluster> = {
             message.stateSync = HaCluster_StateSync.decode(reader, reader.uint32());
             continue;
           }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.syncExclude.push(reader.string());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -37248,6 +37292,11 @@ export const HaCluster: MessageFns<HaCluster> = {
         : isSet(object.state_sync)
         ? HaCluster_StateSync.fromJSON(object.state_sync)
         : undefined,
+      syncExclude: globalThis.Array.isArray(object?.syncExclude)
+        ? object.syncExclude.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.sync_exclude)
+        ? object.sync_exclude.map((e: any) => globalThis.String(e))
+        : [],
     };
   },
 
@@ -37280,6 +37329,9 @@ export const HaCluster: MessageFns<HaCluster> = {
     if (message.stateSync !== undefined) {
       obj.stateSync = HaCluster_StateSync.toJSON(message.stateSync);
     }
+    if (message.syncExclude?.length) {
+      obj.syncExclude = message.syncExclude;
+    }
     return obj;
   },
 
@@ -37299,12 +37351,13 @@ export const HaCluster: MessageFns<HaCluster> = {
     message.stateSync = (object.stateSync !== undefined && object.stateSync !== null)
       ? HaCluster_StateSync.fromPartial(object.stateSync)
       : undefined;
+    message.syncExclude = object.syncExclude?.map((e) => e) || [];
     return message;
   },
 };
 
 function createBaseHaCluster_Peer(): HaCluster_Peer {
-  return { name: undefined, address: undefined };
+  return { name: undefined, address: undefined, certificatePin: undefined };
 }
 
 export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
@@ -37314,6 +37367,9 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
     }
     if (message.address !== undefined) {
       writer.uint32(18).string(message.address);
+    }
+    if (message.certificatePin !== undefined) {
+      writer.uint32(26).string(message.certificatePin);
     }
     return writer;
   },
@@ -37347,6 +37403,14 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
             message.address = reader.string();
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.certificatePin = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -37363,6 +37427,11 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
     return {
       name: isSet(object.name) ? globalThis.String(object.name) : undefined,
       address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      certificatePin: isSet(object.certificatePin)
+        ? globalThis.String(object.certificatePin)
+        : isSet(object.certificate_pin)
+        ? globalThis.String(object.certificate_pin)
+        : undefined,
     };
   },
 
@@ -37374,6 +37443,9 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
     if (message.address !== undefined) {
       obj.address = message.address;
     }
+    if (message.certificatePin !== undefined) {
+      obj.certificatePin = message.certificatePin;
+    }
     return obj;
   },
 
@@ -37384,6 +37456,7 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
     const message = createBaseHaCluster_Peer();
     message.name = object.name ?? undefined;
     message.address = object.address ?? undefined;
+    message.certificatePin = object.certificatePin ?? undefined;
     return message;
   },
 };
@@ -101389,6 +101462,335 @@ export const HostNic: MessageFns<HostNic> = {
   },
 };
 
+function createBaseVrrpStateRequest(): VrrpStateRequest {
+  return { owner: "" };
+}
+
+export const VrrpStateRequest: MessageFns<VrrpStateRequest> = {
+  encode(message: VrrpStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VrrpStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseVrrpStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): VrrpStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: VrrpStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<VrrpStateRequest>): VrrpStateRequest {
+    return VrrpStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<VrrpStateRequest>): VrrpStateRequest {
+    const message = createBaseVrrpStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseVrrpRuntime(): VrrpRuntime {
+  return { name: "", engine: "", state: "", currentPriority: 0, masterAdvertisementIntervalMs: 0, error: "" };
+}
+
+export const VrrpRuntime: MessageFns<VrrpRuntime> = {
+  encode(message: VrrpRuntime, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.name !== "") {
+      writer.uint32(10).string(message.name);
+    }
+    if (message.engine !== "") {
+      writer.uint32(18).string(message.engine);
+    }
+    if (message.state !== "") {
+      writer.uint32(26).string(message.state);
+    }
+    if (message.currentPriority !== 0) {
+      writer.uint32(32).uint32(message.currentPriority);
+    }
+    if (message.masterAdvertisementIntervalMs !== 0) {
+      writer.uint32(40).uint32(message.masterAdvertisementIntervalMs);
+    }
+    if (message.error !== "") {
+      writer.uint32(50).string(message.error);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VrrpRuntime {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseVrrpRuntime();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.name = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.engine = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.state = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.currentPriority = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.masterAdvertisementIntervalMs = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.error = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): VrrpRuntime {
+    return {
+      name: isSet(object.name) ? globalThis.String(object.name) : "",
+      engine: isSet(object.engine) ? globalThis.String(object.engine) : "",
+      state: isSet(object.state) ? globalThis.String(object.state) : "",
+      currentPriority: isSet(object.currentPriority)
+        ? globalThis.Number(object.currentPriority)
+        : isSet(object.current_priority)
+        ? globalThis.Number(object.current_priority)
+        : 0,
+      masterAdvertisementIntervalMs: isSet(object.masterAdvertisementIntervalMs)
+        ? globalThis.Number(object.masterAdvertisementIntervalMs)
+        : isSet(object.master_advertisement_interval_ms)
+        ? globalThis.Number(object.master_advertisement_interval_ms)
+        : 0,
+      error: isSet(object.error) ? globalThis.String(object.error) : "",
+    };
+  },
+
+  toJSON(message: VrrpRuntime): unknown {
+    const obj: any = {};
+    if (message.name !== "") {
+      obj.name = message.name;
+    }
+    if (message.engine !== "") {
+      obj.engine = message.engine;
+    }
+    if (message.state !== "") {
+      obj.state = message.state;
+    }
+    if (message.currentPriority !== 0) {
+      obj.currentPriority = Math.round(message.currentPriority);
+    }
+    if (message.masterAdvertisementIntervalMs !== 0) {
+      obj.masterAdvertisementIntervalMs = Math.round(message.masterAdvertisementIntervalMs);
+    }
+    if (message.error !== "") {
+      obj.error = message.error;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<VrrpRuntime>): VrrpRuntime {
+    return VrrpRuntime.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<VrrpRuntime>): VrrpRuntime {
+    const message = createBaseVrrpRuntime();
+    message.name = object.name ?? "";
+    message.engine = object.engine ?? "";
+    message.state = object.state ?? "";
+    message.currentPriority = object.currentPriority ?? 0;
+    message.masterAdvertisementIntervalMs = object.masterAdvertisementIntervalMs ?? 0;
+    message.error = object.error ?? "";
+    return message;
+  },
+};
+
+function createBaseVrrpStateResponse(): VrrpStateResponse {
+  return { owner: "", retrievedAt: undefined, routers: [] };
+}
+
+export const VrrpStateResponse: MessageFns<VrrpStateResponse> = {
+  encode(message: VrrpStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(18).fork()).join();
+    }
+    for (const v of message.routers) {
+      VrrpRuntime.encode(v!, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): VrrpStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseVrrpStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.routers.push(VrrpRuntime.decode(reader, reader.uint32()));
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): VrrpStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      routers: globalThis.Array.isArray(object?.routers) ? object.routers.map((e: any) => VrrpRuntime.fromJSON(e)) : [],
+    };
+  },
+
+  toJSON(message: VrrpStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.routers?.length) {
+      obj.routers = message.routers.map((e) => VrrpRuntime.toJSON(e));
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<VrrpStateResponse>): VrrpStateResponse {
+    return VrrpStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<VrrpStateResponse>): VrrpStateResponse {
+    const message = createBaseVrrpStateResponse();
+    message.owner = object.owner ?? "";
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.routers = object.routers?.map((e) => VrrpRuntime.fromPartial(e)) || [];
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/ngfw/agent.sock in production, the slot's NGFW_AGENT_SOCKET in tests). One agent process
@@ -101567,6 +101969,19 @@ export const DataplaneService = {
     responseSerialize: (value: CnatSessionsResponse): Buffer =>
       Buffer.from(CnatSessionsResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): CnatSessionsResponse => CnatSessionsResponse.decode(value),
+  },
+  /**
+   * wave-BC: F-tunnels
+   * wave-BC: F-vrrp-config-sync
+   */
+  vrrpState: {
+    path: "/ngfw.v1.Dataplane/VrrpState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: VrrpStateRequest): Buffer => Buffer.from(VrrpStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): VrrpStateRequest => VrrpStateRequest.decode(value),
+    responseSerialize: (value: VrrpStateResponse): Buffer => Buffer.from(VrrpStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): VrrpStateResponse => VrrpStateResponse.decode(value),
   },
   /**
    * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
@@ -102217,6 +102632,11 @@ export interface DataplaneServer extends UntypedServiceImplementation {
   /** CnatSessions pages the CNAT session table (cnat_session_dump; read-only). */
   cnatSessions: handleUnaryCall<CnatSessionsRequest, CnatSessionsResponse>;
   /**
+   * wave-BC: F-tunnels
+   * wave-BC: F-vrrp-config-sync
+   */
+  vrrpState: handleUnaryCall<VrrpStateRequest, VrrpStateResponse>;
+  /**
    * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under
    * its swanctl directory): kind, name, source reference, fingerprint (SHA-256 of the file; a private key only as an
    * HMAC-SHA256 under the agent-local key, D-096 — never key material), mode and presence on disk. Read-only (F-pki;
@@ -102679,6 +103099,25 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: CnatSessionsResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * wave-BC: F-tunnels
+   * wave-BC: F-vrrp-config-sync
+   */
+  vrrpState(
+    request: VrrpStateRequest,
+    callback: (error: ServiceError | null, response: VrrpStateResponse) => void,
+  ): ClientUnaryCall;
+  vrrpState(
+    request: VrrpStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: VrrpStateResponse) => void,
+  ): ClientUnaryCall;
+  vrrpState(
+    request: VrrpStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: VrrpStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * PkiFileState reports the PKI files this agent materialised for strongSwan (x509/, x509ca/, private/, x509crl/ under

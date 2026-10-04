@@ -55,6 +55,43 @@ function fake() {
   const api = installFakeApi('admin');
   api.on('GET /api/v1/config/candidate/ha', () => ({ body: CANDIDATE }));
   api.on('GET /api/v1/config/ha', () => ({ body: RUNNING }));
+  api.on('GET /api/v1/state/ha/vrrp', () => ({
+    body: {
+      retrievedAt: new Date().toISOString(),
+      routers: [
+        {
+          name: 'lan',
+          engine: 'vpp',
+          state: 'master',
+          currentPriority: 150,
+          masterAdvertisementIntervalMs: 1000,
+          error: '',
+        },
+      ],
+    },
+  }));
+  api.on('GET /api/v1/state/ha/cluster', () => ({
+    body: {
+      nodeName: 'fw-a',
+      enabled: true,
+      revision: 7,
+      members: [
+        {
+          name: 'fw-b',
+          address: '198.51.100.2',
+          role: 'backup',
+          revision: 8,
+          sourceRevision: 7,
+          syncedAt: new Date().toISOString(),
+          lag: 0,
+          error: '',
+        },
+      ],
+    },
+  }));
+  api.on('POST /api/v1/actions/ha/sync', () => ({
+    body: { nodeName: 'fw-a', enabled: true, revision: 7, members: [] },
+  }));
   return api;
 }
 
@@ -78,12 +115,16 @@ describe('System → High availability (WEB-4b, routed by F-vrrp-config-sync)', 
     fake();
     await signIn();
     render(app());
-    expect(await screen.findByRole('heading', { level: 2, name: 'High availability' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'High availability' }),
+    ).toBeInTheDocument();
     const lan = await screen.findByTestId('vrrp-lan');
     await waitFor(() => expect(within(lan).getByText('Committed')).toBeInTheDocument());
     const wan = screen.getByTestId('vrrp-wan');
     expect(within(wan).getByText('Not committed')).toBeInTheDocument();
     expect(within(wan).getByText('90')).toBeInTheDocument();
+    expect(within(lan).getByText('Master')).toBeInTheDocument();
+    expect(within(wan).getByText('Unknown')).toBeInTheDocument();
   });
 
   it('shows the cluster summary on the Cluster tab', async () => {
@@ -94,6 +135,8 @@ describe('System → High availability (WEB-4b, routed by F-vrrp-config-sync)', 
     const c = await screen.findByTestId('ha-cluster');
     await waitFor(() => expect(within(c).getByText('fw-a')).toBeInTheDocument());
     expect(within(c).getByText('fw-b (198.51.100.2)')).toBeInTheDocument();
+    expect(within(c).getByText('Backup')).toBeInTheDocument();
+    expect(within(c).getByRole('button', { name: 'Force sync' })).toBeEnabled();
     expect(within(c).getByText('Not committed')).toBeInTheDocument();
   });
 

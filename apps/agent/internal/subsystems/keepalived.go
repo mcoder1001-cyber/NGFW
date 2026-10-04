@@ -207,7 +207,9 @@ func registerKeepalived(r scheduler.Registry, w *Wiring) {
 	runner := renderers.NewSystemRunner(renderers.NewAllowlist(keepalived.Binaries()...))
 	paths, opts := keepalivedPaths()
 	opts = append(opts, keepalived.WithPaths(paths))
-	r.Register(NewKeepalivedStage(keepalived.New(runner, opts...), filepath.Join(w.env.StateDir, "keepalived-"+w.env.Owner+".json")))
+	renderer := keepalived.New(runner, opts...)
+	keepalivedRuntime.Store(renderer)
+	r.Register(NewKeepalivedStage(renderer, filepath.Join(w.env.StateDir, "keepalived-"+w.env.Owner+".json")))
 }
 
 func keepalivedRunningFinding(err error) error {

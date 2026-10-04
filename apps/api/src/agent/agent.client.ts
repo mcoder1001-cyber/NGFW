@@ -41,6 +41,7 @@ import {
   // wave-BC: F-tunnels
   type TunnelStateResponse,
   // wave-BC: F-vrrp-config-sync
+  type VrrpStateResponse,
   // wave-BC: F-pki
   // wave-BC: F-ikev2-native
   // wave-BC: F-ospf
@@ -276,6 +277,9 @@ export class AgentClient implements OnModuleDestroy {
   }
 
   /** F-mpls-ldp: live LDP neighbours, LIB bindings and the FRR→VPP sync status; an agent without LDP answers 501. */
+  vrrpState(): Promise<VrrpStateResponse> {
+    return this.unary(this.c.vrrpState, { owner: this.owner });
+  }
   mplsLdpState(): Promise<MplsLdpStateResponse> {
     return this.unary(this.c.mplsLdpState, { owner: this.owner });
   }

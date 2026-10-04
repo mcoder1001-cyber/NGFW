@@ -1,4 +1,6 @@
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import { clusterPanels } from './clusterPanels';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
 import Paper from '@mui/material/Paper';
@@ -22,13 +24,15 @@ import { PageHeader } from '../../../shell/PageHeader';
 import { NS } from './locale';
 import {
   useCandidateHa,
+  useVrrpRuntime,
+  useClusterRuntime,
+  useForceClusterSync,
   usePatchHa,
   useRunningHa,
   vrrpPatch,
   type HaCluster,
   type VrrpRouter,
 } from './queries';
-
 
 const VRRP = 'vrrp' as const;
 const CLUSTER = 'cluster' as const;
@@ -66,6 +70,8 @@ function VrrpTab() {
   const cand = useCandidateHa();
   const running = useRunningHa();
   const patch = usePatchHa();
+  const live = useVrrpRuntime();
+  const roles = live.isError ? [] : (live.data?.routers ?? []);
   const vrrp = cand.data?.vrrp ?? {};
   const runVrrp = running.data?.vrrp ?? {};
   const entries = Object.entries(vrrp) as [string, VrrpRouter][];
@@ -91,6 +97,7 @@ function VrrpTab() {
         <Typography component="h3" variant="h6" gutterBottom>
           {t('vrrp.title')}
         </Typography>
+        {live.isError && <ProblemAlert error={live.error} />}
         {entries.length === 0 ? (
           <Typography color="text.secondary">{t('vrrp.empty')}</Typography>
         ) : (
@@ -103,6 +110,8 @@ function VrrpTab() {
                   <TableCell>{t('vrrp.vrId')}</TableCell>
                   <TableCell>{t('vrrp.family')}</TableCell>
                   <TableCell>{t('vrrp.priority')}</TableCell>
+                  <TableCell>{t('vrrp.currentPriority')}</TableCell>
+                  <TableCell>{t('vrrp.masterInterval')}</TableCell>
                   <TableCell>{t('vrrp.addresses')}</TableCell>
                   <TableCell>{t('vrrp.engine')}</TableCell>
                   <TableCell>{t('vrrp.status')}</TableCell>
@@ -116,10 +125,29 @@ function VrrpTab() {
                     <TableCell dir="ltr">{r.vrId}</TableCell>
                     <TableCell dir="ltr">{r.addressFamily ?? DEFAULT_FAMILY}</TableCell>
                     <TableCell dir="ltr">{r.priority ?? 100}</TableCell>
+                    <TableCell>
+                      {roles.find((v) => v.name === name)?.currentPriority || t('none')}
+                    </TableCell>
+                    <TableCell>
+                      {roles.find((v) => v.name === name)?.masterAdvertisementIntervalMs ||
+                        t('none')}
+                    </TableCell>
                     <TableCell dir="ltr">{r.addresses.join(', ')}</TableCell>
                     <TableCell>{t(`vrrp.engineLabels.${r.engine ?? DEFAULT_ENGINE}`)}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={1}>
+                        <Chip
+                          size="small"
+                          color={
+                            roles.find((v) => v.name === name)?.state === 'master'
+                              ? 'success'
+                              : 'default'
+                          }
+                          label={t(
+                            `vrrp.roles.${roles.find((v) => v.name === name)?.error ? 'unknown' : (roles.find((v) => v.name === name)?.state ?? 'unknown')}`,
+                            { defaultValue: t('vrrp.roles.unknown') },
+                          )}
+                        />
                         {r.enabled === false && <Chip size="small" label={t('vrrp.disabled')} />}
                         {running.isSuccess && (
                           <Chip
@@ -147,6 +175,8 @@ function ClusterTab() {
   const cand = useCandidateHa();
   const running = useRunningHa();
   const patch = usePatchHa();
+  const live = useClusterRuntime();
+  const force = useForceClusterSync();
   const c: HaCluster | undefined = cand.data?.cluster;
   const onOff = (v: boolean | undefined) => (v ? t('cluster.on') : t('cluster.off'));
   return (
@@ -173,6 +203,46 @@ function ClusterTab() {
             <Chip size="small" color="warning" label={t('cluster.pending')} sx={{ ms: 1 }} />
           )}
         </Typography>
+        {live.isError && <ProblemAlert error={live.error} />}
+        {force.isError && <ProblemAlert error={force.error} />}
+        <Button
+          disabled={!perms.commit || force.isPending || live.isError || !live.data?.enabled}
+          onClick={() => void force.mutateAsync().catch(() => undefined)}
+        >
+          {t('cluster.force')}
+        </Button>
+        <Typography>
+          {t('cluster.revision')}: {live.isError ? t('none') : (live.data?.revision ?? t('none'))}
+        </Typography>
+        {!live.isError && live.data?.members && (
+          <Table size="small" aria-label={t('cluster.live')}>
+            <TableHead>
+              <TableRow>
+                <TableCell>{t('cluster.peers')}</TableCell>
+                <TableCell>{t('cluster.role')}</TableCell>
+                <TableCell>{t('cluster.revision')}</TableCell>
+                <TableCell>{t('cluster.lag')}</TableCell>
+                <TableCell>{t('cluster.syncStatus')}</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {live.data.members.map((peer) => (
+                <TableRow key={peer.name}>
+                  <TableCell dir="ltr">{peer.name}</TableCell>
+                  <TableCell>{t(`vrrp.roles.${peer.role ?? 'unknown'}`)}</TableCell>
+                  <TableCell>{peer.revision ?? t('none')}</TableCell>
+                  <TableCell>{peer.lag ?? t('none')}</TableCell>
+                  <TableCell>
+                    {peer.error || (peer.syncedAt ? t('cluster.synced') : t('cluster.waiting'))}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        {clusterPanels.map((Panel, i) => (
+          <Panel key={i} />
+        ))}
         {!c ? (
           <Typography color="text.secondary">{t('cluster.notConfigured')}</Typography>
         ) : (

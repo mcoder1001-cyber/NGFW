@@ -1,0 +1,13 @@
+ngfw-agent sha256=1d669e29a0a8e6aa2a2978f6c76c4def113320aa3b36356602424b1b2bb36428
+ngfw-agentctl sha256=e65a6fac6c7e988ddf7706a64fb01637313e74ab26a6f3b48c906b0d0b974c5f
+ngfw-vpp-preflight sha256=4e3d2359bd875341301c7cc025c2d2e4758667362d812815f75c52cfb7a12b1b
+DISPOSABLE_VPP pid=299740 runtime=/root/ngfw-wt/codex-closeout-wan-final-packets/.scratch/isolated-vpp-299699
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: /root/ngfw-wt/codex-closeout-wan-final-packets/.scratch/final-product/deploy/dev/pg-test.sh create w7: fork/exec /root/ngfw-wt/codex-closeout-wan-final-packets/.scratch/final-product/deploy/dev/pg-test.sh: no such file or directory
+--- FAIL: TestMultiWANRealAPI (0.84s)
+FAIL
+FAIL	ngfw/test/topology/acl	0.873s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=299740

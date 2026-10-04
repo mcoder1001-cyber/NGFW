@@ -117,16 +117,55 @@ func TestRuntimeMonitorIndependenceAndNoOverlap(t *testing.T) {
 }
 func TestRuntimeBoundsInvalidConfigurationDoesNotReplace(t *testing.T) {
 	var calls atomic.Int32
-	r := NewRuntime(func(context.Context, string, *ngfwv1.WanMonitor) CheckResult {
-		calls.Add(1)
-		return CheckResult{Sent: 1, Received: 1}
+	allowTick := make(chan struct{})
+	tickStarted := make(chan struct{})
+	r := NewRuntime(func(ctx context.Context, _ string, _ *ngfwv1.WanMonitor) CheckResult {
+		if calls.Load() > 0 {
+			select {
+			case <-allowTick:
+			case <-ctx.Done():
+				return CheckResult{Sent: 1}
+			}
+		}
+		if calls.Add(1) == 1 {
+			return CheckResult{Sent: 1, Received: 1}
+		}
+		if calls.Load() == 2 {
+			close(tickStarted)
+		}
+		// Keep the scheduled invocation in flight so no new result can hide a
+		// hysteresis reset. Close/incorrect replacement still cancels it normally.
+		<-ctx.Done()
+		return CheckResult{Sent: 1}
 	})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	if err := r.Replace(ctx, []*ngfwv1.WanGroup{runtimeGroup()}); err != nil {
+	defer func() {
+		if err := r.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+	group := runtimeGroup()
+	group.Monitors[0].TimeoutMs = proto.Uint32(60000)
+	if err := r.Replace(ctx, []*ngfwv1.WanGroup{group}); err != nil {
 		t.Fatal(err)
 	}
 	waitRuntime(t, func() bool { return r.Snapshot()[0].Members[0].Up })
+	r.mu.Lock()
+	generation, done := r.generation, r.done
+	member := r.groups["edge"].members["wan0"]
+	history, since := member.samples[0].state, member.since
+	r.mu.Unlock()
+	unchanged := func(label string) {
+		t.Helper()
+		r.mu.Lock()
+		current := r.groups["edge"].members["wan0"]
+		preserved := r.generation == generation && r.done == done && current == member && current.samples[0].state == history && current.since.Equal(since) && current.up
+		r.mu.Unlock()
+		if !preserved {
+			t.Fatalf("%s replaced generation or reset hysteresis", label)
+		}
+	}
 	groups := make([]*ngfwv1.WanGroup, MaxWorkers+1)
 	for i := range groups {
 		g := runtimeGroup()
@@ -136,19 +175,27 @@ func TestRuntimeBoundsInvalidConfigurationDoesNotReplace(t *testing.T) {
 	if err := r.Replace(ctx, groups); err == nil {
 		t.Fatal("accepted over-limit config")
 	}
-	if len(r.Snapshot()) != 1 || !r.Snapshot()[0].Members[0].Up {
-		t.Fatal("invalid config disturbed healthy current generation")
-	}
+	unchanged("invalid config")
 	before := calls.Load()
-	if err := r.Replace(ctx, []*ngfwv1.WanGroup{runtimeGroup()}); err != nil {
+	close(allowTick)
+	select {
+	case <-tickStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("scheduled probe did not start")
+	}
+	if calls.Load() <= before {
+		t.Fatal("fixture did not exercise legitimate scheduled probe")
+	}
+	if err := r.Replace(ctx, []*ngfwv1.WanGroup{runtimeGroupWithLongProbe()}); err != nil {
 		t.Fatal(err)
 	}
-	if !r.Snapshot()[0].Members[0].Up || calls.Load() != before {
-		t.Fatal("identical config reset hysteresis")
-	}
-	if err := r.Close(ctx); err != nil {
-		t.Fatal(err)
-	}
+	unchanged("identical config")
+}
+
+func runtimeGroupWithLongProbe() *ngfwv1.WanGroup {
+	group := runtimeGroup()
+	group.Monitors[0].TimeoutMs = proto.Uint32(60000)
+	return group
 }
 
 func TestRuntimeDeviceIdentityChangeInvalidatesHealth(t *testing.T) {

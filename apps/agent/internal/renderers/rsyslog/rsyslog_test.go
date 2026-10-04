@@ -354,19 +354,38 @@ func TestValidate(t *testing.T) {
 	}
 }
 
-// fakeRsyslog restarts by appending an impstats batch for the actions of the live (or a stale)
-// config, stamped one second after the restart.
+// fakeRsyslog reports batches for the live (or intentionally stale) configuration.
+// Reporting continues after Restart returns, as it does for a running daemon.
 type fakeRsyslog struct {
-	p         Paths
-	stale     []byte
-	failNext  bool
-	restarts  int
-	statsFile string // "" = p.StatsFile
+	p            Paths
+	stale        []byte
+	failNext     bool
+	restarts     int
+	statsFile    string // "" = p.StatsFile
+	stop         chan struct{}
+	done         chan struct{}
+	restartDelay time.Duration
+}
+
+func newFakeRsyslog(t *testing.T, p Paths) *fakeRsyslog {
+	t.Helper()
+	f := &fakeRsyslog{p: p}
+	t.Cleanup(f.stopReporting)
+	return f
+}
+
+func (f *fakeRsyslog) stopReporting() {
+	if f.stop != nil {
+		close(f.stop)
+		<-f.done
+		f.stop, f.done = nil, nil
+	}
 }
 
 func (f *fakeRsyslog) Reload(context.Context) error                 { return errors.New("rsyslog cannot reload") }
 func (f *fakeRsyslog) Signal(context.Context, syscall.Signal) error { return nil }
-func (f *fakeRsyslog) Restart(context.Context) error {
+func (f *fakeRsyslog) Restart(ctx context.Context) error {
+	f.stopReporting()
 	f.restarts++
 	if f.failNext {
 		f.failNext = false
@@ -376,24 +395,58 @@ func (f *fakeRsyslog) Restart(context.Context) error {
 	if f.stale != nil {
 		conf = f.stale
 	}
-	ts := time.Now().Add(1100 * time.Millisecond).Format(statsTimeLayout)
-	var b strings.Builder
-	for _, n := range actionNames(conf) {
-		fmt.Fprintf(&b, "%s: { \"name\": %q, \"origin\": \"core.action\", \"processed\": 7, \"failed\": 1, \"suspended\": 0 }\n", ts, n)
-		fmt.Fprintf(&b, "%s: { \"name\": \"%s queue\", \"origin\": \"core.queue\", \"size\": 2, \"enqueued\": 9, \"discarded.full\": 0, \"discarded.nf\": 0 }\n", ts, n)
-	}
-	fmt.Fprintf(&b, "%s: { \"name\": \"imuxsock\", \"origin\": \"imuxsock\", \"submitted\": 9 }\n", ts)
+	names := actionNames(conf)
 	sf := f.p.StatsFile
 	if f.statsFile != "" {
 		sf = f.statsFile
 	}
-	fh, err := os.OpenFile(sf, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // test temp dir
-	if err != nil {
+	writeStats := func() error {
+		ts := time.Now().Format(statsTimeLayout)
+		var b strings.Builder
+		for _, n := range names {
+			fmt.Fprintf(&b, "%s: { \"name\": %q, \"origin\": \"core.action\", \"processed\": 7, \"failed\": 1, \"suspended\": 0 }\n", ts, n)
+			fmt.Fprintf(&b, "%s: { \"name\": \"%s queue\", \"origin\": \"core.queue\", \"size\": 2, \"enqueued\": 9, \"discarded.full\": 0, \"discarded.nf\": 0 }\n", ts, n)
+		}
+		fmt.Fprintf(&b, "%s: { \"name\": \"imuxsock\", \"origin\": \"imuxsock\", \"submitted\": 9 }\n", ts)
+		fh, err := os.OpenFile(sf, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600) //nolint:gosec // test temp dir
+		if err != nil {
+			return err
+		}
+		_, writeErr := fh.WriteString(b.String())
+		return errors.Join(writeErr, fh.Close())
+	}
+	if err := writeStats(); err != nil {
 		return err
 	}
-	defer func() { _ = fh.Close() }()
-	_, err = fh.WriteString(b.String())
-	return err
+	// A real daemon continues reporting after Restart returns. One future-stamped
+	// batch can become stale if the test is descheduled before the restart boundary.
+	f.stop, f.done = make(chan struct{}), make(chan struct{})
+	stop, done := f.stop, f.done
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		limit := time.NewTimer(10 * time.Second)
+		defer limit.Stop()
+		for {
+			select {
+			case <-stop:
+				return
+			case <-ctx.Done():
+				return
+			case <-limit.C:
+				return
+			case <-ticker.C:
+				if err := writeStats(); err != nil {
+					return
+				}
+			}
+		}
+	}()
+	if f.restartDelay > 0 {
+		time.Sleep(f.restartDelay)
+	}
+	return nil
 }
 
 func TestApplyConvergesRollsBackAndRetrieves(t *testing.T) {
@@ -401,7 +454,7 @@ func TestApplyConvergesRollsBackAndRetrieves(t *testing.T) {
 	p := productLike()
 	p.ConfFile, p.StatsFile, p.TLSDir = filepath.Join(dir, "50-ngfw-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls")
 	p.ModuleDir = dir
-	fake := &fakeRsyslog{p: p}
+	fake := newFakeRsyslog(t, p)
 	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
 	ctx := context.Background()
 	f1, err := r.Render(ctx, doc(t, []any{tgt(), tlsTarget}))
@@ -506,7 +559,7 @@ func TestUnchangedApplyDoesNotRestart(t *testing.T) {
 	dir := t.TempDir()
 	p := productLike()
 	p.ConfFile, p.StatsFile, p.TLSDir, p.ModuleDir, p.HostConfigs = filepath.Join(dir, "50-ngfw-export.conf"), filepath.Join(dir, "impstats.json"), filepath.Join(dir, "tls"), dir, nil
-	fake := &fakeRsyslog{p: p}
+	fake := newFakeRsyslog(t, p)
 	r := New(renderers.NewRecordingRunner(), WithPaths(p), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
 	ctx := context.Background()
 	f1, _ := r.Render(ctx, doc(t, []any{tgt(), tlsTarget}))
@@ -564,7 +617,10 @@ func TestHostImpstats(t *testing.T) {
 	}
 	write(mainConf, "module(load=\"imuxsock\")\nmodule(\n  load=\"impstats\" interval=\"10\"\n  format=\"json\" log.file=\""+hostStats+"\")\n")
 	rec := renderers.NewRecordingRunner().Succeed(RsyslogdBin, "")
-	fake := &fakeRsyslog{p: paths(), statsFile: hostStats}
+	fake := newFakeRsyslog(t, paths())
+	fake.statsFile = hostStats
+	// Reproduce descheduling beyond the old single batch's future timestamp.
+	fake.restartDelay = 1500 * time.Millisecond
 	r := New(rec, WithPaths(paths()), WithController(fake), WithSecretResolver(resolver(nil)), WithVerifyTimeout(3*time.Second))
 	if h := r.Host(); !h.Loaded || h.File != hostStats || h.Source != mainConf {
 		t.Fatalf("host scan %+v", h)

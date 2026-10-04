@@ -1,0 +1,5 @@
+--- FAIL: TestHostImpstats (6.34s)
+    rsyslog_test.go:585: apply converges on the host's impstats file: rsyslog: daemon error: rfkit: daemon did not converge: impstats reports actions [] after the restart, rendered [ngfw_export_0_9b157d9f]
+FAIL
+FAIL	ngfw/agent/internal/renderers/rsyslog	6.503s
+FAIL

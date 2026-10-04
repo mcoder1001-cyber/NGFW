@@ -1,0 +1,3 @@
+0 issues.
+ok  	ngfw/agent/internal/multiwan	4.516s
+ok  	ngfw/agent/internal/multiwan	2.063s

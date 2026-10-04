@@ -1,0 +1,5 @@
+internal/multiwan/runtime_test.go:163:124: QF1009: probably want to use time.Time.Equal instead (staticcheck)
+		preserved := r.generation == generation && r.done == done && current == member && current.samples[0].state == history && current.since == since && current.up
+		                                                                                                                         ^
+1 issues:
+* staticcheck: 1

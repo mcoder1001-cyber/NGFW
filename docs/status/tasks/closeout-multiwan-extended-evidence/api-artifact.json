@@ -1,0 +1,6 @@
+{
+  "api_files": 780,
+  "artifact_tree_sha256": "9c6650973988f747c21581ecb00baa98718824276174d19ca1dc9e872e5109f5",
+  "main_js_sha256": "27bfd88933101b58826a9f9d0ee3960c00276cddb4f350edc2f05d5e516b9a7f",
+  "note": "Copied root dist and matching migrations before subsequent root rebuild; packages versions unchanged, shared node_modules dependency tree."
+}

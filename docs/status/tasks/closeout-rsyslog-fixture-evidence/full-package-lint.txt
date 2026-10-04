@@ -1,0 +1,2 @@
+0 issues.
+ok  	ngfw/agent/internal/renderers/rsyslog	11.570s

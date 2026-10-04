@@ -1,0 +1,9 @@
+SOURCE_CHECKPOINT=a1a28f5a
+TEMPORARY_OVERLAY_ONLY; production file untouched
+--- FAIL: TestRuntimeBoundsInvalidConfigurationDoesNotReplace (0.18s)
+    runtime_test.go:192: identical config replaced generation or reset hysteresis
+FAIL
+FAIL	ngfw/agent/internal/multiwan	0.324s
+FAIL
+
+EXPECTED_EXIT_1_ACTUAL=1

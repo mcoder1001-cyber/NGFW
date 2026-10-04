@@ -1,0 +1,5 @@
+# Independent RIP secret-delivery integration provenance review
+
+Read-only product diff comparison: root `221217a9faebb2b0711f4fb8a272bcef111293d5` → `64fffb9dda441f169834ecb1dfc06865a1c6d37d` is byte-for-byte exactly updated-main `f6386e4b209b14359e520f316605c39751b43291` → `8c537ce2ff09fe4d91239149736e4ba2e24d30fd` PR164 for apps/packages/tools/test/deploy. No independent change to our earlier reviewed product delta arose during this merge. This is provenance approval, not a new independent review of PR164 implementation or acceptance certification.
+
+Because PR164 materially changes contracts and real IGP secret delivery, previous ac12 source receipts alone do not certify final64. This worker rebuilt all own current TS inputs and production agent from frozen final64 source and is repeating full API/real-agent integration. Whole compiled artifact-tree digests are recorded, because unchanged main.js entry hash alone cannot distinguish changed imported modules. Final complete local/hosted gates remain mandatory and pending.

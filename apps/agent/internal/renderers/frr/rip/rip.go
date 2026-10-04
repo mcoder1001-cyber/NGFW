@@ -10,16 +10,19 @@
 //     rc.MapInterface; unmapped = error at its pointer) and `passive-interface <ifname>` when passive;
 //   - default-metric and redistribution metrics are RIP hop counts (1–16 / 0–16); RIP never redistributes into itself.
 //
-// RIP has no interface-level lines, so this package registers no interface-lines producer. FRR 10 has no JSON form of
+// RIPv2 MD5 authentication uses key chains and interface-level lines. FRR 10 has no JSON form of
 // `show ip rip status` / `show ip rip`, so there is no state reader (the framework takes `show … json` only); RIP routes
 // are visible through the framework's `show ip route … json` readers (proto rip).
 package rip
 
 import (
+	"crypto/sha256"
+	"fmt"
 	"maps"
 	"net/netip"
 	"slices"
 	"strconv"
+	"strings"
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/frr"
@@ -34,6 +37,7 @@ const Name = "rip"
 
 func init() {
 	frr.RegisterSection(Section{})
+	frr.RegisterInterfaceLines(Name, InterfaceLines)
 }
 
 // Section is the frr.Section of `routing.rip`.
@@ -47,7 +51,16 @@ func (Section) Order() int { return OrderRIP }
 
 // Render implements frr.Section.
 func (Section) Render(rc *frr.RenderContext) ([]string, error) {
-	return Render(rc.Desired.GetRouting().GetRip(), rc.MapInterface)
+	r := rc.Desired.GetRouting().GetRip()
+	lines, err := Render(r, rc.MapInterface)
+	if err != nil {
+		return nil, err
+	}
+	chains, _, err := authentication(r, rc)
+	if err != nil {
+		return nil, err
+	}
+	return append(chains, lines...), nil
 }
 
 var base = policy.P("routing", "rip")
@@ -155,4 +168,56 @@ func redistribute(r *ngfwv1.Redistribute) ([]string, error) {
 		out = append(out, line)
 	}
 	return out, nil
+}
+
+// InterfaceLines applies RIPv2 authentication to the mapped Linux interfaces.
+func InterfaceLines(rc *frr.RenderContext) (map[string][]string, error) {
+	_, lines, err := authentication(rc.Desired.GetRouting().GetRip(), rc)
+	return lines, err
+}
+
+// Each interface owns its own stable chain, including across VRFs. Values pass only
+// through RenderContext.Secret, which validates CLI tokens and marks files secret.
+func authentication(r *ngfwv1.RipConfig, rc *frr.RenderContext) ([]string, map[string][]string, error) {
+	out := map[string][]string{}
+	var chains []string
+	for _, vppName := range slices.Sorted(maps.Keys(r.GetInterfaces())) {
+		auth := r.GetInterfaces()[vppName].GetAuth()
+		if auth == nil {
+			continue
+		}
+		path := base.At("interfaces", vppName, "auth")
+		linux, ok := rc.MapInterface(vppName)
+		if !ok {
+			return nil, nil, policy.Errf(path, "interface has no Linux mapping")
+		}
+		if _, err := frr.IfName(linux); err != nil {
+			return nil, nil, policy.Wrap(path, err)
+		}
+		switch auth.GetType() {
+		case "none":
+			if auth.KeyId != nil || auth.KeyRef != nil {
+				return nil, nil, policy.Errf(path, "authentication none cannot carry a key")
+			}
+			// A complete desired configuration omits both authentication commands.
+		case "md5":
+			if auth.GetKeyId() < 1 || auth.GetKeyId() > 255 || !strings.HasPrefix(auth.GetKeyRef(), "password/") {
+				return nil, nil, policy.Errf(path, "MD5 requires key id 1–255 and a password reference")
+			}
+			key, err := rc.Secret(auth.GetKeyRef())
+			if err != nil {
+				return nil, nil, policy.Wrap(path.At("keyRef"), err)
+			}
+			if len(key) > 16 {
+				return nil, nil, policy.Errf(path.At("keyRef"), "RIP MD5 key must not exceed 16 bytes")
+			}
+			digest := sha256.Sum256([]byte(r.GetVrf() + "\x00" + vppName))
+			name := fmt.Sprintf("ngfw-rip-%x", digest[:8])
+			chains = append(chains, "key chain "+name, fmt.Sprintf(" key %d", auth.GetKeyId()), "  key-string "+key, " exit", "exit")
+			out[linux] = []string{" ip rip authentication mode md5", " ip rip authentication key-chain " + name}
+		default:
+			return nil, nil, policy.Errf(path.At("type"), "unsupported authentication type")
+		}
+	}
+	return chains, out, nil
 }

@@ -317,3 +317,53 @@ it('delivers native local key and public-only peer certificate without inventing
   expect(Object.keys(got.bundle.values).sort()).toEqual(Object.keys(payloads).sort());
   expect(got.bundle.values['key/peer']).toBeUndefined();
 });
+
+describe('OSPF/RIP transaction-selected MD5 password delivery', () => {
+  it.each(['ospf', 'rip'] as const)(
+    'delivers %s keys at escaped interface pointers',
+    async (protocol) => {
+      const { delivery, where, encrypt } = setup([]);
+      const ref = 'password/igp';
+      where.mockResolvedValueOnce([
+        { kind: 'password', ref, version: 3, ciphertext: encrypt('NGFW_TEST_PSK_igp', ref) },
+      ]);
+      const ds = DesiredState.fromJSON({
+        routing: {
+          [protocol]: {
+            interfaces: { 'host/0': { auth: { type: 'md5', keyId: 7, keyRef: ref } } },
+          },
+        },
+      });
+      const result = await delivery.resolveVersioned(ds);
+      expect(result.bundle.values[ref]).toEqual(Buffer.from('NGFW_TEST_PSK_igp'));
+      expect(result.versions).toEqual({ [ref]: 3 });
+      expect(where).toHaveBeenCalledTimes(1);
+    },
+  );
+  it('does not deliver disabled, unsupported or RIPng authentication leaves', async () => {
+    const { delivery, select } = setup([]);
+    const ds = DesiredState.fromJSON({
+      routing: {
+        rip: { interfaces: { loop0: { auth: { type: 'none', keyRef: 'password/disabled' } } } },
+        ripng: { interfaces: { loop1: { auth: { type: 'md5', keyRef: 'password/unsupported' } } } },
+      },
+    });
+    expect((await delivery.resolve(ds)).values).toEqual({});
+    expect(select).not.toHaveBeenCalled();
+  });
+  it.each(['ospf', 'rip'] as const)(
+    'rejects non-password %s keys before DB access',
+    async (protocol) => {
+      const { delivery, select } = setup([]);
+      const ds = DesiredState.fromJSON({
+        routing: {
+          [protocol]: {
+            interfaces: { loop0: { auth: { type: 'md5', keyId: 1, keyRef: 'key/ca' } } },
+          },
+        },
+      });
+      await expect(delivery.resolve(ds)).rejects.toThrow('operational secret kind is invalid');
+      expect(select).not.toHaveBeenCalled();
+    },
+  );
+});

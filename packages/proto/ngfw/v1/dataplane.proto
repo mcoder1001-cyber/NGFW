@@ -1859,6 +1859,9 @@ message RipInterface {
   // Zod default false.
   optional bool passive = 1;
 
+  // RIPv2 MD5 authentication. RIPng rejects this field.
+  OspfAuth auth = 2;
+
   // wave-BC: F-isis-rip
 }
 

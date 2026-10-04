@@ -72,7 +72,8 @@ func (c *driftChecker) add(dir, path, format string, args ...any) {
 // "<direction> <path>". Every entry must still occur (a stale entry is a finding), and only
 // proto→schema supersets may be accepted — a schema leaf without a proto field never is.
 var acceptedDrift = map[string]string{
-	protoToSchema + " /routing/ospf6/redistribute/ospf": "shared Redistribute; IPv4 OSPF cannot redistribute into IPv6 OSPFv3",
+	protoToSchema + " /routing/ripng/interfaces/{}/auth": "shared RipInterface wire field; RIPv2 authentication is rejected by the RIPng schema and renderer",
+	protoToSchema + " /routing/ospf6/redistribute/ospf":  "shared Redistribute; IPv4 OSPF cannot redistribute into IPv6 OSPFv3",
 	// Native route based IPsec deliberately rejects legacy per-profile DPD and
 	// unsupported IKE/packet lifetimes. Their wire tags stay reserved to existing
 	// fields for compatibility; IpsecRekey is also shared with remote access.

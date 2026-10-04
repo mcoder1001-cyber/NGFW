@@ -43,6 +43,8 @@ export const igpEn = {
     empty: 'None configured',
   },
   isisRip: {
+    authBoundary:
+      'RIPv2 MD5 uses a password reference and key ID (1–255). An unavailable key refuses commit. RIPng does not support this authentication.',
     live: {
       title: 'Live adjacencies and peers',
       observed: 'Observed FRR state; VPP forwarding verification is separate.',
@@ -131,6 +133,8 @@ export const igpFa: typeof igpEn = {
     empty: 'موردی پیکربندی نشده است',
   },
   isisRip: {
+    authBoundary:
+      'برای MD5 در RIPv2 مرجع رمز و شناسه کلید (۱ تا ۲۵۵) وارد کنید. نبود کلید باعث رد کامیت می‌شود. RIPng از این احراز هویت پشتیبانی نمی‌کند.',
     live: {
       title: 'همسایه‌ها و همتایان زنده',
       observed: 'وضعیت مشاهده‌شده FRR؛ بررسی ارسال در VPP جداگانه است.',

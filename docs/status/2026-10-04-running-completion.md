@@ -34,3 +34,7 @@ Board: merged175, running0, ready7, todo15, parked14, review0 (211 total). Four 
 Isolated artifact progress: observed builder PID3349754, log /tmp/ngfw-packaging-vpp-build-active-20261004.log in Packaging-complete, after pinned dependencies completed and VPP source compilation began. No product deb manifest was produced at this checkpoint; no installation or persistent-runner guarantee. Exact next read-only check: ps -p3349754 -o pid,etime,args and tail -30 of that log, then deploy/vpp/verify.sh --require-files on actual output if produced. All worker source changes/reviews have durable remote checkpoints; worker agents have finished (packaging reviewer later hit model capacity, its observed build process remained live).
 
 Full hosted CI remains waived under the prior owner instruction; no hosted green result claimed. Lab-only checks listed in DEFERRED-ACCEPTANCE.md remain NOTRUN. Shared system VPP/host privileges/trust were not modified.
+
+## Owner installation correction
+
+P10 was incorrectly parked as a whole task. Installed development bundle and firstboot/API acceptance on172.30.126.250 existed in another chat/output directory and are now independently read-only confirmed. See tasks/P10-250-installation-reconciliation-20261004.md. P10 restored to merged; permission compatibility and release licensing tracked independently. Counts now merged176/running0/ready7/todo15/parked13/review0. Installed source is4c8d1b247c6b; recent routing/WAN/HA source merges are not asserted deployed. Native certificate source stop remains unchanged.

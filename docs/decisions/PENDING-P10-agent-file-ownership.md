@@ -1,6 +1,6 @@
 # PENDING: product agent ownership of daemon configuration files
 
-Status: pending owner decision; parks only appliance acceptance/runtime use of affected daemon renderers. Packaging, tests, reviews and unrelated features continue.
+Status: pending owner decision for affected daemon/system-identity configuration mutations. P10 package installation on172.30.126.250 is verified and complete; this record must not park the whole installation task. No runtime failure on that machine has been established by this source review.
 
 ## Concrete mismatch
 
@@ -23,3 +23,7 @@ Decision: pending. Affected acceptance: P10 appliance daemon configuration insta
 System identity product paths include `/etc/hostname`, `/etc/localtime`, `/etc/issue`, `/etc/issue.net`, `/etc/motd` and a resolved drop-in. The shared atomic writer creates a temporary sibling in the parent directory before rename. Under ProtectSystem=strict, granting only a single file as writable does not make `/etc` writable for temporary creation/rename; a file bind mount can also prevent replacement. Existing approved writable daemon directories do not cover these global file parents.
 
 CAP_CHOWN alone does not solve this second issue. Do not add broad writable `/etc` silently. A reviewed narrow privileged file-writer/explicit product-path architecture, or an owner-approved filesystem exception with an assessed security boundary, is required for installed system-identity mutations. Keep readback/banner code and unrelated development moving; only affected appliance acceptance depends on this decision.
+
+## Installation evidence correction, 2026-10-04
+
+The installed agent is active under the same strict unit/capability set. Package installation and firstboot/API checks passed. This proves installation, not a daemon-UID chown or global /etc atomic replacement test. Preserve the source compatibility question without describing the installed appliance as failed or P10 as uninstalled. See docs/status/tasks/P10-250-installation-reconciliation-20261004.md.

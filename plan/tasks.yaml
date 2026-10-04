@@ -2267,8 +2267,8 @@ tasks:
       - TD-10b
     priority: 1
     est_hours: 20
-    state: parked
-    parked_on: 'PENDING-P10-agent-file-ownership'
+    state: merged
+    parked_on: ''
     wbs:
       - D0.4
     scope:
@@ -2281,7 +2281,7 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: '2026-10-04'
     notes:
       'D-100 (TD-2 Q1): the product nginx never proxies /api from plain :80 (redirect only) — the API treats loopback peers as TLS-terminated | D-125: est 10 → 20, envelope time box
       15 → 24 (:59); +nginx security headers, +5.5a (+1 h), +vrx-power@ hook unit (+0.5 h); APT Release signing only, per-package signing is F-hardening-lite; ships apply-startup.sh disabled
@@ -2297,8 +2297,8 @@ tasks:
       answered | S-apply-startup-mode review: the vrx-apply-startup wrapper exports running via the API and records the revision id (R8 TD-17 #5), and owns TD-H9 | D-192: vrx-api unit
       / firstboot sets VRX_SEED_DEFAULT_NICS=1 (product opt-in) | 2026-09-28 P10b done f65b8aac (CI PASSED a57af83c; container install-test green); review panel R2+R5+R7+R8; merge after
       S-system-identity-state (D-183) | 2026-09-29 drain: agent died (out of credits) at b392d8ab; gate red on gitleaks (1 finding); not respawned (D-214)'
-    worker_status: "awaiting owner decision; no active developer; PR153 stale-output staging fix merged2fd82320a; focused package tests and source builds PASS; file privilege boundary and authoritative product license pending; isolated VPP artifact compilation observed, no appliance installation"
-    completion_evidence: "PR153 stale-output staging fix merged2fd82320a; focused package tests and source builds PASS; file privilege boundary and authoritative product license pending; isolated VPP artifact compilation observed, no appliance installation"
+    worker_status: "installation verified; source package task completed; Owner installation report reconciled: NGFW0.1.0~dev+4c8d1b247c6b and VPP26.06-release+ngfw3 installed on172.30.126.250; firstboot and API acceptance passed in installation thread; current read-only SSH confirms versions and active API/agent/VPP. Later merges are not deployed. Renderer ownership/system-identity permission questions and release licensing are separate followups, not installation failure."
+    completion_evidence: "Owner installation report reconciled: NGFW0.1.0~dev+4c8d1b247c6b and VPP26.06-release+ngfw3 installed on172.30.126.250; firstboot and API acceptance passed in installation thread; current read-only SSH confirms versions and active API/agent/VPP. Later merges are not deployed. Renderer ownership/system-identity permission questions and release licensing are separate followups, not installation failure."
   - id: P14
     title: Unattended installer ISO (26.04)
     prompt: prompts/P14-iso-installer.md

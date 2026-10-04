@@ -2,7 +2,7 @@
 
 - raised: 2026-10-04 by P10
 - decision: pending authoritative owner license text/name or existing source document
-- parked tasks: P10 (also blocked by PENDING-P10-agent-file-ownership)
+- affected work: authoritative release/distribution license metadata; P10 installed-development-bundle task is complete and is not parked
 
 ## Context and alternatives
 

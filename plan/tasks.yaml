@@ -1486,7 +1486,7 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D6.6
@@ -1496,7 +1496,7 @@ tasks:
     worktree: ''
     owner: cloud session modest-keller
     started: '2026-09-27'
-    finished: ''
+    finished: '2026-10-04'
     notes:
       'prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | Integrated partial scope, remaining code in review-lab-audit.md;
       lab alone no merge blocker.
@@ -1504,7 +1504,8 @@ tasks:
       prompts-s4: suggested deps +F-bridge-l2 (TEB GRE / VXLAN bridge-domain membership) — docs/status/tasks/prompts-s4.md | 2026-09-28 host manager: code already on main (cloud session,
       branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-C on main@f1f885a6, reports in /root/ngfw-wt/RV-C (D-161) | RV-C disposition (D-161): rows
       F-tunnels-host + S-tunnels-contract (RV-C-review-F-tunnels.md)'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    worker_status: source completed and merged PR151; laboratory acceptance deferred, not PASS
+    completion_evidence: "PR151 merged 4508d38f1; two independent source APPROVE reviews; focused checks pass; laboratory acceptance deferred, not PASS"
   - id: F-pki
     title: 'Wave B (day 10-12): CA, CSR, import/export, CRL/OCSP, expiry alerts'
     prompt: prompts/features/F-pki.md
@@ -1608,7 +1609,7 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D3.6
@@ -1619,14 +1620,15 @@ tasks:
     worktree: ''
     owner: cloud session modest-keller
     started: '2026-09-27'
-    finished: ''
+    finished: '2026-10-04'
     notes:
       '| Integrated partial scope, remaining code in review-lab-audit.md; lab alone no merge blocker.
 
       2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-A on main@f1f885a6, reports in
       /root/ngfw-wt/RV-A (D-161) | 2026-09-28 RV-A post-merge panel: combined BLOCK (docs/status/tasks/RV-A-review.md) → findings carried by S-rva-agent-gates, S-rva-web-fixes, F-isis-rip-host
       (features) and F-igp-followups; code stays on main (D-161/D-173)'
-    worker_status: assignment unverified; remaining implementation state, not evidence of a live worker
+    worker_status: source completed and merged PR151; laboratory acceptance deferred, not PASS
+    completion_evidence: "PR151 merged 4508d38f1; two independent source APPROVE reviews; focused checks pass; laboratory acceptance deferred, not PASS"
   - id: F-bfd-redistribution
     title: 'Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX'
     prompt: prompts/features/F-bfd-redistribution.md

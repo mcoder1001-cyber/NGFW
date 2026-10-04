@@ -17,7 +17,11 @@ import (
 func init() { RegisterExtension("lcp-api-mfib", (*VPP).installLcpAPIMfib) }
 
 func (v *VPP) installLcpAPIMfib() {
-	routes := map[uint32]ip.IPMroute{}
+	type routeKey struct {
+		table  uint32
+		prefix ip_types.Mprefix
+	}
+	routes := map[routeKey]ip.IPMroute{}
 	v.On("ip_mroute_add_del", func(msg api.Message) ([]api.Message, error) {
 		r := msg.(*ip.IPMrouteAddDel)
 		v.mu.Lock()
@@ -46,7 +50,8 @@ func (v *VPP) installLcpAPIMfib() {
 				}
 			}
 		}
-		old := routes[r.Route.TableID]
+		key := routeKey{r.Route.TableID, r.Route.Prefix}
+		old := routes[key]
 		old.TableID, old.Prefix = r.Route.TableID, r.Route.Prefix
 		if !r.IsMultipath {
 			old.Paths = nil
@@ -68,9 +73,9 @@ func (v *VPP) installLcpAPIMfib() {
 			old.NPaths++
 		}
 		if len(old.Paths) == 0 {
-			delete(routes, old.TableID)
+			delete(routes, key)
 		} else {
-			routes[old.TableID] = old
+			routes[key] = old
 		}
 		return reply(&ip.IPMrouteAddDelReply{})
 	})
@@ -78,13 +83,13 @@ func (v *VPP) installLcpAPIMfib() {
 		r := msg.(*ip.IPMrouteDump)
 		v.mu.Lock()
 		defer v.mu.Unlock()
-		keys := make([]uint32, 0, len(routes))
+		keys := make([]routeKey, 0, len(routes))
 		for table := range routes {
-			if table == r.Table.TableID {
+			if table.table == r.Table.TableID {
 				keys = append(keys, table)
 			}
 		}
-		sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+		sort.Slice(keys, func(i, j int) bool { return fmt.Sprint(keys[i]) < fmt.Sprint(keys[j]) })
 		var out []api.Message
 		for _, table := range keys {
 			route := routes[table]

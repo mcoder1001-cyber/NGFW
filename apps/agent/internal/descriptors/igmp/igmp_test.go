@@ -302,3 +302,38 @@ func TestInterfaceNoAdopt(t *testing.T) {
 		t.Fatal("not disabled")
 	}
 }
+
+func TestDumpGroupsIncludesOwnedRouterAndDeduplicates(t *testing.T) {
+	f, modes, groups := fakeIGMP()
+	modes[1] = 0
+	groups[grp{1, "232.1.2.3"}] = []ip_types.IP4Address{{10, 1, 0, 1}, {10, 1, 0, 1}}
+	groups[grp{3, "232.9.9.9"}] = []ip_types.IP4Address{{10, 9, 0, 1}}
+	got, e := DumpGroups(context.Background(), f, df7test.Owner)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if len(got) != 1 || got[0].Interface != "loop0" || len(got[0].Sources) != 1 || got[0].Sources[0] != "10.1.0.1" {
+		t.Fatalf("state %+v", got)
+	}
+}
+
+func TestColdStartDoesNotAdoptLearnedRouterGroupsAsStaticJoins(t *testing.T) {
+	f, _, groups := fakeIGMP()
+	groups[grp{1, "232.1.2.3"}] = []ip_types.IP4Address{{10, 1, 0, 1}}
+	modes := NewModes()
+	d := NewListen(f, df7test.Owner, modes)
+	got, e := d.Retrieve(context.Background())
+	if e != nil || len(got) != 0 {
+		t.Fatalf("unknown mode adopted learned router group %v %v", got, e)
+	}
+	modes.set("loop0", ModeRouter)
+	got, e = d.Retrieve(context.Background())
+	if e != nil || len(got) != 0 {
+		t.Fatal("router groups exposed as static", got, e)
+	}
+	modes.set("loop0", ModeHost)
+	got, e = d.Retrieve(context.Background())
+	if e != nil || len(got) != 1 {
+		t.Fatal("known host join missing", got, e)
+	}
+}

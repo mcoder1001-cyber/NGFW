@@ -433,7 +433,7 @@ func (d *ListenDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	for _, det := range dets {
 		g := netip.AddrFrom4(det.Gaddr).String()
 		name, ok := ifs.Owned(uint32(det.SwIfIndex), func(n string) string { return string(KeyListen(n, g)) })
-		if !ok || (d.modes != nil && d.modes.get(name) == ModeRouter) {
+		if !ok || (d.modes != nil && d.modes.get(name) != ModeHost) {
 			continue
 		}
 		names[uint32(det.SwIfIndex)] = name

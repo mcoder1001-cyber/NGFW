@@ -1,0 +1,4 @@
+ok  	ngfw/agent/internal/descriptors/mfib	0.009s
+ok  	ngfw/agent/internal/descriptors/igmp	0.011s
+ok  	ngfw/agent/internal/descriptors/df7	0.010s
+ok  	ngfw/agent/internal/desired	5.733s

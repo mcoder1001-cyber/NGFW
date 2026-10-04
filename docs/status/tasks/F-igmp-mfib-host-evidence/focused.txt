@@ -1,0 +1,6 @@
+ok  	ngfw/agent/internal/descriptors/df7	(cached)
+ok  	ngfw/agent/internal/descriptors/igmp	(cached)
+ok  	ngfw/agent/internal/descriptors/mfib	(cached)
+ok  	ngfw/agent/internal/desired	(cached)
+ok  	ngfw/agent/internal/subsystems	0.033s
+ok  	ngfw/agent/internal/agent	(cached)

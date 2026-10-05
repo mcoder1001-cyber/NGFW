@@ -38,7 +38,7 @@ const NumericPublisherServiceRuntimeBudget = NumericPublisherValidationBudget + 
 const NumericOpenFilePublicationBudget = 40 * time.Second
 
 // Fixed publisher diagnostics use journal stderr; stdout remains discarded.
-const numericPublisherServiceDigest = "24226ed4e32a1880d031f5222a8ea8c201dfdeb4a6b44fb1fd72ce3bac621712"
+const numericPublisherServiceDigest = "f6df50848d9dcddf687abeaed19b26411045b344c2de7b3a50b75a38adc789ba"
 
 // A proof belongs to exactly one call/process and holds the actual validated
 // files. Every trust boundary must verify full file stamps and fresh canonical

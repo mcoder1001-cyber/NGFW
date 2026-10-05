@@ -221,6 +221,7 @@ func verifyPrivateVPPPackets(t *testing.T, client *NetworkPlan, vip string) {
 	if exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/sbin/nft", "insert", "rule", "inet", "ngfw_ra", "input", "iifname", "xfrm0", "ip", "daddr", vip, "meta", "l4proto", "icmp", "accept").Run() != nil {
 		t.Fatal("private client encrypted reply fixture policy refused")
 	}
+	verifyWire := capturePrivateWire(t, client)
 	ping := func(address string) error {
 		return exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/bin/ping", "-n", "-I", vip, "-c", "2", "-W", "2", address).Run()
 	}
@@ -230,6 +231,7 @@ func verifyPrivateVPPPackets(t *testing.T, client *NetworkPlan, vip string) {
 	if ping("10.19.0.54") == nil {
 		t.Fatal("explicit VPP ACL denial was bypassed")
 	}
+	verifyWire()
 	t.Log("encrypted packet/reply through owned TAP + selected VPP VRF PASS; denied protected address remained unreachable")
 }
 

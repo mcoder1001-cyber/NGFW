@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -92,6 +93,31 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	t.Log("actual guarded private strongSwan6.1 profile load and VICI empty-session readback PASS; packet negotiation remains a separate acceptance")
 }
 
+var privateEngineGenerations sync.Map
+
+type privateEngineGeneration struct {
+	PID   int
+	Start uint64
+}
+
+func freshPrivateVICI(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
+	t.Helper()
+	value, ok := privateEngineGenerations.Load(plan.Instance)
+	if !ok {
+		t.Fatal("private engine generation absent")
+	}
+	generation := value.(privateEngineGeneration)
+	stat, err := os.Stat("/proc/" + strconv.Itoa(generation.PID) + "/ns/net")
+	if err != nil || stat.Sys().(*syscall.Stat_t).Ino != plan.NamespaceInode || (bootid.Reader{}).StartTime(generation.PID) != generation.Start {
+		t.Fatal("private engine generation changed")
+	}
+	client, err := strongswan.DialRAVICI(context.Background(), filepath.Join(InstanceRoot, plan.Instance, "daemon/vici.sock"), generation.PID)
+	if err != nil {
+		t.Fatal("private engine redial refused")
+	}
+	t.Cleanup(func() { client.Close() })
+	return client
+}
 func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	t.Helper()
 	dir := filepath.Join(InstanceRoot, plan.Instance)
@@ -179,6 +205,8 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	if !ready {
 		t.Fatal("private verified engine socket did not become ready; raw diagnostics remain private")
 	}
+	privateEngineGenerations.Store(plan.Instance, privateEngineGeneration{PID: childPID, Start: startTime})
+	t.Cleanup(func() { privateEngineGenerations.Delete(plan.Instance) })
 	client, err := strongswan.DialRAVICI(context.Background(), socket, childPID)
 	if err != nil {
 		t.Fatal(err)

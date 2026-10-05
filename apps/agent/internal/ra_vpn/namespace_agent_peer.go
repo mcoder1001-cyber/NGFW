@@ -17,6 +17,15 @@ import (
 // root:ngfw process identity. Actual executable attestation is a separate held
 // manager-opened EXE descriptor requirement, never inferred from ExecStart.
 func verifyFixedAgentPeer(ctx context.Context, peer *unix.Ucred, identity bootid.Identity) error {
+	if peer == nil || validateNamespaceBrokerProcess(int(peer.Pid), uint64(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_IPC_LOCK)) != nil {
+		return ErrBoundary
+	}
+	return verifyFixedAgentIdentity(ctx, peer, identity)
+}
+
+// verifyFixedAgentIdentity is used only before monotonic own-source capability
+// normalization; external peer authorization always uses the strict wrapper.
+func verifyFixedAgentIdentity(ctx context.Context, peer *unix.Ucred, identity bootid.Identity) error {
 	if peer == nil || peer.Uid != 0 || peer.Pid <= 1 || identity.PID != int(peer.Pid) || !identity.Complete() || !(bootid.Reader{}).ForPID(identity.PID).Equal(identity) {
 		return ErrBoundary
 	}
@@ -25,7 +34,7 @@ func verifyFixedAgentPeer(ctx context.Context, peer *unix.Ucred, identity bootid
 		return ErrBoundary
 	}
 	gid, err := strconv.ParseUint(group.Gid, 10, 32)
-	if err != nil || peer.Gid != uint32(gid) || validateNamespaceBrokerProcess(identity.PID, uint64(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_IPC_LOCK)) != nil {
+	if err != nil || peer.Gid != uint32(gid) {
 		return ErrBoundary
 	}
 	status, err := os.ReadFile("/proc/" + strconv.Itoa(identity.PID) + "/status")

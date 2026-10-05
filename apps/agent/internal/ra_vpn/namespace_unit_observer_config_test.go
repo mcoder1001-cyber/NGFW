@@ -2,6 +2,8 @@ package ravpn
 
 import (
 	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -58,5 +60,67 @@ func TestObserverOpenFileRefusesUnboundedOrInjectedIdentity(t *testing.T) {
 		if _, _, err := ParseObserverOpenFile([]byte(bad)); err == nil {
 			t.Fatal("foreign or ambiguous drop-in accepted")
 		}
+	}
+}
+
+func TestObserverOpenFileReadbackProtectsOwnedFile(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("positive protected root-owned file requires UID 0")
+	}
+	instance := strings.Repeat("a", 64)
+	identity := bootid.Identity{BootID: "12345678-1234-1234-1234-123456789abc", PID: 123, StartTime: 456}
+	content, err := RenderObserverOpenFile(instance, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	// #nosec G302 -- private directory needs owner traversal; no group/other access.
+	if err := os.Chmod(root, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "10-openfile.conf")
+	if err := os.WriteFile(path, content, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := readObserverOpenFileAt(path, instance, identity); err != nil {
+		t.Fatal(err)
+	}
+	other := identity
+	other.StartTime++
+	if readObserverOpenFileAt(path, instance, other) == nil {
+		t.Fatal("foreign generation accepted")
+	}
+	// #nosec G302 -- deliberate group-readable negative fixture; production rejects it.
+	if err := os.Chmod(path, 0640); err != nil {
+		t.Fatal(err)
+	}
+	if readObserverOpenFileAt(path, instance, identity) == nil {
+		t.Fatal("group-readable configuration accepted")
+	}
+	if err := os.Chmod(path, 0600); err != nil {
+		t.Fatal(err)
+	}
+	linked := filepath.Join(root, "linked")
+	if err := os.Link(path, linked); err != nil {
+		t.Fatal(err)
+	}
+	if readObserverOpenFileAt(path, instance, identity) == nil {
+		t.Fatal("multiply-linked configuration accepted")
+	}
+	if err := os.Remove(linked); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(root, "alias")
+	if err := os.Symlink(path, alias); err != nil {
+		t.Fatal(err)
+	}
+	if readObserverOpenFileAt(alias, instance, identity) == nil {
+		t.Fatal("symlink configuration accepted")
+	}
+	if err := os.WriteFile(path, append(content, []byte("ExecStart=/bin/sh\n")...), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if readObserverOpenFileAt(path, instance, identity) == nil {
+		t.Fatal("extra command accepted")
 	}
 }

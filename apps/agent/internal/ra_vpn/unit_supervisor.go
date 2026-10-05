@@ -24,6 +24,14 @@ type UnitObservationProvider interface {
 	Preflight(context.Context) error
 }
 
+// UnitObservationActivation provisions only the fixed numeric observer socket
+// for the canonical full-instance unit's actual MainPID after daemon start.
+// Acquire and Preflight remain read-only; no profile-selected PID/path/unit may
+// cross this boundary. Unknown launch identity remains failclosed on failure.
+type UnitObservationActivation interface {
+	PrepareObservation(context.Context, string) error
+}
+
 // UnitProcessSnapshot contains public ownership metadata and held observation
 // descriptors only. It never carries credentials, daemon config or proc environ.
 // The consumer owns both descriptors and must Close even on validation failure.
@@ -57,6 +65,7 @@ func (s *UnitProcessSnapshot) Close() error {
 // operations. It never carries caller-provided arguments, paths or unit names.
 type UnitOperation uint8
 
+// Fixed private-unit operations accepted by trusted manager dispatch.
 const (
 	UnitOperationStart UnitOperation = iota + 1
 	UnitOperationStop
@@ -269,6 +278,22 @@ func (u SystemdUnits) Observe(ctx context.Context, p *NetworkPlan) (UnitIdentity
 	return u.observe(ctx, p, pid, false)
 }
 
+func (u SystemdUnits) prepareObservation(ctx context.Context, p *NetworkPlan) error {
+	if _, err := unitName(p); err != nil {
+		return ErrEngine
+	}
+	activation, ok := u.Observation.(UnitObservationActivation)
+	if !ok {
+		return nil
+	} // Trusted fixture observer can already be provisioned.
+	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if activation.PrepareObservation(bounded, p.Instance) != nil {
+		return ErrEngine
+	}
+	return nil
+}
+
 // Start launches only an inactive validated fixed private unit.
 func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, error) {
 	if u.Preflight(ctx) != nil {
@@ -287,11 +312,17 @@ func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, 
 		// only an exact private process proof so rollback can stop our generation.
 		readback, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		defer cancel()
+		if u.prepareObservation(readback, p) != nil {
+			return UnitIdentity{}, ErrEngine
+		}
 		if pid, err := u.pid(readback, name); err == nil && pid > 1 {
 			if id, err := u.observe(readback, p, pid, true); err == nil {
 				return id, ErrEngine
 			}
 		}
+		return UnitIdentity{}, ErrEngine
+	}
+	if u.prepareObservation(ctx, p) != nil {
 		return UnitIdentity{}, ErrEngine
 	}
 	captured := UnitIdentity{}

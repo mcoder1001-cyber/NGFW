@@ -3,7 +3,11 @@ package ravpn
 import (
 	"bytes"
 	"fmt"
+	"golang.org/x/sys/unix"
+	"io"
 	"math"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -82,4 +86,35 @@ func ParseObserverOpenFile(data []byte) (string, bootid.Identity, error) {
 		return "", bootid.Identity{}, ErrEngine
 	}
 	return values[0], identity, nil
+}
+
+func readObserverOpenFile(instance string, target bootid.Identity) error {
+	path, err := ObserverOpenFilePath(target.PID)
+	if err != nil {
+		return ErrEngine
+	}
+	return readObserverOpenFileAt(path, instance, target)
+}
+
+// The alternative path is internal trusted-fixture input only. Production calls
+// derive the sole fixed path above; profiles never select a path or drop-in.
+func readObserverOpenFileAt(path, instance string, target bootid.Identity) error {
+	if brokerProtectedParent(filepath.Dir(path)) != nil {
+		return ErrEngine
+	}
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC|unix.O_NONBLOCK, 0)
+	if err != nil {
+		return ErrEngine
+	}
+	file := os.NewFile(uintptr(fd), "owned observer OpenFile configuration")
+	defer func() { _ = file.Close() }()
+	var held, current unix.Stat_t
+	if unix.Fstat(fd, &held) != nil || held.Uid != 0 || held.Mode != unix.S_IFREG|0600 || held.Nlink != 1 || held.Size <= 0 || held.Size > 1024 {
+		return ErrEngine
+	}
+	data, err := io.ReadAll(io.LimitReader(file, 1025))
+	if err != nil || ValidateObserverOpenFile(instance, target, data) != nil || unix.Lstat(path, &current) != nil || current.Dev != held.Dev || current.Ino != held.Ino || current.Mode != held.Mode || current.Uid != held.Uid || current.Nlink != held.Nlink || current.Ctim != held.Ctim || current.Mtim != held.Mtim {
+		return ErrEngine
+	}
+	return nil
 }

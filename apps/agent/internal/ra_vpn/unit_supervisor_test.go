@@ -72,6 +72,13 @@ func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer file.Close()
+	if os.Geteuid() != 0 {
+		if sameUnitExecutable(file, owned) {
+			t.Fatal("non-root artifact authenticated as root-owned executable")
+		}
+		t.Log("non-root ownership refusal verified; positive root-owned inode assertions require UID 0")
+		return
+	}
 	if !sameUnitExecutable(file, owned) {
 		t.Fatal("exact root-owned executable refused")
 	}
@@ -153,5 +160,97 @@ func TestManagerDispatchDoesNotStartWithoutObservationPreflight(t *testing.T) {
 	}
 	if _, err := NewSystemdUnitsForManager(managerObserverProbe{}, nil); err == nil {
 		t.Fatal("nil dispatcher accepted")
+	}
+}
+
+type activationObserverProbe struct {
+	events         *[]string
+	activationFail bool
+	acquisitions   int
+}
+
+func (p *activationObserverProbe) Preflight(context.Context) error {
+	*p.events = append(*p.events, "preflight")
+	return nil
+}
+func (p *activationObserverProbe) PrepareObservation(_ context.Context, instance string) error {
+	if !ValidInstance(instance) {
+		return ErrEngine
+	}
+	*p.events = append(*p.events, "activate")
+	if p.activationFail {
+		return ErrEngine
+	}
+	return nil
+}
+func (p *activationObserverProbe) Acquire(context.Context, string) (*UnitProcessSnapshot, error) {
+	p.acquisitions++
+	*p.events = append(*p.events, "acquire")
+	return nil, ErrEngine
+}
+
+func TestObserverActivationFailureRetainsUnobservedLaunch(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	events := []string{}
+	observer := &activationObserverProbe{events: &events, activationFail: true}
+	launched := false
+	units, err := NewSystemdUnitsForManager(observer, func(_ context.Context, operation UnitOperation, _ string) (UnitManagerState, error) {
+		switch operation {
+		case UnitOperationObserve:
+			if launched {
+				return UnitManagerState{MainPID: 123}, nil
+			}
+			return UnitManagerState{}, nil
+		case UnitOperationStart:
+			launched = true
+			events = append(events, "start")
+			return UnitManagerState{}, nil
+		default:
+			t.Fatal("uncertain launch stopped without process proof")
+		}
+		return UnitManagerState{}, ErrEngine
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := units.Start(context.Background(), verifier.plan)
+	if err == nil || id.Valid() || !launched || observer.acquisitions != 0 {
+		t.Fatal("activation failure invented process proof or lost ambiguous launch")
+	}
+	if strings.Join(events, ",") != "preflight,start,activate" {
+		t.Fatal("observation socket activation not strictly after daemon launch", events)
+	}
+}
+
+func TestFailedStartActivatesObserverBeforePartialCapture(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	events := []string{}
+	observer := &activationObserverProbe{events: &events}
+	launched := false
+	units, err := NewSystemdUnitsForManager(observer, func(_ context.Context, operation UnitOperation, _ string) (UnitManagerState, error) {
+		switch operation {
+		case UnitOperationObserve:
+			if launched {
+				return UnitManagerState{MainPID: 123}, nil
+			}
+			return UnitManagerState{}, nil
+		case UnitOperationStart:
+			launched = true
+			events = append(events, "start-failed")
+			return UnitManagerState{}, ErrEngine
+		default:
+			t.Fatal("partial launch stopped without identity proof")
+		}
+		return UnitManagerState{}, ErrEngine
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := units.Start(context.Background(), verifier.plan)
+	if err == nil || id.Valid() || !launched || observer.acquisitions != 1 {
+		t.Fatal("failed-start capture behavior incorrect")
+	}
+	if strings.Join(events, ",") != "preflight,start-failed,activate,acquire" {
+		t.Fatal("partial capture ran before activation", events)
 	}
 }

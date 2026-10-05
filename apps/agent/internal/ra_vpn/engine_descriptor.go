@@ -1,0 +1,309 @@
+package ravpn
+
+import (
+	"context"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"golang.org/x/sys/unix"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"ngfw/agent/internal/scheduler"
+)
+
+type EngineDescriptor struct{ Runtime *Runtime }
+
+func (*EngineDescriptor) Name() string           { return EngineName }
+func (*EngineDescriptor) Stage() scheduler.Stage { return scheduler.StageDaemon }
+func (*EngineDescriptor) KeyOf(v proto.Message) scheduler.Key {
+	x, _ := v.(*structpb.Struct)
+	s, _ := DecodeEngine(x)
+	return scheduler.Join(EngineName, s.Instance)
+}
+func (*EngineDescriptor) Dependencies(v proto.Message) []scheduler.Dependency {
+	x, _ := v.(*structpb.Struct)
+	s, e := DecodeEngine(x)
+	if e != nil {
+		return nil
+	}
+	kvs, e := TransportObjects(s)
+	if e != nil {
+		return nil
+	}
+	out := make([]scheduler.Dependency, 0, len(kvs))
+	for _, kv := range kvs {
+		out = append(out, scheduler.Dependency{Key: kv.Key})
+	}
+	return out
+}
+func (d *EngineDescriptor) Create(ctx context.Context, v proto.Message) (any, error) {
+	x, _ := v.(*structpb.Struct)
+	s, e := DecodeEngine(x)
+	if e != nil {
+		return nil, ErrEngine
+	}
+	record, e := d.Runtime.Create(ctx, s)
+	if e != nil {
+		if record.Spec.Instance == "" {
+			return nil, ErrEngine
+		}
+		return record, scheduler.PartialCreate(ErrEngine)
+	}
+	return record, nil
+}
+func (*EngineDescriptor) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
+	return nil, scheduler.ErrRecreate
+}
+func (d *EngineDescriptor) Delete(ctx context.Context, v proto.Message, _ any) error {
+	x, _ := v.(*structpb.Struct)
+	s, e := DecodeEngine(x)
+	if e != nil {
+		return ErrEngine
+	}
+	return d.Runtime.Delete(ctx, s)
+}
+func (d *EngineDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if d.Runtime == nil {
+		return nil, ErrEngine
+	}
+	if !d.Runtime.configured() {
+		records, e := d.Runtime.store.List()
+		if e != nil || len(records) != 0 {
+			return nil, ErrEngine
+		}
+		return nil, nil
+	}
+	if e := d.Runtime.Recover(ctx); e != nil {
+		return nil, e
+	}
+	records, e := d.Runtime.Records(ctx)
+	if e != nil {
+		return nil, e
+	}
+	out := make([]scheduler.KV, 0, len(records))
+	for _, r := range records {
+		v, e := r.Spec.Proto()
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, scheduler.KV{Key: scheduler.Join(EngineName, r.Spec.Instance), Value: v, Meta: r})
+	}
+	return out, nil
+}
+
+// FileEngineStore holds references and process identities only. Parent/file
+// descriptors are pinned with NOFOLLOW; linked or writable records fail closed.
+type FileEngineStore struct {
+	fd    int
+	owner string
+}
+
+func NewFileEngineStore(stateDir, owner string) (*FileEngineStore, error) {
+	if !safeOwnerName(owner) || !filepath.IsAbs(stateDir) || filepath.Clean(stateDir) != stateDir {
+		return nil, ErrEngine
+	}
+	parent, e := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if e == nil {
+		for _, part := range splitPath(stateDir) {
+			next, err := unix.Openat(parent, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+			_ = unix.Close(parent)
+			if err != nil {
+				return nil, ErrEngine
+			}
+			parent = next
+		}
+	}
+	if e != nil {
+		return nil, ErrEngine
+	}
+	defer unix.Close(parent)
+	var st unix.Stat_t
+	if unix.Fstat(parent, &st) != nil || st.Uid != 0 || st.Mode&0022 != 0 {
+		return nil, ErrEngine
+	}
+	if e := unix.Mkdirat(parent, "ra-engine", 0700); e != nil && e != unix.EEXIST {
+		return nil, ErrEngine
+	}
+	fd, e := unix.Openat(parent, "ra-engine", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, ErrEngine
+	}
+	if unix.Fstat(fd, &st) != nil || st.Uid != 0 || st.Mode&0077 != 0 {
+		_ = unix.Close(fd)
+		return nil, ErrEngine
+	}
+	return &FileEngineStore{fd: fd, owner: owner}, nil
+}
+func (s *FileEngineStore) Close() error { return unix.Close(s.fd) }
+func (s *FileEngineStore) read(name string) (EngineRecord, error) {
+	var r EngineRecord
+	if !strings.HasSuffix(name, ".json") || !ValidInstance(strings.TrimSuffix(name, ".json")) {
+		return r, ErrEngine
+	}
+	fd, e := unix.Openat(s.fd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return r, ErrEngine
+	}
+	f := os.NewFile(uintptr(fd), name)
+	defer f.Close()
+	var st unix.Stat_t
+	if unix.Fstat(fd, &st) != nil || st.Uid != 0 || st.Nlink != 1 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0077 != 0 || st.Size > 524288 {
+		return r, ErrEngine
+	}
+	b, e := io.ReadAll(io.LimitReader(f, 524289))
+	if e != nil || len(b) > 524288 || json.Unmarshal(b, &r) != nil || r.Spec.Validate() != nil || r.Spec.Owner != s.owner || r.Spec.Instance+".json" != name || !r.Unit.Valid() {
+		return EngineRecord{}, ErrEngine
+	}
+	return r, nil
+}
+func (s *FileEngineStore) List() ([]EngineRecord, error) {
+	fd, e := unix.Openat(s.fd, ".", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return nil, ErrEngine
+	}
+	f := os.NewFile(uintptr(fd), "ra-engine")
+	defer f.Close()
+	names, e := f.Readdirnames(65)
+	if e != nil && e != io.EOF {
+		return nil, ErrEngine
+	}
+	if len(names) > 64 {
+		return nil, ErrEngine
+	}
+	sort.Strings(names)
+	out := make([]EngineRecord, 0, len(names))
+	for _, name := range names {
+		r, e := s.read(name)
+		if e != nil {
+			return nil, e
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}
+func (s *FileEngineStore) Save(r EngineRecord) error {
+	if r.Spec.Validate() != nil || r.Spec.Owner != s.owner || !r.Unit.Valid() {
+		return ErrEngine
+	}
+	name := r.Spec.Instance + ".json"
+	b, e := json.Marshal(r)
+	if e != nil || len(b) > 524288 {
+		return ErrEngine
+	}
+	var before unix.Stat_t
+	existed := unix.Fstatat(s.fd, name, &before, unix.AT_SYMLINK_NOFOLLOW) == nil
+	if existed {
+		old, e := s.read(name)
+		if e != nil || old.Unit != r.Unit || old.Spec.Instance != r.Spec.Instance {
+			return ErrEngine
+		}
+	}
+	temp := r.Spec.Instance + ".pending"
+	fd, e := unix.Openat(s.fd, temp, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	if e != nil {
+		return ErrEngine
+	}
+	f := os.NewFile(uintptr(fd), temp)
+	n, e := f.Write(b)
+	if e == nil && n == len(b) {
+		e = f.Sync()
+	} else {
+		e = ErrEngine
+	}
+	closeErr := f.Close()
+	if e != nil || closeErr != nil {
+		return ErrEngine
+	}
+	var after unix.Stat_t
+	lookup := unix.Fstatat(s.fd, name, &after, unix.AT_SYMLINK_NOFOLLOW)
+	if existed && (lookup != nil || before.Ino != after.Ino || before.Dev != after.Dev) || !existed && lookup != unix.ENOENT {
+		return ErrEngine
+	}
+	if unix.Renameat(s.fd, temp, s.fd, name) != nil || unix.Fsync(s.fd) != nil {
+		return ErrEngine
+	}
+	return nil
+}
+func (s *FileEngineStore) Remove(instance string) error {
+	if !ValidInstance(instance) {
+		return ErrEngine
+	}
+	if _, e := s.read(instance + ".json"); e != nil {
+		if e2 := unix.Faccessat(s.fd, instance+".json", unix.F_OK, unix.AT_SYMLINK_NOFOLLOW); e2 == unix.ENOENT {
+			return nil
+		}
+		return ErrEngine
+	}
+	if unix.Unlinkat(s.fd, instance+".json", 0) != nil || unix.Fsync(s.fd) != nil {
+		return ErrEngine
+	}
+	return nil
+}
+
+type LazyEngineStore struct {
+	StateDir, Owner string
+	store           *FileEngineStore
+}
+
+func (s *LazyEngineStore) open() error {
+	if s.store != nil {
+		return nil
+	}
+	store, e := NewFileEngineStore(s.StateDir, s.Owner)
+	if e != nil {
+		return e
+	}
+	s.store = store
+	return nil
+}
+func (s *LazyEngineStore) List() ([]EngineRecord, error) {
+	if s.StateDir == "" {
+		return nil, nil
+	}
+	if _, e := os.Lstat(filepath.Join(s.StateDir, "ra-engine")); os.IsNotExist(e) {
+		return nil, nil
+	}
+	if e := s.open(); e != nil {
+		return nil, e
+	}
+	return s.store.List()
+}
+func (s *LazyEngineStore) Save(r EngineRecord) error {
+	if e := s.open(); e != nil {
+		return e
+	}
+	return s.store.Save(r)
+}
+func (s *LazyEngineStore) Remove(id string) error {
+	if s.store == nil {
+		if _, e := os.Lstat(filepath.Join(s.StateDir, "ra-engine")); os.IsNotExist(e) {
+			return nil
+		}
+	}
+	if e := s.open(); e != nil {
+		return e
+	}
+	return s.store.Remove(id)
+}
+func (s *LazyEngineStore) Close() {
+	if s.store != nil {
+		_ = s.store.Close()
+		s.store = nil
+	}
+}
+func (s *LazyEngineStore) Persistent() bool {
+	return filepath.IsAbs(s.StateDir) && safeOwnerName(s.Owner)
+}
+func (d *EngineDescriptor) CheckPersistent() error {
+	if d.Runtime == nil {
+		return ErrEngine
+	}
+	if p, ok := d.Runtime.store.(interface{ Persistent() bool }); !ok || !p.Persistent() {
+		return ErrEngine
+	}
+	return nil
+}

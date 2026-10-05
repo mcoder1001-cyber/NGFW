@@ -73,6 +73,7 @@ func (h *FixedNamespaceHandoff) targets(ctx context.Context) ([]MountTarget, err
 	return targets, nil
 }
 
+// Preflight verifies installed broker and read-only manager supplier prerequisites.
 func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) error {
 	if h == nil || h.Provider == nil || h.Provider.Preflight(ctx) != nil {
 		return ErrBoundary
@@ -102,6 +103,8 @@ func uniqueMountTargets(targets []MountTarget) []MountTarget {
 	}
 	return out
 }
+
+// Export publishes owned namespace bindings with retained pre/post target proofs.
 func (h *FixedNamespaceHandoff) Export(ctx context.Context, plan *NetworkPlan) error {
 	if plan == nil || plan.Validate() != nil || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 {
 		return ErrBoundary
@@ -125,6 +128,8 @@ func (h *FixedNamespaceHandoff) Export(ctx context.Context, plan *NetworkPlan) e
 	record.Pending = false
 	return writeNamespaceExport(record, true)
 }
+
+// Verify reads back every owned binding without repairing namespace state.
 func (h *FixedNamespaceHandoff) Verify(ctx context.Context, plan *NetworkPlan) error {
 	record, e := readNamespaceExport(plan)
 	if e != nil || record.Pending {
@@ -141,6 +146,8 @@ func (h *FixedNamespaceHandoff) Verify(ctx context.Context, plan *NetworkPlan) e
 	}
 	return nil
 }
+
+// Remove removes only bindings matching the durable owned target receipt.
 func (h *FixedNamespaceHandoff) Remove(ctx context.Context, plan *NetworkPlan) error {
 	record, e := readNamespaceExport(plan)
 	if e != nil {

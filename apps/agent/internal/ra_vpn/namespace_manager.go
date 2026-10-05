@@ -43,6 +43,7 @@ type SystemdNamespaceBroker struct{ Executable string }
 const namespaceBrokerUnit = "/usr/lib/systemd/system/ngfw-ra-namespace-broker@.service"
 const expectedNamespaceBrokerUnit = "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91"
 
+// Preflight verifies the protected broker executable and fixed manager template.
 func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 	if validateNamespaceBrokerExecutable(b.Executable) != nil {
 		return ErrBoundary
@@ -242,15 +243,6 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	return unix.Sendmsg(socketFD, []byte("OK"), nil, nil, 0)
 }
 
-// verifyBrokerVPPUnit uses manager-authoritative metadata because the broker's
-// two capabilities intentionally cannot dereference another process's exe.
-// Only the appliance vendor unit and its exact NGFW firstboot drop-in are accepted.
-func verifyBrokerVPPUnit(ctx context.Context, target MountTarget) error {
-	if verifyBrokerVPPUnitIdentity(ctx, target) != nil || !brokerCurrentMount(target.Boot, target.MountInode) {
-		return ErrBoundary
-	}
-	return nil
-}
 func verifyBrokerVPPUnitIdentity(ctx context.Context, target MountTarget) error {
 	fragment, err := trustedInstallationFile("/usr/lib/systemd/system/vpp.service", 16384, false)
 	if err != nil {

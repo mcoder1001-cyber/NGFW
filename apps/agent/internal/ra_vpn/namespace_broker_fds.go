@@ -23,17 +23,21 @@ func validateAttestedBrokerFDs(request NamespaceBrokerMessage, fds [4]int) error
 	if brokerNamespaceFD(fds[3], unix.CLONE_NEWNS, request.Source.MountInode) != nil {
 		return ErrBoundary
 	}
-	kinds := [4]int{unix.CLONE_NEWNS, unix.CLONE_NEWNET, unix.CLONE_NEWNET, unix.CLONE_NEWNS}
-	inodes := [4]uint64{request.Target.MountInode, request.HostNamespace, request.Namespace, request.Source.MountInode}
-	for index, fd := range fds {
-		if fd < 0 || brokerNamespaceFD(fd, kinds[index], inodes[index]) != nil {
+	roles := [...]struct {
+		fd, kind int
+		inode    uint64
+	}{
+		{fds[0], unix.CLONE_NEWNS, request.Target.MountInode},
+		{fds[1], unix.CLONE_NEWNET, request.HostNamespace},
+		{fds[2], unix.CLONE_NEWNET, request.Namespace},
+		{fds[3], unix.CLONE_NEWNS, request.Source.MountInode},
+	}
+	seen := make(map[int]bool, len(roles))
+	for _, role := range roles {
+		if role.fd < 0 || seen[role.fd] || brokerNamespaceFD(role.fd, role.kind, role.inode) != nil {
 			return ErrBoundary
 		}
-		for previous := 0; previous < index; previous++ {
-			if fds[previous] == fd {
-				return ErrBoundary
-			}
-		}
+		seen[role.fd] = true
 	}
 	return nil
 }

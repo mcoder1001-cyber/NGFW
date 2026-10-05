@@ -25,10 +25,11 @@ func newLispSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) *Servic
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -37,7 +38,7 @@ func newLispSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) *Servic
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 
@@ -226,6 +227,7 @@ func TestLispRequiresGlobalsOnSlotAgents(t *testing.T) {
 		t.Fatal("a slot agent switched LISP")
 	}
 	// With LISP (and GPE, PITR) set by the globals owner the same document applies.
+	s.Close()
 	l.Enabled, l.GpeOn = true, true
 	pitr := apply(t, newLispSvc(t, v, t.TempDir(), true), &ngfwv1.ApplyRequest{TxnId: "r0", DesiredState: doc(t, `{"interfaces": {"loop1101": {"ipv4": ["10.11.1.1/24"]}},
 	  "tunnels": {"lisp": {"enabled": true, "gpe": true, "locatorSets": {"w11-rloc": {}}, "pitr": "w11-rloc"}}}`)})

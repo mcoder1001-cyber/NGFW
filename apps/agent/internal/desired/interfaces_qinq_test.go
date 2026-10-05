@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protojson"
@@ -185,6 +186,15 @@ func atou(s string) uint32 {
 
 // ---- service on the fake VPP -------------------------------------------------------------------------------------
 
+var qinqWirings sync.Map
+
+func closeQinqSvc(s *agent.Service) {
+	s.Close()
+	if value, ok := qinqWirings.LoadAndDelete(s); ok {
+		value.(*subsystems.Wiring).Close()
+	}
+}
+
 func newQinqSvc(t *testing.T, v *coretest.VPP, dir string) *agent.Service {
 	t.Helper()
 	owned, err := ownertable.Open(dir, qinqOwner)
@@ -203,7 +213,8 @@ func newQinqSvc(t *testing.T, v *coretest.VPP, dir string) *agent.Service {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(svc.Close)
+	qinqWirings.Store(svc, w)
+	t.Cleanup(func() { closeQinqSvc(svc) })
 	return svc
 }
 
@@ -369,7 +380,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	mustRetrieve(t, s, canonicalQinqDoc)
 
 	// a restarted agent (new service, same state dir) converges without re-creating anything
-	s.Close()
+	closeQinqSvc(s)
 	s2 := newQinqSvc(t, v, dir)
 	v.Reset()
 	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {

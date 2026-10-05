@@ -311,6 +311,7 @@ func TestVrrpStateRefusesWrappedVRID(t *testing.T) {
 		if strings.Contains(out.Routers[0].Error, "VRID is outside") != invalid {
 			t.Fatalf("VRID%d observation=%v", vrid, out.Routers[0])
 		}
+		s.Close()
 	}
 }
 
@@ -343,5 +344,6 @@ func TestVrrpStateRejectsOutOfRangeStoredID(t *testing.T) {
 		if row.Name != "lan-v4" || row.State != "unknown" || row.Error != "configured VRID is outside 1..255" {
 			t.Fatalf("invalid stored id %d was truncated into a runtime identity: %v", id, row)
 		}
+		s.Close()
 	}
 }

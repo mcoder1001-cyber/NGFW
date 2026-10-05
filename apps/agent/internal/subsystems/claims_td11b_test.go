@@ -43,10 +43,11 @@ func nicWiring(t *testing.T, owner string) (*ifacetest.VPP, *scheduler.MapRegist
 	v := ifacetest.New()
 	v.Add("ens224", "dpdk", "")
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, NetdevKind: func(string) (string, bool, error) { return "veth", true, nil }})
+	w, err := registerMock(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, NetdevKind: func(string) (string, bool, error) { return "veth", true, nil }})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	t.Cleanup(func() { iface.SetClaimStore(owner, nil) })
 	w.Connected(context.Background())
 	if w.Identity().IsZero() {
@@ -128,13 +129,16 @@ func TestClaimRefreshCancelledWithCaller(t *testing.T) {
 // wrappers): every one of them declares how it records ownership (fix round 1, review M1), and the
 // product wiring passes its own guard.
 func TestRegisterGuardsEveryDescriptor(t *testing.T) {
-	_, reg, _ := nicWiring(t, "w1g")
+	_, reg, first := nicWiring(t, "w1g")
+	first.Close()
 	g := &guardRegistry{Registry: scheduler.NewRegistry()}
 	dir := t.TempDir()
 	owned, _ := ownertable.Open(dir, "w1g")
-	if _, err := register(g, Env{Client: ifacetest.New(), Owner: "w1g", StateDir: dir, Owned: owned}); err != nil {
+	second, err := register(g, Env{Client: ifacetest.New(), Owner: "w1g", StateDir: dir, Owned: owned})
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(second.Close)
 	if len(g.ds) != reg.Len() {
 		t.Fatalf("guard saw %d descriptors, the registry has %d", len(g.ds), reg.Len())
 	}

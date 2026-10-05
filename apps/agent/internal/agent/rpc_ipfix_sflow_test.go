@@ -29,10 +29,11 @@ func newIpfixSvc(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) *
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globalsOwner})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globalsOwner})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	t.Cleanup(func() { desired.SetIpfixGlobalsOwner(false) })
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
@@ -42,7 +43,7 @@ func newIpfixSvc(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) *
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 

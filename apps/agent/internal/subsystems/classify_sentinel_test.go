@@ -58,14 +58,17 @@ func TestClassifySentinelFailureIsLogged(t *testing.T) {
 	}
 }
 
-// Connected calls the sentinel first, before the boot identity (it must win index 0 after a start).
+// The sentinel precedes other VPP mutation after the stop-first RA barrier.
 func TestConnectedRunsSentinelFirst(t *testing.T) {
 	raw, err := os.ReadFile("subsystems.go")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, body, ok := strings.Cut(string(raw), "func (w *Wiring) Connected(ctx context.Context) {\n")
-	if first, _, _ := strings.Cut(body, "\n"); !ok || !strings.Contains(first, "w.classifySentinelConnected(ctx)") {
-		t.Fatalf("first statement of Connected: %q", first)
+	stop := strings.Index(body, "w.StopRA(ctx)")
+	sentinel := strings.Index(body, "w.classifySentinelConnected(ctx)")
+	index := strings.Index(body, "w.index.Invalidate()")
+	if !ok || stop < 0 || sentinel < stop || index < sentinel || !strings.Contains(body[:sentinel], "return") {
+		t.Fatal("reconnect must stop RA before sentinel and other VPP work")
 	}
 }

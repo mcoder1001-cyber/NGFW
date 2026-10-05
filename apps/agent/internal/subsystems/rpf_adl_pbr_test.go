@@ -56,6 +56,14 @@ func (s *syncBuffer) String() string {
 // rpfService builds the product registry, including F-acl, and the agent service.
 // ABF policies depend on existing acl.acl/<name> objects outside these tests' feature scope.
 // It stands for one agent process: a second call on the same dir is an agent restart.
+var rpfWirings sync.Map
+
+func closeRpfService(svc *agent.Service) {
+	svc.Close()
+	if value, ok := rpfWirings.LoadAndDelete(svc); ok {
+		value.(*subsystems.Wiring).Close()
+	}
+}
 func rpfService(t *testing.T, c vpp.Client, owner, dir string, log *slog.Logger) *agent.Service {
 	t.Helper()
 	owned, err := ownertable.Open(dir, owner)
@@ -64,7 +72,7 @@ func rpfService(t *testing.T, c vpp.Client, owner, dir string, log *slog.Logger)
 	}
 	reg := scheduler.NewRegistry()
 	scope, _ := subsystems.ResolveIDScope() // NGFW_VPP_TABLE_BASE the tests set; empty (fail-closed) without it
-	w, err := subsystems.Register(reg, subsystems.Env{Client: c, Owner: owner, StateDir: dir, Owned: owned, Log: log, IDs: scope})
+	w, err := registerMock(reg, subsystems.Env{Client: c, Owner: owner, StateDir: dir, Owned: owned, Log: log, IDs: scope})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +83,8 @@ func rpfService(t *testing.T, c vpp.Client, owner, dir string, log *slog.Logger)
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(svc.Close)
+	rpfWirings.Store(svc, w)
+	t.Cleanup(func() { closeRpfService(svc) })
 	return svc
 }
 
@@ -215,7 +224,7 @@ func TestRpfAdlPbrOnFake(t *testing.T) {
 	}
 
 	// agent restart after loss: uRPF, ADL and ABF deleted behind the agent's back
-	svc.Close()
+	closeRpfService(svc)
 	v.DeleteRpfAdlPbr()
 	calls = len(v.CallsNamed("adl_allowlist_enable_disable"))
 	svc = rpfService(t, v, "w3", dir, log)
@@ -311,7 +320,7 @@ func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
 	desired, canonical := rpfDocs(t, 3, 3000, "loop301", "loop302")
 	resp, err := svc.Apply(context.Background(), &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: desired})
 	mustApplied(t, resp, err)
-	svc.Close()
+	closeRpfService(svc)
 	svc = rpfService(t, v, "w3", dir, log)
 	// the projection gets the recorded ids back (sticky policy ids, review L2)
 	if rec := subsystems.RpfAdlPbrEnv().RecordedIDs; len(rec) != 2 || rec["via-l2"] < 3000 || rec["lookup-red"] > 3999 {
@@ -321,6 +330,7 @@ func TestRpfAdlPbrPolicyNamesPersist(t *testing.T) {
 		t.Fatalf("names after restart: %s", protojson.Format(got.GetRouting()))
 	}
 	// a fresh state dir (records lost): the owned policies are reported by id
+	closeRpfService(svc)
 	fresh := rpfService(t, v, "w3", t.TempDir(), log)
 	names := []string{}
 	for n := range retrieveDomains(t, fresh).GetRouting().GetPbr().GetPolicies() {
@@ -405,9 +415,11 @@ func TestACLBridgeRegistration(t *testing.T) {
 	v := coretest.New()
 	v.AddACL("w3:lan-b")
 	reg := scheduler.NewRegistry()
-	if _, err := subsystems.Register(reg, env(t, v)); err != nil {
+	w, err := registerMock(reg, env(t, v))
+	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	if _, ok := reg.Get("acl.acl"); !ok {
 		t.Fatal("acl.acl not registered by the product (F-acl)")
 	}

@@ -51,11 +51,12 @@ func newMplsSvc(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) (*
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: mplsOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: mplsOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
 		GlobalsOwner: globalsOwner, IDs: subsystems.IDScope{Range: &subsystems.IDRange{Lo: 5000, Hi: 5999}}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -64,7 +65,7 @@ func newMplsSvc(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) (*
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc, reg
 }
 
@@ -360,6 +361,7 @@ func TestMplsTableZeroRequired(t *testing.T) {
 		t.Fatalf("tables %v", n)
 	}
 	// the globals owner creates table 0 itself
+	s.Close()
 	g := mplsModel(t)
 	gs, _ := newMplsSvc(t, g, t.TempDir(), true)
 	mustStatus(t, apply(t, gs, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, `{"interfaces": {"loop5001": {}}, "routing": {"mpls": {"interfaces": ["loop5001"]}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)

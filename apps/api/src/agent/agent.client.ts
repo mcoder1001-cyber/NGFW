@@ -76,6 +76,11 @@ import {
   type LispStateResponse,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
+  type RemoteAccessCapabilitiesResponse,
+  type RemoteAccessSessionsRequest,
+  type RemoteAccessSessionsResponse,
+  type RemoteAccessDisconnectRequest,
+  type RemoteAccessDisconnectResponse,
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
@@ -481,6 +486,15 @@ export class AgentClient implements OnModuleDestroy {
   }
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
+  remoteAccessCapabilities(): Promise<RemoteAccessCapabilitiesResponse> {
+    return this.unary(this.c.remoteAccessCapabilities, {});
+  }
+  remoteAccessSessions(request: RemoteAccessSessionsRequest): Promise<RemoteAccessSessionsResponse> {
+    return this.unary(this.c.remoteAccessSessions, request);
+  }
+  remoteAccessDisconnect(request: RemoteAccessDisconnectRequest): Promise<RemoteAccessDisconnectResponse> {
+    return this.unary(this.c.remoteAccessDisconnect, request);
+  }
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
@@ -709,6 +723,15 @@ export type { DesiredState };
 export function agentProblem(err: ServiceError): ProblemError {
   const detail = `agent: ${err.details || err.message}`;
   switch (err.code) {
+    case GrpcStatus.PERMISSION_DENIED:
+      return new ProblemError(
+        403,
+        'agent-permission-denied',
+        'Agent permission denied',
+        'The agent refused permission to perform this operation',
+        undefined,
+        { grpcCode: 'PERMISSION_DENIED' },
+      );
     case GrpcStatus.UNAVAILABLE:
       return new ProblemError(503, 'agent-unavailable', 'Agent unavailable', detail, undefined, {
         grpcCode: 'UNAVAILABLE',

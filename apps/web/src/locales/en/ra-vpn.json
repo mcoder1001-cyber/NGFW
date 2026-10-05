@@ -1,0 +1,95 @@
+{
+  "tab": "Remote access",
+  "title": "Remote-access VPN",
+  "profile": "Profile",
+  "choose": "Choose a profile",
+  "add": "Add profile",
+  "edit": "Edit profile",
+  "refresh": "Refresh",
+  "name": "Profile name",
+  "unavailable": "The remote-access engine is not operational. You can edit disabled drafts; enabling requires a verified engine and explicit policies.",
+  "hints": "Windows, macOS and mobile clients: use native IKEv2, the configured server identity and a trusted server CA. strongSwan clients: use IKEv2 with the selected EAP method. Pool DNS and split routes come from this profile.",
+  "sessions": "Connected users",
+  "identity": "Identity",
+  "addresses": "Assigned addresses",
+  "uptime": "Uptime (seconds)",
+  "bytesIn": "Bytes received",
+  "bytesOut": "Bytes sent",
+  "action": "Action",
+  "disconnect": "Disconnect",
+  "confirmDisconnect": "Disconnect this session?",
+  "notRemoved": "The agent has not confirmed removal. Refresh the session inventory.",
+  "empty": "No observed sessions for this profile.",
+  "first": "First page",
+  "nextPage": "Next page",
+  "activationBlocked": "Enabling requires an operational engine, supported authentication, explicit transport, and ingress and egress ACLs for both transit links. Save a disabled draft until these requirements are met.",
+  "save": "Save candidate",
+  "next": "Next",
+  "back": "Back",
+  "close": "Close",
+  "step": {
+    "0": "Authentication and endpoint",
+    "1": "Transit addresses and existing ACL policies",
+    "2": "Client pools, DNS and split routes",
+    "3": "Credential references, RADIUS and timers"
+  },
+  "field": {
+    "enabled": {
+      "title": "Enabled"
+    },
+    "description": {
+      "title": "Description"
+    },
+    "localAddr": {
+      "title": "Public endpoint address"
+    },
+    "localId": {
+      "title": "Server identity"
+    },
+    "vrf": {
+      "title": "Protected VRF"
+    },
+    "underlayVrf": {
+      "title": "Public underlay VRF"
+    },
+    "auth": {
+      "title": "Authentication method"
+    },
+    "certificate": {
+      "title": "Server certificate reference"
+    },
+    "clientCa": {
+      "title": "Client CA reference"
+    },
+    "proposal": {
+      "title": "IKE/ESP proposal reference"
+    },
+    "transport": {
+      "title": "Transit addresses"
+    },
+    "accessPolicy": {
+      "title": "Protected transit ACL references"
+    },
+    "outerPolicy": {
+      "title": "Public transit ACL references"
+    },
+    "pools": {
+      "title": "Client pools and DNS"
+    },
+    "splitTunnel": {
+      "title": "Split-tunnel routes"
+    },
+    "users": {
+      "title": "EAP users and password references"
+    },
+    "radius": {
+      "title": "RADIUS servers and secret references"
+    },
+    "dpd": {
+      "title": "Dead peer detection"
+    },
+    "rekey": {
+      "title": "Rekey timers"
+    }
+  }
+}

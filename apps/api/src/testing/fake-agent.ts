@@ -1002,6 +1002,9 @@ export class FakeAgent {
       }),
       // wave-BC: F-bfd-redistribution
       // wave-BC: F-ra-vpn
+      remoteAccessCapabilities: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'remote access fixture not enabled' }),
+      remoteAccessSessions: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'remote access fixture not enabled' }),
+      remoteAccessDisconnect: (_call, cb) => cb({ code: status.UNIMPLEMENTED, details: 'remote access fixture not enabled' }),
       // wave-BC: F-mpls-ldp
       // wave-BC: F-igmp-mfib
       // wave-BC: F-dashboard-prom-alarms

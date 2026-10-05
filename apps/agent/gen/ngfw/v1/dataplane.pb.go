@@ -42846,6 +42846,7 @@ func (x *VrrpStateResponse) GetRouters() []*VrrpRuntime {
 // ----- F-ra-vpn independent engine observed runtime -----
 type RemoteAccessCapabilitiesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Owner         string                 `protobuf:"bytes,1,opt,name=owner,proto3" json:"owner,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -42878,6 +42879,13 @@ func (x *RemoteAccessCapabilitiesRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RemoteAccessCapabilitiesRequest.ProtoReflect.Descriptor instead.
 func (*RemoteAccessCapabilitiesRequest) Descriptor() ([]byte, []int) {
 	return file_ngfw_v1_dataplane_proto_rawDescGZIP(), []int{493}
+}
+
+func (x *RemoteAccessCapabilitiesRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
 }
 
 type RemoteAccessCapabilitiesResponse struct {
@@ -42962,6 +42970,7 @@ type RemoteAccessSessionsRequest struct {
 	Profile       string                 `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	Cursor        string                 `protobuf:"bytes,2,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	Limit         uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"` // 1..100; cursor is opaque, never a daemon identifier.
+	Owner         string                 `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -43015,6 +43024,13 @@ func (x *RemoteAccessSessionsRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *RemoteAccessSessionsRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
+	}
+	return ""
 }
 
 type RemoteAccessSession struct {
@@ -43165,6 +43181,7 @@ type RemoteAccessDisconnectRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Profile       string                 `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	Id            string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	Owner         string                 `protobuf:"bytes,3,opt,name=owner,proto3" json:"owner,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -43209,6 +43226,13 @@ func (x *RemoteAccessDisconnectRequest) GetProfile() string {
 func (x *RemoteAccessDisconnectRequest) GetId() string {
 	if x != nil {
 		return x.Id
+	}
+	return ""
+}
+
+func (x *RemoteAccessDisconnectRequest) GetOwner() string {
+	if x != nil {
+		return x.Owner
 	}
 	return ""
 }
@@ -52196,18 +52220,20 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x11VrrpStateResponse\x12\x14\n" +
 	"\x05owner\x18\x01 \x01(\tR\x05owner\x12=\n" +
 	"\fretrieved_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\vretrievedAt\x12.\n" +
-	"\arouters\x18\x03 \x03(\v2\x14.ngfw.v1.VrrpRuntimeR\arouters\"!\n" +
-	"\x1fRemoteAccessCapabilitiesRequest\"\xd5\x01\n" +
+	"\arouters\x18\x03 \x03(\v2\x14.ngfw.v1.VrrpRuntimeR\arouters\"7\n" +
+	"\x1fRemoteAccessCapabilitiesRequest\x12\x14\n" +
+	"\x05owner\x18\x01 \x01(\tR\x05owner\"\xd5\x01\n" +
 	" RemoteAccessCapabilitiesResponse\x12\x16\n" +
 	"\x06engine\x18\x01 \x01(\tR\x06engine\x12 \n" +
 	"\voperational\x18\x02 \x01(\bR\voperational\x12%\n" +
 	"\x0esupported_auth\x18\x03 \x03(\tR\rsupportedAuth\x12\x16\n" +
 	"\x06reason\x18\x04 \x01(\tR\x06reason\x128\n" +
-	"\x18editable_disabled_drafts\x18\x05 \x01(\bR\x16editableDisabledDrafts\"e\n" +
+	"\x18editable_disabled_drafts\x18\x05 \x01(\bR\x16editableDisabledDrafts\"{\n" +
 	"\x1bRemoteAccessSessionsRequest\x12\x18\n" +
 	"\aprofile\x18\x01 \x01(\tR\aprofile\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\tR\x06cursor\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"\xe2\x01\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\x12\x14\n" +
+	"\x05owner\x18\x04 \x01(\tR\x05owner\"\xe2\x01\n" +
 	"\x13RemoteAccessSession\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aprofile\x18\x02 \x01(\tR\aprofile\x12\x1a\n" +
@@ -52219,10 +52245,11 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"\x1cRemoteAccessSessionsResponse\x128\n" +
 	"\bsessions\x18\x01 \x03(\v2\x1c.ngfw.v1.RemoteAccessSessionR\bsessions\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor\"I\n" +
+	"nextCursor\"_\n" +
 	"\x1dRemoteAccessDisconnectRequest\x12\x18\n" +
 	"\aprofile\x18\x01 \x01(\tR\aprofile\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"D\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
+	"\x05owner\x18\x03 \x01(\tR\x05owner\"D\n" +
 	"\x1eRemoteAccessDisconnectResponse\x12\"\n" +
 	"\fdisconnected\x18\x01 \x01(\bR\fdisconnected*\xb3\x01\n" +
 	"\vApplyStatus\x12\x1c\n" +

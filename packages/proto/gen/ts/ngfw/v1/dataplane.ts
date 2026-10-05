@@ -11217,6 +11217,7 @@ export interface VrrpStateResponse {
 
 /** ----- F-ra-vpn independent engine observed runtime ----- */
 export interface RemoteAccessCapabilitiesRequest {
+  owner: string;
 }
 
 export interface RemoteAccessCapabilitiesResponse {
@@ -11233,6 +11234,7 @@ export interface RemoteAccessSessionsRequest {
   cursor: string;
   /** 1..100; cursor is opaque, never a daemon identifier. */
   limit: number;
+  owner: string;
 }
 
 export interface RemoteAccessSession {
@@ -11254,6 +11256,7 @@ export interface RemoteAccessSessionsResponse {
 export interface RemoteAccessDisconnectRequest {
   profile: string;
   id: string;
+  owner: string;
 }
 
 export interface RemoteAccessDisconnectResponse {
@@ -102280,11 +102283,14 @@ export const VrrpStateResponse: MessageFns<VrrpStateResponse> = {
 };
 
 function createBaseRemoteAccessCapabilitiesRequest(): RemoteAccessCapabilitiesRequest {
-  return {};
+  return { owner: "" };
 }
 
 export const RemoteAccessCapabilitiesRequest: MessageFns<RemoteAccessCapabilitiesRequest> = {
-  encode(_: RemoteAccessCapabilitiesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+  encode(message: RemoteAccessCapabilitiesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
     return writer;
   },
 
@@ -102301,6 +102307,14 @@ export const RemoteAccessCapabilitiesRequest: MessageFns<RemoteAccessCapabilitie
       while (reader.pos < end) {
         const tag = reader.uint32();
         switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -102313,20 +102327,24 @@ export const RemoteAccessCapabilitiesRequest: MessageFns<RemoteAccessCapabilitie
     }
   },
 
-  fromJSON(_: any): RemoteAccessCapabilitiesRequest {
-    return {};
+  fromJSON(object: any): RemoteAccessCapabilitiesRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
   },
 
-  toJSON(_: RemoteAccessCapabilitiesRequest): unknown {
+  toJSON(message: RemoteAccessCapabilitiesRequest): unknown {
     const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
     return obj;
   },
 
   create(base?: DeepPartial<RemoteAccessCapabilitiesRequest>): RemoteAccessCapabilitiesRequest {
     return RemoteAccessCapabilitiesRequest.fromPartial(base ?? {});
   },
-  fromPartial(_: DeepPartial<RemoteAccessCapabilitiesRequest>): RemoteAccessCapabilitiesRequest {
+  fromPartial(object: DeepPartial<RemoteAccessCapabilitiesRequest>): RemoteAccessCapabilitiesRequest {
     const message = createBaseRemoteAccessCapabilitiesRequest();
+    message.owner = object.owner ?? "";
     return message;
   },
 };
@@ -102473,7 +102491,7 @@ export const RemoteAccessCapabilitiesResponse: MessageFns<RemoteAccessCapabiliti
 };
 
 function createBaseRemoteAccessSessionsRequest(): RemoteAccessSessionsRequest {
-  return { profile: "", cursor: "", limit: 0 };
+  return { profile: "", cursor: "", limit: 0, owner: "" };
 }
 
 export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest> = {
@@ -102486,6 +102504,9 @@ export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest
     }
     if (message.limit !== 0) {
       writer.uint32(24).uint32(message.limit);
+    }
+    if (message.owner !== "") {
+      writer.uint32(34).string(message.owner);
     }
     return writer;
   },
@@ -102527,6 +102548,14 @@ export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest
             message.limit = reader.uint32();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -102544,6 +102573,7 @@ export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest
       profile: isSet(object.profile) ? globalThis.String(object.profile) : "",
       cursor: isSet(object.cursor) ? globalThis.String(object.cursor) : "",
       limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
     };
   },
 
@@ -102558,6 +102588,9 @@ export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest
     if (message.limit !== 0) {
       obj.limit = Math.round(message.limit);
     }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
     return obj;
   },
 
@@ -102569,6 +102602,7 @@ export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest
     message.profile = object.profile ?? "";
     message.cursor = object.cursor ?? "";
     message.limit = object.limit ?? 0;
+    message.owner = object.owner ?? "";
     return message;
   },
 };
@@ -102844,7 +102878,7 @@ export const RemoteAccessSessionsResponse: MessageFns<RemoteAccessSessionsRespon
 };
 
 function createBaseRemoteAccessDisconnectRequest(): RemoteAccessDisconnectRequest {
-  return { profile: "", id: "" };
+  return { profile: "", id: "", owner: "" };
 }
 
 export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectRequest> = {
@@ -102854,6 +102888,9 @@ export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectReq
     }
     if (message.id !== "") {
       writer.uint32(18).string(message.id);
+    }
+    if (message.owner !== "") {
+      writer.uint32(26).string(message.owner);
     }
     return writer;
   },
@@ -102887,6 +102924,14 @@ export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectReq
             message.id = reader.string();
             continue;
           }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -102903,6 +102948,7 @@ export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectReq
     return {
       profile: isSet(object.profile) ? globalThis.String(object.profile) : "",
       id: isSet(object.id) ? globalThis.String(object.id) : "",
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
     };
   },
 
@@ -102914,6 +102960,9 @@ export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectReq
     if (message.id !== "") {
       obj.id = message.id;
     }
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
     return obj;
   },
 
@@ -102924,6 +102973,7 @@ export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectReq
     const message = createBaseRemoteAccessDisconnectRequest();
     message.profile = object.profile ?? "";
     message.id = object.id ?? "";
+    message.owner = object.owner ?? "";
     return message;
   },
 };

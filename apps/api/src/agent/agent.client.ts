@@ -76,6 +76,11 @@ import {
   type LispStateResponse,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
+  type RemoteAccessCapabilitiesResponse,
+  type RemoteAccessSessionsRequest,
+  type RemoteAccessSessionsResponse,
+  type RemoteAccessDisconnectRequest,
+  type RemoteAccessDisconnectResponse,
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
@@ -481,6 +486,29 @@ export class AgentClient implements OnModuleDestroy {
   }
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
+  remoteAccessCapabilities(): Promise<RemoteAccessCapabilitiesResponse> {
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessCapabilities, { owner: this.owner }));
+  }
+  remoteAccessSessions(request: Omit<RemoteAccessSessionsRequest, 'owner'>): Promise<RemoteAccessSessionsResponse> {
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessSessions, { ...request, owner: this.owner }));
+  }
+  remoteAccessDisconnect(request: Omit<RemoteAccessDisconnectRequest, 'owner'>): Promise<RemoteAccessDisconnectResponse> {
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessDisconnect, { ...request, owner: this.owner }));
+  }
+  /** RA errors retain status/code while daemon diagnostics and credentials stay private. */
+  private async remoteAccessResult<T>(request: Promise<T>): Promise<T> {
+    try {
+      return await request;
+    } catch (error) {
+      if (error instanceof ProblemError) {
+        const grpcCode = error.extra['grpcCode'];
+        throw new ProblemError(error.getStatus(), error.slug, error.title,
+          'The remote-access engine could not complete this request', undefined,
+          typeof grpcCode === 'string' ? { grpcCode } : {});
+      }
+      throw new ProblemError(502, 'agent-error', 'Agent error', 'The remote-access engine could not complete this request');
+    }
+  }
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
@@ -709,6 +737,15 @@ export type { DesiredState };
 export function agentProblem(err: ServiceError): ProblemError {
   const detail = `agent: ${err.details || err.message}`;
   switch (err.code) {
+    case GrpcStatus.PERMISSION_DENIED:
+      return new ProblemError(
+        403,
+        'agent-permission-denied',
+        'Agent permission denied',
+        'The agent refused permission to perform this operation',
+        undefined,
+        { grpcCode: 'PERMISSION_DENIED' },
+      );
     case GrpcStatus.UNAVAILABLE:
       return new ProblemError(503, 'agent-unavailable', 'Agent unavailable', detail, undefined, {
         grpcCode: 'UNAVAILABLE',

@@ -36,3 +36,11 @@ IKE/ESP mark1 selects owned underlay routing table, decrypted traffic traverses
 VPP inner VRF; full-tunnel routes cannot loop outer crypto into protected path.
 Next: fixed namespace helper/unit, secure lifecycle/PKI staging, TAP/routes and
 scheduler descriptor; then API/proto/UI and disposable interoperable acceptance.
+
+Additional contract18: explicit protected TAP accessPolicy ingress/egress lists,
+required for activation; missing/duplicate ACL refs and empty sides refused.
+Reserved field allocation documented. This closes the default-permit/new TAP
+policy gap before consumers. Schema9 focused tests PASS5.10s; proto regeneration
+and buf lint PASS. Runtime network plan source is unfinished and not activated.
+Next: publish contract18, then namespace helper/unit/firewall plus TAP dependency
+wrappers and daemon descriptor, preserving generic S2S and DF-1 ownership.

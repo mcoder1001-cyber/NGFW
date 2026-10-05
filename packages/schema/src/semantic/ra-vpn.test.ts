@@ -54,12 +54,14 @@ describe('independent remote-access explicit transit contracts', () => {
     expect(checkTransport({ roadwarrior: routed() })).toEqual([]);
   });
   it('requires explicit transport for enabled profiles while retaining disabled drafts', () => {
-    expect(checkTransport({ roadwarrior: profile(true) })).toEqual([
-      {
-        pointer: '/vpn/remoteAccess/roadwarrior/transport',
-        message: expect.stringContaining('explicit'),
-      },
-    ]);
+    expect(checkTransport({ roadwarrior: profile(true) })).toEqual(
+      expect.arrayContaining([
+        {
+          pointer: '/vpn/remoteAccess/roadwarrior/transport',
+          message: expect.stringContaining('explicit'),
+        },
+      ]),
+    );
     expect(checkTransport({ draft: profile(false) })).toEqual([]);
   });
   it('rejects identical sides, mismatched subnets and unexpected families', () => {
@@ -107,5 +109,31 @@ describe('independent remote-access explicit transit contracts', () => {
         }),
       }),
     ).toEqual([]);
+  });
+});
+
+describe('independent RA protected policy contract', () => {
+  it('refuses missing active policy and nonexistent or repeated ACL refs', () => {
+    expect(
+      checkTransport({ roadwarrior: routed({ enabled: true }) }).some((issue) =>
+        issue.pointer.endsWith('/accessPolicy'),
+      ),
+    ).toBe(true);
+    const issues = checkTransport({
+      roadwarrior: routed({
+        accessPolicy: { ingress: ['missing', 'missing'], egress: ['missing'] },
+      }),
+    });
+    expect(issues.some((issue) => issue.pointer.endsWith('/accessPolicy/ingress/1'))).toBe(true);
+    expect(issues.some((issue) => issue.pointer.endsWith('/accessPolicy/egress/0'))).toBe(true);
+  });
+  it('never admits an empty ingress or egress policy as an automatic allow', () => {
+    expect(() =>
+      RootSchema.parse({
+        vpn: {
+          remoteAccess: { roadwarrior: routed({ accessPolicy: { ingress: [], egress: [] } }) },
+        },
+      }),
+    ).toThrow();
   });
 });

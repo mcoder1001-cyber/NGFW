@@ -36,6 +36,27 @@ export const raVpnTransportValidator: ValidatorDefinition = {
       const at = (...parts: (string | number)[]) =>
         jsonPointer('vpn', 'remoteAccess', name, ...parts);
       const error = (pointer: string, message: string) => issues.push({ pointer, message });
+      if (!profile.accessPolicy) {
+        if (profile.enabled)
+          error(
+            at('accessPolicy'),
+            'Independent remote access requires explicit ingress and egress ACL policy.',
+          );
+      } else {
+        for (const direction of ['ingress', 'egress'] as const) {
+          const seen = new Set<string>();
+          profile.accessPolicy[direction].forEach((list, index) => {
+            if (!Object.hasOwn(config.acl.lists, list))
+              error(
+                at('accessPolicy', direction, index),
+                'Referenced remote-access ACL list does not exist.',
+              );
+            if (seen.has(list))
+              error(at('accessPolicy', direction, index), 'Duplicate remote-access ACL reference.');
+            seen.add(list);
+          });
+        }
+      }
       const transport = profile.transport;
       if (!transport) {
         if (profile.enabled)

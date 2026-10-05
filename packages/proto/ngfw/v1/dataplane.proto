@@ -4368,6 +4368,8 @@ message RemoteAccessProfile {
   optional string underlay_vrf = 16;
   // Explicit VPP/private-namespace transit addressing. Required by operational RA.
   RemoteAccessTransport transport = 17;
+  // Explicit ingress/egress ACLs on the protected TAP; no automatic permit.
+  RemoteAccessPolicy access_policy = 18;
 
 }
 
@@ -7629,6 +7631,15 @@ message LispStateResponse {
 // ----- F-bfd-redistribution -----
 
 // ----- F-ra-vpn -----
+
+// Explicit ordered ACL references for the independent remote-access inner TAP.
+message RemoteAccessPolicy {
+  // At least one ingress ACL when operational.
+  repeated string ingress = 1;
+  // At least one egress ACL when operational.
+  repeated string egress = 2;
+}
+
 
 // One explicitly addressed VPP/private-namespace TAP transit link.
 message RemoteAccessTransitLink {

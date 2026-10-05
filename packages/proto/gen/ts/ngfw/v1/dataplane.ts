@@ -6279,7 +6279,11 @@ export interface RemoteAccessProfile {
     | string
     | undefined;
   /** Explicit VPP/private-namespace transit addressing. Required by operational RA. */
-  transport: RemoteAccessTransport | undefined;
+  transport:
+    | RemoteAccessTransport
+    | undefined;
+  /** Explicit ingress/egress ACLs on the protected TAP; no automatic permit. */
+  accessPolicy: RemoteAccessPolicy | undefined;
 }
 
 /** RADIUS settings. */
@@ -10127,6 +10131,14 @@ export interface LispStateResponse {
   /** VNIs that have LISP-GPE forwarding entries. */
   gpeVnis: number[];
   retrievedAt: Date | undefined;
+}
+
+/** Explicit ordered ACL references for the independent remote-access inner TAP. */
+export interface RemoteAccessPolicy {
+  /** At least one ingress ACL when operational. */
+  ingress: string[];
+  /** At least one egress ACL when operational. */
+  egress: string[];
 }
 
 /** One explicitly addressed VPP/private-namespace TAP transit link. */
@@ -54875,6 +54887,7 @@ function createBaseRemoteAccessProfile(): RemoteAccessProfile {
     rekey: undefined,
     underlayVrf: undefined,
     transport: undefined,
+    accessPolicy: undefined,
   };
 }
 
@@ -54930,6 +54943,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     }
     if (message.transport !== undefined) {
       RemoteAccessTransport.encode(message.transport, writer.uint32(138).fork()).join();
+    }
+    if (message.accessPolicy !== undefined) {
+      RemoteAccessPolicy.encode(message.accessPolicy, writer.uint32(146).fork()).join();
     }
     return writer;
   },
@@ -55083,6 +55099,14 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
             message.transport = RemoteAccessTransport.decode(reader, reader.uint32());
             continue;
           }
+          case 18: {
+            if (tag !== 146) {
+              break;
+            }
+
+            message.accessPolicy = RemoteAccessPolicy.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -55136,6 +55160,11 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
         ? globalThis.String(object.underlay_vrf)
         : undefined,
       transport: isSet(object.transport) ? RemoteAccessTransport.fromJSON(object.transport) : undefined,
+      accessPolicy: isSet(object.accessPolicy)
+        ? RemoteAccessPolicy.fromJSON(object.accessPolicy)
+        : isSet(object.access_policy)
+        ? RemoteAccessPolicy.fromJSON(object.access_policy)
+        : undefined,
     };
   },
 
@@ -55192,6 +55221,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     if (message.transport !== undefined) {
       obj.transport = RemoteAccessTransport.toJSON(message.transport);
     }
+    if (message.accessPolicy !== undefined) {
+      obj.accessPolicy = RemoteAccessPolicy.toJSON(message.accessPolicy);
+    }
     return obj;
   },
 
@@ -55222,6 +55254,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     message.underlayVrf = object.underlayVrf ?? undefined;
     message.transport = (object.transport !== undefined && object.transport !== null)
       ? RemoteAccessTransport.fromPartial(object.transport)
+      : undefined;
+    message.accessPolicy = (object.accessPolicy !== undefined && object.accessPolicy !== null)
+      ? RemoteAccessPolicy.fromPartial(object.accessPolicy)
       : undefined;
     return message;
   },
@@ -91970,6 +92005,91 @@ export const LispStateResponse: MessageFns<LispStateResponse> = {
     message.mapServers = object.mapServers?.map((e) => e) || [];
     message.gpeVnis = object.gpeVnis?.map((e) => e) || [];
     message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRemoteAccessPolicy(): RemoteAccessPolicy {
+  return { ingress: [], egress: [] };
+}
+
+export const RemoteAccessPolicy: MessageFns<RemoteAccessPolicy> = {
+  encode(message: RemoteAccessPolicy, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.ingress) {
+      writer.uint32(10).string(v!);
+    }
+    for (const v of message.egress) {
+      writer.uint32(18).string(v!);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessPolicy {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessPolicy();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.ingress.push(reader.string());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.egress.push(reader.string());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessPolicy {
+    return {
+      ingress: globalThis.Array.isArray(object?.ingress) ? object.ingress.map((e: any) => globalThis.String(e)) : [],
+      egress: globalThis.Array.isArray(object?.egress) ? object.egress.map((e: any) => globalThis.String(e)) : [],
+    };
+  },
+
+  toJSON(message: RemoteAccessPolicy): unknown {
+    const obj: any = {};
+    if (message.ingress?.length) {
+      obj.ingress = message.ingress;
+    }
+    if (message.egress?.length) {
+      obj.egress = message.egress;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessPolicy>): RemoteAccessPolicy {
+    return RemoteAccessPolicy.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessPolicy>): RemoteAccessPolicy {
+    const message = createBaseRemoteAccessPolicy();
+    message.ingress = object.ingress?.map((e) => e) || [];
+    message.egress = object.egress?.map((e) => e) || [];
     return message;
   },
 };

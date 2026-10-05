@@ -1,8 +1,9 @@
 [Unit]
 Description=NGFW fixed remote-access supplier configuration socket
+Wants=ngfw-ra-namespace-broker.socket
 
 [Socket]
-ListenSequentialPacket=/run/ngfw/ra/openfile.sock
+ListenSequentialPacket=/run/ngfw-ra-ipc/openfile.sock
 SocketUser=root
 SocketGroup=root
 SocketMode=0600

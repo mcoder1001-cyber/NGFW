@@ -96,6 +96,7 @@ describe('RA model and structural wizard contracts', () => {
   it('allows disabled drafts but refuses enabled profiles without actual capability and both explicit policies', () => {
     const cap = { operational: true, supportedAuth: ['eap-tls'] };
     expect(activationAllowed(profile, undefined)).toBe(true);
+    expect(activationAllowed({ auth: profile.auth }, undefined)).toBe(false);
     expect(activationAllowed({ ...profile, enabled: true }, undefined)).toBe(false);
     expect(activationAllowed({ ...profile, enabled: true }, { ...cap, operational: false })).toBe(
       false,
@@ -205,6 +206,7 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ویرایش پروفایل' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByRole('switch', { name: 'فعال' })).not.toBeChecked();
+    expect(within(dialog).getByText('EAP-TLS (گواهی کلاینت)')).toBeInTheDocument();
     fireEvent.click(within(dialog).getByRole('button', { name: 'بعدی' }));
     await screen.findByText('آدرس‌های ترانزیت و سیاست‌های ACL موجود');
     expect(screen.getByText('ارجاع ACL ترانزیت عمومی')).toBeInTheDocument();

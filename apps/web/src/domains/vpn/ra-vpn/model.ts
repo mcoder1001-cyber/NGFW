@@ -34,7 +34,7 @@ export function activationAllowed(
   profile: Partial<Profile>,
   capability: { operational: boolean; supportedAuth: string[] } | undefined,
 ): boolean {
-  if (!profile.enabled) return true;
+  if (profile.enabled === false) return true;
   return (
     !!capability?.operational &&
     !!profile.auth &&
@@ -89,6 +89,17 @@ export function localizeRaSchema(
             ...(typeof hints.group === 'string'
               ? { group: translate(`field.${hints.group}.title`, hints.group) }
               : {}),
+          };
+        }
+        if (Array.isArray(field.enum)) {
+          const enumLabels = Object.fromEntries(
+            field.enum
+              .filter((value): value is string => typeof value === 'string')
+              .map((value) => [value, translate(`option.${value}`, value)]),
+          );
+          field['x-ngfw-ui'] = {
+            ...(field['x-ngfw-ui'] as Record<string, unknown> | undefined),
+            enumLabels,
           };
         }
         return [key, field];

@@ -163,5 +163,14 @@
     "reauth": {
       "title": "Reauthenticate"
     }
+  },
+  "option": {
+    "eap-mschapv2": "EAP-MSCHAPv2 (password)",
+    "eap-tls": "EAP-TLS (client certificate)",
+    "eap-radius": "EAP-RADIUS (RADIUS server)",
+    "pubkey": "Public key (client certificate)",
+    "clear": "Clear the connection",
+    "trap": "Wait for traffic",
+    "restart": "Reconnect"
   }
 }

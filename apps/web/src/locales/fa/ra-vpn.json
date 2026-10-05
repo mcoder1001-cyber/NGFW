@@ -163,5 +163,14 @@
     "reauth": {
       "title": "احراز هویت دوباره"
     }
+  },
+  "option": {
+    "eap-mschapv2": "EAP-MSCHAPv2 (گذرواژه)",
+    "eap-tls": "EAP-TLS (گواهی کلاینت)",
+    "eap-radius": "EAP-RADIUS (سرور RADIUS)",
+    "pubkey": "کلید عمومی (گواهی کلاینت)",
+    "clear": "پاک‌سازی اتصال",
+    "trap": "انتظار ترافیک",
+    "restart": "اتصال دوباره"
   }
 }

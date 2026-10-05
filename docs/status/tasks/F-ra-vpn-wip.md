@@ -178,3 +178,17 @@ foreignowner filtering and ownedrollback tests PASS0.082s underlablock, consumer
 publication next. Current remote49093612 incident report; daemon remains stopped.
 Next: publish namespace descriptor; private fixture startup only after NSidentity
 verified and dropped capabilities, no daemon CLI version probe.
+
+Namespace descriptor checkpoint: explicit owner-filtered StageVPP public plan
+object, runtime inode in Meta only, actual NSFS binding dump on fresh restart,
+recreate semantics for changed plan, owned reverse cleanup. Unknown/foreign
+inputs refused; uncertain partial creation retains inode/PartialCreate+uncertain
+marker rather than claim rollback. Actual namespace create→freshRetrieve→Delete
+and foreign-owner isolation PASS; cancelled namespace child creation leaves no
+binding/rootdir. Full focused integration underlablock PASS ravpn0.081s and helper
+noexec0.030s, PID1/agent namespace unchanged, no private mounts left. Descriptor
+not registered/activated until TAP/ACL/daemon lifecycle ordering is implemented.
+Own verified-build-receipt.json in /root/.cache/t19/strongswan-source records signed
+source6.1.0, systemd install exit0, fixture ABI and forbidden daemonflagprobe.
+Current remote6f53e73d. Next: guarded TAP wrapper + public projection dependencies,
+PKI/VICI lifecycle and full API/UI/session/packet acceptance still incomplete.

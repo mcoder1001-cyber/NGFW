@@ -59,6 +59,7 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 		}
 		_ = os.Remove(filepath.Join(dir, "network.json"))
 		_ = os.Remove(dir)
+		plan.NamespaceInode = 0
 	}
 	return err
 }

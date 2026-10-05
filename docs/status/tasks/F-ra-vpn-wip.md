@@ -5,3 +5,5 @@ Remaining: enabled-profile failclosed schema+agent; authenticated honest capabil
 Owned: current ready envelope; no host state changes.
 Actual tests: none for RA yet. Current failure: missing approved native EAP/address-assignment path; engineering/source blocker, not deferred laboratory acceptance.
 Next command: implement semantic/ra-vpn.ts and desired/ra_vpn.go failclosed gates.
+
+2026-10-05 owner decision: independent strongSwan RA engine authorized; DEC-independent-ra-vpn replaces pending proposal. Boundary: per-profile private namespace/charon/XFRM plus outer/inner VPP TAPs, explicit transit addresses and selected VRF/policy handoff; native S2S unaffected. Existing enabled-profile refusal remains until operational engine verified. Next command: commit additive transit contract and tests, then implement secure renderer/runtime descriptors and RPCs. RA is not delivered.

@@ -85,3 +85,13 @@ Source SHA256 fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4.
 Authenticated source extracted ONLY /root/.cache/t19/strongswan-source;
 configure finite process ongoing; no shared package/service installation.
 Current remote0b352da0. Next: finish private source build then constrained executor.
+
+Namespace executor checkpoint: only fixed ip/nft argv with10s timeout and1MiB
+bounded private output; requires exact helper NSFS/capability check, two existing
+transit links, refuses foreign links/XFRM identity, duplicate/foreign marked
+priority100 rules and nft tables; nft syntax-check before private transaction.
+Only fixed net/ sysctl paths permitted. Readback ownership regressions PASS,
+whole ravpn package PASS0.026s. Not invoked against host or daemon; runtime
+integration/readback of addresses/routes/ACLs still required before activation.
+Current remote fa7d6613. Next: root helper executable/unit + descriptor lifecycle;
+private authenticated6.1.0 build running finite heavy session32413 (no services).

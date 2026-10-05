@@ -159,10 +159,11 @@ func TestRegisterACLWiring(t *testing.T) {
 	}
 	reg := scheduler.NewRegistry()
 	t.Setenv(EnvDNSServers, "127.0.0.1:9")
-	w, err := Register(reg, Env{Client: fake.New(), Owner: "w3", StateDir: dir, Owned: owned, GlobalsOwner: true})
+	w, err := registerMock(reg, Env{Client: fake.New(), Owner: "w3", StateDir: dir, Owned: owned, GlobalsOwner: true})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	for _, n := range aclDescriptors() {
 		if _, ok := reg.Get(n); !ok {
 			t.Fatalf("%s not registered", n)

@@ -144,7 +144,7 @@ var rendererReach = map[string]reachEntry{
 // a package that has descriptors, like D-141).
 var libraryPins = []string{
 	"descriptors/df2", "descriptors/df6", "descriptors/df7", "descriptors/dfkit", "descriptors/kit", "descriptors/memif",
-	"descriptors/nat46", "descriptors/natcommon", "descriptors/tapv2", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
+	"descriptors/nat46", "descriptors/natcommon", "descriptors/vpn", "renderers/rfkit", "renderers/vppstartup",
 }
 
 const modPath = "ngfw/agent/internal/"

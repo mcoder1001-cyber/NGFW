@@ -25,7 +25,7 @@ func TestIgmpMfibRegisteredWithPersistedStores(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	w, e := Register(reg, Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
+	w, e := registerMock(reg, Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
 	if e != nil {
 		t.Fatal(e)
 	}

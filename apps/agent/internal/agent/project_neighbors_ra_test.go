@@ -32,11 +32,12 @@ func newSvcGlobals(t *testing.T, v *coretest.VPP, dir string, globals bool) *Ser
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals,
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals,
 		IDs: subsystems.IDScope{Range: &subsystems.IDRange{Lo: 7000, Hi: 7999}}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -45,7 +46,7 @@ func newSvcGlobals(t *testing.T, v *coretest.VPP, dir string, globals bool) *Ser
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 
@@ -216,6 +217,7 @@ func TestNeighborsRaGlobalsOnlyForTheOwner(t *testing.T) {
 		t.Fatal("a non-owner changed a VPP-wide setting")
 	}
 	// the globals owner (product agent): applied, retrieved, converged
+	s.Close()
 	v = coretest.New()
 	g := newSvcGlobals(t, v, t.TempDir(), true)
 	mustStatus(t, apply(t, g, &ngfwv1.ApplyRequest{TxnId: "g1", DesiredState: doc(t, withGlobals)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
@@ -233,6 +235,7 @@ func TestNeighborsRaGlobalsOnlyForTheOwner(t *testing.T) {
 	got, _ = g.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"routing"}})
 	sameDoc(t, "after removal", got.GetDesiredState(), `{"routing": {}}`)
 	// leave the process-wide projection options at the slot default for the next test
+	g.Close()
 	newSvcGlobals(t, v, t.TempDir(), false)
 }
 
@@ -246,6 +249,7 @@ func TestNeighborsRaProxyNdOptIn(t *testing.T) {
 		t.Fatal("proxy ND applied without the opt-in (V12)")
 	}
 	t.Setenv("NGFW_DF2_PROXY_ND", "1")
+	s.Close()
 	v = coretest.New()
 	s = newSvcGlobals(t, v, t.TempDir(), false)
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "p1", DesiredState: doc(t, nd)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)

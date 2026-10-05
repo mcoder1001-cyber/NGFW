@@ -88,3 +88,11 @@ func (g *nativeAdminGuard) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	}
 	return out, nil
 }
+
+// Normalize preserves canonical interface references through the native safety guard.
+func (g *nativeAdminGuard) Normalize(value proto.Message) proto.Message {
+	if normalizer, ok := g.Descriptor.(scheduler.Normalizer); ok {
+		return normalizer.Normalize(value)
+	}
+	return value
+}

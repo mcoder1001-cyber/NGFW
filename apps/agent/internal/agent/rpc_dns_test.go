@@ -160,16 +160,17 @@ func newOwnerSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: true})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: true})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	svc, err := NewService(ServiceConfig{Owner: testOwner, Version: "test", VPP: v, Scheduler: scheduler.New(reg, nil), StateDir: dir, BeforeTxn: w.BeforeTxn, NetdevKind: w.NetdevKind()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 

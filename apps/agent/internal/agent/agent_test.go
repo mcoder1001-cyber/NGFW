@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"net"
 	"os"
 	"path/filepath"
@@ -34,10 +36,12 @@ func TestConfigFromEnvDefaults(t *testing.T) {
 func testConfig(t *testing.T) Config {
 	t.Helper()
 	dir := t.TempDir()
+	identity := sha256.Sum256([]byte(t.Name()))
+	owner := "test-" + hex.EncodeToString(identity[:8])
 	return Config{
 		Socket: filepath.Join(dir, "agent.sock"), SocketGroup: "ngfw-group-that-does-not-exist",
 		VPPAPISocket: filepath.Join(dir, "no-vpp.sock"), VPPStatsSocket: filepath.Join(dir, "no-stats.sock"),
-		StateDir: filepath.Join(dir, "state"), Owner: "w0", MetricsAddr: "127.0.0.1:0",
+		StateDir: filepath.Join(dir, "state"), Owner: owner, MetricsAddr: "127.0.0.1:0",
 	}
 }
 

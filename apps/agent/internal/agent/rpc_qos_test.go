@@ -38,11 +38,12 @@ func newQoSSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
 		IDs: subsystems.IDScope{Range: &subsystems.IDRange{Lo: 7000, Hi: 7999}}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -51,7 +52,7 @@ func newQoSSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 

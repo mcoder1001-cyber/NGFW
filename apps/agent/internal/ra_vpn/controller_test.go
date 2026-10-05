@@ -1,6 +1,7 @@
 package ravpn
 
 import (
+	"fmt"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
@@ -29,13 +30,16 @@ func TestEngineContractRejectsUnsupportedIDAndUnkeyedFingerprint(t *testing.T) {
 		t.Fatal(e)
 	}
 	d, e := DecodeEngine(v)
-	if e != nil || !proto.Equal(s.Configuration, d.Configuration) {
+	expected := proto.Clone(s.Configuration).(*ngfwv1.RemoteAccessProfile)
+	enabled := true
+	expected.Enabled = &enabled
+	if e != nil || !proto.Equal(expected, d.Configuration) || s.Configuration.Enabled != nil {
 		t.Fatal("roundtrip")
 	}
 	for _, change := range []func(*EngineSpec){func(s *EngineSpec) { s.OuterID = 19000 }, func(s *EngineSpec) { s.InnerID = s.OuterID }, func(s *EngineSpec) { s.Fingerprints["cert/server"] = strings.Repeat("a", 64) }, func(s *EngineSpec) { s.Configuration.OuterPolicy.Egress = nil }} {
-		copy := controllerSpec(t)
-		change(&copy)
-		if copy.Validate() == nil {
+		changed := controllerSpec(t)
+		change(&changed)
+		if changed.Validate() == nil {
 			t.Fatal("unsafe contract accepted")
 		}
 	}
@@ -71,5 +75,22 @@ func TestTransportCarriesExplicitVRFsRoutesAndBothACLDirections(t *testing.T) {
 	}
 	if routes != 2 || bindings != 2 {
 		t.Fatalf("routes%d bindings%d", routes, bindings)
+	}
+}
+
+func TestEngineContractSupportsAllBoundedEAPUsers(t *testing.T) {
+	spec := controllerSpec(t)
+	for i := 0; i < 1024; i++ {
+		ref := fmt.Sprintf("password/%04d-%s", i, strings.Repeat("a", 200))
+		spec.Configuration.Users = append(spec.Configuration.Users, &ngfwv1.RemoteAccessUser{Username: proto.String(fmt.Sprintf("user%04d", i)), PasswordRef: proto.String(ref)})
+		spec.Fingerprints[ref] = "hmac:" + strings.Repeat("b", 64)
+	}
+	value, err := spec.Proto()
+	if err != nil {
+		t.Fatal("bounded users refused", err)
+	}
+	decoded, err := DecodeEngine(value)
+	if err != nil || len(decoded.Configuration.Users) != 1024 {
+		t.Fatal("bounded specification did not round-trip", err)
 	}
 }

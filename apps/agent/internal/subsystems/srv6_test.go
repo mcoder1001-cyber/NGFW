@@ -25,11 +25,12 @@ func srv6Wiring(t *testing.T, owner string, globalsOwner bool) (*coretest.VPP, *
 	}
 	v := coretest.New()
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, GlobalsOwner: globalsOwner,
+	w, err := registerMock(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, GlobalsOwner: globalsOwner,
 		NetdevKind: func(string) (string, bool, error) { return "veth", true, nil }})
 	if err != nil {
 		t.Fatalf("Register (TD-11b guard): %v", err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	return v, reg
 }

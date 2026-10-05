@@ -239,7 +239,18 @@ func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase
 	if err := strongswan.DisconnectRASession(context.Background(), serverVICI, "road", "fixture-eap-generation", sessions[0].ID, profile.GetPools()); err != nil {
 		t.Fatal("actual observed disconnect failed", err)
 	}
-	t.Log("actual private", profile.GetAuth(), "VIP/session negotiation and observed disconnect PASS")
+	poolNames := make([]string, 0, len(profile.GetPools()))
+	for _, pool := range profile.GetPools() {
+		name, e := strongswan.ConnName(pool.GetName())
+		if e != nil {
+			t.Fatal(e)
+		}
+		poolNames = append(poolNames, name)
+	}
+	if err := strongswan.UnloadRA(context.Background(), serverVICI, "ra-road", poolNames); err != nil {
+		t.Fatal("actual private connection/pool empty rollback readback", err)
+	}
+	t.Log("actual private", profile.GetAuth(), "VIP/session negotiation, observed disconnect, connection/pool empty rollback PASS")
 }
 
 func TestIntegrationPrivateEAPBadPasswordRefused(t *testing.T) {

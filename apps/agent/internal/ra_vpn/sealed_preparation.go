@@ -136,7 +136,7 @@ func (p *SealedPreparation) prepare(ctx context.Context, s EngineSpec, recoverGe
 	}
 	name, e := strongswan.ConnName(s.Profile)
 	if e != nil {
-		CleanupSnapshot(s.Instance)
+		_ = CleanupSnapshot(s.Instance)
 		return nil, ErrEngine
 	}
 	var mu sync.Mutex
@@ -150,7 +150,18 @@ func (p *SealedPreparation) prepare(ctx context.Context, s EngineSpec, recoverGe
 			clear(data)
 		}
 	}
-	return &PreparedEngine{ConnectionName: "ra-" + name, Load: func(ctx context.Context, c strongswan.ViciConn) error {
+	poolNames := make([]string, 0, len(s.Configuration.GetPools()))
+	for _, pool := range s.Configuration.GetPools() {
+		poolName, err := strongswan.ConnName(pool.GetName())
+		if err != nil {
+			erase()
+			return nil, ErrEngine
+		}
+		poolNames = append(poolNames, poolName)
+	}
+	return &PreparedEngine{ConnectionName: "ra-" + name, Unload: func(ctx context.Context, c strongswan.ViciConn) error {
+		return strongswan.UnloadRA(ctx, c, "ra-"+name, poolNames)
+	}, Load: func(ctx context.Context, c strongswan.ViciConn) error {
 		mu.Lock()
 		defer mu.Unlock()
 		if consumed {

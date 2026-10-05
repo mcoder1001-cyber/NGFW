@@ -37,6 +37,13 @@ mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$S
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done
+# wave-BC: F-ab-upgrade — stage executables only; no upgrade/provision action here.
+(cd "$ROOT/deploy/upgrade/probe" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-upgrade-probe" .)
+install -m 0755 "$ROOT/deploy/upgrade/ngfw-upgrade" "$STAGE/usr/sbin/ngfw-upgrade"
+for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
+  install -m 0755 "$ROOT/deploy/upgrade/$helper" "$STAGE/usr/lib/ngfw/$helper"
+  install -m 0644 "$ROOT/deploy/upgrade/$helper.service" "$STAGE/usr/lib/systemd/system/$helper.service"
+done
 (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" ./cmd/ngfw-ra-daemon)
 sha256sum "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/ngfw-ra-daemon.sha256"
 install -m 0644 "$ROOT/deploy/systemd/ngfw-ra@.service" "$STAGE/usr/lib/systemd/system/"
@@ -48,6 +55,11 @@ install -m 0755 "$ROOT/deploy/vpp/apply-startup.sh" "$STAGE/usr/lib/ngfw/apply-s
 install -m 0644 "$ROOT/deploy/systemd/ngfw-agent.service" "$ROOT/deploy/systemd/ngfw-api.service" "$ROOT/deploy/systemd/ngfw-firstboot.service" "$ROOT/deploy/systemd/ngfw-firewall-bootstrap.service" "$STAGE/usr/lib/systemd/system/"
 install -m 0755 "$ROOT/deploy/vpp/apply-executor.py" "$STAGE/usr/lib/ngfw/apply-executor.py"
 install -m 0644 "$ROOT/deploy/vpp/apply-executor.service" "$ROOT/deploy/vpp/apply-executor.socket" "$STAGE/usr/lib/systemd/system/"
+# F-hardening-lite: ship profiles/tools without activating unverified daemon sandboxes.
+mkdir -p "$STAGE/usr/lib/ngfw/hardening"
+cp -a "$ROOT/deploy/hardening/baseline" "$ROOT/deploy/hardening/systemd" "$ROOT/deploy/hardening/signing" "$STAGE/usr/lib/ngfw/hardening/"
+install -m 0755 "$ROOT/deploy/hardening/stage.py" "$ROOT/deploy/hardening/check.py" "$ROOT/deploy/hardening/check.sh" "$STAGE/usr/lib/ngfw/hardening/"
+find "$STAGE/usr/lib/ngfw/hardening" -type d -name __pycache__ -exec rm -r -- {} +
 printf '%s\n' "$VPP_VERSION" > "$STAGE/VPP_VERSION"
 COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }

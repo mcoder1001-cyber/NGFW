@@ -1,6 +1,7 @@
 package ravpn
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +13,24 @@ func TestFileTAPReceiptRejectsUntrustedStateParent(t *testing.T) {
 			store.Close()
 			t.Fatal("unsafe claim parent accepted")
 		}
+	}
+}
+
+func TestLazyReceiptFailsBeforeAnyVPPMutationOnUnsafeParent(t *testing.T) {
+	guard, backend, _, _, endpoint := guardedFixture(t)
+	guard.Store = &LazyTAPReceipts{StateDir: "/tmp"}
+	if guard.CheckPersistent() != nil {
+		t.Fatal("concrete file persistence declaration refused")
+	}
+	if _, err := guard.Create(context.Background(), endpoint); err == nil {
+		t.Fatal("unsafe lazy parent accepted")
+	}
+	if len(backend.rows) != 0 {
+		t.Fatal("VPP mutation preceded parent protection")
+	}
+	guard.Store = receiptMemory{}
+	if guard.CheckPersistent() == nil {
+		t.Fatal("volatile claim store accepted")
 	}
 }
 func TestFileTAPReceiptPersistsAndRefusesLinkedOrForeignClaims(t *testing.T) {

@@ -30,6 +30,10 @@ func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 type NamespaceMeta struct{ Inode uint64 }
 type NamespaceDescriptor struct{ owner string }
 
+// The protected root network.json records ownership and both kernel NSFS
+// identities. Retrieve validates those persisted records against held bindings.
+func (*NamespaceDescriptor) CheckPersistent() error { return nil }
+
 func NewNamespaceDescriptor(owner string) *NamespaceDescriptor {
 	return &NamespaceDescriptor{owner: owner}
 }

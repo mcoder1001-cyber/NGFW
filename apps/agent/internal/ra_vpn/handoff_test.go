@@ -14,6 +14,13 @@ func TestHandoffRejectsNamespaceAndEveryVPPBootIdentityChange(t *testing.T) {
 	if ValidateHandoff(plan, receipt, boot, 19001, 19002) != nil {
 		t.Fatal("matching complete handoff refused")
 	}
+	invalid := boot
+	invalid.PID = -1
+	invalidReceipt := receipt
+	invalidReceipt.VPPBoot = invalid
+	if ValidateHandoff(plan, invalidReceipt, invalid, 19001, 19002) == nil {
+		t.Fatal("matching invalid PID adopted")
+	}
 	for _, changed := range []bootid.Identity{{BootID: "host-b", PID: 1000, StartTime: 2000}, {BootID: "host-a", PID: 1001, StartTime: 2000}, {BootID: "host-a", PID: 1000, StartTime: 2001}, {BootID: "host-a", PID: 1000}} {
 		if ValidateHandoff(plan, receipt, changed, 19001, 19002) == nil {
 			t.Fatal("stale or incomplete VPP identity adopted")

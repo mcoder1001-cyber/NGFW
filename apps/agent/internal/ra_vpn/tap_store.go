@@ -18,6 +18,41 @@ var tapReceiptName = regexp.MustCompile(`^ra_[a-f0-9]{24}[oi]$`)
 // hide the agent StateDir entirely; the daemon cannot forge or erase claims.
 type FileTAPReceipts struct{ fd int }
 
+func (*FileTAPReceipts) Persistent() bool { return true }
+
+// LazyTAPReceipts keeps production registration host independent. Every actual
+// operation opens and validates root-owned parents before reading or mutating
+// the persisted claim; an unsafe state directory can never reach a VPP call.
+type LazyTAPReceipts struct{ StateDir string }
+
+func (s *LazyTAPReceipts) Persistent() bool {
+	return s != nil && filepath.IsAbs(s.StateDir) && filepath.Clean(s.StateDir) == s.StateDir && s.StateDir != "/"
+}
+func (s *LazyTAPReceipts) Load(name string) (TAPReceipt, error) {
+	store, err := NewFileTAPReceipts(s.StateDir)
+	if err != nil {
+		return TAPReceipt{}, err
+	}
+	defer store.Close()
+	return store.Load(name)
+}
+func (s *LazyTAPReceipts) Save(name string, receipt TAPReceipt) error {
+	store, err := NewFileTAPReceipts(s.StateDir)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	return store.Save(name, receipt)
+}
+func (s *LazyTAPReceipts) Remove(name string) error {
+	store, err := NewFileTAPReceipts(s.StateDir)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	return store.Remove(name)
+}
+
 func NewFileTAPReceipts(stateDir string) (*FileTAPReceipts, error) {
 	if os.Geteuid() != 0 || !filepath.IsAbs(stateDir) || filepath.Clean(stateDir) != stateDir || stateDir == "/" {
 		return nil, ErrBoundary

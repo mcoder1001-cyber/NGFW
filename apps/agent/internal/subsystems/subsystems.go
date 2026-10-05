@@ -336,6 +336,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := w.registerPKI(r); err != nil {
 		return nil, err
 	}
+	if err := w.registerRATransport(r); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-ikev2-native
 	if err := w.registerIKEv2(r); err != nil {
 		return nil, err
@@ -445,8 +448,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	w.registerLb(r)
 	w.registerRuleExpiry()         // F-rule-expiry (unanchored)
 	registerSystemIdentity(r, env) // F-system-identity (unanchored)
- w.registerPppoe()
- if err := w.registerPppoeClient(r); err != nil {return nil,err}
+	w.registerPppoe()
+	if err := w.registerPppoeClient(r); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

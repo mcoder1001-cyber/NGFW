@@ -32,7 +32,7 @@ func LinkName(instance string, outer bool) string {
 // ValidateHandoff never trusts a persisted sw_if_index alone. Caller supplies
 // freshly observed, owner-tagged TAP indices and current complete D-080 triple.
 func ValidateHandoff(plan *NetworkPlan, receipt Handoff, current bootid.Identity, outer, inner uint32) error {
-	if plan.Validate() != nil || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || receipt.Format != 1 || receipt.Instance != plan.Instance || receipt.NamespaceInode != plan.NamespaceInode || receipt.HostNamespaceInode != plan.HostNamespaceInode || !current.Complete() || !receipt.VPPBoot.Complete() || !current.Equal(receipt.VPPBoot) {
+	if plan.Validate() != nil || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || receipt.Format != 1 || receipt.Instance != plan.Instance || receipt.NamespaceInode != plan.NamespaceInode || receipt.HostNamespaceInode != plan.HostNamespaceInode || !current.Complete() || current.PID <= 0 || !receipt.VPPBoot.Complete() || receipt.VPPBoot.PID <= 0 || !current.Equal(receipt.VPPBoot) {
 		return ErrBoundary
 	}
 	if receipt.OuterName != LinkName(plan.Instance, true) || receipt.InnerName != LinkName(plan.Instance, false) || receipt.OuterIndex != outer || receipt.InnerIndex != inner || outer == inner || outer == ^uint32(0) || inner == ^uint32(0) {

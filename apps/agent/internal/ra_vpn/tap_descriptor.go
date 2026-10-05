@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"google.golang.org/protobuf/proto"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/scheduler"
@@ -39,6 +40,10 @@ type GuardedTAP struct {
 	Boot      func() bootid.Identity
 	Plan      func(string) (*NetworkPlan, error)
 	AllowedID func(uint32) bool
+}
+
+func (d *GuardedTAP) CheckPersistent() error {
+	return persist.Require("ra transit TAP claims", d.Store)
 }
 
 func (*GuardedTAP) Name() string                              { return tapv2.TapName }

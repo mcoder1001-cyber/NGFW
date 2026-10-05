@@ -370,11 +370,14 @@ var raRuntimeMu sync.RWMutex
 var raRuntimes = map[string]*ravpn.Runtime{}
 var raEnvs = map[string]desired.RAEnv{}
 
+// RARuntimeFor returns only the runtime registered for the exact logical owner.
 func RARuntimeFor(owner string) *ravpn.Runtime {
 	raRuntimeMu.RLock()
 	defer raRuntimeMu.RUnlock()
 	return raRuntimes[owner]
 }
+
+// RAEnvFor returns the desired projection environment registered for this owner.
 func RAEnvFor(owner string) desired.RAEnv {
 	raRuntimeMu.RLock()
 	defer raRuntimeMu.RUnlock()
@@ -514,6 +517,8 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	})
 	return nil
 }
+
+// SetRASecrets binds the authenticated sealed cache to this owner's existing runtime.
 func SetRASecrets(owner string, cache *secretchannel.Store) error {
 	rt := RARuntimeFor(owner)
 	if rt == nil || cache == nil {
@@ -537,6 +542,7 @@ func SetRASecrets(owner string, cache *secretchannel.Store) error {
 	return nil
 }
 
+// StopRA stops this owner's tracked units and refuses ambiguous owned inventory.
 func (w *Wiring) StopRA(ctx context.Context) error {
 	rt := RARuntimeFor(w.env.Owner)
 	if rt == nil {

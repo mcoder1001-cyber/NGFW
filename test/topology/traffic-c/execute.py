@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Manager-leased Wave-C product/agent/packets transaction; no fixture PASS."""
 import argparse
+from datetime import datetime, timezone
 import fcntl
 import importlib.util
 import json
@@ -63,6 +64,17 @@ def interrupt(_signal, _frame):
 
 
 class Runner(wave_a.Runner):
+    def command(self, argv, expected=0):
+        started = datetime.now(timezone.utc).isoformat()
+        try:
+            return super().command(argv, expected)
+        finally:
+            record = {'argv': argv, 'expected': expected, 'started': started,
+                      'ended': datetime.now(timezone.utc).isoformat(),
+                      'evidence': f'command-{self.commands:03d}.txt'}
+            with (self.root / 'commands.jsonl').open('a') as output:
+                output.write(json.dumps(record) + '\n')
+
     @staticmethod
     def stop(process):
         # Preserve tcpdump accounting with SIGINT, then remove surviving owned
@@ -177,12 +189,13 @@ class Runner(wave_a.Runner):
         (self.root / (f'globals-{self.global_operations:02d}-' + operation + '.txt')).write_bytes(output)
 
     def stage(self, name, patch, evidence):
+        started = datetime.now(timezone.utc).isoformat()
         before = self.command(['systemctl', 'show', 'vpp', '-p', 'NRestarts', '-p', 'MainPID'])
         try:
             self.commit(patch, self.current)
             proof = evidence()
             require(self.command(['systemctl', 'show', 'vpp', '-p', 'NRestarts', '-p', 'MainPID']) == before, 'VPP identity changed during stage')
-            return {'stage': name, 'proof': proof, 'NRestarts': before}
+            return {'stage': name, 'proof': proof, 'NRestarts': before, 'started': started, 'ended': datetime.now(timezone.utc).isoformat()}
         finally:
             self.rollback(self.rig_revision)
             require(self.api.call('GET', '/config') == self.rig_config, 'stage rollback changed rig baseline')
@@ -472,6 +485,7 @@ def main():
         fcntl.flock(lab, fcntl.LOCK_SH | fcntl.LOCK_NB)
         fcntl.flock(slot_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.flock(globals_lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        window_started = datetime.now(timezone.utc).isoformat()
         runner.global_lock = globals_lock
         runner.original_config = runner.api.call('GET', '/config')
         require(not runner.original_config.get('interfaces') and not runner.original_config.get('vrfs'), 'manager slot datastore is not pristine')
@@ -522,6 +536,7 @@ def main():
             runner.close()
         require(runner.command(['systemctl', 'show', 'vpp', '-p', 'NRestarts', '-p', 'MainPID']) == before, 'VPP restarted during scenario')
         result = {'task': 'TEST-traffic-C', 'status': 'LIVE_PACKETS_READBACK_CLEANUP_PASSED', 'slot': args.slot, 'lease_id': runner.lease_id,
+                  'windowStarted': window_started, 'windowEnded': datetime.now(timezone.utc).isoformat(), 'TD-H18': 'actual-host-test-passed',
                   'VPPs': 1, 'peer': 'keepalived', 'proofs': proofs, 'not_exercised': plan(args.slot)['not_exercised']}
         (root / 'result.json').write_text(json.dumps(result, indent=2))
         print(json.dumps(result, indent=2))

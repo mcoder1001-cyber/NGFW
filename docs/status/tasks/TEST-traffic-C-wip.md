@@ -11,7 +11,7 @@ Publication ancestry note: initial connector checkpoint parent was updated main
 `aebfc46f`, while the isolated local branch was based on `d314f0728`. Current
 publication must preserve the original remote parent main tree and compare
 owned source paths, rather than reversing newer board/progress rows. No main
-history is rewritten. Reviewed transport/process fixes publication pending.
+history is rewritten. Reviewed transport/process fixes published at remote `3c3cd9fe93a63e772d164e9f95f15f718a7dcfd7` (local `5e2c24732`). Owned source/status paths were verified identical after git fetch; only main board/progress baseline differs. Draft PR has16ownedfiles and no board reversions.
 No live processes/daemon/slot ownership. No shared host modifications.
 Completed: leased product commit/rollback, MPLS/SRv6/VRRP/QoS/rider orchestration,
 private evidence capture, exact global restore, residue checks, TD-H18 host-test
@@ -20,4 +20,4 @@ Constraint: combined global-owner execution requires absent table0 at entry;
 see questions file. No acceptance claim for an existing shared table0.
 Tests: 16 Python checks pass (including real redirects/descendant/TERM regressions); execute --dry-run passes; globals Go vet passed.
 Globals Go unit tests passed (2 refusal tests), current check passed10s. Mandatory complete quick CI pending root union gate.
-Next: publish transport/process fixes, request reviewer recheck, and await root complete union gate.
+Next: independent reviewer recheck and root complete union gate; live manager window remains unrun.

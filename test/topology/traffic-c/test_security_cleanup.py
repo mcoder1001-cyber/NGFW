@@ -60,19 +60,19 @@ class SecurityCleanupChecks(unittest.TestCase):
         for thread in threads:
             thread.start()
         try:
-            api = Api(14, 'unit-fixture-key')
+            api = Api(14, 'NGFW_TEST_PSK_TRAFFIC_C_REDIRECT')
             api.base = f'http://127.0.0.1:{origin.server_port}/api/v1'
             with self.assertRaises(Refused):
                 api.call('GET', '/config')
             import urllib.request
-            request = urllib.request.Request(api.base + '/state/captures/fixture/file', headers={'Authorization': 'ApiKey unit-fixture-key'})
+            request = urllib.request.Request(api.base + '/state/captures/fixture/file', headers={'Authorization': 'ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT'})
             with self.assertRaises(Refused):
                 api.response(request)
-            foundation = API(14, 'unit-fixture-key')
+            foundation = API(14, 'NGFW_TEST_PSK_TRAFFIC_C_REDIRECT')
             foundation.base = api.base + '/'
             with self.assertRaises(Refused):
                 foundation.request('GET', 'config')
-            self.assertEqual(sources, ['ApiKey unit-fixture-key', 'ApiKey unit-fixture-key', 'Bearer unit-fixture-key'])
+            self.assertEqual(sources, ['ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'Bearer NGFW_TEST_PSK_TRAFFIC_C_REDIRECT'])
             self.assertEqual(sink, [])
         finally:
             for server in (origin, target):

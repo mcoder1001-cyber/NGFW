@@ -52,7 +52,7 @@ statseg {{ socket-name /run/vpp/stats.sock }}
 cpu {{ main-core 4 }}
 memory {{ main-heap-size 256M main-heap-page-size default }}
 buffers {{ buffers-per-numa 16384 page-size default }}
-plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin acl_plugin.so {{ enable }} plugin ping_plugin.so {{ enable }} plugin af_packet_plugin.so {{ enable }} plugin dhcp_plugin.so {{ enable }} plugin ikev2_plugin.so {{ enable }} plugin wireguard_plugin.so {{ enable }} }}
+plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin acl_plugin.so {{ enable }} plugin ping_plugin.so {{ enable }} plugin af_packet_plugin.so {{ enable }} plugin dhcp_plugin.so {{ enable }} plugin l3xc_plugin.so {{ enable }} plugin adl_plugin.so {{ enable }} plugin urpf_plugin.so {{ enable }} plugin svs_plugin.so {{ enable }} plugin linux_cp_plugin.so {{ enable }} plugin abf_plugin.so {{ enable }} plugin ikev2_plugin.so {{ enable }} plugin wireguard_plugin.so {{ enable }} }}
 ''')
         os.chmod(conf, 0o600)
         with (runtime / 'vpp-process.log').open('xb') as log:

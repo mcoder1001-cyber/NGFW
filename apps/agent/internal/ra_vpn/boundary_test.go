@@ -3,8 +3,26 @@ package ravpn
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sys/unix"
 	"testing"
 )
+
+func TestHelperRefusesHostNamespaceEvenWithValidBinding(t *testing.T) {
+	host := unix.Stat_t{Ino: 100, Dev: 5}
+	private := unix.Stat_t{Ino: 200, Dev: 5}
+	if isolatedIdentity(host.Ino, host, host, host) {
+		t.Fatal("host daemon activation allowed")
+	}
+	if isolatedIdentity(private.Ino, private, host, host) {
+		t.Fatal("unshare failure allowed daemon activation")
+	}
+	if isolatedIdentity(private.Ino+1, private, private, host) {
+		t.Fatal("foreign binding activated")
+	}
+	if !isolatedIdentity(private.Ino, private, private, host) {
+		t.Fatal("private bound identity refused")
+	}
+}
 
 func TestHelperCapabilitiesRejectHostAdministration(t *testing.T) {
 	status := func(mask uint64) string {

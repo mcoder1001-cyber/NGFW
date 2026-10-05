@@ -15,6 +15,10 @@ import (
 
 var ErrBoundary = errors.New("remote-access: isolated runtime boundary refused")
 
+func isolatedIdentity(expected uint64, binding, self, host unix.Stat_t) bool {
+	return expected != 0 && binding.Ino == expected && self.Ino == binding.Ino && self.Dev == binding.Dev && (self.Ino != host.Ino || self.Dev != host.Dev)
+}
+
 // ValidatePrivateFile accepts a regular, singly linked private file only under
 // a verified instance. Every directory is opened relative to its held parent.
 func ValidatePrivateFile(path string, max int64) error {
@@ -143,7 +147,7 @@ func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
 	if unix.Fstat(ns, &binding) != nil || unix.Fstatfs(ns, &fs) != nil || fs.Type != unix.NSFS_MAGIC || unix.Stat("/proc/self/ns/net", &self) != nil || unix.Stat("/proc/1/ns/net", &host) != nil {
 		return nil, ErrBoundary
 	}
-	if plan.NamespaceInode != binding.Ino || self.Ino != binding.Ino || self.Dev != binding.Dev || self.Ino == host.Ino && self.Dev == host.Dev {
+	if !isolatedIdentity(plan.NamespaceInode, binding, self, host) {
 		return nil, ErrBoundary
 	}
 	return plan, nil

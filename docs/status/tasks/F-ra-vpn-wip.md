@@ -166,3 +166,15 @@ using exact path/symlink/receipt guards; signedsource tar/key/signature, prefix
 and buildlogs retained. No shared cache cleared. Current remote301de89b ownership
 contract. Next: add namespace-equals-host/refused-start/noexec regressions and
 publish descriptor recovery; never invoke daemon on current host namespace.
+
+Post-incident safety checkpoint: pure binding identity regression explicitly
+refuses binding=current=host, expected private but current=host (unshare failed),
+and foreign inode. Helper startup control test proves boundary refusal prevents
+config access/daemonexec; --version is rejected as non-instance before any step.
+Production helper still uses closed configure/validate/exec functions and fixed
+engine path; test injection is local only. Actual focused packages PASS0.030s
+ravpn/0.026s cmd under heavy semaphore. Namespace consumer actual restart recovery,
+foreignowner filtering and ownedrollback tests PASS0.082s underlablock, consumer
+publication next. Current remote49093612 incident report; daemon remains stopped.
+Next: publish namespace descriptor; private fixture startup only after NSidentity
+verified and dropped capabilities, no daemon CLI version probe.

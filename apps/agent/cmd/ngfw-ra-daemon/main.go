@@ -12,19 +12,23 @@ import (
 )
 
 func run() error {
+	return runWith(ravpn.ConfigureNamespace, ravpn.ValidatePrivateFile, syscall.Exec)
+}
+
+func runWith(configure func(context.Context, string) error, validate func(string, int64) error, execute func(string, []string, []string) error) error {
 	if len(os.Args) != 2 || !ravpn.ValidInstance(os.Args[1]) {
 		return ravpn.ErrBoundary
 	}
 	instance := os.Args[1]
-	if err := ravpn.ConfigureNamespace(context.Background(), instance); err != nil {
+	if err := configure(context.Background(), instance); err != nil {
 		return err
 	}
 	config := filepath.Join(ravpn.InstanceRoot, instance, "strongswan.conf")
-	if err := ravpn.ValidatePrivateFile(config, 1<<20); err != nil {
+	if err := validate(config, 1<<20); err != nil {
 		return err
 	}
 	// No environment inheritance, shell, user executable, plugin or config path.
-	return syscall.Exec("/opt/ngfw-ra/sbin/charon-systemd", []string{"charon-systemd"}, []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "STRONGSWAN_CONF=" + config})
+	return execute("/opt/ngfw-ra/sbin/charon-systemd", []string{"charon-systemd"}, []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "STRONGSWAN_CONF=" + config})
 }
 func main() {
 	if run() != nil {

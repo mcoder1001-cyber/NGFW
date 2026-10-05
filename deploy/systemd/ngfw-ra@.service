@@ -35,7 +35,7 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 # Hide host management sockets and sealed-cache material from daemon root.
 # Only this profile's namespace/config/PKI is visible; only its VICI child writes.
 TemporaryFileSystem=/run /etc /var/lib /var/log /opt
-BindReadOnlyPaths=/run/ngfw/ra/%i /opt/ngfw-ra -/etc/ld.so.cache /etc/passwd /etc/group /etc/nsswitch.conf -/etc/localtime
+BindReadOnlyPaths=/run/ngfw/ra/%i /opt/ngfw-ra -/etc/ld.so.cache /etc/passwd /etc/group /etc/nsswitch.conf /etc/protocols /etc/services -/etc/localtime
 BindPaths=/run/ngfw/ra/%i/daemon
 InaccessiblePaths=-/data -/boot -/var/backups -/var/spool -/mnt -/media
 ReadWritePaths=/proc/sys/net

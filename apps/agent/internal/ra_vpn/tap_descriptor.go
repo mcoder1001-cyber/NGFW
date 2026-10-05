@@ -61,7 +61,7 @@ func (d *GuardedTAP) Dependencies(value proto.Message) []scheduler.Dependency {
 }
 func (d *GuardedTAP) input(value proto.Message) (*tapv2.Tap, *NetworkPlan, bootid.Identity, error) {
 	endpoint, ok := value.(*tapv2.Tap)
-	if !ok || endpoint == nil || d.Tap == nil || d.Store == nil || d.Boot == nil || d.Plan == nil || d.AllowedID == nil || endpoint.Id > 8192 || !d.AllowedID(endpoint.Id) {
+	if !ok || endpoint == nil || d.Tap == nil || d.Store == nil || d.Boot == nil || d.Plan == nil || d.AllowedID == nil || endpoint.Id > 8191 || !d.AllowedID(endpoint.Id) {
 		return nil, nil, bootid.Identity{}, ErrBoundary
 	}
 	if filepath.Dir(endpoint.HostNamespace) != filepath.Join(InstanceRoot, "n") || !namespaceAliasName.MatchString(filepath.Base(endpoint.HostNamespace)) {

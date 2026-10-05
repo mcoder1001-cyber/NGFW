@@ -12,8 +12,10 @@ import (
 	"ngfw/agent/internal/renderers/strongswan"
 )
 
+// EngineName names the private remote-access engine descriptor.
 const EngineName = "remote-access.engine"
 
+// ErrEngine is a bounded public error that never exposes credential or daemon details.
 var ErrEngine = errors.New("remote-access: verified engine lifecycle unavailable")
 
 // EngineSpec is the scheduler contract. It contains references and keyed
@@ -33,6 +35,7 @@ type EngineSpec struct {
 	Fingerprints      map[string]string           `json:"fingerprints"`
 }
 
+// Validate checks the material-free instance, policy and immutable fingerprint contract.
 func (s EngineSpec) Validate() error {
 	if !safeOwnerName(s.Owner) || !safeOwnerName(s.Profile) || s.Instance != InstanceID(s.Owner, s.Profile) || s.Configuration == nil || s.Proposal == nil || s.OuterID == s.InnerID || s.OuterID > 8191 || s.InnerID > 8191 {
 		return ErrEngine
@@ -55,6 +58,8 @@ func (s EngineSpec) Validate() error {
 	}
 	return nil
 }
+
+// Proto serializes only public references and authenticated fingerprints.
 func (s EngineSpec) Proto() (*structpb.Struct, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
@@ -69,6 +74,8 @@ func (s EngineSpec) Proto() (*structpb.Struct, error) {
 	}
 	return structpb.NewStruct(value)
 }
+
+// DecodeEngine decodes a bounded material-free engine specification.
 func DecodeEngine(value *structpb.Struct) (EngineSpec, error) {
 	var s EngineSpec
 	if value == nil {
@@ -89,14 +96,20 @@ func DecodeEngine(value *structpb.Struct) (EngineSpec, error) {
 type SnapshotPreparation interface {
 	Prepare(context.Context, EngineSpec) (*PreparedEngine, error)
 }
+
+// PreparedEngine keeps daemon loading and snapshot cleanup behind private callbacks.
 type PreparedEngine struct {
 	ConnectionName string
 	// Load closes over private bytes, never exported through generic formatting.
-	Load    func(context.Context, strongswan.ViciConn) error
+	Load func(context.Context, strongswan.ViciConn) error
+	// Unload removes only this generation's owned connection and pools and verifies empty daemon readback.
+	Unload  func(context.Context, strongswan.ViciConn) error
 	Cleanup func(context.Context) error
 }
 
-func (*PreparedEngine) String() string     { return "remote-access prepared generation <redacted>" }
+func (*PreparedEngine) String() string { return "remote-access prepared generation <redacted>" }
+
+// GoString redacts private preparation callbacks in diagnostic formatting.
 func (p *PreparedEngine) GoString() string { return p.String() }
 func (s EngineSpec) String() string        { return fmt.Sprintf("remote-access engine %s", s.Instance) }
 

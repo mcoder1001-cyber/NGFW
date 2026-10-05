@@ -213,7 +213,9 @@ func brokerBindingState(path string, inode uint64, placeholder bool) error {
 		}
 		return nil
 	}
-	if !placeholder || st.Uid != 0 || st.Gid != 0 || st.Mode != unix.S_IFREG|0600 || st.Nlink != 1 || st.Size != 0 {
+	// The fixed agent runs root:ngfw and has no CAP_CHOWN. Exact 0600 grants
+	// no group access, so its gid does not change the root-only boundary.
+	if !placeholder || st.Uid != 0 || st.Mode != unix.S_IFREG|0600 || st.Nlink != 1 || st.Size != 0 {
 		return ErrBoundary
 	}
 	return nil

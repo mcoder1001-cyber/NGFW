@@ -2,6 +2,8 @@ package ravpn
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/pem"
 	"os"
 	"os/exec"
@@ -19,7 +21,10 @@ import (
 
 func privateMessage(values ...any) *vici.Message {
 	m := vici.NewMessage()
-	for i := 0; i < len(values); i += 2 {
+	if len(values)%2 != 0 {
+		panic("fixture VICI pairs incomplete")
+	}
+	for i := 0; i+1 < len(values); i += 2 {
 		if err := m.Set(values[i].(string), values[i+1]); err != nil {
 			panic(err)
 		}
@@ -29,6 +34,7 @@ func privateMessage(values ...any) *vici.Message {
 func privateIP(t *testing.T, plan *NetworkPlan, args ...string) {
 	t.Helper()
 	argv := append([]string{"--net=" + filepath.Join(InstanceRoot, plan.Instance, "netns"), "--", "/usr/sbin/ip"}, args...)
+	// #nosec G204 -- fixed fixture tool and owned validated namespace path; arguments are internal literal link setup, never profile commands.
 	if exec.Command("/usr/bin/nsenter", argv...).Run() != nil {
 		t.Fatal("owned namespace link setup refused")
 	}
@@ -57,6 +63,12 @@ func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase
 	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" {
 		t.Skip("requires authenticated isolated engine artifact")
 	}
+	var passwordBytes [24]byte
+	if _, err := rand.Read(passwordBytes[:]); err != nil {
+		t.Fatal(err)
+	}
+	fixturePassword := hex.EncodeToString(passwordBytes[:])
+	clear(passwordBytes[:])
 	server := networkFixture()
 	server.Owner = "w19-eap-server"
 	server.Profile = strconv.Itoa(os.Getpid())
@@ -107,7 +119,7 @@ func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase
 	var serverFiles *strongswan.RAFiles
 	for _, plan := range []*NetworkPlan{server, client} {
 		dir := filepath.Join(InstanceRoot, plan.Instance)
-		files, err := strongswan.BuildRAFiles(context.Background(), "road", profile, proposal, dir, strongswan.SecretResolverFunc(func(context.Context, string) ([]byte, error) { return []byte("NGFW_TEST_PASSWORD_RA19"), nil }))
+		files, err := strongswan.BuildRAFiles(context.Background(), "road", profile, proposal, dir, strongswan.SecretResolverFunc(func(context.Context, string) ([]byte, error) { return []byte(fixturePassword), nil }))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -159,9 +171,9 @@ func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase
 		call("load-key", privateMessage("type", "ANY", "data", string(key.Bytes)))
 		localAuth = privateMessage("auth", "eap-tls", "id", "client", "eap_id", "client", "certs", []string{string(clientCertificate)})
 	} else {
-		password := "NGFW_TEST_PASSWORD_RA19"
+		password := fixturePassword
 		if certificateCase == "bad-password" {
-			password = "NGFW_TEST_WRONG_PASSWORD_RA19"
+			password = fixturePassword + "-wrong"
 		}
 		call("load-shared", privateMessage("id", "client-eap", "type", "EAP", "owners", []string{"client"}, "data", password))
 	}
@@ -215,7 +227,10 @@ func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase
 			raw, readErr := os.ReadFile(filepath.Join(InstanceRoot, plan.Instance, "daemon/fixture.log"))
 			if readErr == nil && len(raw) < 1<<20 {
 				if evidence := os.Getenv("NGFW_RA_EVIDENCE_ROOT"); evidence != "" {
-					os.WriteFile(filepath.Join(evidence, plan.Instance+"-eap.log"), raw, 0600)
+					// #nosec G703 -- private fixture evidence directory; validated owned instance and fixed suffix, never a profile supplied path.
+					if err := os.WriteFile(filepath.Join(evidence, plan.Instance+"-eap.log"), raw, 0600); err != nil {
+						t.Error("private EAP evidence write refused")
+					}
 				}
 				for _, marker := range []string{"NO_PROPOSAL_CHOSEN", "AUTHENTICATION_FAILED", "no socket implementation", "Network is unreachable", "no acceptable proposal found", "no trusted RSA public key found", "no trusted ECDSA public key found", "certificate rejected", "EAP method not supported", "EAP_MSCHAPV2 failed", "no shared key found", "no EAP key found", "received EAP_FAILURE", "constraint check failed", "no private key found", "CHILD_SA", "IKE_SA"} {
 					if strings.Contains(string(raw), marker) {

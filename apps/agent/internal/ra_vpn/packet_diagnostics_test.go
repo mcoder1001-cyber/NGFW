@@ -24,9 +24,11 @@ func collectPrivatePacketDiagnostics(t *testing.T, plan *NetworkPlan) {
 		{"routes", []string{"-j", "route", "show", "table", "all"}, []string{"dst", "gateway", "dev", "table", "prefsrc", "scope", "type"}},
 	} {
 		args := append([]string{"--net=" + filepath.Join(InstanceRoot, plan.Instance, "netns"), "--", "/usr/sbin/ip"}, request.args...)
+		// #nosec G204 -- fixed nsenter/ip tools and literal read-only requests in the validated owned fixture namespace.
 		raw, err := exec.Command("/usr/bin/nsenter", args...).Output()
 		if err != nil || len(raw) > 1<<20 {
 			public[request.name] = "bounded read refused"
+			clear(raw)
 			continue
 		}
 		var entries []map[string]json.RawMessage
@@ -61,6 +63,12 @@ func collectPrivatePacketDiagnostics(t *testing.T, plan *NetworkPlan) {
 		t.Error("own public packet metadata file refused")
 		return
 	}
-	defer file.Close()
-	file.Write(data)
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error("own public packet metadata close refused")
+		}
+	}()
+	if _, err := file.Write(data); err != nil {
+		t.Error("own public packet metadata write refused")
+	}
 }

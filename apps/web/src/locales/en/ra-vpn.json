@@ -90,6 +90,78 @@
     },
     "rekey": {
       "title": "Rekey timers"
+    },
+    "outer": {
+      "title": "Public transit"
+    },
+    "inner": {
+      "title": "Protected IPv4 transit"
+    },
+    "innerIpv6": {
+      "title": "Protected IPv6 transit"
+    },
+    "vpp": {
+      "title": "Firewall transit address"
+    },
+    "namespace": {
+      "title": "VPN engine transit address"
+    },
+    "ingress": {
+      "title": "Ingress ACL references"
+    },
+    "egress": {
+      "title": "Egress ACL references"
+    },
+    "name": {
+      "title": "Name"
+    },
+    "prefix": {
+      "title": "Client address prefix"
+    },
+    "dns": {
+      "title": "DNS addresses"
+    },
+    "username": {
+      "title": "Username"
+    },
+    "passwordRef": {
+      "title": "Password reference"
+    },
+    "servers": {
+      "title": "RADIUS servers"
+    },
+    "address": {
+      "title": "Server address"
+    },
+    "port": {
+      "title": "UDP port"
+    },
+    "secretRef": {
+      "title": "Shared secret reference"
+    },
+    "delaySec": {
+      "title": "DPD delay (seconds)"
+    },
+    "timeoutSec": {
+      "title": "DPD timeout (seconds)"
+    },
+    "action": {
+      "title": "DPD action"
+    },
+    "ikeSec": {
+      "title": "IKE lifetime (seconds)"
+    },
+    "espSec": {
+      "title": "CHILD lifetime (seconds)"
+    },
+    "espBytes": {
+      "title": "CHILD lifetime (bytes)"
+    },
+    "espPackets": {
+      "title": "CHILD lifetime (packets)"
+    },
+    "reauth": {
+      "title": "Reauthenticate"
     }
   }
 }

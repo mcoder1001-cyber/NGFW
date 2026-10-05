@@ -487,13 +487,27 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
   remoteAccessCapabilities(): Promise<RemoteAccessCapabilitiesResponse> {
-    return this.unary(this.c.remoteAccessCapabilities, {});
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessCapabilities, { owner: this.owner }));
   }
-  remoteAccessSessions(request: RemoteAccessSessionsRequest): Promise<RemoteAccessSessionsResponse> {
-    return this.unary(this.c.remoteAccessSessions, request);
+  remoteAccessSessions(request: Omit<RemoteAccessSessionsRequest, 'owner'>): Promise<RemoteAccessSessionsResponse> {
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessSessions, { ...request, owner: this.owner }));
   }
-  remoteAccessDisconnect(request: RemoteAccessDisconnectRequest): Promise<RemoteAccessDisconnectResponse> {
-    return this.unary(this.c.remoteAccessDisconnect, request);
+  remoteAccessDisconnect(request: Omit<RemoteAccessDisconnectRequest, 'owner'>): Promise<RemoteAccessDisconnectResponse> {
+    return this.remoteAccessResult(this.unary(this.c.remoteAccessDisconnect, { ...request, owner: this.owner }));
+  }
+  /** RA errors retain status/code while daemon diagnostics and credentials stay private. */
+  private async remoteAccessResult<T>(request: Promise<T>): Promise<T> {
+    try {
+      return await request;
+    } catch (error) {
+      if (error instanceof ProblemError) {
+        const grpcCode = error.extra['grpcCode'];
+        throw new ProblemError(error.getStatus(), error.slug, error.title,
+          'The remote-access engine could not complete this request', undefined,
+          typeof grpcCode === 'string' ? { grpcCode } : {});
+      }
+      throw new ProblemError(502, 'agent-error', 'Agent error', 'The remote-access engine could not complete this request');
+    }
   }
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib

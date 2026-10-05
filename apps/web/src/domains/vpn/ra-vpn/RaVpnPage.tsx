@@ -20,8 +20,15 @@ import {
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
-import { localizeSchema } from '../../interfaces/model';
-import { activationAllowed, stepSchema, steps, type Profile } from './model';
+import {
+  localizeRaSchema,
+  newProfile,
+  sessionColumns,
+  activationAllowed,
+  stepSchema,
+  steps,
+  type Profile,
+} from './model';
 import {
   useCapabilities,
   useDisconnect,
@@ -50,7 +57,10 @@ export default function RaVpnPage() {
   const save = useSaveProfile();
   const disconnect = useDisconnect();
   const sessions = useSessions(selected, cursor, capability.data?.operational === true);
-  const schema = useMemo(() => localizeSchema(stepSchema(step), t), [step, t]);
+  const schema = useMemo(
+    () => localizeRaSchema(stepSchema(step), (key, fallback) => t(key, { defaultValue: fallback })),
+    [step, t],
+  );
   const nameValid =
     !!editing &&
     /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/.test(editing.name) &&
@@ -68,8 +78,12 @@ export default function RaVpnPage() {
       setBlocked(true);
       return;
     }
-    await save.mutateAsync({ name: editing.name, profile: merged });
-    setEditing(null);
+    try {
+      await save.mutateAsync({ name: editing.name, profile: merged });
+      setEditing(null);
+    } catch {
+      // The mutation error is rendered in the wizard.
+    }
   };
   return (
     <Stack spacing={2}>
@@ -103,15 +117,7 @@ export default function RaVpnPage() {
             setBlocked(false);
             setEditing({
               name: '',
-              value: {
-                enabled: false,
-                auth: 'eap-mschapv2',
-                vrf: 'default',
-                underlayVrf: 'default',
-                pools: [],
-                splitTunnel: [],
-                users: [],
-              },
+              value: newProfile(),
               isNew: true,
             });
           }}
@@ -149,7 +155,7 @@ export default function RaVpnPage() {
       <Table aria-label={t('sessions')}>
         <TableHead>
           <TableRow>
-            {['identity', 'addresses', 'uptime', 'bytesIn', 'bytesOut', 'action'].map((key) => (
+            {sessionColumns.map((key) => (
               <TableCell key={key}>{t(key)}</TableCell>
             ))}
           </TableRow>
@@ -236,7 +242,10 @@ export default function RaVpnPage() {
             disabled={permissions.role !== 'admin' || disconnect.isPending}
             onClick={() => {
               if (disconnectTarget)
-                void disconnect.mutateAsync(disconnectTarget).then(() => setDisconnectTarget(null));
+                void disconnect
+                  .mutateAsync(disconnectTarget)
+                  .then(() => setDisconnectTarget(null))
+                  .catch(() => undefined);
             }}
           >
             {t('disconnect')}

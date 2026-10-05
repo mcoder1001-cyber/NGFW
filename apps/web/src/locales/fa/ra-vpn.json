@@ -90,6 +90,78 @@
     },
     "rekey": {
       "title": "زمان‌سنج‌های تعویض کلید"
+    },
+    "outer": {
+      "title": "ترانزیت عمومی"
+    },
+    "inner": {
+      "title": "ترانزیت IPv4 محافظت‌شده"
+    },
+    "innerIpv6": {
+      "title": "ترانزیت IPv6 محافظت‌شده"
+    },
+    "vpp": {
+      "title": "آدرس ترانزیت فایروال"
+    },
+    "namespace": {
+      "title": "آدرس ترانزیت موتور VPN"
+    },
+    "ingress": {
+      "title": "ارجاع ACL ورودی"
+    },
+    "egress": {
+      "title": "ارجاع ACL خروجی"
+    },
+    "name": {
+      "title": "نام"
+    },
+    "prefix": {
+      "title": "پیشوند آدرس کلاینت"
+    },
+    "dns": {
+      "title": "آدرس‌های DNS"
+    },
+    "username": {
+      "title": "نام کاربری"
+    },
+    "passwordRef": {
+      "title": "ارجاع گذرواژه"
+    },
+    "servers": {
+      "title": "سرورهای RADIUS"
+    },
+    "address": {
+      "title": "آدرس سرور"
+    },
+    "port": {
+      "title": "درگاه UDP"
+    },
+    "secretRef": {
+      "title": "ارجاع راز مشترک"
+    },
+    "delaySec": {
+      "title": "تأخیر DPD (ثانیه)"
+    },
+    "timeoutSec": {
+      "title": "مهلت DPD (ثانیه)"
+    },
+    "action": {
+      "title": "عملیات DPD"
+    },
+    "ikeSec": {
+      "title": "طول عمر IKE (ثانیه)"
+    },
+    "espSec": {
+      "title": "طول عمر CHILD (ثانیه)"
+    },
+    "espBytes": {
+      "title": "طول عمر CHILD (بایت)"
+    },
+    "espPackets": {
+      "title": "طول عمر CHILD (بسته)"
+    },
+    "reauth": {
+      "title": "احراز هویت دوباره"
     }
   }
 }

@@ -46,3 +46,56 @@ export function activationAllowed(
     !!profile.outerPolicy.egress.length
   );
 }
+
+export const sessionColumns = [
+  'identity',
+  'addresses',
+  'uptime',
+  'bytesIn',
+  'bytesOut',
+  'action',
+] as const;
+export function newProfile(): Partial<Profile> {
+  return {
+    enabled: false,
+    auth: 'eap-mschapv2',
+    vrf: 'default',
+    underlayVrf: 'default',
+    pools: [],
+    splitTunnel: [],
+    users: [],
+  };
+}
+
+/** Translate nested canonical fields, including credential references and transit policies. */
+export function localizeRaSchema(
+  schema: JsonSchema,
+  translate: (key: string, fallback: string) => string,
+): JsonSchema {
+  const result = structuredClone(schema);
+  if (result.properties) {
+    result.properties = Object.fromEntries(
+      Object.entries(result.properties).map(([key, value]) => {
+        const field = localizeRaSchema(value as JsonSchema, translate);
+        field.title = translate(`field.${key}.title`, field.title ?? key);
+        const hints = field['x-ngfw-ui'] as Record<string, unknown> | undefined;
+        if (hints) {
+          const help = translate(`field.${key}.help`, '');
+          const rest = { ...hints };
+          delete rest['help'];
+          field['x-ngfw-ui'] = {
+            ...rest,
+            ...(help ? { help } : {}),
+            ...(typeof hints.group === 'string'
+              ? { group: translate(`field.${hints.group}.title`, hints.group) }
+              : {}),
+          };
+        }
+        return [key, field];
+      }),
+    );
+  }
+  if (result.items && typeof result.items === 'object' && !Array.isArray(result.items))
+    result.items = localizeRaSchema(result.items, translate);
+  return result;
+}

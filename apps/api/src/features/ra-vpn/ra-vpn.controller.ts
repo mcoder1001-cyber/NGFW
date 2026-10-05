@@ -5,6 +5,7 @@ import { AgentClient } from '../../agent/agent.client.js';
 import { MinRole } from '../../auth/decorators.js';
 import { ApiOut, Protected } from '../../common/responses.js';
 import { ZodPipe } from '../../common/zod.js';
+import { ProblemError, problems } from '../../common/problem.js';
 import type { NgfwRequest } from '../../common/principal.js';
 
 const Profile = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/);
@@ -19,14 +20,21 @@ const Page = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 const DisconnectQuery = z.strictObject({ profile: Profile });
-const Decimal = z.string().regex(/^(0|[1-9][0-9]{0,19})$/);
-export const RemoteAccessCapabilitiesOut = z.strictObject({
-  engine: z.literal('strongswan-ra'),
-  operational: z.boolean(),
-  supportedAuth: z.array(z.enum(['eap-mschapv2', 'eap-tls', 'eap-radius', 'pubkey'])).max(4),
-  reason: z.enum(['', 'engine-unavailable', 'engine-not-ready', 'runtime-unavailable']),
-  editableDisabledDrafts: z.boolean(),
-});
+const Decimal = z
+  .string()
+  .regex(/^(0|[1-9][0-9]{0,19})$/)
+  .refine((value) => BigInt(value) <= 18446744073709551615n);
+export const RemoteAccessCapabilitiesOut = z
+  .strictObject({
+    engine: z.literal('strongswan-ra'),
+    operational: z.boolean(),
+    supportedAuth: z.array(z.enum(['eap-mschapv2', 'eap-tls', 'eap-radius', 'pubkey'])).max(4),
+    reason: z.enum(['', 'engine-unavailable', 'engine-not-ready', 'runtime-unavailable']),
+    editableDisabledDrafts: z.boolean(),
+  })
+  .refine((value) =>
+    value.operational ? value.reason === '' && value.supportedAuth.length > 0 : value.reason !== '',
+  );
 export const RemoteAccessSessionsOut = z.strictObject({
   items: z
     .array(
@@ -48,6 +56,18 @@ export const RemoteAccessSessionsOut = z.strictObject({
 });
 export const RemoteAccessDisconnectOut = z.strictObject({ disconnected: z.boolean() });
 
+function observed<T>(schema: z.ZodType<T>, value: unknown): T {
+  const result = schema.safeParse(value);
+  if (!result.success)
+    throw new ProblemError(
+      502,
+      'remote-access-observation-invalid',
+      'Invalid agent observation',
+      'The agent returned an invalid remote-access observation',
+    );
+  return result.data;
+}
+
 @ApiTags('vpn')
 @Controller('api/v1')
 export class RaVpnController {
@@ -58,7 +78,7 @@ export class RaVpnController {
   @ApiOut(RemoteAccessCapabilitiesOut)
   @ApiOperation({ summary: 'Observed independent remote-access engine capabilities' })
   async capabilities() {
-    return RemoteAccessCapabilitiesOut.parse(await this.agent.remoteAccessCapabilities());
+    return observed(RemoteAccessCapabilitiesOut, await this.agent.remoteAccessCapabilities());
   }
 
   @Get('state/vpn/remote-access/sessions')
@@ -74,10 +94,18 @@ export class RaVpnController {
   @ApiOperation({ summary: 'Owned observed remote-access sessions, bounded cursor page' })
   async sessions(@Query(new ZodPipe(Page)) page: z.output<typeof Page>) {
     const response = await this.agent.remoteAccessSessions(page);
-    return RemoteAccessSessionsOut.parse({
+    const result = observed(RemoteAccessSessionsOut, {
       items: response.sessions,
       nextCursor: response.nextCursor,
     });
+    if (result.items.some((item) => item.profile !== page.profile))
+      throw new ProblemError(
+        502,
+        'remote-access-observation-invalid',
+        'Invalid agent observation',
+        'The agent returned sessions outside the requested profile',
+      );
+    return result;
   }
 
   @Post('actions/vpn/remote-access/sessions/:id/disconnect')
@@ -97,8 +125,15 @@ export class RaVpnController {
       resource: `vpn/remoteAccess/${query.profile}/sessions/${id}`,
       after: { action: 'disconnect' },
     };
-    return RemoteAccessDisconnectOut.parse(
+    const result = observed(
+      RemoteAccessDisconnectOut,
       await this.agent.remoteAccessDisconnect({ profile: query.profile, id }),
     );
+    if (!result.disconnected)
+      throw problems.conflict(
+        'remote-access-removal-unverified',
+        'The agent has not verified removal of this session',
+      );
+    return result;
   }
 }

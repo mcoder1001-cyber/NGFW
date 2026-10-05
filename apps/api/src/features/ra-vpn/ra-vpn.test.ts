@@ -30,30 +30,42 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
   const agent = new AgentClient(testEnv({ NGFW_AGENT_SOCKET: socket, NGFW_AGENT_OWNER: 'w1' }));
   const calls: unknown[] = [];
   let failure: number | null = null;
+  let removed = true;
+  let invalidObservation: 'counter' | 'profile' | null = null;
   let app: NestFastifyApplication;
   const handlers: Pick<
     DataplaneServer,
     'remoteAccessCapabilities' | 'remoteAccessSessions' | 'remoteAccessDisconnect'
   > = {
-    remoteAccessCapabilities: (_call, callback) =>
+    remoteAccessCapabilities: (_call, callback) => {
+      calls.push(_call.request);
+      if (_call.request.owner !== 'w1') {
+        callback({ code: status.PERMISSION_DENIED, details: 'foreign owner' });
+        return;
+      }
       callback(null, {
         engine: 'strongswan-ra',
         operational: false,
         supportedAuth: ['eap-tls'],
         reason: 'engine-not-ready',
         editableDisabledDrafts: true,
-      }),
+      });
+    },
     remoteAccessSessions: (call, callback) => {
       calls.push(call.request);
+      if (call.request.owner !== 'w1') {
+        callback({ code: status.PERMISSION_DENIED, details: 'foreign owner' });
+        return;
+      }
       callback(null, {
         sessions: [
           {
             id: ID,
-            profile: call.request.profile,
+            profile: invalidObservation === 'profile' ? 'foreign-profile' : call.request.profile,
             identity: 'user@example.test',
             addresses: ['10.44.0.2'],
             establishedSeconds: MAX,
-            bytesIn: MAX,
+            bytesIn: invalidObservation === 'counter' ? '18446744073709551616' : MAX,
             bytesOut: MAX,
           },
         ],
@@ -62,6 +74,10 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
     },
     remoteAccessDisconnect: (call, callback) => {
       calls.push(call.request);
+      if (call.request.owner !== 'w1') {
+        callback({ code: status.PERMISSION_DENIED, details: 'foreign owner' });
+        return;
+      }
       if (failure !== null) {
         callback({ code: failure, details: 'sensitive-daemon-detail' });
         return;
@@ -70,7 +86,7 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
         callback({ code: status.FAILED_PRECONDITION, details: 'session is stale or foreign' });
         return;
       }
-      callback(null, { disconnected: true });
+      callback(null, { disconnected: removed });
     },
   };
   beforeAll(async () => {
@@ -118,6 +134,8 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
   beforeEach(() => {
     calls.length = 0;
     failure = null;
+    removed = true;
+    invalidObservation = null;
     audit.write.mockClear();
     audit.writeAggregated.mockClear();
   });
@@ -139,6 +157,7 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
       engine: 'strongswan-ra',
       reason: 'engine-not-ready',
     });
+    expect(calls).toEqual([{ owner: 'w1' }]);
   });
   it('preserves maximum uint64 decimal values through actual gRPC and HTTP', async () => {
     const response = await app.inject({
@@ -149,10 +168,43 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
     expect(response.statusCode).toBe(200);
     expect(response.json().items[0]).toMatchObject({
       establishedSeconds: MAX,
-      bytesIn: MAX,
+      bytesIn: invalidObservation === 'counter' ? '18446744073709551616' : MAX,
       bytesOut: MAX,
     });
-    expect(calls).toEqual([{ profile: 'office', cursor: '', limit: 100 }]);
+    expect(calls).toEqual([{ profile: 'office', cursor: '', limit: 100, owner: 'w1' }]);
+  });
+  it('refuses corrupt/foreign agent observations without exposing their values', async () => {
+    invalidObservation = 'counter';
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/state/vpn/remote-access/sessions?profile=office',
+      headers: { authorization: 'Bearer readonly' },
+    });
+    expect(response.statusCode).toBe(502);
+    expect(response.body).not.toContain('foreign-profile');
+    expect(response.body).not.toContain('18446744073709551616');
+  });
+  it('refuses an otherwise valid observation for a foreign profile', async () => {
+    invalidObservation = 'profile';
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/state/vpn/remote-access/sessions?profile=office',
+      headers: { authorization: 'Bearer readonly' },
+    });
+    expect(response.statusCode).toBe(502);
+    expect(response.body).not.toContain('foreign-profile');
+  });
+  it('unauthenticated disconnect is denied and aggregated failure-audited before transport', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: `/api/v1/actions/vpn/remote-access/sessions/${ID}/disconnect?profile=office`,
+    });
+    expect(response.statusCode).toBe(401);
+    expect(calls).toHaveLength(0);
+    expect(audit.writeAggregated).toHaveBeenCalledWith(
+      expect.objectContaining({ result: 'failure', status: 401 }),
+      expect.any(String),
+    );
   });
   it('rejects invalid page limits/cursors and unknown query keys before transport', async () => {
     for (const query of [
@@ -228,10 +280,19 @@ describe('remote-access actual Unix gRPC → AgentClient → HTTP contract', () 
       expect.objectContaining({ result: 'failure', status: 403 }),
     );
   });
+  it('unverified removal is a conflict and failure-audited, never a success', async () => {
+    removed = false;
+    const response = await action();
+    expect(response.statusCode).toBe(409);
+    expect(audit.write).toHaveBeenCalledWith(
+      expect.objectContaining({ result: 'failure', status: 409 }),
+    );
+  });
   it('agent transport unavailability is not a successful disconnect', async () => {
     failure = status.UNAVAILABLE;
     const response = await action();
     expect(response.statusCode).toBe(503);
+    expect(response.body).not.toContain('sensitive-daemon-detail');
     expect(audit.write).toHaveBeenCalledWith(
       expect.objectContaining({ result: 'failure', status: 503 }),
     );

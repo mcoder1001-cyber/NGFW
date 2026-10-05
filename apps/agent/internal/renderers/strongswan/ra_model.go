@@ -188,6 +188,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 				return refuse("password reference")
 			}
 			value, err := resolve.Resolve(ctx, user.GetPasswordRef())
+			defer clear(value)
 			if err != nil || len(value) == 0 || len(value) > 1024 {
 				return refuse("EAP secret resolution")
 			}
@@ -231,6 +232,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 				return refuse("RADIUS port")
 			}
 			value, err := resolve.Resolve(ctx, server.GetSecretRef())
+			defer clear(value)
 			if err != nil || len(value) == 0 || len(value) > 1024 {
 				return refuse("RADIUS secret resolution")
 			}

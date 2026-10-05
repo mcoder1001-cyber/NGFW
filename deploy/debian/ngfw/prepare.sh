@@ -37,6 +37,9 @@ mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$S
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done
+(cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" ./cmd/ngfw-ra-daemon)
+sha256sum "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/ngfw-ra-daemon.sha256"
+install -m 0644 "$ROOT/deploy/systemd/ngfw-ra@.service" "$STAGE/usr/lib/systemd/system/"
 (cd "$ROOT" && pnpm --filter @ngfw/api deploy --prod "$STAGE/usr/lib/ngfw/api")
 [[ -f $STAGE/usr/lib/ngfw/api/dist/main.js ]] || { echo 'pnpm deploy omitted compiled API' >&2; exit 1; }
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/ngfw/api/"

@@ -14,8 +14,10 @@ import (
 // never select plaintext after projection, so concurrent cache activation and
 // rollback cannot substitute another credential generation.
 type SealedPreparation struct {
-	Resolver strongswan.SecretResolver
-	Now      func() time.Time
+	Resolver     strongswan.SecretResolver
+	Now          func() time.Time
+	Readiness    func(context.Context) error
+	Installation *EngineInstallation
 }
 
 func (*SealedPreparation) String() string { return "remote-access sealed preparation <redacted>" }

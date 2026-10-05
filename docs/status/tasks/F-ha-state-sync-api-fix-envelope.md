@@ -1,0 +1,3 @@
+# Envelope — HA API permission correction
+
+Fresh independent correction developer; task F-ha-state-sync continuation. Own branch/worktree and source pin are recorded in the adjacent WIP. A1 REASSIGN ruling from `codex/arbiter-ha-api-round3-20261005` published `d4d49f98f266b3e0f4b03348442e850e3c1bc027` is binding. Scope is generic error mapping and meaningful actual gRPC action transport regressions; preserve existing auth/audit/boundaries. No child agents, board changes or merges. Root manages independent closure and final integration. No live DB slot needed for developer unit transport tests. RAM-only new bulk storage. Publish each coherent checkpoint immediately; never claim unrun replay/CI PASS.

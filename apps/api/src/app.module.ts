@@ -94,6 +94,7 @@ import { hostMetricsFeature } from './features/host-metrics/index.js';
 import { licensingFeature } from './features/licensing/index.js';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
+import { haStateSyncFeature } from './features/ha-state-sync/index.js';
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
 // wave-BC: F-backup-restore
@@ -224,6 +225,7 @@ export class AppModule {
         ...licensingFeature.controllers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
+        ...haStateSyncFeature.controllers,
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
@@ -344,6 +346,7 @@ export class AppModule {
         ...mgmtTlsFeature.providers, // F-management-ui (unanchored)
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
+        ...haStateSyncFeature.providers,
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore

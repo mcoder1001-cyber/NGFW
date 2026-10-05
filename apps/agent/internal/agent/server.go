@@ -128,6 +128,8 @@ func (g *server) Action(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingSe
 		return g.ikev2Action(req.GetIkev2(), stream)
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync
+	case *ngfwv1.ActionRequest_HaSync:
+		return g.haSyncAction(req.GetHaSync(), stream)
 	// wave-BC: F-capture-trace
 	case *ngfwv1.ActionRequest_Capture:
 		return g.actionCapture(req.GetCapture(), stream)

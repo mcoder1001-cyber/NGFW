@@ -691,6 +691,49 @@ export function natSessionVariantToJSON(object: NatSessionVariant): string {
   }
 }
 
+/** Explicit global action, never callable by a shared-host slot agent. */
+export enum HaSyncOp {
+  /** HA_SYNC_OP_UNSPECIFIED - No operation requested. */
+  HA_SYNC_OP_UNSPECIFIED = 0,
+  /** HA_SYNC_OP_RESYNC - Resend sessions and wait for the completion event. */
+  HA_SYNC_OP_RESYNC = 1,
+  /** HA_SYNC_OP_FLUSH - Flush queued HA update packets (does not delete NAT sessions). */
+  HA_SYNC_OP_FLUSH = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function haSyncOpFromJSON(object: any): HaSyncOp {
+  switch (object) {
+    case 0:
+    case "HA_SYNC_OP_UNSPECIFIED":
+      return HaSyncOp.HA_SYNC_OP_UNSPECIFIED;
+    case 1:
+    case "HA_SYNC_OP_RESYNC":
+      return HaSyncOp.HA_SYNC_OP_RESYNC;
+    case 2:
+    case "HA_SYNC_OP_FLUSH":
+      return HaSyncOp.HA_SYNC_OP_FLUSH;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return HaSyncOp.UNRECOGNIZED;
+  }
+}
+
+export function haSyncOpToJSON(object: HaSyncOp): string {
+  switch (object) {
+    case HaSyncOp.HA_SYNC_OP_UNSPECIFIED:
+      return "HA_SYNC_OP_UNSPECIFIED";
+    case HaSyncOp.HA_SYNC_OP_RESYNC:
+      return "HA_SYNC_OP_RESYNC";
+    case HaSyncOp.HA_SYNC_OP_FLUSH:
+      return "HA_SYNC_OP_FLUSH";
+    case HaSyncOp.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 /**
  * ApplyRequest carries one transaction. Exactly one of these forms is valid:
  *   - apply:            txn_id + desired_state (+ subsystems, confirm_timeout_sec)
@@ -1082,6 +1125,14 @@ export interface ActionRequest {
   /** wave-BC: F-ikev2-native */
   ikev2?:
     | Ikev2Action
+    | undefined;
+  /**
+   * wave-BC: F-ra-vpn
+   * wave-BC: F-ha-state-sync
+   * NAT44-EI resync/flush, globals owner only.
+   */
+  haSync?:
+    | HaSyncAction
     | undefined;
   /** Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay. */
   arpFlush?:
@@ -4018,7 +4069,18 @@ export interface HaCluster_StateSync {
     | boolean
     | undefined;
   /** ACL sessions. */
-  acl?: boolean | undefined;
+  acl?:
+    | boolean
+    | undefined;
+  /**
+   * wave-BC: F-ha-state-sync
+   * Explicit local IPv4 endpoint and HA path MTU.
+   */
+  natListener:
+    | HaNatListener
+    | undefined;
+  /** Explicit remote IPv4 endpoint and refresh interval. */
+  natFailover: HaNatFailover | undefined;
 }
 
 /**
@@ -11252,6 +11314,99 @@ export interface VrrpStateResponse {
   routers: VrrpRuntime[];
 }
 
+/**
+ * ----- F-ha-state-sync -----
+ * Native NAT44-EI HA listener configuration (UDP is unauthenticated).
+ */
+export interface HaNatListener {
+  /** Explicit local unicast IPv4 address. */
+  address?:
+    | string
+    | undefined;
+  /** UDP port. */
+  port?:
+    | number
+    | undefined;
+  /** Maximum HA packet size. */
+  pathMtu?: number | undefined;
+}
+
+/** Native NAT44-EI peer endpoint. */
+export interface HaNatFailover {
+  /** Remote unicast IPv4 address. */
+  address?:
+    | string
+    | undefined;
+  /** Peer UDP port. */
+  port?:
+    | number
+    | undefined;
+  /** HA session refresh interval. */
+  sessionRefreshSec?: number | undefined;
+}
+
+/** NAT44-EI global state-sync action. */
+export interface HaSyncAction {
+  /** Operation to perform. */
+  op: HaSyncOp;
+}
+
+/** Owner-scoped request for global HA observations (does not mutate). */
+export interface HaSyncStateRequest {
+  /** Expected agent owner. */
+  owner: string;
+}
+
+/** Supported kind with honest configured/active state. */
+export interface HaSyncKindState {
+  /** nat44-ei, nat44-ed, acl or ipsec. */
+  kind: string;
+  /** True only when VPP exposes a session state-sync API. */
+  supported: boolean;
+  /** Desired state requested this kind. */
+  configured: boolean;
+  /** Observed HA endpoints are enabled and match desired endpoints. */
+  active: boolean;
+  /** Support gap or operational explanation. */
+  reason: string;
+}
+
+/** Native HA global observation and bounded action telemetry. */
+export interface HaSyncStateResponse {
+  /** Agent identity. */
+  owner: string;
+  /** Per-kind support and observation. */
+  kinds: HaSyncKindState[];
+  /** Live listener, absent when disabled. */
+  listener:
+    | HaNatListener
+    | undefined;
+  /** Live failover peer, absent when disabled. */
+  failover:
+    | HaNatFailover
+    | undefined;
+  /** Most recent native completion in this agent process, absent when unknown. */
+  lastResync:
+    | Date
+    | undefined;
+  /** Unacknowledged HA messages reported by that completion (not a session counter). */
+  lastMissedCount?:
+    | number
+    | undefined;
+  /** Completed resync actions since this agent process started. */
+  resyncCount: string;
+  /** VPP HA packet counters are not exposed through the pinned API. */
+  packetCountersAvailable: boolean;
+  /** A slot cannot invoke resync/flush on shared globals. */
+  actionsAllowed: boolean;
+  /** Observation time. */
+  retrievedAt:
+    | Date
+    | undefined;
+  /** API observation failure; unavailable is never active. */
+  observationError: string;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return {
     txnId: "",
@@ -13845,6 +14000,7 @@ function createBaseActionRequest(): ActionRequest {
     det44SessionClose: undefined,
     cnatSessionPurge: undefined,
     ikev2: undefined,
+    haSync: undefined,
     arpFlush: undefined,
     natSessionKill: undefined,
     dnsLookup: undefined,
@@ -13870,6 +14026,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.ikev2 !== undefined) {
       Ikev2Action.encode(message.ikev2, writer.uint32(90).fork()).join();
+    }
+    if (message.haSync !== undefined) {
+      HaSyncAction.encode(message.haSync, writer.uint32(106).fork()).join();
     }
     if (message.arpFlush !== undefined) {
       ArpFlushAction.encode(message.arpFlush, writer.uint32(34).fork()).join();
@@ -13944,6 +14103,14 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.ikev2 = Ikev2Action.decode(reader, reader.uint32());
             continue;
           }
+          case 13: {
+            if (tag !== 106) {
+              break;
+            }
+
+            message.haSync = HaSyncAction.decode(reader, reader.uint32());
+            continue;
+          }
           case 4: {
             if (tag !== 34) {
               break;
@@ -13996,6 +14163,11 @@ export const ActionRequest: MessageFns<ActionRequest> = {
         ? CnatSessionPurgeAction.fromJSON(object.cnat_session_purge)
         : undefined,
       ikev2: isSet(object.ikev2) ? Ikev2Action.fromJSON(object.ikev2) : undefined,
+      haSync: isSet(object.haSync)
+        ? HaSyncAction.fromJSON(object.haSync)
+        : isSet(object.ha_sync)
+        ? HaSyncAction.fromJSON(object.ha_sync)
+        : undefined,
       arpFlush: isSet(object.arpFlush)
         ? ArpFlushAction.fromJSON(object.arpFlush)
         : isSet(object.arp_flush)
@@ -14034,6 +14206,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     if (message.ikev2 !== undefined) {
       obj.ikev2 = Ikev2Action.toJSON(message.ikev2);
     }
+    if (message.haSync !== undefined) {
+      obj.haSync = HaSyncAction.toJSON(message.haSync);
+    }
     if (message.arpFlush !== undefined) {
       obj.arpFlush = ArpFlushAction.toJSON(message.arpFlush);
     }
@@ -14068,6 +14243,9 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.ikev2 = (object.ikev2 !== undefined && object.ikev2 !== null)
       ? Ikev2Action.fromPartial(object.ikev2)
+      : undefined;
+    message.haSync = (object.haSync !== undefined && object.haSync !== null)
+      ? HaSyncAction.fromPartial(object.haSync)
       : undefined;
     message.arpFlush = (object.arpFlush !== undefined && object.arpFlush !== null)
       ? ArpFlushAction.fromPartial(object.arpFlush)
@@ -37778,7 +37956,7 @@ export const HaCluster_Peer: MessageFns<HaCluster_Peer> = {
 };
 
 function createBaseHaCluster_StateSync(): HaCluster_StateSync {
-  return { nat: undefined, ipsec: undefined, acl: undefined };
+  return { nat: undefined, ipsec: undefined, acl: undefined, natListener: undefined, natFailover: undefined };
 }
 
 export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
@@ -37791,6 +37969,12 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
     }
     if (message.acl !== undefined) {
       writer.uint32(24).bool(message.acl);
+    }
+    if (message.natListener !== undefined) {
+      HaNatListener.encode(message.natListener, writer.uint32(34).fork()).join();
+    }
+    if (message.natFailover !== undefined) {
+      HaNatFailover.encode(message.natFailover, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -37832,6 +38016,22 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
             message.acl = reader.bool();
             continue;
           }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.natListener = HaNatListener.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.natFailover = HaNatFailover.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -37849,6 +38049,16 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
       nat: isSet(object.nat) ? globalThis.Boolean(object.nat) : undefined,
       ipsec: isSet(object.ipsec) ? globalThis.Boolean(object.ipsec) : undefined,
       acl: isSet(object.acl) ? globalThis.Boolean(object.acl) : undefined,
+      natListener: isSet(object.natListener)
+        ? HaNatListener.fromJSON(object.natListener)
+        : isSet(object.nat_listener)
+        ? HaNatListener.fromJSON(object.nat_listener)
+        : undefined,
+      natFailover: isSet(object.natFailover)
+        ? HaNatFailover.fromJSON(object.natFailover)
+        : isSet(object.nat_failover)
+        ? HaNatFailover.fromJSON(object.nat_failover)
+        : undefined,
     };
   },
 
@@ -37863,6 +38073,12 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
     if (message.acl !== undefined) {
       obj.acl = message.acl;
     }
+    if (message.natListener !== undefined) {
+      obj.natListener = HaNatListener.toJSON(message.natListener);
+    }
+    if (message.natFailover !== undefined) {
+      obj.natFailover = HaNatFailover.toJSON(message.natFailover);
+    }
     return obj;
   },
 
@@ -37874,6 +38090,12 @@ export const HaCluster_StateSync: MessageFns<HaCluster_StateSync> = {
     message.nat = object.nat ?? undefined;
     message.ipsec = object.ipsec ?? undefined;
     message.acl = object.acl ?? undefined;
+    message.natListener = (object.natListener !== undefined && object.natListener !== null)
+      ? HaNatListener.fromPartial(object.natListener)
+      : undefined;
+    message.natFailover = (object.natFailover !== undefined && object.natFailover !== null)
+      ? HaNatFailover.fromPartial(object.natFailover)
+      : undefined;
     return message;
   },
 };
@@ -103160,6 +103382,756 @@ export const VrrpStateResponse: MessageFns<VrrpStateResponse> = {
   },
 };
 
+function createBaseHaNatListener(): HaNatListener {
+  return { address: undefined, port: undefined, pathMtu: undefined };
+}
+
+export const HaNatListener: MessageFns<HaNatListener> = {
+  encode(message: HaNatListener, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(16).uint32(message.port);
+    }
+    if (message.pathMtu !== undefined) {
+      writer.uint32(24).uint32(message.pathMtu);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaNatListener {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaNatListener();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.pathMtu = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaNatListener {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      pathMtu: isSet(object.pathMtu)
+        ? globalThis.Number(object.pathMtu)
+        : isSet(object.path_mtu)
+        ? globalThis.Number(object.path_mtu)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HaNatListener): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.pathMtu !== undefined) {
+      obj.pathMtu = Math.round(message.pathMtu);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaNatListener>): HaNatListener {
+    return HaNatListener.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaNatListener>): HaNatListener {
+    const message = createBaseHaNatListener();
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
+    message.pathMtu = object.pathMtu ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHaNatFailover(): HaNatFailover {
+  return { address: undefined, port: undefined, sessionRefreshSec: undefined };
+}
+
+export const HaNatFailover: MessageFns<HaNatFailover> = {
+  encode(message: HaNatFailover, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.address !== undefined) {
+      writer.uint32(10).string(message.address);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(16).uint32(message.port);
+    }
+    if (message.sessionRefreshSec !== undefined) {
+      writer.uint32(24).uint32(message.sessionRefreshSec);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaNatFailover {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaNatFailover();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.address = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.sessionRefreshSec = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaNatFailover {
+    return {
+      address: isSet(object.address) ? globalThis.String(object.address) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      sessionRefreshSec: isSet(object.sessionRefreshSec)
+        ? globalThis.Number(object.sessionRefreshSec)
+        : isSet(object.session_refresh_sec)
+        ? globalThis.Number(object.session_refresh_sec)
+        : undefined,
+    };
+  },
+
+  toJSON(message: HaNatFailover): unknown {
+    const obj: any = {};
+    if (message.address !== undefined) {
+      obj.address = message.address;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.sessionRefreshSec !== undefined) {
+      obj.sessionRefreshSec = Math.round(message.sessionRefreshSec);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaNatFailover>): HaNatFailover {
+    return HaNatFailover.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaNatFailover>): HaNatFailover {
+    const message = createBaseHaNatFailover();
+    message.address = object.address ?? undefined;
+    message.port = object.port ?? undefined;
+    message.sessionRefreshSec = object.sessionRefreshSec ?? undefined;
+    return message;
+  },
+};
+
+function createBaseHaSyncAction(): HaSyncAction {
+  return { op: 0 };
+}
+
+export const HaSyncAction: MessageFns<HaSyncAction> = {
+  encode(message: HaSyncAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.op !== 0) {
+      writer.uint32(8).int32(message.op);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaSyncAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaSyncAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.op = reader.int32() as any;
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaSyncAction {
+    return { op: isSet(object.op) ? haSyncOpFromJSON(object.op) : 0 };
+  },
+
+  toJSON(message: HaSyncAction): unknown {
+    const obj: any = {};
+    if (message.op !== 0) {
+      obj.op = haSyncOpToJSON(message.op);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaSyncAction>): HaSyncAction {
+    return HaSyncAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaSyncAction>): HaSyncAction {
+    const message = createBaseHaSyncAction();
+    message.op = object.op ?? 0;
+    return message;
+  },
+};
+
+function createBaseHaSyncStateRequest(): HaSyncStateRequest {
+  return { owner: "" };
+}
+
+export const HaSyncStateRequest: MessageFns<HaSyncStateRequest> = {
+  encode(message: HaSyncStateRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaSyncStateRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaSyncStateRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaSyncStateRequest {
+    return { owner: isSet(object.owner) ? globalThis.String(object.owner) : "" };
+  },
+
+  toJSON(message: HaSyncStateRequest): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaSyncStateRequest>): HaSyncStateRequest {
+    return HaSyncStateRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaSyncStateRequest>): HaSyncStateRequest {
+    const message = createBaseHaSyncStateRequest();
+    message.owner = object.owner ?? "";
+    return message;
+  },
+};
+
+function createBaseHaSyncKindState(): HaSyncKindState {
+  return { kind: "", supported: false, configured: false, active: false, reason: "" };
+}
+
+export const HaSyncKindState: MessageFns<HaSyncKindState> = {
+  encode(message: HaSyncKindState, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.kind !== "") {
+      writer.uint32(10).string(message.kind);
+    }
+    if (message.supported !== false) {
+      writer.uint32(16).bool(message.supported);
+    }
+    if (message.configured !== false) {
+      writer.uint32(24).bool(message.configured);
+    }
+    if (message.active !== false) {
+      writer.uint32(32).bool(message.active);
+    }
+    if (message.reason !== "") {
+      writer.uint32(42).string(message.reason);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaSyncKindState {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaSyncKindState();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.kind = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.supported = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.configured = reader.bool();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.active = reader.bool();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaSyncKindState {
+    return {
+      kind: isSet(object.kind) ? globalThis.String(object.kind) : "",
+      supported: isSet(object.supported) ? globalThis.Boolean(object.supported) : false,
+      configured: isSet(object.configured) ? globalThis.Boolean(object.configured) : false,
+      active: isSet(object.active) ? globalThis.Boolean(object.active) : false,
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+    };
+  },
+
+  toJSON(message: HaSyncKindState): unknown {
+    const obj: any = {};
+    if (message.kind !== "") {
+      obj.kind = message.kind;
+    }
+    if (message.supported !== false) {
+      obj.supported = message.supported;
+    }
+    if (message.configured !== false) {
+      obj.configured = message.configured;
+    }
+    if (message.active !== false) {
+      obj.active = message.active;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaSyncKindState>): HaSyncKindState {
+    return HaSyncKindState.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaSyncKindState>): HaSyncKindState {
+    const message = createBaseHaSyncKindState();
+    message.kind = object.kind ?? "";
+    message.supported = object.supported ?? false;
+    message.configured = object.configured ?? false;
+    message.active = object.active ?? false;
+    message.reason = object.reason ?? "";
+    return message;
+  },
+};
+
+function createBaseHaSyncStateResponse(): HaSyncStateResponse {
+  return {
+    owner: "",
+    kinds: [],
+    listener: undefined,
+    failover: undefined,
+    lastResync: undefined,
+    lastMissedCount: undefined,
+    resyncCount: "0",
+    packetCountersAvailable: false,
+    actionsAllowed: false,
+    retrievedAt: undefined,
+    observationError: "",
+  };
+}
+
+export const HaSyncStateResponse: MessageFns<HaSyncStateResponse> = {
+  encode(message: HaSyncStateResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.owner !== "") {
+      writer.uint32(10).string(message.owner);
+    }
+    for (const v of message.kinds) {
+      HaSyncKindState.encode(v!, writer.uint32(18).fork()).join();
+    }
+    if (message.listener !== undefined) {
+      HaNatListener.encode(message.listener, writer.uint32(26).fork()).join();
+    }
+    if (message.failover !== undefined) {
+      HaNatFailover.encode(message.failover, writer.uint32(34).fork()).join();
+    }
+    if (message.lastResync !== undefined) {
+      Timestamp.encode(toTimestamp(message.lastResync), writer.uint32(42).fork()).join();
+    }
+    if (message.lastMissedCount !== undefined) {
+      writer.uint32(48).uint32(message.lastMissedCount);
+    }
+    if (message.resyncCount !== "0") {
+      writer.uint32(56).uint64(message.resyncCount);
+    }
+    if (message.packetCountersAvailable !== false) {
+      writer.uint32(64).bool(message.packetCountersAvailable);
+    }
+    if (message.actionsAllowed !== false) {
+      writer.uint32(72).bool(message.actionsAllowed);
+    }
+    if (message.retrievedAt !== undefined) {
+      Timestamp.encode(toTimestamp(message.retrievedAt), writer.uint32(82).fork()).join();
+    }
+    if (message.observationError !== "") {
+      writer.uint32(90).string(message.observationError);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): HaSyncStateResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseHaSyncStateResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.owner = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.kinds.push(HaSyncKindState.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.listener = HaNatListener.decode(reader, reader.uint32());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.failover = HaNatFailover.decode(reader, reader.uint32());
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.lastResync = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.lastMissedCount = reader.uint32();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.resyncCount = reader.uint64().toString();
+            continue;
+          }
+          case 8: {
+            if (tag !== 64) {
+              break;
+            }
+
+            message.packetCountersAvailable = reader.bool();
+            continue;
+          }
+          case 9: {
+            if (tag !== 72) {
+              break;
+            }
+
+            message.actionsAllowed = reader.bool();
+            continue;
+          }
+          case 10: {
+            if (tag !== 82) {
+              break;
+            }
+
+            message.retrievedAt = fromTimestamp(Timestamp.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 11: {
+            if (tag !== 90) {
+              break;
+            }
+
+            message.observationError = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): HaSyncStateResponse {
+    return {
+      owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
+      kinds: globalThis.Array.isArray(object?.kinds) ? object.kinds.map((e: any) => HaSyncKindState.fromJSON(e)) : [],
+      listener: isSet(object.listener) ? HaNatListener.fromJSON(object.listener) : undefined,
+      failover: isSet(object.failover) ? HaNatFailover.fromJSON(object.failover) : undefined,
+      lastResync: isSet(object.lastResync)
+        ? fromJsonTimestamp(object.lastResync)
+        : isSet(object.last_resync)
+        ? fromJsonTimestamp(object.last_resync)
+        : undefined,
+      lastMissedCount: isSet(object.lastMissedCount)
+        ? globalThis.Number(object.lastMissedCount)
+        : isSet(object.last_missed_count)
+        ? globalThis.Number(object.last_missed_count)
+        : undefined,
+      resyncCount: isSet(object.resyncCount)
+        ? globalThis.String(object.resyncCount)
+        : isSet(object.resync_count)
+        ? globalThis.String(object.resync_count)
+        : "0",
+      packetCountersAvailable: isSet(object.packetCountersAvailable)
+        ? globalThis.Boolean(object.packetCountersAvailable)
+        : isSet(object.packet_counters_available)
+        ? globalThis.Boolean(object.packet_counters_available)
+        : false,
+      actionsAllowed: isSet(object.actionsAllowed)
+        ? globalThis.Boolean(object.actionsAllowed)
+        : isSet(object.actions_allowed)
+        ? globalThis.Boolean(object.actions_allowed)
+        : false,
+      retrievedAt: isSet(object.retrievedAt)
+        ? fromJsonTimestamp(object.retrievedAt)
+        : isSet(object.retrieved_at)
+        ? fromJsonTimestamp(object.retrieved_at)
+        : undefined,
+      observationError: isSet(object.observationError)
+        ? globalThis.String(object.observationError)
+        : isSet(object.observation_error)
+        ? globalThis.String(object.observation_error)
+        : "",
+    };
+  },
+
+  toJSON(message: HaSyncStateResponse): unknown {
+    const obj: any = {};
+    if (message.owner !== "") {
+      obj.owner = message.owner;
+    }
+    if (message.kinds?.length) {
+      obj.kinds = message.kinds.map((e) => HaSyncKindState.toJSON(e));
+    }
+    if (message.listener !== undefined) {
+      obj.listener = HaNatListener.toJSON(message.listener);
+    }
+    if (message.failover !== undefined) {
+      obj.failover = HaNatFailover.toJSON(message.failover);
+    }
+    if (message.lastResync !== undefined) {
+      obj.lastResync = message.lastResync.toISOString();
+    }
+    if (message.lastMissedCount !== undefined) {
+      obj.lastMissedCount = Math.round(message.lastMissedCount);
+    }
+    if (message.resyncCount !== "0") {
+      obj.resyncCount = message.resyncCount;
+    }
+    if (message.packetCountersAvailable !== false) {
+      obj.packetCountersAvailable = message.packetCountersAvailable;
+    }
+    if (message.actionsAllowed !== false) {
+      obj.actionsAllowed = message.actionsAllowed;
+    }
+    if (message.retrievedAt !== undefined) {
+      obj.retrievedAt = message.retrievedAt.toISOString();
+    }
+    if (message.observationError !== "") {
+      obj.observationError = message.observationError;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<HaSyncStateResponse>): HaSyncStateResponse {
+    return HaSyncStateResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<HaSyncStateResponse>): HaSyncStateResponse {
+    const message = createBaseHaSyncStateResponse();
+    message.owner = object.owner ?? "";
+    message.kinds = object.kinds?.map((e) => HaSyncKindState.fromPartial(e)) || [];
+    message.listener = (object.listener !== undefined && object.listener !== null)
+      ? HaNatListener.fromPartial(object.listener)
+      : undefined;
+    message.failover = (object.failover !== undefined && object.failover !== null)
+      ? HaNatFailover.fromPartial(object.failover)
+      : undefined;
+    message.lastResync = object.lastResync ?? undefined;
+    message.lastMissedCount = object.lastMissedCount ?? undefined;
+    message.resyncCount = object.resyncCount ?? "0";
+    message.packetCountersAvailable = object.packetCountersAvailable ?? false;
+    message.actionsAllowed = object.actionsAllowed ?? false;
+    message.retrievedAt = object.retrievedAt ?? undefined;
+    message.observationError = object.observationError ?? "";
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/ngfw/agent.sock in production, the slot's NGFW_AGENT_SOCKET in tests). One agent process
@@ -103572,6 +104544,23 @@ export const DataplaneService = {
     responseSerialize: (value: RedistributionMatrixResponse): Buffer =>
       Buffer.from(RedistributionMatrixResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): RedistributionMatrixResponse => RedistributionMatrixResponse.decode(value),
+  },
+  /**
+   * wave-BC: F-ra-vpn
+   * wave-BC: F-mpls-ldp
+   * wave-BC: F-igmp-mfib
+   * wave-BC: F-dashboard-prom-alarms
+   * wave-BC: F-ha-state-sync
+   * Observe NAT44-EI HA globals and explicit support gaps.
+   */
+  haSyncState: {
+    path: "/ngfw.v1.Dataplane/HaSyncState" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: HaSyncStateRequest): Buffer => Buffer.from(HaSyncStateRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): HaSyncStateRequest => HaSyncStateRequest.decode(value),
+    responseSerialize: (value: HaSyncStateResponse): Buffer => Buffer.from(HaSyncStateResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): HaSyncStateResponse => HaSyncStateResponse.decode(value),
   },
   /**
    * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
@@ -104108,6 +105097,15 @@ export interface DataplaneServer extends UntypedServiceImplementation {
   lispState: handleUnaryCall<LispStateRequest, LispStateResponse>;
   bfdState: handleUnaryCall<BfdStateRequest, BfdStateResponse>;
   redistributionMatrix: handleUnaryCall<RedistributionMatrixRequest, RedistributionMatrixResponse>;
+  /**
+   * wave-BC: F-ra-vpn
+   * wave-BC: F-mpls-ldp
+   * wave-BC: F-igmp-mfib
+   * wave-BC: F-dashboard-prom-alarms
+   * wave-BC: F-ha-state-sync
+   * Observe NAT44-EI HA globals and explicit support gaps.
+   */
+  haSyncState: handleUnaryCall<HaSyncStateRequest, HaSyncStateResponse>;
   /**
    * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
    * algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
@@ -104807,6 +105805,29 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: RedistributionMatrixResponse) => void,
+  ): ClientUnaryCall;
+  /**
+   * wave-BC: F-ra-vpn
+   * wave-BC: F-mpls-ldp
+   * wave-BC: F-igmp-mfib
+   * wave-BC: F-dashboard-prom-alarms
+   * wave-BC: F-ha-state-sync
+   * Observe NAT44-EI HA globals and explicit support gaps.
+   */
+  haSyncState(
+    request: HaSyncStateRequest,
+    callback: (error: ServiceError | null, response: HaSyncStateResponse) => void,
+  ): ClientUnaryCall;
+  haSyncState(
+    request: HaSyncStateRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: HaSyncStateResponse) => void,
+  ): ClientUnaryCall;
+  haSyncState(
+    request: HaSyncStateRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: HaSyncStateResponse) => void,
   ): ClientUnaryCall;
   /**
    * BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance

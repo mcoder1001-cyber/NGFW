@@ -96,6 +96,7 @@ var descriptorReach = map[string]reachEntry{
 	"mpls":                {wired, "F-mpls-srmpls"},
 	"nat44ed":             {wired, "F-nat44-ed-sessions"},
 	"nat46":               {library, "F-nat46: NAT46 -> MAP-T projection over mapnat, no descriptors; applied through desired/nat46.go (nat.nat46)"},
+	"hasync":              {wired, "F-ha-state-sync"},
 	"nat44ei":             {wired, "F-nat44-ei-64-66-nptv6"},
 	"nat64":               {wired, "F-nat44-ei-64-66-nptv6"},
 	"nat66":               {wired, "F-nat44-ei-64-66-nptv6"},

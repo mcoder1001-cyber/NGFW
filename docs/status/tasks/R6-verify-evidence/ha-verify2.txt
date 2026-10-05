@@ -1,0 +1,18 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/web exec vitest run --config r6-verify.config.ts ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx
+heavy: slot 1 after 20s
+
+ RUN  v3.2.7 /dev/shm/r6-verify-ha/apps/web
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx > reproduces active cached ownership and enabled resync after failed refresh
+VERIFY: failed refresh suppresses active cache and disables Resync
+
+ ✓ ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx (1 test) 661ms
+   ✓ reproduces active cached ownership and enabled resync after failed refresh  658ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  10:23:06
+   Duration  6.08s (transform 1.22s, setup 474ms, collect 2.80s, tests 661ms, environment 1.19s, prepare 158ms)

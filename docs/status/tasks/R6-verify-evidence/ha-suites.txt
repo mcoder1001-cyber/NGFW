@@ -1,0 +1,22 @@
+heavy: all 3 heavy slots busy, waiting (0s): pnpm --filter @ngfw/web exec vitest run src/domains/system/ha-state-sync src/domains/system/ha --maxWorkers=2
+heavy: slot 3 after 140s
+
+ RUN  v3.2.7 /dev/shm/r6-verify-ha/apps/web
+
+stdout | src/domains/system/ha-state-sync/Panel.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/domains/system/ha-state-sync/Panel.test.tsx (6 tests) 1491ms
+   ✓ HA state-sync panel > reports unsupported native IPsec and absent counters honestly  633ms
+stdout | src/domains/system/ha/HaPage.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/domains/system/ha/HaPage.test.tsx (6 tests) 4492ms
+   ✓ System → High availability (WEB-4b, routed by F-vrrp-config-sync) > lists virtual routers with committed / pending status  2180ms
+   ✓ System → High availability (WEB-4b, routed by F-vrrp-config-sync) > shows the cluster summary on the Cluster tab  840ms
+   ✓ System → High availability (WEB-4b, routed by F-vrrp-config-sync) > maps a server problem pointer onto the cluster form  1353ms
+
+ Test Files  2 passed (2)
+      Tests  12 passed (12)
+   Start at  10:21:26
+   Duration  16.65s (transform 5.96s, setup 1.31s, collect 13.35s, tests 5.98s, environment 2.25s, prepare 501ms)

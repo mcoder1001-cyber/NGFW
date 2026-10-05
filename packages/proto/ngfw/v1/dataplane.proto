@@ -185,6 +185,8 @@ service Dataplane {
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
+  // Observe NAT44-EI HA globals and explicit support gaps.
+  rpc HaSyncState(HaSyncStateRequest) returns (HaSyncStateResponse);
   // wave-A: F-bonding
 
   // BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
@@ -811,6 +813,8 @@ message ActionRequest {
     Ikev2Action ikev2 = 11;
     // wave-BC: F-ra-vpn
     // wave-BC: F-ha-state-sync
+    // NAT44-EI resync/flush, globals owner only.
+    HaSyncAction ha_sync = 13;
     // wave-BC: F-backup-restore
     // wave-A: F-neighbors-ra
 
@@ -2817,6 +2821,10 @@ message HaCluster {
     optional bool acl = 3;
 
     // wave-BC: F-ha-state-sync
+    // Explicit local IPv4 endpoint and HA path MTU.
+    HaNatListener nat_listener = 4;
+    // Explicit remote IPv4 endpoint and refresh interval.
+    HaNatFailover nat_failover = 5;
   }
   // Enabled.
   optional bool enabled = 1;
@@ -8476,4 +8484,81 @@ message VrrpStateResponse {
   string owner = 1;
   google.protobuf.Timestamp retrieved_at = 2;
   repeated VrrpRuntime routers = 3;
+}
+
+// ----- F-ha-state-sync -----
+// Native NAT44-EI HA listener configuration (UDP is unauthenticated).
+message HaNatListener {
+  // Explicit local unicast IPv4 address.
+  optional string address = 1;
+  // UDP port.
+  optional uint32 port = 2;
+  // Maximum HA packet size.
+  optional uint32 path_mtu = 3;
+}
+// Native NAT44-EI peer endpoint.
+message HaNatFailover {
+  // Remote unicast IPv4 address.
+  optional string address = 1;
+  // Peer UDP port.
+  optional uint32 port = 2;
+  // HA session refresh interval.
+  optional uint32 session_refresh_sec = 3;
+}
+// Explicit global action, never callable by a shared-host slot agent.
+enum HaSyncOp {
+  // No operation requested.
+  HA_SYNC_OP_UNSPECIFIED = 0;
+  // Resend sessions and wait for the completion event.
+  HA_SYNC_OP_RESYNC = 1;
+  // Flush queued HA update packets (does not delete NAT sessions).
+  HA_SYNC_OP_FLUSH = 2;
+}
+// NAT44-EI global state-sync action.
+message HaSyncAction {
+  // Operation to perform.
+  HaSyncOp op = 1;
+}
+// Owner-scoped request for global HA observations (does not mutate).
+message HaSyncStateRequest {
+  // Expected agent owner.
+  string owner = 1;
+}
+// Supported kind with honest configured/active state.
+message HaSyncKindState {
+  // nat44-ei, nat44-ed, acl or ipsec.
+  string kind = 1;
+  // True only when VPP exposes a session state-sync API.
+  bool supported = 2;
+  // Desired state requested this kind.
+  bool configured = 3;
+  // Observed HA endpoints are enabled and match desired endpoints.
+  bool active = 4;
+  // Support gap or operational explanation.
+  string reason = 5;
+}
+// Native HA global observation and bounded action telemetry.
+message HaSyncStateResponse {
+  // Agent identity.
+  string owner = 1;
+  // Per-kind support and observation.
+  repeated HaSyncKindState kinds = 2;
+  // Live listener, absent when disabled.
+  HaNatListener listener = 3;
+  // Live failover peer, absent when disabled.
+  HaNatFailover failover = 4;
+  // Most recent native completion in this agent process, absent when unknown.
+  google.protobuf.Timestamp last_resync = 5;
+  // Unacknowledged HA messages reported by that completion (not a session counter).
+  optional uint32 last_missed_count = 6;
+  // Completed resync actions since this agent process started.
+  uint64 resync_count = 7;
+  // VPP HA packet counters are not exposed through the pinned API.
+  bool packet_counters_available = 8;
+  // A slot cannot invoke resync/flush on shared globals.
+  bool actions_allowed = 9;
+  // Observation time.
+  google.protobuf.Timestamp retrieved_at = 10;
+  // API observation failure; unavailable is never active.
+  string observation_error = 11;
 }

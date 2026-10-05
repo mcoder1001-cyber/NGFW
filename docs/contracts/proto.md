@@ -998,3 +998,20 @@ answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/
 
 ### F-bfd-redistribution
 BfdState and RedistributionMatrix are owner-scoped, read-only RPCs. Session state includes engine, endpoints, timers, state and optional last-flap timestamp. Matrix counts are optional: unavailable counts are never represented as zero. BFD auth references remain write-only; key material is never returned. EventKind 22 is BFD_STATE_CHANGED.
+### F-ha-state-sync: observed native NAT44-EI HA
+
+`HaCluster.StateSync` additive fields **4** `nat_listener` and **5** `nat_failover`
+carry explicit IPv4/port/MTU and IPv4/port/refresh desired endpoints. Existing
+nat/acl/ipsec flags and cluster membership remain unchanged. `ActionRequest`
+oneof **13** `ha_sync` selects resync or queue flush. Resync waits for a matching
+native completion event, reports missed unacknowledged messages as failure, and
+is startup-globals-owner only. Slots never set/reset/flush/resync shared globals.
+
+Read-only `HaSyncState(owner)` reports four per-kind support/configured/activity
+entries, observable native endpoints, retrieved time and observation errors.
+Only EI is supported. ED/ACL are unsupported; native IPsec rekeys after failover.
+Activity means exact native endpoints match running configuration, not remote
+session continuity. No packet counters are exposed; `packet_counters_available`
+is false. Completion count is a uint64 decimal string on JSON/TypeScript, scoped
+to this process; last completion and missed-message count have explicit presence.
+Membership/secretRef comes from authoritative config, never fabricated getters.

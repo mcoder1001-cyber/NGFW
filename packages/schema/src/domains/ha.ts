@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { HaNatListenerSchema, HaNatFailoverSchema } from './ext/ha-state-sync.js';
 import { withUi } from '../ui.js';
 import { hostname, ipAddress, objectName, vppInterfaceName } from '../primitives.js';
 import {
@@ -182,6 +183,8 @@ export const HaClusterSchema = z
         ipsec: withUi(z.boolean().default(false), { title: 'IPsec SAs', widget: 'switch' }),
         acl: withUi(z.boolean().default(false), { title: 'ACL sessions', widget: 'switch' }),
         // wave-BC: F-ha-state-sync
+        natListener: HaNatListenerSchema.optional(),
+        natFailover: HaNatFailoverSchema.optional(),
       }),
       { title: 'State synchronisation' },
     ).prefault({}),

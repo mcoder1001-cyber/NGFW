@@ -377,6 +377,7 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	// wave-BC: F-igmp-mfib
 	desired.IgmpMfib(p, ds, in, vrfID, desired.IgmpGlobalsOwner())
 	// wave-BC: F-ha-state-sync
+	desired.HaSync(p, ds, in)
 	// wave-A: F-bonding
 	if in["interfaces"] {
 		desired.Bonds(p, ds.GetInterfaces()) // interfaces.<BondEthernet<id>>.bond → bond.bond, bond.member, bond.member-weight
@@ -615,6 +616,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleIgmpMfib(ds, kvs, nameOf)
 	}
 	// wave-BC: F-ha-state-sync
+	desired.AssembleHaSync(ds, kvs, in)
 	// wave-A: F-bonding
 	if in["interfaces"] {
 		desired.AssembleBonds(ds, kvs, stored, nameOf) // the bond leaf of every retrieved bond (F-bonding)

@@ -1,0 +1,79 @@
+{
+  "state": {
+    "path": "http://127.0.0.1:15421/system/ha",
+    "title": "NGFW",
+    "lang": "en",
+    "dir": "ltr"
+  },
+  "responses": [
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

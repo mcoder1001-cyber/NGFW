@@ -2,17 +2,17 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 90.5% by hours (1428.0/1577.5 h), 90.5% by tasks (191/211)**
+**Overall: 91.2% by hours (1438.0/1577.5 h), 91.0% by tasks (192/211)**
 
 | state | tasks |
 |---|---|
-| merged | 191 |
+| merged | 192 |
 | review | 0 |
-| running | 3 |
-| ready | 1 |
+| running | 2 |
+| ready | 2 |
 | parked | 9 |
 | failed | 0 |
-| todo | 7 |
+| todo | 6 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,7 +20,7 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 937.0 / 1002.0 | 93.5% | 139/150 | 2 | 0 | 6 |
+| S4 | 947.0 / 1002.0 | 94.5% | 140/150 | 1 | 1 | 6 |
 | S5 | 132 / 155.5 | 84.9% | 13/16 | 1 | 1 | 1 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -28,7 +28,6 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Remaining implementation / review
 
-- F-bfd-redistribution — Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX (running, unassigned; New source97f67a2c closes R5 scale/history defects; R5 verify APPROVE; affected reviews and full gate pending.)
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
 - F-ha-state-sync — HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation (running, unassigned; New API source834eed6f:691tests PASS; independent actual API replay active; R6 stale observation defect reproduced awaiting repair.)
 

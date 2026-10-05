@@ -213,17 +213,7 @@ func Vrrp(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, opts VrrpOptions)
 	}
 	ha := ds.GetHa()
 	// Membership and configuration sync are applied by the API, never the agent.
-	// Session/state replication remains outside F-vrrp-config-sync.
-	st := ha.GetCluster().GetStateSync()
-	for _, flag := range []struct {
-		name    string
-		enabled bool
-	}{{"nat", st.GetNat()}, {"ipsec", st.GetIpsec()}, {"acl", st.GetAcl()}} {
-		if flag.enabled {
-			s.Warnf(Ptr("ha", "cluster", "stateSync", flag.name), "agent.unsupported-field",
-				"HA %s session replication is not implemented by this agent build", flag.name)
-		}
-	}
+	// State-sync support and warnings are owned by desired.HaSync.
 
 	names := make([]string, 0, len(ha.GetVrrp()))
 	for n := range ha.GetVrrp() {

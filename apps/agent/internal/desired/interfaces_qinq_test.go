@@ -26,6 +26,7 @@ import (
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/ownertable"
+	ravpn "ngfw/agent/internal/ra_vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
 )
@@ -188,10 +189,15 @@ func atou(s string) uint32 {
 
 var qinqWirings sync.Map
 
-func closeQinqSvc(s *agent.Service) {
+func closeQinqSvc(t *testing.T, s *agent.Service) {
+	t.Helper()
 	s.Close()
-	if value, ok := qinqWirings.LoadAndDelete(s); ok {
-		value.(*subsystems.Wiring).Close()
+	if value, ok := qinqWirings.Load(s); ok {
+		if err := value.(*subsystems.Wiring).Close(); err != nil {
+			t.Errorf("close paired QinQ wiring: %v", err)
+			return
+		}
+		qinqWirings.Delete(s)
 	}
 }
 
@@ -202,7 +208,12 @@ func newQinqSvc(t *testing.T, v *coretest.VPP, dir string) *agent.Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: qinqOwner, StateDir: dir, Owned: owned, NetdevKind: vethOnly})
+	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: qinqOwner, StateDir: dir, Owned: owned, NetdevKind: vethOnly, RA: &subsystems.RAControllerOptions{Inventory: func(_ context.Context, owner string) ([]*ravpn.NetworkPlan, error) {
+		if owner != qinqOwner {
+			return nil, ravpn.ErrEngine
+		}
+		return nil, nil
+	}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +225,7 @@ func newQinqSvc(t *testing.T, v *coretest.VPP, dir string) *agent.Service {
 		t.Fatal(err)
 	}
 	qinqWirings.Store(svc, w)
-	t.Cleanup(func() { closeQinqSvc(svc) })
+	t.Cleanup(func() { closeQinqSvc(t, svc) })
 	return svc
 }
 
@@ -380,7 +391,7 @@ func TestQinQRoundTripOnFake(t *testing.T) {
 	mustRetrieve(t, s, canonicalQinqDoc)
 
 	// a restarted agent (new service, same state dir) converges without re-creating anything
-	closeQinqSvc(s)
+	closeQinqSvc(t, s)
 	s2 := newQinqSvc(t, v, dir)
 	v.Reset()
 	if r := s2.Resync(context.Background()); r.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {

@@ -15,6 +15,36 @@ import (
 
 var ErrBoundary = errors.New("remote-access: isolated runtime boundary refused")
 
+// ValidateDaemonSandbox makes ignored/unsupported unit isolation fail closed.
+// The helper must be PID1 in its own mounted proc view; host control sockets,
+// credentials and block devices must be hidden before charon can be executed.
+func ValidateDaemonSandbox() error {
+	if os.Geteuid() != 0 || os.Getpid() != 1 {
+		return ErrBoundary
+	}
+	data, err := os.ReadFile("/proc/self/status")
+	if err != nil {
+		return ErrBoundary
+	}
+	fields := map[string]string{}
+	for _, line := range strings.Split(string(data), "\n") {
+		words := strings.Fields(line)
+		if len(words) == 2 {
+			fields[strings.TrimSuffix(words[0], ":")] = words[1]
+		}
+	}
+	if fields["Pid"] != "1" || fields["NoNewPrivs"] != "1" || ValidateHelperCapabilities(string(data)) != nil {
+		return ErrBoundary
+	}
+	for _, path := range []string{"/etc/shadow", "/etc/ssh/ssh_host_ed25519_key", "/run/systemd/private", "/run/ngfw/agent.sock", "/var/lib/ngfw", "/dev/sda", "/dev/nvme0n1"} {
+		_, err := os.Stat(path)
+		if err == nil || !os.IsNotExist(err) {
+			return ErrBoundary
+		}
+	}
+	return nil
+}
+
 func isolatedIdentity(expected uint64, binding, self, host unix.Stat_t) bool {
 	return expected != 0 && binding.Ino == expected && self.Ino == binding.Ino && self.Dev == binding.Dev && (self.Ino != host.Ino || self.Dev != host.Dev)
 }
@@ -144,7 +174,13 @@ func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
 	defer unix.Close(ns)
 	var binding, self, host unix.Stat_t
 	var fs unix.Statfs_t
-	if unix.Fstat(ns, &binding) != nil || unix.Fstatfs(ns, &fs) != nil || fs.Type != unix.NSFS_MAGIC || unix.Stat("/proc/self/ns/net", &self) != nil || unix.Stat("/proc/1/ns/net", &host) != nil {
+	base, err := unix.Openat(fd, "hostnetns", unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return nil, ErrBoundary
+	}
+	defer unix.Close(base)
+	var baseFS unix.Statfs_t
+	if unix.Fstat(ns, &binding) != nil || unix.Fstatfs(ns, &fs) != nil || fs.Type != unix.NSFS_MAGIC || unix.Stat("/proc/self/ns/net", &self) != nil || unix.Fstat(base, &host) != nil || unix.Fstatfs(base, &baseFS) != nil || baseFS.Type != unix.NSFS_MAGIC || host.Ino != plan.HostNamespaceInode {
 		return nil, ErrBoundary
 	}
 	if !isolatedIdentity(plan.NamespaceInode, binding, self, host) {
@@ -161,7 +197,7 @@ func DecodePrivatePlan(data []byte, instance string) (*NetworkPlan, error) {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	var plan NetworkPlan
-	if decoder.Decode(&plan) != nil || decoder.Decode(new(any)) != io.EOF || plan.Instance != instance || plan.NamespaceInode == 0 || plan.Validate() != nil {
+	if decoder.Decode(&plan) != nil || decoder.Decode(new(any)) != io.EOF || plan.Instance != instance || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.HostNamespaceInode == plan.NamespaceInode || plan.Validate() != nil {
 		return nil, ErrBoundary
 	}
 	return &plan, nil

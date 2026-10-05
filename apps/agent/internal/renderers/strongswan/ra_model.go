@@ -196,7 +196,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 		}
 	}
 	secrets.WriteString("}\n")
-	socket, err := quoted("unix://" + filepath.Join(root, "vici.sock"))
+	socket, err := quoted("unix://" + filepath.Join(root, "daemon", "vici.sock"))
 	if err != nil {
 		return refuse("VICI socket")
 	}

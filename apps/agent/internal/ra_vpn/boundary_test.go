@@ -24,6 +24,12 @@ func TestHelperRefusesHostNamespaceEvenWithValidBinding(t *testing.T) {
 	}
 }
 
+func TestDaemonSandboxRefusesUnisolatedHostProcess(t *testing.T) {
+	if ValidateDaemonSandbox() == nil {
+		t.Fatal("unisolated host process passed daemon sandbox")
+	}
+}
+
 func TestHelperCapabilitiesRejectHostAdministration(t *testing.T) {
 	status := func(mask uint64) string {
 		return fmt.Sprintf("CapEff:\t%016x\nCapPrm:\t%016x\nCapBnd:\t%016x\nCapInh:\t0\nCapAmb:\t0\n", mask, mask, mask)
@@ -44,6 +50,7 @@ func TestHelperCapabilitiesRejectHostAdministration(t *testing.T) {
 func TestPrivatePlanStrictIdentityAndBounds(t *testing.T) {
 	plan := networkFixture()
 	plan.NamespaceInode = 1234
+	plan.HostNamespaceInode = 1233
 	data, _ := json.Marshal(plan)
 	if _, err := DecodePrivatePlan(data, plan.Instance); err != nil {
 		t.Fatal(err)

@@ -40,7 +40,7 @@ func (*NamespaceDescriptor) Dependencies(proto.Message) []scheduler.Dependency {
 // NamespaceValue contains public input only. Runtime inode belongs to Meta,
 // never the desired protobuf (which must remain equal across restarts).
 func NamespaceValue(plan *NetworkPlan) (*structpb.Struct, error) {
-	if plan.Validate() != nil || plan.NamespaceInode != 0 {
+	if plan.Validate() != nil || plan.NamespaceInode != 0 || plan.HostNamespaceInode != 0 {
 		return nil, ErrPlan
 	}
 	data, err := json.Marshal(plan)
@@ -65,7 +65,7 @@ func (d *NamespaceDescriptor) input(value proto.Message) (*NetworkPlan, error) {
 	var plan NetworkPlan
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&plan) != nil || decoder.Decode(new(any)) != io.EOF || plan.Owner != d.owner || plan.NamespaceInode != 0 || plan.Validate() != nil {
+	if decoder.Decode(&plan) != nil || decoder.Decode(new(any)) != io.EOF || plan.Owner != d.owner || plan.NamespaceInode != 0 || plan.HostNamespaceInode != 0 || plan.Validate() != nil {
 		return nil, ErrPlan
 	}
 	return &plan, nil
@@ -76,7 +76,7 @@ func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (
 		return nil, err
 	}
 	if err = CreateNamespace(ctx, plan); err != nil {
-		if plan.NamespaceInode != 0 {
+		if plan.NamespaceInode != 0 || plan.HostNamespaceInode != 0 {
 			return NamespaceMeta{plan.NamespaceInode}, scheduler.PartialCreate(errors.Join(err, scheduler.ErrUncertainOutcome))
 		}
 		return nil, err
@@ -143,7 +143,7 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		if plan.Owner != d.owner {
 			continue
 		}
-		if plan.Validate() != nil || plan.Instance != entry.Name() || plan.NamespaceInode == 0 {
+		if plan.Validate() != nil || plan.Instance != entry.Name() || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode {
 			return nil, ErrBoundary
 		}
 		binding := filepath.Join(InstanceRoot, entry.Name(), "netns")
@@ -153,13 +153,19 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		}
 		var stat, host unix.Stat_t
 		var fs unix.Statfs_t
-		bad := unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != plan.NamespaceInode || unix.Stat("/proc/1/ns/net", &host) != nil || stat.Ino == host.Ino && stat.Dev == host.Dev
+		base, err := unix.Open(filepath.Join(InstanceRoot, entry.Name(), "hostnetns"), unix.O_NOFOLLOW|unix.O_RDONLY|unix.O_CLOEXEC, 0)
+		var baseFS unix.Statfs_t
+		bad := err != nil || unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != plan.NamespaceInode || unix.Fstat(base, &host) != nil || unix.Fstatfs(base, &baseFS) != nil || baseFS.Type != unix.NSFS_MAGIC || host.Ino != plan.HostNamespaceInode || stat.Ino == host.Ino && stat.Dev == host.Dev
+		if base >= 0 {
+			unix.Close(base)
+		}
 		unix.Close(fd)
 		if bad {
 			return nil, ErrBoundary
 		}
 		meta := NamespaceMeta{plan.NamespaceInode}
 		plan.NamespaceInode = 0
+		plan.HostNamespaceInode = 0
 		value, err := NamespaceValue(&plan)
 		if err != nil {
 			return nil, err

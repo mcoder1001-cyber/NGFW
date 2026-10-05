@@ -29,7 +29,7 @@ func TestRAIndependentRendererAndSecretRedaction(t *testing.T) {
 			t.Errorf("missing %s", expected)
 		}
 	}
-	for _, expected := range []string{"kernel-netlink", "install_routes = no", "install_routes_xfrmi = no", "install_virtual_ip = no", "unix:///run/ngfw/ra/fixture/vici.sock"} {
+	for _, expected := range []string{"kernel-netlink", "install_routes = no", "install_routes_xfrmi = no", "install_virtual_ip = no", "unix:///run/ngfw/ra/fixture/daemon/vici.sock"} {
 		if !strings.Contains(string(files.Daemon), expected) {
 			t.Errorf("missing %s", expected)
 		}

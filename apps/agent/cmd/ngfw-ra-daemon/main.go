@@ -12,6 +12,9 @@ import (
 )
 
 func run() error {
+	if len(os.Args) != 2 || !ravpn.ValidInstance(os.Args[1]) || ravpn.ValidateDaemonSandbox() != nil {
+		return ravpn.ErrBoundary
+	}
 	return runWith(ravpn.ConfigureNamespace, ravpn.ValidatePrivateFile, syscall.Exec)
 }
 

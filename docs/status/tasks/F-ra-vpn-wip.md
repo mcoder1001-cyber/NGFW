@@ -229,3 +229,26 @@ consumer actual lowcap hostrefusal/privateacceptance +namespace restart/cleanup
 underlablock PASS0.249s (not yet this contract-only remote tree). Contract publishes
 first; consumer follows. No daemon invocation, no leftoverprivate mounts.
 Current remoteef935936. Next: publish hostNSFS consumer/unitrunfs isolation.
+
+HostNSFS consumer checkpoint: trusted agent binds parent NSFS hostnetns before
+unsharechild creates distinctnetns; strict rootplan decoder requires distinctpair.
+Lowcap helper opens BOTH held NSFS files, matchesrootmetadata/currentprivate;
+never relies on masked Proc1stat. Actual bounded-cap child onhostrefused and
+private-ns accepted; namespace restart/rollback/cancel +NFTparser integration
+PASS0.244s, renderer/VICI PASS0.111s, helper PASS0.038s underlablock. No daemon.
+Unit now hideshost /run,etc,varlib,varlog,opt using private mount overlays and
+binds onlyownprofile readonly +VICI daemon child writable. PrivateDevices and
+PrivatePIDs (systemd257+, actualUbuntu26.04 systemd259) hidehostblock/processes;
+onlypublic NSS/ldso files rebound, hostdata/boot/backups inaccessible, debug/mount/
+reboot/rawIO/swap syscalls denied. Helper additionally requiresPID1/privateproc,
+NoNewPrivs and absenthostcontrol/credential/dev paths beforeexec. VICI moves
+instance/daemon/vici.sock; config/PKI/metadata remain readonly insideunit.
+Actual systemd mount/seccomp enforcement is not yet accepted; disposable fixture
+and packagedVM verification required; activeprofiles remainfailclosed.
+Source: https://github.com/systemd/systemd/blob/main/man/systemd.exec.xml
+
+Diskcritical ownership action: moved ONLY own t19 artifacts into executable
+/dev/shm/w19-ra-20261005 (owner marker), source tar/binary/receipt hashes matched,
+original /root/.cache/t19 prefix preserved via ownsymlink. New TMPDIR/GOTMPDIR/
+GOCACHE must use ownshm subdirs; nosharedcaches touched. Current remote7f647612.
+Next: guarded TAP/ACL/readback consumer and real private6.1 EAP lifecycle fixture.

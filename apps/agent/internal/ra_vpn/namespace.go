@@ -12,26 +12,19 @@ import (
 // CreateNamespace runs in a fixed short-lived subprocess. It never changes a
 // Go runtime thread (which might also be the process leader).
 func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
-	if plan.Validate() != nil || plan.NamespaceInode != 0 || os.Geteuid() != 0 {
+	if plan.Validate() != nil || plan.NamespaceInode != 0 || plan.HostNamespaceInode != 0 || os.Geteuid() != 0 {
 		return ErrBoundary
 	}
 	dir := filepath.Join(InstanceRoot, plan.Instance)
 	if err := prepareInstance(plan.Instance); err != nil {
 		return err
 	}
-	path := filepath.Join(dir, "netns")
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDONLY, 0600)
-	if err != nil {
-		return ErrBoundary
+	var err error
+	plan.HostNamespaceInode, err = mountNamespaceBinding(ctx, plan.Instance, "hostnetns", false)
+	if err == nil {
+		plan.NamespaceInode, err = mountNamespaceBinding(ctx, plan.Instance, "netns", true)
 	}
-	file.Close()
-	_, err = command(ctx, "/usr/bin/unshare", nil, "--net", "--", "/usr/bin/mount", "--bind", "/proc/self/ns/net", path)
-	var stat unix.Stat_t
-	var fs unix.Statfs_t
-	if unix.Stat(path, &stat) == nil && unix.Statfs(path, &fs) == nil && fs.Type == unix.NSFS_MAGIC {
-		plan.NamespaceInode = stat.Ino
-	}
-	if err == nil && plan.NamespaceInode == 0 {
+	if err == nil && (plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode) {
 		err = ErrBoundary
 	}
 	if err == nil {
@@ -50,18 +43,44 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 		}
 	}
 	if err != nil {
-		if plan.NamespaceInode != 0 {
-			if removeBinding(plan.Instance, plan.NamespaceInode) != nil {
-				return ErrBoundary
+		for _, binding := range []struct {
+			name  string
+			inode uint64
+		}{{"netns", plan.NamespaceInode}, {"hostnetns", plan.HostNamespaceInode}} {
+			if binding.inode != 0 {
+				if removeNamedBinding(plan.Instance, binding.name, binding.inode) != nil {
+					return ErrBoundary
+				}
+			} else {
+				_ = os.Remove(filepath.Join(dir, binding.name))
 			}
-		} else {
-			_ = os.Remove(path)
 		}
 		_ = os.Remove(filepath.Join(dir, "network.json"))
 		_ = os.Remove(dir)
 		plan.NamespaceInode = 0
+		plan.HostNamespaceInode = 0
 	}
 	return err
+}
+
+func mountNamespaceBinding(ctx context.Context, instance, name string, isolated bool) (uint64, error) {
+	path := filepath.Join(InstanceRoot, instance, name)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDONLY, 0600)
+	if err != nil {
+		return 0, ErrBoundary
+	}
+	file.Close()
+	if isolated {
+		_, err = command(ctx, "/usr/bin/unshare", nil, "--net", "--", "/usr/bin/mount", "--bind", "/proc/self/ns/net", path)
+	} else {
+		_, err = command(ctx, "/usr/bin/mount", nil, "--bind", "/proc/self/ns/net", path)
+	}
+	var stat unix.Stat_t
+	var fs unix.Statfs_t
+	if unix.Stat(path, &stat) == nil && unix.Statfs(path, &fs) == nil && fs.Type == unix.NSFS_MAGIC {
+		return stat.Ino, err
+	}
+	return 0, ErrBoundary
 }
 
 func prepareInstance(instance string) error {
@@ -102,26 +121,37 @@ func RemoveNamespace(instance string, inode uint64) error {
 	if !ValidInstance(instance) || inode == 0 {
 		return ErrBoundary
 	}
-	dir := filepath.Join(InstanceRoot, instance)
-	if ValidatePrivateFile(filepath.Join(dir, "network.json"), 16384) != nil {
+	path := filepath.Join(InstanceRoot, instance, "network.json")
+	if ValidatePrivateFile(path, 16384) != nil {
 		return ErrBoundary
 	}
-	return removeBinding(instance, inode)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ErrBoundary
+	}
+	plan, err := DecodePrivatePlan(data, instance)
+	if err != nil || plan.NamespaceInode != inode {
+		return ErrBoundary
+	}
+	if removeNamedBinding(instance, "netns", inode) != nil {
+		return ErrBoundary
+	}
+	return removeNamedBinding(instance, "hostnetns", plan.HostNamespaceInode)
 }
 
-func removeBinding(instance string, inode uint64) error {
-	if !ValidInstance(instance) || inode == 0 {
+func removeNamedBinding(instance, name string, inode uint64) error {
+	if !ValidInstance(instance) || inode == 0 || (name != "netns" && name != "hostnetns") {
 		return ErrBoundary
 	}
-	path := filepath.Join(InstanceRoot, instance, "netns")
+	path := filepath.Join(InstanceRoot, instance, name)
 	fd, err := unix.Open(path, unix.O_NOFOLLOW|unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return ErrBoundary
 	}
 	defer unix.Close(fd)
-	var stat, host unix.Stat_t
+	var stat unix.Stat_t
 	var fs unix.Statfs_t
-	if unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != inode || unix.Stat("/proc/1/ns/net", &host) != nil || stat.Ino == host.Ino && stat.Dev == host.Dev {
+	if unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != inode {
 		return ErrBoundary
 	}
 	// The held identity fd pins this exact mount. Detach only the verified

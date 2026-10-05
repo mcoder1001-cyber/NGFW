@@ -38,7 +38,7 @@ tar --extract --bzip2 --file "$build_work/strongswan-6.1.0.tar.bz2" --directory 
 cd "$build_work/strongswan-6.1.0"
 ./configure --prefix=/opt/ngfw-ra --sysconfdir=/opt/ngfw-ra/etc \
  --with-systemdsystemunitdir=/opt/ngfw-ra/lib/systemd/system \
- --disable-defaults --enable-systemd --enable-swanctl --enable-vici \
+ --disable-defaults --enable-ikev2 --enable-systemd --enable-swanctl --enable-vici \
  --enable-kernel-netlink --enable-socket-default --enable-openssl \
  --enable-random --enable-nonce --enable-pem --enable-pkcs1 --enable-pkcs8 \
  --enable-x509 --enable-pubkey --enable-revocation --enable-constraints \

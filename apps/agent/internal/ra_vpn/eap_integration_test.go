@@ -1,0 +1,157 @@
+package ravpn
+
+import (
+	"context"
+	"encoding/pem"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/strongswan/govici/vici"
+	"google.golang.org/protobuf/encoding/protojson"
+	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	"ngfw/agent/internal/renderers/strongswan"
+)
+
+func privateMessage(values ...any) *vici.Message {
+	m := vici.NewMessage()
+	for i := 0; i < len(values); i += 2 {
+		if err := m.Set(values[i].(string), values[i+1]); err != nil {
+			panic(err)
+		}
+	}
+	return m
+}
+func privateIP(t *testing.T, plan *NetworkPlan, args ...string) {
+	t.Helper()
+	argv := append([]string{"--net=" + filepath.Join(InstanceRoot, plan.Instance, "netns"), "--", "/usr/sbin/ip"}, args...)
+	if exec.Command("/usr/bin/nsenter", argv...).Run() != nil {
+		t.Fatal("owned namespace link setup refused")
+	}
+}
+func createEAPNamespace(t *testing.T, plan *NetworkPlan) {
+	t.Helper()
+	if err := CreateNamespace(context.Background(), plan); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := RemoveNamespace(plan.Instance, plan.NamespaceInode); err != nil {
+			t.Error(err)
+			return
+		}
+		if err := os.RemoveAll(filepath.Join(InstanceRoot, plan.Instance)); err != nil {
+			t.Error(err)
+		}
+	})
+}
+func TestIntegrationPrivateEAPNegotiationAndObservedDisconnect(t *testing.T) {
+	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" {
+		t.Skip("requires authenticated isolated engine artifact")
+	}
+	server := networkFixture()
+	server.Owner = "w19-eap-server"
+	server.Profile = strconv.Itoa(os.Getpid())
+	server.Instance = InstanceID(server.Owner, server.Profile)
+	server.Radius = nil
+	client := networkFixture()
+	client.Owner = "w19-eap-client"
+	client.Profile = server.Profile
+	client.Instance = InstanceID(client.Owner, client.Profile)
+	client.LocalAddress = "192.0.2.20"
+	client.Outer = Link{VPP: server.Outer.Namespace, Namespace: server.Outer.VPP}
+	client.Inner = Link{VPP: "198.18.19.4/31", Namespace: "198.18.19.5/31"}
+	client.Radius = nil
+	createEAPNamespace(t, server)
+	createEAPNamespace(t, client)
+	// Both veth endpoints originate in the verified server namespace. The peer
+	// moves directly into the held client namespace; no host interface is created.
+	privateIP(t, server, "link", "add", "outer0", "type", "veth", "peer", "name", "outer0", "netns", filepath.Join(InstanceRoot, client.Instance, "netns"))
+	for _, plan := range []*NetworkPlan{server, client} {
+		privateIP(t, plan, "address", "add", plan.Outer.Namespace, "dev", "outer0")
+		privateIP(t, plan, "link", "add", "inner0", "type", "dummy")
+		privateIP(t, plan, "address", "add", plan.Inner.Namespace, "dev", "inner0")
+	}
+	profile := new(ngfwv1.RemoteAccessProfile)
+	proposal := new(ngfwv1.IpsecProposal)
+	if protojson.Unmarshal([]byte(`{"localAddr":"192.0.2.19","localId":"vpn.example.test","auth":"eap-mschapv2","certificate":"server","pools":[{"name":"clients","prefix":"10.19.200.0/24","dns":["10.19.0.53"]}],"splitTunnel":["10.19.0.0/16"],"users":[{"username":"client","passwordRef":"password/client"}]}`), profile) != nil || protojson.Unmarshal([]byte(`{"ike":{"encr":"aes256","integ":"sha256","prf":"prfsha256","dh":"ecp256"},"esp":{"encr":"aes256gcm16","dh":"ecp256"}}`), proposal) != nil {
+		t.Fatal("profile fixture")
+	}
+	credentials, now := credentialsFixture(t)
+	credentials.ClientCA = nil
+	credentials.ClientCRL = nil
+	var serverFiles *strongswan.RAFiles
+	for _, plan := range []*NetworkPlan{server, client} {
+		dir := filepath.Join(InstanceRoot, plan.Instance)
+		files, err := strongswan.BuildRAFiles(context.Background(), "road", profile, proposal, dir, strongswan.SecretResolverFunc(func(context.Context, string) ([]byte, error) { return []byte("NGFW_TEST_PASSWORD_RA19"), nil }))
+		if err != nil {
+			t.Fatal(err)
+		}
+		files.Daemon = []byte(strings.Replace(string(files.Daemon), "journal {", "filelog { fixture { path = "+filepath.Join(dir, "daemon/fixture.log")+"\n default = 1\n flush_line = yes\n } }\n journal {", 1))
+		if err := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test"}, now); err != nil {
+			t.Fatal(err)
+		}
+		if plan == server {
+			serverFiles = files
+		}
+	}
+	serverVICI := startPrivateEngine(t, server)
+	clientVICI := startPrivateEngine(t, client)
+	if _, err := strongswan.LoadRA(context.Background(), serverVICI, serverFiles, strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(InstanceRoot, server.Instance, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey}); err != nil {
+		t.Fatal("private responder load refused", err)
+	}
+	call := func(name string, message *vici.Message) {
+		t.Helper()
+		response, err := clientVICI.Call(context.Background(), name, message)
+		if err != nil || response == nil || response.Get("success") != "yes" {
+			t.Fatal("private client configuration refused", name)
+		}
+	}
+	_, remaining := pem.Decode(credentials.Certificate)
+	ca, _ := pem.Decode(remaining)
+	if ca == nil {
+		t.Fatal("fixture CA absent")
+	}
+	call("load-cert", privateMessage("type", "X509", "flag", "CA", "data", string(ca.Bytes)))
+	call("load-shared", privateMessage("id", "client-eap", "type", "EAP", "owners", []string{"client"}, "data", "NGFW_TEST_PASSWORD_RA19"))
+	child := privateMessage("local_ts", []string{"dynamic"}, "remote_ts", []string{"10.19.0.0/16"}, "esp_proposals", []string{"aes256gcm16-ecp256"}, "if_id_in", "1", "if_id_out", "1", "set_mark_out", "1")
+	conn := privateMessage("version", "2", "local_addrs", []string{client.LocalAddress}, "remote_addrs", []string{server.LocalAddress}, "vips", []string{"0.0.0.0"}, "proposals", []string{"aes256-sha256-prfsha256-ecp256"}, "local", privateMessage("auth", "eap-mschapv2", "id", "client", "eap_id", "client"), "remote", privateMessage("auth", "pubkey", "id", "vpn.example.test"), "children", privateMessage("protected", child))
+	call("load-conn", privateMessage("ra-client", conn))
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	response, err := clientVICI.Call(ctx, "initiate", privateMessage("child", "protected", "timeout", "20000"))
+	if err != nil || response == nil || response.Get("success") != "yes" {
+		if response != nil {
+			for _, diagnostic := range []string{"CHILD_SA config 'protected' not found", "establishing CHILD_SA 'protected' failed", "initiating CHILD_SA 'protected' failed", "initiation failed", "no config found", "timeout waiting for IKE_SA"} {
+				if response.Get("errmsg") == diagnostic {
+					t.Log("sanitized client failure:", diagnostic)
+				}
+			}
+		}
+		for _, plan := range []*NetworkPlan{server, client} {
+			raw, readErr := os.ReadFile(filepath.Join(InstanceRoot, plan.Instance, "daemon/fixture.log"))
+			if readErr == nil && len(raw) < 1<<20 {
+				if evidence := os.Getenv("NGFW_RA_EVIDENCE_ROOT"); evidence != "" {
+					os.WriteFile(filepath.Join(evidence, plan.Instance+"-eap.log"), raw, 0600)
+				}
+				for _, marker := range []string{"NO_PROPOSAL_CHOSEN", "AUTHENTICATION_FAILED", "no socket implementation", "Network is unreachable", "no acceptable proposal found", "no trusted RSA public key found", "no trusted ECDSA public key found", "certificate rejected", "EAP method not supported", "EAP_MSCHAPV2 failed", "no shared key found", "no EAP key found", "received EAP_FAILURE", "constraint check failed", "no private key found", "CHILD_SA", "IKE_SA"} {
+					if strings.Contains(string(raw), marker) {
+						t.Log("bounded private log marker:", plan.Owner, marker)
+					}
+				}
+			}
+		}
+		t.Fatal("actual private EAP negotiation failed; diagnostics stay private")
+	}
+	sessions, err := strongswan.ObserveRASessions(context.Background(), serverVICI, "road", "fixture-eap-generation", profile.GetPools())
+	if err != nil || len(sessions) != 1 {
+		t.Fatal("negotiated EAP session readback failed", err)
+	}
+	if err := strongswan.DisconnectRASession(context.Background(), serverVICI, "road", "fixture-eap-generation", sessions[0].ID, profile.GetPools()); err != nil {
+		t.Fatal("actual observed disconnect failed", err)
+	}
+	t.Log("actual private EAP-MSCHAPv2 VIP/session negotiation and observed disconnect PASS; VPP/policy packet campaign remains")
+}

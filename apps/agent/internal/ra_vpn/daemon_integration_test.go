@@ -80,12 +80,27 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	if err = WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test"}, now); err != nil {
 		t.Fatal(err)
 	}
+	client := startPrivateEngine(t, plan)
+	name, err := strongswan.LoadRA(context.Background(), client, files, strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(dir, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey})
+	if err != nil || name != "ra-road" {
+		t.Fatal("actual private engine profile load failed", err)
+	}
+	sessions, err := strongswan.ObserveRASessions(context.Background(), client, "road", "fixture-generation", profile.GetPools())
+	if err != nil || len(sessions) != 0 {
+		t.Fatal("actual empty-session readback failed", err)
+	}
+	t.Log("actual guarded private strongSwan6.1 profile load and VICI empty-session readback PASS; packet negotiation remains a separate acceptance")
+}
+
+func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
+	t.Helper()
+	dir := filepath.Join(InstanceRoot, plan.Instance)
 	workspace := t.TempDir()
 	log, err := os.OpenFile(filepath.Join(workspace, "private-startup.log"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer log.Close()
+	t.Cleanup(func() { log.Close() })
 	t.Cleanup(func() {
 		data, err := os.ReadFile(filepath.Join(workspace, "private-startup.log"))
 		if err == nil && len(data) < 1<<20 {
@@ -105,7 +120,7 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer mountNamespace.Close()
+	t.Cleanup(func() { mountNamespace.Close() })
 	launcher, err := filepath.Abs("../../../../test/topology/ra-vpn/private-daemon.py")
 	if err != nil {
 		t.Fatal(err)
@@ -141,7 +156,7 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 			t.Error("own private fixture parent did not stop")
 		}
 	}
-	defer cleanup()
+	t.Cleanup(cleanup)
 	socket := filepath.Join(dir, "daemon", "vici.sock")
 	ready := false
 	for deadline := time.Now().Add(15 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
@@ -168,18 +183,10 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer client.Close()
+	t.Cleanup(func() { client.Close() })
 	version, err := client.Call(context.Background(), "version", nil)
 	if err != nil || version.Get("version") != "6.1.0" {
 		t.Fatal("authenticated private engine version mismatch")
 	}
-	name, err := strongswan.LoadRA(context.Background(), client, files, strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(dir, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey})
-	if err != nil || name != "ra-road" {
-		t.Fatal("actual private engine profile load failed", err)
-	}
-	sessions, err := strongswan.ObserveRASessions(context.Background(), client, "road", "fixture-generation", profile.GetPools())
-	if err != nil || len(sessions) != 0 {
-		t.Fatal("actual empty-session readback failed", err)
-	}
-	t.Log("actual guarded private strongSwan6.1 profile load and VICI empty-session readback PASS; packet negotiation remains a separate acceptance")
+	return client
 }

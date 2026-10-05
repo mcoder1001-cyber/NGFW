@@ -2,13 +2,13 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 90.3% by hours (1424.0/1577.5 h), 90.0% by tasks (190/211)**
+**Overall: 90.5% by hours (1428.0/1577.5 h), 90.5% by tasks (191/211)**
 
 | state | tasks |
 |---|---|
-| merged | 190 |
+| merged | 191 |
 | review | 0 |
-| running | 4 |
+| running | 3 |
 | ready | 1 |
 | parked | 9 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 933.0 / 1002.0 | 93.1% | 138/150 | 3 | 0 | 6 |
+| S4 | 937.0 / 1002.0 | 93.5% | 139/150 | 2 | 0 | 6 |
 | S5 | 132 / 155.5 | 84.9% | 13/16 | 1 | 1 | 1 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
@@ -31,13 +31,12 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 - F-bfd-redistribution — Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX (running, unassigned; New source97f67a2c closes R5 scale/history defects; R5 verify APPROVE; affected reviews and full gate pending.)
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
 - F-ha-state-sync — HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation (running, unassigned; New API source834eed6f:691tests PASS; independent actual API replay active; R6 stale observation defect reproduced awaiting repair.)
-- P11-host — Route-based IPsec host evidence: native IKEv2, FIB, ESP, rekey, recovery and rollback (running, unassigned; Reviewed sourcef59c3ea7; independent real native both-role lifecycle acceptance PASS; final integration pending.)
 
 ## Parked
 
 - TD-19 — parked_on: PENDING-TD19-repository-trust
 - LAB-vpp-per-slot — parked_on: PENDING-vpp-host-hardening
-- P12-fib-proof — parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
+- P12-fib-proof — parked_on: PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof
 - F-srv6-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-mpls-srmpls-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-global-blocking-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN

@@ -368,3 +368,27 @@ owned partial-cleanup fixes/finite actual regression remain under development.
 Next command: implement fixed socket service OpenFile manager namespace FD and
 bounded authenticated manager-target response, with typed NSFS proof and explicit
 unsupported custom VPP mount namespace readiness refusal; commit contract first.
+
+2026-10-05 numeric manager-opened target draft checkpoint: fixed root-only
+ngfw-ra-targets@PID socket/service, manager OpenFile=/proc/%i/ns/mnt and
+/proc/1/ns/mnt before cap drop. SystemdNamespaceTargets.ExpectedVPP callback
+must be actual connected VPP boot identity; Acquire only connects an already
+provisioned socket, no mkdir/systemctl start. It verifies exact installed template
+hashes/actual manager configuration, root socket peer, canonical VPP unit and
+full boot, two held typed NSFS FDs, provider exact cap2/NNP/full identity and
+manager-attested MainPID before ACK. One-request helper has finite deadlines.
+Actual compile/guard/malformed-rights tests PASS0.085. Updated standalone exact
+cap regression PASS0.601 with E/Prm/Bnd exact3/2, Inh/Amb0 andNNP1; formerly
+inherited/ambient3 proof was bounded prerequisite, NOT exact installed-unit proof.
+Proc namespace observations can return non-NSFS identities/FDs rather than errno;
+new regression proves nonzero/open success must not be accepted. Actual Go
+partial-removal/cross-root test currently FAIL at target-current (expected typed
+proc failure), not positive; consumer must switch to fresh manager-attested proof.
+Partial remover now idempotently skips only root0600empty single-link placeholders,
+uses MNT_DETACH only for exact owned NSFS, and verifies no NSFS remains. Original
+placeholder identity/replacement protection and durable role recovery remain.
+Source still unfinished; no broker/RA operational or overall acceptance claim.
+Next command: wire FixedNamespaceHandoff.Provider=SystemdNamespaceTargets with
+held-FD acquisition before/after each export; replace broker current-target proc
+check with independently authenticated fresh manager FD snapshots; exercise real
+private numeric provider and Go broker under exact caps before packaging/ready.

@@ -15,13 +15,16 @@ import unittest
 
 def verify_caps(expected):
     values = dict(line.split(':', 1) for line in Path('/proc/self/status').read_text().splitlines() if ':' in line)
-    assert int(values['CapEff'].strip(), 16) == expected
+    for field in ('CapEff', 'CapPrm', 'CapBnd'):
+        assert int(values[field].strip(), 16) == expected
+    for field in ('CapInh', 'CapAmb'):
+        assert int(values[field].strip(), 16) == 0
     assert values['NoNewPrivs'].strip() == '1'
 
 
 def bounded(arguments, caps):
     return ['/usr/bin/setpriv', '--no-new-privs', '--bounding-set=-all,' + caps,
-            '--inh-caps=-all,' + caps, '--ambient-caps=-all,' + caps,
+            '--inh-caps=-all', '--ambient-caps=-all',
             '/usr/bin/python3', str(Path(__file__).resolve()), *arguments]
 
 
@@ -56,6 +59,23 @@ def broker(path):
         else:
             os.close(foreign)
             raise AssertionError('broker unexpectedly bypassed source ptrace boundary')
+        # A stat success is not proof of an NSFS inode: under these bounds the
+        # kernel exposes the proc symlink inode, not the target namespace.
+        observed_namespace = os.stat('/proc/' + str(pid) + '/ns/mnt')
+        assert observed_namespace.st_ino != request['source_mount']
+        for suffix in ('exe', 'root'):
+            try:
+                os.stat('/proc/' + str(pid) + '/' + suffix)
+            except PermissionError:
+                pass
+            else:
+                raise AssertionError('broker unexpectedly bypassed process filesystem boundary')
+        try:
+            os.readlink('/proc/' + str(pid) + '/exe')
+        except PermissionError:
+            pass
+        else:
+            raise AssertionError('broker unexpectedly bypassed executable ptrace boundary')
         libc = ctypes.CDLL(None, use_errno=True)
         assert libc.unshare(0x200) == 0
         assert libc.setns(received[0], 0x20000) == 0
@@ -70,6 +90,22 @@ def broker(path):
 
 def agent(path, mount, host):
     verify_caps((1 << 12) | (1 << 21) | (1 << 14))
+    # Acquire after dropping to the actual agent bounds, not beforehand.
+    try:
+        manager = os.open('/proc/1/ns/mnt', os.O_RDONLY)
+    except PermissionError:
+        manager = None
+    else:
+        try:
+            try:
+                fcntl.ioctl(manager, 0xb703)
+            except OSError as error:
+                import errno
+                assert error.errno == errno.ENOTTY
+            else:
+                raise AssertionError('unexpected independent typed manager namespace acquisition')
+        finally:
+            os.close(manager)
     private = os.open('/proc/self/ns/net', os.O_RDONLY)
     peer = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
     peer.settimeout(5)
@@ -83,7 +119,7 @@ def agent(path, mount, host):
     else:
         raise AssertionError('bounded private broker did not listen')
     fds = array.array('i', (mount, host, private))
-    request = json.dumps({'pid': os.getpid(), 'original': private, 'inodes': [os.fstat(fd).st_ino for fd in fds]}).encode()
+    request = json.dumps({'pid': os.getpid(), 'original': private, 'source_mount': os.stat('/proc/self/ns/mnt').st_ino, 'inodes': [os.fstat(fd).st_ino for fd in fds]}).encode()
     peer.sendmsg([request], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, fds)])
     assert peer.recv(16) == b'OK'
     peer.close()

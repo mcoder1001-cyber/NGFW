@@ -9,7 +9,9 @@ import (
 
 func main() {
 	var err error
-	if len(os.Args) != 1 {
+	if len(os.Args) == 3 && os.Args[1] == "--targets" {
+		err = ravpn.RunNamespaceTargetProvider(os.Args[2])
+	} else if len(os.Args) != 1 {
 		err = ravpn.ErrBoundary
 	} else {
 		err = ravpn.RunManagedNamespaceBroker(0)

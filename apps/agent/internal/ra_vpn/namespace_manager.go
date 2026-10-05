@@ -221,6 +221,18 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	if len(uids) != 4 || uids[0] != "0" || uids[1] != "0" || uids[2] != "0" || uids[3] != "0" || e != nil || capabilities != allowed || fields["NoNewPrivs"] != "1" {
 		return ErrBoundary
 	}
+	for _, field := range []string{"CapPrm", "CapBnd"} {
+		value, err := strconv.ParseUint(fields[field], 16, 64)
+		if err != nil || value != allowed {
+			return ErrBoundary
+		}
+	}
+	for _, field := range []string{"CapInh", "CapAmb"} {
+		value, err := strconv.ParseUint(fields[field], 16, 64)
+		if err != nil || value & ^allowed != 0 {
+			return ErrBoundary
+		}
+	}
 	var sourceMount unix.Stat_t
 	if unix.Stat(sourceRoot+"/ns/mnt", &sourceMount) != nil || sourceMount.Ino != request.Source.MountInode {
 		return ErrBoundary
@@ -230,8 +242,9 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	if request.Targets[1].Boot.PID != 1 {
 		return ErrBoundary
 	}
-	executable, e := os.Readlink("/proc/" + strconv.Itoa(request.Targets[0].Boot.PID) + "/exe")
-	if e != nil || executable != "/usr/bin/vpp" {
+	roleContext, cancelRole := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelRole()
+	if verifyBrokerVPPUnit(roleContext, request.Targets[0]) != nil {
 		return ErrBoundary
 	}
 	matched := false
@@ -265,4 +278,60 @@ func RunManagedNamespaceBroker(socketFD int) error {
 		return ErrBoundary
 	}
 	return unix.Sendmsg(socketFD, []byte("OK"), nil, nil, 0)
+}
+
+// verifyBrokerVPPUnit uses manager-authoritative metadata because the broker's
+// two capabilities intentionally cannot dereference another process's exe.
+// Only the appliance vendor unit and its exact NGFW firstboot drop-in are accepted.
+func verifyBrokerVPPUnit(ctx context.Context, target MountTarget) error {
+	if verifyBrokerVPPUnitIdentity(ctx, target) != nil || !brokerCurrentMount(target.Boot, target.MountInode) {
+		return ErrBoundary
+	}
+	return nil
+}
+func verifyBrokerVPPUnitIdentity(ctx context.Context, target MountTarget) error {
+	fragment, err := trustedInstallationFile("/usr/lib/systemd/system/vpp.service", 16384, false)
+	if err != nil {
+		return ErrBoundary
+	}
+	digest := sha256.Sum256(fragment)
+	if hex.EncodeToString(digest[:]) != "6b004cdaa5b541c5d836eb45b65204d3b38a3081ce11717c9d3be6b4268c1716" {
+		return ErrBoundary
+	}
+	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,FragmentPath,DropInPaths,ExecStart", "vpp.service")
+	output, err := command.Output()
+	if err != nil || len(output) > 16384 {
+		return ErrBoundary
+	}
+	fields := map[string]string{}
+	for _, line := range strings.Split(string(output), "\n") {
+		key, value, ok := strings.Cut(line, "=")
+		if ok {
+			fields[key] = value
+		}
+	}
+	pid, err := strconv.Atoi(fields["MainPID"])
+	if err != nil || pid != target.Boot.PID || fields["FragmentPath"] != "/usr/lib/systemd/system/vpp.service" || !strings.Contains(fields["ExecStart"], "path=/usr/bin/vpp ; argv[]=/usr/bin/vpp -c /etc/vpp/startup.conf ;") {
+		return ErrBoundary
+	}
+	if fields["DropInPaths"] != "/usr/lib/systemd/system/vpp.service.d/vpp-firstboot.conf" {
+		return ErrBoundary
+	}
+	for _, path := range strings.Fields(fields["DropInPaths"]) {
+		if path != "/usr/lib/systemd/system/vpp.service.d/vpp-firstboot.conf" {
+			return ErrBoundary
+		}
+		content, err := trustedInstallationFile(path, 16384, false)
+		if err != nil {
+			return ErrBoundary
+		}
+		digest := sha256.Sum256(content)
+		if hex.EncodeToString(digest[:]) != "a0ccadfaaa4c6d8217ddd7294cf33bb3b1d837e09a083b8d51d9969e0112ad82" {
+			return ErrBoundary
+		}
+	}
+	if !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
+		return ErrBoundary
+	}
+	return nil
 }

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Launch and clean up the slot product API/agent for private tunnel probes."""
 import argparse
+from contextlib import contextmanager
 import json
 import os
 from pathlib import Path
 import secrets
+import signal
 import socket
 import subprocess
 import sys
@@ -16,10 +18,10 @@ from tunnels import Api,run,check_commit
 ROOT=Path(__file__).resolve().parents[3]
 
 
-def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--slot',type=int,required=True)
-    parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
-    values=slot_values(args.slot);owner=values['NGFW_TEST_PREFIX']+'tb'
+@contextmanager
+def product_stack(slot, *, target_socket=None, target_owner=None):
+    values=slot_values(slot);owner=values['NGFW_TEST_PREFIX']+'tb'
+    agent_owner=target_owner or owner
     if os.environ.get('NGFW_DISPOSABLE_VPP')!='1' or not os.environ.get('NGFW_TRAFFIC_PRIVATE_VPP_PID'):
         raise Refused('private wrapper process identity required')
     api_socket=Path(os.environ['NGFW_VPP_API_SOCKET']);mounted=Path('/run/vpp/api.sock')
@@ -42,7 +44,7 @@ def main():
         runtime.chmod(0o700)
         dsn=dict(line.split('=',1) for line in (runtime/'pg.env').read_text().splitlines())['NGFW_PG_DSN']
         common={'PATH':os.environ['PATH'],'HOME':os.environ['HOME'],**values}
-        agent_env=dict(common,NGFW_OWNER=owner,NGFW_GLOBALS_OWNER='0',NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),
+        agent_env=dict(common,NGFW_OWNER=agent_owner,NGFW_GLOBALS_OWNER='0',NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),
                        NGFW_AGENT_STATE_DIR=str(runtime/'state'),NGFW_AGENT_VPP_API_SOCKET=str(api_socket),
                        NGFW_METRICS_ADDR='off',NGFW_SOCKET_GROUP='root',NGFW_KEA_MODE='off',NGFW_LOG_LEVEL='info')
         def start(argv,env,label):
@@ -50,7 +52,8 @@ def main():
             stream=os.fdopen(fd,'wb');streams.append(stream)
             process=subprocess.Popen(argv,env=env,cwd=ROOT,stdout=stream,stderr=subprocess.STDOUT)
             processes.append(process);return process
-        ag=start([str(agent)],agent_env,'agent')
+        ag=start([str(agent)],agent_env,'agent') if target_socket is None else None
+        agent_socket=target_socket or str(runtime/'agent.sock')
         kvport=port+80
         with socket.socket() as check:
             check.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);check.bind(('127.0.0.1',kvport));check.listen(1)
@@ -58,14 +61,14 @@ def main():
         admin=secrets.token_urlsafe(24)
         api_env=dict(common,NODE_ENV='production',NGFW_HTTP_PORT=str(port),NGFW_HTTP_HOST='127.0.0.1',
                      NGFW_PG_DSN=dsn,NGFW_VALKEY_URL='redis://127.0.0.1:'+str(kvport),NGFW_VALKEY_DB='0',NGFW_VALKEY_PREFIX='ngfw:'+owner+':tb:',
-                     NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),NGFW_AGENT_OWNER=owner,NGFW_AGENT_TIMEOUT_MS='60000',
+                     NGFW_AGENT_SOCKET=agent_socket,NGFW_AGENT_OWNER=agent_owner,NGFW_AGENT_TIMEOUT_MS='60000',
                      NGFW_JWT_SECRET=secrets.token_hex(32),NGFW_SECRET_KEY_FILE=str(runtime/'secret.key'),
                      NGFW_BOOTSTRAP_ADMIN_PASSWORD=admin,NGFW_COOKIE_SECURE='0',NGFW_LOG_LEVEL='warn')
         ap=start(['node',str(api_bin)],api_env,'api')
         endpoint='http://127.0.0.1:'+str(port)+'/api/v1'
         deadline=time.monotonic()+90
         while True:
-            if ag.poll() is not None or ap.poll() is not None or kv.poll() is not None:raise Refused('owned stack exited; inspect private logs')
+            if (ag is not None and ag.poll() is not None) or ap.poll() is not None or kv.poll() is not None:raise Refused('owned stack exited; inspect private logs')
             try:
                 with urllib.request.urlopen(endpoint+'/health',timeout=2) as response:
                     if response.status==200:break
@@ -74,10 +77,31 @@ def main():
             time.sleep(.2)
         request=urllib.request.Request(endpoint+'/auth/login',data=json.dumps({'username':'admin','password':admin}).encode(),headers={'Content-Type':'application/json'})
         with urllib.request.urlopen(request,timeout=10) as response:token=json.load(response)['accessToken']
-        api=Api(args.slot,token)
-        base_name=owner+'-pristine'
-        # A fresh datastore has no historical revision. Establish an owned
-        # harmless VRF baseline; never fabricate revision0 or rollback/null.
+        api=Api(slot,token)
+        def restart():
+            nonlocal ag
+            if target_socket is not None:raise Refused('attached agent restart belongs to fixture')
+            stop(ag);ag=start([str(agent)],agent_env,'agent-restart')
+            deadline=time.monotonic()+30
+            while time.monotonic()<deadline:
+                try:
+                    api.call('GET','/state/interfaces');return
+                except OSError:time.sleep(.2)
+            raise Refused('agent restart readiness deadline')
+        yield api, runtime, restart
+
+    finally:
+        for process in reversed(processes):stop(process)
+        for stream in streams:stream.close()
+        if database:subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'drop',owner],check=True,stdout=subprocess.DEVNULL)
+
+def main():
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--slot',type=int,required=True)
+    parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
+    def terminate(signum,frame):raise SystemExit(128+signum)
+    signal.signal(signal.SIGTERM,terminate)
+    with product_stack(args.slot) as (api,runtime,restart):
+        base_name=f'w{args.slot}tb-pristine'
         api.call('PATCH','/config/vrfs',{base_name:{'id':args.slot*1000+40}})
         baseline_warnings=check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine'), changed_paths=('/vrfs',))
         try:
@@ -88,10 +112,6 @@ def main():
             check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine-cleanup'), baseline_warnings=baseline_warnings, changed_paths=('/vrfs',))
         print(json.dumps({'phase':'tunnels','passed':len(events)==2,'source_sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}))
         return 0
-    finally:
-        for process in reversed(processes):stop(process)
-        for stream in streams:stream.close()
-        if database:subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'drop',owner],check=True,stdout=subprocess.DEVNULL)
 
 if __name__=='__main__':
     try:sys.exit(main())

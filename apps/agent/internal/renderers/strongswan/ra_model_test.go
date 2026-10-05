@@ -65,6 +65,9 @@ func TestRARendererTLSAndRADIUS(t *testing.T) {
 	if !strings.Contains(string(files.Connection), "revocation = strict") || !strings.Contains(string(files.Connection), "clients-ca.pem") {
 		t.Fatal("TLS client trust/revocation not explicit")
 	}
+	if strings.Contains(string(files.Daemon), "eap-tls tls") {
+		t.Fatal("libtls is a linked library, not a loadable plugin")
+	}
 	p.Auth = proto.String("eap-radius")
 	p.Radius = &ngfwv1.RemoteAccessProfile_Radius{Servers: []*ngfwv1.RemoteAccessProfile_Radius_Server{{Address: proto.String("192.0.2.20"), SecretRef: proto.String("psk/radius")}}}
 	secret := "NGFW_TEST_PSK_RADIUS19"

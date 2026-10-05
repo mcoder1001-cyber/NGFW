@@ -58,3 +58,19 @@ helper/lifecycle/PKI/VPP handoff and API/UI still incomplete. Next: implement fi
 root helper with namespace inode/capability checks, constrained unit, descriptor
 ordering/readback and disposable real daemon acceptance. Current RA remote84050494
 contract18; local plan checkpoint publication next.
+
+2026-10-05 helper boundary checkpoint: strict bounded network.json decoding,
+unknown/trailing/foreign instance rejection, nonzero namespace identity;
+O_NOFOLLOW root-owned parent/manifest walk, private0700 instance/0600 manifest,
+regular single-link manifest, held NSFS binding matches helper namespace and
+excludes PID1 host network namespace before any planned mutation. Two boundary
+regressions and focused RA renderer/VICI tests PASS (packages0.027s/0.080s).
+Removed nonexistent tls plugin (eap-tls links libtls). No helper execution,
+daemon, sysctl or host mutation performed; lifecycle remains incomplete.
+Official Debian security tracker currently lists bookworm5.9.8-5+deb12u5 vulnerable
+to CVE-2026-78134 (EAP access control) and other issues. Upstream6.1.0 fixes these;
+patched authenticated engine fixture/appliance packaging must precede acceptance.
+Sources: https://security-tracker.debian.org/tracker/source-package/strongswan
+https://www.strongswan.org/blog/2026/09/07/strongswan-6.1.0-released.html
+Current parent remote d8afac81. Next command: implement fixed namespace executor
+and capability guard, obtain authenticated6.1.0 fixture without host installation.

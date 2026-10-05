@@ -95,6 +95,7 @@ func TestPrivateNamespaceNFTParser(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+	// #nosec G204 -- fixed unshare/nft argv checks a newly generated test-private rules file; no host network changes.
 	command := exec.CommandContext(ctx, "/usr/bin/unshare", "--net", "/usr/sbin/nft", "--check", "--file", path)
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("isolated nft parser failed: %v: %s", err, output)

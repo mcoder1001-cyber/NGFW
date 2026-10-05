@@ -101,6 +101,7 @@ func recordNamespaceBirth(instance, role string, original unix.Stat_t) error {
 	if os.Rename(temporary, path) != nil {
 		return ErrBoundary
 	}
+	// #nosec G304 -- root is the verified fixed full-instance directory; this descriptor only synchronizes the ownership receipt.
 	directory, err := os.Open(root)
 	if err != nil {
 		return ErrBoundary

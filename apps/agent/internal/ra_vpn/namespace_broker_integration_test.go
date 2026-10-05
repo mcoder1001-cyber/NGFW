@@ -138,6 +138,7 @@ func TestIntegrationBrokerPartialRemovalRetry(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		// The child's /run deliberately hides the owned bindings. The actual Go
 		// setns implementation must retarget its root to the target before removal.
+		// #nosec G204 -- fixed private namespace/capability launcher executes this test binary only; no caller-provided command or namespace.
 		command := exec.CommandContext(ctx, "/usr/bin/unshare", "--mount", "--propagation", "private", "--", "/bin/sh", "-c", "/usr/bin/mount -t tmpfs -o mode=0755 tmpfs /run\nexec \"$@\"", "sh", "/usr/bin/setpriv", "--no-new-privs", "--bounding-set=-all,+sys_admin,+sys_chroot", "--inh-caps=-all", "--ambient-caps=-all", binary, "-test.run=^TestNamespaceBrokerPrivateChild$", "-test.count=1", "-test.v")
 		command.ExtraFiles = files
 		command.Env = append(os.Environ(), "NGFW_RA_BROKER_PRIVATE_CHILD="+string(raw))

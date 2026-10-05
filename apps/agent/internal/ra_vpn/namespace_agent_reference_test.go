@@ -51,6 +51,7 @@ func TestSourceAgentReferenceOwnershipAndProcessBinding(t *testing.T) {
 	if err := readSourceAgentReferenceAt(root, identity); err != nil {
 		t.Fatalf("valid root-private reference: %v", err)
 	}
+	// #nosec G302 -- deliberate insecure reference mode tests rejection; original private mode is restored below.
 	if err := os.Chmod(record, 0644); err != nil {
 		t.Fatal(err)
 	}

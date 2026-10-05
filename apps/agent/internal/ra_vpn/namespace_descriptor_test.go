@@ -75,6 +75,7 @@ func TestIntegrationNamespaceDescriptorRestartReadbackAndRollback(t *testing.T) 
 		t.Fatal("fixture manifest write")
 	}
 	_, refusal := ReadAgentPlan(plan.Instance)
+	// #nosec G703 -- manifest is derived from the validated test-only full-instance plan; restores the exact fixture bytes after corruption.
 	if os.WriteFile(manifest, original, 0600) != nil {
 		t.Fatal("fixture manifest restore")
 	}

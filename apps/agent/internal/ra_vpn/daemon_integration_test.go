@@ -135,6 +135,7 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	t.Helper()
 	dir := filepath.Join(InstanceRoot, plan.Instance)
 	workspace := t.TempDir()
+	// #nosec G304 -- workspace is a newly generated test-private directory; fixed basename and exclusive creation refuse replacement.
 	log, err := os.OpenFile(filepath.Join(workspace, "private-startup.log"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
 		t.Fatal(err)

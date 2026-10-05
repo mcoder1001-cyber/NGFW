@@ -70,3 +70,17 @@ leader wait times out; a promptly exiting leader with a TERM-ignoring grandchild
 can retain the inherited heavy lock. Route SIGTERM through interruption cleanup
 and make final group cleanup cover descendants after leader exit. Requested
 regressions are sent to owner; reviewer has not modified product/tests.
+
+## Final follow-up: APPROVE root source scope
+
+Reviewed corrected root 98de54ad89000493ec7c685027bf7d9410226ce7 and current
+runner: script SIGTERM handler raises KeyboardInterrupt; owned cleanup always
+sends final group SIGKILL after the grace/reap stage, including when the leader
+has exited. P2 stale-report/interruption/descendant findings are resolved.
+Independent rerun: 5 pure runner tests PASS in0.031s. Additional mocked
+leader-exits-gracefully experiment PASS: group TERM followed by group KILL.
+No product/test code edited by reviewer. Root freeze runner and P11-pkg:
+APPROVE source scope; security dependency/guard delta remains APPROVE source
+scope. Complete quick/local/hosted and exact integration tree remain mandatory.
+Root's reported packet/offline campaign is owner evidence, not independently
+re-executed by this reviewer and not a release certificate.

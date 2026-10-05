@@ -40,8 +40,8 @@ func numericPublisherManager(ctx context.Context, server bootid.Identity) error 
 	if err != nil || fields["FragmentPath"] != numericPublisherSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != numericPublisherSocketPath+" (SequentialPacket)" {
 		return ErrBoundary
 	}
-	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
-	if err != nil || fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || fields["ControlGroup"] != "/system.slice/ngfw-ra-openfile.service" || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
+	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
+	if err != nil || fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
 		return ErrBoundary
 	}
 	if server.Complete() {
@@ -63,6 +63,15 @@ func numericPublisherManager(ctx context.Context, server bootid.Identity) error 
 		}
 	}
 	return nil
+}
+
+// A never-started socket-activated unit has no allocated cgroup. Empty is
+// accepted only with positive inactive/dead and zero main/control process proof.
+func numericPublisherCgroup(fields map[string]string, activeIdentity bool) bool {
+	if fields["ControlGroup"] == "/system.slice/ngfw-ra-openfile.service" {
+		return true
+	}
+	return !activeIdentity && fields["ControlGroup"] == "" && fields["MainPID"] == "0" && fields["ControlPID"] == "0" && fields["ActiveState"] == "inactive" && fields["SubState"] == "dead"
 }
 
 func waitNumericPublisherExit(ctx context.Context, server bootid.Identity) error {

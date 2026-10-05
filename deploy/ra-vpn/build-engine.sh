@@ -19,7 +19,7 @@ def release(path):
             if len(words)==1: result[key]=words[0]
     return {key:result.get(key) for key in ('ID','VERSION_ID')}
 actual,target=release('/etc/os-release'),release(sys.argv[1])
-if actual != target or not all(target.values()) or platform.machine()!='x86_64':
+if actual != target or target != {'ID':'ubuntu','VERSION_ID':'26.04'} or platform.machine()!='x86_64':
     raise SystemExit('builder OS/version/amd64 does not match explicit appliance target')
 PY
 pkg-config --exists openssl libsystemd || { echo 'OpenSSL and libsystemd development packages required in isolated builder' >&2; exit 1; }
@@ -57,11 +57,13 @@ for line in open('/etc/os-release'):
         words=shlex.split(value)
         if len(words)==1: release[key]=words[0]
 def version(argv):return subprocess.check_output(argv,text=True).strip()
+runtime={name:version(['dpkg-query','-W','-f=${Version}',name]) for name in ('libc6','libssl3t64','libsystemd0')}
 json.dump({'format':1,'os':{key:release[key] for key in ('ID','VERSION_ID')},
  'architecture':platform.machine(),'compiler':version(['gcc','-dumpfullversion']),
  'libc':version(['getconf','GNU_LIBC_VERSION']),
  'openssl':version(['pkg-config','--modversion','openssl']),
- 'systemd':version(['pkg-config','--modversion','libsystemd'])},open(sys.argv[1],'w'),sort_keys=True)
+ 'systemd':version(['pkg-config','--modversion','libsystemd']),
+ 'runtimePackages':runtime},open(sys.argv[1],'w'),sort_keys=True)
 PY
 mkdir -p "$artifact_root/opt/ngfw-ra/share/doc"
 install -m644 COPYING "$artifact_root/opt/ngfw-ra/share/doc/COPYING"

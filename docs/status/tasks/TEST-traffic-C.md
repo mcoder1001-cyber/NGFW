@@ -1,50 +1,52 @@
-# TEST-traffic-C — incomplete driver checkpoint
+# TEST-traffic-C — runnable source, acceptance pending
 
-سناریوی موج C شروع شده است؛ تکمیل پذیرش ادعا نمی‌شود.
-بخش تراکنش API و تحلیل شواهد بسته پیاده‌سازی شده است.
-۹ آزمون مستقل از آزمایشگاه موفق بوده‌اند.
-هیچ تغییری در VPP مشترک یا سرویس‌های مشترک ایجاد نشده است.
-اجرای واقعی، fixture و جمع‌آوری rider هنوز نیاز به کدنویسی دارند.
+سناریوی موج C و مسیرهای اجرای محصول پیاده‌سازی شده‌اند.
+تغییر تنظیمات، تحلیل بسته و پاک‌سازی خطاپذیر پوشش داده شده‌اند.
+۱۳ آزمون مستقل از آزمایشگاه موفق بوده‌اند؛ dry-run موفق است.
+اجرای واقعی VPP و داور مستقل هنوز تأیید نشده‌اند.
+پیش‌شرط table0 در فایل پرسش‌ها صریح است؛ وضعیت Done ادعا نمی‌شود.
 
 Board snapshot at base: 91.2% by hours (1438.0/1577.5 h), 91.0% by tasks
-(192/211). This driver does not change the board counts.
+(192/211). This source checkpoint does not change the board counts.
 
-## Implemented
+## Implementation
 
-- Assigned-slot local product API client; no direct VPP writes.
-- Strict applied receipt checks, `notApplied: []`, unsupported-field rejection.
-- Clean candidate requirement; committed baseline rollback in `finally`, including
-  an independent rollback attempt if candidate discard fails.
-- MPLS/SRH parser checks correlate header and owned inner tuple in one line.
-- VRRP timestamp-gap check includes interval boundaries and rejects duplicate replies.
-- Three-colour QoS counters and WAN/sent count checks; no rate/performance claims.
-- Dry-run explicitly reports remaining code and `live_acceptance: false`.
+`test/topology/traffic-c/execute.py` uses the proven Wave-A command/process/API
+primitives with its own strict C manager lease and C product transaction. It
+implements MPLS-labelled requests, SRv6 SRH/inner tuple, VRRP commit failover with
+one VPP and an owned keepalived namespace, three-colour policer counters and
+real sent/captured/received UDP accounting, plus live IPFIX, product capture,
+IGMP/mFIB and owned metrics riders. Each stage rolls back its API configuration;
+exact binary-API globals restoration, NRestarts/PID identity and final residue
+are mandatory. TD-H18 invokes the existing real host test with explicit globals
+opt-in, rejects SKIP, and requires restore evidence. No VPP trace/restart, module
+load, shared daemon restart, secret output or foreign-object deletion.
 
-## Actual checks, 2026-10-05
+The combined global-owner agent cannot adopt existing foreign table0. This
+executor refuses preexisting table0 before mutations. A manager-provisioned
+private/otherwise idle VPP with absent table0 can execute the full source path;
+shared existing-table0 acceptance remains constrained, see questions.
+
+## Actual source checks, 2026-10-05
 
 ```
 python3 -m unittest discover -s test/topology/traffic-c -v
-Ran 9 tests in 0.005s
+Ran 13 tests in 0.006s
 OK
-python3 test/topology/traffic-c/driver.py --slot 14 --dry-run
+python3 -m py_compile test/topology/traffic-c/execute.py test/topology/traffic-c/peer.py
+(exit 0)
+python3 test/topology/traffic-c/execute.py --slot 14 --dry-run
 "mode": "DRY_RUN_ONLY"
 "live_acceptance": false
-python3 test/topology/traffic-c/driver.py --slot 14
-live orchestration incomplete: no host mutation is authorized by this driver
-(exit 1; expected refusal)
+"executor": "execute.py"
+tools/heavy.sh go -C test/topology/traffic-c/globals vet ./...
+(exit 0; after waiting for heavy slot)
+tools/ci.sh check --base main
+check PASSED (0m22s) [initial foundation checkpoint]
 ```
 
-Parser text is synthetic unit fixture data, not real packet evidence. Live VPP,
-NRestarts, feature counters, keepalived, globals and cleanup evidence: NOT RUN.
-
-## Remaining code and acceptance
-
-Owned rig/slot-stack bootstrap and cleanup, manager-window authority, global
-before/after restoration, real tcpdump and traffic collection, VRRP product
-commit disable/enable plus keepalived fixture, QoS live state collection,
-IPFIX/capture/IGMP/metrics riders, residue inspection and TD-H18 host proof.
-Only after that code exists may the actual quiet-window run be deferred as
-laboratory acceptance. One VPP plus keepalived peer; no two-VPP HA claim.
-
-`tools/ci-slot.sh` is absent at this base; use the current unchanged
-`tools/ci.sh --base main` quick gate. Full gate is not yet recorded here.
+These checks use synthetic parser fixtures and mocked API transport. No real
+packets, VPP changes, globals or services were exercised. Globals Go unit checks,
+current full unchanged quick gate, independent review and live manager-window
+acceptance remain pending; no invented host result is included. Runtime evidence
+belongs in a private `TEST-traffic-C-evidence` export as text; never commit pcap.

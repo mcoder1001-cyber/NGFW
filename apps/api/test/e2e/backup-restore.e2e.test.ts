@@ -374,4 +374,20 @@ describe('backup recovery on PostgreSQL with the normal commit API', () => {
     }
     expect((await h.call(token, 'POST', '/api/v1/config/discard')).status).toBe(200);
   });
+  it('uses the generated descending index for recent history with 100000 runs', async () => {
+    await h.db.execute(sql`INSERT INTO f_backup_run (minute, at, result)
+      SELECT 'index-fixture-' || n, now() - n * interval '1 minute', 'success'
+      FROM generate_series(1, 100000) AS n`);
+    try {
+      await h.db.execute(sql`ANALYZE f_backup_run`);
+      const result = await h.db.execute(sql`EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)
+        SELECT * FROM f_backup_run ORDER BY at DESC LIMIT 100`);
+      const plan = JSON.stringify(result.rows);
+      expect(plan).toContain('f_backup_run_at_idx');
+      expect(plan).not.toContain('Seq Scan');
+      console.log('FBR history index plan:', plan);
+    } finally {
+      await h.db.execute(sql`DELETE FROM f_backup_run WHERE minute LIKE 'index-fixture-%'`);
+    }
+  });
 });

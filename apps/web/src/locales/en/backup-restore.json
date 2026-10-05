@@ -28,6 +28,7 @@
   "save": "Stage schedule",
   "reset": "Reset",
   "success": "Success",
+  "running": "In progress",
   "failure": "Failure",
   "templates": "Configuration templates",
   "selectTemplate": "Choose template",

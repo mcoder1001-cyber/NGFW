@@ -1,5 +1,5 @@
 {
-  "id": "12cbadc9-f07a-455f-9356-c04274918309",
+  "id": "93c97278-44d7-4f30-a565-77b132bcf9cd",
   "prevId": "30e47298-3f3d-4336-a64f-17516f7a9b72",
   "version": "7",
   "dialect": "postgresql",
@@ -856,7 +856,23 @@
           "notNull": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "f_backup_run_at_idx": {
+          "name": "f_backup_run_at_idx",
+          "columns": [
+            {
+              "expression": "at",
+              "isExpression": false,
+              "asc": false,
+              "nulls": "first"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},

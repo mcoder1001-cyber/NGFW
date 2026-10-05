@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''Validate plan/tasks.yaml and write docs/status/PROGRESS.md (progress by estimated hours and by count).
-Usage: tools/board.py [--set ID STATE [--note TEXT]]   (run from the repo root)'''
+Usage: tools/board.py [--check | --set ID STATE [--note TEXT]]   (run from the repo root)'''
 import sys, re, pathlib, datetime
 try:
     import yaml
@@ -19,7 +19,7 @@ if "--set" in args:
     if "--note" in args: by[tid]["notes"] = (by[tid].get("notes") or "") + " | " + args[args.index("--note")+1]
     changed = True
 # auto-ready runs on every invocation
-for t in tasks:
+for t in ([] if '--check' in args else tasks):
     if t["state"] == "todo" and all(by[x]["state"] == "merged" for x in t["deps"]) and not t.get("parked_on"):
         t["state"] = "ready"; changed = True
 # validation
@@ -37,8 +37,13 @@ def cyc():
         stack.discard(n); seen.add(n); return False
     return [t for t in ids if visit(t)]
 cycles = cyc()
-if dup or bad or cycles:
-    sys.exit(f"BOARD INVALID duplicates={dup} unknown_deps={bad} cycles={cycles[:5]}")
+invalid_states = [(t['id'], t['state']) for t in tasks if t['state'] not in
+                  ('merged', 'review', 'running', 'ready', 'parked', 'failed', 'todo')]
+if dup or bad or cycles or invalid_states:
+    sys.exit(f"BOARD INVALID duplicates={dup} unknown_deps={bad} cycles={cycles[:5]} states={invalid_states}")
+if '--check' in args:
+    print(f'board valid: {len(tasks)} tasks; read-only validation')
+    sys.exit(0)
 if changed:
     d["updated"] = str(datetime.date.today())
     BOARD.write_text(yaml.safe_dump(d, sort_keys=False, allow_unicode=True, width=200))

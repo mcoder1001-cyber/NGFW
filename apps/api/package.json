@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
-    "@fastify/static": "^8.3.0",
+    "@fastify/static": "10.1.2",
     "@fastify/websocket": "^11.3.1",
     "@grpc/grpc-js": "^1.14.5",
     "@nestjs/common": "^11",
@@ -31,7 +31,7 @@
     "@ngfw/yang": "workspace:*",
     "@node-rs/argon2": "^2.2.1",
     "drizzle-orm": "^0.45.3",
-    "fastify": "^5",
+    "fastify": "5.12.5",
     "iovalkey": "^0.4.0",
     "jose": "^6.2.12",
     "ldapts": "^9.2.0",

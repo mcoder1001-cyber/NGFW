@@ -11,7 +11,11 @@ import stat
 import subprocess
 import time
 import urllib.error
+import sys
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from private_http import private_opener
 
 
 def request(base, token, method, path, body=None):
@@ -20,10 +24,11 @@ def request(base, token, method, path, body=None):
                                  headers={'Authorization': 'Bearer ' + token,
                                           'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=35) as res:
+        with private_opener().open(req, timeout=35) as res:
             return res.status, res.read()
     except urllib.error.HTTPError as exc:
-        return exc.code, exc.read()
+        with exc:
+            return exc.code, exc.read()
 
 
 def require_status(result, expected):

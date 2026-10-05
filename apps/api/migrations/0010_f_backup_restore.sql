@@ -6,4 +6,5 @@ CREATE TABLE "f_backup_run" (
 	"error" text
 );
 --> statement-breakpoint
-ALTER TABLE "config_candidate" ADD COLUMN "restore_secrets" jsonb;
+ALTER TABLE "config_candidate" ADD COLUMN "restore_secrets" jsonb;--> statement-breakpoint
+CREATE INDEX "f_backup_run_at_idx" ON "f_backup_run" USING btree ("at" DESC NULLS FIRST);

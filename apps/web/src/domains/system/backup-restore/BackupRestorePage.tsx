@@ -26,6 +26,8 @@ const SUPPORT_NAME = 'ngfw-support.json';
 const ARCHIVE_INPUT = { accept: '.ngfwbackup' };
 const LTR = { dir: 'ltr', spellCheck: false } as const;
 const SUCCESS = 'success';
+const FAILURE = 'failure';
+const RUNNING = 'running';
 const SCHEDULE_LABELS: Record<string, string> = {
   schedule: 'cron',
   type: 'targetType',
@@ -232,10 +234,15 @@ function BackupControls() {
         {runs.isSuccess && runs.data.runs.length === 0 && <Typography>{t('noRuns')}</Typography>}
         {runs.isError && <ProblemAlert error={runs.error} />}
         {runs.data?.runs.map((run, i) => (
-          <Typography key={`${run.at}-${i}`} color={run.result === SUCCESS ? undefined : 'error'}>
+          <Typography key={`${run.at}-${i}`} color={run.result === FAILURE ? 'error' : undefined}>
             {t('runSummary', {
               at: fmt.dateTime(run.at),
-              result: run.result === SUCCESS ? t('success') : t('failure'),
+              result:
+                run.result === SUCCESS
+                  ? t('success')
+                  : run.result === RUNNING
+                    ? t('running')
+                    : t('failure'),
               detail: run.filename ?? run.error ?? '',
             })}
           </Typography>

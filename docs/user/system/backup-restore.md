@@ -36,3 +36,28 @@ curl --fail-with-body -X POST "$NGFW_API/api/v1/actions/upgrade-upload" \
 
 The response contains the server-generated bundle path. Uploading saves the
 file only; use the existing staged upgrade workflow to verify and activate it.
+
+## Interrupted exports and migration recovery
+
+Scheduled exports claim each matching UTC minute durably before reading secrets.
+A claimed minute runs at most once, including after an API restart. Failed or
+interrupted runs are not retried or replayed; the next matching minute can run.
+A crash, database outage, or failed final audit write can leave a history row
+marked `running` indefinitely. Inspect the target and use a manual backup or
+wait for the next scheduled minute rather than treating that row as success.
+The API refuses credential export when the initial audit record cannot be written.
+
+Local exports write an encrypted archive directly to its final filename. A full
+disk or crash can leave an incomplete file; authenticate it before relying on
+it, remove invalid partial files, and retry manually after fixing storage.
+There is no atomic rename or directory fsync guarantee. A valid remote upload
+can also outlive a failed completion record, so check the target before retrying.
+Export history retains the minute claims; file retention does not prune history.
+
+Migration `0010_f_backup_restore` adds a nullable candidate metadata column, a
+run-history table and its index. No automatic down migration is provided.
+Complete or discard staged restores and resolve pending commits before a software
+downgrade; keep additive database objects when retaining their history is needed.
+Removing them is an offline maintenance action after taking a verified backup
+and clearing the candidate, and loses export history and staged secret metadata.
+Compatibility of an older appliance binary is not established by this task.

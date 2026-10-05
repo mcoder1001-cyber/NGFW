@@ -336,10 +336,14 @@ export const autoBlock = pgTable(
 );
 // wave-BC: F-licensing
 // wave-BC: F-backup-restore
-export const backupRun = pgTable('f_backup_run', {
-  minute: text('minute').primaryKey(),
-  at: ts('at').notNull().defaultNow(),
-  result: text('result').notNull(),
-  filename: text('filename'),
-  error: text('error'),
-});
+export const backupRun = pgTable(
+  'f_backup_run',
+  {
+    minute: text('minute').primaryKey(),
+    at: ts('at').notNull().defaultNow(),
+    result: text('result').notNull(),
+    filename: text('filename'),
+    error: text('error'),
+  },
+  (t) => [index('f_backup_run_at_idx').on(t.at.desc().nullsFirst())],
+);

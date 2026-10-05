@@ -1,0 +1,356 @@
+{
+  "network": [
+    {
+      "lang": "en",
+      "mode": "light",
+      "status": 401,
+      "path": "/api/v1/auth/refresh"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "status": 401,
+      "path": "/api/v1/auth/refresh"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "status": 401,
+      "path": "/api/v1/auth/refresh"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "status": 401,
+      "path": "/api/v1/auth/refresh"
+    }
+  ],
+  "requestFailures": [
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/auth/banner",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/auth/methods",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "light",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/auth/banner",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/auth/methods",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "en",
+      "mode": "dark",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/auth/banner",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/auth/methods",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "light",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/auth/banner",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/auth/methods",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/state/system",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/state/license",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/diff",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/lock",
+      "error": "net::ERR_ABORTED"
+    },
+    {
+      "lang": "fa",
+      "mode": "dark",
+      "path": "/api/v1/config/commit/pending",
+      "error": "net::ERR_ABORTED"
+    }
+  ],
+  "checks": [
+    "backup requires passphrase en/light",
+    "restore requires file and passphrase en/light",
+    "backup-restore-en-light-real.png: <html dir=\"ltr\"> matches en (expected \"ltr\")",
+    "real API upgrade status en/light",
+    "upgrade uploadStage matches real status en/light",
+    "upgrade activate matches real status en/light",
+    "upgrade confirm matches real status en/light",
+    "upgrade rollback matches real status en/light",
+    "upgrade-en-light-real.png: <html dir=\"ltr\"> matches en (expected \"ltr\")",
+    "backup requires passphrase en/dark",
+    "restore requires file and passphrase en/dark",
+    "backup-restore-en-dark-real.png: <html dir=\"ltr\"> matches en (expected \"ltr\")",
+    "real API upgrade status en/dark",
+    "upgrade uploadStage matches real status en/dark",
+    "upgrade activate matches real status en/dark",
+    "upgrade confirm matches real status en/dark",
+    "upgrade rollback matches real status en/dark",
+    "upgrade-en-dark-real.png: <html dir=\"ltr\"> matches en (expected \"ltr\")",
+    "backup requires passphrase fa/light",
+    "restore requires file and passphrase fa/light",
+    "backup-restore-fa-light-real.png: <html dir=\"rtl\"> matches fa (expected \"rtl\")",
+    "real API upgrade status fa/light",
+    "upgrade uploadStage matches real status fa/light",
+    "upgrade activate matches real status fa/light",
+    "upgrade confirm matches real status fa/light",
+    "upgrade rollback matches real status fa/light",
+    "upgrade-fa-light-real.png: <html dir=\"rtl\"> matches fa (expected \"rtl\")",
+    "backup requires passphrase fa/dark",
+    "restore requires file and passphrase fa/dark",
+    "backup-restore-fa-dark-real.png: <html dir=\"rtl\"> matches fa (expected \"rtl\")",
+    "real API upgrade status fa/dark",
+    "upgrade uploadStage matches real status fa/dark",
+    "upgrade activate matches real status fa/dark",
+    "upgrade confirm matches real status fa/dark",
+    "upgrade rollback matches real status fa/dark",
+    "upgrade-fa-dark-real.png: <html dir=\"rtl\"> matches fa (expected \"rtl\")"
+  ]
+}

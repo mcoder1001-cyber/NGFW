@@ -1,0 +1,5 @@
+heavy: all 3 heavy slots busy, waiting (0s): python3 test/topology/ipsec/build-native-plugin.py --output .scratch/auth-capability-plugin
+heavy: slot 3 after 90s
+patching file src/plugins/ikev2/ikev2_api.c
+patching file src/plugins/ikev2/ikev2.c
+/root/ngfw-wt/codex-closeout-ikev2-auth-advertisement/.scratch/auth-capability-plugin/plugin/ikev2_plugin.so

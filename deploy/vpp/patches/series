@@ -8,3 +8,4 @@
 0001-DEMO-ipfix-export-classify-dump-reply-msg-id-base-V16.patch
 0002-ikev2-safe-native-state.patch
 0003-lcp-multicast-reconcile.patch
+0004-ikev2-auth-capability.patch

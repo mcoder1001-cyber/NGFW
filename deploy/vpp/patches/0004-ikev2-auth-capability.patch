@@ -1,0 +1,28 @@
+Subject: [PATCH] ikev2: advertise only supported RSA authentication
+Track: V26
+Status: product
+Upstream: not submitted
+
+The pinned authentication dispatcher accepts RSA_SIG (1) but not DIGITAL_SIGNATURE
+(14). Its RSA signer/verifier uses SHA1. Advertising RFC 7427 hash algorithms
+causes a default stock peer to select an unsupported authentication method.
+Remove that advertisement without changing certificate pins, auth dispatch,
+cryptographic implementations, or IKE/ESP proposals. Legacy RSA_SIG/SHA1 only.
+
+--- a/src/plugins/ikev2/ikev2.c
++++ b/src/plugins/ikev2/ikev2.c
+@@ -5009,13 +5009,7 @@
+ 			    nat_detection_sha1);
+   vec_free (nat_detection_sha1);
+ 
+-  u8 *sig_hash_algo = vec_new (u8, 8);
+-  u64 tmpsig = clib_host_to_net_u64 (0x0001000200030004);
+-  clib_memcpy_fast (sig_hash_algo, &tmpsig, sizeof (tmpsig));
+-  ikev2_payload_add_notify (chain,
+-			    IKEV2_NOTIFY_MSG_SIGNATURE_HASH_ALGORITHMS,
+-			    sig_hash_algo);
+-  vec_free (sig_hash_algo);
++  /* RSA authentication supports legacy RSA_SIG/SHA1 only, not RFC 7427. */
+ 
+   bi0 = ikev2_get_new_ike_header_buff (vm, &b0);
+   if (!bi0)

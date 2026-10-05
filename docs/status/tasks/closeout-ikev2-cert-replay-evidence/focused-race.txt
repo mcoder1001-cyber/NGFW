@@ -1,0 +1,3 @@
+ok  	ngfw/agent/internal/scheduler	(cached)
+ok  	ngfw/agent/internal/descriptors/vpn	1.178s
+ok  	ngfw/agent/internal/descriptors/ikev2	1.265s

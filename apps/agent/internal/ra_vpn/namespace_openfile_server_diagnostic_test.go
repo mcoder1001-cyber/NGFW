@@ -27,6 +27,9 @@ func TestNumericPublisherServerDiagnosticRedactsManagerInput(t *testing.T) {
 		t.Fatal("invalid manager roles accepted")
 	}
 	text := output.String()
+	if strings.Count(text, "publisher-server entry_stage=1 ") != 1 || strings.Count(text, "\n") != 2 {
+		t.Fatal("entry marker missing or unbounded refusal log")
+	}
 	if !strings.Contains(text, "publisher-server stage=1 deadline_exceeded=false elapsed_ms=") {
 		t.Fatal("bounded stage missing")
 	}

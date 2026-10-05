@@ -19,6 +19,11 @@ func RunNumericOpenFilePublisher() (result error) {
 	started := time.Now()
 	stage := NumericPublisherServerRoles
 	diagnosticContext := context.Background()
+	setStage := func(value NumericPublisherServerStage) {
+		stage = value
+		log.Printf("remote-access publisher-server entry_stage=%d deadline_exceeded=%t elapsed_ms=%d", stage, diagnosticContext.Err() == context.DeadlineExceeded, time.Since(started).Milliseconds())
+	}
+	setStage(NumericPublisherServerRoles)
 	defer func() {
 		if result != nil {
 			log.Printf("remote-access publisher-server stage=%d deadline_exceeded=%t elapsed_ms=%d", stage, diagnosticContext.Err() == context.DeadlineExceeded, time.Since(started).Milliseconds())
@@ -47,11 +52,11 @@ func RunNumericOpenFilePublisher() (result error) {
 			_ = file.Close()
 		}
 	}()
-	stage = NumericPublisherServerCaps
+	setStage(NumericPublisherServerCaps)
 	if validateNamespaceBrokerProcess(os.Getpid(), 0) != nil {
 		return ErrBoundary
 	}
-	stage = NumericPublisherServerInstallation
+	setStage(NumericPublisherServerInstallation)
 	validationContext, validationCancel := context.WithTimeout(context.Background(), NumericPublisherValidationBudget)
 	defer validationCancel()
 	diagnosticContext = validationContext
@@ -67,7 +72,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	ctx, cancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
 	defer cancel()
 	diagnosticContext = ctx
-	stage = NumericPublisherServerListener
+	setStage(NumericPublisherServerListener)
 	listener := int(roles[numericPublisherListenerRole].Fd())
 	kind, err := unix.GetsockoptInt(listener, unix.SOL_SOCKET, unix.SO_TYPE)
 	address, addrErr := unix.Getsockname(listener)
@@ -75,7 +80,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	if err != nil || kind != unix.SOCK_SEQPACKET || addrErr != nil || !ok || path.Name != numericPublisherSocketPath || boundUnitObserverSocket(ctx, listener) != nil {
 		return ErrBoundary
 	}
-	stage = NumericPublisherServerAccept
+	setStage(NumericPublisherServerAccept)
 	socket, _, err := unix.Accept4(listener, unix.SOCK_CLOEXEC)
 	if err != nil {
 		return ErrBoundary
@@ -90,19 +95,19 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	// Authenticate the actual canonical peer before accepting any caller rights.
 	source := (bootid.Reader{}).ForPID(int(peer.Pid))
-	stage = NumericPublisherServerPeer
+	setStage(NumericPublisherServerPeer)
 	if verifyFixedAgentPeer(ctx, peer, source) != nil {
 		return ErrBoundary
 	}
-	stage = NumericPublisherServerReference
+	setStage(NumericPublisherServerReference)
 	if readSourceAgentReference(source) != nil {
 		return ErrBoundary
 	}
-	stage = NumericPublisherServerSourceImage
+	setStage(NumericPublisherServerSourceImage)
 	if validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil {
 		return ErrBoundary
 	}
-	stage = NumericPublisherServerRequest
+	setStage(NumericPublisherServerRequest)
 	data, previous, err := receiveUnitObserverPacket(socket, 0)
 	if err != nil {
 		return ErrBoundary
@@ -114,7 +119,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	published := false
 	if request.Phase == "publish" {
-		stage = NumericPublisherServerPrevious
+		setStage(NumericPublisherServerPrevious)
 		previousData, previousFiles, err := receiveUnitObserverPacket(socket, 1)
 		if err != nil {
 			return ErrBoundary
@@ -124,52 +129,52 @@ func RunNumericOpenFilePublisher() (result error) {
 		if string(previousData) != "SOURCE" || request.PreviousServer.Equal(server) || (bootid.Reader{}).ForPID(request.PreviousServer.PID).Equal(request.PreviousServer) || validateSourceAgentExecutable(previousFiles[0]) != nil || !sameNumericPublisherSource(previousFiles[0], roles[sourceAgentExecutableRole]) {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerProof
+		setStage(NumericPublisherServerProof)
 		if proof.Verify(ctx) != nil {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerPublish
+		setStage(NumericPublisherServerPublish)
 		if (FixedNumericOpenFilePublisher{}).PublishNumericOpenFile(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerPostPeer
+		setStage(NumericPublisherServerPostPeer)
 		if verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerTarget
+		setStage(NumericPublisherServerTarget)
 		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerActivate
+		setStage(NumericPublisherServerActivate)
 		if activateNumericSupplier(ctx, request.Kind, request.Target) != nil {
 			return ErrBoundary
 		}
-		stage = NumericPublisherServerPostTarget
+		setStage(NumericPublisherServerPostTarget)
 		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
 		published = true
 	}
 
-	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, &stage)
+	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, setStage)
 }
 
-func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, stage *NumericPublisherServerStage) error {
+func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage)) error {
 	server := (bootid.Reader{}).ForPID(os.Getpid())
-	*stage = NumericPublisherServerManager
+	setStage(NumericPublisherServerManager)
 	if numericPublisherManagerWithProof(ctx, server, proof) != nil {
 		return ErrBoundary
 	}
-	*stage = NumericPublisherServerReplyPeer
+	setStage(NumericPublisherServerReplyPeer)
 	if verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
 		return ErrBoundary
 	}
-	*stage = NumericPublisherServerSend
+	setStage(NumericPublisherServerSend)
 	output, err := json.Marshal(numericPublisherResponse{Phase: request.Phase, Source: request.Source, Server: server, Published: published})
 	if err != nil || len(output) > numericPublisherPacketLimit || unix.Sendmsg(socket, output, unix.UnixRights(int(image.Fd())), nil, 0) != nil {
 		return ErrBoundary
 	}
-	*stage = NumericPublisherServerAck
+	setStage(NumericPublisherServerAck)
 	ack, rights, err := receiveUnitObserverPacket(socket, 0)
 	closeUnitObserverFiles(rights)
 	if err != nil || string(ack) != "OK" || ctx.Err() != nil || proof.Verify(ctx) != nil {

@@ -71,3 +71,36 @@ func TestNumericPublisherValidationDeadlineSeparateFromIPC(t *testing.T) {
 		t.Fatal("short caller deadline extended")
 	}
 }
+
+func TestNumericPublisherValidationCancellationWakesReceive(t *testing.T) {
+	fds, err := unix.Socketpair(unix.AF_UNIX, unix.SOCK_SEQPACKET|unix.SOCK_CLOEXEC, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		for _, fd := range fds {
+			if unix.Close(fd) != nil {
+				t.Error("socket pair close")
+			}
+		}
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stop := watchNumericPublisherCancellation(ctx, fds[0])
+	defer stop()
+	if boundNumericPublisherValidationSocket(ctx, fds[0]) != nil {
+		t.Fatal("validation deadline")
+	}
+	received := make(chan struct{})
+	go func() {
+		_, files, _ := receiveUnitObserverPacket(fds[0], 0)
+		closeUnitObserverFiles(files)
+		close(received)
+	}()
+	cancel()
+	select {
+	case <-received:
+	case <-time.After(time.Second):
+		t.Fatal("caller cancellation waited for the validation deadline")
+	}
+}

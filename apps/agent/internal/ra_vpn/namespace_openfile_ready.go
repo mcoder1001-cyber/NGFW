@@ -45,3 +45,24 @@ func boundNumericPublisherValidationSocket(ctx context.Context, fd int) error {
 	}
 	return nil
 }
+
+func watchNumericPublisherCancellation(ctx context.Context, fd int) func() {
+	stop := make(chan struct{})
+	exited := make(chan struct{})
+	go func() {
+		defer close(exited)
+		select {
+		case <-ctx.Done():
+			// Best-effort shutdown wakes the owned socket's blocked receive. The
+			// normal finite socket deadline remains the fallback if it fails.
+			_ = unix.Shutdown(fd, unix.SHUT_RDWR)
+		case <-stop:
+		}
+	}()
+	return func() {
+		close(stop)
+		// Join before the owner closes/reuses fd; cancellation cannot touch a
+		// subsequently allocated descriptor with the same integer value.
+		<-exited
+	}
+}

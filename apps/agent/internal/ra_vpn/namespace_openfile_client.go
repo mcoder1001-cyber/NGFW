@@ -79,6 +79,8 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 		return empty, nil, numericPublisherFailure(ctx, 13)
 	}
 	defer func() { _ = unix.Close(fd) }()
+	stopCancellation := watchNumericPublisherCancellation(ctx, fd)
+	defer stopCancellation()
 	if boundNumericPublisherValidationSocket(ctx, fd) != nil || unix.Connect(fd, &unix.SockaddrUnix{Name: numericPublisherSocketPath}) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 14)
 	}

@@ -19,6 +19,7 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 	if err := prepareInstance(plan.Instance); err != nil {
 		return err
 	}
+	aliasCreated := false
 	var err error
 	plan.HostNamespaceInode, err = mountNamespaceBinding(ctx, plan.Instance, "hostnetns", false)
 	if err == nil {
@@ -26,6 +27,9 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 	}
 	if err == nil && (plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode) {
 		err = ErrBoundary
+	}
+	if err == nil {
+		aliasCreated, err = createNamespaceAlias(ctx, plan)
 	}
 	if err == nil {
 		plan.KernelLinks, err = recordKernelLinks(ctx, plan.Instance)
@@ -46,6 +50,9 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 		}
 	}
 	if err != nil {
+		if aliasCreated && removeNamespaceAlias(plan) != nil {
+			return ErrBoundary
+		}
 		for _, binding := range []struct {
 			name  string
 			inode uint64
@@ -135,6 +142,9 @@ func RemoveNamespace(instance string, inode uint64) error {
 	}
 	plan, err := DecodePrivatePlan(data, instance)
 	if err != nil || plan.NamespaceInode != inode {
+		return ErrBoundary
+	}
+	if removeNamespaceAlias(plan) != nil {
 		return ErrBoundary
 	}
 	if removeNamedBinding(instance, "netns", inode) != nil {

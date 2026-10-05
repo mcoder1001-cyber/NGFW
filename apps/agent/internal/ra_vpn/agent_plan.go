@@ -47,5 +47,8 @@ func ReadAgentPlan(instance string) (*NetworkPlan, error) {
 	if unix.Stat("/proc/self/ns/net", &self) != nil || self.Ino != host.Ino || self.Dev != host.Dev || private.Ino == host.Ino && private.Dev == host.Dev {
 		return nil, ErrBoundary
 	}
+	if validateNamespaceAlias(plan) != nil {
+		return nil, ErrBoundary
+	}
 	return plan, nil
 }

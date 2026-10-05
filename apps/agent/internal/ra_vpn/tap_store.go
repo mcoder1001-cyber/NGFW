@@ -130,7 +130,7 @@ func (s *FileTAPReceipts) Load(name string) (TAPReceipt, error) {
 	return receipt, nil
 }
 func validReceipt(name string, receipt TAPReceipt) bool {
-	return tapReceiptName.MatchString(name) && ValidInstance(receipt.Instance) && receipt.NamespaceInode != 0 && receipt.HostNamespaceInode != 0 && receipt.NamespaceInode != receipt.HostNamespaceInode && receipt.Boot.Complete() && receipt.Boot.PID > 0 && receipt.Endpoint != nil && receipt.Endpoint.Name == name && receipt.Endpoint.HostNamespace == filepath.Join(InstanceRoot, receipt.Instance, "netns") && (name == LinkName(receipt.Instance, true) || name == LinkName(receipt.Instance, false))
+	return tapReceiptName.MatchString(name) && ValidInstance(receipt.Instance) && receipt.NamespaceInode != 0 && receipt.HostNamespaceInode != 0 && receipt.NamespaceInode != receipt.HostNamespaceInode && receipt.Boot.Complete() && receipt.Boot.PID > 0 && receipt.Endpoint != nil && receipt.Endpoint.Name == name && receipt.Endpoint.HostNamespace == NamespacePath(receipt.Instance) && (name == LinkName(receipt.Instance, true) || name == LinkName(receipt.Instance, false))
 }
 func (s *FileTAPReceipts) Save(name string, receipt TAPReceipt) error {
 	if !validReceipt(name, receipt) {

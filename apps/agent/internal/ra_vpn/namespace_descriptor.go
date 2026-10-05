@@ -24,7 +24,7 @@ func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	if !ok {
 		return scheduler.Join(NamespaceName, "")
 	}
-	return scheduler.Join(NamespaceName, object.GetFields()["instance"].GetStringValue())
+	return scheduler.Join(NamespaceName, NamespaceKeyID(object.GetFields()["instance"].GetStringValue()))
 }
 
 type NamespaceMeta struct{ Inode uint64 }
@@ -164,7 +164,7 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 			unix.Close(base)
 		}
 		unix.Close(fd)
-		if bad {
+		if bad || validateNamespaceAlias(&plan) != nil {
 			return nil, ErrBoundary
 		}
 		meta := NamespaceMeta{plan.NamespaceInode}
@@ -175,7 +175,7 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, scheduler.KV{Key: scheduler.Join(NamespaceName, plan.Instance), Value: value, Meta: meta})
+		result = append(result, scheduler.KV{Key: scheduler.Join(NamespaceName, NamespaceKeyID(plan.Instance)), Value: value, Meta: meta})
 	}
 	return result, nil
 }

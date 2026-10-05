@@ -53,21 +53,20 @@ func (d *GuardedTAP) Dependencies(value proto.Message) []scheduler.Dependency {
 	if !ok {
 		return []scheduler.Dependency{{Key: scheduler.Join(NamespaceName, "invalid")}}
 	}
-	instance := filepath.Base(filepath.Dir(endpoint.HostNamespace))
-	return []scheduler.Dependency{{Key: scheduler.Join(NamespaceName, instance)}}
+	alias := filepath.Base(endpoint.HostNamespace)
+	return []scheduler.Dependency{{Key: scheduler.Join(NamespaceName, alias)}}
 }
 func (d *GuardedTAP) input(value proto.Message) (*tapv2.Tap, *NetworkPlan, bootid.Identity, error) {
 	endpoint, ok := value.(*tapv2.Tap)
 	if !ok || endpoint == nil || d.Tap == nil || d.Store == nil || d.Boot == nil || d.Plan == nil || d.AllowedID == nil || !d.AllowedID(endpoint.Id) {
 		return nil, nil, bootid.Identity{}, ErrBoundary
 	}
-	instance := filepath.Base(filepath.Dir(endpoint.HostNamespace))
-	if !ValidInstance(instance) || endpoint.HostNamespace != filepath.Join(InstanceRoot, instance, "netns") {
+	if filepath.Dir(endpoint.HostNamespace) != filepath.Join(InstanceRoot, "n") || !namespaceAliasName.MatchString(filepath.Base(endpoint.HostNamespace)) {
 		return nil, nil, bootid.Identity{}, ErrBoundary
 	}
-	plan, err := d.Plan(instance)
+	plan, err := d.Plan(endpoint.HostNamespace)
 	boot := d.Boot()
-	if err != nil || plan.Validate() != nil || plan.Instance != instance || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || !boot.Complete() || boot.PID <= 0 {
+	if err != nil || plan.Validate() != nil || NamespacePath(plan.Instance) != endpoint.HostNamespace || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || !boot.Complete() || boot.PID <= 0 {
 		return nil, nil, bootid.Identity{}, ErrBoundary
 	}
 	outer, inner, err := TransitTAPs(plan, 0, 1)
@@ -75,7 +74,7 @@ func (d *GuardedTAP) input(value proto.Message) (*tapv2.Tap, *NetworkPlan, booti
 		return nil, nil, bootid.Identity{}, ErrBoundary
 	}
 	expected := inner
-	if endpoint.Name == LinkName(instance, true) {
+	if endpoint.Name == LinkName(plan.Instance, true) {
 		expected = outer
 	}
 	// Shape construction uses inert IDs; only the reserved actual ID is applied.

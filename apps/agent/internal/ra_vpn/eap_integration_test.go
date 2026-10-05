@@ -49,6 +49,10 @@ func createEAPNamespace(t *testing.T, plan *NetworkPlan) {
 	})
 }
 func TestIntegrationPrivateEAPNegotiationAndObservedDisconnect(t *testing.T) {
+	runPrivateEAP(t, false)
+}
+
+func runPrivateEAP(t *testing.T, privateVPP bool) {
 	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" {
 		t.Skip("requires authenticated isolated engine artifact")
 	}
@@ -65,15 +69,22 @@ func TestIntegrationPrivateEAPNegotiationAndObservedDisconnect(t *testing.T) {
 	client.Outer = Link{VPP: server.Outer.Namespace, Namespace: server.Outer.VPP}
 	client.Inner = Link{VPP: "198.18.19.4/31", Namespace: "198.18.19.5/31"}
 	client.Radius = nil
+	if privateVPP {
+		client.Outer = Link{VPP: "198.18.19.6/31", Namespace: "198.18.19.7/31"}
+	}
 	createEAPNamespace(t, server)
 	createEAPNamespace(t, client)
-	// Both veth endpoints originate in the verified server namespace. The peer
-	// moves directly into the held client namespace; no host interface is created.
-	privateIP(t, server, "link", "add", "outer0", "type", "veth", "peer", "name", "outer0", "netns", filepath.Join(InstanceRoot, client.Instance, "netns"))
-	for _, plan := range []*NetworkPlan{server, client} {
-		privateIP(t, plan, "address", "add", plan.Outer.Namespace, "dev", "outer0")
-		privateIP(t, plan, "link", "add", "inner0", "type", "dummy")
-		privateIP(t, plan, "address", "add", plan.Inner.Namespace, "dev", "inner0")
+	if privateVPP {
+		setupPrivateVPPTransport(t, server, client)
+	} else {
+		// Both veth endpoints originate in the verified server namespace. The peer
+		// moves directly into the held client namespace; no host interface is created.
+		privateIP(t, server, "link", "add", "outer0", "type", "veth", "peer", "name", "outer0", "netns", filepath.Join(InstanceRoot, client.Instance, "netns"))
+		for _, plan := range []*NetworkPlan{server, client} {
+			privateIP(t, plan, "address", "add", plan.Outer.Namespace, "dev", "outer0")
+			privateIP(t, plan, "link", "add", "inner0", "type", "dummy")
+			privateIP(t, plan, "address", "add", plan.Inner.Namespace, "dev", "inner0")
+		}
 	}
 	profile := new(ngfwv1.RemoteAccessProfile)
 	proposal := new(ngfwv1.IpsecProposal)
@@ -149,6 +160,9 @@ func TestIntegrationPrivateEAPNegotiationAndObservedDisconnect(t *testing.T) {
 	sessions, err := strongswan.ObserveRASessions(context.Background(), serverVICI, "road", "fixture-eap-generation", profile.GetPools())
 	if err != nil || len(sessions) != 1 {
 		t.Fatal("negotiated EAP session readback failed", err)
+	}
+	if privateVPP {
+		verifyPrivateVPPPackets(t, client, sessions[0].Addresses[0])
 	}
 	if err := strongswan.DisconnectRASession(context.Background(), serverVICI, "road", "fixture-eap-generation", sessions[0].ID, profile.GetPools()); err != nil {
 		t.Fatal("actual observed disconnect failed", err)

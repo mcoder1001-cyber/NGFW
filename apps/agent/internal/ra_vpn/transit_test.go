@@ -39,3 +39,17 @@ func TestTransitReadbackRefusesReusedOrMovedEndpoint(t *testing.T) {
 		t.Fatal("random ID accepted")
 	}
 }
+
+func TestTransitNamespaceAliasFitsFixedAPIField(t *testing.T) {
+	plan := networkFixture()
+	outer, inner, err := TransitTAPs(plan, 19001, 19002)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(outer.HostNamespace) >= 64 || outer.HostNamespace != inner.HostNamespace || outer.HostNamespace != NamespacePath(plan.Instance) {
+		t.Fatal("namespace binding exceeds fixed TAP API field")
+	}
+	if NamespaceKeyID(plan.Instance) != plan.Instance[:32] || NamespacePath("invalid") != "" {
+		t.Fatal("ambiguous namespace identity")
+	}
+}

@@ -4,7 +4,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"net/netip"
 	"ngfw/agent/internal/descriptors/tapv2"
-	"path/filepath"
 )
 
 // TransitTAPs has no random ID fallback: caller reserves both IDs in its
@@ -21,7 +20,7 @@ func TransitTAPs(plan *NetworkPlan, outerID, innerID uint32) (*tapv2.Tap, *tapv2
 			name = "outer0"
 			mtu = 1500
 		}
-		tap := &tapv2.Tap{Name: LinkName(plan.Instance, outer), Id: id, HostIfName: name, HostNamespace: filepath.Join(InstanceRoot, plan.Instance, "netns"), HostMtu: mtu, RxRingSize: 256, TxRingSize: 256}
+		tap := &tapv2.Tap{Name: LinkName(plan.Instance, outer), Id: id, HostIfName: name, HostNamespace: NamespacePath(plan.Instance), HostMtu: mtu, RxRingSize: 256, TxRingSize: 256}
 		prefix, _ := netip.ParsePrefix(link.Namespace)
 		if prefix.Addr().Is4() {
 			tap.HostIp4Prefix = prefix.String()

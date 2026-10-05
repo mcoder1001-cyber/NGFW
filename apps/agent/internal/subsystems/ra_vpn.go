@@ -36,7 +36,7 @@ func (w *Wiring) registerRATransport(r scheduler.Registry) error {
 			return identity
 		},
 		Plan: func(instance string) (*ravpn.NetworkPlan, error) {
-			plan, err := ravpn.ReadAgentPlan(instance)
+			plan, err := ravpn.ReadAgentPlanByNamespace(instance)
 			if err != nil || plan.Owner != w.env.Owner {
 				return nil, ravpn.ErrBoundary
 			}

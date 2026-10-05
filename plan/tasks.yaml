@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-04'
+updated: '2026-10-05'
 tasks:
   - id: P01
     title: Monorepo scaffold
@@ -3906,29 +3906,30 @@ tasks:
       a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable | 2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present
       here); post-merge panel review batch RV-C on main@f1f885a6, reports in /root/ngfw-wt/RV-C (D-161) | RV-C review: fix row S-ifsanitize-lldp-hwindex (RV-C-review-TD.md)'
   - template: ''
-    parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
-    branch: ''
+    parked_on: 'PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof'
+    branch: codex/p12-fib-proof-recovery
     worktree: ''
     owner: ''
     started: ''
     finished: ''
     state: parked
-    wbs: *id003
+    wbs:
+    - D0.1
     prompt: ''
     id: P12-fib-proof
     title: Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP
     stage: S3
     deps:
-      - P12
-      - LAB-vpp-per-slot
+    - P12
     priority: 2
     est_hours: 3
     scope: 'P12 review H3; manager decision: no global lcp default-netns window on the shared VPP'
     files_owned: test/topology/frr-linuxcp/** docs/status/tasks/P12-fib-proof*
     notes: 'test design in docs/status/tasks/P12.md (fix round 1)
 
-      test design in docs/status/tasks/P12.md (fix round 1) | 2026-09-30 rescoped to root mode (F-ospf-host pattern, no lcp default-netns change); LAB-vpp-per-slot dep dropped (D-218)
-      | root-mode PASS 200/100/50 prefixes; merged 8084739c'
+      test design in docs/status/tasks/P12.md (fix round 1) | 2026-09-30 rescoped to root mode (F-ospf-host pattern, no lcp default-netns change); LAB-vpp-per-slot dep dropped (D-218) | root-mode PASS 200/100/50
+      prefixes; merged 8084739c'
+    worker_status: awaiting resume; acceptance chat stopped; historical PASS does not prove current acceptance
   - id: F-global-blocking
     title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
     prompt: prompts/features/F-global-blocking.md
@@ -5170,18 +5171,18 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: '2026-10-05'
     notes: D-188
     id: P11-host
     title: 'Route-based IPsec host evidence: native IKEv2, FIB, ESP, rekey, recovery and rollback'
     deps:
-      - F-ikev2-native
+    - F-ikev2-native
     priority: 3
     est_hours: 4
-    state: running
+    state: merged
     scope: Route-based-only acceptance in test/topology/ipsec/README.md; docs/decisions/DEC-ipsec-route-based.md overrides the old policy-tunnel checklist; strongSwan peer-only.
     files_owned: docs/status/tasks/P11-host* test/topology/ipsec/**
-    worker_status: Reviewed sourcef59c3ea7; independent real native both-role lifecycle acceptance PASS; final integration pending.
+    worker_status: Merged PR176 at f445f57c; reviewed native packet lifecycle and authoritative rollback acceptance; final local and hosted quick PASS.
   - id: S-classify-sentinel
     title: 'Table-0 sentinel (M2): the globals owner creates a never-deleted classify table at index 0 after each VPP start so an armed classify /32 drops instead of crashing VPP'
     prompt: ''

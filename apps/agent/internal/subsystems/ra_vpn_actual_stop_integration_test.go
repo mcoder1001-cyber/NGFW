@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -64,7 +65,7 @@ func actualStopReadPrivate(path string, limit int64) ([]byte, error) {
 	}
 	file := os.NewFile(uintptr(fd), "held public guest metadata")
 	var info unix.Stat_t
-	valid := unix.Fstat(fd, &info) == nil && info.Mode == unix.S_IFREG|0600 && info.Uid == 0 && info.Gid == 0 && info.Nlink == 1 && info.Size > 0 && info.Size <= limit
+	valid := unix.Fstat(fd, &info) == nil && info.Mode == unix.S_IFREG|0600 && info.Uid == 0 && info.Nlink == 1 && info.Size > 0 && info.Size <= limit
 	data, readErr := io.ReadAll(io.LimitReader(file, limit+1))
 	closeErr := file.Close()
 	if !valid || readErr != nil || closeErr != nil || int64(len(data)) > limit {
@@ -268,11 +269,37 @@ func (o *actualStopObserver) Acquire(ctx context.Context, instance string) (*rav
 	return snapshot, nil
 }
 
+func actualStopRunUnit(ctx context.Context, op ravpn.UnitOperation, unit string) ([]byte, error) {
+	var command *exec.Cmd
+	switch op {
+	case ravpn.UnitOperationStop:
+		// #nosec G204 -- fixed systemctl Stop for the single positively owned guest fullinstance; no shell or caller-selected path.
+		command = exec.CommandContext(ctx, "/usr/bin/systemctl", "stop", unit)
+	case ravpn.UnitOperationObserve, ravpn.UnitOperationInactive:
+		// #nosec G204 -- fixed read-only four-property command, same fullinstance ownership proof.
+		command = exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,ControlPID,ActiveState,ControlGroup", unit)
+	default:
+		return nil, ravpn.ErrEngine
+	}
+	command.WaitDelay = time.Second // Also bound inherited output-pipe drain after context cancellation.
+	return command.Output()
+}
+
 func actualStopManager(instance string, fault *atomic.Bool, attempts *atomic.Uint32) ravpn.UnitManagerDispatch {
+	return actualStopManagerWithRunner(instance, fault, attempts, actualStopRunUnit)
+}
+
+// Only portable tests replace command execution; the genuine guest campaign
+// always calls the fixed manager command runner above. This is not a readiness
+// or process-observation assertion and cannot be selected by fixture metadata.
+func actualStopManagerWithRunner(instance string, fault *atomic.Bool, attempts *atomic.Uint32, run func(context.Context, ravpn.UnitOperation, string) ([]byte, error)) ravpn.UnitManagerDispatch {
 	return func(ctx context.Context, op ravpn.UnitOperation, wanted string) (ravpn.UnitManagerState, error) {
 		if wanted != instance || !ravpn.ValidInstance(instance) {
 			return ravpn.UnitManagerState{}, ravpn.ErrEngine
 		}
+		bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
+		defer cancel()
+		ctx = bounded
 		unit := "ngfw-ra@" + instance + ".service"
 		switch op {
 		case ravpn.UnitOperationStop:
@@ -280,21 +307,20 @@ func actualStopManager(instance string, fault *atomic.Bool, attempts *atomic.Uin
 			if fault.Load() {
 				return ravpn.UnitManagerState{}, ravpn.ErrEngine
 			}
-			// #nosec G204 -- fixed systemctl Stop only, canonical fullinstance unit positively bound to this guest manifest; no shell/path/unit injection.
-			if exec.CommandContext(ctx, "/usr/bin/systemctl", "stop", unit).Run() != nil {
+			if _, err := run(ctx, op, unit); err != nil {
 				return ravpn.UnitManagerState{}, ravpn.ErrEngine
 			}
 			return ravpn.UnitManagerState{}, nil
 		case ravpn.UnitOperationObserve, ravpn.UnitOperationInactive:
-			// #nosec G204 -- fixed read-only property request for the one validated fullinstance private guest unit.
-			raw, err := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,ControlPID,ActiveState,ControlGroup", unit).Output()
+			raw, err := run(ctx, op, unit)
 			if err != nil || len(raw) > 4096 {
 				return ravpn.UnitManagerState{}, ravpn.ErrEngine
 			}
 			fields := map[string]string{}
 			for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
 				key, value, ok := strings.Cut(line, "=")
-				if !ok || fields[key] != "" {
+				_, duplicate := fields[key]
+				if !ok || duplicate {
 					return ravpn.UnitManagerState{}, ravpn.ErrEngine
 				}
 				fields[key] = value
@@ -516,18 +542,22 @@ func TestIntegrationActualRAStopFaultBlocksConnectedBeforeVPP(t *testing.T) {
 		t.Fatal("actual Stop fixture identity refused")
 	}
 	plan, err := ravpn.ReadAgentPlan(manifest.Record.Spec.Instance)
-	if err != nil || plan.Owner != manifest.Record.Spec.Owner || plan.NamespaceInode != manifest.Record.Unit.NamespaceInode {
+	if err != nil || plan.Owner != manifest.Record.Spec.Owner || plan.NamespaceInode != manifest.Record.Unit.NamespaceInode || ravpn.ValidateHandoff(plan, manifest.Record.Handoff, manifest.VPP, manifest.Record.Handoff.OuterIndex, manifest.Record.Handoff.InnerIndex) != nil {
 		t.Fatal("actual protected daemon plan refused")
 	}
 	resume, err := actualStopPause(manifest)
 	if err != nil {
 		t.Fatal("owned canonical agent pause refused")
 	}
-	defer func() {
-		if resume() != nil {
-			t.Error("held canonical agent resume failed; retain guest for diagnosis")
-		}
-	}()
+	var resumeGuard sync.Once
+	resumeOnce := func() {
+		resumeGuard.Do(func() {
+			if resume() != nil {
+				t.Error("held canonical agent resume failed; retain guest for diagnosis")
+			}
+		})
+	}
+	defer resumeOnce()
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	connection := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{ReplyTimeout: 5 * time.Second})
@@ -576,10 +606,16 @@ func TestIntegrationActualRAStopFaultBlocksConnectedBeforeVPP(t *testing.T) {
 	}
 	defer func() {
 		fault.Store(false)
-		if wiring.StopRA(context.Background()) != nil {
+		cleanup, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		cleanupErr := wiring.StopRA(cleanup)
+		cleanupCancel()
+		// Resume before generic closers, even if verified teardown failed. Neither
+		// an unrelated closer nor a second bounded runtime check may extend pause.
+		resumeOnce()
+		wiring.Close()
+		if cleanupErr != nil {
 			t.Error("verified fixture daemon teardown refused; retain state")
 		}
-		wiring.Close()
 	}()
 	store, err := ravpn.NewFileEngineStore(state, manifest.Record.Spec.Owner)
 	if err != nil {
@@ -643,6 +679,11 @@ func TestActualStopPublicManifestAndPrivateReaderRefuseAmbiguity(t *testing.T) {
 		t.Fatal(err)
 	}
 	if os.Geteuid() == 0 {
+		if err := os.Chown(file, 0, 991); err != nil {
+			t.Fatal(err)
+		}
+		// A root-private source generation inherits the original agent Group=ngfw;
+		// mode600 gives that group no access, matching the actual source producer.
 		if _, err := actualStopReadPrivate(file, 1024); err != nil {
 			t.Fatal("protected owned marker refused", err)
 		}
@@ -672,5 +713,45 @@ func TestActualStopPublicManifestAndPrivateReaderRefuseAmbiguity(t *testing.T) {
 	}
 	if _, err := dispatch(context.Background(), ravpn.UnitOperationStop, strings.Repeat("a", 64)); !errors.Is(err, ravpn.ErrEngine) || attempts.Load() != 1 {
 		t.Fatal("narrow fixed Stop fault absent")
+	}
+}
+
+func TestActualStopManagerBoundsStalledOwnedCommand(t *testing.T) {
+	instance := strings.Repeat("a", 64)
+	var fault atomic.Bool
+	var attempts atomic.Uint32
+	observedDeadline := false
+	dispatch := actualStopManagerWithRunner(instance, &fault, &attempts, func(ctx context.Context, op ravpn.UnitOperation, unit string) ([]byte, error) {
+		if op != ravpn.UnitOperationInactive || unit != "ngfw-ra@"+instance+".service" {
+			t.Fatal("unexpected fixed command")
+		}
+		deadline, ok := ctx.Deadline()
+		if !ok || time.Until(deadline) > 20*time.Second {
+			t.Fatal("manager command lost finite bound")
+		}
+		observedDeadline = true
+		return nil, ravpn.ErrEngine
+	})
+	if _, err := dispatch(context.Background(), ravpn.UnitOperationInactive, instance); err == nil || !observedDeadline {
+		t.Fatal("background manager command did not receive its finite bound")
+	}
+	// Real disposable child, never systemctl or a daemon: the shorter parent must
+	// cancel and reap it through the same dispatcher context before its two-second
+	// sleep completes. This validates the propagated context rather than assuming
+	// that declaring a timeout guarantees actual command termination.
+	dispatch = actualStopManagerWithRunner(instance, &fault, &attempts, func(ctx context.Context, _ ravpn.UnitOperation, _ string) ([]byte, error) {
+		command := exec.CommandContext(ctx, "/usr/bin/sleep", "2")
+		command.WaitDelay = time.Second
+		err := command.Run()
+		if err == nil || command.ProcessState == nil || command.ProcessState.Success() {
+			t.Fatal("owned blocking child was not canceled and reaped")
+		}
+		return nil, err
+	})
+	parent, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	if _, err := dispatch(parent, ravpn.UnitOperationInactive, instance); err == nil || parent.Err() == nil || time.Since(started) >= time.Second {
+		t.Fatal("shorter parent did not bound genuine owned command")
 	}
 }

@@ -252,3 +252,9 @@ Diskcritical ownership action: moved ONLY own t19 artifacts into executable
 original /root/.cache/t19 prefix preserved via ownsymlink. New TMPDIR/GOTMPDIR/
 GOCACHE must use ownshm subdirs; nosharedcaches touched. Current remote7f647612.
 Next: guarded TAP/ACL/readback consumer and real private6.1 EAP lifecycle fixture.
+
+### Explicit TAP endpoint contract (2026-10-05)
+
+TransitTAPs now builds fixed outer0/inner0 TAP endpoints exclusively in the protected per-profile namespace binding, with explicitly reserved distinct IDs and bounded ring sizes. Full protobuf readback equality refuses moved namespaces, changed IDs/addresses, bridges and offload settings. No VPP mutations or daemon activation were performed.
+
+Actual verification: unchanged finite heavy wrapper, owned shm TMPDIR/GOTMPDIR/GOCACHE; `go test ./internal/ra_vpn ./cmd/ngfw-ra-daemon` PASS (0.050s / cached). Additional daemon host-sandbox refusal regression passed. Remaining: guarded descriptor registration, VPP/VRF/ACL readback, PKI/VICI lifecycle and actual EAP packet acceptance; task remains incomplete. Exact next command: `sed -n '1,200p' apps/agent/internal/subsystems/wiring.go`. Authenticated fixture/source receipt retained under /dev/shm/w19-ra-20261005 via existing logical-prefix symlink; hashes checked equal before owned cache move.

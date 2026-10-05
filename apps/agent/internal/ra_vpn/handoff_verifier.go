@@ -136,6 +136,30 @@ func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPl
 			return nil, Handoff{}, ErrEngine
 		}
 	}
+	// Default VRF bindings are absent from desired objects: prove that no
+	// non-default binding exists rather than assuming table zero.
+	tableDescriptor, exists := v.Registry.Get(PrivateKey(scheduler.Join(core.InterfaceTableName, "")).Descriptor())
+	if !exists {
+		return nil, Handoff{}, ErrEngine
+	}
+	tables, err := tableDescriptor.Retrieve(ctx)
+	if err != nil {
+		return nil, Handoff{}, ErrEngine
+	}
+	for _, binding := range []struct {
+		name  string
+		table uint32
+	}{{LinkName(s.Instance, true), s.OuterTable}, {LinkName(s.Instance, false), s.InnerTable}} {
+		for _, row := range tables {
+			actual, ok := row.Value.(*core.InterfaceTable)
+			if !ok {
+				return nil, Handoff{}, ErrEngine
+			}
+			if actual.Interface == binding.name && actual.TableId != binding.table {
+				return nil, Handoff{}, ErrEngine
+			}
+		}
+	}
 	ids := []uint32{}
 	for _, outer := range []bool{true, false} {
 		row := dumps[tapv2.TapName][scheduler.Join(tapv2.TapName, LinkName(s.Instance, outer))]

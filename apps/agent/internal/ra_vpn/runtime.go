@@ -28,6 +28,9 @@ func (u UnitIdentity) Generation(instance string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+type UnitRetirement interface {
+	Retired(context.Context, EngineSpec, UnitIdentity) (bool, error)
+}
 type UnitSupervisor interface {
 	Start(context.Context, *NetworkPlan) (UnitIdentity, error)
 	Observe(context.Context, *NetworkPlan) (UnitIdentity, error)
@@ -303,6 +306,11 @@ func (r *Runtime) StopAll(ctx context.Context) error {
 	if r.store == nil {
 		return nil
 	}
+	for _, g := range r.active {
+		if e := r.stop(ctx, g); e != nil {
+			return e
+		}
+	}
 	records, e := r.store.List()
 	if e != nil {
 		return ErrEngine
@@ -313,6 +321,18 @@ func (r *Runtime) StopAll(ctx context.Context) error {
 	for _, record := range records {
 		if record.Spec.Owner != r.owner {
 			return ErrEngine
+		}
+		if retirement, ok := r.units.(UnitRetirement); ok {
+			retired, e := retirement.Retired(ctx, record.Spec, record.Unit)
+			if e != nil {
+				return ErrEngine
+			}
+			if retired {
+				if r.store.Remove(record.Spec.Instance) != nil {
+					return ErrEngine
+				}
+				continue
+			}
 		}
 		if _, exists := r.active[record.Spec.Instance]; exists {
 			continue

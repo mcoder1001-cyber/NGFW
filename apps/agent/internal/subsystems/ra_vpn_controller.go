@@ -22,9 +22,7 @@ import (
 var raSharedFamilies = map[string]bool{core.InterfaceTableName: true, core.InterfaceAddrName: true, core.RouteName: true, iface.AliasName: true, iface.AdminStateName: true, acl.NameInterfaceBinding: true}
 
 func raInterface(name string) bool {
-	if strings.HasPrefix(name, "interface/") {
-		name = strings.TrimPrefix(name, "interface/")
-	}
+	name = strings.TrimPrefix(name, "interface/")
 	if len(name) != 28 || !strings.HasPrefix(name, "ra_") || (name[27] != 'o' && name[27] != 'i') {
 		return false
 	}
@@ -86,6 +84,60 @@ func (d *raScopedDescriptor) Dependencies(v proto.Message) []scheduler.Dependenc
 	return deps
 }
 func (d *raScopedDescriptor) Stage() scheduler.Stage { return scheduler.StageOf(d.inner) }
+
+// Preserve optional descriptor semantics, especially observe-only interface aliases.
+func (d *raScopedDescriptor) DeleteOnAbsence() bool {
+	if a, ok := d.inner.(scheduler.AbsenceDeleter); ok {
+		return a.DeleteOnAbsence()
+	}
+	return true
+}
+func (d *raScopedDescriptor) Normalize(v proto.Message) proto.Message {
+	if n, ok := d.inner.(scheduler.Normalizer); ok {
+		return n.Normalize(v)
+	}
+	return v
+}
+func (d *raScopedDescriptor) ProvidedKeys(v proto.Message) []scheduler.Key {
+	p, ok := d.inner.(scheduler.KeyProvider)
+	if !ok {
+		return nil
+	}
+	keys := p.ProvidedKeys(v)
+	if d.private {
+		for i, k := range keys {
+			keys[i] = ravpn.PrivateKey(k)
+		}
+	}
+	return keys
+}
+func (d *raScopedDescriptor) Reapply(ctx context.Context, v proto.Message, meta any) error {
+	if raObject(v) != d.private || d.guard(ctx, v) != nil {
+		return ravpn.ErrEngine
+	}
+	if r, ok := d.inner.(scheduler.Reapplier); ok {
+		return r.Reapply(ctx, v, meta)
+	}
+	return nil
+}
+
+// Validate rejects conflicting ownership before the scheduler's first mutation.
+func (d *raScopedDescriptor) Validate(ctx context.Context, key scheduler.Key, v proto.Message, view scheduler.ReadOnlyView) error {
+	if ctx.Err() != nil || raObject(v) != d.private || d.KeyOf(v) != key {
+		return ravpn.ErrEngine
+	}
+	other := d.inner.Name()
+	if !d.private {
+		other = "remote-access." + other
+	}
+	if _, exists := view.Get(scheduler.Join(other, key.ID())); exists {
+		return ravpn.ErrEngine
+	}
+	if validator, ok := d.inner.(scheduler.Validator); ok {
+		return validator.Validate(ctx, d.inner.KeyOf(v), v, view)
+	}
+	return nil
+}
 func (d *raScopedDescriptor) Create(ctx context.Context, v proto.Message) (any, error) {
 	if raObject(v) != d.private || d.guard(ctx, v) != nil {
 		return nil, ravpn.ErrEngine
@@ -284,7 +336,7 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		span.Hi = ids.Hi
 	}
 	runtime.SetReadiness(func(ctx context.Context) error {
-		if reader == nil || w.env.Client == nil || (!span.All && (span.Lo > span.Hi || span.Lo > 8191)) {
+		if reader == nil || w.env.Client == nil || (!span.All && (span.Lo > min(span.Hi, 8191) || uint64(min(span.Hi, 8191))-uint64(span.Lo)+1 < 2)) {
 			return ravpn.ErrEngine
 		}
 		if ravpn.HostPrerequisites() != nil {
@@ -324,6 +376,7 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		defer cancel()
 		if e := runtime.StopAll(ctx); e != nil {
 			w.env.Log.Error("remote-access shutdown refused", "reason", "verified generation stop failed")
+			return // Keep the failed owned generation and its store available for recovery.
 		}
 		store.Close()
 		raRuntimeMu.Lock()

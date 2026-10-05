@@ -1,6 +1,9 @@
 package desired
 
 import (
+	"context"
+	"google.golang.org/protobuf/encoding/protojson"
+	ravpn "ngfw/agent/internal/ra_vpn"
 	"strings"
 	"testing"
 
@@ -33,5 +36,44 @@ func TestRemoteAccessUnmanagedDomainUnchanged(t *testing.T) {
 	RemoteAccess(s, &ngfwv1.DesiredState{}, map[string]bool{"routing": true})
 	if len(s.errs) != 0 || len(s.kvs) != 0 {
 		t.Fatal("unmanaged VPN changed")
+	}
+}
+
+func TestRemoteAccessEnabledProjectionRequiresPrivateOwnedRangeAndPolicies(t *testing.T) {
+	ds := new(ngfwv1.DesiredState)
+	data := `{"vpn":{"ipsec":{"proposals":{"modern":{"ike":{"encr":"aes256","integ":"sha256","prf":"prfsha256","dh":"ecp256"},"esp":{"encr":"aes256gcm16","dh":"ecp256"}}}},"pki":{"certificates":{"server":{"certificateRef":"cert/server","privateKeyRef":"key/server"}}},"remoteAccess":{"road":{"localAddr":"192.0.2.19","certificate":"server","auth":"eap-mschapv2","proposal":"modern","pools":[{"name":"clients","prefix":"10.19.200.0/24"}],"users":[{"username":"client","passwordRef":"password/client"}],"transport":{"outer":{"vpp":"198.18.19.0/31","namespace":"198.18.19.1/31"},"inner":{"vpp":"198.18.19.2/31","namespace":"198.18.19.3/31"}},"outerPolicy":{"ingress":["public-in"],"egress":["public-out"]},"accessPolicy":{"ingress":["client-in"],"egress":["client-out"]}}}},"acl":{"lists":{"public-in":{"rules":[]},"public-out":{"rules":[]},"client-in":{"rules":[]},"client-out":{"rules":[]}}}}`
+	if protojson.Unmarshal([]byte(data), ds) != nil {
+		t.Fatal("fixture")
+	}
+	env := RAEnv{Owner: "w19", IDs: TunnelIDSpan{Lo: 2432, Hi: 2440}, Ready: func(context.Context) error { return nil }, SecretRef: func(context.Context, string) (string, error) { return "hmac:" + strings.Repeat("a", 64), nil }, VRF: func(string) (uint32, bool) { return 0, true }}
+	s := &sink{}
+	RemoteAccess(s, ds, map[string]bool{"vpn": true}, env)
+	if len(s.errs) != 0 || len(s.kvs) < 10 {
+		t.Fatal("enabled projection", s.errs)
+	}
+	found := false
+	for _, kv := range s.kvs {
+		if kv.Key.Descriptor() == ravpn.EngineName {
+			found = true
+		}
+		if kv.Key.Descriptor() == "ip.route" || kv.Key.Descriptor() == "acl.interface-binding" {
+			t.Fatal("private object entered ordinary authority")
+		}
+	}
+	if !found {
+		t.Fatal("engine absent")
+	}
+	env.IDs = TunnelIDSpan{Lo: 19000, Hi: 19999}
+	bad := &sink{}
+	RemoteAccess(bad, ds, map[string]bool{"vpn": true}, env)
+	if len(bad.kvs) != 0 || len(bad.errs) == 0 {
+		t.Fatal("unsupported slot silently remapped")
+	}
+	env.IDs = TunnelIDSpan{Lo: 2432, Hi: 2440}
+	ds.Vpn.RemoteAccess["road"].OuterPolicy.Egress = nil
+	bad = &sink{}
+	RemoteAccess(bad, ds, map[string]bool{"vpn": true}, env)
+	if len(bad.kvs) != 0 || len(bad.errs) == 0 {
+		t.Fatal("one-sided policy projected")
 	}
 }

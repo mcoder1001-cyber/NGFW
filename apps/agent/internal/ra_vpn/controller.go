@@ -34,7 +34,7 @@ type EngineSpec struct {
 }
 
 func (s EngineSpec) Validate() error {
-	if !safeOwnerName(s.Owner) || !safeOwnerName(s.Profile) || s.Instance != InstanceID(s.Owner, s.Profile) || s.Configuration == nil || s.Proposal == nil || s.OuterID == s.InnerID || s.OuterID > 8192 || s.InnerID > 8192 {
+	if !safeOwnerName(s.Owner) || !safeOwnerName(s.Profile) || s.Instance != InstanceID(s.Owner, s.Profile) || s.Configuration == nil || s.Proposal == nil || s.OuterID == s.InnerID || s.OuterID > 8191 || s.InnerID > 8191 {
 		return ErrEngine
 	}
 	if _, err := BuildNetworkPlan(s.Owner, s.Profile, s.Configuration); err != nil {

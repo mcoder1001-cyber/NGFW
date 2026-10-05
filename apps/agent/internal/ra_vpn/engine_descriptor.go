@@ -70,13 +70,17 @@ func (d *EngineDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error)
 	if d.Runtime == nil {
 		return nil, ErrEngine
 	}
-	if !d.Runtime.configured() {
+	d.Runtime.mu.Lock()
+	configured := d.Runtime.configured()
+	if !configured {
 		records, e := d.Runtime.store.List()
+		d.Runtime.mu.Unlock()
 		if e != nil || len(records) != 0 {
 			return nil, ErrEngine
 		}
 		return nil, nil
 	}
+	d.Runtime.mu.Unlock()
 	if e := d.Runtime.Recover(ctx); e != nil {
 		return nil, e
 	}
@@ -234,6 +238,9 @@ func (s *FileEngineStore) Remove(instance string) error {
 	}
 	if _, e := s.read(instance + ".json"); e != nil {
 		if e2 := unix.Faccessat(s.fd, instance+".json", unix.F_OK, unix.AT_SYMLINK_NOFOLLOW); e2 == unix.ENOENT {
+			if e3 := unix.Faccessat(s.fd, instance+".pending", unix.F_OK, unix.AT_SYMLINK_NOFOLLOW); e3 != unix.ENOENT {
+				return ErrEngine
+			}
 			return nil
 		}
 		return ErrEngine

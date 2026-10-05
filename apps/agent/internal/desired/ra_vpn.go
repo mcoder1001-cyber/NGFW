@@ -61,11 +61,17 @@ func RemoteAccess(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, options .
 		}
 		return
 	}
+	if len(enabled) > 64 {
+		for _, n := range enabled {
+			fail(n, "enabled")
+		}
+		return
+	}
 	lo, hi := env.IDs.Lo, env.IDs.Hi
 	if env.IDs.All {
-		lo, hi = 0, 8192
+		lo, hi = 0, 8191
 	}
-	hi = min(hi, 8192)
+	hi = min(hi, 8191)
 	if lo > hi || uint64(len(enabled))*2 > uint64(hi)-uint64(lo)+1 {
 		for _, n := range enabled {
 			fail(n, "transport")
@@ -74,7 +80,10 @@ func RemoteAccess(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, options .
 	}
 	// Deterministic sorted allocation refuses explicit TAP instance collisions.
 	used := map[uint32]bool{}
-	for i, name := range enabled {
+	idCursor := lo
+	for _, name := range enabled {
+		outerID, innerID := idCursor, idCursor+1
+		idCursor += 2
 		p := profiles[name]
 		proposal := ds.GetVpn().GetIpsec().GetProposals()[p.GetProposal()]
 		cert := ds.GetVpn().GetPki().GetCertificates()[p.GetCertificate()]
@@ -93,8 +102,6 @@ func RemoteAccess(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, options .
 			fail(name, "vrf")
 			continue
 		}
-		outerID := lo + uint32(i*2)
-		innerID := outerID + 1
 		if used[outerID] || used[innerID] {
 			fail(name, "transport")
 			continue

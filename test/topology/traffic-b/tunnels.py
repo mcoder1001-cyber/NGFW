@@ -14,6 +14,7 @@ import subprocess
 import sys
 import urllib.request
 from scenario import Refused, slot_values
+from probe import Capture
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -21,7 +22,7 @@ def topology(slot, kind):
     slot_values(slot)
     prefix = f"w{slot}"
     base = slot * 1000
-    underlay = f"10.{slot}.1."
+    underlay = f"10.{slot}.2."
     inner = f"10.{slot}.241."
     name = prefix + "-tb-" + kind
     tunnel = {"instance": base + 41, "src": underlay + "1", "dst": underlay + "2"}
@@ -52,7 +53,7 @@ class Api:
     def call(self, method, path, body=None):
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(self.base + path, data=data, method=method,
-                                     headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/json"})
+                                     headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/merge-patch+json" if method == "PATCH" else "application/json"})
         with urllib.request.urlopen(req, timeout=30) as response:
             raw = response.read(1048577)
         if len(raw) > 1048576:
@@ -82,6 +83,8 @@ def run(slot, api, output):
     if original.get("changes"):
         raise Refused("slot candidate already dirty")
     baseline = original["baseRevision"]
+    if type(baseline) is not int or baseline <= 0:
+        raise Refused("concrete original slot revision required")
     if any(prefix in line for line in command(["ip", "netns", "list"]).splitlines()):
         raise Refused("owned namespace already exists")
     events = []
@@ -92,37 +95,23 @@ def run(slot, api, output):
         for kind in ("gre", "vxlan"):
             patch, commands, device, destination = topology(slot, kind)
             capture = None
-            applied = False
             try:
                 for argv in commands:
                     peer(*argv)
                 api.call("PATCH", "/config", patch)
                 result = api.call("POST", "/config/commit?comment=traffic-b-" + kind)
                 check_commit(result)
-                applied = True
                 state = api.call("GET", "/state/tunnels")
                 if not any(item.get("name") == prefix + "-tb-" + kind and item.get("adminUp") for item in state.get("tunnels", [])):
                     raise Refused("tunnel state not applied")
                 filter_expr = "proto 47" if kind == "gre" else "udp port 4789"
                 cap = output / (kind + "-tcpdump.txt")
-                with cap.open("x") as stream:
-                    capture = subprocess.Popen(["ip", "netns", "exec", f"ns-{prefix}-wan", "tcpdump", "-n", "-l", "-vv", "-i", prefix + "w1", "-c", "4", filter_expr], stdout=stream, stderr=subprocess.DEVNULL)
-                    try:
-                        # Synchronize readiness by observing tcpdump process still alive.
-                        import time
-                        time.sleep(0.3)
-                        if capture.poll() is not None:
-                            raise Refused("tcpdump failed before probe")
-                        probe = peer("ping", "-n", "-c", "4", "-W", "3", "-I", device, destination)
-                        (output / (kind + "-ping.txt")).write_text(probe)
-                        capture.wait(timeout=10)
-                        if capture.returncode:
-                            raise Refused("capture failed")
-                    finally:
-                        if capture.poll() is None:
-                            capture.terminate()
-                            try: capture.wait(timeout=5)
-                            except subprocess.TimeoutExpired: capture.kill(); capture.wait()
+                capture = Capture(f"ns-{prefix}-wan", prefix + "w1", filter_expr, cap)
+                try:
+                    probe = peer("ping", "-n", "-c", "4", "-W", "3", "-I", device, destination)
+                    (output / (kind + "-ping.txt")).write_text(probe)
+                finally:
+                    capture.close(); capture = None
                 text = cap.read_text()
                 if "ICMP echo" not in text or ("GRE" if kind == "gre" else "VXLAN") not in text:
                     raise Refused("no inner ICMP inside observed encapsulation")
@@ -153,14 +142,19 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
-        info = args.token_file.lstat()
-        if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.geteuid():
-            raise Refused("owned private0600 token file required")
+        fd = os.open(args.token_file, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != 0o600 or info.st_uid != os.geteuid() or info.st_size > 8192:
+                raise Refused("owned private0600 bounded token file required")
+            token = os.read(fd, 8193).decode().strip()
+        finally:
+            os.close(fd)
         if os.environ.get("NGFW_INTEGRATION") != "1":
             raise Refused("NGFW_INTEGRATION=1 required")
         with open("/run/lock/ngfw-lab.lock", "a") as lock:
             fcntl.flock(lock, fcntl.LOCK_SH)
-            run(args.slot, Api(args.slot, args.token_file.read_text().strip()), args.output)
+            run(args.slot, Api(args.slot, token), args.output)
         return 0
     except (Refused, OSError, ValueError, subprocess.SubprocessError) as error:
         print(type(error).__name__ + ": tunnel campaign failed; inspect private output", file=sys.stderr)

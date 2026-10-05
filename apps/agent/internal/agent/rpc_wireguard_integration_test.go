@@ -452,6 +452,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 		}
 	}
 	// traffic through the tunnel, from the kernel peer to VPP's tunnel address
+	trafficBProbe(t, repoRootP12(t), "wireguard", slot, true)
 	t.Logf("ping through the tunnel:\n%s", run("ip", "netns", "exec", ns, "ping", "-c", "3", "-W", "2", fmt.Sprintf("10.%d.61.1", slot)))
 	t.Logf("kernel peer (wg show, keys are public):\n%s", run("ip", "netns", "exec", ns, "wg", "show", kernIf, "latest-handshakes"))
 	st, err := h.svc.WireguardState(context.Background(), &ngfwv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))

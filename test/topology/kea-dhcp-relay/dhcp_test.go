@@ -606,6 +606,18 @@ func TestKeaDhcpRelay(t *testing.T) {
 		t.Log("vppctl show ip fib table " + strconv.Itoa(int(tp.vrfID)) + " 255.255.255.255/32:\n" + vppctl(t, "show", "ip", "fib", "table", strconv.Itoa(int(tp.vrfID)), "255.255.255.255/32"))
 		before, _ := showIntCounters(t, tp.lanIf, tp.wanIf)
 
+		if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+			if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" || os.Getenv("NGFW_TRAFFIC_B_EVIDENCE") == "" {
+				t.Fatal("Wave-B DHCP capture requires private VPP and evidence directory")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			//nolint:gosec // fixed repository helper, slot-scoped fixture arguments
+			out, err := exec.CommandContext(ctx, "python3", filepath.Join(s.repo, "test/topology/traffic-b/probe.py"), "--slot", strconv.Itoa(s.num), "--phase", "dhcp-relay", "--output", os.Getenv("NGFW_TRAFFIC_B_EVIDENCE")).CombinedOutput()
+			if err != nil {
+				t.Fatalf("Wave-B DHCP probe: %v: %s", err, out)
+			}
+		}
 		var raw string
 		lease, raw = tp.dhclientLease(t)
 		t.Logf("dhclient lease file:\n%s", trunc(raw, 1200))

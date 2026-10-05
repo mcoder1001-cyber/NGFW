@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"ngfw/agent/internal/vpp/bootid"
-	"time"
 )
 
 // Initialize explicitly prepares canonical source references and the fixed VPP
 // supplier after the caller's global inactive barrier. Acquisition is readonly.
 func (p *SystemdNamespaceTargets) Initialize(ctx context.Context) error {
-	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
+	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
 	expected, err := p.expected(bounded)
 	if err != nil {

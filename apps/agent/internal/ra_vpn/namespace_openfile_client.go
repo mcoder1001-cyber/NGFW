@@ -7,12 +7,20 @@ import (
 	"math"
 	"ngfw/agent/internal/vpp/bootid"
 	"os"
-	"time"
 )
 
-func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) error {
-	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) (result error) {
+	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
+	proof, err := newNumericPublisherInstallationProof(bounded)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
 	pid, gid := os.Getpid(), os.Getegid()
 	if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 {
 		return numericPublisherFailure(bounded, 1)
@@ -24,11 +32,11 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	if readSourceAgentReference(source) != nil {
 		return numericPublisherFailure(bounded, 3)
 	}
-	if err := numericPublisherManager(bounded, bootid.Identity{}); err != nil {
+	if err := numericPublisherManagerWithProof(bounded, bootid.Identity{}, proof); err != nil {
 		return err
 	}
 	probe := numericPublisherRequest{Phase: "probe", Source: source}
-	first, image, err := numericPublisherExchange(bounded, probe, nil)
+	first, image, err := numericPublisherExchange(bounded, probe, nil, proof)
 	if err != nil {
 		return err
 	}
@@ -40,7 +48,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	if validateNumericPublisherRequest(request) != nil {
 		return numericPublisherFailure(bounded, 11)
 	}
-	second, fresh, err := numericPublisherExchange(bounded, request, image)
+	second, fresh, err := numericPublisherExchange(bounded, request, image, proof)
 	if err != nil {
 		return err
 	}
@@ -51,8 +59,14 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	return nil
 }
 
-func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File) (numericPublisherResponse, *os.File, error) {
+func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof) (numericPublisherResponse, *os.File, error) {
+	bounded, cancel := context.WithTimeout(ctx, NumericPublisherIPCBudget)
+	defer cancel()
+	ctx = bounded
 	var empty numericPublisherResponse
+	if proof.Verify(ctx) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 4)
+	}
 	if validateNumericPublisherRequest(request) != nil || brokerProtectedParent("/run/ngfw/ra") != nil {
 		return empty, nil, numericPublisherFailure(ctx, 11)
 	}
@@ -96,7 +110,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if len(data) > numericPublisherPacketLimit || decodeUnitObserverPacket(data, &response) != nil || response.Phase != request.Phase || !response.Source.Equal(request.Source) || !response.Server.Complete() {
 		return empty, nil, numericPublisherFailure(ctx, 20)
 	}
-	if err := numericPublisherManager(ctx, response.Server); err != nil {
+	if err := numericPublisherManagerWithProof(ctx, response.Server, proof); err != nil {
 		return empty, nil, err
 	}
 	if validateSourceAgentExecutable(files[0]) != nil {
@@ -114,6 +128,9 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	}
 	if verifyFixedAgentPeer(ctx, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || unix.Sendmsg(fd, []byte("OK"), nil, nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 22)
+	}
+	if proof.Verify(ctx) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 4)
 	}
 	success = true
 	return response, files[0], nil

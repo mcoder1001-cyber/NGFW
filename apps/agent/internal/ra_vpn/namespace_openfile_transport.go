@@ -2,8 +2,6 @@ package ravpn
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"golang.org/x/sys/unix"
 	"ngfw/agent/internal/vpp/bootid"
 	"os"
@@ -15,27 +13,29 @@ import (
 const numericPublisherService = "/usr/lib/systemd/system/ngfw-ra-openfile.service"
 const numericPublisherSocket = "/usr/lib/systemd/system/ngfw-ra-openfile.socket"
 
-func numericPublisherInstallation() error {
-	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil {
-		return numericPublisherFailure(context.Background(), 4)
-	}
-	for _, item := range []struct{ path, digest string }{
-		{numericPublisherService, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
-		{numericPublisherSocket, "a1d59fdd0cef428f63f6fc2504fb21ee6a542037f9f4eee445d4986a1c77ad8f"},
-	} {
-		content, err := trustedInstallationFile(item.path, 16384, false)
-		sum := sha256.Sum256(content)
-		if err != nil || hex.EncodeToString(sum[:]) != item.digest {
-			return numericPublisherFailure(context.Background(), 5)
-		}
-	}
-	return nil
-}
-
-func numericPublisherManager(ctx context.Context, server bootid.Identity) error {
-	if err := numericPublisherInstallation(); err != nil {
+func numericPublisherInstallation() (result error) {
+	proof, err := newNumericPublisherInstallationProof(context.Background())
+	if err != nil {
 		return err
 	}
+	defer func() {
+		if proof.Close() != nil {
+			result = ErrBoundary
+		}
+	}()
+	return proof.Verify(context.Background())
+}
+
+func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof) (result error) {
+	if proof.Verify(ctx) != nil {
+		return numericPublisherFailure(ctx, 4)
+	}
+	defer func() {
+		if result == nil && proof.Verify(ctx) != nil {
+			result = numericPublisherFailure(ctx, 4)
+		}
+	}()
+
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-openfile.socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
 	if err != nil || fields["FragmentPath"] != numericPublisherSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != numericPublisherSocketPath+" (SequentialPacket)" {
 		return numericPublisherFailure(ctx, 6)

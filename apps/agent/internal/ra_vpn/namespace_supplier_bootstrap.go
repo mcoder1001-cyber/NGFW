@@ -2,6 +2,7 @@ package ravpn
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"ngfw/agent/internal/vpp/bootid"
 	"time"
@@ -53,8 +54,14 @@ func initializeSourceForTarget(ctx context.Context, target bootid.Identity) erro
 	if readSourceAgentReference(source) != nil {
 		return &SupplierInitializationFailure{Stage: 5}
 	}
-	if NewSystemdNumericOpenFilePublisher().PublishNumericOpenFile(ctx, NumericOpenFileTargets, "", target) != nil {
-		return &SupplierInitializationFailure{Stage: 6}
+	if err := NewSystemdNumericOpenFilePublisher().PublishNumericOpenFile(ctx, NumericOpenFileTargets, "", target); err != nil {
+		failure := &SupplierInitializationFailure{Stage: 6}
+		var diagnostic *NumericPublisherFailure
+		if errors.As(err, &diagnostic) && diagnostic.Stage >= 1 && diagnostic.Stage <= 24 {
+			failure.PublisherStage = diagnostic.Stage
+			failure.DeadlineExceeded = diagnostic.DeadlineExceeded
+		}
+		return failure
 	}
 	if verifyBrokerVPPUnitIdentity(ctx, MountTarget{Boot: target}) != nil {
 		return &SupplierInitializationFailure{Stage: 7}

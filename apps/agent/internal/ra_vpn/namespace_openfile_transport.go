@@ -17,7 +17,7 @@ const numericPublisherSocket = "/usr/lib/systemd/system/ngfw-ra-openfile.socket"
 
 func numericPublisherInstallation() error {
 	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil {
-		return ErrBoundary
+		return numericPublisherFailure(nil, 4)
 	}
 	for _, item := range []struct{ path, digest string }{
 		{numericPublisherService, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
@@ -26,40 +26,40 @@ func numericPublisherInstallation() error {
 		content, err := trustedInstallationFile(item.path, 16384, false)
 		sum := sha256.Sum256(content)
 		if err != nil || hex.EncodeToString(sum[:]) != item.digest {
-			return ErrBoundary
+			return numericPublisherFailure(nil, 5)
 		}
 	}
 	return nil
 }
 
 func numericPublisherManager(ctx context.Context, server bootid.Identity) error {
-	if numericPublisherInstallation() != nil {
-		return ErrBoundary
+	if err := numericPublisherInstallation(); err != nil {
+		return err
 	}
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-openfile.socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
 	if err != nil || fields["FragmentPath"] != numericPublisherSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != numericPublisherSocketPath+" (SequentialPacket)" {
-		return ErrBoundary
+		return numericPublisherFailure(ctx, 6)
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
 	if err != nil || fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
-		return ErrBoundary
+		return numericPublisherFailure(ctx, 7)
 	}
 	if server.Complete() {
 		if fields["MainPID"] != strconv.Itoa(server.PID) || !(bootid.Reader{}).ForPID(server.PID).Equal(server) || validateNamespaceBrokerProcess(server.PID, 0) != nil {
-			return ErrBoundary
+			return numericPublisherFailure(ctx, 8)
 		}
 		cgroup, readErr := os.ReadFile("/proc/" + strconv.Itoa(server.PID) + "/cgroup")
 		if readErr != nil || len(cgroup) > 16384 || strings.TrimSpace(string(cgroup)) != "0::/system.slice/ngfw-ra-openfile.service" {
-			return ErrBoundary
+			return numericPublisherFailure(ctx, 9)
 		}
 		image, err := os.Open("/proc/" + strconv.Itoa(server.PID) + "/exe")
 		if err != nil {
-			return ErrBoundary
+			return numericPublisherFailure(ctx, 10)
 		}
 		valid := sameUnitExecutable(image, unitObserverExecutable)
 		closeErr := image.Close()
 		if !valid || closeErr != nil || !(bootid.Reader{}).ForPID(server.PID).Equal(server) {
-			return ErrBoundary
+			return numericPublisherFailure(ctx, 10)
 		}
 	}
 	return nil
@@ -88,7 +88,7 @@ func waitNumericPublisherExit(ctx context.Context, server bootid.Identity) error
 		}
 		select {
 		case <-wait.Done():
-			return ErrBoundary
+			return numericPublisherFailure(wait, 23)
 		case <-ticker.C:
 		}
 	}

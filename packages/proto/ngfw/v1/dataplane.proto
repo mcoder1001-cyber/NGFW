@@ -39,6 +39,11 @@ option go_package = "ngfw/agent/gen/ngfw/v1;ngfwv1";
 service Dataplane {
   rpc IpsecState(IpsecStateRequest) returns (IpsecStateResponse);
   rpc TunnelState(TunnelStateRequest) returns (TunnelStateResponse);
+  // Independent strongSwan remote access; observed runtime only.
+  rpc RemoteAccessCapabilities(RemoteAccessCapabilitiesRequest) returns (RemoteAccessCapabilitiesResponse);
+  rpc RemoteAccessSessions(RemoteAccessSessionsRequest) returns (RemoteAccessSessionsResponse);
+  // Admin-authorized API action; the agent verifies owned session removal by readback.
+  rpc RemoteAccessDisconnect(RemoteAccessDisconnectRequest) returns (RemoteAccessDisconnectResponse);
   // Apply converges the data plane (VPP + daemons) to the desired state of the selected
   // subsystems inside one transaction: validate → plan → apply → verify; on any error the
   // operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
@@ -8452,4 +8457,40 @@ message VrrpStateResponse {
   string owner = 1;
   google.protobuf.Timestamp retrieved_at = 2;
   repeated VrrpRuntime routers = 3;
+}
+
+// ----- F-ra-vpn independent engine observed runtime -----
+message RemoteAccessCapabilitiesRequest {}
+message RemoteAccessCapabilitiesResponse {
+  string engine = 1;
+  bool operational = 2;
+  repeated string supported_auth = 3;
+  // Bounded static reason, never daemon output or credentials.
+  string reason = 4;
+  bool editable_disabled_drafts = 5;
+}
+message RemoteAccessSessionsRequest {
+  string profile = 1;
+  string cursor = 2;
+  uint32 limit = 3; // 1..100; cursor is opaque, never a daemon identifier.
+}
+message RemoteAccessSession {
+  string id = 1; // Owner-scoped opaque lowercase 64-hex identifier.
+  string profile = 2;
+  string identity = 3;
+  repeated string addresses = 4;
+  uint64 established_seconds = 5;
+  uint64 bytes_in = 6;
+  uint64 bytes_out = 7;
+}
+message RemoteAccessSessionsResponse {
+  repeated RemoteAccessSession sessions = 1;
+  string next_cursor = 2;
+}
+message RemoteAccessDisconnectRequest {
+  string profile = 1;
+  string id = 2;
+}
+message RemoteAccessDisconnectResponse {
+  bool disconnected = 1; // True only after actual owned removal and readback.
 }

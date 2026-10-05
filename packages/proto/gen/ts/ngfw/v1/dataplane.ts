@@ -11211,6 +11211,52 @@ export interface VrrpStateResponse {
   routers: VrrpRuntime[];
 }
 
+/** ----- F-ra-vpn independent engine observed runtime ----- */
+export interface RemoteAccessCapabilitiesRequest {
+}
+
+export interface RemoteAccessCapabilitiesResponse {
+  engine: string;
+  operational: boolean;
+  supportedAuth: string[];
+  /** Bounded static reason, never daemon output or credentials. */
+  reason: string;
+  editableDisabledDrafts: boolean;
+}
+
+export interface RemoteAccessSessionsRequest {
+  profile: string;
+  cursor: string;
+  /** 1..100; cursor is opaque, never a daemon identifier. */
+  limit: number;
+}
+
+export interface RemoteAccessSession {
+  /** Owner-scoped opaque lowercase 64-hex identifier. */
+  id: string;
+  profile: string;
+  identity: string;
+  addresses: string[];
+  establishedSeconds: string;
+  bytesIn: string;
+  bytesOut: string;
+}
+
+export interface RemoteAccessSessionsResponse {
+  sessions: RemoteAccessSession[];
+  nextCursor: string;
+}
+
+export interface RemoteAccessDisconnectRequest {
+  profile: string;
+  id: string;
+}
+
+export interface RemoteAccessDisconnectResponse {
+  /** True only after actual owned removal and readback. */
+  disconnected: boolean;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return {
     txnId: "",
@@ -102206,6 +102252,722 @@ export const VrrpStateResponse: MessageFns<VrrpStateResponse> = {
   },
 };
 
+function createBaseRemoteAccessCapabilitiesRequest(): RemoteAccessCapabilitiesRequest {
+  return {};
+}
+
+export const RemoteAccessCapabilitiesRequest: MessageFns<RemoteAccessCapabilitiesRequest> = {
+  encode(_: RemoteAccessCapabilitiesRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessCapabilitiesRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessCapabilitiesRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(_: any): RemoteAccessCapabilitiesRequest {
+    return {};
+  },
+
+  toJSON(_: RemoteAccessCapabilitiesRequest): unknown {
+    const obj: any = {};
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessCapabilitiesRequest>): RemoteAccessCapabilitiesRequest {
+    return RemoteAccessCapabilitiesRequest.fromPartial(base ?? {});
+  },
+  fromPartial(_: DeepPartial<RemoteAccessCapabilitiesRequest>): RemoteAccessCapabilitiesRequest {
+    const message = createBaseRemoteAccessCapabilitiesRequest();
+    return message;
+  },
+};
+
+function createBaseRemoteAccessCapabilitiesResponse(): RemoteAccessCapabilitiesResponse {
+  return { engine: "", operational: false, supportedAuth: [], reason: "", editableDisabledDrafts: false };
+}
+
+export const RemoteAccessCapabilitiesResponse: MessageFns<RemoteAccessCapabilitiesResponse> = {
+  encode(message: RemoteAccessCapabilitiesResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.engine !== "") {
+      writer.uint32(10).string(message.engine);
+    }
+    if (message.operational !== false) {
+      writer.uint32(16).bool(message.operational);
+    }
+    for (const v of message.supportedAuth) {
+      writer.uint32(26).string(v!);
+    }
+    if (message.reason !== "") {
+      writer.uint32(34).string(message.reason);
+    }
+    if (message.editableDisabledDrafts !== false) {
+      writer.uint32(40).bool(message.editableDisabledDrafts);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessCapabilitiesResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessCapabilitiesResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.engine = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.operational = reader.bool();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.supportedAuth.push(reader.string());
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.reason = reader.string();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.editableDisabledDrafts = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessCapabilitiesResponse {
+    return {
+      engine: isSet(object.engine) ? globalThis.String(object.engine) : "",
+      operational: isSet(object.operational) ? globalThis.Boolean(object.operational) : false,
+      supportedAuth: globalThis.Array.isArray(object?.supportedAuth)
+        ? object.supportedAuth.map((e: any) => globalThis.String(e))
+        : globalThis.Array.isArray(object?.supported_auth)
+        ? object.supported_auth.map((e: any) => globalThis.String(e))
+        : [],
+      reason: isSet(object.reason) ? globalThis.String(object.reason) : "",
+      editableDisabledDrafts: isSet(object.editableDisabledDrafts)
+        ? globalThis.Boolean(object.editableDisabledDrafts)
+        : isSet(object.editable_disabled_drafts)
+        ? globalThis.Boolean(object.editable_disabled_drafts)
+        : false,
+    };
+  },
+
+  toJSON(message: RemoteAccessCapabilitiesResponse): unknown {
+    const obj: any = {};
+    if (message.engine !== "") {
+      obj.engine = message.engine;
+    }
+    if (message.operational !== false) {
+      obj.operational = message.operational;
+    }
+    if (message.supportedAuth?.length) {
+      obj.supportedAuth = message.supportedAuth;
+    }
+    if (message.reason !== "") {
+      obj.reason = message.reason;
+    }
+    if (message.editableDisabledDrafts !== false) {
+      obj.editableDisabledDrafts = message.editableDisabledDrafts;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessCapabilitiesResponse>): RemoteAccessCapabilitiesResponse {
+    return RemoteAccessCapabilitiesResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessCapabilitiesResponse>): RemoteAccessCapabilitiesResponse {
+    const message = createBaseRemoteAccessCapabilitiesResponse();
+    message.engine = object.engine ?? "";
+    message.operational = object.operational ?? false;
+    message.supportedAuth = object.supportedAuth?.map((e) => e) || [];
+    message.reason = object.reason ?? "";
+    message.editableDisabledDrafts = object.editableDisabledDrafts ?? false;
+    return message;
+  },
+};
+
+function createBaseRemoteAccessSessionsRequest(): RemoteAccessSessionsRequest {
+  return { profile: "", cursor: "", limit: 0 };
+}
+
+export const RemoteAccessSessionsRequest: MessageFns<RemoteAccessSessionsRequest> = {
+  encode(message: RemoteAccessSessionsRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.profile !== "") {
+      writer.uint32(10).string(message.profile);
+    }
+    if (message.cursor !== "") {
+      writer.uint32(18).string(message.cursor);
+    }
+    if (message.limit !== 0) {
+      writer.uint32(24).uint32(message.limit);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessSessionsRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessSessionsRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.profile = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.cursor = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 24) {
+              break;
+            }
+
+            message.limit = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessSessionsRequest {
+    return {
+      profile: isSet(object.profile) ? globalThis.String(object.profile) : "",
+      cursor: isSet(object.cursor) ? globalThis.String(object.cursor) : "",
+      limit: isSet(object.limit) ? globalThis.Number(object.limit) : 0,
+    };
+  },
+
+  toJSON(message: RemoteAccessSessionsRequest): unknown {
+    const obj: any = {};
+    if (message.profile !== "") {
+      obj.profile = message.profile;
+    }
+    if (message.cursor !== "") {
+      obj.cursor = message.cursor;
+    }
+    if (message.limit !== 0) {
+      obj.limit = Math.round(message.limit);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessSessionsRequest>): RemoteAccessSessionsRequest {
+    return RemoteAccessSessionsRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessSessionsRequest>): RemoteAccessSessionsRequest {
+    const message = createBaseRemoteAccessSessionsRequest();
+    message.profile = object.profile ?? "";
+    message.cursor = object.cursor ?? "";
+    message.limit = object.limit ?? 0;
+    return message;
+  },
+};
+
+function createBaseRemoteAccessSession(): RemoteAccessSession {
+  return { id: "", profile: "", identity: "", addresses: [], establishedSeconds: "0", bytesIn: "0", bytesOut: "0" };
+}
+
+export const RemoteAccessSession: MessageFns<RemoteAccessSession> = {
+  encode(message: RemoteAccessSession, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
+    if (message.profile !== "") {
+      writer.uint32(18).string(message.profile);
+    }
+    if (message.identity !== "") {
+      writer.uint32(26).string(message.identity);
+    }
+    for (const v of message.addresses) {
+      writer.uint32(34).string(v!);
+    }
+    if (message.establishedSeconds !== "0") {
+      writer.uint32(40).uint64(message.establishedSeconds);
+    }
+    if (message.bytesIn !== "0") {
+      writer.uint32(48).uint64(message.bytesIn);
+    }
+    if (message.bytesOut !== "0") {
+      writer.uint32(56).uint64(message.bytesOut);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessSession {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessSession();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.profile = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.identity = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 34) {
+              break;
+            }
+
+            message.addresses.push(reader.string());
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.establishedSeconds = reader.uint64().toString();
+            continue;
+          }
+          case 6: {
+            if (tag !== 48) {
+              break;
+            }
+
+            message.bytesIn = reader.uint64().toString();
+            continue;
+          }
+          case 7: {
+            if (tag !== 56) {
+              break;
+            }
+
+            message.bytesOut = reader.uint64().toString();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessSession {
+    return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+      profile: isSet(object.profile) ? globalThis.String(object.profile) : "",
+      identity: isSet(object.identity) ? globalThis.String(object.identity) : "",
+      addresses: globalThis.Array.isArray(object?.addresses)
+        ? object.addresses.map((e: any) => globalThis.String(e))
+        : [],
+      establishedSeconds: isSet(object.establishedSeconds)
+        ? globalThis.String(object.establishedSeconds)
+        : isSet(object.established_seconds)
+        ? globalThis.String(object.established_seconds)
+        : "0",
+      bytesIn: isSet(object.bytesIn)
+        ? globalThis.String(object.bytesIn)
+        : isSet(object.bytes_in)
+        ? globalThis.String(object.bytes_in)
+        : "0",
+      bytesOut: isSet(object.bytesOut)
+        ? globalThis.String(object.bytesOut)
+        : isSet(object.bytes_out)
+        ? globalThis.String(object.bytes_out)
+        : "0",
+    };
+  },
+
+  toJSON(message: RemoteAccessSession): unknown {
+    const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    if (message.profile !== "") {
+      obj.profile = message.profile;
+    }
+    if (message.identity !== "") {
+      obj.identity = message.identity;
+    }
+    if (message.addresses?.length) {
+      obj.addresses = message.addresses;
+    }
+    if (message.establishedSeconds !== "0") {
+      obj.establishedSeconds = message.establishedSeconds;
+    }
+    if (message.bytesIn !== "0") {
+      obj.bytesIn = message.bytesIn;
+    }
+    if (message.bytesOut !== "0") {
+      obj.bytesOut = message.bytesOut;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessSession>): RemoteAccessSession {
+    return RemoteAccessSession.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessSession>): RemoteAccessSession {
+    const message = createBaseRemoteAccessSession();
+    message.id = object.id ?? "";
+    message.profile = object.profile ?? "";
+    message.identity = object.identity ?? "";
+    message.addresses = object.addresses?.map((e) => e) || [];
+    message.establishedSeconds = object.establishedSeconds ?? "0";
+    message.bytesIn = object.bytesIn ?? "0";
+    message.bytesOut = object.bytesOut ?? "0";
+    return message;
+  },
+};
+
+function createBaseRemoteAccessSessionsResponse(): RemoteAccessSessionsResponse {
+  return { sessions: [], nextCursor: "" };
+}
+
+export const RemoteAccessSessionsResponse: MessageFns<RemoteAccessSessionsResponse> = {
+  encode(message: RemoteAccessSessionsResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    for (const v of message.sessions) {
+      RemoteAccessSession.encode(v!, writer.uint32(10).fork()).join();
+    }
+    if (message.nextCursor !== "") {
+      writer.uint32(18).string(message.nextCursor);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessSessionsResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessSessionsResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.sessions.push(RemoteAccessSession.decode(reader, reader.uint32()));
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.nextCursor = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessSessionsResponse {
+    return {
+      sessions: globalThis.Array.isArray(object?.sessions)
+        ? object.sessions.map((e: any) => RemoteAccessSession.fromJSON(e))
+        : [],
+      nextCursor: isSet(object.nextCursor)
+        ? globalThis.String(object.nextCursor)
+        : isSet(object.next_cursor)
+        ? globalThis.String(object.next_cursor)
+        : "",
+    };
+  },
+
+  toJSON(message: RemoteAccessSessionsResponse): unknown {
+    const obj: any = {};
+    if (message.sessions?.length) {
+      obj.sessions = message.sessions.map((e) => RemoteAccessSession.toJSON(e));
+    }
+    if (message.nextCursor !== "") {
+      obj.nextCursor = message.nextCursor;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessSessionsResponse>): RemoteAccessSessionsResponse {
+    return RemoteAccessSessionsResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessSessionsResponse>): RemoteAccessSessionsResponse {
+    const message = createBaseRemoteAccessSessionsResponse();
+    message.sessions = object.sessions?.map((e) => RemoteAccessSession.fromPartial(e)) || [];
+    message.nextCursor = object.nextCursor ?? "";
+    return message;
+  },
+};
+
+function createBaseRemoteAccessDisconnectRequest(): RemoteAccessDisconnectRequest {
+  return { profile: "", id: "" };
+}
+
+export const RemoteAccessDisconnectRequest: MessageFns<RemoteAccessDisconnectRequest> = {
+  encode(message: RemoteAccessDisconnectRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.profile !== "") {
+      writer.uint32(10).string(message.profile);
+    }
+    if (message.id !== "") {
+      writer.uint32(18).string(message.id);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessDisconnectRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessDisconnectRequest();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.profile = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.id = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessDisconnectRequest {
+    return {
+      profile: isSet(object.profile) ? globalThis.String(object.profile) : "",
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
+    };
+  },
+
+  toJSON(message: RemoteAccessDisconnectRequest): unknown {
+    const obj: any = {};
+    if (message.profile !== "") {
+      obj.profile = message.profile;
+    }
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessDisconnectRequest>): RemoteAccessDisconnectRequest {
+    return RemoteAccessDisconnectRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessDisconnectRequest>): RemoteAccessDisconnectRequest {
+    const message = createBaseRemoteAccessDisconnectRequest();
+    message.profile = object.profile ?? "";
+    message.id = object.id ?? "";
+    return message;
+  },
+};
+
+function createBaseRemoteAccessDisconnectResponse(): RemoteAccessDisconnectResponse {
+  return { disconnected: false };
+}
+
+export const RemoteAccessDisconnectResponse: MessageFns<RemoteAccessDisconnectResponse> = {
+  encode(message: RemoteAccessDisconnectResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.disconnected !== false) {
+      writer.uint32(8).bool(message.disconnected);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessDisconnectResponse {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessDisconnectResponse();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.disconnected = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessDisconnectResponse {
+    return { disconnected: isSet(object.disconnected) ? globalThis.Boolean(object.disconnected) : false };
+  },
+
+  toJSON(message: RemoteAccessDisconnectResponse): unknown {
+    const obj: any = {};
+    if (message.disconnected !== false) {
+      obj.disconnected = message.disconnected;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessDisconnectResponse>): RemoteAccessDisconnectResponse {
+    return RemoteAccessDisconnectResponse.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessDisconnectResponse>): RemoteAccessDisconnectResponse {
+    const message = createBaseRemoteAccessDisconnectResponse();
+    message.disconnected = object.disconnected ?? false;
+    return message;
+  },
+};
+
 /**
  * Dataplane is the privileged agent's northbound API, served on a unix socket
  * (/run/ngfw/agent.sock in production, the slot's NGFW_AGENT_SOCKET in tests). One agent process
@@ -102230,6 +102992,44 @@ export const DataplaneService = {
     requestDeserialize: (value: Buffer): TunnelStateRequest => TunnelStateRequest.decode(value),
     responseSerialize: (value: TunnelStateResponse): Buffer => Buffer.from(TunnelStateResponse.encode(value).finish()),
     responseDeserialize: (value: Buffer): TunnelStateResponse => TunnelStateResponse.decode(value),
+  },
+  /** Independent strongSwan remote access; observed runtime only. */
+  remoteAccessCapabilities: {
+    path: "/ngfw.v1.Dataplane/RemoteAccessCapabilities" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: RemoteAccessCapabilitiesRequest): Buffer =>
+      Buffer.from(RemoteAccessCapabilitiesRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): RemoteAccessCapabilitiesRequest =>
+      RemoteAccessCapabilitiesRequest.decode(value),
+    responseSerialize: (value: RemoteAccessCapabilitiesResponse): Buffer =>
+      Buffer.from(RemoteAccessCapabilitiesResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): RemoteAccessCapabilitiesResponse =>
+      RemoteAccessCapabilitiesResponse.decode(value),
+  },
+  remoteAccessSessions: {
+    path: "/ngfw.v1.Dataplane/RemoteAccessSessions" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: RemoteAccessSessionsRequest): Buffer =>
+      Buffer.from(RemoteAccessSessionsRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): RemoteAccessSessionsRequest => RemoteAccessSessionsRequest.decode(value),
+    responseSerialize: (value: RemoteAccessSessionsResponse): Buffer =>
+      Buffer.from(RemoteAccessSessionsResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): RemoteAccessSessionsResponse => RemoteAccessSessionsResponse.decode(value),
+  },
+  /** Admin-authorized API action; the agent verifies owned session removal by readback. */
+  remoteAccessDisconnect: {
+    path: "/ngfw.v1.Dataplane/RemoteAccessDisconnect" as const,
+    requestStream: false as const,
+    responseStream: false as const,
+    requestSerialize: (value: RemoteAccessDisconnectRequest): Buffer =>
+      Buffer.from(RemoteAccessDisconnectRequest.encode(value).finish()),
+    requestDeserialize: (value: Buffer): RemoteAccessDisconnectRequest => RemoteAccessDisconnectRequest.decode(value),
+    responseSerialize: (value: RemoteAccessDisconnectResponse): Buffer =>
+      Buffer.from(RemoteAccessDisconnectResponse.encode(value).finish()),
+    responseDeserialize: (value: Buffer): RemoteAccessDisconnectResponse =>
+      RemoteAccessDisconnectResponse.decode(value),
   },
   /**
    * Apply converges the data plane (VPP + daemons) to the desired state of the selected
@@ -102993,6 +103793,11 @@ export const DataplaneService = {
 export interface DataplaneServer extends UntypedServiceImplementation {
   ipsecState: handleUnaryCall<IpsecStateRequest, IpsecStateResponse>;
   tunnelState: handleUnaryCall<TunnelStateRequest, TunnelStateResponse>;
+  /** Independent strongSwan remote access; observed runtime only. */
+  remoteAccessCapabilities: handleUnaryCall<RemoteAccessCapabilitiesRequest, RemoteAccessCapabilitiesResponse>;
+  remoteAccessSessions: handleUnaryCall<RemoteAccessSessionsRequest, RemoteAccessSessionsResponse>;
+  /** Admin-authorized API action; the agent verifies owned session removal by readback. */
+  remoteAccessDisconnect: handleUnaryCall<RemoteAccessDisconnectRequest, RemoteAccessDisconnectResponse>;
   /**
    * Apply converges the data plane (VPP + daemons) to the desired state of the selected
    * subsystems inside one transaction: validate → plan → apply → verify; on any error the
@@ -103320,6 +104125,53 @@ export interface DataplaneClient extends Client {
     metadata: Metadata,
     options: Partial<CallOptions>,
     callback: (error: ServiceError | null, response: TunnelStateResponse) => void,
+  ): ClientUnaryCall;
+  /** Independent strongSwan remote access; observed runtime only. */
+  remoteAccessCapabilities(
+    request: RemoteAccessCapabilitiesRequest,
+    callback: (error: ServiceError | null, response: RemoteAccessCapabilitiesResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessCapabilities(
+    request: RemoteAccessCapabilitiesRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: RemoteAccessCapabilitiesResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessCapabilities(
+    request: RemoteAccessCapabilitiesRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: RemoteAccessCapabilitiesResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessSessions(
+    request: RemoteAccessSessionsRequest,
+    callback: (error: ServiceError | null, response: RemoteAccessSessionsResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessSessions(
+    request: RemoteAccessSessionsRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: RemoteAccessSessionsResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessSessions(
+    request: RemoteAccessSessionsRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: RemoteAccessSessionsResponse) => void,
+  ): ClientUnaryCall;
+  /** Admin-authorized API action; the agent verifies owned session removal by readback. */
+  remoteAccessDisconnect(
+    request: RemoteAccessDisconnectRequest,
+    callback: (error: ServiceError | null, response: RemoteAccessDisconnectResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessDisconnect(
+    request: RemoteAccessDisconnectRequest,
+    metadata: Metadata,
+    callback: (error: ServiceError | null, response: RemoteAccessDisconnectResponse) => void,
+  ): ClientUnaryCall;
+  remoteAccessDisconnect(
+    request: RemoteAccessDisconnectRequest,
+    metadata: Metadata,
+    options: Partial<CallOptions>,
+    callback: (error: ServiceError | null, response: RemoteAccessDisconnectResponse) => void,
   ): ClientUnaryCall;
   /**
    * Apply converges the data plane (VPP + daemons) to the desired state of the selected

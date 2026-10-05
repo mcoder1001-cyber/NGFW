@@ -47,61 +47,64 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Dataplane_IpsecState_FullMethodName              = "/ngfw.v1.Dataplane/IpsecState"
-	Dataplane_TunnelState_FullMethodName             = "/ngfw.v1.Dataplane/TunnelState"
-	Dataplane_AutoBlockSet_FullMethodName            = "/ngfw.v1.Dataplane/AutoBlockSet"
-	Dataplane_Apply_FullMethodName                   = "/ngfw.v1.Dataplane/Apply"
-	Dataplane_Retrieve_FullMethodName                = "/ngfw.v1.Dataplane/Retrieve"
-	Dataplane_DryRun_FullMethodName                  = "/ngfw.v1.Dataplane/DryRun"
-	Dataplane_StreamStats_FullMethodName             = "/ngfw.v1.Dataplane/StreamStats"
-	Dataplane_StreamEvents_FullMethodName            = "/ngfw.v1.Dataplane/StreamEvents"
-	Dataplane_Action_FullMethodName                  = "/ngfw.v1.Dataplane/Action"
-	Dataplane_Health_FullMethodName                  = "/ngfw.v1.Dataplane/Health"
-	Dataplane_InterfaceState_FullMethodName          = "/ngfw.v1.Dataplane/InterfaceState"
-	Dataplane_Det44Sessions_FullMethodName           = "/ngfw.v1.Dataplane/Det44Sessions"
-	Dataplane_Det44Lookup_FullMethodName             = "/ngfw.v1.Dataplane/Det44Lookup"
-	Dataplane_CnatSessions_FullMethodName            = "/ngfw.v1.Dataplane/CnatSessions"
-	Dataplane_VrrpState_FullMethodName               = "/ngfw.v1.Dataplane/VrrpState"
-	Dataplane_PkiFileState_FullMethodName            = "/ngfw.v1.Dataplane/PkiFileState"
-	Dataplane_MplsState_FullMethodName               = "/ngfw.v1.Dataplane/MplsState"
-	Dataplane_LbState_FullMethodName                 = "/ngfw.v1.Dataplane/LbState"
-	Dataplane_LbFlushVip_FullMethodName              = "/ngfw.v1.Dataplane/LbFlushVip"
-	Dataplane_QosPolicerState_FullMethodName         = "/ngfw.v1.Dataplane/QosPolicerState"
-	Dataplane_QosPolicerReset_FullMethodName         = "/ngfw.v1.Dataplane/QosPolicerReset"
-	Dataplane_HostStackState_FullMethodName          = "/ngfw.v1.Dataplane/HostStackState"
-	Dataplane_SnmpState_FullMethodName               = "/ngfw.v1.Dataplane/SnmpState"
-	Dataplane_IpfixState_FullMethodName              = "/ngfw.v1.Dataplane/IpfixState"
-	Dataplane_CaptureList_FullMethodName             = "/ngfw.v1.Dataplane/CaptureList"
-	Dataplane_CaptureRead_FullMethodName             = "/ngfw.v1.Dataplane/CaptureRead"
-	Dataplane_CaptureDelete_FullMethodName           = "/ngfw.v1.Dataplane/CaptureDelete"
-	Dataplane_Srv6State_FullMethodName               = "/ngfw.v1.Dataplane/Srv6State"
-	Dataplane_LispState_FullMethodName               = "/ngfw.v1.Dataplane/LispState"
-	Dataplane_BondState_FullMethodName               = "/ngfw.v1.Dataplane/BondState"
-	Dataplane_BridgeDomainState_FullMethodName       = "/ngfw.v1.Dataplane/BridgeDomainState"
-	Dataplane_BridgeDomainMacs_FullMethodName        = "/ngfw.v1.Dataplane/BridgeDomainMacs"
-	Dataplane_LldpNeighbors_FullMethodName           = "/ngfw.v1.Dataplane/LldpNeighbors"
-	Dataplane_ListRoutes_FullMethodName              = "/ngfw.v1.Dataplane/ListRoutes"
-	Dataplane_ListNeighbors_FullMethodName           = "/ngfw.v1.Dataplane/ListNeighbors"
-	Dataplane_FqdnObjectState_FullMethodName         = "/ngfw.v1.Dataplane/FqdnObjectState"
-	Dataplane_AclState_FullMethodName                = "/ngfw.v1.Dataplane/AclState"
-	Dataplane_HostAclState_FullMethodName            = "/ngfw.v1.Dataplane/HostAclState"
-	Dataplane_NatSessions_FullMethodName             = "/ngfw.v1.Dataplane/NatSessions"
-	Dataplane_NatSummary_FullMethodName              = "/ngfw.v1.Dataplane/NatSummary"
-	Dataplane_WireguardState_FullMethodName          = "/ngfw.v1.Dataplane/WireguardState"
-	Dataplane_RoutingState_FullMethodName            = "/ngfw.v1.Dataplane/RoutingState"
-	Dataplane_DhcpLeases_FullMethodName              = "/ngfw.v1.Dataplane/DhcpLeases"
-	Dataplane_DnsState_FullMethodName                = "/ngfw.v1.Dataplane/DnsState"
-	Dataplane_SystemIdentityState_FullMethodName     = "/ngfw.v1.Dataplane/SystemIdentityState"
-	Dataplane_NtpState_FullMethodName                = "/ngfw.v1.Dataplane/NtpState"
-	Dataplane_SyslogState_FullMethodName             = "/ngfw.v1.Dataplane/SyslogState"
-	Dataplane_SyslogEntries_FullMethodName           = "/ngfw.v1.Dataplane/SyslogEntries"
-	Dataplane_DataplaneStartupState_FullMethodName   = "/ngfw.v1.Dataplane/DataplaneStartupState"
-	Dataplane_DataplaneStartupPreview_FullMethodName = "/ngfw.v1.Dataplane/DataplaneStartupPreview"
-	Dataplane_PppoeReconnect_FullMethodName          = "/ngfw.v1.Dataplane/PppoeReconnect"
-	Dataplane_WanState_FullMethodName                = "/ngfw.v1.Dataplane/WanState"
-	Dataplane_MulticastState_FullMethodName          = "/ngfw.v1.Dataplane/MulticastState"
-	Dataplane_MplsLdpState_FullMethodName            = "/ngfw.v1.Dataplane/MplsLdpState"
-	Dataplane_HostNics_FullMethodName                = "/ngfw.v1.Dataplane/HostNics"
+	Dataplane_IpsecState_FullMethodName               = "/ngfw.v1.Dataplane/IpsecState"
+	Dataplane_TunnelState_FullMethodName              = "/ngfw.v1.Dataplane/TunnelState"
+	Dataplane_RemoteAccessCapabilities_FullMethodName = "/ngfw.v1.Dataplane/RemoteAccessCapabilities"
+	Dataplane_RemoteAccessSessions_FullMethodName     = "/ngfw.v1.Dataplane/RemoteAccessSessions"
+	Dataplane_RemoteAccessDisconnect_FullMethodName   = "/ngfw.v1.Dataplane/RemoteAccessDisconnect"
+	Dataplane_AutoBlockSet_FullMethodName             = "/ngfw.v1.Dataplane/AutoBlockSet"
+	Dataplane_Apply_FullMethodName                    = "/ngfw.v1.Dataplane/Apply"
+	Dataplane_Retrieve_FullMethodName                 = "/ngfw.v1.Dataplane/Retrieve"
+	Dataplane_DryRun_FullMethodName                   = "/ngfw.v1.Dataplane/DryRun"
+	Dataplane_StreamStats_FullMethodName              = "/ngfw.v1.Dataplane/StreamStats"
+	Dataplane_StreamEvents_FullMethodName             = "/ngfw.v1.Dataplane/StreamEvents"
+	Dataplane_Action_FullMethodName                   = "/ngfw.v1.Dataplane/Action"
+	Dataplane_Health_FullMethodName                   = "/ngfw.v1.Dataplane/Health"
+	Dataplane_InterfaceState_FullMethodName           = "/ngfw.v1.Dataplane/InterfaceState"
+	Dataplane_Det44Sessions_FullMethodName            = "/ngfw.v1.Dataplane/Det44Sessions"
+	Dataplane_Det44Lookup_FullMethodName              = "/ngfw.v1.Dataplane/Det44Lookup"
+	Dataplane_CnatSessions_FullMethodName             = "/ngfw.v1.Dataplane/CnatSessions"
+	Dataplane_VrrpState_FullMethodName                = "/ngfw.v1.Dataplane/VrrpState"
+	Dataplane_PkiFileState_FullMethodName             = "/ngfw.v1.Dataplane/PkiFileState"
+	Dataplane_MplsState_FullMethodName                = "/ngfw.v1.Dataplane/MplsState"
+	Dataplane_LbState_FullMethodName                  = "/ngfw.v1.Dataplane/LbState"
+	Dataplane_LbFlushVip_FullMethodName               = "/ngfw.v1.Dataplane/LbFlushVip"
+	Dataplane_QosPolicerState_FullMethodName          = "/ngfw.v1.Dataplane/QosPolicerState"
+	Dataplane_QosPolicerReset_FullMethodName          = "/ngfw.v1.Dataplane/QosPolicerReset"
+	Dataplane_HostStackState_FullMethodName           = "/ngfw.v1.Dataplane/HostStackState"
+	Dataplane_SnmpState_FullMethodName                = "/ngfw.v1.Dataplane/SnmpState"
+	Dataplane_IpfixState_FullMethodName               = "/ngfw.v1.Dataplane/IpfixState"
+	Dataplane_CaptureList_FullMethodName              = "/ngfw.v1.Dataplane/CaptureList"
+	Dataplane_CaptureRead_FullMethodName              = "/ngfw.v1.Dataplane/CaptureRead"
+	Dataplane_CaptureDelete_FullMethodName            = "/ngfw.v1.Dataplane/CaptureDelete"
+	Dataplane_Srv6State_FullMethodName                = "/ngfw.v1.Dataplane/Srv6State"
+	Dataplane_LispState_FullMethodName                = "/ngfw.v1.Dataplane/LispState"
+	Dataplane_BondState_FullMethodName                = "/ngfw.v1.Dataplane/BondState"
+	Dataplane_BridgeDomainState_FullMethodName        = "/ngfw.v1.Dataplane/BridgeDomainState"
+	Dataplane_BridgeDomainMacs_FullMethodName         = "/ngfw.v1.Dataplane/BridgeDomainMacs"
+	Dataplane_LldpNeighbors_FullMethodName            = "/ngfw.v1.Dataplane/LldpNeighbors"
+	Dataplane_ListRoutes_FullMethodName               = "/ngfw.v1.Dataplane/ListRoutes"
+	Dataplane_ListNeighbors_FullMethodName            = "/ngfw.v1.Dataplane/ListNeighbors"
+	Dataplane_FqdnObjectState_FullMethodName          = "/ngfw.v1.Dataplane/FqdnObjectState"
+	Dataplane_AclState_FullMethodName                 = "/ngfw.v1.Dataplane/AclState"
+	Dataplane_HostAclState_FullMethodName             = "/ngfw.v1.Dataplane/HostAclState"
+	Dataplane_NatSessions_FullMethodName              = "/ngfw.v1.Dataplane/NatSessions"
+	Dataplane_NatSummary_FullMethodName               = "/ngfw.v1.Dataplane/NatSummary"
+	Dataplane_WireguardState_FullMethodName           = "/ngfw.v1.Dataplane/WireguardState"
+	Dataplane_RoutingState_FullMethodName             = "/ngfw.v1.Dataplane/RoutingState"
+	Dataplane_DhcpLeases_FullMethodName               = "/ngfw.v1.Dataplane/DhcpLeases"
+	Dataplane_DnsState_FullMethodName                 = "/ngfw.v1.Dataplane/DnsState"
+	Dataplane_SystemIdentityState_FullMethodName      = "/ngfw.v1.Dataplane/SystemIdentityState"
+	Dataplane_NtpState_FullMethodName                 = "/ngfw.v1.Dataplane/NtpState"
+	Dataplane_SyslogState_FullMethodName              = "/ngfw.v1.Dataplane/SyslogState"
+	Dataplane_SyslogEntries_FullMethodName            = "/ngfw.v1.Dataplane/SyslogEntries"
+	Dataplane_DataplaneStartupState_FullMethodName    = "/ngfw.v1.Dataplane/DataplaneStartupState"
+	Dataplane_DataplaneStartupPreview_FullMethodName  = "/ngfw.v1.Dataplane/DataplaneStartupPreview"
+	Dataplane_PppoeReconnect_FullMethodName           = "/ngfw.v1.Dataplane/PppoeReconnect"
+	Dataplane_WanState_FullMethodName                 = "/ngfw.v1.Dataplane/WanState"
+	Dataplane_MulticastState_FullMethodName           = "/ngfw.v1.Dataplane/MulticastState"
+	Dataplane_MplsLdpState_FullMethodName             = "/ngfw.v1.Dataplane/MplsLdpState"
+	Dataplane_HostNics_FullMethodName                 = "/ngfw.v1.Dataplane/HostNics"
 )
 
 // DataplaneClient is the client API for Dataplane service.
@@ -114,6 +117,11 @@ const (
 type DataplaneClient interface {
 	IpsecState(ctx context.Context, in *IpsecStateRequest, opts ...grpc.CallOption) (*IpsecStateResponse, error)
 	TunnelState(ctx context.Context, in *TunnelStateRequest, opts ...grpc.CallOption) (*TunnelStateResponse, error)
+	// Independent strongSwan remote access; observed runtime only.
+	RemoteAccessCapabilities(ctx context.Context, in *RemoteAccessCapabilitiesRequest, opts ...grpc.CallOption) (*RemoteAccessCapabilitiesResponse, error)
+	RemoteAccessSessions(ctx context.Context, in *RemoteAccessSessionsRequest, opts ...grpc.CallOption) (*RemoteAccessSessionsResponse, error)
+	// Admin-authorized API action; the agent verifies owned session removal by readback.
+	RemoteAccessDisconnect(ctx context.Context, in *RemoteAccessDisconnectRequest, opts ...grpc.CallOption) (*RemoteAccessDisconnectResponse, error)
 	// Apply converges the data plane (VPP + daemons) to the desired state of the selected
 	// subsystems inside one transaction: validate → plan → apply → verify; on any error the
 	// operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
@@ -339,6 +347,36 @@ func (c *dataplaneClient) TunnelState(ctx context.Context, in *TunnelStateReques
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(TunnelStateResponse)
 	err := c.cc.Invoke(ctx, Dataplane_TunnelState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) RemoteAccessCapabilities(ctx context.Context, in *RemoteAccessCapabilitiesRequest, opts ...grpc.CallOption) (*RemoteAccessCapabilitiesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoteAccessCapabilitiesResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RemoteAccessCapabilities_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) RemoteAccessSessions(ctx context.Context, in *RemoteAccessSessionsRequest, opts ...grpc.CallOption) (*RemoteAccessSessionsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoteAccessSessionsResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RemoteAccessSessions_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) RemoteAccessDisconnect(ctx context.Context, in *RemoteAccessDisconnectRequest, opts ...grpc.CallOption) (*RemoteAccessDisconnectResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoteAccessDisconnectResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RemoteAccessDisconnect_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -921,6 +959,11 @@ func (c *dataplaneClient) HostNics(ctx context.Context, in *HostNicsRequest, opt
 type DataplaneServer interface {
 	IpsecState(context.Context, *IpsecStateRequest) (*IpsecStateResponse, error)
 	TunnelState(context.Context, *TunnelStateRequest) (*TunnelStateResponse, error)
+	// Independent strongSwan remote access; observed runtime only.
+	RemoteAccessCapabilities(context.Context, *RemoteAccessCapabilitiesRequest) (*RemoteAccessCapabilitiesResponse, error)
+	RemoteAccessSessions(context.Context, *RemoteAccessSessionsRequest) (*RemoteAccessSessionsResponse, error)
+	// Admin-authorized API action; the agent verifies owned session removal by readback.
+	RemoteAccessDisconnect(context.Context, *RemoteAccessDisconnectRequest) (*RemoteAccessDisconnectResponse, error)
 	// Apply converges the data plane (VPP + daemons) to the desired state of the selected
 	// subsystems inside one transaction: validate → plan → apply → verify; on any error the
 	// operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
@@ -1138,6 +1181,15 @@ func (UnimplementedDataplaneServer) IpsecState(context.Context, *IpsecStateReque
 func (UnimplementedDataplaneServer) TunnelState(context.Context, *TunnelStateRequest) (*TunnelStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method TunnelState not implemented")
 }
+func (UnimplementedDataplaneServer) RemoteAccessCapabilities(context.Context, *RemoteAccessCapabilitiesRequest) (*RemoteAccessCapabilitiesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoteAccessCapabilities not implemented")
+}
+func (UnimplementedDataplaneServer) RemoteAccessSessions(context.Context, *RemoteAccessSessionsRequest) (*RemoteAccessSessionsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoteAccessSessions not implemented")
+}
+func (UnimplementedDataplaneServer) RemoteAccessDisconnect(context.Context, *RemoteAccessDisconnectRequest) (*RemoteAccessDisconnectResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoteAccessDisconnect not implemented")
+}
 func (UnimplementedDataplaneServer) AutoBlockSet(context.Context, *AutoBlockSetRequest) (*AutoBlockSetResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AutoBlockSet not implemented")
 }
@@ -1350,6 +1402,60 @@ func _Dataplane_TunnelState_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(DataplaneServer).TunnelState(ctx, req.(*TunnelStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_RemoteAccessCapabilities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteAccessCapabilitiesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RemoteAccessCapabilities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RemoteAccessCapabilities_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RemoteAccessCapabilities(ctx, req.(*RemoteAccessCapabilitiesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_RemoteAccessSessions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteAccessSessionsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RemoteAccessSessions(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RemoteAccessSessions_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RemoteAccessSessions(ctx, req.(*RemoteAccessSessionsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_RemoteAccessDisconnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoteAccessDisconnectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RemoteAccessDisconnect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RemoteAccessDisconnect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RemoteAccessDisconnect(ctx, req.(*RemoteAccessDisconnectRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2294,6 +2400,18 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "TunnelState",
 			Handler:    _Dataplane_TunnelState_Handler,
+		},
+		{
+			MethodName: "RemoteAccessCapabilities",
+			Handler:    _Dataplane_RemoteAccessCapabilities_Handler,
+		},
+		{
+			MethodName: "RemoteAccessSessions",
+			Handler:    _Dataplane_RemoteAccessSessions_Handler,
+		},
+		{
+			MethodName: "RemoteAccessDisconnect",
+			Handler:    _Dataplane_RemoteAccessDisconnect_Handler,
 		},
 		{
 			MethodName: "AutoBlockSet",

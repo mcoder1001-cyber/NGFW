@@ -4,16 +4,27 @@ import (
 	"context"
 	"encoding/json"
 	"golang.org/x/sys/unix"
+	"log"
 	"ngfw/agent/internal/vpp/bootid"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // RunNumericOpenFilePublisher serves one authenticated canonical-agent request.
 // The manager preopens both named descriptors before the service drops all caps.
 func RunNumericOpenFilePublisher() (result error) {
+	started := time.Now()
+	stage := NumericPublisherServerRoles
+	diagnosticContext := context.Background()
+	defer func() {
+		if result != nil {
+			log.Printf("remote-access publisher-server stage=%d deadline_exceeded=%t elapsed_ms=%d", stage, diagnosticContext.Err() == context.DeadlineExceeded, time.Since(started).Milliseconds())
+		}
+	}()
+
 	count, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
 	names := strings.Split(os.Getenv("LISTEN_FDNAMES"), ":")
 	if os.Geteuid() != 0 || err != nil || count != 2 || len(names) != 2 || os.Getenv("LISTEN_PID") != strconv.Itoa(os.Getpid()) {
@@ -36,10 +47,15 @@ func RunNumericOpenFilePublisher() (result error) {
 			_ = file.Close()
 		}
 	}()
+	stage = NumericPublisherServerCaps
 	if validateNamespaceBrokerProcess(os.Getpid(), 0) != nil {
 		return ErrBoundary
 	}
-	proof, err := newNumericPublisherInstallationProof(context.Background())
+	stage = NumericPublisherServerInstallation
+	validationContext, validationCancel := context.WithTimeout(context.Background(), NumericPublisherValidationBudget)
+	defer validationCancel()
+	diagnosticContext = validationContext
+	proof, err := newNumericPublisherInstallationProof(validationContext)
 	if err != nil {
 		return err
 	}
@@ -50,6 +66,8 @@ func RunNumericOpenFilePublisher() (result error) {
 	}()
 	ctx, cancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
 	defer cancel()
+	diagnosticContext = ctx
+	stage = NumericPublisherServerListener
 	listener := int(roles[numericPublisherListenerRole].Fd())
 	kind, err := unix.GetsockoptInt(listener, unix.SOL_SOCKET, unix.SO_TYPE)
 	address, addrErr := unix.Getsockname(listener)
@@ -57,6 +75,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	if err != nil || kind != unix.SOCK_SEQPACKET || addrErr != nil || !ok || path.Name != numericPublisherSocketPath || boundUnitObserverSocket(ctx, listener) != nil {
 		return ErrBoundary
 	}
+	stage = NumericPublisherServerAccept
 	socket, _, err := unix.Accept4(listener, unix.SOCK_CLOEXEC)
 	if err != nil {
 		return ErrBoundary
@@ -71,9 +90,19 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	// Authenticate the actual canonical peer before accepting any caller rights.
 	source := (bootid.Reader{}).ForPID(int(peer.Pid))
-	if verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil || validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil {
+	stage = NumericPublisherServerPeer
+	if verifyFixedAgentPeer(ctx, peer, source) != nil {
 		return ErrBoundary
 	}
+	stage = NumericPublisherServerReference
+	if readSourceAgentReference(source) != nil {
+		return ErrBoundary
+	}
+	stage = NumericPublisherServerSourceImage
+	if validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil {
+		return ErrBoundary
+	}
+	stage = NumericPublisherServerRequest
 	data, previous, err := receiveUnitObserverPacket(socket, 0)
 	if err != nil {
 		return ErrBoundary
@@ -85,6 +114,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	published := false
 	if request.Phase == "publish" {
+		stage = NumericPublisherServerPrevious
 		previousData, previousFiles, err := receiveUnitObserverPacket(socket, 1)
 		if err != nil {
 			return ErrBoundary
@@ -94,30 +124,52 @@ func RunNumericOpenFilePublisher() (result error) {
 		if string(previousData) != "SOURCE" || request.PreviousServer.Equal(server) || (bootid.Reader{}).ForPID(request.PreviousServer.PID).Equal(request.PreviousServer) || validateSourceAgentExecutable(previousFiles[0]) != nil || !sameNumericPublisherSource(previousFiles[0], roles[sourceAgentExecutableRole]) {
 			return ErrBoundary
 		}
+		stage = NumericPublisherServerProof
 		if proof.Verify(ctx) != nil {
 			return ErrBoundary
 		}
+		stage = NumericPublisherServerPublish
 		if (FixedNumericOpenFilePublisher{}).PublishNumericOpenFile(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
-		if verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil || verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil || activateNumericSupplier(ctx, request.Kind, request.Target) != nil || verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
+		stage = NumericPublisherServerPostPeer
+		if verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil {
+			return ErrBoundary
+		}
+		stage = NumericPublisherServerTarget
+		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
+			return ErrBoundary
+		}
+		stage = NumericPublisherServerActivate
+		if activateNumericSupplier(ctx, request.Kind, request.Target) != nil {
+			return ErrBoundary
+		}
+		stage = NumericPublisherServerPostTarget
+		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
 		published = true
 	}
 
-	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof)
+	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, &stage)
 }
 
-func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof) error {
+func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, stage *NumericPublisherServerStage) error {
 	server := (bootid.Reader{}).ForPID(os.Getpid())
-	if numericPublisherManagerWithProof(ctx, server, proof) != nil || verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+	*stage = NumericPublisherServerManager
+	if numericPublisherManagerWithProof(ctx, server, proof) != nil {
 		return ErrBoundary
 	}
+	*stage = NumericPublisherServerReplyPeer
+	if verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+		return ErrBoundary
+	}
+	*stage = NumericPublisherServerSend
 	output, err := json.Marshal(numericPublisherResponse{Phase: request.Phase, Source: request.Source, Server: server, Published: published})
 	if err != nil || len(output) > numericPublisherPacketLimit || unix.Sendmsg(socket, output, unix.UnixRights(int(image.Fd())), nil, 0) != nil {
 		return ErrBoundary
 	}
+	*stage = NumericPublisherServerAck
 	ack, rights, err := receiveUnitObserverPacket(socket, 0)
 	closeUnitObserverFiles(rights)
 	if err != nil || string(ack) != "OK" || ctx.Err() != nil || proof.Verify(ctx) != nil {

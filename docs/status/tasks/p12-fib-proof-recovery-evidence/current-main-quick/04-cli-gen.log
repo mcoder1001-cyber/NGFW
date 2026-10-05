@@ -1,0 +1,5 @@
+$ make -C apps/cli gen
+make: Entering directory '/root/ngfw-wt/codex-p12-fib-proof-recovery/apps/cli'
+go run ./cmd/ngfw-opgen -in ../../packages/api-client/openapi.json -out internal/api/operations_gen.go
+ngfw-opgen: internal/api/operations_gen.go written
+make: Leaving directory '/root/ngfw-wt/codex-p12-fib-proof-recovery/apps/cli'

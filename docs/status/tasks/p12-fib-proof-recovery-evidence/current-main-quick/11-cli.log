@@ -1,0 +1,20 @@
+$ make -C apps/cli lint test build
+make: Entering directory '/root/ngfw-wt/codex-p12-fib-proof-recovery/apps/cli'
+ok: apps/cli talks only to the REST API
+go vet ./...
+0 issues.
+go test -race -count=1 ./...
+?   	ngfw/cli/cmd/ngfw	[no test files]
+?   	ngfw/cli/cmd/ngfw-docgen	[no test files]
+?   	ngfw/cli/cmd/ngfw-opgen	[no test files]
+ok  	ngfw/cli/internal/api	2.710s
+?   	ngfw/cli/internal/api/opgen	[no test files]
+ok  	ngfw/cli/internal/cli	2.033s
+ok  	ngfw/cli/internal/cpath	1.065s
+ok  	ngfw/cli/internal/jschema	1.126s
+?   	ngfw/cli/internal/lineedit	[no test files]
+ok  	ngfw/cli/internal/render	1.084s
+ok  	ngfw/cli/internal/safe	1.103s
+ok  	ngfw/cli/test/e2e	1.081s
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=1e387d0ac" -o bin/ngfw ./cmd/ngfw
+make: Leaving directory '/root/ngfw-wt/codex-p12-fib-proof-recovery/apps/cli'

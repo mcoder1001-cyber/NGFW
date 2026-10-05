@@ -1,0 +1,1 @@
+P12 recovery requires assigned slot 14 / w14

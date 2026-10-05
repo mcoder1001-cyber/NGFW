@@ -1,0 +1,42 @@
+ngfw/agent/internal/subsystems/ruleexpiry: mkdir /tmp/go-build3925347910/b539/: no space left on device
+google.golang.org/grpc/internal: mkdir /tmp/go-build3925347910/b253/: no space left on device
+google.golang.org/grpc/internal/resolver/dns/internal: mkdir /tmp/go-build3925347910/b337/: no space left on device
+ngfw/agent/binapi/ethernet_types: mkdir /tmp/go-build3925347910/b347/: no space left on device
+google.golang.org/grpc/test/bufconn: mkdir /tmp/go-build3925347910/b338/: no space left on device
+ngfw/agent/binapi/ip_types: mkdir /tmp/go-build3925347910/b348/: no space left on device
+github.com/ftrvxmtrx/fd: mkdir /tmp/go-build3925347910/b384/: no space left on device
+ngfw/agent/internal/vpp: mkdir /tmp/go-build3925347910/b392/: no space left on device
+net/textproto: mkdir /tmp/go-build3925347910/b218/: no space left on device
+ngfw/agent/binapi/auto_sdl: mkdir /tmp/go-build3925347910/b424/: no space left on device
+ngfw/agent/binapi/policer_types: open /tmp/go-build3925347910/b448/importcfg: no space left on device
+golang.org/x/net/internal/socket: mkdir /tmp/go-build3925347910/b550/: no space left on device
+github.com/gosnmp/gosnmp: mkdir /tmp/go-build3925347910/b555/: no space left on device
+crypto/x509: mkdir /tmp/go-build3925347910/b208/: no space left on device
+google.golang.org/protobuf/internal/impl: mkdir /tmp/go-build3925347910/b278/: no space left on device
+ngfw/agent/binapi/dns: mkdir /tmp/go-build3925347910/b411/: no space left on device
+ngfw/agent/internal/scheduler: mkdir /tmp/go-build3925347910/b389/: no space left on device
+ngfw/agent/binapi/memclnt: open /tmp/go-build3925347910/b351/importcfg: no space left on device
+ngfw/agent/binapi/bpf_trace_filter: mkdir /tmp/go-build3925347910/b408/: no space left on device
+ngfw/agent/binapi/nat_types: open /tmp/go-build3925347910/b358/importcfg: no space left on device
+ngfw/agent/binapi/sr_types: open /tmp/go-build3925347910/b374/importcfg: no space left on device
+# ngfw/agent/binapi/vpe_types
+can't create $WORK/b452/_pkg_.a: open $WORK/b452/_pkg_.a: no space left on device
+# ngfw/agent/internal/vpp/vpptest
+can't create $WORK/b459/_pkg_.a: open $WORK/b459/_pkg_.a: no space left on device
+ngfw/agent/binapi/feature: mkdir /tmp/go-build3925347910/b417/: no space left on device
+ngfw/agent/binapi/gso: mkdir /tmp/go-build3925347910/b428/: no space left on device
+ngfw/agent/binapi/dhcp6_ia_na_client_cp: mkdir /tmp/go-build3925347910/b483/: no space left on device
+ngfw/agent/binapi/nsim: mkdir /tmp/go-build3925347910/b444/: no space left on device
+ngfw/agent/binapi/adl: mkdir /tmp/go-build3925347910/b395/: no space left on device
+ngfw/agent/binapi/mss_clamp: mkdir /tmp/go-build3925347910/b518/: no space left on device
+ngfw/agent/binapi/interface_types: open /tmp/go-build3925347910/b350/vet.cfg: no space left on device
+# ngfw/agent/internal/ownertable
+can't create $WORK/b405/_pkg_.a: open $WORK/b405/_pkg_.a: no space left on device
+ngfw/agent/binapi/vlib: open /tmp/go-build3925347910/b377/importcfg: no space left on device
+# ngfw/agent/binapi/http_static
+can't create $WORK/b491/_pkg_.a: open $WORK/b491/_pkg_.a: no space left on device
+ngfw/agent/binapi/lcp: mkdir /tmp/go-build3925347910/b368/: no space left on device
+# ngfw/agent/internal/renderers
+can't create $WORK/b412/_pkg_.a: open $WORK/b412/_pkg_.a: no space left on device
+FAIL	ngfw/agent/internal/agent [build failed]
+FAIL

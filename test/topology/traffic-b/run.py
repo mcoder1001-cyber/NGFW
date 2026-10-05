@@ -70,6 +70,26 @@ def campaign(slot,output,selected,*,agent,plugin):
                     raise Refused('phase failed, skipped, or shared VPP identity unverified')
                 if marker and marker not in text:raise Refused('required executed acceptance marker absent')
                 if name=='ipsec' and '"passed": true' not in text:raise Refused('native production acceptance not passed')
+                if name in ('ipsec','ipsec-cert','bgp','ospf'):
+                    runtimes=[]
+                    for line in text.splitlines():
+                        if line.startswith('{"private_runtime":'):
+                            runtimes.append(Path(json.loads(line)['private_runtime']))
+                    if len(runtimes)!=1:raise Refused('one owned runtime identity required')
+                    runtime=runtimes[0].resolve(strict=True)
+                    if runtime.parent!=ROOT/'.scratch' or not runtime.name.startswith('traffic-b-private-'):
+                        raise Refused('foreign REST evidence runtime')
+                    proof_path=runtime/'evidence'/(name+'-rest.json')
+                    if proof_path.stat().st_size>1048576:raise Refused('REST evidence exceeds bound')
+                    proof=json.loads(proof_path.read_text())
+                    events=proof.get('events',[])
+                    if not events or events[0].get('status')!='applied' or not events[0].get('candidate_owner') or len(events[0].get('candidate_sha256',''))!=64:
+                        raise Refused('actual initial REST applied candidate proof absent')
+                    if not any(event.get('txn')=='rest-baseline-rollback' and event.get('status')=='applied' for event in events):
+                        raise Refused('actual REST rollback proof absent')
+                    entry['rest_proof_sha256']=hashlib.sha256(proof_path.read_bytes()).hexdigest()
+                    entry['rest_initial_revision']=events[0]['revision']
+                    entry['rest_candidate_sha256']=events[0]['candidate_sha256']
                 entry.update(status='passed',diagnostic_sha256=hashlib.sha256(log.read_bytes()).hexdigest())
             except (OSError,ValueError,subprocess.SubprocessError) as error:
                 entry['reason']=type(error).__name__+': acceptance failed; private diagnostic retained'
@@ -91,6 +111,7 @@ def main():
     parser.add_argument('--output',type=Path);parser.add_argument('--agent',type=Path,default=ROOT/'apps/agent/bin/ngfw-agent')
     parser.add_argument('--plugin-directory',type=Path,default=ROOT/'.scratch/traffic-b-native-plugin/plugin')
     parser.add_argument('--build-native-plugin',action='store_true')
+    parser.add_argument('--build-wg-test-agent',action='store_true',help='build envelope-approved ngfwtestsecrets agent in owned scratch directory')
     args=parser.parse_args()
     def terminate(signum,frame):raise SystemExit(128+signum)
     signal.signal(signal.SIGTERM,terminate)
@@ -104,6 +125,12 @@ def main():
             if args.build_native_plugin:
                 subprocess.run([str(ROOT/'tools/heavy.sh'),'python3',str(ROOT/'test/topology/ipsec/build-native-plugin.py'),'--output',str(args.plugin_directory.parent)],check=True)
             if not (args.plugin_directory/'ikev2_plugin.so').is_file() or not args.agent.is_file():raise Refused('built native plugin and product agent required')
+        if 'wireguard' in selected:
+            tagged=ROOT/'.scratch/traffic-b-wg-agent/ngfw-agent'
+            if args.build_wg_test_agent:
+                tagged.parent.mkdir(mode=0o700,parents=True,exist_ok=True)
+                subprocess.run([str(ROOT/'tools/heavy.sh'),'go','-C','apps/agent','build','-tags','ngfwtestsecrets','-o',str(tagged),'./cmd/ngfw-agent'],cwd=ROOT,check=True)
+            if not tagged.is_file():raise Refused('approved tagged WireGuard test agent required; use --build-wg-test-agent')
         output=(args.output or ROOT/'.scratch'/('traffic-b-campaign-'+str(os.getpid()))).resolve()
         with open('/run/lock/ngfw-traffic-b-w'+str(args.slot)+'.lock','a') as ownership:
             fcntl.flock(ownership,fcntl.LOCK_EX|fcntl.LOCK_NB)

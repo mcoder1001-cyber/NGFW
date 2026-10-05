@@ -111,3 +111,15 @@ surviving descendants after leader exit, with bounded TERM grace then KILL only
 for fixture-created process groups. Actual recovery/safety suite15/15 PASS,
 including a real orphaned descendant cleanup probe. REST BGP/OSPF repeat remains
 in progress; complete quick and native warning prerequisite remain pending.
+
+BGP actual REST repeat PASS at34e545fc6 plus the subsequently committed OSPF
+expected-default fixture: TestP12TopologyOnHost132.44s, applied candidate metadata,
+200 learned routes, ICMP/TCP, restart and route withdrawal/recovery, policy/link
+changes, REST rollback and shared PID/restart invariance. Evidence:
+`.scratch/traffic-b-private-401638/evidence/bgp-rest.json`. Latest dispatcher now
+requires actual initial-applied/candidate-owner/hash and baseline-rollback proof
+from bounded private metadata for native/routing phases; first fixture commit
+cannot silently accept unchanged. This guard will be verified by final composed
+rerun after the native stale-warning prerequisite. Signed licence test material
+stays private; remote checkpoints confirmed through a45391efc at
+b2064f8d4c764b85aba4ff57ee10878e6f0bbe7b. Later checkpoints await manager publication.

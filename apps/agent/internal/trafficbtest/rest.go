@@ -21,11 +21,12 @@ import (
 )
 
 type Client struct {
-	cmd     *exec.Cmd
-	input   io.WriteCloser
-	decoder *json.Decoder
-	once    sync.Once
-	cancel  context.CancelFunc
+	cmd        *exec.Cmd
+	input      io.WriteCloser
+	decoder    *json.Decoder
+	once       sync.Once
+	cancel     context.CancelFunc
+	configured bool
 }
 type Reply struct {
 	Status   string          `json:"status"`
@@ -122,6 +123,10 @@ func (c *Client) Apply(t *testing.T, txn string, desired *ngfwv1.DesiredState, s
 	if reply.Status != "applied" && reply.Status != "unchanged" {
 		t.Fatal("REST configuration not applied", reply.Status)
 	}
+	if !c.configured && reply.Status != "applied" {
+		t.Fatal("initial primary REST commit must apply")
+	}
+	c.configured = true
 	result := new(ngfwv1.ApplyResponse)
 	if err := protojson.Unmarshal(reply.Response, result); err != nil {
 		t.Fatal("REST actual result conversion failed", err)

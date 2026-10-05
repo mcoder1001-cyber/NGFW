@@ -2,6 +2,7 @@ package ravpn
 
 import (
 	"golang.org/x/sys/unix"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -17,8 +18,19 @@ func ReadAgentPlan(instance string) (*NetworkPlan, error) {
 	if ValidatePrivateFile(path, 16384) != nil {
 		return nil, ErrBoundary
 	}
-	data, err := os.ReadFile(path)
+	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_NONBLOCK|unix.O_CLOEXEC, 0)
 	if err != nil {
+		return nil, ErrBoundary
+	}
+	file := os.NewFile(uintptr(fd), "protected agent network plan")
+	var info unix.Stat_t
+	if unix.Fstat(fd, &info) != nil || info.Mode&unix.S_IFMT != unix.S_IFREG || info.Uid != 0 || info.Mode&0077 != 0 || info.Nlink != 1 || info.Size < 1 || info.Size > 16384 {
+		_ = file.Close()
+		return nil, ErrBoundary
+	}
+	data, readErr := io.ReadAll(io.LimitReader(file, 16385))
+	closeErr := file.Close()
+	if readErr != nil || closeErr != nil || len(data) > 16384 {
 		return nil, ErrBoundary
 	}
 	plan, err := DecodePrivatePlan(data, instance)
@@ -39,8 +51,8 @@ func ReadAgentPlan(instance string) (*NetworkPlan, error) {
 		}
 		var fs unix.Statfs_t
 		bad := unix.Fstat(fd, entry.stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || entry.stat.Ino != entry.inode
-		unix.Close(fd)
-		if bad {
+		closeErr := unix.Close(fd)
+		if bad || closeErr != nil {
 			return nil, ErrBoundary
 		}
 	}

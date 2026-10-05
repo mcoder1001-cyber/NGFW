@@ -1,0 +1,1116 @@
+{
+  "proof": "HTTP fixture observations; not native/appliance acceptance",
+  "results": [
+    {
+      "path": "/system/ha",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nHigh availability\n\nVRRPv3 virtual routers and cluster membership. Changes are staged in the candidate and committed from the pending-change bar.\n\nVRRP\nCluster\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nNo entries\n\nAdd\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nNot configured\n\nNat Failover\n\nNot configured\n\nSync Exclude\n\nNo entries\n\nAdd\nReset\nSave to candidate\nCluster membership\nForce sync\n\nRevision: —\n\nState sync\nNAT HA uses unauthenticated UDP. Use an isolated trusted sync network; the cluster key protects configuration sync only.\n\nNAT44-EI\n\nSupported\nEndpoints active\nRequested\n\nNative endpoint sync; verify remote session continuity on two nodes.\n\nLast native resync completion: Unavailable\n\nNative completions in this agent process: 0\n\nLast unacknowledged HA messages: Unavailable\n\nPacket counters are not exposed by the native HA API\n\nResync NAT44-EI\n\nClustering is not configured",
+      "after": {
+        "text": "banner.undefined Install or view the licence\nHigh availability\n\nVRRPv3 virtual routers and cluster membership. Changes are staged in the candidate and committed from the pending-change bar.\n\nVRRP\nCluster\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nNo entries\n\nAdd\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nNot configured\n\nNat Failover\n\nNot configured\n\nSync Exclude\n\nNo entries\n\nAdd\nReset\nSave to candidate\nCluster membership\nForce sync\n\nRevision: —\n\nState sync\nNAT HA uses unauthenticated UDP. Use an isolated trusted sync network; the cluster key protects configuration sync only.\nUnable to read HA state\nCurrent observations are unavailable. Previous readings are hidden; resync requires a successful refresh.\n\nLast native resync completion: Unavailable\n\nNative completions in this agent process: Unavailable\n\nLast unacknowledged HA messages: Unavailable\n\nPacket counters are not exposed by the native HA API\n\nResync NAT44-EI\n\nClustering is not configured",
+        "buttons": [
+          {
+            "text": "VRRP",
+            "disabled": false
+          },
+          {
+            "text": "Cluster",
+            "disabled": false
+          },
+          {
+            "text": "Add",
+            "disabled": false
+          },
+          {
+            "text": "",
+            "disabled": false
+          },
+          {
+            "text": "Add",
+            "disabled": false
+          },
+          {
+            "text": "Reset",
+            "disabled": true
+          },
+          {
+            "text": "Save to candidate",
+            "disabled": false
+          },
+          {
+            "text": "Force sync",
+            "disabled": true
+          },
+          {
+            "text": "Resync NAT44-EI",
+            "disabled": true
+          }
+        ]
+      },
+      "mode": "light",
+      "screenshot": "en-light--system-ha.png"
+    },
+    {
+      "path": "/system/ha",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nHigh availability\n\nVRRPv3 virtual routers and cluster membership. Changes are staged in the candidate and committed from the pending-change bar.\n\nVRRP\nCluster\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nNo entries\n\nAdd\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nNot configured\n\nNat Failover\n\nNot configured\n\nSync Exclude\n\nNo entries\n\nAdd\nReset\nSave to candidate\nCluster membership\nForce sync\n\nRevision: —\n\nState sync\nNAT HA uses unauthenticated UDP. Use an isolated trusted sync network; the cluster key protects configuration sync only.\n\nNAT44-EI\n\nSupported\nEndpoints active\nRequested\n\nNative endpoint sync; verify remote session continuity on two nodes.\n\nLast native resync completion: Unavailable\n\nNative completions in this agent process: 0\n\nLast unacknowledged HA messages: Unavailable\n\nPacket counters are not exposed by the native HA API\n\nResync NAT44-EI\n\nClustering is not configured",
+      "after": {
+        "text": "banner.undefined Install or view the licence\nHigh availability\n\nVRRPv3 virtual routers and cluster membership. Changes are staged in the candidate and committed from the pending-change bar.\n\nVRRP\nCluster\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nNo entries\n\nAdd\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nNot configured\n\nNat Failover\n\nNot configured\n\nSync Exclude\n\nNo entries\n\nAdd\nReset\nSave to candidate\nCluster membership\nForce sync\n\nRevision: —\n\nState sync\nNAT HA uses unauthenticated UDP. Use an isolated trusted sync network; the cluster key protects configuration sync only.\nUnable to read HA state\nCurrent observations are unavailable. Previous readings are hidden; resync requires a successful refresh.\n\nLast native resync completion: Unavailable\n\nNative completions in this agent process: Unavailable\n\nLast unacknowledged HA messages: Unavailable\n\nPacket counters are not exposed by the native HA API\n\nResync NAT44-EI\n\nClustering is not configured",
+        "buttons": [
+          {
+            "text": "VRRP",
+            "disabled": false
+          },
+          {
+            "text": "Cluster",
+            "disabled": false
+          },
+          {
+            "text": "Add",
+            "disabled": false
+          },
+          {
+            "text": "",
+            "disabled": false
+          },
+          {
+            "text": "Add",
+            "disabled": false
+          },
+          {
+            "text": "Reset",
+            "disabled": true
+          },
+          {
+            "text": "Save to candidate",
+            "disabled": false
+          },
+          {
+            "text": "Force sync",
+            "disabled": true
+          },
+          {
+            "text": "Resync NAT44-EI",
+            "disabled": true
+          }
+        ]
+      },
+      "mode": "dark",
+      "screenshot": "en-dark--system-ha.png"
+    },
+    {
+      "path": "/system/ha",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nدسترس‌پذیری بالا\n\nمسیریاب‌های مجازی VRRPv3 و عضویت در خوشه. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.\n\nVRRP\nخوشه\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nموردی وجود ندارد\n\nافزودن\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nپیکربندی نشده\n\nNat Failover\n\nپیکربندی نشده\n\nSync Exclude\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nعضویت در خوشه\nهمگام‌سازی اجباری\n\nنسخه: —\n\nهمگام‌سازی وضعیت\nHA در NAT از UDP بدون احراز هویت استفاده می‌کند. شبکه همگام‌سازی باید جدا و قابل اعتماد باشد؛ کلید کلاستر فقط از همگام‌سازی پیکربندی محافظت می‌کند.\n\nNAT44-EI\n\nپشتیبانی می‌شود\nنقاط اتصال فعال‌اند\nدرخواست شده\n\nهمگام‌سازی بومی نقاط اتصال؛ تداوم نشست باید روی دو گره آزموده شود.\n\nآخرین پایان بومی همگام‌سازی: در دسترس نیست\n\nتعداد پایان‌های بومی در این اجرای عامل: 0\n\nآخرین پیام‌های HA تأییدنشده: در دسترس نیست\n\nAPI بومی HA شمارنده بسته‌ها را ارائه نمی‌کند\n\nهمگام‌سازی مجدد NAT44-EI\n\nخوشه پیکربندی نشده است",
+      "after": {
+        "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nدسترس‌پذیری بالا\n\nمسیریاب‌های مجازی VRRPv3 و عضویت در خوشه. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.\n\nVRRP\nخوشه\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nموردی وجود ندارد\n\nافزودن\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nپیکربندی نشده\n\nNat Failover\n\nپیکربندی نشده\n\nSync Exclude\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nعضویت در خوشه\nهمگام‌سازی اجباری\n\nنسخه: —\n\nهمگام‌سازی وضعیت\nHA در NAT از UDP بدون احراز هویت استفاده می‌کند. شبکه همگام‌سازی باید جدا و قابل اعتماد باشد؛ کلید کلاستر فقط از همگام‌سازی پیکربندی محافظت می‌کند.\nدریافت وضعیت HA ممکن نشد\nوضعیت فعلی در دسترس نیست. داده‌های قبلی پنهان شده‌اند؛ همگام‌سازی مجدد نیازمند دریافت موفق وضعیت است.\n\nآخرین پایان بومی همگام‌سازی: در دسترس نیست\n\nتعداد پایان‌های بومی در این اجرای عامل: در دسترس نیست\n\nآخرین پیام‌های HA تأییدنشده: در دسترس نیست\n\nAPI بومی HA شمارنده بسته‌ها را ارائه نمی‌کند\n\nهمگام‌سازی مجدد NAT44-EI\n\nخوشه پیکربندی نشده است",
+        "buttons": [
+          {
+            "text": "VRRP",
+            "disabled": false
+          },
+          {
+            "text": "خوشه",
+            "disabled": false
+          },
+          {
+            "text": "افزودن",
+            "disabled": false
+          },
+          {
+            "text": "",
+            "disabled": false
+          },
+          {
+            "text": "افزودن",
+            "disabled": false
+          },
+          {
+            "text": "بازنشانی",
+            "disabled": true
+          },
+          {
+            "text": "ذخیره در نامزد",
+            "disabled": false
+          },
+          {
+            "text": "همگام‌سازی اجباری",
+            "disabled": true
+          },
+          {
+            "text": "همگام‌سازی مجدد NAT44-EI",
+            "disabled": true
+          }
+        ]
+      },
+      "mode": "light",
+      "screenshot": "fa-light--system-ha.png"
+    },
+    {
+      "path": "/system/ha",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nدسترس‌پذیری بالا\n\nمسیریاب‌های مجازی VRRPv3 و عضویت در خوشه. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.\n\nVRRP\nخوشه\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nموردی وجود ندارد\n\nافزودن\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nپیکربندی نشده\n\nNat Failover\n\nپیکربندی نشده\n\nSync Exclude\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nعضویت در خوشه\nهمگام‌سازی اجباری\n\nنسخه: —\n\nهمگام‌سازی وضعیت\nHA در NAT از UDP بدون احراز هویت استفاده می‌کند. شبکه همگام‌سازی باید جدا و قابل اعتماد باشد؛ کلید کلاستر فقط از همگام‌سازی پیکربندی محافظت می‌کند.\n\nNAT44-EI\n\nپشتیبانی می‌شود\nنقاط اتصال فعال‌اند\nدرخواست شده\n\nهمگام‌سازی بومی نقاط اتصال؛ تداوم نشست باید روی دو گره آزموده شود.\n\nآخرین پایان بومی همگام‌سازی: در دسترس نیست\n\nتعداد پایان‌های بومی در این اجرای عامل: 0\n\nآخرین پیام‌های HA تأییدنشده: در دسترس نیست\n\nAPI بومی HA شمارنده بسته‌ها را ارائه نمی‌کند\n\nهمگام‌سازی مجدد NAT44-EI\n\nخوشه پیکربندی نشده است",
+      "after": {
+        "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nدسترس‌پذیری بالا\n\nمسیریاب‌های مجازی VRRPv3 و عضویت در خوشه. تغییرات در پیکربندی نامزد ذخیره و از نوار تغییرات معلق اعمال می‌شوند.\n\nVRRP\nخوشه\nEnabled\nThis node *\nThis node *\n\nName of this member\n\nPeers\n\nموردی وجود ندارد\n\nافزودن\nCluster port\nCluster port\nCluster authentication key (reference) *\nCluster authentication key (reference) *\n\nShared key protecting the sync channel; stored through POST /api/v1/secrets (kind key)\n\nSync interface\nSync interface\n\nInterface carrying the cluster traffic (optional, informational for the renderer)\n\nVRF\nVRF\n\nRouting table this object belongs to (first-class, never implicit)\n\nConfiguration synchronisation\nState synchronisation\nNAT sessions\nIPsec SAs\nACL sessions\nNat Listener\n\nپیکربندی نشده\n\nNat Failover\n\nپیکربندی نشده\n\nSync Exclude\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nعضویت در خوشه\nهمگام‌سازی اجباری\n\nنسخه: —\n\nهمگام‌سازی وضعیت\nHA در NAT از UDP بدون احراز هویت استفاده می‌کند. شبکه همگام‌سازی باید جدا و قابل اعتماد باشد؛ کلید کلاستر فقط از همگام‌سازی پیکربندی محافظت می‌کند.\nدریافت وضعیت HA ممکن نشد\nوضعیت فعلی در دسترس نیست. داده‌های قبلی پنهان شده‌اند؛ همگام‌سازی مجدد نیازمند دریافت موفق وضعیت است.\n\nآخرین پایان بومی همگام‌سازی: در دسترس نیست\n\nتعداد پایان‌های بومی در این اجرای عامل: در دسترس نیست\n\nآخرین پیام‌های HA تأییدنشده: در دسترس نیست\n\nAPI بومی HA شمارنده بسته‌ها را ارائه نمی‌کند\n\nهمگام‌سازی مجدد NAT44-EI\n\nخوشه پیکربندی نشده است",
+        "buttons": [
+          {
+            "text": "VRRP",
+            "disabled": false
+          },
+          {
+            "text": "خوشه",
+            "disabled": false
+          },
+          {
+            "text": "افزودن",
+            "disabled": false
+          },
+          {
+            "text": "",
+            "disabled": false
+          },
+          {
+            "text": "افزودن",
+            "disabled": false
+          },
+          {
+            "text": "بازنشانی",
+            "disabled": true
+          },
+          {
+            "text": "ذخیره در نامزد",
+            "disabled": false
+          },
+          {
+            "text": "همگام‌سازی اجباری",
+            "disabled": true
+          },
+          {
+            "text": "همگام‌سازی مجدد NAT44-EI",
+            "disabled": true
+          }
+        ]
+      },
+      "mode": "dark",
+      "screenshot": "fa-dark--system-ha.png"
+    }
+  ],
+  "responses": [
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/ha",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/vrrp",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/sync",
+      "status": 503
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ha/cluster",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

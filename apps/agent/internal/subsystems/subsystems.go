@@ -365,6 +365,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-BC: F-ha-state-sync
+	registerHaSync(r, w)
 	registerSnmp(r, w) // F-snmp (unanchored: no wave-BC: F-snmp anchor in register())
 	// wave-A: F-bonding
 	if err := w.registerBonding(r); err != nil {

@@ -1785,6 +1785,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/ha/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Observed NAT HA endpoints and explicit unsupported session kinds */
+    get: operations['HaStateSync_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/ha/sync/resync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Globals owner only: wait up to 15 seconds for native NAT44-EI resync completion */
+    post: operations['HaStateSync_resync'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/interfaces/bonds': {
     parameters: {
       query?: never;
@@ -9882,6 +9916,40 @@ export interface components {
            * @default false
            */
           acl: boolean;
+          natListener?: {
+            /**
+             * NAT HA listener IPv4 address
+             * Format: ipv4
+             */
+            address: string;
+            /**
+             * NAT HA UDP port
+             * @default 8750
+             */
+            port: number;
+            /**
+             * HA path MTU
+             * @default 1500
+             */
+            pathMtu: number;
+          };
+          natFailover?: {
+            /**
+             * NAT HA peer IPv4 address
+             * Format: ipv4
+             */
+            address: string;
+            /**
+             * NAT HA peer UDP port
+             * @default 8750
+             */
+            port: number;
+            /**
+             * HA session refresh seconds
+             * @default 10
+             */
+            sessionRefreshSec: number;
+          };
         };
         /** @default [] */
         syncExclude: string[];
@@ -19589,6 +19657,148 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HaStateSync_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            owner: string;
+            kinds: {
+              kind: string;
+              supported: boolean;
+              configured: boolean;
+              active: boolean;
+              reason: string;
+            }[];
+            listener: {
+              address?: string;
+              port?: number;
+              pathMtu?: number;
+            } | null;
+            failover: {
+              address?: string;
+              port?: number;
+              sessionRefreshSec?: number;
+            } | null;
+            lastResync: string | null;
+            lastMissedCount: number | null;
+            resyncCount: string;
+            packetCountersAvailable: boolean;
+            actionsAllowed: boolean;
+            retrievedAt: string;
+            observationError: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HaStateSync_resync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            summary: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
         headers: {
           [name: string]: unknown;
         };

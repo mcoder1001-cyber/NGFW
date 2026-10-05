@@ -258,7 +258,7 @@ func TestHaClusterAPIManaged(t *testing.T) {
 	}
 }
 
-func TestHaClusterStateSyncUnsupported(t *testing.T) {
+func TestHaClusterStateSyncDisabledValidation(t *testing.T) {
 	vrrpGates(t, "", "", "")
 	s := newSvc(t, coretest.New(), t.TempDir())
 	rep, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{TxnId: "state-sync", DesiredState: doc(t, `{"ha":{"cluster":{"stateSync":{"nat":true}}}}`)})
@@ -267,12 +267,12 @@ func TestHaClusterStateSyncUnsupported(t *testing.T) {
 	}
 	found := false
 	for _, issue := range rep.Errors {
-		if issue.Pointer == "/ha/cluster/stateSync/nat" && issue.Rule == "agent.unsupported-field" {
+		if issue.Pointer == "/ha/cluster/stateSync/nat" && issue.Rule == "ha.ha-state-sync-cluster" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("unsupported state sync not reported: %v", rep.Errors)
+		t.Fatalf("disabled cluster state sync validation not reported: %v", rep.Errors)
 	}
 }
 

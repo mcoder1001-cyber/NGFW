@@ -1646,7 +1646,7 @@ tasks:
       - W-seed-BC
     priority: 4
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D3.8
@@ -1657,9 +1657,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: '2026-10-05'
     notes: 'prompts-s4: suggested deps +F-ospf (acceptance redistributes static into OSPF) — docs/status/tasks/prompts-s4.md'
-    worker_status: New source97f67a2c closes R5 scale/history defects; R5 verify APPROVE; affected reviews and full gate pending.
+    worker_status: Merged PR175 bb785c4c after exact latest-main independent complete quick10m06 and hostedCI37309698957 SUCCESS; main CI checked separately.
   - id: F-kea-dhcp-relay
     title: 'Wave B (day 10-12): Kea DHCPv4/v6 server + VPP DHCP relay/client'
     prompt: prompts/features/F-kea-dhcp-relay.md
@@ -3605,7 +3605,7 @@ tasks:
       - F-unbound-chrony-syslog
     priority: 4
     est_hours: 8
-    state: todo
+    state: ready
     parked_on: ''
     wbs:
       - D0.13

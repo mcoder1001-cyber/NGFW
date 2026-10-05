@@ -82,6 +82,7 @@ import {
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
+  HaSyncStateResponse,
   // wave-A: F-bonding
   type BondStateResponse,
   // wave-A: F-bridge-l2
@@ -493,6 +494,9 @@ export class AgentClient implements OnModuleDestroy {
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
+  haSyncState(): Promise<HaSyncStateResponse> {
+    return this.unary(this.c.haSyncState, { owner: this.owner });
+  }
   // wave-A: F-bonding
   /** F-bonding: live bonds (proto.md §11); an agent without the RPC answers 501. */
   bondState(names: string[] = []): Promise<BondStateResponse> {
@@ -717,6 +721,15 @@ export type { DesiredState };
 export function agentProblem(err: ServiceError): ProblemError {
   const detail = `agent: ${err.details || err.message}`;
   switch (err.code) {
+    case GrpcStatus.PERMISSION_DENIED:
+      return new ProblemError(
+        403,
+        'agent-permission-denied',
+        'Agent permission denied',
+        'The agent refused permission to perform this operation',
+        undefined,
+        { grpcCode: 'PERMISSION_DENIED' },
+      );
     case GrpcStatus.UNAVAILABLE:
       return new ProblemError(503, 'agent-unavailable', 'Agent unavailable', detail, undefined, {
         grpcCode: 'UNAVAILABLE',

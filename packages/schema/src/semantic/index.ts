@@ -41,6 +41,7 @@ import { bfdRedistributionValidators } from "./bfd-redistribution.js";
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-ha-state-sync
+import { haStateSyncValidators } from './ha-state-sync.js';
 // wave-A: F-bonding
 import { bondingValidators } from './bonding.js';
 // wave-A: F-bridge-l2
@@ -103,6 +104,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...tunnelsValidators,
   ...servicesValidators,
   ...haValidators,
+  ...haStateSyncValidators,
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
   // wave-BC: F-default-vpp-nics

@@ -133,3 +133,5 @@ export * from './secrets.js';
 export * from './domains/ext/notifications.js';
 
 export * from './setup.js';
+
+export { HaNatListenerSchema, HaNatFailoverSchema } from './domains/ext/ha-state-sync.js';

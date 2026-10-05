@@ -1,4 +1,5 @@
 import { bfdStateFake, redistributionMatrixFake } from '../features/bfd-redistribution/fake.js'; // wave-BC: F-bfd-redistribution
+import { haSyncFake } from '../features/ha-state-sync/fake.js';
 import { ipsecFakeState } from '../features/ipsec/fake.js';
 import { tunnelStateFake } from '../features/tunnels/fake.js';
 import {
@@ -1009,6 +1010,7 @@ export class FakeAgent {
       // wave-BC: F-igmp-mfib
       // wave-BC: F-dashboard-prom-alarms
       // wave-BC: F-ha-state-sync
+      haSyncState: haSyncFake(this),
       // wave-A: F-bonding
       bondState: (call, cb) =>
         this.checkCommon('BondState', call.request, cb) &&

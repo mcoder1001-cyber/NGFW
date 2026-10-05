@@ -40,6 +40,9 @@ type GuardedTAP struct {
 	Boot      func() bootid.Identity
 	Plan      func(string) (*NetworkPlan, error)
 	AllowedID func(uint32) bool
+	// Restart recovery requires an all-owner dump, not filtered Retrieve.
+	Absent  func(context.Context, *tapv2.Tap, uint32) error
+	Retired func(bootid.Identity) bool
 }
 
 func (d *GuardedTAP) CheckPersistent() error {
@@ -114,8 +117,15 @@ func (d *GuardedTAP) Create(ctx context.Context, value proto.Message) (any, erro
 	if err != nil {
 		return nil, err
 	}
-	if _, existing := d.Store.Load(endpoint.Name); !errors.Is(existing, os.ErrNotExist) {
-		return nil, ErrBoundary
+	previous, existing := d.Store.Load(endpoint.Name)
+	if !errors.Is(existing, os.ErrNotExist) {
+		if existing != nil || previous.Pending || previous.Boot.Equal(boot) || !previous.Boot.Complete() || previous.Boot.PID <= 0 || previous.Instance != plan.Instance || previous.NamespaceInode != plan.NamespaceInode || previous.HostNamespaceInode != plan.HostNamespaceInode || !proto.Equal(previous.Endpoint, endpoint) || d.Absent == nil || d.Retired == nil || !d.Retired(previous.Boot) || d.Absent(ctx, endpoint, previous.Index) != nil || !boot.Equal(d.Boot()) {
+			return nil, ErrBoundary
+		}
+		_, currentPlan, currentBoot, e := d.input(value)
+		if e != nil || !currentBoot.Equal(boot) || currentPlan.NamespaceInode != previous.NamespaceInode || currentPlan.HostNamespaceInode != previous.HostNamespaceInode || d.Store.Remove(endpoint.Name) != nil {
+			return nil, ErrBoundary
+		}
 	}
 	receipt := TAPReceipt{Instance: plan.Instance, NamespaceInode: plan.NamespaceInode, HostNamespaceInode: plan.HostNamespaceInode, Boot: boot, Pending: true, Endpoint: proto.Clone(endpoint).(*tapv2.Tap)}
 	if d.Store.Save(endpoint.Name, receipt) != nil {

@@ -43,6 +43,10 @@ func (w *Wiring) registerRATransport(r scheduler.Registry) error {
 			return plan, nil
 		},
 		AllowedID: func(id uint32) bool { return ids == nil || (id >= ids.Lo && id <= ids.Hi) },
+		Retired:   ravpn.RetiredVPPBoot,
+		Absent: func(ctx context.Context, endpoint *tapv2.Tap, oldIndex uint32) error {
+			return ravpn.VerifyTAPAbsent(ctx, w.env.Client, endpoint, oldIndex)
+		},
 	})
 	return nil
 }

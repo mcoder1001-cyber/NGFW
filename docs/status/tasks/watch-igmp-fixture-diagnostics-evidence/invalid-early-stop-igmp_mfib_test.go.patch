@@ -1,0 +1,4 @@
+--- apps/agent/internal/subsystems/igmp_mfib_test.go
++++ INVALID-diagnostic-only/apps/agent/internal/subsystems/igmp_mfib_test.go
+@@ -67,0 +68 @@
++				<-v.(*igmpWatch).done // diagnostic-only cleanup joins invalid old watcher

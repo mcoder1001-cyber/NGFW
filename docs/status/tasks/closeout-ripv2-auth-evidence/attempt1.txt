@@ -1,0 +1,301 @@
+SOURCE_SHA=99fd155d4a31b32483f61c651b5cefd512a111f1
+ORIGINAL_FIXTURE_DIGEST=1fbc8419d1f34e180a04f91070ad2d5f9adfd17f5abba9bf3c0b5687e585cc11
+OVERLAY_DIGEST=8ae47919327356ce290668da49531f1541cb8875f86a1fb4f363712ffda64a99
+PRIVATE_FIB_NETNS=net:[4026532607]
+DISPOSABLE_VPP pid=731211 runtime=/root/ngfw-wt/codex-closeout-ripv2-auth-live/.scratch/isolated-vpp-731202
+=== RUN   TestRIPv2MD5PrivateLive
+    ospf_topology_integration_test.go:610: waiting for the exclusive globals lock /run/lock/ngfw-globals.lock …
+    ospf_topology_integration_test.go:614: globals window open at 2026-10-04T20:01:32Z
+    ospf_topology_integration_test.go:621: systemctl show vpp -p NRestarts (before) = 0
+2026/10/04 20:01:32 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ospf_topology_integration_test.go:641: NGFW_OSPF_FIB=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    ospf_topology_integration_test.go:646: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    ospf_topology_integration_test.go:651: rig up w6 (slot 6, path af_packet)
+          create netns ns-w6-lan
+          create veth w6l0 <-> ns-w6-lan:w6l1
+          create vpp host-w6l0 (af_packet on w6l0)
+          reset  ip/ip6 classify host-w6l0 (table-index ~0)
+          set    addr host-w6l0 10.6.1.1/24
+          create netns ns-w6-wan
+          create veth w6w0 <-> ns-w6-wan:w6w1
+          create vpp host-w6w0 (af_packet on w6w0)
+          reset  ip/ip6 classify host-w6w0 (table-index ~0)
+          set    addr host-w6w0 10.6.2.1/24
+        rig: up
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: 10.6.1.1/24 
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: 10.6.2.1/24 
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+        
+    ospf_topology_integration_test.go:666: OSPF fixture link w6l0/w6l1 in ns-w6-lan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:666: OSPF fixture link w6w0/w6w1 in ns-w6-wan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:669: rig VPP side handed to the agent: af_packet_delete w6l0 (veth down)
+    ospf_topology_integration_test.go:669: rig VPP side handed to the agent: af_packet_delete w6w0 (veth down)
+    ospf_topology_integration_test.go:674: rootFRR: [mgmtd zebra staticd ripd] started in the root netns, pathspace w6, base /run/ngfw-test/w6/frr, pids map[mgmtd:738612 ripd:738623 staticd:738619 zebra:738614]
+2026/10/04 20:01:57 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w6 component=subsystems
+2026/10/04 20:01:57 INFO PKI file materialiser wired owner=w6 component=subsystems root=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state/pki-w6 source=true
+2026/10/04 20:01:57 INFO VPP binary API connected owner=w6 component=vpp socket=/run/vpp/api.sock
+2026/10/04 20:01:57 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w6 component=subsystems
+2026/10/04 20:01:57 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w6 component=subsystems
+2026/10/04 20:01:57 INFO fqdn state reloaded owner=w6 component=subsystems family=objects file=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state/objects-fqdn-w6.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/04 20:01:57 INFO objects domain wired owner=w6 component=subsystems store=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state/objects-w6.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/04 20:01:57 INFO acl domain wired owner=w6 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/04 20:01:57 INFO host firewall wired owner=w6 component=subsystems table="inet ngfw_w6" mode=check netns="" rules_file=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state/host-acl-w6.nft
+2026/10/04 20:01:57 INFO kea wired owner=w6 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/04 20:01:57 INFO host services wired owner=w6 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-1293511508/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-1293511508/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-1293511508/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/04 20:01:57 INFO system identity wired owner=w6 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-1293511508/sysident/etc/hostname
+2026/10/04 20:01:57 INFO pppoe client wired owner=w6 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/04 20:01:57 INFO subsystems wired owner=w6 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state: claims-iface-w6.json, boot-w6.json; globals owner false" vpp_ids=6000-6999
+2026/10/04 20:01:57 INFO ngfw-agent listening owner=w6 socket=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestRIPv2MD5PrivateLive351343264/001/state vpp_api=/run/vpp/api.sock
+2026/10/04 20:01:57 INFO VPP boot identity owner=w6 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/731211/12501644 complete=true expired_claims=0
+2026/10/04 20:01:57 WARN neighbour events: interface dump owner=w6 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/04 20:01:57 INFO reconcile start owner=w6 txn_id="" mode=resync domains=[]
+2026/10/04 20:01:57 INFO reconcile done owner=w6 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=215.338997ms err=""
+2026/10/04 20:01:57 INFO resync finished owner=w6 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/04 20:01:57 INFO dynamic source started owner=w6 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/04 20:01:57 INFO dynamic source started owner=w6 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/04 20:01:57 INFO dynamic source started owner=w6 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan]"
+2026/10/04 20:01:58 INFO reconcile start owner=w6 txn_id=w6-rip-enable mode=apply domains="[interfaces routing]"
+2026/10/04 20:01:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=af-packet.host-interface/host-w6l0
+2026/10/04 20:01:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=af-packet.host-interface/host-w6w0
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface/host-w6l0
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface-ip/host-w6l0/10.6.1.1/24
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface.admin-state/host-w6l0
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface/host-w6w0
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface-ip/host-w6w0/10.6.2.1/24
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=interface.admin-state/host-w6w0
+2026/10/04 20:01:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6l0
+2026/10/04 20:01:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:01:58 INFO created owner=w6 component=scheduler key=lcp.itf-pair/host-w6w0
+2026/10/04 20:02:00 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/ngfw-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/04 20:02:00 INFO created owner=w6 component=scheduler key=frr.config/ngfw
+2026/10/04 20:02:01 INFO reconcile done owner=w6 txn_id=w6-rip-enable mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=3.336574768s err=""
+    ospf_topology_integration_test.go:882: sealed RIP Apply enable APPLIED
+    ospf_topology_integration_test.go:911: unauthenticated peers rejected FRR RIP=0 VPP=0 after 364ms
+    ospf_topology_integration_test.go:915: matching MD5 peers100 expected100 FRR=0 VPP=0
+2026/10/04 20:03:35 INFO reconcile start owner=w6 txn_id=w6-ospf-cleanup mode=apply domains="[interfaces routing]"
+2026/10/04 20:03:37 INFO FRR configuration applied owner=w6 component=subsystems component=frr conf=/run/ngfw-test/w6/frr/etc/w6/frr.conf bgp=false
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=frr.config/ngfw
+2026/10/04 20:03:37 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-w0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=lcp.itf-pair/host-w6w0
+2026/10/04 20:03:37 INFO interface sanitized (VPP V19/V21 inherited state) interface=w6-l0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=lcp.itf-pair/host-w6l0
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=interface.admin-state/host-w6w0
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=interface.admin-state/host-w6l0
+2026/10/04 20:03:37 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w6w0 prefix=10.6.2.1/24 err="sw_interface_add_del_address host-w6w0 10.6.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=interface-ip/host-w6w0/10.6.2.1/24
+2026/10/04 20:03:37 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w6w0 descriptor=af-packet.host-interface ifindex=6 kind=veth
+2026/10/04 20:03:37 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=af-packet.host-interface/host-w6w0
+2026/10/04 20:03:37 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w6l0 prefix=10.6.1.1/24 err="sw_interface_add_del_address host-w6l0 10.6.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=interface-ip/host-w6l0/10.6.1.1/24
+2026/10/04 20:03:37 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w6l0 descriptor=af-packet.host-interface ifindex=4 kind=veth
+2026/10/04 20:03:37 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w6l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/04 20:03:37 INFO deleted owner=w6 component=scheduler key=af-packet.host-interface/host-w6l0
+2026/10/04 20:03:37 INFO reconcile done owner=w6 txn_id=w6-ospf-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=2.711214014s err=""
+    ospf_topology_integration_test.go:713: cleanup apply: <nil> {
+          "deleted": 9
+        }
+    ospf_topology_integration_test.go:716: cleanup: 0 lcp-rt-dynamic routes of 10.6/16 left in VPP table 0
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=af-packet.host-interface err="af_packet_dump: context canceled"
+2026/10/04 20:03:37 INFO dynamic source stopped owner=w6 source=mpls-ldp
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.subinterface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 INFO dynamic source stopped owner=w6 source=pppoe-watch
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.admin-state err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.mtu err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.mac-address err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.promisc err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.rx-mode err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface.rx-placement err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=dhcp.client err="dhcp_client_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=det44.interface err="det44.interface: retrieve: sw_interface_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949578285 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=det44.map err="det44.map: retrieve: det44_map_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=dslite.pool err="dslite.pool: retrieve: dslite_address_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=map.domain err="map.domain: retrieve: map_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=map.rule err="map.rule: retrieve: map_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=map.interface err="map.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=cnat.interface-feature err="cnat.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=cnat.translation err="cnat.translation: retrieve: cnat_translation_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=pnat.binding err="pnat.binding: retrieve: pnat_bindings_get: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=pnat.attachment err="pnat.attachment: retrieve: pnat_interfaces_get: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=gre.tunnel err="gre.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ipip.tunnel err="ipip.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=vxlan.tunnel err="vxlan.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=vxlan-gpe.tunnel err="vxlan-gpe.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=gtpu.tunnel err="gtpu.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2tp.tunnel err="l2tp.tunnel: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=pppoe.session err="pppoe.session: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ikev2.profile err="ikev2_profile_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mpls-table err="mpls-table: retrieve: mpls_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mpls-interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mpls-route err="mpls-route: retrieve: mpls_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mpls-tunnel err="mpls-tunnel: mpls_tunnel_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=sr.localsid err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:731211}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=sr.policy err="vpp boot identity: control_ping: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=sr.steering err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:731211}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.locator-set err="vpp boot identity: control_ping: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.locator err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4294967295 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.eid-table-map err="vpp boot identity: control_ping: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.local-eid err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949709869 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.map-resolver err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:731211}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.map-server err="vpp boot identity: control_ping: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.remote-mapping err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:4294967295 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lisp.adjacency err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1929379840 VpePID:731211}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=igmp.listen err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mfib.route err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=bond.bond err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=bond.member err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=bond.member-weight err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.bridge-domain err="bridge_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.bridge-domain-member err="bridge_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.xconnect err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.fib-entry err="bridge_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.flags err="bridge_domain_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l2.vlan-tag-rewrite err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=l3xc.l3xc err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mactime.range err="mactime_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mactime.enable err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=gso.interface err="sw_interface_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *mactime.MactimeDumpReply &{Retval:-160 TableEpoch:0}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:27753 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=span.mirror err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=svs.table err="ip_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=svs.interface err="ip_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=svs.route err="ip_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ip-neighbor.neighbor err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ip6-nd.ra-config err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ip6-nd.ra-prefix err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=arp.proxy-range err="proxy_arp_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=arp.proxy-interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=urpf.interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=adl.interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=abf.policy err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=abf.attach err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.tag err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.address err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.address-group err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.service err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.service-group err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.schedule err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=objects.zone err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=acl.acl err="acl_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=acl.macip-acl err="macip_acl_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=acl.interface-binding err="acl_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1701013857 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=acl.etype-whitelist err="sw_interface_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1634956137 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=acl.macip-interface-binding err="macip_acl_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.vrf-table err="nat44-ed.vrf-table: retrieve: nat44_ed_vrf_tables_v2_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.interface-feature err="nat44-ed.interface-feature: retrieve: sw_interface_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1870166272 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.output-feature err="nat44-ed.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.address-pool err="nat44-ed.address-pool: retrieve: nat44_address_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:731211}" async=true connId=2
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1163001856 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.interface-address err="nat44-ed.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.static-mapping err="nat44-ed.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.identity-mapping err="nat44-ed.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ed.lb-static-mapping err="nat44-ed.lb-static-mapping: retrieve: nat44_lb_static_mapping_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.interface-feature err="nat44-ei.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.output-feature err="nat44-ei.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.address-pool err="nat44-ei.address-pool: retrieve: nat44_ei_address_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.interface-address err="nat44-ei.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.static-mapping err="nat44-ei.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat44-ei.identity-mapping err="nat44-ei.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat64.prefix err="nat64.prefix: retrieve: nat64_prefix_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat64.pool err="nat64.pool: retrieve: nat64_pool_addr_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat64.interface err="nat64.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat64.static-bib err="nat64.static-bib: retrieve: nat64_bib_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat66.interface err="nat66.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=nat66.static-mapping err="nat66.static-mapping: retrieve: nat66_static_mapping_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=wireguard.interface err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=wireguard.peer err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=lcp.itf-pair err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=mpls-route.ldp err="mpls-route.ldp: retrieve: mpls_table_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=dhcp.proxy err="dhcp_proxy_dump(is_ip6=false): context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=dhcp.proxy-vss err="dhcp_proxy_dump(is_ip6=false): context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1882026612 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=hoststack.session-rule err="session_rules_v2_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949578285 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=ipfix.exporter err="ipfix_all_exporter_get: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=flowprobe.interface err="flowprobe_interface_dump: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949578285 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=sflow.interface err="vpp boot identity: control_ping: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949709869 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=policer.policer err="policer.policer: policer_dump_v2: context canceled"
+time="2026-10-04T20:03:37Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1949133935 VpePID:731211}" async=true connId=2
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=qos.egress-map err="qos.egress-map: qos_egress_map_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=qos.record err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=qos.store err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=qos.mark err="sw_interface_dump: context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=prometheus.listener err="context canceled"
+2026/10/04 20:03:37 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w6 component=scheduler descriptor=pppoe.client.config err="context canceled"
+2026/10/04 20:03:37 INFO reconcile done owner=w6 mode=sync source=multiwan status=APPLY_STATUS_FAILED summary="" duration=17.193461ms err="retrieve nat44-ed.output-feature.wan: nat44-ed.output-feature.wan: retrieve: sw_interface_dump: context canceled"
+2026/10/04 20:03:37 INFO dynamic source stopped owner=w6 source=multiwan
+2026/10/04 20:03:37 INFO ngfw-agent stopped owner=w6
+    ospf_topology_integration_test.go:654: rig down: <nil>
+        rig down w6
+          delete netns ns-w6-lan (and its veth peer)
+          delete netns ns-w6-wan (and its veth peer)
+          delete veth w6w0
+        rig: down
+        prefix: w6
+        slot: 6
+        path: af_packet
+        lan_ns: ns-w6-lan
+        lan_veth: w6l1
+        lan_ip: 10.6.1.2/24
+        lan_gw: 10.6.1.1
+        vpp_lan_if: host-w6l0
+        vpp_lan_addr: -
+        wan_ns: ns-w6-wan
+        wan_veth: w6w1
+        wan_ip: 10.6.2.2/24
+        wan_gw: 10.6.2.1
+        vpp_wan_if: host-w6w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w6-lan ping -c 3 10.6.2.2
+    ospf_topology_integration_test.go:624: systemctl show vpp -p NRestarts (after) = 0
+    ospf_topology_integration_test.go:616: globals window closed at 2026-10-04T20:03:39Z
+--- FAIL: TestRIPv2MD5PrivateLive (127.06s)
+FAIL
+FAIL	ngfw/agent/internal/agent	127.199s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=731211
+PRIVATE_FIB_TEST_EXIT=1
+SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0

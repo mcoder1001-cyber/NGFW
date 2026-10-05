@@ -1,0 +1,5 @@
+--- FAIL: TestIgmpReconnectWaitsForOldUnsubscribe (0.00s)
+    igmp_mfib_test.go:106: stop completed before old unsubscribe
+FAIL
+FAIL	ngfw/agent/internal/subsystems	0.313s
+FAIL

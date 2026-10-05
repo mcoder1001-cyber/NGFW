@@ -12,6 +12,7 @@ package desired
 // document has FRR content, so an agent without routing protocols never talks to FRR (P12-questions Q3).
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"regexp"
@@ -163,6 +164,10 @@ func ParseFRRValue(v proto.Message) (*ngfwv1.DesiredState, string, error) {
 
 // FRROptions are the agent-side facts the FRR builder needs.
 type FRROptions struct {
+	// SecretRef fingerprints only document-referenced passwords in the selected sealed
+	// snapshot. Bindings stay internal to frr.config; historical resolution is required
+	// when applying/rolling back this value. Nil preserves legacy unbound values.
+	SecretRef func(context.Context, string) (string, error)
 	// Selector is the D-072 static-route selector (frr.StaticOwnedByFRR).
 	Selector func(i int, sr *ngfwv1.StaticRoute) bool
 	// Secrets reports whether the agent can resolve secret references (false until PENDING-secret-channel).
@@ -234,7 +239,24 @@ func FRR(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, o FRROptions) {
 			return
 		}
 	}
-	s.Add(FRRConfigKey, FRRValue(doc, FRRApplied), Ptr("routing"))
+	var bindings map[string]string
+	if refs := FRRReferencedSecrets(doc); len(refs) > 0 && o.SecretRef != nil {
+		bindings = make(map[string]string, len(refs))
+		for _, ref := range refs {
+			fingerprint, err := o.SecretRef(context.Background(), ref)
+			if err != nil {
+				s.Errorf(Ptr("routing"), "routing.secret-generation-unavailable", "FRR password generation is unavailable")
+				return
+			}
+			bindings[ref] = fingerprint
+		}
+	}
+	value, err := FRRValueWithSecretBindings(doc, FRRApplied, bindings)
+	if err != nil {
+		s.Errorf(Ptr("routing"), "routing.secret-generation-invalid", "FRR password generation is invalid")
+		return
+	}
+	s.Add(FRRConfigKey, value, Ptr("routing"))
 }
 
 // AssembleFRR adds what the retrieved frr.config object reports to ds: routing.bgp, routing.policy and the viaFrr

@@ -1,0 +1,9 @@
+--- apps/agent/internal/subsystems/igmp_mfib.go
++++ INVALID-diagnostic-only/apps/agent/internal/subsystems/igmp_mfib.go
+@@ -51,5 +51 @@
+-		select {
+-		case <-i.done:
+-		case <-time.After(5 * time.Second):
+-			return
+-		}
++		// DIAGNOSTIC MUTATION ONLY: incorrectly omit old unsubscribe completion.

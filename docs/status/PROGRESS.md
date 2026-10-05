@@ -2,13 +2,13 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 95.5% by hours (1506.0/1577.5 h), 93.8% by tasks (198/211)**
+**Overall: 96.2% by hours (1518.0/1577.5 h), 94.3% by tasks (199/211)**
 
 | state | tasks |
 |---|---|
-| merged | 198 |
+| merged | 199 |
 | review | 0 |
-| running | 4 |
+| running | 3 |
 | ready | 0 |
 | parked | 9 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 967.0 / 1002.0 | 96.5% | 142/150 | 2 | 0 | 6 |
+| S4 | 979.0 / 1002.0 | 97.7% | 143/150 | 1 | 0 | 6 |
 | S5 | 132 / 155.5 | 84.9% | 13/16 | 2 | 0 | 1 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
@@ -30,7 +30,6 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 - F-backup-restore — backup/restore, scheduled export, templates, support bundle, upgrade UI (running, /root/backup_restore; verified live developer in current chat)
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
-- F-ha-state-sync — HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation (running, unassigned; New API source834eed6f:691tests PASS; independent actual API replay active; R6 stale observation defect reproduced awaiting repair.)
 - TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, /root/traffic_b; verified live developer in current chat)
 
 ## Parked

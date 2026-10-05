@@ -20,6 +20,9 @@ def owned(path):
 
 
 def main():
+    mode = os.environ.get('NGFW_RA_TEST_MODE', 'packet')
+    if mode not in ('packet','production'):
+        raise SystemExit('fixed private test mode required')
     if os.geteuid() != 0:
         raise SystemExit('root required for disposable namespaces')
     if len(sys.argv) == 2 and sys.argv[1] == '--child':
@@ -49,7 +52,7 @@ statseg {{ socket-name /run/vpp/stats.sock }}
 cpu {{ main-core 4 }}
 memory {{ main-heap-size 256M main-heap-page-size default }}
 buffers {{ buffers-per-numa 16384 page-size default }}
-plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin acl_plugin.so {{ enable }} plugin ping_plugin.so {{ enable }} }}
+plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin acl_plugin.so {{ enable }} plugin ping_plugin.so {{ enable }} plugin af_packet_plugin.so {{ enable }} plugin dhcp_plugin.so {{ enable }} plugin ikev2_plugin.so {{ enable }} plugin wireguard_plugin.so {{ enable }} }}
 ''')
         os.chmod(conf, 0o600)
         with (runtime / 'vpp-process.log').open('xb') as log:
@@ -67,7 +70,8 @@ plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin
                 test_log = runtime / 'go-test.log'
                 with test_log.open('xb') as test_output:
                     os.chmod(test_log, 0o600)
-                    result = subprocess.call(['go', 'test', './internal/ra_vpn', '-run', '^TestIntegrationPrivateVPPPolicyEAP$', '-count=1', '-v'], env=env, stdout=test_output, stderr=subprocess.STDOUT)
+                    package, name = ('./internal/agent','^TestIntegrationPrivateProductionRAControllerLifecycle$') if mode=='production' else ('./internal/ra_vpn','^TestIntegrationPrivateVPPPolicyEAP$')
+                    result = subprocess.call(['go', 'test', package, '-run', name, '-count=1', '-v'], env=env, stdout=test_output, stderr=subprocess.STDOUT)
                 for line in test_log.read_text(errors='replace').splitlines():
                     if line.startswith(('=== RUN', '--- PASS', '--- FAIL', 'PASS', 'FAIL', 'ok ')) or '_test.go:' in line:
                         print(line[:400], flush=True)

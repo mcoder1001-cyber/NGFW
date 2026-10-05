@@ -10,7 +10,7 @@ import (
 // assigned VPP range before any external mutation. Namespace is the protected
 // mount reference created by NamespaceDescriptor, never an operator path.
 func TransitTAPs(plan *NetworkPlan, outerID, innerID uint32) (*tapv2.Tap, *tapv2.Tap, error) {
-	if plan.Validate() != nil || outerID == innerID || outerID > 8192 || innerID > 8192 {
+	if plan.Validate() != nil || outerID == innerID || outerID > 8191 || innerID > 8191 {
 		return nil, nil, ErrBoundary
 	}
 	makeTAP := func(outer bool, id uint32, link Link) *tapv2.Tap {

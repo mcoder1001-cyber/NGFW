@@ -1,7 +1,34 @@
-# TEST-traffic-B current integration questions
+# TEST-traffic-B prerequisites observed through production REST
 
-The historical prompt requires no agent.unsupported-field anywhere. A whole REST RootConfig supplies unrelated disabled defaults; even a baseline containing only an owned VRF returns warnings at /management/aaa, /management/tls, /nat/ipfix, /services/ipfix/flowprobe, /services/ntp and /vpn/ipsec. These are unrelated to the tunnel candidate. Manager authorized scoped acceptance on 2026-10-05: record unrelated baseline warnings exactly, refuse unsupported changed tunnel/interface/routing-l2 fields and refuse any newly introduced unsupported warning. The campaign applies that rule. Never suppress unsupported changed tunnel/interface fields.
+## WireGuard secret channel — actual product failure, 2026-10-05
 
-BGP/OSPF and WireGuard packet fixtures configure the product agent over gRPC. Their actual packet/rollback proofs do not prove the original prompt's REST candidate/commit path. The README and WIP preserve this acceptance limitation explicitly; no false full-wave claim.
+The first owned REST attempt failed HTTP 403 `license-required` at
+`/vpn/wireguard/interfaces/site`. The fixture now issues and verifies a one-day
+signed test licence using the existing production licence tool and a trust key
+confined to the owned API process. No licensing guard is disabled. Signing
+material, tokens and raw private logs remain outside Git.
 
-Optional phase6 smoke execution is reported not-run individually, as the task prompt permits. DS-Lite pool deletion remains banned on the shared VPP (D-211); no pool is deleted there by this campaign.
+The unchanged packet driver then passed entitlement checking, uploaded the key
+through production `POST /secrets?replace=true`, and committed its candidate.
+Actual response: HTTP 422 `https://ngfw.dev/problems/apply-failed`, agent status
+`rolled_back`, running unchanged. The reason was:
+
+> wg2760 private key key/w27tb-a: no secret material in the agent
+
+The agent additionally reported `PENDING-secret-channel`. Shared VPP PID and
+restart count were unchanged. Private log:
+`.scratch/traffic-b-rest-wg-license/wireguard.private.log`.
+
+This is a real prerequisite failure, not laboratory deferral. Proposed minimal
+separate product task: deliver referenced sealed API secrets over the existing
+agent secret bundle during REST commit, with bounded material access, owner
+validation, no diagnostic disclosure, and rollback/restart tests. The manager
+owns its separate implementation/review/PR. This test task will not substitute
+manual gRPC secret injection or label this REST phase passed.
+
+## Native IPsec/PKI unsupported warnings
+
+The manager identified potentially stale unsupported warnings in the WireGuard
+converter for IPsec/PKI fields. No native REST result has yet been observed after
+licensing setup. Changed-path warning checks remain strict; an actual warning
+will be recorded here before any separately reviewed product correction.

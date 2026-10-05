@@ -40,3 +40,29 @@ Final author checkpoint 2026-10-05: d3c2ce451 exactly published remote0ae67a0050
 Current remaining work is independent review and fresh-main integration/acceptance after backup merge; root will pin the exact main SHA before that run. No product or primary phase placeholder remains. REST proof limits and optional-not-run phases remain explicit. Exact next command for an independent current-source packet rerun: NGFW_INTEGRATION=1 NGFW_TRAFFIC_STOCK_ROOT=/run/vrx-test/w10/swan-stock/root python3 test/topology/traffic-b/run.py --slot 27 --output .scratch/traffic-b-independent-new
 
 R1 BLOCK correction: earlier "no primary placeholder"/ready assertion was premature. The original task requires slot REST commit for all primary phases; previous native/WG/BGP/OSPF gRPC fixtures did not satisfy that requirement. No waiver or lab deferral applies. Own branch fast-forwarded to manager07ee3084a (combined backup/main source, remote final baselineb52f029e96b6ee17dcfcbd663521c0cae637e192). REST bridge implementation is now being added, not yet accepted: product API attached to actual native/BGP/OSPF agent socket, REST secrets/candidate/commit, actual object results and owned rollback; standalone production-agent WireGuard REST driver. Cancellation propagation and standalone tunnel baseline fix are included. Owned exception: test-only apps/agent/internal/trafficbtest/**, desired/ikev2 integration opt-in and isolated-vpp.py nested identity export; no product feature changes. D-237 records alternatives. Current failure: compile lacked fmt import, corrected; current REST runtime not yet run. Exact next command: GOMAXPROCS=2 GOFLAGS=-p=2 tools/heavy.sh go -C apps/agent test ./internal/trafficbtest ./internal/agent ./internal/desired -run '^TestDoesNotExist$'. Then build current product binaries and run selected REST phases followed by all7 and complete unchanged quick. Do not mark Done.
+
+## REST consumer checkpoint, 2026-10-05
+
+Implemented opt-in REST consumers for native PSK/certificate and BGP/OSPF
+fixtures, a standalone real-agent REST WireGuard peer driver, protected PostgreSQL
+Unix relay for private network namespaces, and SIGTERM cleanup in dispatcher and
+stack. Standalone tunnel CLI now passes observed baseline warnings. Necessary
+extra owned test-only hooks: `desired/ikev2_integration_test.go` and
+`hardware-smoke/isolated-vpp.py`; default fixture behavior remains unchanged.
+
+Attachment checks include socket type/path ownership, SO_PEERCRED, observed
+mount/network namespaces, explicitly recorded parent fixture or its own real
+agent child PID, and an actual Retrieve RPC verifying the requested owner before
+API startup. Partial PostgreSQL create failures clean reserved resources; foreign
+existing database or role is refused.
+
+Actual checks: 12 host-independent tests PASS, including real dispatcher SIGTERM
+and cleanup, partial-create failure injection and foreign-role/socket refusal.
+Compile and live protocol reruns remain pending checkpoint completion. First
+WireGuard REST request failed HTTP403 entitlement; signed private test licence
+resolved that gate. Next actual request failed HTTP422 rolled_back with
+PENDING-secret-channel; shared VPP unchanged. See TEST-traffic-B-questions.md.
+Primary REST acceptance and complete quick gate are still pending; this task is
+not Done. Next command: repeat owned BGP/OSPF/native REST drivers and capture
+strict warning failures while manager handles the separate secret-channel
+prerequisite.

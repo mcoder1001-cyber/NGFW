@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 from scenario import Refused,slot_values
+from pgrelay import Relay
 ROOT=Path(__file__).resolve().parents[3]
 
 
@@ -34,7 +35,24 @@ def main():
         cmd += [sys.executable,str(Path(__file__).resolve()),'--child','--slot',str(args.slot)]
         if args.host_network:cmd+=['--host-network']
         cmd+=args.command
-        result=subprocess.call(cmd,env=dict(os.environ,**values))
+        relay=None
+        env=dict(os.environ,**values)
+        if env.get('NGFW_TRAFFIC_B_REST')=='1':
+            relay=Relay(ROOT/'.scratch'/('traffic-pg-relay-'+str(os.getpid())))
+            env['NGFW_TRAFFIC_PG_PROXY_DIR']=str(relay.directory)
+        def terminate(signum,frame):raise SystemExit(128+signum)
+        signal.signal(signal.SIGTERM,terminate)
+        child=None
+        try:
+            child=subprocess.Popen(cmd,env=env,start_new_session=True)
+            result=child.wait(timeout=2100)
+        finally:
+            if child and child.poll() is None:
+                os.killpg(child.pid,signal.SIGTERM)
+                try:child.wait(timeout=30)
+                except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
+            if relay:relay.close()
+
         if identity()!=before:raise Refused('shared VPP changed during private campaign')
         print('SHARED_VPP_UNCHANGED',flush=True)
         return result

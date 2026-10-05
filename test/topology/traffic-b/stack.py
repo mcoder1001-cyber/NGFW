@@ -9,13 +9,40 @@ import secrets
 import signal
 import socket
 import subprocess
+import stat
+import struct
 import sys
 import time
 import urllib.request
+from urllib.parse import urlsplit, urlunsplit, urlencode, parse_qsl
 from scenario import Refused,slot_values
 from probe import stop
 from tunnels import Api,run,check_commit
 ROOT=Path(__file__).resolve().parents[3]
+
+
+def attached_identity(path, owner):
+    path=Path(path)
+    entry=path.lstat(); parent=path.parent.stat()
+    if not stat.S_ISSOCK(entry.st_mode) or entry.st_uid!=os.getuid() or parent.st_uid!=os.getuid() or parent.st_mode & 0o022:
+        raise Refused('attached agent socket/path is not protected and owned')
+    with socket.socket(socket.AF_UNIX) as peer:
+        peer.connect(str(path));pid,uid,gid=struct.unpack('3i',peer.getsockopt(socket.SOL_SOCKET,socket.SO_PEERCRED,12))
+    expected=int(os.environ.get('NGFW_TRAFFIC_EXPECTED_AGENT_PID','0'))
+    if pid!=expected or uid!=os.getuid():raise Refused('attached agent must be explicitly recorded owned fixture process')
+    fixture=os.getppid()
+    if pid!=fixture:
+        fields=dict(line.split(':',1) for line in Path(f'/proc/{pid}/status').read_text().splitlines() if ':' in line)
+        if int(fields['PPid'])!=fixture or Path(os.readlink(f'/proc/{pid}/exe')).resolve()!=(ROOT/'apps/agent/bin/ngfw-agent').resolve():
+            raise Refused('attached process is not the fixture owned production agent child')
+    for namespace in ('mnt','net'):
+        if os.readlink(f'/proc/{pid}/ns/{namespace}')!=os.readlink(f'/proc/self/ns/{namespace}'):
+            raise Refused('attached agent namespace differs from private fixture')
+    executable=Path(os.readlink(f'/proc/{pid}/exe')).name
+    fixture_executable=Path(os.readlink(f'/proc/{fixture}/exe')).name
+    if not fixture_executable.endswith('.test') or (pid==fixture and not executable.endswith('.test')) or not owner or os.environ.get('NGFW_TRAFFIC_VERIFIED_OWNER')!=owner:
+        raise Refused('attached owner must be verified by parent fixture Retrieve RPC')
+    return {'pid':pid,'uid':uid,'owner':owner,'socket_inode':entry.st_ino}
 
 
 @contextmanager
@@ -27,6 +54,7 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
     api_socket=Path(os.environ['NGFW_VPP_API_SOCKET']);mounted=Path('/run/vpp/api.sock')
     if api_socket.resolve()==mounted.resolve() or not os.path.samefile(api_socket,mounted):
         raise Refused('private API socket does not match mounted private VPP')
+    if target_socket is not None:attached_identity(target_socket,target_owner)
     agent=ROOT/'apps/agent/bin/ngfw-agent';api_bin=ROOT/'apps/api/dist/main.js'
     if not agent.is_file() or not api_bin.is_file():raise Refused('run complete quick gate to build product binaries first')
     port=int(values['NGFW_HTTP_PORT'])
@@ -37,12 +65,25 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
     # Never reuse/drop a foreign existing database. pg-test list contains no passwords.
     existing=subprocess.check_output([str(ROOT/'deploy/dev/pg-test.sh'),'list'],text=True)
     if any(line.split()[0]=='ngfw_'+owner for line in existing.splitlines() if line.split()):raise Refused('slot stack database exists')
+    role=subprocess.check_output(['runuser','-u','postgres','--','psql','-X','-qAt','-c',
+        "select rolname from pg_roles where rolname='ngfw_"+owner+"'"],cwd='/',text=True,timeout=10)
+    if role.strip():raise Refused('slot stack role exists')
     processes=[];streams=[];database=False
     try:
+        database=True  # reserved absent owner; partial create failures must also clean up
         subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'create',owner],check=True,stdout=subprocess.DEVNULL)
-        database=True
         runtime.chmod(0o700)
         dsn=dict(line.split('=',1) for line in (runtime/'pg.env').read_text().splitlines())['NGFW_PG_DSN']
+        proxy=os.environ.get('NGFW_TRAFFIC_PG_PROXY_DIR')
+        if proxy:
+            parsed=urlsplit(dsn);query=dict(parse_qsl(parsed.query));query['host']=proxy
+            dsn=urlunsplit((parsed.scheme,parsed.netloc,parsed.path,urlencode(query),parsed.fragment))
+        keys=runtime/'license-keys';licence=runtime/'test.ngfwlic';serial=owner+'-traffic-test'
+        issuer=str(ROOT/'tools/license/ngfw-license')
+        for arguments in ([issuer,'keygen','--out-dir',str(keys)],
+                          [issuer,'issue','--key',str(keys/'ngfw-license-signing.pem'),'--customer','Traffic B isolated fixture','--id',serial,'--days','1','--serial',serial,'--features','ipsec,wireguard,bgp,ospf','--limit','ipsecTunnels=8','--limit','wireguardInterfaces=8','--out',str(licence)],
+                          [issuer,'verify','--pub',str(keys/'ngfw-license-public.pem'),str(licence)]):
+            subprocess.run(arguments,check=True,stdout=subprocess.DEVNULL,timeout=15)
         common={'PATH':os.environ['PATH'],'HOME':os.environ['HOME'],**values}
         agent_env=dict(common,NGFW_OWNER=agent_owner,NGFW_GLOBALS_OWNER='0',NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),
                        NGFW_AGENT_STATE_DIR=str(runtime/'state'),NGFW_AGENT_VPP_API_SOCKET=str(api_socket),
@@ -60,6 +101,7 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
         kv=start(['valkey-server','--bind','127.0.0.1','--port',str(kvport),'--save','','--appendonly','no','--dir',str(runtime)],common,'valkey')
         admin=secrets.token_urlsafe(24)
         api_env=dict(common,NODE_ENV='production',NGFW_HTTP_PORT=str(port),NGFW_HTTP_HOST='127.0.0.1',
+                     NGFW_LICENSE_FILE=str(licence),NGFW_LICENSE_SERIAL=serial,NGFW_LICENSE_PUBKEY_FILE=str(keys/'ngfw-license-public.pem'),
                      NGFW_PG_DSN=dsn,NGFW_VALKEY_URL='redis://127.0.0.1:'+str(kvport),NGFW_VALKEY_DB='0',NGFW_VALKEY_PREFIX='ngfw:'+owner+':tb:',
                      NGFW_AGENT_SOCKET=agent_socket,NGFW_AGENT_OWNER=agent_owner,NGFW_AGENT_TIMEOUT_MS='60000',
                      NGFW_JWT_SECRET=secrets.token_hex(32),NGFW_SECRET_KEY_FILE=str(runtime/'secret.key'),
@@ -86,7 +128,7 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
             while time.monotonic()<deadline:
                 try:
                     api.call('GET','/state/interfaces');return
-                except OSError:time.sleep(.2)
+                except (OSError,Refused):time.sleep(.2)
             raise Refused('agent restart readiness deadline')
         yield api, runtime, restart
 

@@ -32,6 +32,17 @@ def merge_delta(old,new):
     return patch
 
 
+def changed_paths(old,new,path=''):
+    if old==new:return []
+    if not isinstance(old,dict) or not isinstance(new,dict):return [path]
+    result=[]
+    for key in old.keys()|new.keys():
+        child=path+'/'+key.replace('~','~0').replace('/','~1')
+        if key not in old or key not in new:result.append(child)
+        else:result.extend(changed_paths(old[key],new[key],child))
+    return result
+
+
 class Controller:
     def __init__(self,api,owner,output):
         self.api=api;self.owner=owner;self.output=output;self.events=[]
@@ -62,7 +73,8 @@ class Controller:
         lock=self.api.call('GET','/config/lock')
         if lock.get('locked') or self.api.call('GET','/config/diff').get('changes'):
             raise Refused('foreign candidate present')
-        self.api.call('PATCH','/config',merge_delta(self.api.call('GET','/config'),target))
+        before=self.api.call('GET','/config')
+        self.api.call('PATCH','/config',merge_delta(before,target))
         claimed=self.api.call('GET','/config/lock')
         if not claimed.get('locked') or not claimed.get('ownerId'):raise Refused('candidate ownership absent')
         candidate=self.api.call('GET','/config/candidate');sha=digest(candidate)
@@ -71,7 +83,7 @@ class Controller:
             raise Refused('candidate owner changed')
         result=self.api.call('POST','/config/commit?comment='+quote(request['txn'],safe=''))
         if result.get('status')=='applied':
-            check_commit(result,baseline_warnings=self.warnings,changed_paths=tuple('/'+k for k in desired))
+            check_commit(result,baseline_warnings=self.warnings,changed_paths=tuple(changed_paths(before,candidate)))
             revision=result['revision']['id']
         elif result.get('status')=='unchanged':
             current=self.api.call('GET','/config/diff')
@@ -94,8 +106,9 @@ class Controller:
 
     def close(self):
         self.api.call('POST','/config/discard')
+        before=self.api.call('GET','/config')
         result=self.api.call('POST',f'/config/rollback/{self.revision}?comment=traffic-b-rest-rollback')
-        check_commit(result,baseline_warnings=self.warnings,changed_paths=('/interfaces','/routing','/tunnels','/vpn'))
+        check_commit(result,baseline_warnings=self.warnings,changed_paths=tuple(changed_paths(before,self.baseline)))
         if digest(self.api.call('GET','/config'))!=digest(self.baseline):raise Refused('baseline rollback mismatch')
         self.events.append({'txn':'rest-baseline-rollback','status':result['status'],'revision':result['revision']['id'],'baseline_sha256':digest(self.baseline)})
         self.api.call('PATCH','/config/vrfs',{self.base_name:None})

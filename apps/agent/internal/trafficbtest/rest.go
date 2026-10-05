@@ -4,6 +4,8 @@ package trafficbtest
 import (
 	"context"
 	"encoding/json"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"io"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
@@ -32,7 +34,7 @@ type Reply struct {
 }
 
 func Enabled() bool { return os.Getenv("NGFW_TRAFFIC_B_REST") == "1" }
-func New(t *testing.T, socket, owner, phase string) *Client {
+func New(t *testing.T, socket, owner, phase string, expectedPID ...int) *Client {
 	t.Helper()
 	if !Enabled() || os.Getenv("NGFW_DISPOSABLE_VPP") != "1" {
 		t.Fatal("private REST fixture opt-in required")
@@ -46,9 +48,24 @@ func New(t *testing.T, socket, owner, phase string) *Client {
 	if err != nil || slot < 1 || slot > 32 {
 		t.Fatal("allocated physical slot required")
 	}
+	checkCtx, checkCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer checkCancel()
+	connection, err := grpc.DialContext(checkCtx, "unix://"+socket, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithBlock())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer connection.Close()
+	if _, err := ngfwv1.NewDataplaneClient(connection).Retrieve(checkCtx, &ngfwv1.RetrieveRequest{Owner: owner, Subsystems: []string{"interfaces"}}); err != nil {
+		t.Fatal("REST attach owner verification: ", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	//nolint:gosec // G204: repository-owned fixed helper; generated private fixture socket/owner and allocated slot only.
 	cmd := exec.CommandContext(ctx, "python3", filepath.Join(root, "test/topology/traffic-b/rest_bridge.py"), "--slot", strconv.Itoa(slot), "--agent-socket", socket, "--owner", owner, "--evidence", filepath.Join(os.Getenv("NGFW_TRAFFIC_B_EVIDENCE"), phase+"-rest.json"))
+	pid := os.Getpid()
+	if len(expectedPID) == 1 {
+		pid = expectedPID[0]
+	}
+	cmd.Env = append(os.Environ(), "NGFW_TRAFFIC_VERIFIED_OWNER="+owner, "NGFW_TRAFFIC_EXPECTED_AGENT_PID="+strconv.Itoa(pid))
 	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
 	cmd.WaitDelay = 30 * time.Second
 	input, err := cmd.StdinPipe()

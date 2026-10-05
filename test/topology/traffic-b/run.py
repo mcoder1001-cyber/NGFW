@@ -25,7 +25,7 @@ def jobs(slot, output, agent, plugin):
     return {
         'ipsec':(prefix+[str(ROOT/'test/topology/ipsec/run.sh'),'--skip-build','--agent',str(agent),'--plugin-directory',str(plugin)],native,None),
         'ipsec-cert':(prefix+[sys.executable,str(HERE/'native-cert.py')],native,'PRODUCTION_CERTIFICATE_PEER_PACKETS=PASS'),
-        'wireguard':(prefix+gotest('TestWireguardHandshakeOnHost','./internal/agent'),{'NGFW_WG_HANDSHAKE':'1'},'--- PASS: TestWireguardHandshakeOnHost'),
+        'wireguard':(prefix+['--host-network',sys.executable,str(HERE/'wireguard_rest.py'),'--slot',str(slot),'--output',str(output/'wireguard-packets')],{},'REST_WIREGUARD_PACKETS=PASS'),
         'tunnels':(prefix+['--host-network',sys.executable,str(HERE/'stack.py'),'--slot',str(slot),'--output',str(output/'tunnel-packets')],{},'"passed": true'),
         'bgp':(prefix+gotest('TestP12TopologyOnHost','./internal/agent'),{'NGFW_P12_TOPOLOGY':'1','NGFW_P12_FIB':'private'},'--- PASS: TestP12TopologyOnHost'),
         'ospf':(prefix+gotest('TestOSPFTopologyOnHost','./internal/agent'),{'NGFW_OSPF_TOPOLOGY':'1','NGFW_OSPF_FIB':'root'},'--- PASS: TestOSPFTopologyOnHost'),
@@ -54,7 +54,7 @@ def campaign(slot,output,selected,*,agent,plugin):
     try:
         for name in selected:
             argv,extra,marker=jobs(slot,output,agent,plugin)[name]
-            env=dict(os.environ,**values,**extra,NGFW_INTEGRATION='1')
+            env=dict(os.environ,**values,**extra,NGFW_INTEGRATION='1',NGFW_TRAFFIC_B_REST='1',NGFW_TRAFFIC_B_SLOT=str(slot),NGFW_TRAFFIC_B_PHASE=name)
             if 'ipsec' in name:
                 source=Path(os.environ.get('NGFW_TRAFFIC_STOCK_ROOT','/run/ngfw-test/w10/swan-stock/root')).resolve(strict=True)
                 env['NGFW_TRAFFIC_STOCK_ROOT']=str(source)
@@ -93,6 +93,8 @@ def main():
     parser.add_argument('--plugin-directory',type=Path,default=ROOT/'.scratch/traffic-b-native-plugin/plugin')
     parser.add_argument('--build-native-plugin',action='store_true')
     args=parser.parse_args()
+    def terminate(signum,frame):raise SystemExit(128+signum)
+    signal.signal(signal.SIGTERM,terminate)
     try:
         slot_values(args.slot);selected=args.phase or list(PRIMARY)
         if len(set(selected))!=len(selected):raise Refused('duplicate phase')

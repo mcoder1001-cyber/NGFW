@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -27,6 +28,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/testpeer/strongswan"
 	"ngfw/agent/internal/testpeer/strongswan/swantest"
+	"ngfw/agent/internal/trafficbtest"
 	"ngfw/agent/internal/vpp"
 )
 
@@ -130,6 +132,11 @@ func TestIKEv2NativePackets(t *testing.T) {
 	}
 	material := make([]byte, 32)
 	rand.Read(material)
+	if trafficbtest.Enabled() {
+		text := []byte(fmt.Sprintf("%x", material))
+		vpn.Zero(material)
+		material = text
+	}
 	defer vpn.Zero(material)
 	resolver := vpn.NewMapResolver(key, material)
 	env := IKEv2Env{SecretRef: func(context.Context, string) (string, error) { return key.Ref(material), nil }}
@@ -148,6 +155,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		profile.Responder = &vpnpb.Ikev2Responder{Interface: "host-w8nwan", Address: "198.18.8.2"}
 	}
 	desc := ikev2.NewProfile(ikev2.Config{Client: conn, Owner: "w8", Secrets: resolver, Keys: key})
+	var restControl *trafficbtest.Client
 	var product ngfwv1.DataplaneClient
 	var productApply func(string)
 	var productPartial func(string)
@@ -232,9 +240,18 @@ func TestIKEv2NativePackets(t *testing.T) {
 				time.Sleep(200 * time.Millisecond)
 			}
 		}
+		productSecrets := map[string][]byte{"psk/site": append([]byte(nil), material...)}
+		if trafficbtest.Enabled() {
+			restControl = trafficbtest.New(t, socket, "w8", os.Getenv("NGFW_TRAFFIC_B_PHASE"), process.Process.Pid)
+			defer restControl.Close(t)
+		}
 		productApply = func(txn string) {
 			t.Helper()
-			result, e := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: ds, SecretBundle: &ngfwv1.SecretBundle{Values: map[string][]byte{"psk/site": append([]byte(nil), material...)}}})
+			if restControl != nil {
+				restControl.Apply(t, txn, ds, productSecrets)
+				return
+			}
+			result, e := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: ds, SecretBundle: &ngfwv1.SecretBundle{Values: productSecrets}})
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -619,10 +636,16 @@ print('TCP exact 1048576 bytes passed')`))
 		t.Fatal("no ESP in underlay capture")
 	}
 	if production {
-		result, err := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "native-owned-rollback", DesiredState: &ngfwv1.DesiredState{}, Subsystems: []string{"vpn", "tunnels", "routing", "interfaces", "vrfs"}})
-		if err != nil || result.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
-			t.Fatal("production owned rollback failed", err, result.GetStatus())
+		if restControl != nil {
+			restControl.Close(t)
 		}
+		if restControl == nil {
+			result, err := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "native-owned-rollback", DesiredState: &ngfwv1.DesiredState{}, Subsystems: []string{"vpn", "tunnels", "routing", "interfaces", "vrfs"}})
+			if err != nil || result.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+				t.Fatal("production owned rollback failed", err, result.GetStatus())
+			}
+		}
+
 		actual, err := product.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "w8"})
 		if err != nil {
 			t.Fatal("post-rollback Retrieve failed", err)

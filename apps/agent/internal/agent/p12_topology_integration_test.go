@@ -45,6 +45,7 @@ import (
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/frrtest"
 	"ngfw/agent/internal/subsystems"
+	"ngfw/agent/internal/trafficbtest"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
 )
@@ -63,6 +64,7 @@ type p12Env struct {
 	slot    int
 	repo    string
 	raw     vpp.Client
+	rest    *trafficbtest.Client
 	c       ngfwv1.DataplaneClient
 	a       *Agent
 	cfg     Config
@@ -279,6 +281,12 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 
 func (e *p12Env) apply(id string, ds *ngfwv1.DesiredState, subsystems ...string) *ngfwv1.ApplyResponse {
 	e.t.Helper()
+	if trafficbtest.Enabled() {
+		if e.rest == nil {
+			e.rest = trafficbtest.New(e.t, e.cfg.Socket, e.prefix, os.Getenv("NGFW_TRAFFIC_B_PHASE"))
+		}
+		return e.rest.Apply(e.t, e.prefix+"-p12-"+id, ds, nil)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	if len(subsystems) == 0 {

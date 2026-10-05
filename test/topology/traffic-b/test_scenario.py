@@ -82,3 +82,81 @@ class SafetyTests(unittest.TestCase):
                 capture=Capture('ns-w27-wan','w27w1','icmp',output)
                 self.assertEqual(stat.S_IMODE(output.stat().st_mode),0o600)
                 capture.close()
+
+class StackRecoveryTests(unittest.TestCase):
+    def test_partial_database_creation_cleans_reserved_owner(self):
+        import os
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        import subprocess
+        import stack
+        calls=[]
+        def invoke(argv,**kwargs):
+            calls.append(argv)
+            if 'create' in argv:raise subprocess.CalledProcessError(1,argv)
+            return subprocess.CompletedProcess(argv,0)
+        with tempfile.TemporaryDirectory() as folder:
+            physical=Path(folder)/'api';physical.touch()
+            with patch.dict(os.environ,NGFW_DISPOSABLE_VPP='1',NGFW_TRAFFIC_PRIVATE_VPP_PID='1',NGFW_VPP_API_SOCKET=str(physical)), \
+                 patch('stack.os.path.samefile',return_value=True), \
+                 patch.object(Path,'is_file',return_value=True),patch.object(Path,'exists',return_value=False), \
+                 patch('stack.subprocess.check_output',return_value=''),patch('stack.subprocess.run',side_effect=invoke):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    with stack.product_stack(27):pass
+        self.assertTrue(any('drop' in command and 'w27tb' in command for command in calls))
+
+    def test_foreign_role_refused_without_creation_or_drop(self):
+        import os
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+        import stack
+        with tempfile.TemporaryDirectory() as folder:
+            physical=Path(folder)/'api';physical.touch()
+            with patch.dict(os.environ,NGFW_DISPOSABLE_VPP='1',NGFW_TRAFFIC_PRIVATE_VPP_PID='1',NGFW_VPP_API_SOCKET=str(physical)), \
+                 patch('stack.os.path.samefile',return_value=True),patch.object(Path,'is_file',return_value=True), \
+                 patch.object(Path,'exists',return_value=False),patch('stack.subprocess.check_output',side_effect=['','ngfw_w27tb']), \
+                 patch('stack.subprocess.run') as mutate:
+                with self.assertRaises(Refused):
+                    with stack.product_stack(27):pass
+                mutate.assert_not_called()
+
+    def test_attached_regular_file_and_foreign_peer_refused(self):
+        import os
+        from pathlib import Path
+        import tempfile
+        import socket
+        import stack
+        with tempfile.TemporaryDirectory() as directory:
+            file=Path(directory)/'regular';file.touch()
+            with self.assertRaises(Refused):stack.attached_identity(file,'w27')
+            address=Path(directory)/'agent.sock'
+            with socket.socket(socket.AF_UNIX) as server:
+                server.bind(str(address));server.listen()
+                # This test's PID differs from bridge's required fixture parent.
+                with self.assertRaises(Refused):stack.attached_identity(address,'w27')
+
+    def test_dispatcher_sigterm_cleans_owned_command(self):
+        import os
+        from pathlib import Path
+        import signal
+        import subprocess
+        import sys
+        import tempfile
+        import time
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);ready=root/'ready';clean=root/'clean';log=root/'log'
+            child="import signal,time,pathlib; signal.signal(signal.SIGTERM,lambda s,f:(pathlib.Path("+repr(str(clean))+").write_text('clean'),exit(0))); pathlib.Path("+repr(str(ready))+").touch(); time.sleep(60)"
+            script="import run,sys,os; run.fcntl.flock=lambda *a:None; run.campaign=lambda *a,**k:run.execute([sys.executable,'-c',"+repr(child)+"],dict(os.environ),__import__('pathlib').Path("+repr(str(log))+")); sys.argv=['run.py','--slot','27','--phase','wireguard']; run.main()"
+            worker=subprocess.Popen([sys.executable,'-c',script],cwd=Path(__file__).parent,env=dict(os.environ,NGFW_INTEGRATION='1'),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+            try:
+                deadline=time.monotonic()+5
+                while not ready.exists():
+                    if worker.poll() is not None or time.monotonic()>deadline:self.fail('owned command did not start')
+                    time.sleep(.02)
+                worker.send_signal(signal.SIGTERM);worker.wait(timeout=10)
+                self.assertEqual(clean.read_text(),'clean')
+                self.assertEqual(worker.returncode,143)
+            finally:
+                if worker.poll() is None:worker.kill();worker.wait()

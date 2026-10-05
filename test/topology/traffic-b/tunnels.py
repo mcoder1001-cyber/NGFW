@@ -199,7 +199,13 @@ def main():
             raise Refused("NGFW_INTEGRATION=1 required")
         with open("/run/lock/ngfw-lab.lock", "a") as lock:
             fcntl.flock(lock, fcntl.LOCK_SH)
-            run(args.slot, Api(args.slot, token), args.output)
+            api=Api(args.slot,token)
+            # Standalone CLI observes the applied baseline instead of inventing warnings.
+            current=api.call('GET','/config/diff')
+            if current.get('changes') or type(current.get('baseRevision')) is not int:raise Refused('clean concrete baseline required')
+            dry=api.call('POST','/config/validate')
+            baseline_warnings=dry.get('warnings',[])
+            run(args.slot,api,args.output,baseline_warnings)
         return 0
     except (Refused, OSError, ValueError, subprocess.SubprocessError) as error:
         print(type(error).__name__ + ": tunnel campaign failed; inspect private output", file=sys.stderr)

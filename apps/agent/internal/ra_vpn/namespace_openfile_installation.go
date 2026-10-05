@@ -28,6 +28,9 @@ const NumericPublisherIPCBudget = 5 * time.Second
 // two fresh manager captures and publication operation. It is not a cache TTL.
 const NumericOpenFilePublicationBudget = 40 * time.Second
 
+// Fixed publisher diagnostics use journal stderr; stdout remains discarded.
+const numericPublisherServiceDigest = "24226ed4e32a1880d031f5222a8ea8c201dfdeb4a6b44fb1fd72ce3bac621712"
+
 // A proof belongs to exactly one call/process and holds the actual validated
 // files. Every trust boundary must verify full file stamps and fresh canonical
 // paths plus the complete creating process boot identity. No proof crosses a
@@ -66,7 +69,7 @@ func newNumericPublisherInstallationProof(ctx context.Context) (*numericPublishe
 	}{
 		{unitObserverExecutable, 32 << 20, true, ""},
 		{unitObserverExecutable + ".sha256", 128, false, ""},
-		{numericPublisherService, 16384, false, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
+		{numericPublisherService, 16384, false, numericPublisherServiceDigest},
 		{numericPublisherSocket, 16384, false, "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147"},
 	}
 	var executableDigest string

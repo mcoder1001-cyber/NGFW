@@ -24,6 +24,15 @@ const NumericPublisherValidationBudget = 20 * time.Second
 // validation. It does not permit an unbounded socket or process lifetime.
 const NumericPublisherIPCBudget = 5 * time.Second
 
+// NumericPublisherCleanupBudget reserves finite process-exit and descriptor
+// cleanup time after the independently bounded validation and IPC phases.
+const NumericPublisherCleanupBudget = 5 * time.Second
+
+// NumericPublisherServiceRuntimeBudget is the service watchdog, not an IPC
+// deadline. It covers validation20, unchanged IPC5, and finite cleanup5. The
+// caller's publication40 and any shorter cancellation/deadline still apply.
+const NumericPublisherServiceRuntimeBudget = NumericPublisherValidationBudget + NumericPublisherIPCBudget + NumericPublisherCleanupBudget
+
 // NumericOpenFilePublicationBudget bounds the complete installation, identity,
 // two fresh manager captures and publication operation. It is not a cache TTL.
 const NumericOpenFilePublicationBudget = 40 * time.Second

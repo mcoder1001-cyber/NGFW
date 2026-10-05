@@ -619,7 +619,11 @@ func (w *Wiring) initializeRATargets(ctx context.Context) error {
 	if err := startup.targets.Initialize(bounded); err != nil {
 		var failure *ravpn.SupplierInitializationFailure
 		if errors.As(err, &failure) && failure != nil && failure.Stage >= 1 && failure.Stage <= 9 && w.env.Log != nil {
-			w.env.Log.Warn("remote-access supplier initialization refused", "stage", failure.Stage)
+			if failure.Stage == 6 && failure.PublisherStage >= 1 && failure.PublisherStage <= 24 {
+				w.env.Log.Warn("remote-access supplier initialization refused", "stage", failure.Stage, "publisher_stage", failure.PublisherStage, "deadline_exceeded", failure.DeadlineExceeded)
+			} else {
+				w.env.Log.Warn("remote-access supplier initialization refused", "stage", failure.Stage)
+			}
 		}
 		return ravpn.ErrEngine
 	}

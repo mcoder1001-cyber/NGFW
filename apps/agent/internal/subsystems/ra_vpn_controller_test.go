@@ -3,6 +3,7 @@ package subsystems
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"golang.org/x/sys/unix"
@@ -608,5 +609,52 @@ func TestRASupplierInitializationJournalContainsOnlyWhitelistedStage(t *testing.
 				t.Fatal("unknown stage escaped", text)
 			}
 		})
+	}
+}
+
+func TestRASupplierPublisherJournalOmitsUntrustedInnerFields(t *testing.T) {
+	innerStages := []uint8{0, 25, 255}
+	for stage := uint8(1); stage <= 24; stage++ {
+		innerStages = append(innerStages, stage)
+	}
+	for _, outer := range []uint8{0, 1, 5, 6, 7, 9, 10, 255} {
+		for _, inner := range innerStages {
+			for _, deadline := range []bool{false, true} {
+				t.Run(fmt.Sprintf("%d-%d-%t", outer, inner, deadline), func(t *testing.T) {
+					var output bytes.Buffer
+					var events []string
+					fixture := &raInitializationFixture{events: &events, targetErr: fmt.Errorf("private-marker raw-output: %w", &ravpn.SupplierInitializationFailure{Stage: outer, PublisherStage: inner, DeadlineExceeded: deadline})}
+					runtime := ravpn.NewRuntime("inner-journal-owner", nil, nil, nil, nil)
+					w := &Wiring{env: Env{Owner: "inner-journal-owner", RA: &RAControllerOptions{Handoff: fixture}, Log: slog.New(slog.NewJSONHandler(&output, nil))}}
+					w.configureRAInitialization(runtime, fixture)
+					if err := w.initializeRATargets(context.Background()); err != ravpn.ErrEngine {
+						t.Fatal("public failure not redacted", err)
+					}
+					text := output.String()
+					if strings.Contains(text, "private-marker") || strings.Contains(text, "raw-output") {
+						t.Fatal("raw diagnostic escaped", text)
+					}
+					if outer == 0 || outer > 9 {
+						if text != "" {
+							t.Fatal("unknown outer stage escaped", text)
+						}
+						return
+					}
+					var row map[string]any
+					if err := json.Unmarshal(output.Bytes(), &row); err != nil {
+						t.Fatal(err)
+					}
+					publisher, hasPublisher := row["publisher_stage"]
+					flag, hasDeadline := row["deadline_exceeded"]
+					expected := outer == 6 && inner >= 1 && inner <= 24
+					if hasPublisher != expected || hasDeadline != expected {
+						t.Fatal("inner fields outside bounded stage6", row)
+					}
+					if expected && (publisher != float64(inner) || flag != deadline) {
+						t.Fatal("incorrect fixed diagnostics", row)
+					}
+				})
+			}
+		}
 	}
 }

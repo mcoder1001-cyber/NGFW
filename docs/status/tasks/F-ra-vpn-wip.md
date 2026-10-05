@@ -192,3 +192,27 @@ Own verified-build-receipt.json in /root/.cache/t19/strongswan-source records si
 source6.1.0, systemd install exit0, fixture ABI and forbidden daemonflagprobe.
 Current remote6f53e73d. Next: guarded TAP wrapper + public projection dependencies,
 PKI/VICI lifecycle and full API/UI/session/packet acceptance still incomplete.
+
+Incident residue closure (manager independent verification): root confirmed
+socketinode15570/root660/ctime1791188837547932031, ownPID2211170 VICI plugin journal
+1791188837549941us (~2ms after socketcreation), no live UNIXlistener. Manager
+rechecked unchanged inode/ctime and unlinked ONLY proven incident-created inactive
+/run/charon.vici. It is now absent. Root independently verified hostXFRMstate0/
+policy0, UDP500/4500listener0, incidentPID+parent absent, VPP1014/NRestarts0active.
+Incident closed with actual disclosed host invocation; never claim it never ran.
+
+ABI correction: actual P14 deploy/image/iso/common/packages.list and current
+install{iso,bare-metal} docs specify Ubuntu26.04 resolute amd64. Earlier Debian12
+assumption was wrong. Builder now requires explicit targetOSrelease, refuses
+ID/VERSION_ID/amd64 mismatch before creating output, emits compiler/libc/OpenSSL/
+systemd ABI JSON manifest and upstream COPYING. shellcheck PASS; build/source
+signature receipts remain valid fixture evidence, not appliance artifact acceptance.
+Installation consumer must compare target ABI manifest before staging artifact.
+
+Handoff contract checkpoint: root-private observed metadata records kernelNSinode
+and complete D080 VPP bootID/mainPID/startTime plus both fresh owner-tagged TAP
+indices/names. Refuses every boottriple change, incomplete identity, namespace
+replacement, recycledindex, foreignlink. Focused actual TestHandoff PASS0.026s.
+This contract will precede TAP/ACL/daemon consumers; actual ACL readback still
+mandatory before activation. Current remote160b00d9 namespace descriptor; next:
+publish handoff contract then guarded TAP wrapper and artifact ABI stage verifier.

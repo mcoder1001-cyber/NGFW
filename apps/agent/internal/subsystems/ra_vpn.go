@@ -2,6 +2,9 @@ package subsystems
 
 import (
 	"context"
+	"golang.org/x/sys/unix"
+	"os"
+	"strconv"
 	"time"
 
 	"ngfw/agent/internal/descriptors/tapv2"
@@ -22,7 +25,39 @@ func (w *Wiring) registerRATransport(r scheduler.Registry) error {
 		// never relaxes missing scope into permission to allocate.
 		ids = NoIDs()
 	}
-	r.Register(ravpn.NewNamespaceDescriptor(w.env.Owner))
+	namespace := ravpn.NewNamespaceDescriptor(w.env.Owner)
+	if w.env.RA != nil && w.env.RA.Handoff != nil {
+		namespace.Handoff = w.env.RA.Handoff
+	} else {
+		handoff, err := ravpn.NewFixedNamespaceHandoff(func(ctx context.Context) ([]ravpn.MountTarget, error) {
+			current, err := bootid.Current(ctx, w.env.Client)
+			if err != nil || !current.Complete() || current.PID <= 0 {
+				return nil, ravpn.ErrBoundary
+			}
+			vppTarget, err := raMountTarget(current)
+			if err != nil {
+				return nil, err
+			}
+			executable, err := os.Readlink("/proc/1/exe")
+			if err != nil || (executable != "/usr/lib/systemd/systemd" && executable != "/lib/systemd/systemd") {
+				return nil, ravpn.ErrBoundary
+			}
+			managerTarget, err := raMountTarget((bootid.Reader{}).ForPID(1))
+			if err != nil {
+				return nil, err
+			}
+			after, err := bootid.Current(ctx, w.env.Client)
+			if err != nil || !after.Equal(current) {
+				return nil, ravpn.ErrBoundary
+			}
+			return []ravpn.MountTarget{vppTarget, managerTarget}, nil
+		})
+		if err != nil {
+			return err
+		}
+		namespace.Handoff = handoff
+	}
+	r.Register(namespace)
 	r.Register(&ravpn.GuardedTAP{
 		Tap:   tapv2.New(w.env.Client, w.env.Owner),
 		Store: &ravpn.LazyTAPReceipts{StateDir: w.env.StateDir},
@@ -49,4 +84,25 @@ func (w *Wiring) registerRATransport(r scheduler.Registry) error {
 		},
 	})
 	return nil
+}
+
+// raMountTarget reads a held kernel namespace handle, bound to a complete process
+// identity before and after its inode is read. Profile data never selects a path.
+func raMountTarget(identity bootid.Identity) (ravpn.MountTarget, error) {
+	if identity.PID <= 0 || !identity.Complete() || !(bootid.Reader{}).ForPID(identity.PID).Equal(identity) {
+		return ravpn.MountTarget{}, ravpn.ErrBoundary
+	}
+	//nolint:gosec // G304: the positive PID comes from verified VPP or fixed PID1; only a kernel NSFS path is opened.
+	file, err := os.Open("/proc/" + strconv.Itoa(identity.PID) + "/ns/mnt")
+	if err != nil {
+		return ravpn.MountTarget{}, ravpn.ErrBoundary
+	}
+	defer func() { _ = file.Close() }()
+	var stat unix.Stat_t
+	var filesystem unix.Statfs_t
+	namespaceType, typeError := unix.IoctlRetInt(int(file.Fd()), unix.NS_GET_NSTYPE)
+	if typeError != nil || namespaceType != unix.CLONE_NEWNS || unix.Fstat(int(file.Fd()), &stat) != nil || unix.Fstatfs(int(file.Fd()), &filesystem) != nil || filesystem.Type != unix.NSFS_MAGIC || stat.Ino == 0 || !(bootid.Reader{}).ForPID(identity.PID).Equal(identity) {
+		return ravpn.MountTarget{}, ravpn.ErrBoundary
+	}
+	return ravpn.MountTarget{Boot: identity, MountInode: stat.Ino}, nil
 }

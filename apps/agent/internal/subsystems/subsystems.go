@@ -276,6 +276,9 @@ type Wiring struct {
 
 // register is Register without the persistence guard (stores.go, TD-11b).
 func register(r scheduler.Registry, env Env) (*Wiring, error) {
+	if RARuntimeFor(env.Owner) != nil {
+		return nil, errors.New("remote-access owner already registered")
+	}
 	r = &raFilteringRegistry{Registry: r, byName: map[string]scheduler.Descriptor{}}
 	if env.Log == nil {
 		env.Log = slog.Default()

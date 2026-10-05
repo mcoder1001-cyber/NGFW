@@ -3,6 +3,8 @@ package subsystems
 import (
 	"context"
 	"google.golang.org/protobuf/proto"
+	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/internal/descriptors/acl"
 	"ngfw/agent/internal/descriptors/core"
 	iface "ngfw/agent/internal/descriptors/interface"
@@ -57,9 +59,10 @@ func raObject(v proto.Message) bool {
 }
 
 type raScopedDescriptor struct {
-	inner   scheduler.Descriptor
-	private bool
-	reader  ravpn.DescriptorReader
+	inner         scheduler.Descriptor
+	private       bool
+	reader        ravpn.DescriptorReader
+	mutationGuard func(context.Context, string) error
 }
 
 func (d *raScopedDescriptor) Name() string {
@@ -112,13 +115,14 @@ func (d *raScopedDescriptor) ProvidedKeys(v proto.Message) []scheduler.Key {
 	return keys
 }
 func (d *raScopedDescriptor) Reapply(ctx context.Context, v proto.Message, meta any) error {
-	if raObject(v) != d.private || d.guard(ctx, v) != nil {
+	r, ok := d.inner.(scheduler.Reapplier)
+	if !ok {
+		return nil
+	}
+	if raObject(v) != d.private || d.guard(ctx, v) != nil || d.mutation(ctx, v) != nil {
 		return ravpn.ErrEngine
 	}
-	if r, ok := d.inner.(scheduler.Reapplier); ok {
-		return r.Reapply(ctx, v, meta)
-	}
-	return nil
+	return r.Reapply(ctx, v, meta)
 }
 
 // Validate rejects conflicting ownership before the scheduler's first mutation.
@@ -139,19 +143,19 @@ func (d *raScopedDescriptor) Validate(ctx context.Context, key scheduler.Key, v 
 	return nil
 }
 func (d *raScopedDescriptor) Create(ctx context.Context, v proto.Message) (any, error) {
-	if raObject(v) != d.private || d.guard(ctx, v) != nil {
+	if raObject(v) != d.private || d.guard(ctx, v) != nil || d.mutation(ctx, v) != nil {
 		return nil, ravpn.ErrEngine
 	}
 	return d.inner.Create(ctx, v)
 }
 func (d *raScopedDescriptor) Update(ctx context.Context, a, b proto.Message, m any) (any, error) {
-	if raObject(a) != d.private || raObject(b) != d.private || d.guard(ctx, a) != nil || d.guard(ctx, b) != nil {
+	if raObject(a) != d.private || raObject(b) != d.private || d.guard(ctx, a) != nil || d.guard(ctx, b) != nil || d.mutation(ctx, a) != nil || d.mutation(ctx, b) != nil {
 		return nil, ravpn.ErrEngine
 	}
 	return d.inner.Update(ctx, a, b, m)
 }
 func (d *raScopedDescriptor) Delete(ctx context.Context, v proto.Message, m any) error {
-	if raObject(v) != d.private || d.guard(ctx, v) != nil {
+	if raObject(v) != d.private || d.guard(ctx, v) != nil || d.mutation(ctx, v) != nil {
 		return ravpn.ErrEngine
 	}
 	return d.inner.Delete(ctx, v, m)
@@ -163,6 +167,12 @@ func (d *raScopedDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 	}
 	out := []scheduler.KV{}
 	for _, kv := range rows {
+		if !d.private && raObject(kv.Value) {
+			private := &raScopedDescriptor{inner: d.inner, private: true, reader: d.reader}
+			if private.guard(ctx, kv.Value) != nil {
+				return nil, ravpn.ErrEngine
+			}
+		}
 		if raObject(kv.Value) == d.private {
 			if d.guard(ctx, kv.Value) != nil {
 				return nil, ravpn.ErrEngine
@@ -284,6 +294,62 @@ func (d *raScopedDescriptor) guard(ctx context.Context, v proto.Message) error {
 	return nil
 }
 
+func raObjectNames(v proto.Message) []string {
+	var names []string
+	switch x := v.(type) {
+	case *core.InterfaceAddress:
+		names = append(names, x.Interface)
+	case *core.InterfaceTable:
+		names = append(names, x.Interface)
+	case *core.Route:
+		for _, p := range x.Paths {
+			if raInterface(p.Interface) {
+				names = append(names, p.Interface)
+			}
+		}
+	case *iface.InterfaceAlias:
+		names = append(names, x.Name)
+	case *iface.AdminState:
+		names = append(names, strings.TrimPrefix(x.Interface, "interface/"))
+	default:
+		if binding, err := acl.InterfaceBindingFromProto(v); err == nil {
+			names = append(names, binding.Interface)
+		}
+	}
+	return names
+}
+func (d *raScopedDescriptor) mutation(ctx context.Context, v proto.Message) error {
+	if !d.private {
+		return nil
+	}
+	if d.mutationGuard == nil || d.reader == nil {
+		return ravpn.ErrEngine
+	}
+	taps, ok := d.reader.Get(tapv2.TapName)
+	if !ok {
+		return ravpn.ErrEngine
+	}
+	rows, err := taps.Retrieve(ctx)
+	if err != nil {
+		return ravpn.ErrEngine
+	}
+	instances := map[string]string{}
+	for _, row := range rows {
+		tap, ok := row.Value.(*tapv2.Tap)
+		receipt, proof := row.Meta.(ravpn.TAPReceipt)
+		if ok && proof {
+			instances[tap.Name] = receipt.Instance
+		}
+	}
+	for _, name := range raObjectNames(v) {
+		instance, exists := instances[name]
+		if !exists || d.mutationGuard(ctx, instance) != nil {
+			return ravpn.ErrEngine
+		}
+	}
+	return nil
+}
+
 func (d *raScopedDescriptor) CheckPersistent() error {
 	if check, ok := d.inner.(interface{ CheckPersistent() error }); ok {
 		return check.CheckPersistent()
@@ -316,7 +382,18 @@ func RAEnvFor(owner string) desired.RAEnv {
 func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	reader := registryReader(reg)
 	store := &ravpn.LazyEngineStore{StateDir: w.env.StateDir, Owner: w.env.Owner}
-	verifier := &ravpn.RegistryVerifier{Registry: reader, Boot: func(ctx context.Context) (bootid.Identity, error) { return bootid.Current(ctx, w.env.Client) }}
+	verifier := &ravpn.RegistryVerifier{Registry: reader, Boot: func(ctx context.Context) (bootid.Identity, error) { return bootid.Current(ctx, w.env.Client) }, Tables: func(ctx context.Context, index uint32) (uint32, uint32, error) {
+		service := interfaces.NewServiceClient(w.env.Client)
+		v4, err := service.SwInterfaceGetTable(ctx, &interfaces.SwInterfaceGetTable{SwIfIndex: interface_types.InterfaceIndex(index)})
+		if err != nil {
+			return 0, 0, ravpn.ErrEngine
+		}
+		v6, err := service.SwInterfaceGetTable(ctx, &interfaces.SwInterfaceGetTable{SwIfIndex: interface_types.InterfaceIndex(index), IsIPv6: true})
+		if err != nil {
+			return 0, 0, ravpn.ErrEngine
+		}
+		return v4.VrfID, v6.VrfID, nil
+	}}
 	var preparation ravpn.SnapshotPreparation
 	var units ravpn.UnitSupervisor = ravpn.SystemdUnits{}
 	if w.env.RA != nil {
@@ -326,6 +403,31 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		}
 	}
 	runtime := ravpn.NewRuntime(w.env.Owner, verifier, preparation, units, store)
+	if reader != nil {
+		for name := range raSharedFamilies {
+			if descriptor, ok := reader.Get("remote-access." + name); ok {
+				if private, ok := descriptor.(*raScopedDescriptor); ok {
+					private.mutationGuard = func(ctx context.Context, instance string) error {
+						plan, err := ravpn.ReadAgentPlan(instance)
+						if err != nil {
+							return ravpn.ErrEngine
+						}
+						return runtime.TransportGuard(ctx, plan)
+					}
+				}
+			}
+		}
+		if descriptor, ok := reader.Get(ravpn.NamespaceName); ok {
+			if namespace, ok := descriptor.(*ravpn.NamespaceDescriptor); ok {
+				namespace.Guard = runtime.TransportGuard
+			}
+		}
+		if descriptor, ok := reader.Get(tapv2.TapName); ok {
+			if tap, ok := descriptor.(*ravpn.GuardedTAP); ok {
+				tap.Guard = runtime.TransportGuard
+			}
+		}
+	}
 	ids, e := w.IDRange()
 	if e != nil {
 		ids = NoIDs()
@@ -336,10 +438,21 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		span.Hi = ids.Hi
 	}
 	runtime.SetReadiness(func(ctx context.Context) error {
+		if systemd, ok := units.(ravpn.SystemdUnits); ok && systemd.Preflight(ctx) != nil {
+			return ravpn.ErrEngine
+		}
 		if reader == nil || w.env.Client == nil || (!span.All && (span.Lo > min(span.Hi, 8191) || uint64(min(span.Hi, 8191))-uint64(span.Lo)+1 < 2)) {
 			return ravpn.ErrEngine
 		}
 		if ravpn.HostPrerequisites() != nil {
+			return ravpn.ErrEngine
+		}
+		descriptor, exists := reader.Get(ravpn.NamespaceName)
+		if !exists {
+			return ravpn.ErrEngine
+		}
+		namespace, ok := descriptor.(*ravpn.NamespaceDescriptor)
+		if !ok || namespace.Handoff == nil || namespace.Handoff.Preflight(ctx) != nil {
 			return ravpn.ErrEngine
 		}
 		id, e := bootid.Current(ctx, w.env.Client)
@@ -362,8 +475,11 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		}
 		return nil
 	})
-	reg.Register(&ravpn.EngineDescriptor{Runtime: runtime})
 	raRuntimeMu.Lock()
+	if _, exists := raRuntimes[w.env.Owner]; exists {
+		raRuntimeMu.Unlock()
+		return ravpn.ErrEngine // Existing/failed owner state requires a verified recovery handoff.
+	}
 	raRuntimes[w.env.Owner] = runtime
 	env := desired.RAEnv{Owner: w.env.Owner, IDs: span, Ready: runtime.Ready}
 	if w.env.RA != nil {
@@ -371,6 +487,7 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	}
 	raEnvs[w.env.Owner] = env
 	raRuntimeMu.Unlock()
+	reg.Register(&ravpn.EngineDescriptor{Runtime: runtime})
 	w.OnClose(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
@@ -423,8 +540,19 @@ func (w *Wiring) StopRA(ctx context.Context) error {
 // fixtures, not an environment/config/API bypass. Verification of real VPP
 // ownership, policy, IDs, routes and persistent records is always retained.
 type RAControllerOptions struct {
+	Handoff     ravpn.NamespaceHandoff
 	SecretRef   func(context.Context, string) (string, error)
 	Preparation ravpn.SnapshotPreparation
 	Units       ravpn.UnitSupervisor
 	Readiness   func(context.Context) error
+}
+
+// SetVirtualAddressSource preserves the existing VRRP address classifier across
+// the scoped wrapper so ordinary reconciliation does not remove active VIPs.
+func (d *raScopedDescriptor) SetVirtualAddressSource(source core.VirtualAddressSource) {
+	if hook, ok := d.inner.(interface {
+		SetVirtualAddressSource(core.VirtualAddressSource)
+	}); ok {
+		hook.SetVirtualAddressSource(source)
+	}
 }

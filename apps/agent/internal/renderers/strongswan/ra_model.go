@@ -20,7 +20,9 @@ type RAFiles struct {
 	Daemon     []byte `json:"-"`
 }
 
-func (RAFiles) String() string         { return "remote-access private files <redacted>" }
+func (RAFiles) String() string { return "remote-access private files <redacted>" }
+
+// GoString keeps Go-syntax formatting from exposing private file contents.
 func (files RAFiles) GoString() string { return files.String() }
 
 var raUserName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.@-]{0,63}$`)

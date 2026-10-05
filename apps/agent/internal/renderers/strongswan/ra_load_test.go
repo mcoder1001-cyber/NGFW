@@ -18,12 +18,13 @@ import (
 
 type raLoadFake struct {
 	raFake
-	calls     []string
-	existing  bool
-	malformed bool
-	fail      string
-	loaded    bool
-	eap       bool
+	calls              []string
+	existing           bool
+	malformed          bool
+	fail               string
+	loaded             bool
+	eap                bool
+	expectedCredential string
 }
 
 func (f *raLoadFake) Call(_ context.Context, name string, input *vici.Message) (*vici.Message, error) {
@@ -44,17 +45,18 @@ func (f *raLoadFake) Call(_ context.Context, name string, input *vici.Message) (
 		return msg("success", "no", "errmsg", "NGFW_TEST_SECRET_ECHO"), errors.New("NGFW_TEST_SECRET_ECHO")
 	}
 	if name == "load-shared" {
-		f.eap = str(input, "type") == "EAP" && strings.Contains(str(input, "data"), "NGFW_TEST_PASSWORD_RA19")
+		f.eap = str(input, "type") == "EAP" && str(input, "data") == f.expectedCredential
 	}
 	if name == "load-conn" {
 		f.loaded = true
 	}
 	return msg("success", "yes"), nil
 }
-func loadFixture(t *testing.T) (*RAFiles, RAMaterial) {
+func loadFixture(t *testing.T) (*RAFiles, RAMaterial, string) {
 	t.Helper()
 	profile, proposal := raFixture(t)
-	files, err := BuildRAFiles(context.Background(), "road", profile, proposal, "/run/ngfw/ra/fixture", testResolver(map[string]string{"password/client": "NGFW_TEST_PASSWORD_RA19"}))
+	credential := raFixtureCredential(t)
+	files, err := BuildRAFiles(context.Background(), "road", profile, proposal, "/run/ngfw/ra/fixture", testResolver(map[string]string{"password/client": credential}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,11 +73,11 @@ func loadFixture(t *testing.T) (*RAFiles, RAMaterial) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return files, RAMaterial{Certificates: map[string][]byte{"/run/ngfw/ra/fixture/x509/server.pem": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})}, PrivateKey: pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})}
+	return files, RAMaterial{Certificates: map[string][]byte{"/run/ngfw/ra/fixture/x509/server.pem": pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})}, PrivateKey: pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})}, credential
 }
 func TestRALoadUsesEAPCredentialAndRequiresFreshDaemon(t *testing.T) {
-	files, material := loadFixture(t)
-	fake := &raLoadFake{}
+	files, material, credential := loadFixture(t)
+	fake := &raLoadFake{expectedCredential: credential}
 	name, err := LoadRA(context.Background(), fake, files, material)
 	if err != nil || name != "ra-road" || !fake.eap {
 		t.Fatalf("valid EAP configuration refused: %v", err)
@@ -87,7 +89,7 @@ func TestRALoadUsesEAPCredentialAndRequiresFreshDaemon(t *testing.T) {
 	}
 }
 func TestRALoadNeverReturnsRemoteSecretEchoOrReadsUnmappedPath(t *testing.T) {
-	files, material := loadFixture(t)
+	files, material, _ := loadFixture(t)
 	for _, command := range []string{"load-cert", "load-key", "load-shared", "load-pool", "load-conn"} {
 		fake := &raLoadFake{fail: command}
 		_, err := LoadRA(context.Background(), fake, files, material)

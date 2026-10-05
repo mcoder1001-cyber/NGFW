@@ -1,0 +1,157 @@
+package ravpn
+
+import (
+	"context"
+	"os"
+	"strings"
+	"testing"
+)
+
+func TestUnitObservationRequiredBeforeReadiness(t *testing.T) {
+	if (SystemdUnits{}).Preflight(context.Background()) == nil {
+		t.Fatal("missing manager observer advertised ready")
+	}
+}
+
+func TestUnitSnapshotCloseOwnsBothDescriptors(t *testing.T) {
+	first, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snapshot := &UnitProcessSnapshot{Network: first, Executable: second}
+	if err := snapshot.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if snapshot.Network != nil || snapshot.Executable != nil {
+		t.Fatal("closed descriptors retained")
+	}
+	if _, err := first.Stat(); err == nil {
+		t.Fatal("network descriptor remained open")
+	}
+	if _, err := second.Stat(); err == nil {
+		t.Fatal("executable descriptor remained open")
+	}
+	if err := snapshot.Close(); err != nil {
+		t.Fatal("idempotent close failed")
+	}
+}
+
+func TestUnitSnapshotRejectsProcLikeRegularDescriptor(t *testing.T) {
+	_, verifier, _, units, _, _, spec := lifecycleFixture(t)
+	file, err := os.Open("/dev/null")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	snapshot := &UnitProcessSnapshot{Instance: spec.Instance, Identity: units.id, ControlGroup: "/system.slice/ngfw-ra@" + spec.Instance + ".service", Network: file, Executable: file}
+	if _, err := verifyUnitSnapshot(verifier.plan, snapshot, true); err == nil {
+		t.Fatal("ordinary descriptor accepted as private NETNS")
+	}
+	snapshot.Instance = "foreign"
+	if _, err := verifyUnitSnapshot(verifier.plan, snapshot, true); err == nil {
+		t.Fatal("foreign instance accepted")
+	}
+}
+
+func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
+	dir := t.TempDir()
+	owned := dir + "/owned"
+	other := dir + "/other"
+	if err := os.WriteFile(owned, []byte("same bytes"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(other, []byte("same bytes"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(owned)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if !sameUnitExecutable(file, owned) {
+		t.Fatal("exact root-owned executable refused")
+	}
+	if sameUnitExecutable(file, other) {
+		t.Fatal("same bytes with foreign inode adopted")
+	}
+	if err := os.Chmod(owned, 0777); err != nil {
+		t.Fatal(err)
+	}
+	if sameUnitExecutable(file, owned) {
+		t.Fatal("writable executable adopted")
+	}
+}
+
+func TestUnitStartWithoutManagerProofDoesNotDispatch(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	id, err := (SystemdUnits{}).Start(context.Background(), verifier.plan)
+	if err == nil || id.Valid() {
+		t.Fatal("start without installed observation boundary accepted")
+	}
+}
+
+type managerObserverProbe struct{ failure bool }
+
+func (p managerObserverProbe) Acquire(context.Context, string) (*UnitProcessSnapshot, error) {
+	return nil, ErrEngine
+}
+func (p managerObserverProbe) Preflight(context.Context) error {
+	if p.failure {
+		return ErrEngine
+	}
+	return nil
+}
+
+func TestManagerDispatchRejectsForeignOperationsBeforeCallback(t *testing.T) {
+	calls := 0
+	units, err := NewSystemdUnitsForManager(managerObserverProbe{}, func(_ context.Context, op UnitOperation, instance string) (UnitManagerState, error) {
+		calls++
+		if op != UnitOperationObserve || !ValidInstance(instance) {
+			t.Fatal("unbounded manager dispatch")
+		}
+		return UnitManagerState{MainPID: 123}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"restart", "ngfw-ra@" + strings.Repeat("a", 64) + ".service"}, {"show", "--property=MainPID", "--value", "vpp.service"}, {"start", "ngfw-ra@../foreign.service"}} {
+		if _, err := units.execute(context.Background(), args...); err == nil {
+			t.Fatal("foreign operation dispatched")
+		}
+	}
+	if calls != 0 {
+		t.Fatal("invalid request reached manager")
+	}
+	pid, err := units.pid(context.Background(), "ngfw-ra@"+strings.Repeat("a", 64)+".service")
+	if err != nil || pid != 123 || calls != 1 {
+		t.Fatal("actual manager readback not preserved")
+	}
+}
+
+func TestManagerDispatchDoesNotStartWithoutObservationPreflight(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	calls := 0
+	units, err := NewSystemdUnitsForManager(managerObserverProbe{failure: true}, func(context.Context, UnitOperation, string) (UnitManagerState, error) {
+		calls++
+		return UnitManagerState{}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, err := units.Start(context.Background(), verifier.plan); err == nil || id.Valid() {
+		t.Fatal("missing observation proof accepted")
+	}
+	if calls != 0 {
+		t.Fatal("start or readback dispatched before observation proof")
+	}
+	if _, err := NewSystemdUnitsForManager(nil, units.manager); err == nil {
+		t.Fatal("nil observer accepted")
+	}
+	if _, err := NewSystemdUnitsForManager(managerObserverProbe{}, nil); err == nil {
+		t.Fatal("nil dispatcher accepted")
+	}
+}

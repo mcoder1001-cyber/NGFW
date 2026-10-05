@@ -3,6 +3,7 @@ package desired
 import (
 	"context"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/types/known/structpb"
 	ravpn "ngfw/agent/internal/ra_vpn"
 	"strings"
 	"testing"
@@ -62,6 +63,28 @@ func TestRemoteAccessEnabledProjectionRequiresPrivateOwnedRangeAndPolicies(t *te
 	}
 	if !found {
 		t.Fatal("engine absent")
+	}
+	for _, ids := range []TunnelIDSpan{{Lo: 8190, Hi: 8192}, {All: true}} {
+		env.IDs = ids
+		boundary := &sink{}
+		RemoteAccess(boundary, ds, map[string]bool{"vpn": true}, env)
+		if len(boundary.errs) != 0 {
+			t.Fatal("compatible last/full range refused", boundary.errs)
+		}
+		for _, kv := range boundary.kvs {
+			if kv.Key.Descriptor() == ravpn.EngineName {
+				spec, err := ravpn.DecodeEngine(kv.Value.(*structpb.Struct))
+				if err != nil || spec.OuterID > 8191 || spec.InnerID > 8191 {
+					t.Fatal("out-of-range projected")
+				}
+			}
+		}
+	}
+	env.IDs = TunnelIDSpan{Lo: 8191, Hi: 8192}
+	exhausted := &sink{}
+	RemoteAccess(exhausted, ds, map[string]bool{"vpn": true}, env)
+	if len(exhausted.kvs) != 0 || len(exhausted.errs) == 0 {
+		t.Fatal("single compatible ID accepted")
 	}
 	env.IDs = TunnelIDSpan{Lo: 19000, Hi: 19999}
 	bad := &sink{}

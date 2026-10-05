@@ -540,7 +540,13 @@ func (s *Service) applyLocked(ctx context.Context, m mode, txnID string, ds *ngf
 			view = mergeDomains(s.st.desired, ds, domains)
 		}
 		var left []leftOut
-		res, left = s.applySources(ctx, pj.kvs, scopeOf(pj.scopeDomains), pj.scopeDomains, view, scheduler.ApplyOptions{Resync: m != modeTxn}, m == modeResync)
+		previousRA, preflightRA := s.quiesceRA(ctx, pj.kvs, pj.scopeDomains)
+		if preflightRA != nil {
+			res = preflightRA
+		} else {
+			res, left = s.applySources(ctx, pj.kvs, scopeOf(pj.scopeDomains), pj.scopeDomains, view, scheduler.ApplyOptions{Resync: m != modeTxn}, m == modeResync)
+		}
+		s.restoreRA(ctx, previousRA, res)
 		fillResponse(resp, res, pj)
 		s.leaveOutLocked(resp, txnID, left, log)
 		if errors.Is(res.Err, scheduler.ErrDescriptorPanic) {

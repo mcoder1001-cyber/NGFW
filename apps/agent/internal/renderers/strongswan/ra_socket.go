@@ -23,14 +23,14 @@ func RestrictRAVICISocket(ctx context.Context, path string, expectedPID int) err
 	if err != nil {
 		return ErrRAObservation
 	}
-	defer func() { unix.Close(fd) }()
+	defer func() { _ = unix.Close(fd) }()
 	components := strings.Split(strings.TrimPrefix(filepath.Dir(path), "/"), "/")
 	for _, component := range components {
 		next, err := unix.Openat(fd, component, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		if err != nil {
 			return ErrRAObservation
 		}
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		fd = next
 		var stat unix.Stat_t
 		if unix.Fstat(fd, &stat) != nil || stat.Uid != 0 || stat.Mode&0022 != 0 {
@@ -45,7 +45,7 @@ func RestrictRAVICISocket(ctx context.Context, path string, expectedPID int) err
 	if err != nil {
 		return ErrRAObservation
 	}
-	defer unix.Close(socket)
+	defer func() { _ = unix.Close(socket) }()
 	var stat unix.Stat_t
 	if unix.Fstat(socket, &stat) != nil || stat.Uid != 0 || stat.Nlink != 1 || stat.Mode&unix.S_IFMT != unix.S_IFSOCK || (stat.Mode&0777 != 0600 && stat.Mode&0777 != 0660) {
 		return ErrRAObservation
@@ -57,7 +57,7 @@ func RestrictRAVICISocket(ctx context.Context, path string, expectedPID int) err
 	if err != nil {
 		return ErrRAObservation
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	raw, err := connection.(*net.UnixConn).SyscallConn()
 	if err != nil {
 		return ErrRAObservation
@@ -65,7 +65,7 @@ func RestrictRAVICISocket(ctx context.Context, path string, expectedPID int) err
 	valid := false
 	if raw.Control(func(fd uintptr) {
 		peer, err := unix.GetsockoptUcred(int(fd), unix.SOL_SOCKET, unix.SO_PEERCRED)
-		valid = err == nil && peer.Uid == 0 && peer.Pid == int32(expectedPID)
+		valid = err == nil && peer.Uid == 0 && int(peer.Pid) == expectedPID
 	}) != nil || !valid {
 		return ErrRAObservation
 	}

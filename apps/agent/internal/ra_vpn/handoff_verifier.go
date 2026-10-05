@@ -17,6 +17,7 @@ import (
 	"strings"
 )
 
+// TransportObjects projects the complete isolated transport and bidirectional policy dependencies.
 func TransportObjects(s EngineSpec) ([]scheduler.KV, error) {
 	if s.Validate() != nil {
 		return nil, ErrEngine
@@ -70,16 +71,21 @@ func TransportObjects(s EngineSpec) ([]scheduler.KV, error) {
 	return out, nil
 }
 
+// DescriptorReader looks up concrete descriptor readback implementations.
 type DescriptorReader interface {
 	Get(string) (scheduler.Descriptor, bool)
 }
+
+// RegistryVerifier verifies exact namespace, TAP, routing and policy readback.
 type RegistryVerifier struct {
 	Registry DescriptorReader
 	Boot     func(context.Context) (bootid.Identity, error)
+	Tables   func(context.Context, uint32) (uint32, uint32, error)
 }
 
+// Verify reads back the complete isolated transport and policy handoff.
 func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPlan, Handoff, error) {
-	if v == nil || v.Registry == nil || v.Boot == nil {
+	if v == nil || v.Registry == nil || v.Boot == nil || v.Tables == nil {
 		return nil, Handoff{}, ErrEngine
 	}
 	p, err := ReadAgentPlan(s.Instance)
@@ -169,6 +175,12 @@ func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPl
 		}
 		ids = append(ids, meta.Index)
 	}
+	for index, expected := range []uint32{s.OuterTable, s.InnerTable} {
+		v4, v6, err := v.Tables(ctx, ids[index])
+		if err != nil || v4 != expected || v6 != expected {
+			return nil, Handoff{}, ErrEngine
+		}
+	}
 	receipt := Handoff{Format: 1, Instance: s.Instance, NamespaceInode: p.NamespaceInode, HostNamespaceInode: p.HostNamespaceInode, VPPBoot: boot, OuterIndex: ids[0], InnerIndex: ids[1], OuterName: LinkName(s.Instance, true), InnerName: LinkName(s.Instance, false)}
 	if ValidateHandoff(p, receipt, boot, ids[0], ids[1]) != nil {
 		return nil, Handoff{}, ErrEngine
@@ -180,6 +192,7 @@ func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPl
 	return p, receipt, nil
 }
 
+// PrivateKey maps shared object families into the private remote-access descriptor scope.
 func PrivateKey(k scheduler.Key) scheduler.Key {
 	switch k.Descriptor() {
 	case core.InterfaceTableName, core.InterfaceAddrName, core.RouteName, iface.AliasName, iface.AdminStateName, acl.NameInterfaceBinding:

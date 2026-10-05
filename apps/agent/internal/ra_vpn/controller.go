@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/strongswan"
@@ -14,6 +15,9 @@ import (
 
 // EngineName names the private remote-access engine descriptor.
 const EngineName = "remote-access.engine"
+
+// MaxEngineSpecBytes accommodates all 1024 bounded EAP users and immutable refs.
+const MaxEngineSpecBytes = 1 << 20
 
 // ErrEngine is a bounded public error that never exposes credential or daemon details.
 var ErrEngine = errors.New("remote-access: verified engine lifecycle unavailable")
@@ -64,8 +68,14 @@ func (s EngineSpec) Proto() (*structpb.Struct, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
 	}
+	// An omitted enabled field has the same activation semantics as true.
+	s.Configuration = proto.Clone(s.Configuration).(*ngfwv1.RemoteAccessProfile)
+	enabled := true
+	if s.Configuration.Enabled == nil {
+		s.Configuration.Enabled = &enabled
+	}
 	data, err := json.Marshal(s)
-	if err != nil {
+	if err != nil || len(data) > MaxEngineSpecBytes {
 		return nil, ErrEngine
 	}
 	var value map[string]any
@@ -85,7 +95,7 @@ func DecodeEngine(value *structpb.Struct) (EngineSpec, error) {
 	if err != nil {
 		return s, ErrEngine
 	}
-	if len(data) > 262144 || json.Unmarshal(data, &s) != nil || s.Validate() != nil {
+	if len(data) > MaxEngineSpecBytes || json.Unmarshal(data, &s) != nil || s.Validate() != nil {
 		return EngineSpec{}, ErrEngine
 	}
 	return s, nil

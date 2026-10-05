@@ -83,8 +83,10 @@ func DialRAVICI(ctx context.Context, socket string, expectedPID int) (ViciConn, 
 	return session, nil
 }
 
+// MaxRASessions bounds the complete private daemon session snapshot.
 const MaxRASessions = 1024
 
+// ErrRAObservation reports an unsafe or incomplete read without daemon details.
 var ErrRAObservation = errors.New("remote-access: incomplete or unsafe daemon observation")
 
 // RASession contains only observed public session facts, never credential fields.

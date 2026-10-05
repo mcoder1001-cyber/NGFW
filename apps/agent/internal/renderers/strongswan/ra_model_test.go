@@ -2,7 +2,9 @@ package strongswan
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +21,7 @@ func raFixture(t *testing.T) (*ngfwv1.RemoteAccessProfile, *ngfwv1.IpsecProposal
 }
 func TestRAIndependentRendererAndSecretRedaction(t *testing.T) {
 	p, proposal := raFixture(t)
-	secret := "NGFW_TEST_PASSWORD_RA19"
+	secret := raFixtureCredential(t)
 	files, err := BuildRAFiles(context.Background(), "road", p, proposal, "/run/ngfw/ra/fixture", testResolver(map[string]string{"password/client": secret}))
 	if err != nil {
 		t.Fatal(err)
@@ -70,7 +72,7 @@ func TestRARendererTLSAndRADIUS(t *testing.T) {
 	}
 	p.Auth = proto.String("eap-radius")
 	p.Radius = &ngfwv1.RemoteAccessProfile_Radius{Servers: []*ngfwv1.RemoteAccessProfile_Radius_Server{{Address: proto.String("192.0.2.20"), SecretRef: proto.String("psk/radius")}}}
-	secret := "NGFW_TEST_PSK_RADIUS19"
+	secret := raFixtureCredential(t)
 	files, err = BuildRAFiles(context.Background(), "road", p, proposal, "/run/ngfw/ra/fixture", testResolver(map[string]string{"psk/radius": secret}))
 	if err != nil {
 		t.Fatal(err)
@@ -100,4 +102,13 @@ func TestRARendererRefusesBadInputsWithoutResolverDetails(t *testing.T) {
 	if _, err := BuildRAFiles(context.Background(), "road", p, proposal, "/run/ngfw/ra/fixture", nil); err == nil {
 		t.Fatal("TLS without trust accepted")
 	}
+}
+
+func raFixtureCredential(t *testing.T) string {
+	t.Helper()
+	var value [24]byte
+	if _, err := rand.Read(value[:]); err != nil {
+		t.Fatal(err)
+	}
+	return "fixture-" + hex.EncodeToString(value[:])
 }

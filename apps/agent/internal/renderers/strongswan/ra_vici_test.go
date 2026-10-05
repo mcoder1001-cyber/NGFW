@@ -102,7 +102,7 @@ func TestRADisconnectRequiresObservedGenerationMembership(t *testing.T) {
 
 func TestRAVICISocketRequiresPrivateModeAndExactDaemonPID(t *testing.T) {
 	root := t.TempDir()
-	if err := os.Chmod(root, 0700); err != nil {
+	if err := os.Chmod(root, 0700); /* #nosec G302 -- private fixture directory needs owner traversal. */ err != nil {
 		t.Fatal(err)
 	}
 	socket := filepath.Join(root, "vici.sock")
@@ -110,7 +110,7 @@ func TestRAVICISocketRequiresPrivateModeAndExactDaemonPID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 	if err := os.Chmod(socket, 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestRAVICISocketRequiresPrivateModeAndExactDaemonPID(t *testing.T) {
 	} else if _, err := DialRAVICI(context.Background(), socket, os.Getpid()); err == nil {
 		t.Fatal("non-root private daemon accepted")
 	}
-	if err := os.Chmod(socket, 0640); err != nil {
+	if err := os.Chmod(socket, 0640); /* #nosec G302 -- negative test verifies rejection of group-accessible sockets. */ err != nil {
 		t.Fatal(err)
 	}
 	if _, err := DialRAVICI(context.Background(), socket, os.Getpid()); err == nil {

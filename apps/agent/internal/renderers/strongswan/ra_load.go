@@ -10,6 +10,7 @@ import (
 	"strings"
 )
 
+// ErrRALoad reports a safe refusal without credential or remote error details.
 var ErrRALoad = errors.New("remote-access private configuration load refused")
 
 // RAMaterial contains exactly the verified profile files; no arbitrary path
@@ -20,7 +21,9 @@ type RAMaterial struct {
 	CRL          []byte            `json:"-"`
 }
 
-func (RAMaterial) String() string     { return "remote-access VICI material <redacted>" }
+func (RAMaterial) String() string { return "remote-access VICI material <redacted>" }
+
+// GoString keeps Go-syntax formatting from exposing credential material.
 func (m RAMaterial) GoString() string { return m.String() }
 
 func raSectionMessage(section *Section, material RAMaterial) (*vici.Message, error) {

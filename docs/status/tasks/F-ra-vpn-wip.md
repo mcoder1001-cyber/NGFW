@@ -392,3 +392,5 @@ Next command: wire FixedNamespaceHandoff.Provider=SystemdNamespaceTargets with
 held-FD acquisition before/after each export; replace broker current-target proc
 check with independently authenticated fresh manager FD snapshots; exercise real
 private numeric provider and Go broker under exact caps before packaging/ready.
+
+Checkpoint: scoped paired controller consumers through local acde0a11a; preserved MAIN/BFD assembly hunks via three-way RA-only patches. Integrated independently approved renderer a73 delta (R1/R2 receipt d0fcf811). Whole ravpn tests PASS 0.219s and, after typed manager constructor, PASS 0.247s. Added pure held-provider constructor contract only; consumers still unfinished and fail closed. No full private Service.Apply/cross-mount readiness claim. Current provider rejects broker cap2 by design; a fixed-unit authenticated broker client role and fresh manager role snapshots must replace proc namespace checks before positive acceptance. Next command: implement held-provider pre/post dispatch observations and fixed-role authenticated supplier proof, then replay private broker partial removal fixture.

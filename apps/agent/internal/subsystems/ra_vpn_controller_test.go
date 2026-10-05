@@ -3,13 +3,20 @@ package subsystems
 import (
 	"context"
 	"errors"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"log/slog"
 	"ngfw/agent/internal/descriptors/core"
+	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/descriptors/tapv2"
+	"ngfw/agent/internal/ownertable"
 	ravpn "ngfw/agent/internal/ra_vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/bootid"
+	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -67,6 +74,7 @@ func TestRAScopedOwnershipNormalApplyAndRollbackRemainDisjoint(t *testing.T) {
 	rr.Register(taps)
 	normal, _ := reg.Get(core.RouteName)
 	private, _ := reg.Get("remote-access." + core.RouteName)
+	private.(*raScopedDescriptor).mutationGuard = func(context.Context, string) error { return nil }
 	lan := &core.Route{TableId: 7, Prefix: "192.0.2.0/24", Paths: []*core.RoutePath{{Interface: "loop7", Weight: 1}}}
 	road := &core.Route{TableId: 8, Prefix: "10.19.0.0/24", Paths: []*core.RoutePath{{Interface: name, Address: "198.18.19.3", Weight: 1}}}
 	if _, e := normal.Create(ctx, lan); e != nil {
@@ -120,6 +128,7 @@ func TestRAScopedForeignReservedNameAndStaleBootFailBeforeMutation(t *testing.T)
 	taps := &raMemoryDescriptor{name: tapv2.TapName, rows: map[scheduler.Key]scheduler.KV{key: {Key: key, Value: tap}}}
 	rr.Register(taps)
 	private, _ := reg.Get("remote-access." + core.RouteName)
+	private.(*raScopedDescriptor).mutationGuard = func(context.Context, string) error { return nil }
 	route := &core.Route{Prefix: "10.19.0.0/24", Paths: []*core.RoutePath{{Interface: name, Weight: 1}}}
 	if _, e := private.Create(ctx, route); e == nil || raw.writes != 0 {
 		t.Fatal("foreign name adopted")
@@ -186,5 +195,146 @@ func TestRAScopedValidationRejectsCollisionBeforeAnyWrite(t *testing.T) {
 	wrapped := &raScopedDescriptor{inner: &raObserveOnly{raw}, private: true}
 	if wrapped.DeleteOnAbsence() {
 		t.Fatal("observe-only semantics lost")
+	}
+}
+
+func TestRAEnvironmentFailedCloseCannotBeReplacedBySameOwner(t *testing.T) {
+	owner := "w19-ra-failed-close"
+	state := t.TempDir()
+	if err := os.Mkdir(filepath.Join(state, "ra-engine"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(state, "ra-engine", "unknown"), []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	first := &Wiring{env: Env{Owner: owner, StateDir: state, Log: slog.Default(), IDs: IDScope{}}}
+	if first.registerRAController(scheduler.NewRegistry()) != nil {
+		t.Fatal("first register")
+	}
+	old := RARuntimeFor(owner)
+	first.Close() // Ambiguous protected inventory makes stop/cleanup fail closed.
+	if RARuntimeFor(owner) != old {
+		t.Fatal("failed close discarded recovery state")
+	}
+	second := &Wiring{env: Env{Owner: owner, StateDir: state, Log: slog.Default(), IDs: IDScope{}}}
+	registry := scheduler.NewRegistry()
+	if second.registerRAController(registry) == nil || RARuntimeFor(owner) != old {
+		t.Fatal("new wiring replaced failed generation")
+	}
+	if _, err := register(registry, second.env); err == nil {
+		t.Fatal("duplicate owner reached descriptor registration")
+	}
+	if registry.Len() != 0 {
+		t.Fatal("duplicate owner registered descriptors")
+	}
+
+	if _, exists := registry.Get(ravpn.EngineName); exists {
+		t.Fatal("failed construction registered new engine descriptor")
+	}
+	if data, err := os.ReadFile(filepath.Join(state, "ra-engine", "unknown")); err != nil || string(data) != "foreign" {
+		t.Fatal("foreign inventory mutated")
+	}
+	// Only test-owned global registration is released; no persistent file is adopted/deleted.
+	raRuntimeMu.Lock()
+	delete(raRuntimes, owner)
+	delete(raEnvs, owner)
+	raRuntimeMu.Unlock()
+}
+
+func TestRAEnvironmentFailedPersistentConstructionReleasesOnlyNewOwner(t *testing.T) {
+	t.Chdir(t.TempDir()) // Legacy empty-StateDir constructors remain inside this disposable fixture.
+	owner := "w19-ra-failed-construction"
+	if _, err := Register(scheduler.NewRegistry(), Env{Owner: owner, Log: slog.Default()}); err == nil {
+		t.Fatal("nonpersistent wiring accepted")
+	}
+	if RARuntimeFor(owner) != nil || RAEnvFor(owner).Owner != "" {
+		t.Fatal("failed construction retained new owner callbacks")
+	}
+	// A subsequent construction reaches the persistence guard, not duplicate ownership.
+	if _, err := Register(scheduler.NewRegistry(), Env{Owner: owner, Log: slog.Default()}); err == nil || strings.Contains(err.Error(), "already registered") {
+		t.Fatal("failed construction stranded owner", err)
+	}
+}
+
+func TestRAReconnectFailurePreventsSentinelAndEveryNativeVPPCall(t *testing.T) {
+	owner := "ra-reconnect-events"
+	state := t.TempDir()
+	t.Setenv(EnvHostServicesDir, t.TempDir())
+	v := coretest.New()
+	model := sanitizetest.NewModel()
+	model.Install(v.Client)
+	owned, err := ownertable.Open(state, owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w, err := Register(scheduler.NewRegistry(), Env{Client: v, Owner: owner, StateDir: state, Owned: owned, GlobalsOwner: true, Log: slog.Default()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(w.Close)
+	v.Reset()
+	w.Connected(context.Background())
+	calls := v.Calls()
+	sentinelWrite, ping := -1, -1
+	for index, call := range calls {
+		switch call.GetMessageName() {
+		case "classify_add_del_table":
+			if sentinelWrite < 0 {
+				sentinelWrite = index
+			}
+		case "control_ping":
+			if ping < 0 {
+				ping = index
+			}
+		}
+	}
+	if model.Created != 1 || len(calls) == 0 || calls[0].GetMessageName() != "classify_table_ids" || sentinelWrite < 0 || ping < sentinelWrite {
+		t.Fatal("sentinel no longer precedes native VPP reconnect work")
+	}
+	// A corrupt protected engine inventory makes the REAL StopRA refuse cleanup.
+	// No successful VPP read/write may occur after that failure, including sentinel repair.
+	engineRoot := filepath.Join(state, "ra-engine")
+	if err := os.Mkdir(engineRoot, 0700); err != nil {
+		t.Fatal(err)
+	}
+	unknown := filepath.Join(engineRoot, "foreign")
+	if err := os.WriteFile(unknown, []byte("foreign"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	v.Reset()
+	w.Connected(context.Background())
+	if len(v.Calls()) != 0 || model.Created != 1 {
+		t.Fatal("failed RA cleanup reached sentinel/native VPP")
+	}
+	if data, err := os.ReadFile(unknown); err != nil || string(data) != "foreign" {
+		t.Fatal("failed RA cleanup adopted foreign inventory")
+	}
+	// Only this fixture-created sentinel file is removed so exact wiring cleanup can finish.
+	if err := os.Remove(unknown); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRAMountTargetUsesHeldNSFSAndRejectsProcessReplacement(t *testing.T) {
+	identity := (bootid.Reader{}).ForPID(os.Getpid())
+	target, err := raMountTarget(identity)
+	if err != nil || target.MountInode == 0 || target.Boot != identity {
+		t.Fatal("held own mount namespace refused", err)
+	}
+	changed := identity
+	changed.StartTime++
+	if _, err := raMountTarget(changed); err == nil {
+		t.Fatal("reused process identity accepted")
+	}
+	if _, err := raMountTarget(bootid.Identity{}); err == nil {
+		t.Fatal("unknown identity accepted")
+	}
+	// A proc namespace symlink inode is not the namespace inode returned by its held FD.
+	var link unix.Stat_t
+	if err := unix.Lstat("/proc/self/ns/mnt", &link); err != nil {
+		t.Fatal(err)
+	}
+	if target.MountInode == link.Ino {
+		t.Fatal("proc symlink inode adopted as NSFS identity")
 	}
 }

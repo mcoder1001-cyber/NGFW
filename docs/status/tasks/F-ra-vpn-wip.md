@@ -95,3 +95,17 @@ whole ravpn package PASS0.026s. Not invoked against host or daemon; runtime
 integration/readback of addresses/routes/ACLs still required before activation.
 Current remote fa7d6613. Next: root helper executable/unit + descriptor lifecycle;
 private authenticated6.1.0 build running finite heavy session32413 (no services).
+
+Fixed helper/unit checkpoint: ngfw-ra-daemon takes only64hex instance, verifies
+namespace/capabilities before fixed network setup, validates root-private daemon
+config and execs fixed /opt/ngfw-ra/libexec/ipsec/charon with closed environment.
+Dedicated template NetworkNamespacePath, bounding NET_ADMIN/BIND_SERVICE/IPC_LOCK,
+no SYS_ADMIN, no namespace creation, root0700 runtime only and net namespace
+sysctl exception; no automatic install activation. Focused ravpn+cmd compilation
+PASS0.028s. systemd-analyze verify parsed unit but exit1 because appliance-only
+/usr/lib/ngfw/ngfw-ra-daemon absent on shared host; no host install attempted.
+Actual disposable systemd enforcement remains acceptance work.
+Private authenticated6.1.0 make/install exited0; private charon --version reports
+strongSwan6.1.0. Source/config/build/install logs owned /root/.cache/t19 only.
+Current remote f6f4187d. Next: network/PKI lifecycle descriptors, real private daemon
+startup/crypto/forwarding/ACL fixtures; runtime integration still incomplete.

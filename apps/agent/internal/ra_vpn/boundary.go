@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,46 @@ import (
 )
 
 var ErrBoundary = errors.New("remote-access: isolated runtime boundary refused")
+
+// ValidatePrivateFile accepts a regular, singly linked private file only under
+// a verified instance. Every directory is opened relative to its held parent.
+func ValidatePrivateFile(path string, max int64) error {
+	clean := filepath.Clean(path)
+	if clean != path || !strings.HasPrefix(path, InstanceRoot+"/") {
+		return ErrBoundary
+	}
+	parts := strings.Split(strings.TrimPrefix(path, InstanceRoot+"/"), "/")
+	if len(parts) != 2 || !ValidInstance(parts[0]) || parts[1] == "" {
+		return ErrBoundary
+	}
+	fd, err := unix.Open("/", unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer func() { unix.Close(fd) }()
+	for _, name := range []string{"run", "ngfw", "ra", parts[0]} {
+		next, err := unix.Openat(fd, name, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
+		if err != nil {
+			return ErrBoundary
+		}
+		unix.Close(fd)
+		fd = next
+		var st unix.Stat_t
+		if unix.Fstat(fd, &st) != nil || st.Uid != 0 || st.Mode&0022 != 0 || name == parts[0] && st.Mode&0077 != 0 {
+			return ErrBoundary
+		}
+	}
+	file, err := unix.Openat(fd, parts[1], unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW|unix.O_NONBLOCK, 0)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer unix.Close(file)
+	var st unix.Stat_t
+	if unix.Fstat(file, &st) != nil || st.Uid != 0 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0077 != 0 || st.Nlink != 1 || st.Size > max || max < 1 {
+		return ErrBoundary
+	}
+	return nil
+}
 
 // ValidateHelperCapabilities confines root to namespace network administration,
 // low UDP ports and crypto locked memory. SYS_ADMIN is deliberately excluded.

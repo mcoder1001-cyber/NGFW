@@ -3,6 +3,7 @@ package ravpn
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"golang.org/x/sys/unix"
 	"log"
 	"ngfw/agent/internal/vpp/bootid"
@@ -26,7 +27,12 @@ func RunNumericOpenFilePublisher() (result error) {
 	setStage(NumericPublisherServerRoles)
 	defer func() {
 		if result != nil {
-			log.Printf("remote-access publisher-server stage=%d deadline_exceeded=%t elapsed_ms=%d", stage, diagnosticContext.Err() == context.DeadlineExceeded, time.Since(started).Milliseconds())
+			innerStage := uint8(0)
+			var failure *NumericPublisherFailure
+			if errors.As(result, &failure) && failure.Stage >= 1 && failure.Stage <= 24 {
+				innerStage = failure.Stage
+			}
+			log.Printf("remote-access publisher-server stage=%d deadline_exceeded=%t elapsed_ms=%d inner_stage=%d", stage, diagnosticContext.Err() == context.DeadlineExceeded, time.Since(started).Milliseconds(), innerStage)
 		}
 	}()
 
@@ -107,8 +113,13 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	server := (bootid.Reader{}).ForPID(os.Getpid())
-	if proof.Verify(ctx) != nil || numericPublisherManagerWithProof(ctx, server, proof) != nil {
+	setStage(NumericPublisherServerProof)
+	if proof.Verify(ctx) != nil {
 		return ErrBoundary
+	}
+	setStage(NumericPublisherServerManager)
+	if err := numericPublisherManagerWithProof(ctx, server, proof); err != nil {
+		return err
 	}
 	ready, readyErr := json.Marshal(numericPublisherReady{Version: 1, Phase: "validation-ready", Source: source, Server: server})
 	if readyErr != nil || unix.Sendmsg(socket, ready, unix.UnixRights(int(roles[sourceAgentExecutableRole].Fd())), nil, 0) != nil {

@@ -66,7 +66,7 @@ func command(ctx context.Context, tool string, input []byte, args ...string) ([]
 // ConfigureNamespace operates after namespace and capability verification.
 // It refuses preexisting foreign XFRM interfaces, priority rules and nft tables.
 func ConfigureNamespace(ctx context.Context, instance string) error {
-	plan, err := ReadPrivatePlan(instance)
+	plan, err := ReadDaemonPlan(instance)
 	if err != nil {
 		return &NamespaceFailure{Step: 1}
 	}

@@ -24,7 +24,7 @@ func DefaultEngineInstallation() EngineInstallation {
 	return EngineInstallation{Prefix: "/opt/ngfw-ra", Helper: "/usr/lib/ngfw/ngfw-ra-daemon", Unit: "/usr/lib/systemd/system/ngfw-ra@.service", OSRelease: "/etc/os-release", PackageStatus: "/var/lib/dpkg/status"}
 }
 
-const expectedRAUnitSHA256 = "bf5e89b553235d455db222039d5e8b2cdbe639a1d36054b5dab6cca3ea266d9a"
+const expectedRAUnitSHA256 = "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246"
 const expectedEngineBuild = "version=6.1.0\nsource_sha256=fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4\nrelease_fingerprint=948F158A4E76A27BF3D07532DF42C170B34DBA77\n"
 
 func trustedInstallationFile(path string, limit int64, executable bool) ([]byte, error) {

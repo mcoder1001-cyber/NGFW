@@ -34,8 +34,8 @@ CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_IPC_LOCK
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 # Hide host management sockets and sealed-cache material from daemon root.
 # Only this profile's namespace/config/PKI is visible; only its VICI child writes.
-TemporaryFileSystem=/run /etc /var/lib /var/log /opt
-BindReadOnlyPaths=/run/ngfw/ra/%i /opt/ngfw-ra -/etc/ld.so.cache /etc/passwd /etc/group /etc/nsswitch.conf /etc/protocols /etc/services -/etc/localtime
+TemporaryFileSystem=/run /etc /var/lib /var/log /opt /run/ngfw/ra/%i:ro,mode=0700
+BindReadOnlyPaths=/run/ngfw/ra/%i/network.json /run/ngfw/ra/%i/netns /run/ngfw/ra/%i/strongswan.conf /run/ngfw/ra/%i/swanctl.conf /run/ngfw/ra/%i/private /run/ngfw/ra/%i/x509 /run/ngfw/ra/%i/x509ca /run/ngfw/ra/%i/x509crl /opt/ngfw-ra -/etc/ld.so.cache /etc/passwd /etc/group /etc/nsswitch.conf /etc/protocols /etc/services -/etc/localtime
 BindPaths=/run/ngfw/ra/%i/daemon
 InaccessiblePaths=-/data -/boot -/var/backups -/var/spool -/mnt -/media
 ReadWritePaths=/proc/sys/net

@@ -7,6 +7,7 @@ import (
 	"ngfw/agent/internal/renderers/strongswan"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -70,5 +71,47 @@ func TestIntegrationActualArtifactReadonlyPreflight(t *testing.T) {
 	p.Readiness = func(context.Context) error { return ErrEngine }
 	if p.Preflight(context.Background()) == nil {
 		t.Fatal("unopened cache advertised ready")
+	}
+}
+
+func TestDaemonUnitDoesNotExposeHostNamespaceOrOwnershipReceipts(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "deploy", "systemd", "ngfw-ra@.service"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(data)
+	for _, forbidden := range []string{"hostnetns", "namespace-exports", "snapshot-receipt", "BindReadOnlyPaths=/run/ngfw/ra/%i "} {
+		if strings.Contains(text, forbidden) {
+			t.Fatal("daemon unit exposes ownership-only material", forbidden)
+		}
+	}
+	var readOnly []string
+	for _, line := range strings.Split(text, "\n") {
+		if strings.HasPrefix(line, "BindReadOnlyPaths=") {
+			readOnly = append(readOnly, strings.Fields(strings.TrimPrefix(line, "BindReadOnlyPaths="))...)
+		}
+	}
+	required := []string{"network.json", "netns", "strongswan.conf", "swanctl.conf", "private", "x509", "x509ca", "x509crl"}
+	for _, name := range required {
+		found := false
+		for _, path := range readOnly {
+			if path == "/run/ngfw/ra/%i/"+name {
+				found = true
+			}
+		}
+		if !found {
+			t.Fatal("required exact daemon asset is missing", name)
+		}
+	}
+	for _, path := range readOnly {
+		if strings.HasPrefix(path, "/run/ngfw/ra/") && !strings.HasPrefix(path, "/run/ngfw/ra/%i/") {
+			t.Fatal("broad/foreign instance bind", path)
+		}
+	}
+	if !strings.Contains(text, "/run/ngfw/ra/%i:ro,mode=0700") || !strings.Contains(text, "BindPaths=/run/ngfw/ra/%i/daemon\n") {
+		t.Fatal("private instance view and writable VICI child required")
+	}
+	if !strings.Contains(text, "CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_IPC_LOCK\n") || !strings.Contains(text, "PrivatePIDs=yes\n") || !strings.Contains(text, "SystemCallFilter=~@mount @reboot @swap @raw-io @debug\n") {
+		t.Fatal("daemon hardening contract weakened")
 	}
 }

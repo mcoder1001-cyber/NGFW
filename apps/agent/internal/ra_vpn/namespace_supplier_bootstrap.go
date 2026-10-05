@@ -70,7 +70,11 @@ func initializeSourceForTarget(ctx context.Context, target bootid.Identity) erro
 // Stages: expected VPP(1), canonical source(2), systemd ABI(3), VPP unit(4),
 // source reference(5), publisher(6), post VPP unit(7), post reference(8),
 // post expected VPP(9).
-type SupplierInitializationFailure struct{ Stage uint8 }
+type SupplierInitializationFailure struct {
+	Stage            uint8
+	PublisherStage   uint8
+	DeadlineExceeded bool
+}
 
 // Error reports only the fixed numeric initialization stage.
 func (e *SupplierInitializationFailure) Error() string {

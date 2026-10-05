@@ -1,0 +1,38 @@
+20:10:05.239588 IP (tos 0x0, ttl 64, id 4946, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 57973, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 57132, seq 1, length 64
+20:10:05.240542 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 56537, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 57132, seq 1, length 64
+20:10:06.240936 IP (tos 0x0, ttl 64, id 5406, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 58824, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 57132, seq 2, length 64
+20:10:06.241823 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 61458, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 57132, seq 2, length 64
+20:10:07.241948 IP (tos 0x0, ttl 64, id 5780, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 59571, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 57132, seq 3, length 64
+20:10:07.242693 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 58761, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 57132, seq 3, length 64
+20:10:07.960810 IP (tos 0x0, ttl 255, id 6404, offset 0, flags [DF], proto GRE (47), length 80)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 60
+	IP6 (hlim 255, next-header ICMPv6 (58), payload length 16) fe80::5efe:a1c:202 > ff02::2: [icmp6 sum ok] ICMP6, router solicitation, length 16
+	  source link-address option (1), length 8 (1): 0a:1c:02:02:00:00
+	    0x0000:  0a1c 0202 0000
+20:10:08.242889 IP (tos 0x0, ttl 64, id 6484, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 59716, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 57132, seq 4, length 64
+20:10:08.243496 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 9429, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 57132, seq 4, length 64
+

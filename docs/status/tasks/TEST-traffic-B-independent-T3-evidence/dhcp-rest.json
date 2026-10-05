@@ -1,0 +1,266 @@
+[
+  {
+    "marker": "TRAFFIC_B_DHCP_REST_PROOF=",
+    "proof": {
+      "baseline_warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "candidate_owner": 1,
+      "candidate_sha256": "54c12e2e583cd387094b1835ee53e719e80c8371443e84d4800d6bb2893840a2",
+      "notApplied": [],
+      "revision": 1,
+      "status": "applied",
+      "txn": "kea-base",
+      "warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ]
+    }
+  },
+  {
+    "marker": "TRAFFIC_B_DHCP_REST_PROOF=",
+    "proof": {
+      "baseline_warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "candidate_owner": 1,
+      "candidate_sha256": "575c34494f1691234e3ed506c5d5f2f5f2fe7a0f0300642593212862b81f9692",
+      "notApplied": [],
+      "revision": 2,
+      "status": "applied",
+      "txn": "kea-dhcp",
+      "warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ]
+    }
+  },
+  {
+    "marker": "TRAFFIC_B_DHCP_REST_ROLLBACK=",
+    "proof": {
+      "baseline_warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": [],
+      "revision": {
+        "author": "admin",
+        "authorId": 1,
+        "comment": "kea-rollback",
+        "createdAt": "2026-10-05T20:15:44.314Z",
+        "hash": "54c12e2e583cd387094b1835ee53e719e80c8371443e84d4800d6bb2893840a2",
+        "id": 3,
+        "kind": "rollback",
+        "parentId": 2,
+        "secretChanges": [],
+        "secretVersions": null,
+        "txnId": "2e6879d1-ebcb-4d41-a7af-3dbd684d4ad2"
+      },
+      "status": "applied",
+      "warnings": [
+        {
+          "message": "management.aaa is not applied by this agent build",
+          "pointer": "/management/aaa",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.backup is not applied by this agent build",
+          "pointer": "/management/backup",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "management.tls is not applied by this agent build",
+          "pointer": "/management/tls",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "pointer": "/nat/ipfix",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "pointer": "/services/ipfix/flowprobe",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "pointer": "/services/lldp",
+          "rule": "agent.write-only"
+        },
+        {
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "pointer": "/services/ntp",
+          "rule": "agent.unsupported-field"
+        }
+      ]
+    }
+  }
+]

@@ -1,0 +1,397 @@
+{
+  "owner": "w8",
+  "private_vpp": {
+    "pid": 635441,
+    "mount_namespace": "mnt:[4026533283]",
+    "api_socket": "/root/ngfw-wt/traffic-final-r4-t3-20261005/.scratch/isolated-vpp-635435/api.sock"
+  },
+  "baseline_revision": 1,
+  "baseline_warnings": [
+    {
+      "pointer": "/management/aaa",
+      "message": "management.aaa is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/management/backup",
+      "message": "management.backup is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/management/tls",
+      "message": "management.tls is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/nat/ipfix",
+      "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/services/ipfix/flowprobe",
+      "message": "flowprobe parameters are applied only with at least one monitored interface",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/services/lldp",
+      "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+      "rule": "agent.write-only"
+    },
+    {
+      "pointer": "/services/ntp",
+      "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+      "rule": "agent.unsupported-field"
+    }
+  ],
+  "events": [
+    {
+      "txn": "native-initial",
+      "status": "applied",
+      "revision": 2,
+      "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "af-packet.host-interface/host-w8nlan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nlan",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "af-packet.host-interface/host-w8nwan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nwan",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface/host-w8nlan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nlan",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface-ip/host-w8nlan/198.18.81.1/24",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nlan/ipv4/0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface.admin-state/host-w8nlan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nlan/enabled",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface/host-w8nwan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nwan",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface-ip/host-w8nwan/198.18.8.1/24",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nwan/ipv4/0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface.admin-state/host-w8nwan",
+          "op": "create",
+          "pointer": "/interfaces/host-w8nwan/enabled",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "ipip.tunnel/ipip8001",
+          "op": "create",
+          "pointer": "/tunnels/ipip/site",
+          "subsystem": "tunnels",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface/ipip8001",
+          "op": "create",
+          "pointer": "/tunnels/ipip/site",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface-ip/ipip8001/198.18.83.1/30",
+          "op": "create",
+          "pointer": "/tunnels/ipip/site/ipv4/0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "ip.route/0/198.18.82.0/24",
+          "op": "create",
+          "pointer": "/routing/static/0",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "tunnels.meta/ipip8001",
+          "op": "create",
+          "pointer": "/tunnels/ipip/site",
+          "subsystem": "tunnels",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "ikev2.profile/site",
+          "op": "create",
+          "pointer": "/vpn/ipsec/tunnels/site",
+          "subsystem": "vpn",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "ikev2.meta/site",
+          "op": "create",
+          "pointer": "/vpn/ipsec/tunnels/site",
+          "subsystem": "vpn",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/tunnels/ipip/site/enabled",
+          "message": "protected IPIP admin state is controlled by native IKE SA establishment and deletion",
+          "rule": "agent.write-only-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "native-active-reconcile",
+      "status": "applied",
+      "revision": 3,
+      "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53",
+      "candidate_owner": 1,
+      "results": [],
+      "warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/tunnels/ipip/site/enabled",
+          "message": "protected IPIP admin state is controlled by native IKE SA establishment and deletion",
+          "rule": "agent.write-only-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "native-route-withdraw",
+      "status": "applied",
+      "revision": 4,
+      "candidate_sha256": "9ff9ee26fd635b03938cd180c23518975f7fdaa44ba824495a1687e3fdd3c34a",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "ip.route/0/198.18.82.0/24",
+          "op": "delete",
+          "pointer": "",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/tunnels/ipip/site/enabled",
+          "message": "protected IPIP admin state is controlled by native IKE SA establishment and deletion",
+          "rule": "agent.write-only-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "native-route-restore",
+      "status": "applied",
+      "revision": 5,
+      "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "ip.route/0/198.18.82.0/24",
+          "op": "create",
+          "pointer": "/routing/static/0",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/tunnels/ipip/site/enabled",
+          "message": "protected IPIP admin state is controlled by native IKE SA establishment and deletion",
+          "rule": "agent.write-only-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "rest-baseline-rollback",
+      "status": "applied",
+      "revision": 6,
+      "baseline_sha256": "a9ed7b054bf9e8c946a0081e3b74bf3ced3d88336ed4a0b8ddb5d625b6937588"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0
+    ikev2_integration_test.go:418: TCP exact 1048576 bytes passed
+    ikev2_integration_test.go:689: route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained
+--- PASS: TestIKEv2NativeCertificatePackets (29.74s)
+PRODUCTION_CERTIFICATE_PEER_PACKETS=PASS
+SHARED_VPP_UNCHANGED

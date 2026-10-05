@@ -35,6 +35,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"ngfw/agent/internal/trafficbtest"
 	"os"
 	"os/exec"
 	"os/user"
@@ -350,6 +351,17 @@ func (e *ospfEnv) doc(withOSPF bool) *ngfwv1.DesiredState {
 			"areas":      map[string]any{"0": map[string]any{}},
 			"interfaces": map[string]any{"host-" + p + "l0": itf(), "host-" + p + "w0": itf()},
 		}}
+	}
+	if trafficbtest.Enabled() && withOSPF {
+		// Submit the deterministic Zod defaults explicitly; Retrieve comparisons stay exact.
+		ospf := d["routing"].(map[string]any)["ospf"].(map[string]any)
+		ospf["vrf"], ospf["redistribute"], ospf["defaultInformationOriginate"] = "default", map[string]any{}, "off"
+		area := ospf["areas"].(map[string]any)["0"].(map[string]any)
+		area["type"], area["noSummary"] = "normal", false
+		for _, value := range ospf["interfaces"].(map[string]any) {
+			itf := value.(map[string]any)
+			itf["passive"], itf["bfd"] = false, false
+		}
 	}
 	raw, err := structpb.NewStruct(d)
 	if err != nil {
@@ -738,6 +750,7 @@ func TestOSPFTopologyOnHost(t *testing.T) {
 	e.waitFull(90 * time.Second)
 	e.waitOSPF("100 routes after commit", 100, 60*time.Second)
 	e.evidence("after commit")
+	trafficBProbe(t, e.repo, "ospf", slot, e.fib)
 
 	// Retrieve == desired for routing.ospf and the pairs
 	got, err := e.c.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})

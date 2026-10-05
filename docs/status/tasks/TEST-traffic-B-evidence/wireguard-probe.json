@@ -1,0 +1,6 @@
+{
+  "phase": "wireguard",
+  "slot": 27,
+  "passed": true,
+  "scope": "packet probe only; constituent fixture verifies application and rollback"
+}

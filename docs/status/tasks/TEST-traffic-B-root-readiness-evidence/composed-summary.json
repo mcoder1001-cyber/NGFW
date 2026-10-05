@@ -1,0 +1,291 @@
+{
+  "task": "TEST-traffic-B",
+  "source_sha": "d3c33570fd7c1af37361c0c9fb63e577c988cd45",
+  "slot": 27,
+  "started_utc": "2026-10-05T20:35:55Z",
+  "phases": [
+    {
+      "phase": "ipsec",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ipsec-responder",
+          "proof_sha256": "c2b13d5a872cdbcb83e1ea0e6951164c2e2d5b3b7232672643d7bb67bd555292",
+          "initial_revision": 2,
+          "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53"
+        },
+        {
+          "subphase": "ipsec-initiator",
+          "proof_sha256": "bf89eed68fb43633270ecf6d3593f94687046f63248d944e180509f02579f842",
+          "initial_revision": 2,
+          "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53"
+        }
+      ],
+      "diagnostic_sha256": "523d8881b3059096f21838d2d834918e1a326bad4e6c127df3ee366eecee239d"
+    },
+    {
+      "phase": "ipsec-cert",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ipsec-cert",
+          "proof_sha256": "576d1b19d9735be2d60e6232ca14d7ea60358b2e2a413a737371e3e97d14e32c",
+          "initial_revision": 2,
+          "candidate_sha256": "c49e356fbf534b298a6f7287fb9c6ad01bc16d5e0d720f45e46d64ff764389f0"
+        }
+      ],
+      "diagnostic_sha256": "4710cfcd23f2fad413393ab622eac53645fad1db1f0f4271b179e6d1cde47d4a"
+    },
+    {
+      "phase": "wireguard",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "faf7e3a0ec142e8d878035771f0109150974219e01227e4727eba636b43d7c0e"
+    },
+    {
+      "phase": "tunnels",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "ccbab0793d92b1d2cc1d94c270b1de8aade8aea1e7046ee471ae1104c4dda022"
+    },
+    {
+      "phase": "bgp",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "bgp",
+          "proof_sha256": "c3460c42adcfe886a502cd135bf04ae4c96ff2dac26393e8ed4c0327fa7078ea",
+          "initial_revision": 2,
+          "candidate_sha256": "796eb4e709c4acd3f44dfc6a31b31874a1f186546974b9da3baa819e1ebc8b60"
+        }
+      ],
+      "diagnostic_sha256": "4b54daabdcefdf891324d120dd3703117028c0e4bd22536eda93a1835590048c"
+    },
+    {
+      "phase": "ospf",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ospf",
+          "proof_sha256": "dd3467ab0ba8e73e4af36bab160ba83c943d2f1e3fe7a555a04e30a72c94f5ea",
+          "initial_revision": 2,
+          "candidate_sha256": "d1f7e61aa7fa65e8f0ac4a377acf3b69edf631c5564883bf62b068913b363679"
+        }
+      ],
+      "diagnostic_sha256": "add3f592d3466d3a65e71d2b4978bff5c8b985cf1c2515d7e15f606664f11b97"
+    },
+    {
+      "phase": "dhcp-relay",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "baseline_warnings": [
+            {
+              "message": "management.aaa is not applied by this agent build",
+              "pointer": "/management/aaa",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.backup is not applied by this agent build",
+              "pointer": "/management/backup",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.tls is not applied by this agent build",
+              "pointer": "/management/tls",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+              "pointer": "/nat/ipfix",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "flowprobe parameters are applied only with at least one monitored interface",
+              "pointer": "/services/ipfix/flowprobe",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+              "pointer": "/services/lldp",
+              "rule": "agent.write-only"
+            },
+            {
+              "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+              "pointer": "/services/ntp",
+              "rule": "agent.unsupported-field"
+            }
+          ],
+          "candidate_owner": 1,
+          "candidate_sha256": "cc881f9e2aa5e4c6ef8fdf38c238bac70d2dbbf0c0a17d90b93004071a923525",
+          "notApplied": [],
+          "revision": 1,
+          "status": "applied",
+          "txn": "kea-base",
+          "warnings": [
+            {
+              "message": "management.aaa is not applied by this agent build",
+              "pointer": "/management/aaa",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.backup is not applied by this agent build",
+              "pointer": "/management/backup",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.tls is not applied by this agent build",
+              "pointer": "/management/tls",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+              "pointer": "/nat/ipfix",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "flowprobe parameters are applied only with at least one monitored interface",
+              "pointer": "/services/ipfix/flowprobe",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+              "pointer": "/services/lldp",
+              "rule": "agent.write-only"
+            },
+            {
+              "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+              "pointer": "/services/ntp",
+              "rule": "agent.unsupported-field"
+            }
+          ]
+        },
+        {
+          "baseline_warnings": [
+            {
+              "message": "management.aaa is not applied by this agent build",
+              "pointer": "/management/aaa",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.backup is not applied by this agent build",
+              "pointer": "/management/backup",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.tls is not applied by this agent build",
+              "pointer": "/management/tls",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+              "pointer": "/nat/ipfix",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "flowprobe parameters are applied only with at least one monitored interface",
+              "pointer": "/services/ipfix/flowprobe",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+              "pointer": "/services/lldp",
+              "rule": "agent.write-only"
+            },
+            {
+              "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+              "pointer": "/services/ntp",
+              "rule": "agent.unsupported-field"
+            }
+          ],
+          "candidate_owner": 1,
+          "candidate_sha256": "0967cf1ccd60695890aa180684fcb70e081f58166752ab6e0407228fd5310534",
+          "notApplied": [],
+          "revision": 2,
+          "status": "applied",
+          "txn": "kea-dhcp",
+          "warnings": [
+            {
+              "message": "management.aaa is not applied by this agent build",
+              "pointer": "/management/aaa",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.backup is not applied by this agent build",
+              "pointer": "/management/backup",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "management.tls is not applied by this agent build",
+              "pointer": "/management/tls",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+              "pointer": "/nat/ipfix",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "flowprobe parameters are applied only with at least one monitored interface",
+              "pointer": "/services/ipfix/flowprobe",
+              "rule": "agent.unsupported-field"
+            },
+            {
+              "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+              "pointer": "/services/lldp",
+              "rule": "agent.write-only"
+            },
+            {
+              "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+              "pointer": "/services/ntp",
+              "rule": "agent.unsupported-field"
+            }
+          ]
+        }
+      ],
+      "diagnostic_sha256": "2a22b04e07ed7d029100703597732c641e0b8e67b1643e8d784ad99ad02c3b57"
+    }
+  ],
+  "primary_passed": true,
+  "whole_wave_passed": false,
+  "smoke_not_run": [
+    {
+      "phase": "det44",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "dslite",
+      "reason": "DS-Lite pool deletion banned D-211; preserve pool"
+    },
+    {
+      "phase": "cnat",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "isis",
+      "reason": "requires private OSI punt window"
+    },
+    {
+      "phase": "bfd",
+      "reason": "dedicated BFD evidence export required"
+    },
+    {
+      "phase": "unbound",
+      "reason": "namespace DNS evidence export required"
+    },
+    {
+      "phase": "chrony",
+      "reason": "slot source evidence export required"
+    },
+    {
+      "phase": "syslog",
+      "reason": "slot receiver evidence export required"
+    }
+  ],
+  "ended_utc": "2026-10-05T20:44:35Z"
+}

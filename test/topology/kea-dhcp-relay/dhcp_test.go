@@ -363,12 +363,30 @@ func newStack(t *testing.T, s slot, tp *topo) *stack {
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 	adminPW := secret()
+	valkeyDB := s.valkeyDB
+	cacheEndpoint := ""
+	if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+		if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" {
+			t.Fatal("private Wave-B Valkey only")
+		}
+		port, err := strconv.Atoi(s.httpPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		kv := start(t, "valkey", filepath.Join(tp.work, "valkey.log"), base, "valkey-server", "--bind", "127.0.0.1", "--port", strconv.Itoa(port+80), "--save", "", "--appendonly", "no", "--dir", tp.work)
+		t.Cleanup(func() { kv.stop(t) })
+		cacheEndpoint = "redis://127.0.0.1:" + strconv.Itoa(port+80)
+		valkeyDB = "0" // dedicated no-persistence process, never the shared host DB
+	}
 	apiEnv := append(append([]string{}, base...),
 		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
-		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":kea:"+secret()[:6]+":",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":kea:"+secret()[:6]+":",
 		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
 		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(tp.work, "secret.key"),
 		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	if cacheEndpoint != "" {
+		apiEnv = append(apiEnv, fmt.Sprintf("%s=%s", "NGFW_VALKEY_URL", cacheEndpoint))
+	}
 	st.apiProc = start(t, "ngfw-api", filepath.Join(tp.work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
@@ -509,6 +527,10 @@ func TestKeaDhcpRelay(t *testing.T) {
 	st := newStack(t, s, tp)
 	a := st.api
 
+	relaySource := tp.wanGW
+	if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+		relaySource = tp.lanGW
+	}
 	var revBase, revDHCP float64
 	parent := t
 	// best-effort cleanup through the API (runs before the stack stops, LIFO): nothing of ours stays in VPP even when a
@@ -535,7 +557,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 				}},
 			}},
 			"relays": map[string]any{"to-kea": map[string]any{
-				"description": "LAN → Kea", "vrf": tp.vrf, "interfaces": []string{tp.lanIf}, "servers": []string{tp.keaIP}, "sourceAddress": tp.wanGW,
+				"description": "LAN → Kea", "vrf": tp.vrf, "interfaces": []string{tp.lanIf}, "servers": []string{tp.keaIP}, "sourceAddress": relaySource,
 			}},
 		}})
 		a.patch("/interfaces/"+tp.cliIf, map[string]any{"dhcpClient": map[string]any{"hostname": s.prefix + "-vppclient"}})
@@ -606,6 +628,18 @@ func TestKeaDhcpRelay(t *testing.T) {
 		t.Log("vppctl show ip fib table " + strconv.Itoa(int(tp.vrfID)) + " 255.255.255.255/32:\n" + vppctl(t, "show", "ip", "fib", "table", strconv.Itoa(int(tp.vrfID)), "255.255.255.255/32"))
 		before, _ := showIntCounters(t, tp.lanIf, tp.wanIf)
 
+		if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+			if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" || os.Getenv("NGFW_TRAFFIC_B_EVIDENCE") == "" {
+				t.Fatal("Wave-B DHCP capture requires private VPP and evidence directory")
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+			//nolint:gosec // fixed repository helper, slot-scoped fixture arguments
+			out, err := exec.CommandContext(ctx, "python3", filepath.Join(s.repo, "test/topology/traffic-b/probe.py"), "--slot", strconv.Itoa(s.num), "--phase", "dhcp-relay", "--output", os.Getenv("NGFW_TRAFFIC_B_EVIDENCE")).CombinedOutput()
+			if err != nil {
+				t.Fatalf("Wave-B DHCP probe: %v: %s", err, out)
+			}
+		}
 		var raw string
 		lease, raw = tp.dhclientLease(t)
 		t.Logf("dhclient lease file:\n%s", trunc(raw, 1200))
@@ -662,7 +696,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		// simulated loss behind the agent's back: relay server, DHCP client, Kea configuration
-		src := ip_types.NewAddress(net.ParseIP(tp.wanGW).To4())
+		src := ip_types.NewAddress(net.ParseIP(relaySource).To4())
 		srv := ip_types.NewAddress(net.ParseIP(tp.keaIP).To4())
 		if _, err := dhcp.NewServiceClient(conn).DHCPProxyConfig(ctx, &dhcp.DHCPProxyConfig{RxVrfID: tp.vrfID, ServerVrfID: tp.vrfID, IsAdd: false, DHCPServer: srv, DHCPSrcAddress: src}); err != nil {
 			t.Fatalf("loss: dhcp_proxy_config is_add=0: %v", err)
@@ -690,8 +724,11 @@ func TestKeaDhcpRelay(t *testing.T) {
 		t0 := time.Now()
 		logFrom := fileSize(st.agentLog)
 		st.startAgent(t)
-		var tProxy, tClient, tKea time.Duration
-		ok := waitFor(30*time.Second, func() bool {
+		var tProxy, tClient, tKea, tAPI time.Duration
+		recoveryCtx, recoveryCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer recoveryCancel()
+		recoveryDeadline, _ := recoveryCtx.Deadline()
+		ok := waitFor(time.Until(recoveryDeadline), func() bool {
 			if tProxy == 0 && hasProxy(t, conn, tp.vrfID, tp.keaIP) {
 				tProxy = time.Since(t0)
 			}
@@ -705,9 +742,14 @@ func TestKeaDhcpRelay(t *testing.T) {
 					tKea = time.Since(t0)
 				}
 			}
-			return tProxy > 0 && tClient > 0 && tKea > 0
+			if tProxy > 0 && tClient > 0 && tKea > 0 && a.waitRelayReady(recoveryCtx, "to-kea") {
+				tAPI = time.Since(t0)
+				return true
+			}
+			return false
 		})
 		t.Logf("agent started at +0s: relay back at +%.2fs, DHCP client at +%.2fs, Kea configuration at +%.2fs (no config API call)", tProxy.Seconds(), tClient.Seconds(), tKea.Seconds())
+		t.Logf("read-only product API agent Retrieve applied relay at +%.2fs (same 30 s recovery budget; no config mutation)", tAPI.Seconds())
 		if !ok {
 			t.Fatal("not everything came back within 30 s")
 		}
@@ -731,9 +773,18 @@ func TestKeaDhcpRelay(t *testing.T) {
 		a.t = t
 		rb := a.must(200, "POST", fmt.Sprintf("/api/v1/config/rollback/%d?comment=kea-rollback", int(revBase)), nil)
 		t.Logf("POST /config/rollback/%d → %s", int(revBase), trunc(rb.raw, 600))
-		if rb.body["status"] != "applied" {
-			t.Fatalf("rollback: %s", rb.raw)
+		restored := a.must(200, "GET", "/api/v1/config", nil)
+		if configDigest(restored.body) != configDigest(a.baselineDocument) {
+			t.Fatal("REST rollback baseline hash mismatch")
 		}
+		if err := a.baselineResponse(rb, restored.body, a.baselineDocument, false); err != nil {
+			t.Fatalf("rollback: %v", err)
+		}
+		rollbackWarnings := rb.body["warnings"]
+		if rollbackWarnings == nil {
+			rollbackWarnings = []any{}
+		}
+		t.Logf("TRAFFIC_B_DHCP_REST_ROLLBACK=%s", js(map[string]any{"status": rb.body["status"], "revision": rb.body["revision"], "notApplied": []any{}, "warnings": rollbackWarnings, "baseline_warnings": a.baselineWarnings}))
 		ret := a.must(200, "GET", "/api/v1/state/dhcp/relays", nil)
 		t.Logf("GET /state/dhcp/relays after rollback → %s", ret.raw)
 		if items := ret.body["items"].([]any); len(items) != 0 {

@@ -29,7 +29,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 ## Remaining implementation / review
 
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
-- TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, /root/traffic_b; verified live developer in current chat)
+- TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, Codex manager; local acceptance passed; independent final review and hosted/main CI pending; manager preparing final integration)
 
 ## Parked
 

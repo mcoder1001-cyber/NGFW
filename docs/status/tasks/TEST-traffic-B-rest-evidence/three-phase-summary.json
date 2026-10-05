@@ -1,0 +1,63 @@
+{
+  "task": "TEST-traffic-B",
+  "source_sha": "34e545fc6a61632e64bb9d9875beb2653faddbb8",
+  "slot": 27,
+  "started_utc": "2026-10-05T18:18:39Z",
+  "phases": [
+    {
+      "phase": "wireguard",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "1b9d53b7d6ab0777782b88263bb0888c585bae338f6b6866243415fd164b2ee0"
+    },
+    {
+      "phase": "bgp",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "7fe8241764ec97a59042f767086eff0034fc9f5cf601f6a78f7f9d785fbf9d58"
+    },
+    {
+      "phase": "ospf",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "730228b45b580cc38394e76dfeaf374a396f3b35610aba56f175a7db9b7a831b"
+    }
+  ],
+  "primary_passed": false,
+  "whole_wave_passed": false,
+  "smoke_not_run": [
+    {
+      "phase": "det44",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "dslite",
+      "reason": "DS-Lite pool deletion banned D-211; preserve pool"
+    },
+    {
+      "phase": "cnat",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "isis",
+      "reason": "requires private OSI punt window"
+    },
+    {
+      "phase": "bfd",
+      "reason": "dedicated BFD evidence export required"
+    },
+    {
+      "phase": "unbound",
+      "reason": "namespace DNS evidence export required"
+    },
+    {
+      "phase": "chrony",
+      "reason": "slot source evidence export required"
+    },
+    {
+      "phase": "syslog",
+      "reason": "slot receiver evidence export required"
+    }
+  ],
+  "ended_utc": "2026-10-05T18:23:03Z"
+}

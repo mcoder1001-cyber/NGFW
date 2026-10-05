@@ -132,6 +132,8 @@ export const configCandidate = pgTable('config_candidate', {
   /** null = the candidate equals running (nothing edited since the last commit/discard). */
   payload: jsonb('payload'),
   baseRevisionId: integer('base_revision_id'),
+  /** Inactive backup secret versions, applied only during normal commit promotion. */
+  restoreSecrets: jsonb('restore_secrets').$type<Record<string, number>>(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
 });
 
@@ -334,3 +336,10 @@ export const autoBlock = pgTable(
 );
 // wave-BC: F-licensing
 // wave-BC: F-backup-restore
+export const backupRun = pgTable('f_backup_run', {
+  minute: text('minute').primaryKey(),
+  at: ts('at').notNull().defaultNow(),
+  result: text('result').notNull(),
+  filename: text('filename'),
+  error: text('error'),
+});

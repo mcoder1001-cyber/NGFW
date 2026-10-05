@@ -1,0 +1,26 @@
+#!/usr/bin/python3
+"""Fixed systemd instance bridge; no shell and no host execution at installation."""
+import json
+import os
+import pathlib
+import stat
+import subprocess
+import sys
+
+op = sys.argv[1] if len(sys.argv) == 2 else ''
+if op not in ('stage', 'activate', 'confirm', 'rollback'):
+    raise SystemExit(2)
+argv = ['/usr/sbin/ngfw-upgrade', op]
+if op == 'stage':
+    fd = os.open('/run/ngfw/upgrade-request.json', os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(fd, 'r') as stream:
+        info = os.fstat(stream.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077 or info.st_size > 1024:
+            raise SystemExit(1)
+        request = json.load(stream)
+    path = pathlib.Path(request['bundle'])
+    if path.parent != pathlib.Path('/data/updates') or path.resolve(strict=True) != path or not path.is_file():
+        raise SystemExit(1)
+    os.unlink('/run/ngfw/upgrade-request.json')
+    argv.append(str(path))
+raise SystemExit(subprocess.run(argv, check=False, timeout=840).returncode)

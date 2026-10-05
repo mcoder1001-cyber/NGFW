@@ -134,6 +134,8 @@ func (g *server) Action(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingSe
 	case *ngfwv1.ActionRequest_Capture:
 		return g.actionCapture(req.GetCapture(), stream)
 	// wave-BC: F-backup-restore
+	case *ngfwv1.ActionRequest_Upgrade, *ngfwv1.ActionRequest_SupportBundle:
+		return g.backupRestoreAction(req, stream)
 	// wave-A: F-vrf-static-ecmp
 	case *ngfwv1.ActionRequest_Ping:
 		return g.actionPing(req.GetPing(), stream)

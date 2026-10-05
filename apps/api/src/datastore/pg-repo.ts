@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { UserConfig } from '@ngfw/schema';
-import { and, count, desc, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, max, ne, notInArray, sql } from 'drizzle-orm';
 import { DB, type Db, type DbTx } from '../db/db.js';
 import {
   apiKey,
@@ -37,7 +37,14 @@ export async function releaseKeyLocks(db: Db | DbTx, keyIds: readonly string[]):
   if (keyIds.length === 0) return false;
   const rows = await db
     .update(configCandidate)
-    .set({ ownerId: null, ownerKeyId: null, lockedAt: null, payload: null, baseRevisionId: null })
+    .set({
+      ownerId: null,
+      ownerKeyId: null,
+      lockedAt: null,
+      payload: null,
+      baseRevisionId: null,
+      restoreSecrets: null,
+    })
     .where(inArray(configCandidate.ownerKeyId, [...keyIds]))
     .returning({ id: configCandidate.id });
   return rows.length > 0;
@@ -85,6 +92,7 @@ async function readCandidate(db: Exec, forUpdate: boolean): Promise<CandidateSta
       lockedAt: configCandidate.lockedAt,
       payload: configCandidate.payload,
       baseRevisionId: configCandidate.baseRevisionId,
+      restoreSecrets: configCandidate.restoreSecrets,
       updatedAt: configCandidate.updatedAt,
     })
     .from(configCandidate)
@@ -202,6 +210,7 @@ class PgConfigTx implements ConfigTx {
         lockedAt: c.lockedAt,
         payload: c.payload,
         baseRevisionId: c.baseRevisionId,
+        restoreSecrets: c.payload === null ? null : (c.restoreSecrets ?? null),
         updatedAt: sql`now()`,
       })
       .where(eq(configCandidate.id, CANDIDATE_ID));
@@ -225,6 +234,24 @@ class PgConfigTx implements ConfigTx {
     return writeSync(this.t, s);
   }
 
+  async stageRestoreSecrets(
+    rows: readonly { ref: string; ciphertext: string }[],
+    authorId: number,
+  ): Promise<Record<string, number>> {
+    const pins: Record<string, number> = {};
+    for (const row of rows) {
+      await this.t.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${row.ref}, 0))`);
+      const [top] = await this.t
+        .select({ v: max(secretVersion.version) })
+        .from(secretVersion)
+        .where(eq(secretVersion.ref, row.ref));
+      const version = (top?.v ?? 0) + 1;
+      await this.t.insert(secretVersion).values({ ...row, version, createdBy: authorId });
+      pins[row.ref] = version;
+    }
+    return pins;
+  }
+
   async restoreSecretVersions(versions: Record<string, number>): Promise<string[]> {
     const restored: string[] = [];
     for (const [ref, version] of Object.entries(versions)) {
@@ -234,9 +261,13 @@ class PgConfigTx implements ConfigTx {
         .where(and(eq(secretVersion.ref, ref), eq(secretVersion.version, version)));
       if (v === undefined) continue;
       const updated = await this.t
-        .update(secret)
-        .set({ ciphertext: v.ciphertext, version })
-        .where(and(eq(secret.ref, ref), sql`${secret.version} <> ${version}`))
+        .insert(secret)
+        .values({ ref, kind: ref.split('/')[0]!, ciphertext: v.ciphertext, version })
+        .onConflictDoUpdate({
+          target: secret.ref,
+          set: { ciphertext: v.ciphertext, version },
+          setWhere: sql`${secret.version} <> ${version}`,
+        })
         .returning({ id: secret.id });
       if (updated.length > 0) restored.push(`${ref}@${version}`);
     }

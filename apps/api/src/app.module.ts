@@ -79,7 +79,7 @@ import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
-import { bfdRedistributionFeature } from "./features/bfd-redistribution/index.js";
+import { bfdRedistributionFeature } from './features/bfd-redistribution/index.js';
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 import { mplsLdpFeature } from './features/mpls-ldp/index.js';
@@ -98,6 +98,7 @@ import { haStateSyncFeature } from './features/ha-state-sync/index.js';
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
 // wave-BC: F-backup-restore
+import { backupRestoreFeature } from './features/backup-restore/index.js';
 // wave-A: F-bonding
 import { bondingFeature } from './features/bonding/index.js';
 // wave-A: F-bridge-l2
@@ -229,6 +230,7 @@ export class AppModule {
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        ...backupRestoreFeature.controllers,
         // wave-A: F-bonding
         ...bondingFeature.controllers,
         // wave-A: F-bridge-l2
@@ -350,6 +352,7 @@ export class AppModule {
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        ...backupRestoreFeature.providers,
         // wave-A: F-bonding
         ...bondingFeature.providers,
         // wave-A: F-bridge-l2

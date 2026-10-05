@@ -8,3 +8,5 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   '@scarf/scarf': false
+  cpu-features: false
+  ssh2: false

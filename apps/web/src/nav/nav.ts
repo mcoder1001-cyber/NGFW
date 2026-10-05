@@ -164,6 +164,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-aaa
     { id: 'aaa', path: '/system/aaa', labelKey: 'aaa:nav', fallbackLabel: 'Login & MFA', available: true },
     // wave-BC: F-backup-restore
+    { id: 'backup-restore', path: '/system/backup-restore', labelKey: 'backup-restore:title', fallbackLabel: 'Backup & Restore', available: true },
+    { id: 'upgrade', path: '/system/upgrade', labelKey: 'backup-restore:upgrade', fallbackLabel: 'System Upgrade', available: true },
     // wave-BC: P10
     // wave-BC: P14
     // wave-BC: F-ab-upgrade

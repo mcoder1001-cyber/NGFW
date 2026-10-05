@@ -41,6 +41,15 @@ func command(ctx context.Context, tool string, input []byte, args ...string) ([]
 	case "/usr/sbin/nft":
 		// #nosec G204 -- fixed literal executable and generated --check/--file - arguments; rules arrive on stdin after plan validation.
 		cmd = exec.CommandContext(ctx, "/usr/sbin/nft", args...)
+	case "/usr/bin/mount":
+		// #nosec G204 -- fixed literal tool; namespace helpers derive bind paths from validated instance ownership.
+		cmd = exec.CommandContext(ctx, "/usr/bin/mount", args...)
+	case "/usr/bin/unshare":
+		// #nosec G204 -- fixed literal tool; namespace creation supplies fixed --net and mount argv, no shell.
+		cmd = exec.CommandContext(ctx, "/usr/bin/unshare", args...)
+	case "/usr/bin/nsenter":
+		// #nosec G204 -- fixed literal tool; kernel readback supplies validated fixed namespace binding and ip argv.
+		cmd = exec.CommandContext(ctx, "/usr/bin/nsenter", args...)
 	default:
 		return nil, ErrBoundary
 	}

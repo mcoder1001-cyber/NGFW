@@ -25,6 +25,8 @@ type FixedNamespaceHandoff struct {
 	// Provider supplies manager-opened role descriptors. Consumers must retain
 	// these descriptors through dispatch and compare a fresh observation after
 	// dispatch; a process identity alone cannot detect a mount namespace change.
+	// Guard is the same runtime transport barrier used by namespace and TAP mutations.
+	Guard      MutationGuard
 	Provider   NamespaceTargetProvider
 	Executable string
 	Dispatcher NamespaceBrokerFDDispatch

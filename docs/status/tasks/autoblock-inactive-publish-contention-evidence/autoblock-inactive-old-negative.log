@@ -1,0 +1,29 @@
+2026/10/05 08:40:52 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/05 08:40:52 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/05 08:40:52 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule1725695667/001/pki-w7 source=true
+2026/10/05 08:40:52 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:40:52 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/05 08:40:52 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:40:52 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:40:52 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/05 08:40:52 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule1725695667/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/05 08:40:52 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule1725695667/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
+2026/10/05 08:40:52 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/05 08:40:52 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule1725695667/001/host-acl-w7.nft
+2026/10/05 08:40:52 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:40:52 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/05 08:40:52 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4225495662/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4225495662/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-4225495662/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/05 08:40:52 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:40:52 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-4225495662/sysident/etc/hostname
+2026/10/05 08:40:52 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/05 08:40:52 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/05 08:40:52 INFO reconcile start txn_id=ordinary-acl mode=apply domains="[interfaces objects acl]"
+2026/10/05 08:40:52 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop701 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 08:40:54 INFO reconcile done txn_id=ordinary-acl mode=apply domains="[interfaces objects acl]" status=APPLY_STATUS_APPLIED summary=created:18 reapplied=0 duration=1.908635594s err=""
+2026/10/05 08:40:54 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:40:54 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_FAILED summary="" reapplied=0 duration=142.653164ms err="validation failed"
+--- FAIL: TestAutoBlockConfirmedInactivePublicationDoesNotSchedule (2.52s)
+    rpc_autoblock_test.go:220: rpc error: code = Unavailable desc = auto-block enforcement: validation failed
+FAIL
+FAIL	ngfw/agent/internal/agent	2.856s
+FAIL

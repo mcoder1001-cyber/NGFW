@@ -1,0 +1,5 @@
+internal/agent/rpc_autoblock_test.go:225:16: G304: Potential file inclusion via variable (gosec)
+	cache, err := os.Open(filepath.Join(dir, "auto-block.json"))
+	              ^
+1 issues:
+* gosec: 1

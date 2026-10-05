@@ -1,0 +1,47 @@
+$ env -u NGFW_TEST_ONLY -u KEEP NGFW_TEST_SHARD=3/4 deploy/vpp/test-apply-startup.sh /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/autoblock-composed-ci/codex-autoblock-inactive-publish-contention-20261005-091557-2395760/ngfw-startupgen
+== 3. usage errors → exit 2, nothing changed
+  ok   --apply without --expect-new-sha256 refused (exit 2)
+  ok   approval id that is not PENDING-<slug> refused (exit 2)
+  ok   --window 0 refused (exit 2)
+  ok   --foreground over SSH without --console refused (exit 2)
+  ok   a test root with the real startup.conf is refused (exit 2)
+== 7. VPP hung BEFORE the apply → preflight refuses within the timeout, nothing installed
+  ok   exit 3, refused, locks released
+  ok   bounded: 10s (limit 43s = 15s idle-host limit × load factor at load 19.63; unbounded: the preflight waits for the hung VPP's sleep 1000)
+== 11. reviewer's scenario: gateway drops ICMP, the manager's SSH session closes during the window → commits (N1)
+  ok   exit 0, committed with neigh; closed session logged only; one VPP restart
+== 15. a logical interface missing in VPP → rollback
+  ok   exit 1, rolled back, original file restored, locks released
+  ok   reason logged
+  ok   VPP stopped, reset-failed, started on the old file
+  ok   replaying the rolled-back work dir with --stage run: refused (exit 3), no restart
+== 19. netplan host → netplan apply
+  ok   exit 1, netplan detected, netplan apply used, rollback healthy
+== 23. systemctl restart itself hangs → svc timeout, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 18s (limit 87s = 30s idle-host limit × load factor at load 20.41; unbounded: systemctl restart hangs in sleep 1000)
+== 27. the lock holder dies during the apply → rollback (the locks are not ours any more)
+  ok   exit 1, rolled back
+== 31. the generator refuses the management NIC as a device (host facts) → nothing changed
+  ok   dry run fails with the generator's error (exit 2)
+== 35. V3: `systemctl show` fails right after the restart — once → read again, commits; persistently → immediate rollback (not a dead run)
+    state: rc=0 finished=[committed] vpp=active locks-free=y timer-cancelled=y live==new=y live==orig=n
+  ok   transient D-Bus failure: exit 0, committed with a complete unit tuple
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   persistent failure: exit 1, rolled back at once, locks released
+== 39. V7: the lock holder keeps the locks until the run's recomputed deadline (hold-until), not its own default-count HOLD_MAX
+  ok   the run records hold-until ≥ its dead-man deadline + lock wait + one rollback
+  ok   a holder follows hold-until (released after ~2 s)
+    defaults: 1 management interface(s): holder's default HOLD_MAX 4249s, dead-man worst-case end 3649s
+    defaults: 3 management interface(s): holder's default HOLD_MAX 4249s, dead-man worst-case end 5129s
+== 43. F1: the same overlap while the holder is alive (the run hangs in `systemctl restart`, its dead-man armed) → the rollback disarms the timer first; the second is refused; VPP stopped and started exactly once
+  ok   the run is stuck in 'systemctl restart'; holder 2608326 owns the locks; the dead-man ngfw-startup-apply-deadman-20261005-092649-2607155 is armed
+    rollback 1 (pid 2609447): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=0; VPP stops=1 starts=1
+    | rollback 2: apply-startup: 2026-10-05 09:26:57 a rollback of /root/.cache/ngfw-ci-host/tmp.ciFcPJZZo4/case.W9PV/apply/20261005-092649-2607155 is already running (pid 2609447) — nothing to do
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   the second rollback (the timer firing while the operator's runs) is refused at once and touches nothing (exit 0)
+  ok   the rollback disarmed the armed dead-man timer (calls line 17) before it stopped VPP (line 19)
+  ok   the first one killed the run and rolled back alone (exit 1) under the holder's locks, then released them
+  ok   VPP stopped and started exactly once (stops=1 starts=1)
+
+apply-startup tests: 26 passed, 0 failed

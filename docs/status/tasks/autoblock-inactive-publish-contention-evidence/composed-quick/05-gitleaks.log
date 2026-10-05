@@ -1,0 +1,4 @@
+$ gitleaks git . --no-banner --redact --exit-code 1 --report-format json --report-path /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/autoblock-composed-ci/codex-autoblock-inactive-publish-contention-20261005-091557-2395760/gitleaks-report.json --config .github/gitleaks.toml --log-opts=492c0156e38ee73acca235527d7979b447067bb8..HEAD
+9:17AM INF 5 commits scanned.
+9:17AM INF scanned ~314193 bytes (314.19 KB) in 619ms
+9:17AM INF no leaks found

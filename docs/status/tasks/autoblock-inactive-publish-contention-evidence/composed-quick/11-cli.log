@@ -1,0 +1,20 @@
+$ make -C apps/cli lint test build
+make: Entering directory '/root/ngfw-wt/codex-autoblock-inactive-publish-contention/apps/cli'
+ok: apps/cli talks only to the REST API
+go vet ./...
+0 issues.
+go test -race -count=1 ./...
+?   	ngfw/cli/cmd/ngfw	[no test files]
+?   	ngfw/cli/cmd/ngfw-docgen	[no test files]
+?   	ngfw/cli/cmd/ngfw-opgen	[no test files]
+ok  	ngfw/cli/internal/api	2.635s
+?   	ngfw/cli/internal/api/opgen	[no test files]
+ok  	ngfw/cli/internal/cli	2.034s
+ok  	ngfw/cli/internal/cpath	1.071s
+ok  	ngfw/cli/internal/jschema	1.193s
+?   	ngfw/cli/internal/lineedit	[no test files]
+ok  	ngfw/cli/internal/render	1.090s
+ok  	ngfw/cli/internal/safe	1.074s
+ok  	ngfw/cli/test/e2e	1.072s
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=4a0cde923" -o bin/ngfw ./cmd/ngfw
+make: Leaving directory '/root/ngfw-wt/codex-autoblock-inactive-publish-contention/apps/cli'

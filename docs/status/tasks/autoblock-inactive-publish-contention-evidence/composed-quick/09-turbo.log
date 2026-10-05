@@ -1,0 +1,11 @@
+$ pnpm turbo run lint typecheck test build --continue --output-logs=errors-only --concurrency 3
+
+   • Packages in scope: @ngfw/api, @ngfw/api-client, @ngfw/proto, @ngfw/schema, @ngfw/ui-kit, @ngfw/web, @ngfw/yang
+   • Running lint, typecheck, test, build in 7 packages
+   • Remote caching disabled
+
+
+ Tasks:    35 successful, 35 total
+Cached:    28 cached, 35 total
+  Time:    1m7.083s 
+

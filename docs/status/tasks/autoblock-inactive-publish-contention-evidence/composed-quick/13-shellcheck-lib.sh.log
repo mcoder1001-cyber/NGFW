@@ -1,0 +1,1 @@
+$ shellcheck -x -P SCRIPTDIR deploy/vpp/lib.sh

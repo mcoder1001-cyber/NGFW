@@ -1,0 +1,49 @@
+$ env -u NGFW_TEST_ONLY -u KEEP NGFW_TEST_SHARD=2/4 deploy/vpp/test-apply-startup.sh /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/autoblock-composed-ci/codex-autoblock-inactive-publish-contention-20261005-091557-2395760/ngfw-startupgen
+== 2. dry run: reachability — gateway drops ICMP (ngfw-a) → neigh; SSH peer shown as a signal only; nothing viable → exit 3; loopback TCP target rejected
+  ok   exit 0; peer shown; neigh chosen although ICMP is dropped
+  ok   next hop does not answer ARP: exit 3, refused early
+  ok   --mgmt-probe tcp:10.0.0.1:22 viable (exit 0)
+  ok   loopback TCP target rejected (exit 3)
+  ok   explicit gateway-ping on a no-ICMP gateway: exit 3
+== 6. what was reviewed is pinned: live file or rendering changed → refused inside the lock
+  ok   live file changed: exit 3, no restart, locks released
+  ok   rendering changed: exit 3, no restart
+== 10. VPP crashes and is brought back by systemd — inside the settle time (N3) and inside the window → rollback
+  ok   crash before the first identity read: exit 1, rolled back
+  ok   crash in the window: exit 1, rolled back
+== 14. no viable check at apply time → refused before anything changes
+  ok   exit 3, refused, locks released
+== 18. systemd-networkd host → networkctl reconfigure
+  ok   exit 1, networkd detected, reconfigure used, rollback healthy
+== 22. VPP hangs in the middle of the watch window → rollback
+  ok   exit 1, hang detected, rolled back
+  ok   bounded: 18s (limit 91s = 30s idle-host limit × load factor at load 21.78; unbounded: a health read on a hung VPP: sleep 1000)
+== 26. the run HANGS; an integration run queues on the lab lock → dead-man kills the run; the holder keeps the locks until its single rollback is done (M1)
+  ok   run stuck in 'systemctl restart'; holder unit 2591401 owns the locks
+  ok   exit 1, run killed, file restored
+  ok   holder kept the locks across the kill; not FORCED
+  ok   queued shared waiter got the lab lock only after the rollback restarted VPP
+  ok   locks released, holder gone, exactly one rollback start
+  ok   bounded: 6s (limit 60s = 20s idle-host limit × load factor at load 21.07; unbounded: the run's systemctl restart hangs (sleep 1000, --svc-timeout 600))
+== 30. lab lock held by someone else at apply time → refused, nothing changed
+  ok   exit 3, lock busy (holder named), file unchanged
+== 34. V2: the old file was staged, but /etc/vpp breaks while VPP is stopped → VPP is started again anyway; console-needed; locks released
+    state: rc=1 finished=[console-needed] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   exit 1, console-needed: startup.conf not restored
+  ok   VPP started again after the stop, locks released
+== 38. V6: the NGFW_TEST_ROOT guard resolves paths — '/.' and a symlink out of the test root are refused
+    canon_root with NGFW_TEST_ROOT=/. → rc=2: apply-startup: NGFW_TEST_ROOT resolves to '/' — refused
+  ok   test root '/.' with /./etc/vpp/startup.conf refused (exit 2)
+    canon_root with startup.conf behind a symlink to /etc → rc=2: apply-startup: NGFW_TEST_ROOT is only honoured when startup.conf, sysfs, systemctl, systemd-run, ip, the state dir and the locks are inside it (NGFW_STARTUP_CONF=/root/.cache/ngfw-ci-host/tmp.6iVoOjtSh2/esc/vpp/startup.conf resolves to /etc/vpp/startup.conf, outside /root/.cache/ngfw-ci-host/tmp.6iVoOjtSh2)
+  ok   startup.conf reached through a symlink to /etc refused (exit 2)
+  ok   the harness's own test root is still accepted
+== 42. F1: two `--stage rollback` of one apply at once, holder gone (the operator finishes it by hand while its dead-man fires) → the second is refused at once; VPP stopped and started exactly once, never FORCED
+  ok   the apply installed and has no result; its holder is gone
+    rollback 1 (pid 2610371): rc=1, inside its VPP stop while rollback 2 ran: y/y; rollback 2: rc=0; VPP stops=1 starts=1
+    | rollback 2: apply-startup: 2026-10-05 09:26:59 a rollback of /root/.cache/ngfw-ci-host/tmp.6iVoOjtSh2/case.KQrQ/apply/20261005-092643-2605300 is already running (pid 2610371) — nothing to do
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+  ok   the second rollback, started while the first is inside its VPP stop, is refused at once and touches nothing (exit 0)
+  ok   the first one rolls back alone (exit 1): original file, VPP active, locks released
+  ok   VPP stopped and started exactly once (stops=1 starts=1); the locks taken exclusively, never FORCED
+
+apply-startup tests: 29 passed, 0 failed

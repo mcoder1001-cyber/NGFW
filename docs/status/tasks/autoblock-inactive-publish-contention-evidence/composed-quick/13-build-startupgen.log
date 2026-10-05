@@ -1,0 +1,1 @@
+$ go -C apps/agent build -o /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/autoblock-composed-ci/codex-autoblock-inactive-publish-contention-20261005-091557-2395760/ngfw-startupgen ./cmd/ngfw-startupgen

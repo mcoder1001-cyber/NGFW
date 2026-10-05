@@ -1,6 +1,7 @@
 package ravpn
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"net"
@@ -205,6 +206,98 @@ func CleanupSnapshot(instance string) error {
 	}
 	if unix.Unlinkat(fd, snapshotReceiptName, 0) != nil || unix.Fsync(fd) != nil {
 		return ErrBoundary
+	}
+	return nil
+}
+
+// verifySnapshotContents is for restart adoption. The immutable sealed-cache
+// generation must exactly reproduce every credential and configuration byte.
+func verifySnapshotContents(instance string, expected map[string][]byte) error {
+	plan, e := ReadAgentPlan(instance)
+	if e != nil {
+		return ErrBoundary
+	}
+	fd, e := unix.Open(filepath.Join(InstanceRoot, instance), unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return ErrBoundary
+	}
+	defer unix.Close(fd)
+	child, e := unix.Openat(fd, snapshotReceiptName, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if e != nil {
+		return ErrBoundary
+	}
+	f := os.NewFile(uintptr(child), snapshotReceiptName)
+	var st unix.Stat_t
+	if unix.Fstat(child, &st) != nil || st.Mode != unix.S_IFREG|0600 || st.Uid != 0 || st.Gid != 0 || st.Nlink != 1 || st.Size > 8192 {
+		f.Close()
+		return ErrBoundary
+	}
+	data, e := io.ReadAll(io.LimitReader(f, 8193))
+	f.Close()
+	if e != nil || len(data) > 8192 {
+		return ErrBoundary
+	}
+	var r snapshotReceipt
+	decoder := json.NewDecoder(strings.NewReader(string(data)))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&r) != nil || r.Instance != instance || r.Namespace != plan.NamespaceInode || r.HostNamespace != plan.HostNamespaceInode || len(r.Nodes) != len(expected)+5 {
+		return ErrBoundary
+	}
+	for _, name := range []string{"private", "x509", "x509ca", "x509crl", "daemon"} {
+		actual, e := snapshotStat(fd, name, true)
+		if e != nil || actual != r.Nodes[name] {
+			return ErrBoundary
+		}
+		df, e := unix.Openat(fd, name, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if e != nil {
+			return ErrBoundary
+		}
+		directory := os.NewFile(uintptr(df), name)
+		entries, e := directory.ReadDir(4)
+		directory.Close()
+		if len(entries) > 1 || e != nil && e != io.EOF {
+			return ErrBoundary
+		}
+		for _, entry := range entries {
+			path := name + "/" + entry.Name()
+			if name == "daemon" {
+				if entry.Name() != "vici.sock" {
+					return ErrBoundary
+				}
+				var sock unix.Stat_t
+				if unix.Fstatat(fd, path, &sock, unix.AT_SYMLINK_NOFOLLOW) != nil || sock.Mode != unix.S_IFSOCK|0600 || sock.Uid != 0 || sock.Gid != 0 || sock.Nlink != 1 {
+					return ErrBoundary
+				}
+				continue
+			}
+			if _, ok := expected[path]; !ok {
+				return ErrBoundary
+			}
+		}
+	}
+	for name, wanted := range expected {
+		// Names originate only from the validated renderer and credential names.
+		actual, e := snapshotStat(fd, name, false)
+		if e != nil || actual != r.Nodes[name] {
+			return ErrBoundary
+		}
+		child, e := unix.Openat(fd, name, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+		if e != nil {
+			return ErrBoundary
+		}
+		f := os.NewFile(uintptr(child), name)
+		var held unix.Stat_t
+		if unix.Fstat(child, &held) != nil || held.Ino != actual.Inode || uint64(held.Dev) != actual.Device {
+			f.Close()
+			return ErrBoundary
+		}
+		data, e := io.ReadAll(io.LimitReader(f, int64(len(wanted)+1)))
+		f.Close()
+		equal := e == nil && bytes.Equal(data, wanted)
+		clear(data)
+		if !equal {
+			return ErrBoundary
+		}
 	}
 	return nil
 }

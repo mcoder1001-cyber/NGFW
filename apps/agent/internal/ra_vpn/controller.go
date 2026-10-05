@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/types/known/structpb"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
@@ -48,7 +49,7 @@ func (s EngineSpec) Validate() error {
 		return ErrEngine
 	}
 	for ref, digest := range s.Fingerprints {
-		if ref == "" || len(ref) > 256 || !ValidInstance(digest) {
+		if ref == "" || len(ref) > 256 || !strings.HasPrefix(digest, "hmac:") || !ValidInstance(strings.TrimPrefix(digest, "hmac:")) {
 			return ErrEngine
 		}
 	}

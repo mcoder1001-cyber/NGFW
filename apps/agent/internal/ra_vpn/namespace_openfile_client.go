@@ -67,7 +67,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if proof.Verify(ctx) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 4)
 	}
-	if validateNumericPublisherRequest(request) != nil || brokerProtectedParent("/run/ngfw/ra") != nil {
+	if validateNumericPublisherRequest(request) != nil || brokerProtectedParent(NamespaceIPCRoot) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 11)
 	}
 	var stat unix.Stat_t

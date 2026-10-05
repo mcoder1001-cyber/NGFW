@@ -5,7 +5,7 @@ import (
 )
 
 const numericPublisherPacketLimit = 2048
-const numericPublisherSocketPath = "/run/ngfw/ra/openfile.sock"
+const numericPublisherSocketPath = NamespacePublisherSocketPath
 const numericPublisherListenerRole = "openfile-listener"
 
 type numericPublisherRequest struct {

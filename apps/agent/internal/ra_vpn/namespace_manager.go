@@ -76,7 +76,7 @@ func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 		return ErrBoundary
 	}
 	socketDigest := sha256.Sum256(socketUnit)
-	if hex.EncodeToString(socketDigest[:]) != "e6741f49023f96381869af1206eb6040ccd03bb7c1f809473e6e975a3c816aa2" {
+	if hex.EncodeToString(socketDigest[:]) != "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308" {
 		return ErrBoundary
 	}
 	command = exec.CommandContext(bounded, "/usr/bin/systemctl", "show", "--property=FragmentPath,DropInPaths,ActiveState,SubState,Listen", "ngfw-ra-namespace-broker.socket")
@@ -95,13 +95,13 @@ func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 		return ErrBoundary
 	}
 	var socketStat unix.Stat_t
-	if unix.Lstat(namespaceBrokerSocket, &socketStat) != nil || socketStat.Uid != 0 || socketStat.Gid != 0 || socketStat.Mode != unix.S_IFSOCK|0600 {
+	if brokerProtectedParent(NamespaceIPCRoot) != nil || unix.Lstat(namespaceBrokerSocket, &socketStat) != nil || socketStat.Uid != 0 || socketStat.Gid != 0 || socketStat.Mode != unix.S_IFSOCK|0600 {
 		return ErrBoundary
 	}
 	return nil
 }
 
-const namespaceBrokerSocket = "/run/ngfw/ra-namespace.sock"
+const namespaceBrokerSocket = NamespaceBrokerSocketPath
 
 // RunFDs hands already-held namespace objects to the fixed activated broker.
 // RunFDs preserves the archived interface but refuses unauthenticated legacy
@@ -112,7 +112,7 @@ func (*SystemdNamespaceBroker) RunFDs(context.Context, NamespaceBrokerMessage, [
 
 // RunAttestedFDs transfers the authenticated caller's internally held source MNT.
 func (*SystemdNamespaceBroker) RunAttestedFDs(ctx context.Context, request NamespaceBrokerMessage, fds [4]int) error {
-	if ctx.Err() != nil || !ValidInstance(request.Instance) || brokerProtectedParent("/run/ngfw") != nil {
+	if ctx.Err() != nil || !ValidInstance(request.Instance) || brokerProtectedParent(NamespaceIPCRoot) != nil {
 		return ErrBoundary
 	}
 	info, err := os.Lstat(namespaceBrokerSocket)

@@ -67,7 +67,7 @@ func newNumericPublisherInstallationProof(ctx context.Context) (*numericPublishe
 		{unitObserverExecutable, 32 << 20, true, ""},
 		{unitObserverExecutable + ".sha256", 128, false, ""},
 		{numericPublisherService, 16384, false, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
-		{numericPublisherSocket, 16384, false, "a1d59fdd0cef428f63f6fc2504fb21ee6a542037f9f4eee445d4986a1c77ad8f"},
+		{numericPublisherSocket, 16384, false, "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147"},
 	}
 	var executableDigest string
 	for index, item := range items {

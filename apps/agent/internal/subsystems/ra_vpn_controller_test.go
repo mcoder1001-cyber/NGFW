@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 type raMemoryDescriptor struct {
@@ -511,6 +512,7 @@ type raInitializationFixture struct {
 	sourceErr, targetErr error
 	repairErr            error
 	repairCheck          func()
+	targetCheck          func(context.Context)
 }
 
 func (f *raInitializationFixture) Preflight(context.Context) error { return ravpn.ErrEngine }
@@ -535,7 +537,10 @@ func (f *raInitializationFixture) ExportExistingRepair(context.Context, *ravpn.N
 	return f.repairErr
 }
 
-func (f *raInitializationFixture) Initialize(context.Context) error {
+func (f *raInitializationFixture) Initialize(ctx context.Context) error {
+	if f.targetCheck != nil {
+		f.targetCheck(ctx)
+	}
 	*f.events = append(*f.events, "targets")
 	return f.targetErr
 }
@@ -656,5 +661,38 @@ func TestRASupplierPublisherJournalOmitsUntrustedInnerFields(t *testing.T) {
 				})
 			}
 		}
+	}
+}
+
+func TestRATargetInitializationPreservesFreshProofBudgetAndCallerDeadline(t *testing.T) {
+	for _, short := range []bool{false, true} {
+		t.Run(fmt.Sprint(short), func(t *testing.T) {
+			var events []string
+			ctx := context.Background()
+			var want time.Time
+			if short {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Second)
+				defer cancel()
+				want, _ = ctx.Deadline()
+			}
+			fixture := &raInitializationFixture{events: &events, targetErr: ravpn.ErrEngine, targetCheck: func(got context.Context) {
+				deadline, ok := got.Deadline()
+				if !ok {
+					t.Fatal("unbounded initialization")
+				}
+				if short {
+					if !deadline.Equal(want) {
+						t.Fatal("caller deadline widened")
+					}
+				} else if left := time.Until(deadline); left <= ravpn.NumericPublisherValidationBudget || left > ravpn.NumericOpenFilePublicationBudget {
+					t.Fatal("fresh validation budget clamped or widened", left)
+				}
+			}}
+			w := &Wiring{raStartup: &raStartupInitialization{runtime: ravpn.NewRuntime("budget", nil, nil, nil, nil), targets: fixture}}
+			if w.initializeRATargets(ctx) != ravpn.ErrEngine {
+				t.Fatal("failure lost")
+			}
+		})
 	}
 }

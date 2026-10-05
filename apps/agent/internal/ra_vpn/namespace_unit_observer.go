@@ -8,7 +8,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"golang.org/x/sys/unix"
 	"ngfw/agent/internal/vpp/bootid"
@@ -63,7 +62,7 @@ func (p *SystemdUnitObservation) PrepareObservation(ctx context.Context, instanc
 	if !validUnitName("ngfw-ra@"+instance+".service") || p.Preflight(ctx) != nil {
 		return ErrEngine
 	}
-	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
 	target, _, err := unitObserverTarget(bounded, instance)
 	if err != nil {

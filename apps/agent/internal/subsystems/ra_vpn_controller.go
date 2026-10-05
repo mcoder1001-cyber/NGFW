@@ -614,7 +614,7 @@ func (w *Wiring) initializeRATargets(ctx context.Context) error {
 	if startup.targets == nil {
 		return ravpn.ErrEngine
 	}
-	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
+	bounded, cancel := context.WithTimeout(ctx, ravpn.NumericOpenFilePublicationBudget)
 	defer cancel()
 	if err := startup.targets.Initialize(bounded); err != nil {
 		var failure *ravpn.SupplierInitializationFailure

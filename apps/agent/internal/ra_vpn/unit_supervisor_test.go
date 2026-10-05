@@ -2,9 +2,11 @@ package ravpn
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestUnitObservationRequiredBeforeReadiness(t *testing.T) {
@@ -264,5 +266,82 @@ func TestFailedStartActivatesObserverBeforePartialCapture(t *testing.T) {
 	}
 	if strings.Join(events, ",") != "preflight,start-failed,activate,acquire" {
 		t.Fatal("partial capture ran before activation", events)
+	}
+}
+
+type budgetObserver struct {
+	check func(context.Context)
+	calls int
+}
+
+func (o *budgetObserver) Preflight(context.Context) error { return nil }
+func (o *budgetObserver) Acquire(context.Context, string) (*UnitProcessSnapshot, error) {
+	return nil, ErrEngine
+}
+func (o *budgetObserver) PrepareObservation(ctx context.Context, _ string) error {
+	o.calls++
+	o.check(ctx)
+	return ErrEngine
+}
+
+func TestObservationBootstrapKeepsFreshProofBudgetAndCallerCancellation(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	for _, short := range []bool{false, true} {
+		t.Run(fmt.Sprint(short), func(t *testing.T) {
+			ctx := context.Background()
+			var want time.Time
+			if short {
+				var cancel context.CancelFunc
+				ctx, cancel = context.WithTimeout(ctx, time.Second)
+				defer cancel()
+				want, _ = ctx.Deadline()
+			}
+			observer := &budgetObserver{check: func(got context.Context) {
+				deadline, ok := got.Deadline()
+				if !ok {
+					t.Fatal("unbounded bootstrap")
+				}
+				if short {
+					if !deadline.Equal(want) {
+						t.Fatal("caller deadline widened")
+					}
+				} else if left := time.Until(deadline); left <= NumericPublisherValidationBudget || left > NumericOpenFilePublicationBudget {
+					t.Fatal("proof budget clamped or widened", left)
+				}
+			}}
+			if (SystemdUnits{Observation: observer}).prepareObservation(ctx, verifier.plan) != ErrEngine || observer.calls != 1 {
+				t.Fatal("bootstrap failure lost")
+			}
+		})
+	}
+}
+
+func TestFailedStartCompensationAllowsFreshProofButCannotInventOwnership(t *testing.T) {
+	_, verifier, _, _, _, _, _ := lifecycleFixture(t)
+	observer := &budgetObserver{check: func(ctx context.Context) {
+		deadline, ok := ctx.Deadline()
+		left := time.Until(deadline)
+		if !ok || left <= NumericPublisherValidationBudget || left > NumericOpenFilePublicationBudget {
+			t.Fatal("failed launch proof budget", left)
+		}
+	}}
+	calls := 0
+	units, err := NewSystemdUnitsForManager(observer, func(_ context.Context, op UnitOperation, _ string) (UnitManagerState, error) {
+		calls++
+		if op == UnitOperationObserve {
+			return UnitManagerState{}, nil
+		}
+		if op == UnitOperationStart {
+			return UnitManagerState{}, ErrEngine
+		}
+		t.Fatal("unverified compensation dispatched stop")
+		return UnitManagerState{}, ErrEngine
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	id, err := units.Start(context.Background(), verifier.plan)
+	if err != ErrEngine || id.Valid() || calls != 2 || observer.calls != 1 {
+		t.Fatal("failed bootstrap adopted/stopped unknown unit", id, err, calls, observer.calls)
 	}
 }

@@ -290,7 +290,7 @@ func (u SystemdUnits) prepareObservation(ctx context.Context, p *NetworkPlan) er
 	if !ok {
 		return nil
 	} // Trusted fixture observer can already be provisioned.
-	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
 	if activation.PrepareObservation(bounded, p.Instance) != nil {
 		return ErrEngine
@@ -314,7 +314,13 @@ func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, 
 	if _, e = u.execute(ctx, "start", name); e != nil {
 		// A failed/timed-out start may still have launched the helper. Capture
 		// only an exact private process proof so rollback can stop our generation.
-		readback, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		readbackBudget := 2 * time.Second
+		if _, freshObserver := u.Observation.(UnitObservationActivation); freshObserver {
+			// Failure compensation must allow the same fresh installation proof
+			// as activation. It remains independently finite if start canceled.
+			readbackBudget = NumericOpenFilePublicationBudget
+		}
+		readback, cancel := context.WithTimeout(context.Background(), readbackBudget)
 		defer cancel()
 		if u.prepareObservation(readback, p) != nil {
 			return UnitIdentity{}, ErrEngine

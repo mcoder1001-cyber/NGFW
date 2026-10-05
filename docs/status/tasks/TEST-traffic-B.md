@@ -1,6 +1,6 @@
 # TEST-traffic-B — REST traffic acceptance
 
-Status: implementation in progress; independent R1 BLOCK remains open. Every primary phase must configure through the slot REST candidate/commit API and reach the real VPP-backed agent before actual packet assertions. Earlier gRPC-only native/WG/BGP/OSPF proof is preserved but does not close this requirement.
+Status: blocked awaiting fresh DHCP guard repair; independent R1 BLOCK remains open. Every primary phase must configure through the slot REST candidate/commit API and reach the real VPP-backed agent before actual packet assertions. Earlier gRPC-only native/WG/BGP/OSPF proof is preserved but does not close this requirement.
 
 D-237 records test-only REST adapter, private fixture and baseline warning choices. Current runtime acceptance for the REST adapters is not yet established. The final table and actual command outputs will be recorded here after the composed REST run and complete unchanged quick, followed by independent applicable review. No missing orchestrator code is lab-deferred.
 
@@ -33,3 +33,11 @@ SIGTERM, surviving-descendant cleanup, ownership/namespace refusals, partial DB
 create cleanup and rollback-failure rig teardown. Current-source full unchanged
 quick, fresh-main integration and independent review closures remain pending.
 Task status remains running; no Done claim.
+
+## Frozen3e source-specific result and repair handoff
+
+The unchanged composed command `NGFW_INTEGRATION=1 GOMAXPROCS=2 GOFLAGS=-p=2 python3 test/topology/traffic-b/run.py --slot 27 --output .scratch/traffic-b-rest-all-fixed` completed exit0, 18:54:27–19:05:23UTC on local3e94010253e78fc68fb742e3b98132cfb5a870ad (published5339c006b11fada1df71a4bb62941810e5de2fd7, tree73aa210d374e421edfeda822d4a7af33d50a07af). All seven drivers returned zero: PSK responder and initiator, certificate, WireGuard, GRE/VXLAN, BGP, OSPF and DHCP relay. [Aggregate](TEST-traffic-B-rest-evidence/attempt-3e940-summary.json) and [public metadata](TEST-traffic-B-rest-evidence/attempt-3e940-public-result.txt) preserve exact source and hashes. Optional eight smokes remain explicitly not run.
+
+This is not completed acceptance. Independent R1 found that the reused DHCP commit helper accepts HTTP200/status-applied without enforcing empty notApplied and absence of changed-path agent.unsupported-field warnings. A status-applied response can contain those failures. A fresh repair agent must add strict guards and meaningful negative tests, pin a new coherent source, repeat all seven and complete unchanged quick plus independent reviews. Under the A3 arbitration the current author hands off rather than beginning another correction round. Independent quick on3e was still pending at handoff; no PASS is claimed.
+
+All owned commands ended. Slot27 namespaces, listeners12700/12780/16700, stack roles/databases and runtime processes were absent after cleanup; shared VPP remained MainPID1014/NRestarts0. Earlier3c failed aggregate and certificate FLAKY remain preserved. Production WireGuard secret transport remains pending; this envelope uses the authorized tagged fixture.

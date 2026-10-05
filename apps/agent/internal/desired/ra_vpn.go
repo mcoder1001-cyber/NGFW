@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// RAEnv supplies verified runtime, credential and VRF boundaries for projection.
 type RAEnv struct {
 	Owner     string
 	IDs       TunnelIDSpan
@@ -20,7 +21,7 @@ type RAEnv struct {
 	VRF       func(string) (uint32, bool)
 }
 
-// Enabled profiles project an independent verified engine. Absent readiness
+// RemoteAccess projects enabled profiles through an independent verified engine. Absent readiness
 // retains the original hard refusal; disabled drafts require no credentials.
 func RemoteAccess(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, options ...RAEnv) {
 	if !in["vpn"] {
@@ -164,6 +165,8 @@ func RemoteAccess(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, options .
 		s.Add(scheduler.Join(ravpn.EngineName, spec.Instance), value, Ptr("vpn", "remoteAccess", name))
 	}
 }
+
+// AssembleRA reconstructs remote-access desired profiles from managed engine objects.
 func AssembleRA(ds *ngfwv1.DesiredState, kvs []scheduler.KV, in map[string]bool) {
 	if !in["vpn"] {
 		return

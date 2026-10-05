@@ -26,9 +26,9 @@ func TestRARPCOwnerFirstUnavailableAndMalformedBoundaries(t *testing.T) {
 			t.Fatalf("owner first: %v", e)
 		}
 	}
-	cap, e := svc.RemoteAccessCapabilities(ctx, &ngfwv1.RemoteAccessCapabilitiesRequest{Owner: svc.owner})
-	if e != nil || cap.Operational || !cap.EditableDisabledDrafts || cap.Engine != "strongswan-ra" || len(cap.Reason) > 128 {
-		t.Fatal("invented readiness", cap, e)
+	capability, e := svc.RemoteAccessCapabilities(ctx, &ngfwv1.RemoteAccessCapabilitiesRequest{Owner: svc.owner})
+	if e != nil || capability.Operational || !capability.EditableDisabledDrafts || capability.Engine != "strongswan-ra" || len(capability.Reason) > 128 {
+		t.Fatal("invented readiness", capability, e)
 	}
 	for _, r := range []*ngfwv1.RemoteAccessSessionsRequest{{Owner: svc.owner, Profile: "road", Limit: 101}, {Owner: svc.owner, Profile: "../road"}, {Owner: svc.owner, Profile: "road", Cursor: strings.Repeat("A", 64)}} {
 		if _, e := svc.RemoteAccessSessions(ctx, r); status.Code(e) != codes.InvalidArgument {

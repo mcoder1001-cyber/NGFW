@@ -19,6 +19,8 @@ var raProfileName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.-]{0,63}$`)
 func (g *server) RemoteAccessCapabilities(ctx context.Context, req *ngfwv1.RemoteAccessCapabilitiesRequest) (*ngfwv1.RemoteAccessCapabilitiesResponse, error) {
 	return g.svc.RemoteAccessCapabilities(ctx, req)
 }
+
+// RemoteAccessCapabilities reports verified installed readiness after checking the owner.
 func (s *Service) RemoteAccessCapabilities(ctx context.Context, req *ngfwv1.RemoteAccessCapabilitiesRequest) (*ngfwv1.RemoteAccessCapabilitiesResponse, error) {
 	if e := s.checkOwner(req.GetOwner()); e != nil {
 		return nil, status.Error(codes.PermissionDenied, "remote-access owner mismatch")
@@ -35,6 +37,8 @@ func (s *Service) RemoteAccessCapabilities(ctx context.Context, req *ngfwv1.Remo
 func (g *server) RemoteAccessSessions(ctx context.Context, req *ngfwv1.RemoteAccessSessionsRequest) (*ngfwv1.RemoteAccessSessionsResponse, error) {
 	return g.svc.RemoteAccessSessions(ctx, req)
 }
+
+// RemoteAccessSessions returns bounded observed sessions for an authenticated owner.
 func (s *Service) RemoteAccessSessions(ctx context.Context, req *ngfwv1.RemoteAccessSessionsRequest) (*ngfwv1.RemoteAccessSessionsResponse, error) {
 	if e := s.checkOwner(req.GetOwner()); e != nil {
 		return nil, status.Error(codes.PermissionDenied, "remote-access owner mismatch")
@@ -82,6 +86,8 @@ func (s *Service) RemoteAccessSessions(ctx context.Context, req *ngfwv1.RemoteAc
 func (g *server) RemoteAccessDisconnect(ctx context.Context, req *ngfwv1.RemoteAccessDisconnectRequest) (*ngfwv1.RemoteAccessDisconnectResponse, error) {
 	return g.svc.RemoteAccessDisconnect(ctx, req)
 }
+
+// RemoteAccessDisconnect confirms removal of an owned observed session.
 func (s *Service) RemoteAccessDisconnect(ctx context.Context, req *ngfwv1.RemoteAccessDisconnectRequest) (*ngfwv1.RemoteAccessDisconnectResponse, error) {
 	if e := s.checkOwner(req.GetOwner()); e != nil {
 		return nil, status.Error(codes.PermissionDenied, "remote-access owner mismatch")

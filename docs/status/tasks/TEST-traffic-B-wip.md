@@ -85,3 +85,14 @@ Actual host-independent suite:14/14 PASS. Go compile3packages PASS at130 source.
 Current BGP repeat is executing real REST and learned-route packet checks; no
 final verdict is claimed before command completion. Next: await BGP, then repeat
 WireGuard with retained actual state and native REST under strict warning checks.
+
+The repeated BGP campaign completed all real REST configuration/learned FIB
+ICMP/TCP/restart/link-loss/rollback steps, but FAILed its existing strict Retrieve
+comparison because the API materializes documented defaults. Opt-in fixture
+input now explicitly sets only those defaults (default VRF, false boolean fields,
+empty AFI/redistribution/match and route-map set defaults), retaining exact
+comparisons for every configured leaf. WG assertion now follows the documented
+nullable timestamp contract and additionally requires a positive kernel handshake
+stamp; prior failures retained. Actual native REST commit refused the stale
+`/vpn/ipsec` unsupported warning; separate product prerequisite is documented in
+the questions file and assigned to the manager. Current OSPF run still pending.

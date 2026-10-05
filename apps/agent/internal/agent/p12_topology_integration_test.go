@@ -267,6 +267,30 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 			},
 		}
 	}
+	if trafficbtest.Enabled() && withBGP {
+		// Materialize the documented API defaults before REST; Retrieve still compares
+		// every configured leaf and these defaults exactly (no comparison exclusions).
+		routing := d["routing"].(map[string]any)
+		bgp := routing["bgp"].(map[string]any)
+		bgp["vrf"], bgp["gracefulRestart"], bgp["redistribute"] = "default", false, map[string]any{}
+		groups := bgp["peerGroups"].(map[string]any)
+		group := groups["peers"].(map[string]any)
+		group["bfd"] = false
+		afi := group["afi"].(map[string]any)["ipv4Unicast"].(map[string]any)
+		afi["nextHopSelf"], afi["softReconfig"], afi["defaultOriginate"] = false, false, false
+		for _, value := range bgp["neighbors"].(map[string]any) {
+			neighbor := value.(map[string]any)
+			neighbor["bfd"], neighbor["shutdown"], neighbor["afi"] = false, false, map[string]any{}
+		}
+		entries := routing["policy"].(map[string]any)["routeMaps"].(map[string]any)["rm-in"].(map[string]any)["entries"].([]any)
+		for _, value := range entries {
+			entry := value.(map[string]any)
+			if entry["match"] == nil {
+				entry["match"] = map[string]any{}
+			}
+			entry["set"] = map[string]any{"communityAdditive": false}
+		}
+	}
 	raw, err := structpb.NewStruct(d)
 	if err != nil {
 		e.t.Fatal(err)

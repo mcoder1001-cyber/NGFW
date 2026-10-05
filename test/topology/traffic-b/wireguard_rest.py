@@ -61,11 +61,15 @@ def main():
                     while time.monotonic()<deadline:
                         state=api.call('GET','/state/vpn/wireguard')
                         (args.output/'wireguard-last-state.json').write_text(json.dumps(state,indent=2))
-                        if any(p.get('established') and p.get('lastHandshake') for i in state.get('interfaces',[]) for p in i.get('peers',[])):
+                        if any(p.get('established') and p.get('status')=='established' for i in state.get('interfaces',[]) for p in i.get('peers',[])):
                             return state
                         time.sleep(.2)
                     raise Refused('WireGuard handshake not established')
-                state=established();ping=peer('ping','-n','-c','4','-W','3','-I',device,f'10.{args.slot}.61.1')
+                state=established()
+                handshake=peer('wg','show',device,'latest-handshakes')
+                if not any(int(line.split()[-1])>0 for line in handshake.splitlines()):raise Refused('kernel handshake timestamp absent')
+                (args.output/'kernel-handshake.txt').write_text(handshake)
+                ping=peer('ping','-n','-c','4','-W','3','-I',device,f'10.{args.slot}.61.1')
                 (args.output/'wireguard-ping.txt').write_text(ping)
                 capture.wait_text(lambda text:f'.{vpp_port} >' in text and f'> 10.{args.slot}.2.2.{kernel_port}' in text)
                 # Tagged owned process restart reloads the approved secret fixture; state/ping must recover.

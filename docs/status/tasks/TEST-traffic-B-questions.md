@@ -32,3 +32,30 @@ The manager identified potentially stale unsupported warnings in the WireGuard
 converter for IPsec/PKI fields. No native REST result has yet been observed after
 licensing setup. Changed-path warning checks remain strict; an actual warning
 will be recorded here before any separately reviewed product correction.
+
+### Native REST result now observed
+
+At source a45391efc, the native PSK campaign reached the production REST commit.
+The strict check refused the actual warning at `/vpn/ipsec`:
+`vpn.ipsec is not implemented by this agent build (P11)`, rule
+`agent.unsupported-field`. Private run summary:
+`.scratch/P11-host-20261005-181530-394018/summary.json`; responder diagnostics in
+that same owned run directory. Shared VPP MainPID1014/NRestarts0 unchanged.
+
+Proposed separate product correction: remove the obsolete blanket unsupported
+warnings only for subsystems actually handled by the current registered native
+IPsec/PKI implementations, retaining unsupported errors for genuinely missing
+fields. Independent tests must demonstrate active changed IPsec/PKI configuration
+no longer emits stale warnings and genuinely unsupported fields remain rejected.
+The test task does not modify that product converter or waive its warning check.
+
+### WireGuard nullable timestamp observation
+
+The tagged fixture's REST response reports actual peer `established: true`,
+`status: established`, `eventsActive: false`, `lastHandshake: null`. The production
+API contract explicitly makes lastHandshake nullable because it records when the
+agent observed an event; it is not VPP's handshake timestamp. Acceptance uses the
+actual established state plus a positive kernel `wg latest-handshakes` timestamp,
+required ping and UDP capture. Missing event timestamp remains explicitly recorded;
+no synthetic timestamp is generated. The first over-strict assertion failure is
+preserved in `.scratch/traffic-b-rest-native-state/wireguard.private.log`.

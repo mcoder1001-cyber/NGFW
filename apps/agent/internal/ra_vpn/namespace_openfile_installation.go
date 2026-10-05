@@ -24,12 +24,21 @@ const NumericPublisherValidationBudget = 20 * time.Second
 // validation. It does not permit an unbounded socket or process lifetime.
 const NumericPublisherIPCBudget = 5 * time.Second
 
+// NumericPublisherCleanupBudget reserves finite process-exit and descriptor
+// cleanup time after the independently bounded validation and IPC phases.
+const NumericPublisherCleanupBudget = 5 * time.Second
+
+// NumericPublisherServiceRuntimeBudget is the service watchdog, not an IPC
+// deadline. It covers validation20, unchanged IPC5, and finite cleanup5. The
+// caller's publication40 and any shorter cancellation/deadline still apply.
+const NumericPublisherServiceRuntimeBudget = NumericPublisherValidationBudget + NumericPublisherIPCBudget + NumericPublisherCleanupBudget
+
 // NumericOpenFilePublicationBudget bounds the complete installation, identity,
 // two fresh manager captures and publication operation. It is not a cache TTL.
 const NumericOpenFilePublicationBudget = 40 * time.Second
 
 // Fixed publisher diagnostics use journal stderr; stdout remains discarded.
-const numericPublisherServiceDigest = "24226ed4e32a1880d031f5222a8ea8c201dfdeb4a6b44fb1fd72ce3bac621712"
+const numericPublisherServiceDigest = "f6df50848d9dcddf687abeaed19b26411045b344c2de7b3a50b75a38adc789ba"
 
 // A proof belongs to exactly one call/process and holds the actual validated
 // files. Every trust boundary must verify full file stamps and fresh canonical

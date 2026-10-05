@@ -69,8 +69,7 @@ func RunNumericOpenFilePublisher() (result error) {
 			result = ErrBoundary
 		}
 	}()
-	ctx, cancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
-	defer cancel()
+	ctx := validationContext
 	diagnosticContext = ctx
 	setStage(NumericPublisherServerListener)
 	listener := int(roles[numericPublisherListenerRole].Fd())
@@ -105,6 +104,29 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	setStage(NumericPublisherServerSourceImage)
 	if validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil {
+		return ErrBoundary
+	}
+	server := (bootid.Reader{}).ForPID(os.Getpid())
+	if proof.Verify(ctx) != nil || numericPublisherManagerWithProof(ctx, server, proof) != nil {
+		return ErrBoundary
+	}
+	ready, readyErr := json.Marshal(numericPublisherReady{Version: 1, Phase: "validation-ready", Source: source, Server: server})
+	if readyErr != nil || unix.Sendmsg(socket, ready, unix.UnixRights(int(roles[sourceAgentExecutableRole].Fd())), nil, 0) != nil {
+		return ErrBoundary
+	}
+	if boundNumericPublisherValidationSocket(validationContext, socket) != nil {
+		return ErrBoundary
+	}
+	accepted, acceptedRights, acceptedErr := receiveUnitObserverPacket(socket, 0)
+	closeUnitObserverFiles(acceptedRights)
+	if acceptedErr != nil || string(accepted) != "READY" || validationContext.Err() != nil || proof.Verify(validationContext) != nil {
+		return ErrBoundary
+	}
+	ipcContext, ipcCancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
+	defer ipcCancel()
+	ctx = ipcContext
+	diagnosticContext = ctx
+	if boundUnitObserverSocket(ctx, socket) != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerRequest)

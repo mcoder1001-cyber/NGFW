@@ -60,7 +60,8 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 }
 
 func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof) (numericPublisherResponse, *os.File, error) {
-	bounded, cancel := context.WithTimeout(ctx, NumericPublisherIPCBudget)
+	publicationContext := ctx
+	bounded, cancel := context.WithTimeout(ctx, NumericPublisherValidationBudget)
 	defer cancel()
 	ctx = bounded
 	var empty numericPublisherResponse
@@ -79,12 +80,35 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 		return empty, nil, numericPublisherFailure(ctx, 13)
 	}
 	defer func() { _ = unix.Close(fd) }()
-	if boundUnitObserverSocket(ctx, fd) != nil || unix.Connect(fd, &unix.SockaddrUnix{Name: numericPublisherSocketPath}) != nil {
+	stopCancellation := watchNumericPublisherCancellation(publicationContext, fd)
+	defer stopCancellation()
+	if boundNumericPublisherValidationSocket(ctx, fd) != nil || unix.Connect(fd, &unix.SockaddrUnix{Name: numericPublisherSocketPath}) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 14)
 	}
 	peer, err := unix.GetsockoptUcred(fd, unix.SOL_SOCKET, unix.SO_PEERCRED)
 	if err != nil || peer.Uid != 0 || peer.Gid != 0 || peer.Pid != 1 {
 		return empty, nil, numericPublisherFailure(ctx, 15)
+	}
+	readyData, readyFiles, readyErr := receiveUnitObserverPacket(fd, 1)
+	if readyErr != nil {
+		return empty, nil, numericPublisherFailure(ctx, 19)
+	}
+	defer closeUnitObserverFiles(readyFiles)
+	var ready numericPublisherReady
+	if decodeUnitObserverPacket(readyData, &ready) != nil || validateNumericPublisherReady(ready, request.Source) != nil || validateSourceAgentExecutable(readyFiles[0]) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 20)
+	}
+	if err := numericPublisherManagerWithProof(ctx, ready.Server, proof); err != nil {
+		return empty, nil, err
+	}
+	if unix.Sendmsg(fd, []byte("READY"), nil, nil, 0) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 17)
+	}
+	ipc, ipcCancel := context.WithTimeout(publicationContext, NumericPublisherIPCBudget)
+	defer ipcCancel()
+	ctx = ipc
+	if boundUnitObserverSocket(ctx, fd) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 14)
 	}
 	content, err := json.Marshal(request)
 	if err != nil || len(content) > numericPublisherPacketLimit {
@@ -107,7 +131,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 		}
 	}()
 	var response numericPublisherResponse
-	if len(data) > numericPublisherPacketLimit || decodeUnitObserverPacket(data, &response) != nil || response.Phase != request.Phase || !response.Source.Equal(request.Source) || !response.Server.Complete() {
+	if len(data) > numericPublisherPacketLimit || decodeUnitObserverPacket(data, &response) != nil || response.Phase != request.Phase || !response.Source.Equal(request.Source) || !response.Server.Equal(ready.Server) || !sameNumericPublisherSource(readyFiles[0], files[0]) {
 		return empty, nil, numericPublisherFailure(ctx, 20)
 	}
 	if err := numericPublisherManagerWithProof(ctx, response.Server, proof); err != nil {

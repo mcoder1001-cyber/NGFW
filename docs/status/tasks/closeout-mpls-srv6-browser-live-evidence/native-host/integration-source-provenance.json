@@ -1,0 +1,81 @@
+{
+  "integrationBase": "e1e11f655b635e29c951c321560b68f48feae8dc",
+  "producer": "5ebec5f7017613d6a1f3b2fb84e1e0779e057a11",
+  "producerBase": "5ff58a7bef5d6404ddc7497d445acc748009029e",
+  "producerPathsCopiedExact": 115,
+  "review": "008d44d688fa64e9fce656741aaf64f5d9efa9fc",
+  "actualPassCampaign": 11,
+  "actualPassFixture": "991331deb3b401d412b09e66afe619a1e8e2a977",
+  "frozenArtifactEntries": 1049,
+  "artifactPrePostEqual": true,
+  "frozenComponents": [
+    {
+      "component": "http-service",
+      "source": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+      "entries": 775
+    },
+    {
+      "component": "web",
+      "source": "ff5333a98ce5688789d29b1149ddfc9febd3fd0f",
+      "entries": 273
+    },
+    {
+      "component": "agent",
+      "source": "ff5333a98ce5688789d29b1149ddfc9febd3fd0f",
+      "entries": 1
+    }
+  ],
+  "nativeManifestSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+  "nativeHostTestsPassedNoSkip": 13,
+  "selectedRelevantSourceEquality": [
+    {
+      "group": "agent MPLS/SRv6 and shared native descriptors",
+      "selectors": [
+        "apps/agent/internal/descriptors/mpls",
+        "apps/agent/internal/descriptors/sr",
+        "apps/agent/internal/descriptors/df6",
+        "apps/agent/internal/descriptors/df7",
+        "apps/agent/internal/desired/mpls_srmpls.go",
+        "apps/agent/internal/desired/srv6.go",
+        "apps/agent/internal/subsystems/mpls_srmpls.go",
+        "apps/agent/internal/subsystems/srv6.go",
+        "apps/agent/internal/agent/rpc_mpls_srmpls.go",
+        "apps/agent/internal/agent/rpc_srv6.go",
+        "apps/agent/internal/agent/rpc_mpls_srmpls_integration_test.go",
+        "apps/agent/internal/agent/srv6_integration_test.go"
+      ],
+      "files": 65,
+      "oldSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+      "integrationBase": "e1e11f655b635e29c951c321560b68f48feae8dc",
+      "byteIdentical": true
+    },
+    {
+      "group": "API MPLS/SRv6 controllers",
+      "selectors": [
+        "apps/api/src/features/mpls-srmpls",
+        "apps/api/src/features/srv6"
+      ],
+      "files": 8,
+      "oldSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+      "integrationBase": "e1e11f655b635e29c951c321560b68f48feae8dc",
+      "byteIdentical": true
+    },
+    {
+      "group": "configured UI MPLS/SRv6",
+      "selectors": [
+        "apps/web/src/domains/routing/mpls-srmpls",
+        "apps/web/src/domains/vpn/srv6"
+      ],
+      "files": 18,
+      "oldSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+      "integrationBase": "e1e11f655b635e29c951c321560b68f48feae8dc",
+      "byteIdentical": true
+    }
+  ],
+  "limitations": [
+    "mixed frozen components, not homogeneous latest whole appliance",
+    "real recommit504 failures attempts7/9 remain unresolved, not claimed repaired",
+    "actual zero SR counters; no packet/performance claim",
+    "complete unchanged integration quick and manager board/merge still pending"
+  ]
+}

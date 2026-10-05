@@ -1,0 +1,1117 @@
+{
+  "results": [
+    {
+      "path": "/routing/mpls",
+      "lang": "en",
+      "dir": "ltr",
+      "route": "/routing/mpls?tab=interfaces",
+      "need": [
+        "loop1460"
+      ],
+      "screenshot": "en-0-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "en",
+      "dir": "ltr",
+      "route": "/routing/mpls?tab=routes",
+      "need": [
+        "140016",
+        "140030",
+        "140040",
+        "10.14.40.0/24"
+      ],
+      "screenshot": "en-1-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "en",
+      "dir": "ltr",
+      "route": "/routing/mpls?tab=tunnels",
+      "need": [
+        "browser-t1",
+        "140050"
+      ],
+      "screenshot": "en-2-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "en",
+      "dir": "ltr",
+      "route": "/routing/mpls?tab=sr",
+      "need": [
+        "140100",
+        "140101",
+        "140102",
+        "10.14.60.0/24"
+      ],
+      "screenshot": "en-3-mpls.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "en",
+      "dir": "ltr",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "sids",
+      "need": [
+        "fd00:e:ff::1",
+        "fd00:e:ff::2",
+        "fd00:e:ff::a",
+        "fd00:e:ff::b",
+        "fd00:e:ff::c"
+      ],
+      "screenshot": "en-4-sids.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "en",
+      "dir": "ltr",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "policies",
+      "need": [
+        "fd00:e:bb::1",
+        "fd00:e:bb::2",
+        "fd00:e:ee::1",
+        "fd00:e:ee::2"
+      ],
+      "screenshot": "en-5-policies.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "en",
+      "dir": "ltr",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "steering",
+      "need": [
+        "10.14.160.0/24",
+        "fd00:e:160::/48",
+        "loop1461"
+      ],
+      "screenshot": "en-6-steering.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "en",
+      "dir": "ltr",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "policies",
+      "editor": true,
+      "need": [
+        "fd00:e:ee::1",
+        "fd00:e:ee::a",
+        "fd00:e:ee::2"
+      ],
+      "screenshot": "en-7-policies-editor.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "fa",
+      "dir": "rtl",
+      "route": "/routing/mpls?tab=interfaces",
+      "need": [
+        "loop1460"
+      ],
+      "screenshot": "fa-0-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "fa",
+      "dir": "rtl",
+      "route": "/routing/mpls?tab=routes",
+      "need": [
+        "140016",
+        "140030",
+        "140040",
+        "10.14.40.0/24"
+      ],
+      "screenshot": "fa-1-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "fa",
+      "dir": "rtl",
+      "route": "/routing/mpls?tab=tunnels",
+      "need": [
+        "browser-t1",
+        "140050"
+      ],
+      "screenshot": "fa-2-mpls.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "fa",
+      "dir": "rtl",
+      "route": "/routing/mpls?tab=sr",
+      "need": [
+        "140100",
+        "140101",
+        "140102",
+        "10.14.60.0/24"
+      ],
+      "screenshot": "fa-3-mpls.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "fa",
+      "dir": "rtl",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "sids",
+      "need": [
+        "fd00:e:ff::1",
+        "fd00:e:ff::2",
+        "fd00:e:ff::a",
+        "fd00:e:ff::b",
+        "fd00:e:ff::c"
+      ],
+      "screenshot": "fa-4-sids.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "fa",
+      "dir": "rtl",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "policies",
+      "need": [
+        "fd00:e:bb::1",
+        "fd00:e:bb::2",
+        "fd00:e:ee::1",
+        "fd00:e:ee::2"
+      ],
+      "screenshot": "fa-5-policies.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "fa",
+      "dir": "rtl",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "steering",
+      "need": [
+        "10.14.160.0/24",
+        "fd00:e:160::/48",
+        "loop1461"
+      ],
+      "screenshot": "fa-6-steering.png"
+    },
+    {
+      "path": "/vpn",
+      "lang": "fa",
+      "dir": "rtl",
+      "nativeCounts": {
+        "localSids": 5,
+        "policies": 2,
+        "steering": 3
+      },
+      "counters": [
+        {
+          "sid": "fd00:e:ff::1",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::2",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::a",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::b",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        },
+        {
+          "sid": "fd00:e:ff::c",
+          "goodPackets": 0,
+          "goodBytes": 0,
+          "badPackets": 0,
+          "badBytes": 0
+        }
+      ],
+      "route": "/vpn?tab=srv6",
+      "tab": "policies",
+      "editor": true,
+      "need": [
+        "fd00:e:ee::1",
+        "fd00:e:ee::a",
+        "fd00:e:ee::2"
+      ],
+      "screenshot": "fa-7-policies-editor.png"
+    }
+  ],
+  "responses": [
+    {
+      "path": "/api/v1/auth/banner",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/methods",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 401
+    },
+    {
+      "path": "/api/v1/auth/banner",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/methods",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/host",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/events",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/mpls/tunnels",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/mpls/tunnels",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

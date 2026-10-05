@@ -1,0 +1,4 @@
+$ gitleaks git . --no-banner --redact --exit-code 1 --report-format json --report-path /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/mpls-srv6-integration-ci/codex-mpls-srv6-closeout-final-20261005-065714-1654483/gitleaks-report.json --config .github/gitleaks.toml --log-opts=e1e11f655b635e29c951c321560b68f48feae8dc..HEAD
+6:59AM INF 1 commits scanned.
+6:59AM INF scanned ~5741235 bytes (5.74 MB) in 6.22s
+6:59AM INF no leaks found

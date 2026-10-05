@@ -1,0 +1,50 @@
+$ env -u NGFW_TEST_ONLY -u KEEP NGFW_TEST_SHARD=1/4 deploy/vpp/test-apply-startup.sh /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/mpls-srv6-integration-ci/codex-mpls-srv6-closeout-final-20261005-065714-1654483/ngfw-startupgen
+== 1. dry run (default) changes nothing; prints diffs, drivers, management restore plan, reachability check, preflight, gate, both sha256
+  ok   exit 3 (the gate would refuse --apply: TD-6 V9); unified diff shows the new dev lines
+  ok   semantic diff shows the logical names
+  ok   drivers of the PCI devices involved are listed
+  ok   management interface, ifupdown detected, addresses recorded
+  ok   exact restore plan printed (address + default route)
+  ok   link-local address and kernel routes are not in the plan
+  ok   reachability check chosen and shown: neigh (next hop REACHABLE)
+  ok   VPP preflight + boot identity; gate state shown
+  ok   sha256 of the live file and of the rendering printed
+  ok   live file untouched, VPP not restarted, no ip change
+  ok   dry run removed its temp dir
+== 5. --stage run verifies the sealed plan (forged gate / altered settings → refused)
+  ok   forged gate file: exit 3
+  ok   altered settings: exit 3
+== 9. VPP did not actually restart (same boot identity) → rollback
+  ok   exit 1, detected
+== 13. the path stays dead after the rollback → ONE rollback, console-needed, locks released, no restart loop (N1)
+  ok   exit 1, file restored, console-needed marker
+  ok   locks released, timer cancelled, VPP (re)started twice in total (apply + one rollback)
+  ok   a late dead-man does nothing — no further restart
+== 17. ifupdown, exact re-apply not enough → ifup --force ens192
+  ok   exit 1, ifup --force used, rollback healthy
+== 21. VPP HANGS after the restart (socket accepted, no answer) → bounded wait, rollback
+  ok   exit 1, rolled back
+  ok   bounded: 18s (limit 61s = 30s idle-host limit × load factor at load 10.93; unbounded: wait_api on a VPP that never answers: sleep 1000 per probe)
+== 25. systemd-run unavailable → --apply refused, no fallback (N2)
+  ok   run unit: exit 3, nothing changed
+  ok   lock holder unit (--foreground): exit 3, nothing changed
+  ok   dead-man timer: exit 3, refused before install, locks released
+== 29. dead-man, holder gone AND a foreign process holds the lab lock → bounded wait, FORCED rollback, holder logged
+  ok   exit 1, rolled back without the lock, holder named
+  ok   bounded: 5s (limit 33s = 15s idle-host limit × load factor at load 13.04; unbounded: the foreign holder keeps the lab lock for 300 s)
+== 33. V2: the rollback cannot write startup.conf (/etc/vpp replaced by a file during the window) → VPP is NOT stopped; console-needed; timer cancelled; locks released
+    state: rc=1 finished=[console-needed] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=n
+  ok   exit 1, console-needed names the failed restore
+  ok   VPP left running (never stopped), locks released, timer cancelled
+  ok   a late dead-man does nothing
+== 37. V5: the holder dies while a shared waiter queues on the lab lock → the run's rollback takes the locks exclusively (bounded) before it stops VPP
+    state: rc=1 finished=[rolled-back] vpp=active locks-free=y timer-cancelled=y live==new=n live==orig=y
+    order: 16:WAITER-IN 22:WAITER-OUT 23:systemctl stop vpp 30:systemctl start vpp 
+  ok   exit 1, rolled back
+  ok   the waiter's lab-lock section [16,22] and the rollback's VPP stop..start [23,30] do not overlap (calls lines)
+  ok   the rollback took the locks exclusively (not FORCED) and released them
+== 41. V9: the dry run exits 3 when --apply would be refused by the gate, 0 when the approval covers this rendering
+  ok   handover pending, no approval: exit 3 (sums still printed)
+  ok   approval names this rendering: exit 0
+
+apply-startup tests: 33 passed, 0 failed

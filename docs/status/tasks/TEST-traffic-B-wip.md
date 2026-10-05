@@ -123,3 +123,13 @@ cannot silently accept unchanged. This guard will be verified by final composed
 rerun after the native stale-warning prerequisite. Signed licence test material
 stays private; remote checkpoints confirmed through a45391efc at
 b2064f8d4c764b85aba4ff57ee10878e6f0bbe7b. Later checkpoints await manager publication.
+
+Latest queued compile on d751 completed PASS for the three affected Go packages.
+No owned protocol command remains active. Durable remote source confirmations:
+34e545fc6→6ec1d7a7bbc0a0ad600a6c37e5b1a7bb2d868435;
+0c95a49ef→196feb00e8af663f9be1edbf8e98f387397fb1b7;
+d75127d30→412d6e70debca1cf801adc3fbd9a2366c3d29e64.
+Curated actual REST3 evidence is local dcf54014c awaiting manager publication.
+Next: integrate the manager's independently reviewed native-warning prerequisite
+and exact fresh backup-main pin, then freeze source, build the owned binaries and
+run all seven primary REST phases followed by the unchanged complete quick gate.

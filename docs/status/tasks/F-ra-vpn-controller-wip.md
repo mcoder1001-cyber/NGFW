@@ -8,3 +8,5 @@ Owned: new internal/ra_vpn controller/runtime/engine_descriptor/handoff_verifier
 Completed: material-free EngineSpec and sealed snapshot preparation contract. Secret bytes never enter scheduler records or generic formatting. Activation and controller consumers remain unfinished; enabled profiles still fail closed. Compile and meaningful lifecycle tests pending. No shared host service, VPP or configuration mutations.
 
 Next: pair snapshot adapter contract with engine owner, implement verified transport readback and stopped-before-repair controller, production projection and RPC, then targeted lifecycle/security tests. Full quick and independent review remain mandatory.
+
+Checkpoint: lifecycle, fixed-unit supervisor and shared transport readback consumers drafted. New contract preserves actual immutable hmac:<64hex> refs. Initial new transport tests failed due reviewer fixture decoding camelCase with encoding/json; corrected fixture to normal protojson. Targeted retest running. Production descriptor/store/projection/RPC/preflight and restart/failure lifecycle tests remain unfinished. No operational readiness claimed.

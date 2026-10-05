@@ -65,15 +65,8 @@ func Wireguard(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(s
 		return
 	}
 	v := ds.GetVpn()
-	// P11 (IPsec), F-pki and F-ra-vpn implement the rest of the domain; until they land, their leaves are
-	// reported like P08's routing protocols (the drift view skips them). Each of those rows removes its
-	// own pointer from this list.
-	if v.GetIpsec() != nil && proto.Size(v.GetIpsec()) > 0 {
-		s.Warnf(Ptr("vpn", "ipsec"), ruleUnsupportedField, "vpn.ipsec is not implemented by this agent build (P11)")
-	}
-	if v.GetPki() != nil && proto.Size(v.GetPki()) > 0 {
-		s.Warnf(Ptr("vpn", "pki"), ruleUnsupportedField, "vpn.pki is not implemented by this agent build (F-pki)")
-	}
+	// IPsec, PKI and remote access validate their own implemented capabilities.
+
 	ifs := v.GetWireguard().GetInterfaces()
 	eps := wireguardEndpoints(ifs)
 	for _, name := range sortedKeys(ifs) {

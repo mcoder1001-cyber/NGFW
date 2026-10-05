@@ -1,0 +1,541 @@
+{
+  "owner": "w27",
+  "private_vpp": {
+    "pid": 401657,
+    "mount_namespace": "mnt:[4026532598]",
+    "api_socket": "/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-401638/vpp/api.sock"
+  },
+  "baseline_revision": 1,
+  "baseline_warnings": [
+    {
+      "pointer": "/management/aaa",
+      "message": "management.aaa is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/management/backup",
+      "message": "management.backup is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/management/tls",
+      "message": "management.tls is not applied by this agent build",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/nat/ipfix",
+      "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/services/ipfix/flowprobe",
+      "message": "flowprobe parameters are applied only with at least one monitored interface",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/services/lldp",
+      "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+      "rule": "agent.write-only"
+    },
+    {
+      "pointer": "/services/ntp",
+      "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+      "rule": "agent.unsupported-field"
+    },
+    {
+      "pointer": "/vpn/ipsec",
+      "message": "vpn.ipsec is not implemented by this agent build (P11)",
+      "rule": "agent.unsupported-field"
+    }
+  ],
+  "events": [
+    {
+      "txn": "w27-p12-commit",
+      "status": "applied",
+      "revision": 2,
+      "candidate_sha256": "796eb4e709c4acd3f44dfc6a31b31874a1f186546974b9da3baa819e1ebc8b60",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "af-packet.host-interface/host-w27l0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27l0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "af-packet.host-interface/host-w27w0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27w0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface/host-w27l0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27l0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface-ip/host-w27l0/10.27.1.1/24",
+          "op": "create",
+          "pointer": "/interfaces/host-w27l0/ipv4/0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface.admin-state/host-w27l0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27l0/enabled",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface/host-w27w0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27w0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface-ip/host-w27w0/10.27.2.1/24",
+          "op": "create",
+          "pointer": "/interfaces/host-w27w0/ipv4/0",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "interface.admin-state/host-w27w0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27w0/enabled",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "lcp.itf-pair/host-w27l0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27l0/lcp",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "lcp.itf-pair/host-w27w0",
+          "op": "create",
+          "pointer": "/interfaces/host-w27w0/lcp",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        },
+        {
+          "key": "frr.config/ngfw",
+          "op": "create",
+          "pointer": "/routing",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "w27-p12-idempotent",
+      "status": "applied",
+      "revision": 3,
+      "candidate_sha256": "796eb4e709c4acd3f44dfc6a31b31874a1f186546974b9da3baa819e1ebc8b60",
+      "candidate_owner": 1,
+      "results": [],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "w27-p12-deny-half",
+      "status": "applied",
+      "revision": 4,
+      "candidate_sha256": "c19507a015e2c4dcd03a0023bfc3c7aaf6e35e1e9f1936f69dddce43a517d4e9",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "frr.config/ngfw",
+          "op": "update",
+          "pointer": "/routing",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "w27-p12-lan-down",
+      "status": "applied",
+      "revision": 5,
+      "candidate_sha256": "4d43d494ba1a7b0af9361095235e19df17cda2e9243ced5d429abac95c180686",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "interface.admin-state/host-w27l0",
+          "op": "delete",
+          "pointer": "",
+          "subsystem": "interfaces",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "w27-p12-lan-up",
+      "status": "applied",
+      "revision": 6,
+      "candidate_sha256": "c19507a015e2c4dcd03a0023bfc3c7aaf6e35e1e9f1936f69dddce43a517d4e9",
+      "candidate_owner": 1,
+      "results": [],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "w27-p12-rollback",
+      "status": "applied",
+      "revision": 7,
+      "candidate_sha256": "b3294b47fbf809d31b50fc7e7589b06ecc9eab83336f99acc690244fde23b769",
+      "candidate_owner": 1,
+      "results": [
+        {
+          "key": "frr.config/ngfw",
+          "op": "update",
+          "pointer": "/routing",
+          "subsystem": "routing",
+          "code": "ok",
+          "message": ""
+        }
+      ],
+      "warnings": [
+        {
+          "pointer": "/interfaces/host-w27l0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/interfaces/host-w27w0/lcp/netns",
+          "message": "netns \"ns-w27-frr\" must equal the box's linux-cp default netns (startup.conf linux-cp { default netns }); otherwise linux-nl ignores this pair: no routes, addresses, admin state or MTU reach VPP through it \u2014 leave it empty to use the default",
+          "rule": "routing.bgp-lcp-netns"
+        },
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/backup",
+          "message": "management.backup is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "notApplied": []
+    },
+    {
+      "txn": "rest-baseline-rollback",
+      "status": "applied",
+      "revision": 8,
+      "baseline_sha256": "e79a6bb72c756352417fca6af0a6fe4e7f11bf02c0304e7f6657c3ab140c67d1"
+    }
+  ]
+}

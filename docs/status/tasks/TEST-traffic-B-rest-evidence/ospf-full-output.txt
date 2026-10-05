@@ -1,0 +1,546 @@
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:622: waiting for the exclusive globals lock /run/lock/ngfw-globals.lock …
+    ospf_topology_integration_test.go:626: globals window open at 2026-10-05T18:21:37Z
+    ospf_topology_integration_test.go:633: systemctl show vpp -p NRestarts (before) = 0
+2026/10/05 18:21:37 INFO VPP binary API connected component=vpp socket=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock
+    ospf_topology_integration_test.go:653: NGFW_OSPF_FIB=root on /root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock (not the shared VPP)
+    ospf_topology_integration_test.go:653: NGFW_OSPF_FIB=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    ospf_topology_integration_test.go:658: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    ospf_topology_integration_test.go:663: rig up w27 (slot 27, path af_packet)
+          create netns ns-w27-lan
+          create veth w27l0 <-> ns-w27-lan:w27l1
+          create vpp host-w27l0 (af_packet on w27l0)
+          reset  ip/ip6 classify host-w27l0 (table-index ~0)
+          set    addr host-w27l0 10.27.1.1/24
+          create netns ns-w27-wan
+          create veth w27w0 <-> ns-w27-wan:w27w1
+          create vpp host-w27w0 (af_packet on w27w0)
+          reset  ip/ip6 classify host-w27w0 (table-index ~0)
+          set    addr host-w27w0 10.27.2.1/24
+        rig: up
+        prefix: w27
+        slot: 27
+        path: af_packet
+        lan_ns: ns-w27-lan
+        lan_veth: w27l1
+        lan_ip: 10.27.1.2/24
+        lan_gw: 10.27.1.1
+        vpp_lan_if: host-w27l0
+        vpp_lan_addr: 10.27.1.1/24 
+        wan_ns: ns-w27-wan
+        wan_veth: w27w1
+        wan_ip: 10.27.2.2/24
+        wan_gw: 10.27.2.1
+        vpp_wan_if: host-w27w0
+        vpp_wan_addr: 10.27.2.1/24 
+        ping: ip netns exec ns-w27-lan ping -c 3 10.27.2.2
+        
+    ospf_topology_integration_test.go:678: OSPF fixture link w27l0/w27l1 in ns-w27-lan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:678: OSPF fixture link w27w0/w27w1 in ns-w27-wan: MTU 9000 matches VPP/LCP
+    ospf_topology_integration_test.go:681: rig VPP side handed to the agent: af_packet_delete w27l0 (veth down)
+    ospf_topology_integration_test.go:681: rig VPP side handed to the agent: af_packet_delete w27w0 (veth down)
+    ospf_topology_integration_test.go:686: rootFRR: [mgmtd zebra staticd ospfd] started in the root netns, pathspace w27, base /run/ngfw-test/w27/frr, pids map[mgmtd:407279 ospfd:407322 staticd:407311 zebra:407303]
+2026/10/05 18:22:00 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w27 component=subsystems
+2026/10/05 18:22:00 INFO PKI file materialiser wired owner=w27 component=subsystems root=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/pki-w27 source=true
+2026/10/05 18:22:00 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w27 component=subsystems
+2026/10/05 18:22:00 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w27 component=subsystems
+2026/10/05 18:22:00 INFO fqdn state reloaded owner=w27 component=subsystems family=objects file=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/objects-fqdn-w27.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/05 18:22:00 INFO VPP binary API connected owner=w27 component=vpp socket=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock
+2026/10/05 18:22:00 INFO objects domain wired owner=w27 component=subsystems store=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/objects-w27.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/05 18:22:00 INFO acl domain wired owner=w27 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/05 18:22:00 INFO host firewall wired owner=w27 component=subsystems table="inet ngfw_w27" mode=check netns="" rules_file=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/host-acl-w27.nft
+2026/10/05 18:22:00 INFO kea wired owner=w27 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/05 18:22:00 INFO host services wired owner=w27 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3972708542/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3972708542/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3972708542/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/05 18:22:00 INFO system identity wired owner=w27 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-3972708542/sysident/etc/hostname
+2026/10/05 18:22:00 INFO pppoe client wired owner=w27 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/05 18:22:00 INFO subsystems wired owner=w27 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state: claims-iface-w27.json, boot-w27.json; globals owner false" vpp_ids=27000-27999
+2026/10/05 18:22:00 INFO ngfw-agent listening owner=w27 socket=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state vpp_api=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock
+2026/10/05 18:22:00 INFO VPP boot identity owner=w27 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/406658/20544651 complete=true expired_claims=0
+2026/10/05 18:22:00 INFO reconcile start owner=w27 txn_id="" mode=resync domains=[]
+2026/10/05 18:22:00 WARN neighbour events: interface dump owner=w27 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/05 18:22:00 INFO reconcile done owner=w27 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=164.610158ms err=""
+2026/10/05 18:22:00 INFO resync finished owner=w27 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/05 18:22:00 INFO dynamic source started owner=w27 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/05 18:22:00 INFO dynamic source started owner=w27 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/05 18:22:00 INFO dynamic source started owner=w27 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/05 18:22:10 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:11 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=203.889133ms err=""
+2026/10/05 18:22:11 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:11 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=124.895517ms err=""
+2026/10/05 18:22:11 INFO reconcile start owner=w27 txn_id=619a0148-8af7-4342-a0bc-02baefceee49 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:12 INFO created owner=w27 component=scheduler key=vrf/27040
+2026/10/05 18:22:12 INFO system identity applied owner=w27 component=subsystems feature=system-identity hostname=ngfw timezone=UTC files="[/tmp/ngfw-agent-test-3972708542/sysident/etc/hostname /tmp/ngfw-agent-test-3972708542/sysident/etc/issue /tmp/ngfw-agent-test-3972708542/sysident/etc/issue.net /tmp/ngfw-agent-test-3972708542/sysident/etc/motd /tmp/ngfw-agent-test-3972708542/sysident/etc/systemd/resolved.conf.d/ngfw.conf]" localtime=true kernel_hostname=false
+2026/10/05 18:22:12 WARN system resolver configuration written; systemd-resolved must be restarted to read it owner=w27 component=subsystems feature=system-identity unit=systemd-resolved action=restart dropin=/tmp/ngfw-agent-test-3972708542/sysident/etc/systemd/resolved.conf.d/ngfw.conf
+2026/10/05 18:22:12 INFO created owner=w27 component=scheduler key=system.identity/ngfw
+2026/10/05 18:22:12 INFO reconcile done owner=w27 txn_id=619a0148-8af7-4342-a0bc-02baefceee49 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary=created:2 reapplied=0 duration=350.211653ms err=""
+2026/10/05 18:22:12 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:12 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=169.986081ms err=""
+2026/10/05 18:22:12 INFO reconcile start owner=w27 txn_id=f0e6790b-a9d5-4a55-b9a5-07922ffe516d mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w27l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=af-packet.host-interface/host-w27l0
+2026/10/05 18:22:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w27w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=af-packet.host-interface/host-w27w0
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface/host-w27l0
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface-ip/host-w27l0/10.27.1.1/24
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface.admin-state/host-w27l0
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface/host-w27w0
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface-ip/host-w27w0/10.27.2.1/24
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=interface.admin-state/host-w27w0
+2026/10/05 18:22:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=lcp.itf-pair/host-w27l0
+2026/10/05 18:22:13 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:13 INFO created owner=w27 component=scheduler key=lcp.itf-pair/host-w27w0
+2026/10/05 18:22:15 INFO FRR configuration applied owner=w27 component=subsystems component=frr conf=/run/ngfw-test/w27/frr/etc/w27/frr.conf bgp=false
+2026/10/05 18:22:15 INFO created owner=w27 component=scheduler key=frr.config/ngfw
+2026/10/05 18:22:15 INFO reconcile done owner=w27 txn_id=f0e6790b-a9d5-4a55-b9a5-07922ffe516d mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary="created:11  unchanged:2" reapplied=0 duration=2.889062597s err=""
+    ospf_topology_integration_test.go:748: REST commit w27-p12-commit status=applied (actual object results=11)
+2026/10/05 18:22:16 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:16 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=549.172818ms err=""
+    ospf_topology_integration_test.go:750: both adjacencies Full after 1.1s: [{VRF:default RouterID:10.27.1.2 Address:10.27.1.2 Interface:w27-l0 State:Full/- Priority:1} {VRF:default RouterID:10.27.2.2 Address:10.27.2.2 Interface:w27-w0 State:Full/- Priority:1}]
+2026/10/05 18:22:17 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:18 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=621.310746ms err=""
+2026/10/05 18:22:20 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:21 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=565.599072ms err=""
+    ospf_topology_integration_test.go:751: 100 routes after commit: FRR RIB ospf=100, VPP lcp-rt-dynamic=100 after 5.5s
+    ospf_topology_integration_test.go:752: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w27l0 tap4096 w27-l0 10 type tap
+        itf-pair: [1] host-w27w0 tap4097 w27-w0 11 type tap
+    ospf_topology_integration_test.go:752: [after commit] ip -br addr show (root, slot lines):
+        w27l0@if6        UP             
+        w27w0@if8        UP             
+        w27-l0           UNKNOWN        10.27.1.1/24 fe80::fe:63ff:fe1b:919f/64 
+        w27-w0           UNKNOWN        10.27.2.1/24 fe80::fe:d9ff:febe:9554/64 
+    ospf_topology_integration_test.go:752: [after commit] vtysh -N w27 "show ip ospf neighbor":
+        
+        Neighbor ID     Pri State           Up Time         Dead Time Address         Interface                        RXmtL RqstL DBsmL
+        10.27.1.2         1 Full/-          6.202s             3.365s 10.27.1.2       w27-l0:10.27.1.1                     0     0     0
+        10.27.2.2         1 Full/-          6.202s             3.376s 10.27.2.2       w27-w0:10.27.2.1                     0     0     0
+        
+    ospf_topology_integration_test.go:752: [after commit] ip -4 route show proto ospf (root netns): 100 routes
+        10.27.64.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.65.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.66.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.67.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.68.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.69.0/24 nhid 11 via 10.27.1.2 dev w27-l0 metric 20 
+        … (94 more)
+    ospf_topology_integration_test.go:752: [after commit] vppctl show ip fib 10.27.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.27.64.0/24 fib:0 index:30 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[49] locks:100 flags:shared, uPRF-list:37 len:1 itfs:[2, ]
+              path:[65] pl-index:49 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.27.1.2 host-w27l0
+              [@0]: ipv4 via 10.27.1.2 host-w27l0: mtu:9000 next:7 flags:[] 36db07cf3e3f02fe631b919f0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:32 buckets:1 uRPF:37 to:[0:0]]
+            [0] [@5]: ipv4 via 10.27.1.2 host-w27l0: mtu:9000 next:7 flags:[] 36db07cf3e3f02fe631b919f0800
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    ospf_topology_integration_test.go:752: [after commit] vppctl show ip fib 10.27.128.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.27.128.0/24 fib:0 index:80 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[50] locks:100 flags:shared, uPRF-list:38 len:1 itfs:[1, ]
+              path:[66] pl-index:50 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.27.2.2 host-w27w0
+              [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:82 buckets:1 uRPF:38 to:[0:0]]
+            [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+2026/10/05 18:22:25 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:26 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=558.405564ms err=""
+    ospf_topology_integration_test.go:753: Wave-B ospf packet probe accepted; text evidence /root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/evidence
+    ospf_topology_integration_test.go:763: Retrieve routing.ospf == desired: {
+          "routerId":  "10.27.1.1",
+          "vrf":  "default",
+          "areas":  {
+            "0":  {
+              "type":  "normal",
+              "noSummary":  false
+            }
+          },
+          "interfaces":  {
+            "host-w27l0":  {
+              "area":  "0",
+              "passive":  false,
+              "networkType":  "point-to-point",
+              "helloIntervalSec":  1,
+              "deadIntervalSec":  4,
+              "bfd":  false
+            },
+            "host-w27w0":  {
+              "area":  "0",
+              "passive":  false,
+              "networkType":  "point-to-point",
+              "helloIntervalSec":  1,
+              "deadIntervalSec":  4,
+              "bfd":  false
+            }
+          },
+          "redistribute":  {},
+          "defaultInformationOriginate":  "off"
+        }
+2026/10/05 18:22:29 INFO reconcile start owner=w27 txn_id=27d86c45-bdfe-4af3-aa70-9282abae6c56 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:29 INFO reconcile done owner=w27 txn_id=27d86c45-bdfe-4af3-aa70-9282abae6c56 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary=unchanged:13 reapplied=0 duration=533.79948ms err=""
+    ospf_topology_integration_test.go:770: REST commit w27-p12-idempotent status=applied (actual object results=0)
+2026/10/05 18:22:30 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:30 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=532.264224ms err=""
+2026/10/05 18:22:31 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+    ospf_topology_integration_test.go:786: peer 1 withdrew: FRR RIB ospf=50, VPP lcp-rt-dynamic=50 after 300ms
+2026/10/05 18:22:32 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=600.344526ms err=""
+    ospf_topology_integration_test.go:790: peer 1 announces again: FRR RIB ospf=100, VPP lcp-rt-dynamic=100 after 300ms
+2026/10/05 18:22:33 INFO dynamic source stopped owner=w27 source=pppoe-watch
+2026/10/05 18:22:33 INFO dynamic source stopped owner=w27 source=mpls-ldp
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=mpls-route.ldp err="mpls-route.ldp: retrieve: mpls_table_dump: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=dhcp.proxy err="dhcp_proxy_dump(is_ip6=false): context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=dhcp.proxy-vss err="dhcp_proxy_dump(is_ip6=false): context canceled"
+time="2026-10-05T18:22:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=2
+time="2026-10-05T18:22:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=2
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=hoststack.session-rule err="session_rules_v2_dump: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=ipfix.exporter err="ipfix_all_exporter_get: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=flowprobe.interface err="flowprobe_interface_dump: context canceled"
+time="2026-10-05T18:22:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=2
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=sflow.interface err="vpp boot identity: control_ping: context canceled"
+time="2026-10-05T18:22:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=2
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=policer.policer err="policer.policer: policer_dump_v2: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=qos.egress-map err="qos.egress-map: qos_egress_map_dump: context canceled"
+time="2026-10-05T18:22:33Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=2
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=qos.record err="sw_interface_dump: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=qos.store err="sw_interface_dump: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=qos.mark err="sw_interface_dump: context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=prometheus.listener err="context canceled"
+2026/10/05 18:22:33 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=pppoe.client.config err="context canceled"
+2026/10/05 18:22:33 INFO reconcile done owner=w27 mode=sync source=multiwan status=APPLY_STATUS_FAILED summary="" duration=235.402164ms err="retrieve nat44-ed.output-feature.wan: nat44-ed.output-feature.wan: retrieve: sw_interface_dump: context canceled"
+2026/10/05 18:22:33 INFO dynamic source stopped owner=w27 source=multiwan
+2026/10/05 18:22:35 INFO ngfw-agent stopped owner=w27
+    ospf_topology_integration_test.go:802: simulated loss: lcp_itf_pair_add_del_v3 del host-w27l0 (sw_if_index 2) with the agent stopped
+    ospf_topology_integration_test.go:802: simulated loss: lcp_itf_pair_add_del_v3 del host-w27w0 (sw_if_index 1) with the agent stopped
+2026/10/05 18:22:35 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w27 component=subsystems
+2026/10/05 18:22:35 INFO PKI file materialiser wired owner=w27 component=subsystems root=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/pki-w27 source=true
+2026/10/05 18:22:35 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w27 component=subsystems
+2026/10/05 18:22:35 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w27 component=subsystems
+2026/10/05 18:22:35 INFO fqdn state reloaded owner=w27 component=subsystems family=objects file=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/objects-fqdn-w27.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/05 18:22:35 INFO VPP binary API connected owner=w27 component=vpp socket=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock
+2026/10/05 18:22:36 INFO objects domain wired owner=w27 component=subsystems store=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/objects-w27.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/05 18:22:36 INFO acl domain wired owner=w27 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/05 18:22:36 INFO host firewall wired owner=w27 component=subsystems table="inet ngfw_w27" mode=check netns="" rules_file=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state/host-acl-w27.nft
+2026/10/05 18:22:36 INFO kea wired owner=w27 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/05 18:22:36 INFO host services wired owner=w27 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3972708542/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3972708542/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3972708542/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/05 18:22:36 INFO system identity wired owner=w27 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-3972708542/sysident/etc/hostname
+2026/10/05 18:22:36 INFO pppoe client wired owner=w27 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/05 18:22:36 INFO subsystems wired owner=w27 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state: claims-iface-w27.json, boot-w27.json; globals owner false" vpp_ids=27000-27999
+2026/10/05 18:22:36 INFO ngfw-agent listening owner=w27 socket=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestOSPFTopologyOnHost2591123377/001/state vpp_api=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644/vpp/api.sock
+2026/10/05 18:22:36 INFO VPP boot identity owner=w27 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/406658/20544651 complete=true expired_claims=0
+2026/10/05 18:22:36 INFO reconcile start owner=w27 txn_id="" mode=resync domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:36 WARN neighbour events: interface dump owner=w27 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/05 18:22:36 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-l0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:36 INFO created owner=w27 component=scheduler key=lcp.itf-pair/host-w27l0
+2026/10/05 18:22:36 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:36 INFO created owner=w27 component=scheduler key=lcp.itf-pair/host-w27w0
+2026/10/05 18:22:37 INFO FRR configuration applied owner=w27 component=subsystems component=frr conf=/run/ngfw-test/w27/frr/etc/w27/frr.conf bgp=false
+2026/10/05 18:22:37 INFO updated owner=w27 component=scheduler key=frr.config/ngfw
+2026/10/05 18:22:38 INFO reconcile done owner=w27 txn_id="" mode=resync domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:10" reapplied=1 duration=2.158722852s err=""
+2026/10/05 18:22:38 INFO resync finished owner=w27 why=connect status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:10"
+2026/10/05 18:22:38 INFO dynamic source started owner=w27 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/05 18:22:38 INFO dynamic source started owner=w27 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/05 18:22:38 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:38 INFO dynamic source started owner=w27 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/05 18:22:38 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=566.909622ms err=""
+2026/10/05 18:22:38 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:39 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=522.07325ms err=""
+2026/10/05 18:22:40 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:41 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=526.991983ms err=""
+    ospf_topology_integration_test.go:806: both adjacencies Full after 400ms: [{VRF:default RouterID:10.27.1.2 Address:10.27.1.2 Interface:w27-l0 State:Full/- Priority:1} {VRF:default RouterID:10.27.2.2 Address:10.27.2.2 Interface:w27-w0 State:Full/- Priority:1}]
+    ospf_topology_integration_test.go:807: after agent restart + pair loss: FRR RIB ospf=100, VPP lcp-rt-dynamic=100 after 300ms
+    ospf_topology_integration_test.go:809: recovered 7.7s after the agent restart (target ≤ 30 s)
+    ospf_topology_integration_test.go:817: peer 1 withdrew after the restart: FRR RIB ospf=50, VPP lcp-rt-dynamic=50 after 300ms
+2026/10/05 18:22:45 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:46 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=671.168316ms err=""
+    ospf_topology_integration_test.go:819: peer 1 announces again after the restart: FRR RIB ospf=100, VPP lcp-rt-dynamic=100 after 300ms
+    ospf_topology_integration_test.go:821: [after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w27w0 tap4097 w27-w0 13 type tap
+        itf-pair: [1] host-w27l0 tap4096 w27-l0 12 type tap
+    ospf_topology_integration_test.go:821: [after restart] ip -br addr show (root, slot lines):
+        w27l0@if6        UP             
+        w27w0@if8        UP             
+        w27-l0           UNKNOWN        10.27.1.1/24 fe80::58b3:68ff:fefa:73a9/64 
+        w27-w0           UNKNOWN        10.27.2.1/24 fe80::2416:d8ff:fe45:5bf2/64 
+    ospf_topology_integration_test.go:821: [after restart] vtysh -N w27 "show ip ospf neighbor":
+        
+        Neighbor ID     Pri State           Up Time         Dead Time Address         Interface                        RXmtL RqstL DBsmL
+        10.27.1.2         1 Full/-          10.572s            3.428s 10.27.1.2       w27-l0:10.27.1.1                     0     0     0
+        10.27.2.2         1 Full/-          10.565s            3.434s 10.27.2.2       w27-w0:10.27.2.1                     0     0     0
+        
+    ospf_topology_integration_test.go:821: [after restart] ip -4 route show proto ospf (root netns): 100 routes
+        10.27.64.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.65.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.66.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.67.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.68.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        10.27.69.0/24 nhid 24 via 10.27.1.2 dev w27-l0 metric 20 
+        … (94 more)
+    ospf_topology_integration_test.go:821: [after restart] vppctl show ip fib 10.27.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.27.64.0/24 fib:0 index:53 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[49] locks:100 flags:shared, uPRF-list:37 len:1 itfs:[2, ]
+              path:[65] pl-index:49 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.27.1.2 host-w27l0
+              [@0]: ipv4 via 10.27.1.2 host-w27l0: mtu:9000 next:7 flags:[] 36db07cf3e3f02fe631b919f0800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:55 buckets:1 uRPF:37 to:[0:0]]
+            [0] [@5]: ipv4 via 10.27.1.2 host-w27l0: mtu:9000 next:7 flags:[] 36db07cf3e3f02fe631b919f0800
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    ospf_topology_integration_test.go:821: [after restart] vppctl show ip fib 10.27.128.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.27.128.0/24 fib:0 index:80 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[50] locks:100 flags:shared, uPRF-list:38 len:1 itfs:[1, ]
+              path:[66] pl-index:50 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.27.2.2 host-w27w0
+              [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:82 buckets:1 uRPF:38 to:[12:14724]]
+            [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+2026/10/05 18:22:49 INFO reconcile start owner=w27 txn_id=cbedb6d7-3c56-4842-bcca-b5eb0eb6ee06 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:51 INFO FRR configuration applied owner=w27 component=subsystems component=frr conf=/run/ngfw-test/w27/frr/etc/w27/frr.conf bgp=false
+2026/10/05 18:22:51 INFO updated owner=w27 component=scheduler key=frr.config/ngfw
+2026/10/05 18:22:52 INFO reconcile done owner=w27 txn_id=cbedb6d7-3c56-4842-bcca-b5eb0eb6ee06 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:12" reapplied=0 duration=3.078193315s err=""
+    ospf_topology_integration_test.go:824: REST commit w27-p12-rollback status=applied (actual object results=1)
+2026/10/05 18:22:52 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+    ospf_topology_integration_test.go:825: after rollback: FRR RIB ospf=0, VPP lcp-rt-dynamic=0 after 300ms
+2026/10/05 18:22:53 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=584.516766ms err=""
+    ospf_topology_integration_test.go:845: [after rollback] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w27w0 tap4097 w27-w0 13 type tap
+        itf-pair: [1] host-w27l0 tap4096 w27-l0 12 type tap
+    ospf_topology_integration_test.go:845: [after rollback] ip -br addr show (root, slot lines):
+        w27l0@if6        UP             
+        w27w0@if8        UP             
+        w27-l0           UNKNOWN        10.27.1.1/24 fe80::58b3:68ff:fefa:73a9/64 
+        w27-w0           UNKNOWN        10.27.2.1/24 fe80::2416:d8ff:fe45:5bf2/64 
+    ospf_topology_integration_test.go:845: [after rollback] vtysh -N w27 "show ip ospf neighbor":
+        % OSPF is not enabled in vrf default
+    ospf_topology_integration_test.go:845: [after rollback] ip -4 route show proto ospf (root netns): 0 routes
+    ospf_topology_integration_test.go:845: [after rollback] vppctl show ip fib 10.27.64.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    ospf_topology_integration_test.go:845: [after rollback] vppctl show ip fib 10.27.128.0/24:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+        0.0.0.0/0 fib:1 index:12 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+              path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+2026/10/05 18:22:54 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:54 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=548.389806ms err=""
+2026/10/05 18:22:56 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:56 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=516.198588ms err=""
+2026/10/05 18:22:56 INFO reconcile start owner=w27 txn_id=03e6204d-3010-4b51-94c8-2a00a92a1800 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:22:58 INFO FRR configuration applied owner=w27 component=subsystems component=frr conf=/run/ngfw-test/w27/frr/etc/w27/frr.conf bgp=false
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=frr.config/ngfw
+2026/10/05 18:22:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=lcp.itf-pair/host-w27w0
+2026/10/05 18:22:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=w27-l0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=lcp.itf-pair/host-w27l0
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=interface.admin-state/host-w27w0
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=interface.admin-state/host-w27l0
+2026/10/05 18:22:58 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w27w0 prefix=10.27.2.1/24 err="sw_interface_add_del_address host-w27w0 10.27.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=interface-ip/host-w27w0/10.27.2.1/24
+2026/10/05 18:22:58 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w27w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/05 18:22:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w27w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=af-packet.host-interface/host-w27w0
+2026/10/05 18:22:58 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w27l0 prefix=10.27.1.1/24 err="sw_interface_add_del_address host-w27l0 10.27.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=interface-ip/host-w27l0/10.27.1.1/24
+2026/10/05 18:22:58 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w27l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/05 18:22:58 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w27l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 18:22:58 INFO deleted owner=w27 component=scheduler key=af-packet.host-interface/host-w27l0
+2026/10/05 18:22:59 INFO reconcile done owner=w27 txn_id=03e6204d-3010-4b51-94c8-2a00a92a1800 mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary="deleted:9  unchanged:2" reapplied=0 duration=2.380069123s err=""
+2026/10/05 18:22:59 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:22:59 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=166.431597ms err=""
+2026/10/05 18:22:59 INFO reconcile start owner=w27 txn_id=e337f89d-fb70-4a3b-ba3f-8f9b233fe27f mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]"
+2026/10/05 18:23:00 INFO deleted owner=w27 component=scheduler key=vrf/27040
+2026/10/05 18:23:00 INFO reconcile done owner=w27 txn_id=e337f89d-fb70-4a3b-ba3f-8f9b233fe27f mode=apply domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:1" reapplied=0 duration=313.873853ms err=""
+2026/10/05 18:23:00 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=lisp.remote-mapping err="vpp boot identity: control_ping: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=lisp.adjacency err="vpp boot identity: control_ping: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=bfd.auth-key err="bfd.auth-key: bfd_auth_keys_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=bfd.udp-session err="sw_interface_dump: context canceled"
+time="2026-10-05T18:23:00Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=3
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=igmp.listen err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=mfib.route err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=bond.bond err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=bond.member err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=bond.member-weight err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.bridge-domain err="bridge_domain_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.bridge-domain-member err="bridge_domain_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.xconnect err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.fib-entry err="bridge_domain_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.flags err="bridge_domain_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l2.vlan-tag-rewrite err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=l3xc.l3xc err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=mactime.range err="mactime_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=mactime.enable err="sw_interface_dump: context canceled"
+time="2026-10-05T18:23:00Z" level=error msg="Channel ID not known, ignoring the message: *mactime.MactimeDumpReply &{Retval:-160 TableEpoch:0}" async=true connId=3
+time="2026-10-05T18:23:00Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=3
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=gso.interface err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=span.mirror err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=svs.table err="ip_table_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=svs.interface err="ip_table_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=svs.route err="ip_table_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=ip-neighbor.neighbor err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=ip6-nd.ra-config err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=ip6-nd.ra-prefix err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=arp.proxy-range err="proxy_arp_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=arp.proxy-interface err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=urpf.interface err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=adl.interface err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=abf.policy err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=abf.attach err="sw_interface_dump: context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.tag err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.address err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.address-group err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.service err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.service-group err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.schedule err="context canceled"
+2026/10/05 18:23:00 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w27 component=scheduler descriptor=objects.zone err="context canceled"
+time="2026-10-05T18:23:00Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:406658}" async=true connId=3
+2026/10/05 18:23:00 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_FAILED summary="" reapplied=0 duration=35.319872ms err="retrieve acl.acl: acl_dump: context canceled"
+2026/10/05 18:23:01 INFO reconcile start owner=w27 txn_id="" mode=auto-block domains=[acl]
+2026/10/05 18:23:01 INFO reconcile done owner=w27 txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=159.520074ms err=""
+2026/10/05 18:23:01 INFO reconcile start owner=w27 txn_id=w27-ospf-cleanup mode=apply domains="[interfaces routing]"
+2026/10/05 18:23:01 INFO reconcile done owner=w27 txn_id=w27-ospf-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=140.644199ms err=""
+    ospf_topology_integration_test.go:725: cleanup apply: <nil> {}
+    ospf_topology_integration_test.go:728: cleanup: 0 lcp-rt-dynamic routes of 10.27/16 left in VPP table 0
+2026/10/05 18:23:01 INFO dynamic source stopped owner=w27 source=pppoe-watch
+2026/10/05 18:23:01 INFO dynamic source stopped owner=w27 source=multiwan
+2026/10/05 18:23:01 INFO dynamic source stopped owner=w27 source=mpls-ldp
+2026/10/05 18:23:01 INFO ngfw-agent stopped owner=w27
+    ospf_topology_integration_test.go:666: rig down: <nil>
+        rig down w27
+          delete netns ns-w27-lan (and its veth peer)
+          delete veth w27l0
+          delete netns ns-w27-wan (and its veth peer)
+          delete veth w27w0
+        rig: down
+        prefix: w27
+        slot: 27
+        path: af_packet
+        lan_ns: ns-w27-lan
+        lan_veth: w27l1
+        lan_ip: 10.27.1.2/24
+        lan_gw: 10.27.1.1
+        vpp_lan_if: host-w27l0
+        vpp_lan_addr: -
+        wan_ns: ns-w27-wan
+        wan_veth: w27w1
+        wan_ip: 10.27.2.2/24
+        wan_gw: 10.27.2.1
+        vpp_wan_if: host-w27w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w27-lan ping -c 3 10.27.2.2
+    ospf_topology_integration_test.go:636: systemctl show vpp -p NRestarts (after) = 0
+    ospf_topology_integration_test.go:628: globals window closed at 2026-10-05T18:23:03Z
+--- PASS: TestOSPFTopologyOnHost (85.97s)
+PASS
+ok  	ngfw/agent/internal/agent	86.053s
+{"private_runtime": "/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-406644", "exit_code": 0, "slot": 27}
+SHARED_VPP_UNCHANGED

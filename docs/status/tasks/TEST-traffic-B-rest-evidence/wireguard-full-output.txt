@@ -1,0 +1,3 @@
+REST_WIREGUARD_PACKETS=PASS
+{"private_runtime": "/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-400214", "exit_code": 0, "slot": 27}
+SHARED_VPP_UNCHANGED

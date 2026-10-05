@@ -5860,3 +5860,22 @@ tasks:
       integration audit: Historical generated prompts require scope reconciliation against published main. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. |
       2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred
       in eight-review-recovery-20261004.md.'
+  - id: BUG-vpn-capability-warning
+    title: Remove obsolete blanket IPsec and PKI capability warnings
+    prompt: prompts/fixes/BUG-vpn-capability-warning.md
+    template: ''
+    stage: S4
+    deps: [F-ikev2-native, F-pki]
+    priority: 1
+    est_hours: 1
+    state: running
+    parked_on: ''
+    wbs: []
+    scope: Necessary native REST acceptance prerequisite; preserve intrinsic VPN guards
+    files_owned: apps/agent/internal/desired/wireguard.go apps/agent/internal/desired/wireguard_test.go prompts/fixes/BUG-vpn-capability-warning.md docs/status/tasks/BUG-vpn-capability-warning*
+    branch: codex/bug-vpn-capability-warning-20261005
+    worktree: /root/ngfw-wt/bug-vpn-capability-warning-20261005
+    owner: root developer
+    started: '2026-10-05'
+    finished: ''
+    notes: Before-fix regression fails for obsolete IPsec and PKI warnings; independent reviews and full CI pending

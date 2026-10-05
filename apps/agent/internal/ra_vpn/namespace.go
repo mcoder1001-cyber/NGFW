@@ -82,7 +82,10 @@ func mountNamespaceBinding(ctx context.Context, instance, name string, isolated 
 	if err != nil {
 		return 0, ErrBoundary
 	}
-	if file.Close() != nil {
+	var original unix.Stat_t
+	statErr := unix.Fstat(int(file.Fd()), &original)
+	closeErr := file.Close()
+	if statErr != nil || closeErr != nil || recordNamespaceBirth(instance, name, original) != nil {
 		return 0, ErrBoundary
 	}
 	if isolated {
@@ -155,7 +158,13 @@ func RemoveNamespace(instance string, inode uint64) error {
 	if removeNamedBinding(instance, "netns", inode) != nil {
 		return ErrBoundary
 	}
-	return removeNamedBinding(instance, "hostnetns", plan.HostNamespaceInode)
+	if removeNamedBinding(instance, "hostnetns", plan.HostNamespaceInode) != nil {
+		return ErrBoundary
+	}
+	if read, err := readNamespaceBirth(instance); err != nil || len(read.Bindings) != 3 {
+		return ErrBoundary
+	}
+	return os.Remove(filepath.Join(InstanceRoot, instance, namespaceBirthReceipt))
 }
 
 func removeNamedBinding(instance, name string, inode uint64) error {
@@ -163,6 +172,16 @@ func removeNamedBinding(instance, name string, inode uint64) error {
 		return ErrBoundary
 	}
 	path := filepath.Join(InstanceRoot, instance, name)
+	record, birthErr := readNamespaceBirth(instance)
+	if birthErr != nil || record.Bindings[name].Inode == 0 {
+		return ErrBoundary
+	}
+	if _, err := os.Lstat(path); os.IsNotExist(err) {
+		return nil
+	}
+	if verifyNamespaceBirth(instance, name, path) == nil {
+		return os.Remove(path)
+	}
 	fd, err := unix.Open(path, unix.O_NOFOLLOW|unix.O_RDONLY|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return ErrBoundary
@@ -178,7 +197,7 @@ func removeNamedBinding(instance, name string, inode uint64) error {
 	if unix.Unmount(path, unix.MNT_DETACH) != nil {
 		return ErrBoundary
 	}
-	if os.Remove(path) != nil {
+	if verifyNamespaceBirth(instance, name, path) != nil || os.Remove(path) != nil {
 		return ErrBoundary
 	}
 	return nil // keep root-private state for explicit descriptor file cleanup

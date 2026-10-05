@@ -107,4 +107,4 @@ func readTargetsOpenFileAt(path string, target bootid.Identity) error {
 
 const targetSupplierServiceDigest = "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810"
 
-const targetSupplierSocketDigest = "e6d5185fc2f26d32cd6bf0dc5a046b6db0eac2fe53e0d1a2f877f8986cfc2d2d"
+const targetSupplierSocketDigest = "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130"

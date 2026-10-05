@@ -236,6 +236,7 @@ func TestRAEnvironmentFailedCloseCannotBeReplacedBySameOwner(t *testing.T) {
 	if _, exists := registry.Get(ravpn.EngineName); exists {
 		t.Fatal("failed construction registered new engine descriptor")
 	}
+	// #nosec G304 -- state is this test's private TempDir; the fixed unknown entry proves foreign inventory remains untouched.
 	if data, err := os.ReadFile(filepath.Join(state, "ra-engine", "unknown")); err != nil || string(data) != "foreign" {
 		t.Fatal("foreign inventory mutated")
 	}
@@ -311,6 +312,7 @@ func TestRAReconnectFailurePreventsSentinelAndEveryNativeVPPCall(t *testing.T) {
 	if len(v.Calls()) != 0 || model.Created != 1 {
 		t.Fatal("failed RA cleanup reached sentinel/native VPP")
 	}
+	// #nosec G304 -- unknown is the fixture-created fixed foreign entry under this test's private state root.
 	if data, err := os.ReadFile(unknown); err != nil || string(data) != "foreign" {
 		t.Fatal("failed RA cleanup adopted foreign inventory")
 	}
@@ -422,6 +424,7 @@ func TestRAReconnectUnobservedRestartUnitPreventsEveryVPPEvent(t *testing.T) {
 	if len(v.Calls()) != 0 || model.Created != 0 || units.inactivityCalls != 1 || units.stopCalls != 0 {
 		t.Fatal("no-record unknown unit reached VPP or was adopted")
 	}
+	// #nosec G304 -- foreign is the fixed fixture file under this test's private TempDir, checked for preservation.
 	if data, err := os.ReadFile(foreign); err != nil || string(data) != "preserve" {
 		t.Fatal("foreign object changed")
 	}
@@ -438,6 +441,7 @@ func TestRAReconnectUnobservedRestartUnitPreventsEveryVPPEvent(t *testing.T) {
 	if strings.Join(startupEvents, ",") != "source,source,targets,repair" || len(v.Calls()) != 0 || model.Created != 0 {
 		t.Fatal("failed stopped repair reached VPP", startupEvents, v.Calls())
 	}
+	// #nosec G304 -- foreign is the fixed fixture file under this test's private TempDir, checked for preservation.
 	if data, err := os.ReadFile(foreign); err != nil || string(data) != "preserve" {
 		t.Fatal("failed repair changed foreign object")
 	}

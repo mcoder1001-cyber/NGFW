@@ -155,9 +155,12 @@ func (p *SystemdUnitObservation) acquireOnce(ctx context.Context, instance strin
 	if err != nil || unitObserverManager(ctx, instance, expected, bootid.Identity{}) != nil {
 		return nil, ErrEngine
 	}
-	path := "/run/ngfw/ra/observers/" + strconv.Itoa(expected.PID) + ".sock"
+	path, pathErr := NamespaceObserverSocket(expected.PID)
+	if pathErr != nil {
+		return nil, ErrEngine
+	}
 	var info unix.Stat_t
-	if brokerProtectedParent("/run/ngfw/ra/observers") != nil || unix.Lstat(path, &info) != nil || info.Mode != unix.S_IFSOCK|0600 || info.Uid != 0 || info.Gid != 0 {
+	if brokerProtectedParent(NamespaceObserverIPCRoot) != nil || unix.Lstat(path, &info) != nil || info.Mode != unix.S_IFSOCK|0600 || info.Uid != 0 || info.Gid != 0 {
 		return nil, ErrEngine
 	}
 	fd, err := unix.Socket(unix.AF_UNIX, unix.SOCK_SEQPACKET|unix.SOCK_CLOEXEC, 0)

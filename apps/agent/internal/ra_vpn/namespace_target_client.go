@@ -75,8 +75,11 @@ func (p *SystemdNamespaceTargets) acquireOnce(ctx context.Context, expected, sou
 	if p.validateUnits(ctx, expected, bootid.Identity{}) != nil {
 		return nil, ErrBoundary
 	}
-	path := "/run/ngfw/ra/targets/" + strconv.Itoa(expected.PID) + ".sock"
-	if brokerProtectedParent("/run/ngfw/ra/targets") != nil {
+	path, pathErr := NamespaceTargetSocket(expected.PID)
+	if pathErr != nil {
+		return nil, ErrBoundary
+	}
+	if brokerProtectedParent(NamespaceTargetIPCRoot) != nil {
 		return nil, ErrBoundary
 	}
 	var info unix.Stat_t
@@ -216,12 +219,16 @@ func (p *SystemdNamespaceTargets) validateUnits(ctx context.Context, target, ser
 		}
 	}
 	numeric := strconv.Itoa(target.PID)
+	socketPath, pathErr := NamespaceTargetSocket(target.PID)
+	if pathErr != nil {
+		return ErrBoundary
+	}
 	dropIn, err := TargetsOpenFilePath(target.PID)
 	if err != nil {
 		return ErrBoundary
 	}
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-targets@"+numeric+".socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || fields["FragmentPath"] != targetSupplierSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != "/run/ngfw/ra/targets/"+numeric+".sock (SequentialPacket)" {
+	if err != nil || fields["FragmentPath"] != targetSupplierSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != socketPath+" (SequentialPacket)" {
 		return ErrBoundary
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-targets@"+numeric+".service", "MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")

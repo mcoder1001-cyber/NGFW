@@ -5,7 +5,7 @@ After=vpp.service
 [Socket]
 TriggerLimitIntervalSec=2
 TriggerLimitBurst=64
-ListenSequentialPacket=/run/ngfw/ra/targets/%i.sock
+ListenSequentialPacket=/run/ngfw-ra-ipc/targets/%i.sock
 SocketMode=0600
 SocketUser=root
 SocketGroup=root

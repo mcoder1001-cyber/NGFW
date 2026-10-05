@@ -30,7 +30,7 @@ func unitObserverInstallation() error {
 	}
 	for _, item := range []struct{ path, digest string }{
 		{unitObserverService, "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a"},
-		{unitObserverSocket, "557d3c9283202083a7dcde69677d25928a6bbea3268d0dd702222992417ff7a8"},
+		{unitObserverSocket, "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4"},
 		{"/usr/lib/systemd/system/ngfw-ra@.service", "bf5e89b553235d455db222039d5e8b2cdbe639a1d36054b5dab6cca3ea266d9a"},
 	} {
 		content, err := trustedInstallationFile(item.path, 16384, false)
@@ -101,12 +101,16 @@ func unitObserverManager(ctx context.Context, instance string, target, server bo
 		return ErrEngine
 	}
 	numeric := strconv.Itoa(target.PID)
+	socketPath, pathErr := NamespaceObserverSocket(target.PID)
+	if pathErr != nil {
+		return ErrEngine
+	}
 	dropIn, err := ObserverOpenFilePath(target.PID)
 	if err != nil {
 		return ErrEngine
 	}
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-observer@"+numeric+".socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || fields["FragmentPath"] != unitObserverSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != "/run/ngfw/ra/observers/"+numeric+".sock (SequentialPacket)" {
+	if err != nil || fields["FragmentPath"] != unitObserverSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != socketPath+" (SequentialPacket)" {
 		return ErrEngine
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-observer@"+numeric+".service", "MainPID,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")

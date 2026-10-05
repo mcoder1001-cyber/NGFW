@@ -2,7 +2,7 @@
 Description=NGFW authenticated private-unit observation for PID %i
 
 [Socket]
-ListenSequentialPacket=/run/ngfw/ra/observers/%i.sock
+ListenSequentialPacket=/run/ngfw-ra-ipc/observers/%i.sock
 SocketMode=0600
 SocketUser=root
 SocketGroup=root

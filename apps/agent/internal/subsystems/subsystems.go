@@ -227,6 +227,8 @@ func DomainOf(descriptor string) string {
 
 // Env is what the wiring needs.
 type Env struct {
+	// RA is a trusted construction seam for disposable private fixtures; production leaves it nil.
+	RA     *RAControllerOptions
 	Client vpp.Client
 	Owner  string
 	// StateDir holds the persisted stores (the agent's NGFW_AGENT_STATE_DIR).
@@ -485,6 +487,10 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
+	if err := w.StopRA(ctx); err != nil {
+		w.env.Log.Error("remote-access reconnect cleanup refused", "reason", "owned generation could not be stopped")
+		return
+	}
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
 	w.igmpMfibConnected()            // wave-BC: F-igmp-mfib-host
 	w.index.Invalidate()

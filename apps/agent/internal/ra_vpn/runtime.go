@@ -2,6 +2,8 @@ package ravpn
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"sort"
 	"sync"
@@ -12,14 +14,18 @@ import (
 // UnitIdentity is freshly verified against the fixed unit cgroup, executable,
 // PID start ticks and owned private network namespace. PID alone is never trust.
 type UnitIdentity struct {
+	BootID         string
 	PID            int
 	StartTicks     uint64
 	NamespaceInode uint64
 }
 
-func (u UnitIdentity) Valid() bool { return u.PID > 1 && u.StartTicks != 0 && u.NamespaceInode != 0 }
+func (u UnitIdentity) Valid() bool {
+	return u.PID > 1 && u.StartTicks != 0 && u.NamespaceInode != 0 && u.BootID != ""
+}
 func (u UnitIdentity) Generation(instance string) string {
-	return fmt.Sprintf("%s:%d:%d", instance, u.PID, u.StartTicks)
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%s:%d:%d:%d", instance, u.BootID, u.PID, u.StartTicks, u.NamespaceInode)))
+	return hex.EncodeToString(sum[:])
 }
 
 type UnitSupervisor interface {
@@ -34,6 +40,7 @@ type SnapshotRecovery interface {
 	Recover(context.Context, EngineSpec) (*PreparedEngine, error)
 }
 type EngineRecord struct {
+	Ready   bool
 	Spec    EngineSpec
 	Handoff Handoff
 	Unit    UnitIdentity
@@ -98,6 +105,9 @@ func (r *Runtime) create(ctx context.Context, s EngineSpec) (EngineRecord, error
 	record := EngineRecord{Spec: s, Handoff: handoff, Unit: unit}
 	generation := &engineGeneration{record: record, prepared: p}
 	r.active[s.Instance] = generation // retain partial effects for the scheduler's rollback
+	if unit.Valid() && r.store.Save(record) != nil {
+		return record, ErrEngine
+	}
 	if err != nil || !unit.Valid() {
 		return record, ErrEngine
 	}
@@ -121,6 +131,8 @@ func (r *Runtime) create(ctx context.Context, s EngineSpec) (EngineRecord, error
 	if _, err := strongswan.ObserveRASessions(ctx, client, s.Profile, unit.Generation(s.Instance), s.Configuration.GetPools()); err != nil {
 		return record, ErrEngine
 	}
+	record.Ready = true
+	generation.record = record
 	if r.store.Save(record) != nil {
 		return record, ErrEngine
 	}
@@ -132,6 +144,7 @@ func (r *Runtime) Create(ctx context.Context, s EngineSpec) (EngineRecord, error
 	return r.create(ctx, s)
 }
 func (r *Runtime) stop(ctx context.Context, g *engineGeneration) error {
+	g.record.Ready = false
 	plan, err := r.readPlan(g.record.Spec.Instance)
 	if err != nil {
 		return ErrEngine
@@ -204,6 +217,11 @@ func (r *Runtime) Recover(ctx context.Context) error {
 		}
 		g.prepared = p
 		r.active[record.Spec.Instance] = g
+		if !record.Ready {
+			if e := r.stop(ctx, g); e != nil {
+				return e
+			}
+		}
 	}
 	return nil
 }
@@ -215,6 +233,9 @@ func (r *Runtime) Records(ctx context.Context) ([]EngineRecord, error) {
 	}
 	out := make([]EngineRecord, 0, len(r.active))
 	for _, g := range r.active {
+		if !g.record.Ready {
+			return nil, ErrEngine
+		}
 		if _, err := r.verify(ctx, g); err != nil {
 			return nil, ErrEngine
 		}
@@ -231,7 +252,7 @@ func (r *Runtime) Sessions(ctx context.Context, profile string) ([]strongswan.RA
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	g := r.active[InstanceID(r.owner, profile)]
-	if g == nil {
+	if g == nil || !g.record.Ready {
 		return nil, ErrEngine
 	}
 	plan, err := r.verify(ctx, g)
@@ -256,7 +277,7 @@ func (r *Runtime) Disconnect(ctx context.Context, profile, id string) error {
 		return ErrEngine
 	}
 	g := r.active[InstanceID(r.owner, profile)]
-	if g == nil {
+	if g == nil || !g.record.Ready {
 		return ErrEngine
 	}
 	plan, err := r.verify(ctx, g)
@@ -279,14 +300,40 @@ func (r *Runtime) Disconnect(ctx context.Context, profile, id string) error {
 func (r *Runtime) StopAll(ctx context.Context) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.store == nil {
+		return nil
+	}
+	records, e := r.store.List()
+	if e != nil {
+		return ErrEngine
+	}
+	if len(records) > 64 {
+		return ErrEngine
+	}
+	for _, record := range records {
+		if record.Spec.Owner != r.owner {
+			return ErrEngine
+		}
+		if _, exists := r.active[record.Spec.Instance]; exists {
+			continue
+		}
+		recoverer, ok := r.preparation.(SnapshotRecovery)
+		if !ok {
+			return ErrEngine
+		}
+		p, e := recoverer.Recover(ctx, record.Spec)
+		if e != nil || p == nil || p.Cleanup == nil {
+			return ErrEngine
+		}
+		r.active[record.Spec.Instance] = &engineGeneration{record: record, prepared: p}
+	}
 	for _, g := range r.active {
-		if err := r.stop(ctx, g); err != nil {
-			return err
+		if e := r.stop(ctx, g); e != nil {
+			return e
 		}
 	}
 	return nil
 }
-
 func (r *Runtime) SetReadiness(check func(context.Context) error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -297,6 +344,11 @@ func (r *Runtime) Ready(ctx context.Context) error {
 	defer r.mu.Unlock()
 	if !r.configured() || r.readiness == nil {
 		return ErrEngine
+	}
+	for _, g := range r.active {
+		if !g.record.Ready {
+			return ErrEngine
+		}
 	}
 	p, ok := r.preparation.(EngineReadiness)
 	if !ok || p.Preflight(ctx) != nil || r.readiness(ctx) != nil {

@@ -167,6 +167,18 @@ func (d *raScopedDescriptor) guard(ctx context.Context, v proto.Message) error {
 		}
 		return nil
 	}
+	if d.inner.Name() == core.RouteName {
+		rows, e := d.inner.Retrieve(ctx)
+		if e != nil {
+			return e
+		}
+		key := d.inner.KeyOf(v)
+		for _, row := range rows {
+			if row.Key == key && !raObject(row.Value) {
+				return ravpn.ErrEngine
+			}
+		}
+	}
 	if d.reader == nil {
 		return ravpn.ErrEngine
 	}
@@ -182,7 +194,7 @@ func (d *raScopedDescriptor) guard(ctx context.Context, v proto.Message) error {
 	for _, row := range rows {
 		tap, ok := row.Value.(*tapv2.Tap)
 		receipt, proof := row.Meta.(ravpn.TAPReceipt)
-		if ok && proof && !receipt.Pending && receipt.Endpoint != nil && proto.Equal(tap, receipt.Endpoint) {
+		if ok && proof && !receipt.Pending && receipt.Endpoint != nil && receipt.Boot.Complete() && receipt.Boot.PID > 0 && receipt.NamespaceInode != 0 && receipt.HostNamespaceInode != 0 && receipt.NamespaceInode != receipt.HostNamespaceInode && receipt.Index != ^uint32(0) && ravpn.ValidInstance(receipt.Instance) && (tap.Name == ravpn.LinkName(receipt.Instance, true) || tap.Name == ravpn.LinkName(receipt.Instance, false)) && proto.Equal(tap, receipt.Endpoint) {
 			owned[tap.Name] = true
 		}
 	}
@@ -237,19 +249,31 @@ func (r *raFilteringRegistry) Get(name string) (scheduler.Descriptor, bool) {
 
 var raRuntimeMu sync.RWMutex
 var raRuntimes = map[string]*ravpn.Runtime{}
-var raCurrent desired.RAEnv
+var raEnvs = map[string]desired.RAEnv{}
 
 func RARuntimeFor(owner string) *ravpn.Runtime {
 	raRuntimeMu.RLock()
 	defer raRuntimeMu.RUnlock()
 	return raRuntimes[owner]
 }
-func RAProjection() desired.RAEnv { raRuntimeMu.RLock(); defer raRuntimeMu.RUnlock(); return raCurrent }
+func RAEnvFor(owner string) desired.RAEnv {
+	raRuntimeMu.RLock()
+	defer raRuntimeMu.RUnlock()
+	return raEnvs[owner]
+}
 func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	reader := registryReader(reg)
 	store := &ravpn.LazyEngineStore{StateDir: w.env.StateDir, Owner: w.env.Owner}
 	verifier := &ravpn.RegistryVerifier{Registry: reader, Boot: func(ctx context.Context) (bootid.Identity, error) { return bootid.Current(ctx, w.env.Client) }}
-	runtime := ravpn.NewRuntime(w.env.Owner, verifier, nil, ravpn.SystemdUnits{}, store)
+	var preparation ravpn.SnapshotPreparation
+	var units ravpn.UnitSupervisor = ravpn.SystemdUnits{}
+	if w.env.RA != nil {
+		preparation = w.env.RA.Preparation
+		if w.env.RA.Units != nil {
+			units = w.env.RA.Units
+		}
+	}
+	runtime := ravpn.NewRuntime(w.env.Owner, verifier, preparation, units, store)
 	ids, e := w.IDRange()
 	if e != nil {
 		ids = NoIDs()
@@ -268,7 +292,16 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 			return ravpn.ErrEngine
 		}
 		for name := range raSharedFamilies {
-			if _, ok := reader.Get("remote-access." + name); !ok {
+			d, ok := reader.Get("remote-access." + name)
+			if !ok {
+				return ravpn.ErrEngine
+			}
+			if _, err := d.Retrieve(ctx); err != nil {
+				return ravpn.ErrEngine
+			}
+		}
+		if w.env.RA != nil && w.env.RA.Readiness != nil {
+			if w.env.RA.Readiness(ctx) != nil {
 				return ravpn.ErrEngine
 			}
 		}
@@ -277,7 +310,7 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	reg.Register(&ravpn.EngineDescriptor{Runtime: runtime})
 	raRuntimeMu.Lock()
 	raRuntimes[w.env.Owner] = runtime
-	raCurrent = desired.RAEnv{Owner: w.env.Owner, IDs: span, Ready: runtime.Ready}
+	raEnvs[w.env.Owner] = desired.RAEnv{Owner: w.env.Owner, IDs: span, Ready: runtime.Ready}
 	raRuntimeMu.Unlock()
 	w.OnClose(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -289,9 +322,7 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		raRuntimeMu.Lock()
 		if raRuntimes[w.env.Owner] == runtime {
 			delete(raRuntimes, w.env.Owner)
-			if raCurrent.Owner == w.env.Owner {
-				raCurrent = desired.RAEnv{}
-			}
+			delete(raEnvs, w.env.Owner)
 		}
 		raRuntimeMu.Unlock()
 	})
@@ -302,11 +333,37 @@ func SetRASecrets(owner string, cache *secretchannel.Store) error {
 	if rt == nil || cache == nil {
 		return ravpn.ErrEngine
 	}
-	rt.SetPreparation(&ravpn.SealedPreparation{Resolver: cache})
+	rt.SetPreparation(&ravpn.SealedPreparation{Resolver: cache, Readiness: func(ctx context.Context) error {
+		if ctx.Err() != nil {
+			return ravpn.ErrEngine
+		}
+		id, e := cache.ID(nil)
+		if e != nil || !strings.HasPrefix(id, "hmac:") || !ravpn.ValidInstance(strings.TrimPrefix(id, "hmac:")) {
+			return ravpn.ErrEngine
+		}
+		return nil
+	}})
 	raRuntimeMu.Lock()
-	if raCurrent.Owner == owner {
-		raCurrent.SecretRef = cache.Ref
-	}
+	env := raEnvs[owner]
+	env.SecretRef = cache.Ref
+	raEnvs[owner] = env
 	raRuntimeMu.Unlock()
 	return nil
+}
+
+func (w *Wiring) StopRA(ctx context.Context) error {
+	rt := RARuntimeFor(w.env.Owner)
+	if rt == nil {
+		return nil
+	}
+	return rt.StopAll(ctx)
+}
+
+// RAControllerOptions is a trusted Go construction seam for disposable private
+// fixtures, not an environment/config/API bypass. Verification of real VPP
+// ownership, policy, IDs, routes and persistent records is always retained.
+type RAControllerOptions struct {
+	Preparation ravpn.SnapshotPreparation
+	Units       ravpn.UnitSupervisor
+	Readiness   func(context.Context) error
 }

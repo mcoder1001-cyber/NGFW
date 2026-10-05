@@ -40,7 +40,7 @@ func unitPID(ctx context.Context, name string) (int, error) {
 	}
 	return pid, nil
 }
-func observeProcess(p *NetworkPlan, pid int) (UnitIdentity, error) {
+func observeProcess(p *NetworkPlan, pid int, allowHelper bool) (UnitIdentity, error) {
 	if pid <= 1 {
 		return UnitIdentity{}, ErrEngine
 	}
@@ -49,7 +49,7 @@ func observeProcess(p *NetworkPlan, pid int) (UnitIdentity, error) {
 		return UnitIdentity{}, ErrEngine
 	}
 	exe, e := os.Readlink("/proc/" + strconv.Itoa(pid) + "/exe")
-	if e != nil || exe != "/opt/ngfw-ra/sbin/charon-systemd" {
+	if e != nil || exe != "/opt/ngfw-ra/sbin/charon-systemd" && (!allowHelper || exe != "/usr/lib/ngfw/ngfw-ra-daemon") {
 		return UnitIdentity{}, ErrEngine
 	}
 	cg, e := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/cgroup")
@@ -61,7 +61,11 @@ func observeProcess(p *NetworkPlan, pid int) (UnitIdentity, error) {
 	if ticks == 0 {
 		return UnitIdentity{}, ErrEngine
 	}
-	return UnitIdentity{PID: pid, StartTicks: ticks, NamespaceInode: ns.Ino}, nil
+	boot := (bootid.Reader{}).BootID()
+	if boot == "" {
+		return UnitIdentity{}, ErrEngine
+	}
+	return UnitIdentity{BootID: boot, PID: pid, StartTicks: ticks, NamespaceInode: ns.Ino}, nil
 }
 func (SystemdUnits) Observe(ctx context.Context, p *NetworkPlan) (UnitIdentity, error) {
 	name, e := unitName(p)
@@ -72,7 +76,7 @@ func (SystemdUnits) Observe(ctx context.Context, p *NetworkPlan) (UnitIdentity, 
 	if e != nil {
 		return UnitIdentity{}, ErrEngine
 	}
-	return observeProcess(p, pid)
+	return observeProcess(p, pid, false)
 }
 func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, error) {
 	name, e := unitName(p)
@@ -86,20 +90,29 @@ func (u SystemdUnits) Start(ctx context.Context, p *NetworkPlan) (UnitIdentity, 
 	if _, e = unitCommand(ctx, "start", name); e != nil {
 		return UnitIdentity{}, ErrEngine
 	}
+	captured := UnitIdentity{}
 	ticker := time.NewTicker(25 * time.Millisecond)
 	defer ticker.Stop()
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
 	for {
+		if pid, e := unitPID(ctx, name); e == nil && pid > 1 {
+			if id, e := observeProcess(p, pid, true); e == nil {
+				if captured.Valid() && captured != id {
+					return captured, ErrEngine
+				}
+				captured = id
+			}
+		}
 		id, e := u.Observe(ctx, p)
 		if e == nil {
 			return id, nil
 		}
 		select {
 		case <-ctx.Done():
-			return UnitIdentity{}, ErrEngine
+			return captured, ErrEngine
 		case <-deadline.C:
-			return UnitIdentity{}, ErrEngine
+			return captured, ErrEngine
 		case <-ticker.C:
 		}
 	}
@@ -119,7 +132,7 @@ func (u SystemdUnits) Stop(ctx context.Context, p *NetworkPlan, want UnitIdentit
 	if !want.Valid() {
 		return ErrEngine
 	}
-	actual, e := u.Observe(ctx, p)
+	actual, e := observeProcess(p, pid, true)
 	if e != nil || actual != want {
 		return ErrEngine
 	}

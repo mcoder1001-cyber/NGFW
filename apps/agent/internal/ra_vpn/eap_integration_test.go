@@ -52,7 +52,8 @@ func TestIntegrationPrivateEAPNegotiationAndObservedDisconnect(t *testing.T) {
 	runPrivateEAP(t, false)
 }
 
-func runPrivateEAP(t *testing.T, privateVPP bool) {
+func runPrivateEAP(t *testing.T, privateVPP bool) { runPrivateEAPWithCertificate(t, privateVPP, "") }
+func runPrivateEAPWithCertificate(t *testing.T, privateVPP bool, certificateCase string) {
 	if os.Getenv("NGFW_INTEGRATION") != "1" || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" {
 		t.Skip("requires authenticated isolated engine artifact")
 	}
@@ -92,8 +93,17 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 		t.Fatal("profile fixture")
 	}
 	credentials, now := credentialsFixture(t)
-	credentials.ClientCA = nil
-	credentials.ClientCRL = nil
+	var clientCertificate, clientPrivateKey []byte
+	if certificateCase != "" {
+		auth, caName := "eap-tls", "clients"
+		profile.Auth = &auth
+		profile.ClientCa = &caName
+		profile.Users = nil
+		credentials, clientCertificate, clientPrivateKey, now = tlsCredentialsFixture(t, certificateCase)
+	} else {
+		credentials.ClientCA = nil
+		credentials.ClientCRL = nil
+	}
 	var serverFiles *strongswan.RAFiles
 	for _, plan := range []*NetworkPlan{server, client} {
 		dir := filepath.Join(InstanceRoot, plan.Instance)
@@ -102,7 +112,7 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 			t.Fatal(err)
 		}
 		files.Daemon = []byte(strings.Replace(string(files.Daemon), "journal {", "filelog { fixture { path = "+filepath.Join(dir, "daemon/fixture.log")+"\n default = 1\n flush_line = yes\n } }\n journal {", 1))
-		if err := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test"}, now); err != nil {
+		if err := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test", CertificateClients: certificateCase != "", ClientCAName: profile.GetClientCa()}, now); err != nil {
 			t.Fatal(err)
 		}
 		if plan == server {
@@ -118,7 +128,11 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 			collectPrivatePacketDiagnostics(t, client)
 		}
 	})
-	if _, err := strongswan.LoadRA(context.Background(), serverVICI, serverFiles, strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(InstanceRoot, server.Instance, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey}); err != nil {
+	serverMaterial := strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(InstanceRoot, server.Instance, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey, CRL: credentials.ClientCRL}
+	if certificateCase != "" {
+		serverMaterial.Certificates[filepath.Join(InstanceRoot, server.Instance, "x509ca/clients.pem")] = credentials.ClientCA
+	}
+	if _, err := strongswan.LoadRA(context.Background(), serverVICI, serverFiles, serverMaterial); err != nil {
 		t.Fatal("private responder load refused", err)
 	}
 	call := func(name string, message *vici.Message) {
@@ -134,13 +148,54 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 		t.Fatal("fixture CA absent")
 	}
 	call("load-cert", privateMessage("type", "X509", "flag", "CA", "data", string(ca.Bytes)))
-	call("load-shared", privateMessage("id", "client-eap", "type", "EAP", "owners", []string{"client"}, "data", "NGFW_TEST_PASSWORD_RA19"))
+	localAuth := privateMessage("auth", "eap-mschapv2", "id", "client", "eap_id", "client")
+	if certificateCase != "" {
+		cert, _ := pem.Decode(clientCertificate)
+		key, _ := pem.Decode(clientPrivateKey)
+		if cert == nil || key == nil {
+			t.Fatal("client certificate fixture")
+		}
+		call("load-cert", privateMessage("type", "X509", "flag", "NONE", "data", string(cert.Bytes)))
+		call("load-key", privateMessage("type", "ANY", "data", string(key.Bytes)))
+		localAuth = privateMessage("auth", "eap-tls", "id", "client", "eap_id", "client", "certs", []string{string(clientCertificate)})
+	} else {
+		call("load-shared", privateMessage("id", "client-eap", "type", "EAP", "owners", []string{"client"}, "data", "NGFW_TEST_PASSWORD_RA19"))
+	}
 	child := privateMessage("local_ts", []string{"dynamic"}, "remote_ts", []string{"10.19.0.0/16"}, "esp_proposals", []string{"aes256gcm16-ecp256"}, "if_id_in", "1", "if_id_out", "1", "set_mark_out", "1")
-	conn := privateMessage("version", "2", "local_addrs", []string{client.LocalAddress}, "remote_addrs", []string{server.LocalAddress}, "vips", []string{"0.0.0.0"}, "proposals", []string{"aes256-sha256-prfsha256-ecp256"}, "local", privateMessage("auth", "eap-mschapv2", "id", "client", "eap_id", "client"), "remote", privateMessage("auth", "pubkey", "id", "vpn.example.test"), "children", privateMessage("protected", child))
+	conn := privateMessage("version", "2", "local_addrs", []string{client.LocalAddress}, "remote_addrs", []string{server.LocalAddress}, "vips", []string{"0.0.0.0"}, "proposals", []string{"aes256-sha256-prfsha256-ecp256"}, "local", localAuth, "remote", privateMessage("auth", "pubkey", "id", "vpn.example.test"), "children", privateMessage("protected", child))
 	call("load-conn", privateMessage("ra-client", conn))
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	response, err := clientVICI.Call(ctx, "initiate", privateMessage("child", "protected", "timeout", "20000"))
+	if certificateCase == "revoked" || certificateCase == "foreign" {
+		if response == nil || response.Get("success") != "no" {
+			t.Fatal("untrusted TLS client did not fail authentication")
+		}
+		raw, readErr := os.ReadFile(filepath.Join(InstanceRoot, server.Instance, "daemon/fixture.log"))
+		proved := false
+		markers := []string{"no trusted", "issuer certificate not found", "unable to get local issuer"}
+		if certificateCase == "revoked" {
+			markers = []string{"certificate was revoked", "certificate is revoked", "revoked"}
+		}
+		if readErr == nil && len(raw) < 1<<20 {
+			for _, marker := range markers {
+				if strings.Contains(string(raw), marker) {
+					proved = true
+					t.Log("bounded TLS trust marker:", marker)
+				}
+			}
+		}
+		clear(raw)
+		if !proved {
+			t.Fatal("TLS rejection lacks bounded certificate trust evidence")
+		}
+		sessions, e := strongswan.ObserveRASessions(context.Background(), serverVICI, "road", "fixture-eap-generation", profile.GetPools())
+		if e != nil || len(sessions) != 0 {
+			t.Fatal("untrusted TLS client session remained", e)
+		}
+		t.Log("actual private EAP-TLS untrusted certificate refused:", certificateCase)
+		return
+	}
 	if err != nil || response == nil || response.Get("success") != "yes" {
 		if response != nil {
 			for _, diagnostic := range []string{"CHILD_SA config 'protected' not found", "establishing CHILD_SA 'protected' failed", "initiating CHILD_SA 'protected' failed", "initiation failed", "no config found", "timeout waiting for IKE_SA"} {
@@ -174,5 +229,5 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 	if err := strongswan.DisconnectRASession(context.Background(), serverVICI, "road", "fixture-eap-generation", sessions[0].ID, profile.GetPools()); err != nil {
 		t.Fatal("actual observed disconnect failed", err)
 	}
-	t.Log("actual private EAP-MSCHAPv2 VIP/session negotiation and observed disconnect PASS; VPP/policy packet campaign remains")
+	t.Log("actual private", profile.GetAuth(), "VIP/session negotiation and observed disconnect PASS")
 }

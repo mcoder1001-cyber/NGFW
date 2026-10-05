@@ -406,6 +406,13 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			a.metrics.setVPP(st.Connected)
 			connected = st.Connected
 			if !st.Connected {
+				if a.wiring != nil {
+					stopctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					if err := a.wiring.StopRA(stopctx); err != nil {
+						a.log.Error("remote-access disconnect stop refused", "reason", "owned generation retained")
+					}
+					cancel()
+				}
 				stopLinks()
 				msg := "VPP binary API disconnected"
 				if st.Err != nil {

@@ -1375,7 +1375,7 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 		health = s.wan.HealthFor(effective.GetRouting().GetWanGroups(), wanIdentity(effective))
 	}
 	findings := multiwan.ExpandPBR(effective, health)
-	projection := project(effective, projectionDomains, s.resolveVRF, s.netdevKind)
+	projection := projectOwned(effective, projectionDomains, s.resolveVRF, s.netdevKind, s.owner)
 	for _, f := range findings {
 		projection.Errorf(f.Pointer, "multiwan.pbr-group", "%s", f.Message)
 	}

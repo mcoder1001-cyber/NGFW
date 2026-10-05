@@ -188,6 +188,9 @@ type vrfResolver func(name string) (uint32, bool)
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
 // netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
 func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, nativeEnv ...desired.IKEv2Env) *projected {
+	return projectOwned(ds, domains, resolve, netdev, "", nativeEnv...)
+}
+func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, owner string, nativeEnv ...desired.IKEv2Env) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}, scopeDomains: domains}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -357,7 +360,7 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	// wave-BC: F-pki
 	desired.PKI(p, ds, in, subsystems.PKIProjection())
 	// wave-BC: F-ra-vpn
-	raEnv := subsystems.RAProjection()
+	raEnv := subsystems.RAEnvFor(owner)
 	raEnv.VRF = vrfID
 	desired.RemoteAccess(p, ds, in, raEnv)
 	// wave-BC: F-ikev2-native

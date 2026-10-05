@@ -106,7 +106,17 @@ func NewFileEngineStore(stateDir, owner string) (*FileEngineStore, error) {
 	if !safeOwnerName(owner) || !filepath.IsAbs(stateDir) || filepath.Clean(stateDir) != stateDir {
 		return nil, ErrEngine
 	}
-	parent, e := unix.Open(stateDir, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	parent, e := unix.Open("/", unix.O_RDONLY|unix.O_DIRECTORY|unix.O_CLOEXEC, 0)
+	if e == nil {
+		for _, part := range splitPath(stateDir) {
+			next, err := unix.Openat(parent, part, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+			_ = unix.Close(parent)
+			if err != nil {
+				return nil, ErrEngine
+			}
+			parent = next
+		}
+	}
 	if e != nil {
 		return nil, ErrEngine
 	}
@@ -184,11 +194,20 @@ func (s *FileEngineStore) Save(r EngineRecord) error {
 	if e != nil || len(b) > 524288 {
 		return ErrEngine
 	}
-	fd, e := unix.Openat(s.fd, name, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	var before unix.Stat_t
+	existed := unix.Fstatat(s.fd, name, &before, unix.AT_SYMLINK_NOFOLLOW) == nil
+	if existed {
+		old, e := s.read(name)
+		if e != nil || old.Unit != r.Unit || old.Spec.Instance != r.Spec.Instance {
+			return ErrEngine
+		}
+	}
+	temp := r.Spec.Instance + ".pending"
+	fd, e := unix.Openat(s.fd, temp, unix.O_WRONLY|unix.O_CREAT|unix.O_EXCL|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
 	if e != nil {
 		return ErrEngine
 	}
-	f := os.NewFile(uintptr(fd), name)
+	f := os.NewFile(uintptr(fd), temp)
 	n, e := f.Write(b)
 	if e == nil && n == len(b) {
 		e = f.Sync()
@@ -199,7 +218,12 @@ func (s *FileEngineStore) Save(r EngineRecord) error {
 	if e != nil || closeErr != nil {
 		return ErrEngine
 	}
-	if unix.Fsync(s.fd) != nil {
+	var after unix.Stat_t
+	lookup := unix.Fstatat(s.fd, name, &after, unix.AT_SYMLINK_NOFOLLOW)
+	if existed && (lookup != nil || before.Ino != after.Ino || before.Dev != after.Dev) || !existed && lookup != unix.ENOENT {
+		return ErrEngine
+	}
+	if unix.Renameat(s.fd, temp, s.fd, name) != nil || unix.Fsync(s.fd) != nil {
 		return ErrEngine
 	}
 	return nil

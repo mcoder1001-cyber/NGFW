@@ -1,0 +1,12 @@
+{
+  "product_source": "b91edba689c4880a7d655921b1ae4bed93ee996b",
+  "api_artifact_source_tree": "2380a5445efe7c079d77452fe823a3c25e6de750",
+  "artifact_tree_sha256": "e425b5a931d9fe26c229b183b62091486d318de5c13387137ba552e8a24a7732",
+  "artifact_files": 753,
+  "note": "Frozen copy of final64 API artifact; API/schema/proto source diff against product_source empty. node_modules symlink to same certified frozen API dependency tree.",
+  "binaries": {
+    "ngfw-vpp-preflight": "4e3d2359bd875341301c7cc025c2d2e4758667362d812815f75c52cfb7a12b1b",
+    "ngfw-agentctl": "e65a6fac6c7e988ddf7706a64fb01637313e74ab26a6f3b48c906b0d0b974c5f",
+    "ngfw-agent": "1d669e29a0a8e6aa2a2978f6c76c4def113320aa3b36356602424b1b2bb36428"
+  }
+}

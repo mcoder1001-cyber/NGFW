@@ -1,0 +1,39 @@
+ngfw-agent sha256=bb12c410e4b34382308887a130d479d01999b64e859bd68b4097fdf79a0ca3ae
+ngfw-agentctl sha256=b3da7a36f8d2ee556d1ef4e080d6787db97a363e51769efcd2085691d85a05f4
+ngfw-vpp-preflight sha256=2976f6f1fbba81ca506d2301135111307ed4fc0a90a29803789bc8039eb0a05c
+DISPOSABLE_VPP pid=4081215 runtime=/root/ngfw-wt/codex-closeout-multiwan-extended/.scratch/isolated-vpp-4081213
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: create role ngfw_w7
+        create database ngfw_w7 (owner ngfw_w7)
+        check  ngfw_w7 as ngfw_w7 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w7/pg.env (0600) · DSN postgres://ngfw_w7:<redacted>@127.0.0.1:5432/ngfw_w7
+        
+    acceptance_test.go:89: started ngfw-agent pid 4082115 (log /run/ngfw-test/w7/acl/agent.log)
+    acceptance_test.go:89: started ngfw-api pid 4082149 (log /run/ngfw-test/w7/acl/api.log)
+    acceptance_test.go:89: ngfw-api did not come up on 3700:
+        [32m[Nest] 4082149  - [39m10/04/2026, 5:03:40 PM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+        [32m[Nest] 4082149  - [39m10/04/2026, 5:03:40 PM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +91ms[39m
+        file:///root/.codex/worktrees/6189/NGFW/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/migrator.js:8
+            throw new Error(`Can't find meta/_journal.json file`);
+                  ^
+        
+        Error: Can't find meta/_journal.json file
+            at readMigrationFiles (file:///root/.codex/worktrees/6189/NGFW/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/migrator.js:8:11)
+            at migrate (file:///root/.codex/worktrees/6189/NGFW/node_modules/.pnpm/drizzle-orm@0.45.3_@types+pg@8.23.1_pg@8.23.0/node_modules/drizzle-orm/node-postgres/migrator.js:3:22)
+            at runMigrations (file:///root/ngfw-wt/codex-closeout-multiwan-extended/.scratch/product/apps/api/dist/db/db.js:47:11)
+            at file:///root/ngfw-wt/codex-closeout-multiwan-extended/.scratch/product/apps/api/dist/main.js:15:7
+            at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+        
+        Node.js v22.23.2
+    stack_test.go:199: stopped ngfw-agent pid 4082115
+    acl_test.go:177: pg-test drop w7: <nil>
+        drop   database ngfw_w7
+        drop   role ngfw_w7
+        ok     nothing named ngfw_w7 / ngfw_w7 remains
+--- FAIL: TestMultiWANRealAPI (8.50s)
+FAIL
+FAIL	ngfw/test/topology/acl	8.519s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=4081215

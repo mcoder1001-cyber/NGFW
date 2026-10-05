@@ -1,0 +1,1 @@
+ok  	ngfw/agent/internal/renderers/rsyslog	91.290s

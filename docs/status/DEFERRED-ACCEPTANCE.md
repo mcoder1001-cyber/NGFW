@@ -197,6 +197,18 @@ Real failover/restore, 1000-flow weighted split and affinity, NAT cleanup,
 agent-originated ABF/readback and rollback remain **NOT RUN**. Dynamic
 DHCP/PPPoE gateway handoff remains separate implementation work.
 
+### Verified bounded Multi-WAN acceptance (2026-10-04)
+
+The prior NOT RUN statements describe the source-only closure above. Real
+owned-peer failover/restore passed2.530s/2.652s with restart/rollback. Corrected
+automatic static per-member SNAT passed54.253s; joined PR159 source passed53.404s
+with1000 weighted UDP flows, exact2000 echoes, correct per-peer source addresses,
+native counters, restart retention, selective dead-member cleanup and API PBR.
+See `tasks/closeout-wan-final-packets.md` and retained raw/provenance evidence.
+This clears only static default-VRF IPv4 UDP acceptance. DHCP/PPPoE gateway
+handoff, nondefault probe VRFs/namespaces, TCP/IPv6, scale and browser acceptance
+remain deferred; no broad deployment/upgrade claim is made.
+
 ### Seven ready tasks: PPPoE client wiring source closeout (2026-10-04)
 
 PR165 integrates desired sessions, parent LCP tap selection, versioned sealed

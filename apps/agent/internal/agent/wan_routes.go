@@ -36,7 +36,8 @@ func registerWANRoutes(reg scheduler.Registry, wiring *subsystems.Wiring, client
 	plugin := nat44ed.New(client, owner, natcommon.WithClaims(claims))
 	reg.Register(plugin.OutputFeature.Instance(multiwan.NATOutputName))
 	reg.Register(plugin.InterfaceAddress.Instance(multiwan.NATAddressName))
-	return wiring.AddDynamicSource(subsystems.DynamicSource{Name: "multiwan", Descriptors: []string{multiwan.RouteName, multiwan.NATOutputName, multiwan.NATAddressName}, Desired: func(doc *ngfwv1.DesiredState) []scheduler.KV {
+	reg.Register(plugin.WANPool(multiwan.NATStaticAddressName, multiwan.NATOutputName))
+	return wiring.AddDynamicSource(subsystems.DynamicSource{Name: "multiwan", Descriptors: []string{multiwan.RouteName, multiwan.NATOutputName, multiwan.NATAddressName, multiwan.NATStaticAddressName}, Desired: func(doc *ngfwv1.DesiredState) []scheduler.KV {
 		health := runtime.HealthFor(doc.GetRouting().GetWanGroups(), wanIdentity(doc))
 		routes, _ := multiwan.Routes(doc, health)
 		if health == nil {

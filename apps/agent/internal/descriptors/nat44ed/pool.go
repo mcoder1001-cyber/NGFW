@@ -106,6 +106,12 @@ func (p *Plugin) newAddressPool() *natcommon.Descriptor[AddressPoolSpec] {
 					return nil, fmt.Errorf("nat44_address_dump: %w", err)
 				}
 				a := netip.AddrFrom4(d.IPAddress)
+				// A WAN static pool is the same native object family, but has a distinct
+				// durable writer. Never return it as an undesired configuration pool.
+				nativeID := PoolID(AddressPoolSpec{First: a.String(), Last: a.String(), VRF: d.VrfID, TwiceNAT: d.Flags&nat_types.NAT_IS_TWICE_NAT != 0})
+				if p.claims().Claimed(string(scheduler.Join(NameWANPool, nativeID))) {
+					continue
+				}
 				if !p.scope.All && !p.scope.OwnsAddr(a) {
 					continue // a slot never merges its ranges with other slots' addresses
 				}

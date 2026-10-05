@@ -1,0 +1,8 @@
+TEMPORARY_OVERLAY_NEGATIVE_CONTROL
+--- FAIL: TestRuntimeBoundsInvalidConfigurationDoesNotReplace (0.24s)
+    runtime_test.go:148: identical config reset hysteresis
+FAIL
+FAIL	ngfw/agent/internal/multiwan	0.375s
+FAIL
+
+EXPECTED_EXIT_1_ACTUAL=1

@@ -4349,8 +4349,8 @@ tasks:
       ba683c51 CI PASSED (R7 B1-B4, MAJORs, R2 M1/M2 addressed); verify round R1+R4 (code) + R7 | verify MAJOR-1..3 fixed 712a35c2 (manager spot-check: evidence tracked, wanmon -race ok)
       → merge queue; acl 0/1 deleted, classify reset done | 2026-09-28 merge gate RED on TestTD21Scale (load-timing flake, not this branch) → requeued after S-td21-scale-flake? no: requeued
       as-is after ipclassify | merged 98af9493'
-    worker_status: "source completed; no active developer; PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; weighted packet/affinity acceptance deferred NOTRUN"
-    completion_evidence: "PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; weighted packet/affinity acceptance deferred NOTRUN"
+    worker_status: "source completed; no active developer; PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
+    completion_evidence: "PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
   - id: F-aaa-login
     title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
     stage: S4

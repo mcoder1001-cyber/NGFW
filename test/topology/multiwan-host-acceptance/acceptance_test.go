@@ -143,6 +143,10 @@ func TestMultiWANRealAPI(t *testing.T) {
 	mwWait(t, a, "host-w7m1", 15*time.Second)
 	_, _ = run(t, "ip", "netns", "exec", "ns-w7-mw-lan", "ping", "-c", "2", "-W", "1", mwData)
 	mwPing(t, "preferred WAN packets", 63)
+	if os.Getenv("NGFW_MULTIWAN_EXTENDED") == "1" {
+		mwExtended(t, st, group)
+		return
+	}
 	failoverStarted := time.Now()
 	mustRun(t, "ip", "-n", "ns-w7-mw-wan1", "link", "set", "w7p1", "down")
 	mwWait(t, a, "host-w7m2", 4*time.Second)

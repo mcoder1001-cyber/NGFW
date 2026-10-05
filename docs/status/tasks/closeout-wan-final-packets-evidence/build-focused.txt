@@ -1,0 +1,2 @@
+ok  	ngfw/agent/internal/multiwan	2.098s
+ok  	ngfw/agent/internal/descriptors/nat44ed	1.237s

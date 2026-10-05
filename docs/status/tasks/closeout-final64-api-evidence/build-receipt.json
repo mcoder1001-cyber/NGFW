@@ -1,0 +1,32 @@
+{
+  "frozenProductSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+  "documentCheckpointHEAD": "d18719cd68111e930f2d2209d4b93a6bfe2483f3",
+  "agentSourceTree": "9249ebae6047ebd02fcb83d193af042f3d40bbd1",
+  "trackedProductDiffEmptyBeforeAndAfterBuild": true,
+  "artifactMainSHA256": "27bfd88933101b58826a9f9d0ee3960c00276cddb4f350edc2f05d5e516b9a7f",
+  "agentSHA256": "397de0aa478627c833212d0ba40830795c7cbb04a9833dc7fc61a6d4fe6791de",
+  "build": "own frozen install; schema/proto/YANG/API tsc; own go build production agent with pre/post diff checks",
+  "TMPDIR": "/root/ngfw-wt/codex-final64-api-acceptance/.scratch/tmp",
+  "compiledArtifactTrees": [
+    {
+      "component": "apps/api/dist",
+      "files": 753,
+      "digest": "363b3edd18d68c972a168192fa7a52aab0136fd3e8815f4ccf69c7049cbe48e3"
+    },
+    {
+      "component": "packages/schema/dist",
+      "files": 579,
+      "digest": "6a263eb69c53fcdb7a00454048cde9d14588d416e07155f712f24a5d114e0abb"
+    },
+    {
+      "component": "packages/proto/dist",
+      "files": 6,
+      "digest": "240d3b9ae30b4290f4607108bea3a9a399c1354cfaf89ef44c0ac636f621ecf2"
+    },
+    {
+      "component": "packages/yang/dist",
+      "files": 12,
+      "digest": "5d664b55c0cbaf01a17d00e1b3446f41df15ab72cab88a3b161992a3366dc128"
+    }
+  ]
+}

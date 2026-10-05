@@ -1,0 +1,20 @@
+{
+  "frozenProductSource": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+  "postRunProductDiffEmpty": true,
+  "agentAndAllCompiledArtifactTreeDigestsUnchanged": true,
+  "fullSuite": {
+    "passed": 289,
+    "skipped": 3,
+    "total": 292,
+    "seconds": 825.12
+  },
+  "realAgentRerun": {
+    "passed": 3,
+    "skipped": 0,
+    "seconds": 36.08
+  },
+  "combinedPassed": 292,
+  "management": "PASS",
+  "dataplaneApplyOrRestartInvoked": false,
+  "sharedVPP": "MainPID=1014,NRestarts=0"
+}

@@ -687,6 +687,7 @@ func TestProtectedInventorySkipsValidForeignNamespaceBeforeBindingProbe(t *testi
 	if err := os.WriteFile(manifest, data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G304 -- root is this test's private TempDir; hold it to verify foreign-owner inventory isolation.
 	file, err := os.Open(root)
 	if err != nil {
 		t.Fatal(err)
@@ -703,6 +704,7 @@ func TestProtectedInventorySkipsValidForeignNamespaceBeforeBindingProbe(t *testi
 	if err != nil || len(plans) != 0 || probes != 0 {
 		t.Fatal("foreign namespace was probed/adopted or blocked another owner", err)
 	}
+	// #nosec G304 -- manifest is the fixed network.json beneath the private test root and validated fixture instance.
 	if after, err := os.ReadFile(manifest); err != nil || string(after) != string(data) {
 		t.Fatal("foreign manifest changed")
 	}

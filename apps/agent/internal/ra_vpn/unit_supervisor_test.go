@@ -73,6 +73,7 @@ func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
 	if err := os.WriteFile(other, []byte("same bytes"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G304 -- owned is the fixed executable fixture inside this test's private TempDir.
 	file, err := os.Open(owned)
 	if err != nil {
 		t.Fatal(err)
@@ -95,6 +96,7 @@ func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
 	if sameUnitExecutable(file, other) {
 		t.Fatal("same bytes with foreign inode adopted")
 	}
+	// #nosec G302 -- deliberately unsafe mode must be refused by exact executable ownership validation.
 	if err := os.Chmod(owned, 0777); err != nil {
 		t.Fatal(err)
 	}

@@ -326,7 +326,7 @@ class Runner(wave_a.Runner):
 
     def metrics(self, name):
         port = 9100 + self.slot * 10 + 1
-        with urllib.request.urlopen(f'http://127.0.0.1:{port}/metrics', timeout=10) as response:
+        with private_opener().open(f'http://127.0.0.1:{port}/metrics', timeout=10) as response:
             data = response.read(1024 * 1024 + 1)
         require(len(data) <= 1024 * 1024, 'oversized metrics response')
         text = data.decode()

@@ -9,6 +9,10 @@ import tempfile
 import threading
 import time
 import unittest
+from unittest.mock import patch
+import types
+import execute
+from driver import private_opener
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from driver import API, Refused
@@ -72,7 +76,13 @@ class SecurityCleanupChecks(unittest.TestCase):
             foundation.base = api.base + '/'
             with self.assertRaises(Refused):
                 foundation.request('GET', 'config')
-            self.assertEqual(sources, ['ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'Bearer NGFW_TEST_PSK_TRAFFIC_C_REDIRECT'])
+            real = private_opener()
+            owned_metric_transport = types.SimpleNamespace(open=lambda _url, timeout: real.open(f'http://127.0.0.1:{origin.server_port}/metrics', timeout=timeout))
+            runner = Runner(14, Path('/unused'), None)
+            with patch.object(execute, 'private_opener', return_value=owned_metric_transport), patch.object(execute.urllib.request, 'urlopen', side_effect=AssertionError('unsafe metrics opener')):
+                with self.assertRaises(Refused):
+                    runner.metrics('fixture')
+            self.assertEqual(sources, ['ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'ApiKey NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', 'Bearer NGFW_TEST_PSK_TRAFFIC_C_REDIRECT', None])
             self.assertEqual(sink, [])
         finally:
             for server in (origin, target):

@@ -117,6 +117,8 @@ import faHaStateSync from './locales/fa/ha-state-sync.json';
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
 // wave-BC: F-backup-restore
+import enBackupRestore from './locales/en/backup-restore.json';
+import faBackupRestore from './locales/fa/backup-restore.json';
 // wave-A: UI-domain-editor
 // wave-A: F-vlan-qinq
 import enVlanQinq from './locales/en/vlan-qinq.json';
@@ -254,6 +256,7 @@ export const NAMESPACES = [
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore',
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq',
@@ -368,6 +371,7 @@ const en = {
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore': enBackupRestore,
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq': enVlanQinq,
@@ -479,6 +483,7 @@ const fa = {
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore': faBackupRestore,
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq': faVlanQinq,

@@ -1,3 +1,4 @@
+import { managementBackupField, managementTemplatesField } from './ext/backup-restore.js';
 import { managementNotificationsField } from './ext/notifications.js';
 import { z } from 'zod';
 import {
@@ -253,6 +254,8 @@ export const ManagementSchema = withUi(
     alarms: managementAlarmsField,
     notifications: managementNotificationsField,
     // wave-BC: F-backup-restore
+    backup: managementBackupField,
+    templates: managementTemplatesField,
   }),
   {
     title: 'Management',

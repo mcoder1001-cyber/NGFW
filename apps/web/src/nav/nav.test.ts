@@ -111,6 +111,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       // wave-BC: F-aaa
       'aaa',
       // wave-BC: F-backup-restore
+      'backup-restore',
+      'upgrade',
       // wave-BC: P10
       // wave-BC: P14
       // wave-BC: F-ab-upgrade

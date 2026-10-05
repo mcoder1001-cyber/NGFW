@@ -158,9 +158,13 @@ export class DatastoreService {
    * Import a whole document into the candidate (never applied, P06 §4). D-097: a snapshot never brings password
    * hashes — they are dropped (listed in `ignoredSecrets`); users get passwords through /users/{name}/password.
    */
-  async importCandidate(user: Principal, doc: unknown): Promise<EditResult> {
+  async importCandidate(
+    user: Principal,
+    doc: unknown,
+    restoreRows?: readonly { ref: string; ciphertext: string }[],
+  ): Promise<EditResult> {
     const { doc: clean, removed } = withoutPasswordHashes(doc);
-    const r = await this.edit(user, '', () => clean);
+    const r = await this.edit(user, '', () => clean, false, undefined, restoreRows);
     if (removed.length > 0) r.ignoredSecrets = removed;
     return r;
   }
@@ -182,6 +186,7 @@ export class DatastoreService {
     mutate: (doc: Doc) => unknown,
     setup = false,
     expectedRevision?: number,
+    restoreRows?: readonly { ref: string; ciphertext: string }[],
   ): Promise<EditResult> {
     return this.repo.tx(async (tx) => {
       const c = await tx.lockCandidate();
@@ -201,7 +206,8 @@ export class DatastoreService {
         const hashes = await tx.userHashes();
         if (
           privilegedChanges(hydrateHashes(runningDoc, hashes), hydrateHashes(staged, hashes))
-            .length > 0
+            .length > 0 ||
+          Object.keys(c.restoreSecrets ?? {}).length > 0
         ) {
           staged = null;
           discarded = true;
@@ -213,7 +219,18 @@ export class DatastoreService {
       // before the schema so no problem message ever quotes such a key raw. Pre-existing ones do not block edits.
       const unsafe = newUnsafeTextIssues(base, mutated);
       if (unsafe.length > 0) throw problems.validation(unsafe, UNSAFE_TEXT_MESSAGE);
-      const next = preserveSecrets(base, parseDocument(mutated));
+      let parsed = parseDocument(mutated);
+      if (restoreRows !== undefined) {
+        // Candidate lock serializes this read with normal commits: snapshots never replace current accounts.
+        parsed = parseDocument(
+          setAt(
+            parsed,
+            '/management/users',
+            structuredClone(getAt(runningDoc, '/management/users')),
+          ),
+        );
+      }
+      const next = preserveSecrets(base, parsed);
       // wave-BC: F-default-vpp-nics — physical NICs: never removed, marker read-only (datastore/physical-nics.ts)
       assertPhysicalNicEdit(base, next);
       if (
@@ -232,7 +249,16 @@ export class DatastoreService {
           );
         }
       }
+      const restoreSecrets =
+        restoreRows === undefined
+          ? discarded || staged === null
+            ? null
+            : c.restoreSecrets
+          : await tx.stageRestoreSecrets?.(restoreRows, user.id);
+      if (restoreRows && !tx.stageRestoreSecrets)
+        throw problems.unavailable('backup staging is unavailable');
       await tx.saveCandidate({
+        restoreSecrets: restoreSecrets ?? null,
         ...lockOwnerOf(user),
         lockedAt: decision === 'own' ? c.lockedAt : this.now(),
         payload: next,

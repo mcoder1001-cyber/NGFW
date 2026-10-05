@@ -114,7 +114,10 @@ export class ValidationService {
     const refs = secretRefs(config);
     const missing = missingSecretIssues(
       refs,
-      await this.repo.existingSecretRefs(refs.map((r) => r.ref)),
+      new Set([
+        ...(await this.repo.existingSecretRefs(refs.map((r) => r.ref))),
+        ...Object.keys(opts.secretVersions ?? {}),
+      ]),
     );
     if (missing.length > 0)
       return { ...base, ok: false, tier: 'semantic', errors: missing, config };

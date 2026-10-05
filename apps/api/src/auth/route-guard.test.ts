@@ -22,7 +22,7 @@ const PUBLIC = new Set([
   'POST /api/v1/auth/logout',
   // Feature public routes: one line under the feature's anchor (SY1).
   // wave-BC: F-vrrp-config-sync
-  "POST /api/v1/actions/ha/receive",
+  'POST /api/v1/actions/ha/receive',
   // wave-BC: F-aaa
   'POST /api/v1/auth/mfa/verify', // F-aaa-login: authorised by the single-use login challenge
   'POST /api/v1/auth/mfa/enroll', // F-aaa-login: authorised by the single-use login challenge
@@ -58,6 +58,16 @@ const ADMIN_ONLY = new Set([
   'POST /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159: admin-issued enrolment
   'DELETE /api/v1/auth/mfa/users/:name/enrolment-token', // F-aaa-login D-159
   // wave-BC: F-backup-restore
+  'POST /api/v1/actions/backup',
+  'POST /api/v1/actions/restore',
+  'POST /api/v1/actions/support-bundle',
+  'POST /api/v1/actions/upgrade',
+  'POST /api/v1/actions/upgrade-upload',
+  'GET /api/v1/config-templates',
+  'GET /api/v1/config-templates/:name',
+  'PUT /api/v1/config-templates/:name',
+  'POST /api/v1/config-templates/:name/apply',
+  'GET /api/v1/state/backup',
   'POST /api/v1/actions/nat/cnat/sessions/purge', // F-det44-map-dslite-cnat (no SY1 anchor seeded for it)
   'PUT /api/v1/system/license', // F-licensing (unanchored, added by manager at merge)
   'POST /api/v1/actions/ipsec/ikev2/:tunnel/:operation',

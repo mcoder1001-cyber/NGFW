@@ -8,6 +8,8 @@ allowBuilds:
   esbuild: true
   protobufjs: true
   '@scarf/scarf': false
+  cpu-features: false
+  ssh2: false
 
 # Security freeze: Nest pins Fastify; keep all runtime copies on patched releases.
 overrides:

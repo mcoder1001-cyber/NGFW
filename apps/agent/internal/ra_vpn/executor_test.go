@@ -1,6 +1,10 @@
 package ravpn
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"testing"
+)
 
 func TestNamespaceReadbackRejectsForeignOwnership(t *testing.T) {
 	instance := InstanceID("w19", "road")
@@ -20,5 +24,11 @@ func TestNamespaceReadbackRejectsForeignOwnership(t *testing.T) {
 		if _, err := ownedOuterRule([]byte(data)); err == nil {
 			t.Fatal("foreign or duplicate rule accepted")
 		}
+	}
+}
+
+func TestNamespaceCommandRefusesUnlistedExecutable(t *testing.T) {
+	if _, err := command(context.Background(), "/bin/true", nil); !errors.Is(err, ErrBoundary) {
+		t.Fatal("namespace command accepted a tool outside its fixed allowlist")
 	}
 }

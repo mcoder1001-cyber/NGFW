@@ -41,8 +41,9 @@ type NamespaceBrokerMessage struct {
 type SystemdNamespaceBroker struct{ Executable string }
 
 const namespaceBrokerUnit = "/usr/lib/systemd/system/ngfw-ra-namespace-broker@.service"
-const expectedNamespaceBrokerUnit = "4509934df947ca32386ccfa553b967445d7b662583f7be14d173dcc24824c8f7"
+const expectedNamespaceBrokerUnit = "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91"
 
+// Preflight verifies the protected broker executable and fixed manager template.
 func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 	if validateNamespaceBrokerExecutable(b.Executable) != nil {
 		return ErrBoundary
@@ -54,7 +55,7 @@ func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 	}
 	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
-	command := exec.CommandContext(bounded, "/usr/bin/systemctl", "show", "--property=FragmentPath,DropInPaths,User,CapabilityBoundingSet,NoNewPrivileges,ExecStart", "ngfw-ra-namespace-broker@preflight.service")
+	command := exec.CommandContext(bounded, "/usr/bin/systemctl", "show", "--property=FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart", "ngfw-ra-namespace-broker@preflight.service")
 	output, e := command.Output()
 	if e != nil || len(output) > 16384 {
 		return ErrBoundary
@@ -67,7 +68,7 @@ func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 		}
 	}
 	caps := strings.Fields(fields["CapabilityBoundingSet"])
-	if len(caps) != 2 || !strings.Contains(" "+fields["CapabilityBoundingSet"]+" ", " cap_sys_admin ") || !strings.Contains(" "+fields["CapabilityBoundingSet"]+" ", " cap_sys_chroot ") || fields["NoNewPrivileges"] != "yes" || fields["User"] != "root" || fields["FragmentPath"] != namespaceBrokerUnit || fields["DropInPaths"] != "" || !strings.Contains(fields["ExecStart"], "path="+b.Executable+" ;") {
+	if len(caps) != 2 || !strings.Contains(" "+fields["CapabilityBoundingSet"]+" ", " cap_sys_admin ") || !strings.Contains(" "+fields["CapabilityBoundingSet"]+" ", " cap_sys_chroot ") || fields["NoNewPrivileges"] != "yes" || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["FragmentPath"] != namespaceBrokerUnit || fields["DropInPaths"] != "" || !strings.Contains(fields["ExecStart"], "path="+b.Executable+" ;") {
 		return ErrBoundary
 	}
 	socketUnit, err := trustedInstallationFile("/usr/lib/systemd/system/ngfw-ra-namespace-broker.socket", 16384, false)
@@ -103,7 +104,14 @@ func (b *SystemdNamespaceBroker) Preflight(ctx context.Context) error {
 const namespaceBrokerSocket = "/run/ngfw/ra-namespace.sock"
 
 // RunFDs hands already-held namespace objects to the fixed activated broker.
-func (*SystemdNamespaceBroker) RunFDs(ctx context.Context, request NamespaceBrokerMessage, fds [3]int) error {
+// RunFDs preserves the archived interface but refuses unauthenticated legacy
+// three-role production requests. All current operations require four roles.
+func (*SystemdNamespaceBroker) RunFDs(context.Context, NamespaceBrokerMessage, [3]int) error {
+	return ErrBoundary
+}
+
+// RunAttestedFDs transfers the authenticated caller's internally held source MNT.
+func (*SystemdNamespaceBroker) RunAttestedFDs(ctx context.Context, request NamespaceBrokerMessage, fds [4]int) error {
 	if ctx.Err() != nil || !ValidInstance(request.Instance) || brokerProtectedParent("/run/ngfw") != nil {
 		return ErrBoundary
 	}
@@ -147,51 +155,44 @@ func (*SystemdNamespaceBroker) RunFDs(ctx context.Context, request NamespaceBrok
 }
 
 // RunManagedNamespaceBroker authenticates the protected root request and pins
-// all three typed descriptors before any mount namespace change. The unit
+// all four typed descriptors before any mount namespace change. The unit
 // supplies only a fixed full instance identifier as its argument.
 func RunManagedNamespaceBroker(socketFD int) error {
 	if os.Geteuid() != 0 || socketFD < 0 {
 		return ErrBoundary
 	}
+	roleContext, cancelRole := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelRole()
+	if normalizeCanonicalBroker(roleContext) != nil {
+		return ErrBoundary
+	}
+	count, countErr := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if countErr != nil || count != 1 || os.Getenv("LISTEN_FDNAMES") != sourceAgentExecutableRole || os.Getenv("LISTEN_PID") != strconv.Itoa(os.Getpid()) {
+		return ErrBoundary
+	}
+	sourceImage := os.NewFile(3, "manager-opened canonical source executable")
+	unix.CloseOnExec(3)
+	defer func() { _ = sourceImage.Close() }()
 	peer, e := unix.GetsockoptUcred(socketFD, unix.SOL_SOCKET, unix.SO_PEERCRED)
-	if e != nil || peer.Uid != 0 || peer.Gid != 0 || peer.Pid <= 1 {
+	if e != nil || peer.Uid != 0 || peer.Pid <= 1 {
+		return ErrBoundary
+	}
+	sourceBoot := (bootid.Reader{}).ForPID(int(peer.Pid))
+	if verifyFixedAgentPeer(roleContext, peer, sourceBoot) != nil || readSourceAgentReference(sourceBoot) != nil || validateSourceAgentExecutable(sourceImage) != nil {
 		return ErrBoundary
 	}
 	timeout := unix.NsecToTimeval((5 * time.Second).Nanoseconds())
 	if unix.SetsockoptTimeval(socketFD, unix.SOL_SOCKET, unix.SO_RCVTIMEO, &timeout) != nil {
 		return ErrBoundary
 	}
-	data := make([]byte, 16385)
-	control := make([]byte, unix.CmsgSpace(3*4))
-	n, cn, flags, _, e := unix.Recvmsg(socketFD, data, control, unix.MSG_CMSG_CLOEXEC)
-	if e != nil {
+	data, files, receiveErr := receiveUnitObserverPacket(socketFD, 4)
+	if receiveErr != nil {
 		return ErrBoundary
 	}
-	messages, e := unix.ParseSocketControlMessage(control[:cn])
-	if e != nil {
-		return ErrBoundary
-	}
-	var held []int
-	defer func() {
-		for _, fd := range held {
-			_ = unix.Close(fd)
-		}
-	}()
-	for _, message := range messages {
-		if message.Header.Level != unix.SOL_SOCKET || message.Header.Type != unix.SCM_RIGHTS {
-			return ErrBoundary
-		}
-		fds, err := unix.ParseUnixRights(&message)
-		if err != nil {
-			return ErrBoundary
-		}
-		held = append(held, fds...)
-	}
-	if n > 16384 || flags & ^unix.MSG_CMSG_CLOEXEC != 0 || len(messages) != 1 || len(held) != 3 {
-		return ErrBoundary
-	}
+	defer closeUnitObserverFiles(files)
+	held := []int{int(files[0].Fd()), int(files[1].Fd()), int(files[2].Fd()), int(files[3].Fd())}
 	var request NamespaceBrokerMessage
-	decoder := json.NewDecoder(bytes.NewReader(data[:n]))
+	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF || !ValidInstance(request.Instance) || request.Source.Boot.PID != int(peer.Pid) || len(request.Targets) != 2 || request.Namespace == 0 || request.HostNamespace == 0 || request.Namespace == request.HostNamespace {
 		return ErrBoundary
@@ -203,38 +204,10 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	if !request.Source.Boot.Complete() || request.Source.Boot.PID <= 1 || !(bootid.Reader{}).ForPID(request.Source.Boot.PID).Equal(request.Source.Boot) {
 		return ErrBoundary
 	}
-	sourceRoot := "/proc/" + strconv.Itoa(request.Source.Boot.PID)
-	status, e := os.ReadFile(sourceRoot + "/status")
-	if e != nil || len(status) > 16384 {
+	if !request.Source.Boot.Equal(sourceBoot) || verifyFixedAgentPeer(roleContext, peer, sourceBoot) != nil || readSourceAgentReference(sourceBoot) != nil || validateSourceAgentExecutable(sourceImage) != nil {
 		return ErrBoundary
 	}
-	fields := map[string]string{}
-	for _, line := range strings.Split(string(status), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if ok {
-			fields[key] = strings.TrimSpace(value)
-		}
-	}
-	uids := strings.Fields(fields["Uid"])
-	capabilities, e := strconv.ParseUint(fields["CapEff"], 16, 64)
-	allowed := uint64(1<<unix.CAP_NET_ADMIN | 1<<unix.CAP_SYS_ADMIN | 1<<unix.CAP_IPC_LOCK)
-	if len(uids) != 4 || uids[0] != "0" || uids[1] != "0" || uids[2] != "0" || uids[3] != "0" || e != nil || capabilities != allowed || fields["NoNewPrivs"] != "1" {
-		return ErrBoundary
-	}
-	for _, field := range []string{"CapPrm", "CapBnd"} {
-		value, err := strconv.ParseUint(fields[field], 16, 64)
-		if err != nil || value != allowed {
-			return ErrBoundary
-		}
-	}
-	for _, field := range []string{"CapInh", "CapAmb"} {
-		value, err := strconv.ParseUint(fields[field], 16, 64)
-		if err != nil || value & ^allowed != 0 {
-			return ErrBoundary
-		}
-	}
-	var sourceMount unix.Stat_t
-	if unix.Stat(sourceRoot+"/ns/mnt", &sourceMount) != nil || sourceMount.Ino != request.Source.MountInode {
+	if validateAttestedBrokerFDs(request, [4]int{held[0], held[1], held[2], held[3]}) != nil {
 		return ErrBoundary
 	}
 	// The manager role is PID1, and VPP must be the installed executable. Targets
@@ -242,18 +215,12 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	if request.Targets[1].Boot.PID != 1 {
 		return ErrBoundary
 	}
-	roleContext, cancelRole := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancelRole()
-	if verifyBrokerVPPUnit(roleContext, request.Targets[0]) != nil {
+	if verifyBrokerVPPUnitIdentity(roleContext, request.Targets[0]) != nil {
 		return ErrBoundary
 	}
 	matched := false
 	for _, target := range request.Targets {
 		if !target.Boot.Complete() || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
-			return ErrBoundary
-		}
-		var current unix.Stat_t
-		if unix.Stat("/proc/"+strconv.Itoa(target.Boot.PID)+"/ns/mnt", &current) != nil || current.Ino != target.MountInode {
 			return ErrBoundary
 		}
 		if target.Boot.Equal(request.Target.Boot) && target.MountInode == request.Target.MountInode {
@@ -263,32 +230,19 @@ func RunManagedNamespaceBroker(socketFD int) error {
 	if !matched {
 		return ErrBoundary
 	}
-	kinds := []int{unix.CLONE_NEWNS, unix.CLONE_NEWNET, unix.CLONE_NEWNET}
-	inodes := []uint64{request.Target.MountInode, request.HostNamespace, request.Namespace}
-	for i, fd := range held {
-		if brokerNamespaceFD(fd, kinds[i], inodes[i]) != nil {
-			return ErrBoundary
-		}
-	}
 	if !(bootid.Reader{}).ForPID(request.Source.Boot.PID).Equal(request.Source.Boot) {
 		return ErrBoundary
 	}
 	arguments := []string{request.Operation, instance, request.Target.Boot.String(), strconv.FormatUint(request.Target.MountInode, 10), strconv.FormatUint(request.HostNamespace, 10), strconv.FormatUint(request.Namespace, 10)}
-	if runNamespaceBrokerFDs(arguments, held) != nil {
+	if runAttestedNamespaceBrokerFDs(arguments, held, request.Source.MountInode) != nil {
+		return ErrBoundary
+	}
+	if verifyFixedAgentPeer(roleContext, peer, sourceBoot) != nil || readSourceAgentReference(sourceBoot) != nil || validateSourceAgentExecutable(sourceImage) != nil {
 		return ErrBoundary
 	}
 	return unix.Sendmsg(socketFD, []byte("OK"), nil, nil, 0)
 }
 
-// verifyBrokerVPPUnit uses manager-authoritative metadata because the broker's
-// two capabilities intentionally cannot dereference another process's exe.
-// Only the appliance vendor unit and its exact NGFW firstboot drop-in are accepted.
-func verifyBrokerVPPUnit(ctx context.Context, target MountTarget) error {
-	if verifyBrokerVPPUnitIdentity(ctx, target) != nil || !brokerCurrentMount(target.Boot, target.MountInode) {
-		return ErrBoundary
-	}
-	return nil
-}
 func verifyBrokerVPPUnitIdentity(ctx context.Context, target MountTarget) error {
 	fragment, err := trustedInstallationFile("/usr/lib/systemd/system/vpp.service", 16384, false)
 	if err != nil {

@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// ErrBoundary is a static refusal of an unverified private runtime boundary.
 var ErrBoundary = errors.New("remote-access: isolated runtime boundary refused")
 
 // ValidateDaemonSandbox makes ignored/unsupported unit isolation fail closed.
@@ -51,7 +52,7 @@ func isolatedIdentity(expected uint64, binding, self, host unix.Stat_t) bool {
 
 // ValidatePrivateFile accepts a regular, singly linked private file only under
 // a verified instance. Every directory is opened relative to its held parent.
-func ValidatePrivateFile(path string, max int64) error {
+func ValidatePrivateFile(path string, sizeLimit int64) error {
 	clean := filepath.Clean(path)
 	if clean != path || !strings.HasPrefix(path, InstanceRoot+"/") {
 		return ErrBoundary
@@ -64,13 +65,13 @@ func ValidatePrivateFile(path string, max int64) error {
 	if err != nil {
 		return ErrBoundary
 	}
-	defer func() { unix.Close(fd) }()
+	defer func() { _ = unix.Close(fd) }()
 	for _, name := range []string{"run", "ngfw", "ra", parts[0]} {
 		next, err := unix.Openat(fd, name, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 		if err != nil {
 			return ErrBoundary
 		}
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		fd = next
 		var st unix.Stat_t
 		if unix.Fstat(fd, &st) != nil || st.Uid != 0 || st.Mode&0022 != 0 || name == parts[0] && st.Mode&0077 != 0 {
@@ -81,9 +82,9 @@ func ValidatePrivateFile(path string, max int64) error {
 	if err != nil {
 		return ErrBoundary
 	}
-	defer unix.Close(file)
+	defer func() { _ = unix.Close(file) }()
 	var st unix.Stat_t
-	if unix.Fstat(file, &st) != nil || st.Uid != 0 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0077 != 0 || st.Nlink != 1 || st.Size > max || max < 1 {
+	if unix.Fstat(file, &st) != nil || st.Uid != 0 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0077 != 0 || st.Nlink != 1 || st.Size > sizeLimit || sizeLimit < 1 {
 		return ErrBoundary
 	}
 	return nil
@@ -132,13 +133,13 @@ func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
 	if err != nil {
 		return nil, ErrBoundary
 	}
-	defer func() { unix.Close(fd) }()
+	defer func() { _ = unix.Close(fd) }()
 	for _, name := range []string{"run", "ngfw", "ra", instance} {
 		next, err := unix.Openat(fd, name, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 		if err != nil {
 			return nil, ErrBoundary
 		}
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		fd = next
 		var st unix.Stat_t
 		if unix.Fstat(fd, &st) != nil || st.Uid != 0 || st.Mode&0022 != 0 {
@@ -153,7 +154,7 @@ func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
 		return nil, ErrBoundary
 	}
 	f := os.NewFile(uintptr(manifest), "network.json")
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var st unix.Stat_t
 	if unix.Fstat(manifest, &st) != nil || st.Uid != 0 || st.Mode&unix.S_IFMT != unix.S_IFREG || st.Mode&0077 != 0 || st.Nlink != 1 || st.Size > 16384 {
 		return nil, ErrBoundary
@@ -171,14 +172,14 @@ func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
 	if err != nil {
 		return nil, ErrBoundary
 	}
-	defer unix.Close(ns)
+	defer func() { _ = unix.Close(ns) }()
 	var binding, self, host unix.Stat_t
 	var fs unix.Statfs_t
 	base, err := unix.Openat(fd, "hostnetns", unix.O_RDONLY|unix.O_CLOEXEC|unix.O_NOFOLLOW, 0)
 	if err != nil {
 		return nil, ErrBoundary
 	}
-	defer unix.Close(base)
+	defer func() { _ = unix.Close(base) }()
 	var baseFS unix.Statfs_t
 	if unix.Fstat(ns, &binding) != nil || unix.Fstatfs(ns, &fs) != nil || fs.Type != unix.NSFS_MAGIC || unix.Stat("/proc/self/ns/net", &self) != nil || unix.Fstat(base, &host) != nil || unix.Fstatfs(base, &baseFS) != nil || baseFS.Type != unix.NSFS_MAGIC || host.Ino != plan.HostNamespaceInode {
 		return nil, ErrBoundary

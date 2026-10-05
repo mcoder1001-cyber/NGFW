@@ -2,7 +2,11 @@ package ravpn
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/encoding/protojson"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/strongswan"
@@ -26,6 +30,9 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	plan.Owner = "w19-engine"
 	plan.Profile = strconv.Itoa(os.Getpid())
 	plan.Instance = InstanceID(plan.Owner, plan.Profile)
+	if !trustedFixturePath(os.Getenv("NGFW_RA_ENGINE_ROOT"), true) || !trustedFixturePath(os.Getenv("NGFW_RA_HELPER"), false) {
+		t.Fatal("private fixture artifact paths are not root-owned protected absolute paths")
+	}
 	if err := CreateNamespace(context.Background(), plan); err != nil {
 		t.Fatal(err)
 	}
@@ -42,11 +49,13 @@ func TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI(t *testing.T) {
 	for _, entry := range []struct{ name, prefix string }{{"outer0", plan.Outer.Namespace}, {"inner0", plan.Inner.Namespace}} {
 		for _, arguments := range [][]string{{"link", "add", entry.name, "type", "dummy"}, {"address", "add", entry.prefix, "dev", entry.name}} {
 			args := append([]string{"--net=" + filepath.Join(dir, "netns"), "--", "/usr/sbin/ip"}, arguments...)
+			// #nosec G204 -- fixed nsenter/ip binaries, validated full instance and newly owned namespace; integration-only root fixture.
 			if exec.Command("/usr/bin/nsenter", args...).Run() != nil {
 				t.Fatal("private dummy endpoint setup refused")
 			}
 		}
 	}
+	// #nosec G204 -- fixed nsenter/ip binaries; namespace path derives solely from validated instance owned by this fixture.
 	links, err := exec.Command("/usr/bin/nsenter", "--net="+filepath.Join(dir, "netns"), "--", "/usr/sbin/ip", "-j", "-d", "link", "show").Output()
 	if err != nil || len(links) > 1<<20 {
 		t.Fatal("private endpoint link readback failed")
@@ -115,7 +124,11 @@ func freshPrivateVICI(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	if err != nil {
 		t.Fatal("private engine redial refused")
 	}
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	return client
 }
 func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
@@ -126,7 +139,11 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { log.Close() })
+	t.Cleanup(func() {
+		if err := log.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	t.Cleanup(func() {
 		data, err := os.ReadFile(filepath.Join(workspace, "private-startup.log"))
 		if err == nil && len(data) < 1<<20 {
@@ -136,8 +153,10 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 				}
 			}
 			if evidence := os.Getenv("NGFW_RA_EVIDENCE_ROOT"); evidence != "" {
-				if stat, err := os.Lstat(evidence); err == nil && stat.IsDir() && stat.Mode().Perm() == 0700 && stat.Sys().(*syscall.Stat_t).Uid == 0 {
-					os.WriteFile(filepath.Join(evidence, plan.Instance+"-startup.log"), data, 0600)
+				if path, err := writePrivateFixtureEvidence(evidence, plan.Instance, data); err != nil {
+					t.Error("private fixture evidence refused", err)
+				} else {
+					t.Log("private startup evidence", path)
 				}
 			}
 		}
@@ -146,11 +165,19 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { mountNamespace.Close() })
+	t.Cleanup(func() {
+		if err := mountNamespace.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	launcher, err := filepath.Abs("../../../../test/topology/ra-vpn/private-daemon.py")
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !trustedFixturePath(launcher, false) || !trustedFixturePath(os.Getenv("NGFW_RA_ENGINE_ROOT"), true) || !trustedFixturePath(os.Getenv("NGFW_RA_HELPER"), false) || plan.Validate() != nil {
+		t.Fatal("private fixture launch paths refused")
+	}
+	// #nosec G204 G702 -- fixed nsenter/unshare/python binaries; protected root-owned launcher/artifact/helper paths and validated owned namespace. The launcher checks pinned engine receipt before exec.
 	cmd := exec.Command("/usr/bin/nsenter", "--net="+filepath.Join(dir, "netns"), "--", "/usr/bin/unshare", "--mount", "--pid", "--fork", "--mount-proc", "/usr/bin/python3", launcher, plan.Instance, os.Getenv("NGFW_RA_ENGINE_ROOT"), os.Getenv("NGFW_RA_HELPER"), workspace)
 	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}
 	cmd.ExtraFiles = []*os.File{mountNamespace}
@@ -165,7 +192,9 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	startTime := uint64(0)
 	cleanup := func() {
 		if childPID > 1 && startTime != 0 && (bootid.Reader{}).StartTime(childPID) == startTime {
-			syscall.Kill(childPID, syscall.SIGTERM)
+			if err := syscall.Kill(childPID, syscall.SIGTERM); err != nil && !errors.Is(err, syscall.ESRCH) {
+				t.Error("owned child SIGTERM refused", err)
+			}
 		}
 		select {
 		case <-wait:
@@ -173,9 +202,13 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 		case <-time.After(3 * time.Second):
 		}
 		if childPID > 1 && startTime != 0 && (bootid.Reader{}).StartTime(childPID) == startTime {
-			syscall.Kill(childPID, syscall.SIGKILL)
+			if err := syscall.Kill(childPID, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+				t.Error("owned child SIGKILL refused", err)
+			}
 		}
-		cmd.Process.Kill()
+		if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			t.Error("owned launcher kill refused", err)
+		}
 		select {
 		case <-wait:
 		case <-time.After(3 * time.Second):
@@ -189,8 +222,12 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 		if childPID == 0 {
 			children, _ := os.ReadFile("/proc/" + strconv.Itoa(cmd.Process.Pid) + "/task/" + strconv.Itoa(cmd.Process.Pid) + "/children")
 			for _, candidate := range strings.Fields(string(children)) {
-				pid, _ := strconv.Atoi(candidate)
-				stat, err := os.Stat("/proc/" + candidate + "/ns/net")
+				pid, err := strconv.Atoi(candidate)
+				if err != nil || pid <= 1 {
+					continue
+				}
+				// #nosec G703 -- kernel children list parsed as integer >1 and re-encoded decimal; no path segment can contain traversal.
+				stat, err := os.Stat("/proc/" + strconv.Itoa(pid) + "/ns/net")
 				if err == nil && pid > 1 && stat.Sys().(*syscall.Stat_t).Ino == plan.NamespaceInode {
 					childPID = pid
 					startTime = (bootid.Reader{}).StartTime(pid)
@@ -211,10 +248,109 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { client.Close() })
+	t.Cleanup(func() {
+		if err := client.Close(); err != nil {
+			t.Error(err)
+		}
+	})
 	version, err := client.Call(context.Background(), "version", nil)
 	if err != nil || version.Get("version") != "6.1.0" {
 		t.Fatal("authenticated private engine version mismatch")
 	}
 	return client
+}
+
+// trustedFixturePath constrains integration-only environment paths before launch.
+func trustedFixturePath(path string, directory bool) bool {
+	if len(path) == 0 || len(path) > 4096 || !filepath.IsAbs(path) || filepath.Clean(path) != path {
+		return false
+	}
+	var info unix.Stat_t
+	if unix.Lstat(path, &info) != nil || info.Uid != 0 || info.Mode&0022 != 0 {
+		return false
+	}
+	if directory {
+		return info.Mode&unix.S_IFMT == unix.S_IFDIR
+	}
+	return info.Mode&unix.S_IFMT == unix.S_IFREG && info.Nlink == 1
+}
+
+func writePrivateFixtureEvidence(root, instance string, data []byte) (evidencePath string, failure error) {
+	if !trustedFixturePath(root, true) || !ValidInstance(instance) || len(data) > 1<<20 {
+		return "", ErrBoundary
+	}
+	directory, err := unix.Open(root, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", ErrBoundary
+	}
+	defer func() { failure = errors.Join(failure, unix.Close(directory)) }()
+	var stat unix.Stat_t
+	if unix.Fstat(directory, &stat) != nil || stat.Uid != 0 || stat.Mode&0077 != 0 {
+		return "", ErrBoundary
+	}
+	var random [16]byte
+	if _, err := rand.Read(random[:]); err != nil {
+		return "", err
+	}
+	generation := "launch-" + hex.EncodeToString(random[:])
+	if unix.Mkdirat(directory, generation, 0700) != nil {
+		return "", ErrBoundary
+	}
+	owned, err := unix.Openat(directory, generation, unix.O_RDONLY|unix.O_DIRECTORY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return "", ErrBoundary
+	}
+	defer func() { failure = errors.Join(failure, unix.Close(owned)) }()
+	descriptor, err := unix.Openat(owned, instance+"-startup.log", unix.O_CREAT|unix.O_EXCL|unix.O_WRONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0600)
+	if err != nil {
+		return "", ErrBoundary
+	}
+	file := os.NewFile(uintptr(descriptor), "private fixture evidence")
+	_, writeErr := file.Write(data)
+	closeErr := file.Close()
+	return filepath.Join(root, generation, instance+"-startup.log"), errors.Join(writeErr, closeErr)
+}
+
+func TestPrivateFixturePathsAndEvidenceRefuseUnsafeOwnership(t *testing.T) {
+	root := t.TempDir()
+	file := filepath.Join(root, "helper")
+	if err := os.WriteFile(file, []byte("fixture"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if trustedFixturePath("relative", false) || trustedFixturePath(file+"/../helper", false) || trustedFixturePath(file, true) {
+		t.Fatal("unbounded or wrong-kind fixture path accepted")
+	}
+	alias := filepath.Join(root, "alias")
+	if err := os.Symlink(file, alias); err != nil {
+		t.Fatal(err)
+	}
+	if trustedFixturePath(alias, false) {
+		t.Fatal("symlink fixture artifact accepted")
+	}
+	if os.Geteuid() != 0 {
+		if trustedFixturePath(file, false) {
+			t.Fatal("nonroot fixture artifact accepted")
+		}
+		return
+	}
+	if !trustedFixturePath(file, false) {
+		t.Fatal("protected owned artifact refused")
+	}
+	private := filepath.Join(root, "evidence")
+	if err := os.Mkdir(private, 0700); err != nil {
+		t.Fatal(err)
+	}
+	instance := InstanceID("fixture", "evidence")
+	first, err := writePrivateFixtureEvidence(private, instance, []byte("first"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := writePrivateFixtureEvidence(private, instance, []byte("replacement"))
+	if err != nil || first == second {
+		t.Fatal("per-launch evidence generation not isolated", err)
+	}
+	data, err := os.ReadFile(first)
+	if err != nil || string(data) != "first" {
+		t.Fatal("evidence ownership refusal lost original", err)
+	}
 }

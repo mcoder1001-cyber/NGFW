@@ -15,10 +15,12 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// NamespaceName identifies the private remote-access namespace descriptor.
 const NamespaceName = "ra.namespace"
 
 var _ scheduler.Descriptor = (*NamespaceDescriptor)(nil)
 
+// KeyOf derives the scoped scheduler key from the public instance.
 func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	object, ok := value.(*structpb.Struct)
 	if !ok {
@@ -27,7 +29,10 @@ func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	return scheduler.Join(NamespaceName, NamespaceKeyID(object.GetFields()["instance"].GetStringValue()))
 }
 
+// NamespaceMeta contains the observed kernel namespace inode.
 type NamespaceMeta struct{ Inode uint64 }
+
+// NamespaceDescriptor manages only namespaces belonging to one configured owner.
 type NamespaceDescriptor struct {
 	owner   string
 	Handoff NamespaceHandoff
@@ -37,15 +42,22 @@ type NamespaceDescriptor struct {
 	Inventory NamespacePlanInventory
 }
 
-// The protected root network.json records ownership and both kernel NSFS
+// CheckPersistent relies on protected network.json ownership and both kernel NSFS
 // identities. Retrieve validates those persisted records against held bindings.
 func (*NamespaceDescriptor) CheckPersistent() error { return nil }
 
+// NewNamespaceDescriptor constructs an owner-scoped descriptor without mutations.
 func NewNamespaceDescriptor(owner string) *NamespaceDescriptor {
 	return &NamespaceDescriptor{owner: owner}
 }
-func (*NamespaceDescriptor) Name() string                                      { return NamespaceName }
-func (*NamespaceDescriptor) Stage() scheduler.Stage                            { return scheduler.StageVPP }
+
+// Name identifies the private namespace family.
+func (*NamespaceDescriptor) Name() string { return NamespaceName }
+
+// Stage orders namespace activation before engine startup.
+func (*NamespaceDescriptor) Stage() scheduler.Stage { return scheduler.StageVPP }
+
+// Dependencies returns no cross-family dependency for namespace creation.
 func (*NamespaceDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
 
 // NamespaceValue contains public input only. Runtime inode belongs to Meta,
@@ -81,6 +93,8 @@ func (d *NamespaceDescriptor) input(value proto.Message) (*NetworkPlan, error) {
 	}
 	return &plan, nil
 }
+
+// Create validates ownership and quiescence before namespace creation.
 func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (any, error) {
 	plan, err := d.input(value)
 	if err != nil {
@@ -107,12 +121,16 @@ func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (
 	}
 	return NamespaceMeta{plan.NamespaceInode}, nil
 }
+
+// Update refuses unsupported namespace changes.
 func (d *NamespaceDescriptor) Update(_ context.Context, old, new proto.Message, meta any) (any, error) {
 	if _, err := d.input(new); err != nil {
 		return nil, err
 	}
 	return meta, scheduler.ErrRecreate
 }
+
+// Delete requires quiescence and verified ownership before namespace cleanup.
 func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, meta any) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -148,6 +166,8 @@ func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, m
 	}
 	return nil
 }
+
+// Retrieve returns verified owned namespace plans without repairing state.
 func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if d.Inventory != nil {
 		return d.retrieveInventory(ctx)
@@ -171,14 +191,15 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		if ValidatePrivateFile(path, 16384) != nil {
 			return nil, ErrBoundary
 		}
+		// #nosec G304 -- fixed root and validated full instance; protected private file and no-follow open.
 		file, err := os.OpenFile(path, os.O_RDONLY|unix.O_NOFOLLOW, 0)
 		if err != nil {
 			return nil, ErrBoundary
 		}
 		var plan NetworkPlan
 		err = json.NewDecoder(file).Decode(&plan)
-		file.Close()
-		if err != nil {
+		closeErr := file.Close()
+		if err != nil || closeErr != nil {
 			return nil, ErrBoundary
 		}
 		if plan.Owner != d.owner {

@@ -20,10 +20,15 @@ type SealedPreparation struct {
 	Installation *EngineInstallation
 }
 
+// String redacts all resolver and private installation state.
 func (*SealedPreparation) String() string { return "remote-access sealed preparation <redacted>" }
+
+// Prepare authenticates sealed references and stages an owned private generation.
 func (p *SealedPreparation) Prepare(ctx context.Context, s EngineSpec) (*PreparedEngine, error) {
 	return p.prepare(ctx, s, false, false)
 }
+
+// Recover verifies the existing owned immutable generation before loading it.
 func (p *SealedPreparation) Recover(ctx context.Context, s EngineSpec) (*PreparedEngine, error) {
 	return p.prepare(ctx, s, true, false)
 }

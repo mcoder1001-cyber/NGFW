@@ -21,7 +21,34 @@ import (
 func RunNamespaceBroker(args []string) error { return runNamespaceBrokerFDs(args, []int{3, 4, 5}) }
 
 func runNamespaceBrokerFDs(args []string, fds []int) error {
-	if os.Geteuid() != 0 || len(args) != 6 {
+	return runNamespaceBrokerHeldFDs(args, fds, false)
+}
+
+func runAttestedNamespaceBrokerFDs(args []string, fds []int, sourceInode uint64) error {
+	if len(fds) != 4 || sourceInode == 0 || brokerNamespaceFD(fds[3], unix.CLONE_NEWNS, sourceInode) != nil {
+		return ErrBoundary
+	}
+	operationError := runNamespaceBrokerHeldFDs(args, fds[:3], true)
+	// Restore the authenticated source filesystem view before ANY post-operation
+	// source reference/artifact lookup. A failed restore exits without an ACK;
+	// the caller retains pending ownership and may compensate with held FDs.
+	if unix.Setns(fds[3], unix.CLONE_NEWNS) != nil {
+		return fmt.Errorf("%w: namespace broker source-restore", ErrBoundary)
+	}
+	current, err := unix.Open("/proc/thread-self/ns/mnt", unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return ErrBoundary
+	}
+	verifyError := brokerNamespaceFD(current, unix.CLONE_NEWNS, sourceInode)
+	closeError := unix.Close(current)
+	if verifyError != nil || closeError != nil {
+		return ErrBoundary
+	}
+	return operationError
+}
+
+func runNamespaceBrokerHeldFDs(args []string, fds []int, attested bool) error {
+	if os.Geteuid() != 0 || len(args) != 6 || len(fds) != 3 {
 		return fmt.Errorf("%w: namespace broker authority", ErrBoundary)
 	}
 	if unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != nil {
@@ -50,7 +77,7 @@ func runNamespaceBrokerFDs(args []string, fds []int) error {
 	if err != nil {
 		return fmt.Errorf("%w: namespace broker private-network", ErrBoundary)
 	}
-	if !brokerCurrentMount(targetBoot, mountInode) {
+	if !attested && !brokerCurrentMount(targetBoot, mountInode) {
 		return fmt.Errorf("%w: namespace broker target-current", ErrBoundary)
 	}
 	if brokerNamespaceFD(fds[0], unix.CLONE_NEWNS, mountInode) != nil {
@@ -150,7 +177,7 @@ func runNamespaceBrokerFDs(args []string, fds []int) error {
 			}
 		}
 	}
-	if !brokerCurrentMount(targetBoot, mountInode) {
+	if !attested && !brokerCurrentMount(targetBoot, mountInode) {
 		return fmt.Errorf("%w: namespace broker final-boundary-23", ErrBoundary)
 	}
 	return nil
@@ -213,7 +240,9 @@ func brokerBindingState(path string, inode uint64, placeholder bool) error {
 		}
 		return nil
 	}
-	if !placeholder || st.Uid != 0 || st.Gid != 0 || st.Mode != unix.S_IFREG|0600 || st.Nlink != 1 || st.Size != 0 {
+	// The fixed agent runs root:ngfw and has no CAP_CHOWN. Exact 0600 grants
+	// no group access, so its gid does not change the root-only boundary.
+	if !placeholder || st.Uid != 0 || st.Mode != unix.S_IFREG|0600 || st.Nlink != 1 || st.Size != 0 {
 		return ErrBoundary
 	}
 	return nil

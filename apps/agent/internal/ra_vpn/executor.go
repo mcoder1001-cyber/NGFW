@@ -33,7 +33,17 @@ func (out *boundedOutput) Write(data []byte) (int, error) {
 func command(ctx context.Context, tool string, input []byte, args ...string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, tool, args...)
+	var cmd *exec.Cmd
+	switch tool {
+	case "/usr/sbin/ip":
+		// #nosec G204 -- fixed literal executable; private callers supply only typed-plan generated arguments, never shell text.
+		cmd = exec.CommandContext(ctx, "/usr/sbin/ip", args...)
+	case "/usr/sbin/nft":
+		// #nosec G204 -- fixed literal executable and generated --check/--file - arguments; rules arrive on stdin after plan validation.
+		cmd = exec.CommandContext(ctx, "/usr/sbin/nft", args...)
+	default:
+		return nil, ErrBoundary
+	}
 	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "LC_ALL=C"}
 	cmd.Stdin = bytes.NewReader(input)
 	var out boundedOutput

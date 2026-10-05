@@ -18,6 +18,7 @@ type Handoff struct {
 	InnerName          string          `json:"innerName"`
 }
 
+// LinkName derives a bounded role-specific transit interface name from a full instance.
 func LinkName(instance string, outer bool) string {
 	if !ValidInstance(instance) {
 		return ""

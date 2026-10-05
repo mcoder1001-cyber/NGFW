@@ -131,6 +131,7 @@ func activateNumericSupplier(ctx context.Context, kind NumericOpenFileKind, targ
 	if exec.CommandContext(ctx, "/usr/bin/systemctl", "daemon-reload").Run() != nil {
 		return ErrBoundary
 	}
+	// #nosec G204 -- Only the two literal supplier families plus verified canonical PID can reach this fixed command.
 	if exec.CommandContext(ctx, "/usr/bin/systemctl", "start", name).Run() != nil {
 		return ErrBoundary
 	}

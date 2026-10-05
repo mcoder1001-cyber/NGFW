@@ -23,9 +23,13 @@ type PrivateSnapshot struct {
 	CertificateClients bool
 }
 
-func (PrivateSnapshot) String() string     { return "remote-access private snapshot <redacted>" }
+// String keeps credentials out of generic logging.
+func (PrivateSnapshot) String() string { return "remote-access private snapshot <redacted>" }
+
+// GoString keeps credentials out of detailed Go formatting.
 func (s PrivateSnapshot) GoString() string { return s.String() }
 
+// Validate bounds rendered material and verifies credential identity and trust.
 func (s PrivateSnapshot) Validate(now time.Time) error {
 	if !credentialName.MatchString(s.CertificateName) || len(s.Daemon) == 0 || len(s.Daemon) > 1<<20 || len(s.Connection) == 0 || len(s.Connection) > 1<<20 || len(s.Secrets) > 1<<20 {
 		return ErrBoundary
@@ -52,14 +56,16 @@ func WriteSnapshot(instance string, snapshot PrivateSnapshot, now time.Time) err
 	if err != nil {
 		return ErrBoundary
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }()
 	var createdDirs, createdFiles []string
+	// Rollback is best effort after an operation already failed closed; any
+	// remaining owned nodes prevent a future exclusive generation overwrite.
 	rollback := func() {
 		for i := len(createdFiles) - 1; i >= 0; i-- {
-			unix.Unlinkat(fd, createdFiles[i], 0)
+			_ = unix.Unlinkat(fd, createdFiles[i], 0)
 		}
 		for i := len(createdDirs) - 1; i >= 0; i-- {
-			unix.Unlinkat(fd, createdDirs[i], unix.AT_REMOVEDIR)
+			_ = unix.Unlinkat(fd, createdDirs[i], unix.AT_REMOVEDIR)
 		}
 	}
 	for _, name := range []string{"private", "x509", "x509ca", "x509crl", "daemon"} {
@@ -102,7 +108,7 @@ func WriteSnapshot(instance string, snapshot PrivateSnapshot, now time.Time) err
 		return ErrBoundary
 	}
 	if unix.Fsync(fd) != nil {
-		unix.Unlinkat(fd, snapshotReceiptName, 0)
+		_ = unix.Unlinkat(fd, snapshotReceiptName, 0)
 		rollback()
 		return ErrBoundary
 	}

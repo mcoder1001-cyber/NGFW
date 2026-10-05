@@ -123,3 +123,37 @@ func TestIntegrationCancelledNamespaceCreationLeavesNoBinding(t *testing.T) {
 		t.Fatal("cancelled creation left runtime directory")
 	}
 }
+
+func TestNamespaceDescriptorTrustedInventoryIsolation(t *testing.T) {
+	plan := networkFixture()
+	plan.NamespaceInode = 123
+	plan.HostNamespaceInode = 456
+	descriptor := NewNamespaceDescriptor(plan.Owner)
+	descriptor.Inventory = func(_ context.Context, owner string) ([]*NetworkPlan, error) {
+		if owner != plan.Owner {
+			t.Fatal("inventory owner mismatch")
+		}
+		return []*NetworkPlan{plan}, nil
+	}
+	values, err := descriptor.Retrieve(context.Background())
+	if err != nil || len(values) != 1 {
+		t.Fatalf("trusted observed fixture inventory: %v", err)
+	}
+	if plan.NamespaceInode != 123 || plan.HostNamespaceInode != 456 {
+		t.Fatal("mutated inventory input")
+	}
+	descriptor.Inventory = func(context.Context, string) ([]*NetworkPlan, error) { return []*NetworkPlan{plan, plan}, nil }
+	if _, err := descriptor.Retrieve(context.Background()); err == nil {
+		t.Fatal("accepted duplicate instance")
+	}
+	plan.HostNamespaceInode = 123
+	descriptor.Inventory = func(context.Context, string) ([]*NetworkPlan, error) { return []*NetworkPlan{plan}, nil }
+	if _, err := descriptor.Retrieve(context.Background()); err == nil {
+		t.Fatal("accepted host/private namespace alias")
+	}
+	descriptor.Inventory = func(context.Context, string) ([]*NetworkPlan, error) { return nil, nil }
+	values, err = descriptor.Retrieve(context.Background())
+	if err != nil || len(values) != 0 {
+		t.Fatal("empty mock inventory touched shared host")
+	}
+}

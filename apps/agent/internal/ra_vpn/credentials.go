@@ -21,7 +21,10 @@ type Credentials struct {
 	ClientCRL   []byte `json:"-"`
 }
 
-func (Credentials) String() string     { return "remote-access credentials <redacted>" }
+// String keeps private keys out of generic logging.
+func (Credentials) String() string { return "remote-access credentials <redacted>" }
+
+// GoString keeps private keys out of detailed Go formatting.
 func (c Credentials) GoString() string { return c.String() }
 
 func strongPublicKey(key crypto.PublicKey) bool {

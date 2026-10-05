@@ -37,6 +37,7 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 	if err == nil {
 		data, _ := json.Marshal(plan)
 		var manifest *os.File
+		// #nosec G304 -- validated full instance, protected private parents and fixed network.json leaf; exclusive creation refuses an existing node.
 		manifest, err = os.OpenFile(filepath.Join(dir, "network.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err == nil {
 			_, err = manifest.Write(data)
@@ -76,11 +77,14 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 
 func mountNamespaceBinding(ctx context.Context, instance, name string, isolated bool) (uint64, error) {
 	path := filepath.Join(InstanceRoot, instance, name)
+	// #nosec G304 -- internal callers supply validated full instance and fixed netns/hostnetns leaf under protected private parents; exclusive creation.
 	file, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_RDONLY, 0600)
 	if err != nil {
 		return 0, ErrBoundary
 	}
-	file.Close()
+	if file.Close() != nil {
+		return 0, ErrBoundary
+	}
 	if isolated {
 		_, err = command(ctx, "/usr/bin/unshare", nil, "--net", "--", "/usr/bin/mount", "--bind", "/proc/self/ns/net", path)
 	} else {
@@ -102,7 +106,7 @@ func prepareInstance(instance string) error {
 	if err != nil {
 		return ErrBoundary
 	}
-	defer func() { unix.Close(fd) }()
+	defer func() { _ = unix.Close(fd) }()
 	for _, name := range []string{"run", "ngfw", "ra"} {
 		if name != "run" {
 			if err = unix.Mkdirat(fd, name, 0700); err != nil && err != unix.EEXIST {
@@ -113,7 +117,7 @@ func prepareInstance(instance string) error {
 		if err != nil {
 			return ErrBoundary
 		}
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		fd = next
 		var stat unix.Stat_t
 		if unix.Fstat(fd, &stat) != nil || stat.Uid != 0 || stat.Mode&0022 != 0 {
@@ -136,6 +140,7 @@ func RemoveNamespace(instance string, inode uint64) error {
 	if ValidatePrivateFile(path, 16384) != nil {
 		return ErrBoundary
 	}
+	// #nosec G304 -- validated full instance and fixed network.json leaf, authenticated by ValidatePrivateFile immediately above.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return ErrBoundary
@@ -162,7 +167,7 @@ func removeNamedBinding(instance, name string, inode uint64) error {
 	if err != nil {
 		return ErrBoundary
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }()
 	var stat unix.Stat_t
 	var fs unix.Statfs_t
 	if unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != inode {

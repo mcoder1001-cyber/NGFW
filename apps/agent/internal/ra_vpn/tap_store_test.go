@@ -10,7 +10,9 @@ import (
 func TestFileTAPReceiptRejectsUntrustedStateParent(t *testing.T) {
 	for _, path := range []string{"relative", "/", "/tmp"} {
 		if store, err := NewFileTAPReceipts(path); err == nil {
-			store.Close()
+			if err := store.Close(); err != nil {
+				t.Fatal(err)
+			}
 			t.Fatal("unsafe claim parent accepted")
 		}
 	}
@@ -43,7 +45,11 @@ func TestFileTAPReceiptPersistsAndRefusesLinkedOrForeignClaims(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(dir) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(dir); err != nil {
+			t.Error(err)
+		}
+	})
 	store, err := NewFileTAPReceipts(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -53,12 +59,18 @@ func TestFileTAPReceiptPersistsAndRefusesLinkedOrForeignClaims(t *testing.T) {
 	if err = store.Save(endpoint.Name, receipt); err != nil {
 		t.Fatal(err)
 	}
-	store.Close()
+	if err := store.Close(); err != nil {
+		t.Fatal(err)
+	}
 	store, err = NewFileTAPReceipts(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 	read, err := store.Load(endpoint.Name)
 	if err != nil || !receiptMatches(read, endpoint, plan, *boot) {
 		t.Fatal("restart claim lost", err)
@@ -73,7 +85,7 @@ func TestFileTAPReceiptPersistsAndRefusesLinkedOrForeignClaims(t *testing.T) {
 		t.Fatal("hardlink fixture")
 	}
 	if _, err = store.Load(endpoint.Name); err == nil {
-		t.Fatal("hardlinked receipt accepted")
+		t.Fatal("receipt with multiple links accepted")
 	}
 	if os.Remove(filepath.Join(dir, "alias")) != nil {
 		t.Fatal("hardlink cleanup")

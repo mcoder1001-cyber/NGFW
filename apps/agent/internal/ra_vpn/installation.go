@@ -19,6 +19,7 @@ import (
 // may point at its owned offline artifact; profiles cannot choose these paths.
 type EngineInstallation struct{ Prefix, Helper, Unit, OSRelease, PackageStatus string }
 
+// DefaultEngineInstallation fixes the installed engine, helper and ABI evidence paths.
 func DefaultEngineInstallation() EngineInstallation {
 	return EngineInstallation{Prefix: "/opt/ngfw-ra", Helper: "/usr/lib/ngfw/ngfw-ra-daemon", Unit: "/usr/lib/systemd/system/ngfw-ra@.service", OSRelease: "/etc/os-release", PackageStatus: "/var/lib/dpkg/status"}
 }
@@ -49,14 +50,14 @@ func trustedInstallationFile(path string, limit int64, executable bool) ([]byte,
 	if e != nil {
 		return nil, ErrEngine
 	}
-	defer func() { unix.Close(fd) }()
+	defer func() { _ = unix.Close(fd) }()
 	parts := strings.Split(strings.TrimPrefix(resolved, "/"), "/")
 	for _, part := range parts[:len(parts)-1] {
 		next, e := unix.Openat(fd, part, unix.O_DIRECTORY|unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 		if e != nil {
 			return nil, ErrEngine
 		}
-		unix.Close(fd)
+		_ = unix.Close(fd)
 		fd = next
 		var s unix.Stat_t
 		if unix.Fstat(fd, &s) != nil || s.Uid != 0 || s.Mode&0022 != 0 && s.Mode&unix.S_ISVTX == 0 {
@@ -68,7 +69,7 @@ func trustedInstallationFile(path string, limit int64, executable bool) ([]byte,
 		return nil, ErrEngine
 	}
 	f := os.NewFile(uintptr(child), "private engine artifact")
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	var s unix.Stat_t
 	if unix.Fstat(child, &s) != nil || s.Uid != 0 || s.Mode&unix.S_IFMT != unix.S_IFREG || s.Mode&0022 != 0 || s.Size > limit || executable && s.Mode&0111 == 0 {
 		return nil, ErrEngine
@@ -118,6 +119,8 @@ func (p *SealedPreparation) Preflight(ctx context.Context) error {
 	}
 	return installation.Verify(ctx)
 }
+
+// Verify checks the installed artifact, ABI and fixed unit without running a daemon.
 func (i EngineInstallation) Verify(ctx context.Context) error {
 	if ctx.Err() != nil || runtime.GOARCH != "amd64" || !filepath.IsAbs(i.Prefix) || filepath.Clean(i.Prefix) != i.Prefix {
 		return ErrEngine

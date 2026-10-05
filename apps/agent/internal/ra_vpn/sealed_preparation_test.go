@@ -29,7 +29,6 @@ func TestIntegrationSealedPreparationImmutableGenerationRecovery(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	createEAPNamespace(t, plan)
 	credentials, now := credentialsFixture(t)
 	blobs := map[string][]byte{}
 	for i, item := range []struct {
@@ -48,6 +47,19 @@ func TestIntegrationSealedPreparationImmutableGenerationRecovery(t *testing.T) {
 		}
 		return append([]byte(nil), data...), nil
 	})}
+	if e := adapter.Validate(context.Background(), spec); e != nil {
+		t.Fatal("pre-mutation sealed validation", e)
+	}
+	if _, e := os.Stat(filepath.Join(InstanceRoot, spec.Instance)); !os.IsNotExist(e) {
+		t.Fatal("validation created private namespace/files")
+	}
+	originalKey := blobs[spec.Fingerprints[keyRef]]
+	blobs[spec.Fingerprints[keyRef]] = []byte("invalid private material")
+	if adapter.Validate(context.Background(), spec) == nil {
+		t.Fatal("invalid sealed private key accepted before mutation")
+	}
+	blobs[spec.Fingerprints[keyRef]] = originalKey
+	createEAPNamespace(t, plan)
 	prepared, e := adapter.Prepare(context.Background(), spec)
 	if e != nil {
 		t.Fatal("prepare", e)

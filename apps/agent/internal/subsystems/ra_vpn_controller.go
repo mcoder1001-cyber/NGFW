@@ -287,6 +287,9 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		if reader == nil || w.env.Client == nil || (!span.All && (span.Lo > span.Hi || span.Lo > 8191)) {
 			return ravpn.ErrEngine
 		}
+		if ravpn.HostPrerequisites() != nil {
+			return ravpn.ErrEngine
+		}
 		id, e := bootid.Current(ctx, w.env.Client)
 		if e != nil || !id.Complete() || id.PID <= 0 {
 			return ravpn.ErrEngine
@@ -310,7 +313,11 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 	reg.Register(&ravpn.EngineDescriptor{Runtime: runtime})
 	raRuntimeMu.Lock()
 	raRuntimes[w.env.Owner] = runtime
-	raEnvs[w.env.Owner] = desired.RAEnv{Owner: w.env.Owner, IDs: span, Ready: runtime.Ready}
+	env := desired.RAEnv{Owner: w.env.Owner, IDs: span, Ready: runtime.Ready}
+	if w.env.RA != nil {
+		env.SecretRef = w.env.RA.SecretRef
+	}
+	raEnvs[w.env.Owner] = env
 	raRuntimeMu.Unlock()
 	w.OnClose(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -363,6 +370,7 @@ func (w *Wiring) StopRA(ctx context.Context) error {
 // fixtures, not an environment/config/API bypass. Verification of real VPP
 // ownership, policy, IDs, routes and persistent records is always retained.
 type RAControllerOptions struct {
+	SecretRef   func(context.Context, string) (string, error)
 	Preparation ravpn.SnapshotPreparation
 	Units       ravpn.UnitSupervisor
 	Readiness   func(context.Context) error

@@ -3,6 +3,7 @@ package ravpn
 import (
 	"context"
 	"encoding/json"
+	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"net/netip"
 	"ngfw/agent/internal/descriptors/acl"
@@ -11,7 +12,9 @@ import (
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/bootid"
+	"os"
 	"strconv"
+	"strings"
 )
 
 func TransportObjects(s EngineSpec) ([]scheduler.KV, error) {
@@ -159,4 +162,36 @@ func PrivateKey(k scheduler.Key) scheduler.Key {
 		return scheduler.Join("remote-access."+k.Descriptor(), k.ID())
 	}
 	return k
+}
+
+// HostPrerequisites is read-only: it verifies required host capabilities and
+// already-present kernel facilities. It never loads modules or creates links.
+func HostPrerequisites() error {
+	data, e := os.ReadFile("/proc/self/status")
+	if e != nil || len(data) > 16384 {
+		return ErrEngine
+	}
+	found := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "CapEff:") {
+			bits, e := strconv.ParseUint(strings.TrimSpace(strings.TrimPrefix(line, "CapEff:")), 16, 64)
+			if e != nil || bits&(uint64(1)<<21) == 0 || bits&(uint64(1)<<12) == 0 {
+				return ErrEngine
+			}
+			found = true
+		}
+	}
+	if !found {
+		return ErrEngine
+	}
+	for _, path := range []string{"/proc/self/ns/net", "/proc/self/ns/mnt", "/proc/self/ns/pid", "/proc/net/xfrm_stat", "/sys/module/xfrm_interface"} {
+		if _, e := os.Stat(path); e != nil {
+			return ErrEngine
+		}
+	}
+	var device unix.Stat_t
+	if unix.Lstat("/dev/net/tun", &device) != nil || device.Mode&unix.S_IFMT != unix.S_IFCHR || unix.Major(device.Rdev) != 10 || unix.Minor(device.Rdev) != 200 {
+		return ErrEngine
+	}
+	return nil
 }

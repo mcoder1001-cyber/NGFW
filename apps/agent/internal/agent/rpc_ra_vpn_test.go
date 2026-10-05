@@ -22,7 +22,7 @@ func TestRARPCOwnerFirstUnavailableAndMalformedBoundaries(t *testing.T) {
 		_, e := svc.RemoteAccessDisconnect(ctx, &ngfwv1.RemoteAccessDisconnectRequest{Owner: "foreign", Id: "../bad"})
 		return e
 	}} {
-		if e := call(); status.Code(e) != codes.PermissionDenied {
+		if e := call(); status.Code(e) != codes.InvalidArgument || !strings.Contains(e.Error(), "owner") {
 			t.Fatalf("owner first: %v", e)
 		}
 	}

@@ -307,3 +307,31 @@ func (d *EngineDescriptor) CheckPersistent() error {
 	}
 	return nil
 }
+
+func (d *EngineDescriptor) Validate(ctx context.Context, key scheduler.Key, value proto.Message, view scheduler.ReadOnlyView) error {
+	x, _ := value.(*structpb.Struct)
+	spec, e := DecodeEngine(x)
+	if e != nil || d.Runtime == nil || spec.Owner != d.Runtime.owner || key != scheduler.Join(EngineName, spec.Instance) || view == nil {
+		return ErrEngine
+	}
+	objects, e := TransportObjects(spec)
+	if e != nil {
+		return ErrEngine
+	}
+	for _, kv := range objects {
+		actual, exists := view.Get(kv.Key)
+		if !exists || !proto.Equal(kv.Value, actual) {
+			return ErrEngine
+		}
+	}
+	d.Runtime.mu.Lock()
+	defer d.Runtime.mu.Unlock()
+	validator, ok := d.Runtime.preparation.(SnapshotValidation)
+	if !ok {
+		return ErrEngine
+	}
+	if validator.Validate(ctx, spec) != nil {
+		return ErrEngine
+	}
+	return nil
+}

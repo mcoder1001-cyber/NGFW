@@ -23,7 +23,7 @@ func (s *Service) RemoteAccessCapabilities(ctx context.Context, req *ngfwv1.Remo
 	response := &ngfwv1.RemoteAccessCapabilitiesResponse{Engine: "strongswan-ra", EditableDisabledDrafts: true, SupportedAuth: []string{"eap-mschapv2", "eap-tls", "eap-radius", "pubkey"}}
 	rt := subsystems.RARuntimeFor(s.owner)
 	if rt == nil || rt.Ready(ctx) != nil {
-		response.Reason = "independent engine installation or owned transport is unavailable"
+		response.Reason = "engine-not-ready"
 		return response, nil
 	}
 	response.Operational = true

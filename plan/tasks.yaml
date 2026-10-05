@@ -2774,7 +2774,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 12
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D5.6
@@ -2786,9 +2786,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
-    notes: 'D-058: added | prompts-s4: suggested deps +F-nat44-ei-64-66-nptv6 (only nat44_ei_ha exists, V2) — docs/status/tasks/prompts-s4.md'
-    worker_status: New API source834eed6f:691tests PASS; independent actual API replay active; R6 stale observation defect reproduced awaiting repair.
+    finished: '2026-10-05'
+    notes: 'Actual merge PR178 d314f0728; complete independent final T1 and all applicable panels approved; scoped second-appliance/VM-fault execution NOT RUN. | D-058: added | prompts-s4: suggested deps +F-nat44-ei-64-66-nptv6 (only nat44_ei_ha exists, V2) — docs/status/tasks/prompts-s4.md'
+    worker_status: Merged PR178 d314f0728; final independent unchanged quick 36m51 PASS; hosted and actual-main CI37318033192 green.
   - id: TD-1
     title: 'Tech-debt: one VPP boot-identity helper (D-080) in the agent vpp package; retrofit DF-2 classify store + DF-4 acl stats flag + dfkit/df6/df7 callers on main'
     prompt: ''
@@ -5860,3 +5860,22 @@ tasks:
       integration audit: Historical generated prompts require scope reconciliation against published main. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. |
       2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred
       in eight-review-recovery-20261004.md.'
+  - id: BUG-vpn-capability-warning
+    title: Remove obsolete blanket IPsec and PKI capability warnings
+    prompt: prompts/fixes/BUG-vpn-capability-warning.md
+    template: ''
+    stage: S4
+    deps: [F-ikev2-native, F-pki]
+    priority: 1
+    est_hours: 1
+    state: running
+    parked_on: ''
+    wbs: []
+    scope: Necessary native REST acceptance prerequisite; preserve intrinsic VPN guards
+    files_owned: apps/agent/internal/desired/wireguard.go apps/agent/internal/desired/wireguard_test.go prompts/fixes/BUG-vpn-capability-warning.md docs/status/tasks/BUG-vpn-capability-warning*
+    branch: codex/bug-vpn-capability-warning-20261005
+    worktree: /root/ngfw-wt/bug-vpn-capability-warning-20261005
+    owner: root developer
+    started: '2026-10-05'
+    finished: ''
+    notes: Before-fix regression fails for obsolete IPsec and PKI warnings; independent reviews and full CI pending

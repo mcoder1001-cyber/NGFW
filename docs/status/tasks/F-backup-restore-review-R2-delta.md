@@ -7,3 +7,7 @@ No authentication/privilege widening, credential logging, shell input, plaintext
 Actually ran independent PostgreSQL acceptance8/8PASS; external account/pin concurrency2/2PASS (logs and full recovery source in T2 report); template4/4PASS. Account list admin,race-account remains identical across restore/commit. Nonempty restored pins {'password/r1pin':2} remain identical across unrelated promotion. Tests exercise actual SQL rows, in-process fake agent only; no real host upgrade or shared VPP mutation.
 
 Verdict: **APPROVE (R2 narrow delta)** for exact verified runtime product. Fresh R3 binary media/schema review and final complete quick gate are separate and still pending at this checkpoint.
+
+## Final security closure — APPROVE
+
+Exact final source 4c8640695c8ac9877819817506979e361e801216; tree 79c94d41e9a5e0fc71b7a8837ed9956d661258fd. Media decorators generated contract/docs delta leaves runtime authentication unchanged. Additional final runtime changes are history index and helper/unit package inclusion, no new shell input or privilege widening. Main security freeze Fastify5.12.5/js-yaml overrides resolve old-base dependency advisories; final `pnpm audit --prod --json` exits0/advisories0. ssh2 build/cpu-features disabled and MIT license reviewed. RealDB9/9 + original external concurrency2/2 + independent audit-refusal/unauthorized upload1/1 PASS. Full quick exit0/PASS21m16s; see T1/T2 for exact commands and logs. Verdict **APPROVE** for narrow security delta; earlier checkpoints superseded.

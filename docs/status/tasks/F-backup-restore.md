@@ -1,6 +1,6 @@
 # F-backup-restore acceptance evidence
 
-Author branch codex/f-backup-restore-20261005. Historical author checkpoint c8ec544708e1dcf06dfc225059a276d0a756112e corresponds to local a6fd289a6. Final integration product checkpoint is 2560e8511 atop main f57424992; final integrated quick gate is pending. Manager owns combined frontend integration, independent reviews and final quick/hosted CI verdict.
+Author branch codex/f-backup-restore-20261005. Historical author checkpoint c8ec544708e1dcf06dfc225059a276d0a756112e corresponds to local a6fd289a6. Final integration product checkpoint is 2560e8511 atop main f57424992; independent final integrated quick passed21m16s on4c8640695; exact final hosted gate and merge remain pending. Manager owns combined frontend integration, independent reviews and final quick/hosted CI verdict.
 
 - Encrypted full backup, bounded authenticated import, revision/secret pins and normal candidate/commit recovery: PostgreSQL e2e6/6 PASS (/tmp/fbr-e2e8.log). Wiped running document recovers SHA256 ad27929269906644d14d795f096a6dd441780cbe241acf04821e88df696974e4. Wrong passphrase stages nothing; live ciphertext remains unchanged until promotion; discard clears pins. Current accounts remain unchanged.
 - Fail-closed write-ahead audit: actual API audit.begin rejection prevents restore version/candidate writes and upgrade agent calls in PostgreSQL e2e. Scheduled credential export also calls write-ahead audit.
@@ -24,7 +24,7 @@ R5 run-history correction: generated migration creates f_backup_run_at_idx on at
 
 Final integration evidence (2026-10-05)
 
-The following excerpts are actual saved command output, not simulated expected output. Source-specific reports in this directory retain commands, boundaries and independent verdicts. Final fresh-main T1/R1 and R7 remain pending; no merge or Done claim is made here.
+The following excerpts are actual saved command output, not simulated expected output. Source-specific reports in this directory retain commands, boundaries and independent verdicts. R7 approves the documented checkpoint. Independent final fresh-main quick now passes; final report import, hosted CI, merge and main verification remain pending. No Done claim is made here.
 
 ```text
 # Author actual PostgreSQL regression: source 0de1bd078, slot26
@@ -53,3 +53,19 @@ Packaging fixtures: 35 run, 0 failures, 0 errors, 0 skipped, 0 expected failures
 ```
 
 R5 independently verifies the production history query uses the generated index on100000 rows (0.106ms,3sharedbuffers). R8 independently closes helper manifest, lsb-release dependency and interrupted-export/downgrade documentation findings. R2/R3/R4/R5/R6 reports are preserved separately. Real appliance A/B reboot, power-loss and signature rejection remain explicitly NOT RUN in the authorized laboratory acceptance scope; the UI and fixed dispatch evidence do not substitute for them. Implementation choices and alternatives are recorded in D236.
+
+
+Independent final T1 complete quick (2026-10-05)
+
+Source4c8640695c8ac9877819817506979e361e801216, tree79c94d41e9a5e0fc71b7a8837ed9956d661258fd integrates mainf57424992 and all product fixes. Reviewer ran the unchanged complete gate in its isolated worktree; source stayed frozen. Process exit0. This source-specific PASS includes full agent race/lint/build, CLI and all Go modules; the startup harness used the unmodified unchanged-green cache from the independently completed prior fake-host run, so no fresh149 startup checks are claimed here.
+
+```text
+env NGFW_CI_TASK_CONCURRENCY=2 GOMAXPROCS=2 GOFLAGS=-p=2 NGFW_CI_LOG_DIR=/tmp/fbr-correctness-integration-final-ci tools/ci.sh --base origin/main
+Tasks:    35 successful, 35 total Cached:    18 cached, 35 total Time:    9m59.401s  
+shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
+apply-startup harness: unchanged since a green run (2026-10-05T17:27:13+00:00 harness green (4 shards)) — skipped (key 27a79729b9ac; rm /root/.cache/ngfw-ci/apply-startup/27a79729b9ac200ded1ecb63547bf09b5a4b14bf4f97fa90c2c2382fe9baa964 to force)
+  mode quick · wall time 21m16s · logs /tmp/fbr-correctness-integration-final-ci/f-backup-correctness-review-20261005-20261005-172751-319761
+CI GATE PASSED
+```
+
+Final exact squashed-commit hosted checks, expected-head merge and main CI remain required. Later root evidence additions change only docs paths and preserve the tested product tree under D226.

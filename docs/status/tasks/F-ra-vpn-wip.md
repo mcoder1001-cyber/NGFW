@@ -21,3 +21,18 @@ PKI snapshots/CRLs, namespace/TAP/routes/readback/restart/rollback/session actio
 packaging/API/UI and real packet acceptance remain to implement. Next command:
 implement RA runtime descriptor and bounded VICI observation using private roots;
 activation guard must remain until engine verified.
+
+Bounded private VICI observation/action source added: exact singleton connection
+ownership,1024-event buffer plus stable before/after stats to detect dropped
+listings, pool VIP and XFRM ID validation, public-only identity/counters, exact
+uint64 JSON strings, generation-derived opaque session IDs and owned termination
+followed by readback. Unix dial checks root-only parent/socket mode and SO_PEERCRED
+exact managed PID, with a deadline that bounds context-free subscription too.
+Seven focused RA Go tests PASS (latest runtime listed in own disk log); includes
+200-session listing beyond govici default buffer, incomplete/foreign/stale refusal
+and real private Unix socket mode/PID checks. No operational engine wired yet.
+Private privilege/route design documented: constrained unit uses no SYS_ADMIN;
+IKE/ESP mark1 selects owned underlay routing table, decrypted traffic traverses
+VPP inner VRF; full-tunnel routes cannot loop outer crypto into protected path.
+Next: fixed namespace helper/unit, secure lifecycle/PKI staging, TAP/routes and
+scheduler descriptor; then API/proto/UI and disposable interoperable acceptance.

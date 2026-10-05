@@ -60,3 +60,21 @@ counters plus VPP transit-interface counters and packet captures instead.
 Until runtime and acceptance pass, enabled profiles remain failclosed and the
 capability endpoint must honestly report unavailable. Owner authorization is not
 an operational completion claim.
+
+
+Private daemon privilege split: the agent creates its private namespace binding
+and owned VPP topology. A constrained `ngfw-ra@<hashed-instance>` unit enters
+that binding via `NetworkNamespacePath`; charon receives only CAP_NET_ADMIN,
+CAP_NET_BIND_SERVICE and CAP_IPC_LOCK. It receives no CAP_SYS_ADMIN. The fixed
+helper verifies the namespace inode against its root-owned manifest and rejects
+the host namespace before setting namespace-only forwarding sysctls and routes.
+The agent's ProtectKernelTunables remains enabled. Private daemon socket mode
+is0600, verified with peer credentials and the managed daemon PID before VICI.
+
+Outer IKE sockets carry mark1; CHILD ESP packets use set_mark_out1. A namespace
+rule directs only that mark to an owned outer routing table/default through the
+underlay TAP, while unmarked decrypted traffic uses protected routes through the
+inner TAP. Client-pool reply routes use the XFRM interface, dropping without a
+matching SA. Numeric RADIUS server host routes use the outer TAP explicitly.
+This prevents full-tunnel inner defaults from routing IKE/ESP back into the
+protected path and does not add a host or VPP policy exemption.

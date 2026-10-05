@@ -156,7 +156,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 			return refuse("split route")
 		}
 	}
-	fmt.Fprintf(&config, " pools = %s\n children { protected { local_ts = %s\n remote_ts = dynamic\n esp_proposals = %s\n if_id_in = 1\n if_id_out = 1\n rekey_time = %ds\n start_action = none\n dpd_action = clear\n } }\n } }\npools {\n", strings.Join(names, ", "), strings.Join(selectors, ", "), esp, espTime)
+	fmt.Fprintf(&config, " pools = %s\n children { protected { local_ts = %s\n remote_ts = dynamic\n esp_proposals = %s\n if_id_in = 1\n if_id_out = 1\n set_mark_out = 1\n rekey_time = %ds\n start_action = none\n dpd_action = clear\n } }\n } }\npools {\n", strings.Join(names, ", "), strings.Join(selectors, ", "), esp, espTime)
 	for index, pool := range pools {
 		if len(pool.GetDns()) > 4 {
 			return refuse("DNS server count")
@@ -210,7 +210,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 	if auth == "eap-tls" {
 		plugins += " tls"
 	}
-	fmt.Fprintf(&daemon, "charon { load_modular = no\n load = \"%s\"\n install_routes = no\n install_virtual_ip = no\n plugins { kernel-netlink { install_routes_xfrmi = no\n }\n vici { socket = %s\n }\n", plugins, socket)
+	fmt.Fprintf(&daemon, "charon { load_modular = no\n load = \"%s\"\n install_routes = no\n install_virtual_ip = no\n ikesa_limit = 1024\n plugins { socket-default { fwmark = 1\n }\n kernel-netlink { install_routes_xfrmi = no\n }\n vici { socket = %s\n }\n", plugins, socket)
 	if auth == "eap-radius" {
 		radius := profile.GetRadius()
 		if radius == nil || len(radius.GetServers()) == 0 || len(radius.GetServers()) > 8 || resolve == nil {

@@ -287,6 +287,9 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		if reader == nil || w.env.Client == nil || (!span.All && (span.Lo > span.Hi || span.Lo > 8191)) {
 			return ravpn.ErrEngine
 		}
+		if ravpn.HostPrerequisites() != nil {
+			return ravpn.ErrEngine
+		}
 		id, e := bootid.Current(ctx, w.env.Client)
 		if e != nil || !id.Complete() || id.PID <= 0 {
 			return ravpn.ErrEngine

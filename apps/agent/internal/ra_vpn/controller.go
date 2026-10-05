@@ -103,3 +103,9 @@ func (s EngineSpec) String() string        { return fmt.Sprintf("remote-access e
 // EngineReadiness verifies actual installed components without starting any
 // daemon. Readiness is distinct from the existence of an active profile (D236).
 type EngineReadiness interface{ Preflight(context.Context) error }
+
+// SnapshotValidation verifies immutable credentials and rendered syntax for
+// DryRun before any namespace, VPP, unit or snapshot mutation.
+type SnapshotValidation interface {
+	Validate(context.Context, EngineSpec) error
+}

@@ -1,0 +1,29 @@
+{
+  "retrievedAt": "2026-10-05T16:50:02.746Z",
+  "items": [
+    {
+      "name": "w27-tb-vxlan",
+      "kind": "vxlan",
+      "interface": "vxlan_tunnel27041",
+      "swIfIndex": 4,
+      "adminUp": true,
+      "linkUp": true,
+      "mtu": 9000,
+      "deviceClass": "VXLAN",
+      "src": "10.27.2.1",
+      "dst": "10.27.2.2",
+      "underlayTableId": 0,
+      "ipv4TableId": 0,
+      "ipv6TableId": 0,
+      "notes": [],
+      "counters": {
+        "rxPackets": "3",
+        "rxBytes": "266",
+        "txPackets": "0",
+        "txBytes": "0",
+        "drops": "3",
+        "errors": "0"
+      }
+    }
+  ]
+}

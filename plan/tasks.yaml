@@ -2499,7 +2499,7 @@ tasks:
       - TEST-traffic-C
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2508,8 +2508,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: task-specific envelope
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: SECURITY-REVIEW
     title: 'Freeze: adversarial security review of the whole tree'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2572,7 +2573,7 @@ tasks:
       - TD-9
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2581,8 +2582,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: 'task-specific envelope | D-125: prompt → prompts/SECURITY-REVIEW.md (whole tree + auth delta since SEC-auth) once the manager writes it (1 h)'
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: DOCS-GEN
     title: 'Freeze: generate user docs from code and status files'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2643,7 +2645,7 @@ tasks:
       - F-mpls-ldp
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2652,8 +2654,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: task-specific envelope
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: STATUS-FINAL
     title: 'Freeze: have/have-not report for the product owner'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2666,7 +2669,7 @@ tasks:
       - TD-11a
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2675,10 +2678,11 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes:
       'task-specific envelope | D-059: report must list as explicit have-not: D10.1 VDOM, D12.3 pentest, D12.4 full docs, D12.5 QA/interop, D12.6 soak/chaos 72h, D12.7 certification
       | D-125: have-not register docs/status/have-not.md (manager; D-059 six, Ansible, NETCONF, …)'
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: F-startup-gen
     title: 'startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list'
     prompt: prompts/features/F-startup-gen.md
@@ -3643,7 +3647,7 @@ tasks:
       - F-ha-state-sync
     priority: 5
     est_hours: 6
-    state: todo
+    state: merged
     parked_on: ''
     wbs:
       - D0.13
@@ -3653,8 +3657,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: LAB-vpp-per-slot
     title: Per-slot VPP instances for tests (tools/lab vpp up|down <slot>)
     prompt: ''
@@ -5149,7 +5154,7 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: 'D-188 | 2026-10-01 held (D-223): manager read of P11-review.md refused by the permission classifier; owner action to confirm the source'
     id: P11-pkg
     title:
@@ -5159,11 +5164,12 @@ tasks:
       - P11
     priority: 3
     est_hours: 14
-    state: todo
+    state: merged
     scope:
       Superseded by route-based-only scope on 2026-10-03; do not implement the strongSwan/kernel-vpp package for IPsec. Native wiring is F-ikev2-native; retain this row as historical
       deferred work.
     files_owned: deploy/strongswan/** deploy/debian/ngfw-strongswan/** docs/09-os-packages.md (strongSwan rows) docs/status/tasks/P11-pkg*
+    worker_status: "Superseded by owner native route-based IKEv2 decision; no obsolete package built."
   - prompt: prompts/features/P11-host.md
     template: prompts/HOST-FOLLOWUP-TEMPLATE.md
     stage: S4

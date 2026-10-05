@@ -99,6 +99,11 @@ def main():
     os.symlink("/proc/self/fd", "/dev/fd")
     for name, fd in (("stdin", 0), ("stdout", 1), ("stderr", 2)):
         os.symlink("/proc/self/fd/" + str(fd), "/dev/" + name)
+    # The optional authenticated CLIENT fixture resolve plugin must write only
+    # its private per-instance file. Its upstream fallback invokes resolvconf
+    # when that executable exists; refuse that path in the actual masked view.
+    if Path("/opt/ngfw-ra/lib/ipsec/plugins/libstrongswan-resolve.so").exists() and os.path.lexists("/sbin/resolvconf"):
+        refuse()
     os.close(3)
     print("RA_FIXTURE_PHASE=8", file=sys.stderr, flush=True)
     os.execve("/usr/bin/setpriv", ["setpriv", "--no-new-privs",

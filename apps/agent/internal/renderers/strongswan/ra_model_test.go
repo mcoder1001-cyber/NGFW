@@ -75,7 +75,7 @@ func TestRARendererTLSAndRADIUS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(files.Daemon), "eap-radius { servers {") || !strings.Contains(string(files.Daemon), "port = 1812") || !strings.Contains(string(files.Daemon), secret) {
+	if !strings.Contains(string(files.Daemon), "eap-radius {\n") || !strings.Contains(string(files.Daemon), "servers {\n") || !strings.Contains(string(files.Daemon), "port = 1812") || !strings.Contains(string(files.Daemon), secret) {
 		t.Fatal("RADIUS private settings missing")
 	}
 	if strings.Contains(string(files.Connection), secret) {

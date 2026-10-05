@@ -243,5 +243,17 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 		daemon.WriteString(" } }\n")
 	}
 	daemon.WriteString(" }\n journal { default = -1\n }\n syslog { daemon { default = -1\n } }\n}\n")
-	return &RAFiles{Connection: []byte(config.String()), Secrets: []byte(secrets.String()), Daemon: []byte(daemon.String())}, nil
+	connection, err := canonicalRA(config.String())
+	if err != nil {
+		return refuse("generated connection settings")
+	}
+	private, err := canonicalRA(secrets.String())
+	if err != nil {
+		return refuse("generated private settings")
+	}
+	daemonConfig, err := canonicalRA(daemon.String())
+	if err != nil {
+		return refuse("generated daemon settings")
+	}
+	return &RAFiles{Connection: connection, Secrets: private, Daemon: daemonConfig}, nil
 }

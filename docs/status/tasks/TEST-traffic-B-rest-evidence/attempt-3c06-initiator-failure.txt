@@ -1,0 +1,4 @@
+DISPOSABLE_VPP pid=445713 runtime=/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/isolated-vpp-445707
+=== RUN   TestIKEv2NativePackets
+2026/10/05 18:37:46 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ikev2_integration_test.go:245: open /root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-442529/evidence/ipsec-rest.private.log: file exists

@@ -79,17 +79,20 @@ def campaign(slot,output,selected,*,agent,plugin):
                     runtime=runtimes[0].resolve(strict=True)
                     if runtime.parent!=ROOT/'.scratch' or not runtime.name.startswith('traffic-b-private-'):
                         raise Refused('foreign REST evidence runtime')
-                    proof_path=runtime/'evidence'/(name+'-rest.json')
-                    if proof_path.stat().st_size>1048576:raise Refused('REST evidence exceeds bound')
-                    proof=json.loads(proof_path.read_text())
-                    events=proof.get('events',[])
-                    if not events or events[0].get('status')!='applied' or not events[0].get('candidate_owner') or len(events[0].get('candidate_sha256',''))!=64:
-                        raise Refused('actual initial REST applied candidate proof absent')
-                    if not any(event.get('txn')=='rest-baseline-rollback' and event.get('status')=='applied' for event in events):
-                        raise Refused('actual REST rollback proof absent')
-                    entry['rest_proof_sha256']=hashlib.sha256(proof_path.read_bytes()).hexdigest()
-                    entry['rest_initial_revision']=events[0]['revision']
-                    entry['rest_candidate_sha256']=events[0]['candidate_sha256']
+                    labels=('ipsec-responder','ipsec-initiator') if name=='ipsec' else (name,)
+                    proofs=[]
+                    for label in labels:
+                        proof_path=runtime/'evidence'/(label+'-rest.json')
+                        if proof_path.stat().st_size>1048576:raise Refused('REST evidence exceeds bound')
+                        proof=json.loads(proof_path.read_text())
+                        events=proof.get('events',[])
+                        if not events or events[0].get('status')!='applied' or not events[0].get('candidate_owner') or len(events[0].get('candidate_sha256',''))!=64:
+                            raise Refused('actual initial REST applied candidate proof absent')
+                        if not any(event.get('txn')=='rest-baseline-rollback' and event.get('status')=='applied' for event in events):
+                            raise Refused('actual REST rollback proof absent')
+                        proofs.append({'subphase':label,'proof_sha256':hashlib.sha256(proof_path.read_bytes()).hexdigest(),
+                                       'initial_revision':events[0]['revision'],'candidate_sha256':events[0]['candidate_sha256']})
+                    entry['rest_proofs']=proofs
                 entry.update(status='passed',diagnostic_sha256=hashlib.sha256(log.read_bytes()).hexdigest())
             except (OSError,ValueError,subprocess.SubprocessError) as error:
                 entry['reason']=type(error).__name__+': acceptance failed; private diagnostic retained'

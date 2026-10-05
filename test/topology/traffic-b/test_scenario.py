@@ -214,3 +214,29 @@ class StackRecoveryTests(unittest.TestCase):
             finally:
                 try:os.kill(pid,9)
                 except ProcessLookupError:pass
+
+    def test_native_subphase_create_failures_clean_distinct_reserved_resources(self):
+        import os
+        from pathlib import Path
+        import subprocess
+        import tempfile
+        from unittest.mock import patch
+        import stack
+        calls=[]
+        def invoke(argv,**kwargs):
+            calls.append(argv)
+            if 'create' in argv:raise subprocess.CalledProcessError(1,argv)
+            return subprocess.CompletedProcess(argv,0)
+        with tempfile.TemporaryDirectory() as folder:
+            physical=Path(folder)/'api';physical.touch()
+            for variant in ('r','i'):
+                with patch.dict(os.environ,NGFW_DISPOSABLE_VPP='1',NGFW_TRAFFIC_PRIVATE_VPP_PID='1',NGFW_VPP_API_SOCKET=str(physical),NGFW_TRAFFIC_STACK_VARIANT=variant), \
+                     patch('stack.socket.socket'),patch('stack.private_identity'),patch('stack.os.path.samefile',return_value=True), \
+                     patch.object(Path,'is_file',return_value=True),patch.object(Path,'exists',return_value=False), \
+                     patch('stack.subprocess.check_output',return_value=''),patch('stack.subprocess.run',side_effect=invoke):
+                    with self.assertRaises(subprocess.CalledProcessError):
+                        with stack.product_stack(27):pass
+        created=[command[-1] for command in calls if 'create' in command]
+        dropped=[command[-1] for command in calls if 'drop' in command]
+        self.assertEqual(len(created),2);self.assertEqual(len(set(created)),2)
+        self.assertEqual(created,dropped)

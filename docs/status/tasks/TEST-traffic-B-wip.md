@@ -160,3 +160,35 @@ test/topology/traffic-b/run.py --slot 27 --output .scratch/traffic-b-rest-all-fi
 Wait all seven phases complete, preserve any failure, then run unchanged complete
 `GOMAXPROCS=2 GOFLAGS=-p=2 tools/heavy.sh tools/ci.sh quick` on that frozen source.
 No Done or native packet pass is claimed before actual results.
+
+## Post-campaign coherent fix and required rerun
+
+Frozen3c all-seven command completed exit1. Actual native responder passed52.18s;
+its initiator then refused the existing protected `ipsec-rest.private.log` file.
+Certificate55.09s, WireGuard, GRE/VXLAN, BGP, OSPF91.03s and DHCP33.02s passed.
+The aggregate remains FAIL. Actual failed summaries and minimal non-secret
+initiator diagnostic are committed under TEST-traffic-B-rest-evidence/attempt-3c06*.
+Shared VPP MainPID1014/NRestarts0 remained unchanged. No source was edited while
+that required command was active.
+
+The coherent fix gives responder/initiator distinct deterministic evidence names
+and owned stack/runtime/DB identities w27tbr/w27tbi; exclusive creation and
+existing-resource refusals remain. Dispatcher now requires both actual initial
+REST applied/candidate/rollback proofs for the PSK phase. A failure-injection test
+verifies distinct reserved DB resources are each cleaned after partial creation.
+
+Focused helper lint initially failed10 issues. All are fixed: NewClient plus
+Connect and a context-bounded actual owner Retrieve preserves readiness; close
+errors are handled; exported APIs documented. Evidence paths are reconstructed
+from a positive numeric private runtime PID under the repository scratch root,
+and Go os.Root confines directory/file operations. Actual runtime/evidence
+handles must be owned0700 directories; diagnostic remains exclusive0600. No new
+lint suppression, security guard or workflow change. Actual focused lint0issues,
+three-package compilePASS, safety/recovery suite16/16PASS.
+
+Next command on the committed fixed source: rebuild owned production/tagged
+agents and run all seven REST phases to .scratch/traffic-b-rest-all-fixed.
+Manager assigns independent full unchanged quick in parallel on the same frozen
+source; author does not substitute a check-only gate or end with required commands
+active. Prerequisite BUG review/merge and final independent traffic review remain
+separate requirements. Task is still running.

@@ -45,10 +45,15 @@ def attached_identity(path, owner):
     return {'pid':pid,'uid':uid,'owner':owner,'socket_inode':entry.st_ino}
 
 
+def stack_owner(slot,variant=''):
+    if variant not in ('','r','i'):raise Refused('unknown owned native stack variant')
+    return slot_values(slot)['NGFW_TEST_PREFIX']+'tb'+variant
+
+
 @contextmanager
 def product_stack(slot, *, target_socket=None, target_owner=None, agent_binary=None, wg_secrets=None):
     private_identity()
-    values=slot_values(slot);owner=values['NGFW_TEST_PREFIX']+'tb'
+    values=slot_values(slot);owner=stack_owner(slot,os.environ.get('NGFW_TRAFFIC_STACK_VARIANT',''))
     agent_owner=target_owner or owner
     if os.environ.get('NGFW_DISPOSABLE_VPP')!='1' or not os.environ.get('NGFW_TRAFFIC_PRIVATE_VPP_PID'):
         raise Refused('private wrapper process identity required')

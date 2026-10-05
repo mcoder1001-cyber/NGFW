@@ -139,12 +139,17 @@ func runNamespaceBrokerHeldFDs(args []string, fds []int, attested bool) error {
 	// empty files; pre-existing foreign mounts are refused before any mutation.
 	paths := []struct {
 		path  string
+		role  string
 		fd    int
 		inode uint64
-	}{{filepath.Join(root, "hostnetns"), fds[1], hostInode}, {filepath.Join(root, "netns"), fds[2], privateInode}, {NamespacePath(instance), fds[2], privateInode}}
+	}{{filepath.Join(root, "hostnetns"), "hostnetns", fds[1], hostInode}, {filepath.Join(root, "netns"), "netns", fds[2], privateInode}, {NamespacePath(instance), "alias", fds[2], privateInode}}
 	for _, entry := range paths {
 		if err := brokerBindingState(entry.path, entry.inode, operation == "export" || operation == "remove"); err != nil {
 			return err
+		}
+		var fs unix.Statfs_t
+		if unix.Statfs(entry.path, &fs) != nil || fs.Type != unix.NSFS_MAGIC && verifyNamespaceBirth(instance, entry.role, entry.path) != nil {
+			return ErrBoundary
 		}
 	}
 	for _, entry := range paths {
@@ -172,7 +177,7 @@ func runNamespaceBrokerHeldFDs(args []string, fds []int, attested bool) error {
 	if operation == "remove" {
 		for _, entry := range paths {
 			var fs unix.Statfs_t
-			if unix.Statfs(entry.path, &fs) != nil || fs.Type == unix.NSFS_MAGIC || brokerBindingState(entry.path, entry.inode, true) != nil {
+			if unix.Statfs(entry.path, &fs) != nil || fs.Type == unix.NSFS_MAGIC || brokerBindingState(entry.path, entry.inode, true) != nil || verifyNamespaceBirth(instance, entry.role, entry.path) != nil {
 				return fmt.Errorf("%w: namespace broker target-still-current", ErrBoundary)
 			}
 		}

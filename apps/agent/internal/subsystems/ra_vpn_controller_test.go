@@ -1,8 +1,10 @@
 package subsystems
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 	"log/slog"
@@ -578,5 +580,33 @@ func TestRAInitializationIsBoundToExactWiringAndRequiresBothPhases(t *testing.T)
 	// Successful phase callbacks cannot manufacture installed engine readiness.
 	if err := first.Ready(ctx); err == nil {
 		t.Fatal("initializer callbacks manufactured readiness")
+	}
+}
+
+func TestRASupplierInitializationJournalContainsOnlyWhitelistedStage(t *testing.T) {
+	for _, stage := range []uint8{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 255} {
+		t.Run(fmt.Sprint(stage), func(t *testing.T) {
+			var output bytes.Buffer
+			var events []string
+			fixture := &raInitializationFixture{events: &events, targetErr: fmt.Errorf("private-marker raw-unit-output: %w", &ravpn.SupplierInitializationFailure{Stage: stage})}
+			runtime := ravpn.NewRuntime("journal-owner", nil, nil, nil, nil)
+			w := &Wiring{env: Env{Owner: "journal-owner", RA: &RAControllerOptions{Handoff: fixture}, Log: slog.New(slog.NewJSONHandler(&output, nil))}}
+			w.configureRAInitialization(runtime, fixture)
+			err := w.initializeRATargets(context.Background())
+			if err != ravpn.ErrEngine {
+				t.Fatal("public failure was not redacted", err)
+			}
+			text := output.String()
+			if strings.Contains(text, "private-marker") || strings.Contains(text, "raw-unit-output") {
+				t.Fatal("private error escaped", text)
+			}
+			if stage >= 1 && stage <= 9 {
+				if !strings.Contains(text, fmt.Sprintf("\"stage\":%d", stage)) {
+					t.Fatal("bounded stage missing", text)
+				}
+			} else if text != "" {
+				t.Fatal("unknown stage escaped", text)
+			}
+		})
 	}
 }

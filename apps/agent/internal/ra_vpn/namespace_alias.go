@@ -71,7 +71,7 @@ func createNamespaceAlias(ctx context.Context, plan *NetworkPlan) (bool, error) 
 	var original unix.Stat_t
 	statErr := unix.Fstat(child, &original)
 	closeErr := unix.Close(child)
-	if statErr != nil || closeErr != nil {
+	if statErr != nil || closeErr != nil || recordNamespaceBirth(plan.Instance, "alias", original) != nil {
 		// The exclusive placeholder exists, but its ownership identity was not
 		// established. Preserve it for recovery instead of mounting or unlinking.
 		return true, ErrBoundary
@@ -112,6 +112,17 @@ func validateNamespaceAlias(plan *NetworkPlan) error {
 	return nil
 }
 func removeNamespaceAlias(plan *NetworkPlan) error {
+	record, birthErr := readNamespaceBirth(plan.Instance)
+	if birthErr != nil || record.Bindings["alias"].Inode == 0 {
+		return ErrBoundary
+	}
+	path := NamespacePath(plan.Instance)
+	if _, err := os.Lstat(path); os.IsNotExist(err) {
+		return nil
+	}
+	if verifyNamespaceBirth(plan.Instance, "alias", path) == nil {
+		return os.Remove(path)
+	}
 	if validateNamespaceAlias(plan) != nil {
 		return ErrBoundary
 	}
@@ -130,7 +141,7 @@ func removeNamespaceAlias(plan *NetworkPlan) error {
 	if unix.Fstat(child, &st) != nil || unix.Fstatfs(child, &fs) != nil || fs.Type != unix.NSFS_MAGIC || st.Ino != plan.NamespaceInode {
 		return ErrBoundary
 	}
-	if unix.Unmount(NamespacePath(plan.Instance), unix.MNT_DETACH) != nil || unix.Unlinkat(fd, NamespaceKeyID(plan.Instance), 0) != nil {
+	if unix.Unmount(NamespacePath(plan.Instance), unix.MNT_DETACH) != nil || verifyNamespaceBirth(plan.Instance, "alias", NamespacePath(plan.Instance)) != nil || unix.Unlinkat(fd, NamespaceKeyID(plan.Instance), 0) != nil {
 		return ErrBoundary
 	}
 	return nil

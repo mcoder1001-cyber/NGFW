@@ -2,6 +2,7 @@ package subsystems
 
 import (
 	"context"
+	"errors"
 	"google.golang.org/protobuf/proto"
 	interfaces "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -615,7 +616,11 @@ func (w *Wiring) initializeRATargets(ctx context.Context) error {
 	}
 	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
-	if startup.targets.Initialize(bounded) != nil {
+	if err := startup.targets.Initialize(bounded); err != nil {
+		var failure *ravpn.SupplierInitializationFailure
+		if errors.As(err, &failure) && failure != nil && failure.Stage >= 1 && failure.Stage <= 9 && w.env.Log != nil {
+			w.env.Log.Warn("remote-access supplier initialization refused", "stage", failure.Stage)
+		}
 		return ravpn.ErrEngine
 	}
 	startup.runtime.SetInitializationReady(true)

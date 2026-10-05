@@ -102,6 +102,9 @@ type fileClaims struct {
 	id    IdentitySource
 	index IndexResolver
 	recs  map[string]claimRecord
+	// endpointIndex is optional and updated under mu alongside durable records.
+	endpointIndex       map[string]map[string]struct{}
+	endpointIndexVisits int
 	// batch: a transaction is open (Begin … Flush, TD-11c review 3.2): writes change recs in memory
 	// and mark it dirty; Flush writes it once. Outside a batch every write goes to disk first.
 	batch, dirty bool
@@ -257,6 +260,7 @@ func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
 		} else {
 			c.recs[key] = *rec
 		}
+		c.updateEndpointIndexLocked(key, rec)
 		c.dirty = true
 		return nil
 	}
@@ -266,7 +270,12 @@ func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
 	} else {
 		next[key] = *rec
 	}
-	return c.replaceLocked(next)
+	if err := c.flushLocked(next); err != nil {
+		return err
+	}
+	c.recs, c.dirty = next, false
+	c.updateEndpointIndexLocked(key, rec)
+	return nil
 }
 
 // replaceLocked makes next the record set: in a batch at once (Flush writes it), otherwise only once
@@ -274,12 +283,14 @@ func (c *fileClaims) setLocked(key string, rec *claimRecord) error {
 func (c *fileClaims) replaceLocked(next map[string]claimRecord) error {
 	if c.batch {
 		c.recs, c.dirty = next, true
+		c.rebuildEndpointIndexLocked()
 		return nil
 	}
 	if err := c.flushLocked(next); err != nil {
 		return err
 	}
 	c.recs, c.dirty = next, false
+	c.rebuildEndpointIndexLocked()
 	return nil
 }
 

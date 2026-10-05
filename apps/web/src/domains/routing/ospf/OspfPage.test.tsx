@@ -54,7 +54,7 @@ afterEach(async () => {
 });
 
 describe('Routing → OSPF (WEB-4a, routed by F-ospf)', () => {
-  it('is reachable from nav at /routing/ospf; BFD is not yet', () => {
+  it('OSPF and BFD are reachable from routing navigation', () => {
     const items = buildNav(domains, { devRoutes: false }).flatMap((g) => g.items);
     expect(items.find((i) => i.id === 'ospf')).toMatchObject({
       path: '/routing/ospf',
@@ -64,7 +64,10 @@ describe('Routing → OSPF (WEB-4a, routed by F-ospf)', () => {
       path: '/routing/isis-rip',
       available: true,
     });
-    for (const id of ['bfd']) expect(items.find((i) => i.id === id)?.available).not.toBe(true);
+    expect(items.find((i) => i.id === 'bfd')).toMatchObject({
+      path: '/routing/bfd',
+      available: true,
+    });
   });
 
   it('lists areas and interfaces and shows committed state', async () => {

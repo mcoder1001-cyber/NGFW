@@ -1598,6 +1598,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/routing/bfd/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live VPP and FRR BFD sessions */
+    get: operations['BfdRedistribution_sessions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/redistribution': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Redistribution matrix with scoped protocol route counts */
+    get: operations['BfdRedistribution_matrix'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/mpls/ldp/neighbors': {
     parameters: {
       query?: never;
@@ -3972,6 +4006,8 @@ export interface components {
               /** Secret reference */
               keyRef?: string;
             };
+            /** Name */
+            bfdProfile?: string;
           };
         };
         /**
@@ -4075,6 +4111,8 @@ export interface components {
              * @default true
              */
             ipv6: boolean;
+            /** Name */
+            bfdProfile?: string;
           };
         };
         /**
@@ -4242,7 +4280,27 @@ export interface components {
            * @default true
            */
           enabled: boolean;
+          auth?: {
+            /** @enum {string} */
+            type: 'keyed-sha1' | 'meticulous-keyed-sha1';
+            keyId: number;
+            /** Secret reference */
+            keyRef: string;
+          };
+          /** @default false */
+          multihop: boolean;
         }[];
+        /** @default {} */
+        profiles: {
+          [key: string]: {
+            /** @default 300000 */
+            desiredMinTxUs: number;
+            /** @default 300000 */
+            requiredMinRxUs: number;
+            /** @default 3 */
+            detectMultiplier: number;
+          };
+        };
       };
       /** OSPFv3 */
       ospf6?: {
@@ -18930,6 +18988,107 @@ export interface operations {
       };
       /** @description Agent or database unavailable */
       503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BfdRedistribution_sessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            agentError: string | null;
+            sessions: {
+              engine: string;
+              interface: string;
+              localAddress: string;
+              peerAddress: string;
+              state: string;
+              desiredMinTxUs: number;
+              requiredMinRxUs: number;
+              detectMultiplier: number;
+              lastFlap: string | null;
+              multihop: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BfdRedistribution_matrix: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            agentError: string | null;
+            edges: {
+              source: string;
+              target: string;
+              vrf: string;
+              routeMap: string;
+              metric?: number;
+              routeCount: string | null;
+              readOnly: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
         headers: {
           [name: string]: unknown;
         };

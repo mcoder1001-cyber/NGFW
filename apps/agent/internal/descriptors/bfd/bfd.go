@@ -31,8 +31,10 @@ import (
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/internal/descriptors/df7"
+	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/bootid"
 )
 
 // Descriptor names.
@@ -95,6 +97,7 @@ type Session struct {
 	DesiredMinTx  uint32       `json:"desired_min_tx,omitempty"`
 	RequiredMinRx uint32       `json:"required_min_rx,omitempty"`
 	DetectMult    uint8        `json:"detect_mult,omitempty"`
+	Multihop      bool         `json:"multihop,omitempty"`
 	AdminDown     bool         `json:"admin_down,omitempty"`
 	Auth          *SessionAuth `json:"auth,omitempty"`
 }
@@ -195,8 +198,9 @@ func (d *AuthKeyDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	}
 	secret, err := d.secrets(ctx, k.ID)
 	if err != nil {
-		return nil, fmt.Errorf("%w %d: %v", ErrNoSecret, k.ID, err)
+		return nil, fmt.Errorf("%w %d", ErrNoSecret, k.ID)
 	}
+	defer clear(secret)
 	if len(secret) == 0 || len(secret) > MaxKeyLen {
 		return nil, df7.Specf("bfd key %d secret must be 1..%d bytes", k.ID, MaxKeyLen)
 	}
@@ -259,7 +263,10 @@ type KeyMeta struct{ UseCount uint32 }
 // ---- bfd.udp-session --------------------------------------------------------------------------
 
 // SessionMeta is the interface index of a session.
-type SessionMeta struct{ SwIfIndex uint32 }
+type SessionMeta struct {
+	SwIfIndex uint32
+	Recovery  *sessionProof
+}
 
 // SessionDescriptor manages bfd.udp-session objects.
 type SessionDescriptor struct{ df7.Base }
@@ -312,6 +319,28 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 		return nil, err
 	}
 	idx := tg.Index
+	if s.Multihop {
+		env, ok := multihopEnvironment(d.Owner)
+		if !ok || env.Claims == nil || env.Enable == nil {
+			return nil, df7.Specf("multihop requires globals-owner activation and durable endpoint claims")
+		}
+		if _, exists := env.Claims.Lookup(s.Local, s.Peer); exists {
+			return nil, df7.Specf("multihop endpoint tuple already claimed")
+		}
+		if err := env.Enable(ctx); err != nil {
+			return nil, err
+		}
+		idx = df7.NoIndex
+	}
+	id, err := dfkit.IdentitySource(ctx, d.Client)
+	if err != nil {
+		return nil, err
+	}
+	if !id.Complete() {
+		return nil, df7.Specf("complete VPP boot identity required for BFD add")
+	}
+	proof := sessionProof{Identity: id.String(), Interface: s.Interface, LogicalIndex: tg.Index, NativeIndex: idx, Local: s.Local, Peer: s.Peer}
+	meta := SessionMeta{SwIfIndex: idx, Recovery: &proof}
 	req := &bfd.BfdUDPAdd{SwIfIndex: interface_types.InterfaceIndex(idx), DesiredMinTx: s.DesiredMinTx, RequiredMinRx: s.RequiredMinRx,
 		LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer), DetectMult: s.DetectMult}
 	if s.Auth != nil {
@@ -320,17 +349,34 @@ func (d *SessionDescriptor) Create(ctx context.Context, obj proto.Message) (any,
 	if _, err := bfd.NewServiceClient(d.Client).BfdUDPAdd(ctx, req); err != nil {
 		return nil, d.Wrap(fmt.Sprintf("bfd_udp_add %s %s→%s", s.Interface, s.Local, s.Peer), err)
 	}
-	// the session exists now: claim it before anything else can fail (BFD_EEXIST above leaves
-	// no claim — an existing session is never adopted, review M1)
+	// Persist successful-add evidence before either later claim can fail. If
+	// storage itself fails, the in-process boot-bound metadata still permits
+	// compensation; failed compensation must remain PartialCreate/DEGRADED.
+	fail := func(cause error) (any, error) {
+		if cleanup := d.Delete(ctx, obj, meta); cleanup != nil {
+			return meta, scheduler.PartialCreate(fmt.Errorf("%w; BFD create cleanup failed: %v", cause, cleanup))
+		}
+		return nil, cause
+	}
+	if err := d.writeProof(proof); err != nil {
+		return fail(err)
+	}
 	if err := tg.Claim(); err != nil {
-		return nil, err
+		return fail(err)
+	}
+	if s.Multihop {
+		env, _ := multihopEnvironment(d.Owner)
+		if err := env.Claims.Claim(s.Local, s.Peer, s.Interface); err != nil {
+			return fail(err)
+		}
 	}
 	if s.AdminDown {
 		if err := d.setFlags(ctx, idx, s); err != nil {
-			return nil, err
+			return fail(err)
 		}
 	}
-	return SessionMeta{SwIfIndex: idx}, nil
+	sessionCreated(d.Owner, string(KeySession(s.Interface, s.Local, s.Peer)))
+	return meta, nil
 }
 
 // Update implements scheduler.Descriptor in place: timers (bfd_udp_mod), authentication
@@ -345,7 +391,7 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 	if err != nil {
 		return nil, err
 	}
-	if o.Interface != n.Interface || o.Local != n.Local || o.Peer != n.Peer {
+	if o.Interface != n.Interface || o.Local != n.Local || o.Peer != n.Peer || o.Multihop != n.Multihop {
 		return nil, scheduler.ErrRecreate
 	}
 	tg, found, err := d.Detach(ctx, n.Interface, string(KeySession(n.Interface, n.Local, n.Peer)))
@@ -356,6 +402,17 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 		return nil, fmt.Errorf("%s: %w: %q", NameSession, df7.ErrNoSuchInterface, n.Interface)
 	}
 	sw := tg.Index
+	if n.Multihop {
+		env, ok := multihopEnvironment(d.Owner)
+		if !ok {
+			return nil, df7.Specf("multihop claims unavailable")
+		}
+		name, ok := env.Claims.Lookup(n.Local, n.Peer)
+		if !ok || name != n.Interface {
+			return nil, df7.Specf("multihop tuple not owned")
+		}
+		sw = df7.NoIndex
+	}
 	m := SessionMeta{SwIfIndex: sw}
 	svc := bfd.NewServiceClient(d.Client)
 	idx := interface_types.InterfaceIndex(sw)
@@ -388,21 +445,86 @@ func (d *SessionDescriptor) Update(ctx context.Context, oldObj, newObj proto.Mes
 // Delete implements scheduler.Descriptor: re-resolve the interface (D-071), bfd_udp_del (the
 // session is identified by interface + addresses; BFD_ENOENT = already gone) and release the
 // claim.
-func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, _ any) error {
+func (d *SessionDescriptor) Delete(ctx context.Context, obj proto.Message, metadata any) error {
 	s, err := df7.Decode[Session](obj)
 	if err != nil {
 		return err
 	}
+	idx := uint32(df7.NoIndex)
 	tg, found, err := d.Detach(ctx, s.Interface, string(KeySession(s.Interface, s.Local, s.Peer)))
-	if err != nil || !found {
+	if err != nil {
 		return err
 	}
-	_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(tg.Index),
-		LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
-	if err != nil && !df7.IsVPPError(err, api.BFD_ENOENT) {
-		return d.Wrap(fmt.Sprintf("bfd_udp_del %s %s→%s", s.Interface, s.Local, s.Peer), err)
+	if !s.Multihop {
+		idx = tg.Index
 	}
-	return tg.Release()
+	var proof *sessionProof
+	if m, ok := metadata.(SessionMeta); ok && m.Recovery != nil {
+		proof = m.Recovery
+		if proof.Interface != s.Interface || proof.Local != s.Local || proof.Peer != s.Peer || (s.Multihop != (proof.NativeIndex == df7.NoIndex)) {
+			return df7.Specf("BFD recovery metadata does not match exact session")
+		}
+		valid, e := d.validProof(ctx, *proof)
+		if e != nil {
+			return e
+		}
+		// Expired boot/index evidence can never authorize deleting a reused tuple.
+		if !valid {
+			sessionDeleted(d.Owner, string(KeySession(s.Interface, s.Local, s.Peer)))
+			return nil
+		}
+		idx = proof.NativeIndex
+	} else {
+		if s.Multihop {
+			idx = df7.NoIndex
+		}
+		proof, err = d.readProof(ctx, idx, s.Local, s.Peer)
+		if err != nil {
+			return err
+		}
+	}
+	if proof == nil {
+		if !found {
+			sessionDeleted(d.Owner, string(KeySession(s.Interface, s.Local, s.Peer)))
+			return nil
+		}
+		if s.Multihop {
+			env, ok := multihopEnvironment(d.Owner)
+			if !ok || env.Claims == nil {
+				return df7.Specf("multihop claims unavailable")
+			}
+			name, owned := env.Claims.Lookup(s.Local, s.Peer)
+			if !owned || name != s.Interface {
+				return df7.Specf("multihop tuple not owned")
+			}
+		}
+	} else if proof.Interface != s.Interface {
+		return df7.Specf("BFD recovery interface does not match")
+	}
+	_, err = bfd.NewServiceClient(d.Client).BfdUDPDel(ctx, &bfd.BfdUDPDel{SwIfIndex: interface_types.InterfaceIndex(idx), LocalAddr: mustAddr(s.Local), PeerAddr: mustAddr(s.Peer)})
+	if err != nil && !df7.IsVPPError(err, api.BFD_ENOENT) {
+		return d.Wrap("bfd_udp_del", err)
+	}
+	sessionDeleted(d.Owner, string(KeySession(s.Interface, s.Local, s.Peer)))
+	if s.Multihop {
+		env, ok := multihopEnvironment(d.Owner)
+		if ok && env.Claims != nil {
+			if name, owned := env.Claims.Lookup(s.Local, s.Peer); owned {
+				if name != s.Interface {
+					return df7.Specf("BFD endpoint claim changed during recovery")
+				}
+				if err := env.Claims.Release(s.Local, s.Peer, s.Interface); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	if found {
+		if err := tg.Release(); err != nil {
+			return err
+		}
+	}
+	return df7.BootStoreFor(d.Owner).Delete(recoveryKey(idx, s.Local, s.Peer))
 }
 
 // Retrieve implements scheduler.Descriptor: bfd_udp_session_dump, single-hop sessions on owned
@@ -418,24 +540,43 @@ func (d *SessionDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error
 		return nil, d.Wrap("bfd_udp_session_dump", err)
 	}
 	var out []scheduler.KV
+	var identity bootid.Identity
+	identityRead := false
 	for _, det := range dets {
-		if uint32(det.SwIfIndex) == df7.NoIndex {
-			continue // multihop
-		}
 		local, peer := df7.FromAddress(det.LocalAddr).String(), df7.FromAddress(det.PeerAddr).String()
-		name, ok := ifs.Owned(uint32(det.SwIfIndex), func(n string) string { return string(KeySession(n, local, peer)) })
+		name, ok := ownedSession(d.Owner, ifs, uint32(det.SwIfIndex), local, peer)
+		proof, e := d.storedProof(uint32(det.SwIfIndex), local, peer)
+		if e != nil {
+			return nil, e
+		}
+		if proof != nil {
+			if !identityRead {
+				identity, e = dfkit.IdentitySource(ctx, d.Client)
+				if e != nil {
+					return nil, e
+				}
+				identityRead = true
+			}
+			logicalIndex, resolveErr := ifs.Resolve(proof.Interface)
+			if identity.Complete() && bootid.Matches(proof.Identity, identity) && resolveErr == nil && logicalIndex == proof.LogicalIndex {
+				name, ok = proof.Interface, true
+			} else {
+				proof = nil
+			}
+		}
 		if !ok {
 			continue
 		}
-		s := Session{Interface: name, Local: local, Peer: peer,
+		s := Session{Interface: name, Local: local, Peer: peer, Multihop: uint32(det.SwIfIndex) == df7.NoIndex,
 			DesiredMinTx: det.DesiredMinTx, RequiredMinRx: det.RequiredMinRx, DetectMult: det.DetectMult,
 			AdminDown: det.State == bfd.BFD_STATE_API_ADMIN_DOWN}
 		if det.IsAuthenticated {
 			s.Auth = &SessionAuth{ConfKeyID: det.ConfKeyID, BFDKeyID: det.BfdKeyID}
 		}
-		out = append(out, df7.KV(KeySession(s.Interface, s.Local, s.Peer), s, SessionMeta{SwIfIndex: uint32(det.SwIfIndex)}))
+		out = append(out, df7.KV(KeySession(s.Interface, s.Local, s.Peer), s, SessionMeta{SwIfIndex: uint32(det.SwIfIndex), Recovery: proof}))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Key < out[j].Key })
+	sessionSnapshot(d.Owner, out)
 	return out, nil
 }
 

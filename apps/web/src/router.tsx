@@ -82,6 +82,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-capture-trace
         { path: 'tools/capture', lazy: async () => ({ Component: (await import('./domains/tools/capture-trace/CapturePage')).CapturePage }) },
         // wave-BC: F-bfd-redistribution
+        { path: 'routing/bfd', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).BfdRedistributionPage }) },
+        { path: 'routing/redistribution', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).RedistributionPage }) },
+        { path: 'routing/policy', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).PolicyUsagePage }) },
         // wave-BC: F-igmp-mfib
         { path: 'routing/multicast', lazy: async () => ({ Component: (await import('./domains/routing/igmp-mfib/MulticastPage')).MulticastPage }) },
         // wave-BC: F-hardening-lite

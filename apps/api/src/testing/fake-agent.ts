@@ -1,3 +1,4 @@
+import { bfdStateFake, redistributionMatrixFake } from '../features/bfd-redistribution/fake.js'; // wave-BC: F-bfd-redistribution
 import { ipsecFakeState } from '../features/ipsec/fake.js';
 import { tunnelStateFake } from '../features/tunnels/fake.js';
 import {
@@ -1001,6 +1002,8 @@ export class FakeAgent {
         failWith: () => this.failAllWith,
       }),
       // wave-BC: F-bfd-redistribution
+      bfdState: bfdStateFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
+      redistributionMatrix: redistributionMatrixFake({ owner: this.owner, current: () => this.current, record: (m, r) => this.record(m, r), failWith: () => this.failAllWith }),
       // wave-BC: F-ra-vpn
       // wave-BC: F-mpls-ldp
       // wave-BC: F-igmp-mfib

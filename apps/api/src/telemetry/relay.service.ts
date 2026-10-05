@@ -29,6 +29,7 @@ export function eventTopic(kind: EventKind): Topic {
     // wave-BC: F-ospf
     // wave-BC: F-isis-rip
     // wave-BC: F-bfd-redistribution
+    case EventKind.EVENT_KIND_BFD_STATE_CHANGED: return 'bfd-redistribution.events';
     // wave-BC: F-ra-vpn
     // wave-BC: F-mpls-ldp
     // wave-BC: F-mpls-ldp

@@ -5,5 +5,6 @@
   "autoblock-inactive-lint.log": "96793c759034b0a010421c896bd00a7d5d361208d568836f890dff7da75be3c9",
   "autoblock-inactive-final-race.log": "a678c952fdbe7219a2790dd059db1f95629a2fa724e8d1570ae349eb6c3956a1",
   "autoblock-inactive-final-lint.log": "e92606b0bf483111dff0a120c315ea165821348f31365020e2468a0059095c47",
-  "autoblock-inactive-source-check.log": "091f30ec2f7c2be68502224c3ed6743daa70493dee1c34350f09a01d8dce1e55"
+  "autoblock-inactive-source-check.log": "091f30ec2f7c2be68502224c3ed6743daa70493dee1c34350f09a01d8dce1e55",
+  "autoblock-inactive-final-old-overlay.log": "9602046c620d2f9ca07f46f1f212a18700391cd16d7137ff7253434e4dca208e"
 }

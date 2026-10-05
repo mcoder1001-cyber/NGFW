@@ -1,0 +1,69 @@
+2026/10/05 08:57:35 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/05 08:57:35 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/05 08:57:35 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule331969339/001/pki-w7 source=true
+2026/10/05 08:57:35 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:57:35 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/05 08:57:35 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:57:35 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:57:35 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/05 08:57:35 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule331969339/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/05 08:57:35 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule331969339/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns=127.0.0.1:9
+2026/10/05 08:57:35 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/05 08:57:35 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestAutoBlockConfirmedInactivePublicationDoesNotSchedule331969339/001/host-acl-w7.nft
+2026/10/05 08:57:35 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:57:35 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/05 08:57:35 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-551995721/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-551995721/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-agent-test-551995721/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/05 08:57:35 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 08:57:35 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-agent-test-551995721/sysident/etc/hostname
+2026/10/05 08:57:35 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/05 08:57:35 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/05 08:57:35 INFO reconcile start txn_id=ordinary-interface mode=apply domains=[interfaces]
+2026/10/05 08:57:35 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop711 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 08:57:36 INFO reconcile done txn_id=ordinary-interface mode=apply domains=[interfaces] status=APPLY_STATUS_APPLIED summary=created:3 reapplied=0 duration=78.834884ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=113.990624ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=35.844185ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=55.119119ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=34.767416ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=36.134582ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=29.762914ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=118.178097ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=48.666502ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=28.929499ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=42.984606ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=28.982341ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=27.611628ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=31.472797ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=26.288781ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=30.147199ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=52.395697ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:36 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=29.663146ms err=""
+2026/10/05 08:57:36 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:37 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=29.588135ms err=""
+2026/10/05 08:57:37 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:37 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=27.331881ms err=""
+2026/10/05 08:57:37 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:37 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=25.180625ms err=""
+2026/10/05 08:57:37 INFO reconcile start txn_id="" mode=auto-block domains=[acl]
+2026/10/05 08:57:37 INFO reconcile done txn_id="" mode=auto-block domains=[acl] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=23.900903ms err=""
+--- FAIL: TestAutoBlockConfirmedInactivePublicationDoesNotSchedule (1.24s)
+    rpc_autoblock_test.go:242: repeated inactive publications scheduled 20 ACL transactions
+FAIL
+FAIL	ngfw/agent/internal/agent	1.595s
+FAIL

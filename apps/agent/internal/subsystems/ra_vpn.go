@@ -22,7 +22,31 @@ func (w *Wiring) registerRATransport(r scheduler.Registry) error {
 		// never relaxes missing scope into permission to allocate.
 		ids = NoIDs()
 	}
-	r.Register(ravpn.NewNamespaceDescriptor(w.env.Owner))
+	namespace := ravpn.NewNamespaceDescriptor(w.env.Owner)
+	if w.env.RA != nil {
+		namespace.Inventory = w.env.RA.Inventory
+	}
+	if w.env.RA != nil && w.env.RA.Handoff != nil {
+		namespace.Handoff = w.env.RA.Handoff
+	} else {
+		handoff, err := ravpn.NewFixedNamespaceHandoffForProvider(&ravpn.SystemdNamespaceTargets{
+			ExpectedVPP: func(ctx context.Context) (bootid.Identity, error) {
+				if w.env.Client == nil {
+					return bootid.Identity{}, ravpn.ErrBoundary
+				}
+				current, err := bootid.Current(ctx, w.env.Client)
+				if err != nil || !current.Complete() || current.PID <= 0 {
+					return bootid.Identity{}, ravpn.ErrBoundary
+				}
+				return current, nil
+			},
+		})
+		if err != nil {
+			return err
+		}
+		namespace.Handoff = handoff
+	}
+	r.Register(namespace)
 	r.Register(&ravpn.GuardedTAP{
 		Tap:   tapv2.New(w.env.Client, w.env.Owner),
 		Store: &ravpn.LazyTAPReceipts{StateDir: w.env.StateDir},

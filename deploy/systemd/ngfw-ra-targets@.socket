@@ -3,6 +3,8 @@ Description=NGFW authenticated mount namespace observation for VPP PID %i
 After=vpp.service
 
 [Socket]
+TriggerLimitIntervalSec=2
+TriggerLimitBurst=64
 ListenSequentialPacket=/run/ngfw/ra/targets/%i.sock
 SocketMode=0600
 SocketUser=root

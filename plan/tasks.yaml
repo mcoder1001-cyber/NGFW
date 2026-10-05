@@ -2212,7 +2212,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D8.5
@@ -2222,15 +2222,16 @@ tasks:
     files_owned:
       '- apps/api/src/features/backup-restore/** (index.ts exports {controllers, providers}; `BackupRestoreController`; scheduler provider; template renderer; bundle builder;
       real fake-agent behaviour in fake.ts)'
-    branch: codex/f-backup-restore-20261005
-    worktree: /root/ngfw-wt/f-backup-restore-20261005
+    branch: codex/f-backup-single-20261005
+    worktree: /root/ngfw-wt/f-backup-final-20261005
     owner: /root/backup_restore
     started: '2026-10-05T15:35:54.132904+00:00'
-    finished: ''
+    finished: '2026-10-05'
     notes:
       'prompts-s4: suggested deps +F-ab-upgrade (upgrade UI D8.7 drives vrx-upgrade); +P07b/P08 (web frame; overlap check) — docs/status/tasks/prompts-s4.md | D-125 envelope: POST
       /api/v1/actions/{reboot,shutdown} through vrx-power@<op>.service (review 6.3b, +2 h)'
-    worker_status: verified live developer in current chat
+    worker_status: completed; all owned commands stopped; reviewed source merged and main CI green
+    completion_evidence: PR191 head48d221145 merged d6e1646; hosted quick37353160584 and actual main quick37356235707 PASS; packaging/provisioning PASS
   - id: F-ra-vpn
     title: remote-access VPN IKEv2+EAP
     prompt: prompts/features/F-ra-vpn.md
@@ -5860,3 +5861,22 @@ tasks:
       integration audit: Historical generated prompts require scope reconciliation against published main. Historical checkpoint is preserved on the remote recovery archive; completion is not certified. |
       2026-10-04 recovered historical source onto current main, adapted NGFW contracts/consumers, focused checks and independent review; owner waived full CI; source recovery only, live acceptance deferred
       in eight-review-recovery-20261004.md.'
+  - id: BUG-vpn-capability-warning
+    title: Remove obsolete blanket IPsec and PKI capability warnings
+    prompt: prompts/fixes/BUG-vpn-capability-warning.md
+    template: ''
+    stage: S4
+    deps: [F-ikev2-native, F-pki]
+    priority: 1
+    est_hours: 1
+    state: running
+    parked_on: ''
+    wbs: []
+    scope: Necessary native REST acceptance prerequisite; preserve intrinsic VPN guards
+    files_owned: apps/agent/internal/desired/wireguard.go apps/agent/internal/desired/wireguard_test.go prompts/fixes/BUG-vpn-capability-warning.md docs/status/tasks/BUG-vpn-capability-warning*
+    branch: codex/bug-vpn-capability-warning-20261005
+    worktree: /root/ngfw-wt/bug-vpn-capability-warning-20261005
+    owner: root developer
+    started: '2026-10-05'
+    finished: ''
+    notes: Before-fix regression fails for obsolete IPsec and PKI warnings; independent reviews and full CI pending

@@ -142,3 +142,21 @@ child/SIGTERM/cleanup assertion, and routes mocked gate/lock setup into its own
 temporary directory. No product or live preflight guard is changed. Actual
 updated safety/recovery suite15/15 PASS; reviewer rerun is required. Curated dcf
 checkpoint is verified remote8903182a384314a4e065c1bd796061663ea50247.
+
+## Frozen integrated acceptance candidate
+
+Local8f6b121b4 merges the manager's separately owned VPN capability-warning fix
+dfa993405 with fresh backup main d6e1646. The prerequisite's independent reviews
+and merge are pending; this task does not claim that product row complete. Own
+D237 is retained; two conflicting backup acceptance/review docs use the fresh
+main versions. No product merge conflict or author product edit occurred. Board
+contains212 rows including the prerequisite. Dispatcher test no longer requires
+a hidden tagged binary and15/15 host-independent tests pass.
+
+Next exact commands (owned slot27, bounded dispatcher): build production API and
+agent, build `go -C apps/agent build -tags ngfwtestsecrets` to the owned scratch
+agent, then `NGFW_INTEGRATION=1 GOMAXPROCS=2 GOFLAGS=-p=2 python3
+test/topology/traffic-b/run.py --slot 27 --output .scratch/traffic-b-rest-all-final`.
+Wait all seven phases complete, preserve any failure, then run unchanged complete
+`GOMAXPROCS=2 GOFLAGS=-p=2 tools/heavy.sh tools/ci.sh quick` on that frozen source.
+No Done or native packet pass is claimed before actual results.

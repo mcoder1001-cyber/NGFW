@@ -205,6 +205,18 @@ func (p partialCreate) Is(target error) bool { return target == ErrPartialCreate
 // new one, re-creating dependents as well.
 var ErrRecreate = errors.New("update requires recreate")
 
+// WriteOnlyInPlaceCreator is an explicit opt-in for a write-only setter whose Create
+// can safely run while dependents remain live. It applies only when Retrieve actually
+// reported ErrRetrieveUnsupported and this transaction has no actual KV for the key.
+// The setter must still execute and validate its real backend operation, reject foreign
+// ownership, handle generation changes/retirement, and report partial or uncertain
+// failures normally. It must not infer that a missing KV means the backend is absent.
+// Update, Delete, cached replays and every descriptor without this opt-in retain the
+// default dependent recreation semantics. Retrieve is never fabricated or skipped.
+type WriteOnlyInPlaceCreator interface {
+	CreatePreservesDependents() bool
+}
+
 // Descriptor implements Create/Update/Delete/Retrieve/Dependencies for one object type. One
 // descriptor per VPP object type or daemon config unit; see internal/descriptors/README.md
 // for how to write one and internal/scheduler/example_descriptor_test.go for a worked

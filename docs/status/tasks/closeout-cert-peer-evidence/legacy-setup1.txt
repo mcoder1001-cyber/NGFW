@@ -1,0 +1,10 @@
+DISPOSABLE_VPP pid=274647 runtime=/root/ngfw-wt/codex-closeout-cert-peer/.scratch/isolated-vpp-274638
+CERT_PEER_SIGNATURE_MODE=legacy_RSA_SIG_SHA1
+CERT_FIXTURE_ORIGINAL_SHA256=235e7f53ba616ddd997944664d9fb245d9759b05e5306ee58f40307a8d679996
+CERT_FIXTURE_OVERLAY_SHA256=0025a215c1b68f7e953db40d80718f956fddf60e0855c1f968da949c6601ab7b
+SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0
+# ngfw/agent/internal/desired [ngfw/agent/internal/desired.test]
+../../.scratch/cert-peer-ffke3cqk/cert_test.go:354:2: invalid operation: peerConf.Content += "\ncharon {\n signature_authentication = no\n}\n" (mismatched types []byte and untyped string)
+FAIL	ngfw/agent/internal/desired [build failed]
+FAIL
+DISPOSABLE_VPP_STOPPED pid=274647

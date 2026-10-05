@@ -1,0 +1,66 @@
+DISPOSABLE_VPP pid=78261 runtime=/root/ngfw-wt/codex-closeout-cert-peer/.scratch/isolated-vpp-78259
+CERT_FIXTURE_ORIGINAL_SHA256=235e7f53ba616ddd997944664d9fb245d9759b05e5306ee58f40307a8d679996
+CERT_FIXTURE_OVERLAY_SHA256=ccfb858c08aa38552c00ab4d6ab6f46a22470ca5f4cba3fbe3935c1730e69813
+SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0
+=== RUN   TestIKEv2NativeCertificatePackets
+2026/10/04 17:52:52 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ikev2_integration_test.go:277: partial Apply safely retained stored VPN context
+    ikev2_integration_test.go:277: partial tunnels-only Apply refused protected admin-up: native-partial-before-sa
+    ikev2_integration_test.go:380: native IKE negotiated AUTH_FAILED, child SPI 0x57a9b5a5/0x0
+    ikev2_integration_test.go:382: IKE did not enable protected IPIP               Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        ipip8001                          3     down         9000/0/0/0     
+        
+    ikev2_integration_test.go:194: {"time":"2026-10-04T17:52:53.483239716Z","level":"INFO","msg":"ngfw-agent starting","version":"dev","pid":79125,"owner":"w8","socket":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/agent.sock","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-04T17:52:53.484334723Z","level":"INFO","msg":"VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w8","component":"subsystems"}
+        {"time":"2026-10-04T17:52:53.488796459Z","level":"INFO","msg":"PKI file materialiser wired","owner":"w8","component":"subsystems","root":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state/pki-w8","source":true}
+        {"time":"2026-10-04T17:52:53.489770229Z","level":"INFO","msg":"nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim","owner":"w8","component":"subsystems"}
+        {"time":"2026-10-04T17:52:53.490016461Z","level":"INFO","msg":"VPP binary API connected","owner":"w8","component":"vpp","socket":"/run/vpp/api.sock"}
+        {"time":"2026-10-04T17:52:53.501432075Z","level":"INFO","msg":"fqdn state reloaded","owner":"w8","component":"subsystems","family":"objects","file":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state/objects-fqdn-w8.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+        {"time":"2026-10-04T17:52:53.505355716Z","level":"INFO","msg":"objects domain wired","owner":"w8","component":"subsystems","store":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state/objects-w8.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+        {"time":"2026-10-04T17:52:53.505493032Z","level":"INFO","msg":"acl domain wired","owner":"w8","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":true,"resync_hook":true}
+        {"time":"2026-10-04T17:52:53.50556642Z","level":"INFO","msg":"host firewall wired","owner":"w8","component":"subsystems","table":"inet ngfw_w8","mode":"check","netns":"","rules_file":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state/host-acl-w8.nft"}
+        {"time":"2026-10-04T17:52:53.50623478Z","level":"INFO","msg":"kea wired","owner":"w8","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+        {"time":"2026-10-04T17:52:53.507528831Z","level":"INFO","msg":"host services wired","owner":"w8","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":true,"unbound_conf":"/etc/unbound/unbound.conf","chrony_conf":"/etc/chrony/chrony.conf","rsyslog_conf":"/etc/rsyslog.d/50-ngfw-export.conf","vpp_dns_cache":"applied (globals owner)"}
+        {"time":"2026-10-04T17:52:53.507748455Z","level":"INFO","msg":"system identity wired","owner":"w8","component":"subsystems","product_paths":true,"hostname_file":"/etc/hostname"}
+        {"time":"2026-10-04T17:52:53.509257602Z","level":"INFO","msg":"subsystems wired","owner":"w8","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"wiring":"stores in /root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state: claims-iface-w8.json, boot-w8.json; globals owner true","vpp_ids":"8000-8999"}
+        {"time":"2026-10-04T17:52:53.515441265Z","level":"INFO","msg":"ngfw-agent listening","owner":"w8","socket":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/agent.sock","metrics":"127.0.0.1:0","state_dir":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-04T17:52:53.518374179Z","level":"INFO","msg":"classify table sentinel created at index 0 (INC-vpp-classify-crash M2)","owner":"w8","component":"subsystems","family":"classify-sentinel","state":"created","left":null,"report":"state=created pops=0"}
+        {"time":"2026-10-04T17:52:53.519355875Z","level":"INFO","msg":"VPP boot identity","owner":"w8","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/78261/11730784","complete":true,"expired_claims":0}
+        {"time":"2026-10-04T17:52:53.519930024Z","level":"WARN","msg":"neighbour events: interface dump","owner":"w8","component":"subsystems","err":"sw_interface_dump: context canceled"}
+        {"time":"2026-10-04T17:52:53.520294552Z","level":"INFO","msg":"reconcile start","owner":"w8","txn_id":"","mode":"resync","domains":null}
+        {"time":"2026-10-04T17:52:53.59453847Z","level":"INFO","msg":"reconcile done","owner":"w8","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":74023880,"err":""}
+        {"time":"2026-10-04T17:52:53.594639981Z","level":"INFO","msg":"resync finished","owner":"w8","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+        {"time":"2026-10-04T17:52:53.595265725Z","level":"INFO","msg":"dynamic source started","owner":"w8","source":"multiwan","descriptors":["ip.route.wan","nat44-ed.output-feature.wan","nat44-ed.interface-address.wan","nat44-ed.static-address.wan"]}
+        {"time":"2026-10-04T17:52:54.401609074Z","level":"INFO","msg":"reconcile start","owner":"w8","txn_id":"native-initial","mode":"apply","domains":["interfaces","routing","vpn","tunnels"]}
+        {"time":"2026-10-04T17:52:54.616816245Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w8nlan","sw_if_index":1,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-04T17:52:54.617291131Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"af-packet.host-interface/host-w8nlan"}
+        {"time":"2026-10-04T17:52:54.660410687Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w8nwan","sw_if_index":2,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-04T17:52:54.660903397Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"af-packet.host-interface/host-w8nwan"}
+        {"time":"2026-10-04T17:52:54.661813934Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface/host-w8nlan"}
+        {"time":"2026-10-04T17:52:54.663221222Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface-ip/host-w8nlan/198.18.81.1/24"}
+        {"time":"2026-10-04T17:52:54.664843076Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface.admin-state/host-w8nlan"}
+        {"time":"2026-10-04T17:52:54.665401631Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface/host-w8nwan"}
+        {"time":"2026-10-04T17:52:54.666235678Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface-ip/host-w8nwan/198.18.8.1/24"}
+        {"time":"2026-10-04T17:52:54.667422695Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface.admin-state/host-w8nwan"}
+        {"time":"2026-10-04T17:52:54.674252058Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"ipip.tunnel/ipip8001","sw_if_index":3,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6"],"skipped":["lldp (retval -7)"]}
+        {"time":"2026-10-04T17:52:54.67461091Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"ipip.tunnel/ipip8001"}
+        {"time":"2026-10-04T17:52:54.675389602Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface/ipip8001"}
+        {"time":"2026-10-04T17:52:54.676909243Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"interface-ip/ipip8001/198.18.83.1/30"}
+        {"time":"2026-10-04T17:52:54.682633171Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"ip.route/0/198.18.82.0/24"}
+        {"time":"2026-10-04T17:52:54.686285655Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"tunnels.meta/ipip8001"}
+        {"time":"2026-10-04T17:52:54.689678021Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"ikev2.meta/site"}
+        {"time":"2026-10-04T17:52:54.70240569Z","level":"INFO","msg":"PKI files materialised","owner":"w8","component":"subsystems","component":"pki","root":"/root/.cache/go-tmp/TestIKEv2NativeCertificatePackets1149100015/004/state/pki-w8","files":3,"removed":0}
+        {"time":"2026-10-04T17:52:54.702478565Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"pki.files/ngfw"}
+        {"time":"2026-10-04T17:52:54.720613115Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"ikev2.local-key/global"}
+        {"time":"2026-10-04T17:52:54.727869536Z","level":"INFO","msg":"created","owner":"w8","component":"scheduler","key":"ikev2.profile/site"}
+        {"time":"2026-10-04T17:52:54.818111907Z","level":"INFO","msg":"reconcile done","owner":"w8","txn_id":"native-initial","mode":"apply","domains":["interfaces","routing","vpn","tunnels"],"status":"APPLY_STATUS_APPLIED","summary":"created:17 unchanged:2","reapplied":0,"duration":416526802,"err":""}
+        {"time":"2026-10-04T17:52:54.90562406Z","level":"INFO","msg":"reconcile start","owner":"w8","txn_id":"native-partial-before-sa","mode":"apply","domains":["tunnels"]}
+        {"time":"2026-10-04T17:52:54.985174442Z","level":"INFO","msg":"reconcile done","owner":"w8","txn_id":"native-partial-before-sa","mode":"apply","domains":["tunnels"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:2","reapplied":0,"duration":79498079,"err":""}
+        {"time":"2026-10-04T17:52:57.164345318Z","level":"INFO","msg":"dynamic source stopped","owner":"w8","source":"multiwan"}
+        {"time":"2026-10-04T17:52:57.165696529Z","level":"INFO","msg":"ngfw-agent stopped","owner":"w8"}
+        
+--- FAIL: TestIKEv2NativeCertificatePackets (6.71s)
+FAIL
+FAIL	ngfw/agent/internal/desired	6.827s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=78261

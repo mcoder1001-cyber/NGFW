@@ -1,0 +1,7 @@
+DISPOSABLE_VPP pid=315124 runtime=/root/ngfw-wt/codex-closeout-ikev2-cert-replay/.scratch/isolated-vpp-315122
+=== RUN   TestIKEv2NativeCertificateProduction
+    ikev2_certificate_integration_test.go:207: production sealed certificate delivery, profile readback, replay, shared-key rotation, explicit revision revert, agent restart and profile removal passed; peer negotiation/packets not exercised
+--- PASS: TestIKEv2NativeCertificateProduction (4.47s)
+PASS
+ok  	ngfw/agent/internal/desired	5.846s
+DISPOSABLE_VPP_STOPPED pid=315124

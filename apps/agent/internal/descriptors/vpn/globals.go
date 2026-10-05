@@ -44,6 +44,13 @@ type ownerGlobal struct{ scheduler.Descriptor }
 // DeleteOnAbsence implements scheduler.AbsenceDeleter.
 func (ownerGlobal) DeleteOnAbsence() bool { return false }
 
+// CreatePreservesDependents forwards the optional setter contract only for the
+// designated globals owner. Require deliberately does not implement it.
+func (g ownerGlobal) CreatePreservesDependents() bool {
+	setter, ok := g.Descriptor.(scheduler.WriteOnlyInPlaceCreator)
+	return ok && setter.CreatePreservesDependents()
+}
+
 // Require is the non-owner variant of a VPP-global setter (see the file comment).
 type Require struct {
 	inner scheduler.Descriptor

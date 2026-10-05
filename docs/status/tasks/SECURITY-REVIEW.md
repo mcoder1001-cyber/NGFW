@@ -1,7 +1,7 @@
 # SECURITY-REVIEW whole-tree adversarial freeze report
 
-Status: IN PROGRESS; security regression, complete quick gate and independent review pending. No release certification claimed.
-Baseline reviewed: origin/main d314f0728; review covers the whole repository security boundaries, rather than only a feature diff. Patch branch codex/security-final-20261005.
+Status: security source/dependency review and first complete quick PASS; newly found authenticated acceptance transport correction verified by focused checks, updated complete gate pending. No release certification claimed.
+Baseline reviewed: origin/main d314f0728; auth delta traced from SEC-auth merge 52fbddb05 to this baseline (JWT/API-key lifetime, MFA/AAA, transport and WebSocket changes); review covers the whole repository security boundaries, rather than only a feature diff. Patch branch codex/security-final-20261005.
 
 ## Confirmed dependency findings and remediation
 
@@ -10,6 +10,12 @@ Baseline reviewed: origin/main d314f0728; review covers the whole repository sec
 Primary upstream advisories verified: [Fastify malformed URL authentication bypass](https://github.com/fastify/fastify/security/advisories/GHSA-p68q-wchp-6fh7), [static traversal](https://github.com/fastify/fastify-static/security/advisories/GHSA-83w8-p2f5-377r), [js-yaml merge CPU exhaustion](https://github.com/nodeca/js-yaml/security/advisories/GHSA-r3ph-w7gj-g6xm). Dependency presence is established; appliance exploitability is not claimed for every advisory. Fixing the vulnerable copies avoids relying on conditional non-exploitability.
 
 After patch `pnpm audit --prod --json`: info 0, low 0, moderate 0, high 0, critical 0; 317 total production/optional dependencies. This is current registry advisory evidence, not a guarantee of absence of unknown vulnerabilities.
+
+## Confirmed acceptance HTTP transport finding and correction
+
+Independent Traffic-C review exposed inherited traffic-a.Api default urllib redirects. Two ephemeral loopback servers reproduced cross-origin 302 forwarding of a sanctioned fixture ApiKey header. Seven existing acceptance clients used the same unsafe transport pattern; source code now shares test/topology/private_http.py, explicitly disabling ambient proxies and rejecting redirects while retaining ordinary TLS verification and HTTPError/status handling. Patched traffic-a, management-dataplane, ipsec API flow, dataplane UI, management UI, capture live and hardware reachability login. HA acceptance already refused redirects and autoblock uses nonredirecting http.client. C worker independently fixes its own API/download opener and TERM cleanup; its source must be reviewed and integrated separately. No actual production credential or shared host was used in reproduction.
+
+Actual correction checks: four real loopback regression tests (including ten GET/POST redirect status subcases, direct-origin success, ambient proxy refusal, three original client classes and capture download/status behavior) PASS 0.876 s; existing capture tests 9 PASS 0.005 s; traffic-A suite 61 PASS 6.158 s; all seven sources parse and git diff --check PASS. No response/error contract or TLS context is weakened.
 
 ## Inspected attack surfaces
 
@@ -29,7 +35,7 @@ After patch `pnpm audit --prod --json`: info 0, low 0, moderate 0, high 0, criti
 - pnpm gen after dependency patch: PASS. Generated tracked outputs remain unchanged.
 - Focused TS auth/secrets/PKI/MFA: existing 13 files / 82 tests PASS; new 13-case freeze suite initially 12 PASS and authenticated static case 401 because offline MFA-policy store absent. Added same explicit no-MFA policy fixture as existing route guard; real token authentication and anonymous requests remain unchanged. Rerun PASS: 1 file, 13 tests, duration 32.03 s.
 - Focused race-enabled Go: `go test -race -count=1 ./internal/secretchannel ./internal/renderers ./internal/renderers/rfkit ./internal/actions/capture-trace` PASS all four packages (1.111/1.896/1.233/13.330 s).
-- Unchanged complete quick gate: pending final execution. Interrupted preliminary gate is not a result.
+- Unchanged complete first quick gate: `tools/ci.sh --base origin/main` CI GATE PASSED, 19m59s, source tree c39874e5efc082aef584e4f42962bc990fc6afb6 (remote5e61a0bc). API706, web609 and UI-kit90 cases PASS; Go agent/CLI lint/race/build and every test-module vet/unit pass; startup harness149 checks PASS. Logs: /root/ngfw-wt/logs/ci/security-final-20261005-20261005-154309-3876040. Hosted exact head5e61a0bc run37336602899 also completed/success. Both precede the new acceptance transport patch; updated full gate is mandatory and pending.
 
 ## Remaining acceptance and limits
 

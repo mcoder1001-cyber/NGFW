@@ -1,4 +1,4 @@
-# D-236: Remote-access capability readiness
+# D-238: Remote-access capability readiness
 
 Manager decision, 2026-10-05. The product owner already approved the independent engine and full security/test scope. This clarifies existing additive capability semantics; no protocol shape, privilege or authentication change.
 
@@ -9,3 +9,5 @@ Read-only preflight must verify the actual pinned engine artifact/ABI, root help
 Activation still requires full observed outer and inner ingress/egress ACL handoff before credential snapshot/unit startup, exact daemon namespace/PID/start/VICI ownership, real configuration load and readback. Failure, rollback, restart and VPP boot changes stop the observed owned generation before repair. Source completion and independent security/full tests remain mandatory.
 
 Alternatives considered: require active generation; report ready merely when callbacks exist; verified installed preflight. Selected preflight removes first-use circularity while preserving fail-closed activation. Reversal cost is one capability implementation and corresponding tests, within task scope.
+
+The original RA draft used D-236 before backup merged that decision number on main. During integration the RA entry was renumbered D-238; its content and acceptance requirements are unchanged.

@@ -734,6 +734,64 @@ export function haSyncOpToJSON(object: HaSyncOp): string {
   }
 }
 
+/** UpgradeOp is not a generic command execution interface. */
+export enum UpgradeOp {
+  UPGRADE_OP_UNSPECIFIED = 0,
+  UPGRADE_OP_STATUS = 1,
+  UPGRADE_OP_STAGE = 2,
+  UPGRADE_OP_ACTIVATE = 3,
+  UPGRADE_OP_CONFIRM = 4,
+  UPGRADE_OP_ROLLBACK = 5,
+  UNRECOGNIZED = -1,
+}
+
+export function upgradeOpFromJSON(object: any): UpgradeOp {
+  switch (object) {
+    case 0:
+    case "UPGRADE_OP_UNSPECIFIED":
+      return UpgradeOp.UPGRADE_OP_UNSPECIFIED;
+    case 1:
+    case "UPGRADE_OP_STATUS":
+      return UpgradeOp.UPGRADE_OP_STATUS;
+    case 2:
+    case "UPGRADE_OP_STAGE":
+      return UpgradeOp.UPGRADE_OP_STAGE;
+    case 3:
+    case "UPGRADE_OP_ACTIVATE":
+      return UpgradeOp.UPGRADE_OP_ACTIVATE;
+    case 4:
+    case "UPGRADE_OP_CONFIRM":
+      return UpgradeOp.UPGRADE_OP_CONFIRM;
+    case 5:
+    case "UPGRADE_OP_ROLLBACK":
+      return UpgradeOp.UPGRADE_OP_ROLLBACK;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return UpgradeOp.UNRECOGNIZED;
+  }
+}
+
+export function upgradeOpToJSON(object: UpgradeOp): string {
+  switch (object) {
+    case UpgradeOp.UPGRADE_OP_UNSPECIFIED:
+      return "UPGRADE_OP_UNSPECIFIED";
+    case UpgradeOp.UPGRADE_OP_STATUS:
+      return "UPGRADE_OP_STATUS";
+    case UpgradeOp.UPGRADE_OP_STAGE:
+      return "UPGRADE_OP_STAGE";
+    case UpgradeOp.UPGRADE_OP_ACTIVATE:
+      return "UPGRADE_OP_ACTIVATE";
+    case UpgradeOp.UPGRADE_OP_CONFIRM:
+      return "UPGRADE_OP_CONFIRM";
+    case UpgradeOp.UPGRADE_OP_ROLLBACK:
+      return "UPGRADE_OP_ROLLBACK";
+    case UpgradeOp.UNRECOGNIZED:
+    default:
+      return "UNRECOGNIZED";
+  }
+}
+
 /**
  * ApplyRequest carries one transaction. Exactly one of these forms is valid:
  *   - apply:            txn_id + desired_state (+ subsystems, confirm_timeout_sec)
@@ -1133,6 +1191,14 @@ export interface ActionRequest {
    */
   haSync?:
     | HaSyncAction
+    | undefined;
+  /** wave-BC: F-backup-restore */
+  upgrade?:
+    | UpgradeAction
+    | undefined;
+  /** wave-A: F-neighbors-ra */
+  supportBundle?:
+    | SupportBundleAction
     | undefined;
   /** Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay. */
   arpFlush?:
@@ -4113,7 +4179,17 @@ export interface ManagementConfig {
     | ManagementAlarms
     | undefined;
   /** API-owned email/webhook configuration, mirrored for schema drift validation. */
-  notifications: ManagementNotifications | undefined;
+  notifications:
+    | ManagementNotifications
+    | undefined;
+  /** wave-BC: F-backup-restore */
+  backup: ManagementBackup | undefined;
+  templates: { [key: string]: ConfigTemplate };
+}
+
+export interface ManagementConfig_TemplatesEntry {
+  key: string;
+  value: ConfigTemplate | undefined;
 }
 
 /** ManagementNotifications mirrors management.notifications; the API dispatches deliveries. */
@@ -11500,6 +11576,57 @@ export interface RemoteAccessDisconnectResponse {
   disconnected: boolean;
 }
 
+/** ManagementBackup is evaluated by the API; times use UTC. */
+export interface ManagementBackup {
+  enabled?: boolean | undefined;
+  schedule?: string | undefined;
+  target: BackupTarget | undefined;
+  retention?: number | undefined;
+  revisions?: number | undefined;
+  passphraseRef?: string | undefined;
+}
+
+/** BackupTarget carries references only; credentials never leave the secret store. */
+export interface BackupTarget {
+  type?: string | undefined;
+  path?: string | undefined;
+  host?: string | undefined;
+  port?: number | undefined;
+  username?: string | undefined;
+  credentialRef?: string | undefined;
+  hostKeySha256?: string | undefined;
+}
+
+/** ConfigTemplate is a validated RFC 7386 patch with typed parameters. */
+export interface ConfigTemplate {
+  description?: string | undefined;
+  parameters: { [key: string]: TemplateParameter };
+  patchJson?: string | undefined;
+}
+
+export interface ConfigTemplate_ParametersEntry {
+  key: string;
+  value: TemplateParameter | undefined;
+}
+
+/** TemplateParameter defines the type of one placeholder. */
+export interface TemplateParameter {
+  type?: string | undefined;
+  required?: boolean | undefined;
+}
+
+/** UpgradeAction exposes only fixed appliance upgrade operations. */
+export interface UpgradeAction {
+  op: UpgradeOp;
+  bundle: string;
+}
+
+/** SupportBundleAction requests a bounded, read-only host summary. */
+export interface SupportBundleAction {
+  sinceSec: number;
+  auditRows: number;
+}
+
 function createBaseApplyRequest(): ApplyRequest {
   return {
     txnId: "",
@@ -14094,6 +14221,8 @@ function createBaseActionRequest(): ActionRequest {
     cnatSessionPurge: undefined,
     ikev2: undefined,
     haSync: undefined,
+    upgrade: undefined,
+    supportBundle: undefined,
     arpFlush: undefined,
     natSessionKill: undefined,
     dnsLookup: undefined,
@@ -14122,6 +14251,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     }
     if (message.haSync !== undefined) {
       HaSyncAction.encode(message.haSync, writer.uint32(106).fork()).join();
+    }
+    if (message.upgrade !== undefined) {
+      UpgradeAction.encode(message.upgrade, writer.uint32(162).fork()).join();
+    }
+    if (message.supportBundle !== undefined) {
+      SupportBundleAction.encode(message.supportBundle, writer.uint32(170).fork()).join();
     }
     if (message.arpFlush !== undefined) {
       ArpFlushAction.encode(message.arpFlush, writer.uint32(34).fork()).join();
@@ -14204,6 +14339,22 @@ export const ActionRequest: MessageFns<ActionRequest> = {
             message.haSync = HaSyncAction.decode(reader, reader.uint32());
             continue;
           }
+          case 20: {
+            if (tag !== 162) {
+              break;
+            }
+
+            message.upgrade = UpgradeAction.decode(reader, reader.uint32());
+            continue;
+          }
+          case 21: {
+            if (tag !== 170) {
+              break;
+            }
+
+            message.supportBundle = SupportBundleAction.decode(reader, reader.uint32());
+            continue;
+          }
           case 4: {
             if (tag !== 34) {
               break;
@@ -14261,6 +14412,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
         : isSet(object.ha_sync)
         ? HaSyncAction.fromJSON(object.ha_sync)
         : undefined,
+      upgrade: isSet(object.upgrade) ? UpgradeAction.fromJSON(object.upgrade) : undefined,
+      supportBundle: isSet(object.supportBundle)
+        ? SupportBundleAction.fromJSON(object.supportBundle)
+        : isSet(object.support_bundle)
+        ? SupportBundleAction.fromJSON(object.support_bundle)
+        : undefined,
       arpFlush: isSet(object.arpFlush)
         ? ArpFlushAction.fromJSON(object.arpFlush)
         : isSet(object.arp_flush)
@@ -14302,6 +14459,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
     if (message.haSync !== undefined) {
       obj.haSync = HaSyncAction.toJSON(message.haSync);
     }
+    if (message.upgrade !== undefined) {
+      obj.upgrade = UpgradeAction.toJSON(message.upgrade);
+    }
+    if (message.supportBundle !== undefined) {
+      obj.supportBundle = SupportBundleAction.toJSON(message.supportBundle);
+    }
     if (message.arpFlush !== undefined) {
       obj.arpFlush = ArpFlushAction.toJSON(message.arpFlush);
     }
@@ -14339,6 +14502,12 @@ export const ActionRequest: MessageFns<ActionRequest> = {
       : undefined;
     message.haSync = (object.haSync !== undefined && object.haSync !== null)
       ? HaSyncAction.fromPartial(object.haSync)
+      : undefined;
+    message.upgrade = (object.upgrade !== undefined && object.upgrade !== null)
+      ? UpgradeAction.fromPartial(object.upgrade)
+      : undefined;
+    message.supportBundle = (object.supportBundle !== undefined && object.supportBundle !== null)
+      ? SupportBundleAction.fromPartial(object.supportBundle)
       : undefined;
     message.arpFlush = (object.arpFlush !== undefined && object.arpFlush !== null)
       ? ArpFlushAction.fromPartial(object.arpFlush)
@@ -38202,6 +38371,8 @@ function createBaseManagementConfig(): ManagementConfig {
     prometheus: undefined,
     alarms: undefined,
     notifications: undefined,
+    backup: undefined,
+    templates: {},
   };
 }
 
@@ -38228,6 +38399,12 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     if (message.notifications !== undefined) {
       ManagementNotifications.encode(message.notifications, writer.uint32(58).fork()).join();
     }
+    if (message.backup !== undefined) {
+      ManagementBackup.encode(message.backup, writer.uint32(66).fork()).join();
+    }
+    globalThis.Object.entries(message.templates).forEach(([key, value]: [string, ConfigTemplate]) => {
+      ManagementConfig_TemplatesEntry.encode({ key: key as any, value }, writer.uint32(74).fork()).join();
+    });
     return writer;
   },
 
@@ -38300,6 +38477,25 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
             message.notifications = ManagementNotifications.decode(reader, reader.uint32());
             continue;
           }
+          case 8: {
+            if (tag !== 66) {
+              break;
+            }
+
+            message.backup = ManagementBackup.decode(reader, reader.uint32());
+            continue;
+          }
+          case 9: {
+            if (tag !== 74) {
+              break;
+            }
+
+            const entry9 = ManagementConfig_TemplatesEntry.decode(reader, reader.uint32());
+            if (entry9.value !== undefined) {
+              message.templates[entry9.key] = entry9.value;
+            }
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -38321,6 +38517,21 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
       prometheus: isSet(object.prometheus) ? ManagementPrometheus.fromJSON(object.prometheus) : undefined,
       alarms: isSet(object.alarms) ? ManagementAlarms.fromJSON(object.alarms) : undefined,
       notifications: isSet(object.notifications) ? ManagementNotifications.fromJSON(object.notifications) : undefined,
+      backup: isSet(object.backup) ? ManagementBackup.fromJSON(object.backup) : undefined,
+      templates: isObject(object.templates)
+        ? (globalThis.Object.entries(object.templates) as [string, any][]).reduce(
+          (acc: { [key: string]: ConfigTemplate }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: ConfigTemplate.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
     };
   },
 
@@ -38347,6 +38558,18 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
     if (message.notifications !== undefined) {
       obj.notifications = ManagementNotifications.toJSON(message.notifications);
     }
+    if (message.backup !== undefined) {
+      obj.backup = ManagementBackup.toJSON(message.backup);
+    }
+    if (message.templates) {
+      const entries = globalThis.Object.entries(message.templates) as [string, ConfigTemplate][];
+      if (entries.length > 0) {
+        obj.templates = {};
+        entries.forEach(([k, v]) => {
+          obj.templates[k] = ConfigTemplate.toJSON(v);
+        });
+      }
+    }
     return obj;
   },
 
@@ -38367,6 +38590,105 @@ export const ManagementConfig: MessageFns<ManagementConfig> = {
       : undefined;
     message.notifications = (object.notifications !== undefined && object.notifications !== null)
       ? ManagementNotifications.fromPartial(object.notifications)
+      : undefined;
+    message.backup = (object.backup !== undefined && object.backup !== null)
+      ? ManagementBackup.fromPartial(object.backup)
+      : undefined;
+    message.templates = (globalThis.Object.entries(object.templates ?? {}) as [string, ConfigTemplate][]).reduce(
+      (acc: { [key: string]: ConfigTemplate }, [key, value]: [string, ConfigTemplate]) => {
+        if (value !== undefined) {
+          acc[key] = ConfigTemplate.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    return message;
+  },
+};
+
+function createBaseManagementConfig_TemplatesEntry(): ManagementConfig_TemplatesEntry {
+  return { key: "", value: undefined };
+}
+
+export const ManagementConfig_TemplatesEntry: MessageFns<ManagementConfig_TemplatesEntry> = {
+  encode(message: ManagementConfig_TemplatesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      ConfigTemplate.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementConfig_TemplatesEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementConfig_TemplatesEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = ConfigTemplate.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementConfig_TemplatesEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? ConfigTemplate.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ManagementConfig_TemplatesEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = ConfigTemplate.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementConfig_TemplatesEntry>): ManagementConfig_TemplatesEntry {
+    return ManagementConfig_TemplatesEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementConfig_TemplatesEntry>): ManagementConfig_TemplatesEntry {
+    const message = createBaseManagementConfig_TemplatesEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? ConfigTemplate.fromPartial(object.value)
       : undefined;
     return message;
   },
@@ -105330,6 +105652,834 @@ export const RemoteAccessDisconnectResponse: MessageFns<RemoteAccessDisconnectRe
   fromPartial(object: DeepPartial<RemoteAccessDisconnectResponse>): RemoteAccessDisconnectResponse {
     const message = createBaseRemoteAccessDisconnectResponse();
     message.disconnected = object.disconnected ?? false;
+    return message;
+  },
+};
+
+function createBaseManagementBackup(): ManagementBackup {
+  return {
+    enabled: undefined,
+    schedule: undefined,
+    target: undefined,
+    retention: undefined,
+    revisions: undefined,
+    passphraseRef: undefined,
+  };
+}
+
+export const ManagementBackup: MessageFns<ManagementBackup> = {
+  encode(message: ManagementBackup, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.enabled !== undefined) {
+      writer.uint32(8).bool(message.enabled);
+    }
+    if (message.schedule !== undefined) {
+      writer.uint32(18).string(message.schedule);
+    }
+    if (message.target !== undefined) {
+      BackupTarget.encode(message.target, writer.uint32(26).fork()).join();
+    }
+    if (message.retention !== undefined) {
+      writer.uint32(32).uint32(message.retention);
+    }
+    if (message.revisions !== undefined) {
+      writer.uint32(40).uint32(message.revisions);
+    }
+    if (message.passphraseRef !== undefined) {
+      writer.uint32(50).string(message.passphraseRef);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ManagementBackup {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseManagementBackup();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.enabled = reader.bool();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.schedule = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.target = BackupTarget.decode(reader, reader.uint32());
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.retention = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 40) {
+              break;
+            }
+
+            message.revisions = reader.uint32();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.passphraseRef = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ManagementBackup {
+    return {
+      enabled: isSet(object.enabled) ? globalThis.Boolean(object.enabled) : undefined,
+      schedule: isSet(object.schedule) ? globalThis.String(object.schedule) : undefined,
+      target: isSet(object.target) ? BackupTarget.fromJSON(object.target) : undefined,
+      retention: isSet(object.retention) ? globalThis.Number(object.retention) : undefined,
+      revisions: isSet(object.revisions) ? globalThis.Number(object.revisions) : undefined,
+      passphraseRef: isSet(object.passphraseRef)
+        ? globalThis.String(object.passphraseRef)
+        : isSet(object.passphrase_ref)
+        ? globalThis.String(object.passphrase_ref)
+        : undefined,
+    };
+  },
+
+  toJSON(message: ManagementBackup): unknown {
+    const obj: any = {};
+    if (message.enabled !== undefined) {
+      obj.enabled = message.enabled;
+    }
+    if (message.schedule !== undefined) {
+      obj.schedule = message.schedule;
+    }
+    if (message.target !== undefined) {
+      obj.target = BackupTarget.toJSON(message.target);
+    }
+    if (message.retention !== undefined) {
+      obj.retention = Math.round(message.retention);
+    }
+    if (message.revisions !== undefined) {
+      obj.revisions = Math.round(message.revisions);
+    }
+    if (message.passphraseRef !== undefined) {
+      obj.passphraseRef = message.passphraseRef;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ManagementBackup>): ManagementBackup {
+    return ManagementBackup.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ManagementBackup>): ManagementBackup {
+    const message = createBaseManagementBackup();
+    message.enabled = object.enabled ?? undefined;
+    message.schedule = object.schedule ?? undefined;
+    message.target = (object.target !== undefined && object.target !== null)
+      ? BackupTarget.fromPartial(object.target)
+      : undefined;
+    message.retention = object.retention ?? undefined;
+    message.revisions = object.revisions ?? undefined;
+    message.passphraseRef = object.passphraseRef ?? undefined;
+    return message;
+  },
+};
+
+function createBaseBackupTarget(): BackupTarget {
+  return {
+    type: undefined,
+    path: undefined,
+    host: undefined,
+    port: undefined,
+    username: undefined,
+    credentialRef: undefined,
+    hostKeySha256: undefined,
+  };
+}
+
+export const BackupTarget: MessageFns<BackupTarget> = {
+  encode(message: BackupTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.path !== undefined) {
+      writer.uint32(18).string(message.path);
+    }
+    if (message.host !== undefined) {
+      writer.uint32(26).string(message.host);
+    }
+    if (message.port !== undefined) {
+      writer.uint32(32).uint32(message.port);
+    }
+    if (message.username !== undefined) {
+      writer.uint32(42).string(message.username);
+    }
+    if (message.credentialRef !== undefined) {
+      writer.uint32(50).string(message.credentialRef);
+    }
+    if (message.hostKeySha256 !== undefined) {
+      writer.uint32(58).string(message.hostKeySha256);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): BackupTarget {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseBackupTarget();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.path = reader.string();
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.host = reader.string();
+            continue;
+          }
+          case 4: {
+            if (tag !== 32) {
+              break;
+            }
+
+            message.port = reader.uint32();
+            continue;
+          }
+          case 5: {
+            if (tag !== 42) {
+              break;
+            }
+
+            message.username = reader.string();
+            continue;
+          }
+          case 6: {
+            if (tag !== 50) {
+              break;
+            }
+
+            message.credentialRef = reader.string();
+            continue;
+          }
+          case 7: {
+            if (tag !== 58) {
+              break;
+            }
+
+            message.hostKeySha256 = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): BackupTarget {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      path: isSet(object.path) ? globalThis.String(object.path) : undefined,
+      host: isSet(object.host) ? globalThis.String(object.host) : undefined,
+      port: isSet(object.port) ? globalThis.Number(object.port) : undefined,
+      username: isSet(object.username) ? globalThis.String(object.username) : undefined,
+      credentialRef: isSet(object.credentialRef)
+        ? globalThis.String(object.credentialRef)
+        : isSet(object.credential_ref)
+        ? globalThis.String(object.credential_ref)
+        : undefined,
+      hostKeySha256: isSet(object.hostKeySha256)
+        ? globalThis.String(object.hostKeySha256)
+        : isSet(object.host_key_sha256)
+        ? globalThis.String(object.host_key_sha256)
+        : undefined,
+    };
+  },
+
+  toJSON(message: BackupTarget): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.path !== undefined) {
+      obj.path = message.path;
+    }
+    if (message.host !== undefined) {
+      obj.host = message.host;
+    }
+    if (message.port !== undefined) {
+      obj.port = Math.round(message.port);
+    }
+    if (message.username !== undefined) {
+      obj.username = message.username;
+    }
+    if (message.credentialRef !== undefined) {
+      obj.credentialRef = message.credentialRef;
+    }
+    if (message.hostKeySha256 !== undefined) {
+      obj.hostKeySha256 = message.hostKeySha256;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<BackupTarget>): BackupTarget {
+    return BackupTarget.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<BackupTarget>): BackupTarget {
+    const message = createBaseBackupTarget();
+    message.type = object.type ?? undefined;
+    message.path = object.path ?? undefined;
+    message.host = object.host ?? undefined;
+    message.port = object.port ?? undefined;
+    message.username = object.username ?? undefined;
+    message.credentialRef = object.credentialRef ?? undefined;
+    message.hostKeySha256 = object.hostKeySha256 ?? undefined;
+    return message;
+  },
+};
+
+function createBaseConfigTemplate(): ConfigTemplate {
+  return { description: undefined, parameters: {}, patchJson: undefined };
+}
+
+export const ConfigTemplate: MessageFns<ConfigTemplate> = {
+  encode(message: ConfigTemplate, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.description !== undefined) {
+      writer.uint32(10).string(message.description);
+    }
+    globalThis.Object.entries(message.parameters).forEach(([key, value]: [string, TemplateParameter]) => {
+      ConfigTemplate_ParametersEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
+    });
+    if (message.patchJson !== undefined) {
+      writer.uint32(26).string(message.patchJson);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ConfigTemplate {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseConfigTemplate();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.description = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            const entry2 = ConfigTemplate_ParametersEntry.decode(reader, reader.uint32());
+            if (entry2.value !== undefined) {
+              message.parameters[entry2.key] = entry2.value;
+            }
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.patchJson = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ConfigTemplate {
+    return {
+      description: isSet(object.description) ? globalThis.String(object.description) : undefined,
+      parameters: isObject(object.parameters)
+        ? (globalThis.Object.entries(object.parameters) as [string, any][]).reduce(
+          (acc: { [key: string]: TemplateParameter }, [key, value]: [string, any]) => {
+            globalThis.Object.defineProperty(acc, key, {
+              value: TemplateParameter.fromJSON(value),
+              enumerable: true,
+              configurable: true,
+              writable: true,
+            });
+            return acc;
+          },
+          {},
+        )
+        : {},
+      patchJson: isSet(object.patchJson)
+        ? globalThis.String(object.patchJson)
+        : isSet(object.patch_json)
+        ? globalThis.String(object.patch_json)
+        : undefined,
+    };
+  },
+
+  toJSON(message: ConfigTemplate): unknown {
+    const obj: any = {};
+    if (message.description !== undefined) {
+      obj.description = message.description;
+    }
+    if (message.parameters) {
+      const entries = globalThis.Object.entries(message.parameters) as [string, TemplateParameter][];
+      if (entries.length > 0) {
+        obj.parameters = {};
+        entries.forEach(([k, v]) => {
+          obj.parameters[k] = TemplateParameter.toJSON(v);
+        });
+      }
+    }
+    if (message.patchJson !== undefined) {
+      obj.patchJson = message.patchJson;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ConfigTemplate>): ConfigTemplate {
+    return ConfigTemplate.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ConfigTemplate>): ConfigTemplate {
+    const message = createBaseConfigTemplate();
+    message.description = object.description ?? undefined;
+    message.parameters = (globalThis.Object.entries(object.parameters ?? {}) as [string, TemplateParameter][]).reduce(
+      (acc: { [key: string]: TemplateParameter }, [key, value]: [string, TemplateParameter]) => {
+        if (value !== undefined) {
+          acc[key] = TemplateParameter.fromPartial(value);
+        }
+        return acc;
+      },
+      {},
+    );
+    message.patchJson = object.patchJson ?? undefined;
+    return message;
+  },
+};
+
+function createBaseConfigTemplate_ParametersEntry(): ConfigTemplate_ParametersEntry {
+  return { key: "", value: undefined };
+}
+
+export const ConfigTemplate_ParametersEntry: MessageFns<ConfigTemplate_ParametersEntry> = {
+  encode(message: ConfigTemplate_ParametersEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.key !== "") {
+      writer.uint32(10).string(message.key);
+    }
+    if (message.value !== undefined) {
+      TemplateParameter.encode(message.value, writer.uint32(18).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ConfigTemplate_ParametersEntry {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseConfigTemplate_ParametersEntry();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.key = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.value = TemplateParameter.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): ConfigTemplate_ParametersEntry {
+    return {
+      key: isSet(object.key) ? globalThis.String(object.key) : "",
+      value: isSet(object.value) ? TemplateParameter.fromJSON(object.value) : undefined,
+    };
+  },
+
+  toJSON(message: ConfigTemplate_ParametersEntry): unknown {
+    const obj: any = {};
+    if (message.key !== "") {
+      obj.key = message.key;
+    }
+    if (message.value !== undefined) {
+      obj.value = TemplateParameter.toJSON(message.value);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<ConfigTemplate_ParametersEntry>): ConfigTemplate_ParametersEntry {
+    return ConfigTemplate_ParametersEntry.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<ConfigTemplate_ParametersEntry>): ConfigTemplate_ParametersEntry {
+    const message = createBaseConfigTemplate_ParametersEntry();
+    message.key = object.key ?? "";
+    message.value = (object.value !== undefined && object.value !== null)
+      ? TemplateParameter.fromPartial(object.value)
+      : undefined;
+    return message;
+  },
+};
+
+function createBaseTemplateParameter(): TemplateParameter {
+  return { type: undefined, required: undefined };
+}
+
+export const TemplateParameter: MessageFns<TemplateParameter> = {
+  encode(message: TemplateParameter, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.type !== undefined) {
+      writer.uint32(10).string(message.type);
+    }
+    if (message.required !== undefined) {
+      writer.uint32(16).bool(message.required);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): TemplateParameter {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseTemplateParameter();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.type = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.required = reader.bool();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): TemplateParameter {
+    return {
+      type: isSet(object.type) ? globalThis.String(object.type) : undefined,
+      required: isSet(object.required) ? globalThis.Boolean(object.required) : undefined,
+    };
+  },
+
+  toJSON(message: TemplateParameter): unknown {
+    const obj: any = {};
+    if (message.type !== undefined) {
+      obj.type = message.type;
+    }
+    if (message.required !== undefined) {
+      obj.required = message.required;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<TemplateParameter>): TemplateParameter {
+    return TemplateParameter.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<TemplateParameter>): TemplateParameter {
+    const message = createBaseTemplateParameter();
+    message.type = object.type ?? undefined;
+    message.required = object.required ?? undefined;
+    return message;
+  },
+};
+
+function createBaseUpgradeAction(): UpgradeAction {
+  return { op: 0, bundle: "" };
+}
+
+export const UpgradeAction: MessageFns<UpgradeAction> = {
+  encode(message: UpgradeAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.op !== 0) {
+      writer.uint32(8).int32(message.op);
+    }
+    if (message.bundle !== "") {
+      writer.uint32(18).string(message.bundle);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): UpgradeAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseUpgradeAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.op = reader.int32() as any;
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.bundle = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): UpgradeAction {
+    return {
+      op: isSet(object.op) ? upgradeOpFromJSON(object.op) : 0,
+      bundle: isSet(object.bundle) ? globalThis.String(object.bundle) : "",
+    };
+  },
+
+  toJSON(message: UpgradeAction): unknown {
+    const obj: any = {};
+    if (message.op !== 0) {
+      obj.op = upgradeOpToJSON(message.op);
+    }
+    if (message.bundle !== "") {
+      obj.bundle = message.bundle;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<UpgradeAction>): UpgradeAction {
+    return UpgradeAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<UpgradeAction>): UpgradeAction {
+    const message = createBaseUpgradeAction();
+    message.op = object.op ?? 0;
+    message.bundle = object.bundle ?? "";
+    return message;
+  },
+};
+
+function createBaseSupportBundleAction(): SupportBundleAction {
+  return { sinceSec: 0, auditRows: 0 };
+}
+
+export const SupportBundleAction: MessageFns<SupportBundleAction> = {
+  encode(message: SupportBundleAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.sinceSec !== 0) {
+      writer.uint32(8).uint32(message.sinceSec);
+    }
+    if (message.auditRows !== 0) {
+      writer.uint32(16).uint32(message.auditRows);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): SupportBundleAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseSupportBundleAction();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 8) {
+              break;
+            }
+
+            message.sinceSec = reader.uint32();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.auditRows = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): SupportBundleAction {
+    return {
+      sinceSec: isSet(object.sinceSec)
+        ? globalThis.Number(object.sinceSec)
+        : isSet(object.since_sec)
+        ? globalThis.Number(object.since_sec)
+        : 0,
+      auditRows: isSet(object.auditRows)
+        ? globalThis.Number(object.auditRows)
+        : isSet(object.audit_rows)
+        ? globalThis.Number(object.audit_rows)
+        : 0,
+    };
+  },
+
+  toJSON(message: SupportBundleAction): unknown {
+    const obj: any = {};
+    if (message.sinceSec !== 0) {
+      obj.sinceSec = Math.round(message.sinceSec);
+    }
+    if (message.auditRows !== 0) {
+      obj.auditRows = Math.round(message.auditRows);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<SupportBundleAction>): SupportBundleAction {
+    return SupportBundleAction.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<SupportBundleAction>): SupportBundleAction {
+    const message = createBaseSupportBundleAction();
+    message.sinceSec = object.sinceSec ?? 0;
+    message.auditRows = object.auditRows ?? 0;
     return message;
   },
 };

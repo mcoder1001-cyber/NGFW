@@ -37,6 +37,9 @@ mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$S
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done
+# wave-BC: F-backup-restore — install only, never execute host operations.
+install -m 0755 "$ROOT/deploy/support-bundle/ngfw-support-collect" "$ROOT/deploy/support-bundle/ngfw-upgrade-dispatch" "$STAGE/usr/lib/ngfw/"
+install -m 0644 "$ROOT/deploy/support-bundle/ngfw-upgrade@.service" "$STAGE/usr/lib/systemd/system/"
 # wave-BC: F-ab-upgrade — stage executables only; no upgrade/provision action here.
 (cd "$ROOT/deploy/upgrade/probe" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-upgrade-probe" .)
 install -m 0755 "$ROOT/deploy/upgrade/ngfw-upgrade" "$STAGE/usr/sbin/ngfw-upgrade"

@@ -116,6 +116,12 @@ export async function configureApp(app: NestFastifyApplication): Promise<void> {
     fastify.addContentTypeParser(type, { parseAs: 'string' }, json);
   }
   // wave-BC: F-backup-restore
+  fastify.addHook('onRoute', (options) => {
+    if (options.url === '/api/v1/actions/restore') options.bodyLimit = 45 * 1024 * 1024;
+  });
+  fastify.addContentTypeParser('application/vnd.ngfw.update', (_req, payload, done) =>
+    done(null, payload),
+  );
   await app.register(fastifyWebsocket as never, {
     options: {
       maxPayload: 64 * 1024,

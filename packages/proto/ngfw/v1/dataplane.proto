@@ -27,6 +27,7 @@
 // Native PSK material travels separately in request-only SecretBundle, never read-back.
 syntax = "proto3";
 
+
 package ngfw.v1;
 
 import "google/protobuf/timestamp.proto";
@@ -821,6 +822,8 @@ message ActionRequest {
     // NAT44-EI resync/flush, globals owner only.
     HaSyncAction ha_sync = 13;
     // wave-BC: F-backup-restore
+    UpgradeAction upgrade = 20;
+    SupportBundleAction support_bundle = 21;
     // wave-A: F-neighbors-ra
 
     // Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay.
@@ -2877,6 +2880,8 @@ message ManagementConfig {
   // API-owned email/webhook configuration, mirrored for schema drift validation.
   ManagementNotifications notifications = 7;
   // wave-BC: F-backup-restore
+  ManagementBackup backup = 8;
+  map<string, ConfigTemplate> templates = 9;
 }
 
 // ManagementNotifications mirrors management.notifications; the API dispatches deliveries.
@@ -8640,3 +8645,46 @@ message RemoteAccessDisconnectRequest {
 message RemoteAccessDisconnectResponse {
   bool disconnected = 1; // True only after actual owned removal and readback.
 }
+// ManagementBackup is evaluated by the API; times use UTC.
+message ManagementBackup {
+  optional bool enabled = 1;
+  optional string schedule = 2;
+  BackupTarget target = 3;
+  optional uint32 retention = 4;
+  optional uint32 revisions = 5;
+  optional string passphrase_ref = 6;
+}
+// BackupTarget carries references only; credentials never leave the secret store.
+message BackupTarget {
+  optional string type = 1;
+  optional string path = 2;
+  optional string host = 3;
+  optional uint32 port = 4;
+  optional string username = 5;
+  optional string credential_ref = 6;
+  optional string host_key_sha256 = 7;
+}
+// ConfigTemplate is a validated RFC 7386 patch with typed parameters.
+message ConfigTemplate {
+  optional string description = 1;
+  map<string, TemplateParameter> parameters = 2;
+  optional string patch_json = 3;
+}
+// TemplateParameter defines the type of one placeholder.
+message TemplateParameter {
+  optional string type = 1;
+  optional bool required = 2;
+}
+// UpgradeAction exposes only fixed appliance upgrade operations.
+message UpgradeAction { UpgradeOp op = 1; string bundle = 2; }
+// UpgradeOp is not a generic command execution interface.
+enum UpgradeOp {
+  UPGRADE_OP_UNSPECIFIED = 0;
+  UPGRADE_OP_STATUS = 1;
+  UPGRADE_OP_STAGE = 2;
+  UPGRADE_OP_ACTIVATE = 3;
+  UPGRADE_OP_CONFIRM = 4;
+  UPGRADE_OP_ROLLBACK = 5;
+}
+// SupportBundleAction requests a bounded, read-only host summary.
+message SupportBundleAction { uint32 since_sec = 1; uint32 audit_rows = 2; }

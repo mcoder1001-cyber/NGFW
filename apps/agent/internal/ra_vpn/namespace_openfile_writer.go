@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -51,7 +52,7 @@ func (FixedNumericOpenFilePublisher) PublishNumericOpenFile(ctx context.Context,
 	if err != nil || brokerProtectedParent(filepath.Dir(filepath.Dir(path))) != nil {
 		return ErrBoundary
 	}
-	if publishNumericOpenFileAt(path, data) != nil || verifyNumericOpenFileTarget(bounded, kind, instance, target) != nil {
+	if publishOrRefreshNumericOpenFile(bounded, kind, instance, target, path, data) != nil || verifyNumericOpenFileTarget(bounded, kind, instance, target) != nil {
 		return ErrBoundary
 	}
 	return nil
@@ -172,6 +173,149 @@ func verifyNumericOpenFileTarget(ctx context.Context, kind NumericOpenFileKind, 
 	}
 	pid, err := strconv.Atoi(fields["MainPID"])
 	if err != nil || pid != target.PID || fields["FragmentPath"] != fragment || fields["DropInPaths"] != "" || !strings.Contains(fields["ExecStart"], "path=/usr/lib/ngfw/ngfw-ra-daemon ; argv[]=/usr/lib/ngfw/ngfw-ra-daemon "+instance+" ;") || !(bootid.Reader{}).ForPID(target.PID).Equal(target) {
+		return ErrBoundary
+	}
+	return nil
+}
+
+func publishOrRefreshNumericOpenFile(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity, path string, data []byte) error {
+	existing, err := readSourceGenerationRecord(path)
+	if err != nil || bytes.Equal(existing, data) {
+		return publishNumericOpenFileAt(path, data)
+	}
+	var old bootid.Identity
+	switch kind {
+	case NumericOpenFileTargets:
+		if instance != "" {
+			return ErrBoundary
+		}
+		old, err = ParseTargetsOpenFile(existing)
+	case NumericOpenFileObserver:
+		var previousInstance string
+		previousInstance, old, err = ParseObserverOpenFile(existing)
+		if previousInstance != instance {
+			return ErrBoundary
+		}
+	default:
+		return ErrBoundary
+	}
+	if err != nil || old.PID != target.PID || old.Equal(target) || (bootid.Reader{}).ForPID(old.PID).Equal(old) {
+		return ErrBoundary
+	}
+	// A reused numeric path is repaired only after the old complete generation
+	// is proven gone and the supplier has no main/control or cgroup processes.
+	if numericSupplierInactive(ctx, kind, target.PID) != nil {
+		return ErrBoundary
+	}
+	if verifyNumericOpenFileTarget(ctx, kind, instance, target) != nil {
+		return ErrBoundary
+	}
+	return replaceNumericOpenFileAt(path, existing, data)
+}
+
+func numericSupplierInactive(ctx context.Context, kind NumericOpenFileKind, pid int) error {
+	prefix := "ngfw-ra-targets@"
+	if kind == NumericOpenFileObserver {
+		prefix = "ngfw-ra-observer@"
+	} else if kind != NumericOpenFileTargets {
+		return ErrBoundary
+	}
+	name := prefix + strconv.Itoa(pid) + ".service"
+	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,ControlPID,ActiveState,ControlGroup", name)
+	output, err := command.Output()
+	if err != nil {
+		return ErrBoundary
+	}
+	group, err := parseInactiveUnit(output)
+	if err != nil {
+		return ErrBoundary
+	}
+	if group == "" {
+		return nil
+	}
+	if len(group) > 512 || filepath.Clean(group) != group || !strings.HasPrefix(group, "/system.slice/") || !strings.HasSuffix(group, "/"+name) {
+		return ErrBoundary
+	}
+	var fs unix.Statfs_t
+	if unix.Statfs("/sys/fs/cgroup", &fs) != nil || fs.Type != unix.CGROUP2_SUPER_MAGIC {
+		return ErrBoundary
+	}
+	fd, err := unix.Open("/sys/fs/cgroup"+group+"/cgroup.events", unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err == unix.ENOENT {
+		return nil
+	}
+	if err != nil {
+		return ErrBoundary
+	}
+	file := os.NewFile(uintptr(fd), "owned supplier cgroup events")
+	data, readErr := io.ReadAll(io.LimitReader(file, 1025))
+	closeErr := file.Close()
+	if readErr != nil || closeErr != nil || len(data) > 1024 {
+		return ErrBoundary
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if line == "populated 0" {
+			return nil
+		}
+	}
+	return ErrBoundary
+}
+
+func replaceNumericOpenFileAt(path string, old, data []byte) error {
+	if len(data) == 0 || len(data) > 4096 || brokerProtectedParent(filepath.Dir(path)) != nil {
+		return ErrBoundary
+	}
+	current, err := readSourceGenerationRecord(path)
+	if err != nil || !bytes.Equal(current, old) {
+		return ErrBoundary
+	}
+	var before unix.Stat_t
+	if unix.Lstat(path, &before) != nil || before.Uid != 0 || before.Mode != unix.S_IFREG|0600 || before.Nlink != 1 {
+		return ErrBoundary
+	}
+	file, err := os.CreateTemp(filepath.Dir(path), ".ngfw-openfile-")
+	if err != nil {
+		return ErrBoundary
+	}
+	temporary := file.Name()
+	cleanup := func() error {
+		if err := os.Remove(temporary); err != nil && !os.IsNotExist(err) {
+			return ErrBoundary
+		}
+		return nil
+	}
+	_, writeErr := file.Write(data)
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if writeErr != nil || syncErr != nil || closeErr != nil {
+		_ = cleanup()
+		return ErrBoundary
+	}
+	var after unix.Stat_t
+	if unix.Lstat(path, &after) != nil || before != after {
+		_ = cleanup()
+		return ErrBoundary
+	}
+	current, err = readSourceGenerationRecord(path)
+	if err != nil || !bytes.Equal(current, old) {
+		_ = cleanup()
+		return ErrBoundary
+	}
+	if err := os.Rename(temporary, path); err != nil {
+		_ = cleanup()
+		return ErrBoundary
+	}
+	directory, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return ErrBoundary
+	}
+	syncErr = directory.Sync()
+	closeErr = directory.Close()
+	if syncErr != nil || closeErr != nil {
+		return ErrBoundary
+	}
+	current, err = readSourceGenerationRecord(path)
+	if err != nil || !bytes.Equal(current, data) {
 		return ErrBoundary
 	}
 	return nil

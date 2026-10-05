@@ -52,3 +52,50 @@ func TestNumericOpenFilePrivateMatchedReuseAndForeignPreservation(t *testing.T) 
 		t.Fatal("modified foreign configuration")
 	}
 }
+
+func TestNumericOpenFileReplacementChecksExpectedPrivateContent(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("requires private root-owned fixture")
+	}
+	root, err := os.MkdirTemp("/root", "ngfw-ra-refresh-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(root); err != nil {
+			t.Error(err)
+		}
+	})
+	path := filepath.Join(root, "ngfw-ra-targets@42.service.d", "10-openfile.conf")
+	target := bootid.Identity{BootID: "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0", PID: 42, StartTime: 1}
+	old, err := RenderTargetsOpenFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := publishNumericOpenFileAt(path, old); err != nil {
+		t.Fatal(err)
+	}
+	target.StartTime = 2
+	replacement, err := RenderTargetsOpenFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This exercises the filesystem commit only; public refresh additionally
+	// requires canonical current target, old generation gone and supplier empty.
+	if err := replaceNumericOpenFileAt(path, old, replacement); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceNumericOpenFileAt(path, old, replacement); err == nil {
+		t.Fatal("accepted stale expected contents")
+	}
+	if err := os.Chmod(path, 0640); err != nil {
+		t.Fatal(err)
+	}
+	if err := replaceNumericOpenFileAt(path, replacement, old); err == nil {
+		t.Fatal("replaced nonprivate configuration")
+	}
+	actual, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(actual, replacement) {
+		t.Fatal("modified refused configuration")
+	}
+}

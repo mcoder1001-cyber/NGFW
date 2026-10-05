@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 76531)
-Total output lines: 5856
-
 version: 2
 max_workers: 12
 updated: '2026-10-05'
@@ -2956,7 +2953,512 @@ tasks:
       - D0.6
     scope: D-103; F-startup-apply-verify.md V1–V9 + L1
     files_owned: deploy/vpp/apply-startup.sh deploy/vpp/test-apply-startup.sh apps/agent/cmd/ngfw-vppcheck/** tools/ci.sh (harness hunk only) docs/agent/renderers/vppstartup.md docs/status/tasks/TD-6*
-    branch: …6531 tokens truncated…/ /.scratch/ (SY7) — before P10/P14), 5.3 (.gitlab-ci.yml
+    branch: task/TD-6
+    worktree: /root/ngfw-wt/TD-6
+    owner: ngfw-46 slot6
+    started: 2026-09-24T07:58
+    finished: ''
+    notes:
+      'D-103: must merge before any real --apply on vrx-a | spawned 07:58 slot 6 (Agent tool), envelope /root/ngfw-wt/TD-6.envelope.md | 13:18 manager restart: CONTINUE respawned,
+      envelope /root/ngfw-wt/TD-6.continue.md | 13:51 stopped for handover: WIP 59fb54e; L1 ci step + doc done; sharded harness 102 pass / 24 fail under load 35–45 (likely timing, unverified);
+      next: serial rerun of failed scenarios on quiet host (cmd in TD-6-wip.md), then tools/ci.sh --base main, TD-6.md | 14:00 ngfw-46: CONTINUE (Agent tool), envelope /root/ngfw-wt/TD-6.continue46.md
+      — serial rerun of the 24 load failures, CI, TD-6.md | worker done b388ca7 (code 85a6ed5), CI green, harness 128/128; review spawned by ngfw-46, envelope /root/ngfw-wt/TD-6.review.md
+      | review APPROVE WITH CHANGES 621d1e2 → merge now, F1/F2 → TD-7 (D-116); handed to the merger | merged 35f3a96 (squash 6a1b3fc, D-112), main gate green (first redo aborted: TestGRPCRoundTrip
+      load flake, D-121)'
+  - id: TD-7
+    title:
+      'apply-startup.sh follow-ups from the TD-6 review: F1 concurrent manual rollback of one apply (per-apply lock + cancel the dead-man), F2 scenario 40 bound independent of load
+      (count ip neigh calls)'
+    prompt: /root/ngfw-wt/TD-7.envelope.md
+    template: ''
+    stage: S2
+    deps:
+      - TD-6
+    priority: 4
+    est_hours: 2
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.6
+    scope: D-116; deploy/vpp/** + its harness only; must merge before any real --apply
+    files_owned: deploy/vpp/** docs/agent/renderers/vppstartup.md docs/status/tasks/TD-7*
+    branch: task/TD-7
+    worktree: /root/ngfw-wt/TD-7
+    owner: ngfw-46 slot6
+    started: 2026-09-24T16:09
+    finished: ''
+    notes:
+      'D-116: from TD-6-review.md F1/F2; F3–F9 in docs/tech-debt.md | SPECULATIVE from task/TD-6 (D-114) | usage-limit stop ~16:40, WIP salvaged, CONTINUE respawn (D-118) | done 902a935,
+      CI green (fresh cache), harness 138/138; focused verify (sonnet); check_health retry → tech-debt | merged bd205c13 (squash 04d78d0f, D-112), main gate green'
+  - id: TD-12
+    title: De-flake load-sensitive tests that break merge gates (TestGRPCRoundTrip, TestPendingSurvives…, strongswan TestWatchResync, api vitest fetch timeout)
+    prompt: /root/ngfw-wt/TD-12.envelope.md
+    template: ''
+    stage: S2
+    deps: []
+    priority: 1
+    est_hours: 2
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.4
+    scope: test code + vitest configs only (D-121)
+    files_owned: the named *_test.go files, apps/{api,web}/vitest.config.*, docs/status/tasks/TD-12*
+    branch: task/TD-12
+    worktree: /root/ngfw-wt/TD-12
+    owner: ngfw-46 slot6
+    started: ''
+    finished: ''
+    notes:
+      'D-121: merger request after the TD-6 gate failed on TestGRPCRoundTrip at load ~34 | done fed09a5, verify APPROVE 4bf176f; merging (merger) | merged b5b9ed6 (squash 3060e22,
+      D-112), main gate green'
+  - template: ''
+    parked_on: ''
+    finished: '2026-09-25'
+    wbs: &id001
+      - D1.1
+    id: WEB-1
+    title: 'ui-kit SchemaForm gaps: presence toggle, port/ip-range, datetime/time/timezone/color widgets, LTR identifiers in RTL, per-path i18n, itemKey summaries + rule-editor table view'
+    prompt: /root/ngfw-wt/WEB-1.envelope.md
+    stage: S4
+    deps: []
+    priority: 2
+    est_hours: 7
+    state: merged
+    scope: web-ahead (D-123)
+    files_owned: packages/ui-kit/src/schema-form/** packages/ui-kit i18n/locales/{en,fa}.ts apps/web/src/pages/dev/{SchemaFormDemoPage.tsx,demoSchema.ts} docs/status/tasks/WEB-1*
+    branch: task/WEB-1
+    worktree: /root/ngfw-wt/WEB-1
+    owner: ngfw-46 slot11
+    started: 2026-09-25T00:14
+    notes:
+      'D-123 web-ahead | fix round 1 (review 595781c: H1 dropPhantomOptionals, M1–M3) | verify APPROVE + C1 follow-up 55b2f8fa (deprecated no-op); squashed c2e3eabb; queued after
+      WEB-2'
+  - template: ''
+    parked_on: ''
+    finished: '2026-09-26'
+    wbs: *id001
+    id: WEB-2
+    title: Config screen kit (generic list+drawer+live-status over any candidate path) + data widgets + Secrets page
+    prompt: /root/ngfw-wt/WEB-2.envelope.md
+    stage: S4
+    deps:
+      - P08
+    priority: 2
+    est_hours: 9
+    state: merged
+    scope: web-ahead (D-123); SPECULATIVE on task/P08
+    files_owned:
+      apps/web/src/config/{collection,widgets}/** apps/web/src/pages/SecretsPage{,.test}.tsx apps/web/src/pages/dev/previews.ts apps/web/src/locales/{en,fa}/config.json (kit.*)
+      docs/status/tasks/WEB-2*
+    branch: task/WEB-2
+    worktree: /root/ngfw-wt/WEB-2
+    owner: ngfw-46 slot1
+    started: 2026-09-25T00:14
+    notes: D-123 web-ahead | APPROVED (verify 1250124); queued
+  - template: ''
+    parked_on: ''
+    finished: '2026-09-26'
+    wbs: *id001
+    id: WEB-3
+    title: 'Committed browser harness: e2e lib, shots.mjs, screens/_example.mjs (P08 screenshot script was lost, F6)'
+    prompt: ''
+    stage: S4
+    deps:
+      - ui-nav-collapse
+    priority: 3
+    est_hours: 4
+    state: merged
+    scope: web-ahead (D-123)
+    files_owned: apps/web/test/e2e/{lib/**,shots.mjs,README.md,screens/_example.mjs,flow.e2e.mjs}
+    branch: task/WEB-3
+    worktree: /root/ngfw-wt/WEB-3
+    owner: ''
+    started: 2026-09-25T00:14
+    notes: D-123 | review APPROVE WITH CHANGES 0ea17400; fix round 1 (README teardown, live theme/lang) | fix round 1 9ccd8632; verify APPROVE 09b4806f; queued
+  - template: ''
+    parked_on: ''
+    finished: '2026-10-02'
+    wbs: *id001
+    id: WEB-4a
+    title: Pre-built routing screens (OSPF, IS-IS/RIP, BFD+redistribution) merged UNROUTED; features add routes + status
+    prompt: ''
+    stage: S4
+    deps:
+      - WEB-1
+      - WEB-2
+    priority: 4
+    est_hours: 5
+    state: merged
+    scope: web-ahead (D-123); dropped per screen if its feature spawns first
+    files_owned: apps/web/src/domains/routing/{ospf,isis-rip,bfd}/** (unrouted)
+    branch: claude/modest-keller-upaw4m
+    worktree: ''
+    owner: cloud session modest-keller
+    started: '2026-09-27'
+    notes:
+      'D-123 | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md.
+      No new product merge claimed.
+
+      D-123 | 2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-A on main@f1f885a6, reports
+      in /root/ngfw-wt/RV-A (D-161) | 2026-09-28 RV-A post-merge panel: combined BLOCK (docs/status/tasks/RV-A-review.md) → findings carried by S-rva-agent-gates, S-rva-web-fixes, WEB-4a-host
+      (features) and F-igp-followups; code stays on main (D-161/D-173)'
+  - template: ''
+    parked_on: ''
+    finished: '2026-10-02'
+    wbs: *id001
+    id: WEB-4b
+    title: Pre-built HA/VRRP + cluster screens merged UNROUTED
+    prompt: ''
+    stage: S4
+    deps:
+      - WEB-1
+      - WEB-2
+    priority: 4
+    est_hours: 3
+    state: merged
+    scope: web-ahead (D-123)
+    files_owned: apps/web/src/domains/system/ha/** (unrouted)
+    branch: claude/modest-keller-upaw4m
+    worktree: ''
+    owner: cloud session modest-keller
+    started: '2026-09-27'
+    notes:
+      'D-123 | Independent ancestry audit: code already on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md.
+      No new product merge claimed.
+
+      D-123 | 2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-A on main@f1f885a6, reports
+      in /root/ngfw-wt/RV-A (D-161) | 2026-09-28 RV-A post-merge panel: combined BLOCK (docs/status/tasks/RV-A-review.md) → findings carried by S-rva-agent-gates, S-rva-web-fixes, WEB-4b-host
+      (features) and F-igp-followups; code stays on main (D-161/D-173)'
+  - id: ui-nav-collapse
+    title: 'Web nav: collapsible groups (closed by default, current group opens, useId ids, shared open state) — product-owner request in session «وب»'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P07b
+    priority: 2
+    est_hours: 2
+    state: merged
+    parked_on: ''
+    wbs:
+      - D1.1
+    scope: apps/web shell nav only (D-117)
+    files_owned: apps/web/src/shell/AppShell.tsx apps/web/src/nav/nav.ts apps/web/src/App.test.tsx apps/web/test/e2e/flow.e2e.mjs docs/status/tasks/ui-nav-collapse*
+    branch: task/ui-nav-collapse
+    worktree: /root/ngfw-wt/ui-nav-collapse
+    owner: «وب»
+    started: 2026-09-24T15:00
+    finished: ''
+    notes: D-117 review → fixes 27b4fdf..3f0014e; verify APPROVE 16b622a; queued for the merger | merged 3a6c679 (squash 8408f5b, D-112), main gate green
+  - id: TD-9
+    title: 'Agent core: bounded VPP calls + txn semantics (+ failed state save answers DEGRADED)'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+    priority: 2
+    est_hours: 14.5
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+    scope:
+      "review 1.1 + 1.4 (+ P08 agent.go:229 unbounded wiring.Connected ControlPing): DefaultReplyTimeout set in the vpp/conn.go init; resync, revert and rollback get their own WithTimeout,
+      rbCtx = WithTimeout(WithoutCancel); after the lock the txn runs on WithoutCancel(caller); a cancel outcome is never cached; a timed-out op leaves the agent DEGRADED with a resync
+      owed. 1.1b resync retry (N2 backoff) + Plan-only drift gauge; 1.1c watchLinks restart; 1.1d + 1.1e together (gRPC recovery interceptors + scheduler ErrDescriptorPanic); 1.2 Validation
+      attached to APPLIED and ROLLED_BACK; 1.3; 1.5a directory-fsync helper; 1.5b deadline from AppliedAt; 1.5c log level; 1.5e non-loopback metrics address; tech-debt 'P05 owed revert
+      dropped'. Audit ARCH-01 agent half: a failed state save answers DEGRADED, not APPLIED (service.go:286-289, 365-367; TestStateCrashInjection updated). D-entry for the timeouts amends
+      docs/contracts/proto.md §2 item 3; test: fake-VPP 'never reply' hook"
+    files_owned:
+      apps/agent/internal/agent/{agent,service,state,server}.go (non-seam hunks) apps/agent/internal/scheduler/reconciler.go (ApplyWith ctx / rollback ctx and descriptor-call
+      recover wrappers only) apps/agent/internal/vpp/conn.go apps/agent/internal/ownertable/** apps/agent/internal/descriptors/dfkit/boot.go apps/agent/cmd/ngfw-agent/** docs/contracts/proto.md
+      (§2) docs/status/tasks/TD-9*
+    branch: task/TD-9
+    worktree: /root/ngfw-wt/TD-9
+    owner: ''
+    started: 2026-09-25T00:14
+    finished: '2026-09-25'
+    notes:
+      "D-125 | est 13 h review plan (10 h must-have) + 1.5 h audit ARCH-01 agent half | merge after TD-8 (preferred: one slot does TD-8 then TD-9), TD-12 (owns service_test.go) |
+      not a wave-A gate; hard dep of P10, INTEGRATE-E2E, SECURITY-REVIEW | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage;
+      whichever merges second rebases | done df4e4340 (quick gate green; --base main guard = main's files); review running | fix round 1 4409d1e8; verify APPROVE c850cbe4 with X1 (after
+      TD-11c: claimsErr retryable, drop dead FlushClaims hook)"
+  - id: TD-10a
+    title: API commit engine correctness (+ running vs Health.last_txn_id check on boot/reconnect)
+    prompt: /root/ngfw-wt/TD-10a.envelope.md
+    template: ''
+    stage: S4
+    deps: []
+    priority: 2
+    est_hours: 14
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.8
+    scope:
+      'review 2.1 (checkPending / confirm FAILED_PRECONDITION read Health.last_txn_id), 2.2 (restoreSecrets persisted in config_pending, migration 0004), 2.3f (secret delete inside
+      commits.exclusive), 2.4a (explicit server budget, 409 commit-busy, client deadlines above it, web/CLI outcome lookup on timeout), 2.4b (advisory lock, D-111 follow-up), 2.5 API part
+      (warnings kept in config_pending, returned from confirm and the 422 extras), 5.7b (CLI client: no redirect follow, same-host downgrade and 307/308 body replay; same client.go, so
+      no separate CLI row). Audit ARCH-01 API half: on boot, agent reconnect and RECONCILE_DONE compare Health.last_txn_id with the config_sync or running txnId (whichever came last) and
+      re-apply through reconcile() (commit.service.ts:228-232, 256)'
+    files_owned:
+      apps/api/src/commit/** apps/api/src/secrets/secrets.service.ts apps/api/src/datastore/repo.ts (PendingCommit) apps/api/src/db/schema.ts apps/api/migrations/0004_* apps/api/src/common/mutex.ts
+      apps/api/src/testing/fake-agent.ts (Apply/revert hunk, P5 outside the anchors) apps/web/src/net.ts apps/web/src/pages/RevisionsPage.tsx (timeout-recovery hunk) apps/cli/internal/api/client.go
+      docs/status/tasks/TD-10a*
+    branch: task/TD-10a
+    worktree: /root/ngfw-wt/TD-10a
+    owner: ngfw-46 slot5
+    started: 2026-09-24T19:17
+    finished: '2026-09-25'
+    notes:
+      D-125 | est 11 h review plan + 3 h audit ARCH-01 API half | start from main now; merge after TD-4 | not a wave-A gate; gates INTEGRATE-E2E and any operator use of confirm windows
+      on vrx-a | done 30381b6, CI green; review running | fix round 1 c365a95; verify APPROVE 00d3ab9f; queued with the merger
+  - id: TD-10b
+    title: API auth, session, audit
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - TD-4
+    priority: 3
+    est_hours: 12
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.9
+    scope:
+      'review 2.3a (lockout keyed by (user, IP); the last admin is only throttled; root-only break-glass unlock tool, packaged by P10), 2.3b (trustProxy / NGFW_TRUST_PROXY, loopback
+      default; vite xfwd), 2.3c (logout per-sid revocation; demotion/deletion revocation per PENDING-session-revocation), 2.3d (NGFW_SESSION_MAX_SEC absolute lifetime), 2.3e (audit logout/refresh/401
+      mutations; audit write failure → system_event + counter), 2.3g (/api/docs option a or b); tech-debt P06: JWT key rotation, NGFW_TRUST_PROXY (tech-debt.md:21), key-file owner check.
+      LOG decisions: lockout key, per-sid logout, NGFW_SESSION_MAX_SEC, fail closed on audit write error for privileged routes, /api/docs (a)/(b)'
+    files_owned:
+      apps/api/src/{auth,users,audit}/** apps/api/src/common/principal.ts apps/api/src/app.ts (trustProxy + /api/docs hook) apps/api/src/datastore/pg-repo.ts (syncUsers hunk)
+      tools/app (vite xfwd + banner) new root-only break-glass unlock tool docs/status/tasks/TD-10b*
+    branch: task/TD-10b
+    worktree: /root/ngfw-wt/TD-10b
+    owner: ''
+    started: 2026-09-25T00:14
+    finished: '2026-09-25'
+    notes:
+      'D-125 | not a wave-A gate; dep of P10, F-aaa, SEC-auth | TD-4 Q3 (demote/delete revoke) is PENDING-session-revocation (policy #4): build the recommended option, only that hunk
+      follows the answer | tools/app bind/TLS follows PENDING-tools-app-transport | review APPROVE WITH CHANGES 175bed1c; fix round 1 (C1 VRX_TRUST_PROXY=none in tools/app, C2 authctl,
+      C3 split revocation hunk — PENDING-session-revocation) | fix round 1 c9f5d296; verify APPROVE faed447d; merger: after TD-10a; revert cb74843d before squash unless PENDING-session-revocation
+      = option 1'
+  - id: TD-11a
+    title: 'Agent reachability check: desired state to data plane'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+      - W-seed
+    priority: 2
+    est_hours: 6
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+      - D0.13
+    scope:
+      'review 3(a): registry-to-board-row table with a shrink-only allowlist (every descriptors/* and renderers/* package → the row that wires it, or library-only); 3(b): memif/tapv2
+      → a row or library-only, via a D-entry; 3.1 doc fix (core/README.md:64-68, core.go:11-14); 6.1a: API-level helper that commits one change and expects status applied, notApplied [],
+      no agent.unsupported-field and Retrieve()==desired (the DoD check, 6.6b)'
+    files_owned:
+      apps/agent/internal/subsystems/reachability_test.go test/integration/reachability/** tools/ci.sh (one step) apps/agent/internal/descriptors/core/README.md (:64-68) apps/agent/internal/descriptors/core/core.go
+      (:11-14 doc comment) docs/status/tasks/TD-11a*
+    branch: ''
+    worktree: ''
+    owner: ''
+    started: ''
+    finished: '2026-09-25'
+    notes:
+      "D-125 | the 12 wave-A rows merge after TD-11a; escape hatch (TD-11a only): an APPROVE'd wave-A branch that has waited > 2 h merges anyway and goes on TD-11a's retro list
+      | gates INTEGRATE-E2E and STATUS-FINAL"
+  - id: TD-11b
+    title: 'Claim safety: persistent stores + create-then-claim'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+    priority: 2
+    est_hours: 10
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+    scope:
+      'review 3.2 guard (Persistent/RequirePersistent: product wiring never holds an in-memory claim or boot store), 3.3 generic (the scheduler journals a Create that returns Meta
+      with an error, so rollback deletes it), 3.3b generic half; R2-stores (claim-index refresh bounded by the caller ctx); DF-2 N3/N5 and DF-6 N4/N6/N7 claim hygiene where it touches
+      these files (tech-debt)'
+    files_owned:
+      apps/agent/internal/scheduler/{descriptor,reconciler}.go (executor.create hunk) apps/agent/internal/descriptors/{natcommon,interface/attributes.go,dfkit,df6,df2/claims.go}
+      (Persistent/RequirePersistent guard) apps/agent/internal/subsystems/stores.go (claim-index refresh) docs/status/tasks/TD-11b*
+    branch: task/TD-11b
+    worktree: /root/ngfw-wt/TD-11b
+    owner: ''
+    started: 2026-09-25T00:14
+    finished: ''
+    notes:
+      'D-125 | spawn right after P08 merges (DF-1 and dhcp.client are live then) | F-nat44-ed-sessions and F-nat44-ei-64-66-nptv6 merge after TD-11b (no escape hatch) | reconciler.go
+      hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | fix round 1 (review be3a57a5: M1 guard
+      coverage, M2 silent orphan, L1 refresh cap) | merged b5e74c08 (squash 14daf722, D-112), main gate green'
+  - id: TD-11c
+    title: Untagged NICs, alias-aware delete order, claim-store scale
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+    priority: 2
+    est_hours: 11
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+      - D1.2
+    scope:
+      review 3.1b (core interface-ip / interface-ip.table accept an untagged NIC through Wiring.IfaceClaims(), D-071/D-080; 5 h), 3.1c (scheduler topo follows a dependency through
+      the interface/<name> alias to its creator; 3 h), 3.2 flush-per-txn (KeyedClaims batching, one flush per transaction; 3 h)
+    files_owned:
+      apps/agent/internal/descriptors/core/{core,ifaddr}.go apps/agent/internal/subsystems/subsystems.go (core.Register hunk, not an anchor) apps/agent/internal/scheduler/reconciler.go
+      (topo hunk) apps/agent/internal/subsystems/stores.go (KeyedClaims batching) docs/status/tasks/TD-11c*
+    branch: task/TD-11c
+    worktree: /root/ngfw-wt/TD-11c
+    owner: ''
+    started: 2026-09-25T00:14
+    finished: '2026-09-25'
+    notes:
+      'D-125 | gates the real F-startup-apply run, the first DPDK run (P10/P14 on real NICs) and INTEGRATE-E2E; lands before the F-nat44-ed-sessions and F-acl scale tests | F-bonding
+      and F-bridge-l2 merge after TD-11c (or carry a KeyProvider obligation in their envelopes) | reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c
+      topo, TD-13 Validator/stage; whichever merges second rebases | fix round 1 (review ac313a1c: F1 claim journal D-133, F2 DEGRADED, F3 creator guard) | fix round 1 08a95957 (D-133
+      journal, O1); verify APPROVE e83c6318; queued'
+  - id: TD-13
+    title: Scheduler tier-3 Validator + VPP→daemon stage (validate daemon config before any VPP write)
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+    priority: 3
+    est_hours: 8
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+    scope:
+      'audit ARCH-02: an optional scheduler `Validator` called in Plan/DryRun and before the first Create (no hook today, reconciler.go:35-73; DryRun calls no renderer, service.go:599-622),
+      plus a VPP→daemon stage so risky backends run last (D-109(d) runs daemon checks inside Create, after VPP objects changed). Contract change → its own D-entry'
+    files_owned: apps/agent/internal/scheduler/{descriptor,reconciler}.go (Validator hook + stage-ordering hunks) apps/agent/internal/agent/service.go (DryRun hunk) docs/status/tasks/TD-13*
+    branch: ''
+    worktree: ''
+    owner: ''
+    started: ''
+    finished: '2026-09-25'
+    notes:
+      'D-125 (audit ARCH-02; est by the plan review, the audit gave none) | P11, P12, F-kea-dhcp-relay, F-unbound-chrony-syslog, F-snmp and F-host-acl-nftables merge after TD-13 |
+      reconciler.go hunks: TD-9 ApplyWith ctx + recover wrappers, TD-11b executor.create, TD-11c topo, TD-13 Validator/stage; whichever merges second rebases | done 3a83c96b (CI green;
+      11 tests base-first, 13 mutations caught); review running | review APPROVE WITH CHANGES c8b34d4e; fix round 1 (M1 mask only refs, M2 SkipValidators for TD-9 drift) | fix round 1
+      04a51453; verify APPROVE a01ac419; merger: before TD-9'
+  - id: TD-15
+    title: 'API hygiene: z.output response DTOs, ConfigTx userHashes/secretVersions + pool timeout, secret refs from the schema'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - TD-4
+    priority: 3
+    est_hours: 6
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.8
+    scope:
+      'audit ARCH-04 (response DTOs single-source via z.output; live drift: GET /config/revisions/:rev returns secretVersions, the OpenAPI doc lacks it), ARCH-11 (userHashes/secretVersions
+      in ConfigTx, pg-repo.ts:318-332, and a pool connectionTimeoutMillis: 10 concurrent edits starve the pool), ARCH-05 (secret refs found from the schema, not from the /Refs?$/ key name
+      in documents.ts:266 — or a schema test that pins it)'
+    files_owned:
+      apps/api/src/openapi.ts apps/api/src/common/responses.ts apps/api/src/*/*.controller.ts (response-schema hunks) apps/api/src/datastore/repo.ts (ConfigTx hunk) apps/api/src/datastore/pg-repo.ts
+      (PgConfigTx hunk) apps/api/src/datastore/documents.ts (secretRefs) apps/api/src/db/db.ts (pool) docs/status/tasks/TD-15*
+    branch: ''
+    worktree: ''
+    owner: ''
+    started: ''
+    finished: '2026-09-25'
+    notes: D-125 (audit ARCH-04/-11/-05; est by the plan review) | merge after TD-10a and TD-10b (shared repo.ts / pg-repo.ts / controller hunks)
+  - id: TD-16
+    title: 'descriptors/kit: fsync-safe atomic writes, one ParsePrefix policy, ErrRetrieveUnsupported, Register(r, Env)'
+    prompt: ''
+    template: ''
+    stage: S4
+    deps:
+      - P08
+      - TD-11b
+    priority: 3
+    est_hours: 7
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.7
+    scope:
+      'audit ARCH-06, fsync fix first: df2.WriteFileAtomic and the df6 claims save lose data on a host crash; one ParsePrefix policy (reject host bits; df2/df6 mask them today; copies
+      in dfkit, df2, df6, df7, vpn); one ErrRetrieveUnsupported; Register(r, Env). Full scope in docs/tech-debt.md'
+    files_owned: apps/agent/internal/descriptors/kit/** (new) apps/agent/internal/descriptors/{dfkit,df2,df6,df7,vpn}/{addr,claims}.go (consolidation hunks) docs/status/tasks/TD-16*
+    branch: ''
+    worktree: ''
+    owner: ''
+    started: ''
+    finished: '2026-09-25'
+    notes:
+      D-125 (audit ARCH-06; est by the plan review) | before wave B spawns | starts after TD-11b (same dfkit/df2/df6 files); reuse TD-9's directory-fsync helper (1.5a) if merged,
+      else own it and TD-9 rebases
+  - id: TD-17
+    title: 'apply-startup product mode: installed paths, appliance approval gate (sha256 + dead-man), lab gate kept as a mode'
+    prompt: ''
+    template: ''
+    stage: S5
+    deps:
+      - TD-7
+    priority: 5
+    est_hours: 6
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.6
+    scope:
+      'review 6.4 item 3: installed binary paths (e.g. /usr/lib/ngfw/bin); an appliance approval gate bound to the sha256 plus the dead-man, reading no docs/lab or PENDING files;
+      the lab gate kept as a mode'
+    files_owned: deploy/vpp/apply-startup.sh docs/status/tasks/TD-17*
+    branch: claude/modest-keller-upaw4m
+    worktree: ''
+    owner: cloud session modest-keller
+    started: '2026-09-27'
+    finished: '2026-10-02'
+    notes:
+      'D-125 (review plan id TD-12, renumbered: board TD-12 is the de-flake row, D-121) | until TD-17 merges, P10 ships the script disabled | Independent ancestry audit: code already
+      on main471c; stale board reconciled, lab acceptance deferred per owner. See review-lab-audit.md and DEFERRED-ACCEPTANCE.md. No new product merge claimed.
+
+      D-125 (review plan id TD-12, renumbered: board TD-12 is the de-flake row, D-121) | until TD-17 merges, P10 ships the script disabled | 2026-09-28 host manager: code already on main
+      (cloud session, branch claude/modest-keller-upaw4m not present here); post-merge panel review batch RV-B on main@f1f885a6, reports in /root/ngfw-wt/RV-B (D-161) | 2026-09-28 RV-B
+      post-merge panel: combined BLOCK (docs/status/tasks/RV-B-review.md) → follow-ups S-sysident-issue-escape, S-system-identity-state, S-apply-startup-mode, S-mgmt-tls-validate-scope,
+      S-dataplane-ui-fixes, <id>-host; code stays on main (D-161/D-184)'
+  - id: TD-18
+    title: Repo & ops tooling hygiene (manager-owned files)
+    prompt: ''
+    template: ''
+    stage: S4
+    deps: []
+    priority: 4
+    est_hours: 3
+    state: merged
+    parked_on: ''
+    wbs:
+      - D0.1
+    scope:
+      'review 5.4a (delete tools/manager/merge.sh or rewrite it to D-112 — before the first wave-A merge), 5.4b (tools/operator/wt.sh: validate the id, printf %q, commit -F -; code
+      at :14-19), 5.7c (deploy/dev/pg-test.sh: SQL on stdin), 5.1b (root .gitignore += .venv/ *.tfstate *.tfstate.* .terraform/ /.scratch/ (SY7) — before P10/P14), 5.3 (.gitlab-ci.yml
       wrapper around tools/ci.sh quick, only if PENDING-remote-mirror says GitLab)'
     files_owned: tools/manager/merge.sh tools/operator/wt.sh deploy/dev/pg-test.sh .gitignore .gitlab-ci.yml (only if GitLab) docs/status/tasks/TD-18*
     branch: ''

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"ngfw/agent/internal/vpp/bootid"
@@ -102,5 +103,23 @@ func TestNumericPublisherStreamingHashAndCancellation(t *testing.T) {
 	cancel()
 	if _, _, err := hashNumericPublisherArtifact(ctx, a); err == nil {
 		t.Fatal("cancelled validation accepted")
+	}
+}
+
+func TestNumericPublisherDiagnosticTransportPinned(t *testing.T) {
+	data, err := os.ReadFile("../../../../deploy/systemd/ngfw-ra-openfile.service")
+	if err != nil {
+		t.Fatal("publisher shipped template absent")
+	}
+	digest := sha256.Sum256(data)
+	if hex.EncodeToString(digest[:]) != numericPublisherServiceDigest {
+		t.Fatal("publisher template differs from installation proof")
+	}
+	text := string(data)
+	if strings.Count(text, "StandardOutput=null\n") != 1 || strings.Count(text, "StandardError=journal\n") != 1 || strings.Contains(text, "StandardError=null") {
+		t.Fatal("bounded publisher diagnostics cannot reach journal")
+	}
+	if !strings.Contains(text, "RuntimeMaxSec=10\n") || !strings.Contains(text, "CapabilityBoundingSet=\n") || !strings.Contains(text, "ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --publish-openfile\n") {
+		t.Fatal("diagnostic transport changed fixed privilege or runtime contract")
 	}
 }

@@ -29,7 +29,8 @@ RuntimeMaxSec=10
 TimeoutStartSec=5
 TimeoutStopSec=2
 StandardOutput=null
-StandardError=null
+# Publisher diagnostics contain only fixed stage/deadline/elapsed fields.
+StandardError=journal
 KillMode=control-group
 LimitCORE=0
 LimitNOFILE=32

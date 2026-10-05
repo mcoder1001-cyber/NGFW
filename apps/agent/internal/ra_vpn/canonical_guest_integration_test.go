@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"github.com/strongswan/govici/vici"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -19,6 +20,9 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"io"
 	"math/big"
+	"ngfw/agent/binapi/interface_types"
+	ipapi "ngfw/agent/binapi/ip"
+	tapapi "ngfw/agent/binapi/tapv2"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/tapv2"
@@ -28,6 +32,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -288,12 +293,20 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	}
 
 	dnsOwnership.Capture(t)
+	physical := canonicalGuestTransportReadback(t)
+	vpnRollback := proto.Clone(desired).(*ngfwv1.DesiredState)
+	vpnRollback.Vpn = nil
+	if baseline.GetDesiredState().GetVpn() != nil {
+		vpnRollback.Vpn = proto.Clone(baseline.GetDesiredState().GetVpn()).(*ngfwv1.VpnConfig)
+	}
+	apply(ctx, "-vpn-rollback", vpnRollback, []string{"vpn"}, nil)
+	canonicalGuestTransportRollback(t, physical, peerPlan)
 	apply(ctx, "-rollback", baseline.GetDesiredState(), domains, nil)
 	canonicalGuestUnitInactive(t)
 	changed = false
 	observed, err := client.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "ngfw", Subsystems: domains})
-	if err != nil || len(observed.GetDesiredState().GetVpn().GetRemoteAccess()) != 0 {
-		t.Fatal("canonical rollback remote-access readback")
+	if err != nil || observed.GetDesiredState() == nil || !proto.Equal(observed.GetDesiredState(), baseline.GetDesiredState()) {
+		t.Fatal("canonical rollback full requested baseline readback")
 	}
 	t.Log("canonical original-unit agent Apply, fresh VICI readback, normal Apply preservation and baseline rollback PASS; actual packet and reconnect campaign executed")
 }
@@ -756,5 +769,139 @@ func TestCanonicalDNSCleanupPreservesForeignReplacement(t *testing.T) {
 				t.Fatal("foreign DNS replacement was removed")
 			}
 		})
+	}
+}
+
+// canonicalPhysicalTransport contains only bounded disposable-guest readback.
+type canonicalPhysicalTransport struct {
+	taps   map[uint32]tapapi.SwInterfaceTapV2Details
+	routes map[uint32][]ipapi.IPRoute
+}
+
+func canonicalGuestTransportReadback(t *testing.T) canonicalPhysicalTransport {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	connection := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{ReplyTimeout: 5 * time.Second})
+	defer connection.Close()
+	for stop := time.Now().Add(5 * time.Second); !connection.Connected() && time.Now().Before(stop); {
+		time.Sleep(10 * time.Millisecond)
+	}
+	result := canonicalPhysicalTransport{taps: map[uint32]tapapi.SwInterfaceTapV2Details{}, routes: map[uint32][]ipapi.IPRoute{}}
+	stream, err := tapapi.NewServiceClient(connection).SwInterfaceTapV2Dump(ctx, &tapapi.SwInterfaceTapV2Dump{SwIfIndex: interface_types.InterfaceIndex(^uint32(0))})
+	if err != nil {
+		t.Fatal("canonical physical TAP dump")
+	}
+	for count := 0; ; count++ {
+		row, e := stream.Recv()
+		if errors.Is(e, io.EOF) {
+			break
+		}
+		if e != nil || row == nil || count > 8193 {
+			t.Fatal("canonical physical TAP dump incomplete")
+		}
+		if _, duplicate := result.taps[row.SwIfIndex]; duplicate {
+			t.Fatal("canonical physical TAP index duplicate")
+		}
+		result.taps[row.SwIfIndex] = *row
+	}
+	if err := stream.Close(); err != nil {
+		t.Fatal("canonical physical TAP stream close")
+	}
+	for _, table := range []uint32{19000, 19001} {
+		routes, e := ipapi.NewServiceClient(connection).IPRouteDump(ctx, &ipapi.IPRouteDump{Table: ipapi.IPTable{TableID: table}})
+		if e != nil {
+			t.Fatal("canonical physical FIB dump")
+		}
+		for count := 0; ; count++ {
+			row, e := routes.Recv()
+			if errors.Is(e, io.EOF) {
+				break
+			}
+			if e != nil || row == nil || count > 4096 {
+				t.Fatal("canonical physical FIB dump incomplete")
+			}
+			result.routes[table] = append(result.routes[table], row.Route)
+		}
+		if err := routes.Close(); err != nil {
+			t.Fatal("canonical physical FIB stream close")
+		}
+	}
+	return result
+}
+
+func canonicalGuestTransportRollback(t *testing.T, before canonicalPhysicalTransport, peer *NetworkPlan) {
+	t.Helper()
+	after := canonicalGuestTransportReadback(t)
+	serverNamespace := NamespacePath(InstanceID("ngfw", "road"))
+	removed := map[uint32]bool{}
+	peers := 0
+	for index, row := range before.taps {
+		if row.HostNamespace == serverNamespace {
+			removed[index] = true
+			if _, exists := after.taps[index]; exists {
+				t.Fatal("canonical VPN rollback retained server TAP")
+			}
+		} else {
+			observed, exists := after.taps[index]
+			if !exists || observed != row {
+				t.Fatal("canonical VPN rollback changed foreign TAP")
+			}
+			if row.HostNamespace == NamespacePath(peer.Instance) {
+				peers++
+			}
+		}
+	}
+	if len(removed) != 2 || peers != 2 {
+		t.Fatal("canonical rollback physical ownership proof absent")
+	}
+	for _, row := range after.taps {
+		if row.HostNamespace == serverNamespace {
+			t.Fatal("canonical rollback retained server endpoint")
+		}
+	}
+	if _, err := os.Lstat(serverNamespace); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("canonical rollback retained server namespace binding")
+	}
+	if _, err := ReadAgentPlan(peer.Instance); err != nil {
+		t.Fatal("canonical VPN rollback removed foreign peer namespace")
+	}
+	foreignRoutes := 0
+	for table, routes := range before.routes {
+		for _, route := range routes {
+			own, foreign := false, false
+			for _, path := range route.Paths {
+				if removed[path.SwIfIndex] {
+					own = true
+				}
+				if row, exists := before.taps[path.SwIfIndex]; exists && row.HostNamespace == NamespacePath(peer.Instance) {
+					foreign = true
+				}
+			}
+			if foreign {
+				foreignRoutes++
+				found := false
+				for _, observed := range after.routes[table] {
+					if reflect.DeepEqual(route, observed) {
+						found = true
+					}
+				}
+				if !found {
+					t.Fatal("canonical VPN rollback changed foreign peer route")
+				}
+			}
+			if own {
+				for _, observed := range after.routes[table] {
+					for _, path := range observed.Paths {
+						if removed[path.SwIfIndex] {
+							t.Fatal("canonical VPN rollback retained server route")
+						}
+					}
+				}
+			}
+		}
+	}
+	if foreignRoutes == 0 {
+		t.Fatal("canonical rollback foreign route proof absent")
 	}
 }

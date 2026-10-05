@@ -6,15 +6,50 @@ import (
 	"errors"
 	"io"
 	"os"
+	"strconv"
+	"strings"
 
 	"golang.org/x/sys/unix"
 )
 
 var ErrBoundary = errors.New("remote-access: isolated runtime boundary refused")
 
+// ValidateHelperCapabilities confines root to namespace network administration,
+// low UDP ports and crypto locked memory. SYS_ADMIN is deliberately excluded.
+func ValidateHelperCapabilities(status string) error {
+	const allowed uint64 = 1<<unix.CAP_NET_ADMIN | 1<<unix.CAP_NET_BIND_SERVICE | 1<<unix.CAP_IPC_LOCK
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(status, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) != 2 {
+			continue
+		}
+		name := strings.TrimSuffix(fields[0], ":")
+		if name != "CapEff" && name != "CapPrm" && name != "CapBnd" && name != "CapAmb" && name != "CapInh" {
+			continue
+		}
+		value, err := strconv.ParseUint(fields[1], 16, 64)
+		if seen[name] || err != nil || value & ^allowed != 0 {
+			return ErrBoundary
+		}
+		if name == "CapEff" && value&(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_NET_BIND_SERVICE) != 1<<unix.CAP_NET_ADMIN|1<<unix.CAP_NET_BIND_SERVICE {
+			return ErrBoundary
+		}
+		seen[name] = true
+	}
+	if len(seen) != 5 {
+		return ErrBoundary
+	}
+	return nil
+}
+
 // ReadPrivatePlan walks every parent with O_NOFOLLOW. An API-owned directory,
 // symlink or writable manifest cannot redirect this privileged helper.
 func ReadPrivatePlan(instance string) (*NetworkPlan, error) {
+	status, err := os.ReadFile("/proc/self/status")
+	if err != nil || os.Geteuid() != 0 || ValidateHelperCapabilities(string(status)) != nil {
+		return nil, ErrBoundary
+	}
 	if !ValidInstance(instance) {
 		return nil, ErrBoundary
 	}

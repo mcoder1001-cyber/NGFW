@@ -2,8 +2,26 @@ package ravpn
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 )
+
+func TestHelperCapabilitiesRejectHostAdministration(t *testing.T) {
+	status := func(mask uint64) string {
+		return fmt.Sprintf("CapEff:\t%016x\nCapPrm:\t%016x\nCapBnd:\t%016x\nCapInh:\t0\nCapAmb:\t0\n", mask, mask, mask)
+	}
+	if err := ValidateHelperCapabilities(status(0x1400)); err != nil {
+		t.Fatal(err)
+	}
+	for _, mask := range []uint64{0, 0x1000, 0x1400 | 1<<21, 0xffffffffffffffff} {
+		if ValidateHelperCapabilities(status(mask)) == nil {
+			t.Fatalf("unsafe capabilities accepted: %x", mask)
+		}
+	}
+	if ValidateHelperCapabilities(status(0x1400)+"CapBnd:\t0\n") == nil {
+		t.Fatal("duplicate capability records accepted")
+	}
+}
 
 func TestPrivatePlanStrictIdentityAndBounds(t *testing.T) {
 	plan := networkFixture()

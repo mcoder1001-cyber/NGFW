@@ -74,3 +74,14 @@ Sources: https://security-tracker.debian.org/tracker/source-package/strongswan
 https://www.strongswan.org/blog/2026/09/07/strongswan-6.1.0-released.html
 Current parent remote d8afac81. Next command: implement fixed namespace executor
 and capability guard, obtain authenticated6.1.0 fixture without host installation.
+
+Capability checkpoint: helper refuses effective/permitted/bounding/ambient/
+inheritable capabilities outside NET_ADMIN, NET_BIND_SERVICE, IPC_LOCK and
+requires network administration+UDP low-port binding. Root/SYS_ADMIN caller is
+refused before manifest read. Three boundary tests PASS0.024s via heavy semaphore.
+Upstream6.1.0 source signature verified using release fingerprint
+948F158A4E76A27BF3D07532DF42C170B34DBA77 (official download page keyid pinned).
+Source SHA256 fe6c97481298767213cfc2e9a1da29fdd8018d481ff4cb9cf0283099654f20d4.
+Authenticated source extracted ONLY /root/.cache/t19/strongswan-source;
+configure finite process ongoing; no shared package/service installation.
+Current remote0b352da0. Next: finish private source build then constrained executor.

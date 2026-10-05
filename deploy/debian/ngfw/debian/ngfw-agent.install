@@ -6,6 +6,9 @@ stage/usr/lib/systemd/system/ngfw-agent.service usr/lib/systemd/system/
 stage/usr/lib/ngfw/apply-executor.py usr/lib/ngfw/
 stage/usr/lib/systemd/system/apply-executor.service usr/lib/systemd/system/
 stage/usr/lib/systemd/system/apply-executor.socket usr/lib/systemd/system/
+stage/usr/lib/ngfw/ngfw-ra-daemon usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-ra-daemon.sha256 usr/lib/ngfw/
+stage/usr/lib/systemd/system/ngfw-ra@.service usr/lib/systemd/system/
 # wave-BC: F-ab-upgrade
 stage/usr/sbin/ngfw-upgrade usr/sbin/
 stage/usr/lib/ngfw/ngfw-upgrade-probe usr/lib/ngfw/

@@ -33,6 +33,7 @@ class Preparation(unittest.TestCase):
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
+            shutil.copyfile(SOURCE.parents[1] / 'systemd/ngfw-ra@.service', root / 'deploy/systemd/ngfw-ra@.service')
             for directory in ['apps/agent', 'apps/api/dist', 'apps/api/migrations', 'apps/web/dist', 'artifacts', 'stub']:
                 (root / directory).mkdir(parents=True, exist_ok=True)
             (root / 'apps/api/dist/main.js').write_text('stale API')
@@ -79,6 +80,10 @@ fi
                 for name in ['service', 'socket']:
                     self.assertTrue((root / f'output/stage/usr/lib/systemd/system/apply-executor.{name}').is_file())
                 self.assertTrue((root / 'output/stage/usr/lib/ngfw/apply-executor.py').is_file())
+                self.assertTrue((root / 'output/stage/usr/lib/ngfw/ngfw-ra-daemon').is_file())
+                import hashlib
+                self.assertEqual((root / 'output/stage/usr/lib/ngfw/ngfw-ra-daemon.sha256').read_text().strip(), hashlib.sha256(b'binary').hexdigest())
+                self.assertEqual((root / 'output/stage/usr/lib/systemd/system/ngfw-ra@.service').read_bytes(), (root / 'deploy/systemd/ngfw-ra@.service').read_bytes())
                 hardening = root / 'output/stage/usr/lib/ngfw/hardening'
                 self.assertTrue((hardening / 'stage.py').is_file())
                 self.assertTrue((hardening / 'signing/verify.py').is_file())

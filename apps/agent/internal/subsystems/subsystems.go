@@ -227,6 +227,8 @@ func DomainOf(descriptor string) string {
 
 // Env is what the wiring needs.
 type Env struct {
+	// RA is a trusted construction seam for disposable private fixtures; production leaves it nil.
+	RA     *RAControllerOptions
 	Client vpp.Client
 	Owner  string
 	// StateDir holds the persisted stores (the agent's NGFW_AGENT_STATE_DIR).
@@ -274,6 +276,7 @@ type Wiring struct {
 
 // register is Register without the persistence guard (stores.go, TD-11b).
 func register(r scheduler.Registry, env Env) (*Wiring, error) {
+	r = &raFilteringRegistry{Registry: r, byName: map[string]scheduler.Descriptor{}}
 	if env.Log == nil {
 		env.Log = slog.Default()
 	}
@@ -334,6 +337,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-BC: F-pki
 	if err := w.registerPKI(r); err != nil {
+		return nil, err
+	}
+	if err := w.registerRATransport(r); err != nil {
 		return nil, err
 	}
 	// wave-BC: F-ikev2-native
@@ -453,6 +459,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := w.registerPppoeClient(r); err != nil {
 		return nil, err
 	}
+	if err := w.registerRAController(r); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 
@@ -483,6 +492,10 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
+	if err := w.StopRA(ctx); err != nil {
+		w.env.Log.Error("remote-access reconnect cleanup refused", "reason", "owned generation could not be stopped")
+		return
+	}
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
 	w.bfdConnected()                 // wave-BC: F-bfd-redistribution
 	w.igmpMfibConnected()            // wave-BC: F-igmp-mfib-host

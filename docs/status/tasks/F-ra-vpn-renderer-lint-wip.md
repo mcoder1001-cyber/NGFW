@@ -1,0 +1,11 @@
+# RA renderer lint and PID comparison correction
+
+Branch: codex/ra-renderer-lint-20261005. Worktree: /root/ngfw-wt/ra-renderer-lint-20261005. Base published2965c11a9b9aaef7e71a1e7bf9dcbc7e51f1451c. Root owns only apps/agent/internal/renderers/strongswan/ra_*.go and this receipt; engine author explicitly handed off these paths and will integrate only the delta. Independent review remains required.
+
+Corrected checked/discarded cleanup errors, exported API documentation and PID comparison without narrowing the caller's int to int32. An oversized positive expected PID could previously wrap to the actual socket peer and restrict that socket despite claiming a foreign PID. Production now widens the peer PID to int. New regression passes with the correction and demonstrably fails with only the original comparison restored: FAIL TestRASocketRestrictionPinsInodeAndVerifiedPeer, out-of-range PID wrapped to an owned peer, package0.045s, exit1. Source was restored in a finally block.
+
+Generated per-test fixture credentials replace fixed password/PSK markers. Load-shared assertions compare the exact fixture credential rather than a substring. Existing credential redaction, remote-error redaction, private socket, foreign peer, hardlink, regular-file sentinel and group-readable rejection assertions remain. Narrow permission scanner annotations identify intentionally unsafe negative fixtures or owner-only directory traversal; no gate, scanner or package rule is disabled.
+
+Actual final corrected source: complete unchanged renderer package go test -race -count=1 ./internal/renderers/strongswan PASS6.550s exit0; scoped golangci-lint run --allow-serial-runners ./internal/renderers/strongswan reports0issues exit0. Prior pre-regression whole package PASS6.417s. TMP/GOTMP=/dev/shm/rl-5zw7phqg, manager-owned existing GOCACHE, GOMAXPROCS2/GOFLAGS-p2, tools/heavy.sh. Before-fix diagnostic log /dev/shm/ra-renderer-lint-beforefix-20261005.log contains no credentials. No host daemon or service/mount activation.
+
+Next: publish exact-tree checkpoint, independent scoped R2/R1 review, integrate the owned renderer delta into the engine source. Whole RA source is unfinished and all applicable final reviews and complete unchanged integration gates remain mandatory.

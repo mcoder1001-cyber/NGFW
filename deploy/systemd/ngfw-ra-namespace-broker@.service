@@ -1,0 +1,36 @@
+[Unit]
+Description=NGFW authenticated remote-access namespace FD operation
+
+[Service]
+Type=exec
+User=root
+Group=root
+ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker
+StandardInput=socket
+StandardOutput=null
+StandardError=null
+UMask=0077
+RuntimeMaxSec=10
+TimeoutStopSec=2
+KillMode=control-group
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_CHROOT
+ProtectHome=yes
+ProtectSystem=strict
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX
+SystemCallFilter=~@reboot @swap @raw-io @debug
+ReadWritePaths=/run/ngfw/ra
+LimitCORE=0
+LimitNOFILE=32
+TasksMax=16
+MemoryMax=128M

@@ -113,7 +113,7 @@ var descriptorReach = map[string]reachEntry{
 	"svs":                 {wired, "F-vrf-static-ecmp"},
 	"sr":                  {wired, "F-srv6"},
 	"sr_mpls":             {wired, "F-mpls-srmpls"},
-	"tapv2":               {library, "D-141: test rig creator (integration tests); no product domain"},
+	"tapv2":               {wired, "F-ra-vpn: guarded outer/inner namespace transport in vpn domain"},
 	"trace":               {pending, "F-capture-trace"},
 	"urpf":                {wired, "F-rpf-adl-pbr"},
 	"vpn":                 {library, "DF-5 shared types, secret contract, keyer"},

@@ -23,7 +23,7 @@ import { det44MapDsliteCnatValidators } from './det44-map-dslite-cnat.js';
 import { nat46Validators } from './nat46.js'; // F-nat46 (unanchored)
 // wave-BC: F-tunnels
 // wave-BC: F-vrrp-config-sync
-import { vrrpConfigSyncValidators } from "./vrrp-config-sync.js";
+import { vrrpConfigSyncValidators } from './vrrp-config-sync.js';
 // wave-BC: F-pki
 // wave-BC: F-ikev2-native
 import { ipsecValidators } from './ipsec.js';
@@ -38,6 +38,7 @@ import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
 import { bfdRedistributionValidators } from "./bfd-redistribution.js";
 // wave-BC: F-ra-vpn
+import { raVpnValidators, raVpnTransportValidator } from './ra-vpn.js';
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-ha-state-sync
@@ -130,6 +131,8 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-bfd-redistribution
   ...bfdRedistributionValidators,
   // wave-BC: F-ra-vpn
+  ...raVpnValidators,
+  raVpnTransportValidator,
   // wave-BC: F-mpls-ldp
   ...mplsLdpValidators,
   // wave-BC: F-igmp-mfib

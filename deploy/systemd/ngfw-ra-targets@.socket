@@ -1,0 +1,13 @@
+[Unit]
+Description=NGFW authenticated mount namespace observation for VPP PID %i
+After=vpp.service
+
+[Socket]
+ListenSequentialPacket=/run/ngfw/ra/targets/%i.sock
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0700
+FileDescriptorName=targets-listener
+Accept=no
+RemoveOnStop=yes

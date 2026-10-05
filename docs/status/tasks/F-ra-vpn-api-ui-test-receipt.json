@@ -1,0 +1,58 @@
+{
+  "scope": "delegated RA API/UI consumers only",
+  "sourceLocalSha": "fccb1f5b7f37d96307e64138dbbb6136152fcc2d",
+  "sourceTree": "6e41f8dbb4c8762b575ed3b58bcff86ffce5a22f",
+  "checks": [
+    {
+      "name": "actual Unix gRPC fixture -> AgentClient -> Nest HTTP",
+      "result": "PASS",
+      "tests": 14,
+      "testMilliseconds": 504,
+      "runnerSeconds": 16.75,
+      "provenance": "API source unchanged since b62dcabb0; fixture implements explicit RA RPCs, not production runtime"
+    },
+    {
+      "name": "all API unit tests",
+      "result": "PASS",
+      "files": 104,
+      "tests": 694,
+      "runnerSeconds": 125.68,
+      "provenance": "consumer code before configured-owner follow-up; new owner boundary independently covered by actual 14-case transport suite"
+    },
+    {
+      "name": "unchanged full web rerun",
+      "result": "PASS",
+      "files": 103,
+      "tests": 607,
+      "runnerSeconds": 431.06,
+      "provenance": "started c1e9a343d at11:10:46 UTC; latest default/enum UI delta applied in final phase; not a proof of final aggregate exact tree"
+    },
+    {
+      "name": "latest UI and unchanged branding targets",
+      "result": "PASS",
+      "files": 2,
+      "tests": 12,
+      "runnerSeconds": 40.12,
+      "provenance": "latest omitted-enabled refusal and Persian authentication-option/nested-policy labels included"
+    },
+    {
+      "name": "unchanged gen-check",
+      "result": "PASS",
+      "runnerSeconds": 120,
+      "provenance": "c1e9a343d; all normal generated Go/TS/schema/YANG/API-client/CLI trees clean"
+    },
+    {
+      "name": "final API/web typechecks and scoped API/web lint",
+      "result": "PASS",
+      "provenance": "API typecheck and scoped lint after owner/capability/privacy changes; web typecheck/lint after final UI delta, no suppression or assertion weakening"
+    }
+  ],
+  "notRun": [
+    "production agent runtime handlers",
+    "actual PostgreSQL/Valkey integration campaign",
+    "actual-endpoint browser screenshot",
+    "complete final aggregate quick CI",
+    "real appliance/client packet acceptance"
+  ],
+  "remainingOwnership": "root and engine author coordinate runtime integration and independent applicable reviews; overall RA task remains unfinished"
+}

@@ -47,9 +47,14 @@ for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
   install -m 0755 "$ROOT/deploy/upgrade/$helper" "$STAGE/usr/lib/ngfw/$helper"
   install -m 0644 "$ROOT/deploy/upgrade/$helper.service" "$STAGE/usr/lib/systemd/system/$helper.service"
 done
-(cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" ./cmd/ngfw-ra-daemon)
-sha256sum "$STAGE/usr/lib/ngfw/ngfw-ra-daemon" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/ngfw-ra-daemon.sha256"
-install -m 0644 "$ROOT/deploy/systemd/ngfw-ra@.service" "$STAGE/usr/lib/systemd/system/"
+# Stage fixed helpers and their installation attestations; never invoke them here.
+for helper in ngfw-ra-daemon ngfw-ra-namespace-broker; do
+  (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/$helper" "./cmd/$helper")
+  sha256sum "$STAGE/usr/lib/ngfw/$helper" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/$helper.sha256"
+done
+for unit in ngfw-ra@.service ngfw-ra-openfile.service ngfw-ra-openfile.socket ngfw-ra-targets@.service ngfw-ra-targets@.socket ngfw-ra-observer@.service ngfw-ra-observer@.socket ngfw-ra-namespace-broker.socket ngfw-ra-namespace-broker@.service; do
+  install -m 0644 "$ROOT/deploy/systemd/$unit" "$STAGE/usr/lib/systemd/system/"
+done
 (cd "$ROOT" && pnpm --filter @ngfw/api deploy --prod "$STAGE/usr/lib/ngfw/api")
 [[ -f $STAGE/usr/lib/ngfw/api/dist/main.js ]] || { echo 'pnpm deploy omitted compiled API' >&2; exit 1; }
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/ngfw/api/"

@@ -7,282 +7,23 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
+	"encoding/json"
 	"encoding/pem"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"io"
-	"log/slog"
 	"math/big"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
-	"ngfw/agent/internal/ownertable"
 	ravpn "ngfw/agent/internal/ra_vpn"
-	"ngfw/agent/internal/renderers/strongswan"
-	"ngfw/agent/internal/scheduler"
-	"ngfw/agent/internal/secretchannel"
-	"ngfw/agent/internal/subsystems"
-	"ngfw/agent/internal/vpp"
-	"ngfw/agent/internal/vpp/bootid"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
 )
-
-// This supervisor is test-only. It launches the actual fixed helper solely in
-// verified private PID/mount/network namespaces; production VPP verification,
-// immutable sealed cache, descriptors and Service.Apply remain real.
-type productionRAUnit struct {
-	identity ravpn.UnitIdentity
-	cmd      *exec.Cmd
-	wait     chan error
-	stop     bool
-}
-type productionRAUnits struct {
-	t     *testing.T
-	mu    sync.Mutex
-	units map[string]*productionRAUnit
-}
-
-func (u *productionRAUnits) Observe(ctx context.Context, p *ravpn.NetworkPlan) (ravpn.UnitIdentity, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	return u.observe(p)
-}
-func (u *productionRAUnits) observe(p *ravpn.NetworkPlan) (ravpn.UnitIdentity, error) {
-	h, ok := u.units[p.Instance]
-	if !ok || h.stop || h.identity.NamespaceInode != p.NamespaceInode {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	stat, e := os.Stat("/proc/" + strconv.Itoa(h.identity.PID) + "/ns/net")
-	if e != nil || stat.Sys().(*syscall.Stat_t).Ino != p.NamespaceInode || (bootid.Reader{}).ForPID(h.identity.PID).StartTime != h.identity.StartTicks {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	actual, e := os.Stat("/proc/" + strconv.Itoa(h.identity.PID) + "/exe")
-	expected, ee := os.Stat(filepath.Join(os.Getenv("NGFW_RA_ENGINE_ROOT"), "sbin/charon-systemd"))
-	if e != nil || ee != nil || !os.SameFile(actual, expected) {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	return h.identity, nil
-}
-func (u *productionRAUnits) Start(ctx context.Context, p *ravpn.NetworkPlan) (ravpn.UnitIdentity, error) {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if _, e := ravpn.ReadAgentPlan(p.Instance); e != nil {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	if h, ok := u.units[p.Instance]; ok && !h.stop {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	workspace := u.t.TempDir()
-	log, e := os.OpenFile(filepath.Join(workspace, "private-unit.log"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-	if e != nil {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	u.t.Cleanup(func() { log.Close() })
-	mnt, e := os.Open("/proc/self/ns/mnt")
-	if e != nil {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	defer mnt.Close()
-	launcher, e := filepath.Abs("../../../../test/topology/ra-vpn/private-daemon.py")
-	if e != nil {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	root := filepath.Join(ravpn.InstanceRoot, p.Instance)
-	cmd := exec.Command("/usr/bin/nsenter", "--net="+filepath.Join(root, "netns"), "--", "/usr/bin/unshare", "--mount", "--pid", "--fork", "--mount-proc", "/usr/bin/python3", launcher, p.Instance, os.Getenv("NGFW_RA_ENGINE_ROOT"), os.Getenv("NGFW_RA_HELPER"), workspace)
-	cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C"}
-	cmd.ExtraFiles = []*os.File{mnt}
-	cmd.Stdout = log
-	cmd.Stderr = log
-	if cmd.Start() != nil {
-		return ravpn.UnitIdentity{}, ravpn.ErrEngine
-	}
-	h := &productionRAUnit{cmd: cmd, wait: make(chan error, 1)}
-	u.units[p.Instance] = h
-	go func() { h.wait <- cmd.Wait() }()
-	socket := filepath.Join(root, "daemon/vici.sock")
-	for end := time.Now().Add(15 * time.Second); time.Now().Before(end) && ctx.Err() == nil; time.Sleep(20 * time.Millisecond) {
-		if h.identity.PID == 0 {
-			children, _ := os.ReadFile("/proc/" + strconv.Itoa(cmd.Process.Pid) + "/task/" + strconv.Itoa(cmd.Process.Pid) + "/children")
-			for _, candidate := range strings.Fields(string(children)) {
-				pid, _ := strconv.Atoi(candidate)
-				stat, e := os.Stat("/proc/" + candidate + "/ns/net")
-				if e == nil && pid > 1 && stat.Sys().(*syscall.Stat_t).Ino == p.NamespaceInode {
-					identity := (bootid.Reader{}).ForPID(pid)
-					h.identity = ravpn.UnitIdentity{BootID: identity.BootID, PID: pid, StartTicks: identity.StartTime, NamespaceInode: p.NamespaceInode}
-				}
-			}
-		}
-		if h.identity.Valid() && strongswan.RestrictRAVICISocket(ctx, socket, h.identity.PID) == nil {
-			return u.observe(p)
-		}
-	}
-	u.stop(h)
-	return ravpn.UnitIdentity{}, ravpn.ErrEngine
-}
-func (u *productionRAUnits) stop(h *productionRAUnit) error {
-	if h.stop {
-		return nil
-	}
-	if h.identity.Valid() && (bootid.Reader{}).StartTime(h.identity.PID) == h.identity.StartTicks {
-		syscall.Kill(h.identity.PID, syscall.SIGTERM)
-	}
-	select {
-	case <-h.wait:
-		h.stop = true
-		return nil
-	case <-time.After(3 * time.Second):
-	}
-	if h.identity.Valid() && (bootid.Reader{}).StartTime(h.identity.PID) == h.identity.StartTicks {
-		syscall.Kill(h.identity.PID, syscall.SIGKILL)
-	}
-	h.cmd.Process.Kill()
-	select {
-	case <-h.wait:
-		h.stop = true
-		return nil
-	case <-time.After(3 * time.Second):
-		return ravpn.ErrEngine
-	}
-}
-func (u *productionRAUnits) Stop(ctx context.Context, p *ravpn.NetworkPlan, wanted ravpn.UnitIdentity) error {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	actual, e := u.observe(p)
-	if e != nil || actual != wanted {
-		return ravpn.ErrEngine
-	}
-	return u.stop(u.units[p.Instance])
-}
-
-func TestIntegrationPrivateProductionRAControllerLifecycle(t *testing.T) {
-	if os.Getenv("NGFW_RA_PRIVATE_VPP") != "1" {
-		t.Skip("requires verified exclusively owned VPP runner")
-	}
-	for _, kind := range []string{"net", "mnt"} {
-		self, e := os.Stat("/proc/self/ns/" + kind)
-		host, ee := os.Stat("/proc/1/ns/" + kind)
-		if e != nil || ee != nil || os.SameFile(self, host) {
-			t.Fatal("private coordinator boundary absent")
-		}
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-	defer cancel()
-	quiet := slog.New(slog.NewTextHandler(io.Discard, nil))
-	connection := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{Logger: quiet, ReplyTimeout: 5 * time.Second})
-	t.Cleanup(connection.Close)
-	if connection.WaitConnected(ctx) != nil {
-		t.Fatal("private VPP connection")
-	}
-	boot, e := bootid.Current(ctx, connection)
-	if e != nil || !boot.Complete() || boot.PID <= 1 {
-		t.Fatal("private VPP boot proof")
-	}
-	self, e := os.Stat("/proc/self/ns/net")
-	peer, ee := os.Stat("/proc/" + strconv.Itoa(boot.PID) + "/ns/net")
-	if e != nil || ee != nil || !os.SameFile(self, peer) {
-		t.Fatal("connected VPP outside owned namespace")
-	}
-	owner := "w19prod-" + strconv.Itoa(os.Getpid())
-	state := filepath.Join("/run/ngfw", owner)
-	if os.Mkdir(state, 0700) != nil {
-		t.Fatal("exclusive state root")
-	}
-	marker := []byte("F-ra-vpn private production fixture " + owner)
-	if os.WriteFile(filepath.Join(state, ".owner"), marker, 0600) != nil {
-		t.Fatal("state owner marker")
-	}
-	t.Cleanup(func() {
-		data, e := os.ReadFile(filepath.Join(state, ".owner"))
-		if e == nil && string(data) == string(marker) {
-			os.RemoveAll(state)
-		} else {
-			t.Error("state cleanup ownership mismatch")
-		}
-	})
-	cache, e := secretchannel.Open(state, owner)
-	if e != nil {
-		t.Fatal("sealed cache")
-	}
-	unitPath, e := filepath.Abs("../../../../deploy/systemd/ngfw-ra@.service")
-	if e != nil {
-		t.Fatal(e)
-	}
-	installation := ravpn.EngineInstallation{Prefix: os.Getenv("NGFW_RA_ENGINE_ROOT"), Helper: os.Getenv("NGFW_RA_HELPER"), Unit: unitPath, OSRelease: "/etc/os-release", PackageStatus: "/var/lib/dpkg/status"}
-	preparation := &ravpn.SealedPreparation{Resolver: cache, Installation: &installation, Readiness: func(context.Context) error { _, e := cache.ID(nil); return e }}
-	units := &productionRAUnits{t: t, units: map[string]*productionRAUnit{}}
-	t.Cleanup(func() {
-		units.mu.Lock()
-		for _, h := range units.units {
-			if !h.stop {
-				if units.stop(h) != nil {
-					t.Error("own private daemon cleanup failed")
-				}
-			}
-		}
-		units.mu.Unlock()
-		instance := ravpn.InstanceID(owner, "road")
-		if plan, e := ravpn.ReadAgentPlan(instance); e == nil {
-			if _, e := os.Stat(filepath.Join(ravpn.InstanceRoot, instance, "snapshot.json")); e == nil {
-				if ravpn.CleanupSnapshot(instance) != nil {
-					t.Error("owned snapshot residue refused")
-					return
-				}
-			}
-			if ravpn.RemoveNamespace(instance, plan.NamespaceInode) != nil {
-				t.Error("owned namespace cleanup refused")
-				return
-			}
-			if os.Remove(filepath.Join(ravpn.InstanceRoot, instance, "network.json")) != nil || os.Remove(filepath.Join(ravpn.InstanceRoot, instance)) != nil {
-				t.Error("owned namespace directory residue")
-			}
-		}
-	})
-	t.Setenv(subsystems.EnvHostServicesDir, filepath.Join(state, "host-services"))
-	owned, e := ownertable.Open(state, owner)
-	if e != nil {
-		t.Fatal("owned route store")
-	}
-	reg := scheduler.NewRegistry()
-	wiring, e := subsystems.Register(reg, subsystems.Env{Client: connection, Owner: owner, StateDir: state, Owned: owned, Log: quiet, IDs: subsystems.IDScope{Range: &subsystems.IDRange{Lo: 2432, Hi: 19999}}, RA: &subsystems.RAControllerOptions{Preparation: preparation, Units: units, SecretRef: cache.Ref}})
-	if e != nil {
-		t.Fatal("real wiring", e)
-	}
-	t.Cleanup(wiring.Close)
-	wiring.Connected(ctx)
-	if subsystems.SetPKISecrets(owner, cache.Text) != nil {
-		t.Fatal("PKI sealed source")
-	}
-	sched := scheduler.New(reg, quiet)
-	service, e := NewService(ServiceConfig{Owner: owner, VPP: connection, Scheduler: sched, StateDir: state, BeforeTxn: wiring.BeforeTxn, NetdevKind: wiring.NetdevKind(), SecretCache: cache, Logger: quiet, TxnTimeout: 60 * time.Second})
-	if e != nil {
-		t.Fatal("real service", e)
-	}
-	service.claimsTxn = wiring.ClaimsTxn
-	t.Cleanup(service.Close)
-	credentials, _ := productionRACredentials(t)
-	desired := doc(t, productionRADoc)
-	response, e := service.Apply(ctx, &ngfwv1.ApplyRequest{Owner: owner, TxnId: "normal-foundation", Subsystems: []string{"vrfs", "interfaces", "acl"}, DesiredState: desired, SecretBundle: &ngfwv1.SecretBundle{Values: map[string][]byte{"cert/server": append([]byte(nil), credentials.Certificate...), "key/server": append([]byte(nil), credentials.PrivateKey...), "password/client": []byte("NGFW_TEST_PASSWORD_RA19")}}})
-	if e != nil || response.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		t.Fatal("normal foundation Apply", e, response.GetStatus(), response.GetMessage(), response.GetValidation())
-	}
-	capability, e := service.RemoteAccessCapabilities(ctx, &ngfwv1.RemoteAccessCapabilitiesRequest{Owner: owner})
-	if e != nil || !capability.GetOperational() {
-		t.Fatal("actual ready-to-activate capability", e, capability.GetReason())
-	}
-	response, e = service.Apply(ctx, &ngfwv1.ApplyRequest{Owner: owner, TxnId: "ra-enable", Subsystems: []string{"vpn"}, DesiredState: desired})
-	if e != nil || response.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
-		t.Fatal("production RA Apply", e, response.GetStatus(), response.GetMessage(), response.GetResults(), response.GetValidation())
-	}
-	sessions, e := service.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: owner, Profile: "road", Limit: 100})
-	if e != nil || len(sessions.GetSessions()) != 0 {
-		t.Fatal("actual fresh daemon session readback", e)
-	}
-	t.Log("actual production desired/Wiring/Service.Apply private engine activation and VICI empty readback PASS; full packet/restart/rollback campaign remains")
-}
 
 const productionRADoc = `{"vrfs":{"outer":{"id":19000},"inner":{"id":19001}},"interfaces":{"loop2436":{"enabled":true,"vrf":"inner","ipv4":["10.19.0.53/32"]},"loop2437":{"enabled":true,"vrf":"inner","ipv4":["10.19.0.54/32"]}},"acl":{"lists":{"outer-in":{"rules":[{"sequence":10,"enabled":true,"action":"permit","ipVersion":"ipv4"}]},"outer-out":{"rules":[{"sequence":10,"enabled":true,"action":"permit","ipVersion":"ipv4"}]},"inner-in":{"rules":[{"sequence":10,"enabled":true,"action":"permit","ipVersion":"ipv4","source":{"kind":"prefix","prefix":"10.19.200.0/24"},"destination":{"kind":"prefix","prefix":"10.19.0.53/32"}}]},"inner-out":{"rules":[{"sequence":10,"enabled":true,"action":"permit","ipVersion":"ipv4","source":{"kind":"prefix","prefix":"10.19.0.53/32"},"destination":{"kind":"prefix","prefix":"10.19.200.0/24"}}]}}},"vpn":{"ipsec":{"proposals":{"ra-proposal":{"ike":{"encr":"aes256","integ":"sha256","prf":"prfsha256","dh":"ecp256"},"esp":{"encr":"aes256gcm16","dh":"ecp256"}}}},"pki":{"certificates":{"server":{"certificateRef":"cert/server","privateKeyRef":"key/server"}}},"remoteAccess":{"road":{"enabled":true,"localAddr":"192.0.2.19","localId":"vpn.example.test","vrf":"inner","underlayVrf":"outer","auth":"eap-mschapv2","certificate":"server","proposal":"ra-proposal","transport":{"outer":{"vpp":"198.18.19.0/31","namespace":"198.18.19.1/31"},"inner":{"vpp":"198.18.19.2/31","namespace":"198.18.19.3/31"}},"pools":[{"name":"clients","prefix":"10.19.200.0/24","dns":["10.19.0.53"]}],"splitTunnel":["10.19.0.0/16"],"users":[{"username":"client","passwordRef":"password/client"}],"outerPolicy":{"ingress":["outer-in"],"egress":["outer-out"]},"accessPolicy":{"ingress":["inner-in"],"egress":["inner-out"]}}}}}`
 
@@ -324,4 +65,151 @@ func productionRACredentials(t *testing.T) (ravpn.Credentials, time.Time) {
 	}
 	caPEM := encode("CERTIFICATE", caDER)
 	return ravpn.Credentials{Certificate: append(encode("CERTIFICATE", leafDER), caPEM...), PrivateKey: encode("PRIVATE"+" KEY", keyDER), ClientCA: caPEM, ClientCRL: encode("X509 CRL", crlDER)}, now
+}
+
+// TestIntegrationCanonicalGuestRAActivation is a client-only driver for the
+// independent disposable systemd guest. It never constructs a fake agent,
+// supervisor, sealed store or handoff, and never starts a host service.
+func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
+	if os.Getenv("NGFW_RA_CANONICAL_GUEST") != "1" {
+		t.Skip("requires independent disposable original-unit guest")
+	}
+	markerPath := "/run/ngfw-ra-guest-fixture"
+	info, err := os.Lstat(markerPath)
+	if err != nil {
+		t.Fatal("independent guest marker absent")
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || stat.Uid != 0 || stat.Nlink != 1 || info.Size() > 1024 {
+		t.Fatal("independent guest marker boundary")
+	}
+	// #nosec G304 -- fixed guest-only marker path has just passed strict ownership/mode/link checks.
+	held, err := os.OpenFile(markerPath, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		t.Fatal("guest marker open")
+	}
+	current, statErr := held.Stat()
+	raw, readErr := io.ReadAll(io.LimitReader(held, 1025))
+	closeErr := held.Close()
+	if statErr != nil || !os.SameFile(info, current) || readErr != nil || closeErr != nil || len(raw) > 1024 {
+		t.Fatal("guest marker held read")
+	}
+	var marker struct {
+		Owner  string `json:"owner"`
+		BootID string `json:"bootId"`
+	}
+	if json.Unmarshal(raw, &marker) != nil || marker.Owner != "ngfw-ra-independent-guest" {
+		t.Fatal("foreign guest marker")
+	}
+	boot, err := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	if err != nil || marker.BootID != strings.TrimSpace(string(boot)) {
+		t.Fatal("stale guest generation")
+	}
+	init, err := os.Readlink("/proc/1/exe")
+	if err != nil || (init != "/usr/lib/systemd/systemd" && init != "/lib/systemd/systemd") {
+		t.Fatal("real guest manager absent")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	connection, err := grpc.NewClient("unix:///run/ngfw/agent.sock", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal("canonical guest connection")
+	}
+	t.Cleanup(func() {
+		if err := connection.Close(); err != nil {
+			t.Error("guest client close")
+		}
+	})
+	client := ngfwv1.NewDataplaneClient(connection)
+	domains := []string{"vrfs", "interfaces", "acl", "vpn"}
+	baseline, err := client.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "ngfw", Subsystems: domains})
+	if err != nil || baseline.GetDesiredState() == nil {
+		t.Fatal("canonical baseline readback")
+	}
+	if baseline.GetDesiredState().GetVpn() != nil && len(baseline.GetDesiredState().GetVpn().GetRemoteAccess()) != 0 {
+		t.Fatal("guest already owns remote-access profiles")
+	}
+	var nonce [32]byte
+	if _, err := rand.Read(nonce[:]); err != nil {
+		t.Fatal("fixture random credential")
+	}
+	password := []byte(hex.EncodeToString(nonce[:]))
+	defer clear(password)
+	transaction := hex.EncodeToString(nonce[:8])
+	desired := proto.Clone(baseline.GetDesiredState()).(*ngfwv1.DesiredState)
+	fixture := doc(t, productionRADoc)
+	if !canonicalFixtureDisjoint(desired.ProtoReflect(), fixture.ProtoReflect()) {
+		t.Fatal("fixture would replace existing owned map object")
+	}
+	proto.Merge(desired, fixture)
+	credentials, _ := productionRACredentials(t)
+	defer clear(credentials.PrivateKey)
+	apply := func(call context.Context, suffix string, state *ngfwv1.DesiredState, subsystems []string, secrets *ngfwv1.SecretBundle) {
+		response, err := client.Apply(call, &ngfwv1.ApplyRequest{Owner: "ngfw", TxnId: "ra-guest-" + transaction + suffix, Subsystems: subsystems, DesiredState: state, SecretBundle: secrets})
+		if err != nil || response.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+			t.Fatal("canonical guest Apply refused at " + suffix)
+		}
+	}
+	changed := false
+	t.Cleanup(func() {
+		if !changed {
+			return
+		}
+		cleanup, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		response, err := client.Apply(cleanup, &ngfwv1.ApplyRequest{Owner: "ngfw", TxnId: "ra-guest-" + transaction + "-cleanup", Subsystems: domains, DesiredState: baseline.GetDesiredState()})
+		if err != nil || response.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+			t.Error("canonical owned baseline rollback refused")
+		}
+	})
+	changed = true
+	apply(ctx, "-foundation", desired, []string{"vrfs", "interfaces", "acl"}, &ngfwv1.SecretBundle{Values: map[string][]byte{"cert/server": credentials.Certificate, "key/server": credentials.PrivateKey, "password/client": password}})
+	capability, err := client.RemoteAccessCapabilities(ctx, &ngfwv1.RemoteAccessCapabilitiesRequest{Owner: "ngfw"})
+	if err != nil || !capability.GetOperational() || capability.GetReason() != "" {
+		t.Fatal("actual installed runtime readiness refused")
+	}
+	apply(ctx, "-enable", desired, []string{"vpn"}, nil)
+	sessions, err := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+	if err != nil || len(sessions.GetSessions()) != 0 {
+		t.Fatal("actual fresh unit VICI session readback")
+	}
+	apply(ctx, "-normal-preserve", desired, []string{"vrfs", "interfaces", "acl"}, nil)
+	apply(ctx, "-rollback", baseline.GetDesiredState(), domains, nil)
+	changed = false
+	observed, err := client.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "ngfw", Subsystems: domains})
+	if err != nil || len(observed.GetDesiredState().GetVpn().GetRemoteAccess()) != 0 {
+		t.Fatal("canonical rollback remote-access readback")
+	}
+	t.Log("canonical original-unit agent Apply, fresh VICI readback, normal Apply preservation and baseline rollback PASS; packet/restart campaign is separate")
+}
+
+func canonicalFixtureDisjoint(existing, addition protoreflect.Message) bool {
+	safe := true
+	addition.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if !existing.Has(field) {
+			return true
+		}
+		if field.IsMap() {
+			value.Map().Range(func(key protoreflect.MapKey, _ protoreflect.Value) bool {
+				if existing.Get(field).Map().Has(key) {
+					safe = false
+				}
+				return safe
+			})
+		} else if field.Kind() == protoreflect.MessageKind && !field.IsList() {
+			safe = canonicalFixtureDisjoint(existing.Get(field).Message(), value.Message())
+		}
+		return safe
+	})
+	return safe
+}
+
+func TestCanonicalFixtureRefusesExistingOwnedMapObjects(t *testing.T) {
+	fixture := doc(t, productionRADoc)
+	if canonicalFixtureDisjoint(fixture.ProtoReflect(), fixture.ProtoReflect()) {
+		t.Fatal("fixture accepted replacement of existing map objects")
+	}
+	if !canonicalFixtureDisjoint((&ngfwv1.DesiredState{}).ProtoReflect(), fixture.ProtoReflect()) {
+		t.Fatal("empty fixture baseline refused")
+	}
 }

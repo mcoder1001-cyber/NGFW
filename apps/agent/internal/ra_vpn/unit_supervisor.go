@@ -237,12 +237,16 @@ func verifyUnitSnapshot(p *NetworkPlan, snapshot *UnitProcessSnapshot, allowHelp
 	return UnitIdentity{}, ErrEngine
 }
 
-func sameUnitExecutable(actual *os.File, path string) bool {
+func sameUnitExecutable(actual *os.File, path string) (verified bool) {
 	fd, err := unix.Open(path, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return false
 	}
-	defer unix.Close(fd)
+	defer func() {
+		if unix.Close(fd) != nil {
+			verified = false
+		}
+	}()
 	var wanted, got unix.Stat_t
 	return unix.Fstat(fd, &wanted) == nil && unix.Fstat(int(actual.Fd()), &got) == nil && wanted.Mode&unix.S_IFMT == unix.S_IFREG && wanted.Uid == 0 && wanted.Mode&0022 == 0 && wanted.Mode&0111 != 0 && wanted.Nlink == 1 && wanted.Dev == got.Dev && wanted.Ino == got.Ino && wanted.Mode == got.Mode && wanted.Uid == got.Uid && got.Nlink == 1
 }
@@ -488,7 +492,7 @@ func (u SystemdUnits) inactiveState(ctx context.Context, name string) error {
 }
 
 // Inactive proves no fixed-unit processes or untracked private socket exist.
-func (u SystemdUnits) Inactive(ctx context.Context, plan *NetworkPlan) error {
+func (u SystemdUnits) Inactive(ctx context.Context, plan *NetworkPlan) (result error) {
 	if plan == nil || plan.Validate() != nil {
 		return ErrEngine
 	}
@@ -503,7 +507,11 @@ func (u SystemdUnits) Inactive(ctx context.Context, plan *NetworkPlan) error {
 	if err != nil {
 		return ErrEngine
 	}
-	defer unix.Close(root)
+	defer func() {
+		if unix.Close(root) != nil {
+			result = ErrEngine
+		}
+	}()
 	var info unix.Stat_t
 	if unix.Fstat(root, &info) != nil || info.Uid != 0 || info.Mode&0077 != 0 {
 		return ErrEngine
@@ -515,7 +523,11 @@ func (u SystemdUnits) Inactive(ctx context.Context, plan *NetworkPlan) error {
 	if err != nil {
 		return ErrEngine
 	}
-	defer unix.Close(daemon)
+	defer func() {
+		if unix.Close(daemon) != nil {
+			result = ErrEngine
+		}
+	}()
 	if unix.Fstat(daemon, &info) != nil || info.Uid != 0 || info.Mode&0077 != 0 {
 		return ErrEngine
 	}

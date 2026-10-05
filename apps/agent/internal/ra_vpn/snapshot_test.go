@@ -70,10 +70,14 @@ func TestIntegrationPrivateSnapshotExclusiveAndModes(t *testing.T) {
 		t.Fatal("socket mode")
 	}
 	if CleanupSnapshot(plan.Instance) == nil {
-		listener.Close()
+		if err := listener.Close(); err != nil {
+			t.Error(err)
+		}
 		t.Fatal("live daemon generation removed")
 	}
-	listener.Close()
+	if err := listener.Close(); err != nil {
+		t.Fatal(err)
+	}
 	if err := CleanupSnapshot(plan.Instance); err != nil {
 		t.Fatal("inactive exact generation cleanup", err)
 	}

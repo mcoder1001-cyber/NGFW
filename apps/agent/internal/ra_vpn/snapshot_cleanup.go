@@ -75,7 +75,7 @@ func writeSnapshotReceipt(fd int, plan *NetworkPlan, files []string, directories
 	}
 	ce := f.Close()
 	if e != nil || ce != nil {
-		unix.Unlinkat(fd, snapshotReceiptName, 0)
+		_ = unix.Unlinkat(fd, snapshotReceiptName, 0)
 		return ErrBoundary
 	}
 	return nil
@@ -94,18 +94,18 @@ func CleanupSnapshot(instance string) error {
 	if e != nil {
 		return ErrBoundary
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }()
 	child, e := unix.Openat(fd, snapshotReceiptName, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if e != nil {
 		return ErrBoundary
 	}
 	if _, e = snapshotStat(fd, snapshotReceiptName, false); e != nil {
-		unix.Close(child)
+		_ = unix.Close(child)
 		return ErrBoundary
 	}
 	f := os.NewFile(uintptr(child), snapshotReceiptName)
 	data, e := io.ReadAll(io.LimitReader(f, 8193))
-	f.Close()
+	_ = f.Close()
 	if e != nil || len(data) > 8192 {
 		return ErrBoundary
 	}
@@ -130,7 +130,7 @@ func CleanupSnapshot(instance string) error {
 		}
 		directory := os.NewFile(uintptr(df), name)
 		entries, e := directory.ReadDir(4)
-		directory.Close()
+		_ = directory.Close()
 		if len(entries) > 1 || e != nil && e != io.EOF {
 			return ErrBoundary
 		}
@@ -173,7 +173,7 @@ func CleanupSnapshot(instance string) error {
 		}
 		connection, e := net.DialTimeout("unix", socket, 100*time.Millisecond)
 		if e == nil {
-			connection.Close()
+			_ = connection.Close()
 			return ErrBoundary
 		}
 		// Only a positively refused listener is safe; timeout/permissions are not inactivity.
@@ -223,7 +223,7 @@ func verifySnapshotContents(instance string, expected map[string][]byte) error {
 	if e != nil {
 		return ErrBoundary
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }()
 	child, e := unix.Openat(fd, snapshotReceiptName, unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
 	if e != nil {
 		return ErrBoundary
@@ -231,11 +231,11 @@ func verifySnapshotContents(instance string, expected map[string][]byte) error {
 	f := os.NewFile(uintptr(child), snapshotReceiptName)
 	var st unix.Stat_t
 	if unix.Fstat(child, &st) != nil || st.Mode != unix.S_IFREG|0600 || st.Uid != 0 || st.Nlink != 1 || st.Size > 8192 {
-		f.Close()
+		_ = f.Close()
 		return ErrBoundary
 	}
 	data, e := io.ReadAll(io.LimitReader(f, 8193))
-	f.Close()
+	_ = f.Close()
 	if e != nil || len(data) > 8192 {
 		return ErrBoundary
 	}
@@ -256,7 +256,7 @@ func verifySnapshotContents(instance string, expected map[string][]byte) error {
 		}
 		directory := os.NewFile(uintptr(df), name)
 		entries, e := directory.ReadDir(4)
-		directory.Close()
+		_ = directory.Close()
 		if len(entries) > 1 || e != nil && e != io.EOF {
 			return ErrBoundary
 		}
@@ -290,11 +290,11 @@ func verifySnapshotContents(instance string, expected map[string][]byte) error {
 		f := os.NewFile(uintptr(child), name)
 		var held unix.Stat_t
 		if unix.Fstat(child, &held) != nil || held.Ino != actual.Inode || uint64(held.Dev) != actual.Device {
-			f.Close()
+			_ = f.Close()
 			return ErrBoundary
 		}
 		data, e := io.ReadAll(io.LimitReader(f, int64(len(wanted)+1)))
-		f.Close()
+		_ = f.Close()
 		equal := e == nil && bytes.Equal(data, wanted)
 		clear(data)
 		if !equal {

@@ -281,3 +281,7 @@ Signed preformat/staging/confirm/rollback tooling implemented;17independentfixtu
 ## P11-host remaining appliance execution (2026-10-05)
 
 Actual isolated native PSK responder/initiator production-agent forwarding, rekey, restart, peer loss/retry and authoritative rollback independently PASS; see P11-host-live-test-T3.md. Full appliance deployment acceptance is NOTRUN without a disposable appliance. Certificate peer acceptance belongs to the separate certificate campaign and is not inferred from this PSK evidence. Source and mandatory final integration gates are not deferred.
+
+## F-bfd-redistribution remaining native peer execution (2026-10-05)
+
+Native multihop actual two-peer packet/liveness/authentication and live FRR redistribution counters across forwarding VRFs are NOTRUN because the isolated owned peer rig has not been provisioned. Durable native ownership/compensation/recovery,1024-session indexing, bounded observation lifecycle, FRR parsing/timers/family matrix and authenticated API/browser fixtures were implemented and independently tested. Their source tests and complete current-main local/hosted quick are mandatory, never deferred. Provision the owned private peer rig following docs/user/routing/bfd-redistribution.md; do not use shared VPP or infer native packet PASS from mock race/API fixtures.

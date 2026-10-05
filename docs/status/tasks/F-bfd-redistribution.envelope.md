@@ -1,5 +1,5 @@
 # TASK ENVELOPE — F-bfd-redistribution
-id: F-bfd-redistribution   branch: task/F-bfd-redistribution   worktree: /root/ngfw-wt/F-bfd-redistribution   base: main@<BASE>   started: <STARTED>
+id: F-bfd-redistribution   branch: codex/ready-bfd-20261005   worktree: /root/ngfw-wt/ready-bfd-20261005   base: origin/main@e5dba658   started: 2026-10-05
 title: Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX
 prompt: prompts/features/F-bfd-redistribution.md   (template: prompts/FEATURE-TEMPLATE.md; refreshed on task/prep-rest against main, task/P08, task/W-seed and the P12/F-vrf-static-ecmp envelopes)   wbs: D3.8, D3.10
 scope: VPP BFD end to end on DF-7's merged descriptors (projection of `routing.bfd.sessions` + auth/multihop, BFD events), FRR `bfd` section for protocol-attached BFD (bfdd, profiles), the redistribution matrix (state reader over the protocols' own `redistribute` lines), route-policy UX on top of P12's prefix-list/route-map editors (reorder, where-used), API, UI, docs. NOT the `viaFrr` flag or its selector (F-vrf-static-ecmp owns both, D-109a)
@@ -11,7 +11,7 @@ merged deps you can rely on: P08, P12, DF-7, F-ospf, W-seed (+ the wave-B/C anch
   - F-vrf-static-ecmp (through P12): `routing.static[].viaFrr` + `frr.RegisterStaticSelector` registered once — consume, never register again (it panics)
   - also on main: TD-2, TD-3 (V19 sanitizer + preflight), TD-5 if merged
 read first: prompts/features/F-bfd-redistribution.md · docs/status/wave-BC-numbers.md (Pack rules, section F-bfd-redistribution) · docs/status/wave-A-hotspots.md (§0 rules; ids A1 A2 A6 C1–C7 P1 P4 P5 P6 W1–W3 A7) · docs/agent/descriptors/bfd.md · apps/agent/internal/renderers/frr/README.md · docs/status/tasks/{P12,F-ospf,F-vrf-static-ecmp,DF-7}.md · docs/decisions/LOG.md D-051, D-063, D-071, D-072, D-076, D-080, D-082, D-087, D-094, D-095, D-101, D-109 · docs/decisions/PENDING-secret-channel.md
-slot: <SLOT> → NGFW_SLOT=<SLOT> NGFW_TEST_PREFIX=w<SLOT> NGFW_HTTP_PORT=3000+100·<SLOT> NGFW_WEB_PORT=5000+100·<SLOT> NGFW_METRICS_PORT=9100+10·<SLOT>+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w<SLOT>/agent.sock NGFW_PG_DATABASE=ngfw_w<SLOT> NGFW_VALKEY_DB=<SLOT> NGFW_VPP_TABLE_BASE=<SLOT>000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
+slot: 14 (manager assignment; host-independent development only) → NGFW_SLOT=<SLOT> NGFW_TEST_PREFIX=w<SLOT> NGFW_HTTP_PORT=3000+100·<SLOT> NGFW_WEB_PORT=5000+100·<SLOT> NGFW_METRICS_PORT=9100+10·<SLOT>+1 NGFW_AGENT_SOCKET=/run/ngfw-test/w<SLOT>/agent.sock NGFW_PG_DATABASE=ngfw_w<SLOT> NGFW_VALKEY_DB=<SLOT> NGFW_VPP_TABLE_BASE=<SLOT>000 NGFW_LAB_LOCK=/run/lock/ngfw-lab.lock
   - source of truth: `eval "$(tools/lab env <SLOT>)"`
   - rig prefix w<SLOT> → 10.<SLOT>.{1,2}.0/24; BFD auth-key conf ids and any table id in <SLOT>000–<SLOT>999 (`df7.WithIDRange` from `subsystems.SlotIDRange()`)
   - test agents run with NGFW_GLOBALS_OWNER=0 (D-071)

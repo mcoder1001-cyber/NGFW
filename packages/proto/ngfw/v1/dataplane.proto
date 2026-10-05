@@ -176,6 +176,10 @@ service Dataplane {
   rpc LispState(LispStateRequest) returns (LispStateResponse);
 
   // wave-BC: F-bfd-redistribution
+
+  rpc BfdState(BfdStateRequest) returns (BfdStateResponse);
+  rpc RedistributionMatrix(RedistributionMatrixRequest) returns (RedistributionMatrixResponse);
+
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
@@ -720,6 +724,7 @@ enum EventKind {
   // wave-BC: F-isis-rip
   EVENT_KIND_ISIS_ADJACENCY_CHANGED = 21;
   // wave-BC: F-bfd-redistribution
+  EVENT_KIND_BFD_STATE_CHANGED = 22;
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
@@ -1775,6 +1780,7 @@ message OspfInterface {
   // wave-BC: F-ospf
   OspfAuth auth = 9;
   // wave-BC: F-bfd-redistribution
+  optional string bfd_profile = 10;
 }
 
 message OspfAuth {
@@ -1834,6 +1840,7 @@ message IsisInterface {
   optional bool ipv4 = 6;
   optional bool ipv6 = 7;
   // wave-BC: F-bfd-redistribution
+  optional string bfd_profile = 8;
 }
 
 // IsisConfig mirrors `routing.isis`.
@@ -1909,6 +1916,8 @@ message BfdSession {
   optional bool enabled = 7;
 
   // wave-BC: F-bfd-redistribution
+  BfdAuth auth = 8;
+  optional bool multihop = 9;
 }
 
 // BfdConfig mirrors `routing.bfd`.
@@ -1917,6 +1926,7 @@ message BfdConfig {
   repeated BfdSession sessions = 1;
 
   // wave-BC: F-bfd-redistribution
+  map<string, BfdProfile> profiles = 2;
 }
 
 // ----- tunnels (P02c, mirrors packages/schema/src/domains/tunnels.ts) -----
@@ -7624,6 +7634,53 @@ message LispStateResponse {
 }
 
 // ----- F-bfd-redistribution -----
+
+message BfdAuth {
+  optional string type = 1;
+  optional uint32 key_id = 2;
+  optional string key_ref = 3;
+}
+message BfdProfile {
+  optional uint32 desired_min_tx_us = 1;
+  optional uint32 required_min_rx_us = 2;
+  optional uint32 detect_multiplier = 3;
+}
+message BfdStateRequest { string owner = 1; }
+message BfdSessionState {
+  string engine = 1;
+  string interface = 2;
+  string local_address = 3;
+  string peer_address = 4;
+  string state = 5;
+  uint32 desired_min_tx_us = 6;
+  uint32 required_min_rx_us = 7;
+  uint32 detect_multiplier = 8;
+  google.protobuf.Timestamp last_flap = 9;
+  bool multihop = 10;
+}
+message BfdStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated BfdSessionState sessions = 3;
+  string error = 4;
+}
+message RedistributionMatrixRequest { string owner = 1; }
+message RedistributionEdge {
+  string source = 1;
+  string target = 2;
+  string vrf = 3;
+  string route_map = 4;
+  optional uint32 metric = 5;
+  optional uint64 route_count = 6;
+  bool read_only = 7;
+}
+message RedistributionMatrixResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated RedistributionEdge edges = 3;
+  string error = 4;
+}
+
 
 // ----- F-ra-vpn -----
 

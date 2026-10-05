@@ -1,0 +1,30 @@
+{
+  "nav": "BFD",
+  "live": "Live BFD sessions",
+  "refresh": "Refresh",
+  "engine": "Engine",
+  "interface": "Interface",
+  "peer": "Peer",
+  "state": "State",
+  "timers": "Timers (µs)",
+  "matrix": "Redistribution matrix",
+  "policy": "Routing policy",
+  "target": "Target protocol",
+  "moveUp": "Move up",
+  "timerValue": "{{tx}} / {{rx}} × {{multiplier}}",
+  "enabled": "✓",
+  "usage": "{{proto}} ← {{source}}",
+  "vrf": "VRF",
+  "defaultVrf": "Default",
+  "loading": "Loading live BFD observations",
+  "empty": "No live BFD sessions",
+  "states": {
+    "up": "Up",
+    "down": "Down",
+    "init": "Initializing",
+    "admin-down": "Administratively down",
+    "unknown": "Unknown"
+  },
+  "loadingMatrix": "Loading redistribution observations",
+  "emptyMatrix": "No observed redistribution edges"
+}

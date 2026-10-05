@@ -995,3 +995,6 @@ answer only when a management NIC is identified (F-default-vpp-nics seed, D-164/
 ### F-vrrp-config-sync: VrrpState
 
 `VrrpState(owner)` is read-only and owner checked. It reports the configured named routers against actual owner-scoped VPP dumps and the same gated keepalived runtime used by Apply. `state` is observed (`init`, `backup`, `master`, `interface-down`, `fault`, `stop`) or explicit `unknown`, with an `error` when an observation is unavailable. Current effective priority and native master advertisement interval in milliseconds are observations; absent keepalived interval remains zero. EventKind 17 publishes owner-scoped native `WatchEvents` transitions and keepalived state observations. Peer field 3 `certificate_pin` and HaCluster field 10 `sync_exclude` are additive API-to-API transport settings; the agent does not perform configuration synchronization.
+
+### F-bfd-redistribution
+BfdState and RedistributionMatrix are owner-scoped, read-only RPCs. Session state includes engine, endpoints, timers, state and optional last-flap timestamp. Matrix counts are optional: unavailable counts are never represented as zero. BFD auth references remain write-only; key material is never returned. EventKind 22 is BFD_STATE_CHANGED.

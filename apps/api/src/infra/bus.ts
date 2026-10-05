@@ -17,6 +17,7 @@ export const TOPICS = [
   // wave-BC: F-ospf
   // wave-BC: F-isis-rip
   // wave-BC: F-bfd-redistribution
+  'bfd-redistribution.events',
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp.events',

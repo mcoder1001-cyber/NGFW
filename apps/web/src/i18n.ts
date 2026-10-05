@@ -88,6 +88,8 @@ import faSrv6 from './locales/fa/srv6.json';
 import enLisp from './locales/en/lisp.json';
 import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-bfd-redistribution
+import enBfdRedistribution from "./locales/en/bfd-redistribution.json";
+import faBfdRedistribution from "./locales/fa/bfd-redistribution.json";
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 import enMplsLdp from './locales/en/mpls-ldp.json';
@@ -229,6 +231,7 @@ export const NAMESPACES = [
   // wave-BC: F-lisp
   'lisp',
   // wave-BC: F-bfd-redistribution
+  'bfd-redistribution',
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp',
@@ -341,6 +344,7 @@ const en = {
   // wave-BC: F-lisp
   lisp: enLisp,
   // wave-BC: F-bfd-redistribution
+  "bfd-redistribution": enBfdRedistribution,
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp': enMplsLdp,
@@ -450,6 +454,7 @@ const fa = {
   // wave-BC: F-lisp
   lisp: faLisp,
   // wave-BC: F-bfd-redistribution
+  "bfd-redistribution": faBfdRedistribution,
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp': faMplsLdp,

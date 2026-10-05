@@ -59,6 +59,11 @@ func FRRDoc(ds *ngfwv1.DesiredState, selector func(i int, sr *ngfwv1.StaticRoute
 	rt := ds.GetRouting()
 	out := &ngfwv1.RoutingConfig{}
 	content := false
+	// wave-BC: F-bfd-redistribution
+	if profiles := rt.GetBfd().GetProfiles(); len(profiles) > 0 {
+		out.Bfd = &ngfwv1.BfdConfig{Profiles: profiles}
+		content = true
+	}
 	if pim := rt.GetMulticast().GetPim(); pim != nil {
 		out.Multicast = &ngfwv1.MulticastConfig{Pim: proto.Clone(pim).(*ngfwv1.PimConfig)}
 		content = true

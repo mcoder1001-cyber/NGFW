@@ -356,6 +356,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	// wave-BC: F-bfd-redistribution
+	if err := w.registerBfd(r); err != nil {
+		return nil, err
+	}
 	// wave-BC: F-mpls-ldp
 	// wave-BC: F-igmp-mfib
 	if err := w.registerIgmpMfib(r); err != nil {
@@ -445,8 +448,10 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	w.registerLb(r)
 	w.registerRuleExpiry()         // F-rule-expiry (unanchored)
 	registerSystemIdentity(r, env) // F-system-identity (unanchored)
- w.registerPppoe()
- if err := w.registerPppoeClient(r); err != nil {return nil,err}
+	w.registerPppoe()
+	if err := w.registerPppoeClient(r); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 
@@ -455,6 +460,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 // (TD-3 Q2, ifsanitize.Release), so the index is free for the next creator. A holder that is still
 // unclearable stays (admin down, owns the dirty index).
 func (w *Wiring) AfterResync(ctx context.Context) {
+	w.bfdAfterResync(ctx)      // wave-BC: F-bfd-redistribution
 	w.igmpMfibAfterResync(ctx) // wave-BC: F-igmp-mfib-host
 	rctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
@@ -477,6 +483,7 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
+	w.bfdConnected()                 // wave-BC: F-bfd-redistribution
 	w.igmpMfibConnected()            // wave-BC: F-igmp-mfib-host
 	w.index.Invalidate()
 	id, err := bootid.Current(ctx, w.env.Client)

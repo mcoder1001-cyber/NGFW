@@ -1,0 +1,30 @@
+{
+  "nav": "BFD",
+  "live": "نشست‌های زنده BFD",
+  "refresh": "تازه‌سازی",
+  "engine": "موتور",
+  "interface": "رابط",
+  "peer": "همتا",
+  "state": "وضعیت",
+  "timers": "زمان‌سنج‌ها (میکروثانیه)",
+  "matrix": "ماتریس بازتوزیع",
+  "policy": "سیاست مسیریابی",
+  "target": "پروتکل مقصد",
+  "moveUp": "انتقال به بالا",
+  "timerValue": "{{tx}} / {{rx}} × {{multiplier}}",
+  "enabled": "✓",
+  "usage": "{{proto}} ← {{source}}",
+  "vrf": "VRF",
+  "defaultVrf": "پیش‌فرض",
+  "loading": "در حال دریافت وضعیت زندهٔ BFD",
+  "empty": "نشست زندهٔ BFD وجود ندارد",
+  "states": {
+    "up": "برقرار",
+    "down": "قطع",
+    "init": "در حال راه‌اندازی",
+    "admin-down": "غیرفعال توسط مدیر",
+    "unknown": "نامشخص"
+  },
+  "loadingMatrix": "در حال دریافت وضعیت بازتوزیع",
+  "emptyMatrix": "مسیر بازتوزیع مشاهده‌شده‌ای وجود ندارد"
+}

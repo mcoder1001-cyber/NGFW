@@ -34,6 +34,8 @@ export class SecretDeliveryService {
     const refs = secretRefs(DesiredState.toJSON(state)).filter(({ pointer }) => {
       const parts = parsePointer(pointer);
       if (parts[0] === 'routing') {
+        // wave-BC: F-bfd-redistribution: auth refs use the existing sealed channel.
+        if (/^\/routing\/bfd\/sessions\/[0-9]+\/auth\/keyRef$/.test(pointer)) return true;
         if (/^\/routing\/isis\/(areaPasswordRef|domainPasswordRef)$/.test(pointer)) return true;
         if (
           parts.length !== 6 ||
@@ -100,7 +102,7 @@ export class SecretDeliveryService {
       const selections = refs.filter((r) => r.ref === ref);
       const kinds = new Set(
         selections.map(({ pointer }) =>
-          pointer.startsWith('/routing/') || pointer.startsWith('/interfaces/')
+          pointer.startsWith('/routing/bfd/sessions/') ? 'key' : pointer.startsWith('/routing/') || pointer.startsWith('/interfaces/')
             ? 'password'
             : pointer.startsWith('/vpn/pki/')
               ? pointer.endsWith('/privateKeyRef')
@@ -121,7 +123,8 @@ export class SecretDeliveryService {
           ],
           'operational secret kind is invalid',
         );
-      if (kind === 'key') {
+      const bfdOnly = selections.every(({ pointer }) => pointer.startsWith('/routing/bfd/sessions/'));
+      if (kind === 'key' && !bfdOnly) {
         const certificates = Object.values(state.vpn?.pki?.certificates ?? {}).filter(
           (c) => c.privateKeyRef === ref,
         );
@@ -174,6 +177,10 @@ export class SecretDeliveryService {
       if (result.bundle.values[ref]!.length > 64 * 1024) {
         result.bundle.values[ref]!.fill(0);
         throw problems.unavailable('operational secret exceeds the agent transport limit');
+      }
+      if (bfdOnly && (result.bundle.values[ref]!.length < 1 || result.bundle.values[ref]!.length > 20)) {
+        result.bundle.values[ref]!.fill(0);
+        throw problems.validation([{ pointer: selections[0]!.pointer, rule: 'routing.bfd-key-length', message: 'BFD SHA1 keys must contain 1–20 bytes' }]);
       }
       result.versions[ref] = version;
     }

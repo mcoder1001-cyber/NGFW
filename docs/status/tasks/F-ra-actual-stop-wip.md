@@ -1,0 +1,7 @@
+# Actual Stop failure boundary fixture WIP
+
+Branch codex/ra-actual-stop-20261005; isolated /root/ngfw-wt/ra-actual-stop-20261005. Base local eb1054f50, published source archive 2a7df584a3aac06e94297f8abf5d25553a2974d4. Exclusive owned NEW apps/agent/internal/subsystems/ra_vpn_actual_stop_integration_test.go and this WIP. No product edits or canonical driver overlap.
+
+Design in progress: a fixed complete-boot disposable PID1 guest marker must pass before manager/process actions. Attach a pre-provisioned actual private charon generation and protected public plan/record; use genuine held NET/EXE observations and actual private VPP readbacks through full Wiring.Connected. Only trusted fixed manager Stop operation returns an injected error while the actual process remains alive. Assert no VPP/native/sentinel/transport call or object change and preserved foreign objects. Remove fault and perform verified owned stop cleanup. This is additional injected-manager failure evidence, not original-unit Stop failure acceptance or credential preparation correctness.
+
+Actual execution NOTRUN; portable compile/lint and independent privileged replay pending. Orchestration contract with engine author remains open so the canonical agent cannot concurrently reconcile the fixture VPP. Next: publish checkpoint, build prioritized immutable VM7 diagnostic source, then finish test and guarded orchestration contract without host mutations.

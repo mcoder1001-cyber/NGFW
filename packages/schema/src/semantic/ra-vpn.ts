@@ -2,19 +2,20 @@ import { jsonPointer } from '../pointer.js';
 import { cidrsOverlap, interfaceIndex, parseCidr } from './tunnels-common.js';
 import type { SemanticIssue, ValidatorDefinition } from './registry.js';
 
-/** The independent engine is authorized; runtime activation remains failclosed until implemented. */
+/** Static profile checks. Agent preflight authoritatively gates activation. */
 export const raVpnValidators: readonly ValidatorDefinition[] = [
   {
-    name: 'vpn.remote-access-native-capability',
+    name: 'vpn.remote-access-revocation-reference',
     domains: ['vpn'],
     validate(config) {
       return Object.entries(config.vpn.remoteAccess)
-        .filter(([, profile]) => profile.enabled)
+        .filter(([, profile]) => profile.enabled &&
+          (profile.auth === 'eap-tls' || profile.auth === 'pubkey') &&
+          profile.clientCa !== undefined && profile.clientCa.length > 59)
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([name]) => ({
-          pointer: jsonPointer('vpn', 'remoteAccess', name, 'enabled'),
-          message:
-            'Remote-access VPN is unavailable until the independent engine is operational; disable this profile before committing. Disabled profiles are inactive drafts.',
+          pointer: jsonPointer('vpn', 'remoteAccess', name, 'clientCa'),
+          message: 'Active certificate authentication requires a client CA name of at most 59 characters so its canonical CRL reference fits the sealed reference limit.',
         }));
     },
   },

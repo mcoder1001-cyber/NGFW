@@ -14,25 +14,30 @@ const profile = (enabled: boolean) => ({
   users: [{ username: 'client', passwordRef: 'password/client' }],
 });
 
-describe('native remote-access capability gate', () => {
-  it('rejects enabled profiles with exact escaped pointers without exposing credentials', () => {
-    const config = RootSchema.parse({ vpn: { remoteAccess: { roadwarrior: profile(true) } } });
-    expect(raVpnValidators[0]!.validate(config)).toEqual([
-      {
-        pointer: '/vpn/remoteAccess/roadwarrior/enabled',
-        message: expect.stringContaining('unavailable'),
-      },
-    ]);
-    expect(JSON.stringify(raVpnValidators[0]!.validate(config))).not.toContain('password/client');
-    expect(
-      validateSemantics(config).some(
-        (issue) => issue.pointer === '/vpn/remoteAccess/roadwarrior/enabled',
-      ),
-    ).toBe(true);
+describe('remote-access canonical revocation reference contract', () => {
+  it.each(['eap-tls', 'pubkey'] as const)('enforces the 59/60 boundary for active %s profiles', (authMethod) => {
+    for (const length of [59, 60, 63]) {
+      const config = RootSchema.parse({ vpn: { remoteAccess: { roadwarrior: {
+        ...profile(true), auth: authMethod, clientCa: 'c'.repeat(length),
+      } } } });
+      const issues = raVpnValidators[0]!.validate(config);
+      if (length === 59) expect(issues).toEqual([]);
+      else expect(issues).toEqual([{
+        pointer: '/vpn/remoteAccess/roadwarrior/clientCa',
+        message: expect.stringContaining('59 characters'),
+      }]);
+      expect(JSON.stringify(issues)).not.toContain('password/client');
+      if (length > 59) expect(validateSemantics(config).some(
+        (issue) => issue.pointer === '/vpn/remoteAccess/roadwarrior/clientCa' && issue.message.includes('59 characters'),
+      )).toBe(true);
+    }
   });
-  it('keeps disabled drafts parseable and does not reject unrelated VPN configurations', () => {
-    const config = RootSchema.parse({ vpn: { remoteAccess: { draft: profile(false) } } });
+  it('preserves disabled long-name drafts and supported enabled password profiles', () => {
+    const config = RootSchema.parse({ vpn: { remoteAccess: { draft: {
+      ...profile(false), auth: 'eap-tls', clientCa: 'c'.repeat(63),
+    } } } });
     expect(raVpnValidators[0]!.validate(config)).toEqual([]);
+    expect(raVpnValidators[0]!.validate(RootSchema.parse({ vpn: { remoteAccess: { active: profile(true) } } }))).toEqual([]);
     expect(raVpnValidators[0]!.validate(RootSchema.parse({}))).toEqual([]);
   });
 });

@@ -351,3 +351,20 @@ scoped latest controller/APIecc2 integration, full Service.Apply cross-mount
 packet/restart/rollback, packaging/install readiness, owned lint/full gates.
 Next command: compile broker into owned RAM; extend private PID/mount fixture to
 exercise socket-activated Go helper and exact role readback, without host activation.
+
+2026-10-05 static activation contract correction: removed historical blanket
+semantic rejection of every enabled RA profile. Supported static profiles now
+reach the agent's authoritative readonly credential/handoff/installation preflight;
+this does not bypass runtime guards or advertise installed readiness. Enabled
+EAP-TLS/pubkey clientCa names must be <=59 so cert/<name>.crl fits existing63-char
+sealed reference grammar; disabled drafts retain63-char editability. Actual schema
+10tests PASS5.76s, including59/60/63 boundaries and password-profile nonrefusal.
+Root requests actual API400 pre-mutation probe after final source integration.
+Current broker failure remains concrete: exact cap2 Go target-current typed inode
+check fails. Expanded agent cap3 /proc/1/ns/mnt open returns non-NSFS FD (NS_GET_NSTYPE
+ENOTTY); nonzero/open success was insufficient earlier. No false actual broker
+PASS. Manager pre-cap-drop FD source required, no capability increase. Unpublished
+owned partial-cleanup fixes/finite actual regression remain under development.
+Next command: implement fixed socket service OpenFile manager namespace FD and
+bounded authenticated manager-target response, with typed NSFS proof and explicit
+unsupported custom VPP mount namespace readiness refusal; commit contract first.

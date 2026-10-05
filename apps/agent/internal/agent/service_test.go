@@ -24,6 +24,7 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
+	"ngfw/agent/internal/objects"
 	"ngfw/agent/internal/ownertable"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -59,6 +60,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)                // registered before svc.Close: stop service, then owned runtimes
 	w.Connected(context.Background()) // boot identity for the claim stores (P08)
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -70,6 +72,22 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	svc.claimsTxn = w.ClaimsTxn                       // as Start wires it (TD-11c)
 	t.Cleanup(svc.Close)
 	return svc
+}
+
+// The shared service fixture owns the Wiring's background resolver too.
+// Subtest cleanup must finish before its parent can reuse or remove the state dir.
+func TestNewSvcClosesOwnedWiring(t *testing.T) {
+	dir := t.TempDir()
+	t.Run("lifetime", func(t *testing.T) {
+		newSvc(t, coretest.New(), dir)
+		if objects.RuntimeFor(dir, testOwner) == nil {
+			t.Fatal("owned resolver was not registered")
+		}
+	})
+	if rt := objects.RuntimeFor(dir, testOwner); rt != nil {
+		defer rt.Close() // the diagnostic negative control must not itself leak
+		t.Fatal("service fixture left its owned resolver open after cleanup")
+	}
 }
 
 // hostDirs maps a test's state dir to its host-file dir (F-system-identity): an agent restarted on the same state dir
@@ -812,17 +830,23 @@ var _ net.Listener = (*net.UnixListener)(nil)
 type fakeConn struct {
 	*coretest.VPP
 	states chan vpp.ConnState
+	ready  chan struct{} // optional test barrier: preceding connection processing completed
 }
 
-func (f *fakeConn) States() <-chan vpp.ConnState { return f.states }
-func (f *fakeConn) Close()                       {}
+func (f *fakeConn) States() <-chan vpp.ConnState {
+	if f.ready != nil {
+		f.ready <- struct{}{}
+	}
+	return f.states
+}
+func (f *fakeConn) Close() {}
 
 func TestWatchVPPResyncsOnEveryConnect(t *testing.T) {
 	v := coretest.New()
 	dir := t.TempDir()
 	s := newSvc(t, v, dir)
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, sampleDoc)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
-	fc := &fakeConn{VPP: v, states: make(chan vpp.ConnState, 4)}
+	fc := &fakeConn{VPP: v, states: make(chan vpp.ConnState), ready: make(chan struct{}, 8)}
 	a := &Agent{log: s.log, conn: fc, svc: s, metrics: s.metrics}
 	sub := s.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{
 		ngfwv1.EventKind_EVENT_KIND_VPP_CONNECTED, ngfwv1.EventKind_EVENT_KIND_VPP_DISCONNECTED,
@@ -833,7 +857,13 @@ func TestWatchVPPResyncsOnEveryConnect(t *testing.T) {
 	go func() { a.watchVPP(ctx); close(done) }()
 	defer func() { cancel(); <-done }()
 
+	// The test checks semantic ordering, not a filesystem resync's wall-clock speed.
+	// States is evaluated at each new watch iteration, after the preceding resync.
+	// These producer completion barriers use the test runner's bounded lifetime;
+	// collect's existing five-second deadline reads events already produced.
+	<-fc.ready
 	fc.states <- vpp.ConnState{Connected: true}
+	<-fc.ready
 	evs := collect(t, sub, 3)
 	// VPP "restarted": everything gone, disconnect, reconnect → resync recreates it.
 	v.DeleteInterface("loop701")
@@ -841,7 +871,9 @@ func TestWatchVPPResyncsOnEveryConnect(t *testing.T) {
 	v.DeleteTable(7001, false)
 	v.DeleteTable(7001, true)
 	fc.states <- vpp.ConnState{Connected: false}
+	<-fc.ready
 	fc.states <- vpp.ConnState{Connected: true}
+	<-fc.ready
 	evs = append(evs, collect(t, sub, 4)...)
 	if got := kinds(evs); got != "VPP_CONNECTED:,RECONCILE_START:,RECONCILE_DONE:,VPP_DISCONNECTED:,VPP_CONNECTED:,RECONCILE_START:,RECONCILE_DONE:" {
 		t.Fatalf("events %s", got)

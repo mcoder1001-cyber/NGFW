@@ -1,0 +1,28 @@
+{
+  "base": "7b507db5a0e750146c94b8cc29c681ea2c792a74",
+  "implementationSource": "ab3f7ae17d27b76700fe52562c3b931ea65a224e",
+  "scope": "testfixtures and evidence only; production bytes unchanged",
+  "ownedTestFiles": [
+    {
+      "path": "apps/agent/internal/agent/service_test.go",
+      "digest": "8e47301336038835f6f6e09314436ab5c27d22e5c55c5af198f5f017303b096b"
+    },
+    {
+      "path": "apps/agent/internal/subsystems/igmp_mfib_test.go",
+      "digest": "edaa89b4baa9a1d687b65b6384de7119265eb0100dee4fac85654bbe4bd50cf4"
+    }
+  ],
+  "fullActualRacePackages": {
+    "agentSeconds": 178.826,
+    "subsystemsSeconds": 42.061,
+    "result": "PASS"
+  },
+  "lint": "PASS0issues",
+  "diffCheck": "PASS",
+  "originalFocusedRace30": "PASS20.453/2.944; notproof fullquick was false by itself",
+  "lifetimeOriginalControl": "NEGATIVEFAIL0.11 ownedresolverremainsopen",
+  "delayedOriginalControl": "NEGATIVEFAIL watch6.45/IGMP1.22",
+  "identicalDelayedFixedControl": "PASS7.785/2.500",
+  "invalidEarlyStopControl": "NEGATIVEFAIL0.00 stopbeforeunsubscribe",
+  "completeHostedQuick": "manager integration gate pending"
+}

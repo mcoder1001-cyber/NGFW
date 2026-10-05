@@ -1,0 +1,4 @@
+heavy: all 3 heavy slots busy, waiting (0s): go -C apps/agent test -race ./internal/subsystems ./internal/desired -run ^TestFRRSecret -count=1
+heavy: slot 2 after 40s
+ok  	ngfw/agent/internal/subsystems	1.576s
+ok  	ngfw/agent/internal/desired	1.562s

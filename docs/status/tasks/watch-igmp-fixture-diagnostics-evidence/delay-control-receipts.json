@@ -1,0 +1,30 @@
+[
+  {
+    "classification": "controlled fixture latency; no trackedproductmutations",
+    "source": "a50e12a9fa8bafb6b7b229e8d2332a8815fa4c89",
+    "path": "apps/agent/internal/agent/service_test.go",
+    "delayOverlayDigest": "55861f3fee93dcf5c8d6aae9e8ee98653236d355a55d7451ad23fc9021de85fc",
+    "control": "old"
+  },
+  {
+    "classification": "controlled fixture latency; no trackedproductmutations",
+    "source": "a50e12a9fa8bafb6b7b229e8d2332a8815fa4c89",
+    "path": "apps/agent/internal/subsystems/igmp_mfib_test.go",
+    "delayOverlayDigest": "2e816efaa906f9b88b3fa847ea506b78b4327461b7321b07839ce29d3d8016dc",
+    "control": "old"
+  },
+  {
+    "classification": "controlled fixture latency; no trackedproductmutations",
+    "source": "ab3f7ae17d27b76700fe52562c3b931ea65a224e",
+    "path": "apps/agent/internal/agent/service_test.go",
+    "delayOverlayDigest": "d5d19bd2fef1dcdafd57e45554c4b3315467ae0a6141569356315e63a496bfb1",
+    "control": "fixed"
+  },
+  {
+    "classification": "controlled fixture latency; no trackedproductmutations",
+    "source": "ab3f7ae17d27b76700fe52562c3b931ea65a224e",
+    "path": "apps/agent/internal/subsystems/igmp_mfib_test.go",
+    "delayOverlayDigest": "afc8aff310555835f32f00b9568e9571c7f77d5b01f034d490de2b18a1a0950a",
+    "control": "fixed"
+  }
+]

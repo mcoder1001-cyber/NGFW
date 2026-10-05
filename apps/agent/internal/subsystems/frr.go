@@ -99,9 +99,10 @@ type FRR struct {
 	mapper  *lcpmap.Mapper
 	r       *frr.Renderer
 
-	mu        sync.Mutex
-	last      *ngfwv1.DesiredState // last applied document (nil: none since start, or removed)
-	lastFiles renderers.Files
+	mu             sync.Mutex
+	last           *ngfwv1.DesiredState // last applied document (nil: none since start, or removed)
+	lastFiles      renderers.Files
+	lastSecretRefs map[string]string // generations used by lastFiles, never current-cache inference
 
 	pollOnce sync.Once
 	stop     chan struct{}
@@ -109,9 +110,11 @@ type FRR struct {
 
 	// stateSlot serialises State (review M3, D-132): one walk of FRR and VPP in flight; a caller that cannot get the slot
 	// within stateWait gets ErrStateBusy (UNAVAILABLE), like F-vrf-static-ecmp's route dump.
-	stateSlot    chan struct{}
-	secretMu     sync.RWMutex
-	secretSource func(string) ([]byte, error)
+	stateSlot         chan struct{}
+	secretMu          sync.RWMutex
+	secretSource      func(string) ([]byte, error)
+	secretFingerprint func(context.Context, string) (string, error)
+	secretHistory     func(context.Context, string) ([]byte, error)
 }
 
 // stateWait is how long a RoutingState call waits for the one in flight (tests shorten it).
@@ -132,15 +135,20 @@ func FRRRuntime(owner string) *FRR {
 	return nil
 }
 
-// FRRProjection returns the options of the FRR builder (desired.FRROptions): the D-072 selector, no secret resolver
-// (PENDING-secret-channel) and the renderer's pure Render as the check, so DryRun reports what FRR would refuse to
-// render before anything is applied.
+// FRRProjection returns the FRR builder's selector, rendering check and optional
+// keyed password generations from the transaction-selected sealed snapshot.
 func FRRProjection() desired.FRROptions {
-	return desired.FRROptions{
+	options := desired.FRROptions{
 		Selector: func(i int, sr *ngfwv1.StaticRoute) bool { return frr.StaticOwnedByFRR(i, sr, nil) },
 		Check:    CheckFRR,
 		Disabled: !frrEnabled.Load(),
 	}
+	if rt := activeFRR.Load(); rt != nil {
+		rt.secretMu.RLock()
+		options.SecretRef = rt.secretFingerprint
+		rt.secretMu.RUnlock()
+	}
+	return options
 }
 
 // CheckFRR renders doc without applying it: every registered section and interface-line producer, the linux-cp
@@ -225,6 +233,12 @@ func (rt *FRR) render(ctx context.Context, doc *ngfwv1.DesiredState) (renderers.
 
 // apply renders, validates and applies doc (nil = the framework-only configuration, which forgets the last document).
 func (rt *FRR) apply(ctx context.Context, doc *ngfwv1.DesiredState) error {
+	return rt.applyWithSecretBindings(ctx, doc, nil)
+}
+
+type frrSecretBindingsKey struct{}
+
+func (rt *FRR) applyWithSecretBindings(ctx context.Context, doc *ngfwv1.DesiredState, bindings map[string]string) error {
 	remove := doc == nil
 	if !rt.Enabled() {
 		return fmt.Errorf("%w (owner %q, %s=%q)", ErrFRRUnavailable, rt.owner, EnvFRR, os.Getenv(EnvFRR))
@@ -234,6 +248,16 @@ func (rt *FRR) apply(ctx context.Context, doc *ngfwv1.DesiredState) error {
 	}
 	if doc == nil {
 		doc = &ngfwv1.DesiredState{}
+	}
+	rt.secretMu.RLock()
+	generationEnabled := rt.secretFingerprint != nil
+	rt.secretMu.RUnlock()
+	if generationEnabled && len(desired.FRRReferencedSecrets(doc)) > 0 && bindings == nil {
+		return errors.New("FRR password generation bindings are required")
+	}
+	bindings = maps.Clone(bindings)
+	if bindings != nil {
+		ctx = context.WithValue(ctx, frrSecretBindingsKey{}, bindings)
 	}
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -248,9 +272,9 @@ func (rt *FRR) apply(ctx context.Context, doc *ngfwv1.DesiredState) error {
 		return err
 	}
 	if remove {
-		rt.last, rt.lastFiles = nil, nil
+		rt.last, rt.lastFiles, rt.lastSecretRefs = nil, nil, nil
 	} else {
-		rt.last, rt.lastFiles = proto.Clone(doc).(*ngfwv1.DesiredState), files
+		rt.last, rt.lastFiles, rt.lastSecretRefs = proto.Clone(doc).(*ngfwv1.DesiredState), files, maps.Clone(bindings)
 		rt.startPoller()
 	}
 	rt.log.Info("FRR configuration applied", "conf", rt.paths.ConfFile(), "bgp", doc.GetRouting().GetBgp() != nil)
@@ -264,13 +288,14 @@ func (rt *FRR) retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		return nil, nil
 	}
 	rt.mu.Lock()
-	last, files := rt.last, rt.lastFiles
+	last, files, bindings := rt.last, rt.lastFiles, maps.Clone(rt.lastSecretRefs)
 	rt.mu.Unlock()
 	if !rt.Running() {
 		if last == nil {
 			return nil, nil
 		}
-		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(last, desired.FRRUnreachable)}}, nil
+		value, err := desired.FRRValueWithSecretBindings(last, desired.FRRUnreachable, bindings)
+		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: value}}, err
 	}
 	if last == nil {
 		// after an agent restart: FRR may still run a configuration applied by an earlier run of this agent
@@ -286,12 +311,15 @@ func (rt *FRR) retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	diff, err := rt.r.DryRun(ctx, files)
 	switch {
 	case err != nil:
-		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(last, desired.FRRUnreachable)}}, nil
+		value, err := desired.FRRValueWithSecretBindings(last, desired.FRRUnreachable, bindings)
+		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: value}}, err
 	case diff != "":
 		rt.log.Warn("FRR running configuration drifted from the applied one", "diff", diff)
-		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(last, desired.FRRDrift)}}, nil
+		value, err := desired.FRRValueWithSecretBindings(last, desired.FRRDrift, bindings)
+		return []scheduler.KV{{Key: desired.FRRConfigKey, Value: value}}, err
 	}
-	return []scheduler.KV{{Key: desired.FRRConfigKey, Value: desired.FRRValue(last, desired.FRRApplied)}}, nil
+	value, err := desired.FRRValueWithSecretBindings(last, desired.FRRApplied, bindings)
+	return []scheduler.KV{{Key: desired.FRRConfigKey, Value: value}}, err
 }
 
 // hasOwnContent reports whether a running configuration holds anything beyond the framework's globals.
@@ -361,7 +389,11 @@ func (d *frrConfigDescriptor) Create(ctx context.Context, obj proto.Message) (an
 	if err != nil {
 		return nil, err
 	}
-	return nil, d.rt.apply(ctx, doc)
+	bindings, err := desired.FRRSecretBindings(obj)
+	if err != nil {
+		return nil, err
+	}
+	return nil, d.rt.applyWithSecretBindings(ctx, doc, bindings)
 }
 
 func (d *frrConfigDescriptor) Update(ctx context.Context, _, newObj proto.Message, _ any) (any, error) {
@@ -698,17 +730,48 @@ func SetFRRSecrets(owner string, source func(string) ([]byte, error)) error {
 	rt.secretMu.Unlock()
 	return nil
 }
+
+// SetFRRSecretGenerations binds active keyed fingerprints and historical sealed
+// resolution. Historical material remains selected by the scheduler value during
+// rollback; changing a transaction selection never changes already bound renders.
+func SetFRRSecretGenerations(owner string, fingerprint func(context.Context, string) (string, error), history func(context.Context, string) ([]byte, error)) error {
+	rt := FRRRuntime(owner)
+	if rt == nil {
+		return ErrFRRUnavailable
+	}
+	if fingerprint == nil || history == nil {
+		return frr.ErrNoSecretResolver
+	}
+	rt.secretMu.Lock()
+	rt.secretFingerprint, rt.secretHistory = fingerprint, history
+	rt.secretMu.Unlock()
+	return nil
+}
+
 func (rt *FRR) resolveSecret(ctx context.Context, ref string) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
 	}
 	rt.secretMu.RLock()
-	source := rt.secretSource
+	source, history := rt.secretSource, rt.secretHistory
 	rt.secretMu.RUnlock()
-	if source == nil || !strings.HasPrefix(ref, "password/") {
+	if !strings.HasPrefix(ref, "password/") {
 		return "", frr.ErrNoSecretResolver
 	}
-	raw, err := source(ref)
+	var raw []byte
+	var err error
+	if bindings, bound := ctx.Value(frrSecretBindingsKey{}).(map[string]string); bound {
+		fingerprint, present := bindings[ref]
+		if !present || history == nil {
+			return "", frr.ErrNoSecretResolver
+		}
+		raw, err = history(ctx, fingerprint)
+	} else {
+		if source == nil {
+			return "", frr.ErrNoSecretResolver
+		}
+		raw, err = source(ref)
+	}
 	if err != nil {
 		return "", frr.ErrNoSecretResolver
 	}

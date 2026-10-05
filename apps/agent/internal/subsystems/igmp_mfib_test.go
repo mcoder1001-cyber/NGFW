@@ -13,6 +13,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp/fake"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -53,6 +54,10 @@ func TestIgmpReconnectWaitsForOldUnsubscribe(t *testing.T) {
 	registered := make(chan struct{}, 2)
 	cleanupStarted := make(chan struct{}, 1)
 	release := make(chan struct{})
+	unsubscribeFinished := make(chan struct{})
+	var finishedOnce sync.Once
+	var subscriptions atomic.Int32
+	replacementTooEarly := make(chan struct{}, 1)
 	var releaseOnce sync.Once
 	var w *Wiring
 	t.Cleanup(func() {
@@ -66,10 +71,18 @@ func TestIgmpReconnectWaitsForOldUnsubscribe(t *testing.T) {
 	f.On("want_igmp_events", func(m api.Message) ([]api.Message, error) {
 		req := m.(*binigmp.WantIgmpEvents)
 		if req.Enable != 0 {
+			if subscriptions.Add(1) > 1 {
+				select {
+				case <-unsubscribeFinished:
+				default:
+					replacementTooEarly <- struct{}{}
+				}
+			}
 			registered <- struct{}{}
 		} else {
 			cleanupStarted <- struct{}{}
 			<-release
+			finishedOnce.Do(func() { close(unsubscribeFinished) })
 		}
 		return []api.Message{&binigmp.WantIgmpEventsReply{}}, nil
 	})
@@ -93,16 +106,21 @@ func TestIgmpReconnectWaitsForOldUnsubscribe(t *testing.T) {
 	case <-time.After(20 * time.Millisecond):
 	}
 	releaseOnce.Do(func() { close(release) })
-	select {
-	case <-stopped:
-	case <-time.After(time.Second):
-		t.Fatal("stop did not complete")
-	}
+	// Await the actual old unsubscribe and stop, rather than require a valid
+	// production cleanup (bounded by its five-second guard) to finish in one second.
+	// The test runner bounds these completion barriers; ordering remains strict.
+	<-unsubscribeFinished
+	<-stopped
 	w.igmpMfibAfterResync(context.Background())
 	select {
 	case <-registered:
 	case <-time.After(time.Second):
 		t.Fatal("new subscribe missing")
+	}
+	select {
+	case <-replacementTooEarly:
+		t.Fatal("replacement subscribed before old unsubscribe completed")
+	default:
 	}
 	if v, ok := igmpWatches.LoadAndDelete(w); ok {
 		v.(*igmpWatch).stop()

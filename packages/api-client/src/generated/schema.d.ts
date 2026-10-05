@@ -20029,7 +20029,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': string;
+          'application/octet-stream': string;
         };
       };
       /** @description Invalid request or configuration (errors[] with JSON pointers) */
@@ -20639,13 +20639,16 @@ export interface operations {
   BackupRestore_upload: {
     parameters: {
       query?: never;
-      header?: never;
+      header: {
+        /** @description Signed bundle filename, for example ngfw-update-1.2.3.tar */
+        'x-ngfw-filename': string;
+      };
       path?: never;
       cookie?: never;
     };
     requestBody: {
       content: {
-        'application/json': string;
+        'application/vnd.ngfw.update': string;
       };
     };
     responses: {

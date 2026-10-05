@@ -1136,6 +1136,7 @@ export class CommitService implements OnApplicationShutdown {
           ownerKeyId: c.ownerKeyId,
           lockedAt: c.lockedAt,
           payload: c.payload,
+          restoreSecrets: c.restoreSecrets ?? null,
           baseRevisionId: revision.id,
         });
       }

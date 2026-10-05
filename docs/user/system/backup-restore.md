@@ -19,3 +19,20 @@ Upgrade uploads stream raw `application/vnd.ngfw.update` data to the dedicated u
 REST equivalents: `POST /api/v1/actions/backup` with `{passphrase,revisions}`, `POST /api/v1/actions/restore` with `{passphrase,archive}` (base64), `GET/PUT /api/v1/config-templates/:name`, `POST /api/v1/config-templates/:name/apply` with `{parameters}`, `POST /api/v1/actions/support-bundle`, and `POST /api/v1/actions/upgrade` with an operation enum. Read schedule state from `GET /api/v1/state/backup`. Read candidate schedules at `/api/v1/config/candidate/management/backup`; stage edits with `PUT /api/v1/config/management/backup`. Commit/confirm/rollback use the existing configuration API. The equivalent appliance CLI is `ngfw-upgrade status --json`, `stage <bundle>`, `activate`, `confirm`, `rollback`; backup/restore/templates currently use the REST API rather than a separate appliance CLI wrapper.
 
 Fleet provisioning, cloud object storage, HA synchronization, RESTCONF formats, complete account recovery and real upgrades of the development host are outside this feature. VMware boot/rollback/watchdog acceptance remains in F-ab-upgrade's laboratory acceptance record.
+
+## Binary update upload from a terminal
+
+The generated CLI operation table lists the upload endpoint, but its JSON body
+option does not transmit binary bundles. Use the Upgrade page or a streaming
+HTTP request with an administrator bearer token:
+
+```sh
+curl --fail-with-body -X POST "$NGFW_API/api/v1/actions/upgrade-upload" \
+  -H "Authorization: Bearer $NGFW_ACCESS_TOKEN" \
+  -H 'Content-Type: application/vnd.ngfw.update' \
+  -H 'x-ngfw-filename: ngfw-update-1.2.3.tar' \
+  --data-binary @ngfw-update-1.2.3.tar
+```
+
+The response contains the server-generated bundle path. Uploading saves the
+file only; use the existing staged upgrade workflow to verify and activate it.

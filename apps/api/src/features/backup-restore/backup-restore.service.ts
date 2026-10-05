@@ -155,9 +155,6 @@ export class BackupRestoreService {
       const archive = await decryptArchive(bytes, passphrase);
       const clean = withoutPasswordHashes(archive.running).doc;
       const doc = RootConfig.parse(clean);
-      // Account identity/roles are outside snapshot recovery; keep current users and hydrate current hashes.
-      const current = RootConfig.parse((await this.ds.getRunning()).doc);
-      doc.management.users = current.management.users;
       const refs = secretRefs(doc);
       const rows = [];
       for (const ref of new Set(refs.map((r) => r.ref))) {

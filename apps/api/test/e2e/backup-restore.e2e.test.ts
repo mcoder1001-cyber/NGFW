@@ -18,6 +18,8 @@ import {
   secretVersion,
 } from '../../src/db/schema.js';
 import { SecretsService } from '../../src/secrets/secrets.service.js';
+import { AgentClient } from '../../src/agent/agent.client.js';
+import { DatastoreService } from '../../src/datastore/datastore.service.js';
 import { AuditService } from '../../src/audit/audit.service.js';
 import { startHarness, type Harness } from '../support/harness.js';
 
@@ -291,5 +293,85 @@ describe('backup recovery on PostgreSQL with the normal commit API', () => {
     const files = await readdir(directory);
     expect(files.filter((name) => name.endsWith('.ngfwbackup'))).toHaveLength(2);
     expect(await readFile(join(directory, 'keep.txt'), 'utf8')).toBe('user file');
+  });
+  it('preserves accounts committed after archive preparation but before the restore transaction', async () => {
+    const response = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/actions/backup',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { passphrase },
+    });
+    expect(response.statusCode).toBe(200);
+    const ds = h.app.get(DatastoreService);
+    const original = ds.importCandidate.bind(ds);
+    const importHook = vi.spyOn(ds, 'importCandidate').mockImplementationOnce(async (...args) => {
+      await h.createUsers(token, [
+        { username: 'race-account', role: 'operator', password: 'NGFW_TEST_PSK_RACE_ACCOUNT' },
+      ]);
+      return original(...args);
+    });
+    try {
+      const restored = await h.call(token, 'POST', '/api/v1/actions/restore', {
+        passphrase,
+        archive: response.rawPayload.toString('base64'),
+      });
+      expect(restored.status).toBe(200);
+      const before = await h.db.select().from(appUser);
+      expect(before.some((u) => u.username === 'race-account')).toBe(true);
+      expect((await h.call(token, 'POST', '/api/v1/config/commit')).status).toBe(200);
+      expect(await h.db.select().from(appUser)).toEqual(before);
+    } finally {
+      importHook.mockRestore();
+    }
+  });
+  it('retains restored secret pins when an earlier promotion leaves a newer candidate intact', async () => {
+    const response = await h.app.inject({
+      method: 'POST',
+      url: '/api/v1/actions/backup',
+      headers: { authorization: `Bearer ${token}` },
+      payload: { passphrase },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(
+      (await h.call(token, 'PUT', '/api/v1/config/system', { hostname: 'in-flight' })).status,
+    ).toBe(200);
+    const agent = h.app.get(AgentClient),
+      originalApply = agent.apply.bind(agent);
+    let started!: () => void, release!: () => void;
+    const applied = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const applyHook = vi.spyOn(agent, 'apply').mockImplementationOnce(async (...args) => {
+      const result = await originalApply(...args);
+      started();
+      await held;
+      return result;
+    });
+    const commit = h.call(token, 'POST', '/api/v1/config/commit');
+    try {
+      await applied;
+      expect(
+        (
+          await h.call(token, 'POST', '/api/v1/actions/restore', {
+            passphrase,
+            archive: response.rawPayload.toString('base64'),
+          })
+        ).status,
+      ).toBe(200);
+      const [before] = await h.db.select().from(configCandidate);
+      expect(Object.keys(before!.restoreSecrets ?? {}).length).toBeGreaterThan(0);
+      release();
+      expect((await commit).status).toBe(200);
+      const [after] = await h.db.select().from(configCandidate);
+      expect(after?.payload).toEqual(before?.payload);
+      expect(after?.restoreSecrets).toEqual(before?.restoreSecrets);
+    } finally {
+      release();
+      applyHook.mockRestore();
+    }
+    expect((await h.call(token, 'POST', '/api/v1/config/discard')).status).toBe(200);
   });
 });

@@ -219,7 +219,18 @@ export class DatastoreService {
       // before the schema so no problem message ever quotes such a key raw. Pre-existing ones do not block edits.
       const unsafe = newUnsafeTextIssues(base, mutated);
       if (unsafe.length > 0) throw problems.validation(unsafe, UNSAFE_TEXT_MESSAGE);
-      const next = preserveSecrets(base, parseDocument(mutated));
+      let parsed = parseDocument(mutated);
+      if (restoreRows !== undefined) {
+        // Candidate lock serializes this read with normal commits: snapshots never replace current accounts.
+        parsed = parseDocument(
+          setAt(
+            parsed,
+            '/management/users',
+            structuredClone(getAt(runningDoc, '/management/users')),
+          ),
+        );
+      }
+      const next = preserveSecrets(base, parsed);
       // wave-BC: F-default-vpp-nics — physical NICs: never removed, marker read-only (datastore/physical-nics.ts)
       assertPhysicalNicEdit(base, next);
       if (

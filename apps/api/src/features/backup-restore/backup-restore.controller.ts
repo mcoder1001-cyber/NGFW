@@ -10,7 +10,7 @@ import {
   Res,
   StreamableFile,
 } from '@nestjs/common';
-import { ApiBody, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiConsumes, ApiHeader, ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { UpgradeOp } from '@ngfw/proto';
 import { z } from 'zod';
 import { createWriteStream } from 'node:fs';
@@ -99,6 +99,7 @@ export class BackupRestoreController {
   @HttpCode(200)
   @Protected(400, 403, 409)
   @ApiOperation({ summary: 'Download a passphrase-encrypted full configuration backup' })
+  @ApiProduces('application/octet-stream')
   @ApiBody({ schema: openapi(BackupBody) })
   @ApiOkResponse({ schema: { type: 'string', format: 'binary' } })
   async download(
@@ -290,6 +291,13 @@ export class BackupRestoreController {
   @Protected(400, 403, 409)
   @ApiOperation({
     summary: 'Stream a signed update bundle to the dedicated updates directory (maximum 8 GiB)',
+  })
+  @ApiConsumes('application/vnd.ngfw.update')
+  @ApiHeader({
+    name: 'x-ngfw-filename',
+    required: true,
+    schema: { type: 'string', pattern: '^ngfw-update-\\d+\\.\\d+\\.\\d+\\.tar$' },
+    description: 'Signed bundle filename, for example ngfw-update-1.2.3.tar',
   })
   @ApiBody({ schema: { type: 'string', format: 'binary' } })
   @ApiOkResponse({ schema: openapi(z.object({ bundle: z.string() }), 'output') })

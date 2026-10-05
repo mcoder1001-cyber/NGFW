@@ -96,3 +96,18 @@ nullable timestamp contract and additionally requires a positive kernel handshak
 stamp; prior failures retained. Actual native REST commit refused the stale
 `/vpn/ipsec` unsupported warning; separate product prerequisite is documented in
 the questions file and assigned to the manager. Current OSPF run still pending.
+
+Actual tagged REST WireGuard repeat PASS: applied candidate/owner/hash, positive
+kernel latest-handshake, API established peer, inner ping and bidirectional UDP,
+owned tagged agent restart/recovered ping, REST rollback with empty WireGuard
+state, shared VPP unchanged. Evidence run:
+`.scratch/traffic-b-rest-primary-three/wireguard-packets` and private phase log.
+The actual API event timestamp remains null and is reported as observed.
+
+OSPF opt-in fixture now materializes documented defaults (default VRF, normal area,
+noSummary/passive/BFD false, empty redistribution and default originate off), with
+all configured leaf comparisons retained. Owned session cleanup now handles
+surviving descendants after leader exit, with bounded TERM grace then KILL only
+for fixture-created process groups. Actual recovery/safety suite15/15 PASS,
+including a real orphaned descendant cleanup probe. REST BGP/OSPF repeat remains
+in progress; complete quick and native warning prerequisite remain pending.

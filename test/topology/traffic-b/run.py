@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 sys.dont_write_bytecode=True
+from owned_process import stop_session
 from scenario import PHASES,Refused,slot_values
 ROOT=Path(__file__).resolve().parents[3]
 HERE=Path(__file__).resolve().parent
@@ -39,10 +40,8 @@ def execute(argv, env, log, *, timeout=2100):
         child=subprocess.Popen(argv,cwd=ROOT,env=env,stdout=stream,stderr=subprocess.STDOUT,start_new_session=True)
         try:return child.wait(timeout=timeout)
         finally:
-            if child.poll() is None:
-                os.killpg(child.pid,signal.SIGTERM)
-                try:child.wait(timeout=15)
-                except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
+            stop_session(child)
+
 
 
 def campaign(slot,output,selected,*,agent,plugin):

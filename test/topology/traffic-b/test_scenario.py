@@ -189,3 +189,28 @@ class StackRecoveryTests(unittest.TestCase):
                     self.assertEqual(stack.attached_identity(address,'w27')['pid'],os.getpid())
                     with patch('stack.os.readlink',side_effect=['foreign','private']):
                         with self.assertRaises(Refused):stack.attached_identity(address,'w27')
+
+    def test_owned_descendant_stopped_after_group_leader_exit(self):
+        import os
+        from pathlib import Path
+        import subprocess
+        import sys
+        import tempfile
+        import time
+        from owned_process import stop_session
+        with tempfile.TemporaryDirectory() as directory:
+            pidfile=Path(directory)/'descendant'
+            script="import os,time,pathlib; p=os.fork(); pathlib.Path("+repr(str(pidfile))+").write_text(str(p)) if p else time.sleep(60)"
+            leader=subprocess.Popen([sys.executable,'-c',script],start_new_session=True)
+            leader.wait(timeout=5);pid=int(pidfile.read_text())
+            try:
+                stop_session(leader,grace=.3)
+                deadline=time.monotonic()+2
+                while time.monotonic()<deadline:
+                    status=Path(f'/proc/{pid}/stat')
+                    if not status.exists() or status.read_text().split()[2]=='Z':break
+                    time.sleep(.02)
+                else:self.fail('owned descendant survived cleanup')
+            finally:
+                try:os.kill(pid,9)
+                except ProcessLookupError:pass

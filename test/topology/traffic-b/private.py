@@ -14,6 +14,7 @@ import sys
 import time
 from scenario import Refused,slot_values
 from pgrelay import Relay
+from owned_process import stop_session
 ROOT=Path(__file__).resolve().parents[3]
 
 
@@ -47,10 +48,7 @@ def main():
             child=subprocess.Popen(cmd,env=env,start_new_session=True)
             result=child.wait(timeout=2100)
         finally:
-            if child and child.poll() is None:
-                os.killpg(child.pid,signal.SIGTERM)
-                try:child.wait(timeout=30)
-                except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
+            if child:stop_session(child,grace=30)
             if relay:relay.close()
 
         if identity()!=before:raise Refused('shared VPP changed during private campaign')
@@ -104,11 +102,7 @@ def main():
             try:
                 result=child.wait(timeout=1800)
             finally:
-                if child.poll() is None:
-                    os.killpg(child.pid,signal.SIGTERM)
-                    try:child.wait(timeout=15)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(child.pid,signal.SIGKILL);child.wait()
+                stop_session(child)
             if vpp.poll() is not None:raise Refused('private VPP died during campaign')
             print(json.dumps({'private_runtime':str(runtime),'exit_code':result,'slot':args.slot}),flush=True)
             return result

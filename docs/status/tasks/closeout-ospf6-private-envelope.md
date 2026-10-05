@@ -1,0 +1,1 @@
+Parent authorized bounded original OSPFv3 IPv6 acceptance: two real private peers/Full/100IPv6FRR+VPPFIB/withdraw/recover/restart/rollback on reviewed689. Own isolated fixture/docs only, no source edits/shared resources/license bypass. Checkpoint/publish via parent helper, independent review and exact raw outcomes required; no broad F-ospf-host Done or UI acceptance inferred.

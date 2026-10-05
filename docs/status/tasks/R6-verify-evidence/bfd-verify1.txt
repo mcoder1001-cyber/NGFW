@@ -1,0 +1,16 @@
+
+ RUN  v3.2.7 /dev/shm/r6-verify/apps/web
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/bfd-probe.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/bfd-probe.test.tsx > reproduces untranslated observed state in Persian twice separately
+VERIFY: Persian observed Down translated
+
+ ✓ ../../docs/status/tasks/R6-verify-evidence/bfd-probe.test.tsx (2 tests) 1082ms
+   ✓ reproduces untranslated observed state in Persian twice separately  817ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  10:22:11
+   Duration  16.15s (transform 4.74s, setup 599ms, collect 11.89s, tests 1.08s, environment 1.36s, prepare 323ms)

@@ -1,0 +1,927 @@
+{
+  "results": [
+    {
+      "path": "/system/management",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "Management",
+        "Certificate configuration",
+        "Certificate in use"
+      ],
+      "route": "/system/management?tab=tls",
+      "screenshot": "en-0-system-management.png"
+    },
+    {
+      "path": "/system/management",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "Management",
+        "Users"
+      ],
+      "route": "/system/management?tab=users",
+      "screenshot": "en-1-system-management.png"
+    },
+    {
+      "path": "/services",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "Services",
+        "Load balancer (engine lb)",
+        "Settings (global)"
+      ],
+      "liveVip": {
+        "name": "browser-web",
+        "applied": true
+      },
+      "route": "/services?tab=lb",
+      "screenshot": "en-2-services.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "MPLS",
+        "MPLS tables"
+      ],
+      "route": "/routing/mpls",
+      "screenshot": "en-3-routing-mpls.png"
+    },
+    {
+      "path": "/routing/ospf",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "OSPF",
+        "Live neighbors",
+        "OSPFv2",
+        "Areas",
+        "Interfaces",
+        "Redistribute",
+        "Redistribute connected",
+        "Redistribute static",
+        "Redistribute bgp",
+        "Redistribute isis",
+        "Redistribute rip",
+        "Areas",
+        "Interfaces"
+      ],
+      "route": "/routing/ospf",
+      "screenshot": "en-4-routing-ospf.png"
+    },
+    {
+      "path": "/routing/isis-rip",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "IS-IS and RIP",
+        "IS-IS",
+        "Interfaces",
+        "Redistribute",
+        "Redistribute connected",
+        "Redistribute static",
+        "Redistribute bgp",
+        "Redistribute ospf",
+        "Redistribute rip",
+        "Interfaces",
+        "Live adjacencies and peers"
+      ],
+      "route": "/routing/isis-rip",
+      "screenshot": "en-5-routing-isis-rip.png"
+    },
+    {
+      "path": "/routing/wan",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "WAN groups"
+      ],
+      "route": "/routing/wan",
+      "screenshot": "en-6-routing-wan.png"
+    },
+    {
+      "path": "/firewall/nat",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "NAT",
+        "Session timeouts (seconds)"
+      ],
+      "route": "/firewall/nat",
+      "screenshot": "en-7-firewall-nat.png"
+    },
+    {
+      "path": "/system/dataplane",
+      "lang": "en",
+      "dir": "ltr",
+      "headings": [
+        "Dataplane",
+        "DPDK devices",
+        "Plugins",
+        "Observed data plane runtime",
+        "Candidate and running",
+        "Installed startup settings"
+      ],
+      "route": "/system/dataplane",
+      "screenshot": "en-8-system-dataplane.png"
+    },
+    {
+      "path": "/system/management",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "مدیریت",
+        "پیکربندی گواهی",
+        "گواهی در حال استفاده"
+      ],
+      "route": "/system/management?tab=tls",
+      "screenshot": "fa-0-system-management.png"
+    },
+    {
+      "path": "/system/management",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "مدیریت",
+        "کاربران"
+      ],
+      "route": "/system/management?tab=users",
+      "screenshot": "fa-1-system-management.png"
+    },
+    {
+      "path": "/services",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "سرویس‌ها",
+        "توزیع‌کننده بار (موتور lb)",
+        "تنظیمات (سراسری)"
+      ],
+      "liveVip": {
+        "name": "browser-web",
+        "applied": true
+      },
+      "route": "/services?tab=lb",
+      "screenshot": "fa-2-services.png"
+    },
+    {
+      "path": "/routing/mpls",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "MPLS",
+        "جدول‌های MPLS"
+      ],
+      "route": "/routing/mpls",
+      "screenshot": "fa-3-routing-mpls.png"
+    },
+    {
+      "path": "/routing/ospf",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "OSPF",
+        "همسایه‌های زنده",
+        "OSPFv2",
+        "Areas",
+        "Interfaces",
+        "Redistribute",
+        "Redistribute connected",
+        "Redistribute static",
+        "Redistribute bgp",
+        "Redistribute isis",
+        "Redistribute rip",
+        "ناحیه‌ها",
+        "رابط‌ها"
+      ],
+      "route": "/routing/ospf",
+      "screenshot": "fa-4-routing-ospf.png"
+    },
+    {
+      "path": "/routing/isis-rip",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "IS-IS و RIP",
+        "IS-IS",
+        "Interfaces",
+        "Redistribute",
+        "Redistribute connected",
+        "Redistribute static",
+        "Redistribute bgp",
+        "Redistribute ospf",
+        "Redistribute rip",
+        "رابط‌ها",
+        "همسایه‌ها و همتایان زنده"
+      ],
+      "route": "/routing/isis-rip",
+      "screenshot": "fa-5-routing-isis-rip.png"
+    },
+    {
+      "path": "/routing/wan",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "گروه‌های WAN"
+      ],
+      "route": "/routing/wan",
+      "screenshot": "fa-6-routing-wan.png"
+    },
+    {
+      "path": "/firewall/nat",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "NAT",
+        "مهلت نشست‌ها (ثانیه)"
+      ],
+      "route": "/firewall/nat",
+      "screenshot": "fa-7-firewall-nat.png"
+    },
+    {
+      "path": "/system/dataplane",
+      "lang": "fa",
+      "dir": "rtl",
+      "headings": [
+        "صفحه داده",
+        "دستگاه‌های DPDK",
+        "افزونه‌ها",
+        "وضعیت مشاهده‌شدهٔ صفحهٔ داده",
+        "نامزد و در حال اجرا",
+        "تنظیمات راه‌اندازی نصب‌شده"
+      ],
+      "route": "/system/dataplane",
+      "screenshot": "fa-8-system-dataplane.png"
+    }
+  ],
+  "responses": [
+    {
+      "path": "/api/v1/auth/banner",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/methods",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 401
+    },
+    {
+      "path": "/api/v1/auth/banner",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/methods",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/host",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/events",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/management/tls",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/lb/vips",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/services",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ospf",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/isis/adjacencies",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/wan",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/nat/summary",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/nat",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/dataplane",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/dataplane",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/management/tls",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/management",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/lb/vips",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/services",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/ospf",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/isis/adjacencies",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/wan",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/nat/summary",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/nat",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/dataplane",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/dataplane",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

@@ -1,0 +1,221 @@
+{
+  "source_sha": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+  "binary_sha256": "8061a66350bc92de932dc73e42aed09055406975ca6c187558ec67424f8bf43f",
+  "build_provenance": {
+    "source_sha": "64fffb9dda441f169834ecb1dfc06865a1c6d37d",
+    "binary_sha256": "8061a66350bc92de932dc73e42aed09055406975ca6c187558ec67424f8bf43f",
+    "agent_sha256": "50c6519a317c8d010430ff27a8d061885e60d5f84a86657a8e082f7e276ff389"
+  },
+  "slot": 10,
+  "date_utc": "2026-10-04T17:52:26.734321+00:00",
+  "shared_vpp_before": "MainPID=1014\nNRestarts=0\n",
+  "results": [
+    {
+      "case": "agent-baseline",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^Test(AgentOnHost|AgentProcessOnHost|HostNicsOnHost|DataplaneRuntimeOnHost|UntaggedClaimsSurviveAgentRestartOnHost|WireguardOnHost)$"
+      ],
+      "extra_env": {},
+      "exit": 0,
+      "elapsed": 34.86,
+      "tests": [
+        {
+          "test": "TestAgentOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestAgentProcessOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestUntaggedClaimsSurviveAgentRestartOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestDataplaneRuntimeOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestHostNicsOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestWireguardOnHost",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "case": "tunnels",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestTunnelsOnDisposableVPP$"
+      ],
+      "extra_env": {},
+      "exit": 0,
+      "elapsed": 7.28,
+      "tests": [
+        {
+          "test": "TestTunnelsOnDisposableVPP",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "case": "mpls",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestMplsOnHost$"
+      ],
+      "extra_env": {
+        "NGFW_DF7_GLOBALS": "1"
+      },
+      "exit": 0,
+      "elapsed": 12.46,
+      "tests": [
+        {
+          "test": "TestMplsOnHost",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "case": "srv6",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestSrv6(OnHost|GlobalsOnHost)$"
+      ],
+      "extra_env": {
+        "NGFW_FSRV6_GLOBALS": "1"
+      },
+      "exit": 0,
+      "elapsed": 8.38,
+      "tests": [
+        {
+          "test": "TestSrv6OnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestSrv6GlobalsOnHost",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "case": "lb",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestLb(OnHost|GarbageCollectOnHost)$"
+      ],
+      "extra_env": {
+        "NGFW_LB_HOST": "1",
+        "NGFW_LB_GLOBALS": "1"
+      },
+      "exit": 0,
+      "elapsed": 71.85,
+      "tests": [
+        {
+          "test": "TestLbOnHost",
+          "outcome": "pass"
+        },
+        {
+          "test": "TestLbGarbageCollectOnHost",
+          "outcome": "pass"
+        }
+      ]
+    },
+    {
+      "case": "wireguard-packets",
+      "command": [
+        "/root/ngfw-wt/codex-8c-host-acceptance/tools/heavy.sh",
+        "python3",
+        "/root/ngfw-wt/codex-8c-host-acceptance/test/topology/hardware-smoke/isolated-vpp.py",
+        "go",
+        "tool",
+        "test2json",
+        "-t",
+        "-p",
+        "ngfw/agent/internal/agent",
+        "/root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/8c-complete-agent-host/agent-host.test",
+        "-test.v=test2json",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestWireguardHandshakeOnHost$"
+      ],
+      "extra_env": {
+        "NGFW_WG_HANDSHAKE": "1"
+      },
+      "exit": 0,
+      "elapsed": 7.36,
+      "tests": [
+        {
+          "test": "TestWireguardHandshakeOnHost",
+          "outcome": "pass"
+        }
+      ]
+    }
+  ],
+  "shared_vpp_after": "MainPID=1014\nNRestarts=0\n",
+  "shared_vpp_unchanged": true
+}

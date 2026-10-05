@@ -1,0 +1,18 @@
+{
+  "fixture": "d4988c8d2f51b6f3e9ccb59d63bd4c538de4d6fe",
+  "components": [
+    {
+      "component": "http-service",
+      "source": "64fffb9dda441f169834ecb1dfc06865a1c6d37d"
+    },
+    {
+      "component": "web",
+      "source": "ff5333a98ce5688789d29b1149ddfc9febd3fd0f"
+    },
+    {
+      "component": "agent",
+      "source": "ff5333a98ce5688789d29b1149ddfc9febd3fd0f"
+    }
+  ],
+  "scope": "real API + owned native MPLS/SRv6 and English/Persian browser; component sources mixed; not latest whole-appliance acceptance"
+}

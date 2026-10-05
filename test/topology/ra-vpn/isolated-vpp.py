@@ -71,7 +71,12 @@ plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin
                 with test_log.open('xb') as test_output:
                     os.chmod(test_log, 0o600)
                     package, name = ('./internal/agent','^TestIntegrationPrivateProductionRAControllerLifecycle$') if mode=='production' else ('./internal/ra_vpn','^TestIntegrationPrivateVPPPolicyEAP$')
-                    result = subprocess.call(['go', 'test', package, '-run', name, '-count=1', '-v'], env=env, stdout=test_output, stderr=subprocess.STDOUT)
+                    command = ['go', 'test', package, '-run', name, '-count=1', '-v']
+                    if mode == 'production':
+                        # Match the protected agent unit: its NSFS bind mounts must
+                        # be visible to the separately mounted VPP/manager parent.
+                        command = ['/usr/bin/unshare', '--mount', '--propagation', 'private', '--'] + command
+                    result = subprocess.call(command, env=env, stdout=test_output, stderr=subprocess.STDOUT)
                 for line in test_log.read_text(errors='replace').splitlines():
                     if line.startswith(('=== RUN', '--- PASS', '--- FAIL', 'PASS', 'FAIL', 'ok ')) or '_test.go:' in line:
                         print(line[:400], flush=True)

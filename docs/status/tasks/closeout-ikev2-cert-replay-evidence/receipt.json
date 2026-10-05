@@ -1,0 +1,12 @@
+{
+  "productSource": "e51b7797ea984ae42536d0e2639a521456ae204b",
+  "contractSource": "3e172a4f13148745014111d44bec2f9a36a60148",
+  "nativeCapabilityPatch": "2e2513d1d3d3c95b80a6ee6401d5f836513b5465",
+  "agentSHA256": "bbcea36474344f0e3a0f6d8a48bdd555fce38c8fcacba74740ab151cfcea5f6e",
+  "pluginSHA256": "2c2079209cc69db8ebe1e6682df365d9313ab5545728324c6996aba28924cda6",
+  "productDiffAfterTests": "",
+  "sharedVPP": "MainPID=1014\nNRestarts=0",
+  "startupSHA256": "a4763491ad8b173929546ba0cf83f438e7cdfa9aecd9068f15e202852ee22af0",
+  "peerMode": "stock default; RSA_SIG/SHA1 negotiated; no explicit legacy toggle",
+  "scope": "IPv4 native initiator, generated RSA leaf pinned out of band, default VRF, stock strongSwan6.0.4"
+}

@@ -1,0 +1,23 @@
+{
+  "actualExit": 0,
+  "scope": "actual MPLS/SRv6 API and configured English/Persian browser bounded acceptance; mixed frozen components",
+  "sharedVpp": "MainPID=1014\nNRestarts=0",
+  "startupDigest": "a4763491ad8b173929546ba0cf83f438e7cdfa9aecd9068f15e202852ee22af0",
+  "ownedPidsStopped": [
+    1150411,
+    1155195,
+    1157731,
+    1155257
+  ],
+  "ownedDbAndRoleAbsent": true,
+  "remainingOwnedValkeyKeys": 0,
+  "removedOwnedValkeyKeys": 21,
+  "remainingBrowserProfiles": 0,
+  "artifactEntries": 1049,
+  "artifactPrePostEqual": true,
+  "browserCases": 16,
+  "browserExceptions": 0,
+  "browserApi5xx": 0,
+  "baselineRollback": "applied; strict absence, native FIB and configuration assertions passed",
+  "earlierFailures": "attempts1\u201310 retained; 7/9 actualrecommit504 unresolved intermittent"
+}

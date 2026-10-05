@@ -1,18 +1,18 @@
 # Progress
 
-Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
+Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 88.2% by hours (1392.0/1577.5 h), 88.2% by tasks (186/211)**
+**Overall: 90.5% by hours (1428.0/1577.5 h), 90.5% by tasks (191/211)**
 
 | state | tasks |
 |---|---|
-| merged | 186 |
+| merged | 191 |
 | review | 0 |
-| running | 0 |
-| ready | 7 |
-| parked | 10 |
+| running | 3 |
+| ready | 1 |
+| parked | 9 |
 | failed | 0 |
-| todo | 8 |
+| todo | 7 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,21 +20,23 @@ Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 931.0 / 1002.0 | 92.9% | 137/150 | 0 | 3 | 7 |
-| S5 | 102 / 155.5 | 65.6% | 10/16 | 0 | 4 | 1 |
+| S4 | 937.0 / 1002.0 | 93.5% | 139/150 | 2 | 0 | 6 |
+| S5 | 132 / 155.5 | 84.9% | 13/16 | 1 | 1 | 1 |
 | S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
+- F-bfd-redistribution — Wave B (day 10-12): BFD (VPP+FRR), redistribution matrix, route-policy UX (running, unassigned; New source97f67a2c closes R5 scale/history defects; R5 verify APPROVE; affected reviews and full gate pending.)
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
+- F-ha-state-sync — HA state sync (T2, partial ok): NAT/ACL session sync, IPsec SA sync, failover test automation (running, unassigned; New API source834eed6f:691tests PASS; independent actual API replay active; R6 stale observation defect reproduced awaiting repair.)
 
 ## Parked
 
 - TD-19 — parked_on: PENDING-TD19-repository-trust
 - LAB-vpp-per-slot — parked_on: PENDING-vpp-host-hardening
-- P12-fib-proof — parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
-- F-lb-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
+- P12-fib-proof — parked_on: PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof
 - F-srv6-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-mpls-srmpls-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-global-blocking-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN

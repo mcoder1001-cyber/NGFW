@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+"""Pre-migration database backup; ordered before both firstboot and API."""
+import importlib.machinery
+import importlib.util
+from pathlib import Path
+import os
+import sys
+
+loader = importlib.machinery.SourceFileLoader('upgrade', '/usr/sbin/ngfw-upgrade')
+spec = importlib.util.spec_from_loader(loader.name, loader)
+u = importlib.util.module_from_spec(spec)
+loader.exec_module(u)
+try:
+    app = u.Appliance('/')
+    with app.lock():
+        state = app.state()
+        if state.get('pending_slot') == app.active:
+            # Repeated service runs retain the original pre-migration snapshot.
+            if not state.get('migration_backup'):
+                backup = app.data / 'ngfw-upgrade' / ('before-' + state['versions'][app.active] + '.dump')
+                temporary = backup.with_suffix('.partial')
+                fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                try:
+                    with os.fdopen(fd, 'wb') as out:
+                        import subprocess
+                        subprocess.run(['runuser', '-u', 'postgres', '--', 'pg_dump', '--format=custom', '--dbname=ngfw'],
+                                       stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.DEVNULL, check=True)
+                        out.flush()
+                        os.fsync(out.fileno())
+                    os.replace(temporary, backup)
+                    state['migration_backup'] = str(backup)
+                    app.save(state)
+                finally:
+                    if temporary.exists():
+                        temporary.unlink()
+except Exception:
+    print('ngfw-upgrade: pre-migration backup failed; API startup blocked', file=sys.stderr)
+    sys.exit(1)

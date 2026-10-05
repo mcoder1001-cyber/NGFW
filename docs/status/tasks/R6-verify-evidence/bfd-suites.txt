@@ -1,0 +1,61 @@
+Scope: all 8 workspace projects
+✓ Lockfile passes supply-chain policies (verified 2d ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 558, reused 557, downloaded 0, added 512
+Packages: +597
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 597, reused 597, downloaded 0, added 597, done
+.../node_modules/protobufjs postinstall$ node scripts/postinstall
+.../node_modules/@swc/core postinstall$ node postinstall.js
+.../node_modules/protobufjs postinstall: Done
+.../node_modules/@swc/core postinstall: Done
+
+devDependencies:
++ @eslint/js 9.39.5
++ eslint 9.39.5
++ globals 16.5.0
++ prettier 3.9.8
++ turbo 2.11.2
++ typescript 5.9.3
++ typescript-eslint 8.70.1
+
+Done in 5.1s using pnpm v12.5.1
+
+ RUN  v3.2.7 /dev/shm/r6-verify/apps/web
+
+stdout | src/App.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | src/domains/routing/bfd-redistribution/BfdRedistributionPage.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stderr | src/App.test.tsx > App frame > renders the shell with navigation groups built from the schema root keys
+No `HydrateFallback` element provided to render during initial hydration
+
+ ✓ src/domains/routing/bfd-redistribution/BfdRedistributionPage.test.tsx (4 tests) 1795ms
+   ✓ renders truthful localized live states in en  812ms
+   ✓ renders truthful localized live states in fa  355ms
+   ✓ shows the observed redistribution VRF and localized empty state  383ms
+stdout | src/domains/routing/bfd/BfdPage.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+ ✓ src/domains/routing/bfd/BfdPage.test.tsx (2 tests) 1168ms
+   ✓ Routing → BFD and redistribution (WEB-4a, unrouted) > lists BFD sessions and the redistribution matrix  1122ms
+ ✓ src/App.test.tsx (12 tests) 121756ms
+   ✓ App frame > renders the shell with navigation groups built from the schema root keys  8346ms
+   ✓ App frame > shows "not yet available" for unbuilt domain screens, with the schema title and no data  1047ms
+   ✓ App frame > switches to Persian: RTL direction, lang attribute and translated labels  3742ms
+   ✓ App frame > code-splits the developer routes and renders the SchemaForm demo  19030ms
+   ✓ App frame > has no /dev routes and no Developer nav group when dev routes are off (production builds, review M1)  5022ms
+   ✓ App frame > marks exactly one navigation item as the current page on nested domain paths (review L4)  7175ms
+   ✓ App frame > opens the group of a deep-linked page, marks its entry current, and lets the user close it (D-117)  15376ms
+   ✓ App frame > opens the group of a page reached by in-app navigation, and reopens it after the user closed it (D-117)  15829ms
+   ✓ App frame > phone drawer: unique ids per list and the same expanded groups as the side drawer  17145ms
+   ✓ App frame > keeps groups collapsed until their header is clicked, and toggles them closed again  23263ms
+   ✓ App frame > placeholder titles follow a language switch without navigating (review L3)  4363ms
+   ✓ App frame > renders a not-found page for unknown paths  1411ms
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  10:19:09
+   Duration  133.08s (transform 6.62s, setup 1.49s, collect 24.03s, tests 124.72s, environment 3.40s, prepare 678ms)

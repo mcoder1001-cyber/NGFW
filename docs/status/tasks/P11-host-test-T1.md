@@ -1,0 +1,7 @@
+# P11-host: independent T1 verification
+
+Verdict: PASS. Exact source `f59c3ea7b9cf0d6ad52a0f1c4db82bb0f6bddd1b`; unchanged full quick started2026-10-05 07:51:45UTC, ended08:01:40UTC, exit0/wall9m55s. Reviewer reused only own clean tracked fixture `/root/ngfw-wt/r1-gate-hardening-20261005` as authorized; source preserved separately `/root/ngfw-wt/r1-source-p11-20261005` and archive ref refs/archive/review-r1/p11-f59c3ea7.
+
+Command: `TURBO_ENV_MODE=loose TMPDIR=/root/.cache/review-r1-tmp GOMAXPROCS=2 GOFLAGS=-p=2 NGFW_CI_TASK_CONCURRENCY=2 tools/heavy.sh tools/ci.sh quick --base origin/main`. All checks/assertions unchanged. Generation1m02s clean, TS35/35 28cached1m01s, agent lint/race/build6m16s, CLI15s, topology modules59s. Deploy shellcheck passed; unchanged complete gate itself reused green fake-host harness keyf59628784f90 from my preceding149passed/0failed hardening run, not manually skipped. Exact source/after-status preserved before next checkout.
+
+Gate warned about untracked deploy/hardening/: inspected as exactly four prior Python __pycache__ .pyc outputs, no source. Removed only these reviewer-owned artifacts after P11 ended; tracked product was clean throughout. Raw log p11-quick.log; steps /root/ngfw-wt/logs/ci/r1-gate-hardening-20261005-20261005-075145-2003398. Guard Python2tests and shellcheck independently PASS (R1 report). Real disposable VPP packet campaign not rerun by this tester; separate T3 evidence required. No shared VPP restart/host mutation performed.

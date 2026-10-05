@@ -1,0 +1,451 @@
+#!/usr/bin/python3
+"""NGFW signed ext4 A/B upgrades. Never uses a shell; all boot paths are explicit."""
+import argparse
+import contextlib
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path, PurePosixPath
+import re
+import shutil
+import stat
+import subprocess
+import sys
+import tarfile
+import tempfile
+
+
+class Refused(Exception):
+    pass
+
+
+def run(*argv, **kwargs):
+    return subprocess.run(argv, check=True, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs).stdout
+
+
+def regular(path):
+    path = Path(path)
+    if not path.is_file() or path.is_symlink():
+        raise Refused('expected regular non-symlink file: ' + str(path))
+    return path
+
+
+def safe_path(root, name):
+    p = PurePosixPath(name)
+    if p.is_absolute() or '..' in p.parts or not p.parts:
+        raise Refused('unsafe archive path')
+    target = root.joinpath(*p.parts)
+    for parent in (target, *target.parents):
+        if parent == root:
+            break
+        if parent.is_symlink():
+            raise Refused('archive path crosses symlink')
+    return target
+
+
+def version(v):
+    if not isinstance(v, str) or len(v) > 50 or not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+', v):
+        raise Refused('version must be numeric major.minor.patch')
+    return tuple(map(int, v.split('.')))
+
+
+def atomic(path, content, mode=0o600):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix='.upgrade-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as f:
+            f.write(content)
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, path)
+        d = os.open(path.parent, os.O_DIRECTORY)
+        try:
+            os.fsync(d)
+        finally:
+            os.close(d)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def json_bytes(value):
+    return (json.dumps(value, sort_keys=True, separators=(',', ':')) + '\n').encode()
+
+
+def unpack_root(archive, root, extract=False):
+    seen = set()
+    size = 0
+    with tarfile.open(archive, 'r:') as tf:
+        members = []
+        for member in tf:
+            members.append(member)
+            if len(members) > 200000:
+                raise Refused('too many rootfs members')
+        # Preflight every entry before mkfs/extraction. Special nodes and hard links
+        # are never accepted. Safe relative symlinks are deferred until files exist.
+        for m in members:
+            name = str(PurePosixPath(m.name))
+            safe_path(root, name)
+            if name in seen or not (m.isfile() or m.isdir() or m.issym()):
+                raise Refused('duplicate or unsupported rootfs member')
+            seen.add(name)
+            size += m.size
+            if size > 18 * 1024**3:
+                raise Refused('rootfs exceeds slot size budget')
+            if any(name == prefix or name.startswith(prefix + '/') for prefix in ('data', 'var/lib/ngfw', 'var/lib/postgresql', 'var/log', 'boot/efi', 'proc', 'sys', 'dev', 'run')) and not m.isdir():
+                raise Refused('rootfs contains persistent or runtime data')
+            if m.uid < 0 or m.gid < 0 or m.uid > 65535 or m.gid > 65535:
+                raise Refused('invalid rootfs ownership')
+            if m.mode & 0o6000:
+                # Existing appliance utilities may legitimately be setuid; retain
+                # no setuid bits from a bundle. Capabilities are not restored.
+                m.mode &= 0o1777
+            if m.issym():
+                link = PurePosixPath(m.linkname)
+                if link.is_absolute():
+                    raise Refused('absolute rootfs symlink unsupported')
+                resolved = os.path.normpath(str(PurePosixPath(name).parent / link))
+                if resolved == '..' or resolved.startswith('../'):
+                    raise Refused('rootfs symlink escapes slot')
+        links = {str(PurePosixPath(m.name)) for m in members if m.issym()}
+        for name in seen:
+            if any(str(p) in links for p in PurePosixPath(name).parents):
+                raise Refused('member below symlink')
+        required = {'etc/ngfw/appliance', 'boot/vmlinuz', 'boot/initrd.img',
+                    'usr/sbin/ngfw-upgrade', 'usr/lib/ngfw/ngfw-upgrade-prepare',
+                    'usr/lib/ngfw/ngfw-upgrade-health', 'usr/lib/ngfw/ngfw-upgrade-probe',
+                    'usr/lib/systemd/system/ngfw-upgrade-prepare.service',
+                    'usr/lib/systemd/system/ngfw-upgrade-health.service', 'usr/share/ngfw/vpp-manifest.json'}
+        if not required <= seen or any(not m.isfile() for m in members if m.name in required):
+            raise Refused('rootfs missing required appliance boot/upgrade files')
+        if not extract:
+            return
+        for m in members:
+            target = safe_path(root, m.name)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if m.isdir():
+                target.mkdir(exist_ok=True)
+                os.chmod(target, m.mode & 0o1777)
+            elif m.isfile():
+                with tf.extractfile(m) as src, open(target, 'xb') as dest:
+                    shutil.copyfileobj(src, dest)
+                os.chmod(target, m.mode & 0o1777)
+                os.chown(target, m.uid, m.gid)
+        # Restore directory ownership/modes after populating them, before any
+        # symlink is installed. Daemons need their package-owned state dirs.
+        for m in reversed(members):
+            if m.isdir():
+                target = safe_path(root, m.name)
+                os.chmod(target, m.mode & 0o1777)
+                os.chown(target, m.uid, m.gid)
+        for m in members:
+            if m.issym():
+                os.symlink(m.linkname, safe_path(root, m.name))
+
+
+def verify(bundle, key, current, work):
+    # Copy once into private scratch: never verify one inode then consume another.
+    snapshot = work / 'bundle.tar'
+    source = regular(bundle)
+    if source.stat().st_size > 8 * 1024**3 + 1024**2:
+        raise Refused('bundle exceeds size limit')
+    with open(source, 'rb') as src, open(snapshot, 'xb') as dst:
+        shutil.copyfileobj(src, dst)
+    with tarfile.open(snapshot, 'r:') as tf:
+        members = tf.getmembers()
+        if {m.name for m in members} != {'manifest.json', 'manifest.sig', 'rootfs.tar.zst'} or len(members) != 3:
+            raise Refused('bundle must contain exactly manifest.json, manifest.sig, rootfs.tar.zst')
+        for m in members:
+            if not m.isfile() or m.size > 8 * 1024**3 or (m.name != 'rootfs.tar.zst' and m.size > 65536):
+                raise Refused('invalid bundle member')
+            with tf.extractfile(m) as src, open(work / m.name, 'xb') as dst:
+                shutil.copyfileobj(src, dst)
+    regular(key)
+    key_type = run('openssl', 'pkey', '-pubin', '-in', str(key), '-text', '-noout')
+    if not key_type.startswith(b'ED25519 Public-Key:') or (work / 'manifest.sig').stat().st_size != 64:
+        raise Refused('Ed25519 key and 64-byte signature required')
+    run('openssl', 'pkeyutl', '-verify', '-pubin', '-inkey', str(key), '-rawin',
+        '-in', str(work / 'manifest.json'), '-sigfile', str(work / 'manifest.sig'))
+    manifest = json.loads((work / 'manifest.json').read_bytes())
+    if set(manifest) != {'format', 'version', 'min_from_version', 'sha256', 'vpp_manifest_sha256', 'migration_policy'} or manifest['format'] != 1:
+        raise Refused('unsupported manifest')
+    if version(current) < version(manifest['min_from_version']) or version(manifest['version']) <= version(current):
+        raise Refused('incompatible or non-increasing version')
+    if manifest['migration_policy'] != 'backward-compatible':
+        raise Refused('only backward-compatible database migrations are allowed')
+    hashes = manifest['sha256']
+    if not isinstance(hashes, dict) or set(hashes) != {'rootfs.tar.zst'}:
+        raise Refused('unexpected manifest members')
+    if not re.fullmatch('[0-9a-f]{64}', manifest['vpp_manifest_sha256']):
+        raise Refused('invalid VPP manifest digest')
+    with open(work / 'rootfs.tar.zst', 'rb') as image:
+        digest = hashlib.file_digest(image, 'sha256').hexdigest()
+    if hashes['rootfs.tar.zst'] != digest:
+        raise Refused('rootfs digest mismatch')
+    # zstd's maximum window and output length are bounded before preflight.
+    with open(work / 'rootfs.tar', 'xb') as out:
+        with subprocess.Popen(['zstd', '-d', '--stdout', '--memory=256MB', str(work / 'rootfs.tar.zst')],
+                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL) as process:
+            count = 0
+            while True:
+                chunk = process.stdout.read(1024 * 1024)
+                if not chunk:
+                    break
+                count += len(chunk)
+                if count > 20 * 1024**3:
+                    process.kill()
+                    process.wait()
+                    raise Refused('uncompressed rootfs too large')
+                out.write(chunk)
+            if process.wait() != 0:
+                raise Refused('invalid compressed rootfs')
+    if (work / 'rootfs.tar').stat().st_size > 20 * 1024**3:
+        raise Refused('uncompressed rootfs too large')
+    unpack_root(work / 'rootfs.tar', work / 'unused')
+    with tarfile.open(work / 'rootfs.tar', 'r:') as tf:
+        member = tf.getmember('usr/share/ngfw/vpp-manifest.json')
+        if member.size > 65536:
+            raise Refused('VPP manifest too large')
+        with tf.extractfile(member) as f:
+            if hashlib.file_digest(f, 'sha256').hexdigest() != manifest['vpp_manifest_sha256']:
+                raise Refused('embedded VPP manifest differs from bundle manifest')
+    return manifest
+
+
+class Appliance:
+    def __init__(self, root, offline_initialization=False):
+        self.root = Path(root).resolve()
+        # Appliance marker is necessary even for status, so the CLI cannot discover
+        # and mutate this build host just because /dev/disk/by-label exists.
+        regular(self.root / 'etc/ngfw/appliance')
+        if os.geteuid() != 0:
+            raise Refused('root required')
+        self.config = json.loads(regular(self.root / 'etc/ngfw/upgrade.json').read_bytes())
+        if set(self.config) != {'format', 'root_devices', 'efi_device', 'data_device', 'pg_device', 'log_device'} or self.config['format'] != 1:
+            raise Refused('invalid upgrade configuration')
+        if set(self.config['root_devices']) != {'A', 'B'}:
+            raise Refused('two root slots required')
+        devices = list(self.config['root_devices'].values()) + [self.config[k] for k in ('efi_device', 'data_device', 'pg_device', 'log_device')]
+        for device in devices:
+            if not isinstance(device, str) or not device.startswith('/dev/') or not stat.S_ISBLK(os.stat(device).st_mode):
+                raise Refused('configuration requires block devices')
+        if len({os.stat(d).st_rdev for d in devices}) != 6:
+            raise Refused('slot/persistent devices must be distinct')
+        # Check actual mount sources, not a user-selected active-slot flag.
+        self.active = None
+        for slot, device in self.config['root_devices'].items():
+            if os.stat(device).st_rdev == self.root.stat().st_dev:
+                self.active = slot
+        if self.active is None:
+            raise Refused('root does not match either configured slot')
+        for mount, devkey in (('boot/efi', 'efi_device'), ('data', 'data_device'), ('var/lib/postgresql', 'pg_device'), ('var/log', 'log_device')):
+            if (self.root / mount).stat().st_dev != os.stat(self.config[devkey]).st_rdev:
+                raise Refused('persistent/EFI mount source mismatch: ' + mount)
+        self.data = self.root / 'data'
+        if self.data.is_symlink() or self.data.stat().st_uid != 0 or self.data.stat().st_mode & 0o022:
+            raise Refused('/data parent must be root-owned and not writable by group/other')
+        if not offline_initialization:
+            shared = self.data / 'ngfw'
+            mounted = self.root / 'var/lib/ngfw'
+            if shared.is_symlink() or not shared.is_dir() or shared.stat().st_uid != 0 or shared.stat().st_mode & 0o022:
+                raise Refused('shared NGFW state directory is unsafe')
+            if (mounted.stat().st_dev, mounted.stat().st_ino) != (shared.stat().st_dev, shared.stat().st_ino):
+                raise Refused('/var/lib/ngfw must bind the shared /data/ngfw directory')
+        self.statefile = self.data / 'ngfw-upgrade/state.json'
+        self.env = self.root / 'boot/efi/EFI/ngfw/grub/grubenv'
+        self.key = regular(self.root / 'etc/ngfw/upgrade-signing.pub')
+        # Prevent writable appliance metadata becoming an arbitrary root command/file
+        # capability. Provisioning is offline, by the administrator, not via API.
+        for p in (self.root / 'etc/ngfw', self.root / 'etc/ngfw/appliance', self.root / 'etc/ngfw/upgrade.json', self.key):
+            if p.stat().st_uid != 0 or p.stat().st_mode & 0o022:
+                raise Refused('appliance metadata must be root-owned and not writable by group/other')
+
+    @contextlib.contextmanager
+    def lock(self):
+        self.statefile.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if self.statefile.parent.is_symlink() or self.statefile.parent.stat().st_uid != 0 or self.statefile.parent.stat().st_mode & 0o077:
+            raise Refused('upgrade state directory must be root-owned mode0700')
+        descriptor = os.open(self.statefile.parent / 'lock', os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, 'a') as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            yield
+
+    def state(self):
+        statefile = regular(self.statefile)
+        if statefile.stat().st_uid != 0 or statefile.stat().st_mode & 0o077:
+            raise Refused('upgrade state file must be root-owned mode0600')
+        s = json.loads(statefile.read_bytes())
+        if s.get('format') != 1 or s.get('default_slot') not in ('A', 'B'):
+            raise Refused('uninitialized or invalid upgrade state')
+        return s
+
+    def save(self, state):
+        self.statefile.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        atomic(self.statefile, json_bytes(state))
+
+    def grub(self, *args):
+        # Explicit file argument, including set/unset; no host default GRUB path.
+        return run('grub-editenv', str(self.env), *args)
+
+    def status(self):
+        s = self.state()
+        env = dict(line.split('=', 1) for line in self.grub('list').decode().splitlines() if '=' in line)
+        return {'format': 1, 'active_slot': self.active, 'default_slot': s['default_slot'],
+                'versions': s['versions'], 'pending_slot': s.get('pending_slot'),
+                'staged_slot': s.get('staged_slot'), 'confirmed': self.active == s['default_slot'] and not s.get('pending_slot'),
+                'next_entry': env.get('next_entry'), 'migration_backup': s.get('migration_backup')}
+
+    def stage(self, bundle):
+        s = self.state()
+        if s.get('pending_slot') or self.active != s['default_slot']:
+            raise Refused('cannot stage while a trial boot is pending')
+        updates = (self.data / 'updates').resolve()
+        path = regular(bundle)
+        if path.resolve().parent != updates or path.is_symlink():
+            raise Refused('bundle must be directly under /data/updates')
+        inactive = 'B' if self.active == 'A' else 'A'
+        device = self.config['root_devices'][inactive]
+        device_id = os.stat(device).st_rdev
+        mounted = run('findmnt', '--raw', '--noheadings', '--output', 'MAJ:MIN').decode().split()
+        if str(os.major(device_id)) + ':' + str(os.minor(device_id)) in mounted:
+            raise Refused('inactive slot is already mounted')
+        with tempfile.TemporaryDirectory(prefix='.verify-', dir=self.data) as scratch:
+            work = Path(scratch)
+            manifest = verify(path, self.key, s['versions'][self.active], work)
+            # Mark inactive slot invalid BEFORE touching its filesystem. A crash can
+            # never activate a partially written image or stale staged metadata.
+            s['staged_slot'] = None
+            s['versions'][inactive] = None
+            self.save(s)
+            run('mkfs.ext4', '-F', '-L', 'ngfw-root' + inactive, device)
+            target = work / 'slot'
+            target.mkdir()
+            run('mount', '-o', 'nodev,nosuid', device, str(target))
+            try:
+                unpack_root(work / 'rootfs.tar', target, extract=True)
+                shutil.rmtree(target / 'etc/ngfw')
+                shutil.copytree(self.root / 'etc/ngfw', target / 'etc/ngfw', symlinks=True)
+                identities = ['etc/machine-id', 'etc/hostname']
+                if (self.root / 'etc/crypttab').exists():
+                    identities.append('etc/crypttab')
+                identities.extend(str(path.relative_to(self.root)) for path in (self.root / 'etc/ssh').glob('ssh_host_*') if path.is_file())
+                for identity in identities:
+                    if identity == 'etc/crypttab' and not (self.root / identity).exists():
+                        continue
+                    source = regular(self.root / identity)
+                    destination = safe_path(target, identity)
+                    if destination.exists():
+                        if not destination.is_file():
+                            raise Refused('identity destination is not a regular file')
+                        destination.unlink()
+                    shutil.copy2(source, destination)
+                uuid = run('blkid', '-s', 'UUID', '-o', 'value', device).decode().strip()
+                lines = ['UUID=' + uuid + ' / ext4 defaults 0 1']
+                for devkey, mountpoint, fs in (('efi_device', '/boot/efi', 'vfat'), ('data_device', '/data', 'ext4'),
+                                             ('pg_device', '/var/lib/postgresql', 'ext4'), ('log_device', '/var/log', 'ext4')):
+                    persistent = run('blkid', '-s', 'UUID', '-o', 'value', self.config[devkey]).decode().strip()
+                    lines.append('UUID=' + persistent + ' ' + mountpoint + ' ' + fs + ' defaults 0 2')
+                lines.append('/data/ngfw /var/lib/ngfw none bind 0 0')
+                efi_uuid = run('blkid', '-s', 'UUID', '-o', 'value', self.config['efi_device']).decode().strip()
+                bootcfg = 'search --no-floppy --fs-uuid --set=ngfw_efi ' + efi_uuid + '\nconfigfile ($ngfw_efi)/EFI/ngfw/grub/grub.cfg\n'
+                atomic(safe_path(target, 'boot/grub/grub.cfg'), bootcfg.encode(), 0o644)
+                atomic(safe_path(target, 'etc/fstab'), ('\n'.join(lines) + '\n').encode(), 0o644)
+                atomic(safe_path(target, 'etc/ngfw/slot'), (inactive + '\n').encode(), 0o644)
+                atomic(safe_path(target, 'etc/ngfw/version'), (manifest['version'] + '\n').encode(), 0o644)
+                atomic(safe_path(target, 'etc/ngfw/staged-manifest.json'), json_bytes(manifest), 0o644)
+                for mountpoint in ('boot/efi', 'data', 'var/lib/ngfw', 'var/lib/postgresql', 'var/log', 'proc', 'sys', 'dev', 'run'):
+                    safe_path(target, mountpoint).mkdir(parents=True, exist_ok=True)
+                # Never consume code from a bundle to change host/boot settings.
+                enabled = safe_path(target, 'etc/systemd/system/multi-user.target.wants')
+                enabled.mkdir(parents=True, exist_ok=True)
+                for name in ('ngfw-upgrade-prepare.service', 'ngfw-upgrade-health.service'):
+                    unit = enabled / name
+                    if unit.exists() or unit.is_symlink():
+                        unit.unlink()
+                    os.symlink('/usr/lib/systemd/system/' + name, unit)
+                for name in ('ngfw-api.service', 'ngfw-firstboot.service'):
+                    requires = safe_path(target, 'etc/systemd/system/' + name + '.requires')
+                    requires.mkdir(parents=True, exist_ok=True)
+                    link = requires / 'ngfw-upgrade-prepare.service'
+                    if link.exists() or link.is_symlink():
+                        link.unlink()
+                    link.symlink_to('/usr/lib/systemd/system/ngfw-upgrade-prepare.service')
+                run('sync', '-f', str(target))
+            finally:
+                run('umount', str(target))
+            s['versions'][inactive] = manifest['version']
+            s['staged_slot'] = inactive
+            s['manifest'] = manifest
+            self.save(s)
+
+    def activate(self):
+        s = self.state()
+        slot = s.get('staged_slot')
+        if slot not in ('A', 'B') or slot == self.active or s.get('pending_slot') or self.active != s['default_slot']:
+            raise Refused('no verified inactive slot staged')
+        if self.grub('list').decode().find('saved_entry=ngfw-' + self.active) < 0:
+            raise Refused('GRUB default disagrees with upgrade state')
+        # Preserve old default. GRUB clears next_entry before attempting the kernel.
+        s['pending_slot'] = slot
+        s['previous_slot'] = self.active
+        s['migration_backup'] = None
+        self.save(s)
+        run('grub-reboot', '--boot-directory=' + str(self.env.parent.parent), 'ngfw-' + slot)
+
+    def confirm(self):
+        s = self.state()
+        if s.get('pending_slot') != self.active or not s.get('migration_backup'):
+            raise Refused('confirm requires running trial slot and completed migration backup')
+        self.grub('set', 'saved_entry=ngfw-' + self.active)
+        self.grub('unset', 'next_entry')
+        s['default_slot'] = self.active
+        s['pending_slot'] = None
+        s['staged_slot'] = None
+        self.save(s)
+
+    def rollback(self):
+        s = self.state()
+        old = s.get('previous_slot', s['default_slot'])
+        if s.get('pending_slot'):
+            old = s['default_slot']
+        if old not in ('A', 'B') or not s['versions'].get(old):
+            raise Refused('no previous valid slot')
+        # Never restore a live database automatically. Health must hold services
+        # stopped until migration recovery is approved/performed by administrator.
+        self.grub('set', 'saved_entry=ngfw-' + old)
+        self.grub('unset', 'next_entry')
+        s['default_slot'] = old
+        s['pending_slot'] = None
+        self.save(s)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--root', default='/')
+    parser.add_argument('operation', choices=['status', 'stage', 'activate', 'confirm', 'rollback'])
+    parser.add_argument('bundle', nargs='?')
+    parser.add_argument('--json', action='store_true')
+    args = parser.parse_args()
+    if (args.operation == 'stage') != bool(args.bundle) or (args.json and args.operation != 'status'):
+        parser.error('stage requires one bundle; --json belongs only to status')
+    try:
+        appliance = Appliance(args.root)
+        with appliance.lock():
+            if args.operation == 'status':
+                print(json.dumps(appliance.status(), sort_keys=True))
+            elif args.operation == 'stage':
+                appliance.stage(args.bundle)
+            else:
+                getattr(appliance, args.operation)()
+    except (Refused, OSError, ValueError, TypeError, KeyError, tarfile.TarError, subprocess.CalledProcessError) as error:
+        # Command stderr may contain secrets; never echo it. Public diagnostics only.
+        print('ngfw-upgrade: ' + (str(error) if isinstance(error, Refused) else type(error).__name__), file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

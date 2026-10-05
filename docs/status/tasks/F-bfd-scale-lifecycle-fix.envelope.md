@@ -1,0 +1,3 @@
+# Fresh BFD reassignment envelope
+
+Developer /root/bfd_scale_lifecycle_fix; branch codex/bfd-scale-lifecycle-fix-20261005; worktree /dev/shm/bfd-scale-fix; exact source base 8f3d2f078. Own only files listed in WIP. Fix two accepted independent R5 MAJORs: quadratic endpoint lookup/claim scans and unbounded/stale observations. Preserve all boot/index/ownership/compensation protections. No product contract or privilege change. Slot14 only if necessary; no shared host mutation. Manager handles independent reviewers, D112, final gates and merge. Durable checkpoints via authorized GitHub connector; local commits alone are not publication.

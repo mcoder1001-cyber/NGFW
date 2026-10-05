@@ -1,0 +1,6 @@
+--- apps/agent/internal/agent/service_test.go
++++ diagnostic-delay-overlay/apps/agent/internal/agent/service_test.go
+@@ -843,0 +844,3 @@
++ beforeTxn := s.beforeTxn
++ var delayed sync.Once
++ s.beforeTxn = func() { delayed.Do(func() { time.Sleep(6*time.Second) }); beforeTxn() }

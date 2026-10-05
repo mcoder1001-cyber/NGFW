@@ -75,6 +75,8 @@ import {
   // wave-BC: F-lisp
   type LispStateResponse,
   // wave-BC: F-bfd-redistribution
+  type BfdStateResponse,
+  type RedistributionMatrixResponse,
   // wave-BC: F-ra-vpn
   type RemoteAccessCapabilitiesResponse,
   type RemoteAccessSessionsRequest,
@@ -485,6 +487,12 @@ export class AgentClient implements OnModuleDestroy {
     return this.unary(this.c.lispState, { owner: this.owner });
   }
   // wave-BC: F-bfd-redistribution
+  bfdState(): Promise<BfdStateResponse> {
+    return this.unary(this.c.bfdState, { owner: this.owner });
+  }
+  redistributionMatrix(): Promise<RedistributionMatrixResponse> {
+    return this.unary(this.c.redistributionMatrix, { owner: this.owner });
+  }
   // wave-BC: F-ra-vpn
   remoteAccessCapabilities(): Promise<RemoteAccessCapabilitiesResponse> {
     return this.remoteAccessResult(this.unary(this.c.remoteAccessCapabilities, { owner: this.owner }));

@@ -266,3 +266,22 @@ All actual packet forwarding/drop, both-path/selected-PBR, NAT translation and
 endpoint independence, rollback/residue, capture-loss and VPP identity cases
 remain **NOT RUN**. No live whole_chain_proven result was generated. Use the
 existing manager lease and an idle owned rig window for this single campaign.
+
+## F-hardening-lite offline tooling acceptance (2026-10-05)
+
+Implemented and independently fixture-tested10controls/signature/key-rotation cases; complete reviewed-source quick PASS36m12. Full signed package install/keyrotation, real daemon runtime under optional profiles and appliance boot smoke NOTRUN: signed /srv/ngfw-artifacts/apt pool and disposable full appliance absent. Do not activate profiles on sharedhost. Owner permits deferring only these actual laboratory executions; offline source/tests and final/hosted current-main integration gates remain required. Follow docs/install/hardening.md on disposable target, record real servicehealth and effective settings before claiming runtime acceptance.
+
+## F-images target execution (2026-10-05)
+
+Implemented qcow2/vmdk/OVA/VHDX/VHD/GCP conversion and offlineVM/cloudtargetprofiles with independent13fixture/format cases andcomplete corrected-source quick PASS22m44. Full signed applianceimage build, actualfirmwareVMboot andAWS/Azure/GCP import NOTRUN: /srv/ngfw-artifacts/apt signedpool/manifest absent andrequiredfullappliancebuildspace unavailable. Disposableformatroundtrips are not applianceboot proof. Ownerpermitsdeferralonly ofthese genuine lab executions; codeguards/current-main local+hosted gates remainrequired. Run docs/install/images.md on isolated provisioned targetandrecordactualboot/interfaces/noautomaticdataplaneNICclaims.
+## F-ab-upgrade appliance execution (2026-10-05)
+
+Signed preformat/staging/confirm/rollback tooling implemented;17independentfixtures, actualownedprivate-loopunsigned/tamperedrefusal,stageB/confirmB/healthfailuredefaultA passed; exactreviewedsourcequick PASS9m49. Actualfirmware one-shotboot/powerfailure,reboothealth onfullappliance,databasebackup/export/restore NOTRUN because disposabledual-slotfirmware/appliancetarget unavailable. Loopmount/GRUBenv fixtures are notfirmwarebootproof. Follow docs/install/ab-upgrade.md onprovisionedisolatedtarget; collectboot/rollback/health/backup evidence. Ownerpermitsonlythese genuine runtimeexecutionsdeferred; finalcurrent-main/hostedmandatory gates remainrequired.
+
+## P11-host remaining appliance execution (2026-10-05)
+
+Actual isolated native PSK responder/initiator production-agent forwarding, rekey, restart, peer loss/retry and authoritative rollback independently PASS; see P11-host-live-test-T3.md. Full appliance deployment acceptance is NOTRUN without a disposable appliance. Certificate peer acceptance belongs to the separate certificate campaign and is not inferred from this PSK evidence. Source and mandatory final integration gates are not deferred.
+
+## F-bfd-redistribution remaining native peer execution (2026-10-05)
+
+Native multihop actual two-peer packet/liveness/authentication and live FRR redistribution counters across forwarding VRFs are NOTRUN because the isolated owned peer rig has not been provisioned. Durable native ownership/compensation/recovery,1024-session indexing, bounded observation lifecycle, FRR parsing/timers/family matrix and authenticated API/browser fixtures were implemented and independently tested. Their source tests and complete current-main local/hosted quick are mandatory, never deferred. Provision the owned private peer rig following docs/user/routing/bfd-redistribution.md; do not use shared VPP or infer native packet PASS from mock race/API fixtures.

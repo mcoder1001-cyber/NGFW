@@ -1,0 +1,39 @@
+2026/10/05 06:24:50 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP
+2026/10/05 06:24:50 INFO keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged
+2026/10/05 06:24:51 INFO PKI file materialiser wired root=/root/.cache/ngfw-ci-host/TestWatchVPPResyncsOnEveryConnect737049209/001/pki-w7 source=true
+2026/10/05 06:24:51 WARN MPLS: no VPP id range; this agent creates no MPLS table err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 06:24:51 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)
+2026/10/05 06:24:51 WARN neighbors: no VPP id range — proxy-ARP ranges (vrfs.<vrf>.proxyArpRanges) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 06:24:51 WARN rpf-adl-pbr: no VPP id range — ABF policies (routing.pbr) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 06:24:51 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)
+2026/10/05 06:24:51 INFO fqdn state reloaded family=objects file=/root/.cache/ngfw-ci-host/TestWatchVPPResyncsOnEveryConnect737049209/001/objects-fqdn-w7.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/05 06:24:51 INFO objects domain wired store=/root/.cache/ngfw-ci-host/TestWatchVPPResyncsOnEveryConnect737049209/001/objects-w7.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/05 06:24:51 INFO acl domain wired family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=false
+2026/10/05 06:24:51 INFO host firewall wired table="inet ngfw_w7" mode=check netns="" rules_file=/root/.cache/ngfw-ci-host/TestWatchVPPResyncsOnEveryConnect737049209/001/host-acl-w7.nft
+2026/10/05 06:24:51 WARN DHCP relay owns no VRF: the agent has no VPP id range err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 06:24:51 INFO kea wired mode=product conf=/etc/kea sockets=/run/kea
+2026/10/05 06:24:51 INFO host services wired feature=unbound-chrony-syslog product_paths=false unbound_conf=/root/.cache/ngfw-ci-host/ngfw-host-3809038859/unbound/unbound.conf chrony_conf=/root/.cache/ngfw-ci-host/ngfw-host-3809038859/chrony/agent/chrony.conf rsyslog_conf=/root/.cache/ngfw-ci-host/ngfw-host-3809038859/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/05 06:24:51 WARN qos: no VPP id range — egress maps (services.qos.maps) cannot be created err="no VPP id range: set NGFW_VPP_TABLE_BASE (a test slot, or a reserved range on a shared host: docs/lab/shared-host-rules.md §12) or NGFW_VPP_ID_RANGE=all (the product agent on a box of its own)"
+2026/10/05 06:24:51 INFO system identity wired product_paths=false hostname_file=/root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/hostname
+2026/10/05 06:24:51 INFO pppoe client wired feature=pppoe-client globals_owner=false product_paths=false
+2026/10/05 06:24:51 INFO VPP boot identity identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/0/? complete=false expired_claims=0
+2026/10/05 06:24:51 INFO reconcile start txn_id=t1 mode=apply domains="[system interfaces vrfs routing]"
+2026/10/05 06:24:51 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop701 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 06:24:51 INFO interface sanitized (VPP V19/V21 inherited state) interface=loop702 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/05 06:24:51 INFO system identity applied feature=system-identity hostname=ngfw-a timezone=UTC files="[/root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/hostname /root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/issue /root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/issue.net /root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/motd /root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/systemd/resolved.conf.d/ngfw.conf]" localtime=true kernel_hostname=false
+2026/10/05 06:24:51 WARN system resolver configuration written; systemd-resolved must be restarted to read it feature=system-identity unit=systemd-resolved action=restart dropin=/root/.cache/ngfw-ci-host/ngfw-host-3809038859/sysident/etc/systemd/resolved.conf.d/ngfw.conf
+2026/10/05 06:24:51 INFO reconcile done txn_id=t1 mode=apply domains="[system interfaces vrfs routing]" status=APPLY_STATUS_APPLIED summary=created:13 reapplied=0 duration=85.559127ms err=""
+2026/10/05 06:24:51 INFO reconcile start txn_id="" mode=resync domains="[system interfaces vrfs routing]"
+2026/10/05 06:24:57 INFO reconcile done txn_id="" mode=resync domains="[system interfaces vrfs routing]" status=APPLY_STATUS_FAILED summary="" reapplied=0 duration=6.07991084s err="retrieve vrf: ip_table_dump: context canceled"
+2026/10/05 06:24:57 ERROR agent degraded why="resync failed: retrieve vrf: ip_table_dump: context canceled"
+2026/10/05 06:24:57 WARN resync owed while degraded in=1h0m0s
+2026/10/05 06:24:57 INFO resync finished why=connect status=APPLY_STATUS_FAILED summary=""
+--- FAIL: TestWatchVPPResyncsOnEveryConnect (6.45s)
+    service_test.go:857: waiting for 3 events, got [ts:{seconds:1791181491 nanos:313191310} seq:1 kind:EVENT_KIND_VPP_CONNECTED message:"VPP 26.06-fake" ts:{seconds:1791181491 nanos:314456033} seq:2 kind:EVENT_KIND_RECONCILE_START message:"resync [system interfaces vrfs routing]"]
+FAIL
+FAIL	ngfw/agent/internal/agent	6.852s
+--- FAIL: TestIgmpReconnectWaitsForOldUnsubscribe (1.22s)
+    igmp_mfib_test.go:101: stop did not complete
+FAIL
+FAIL	ngfw/agent/internal/subsystems	1.578s
+FAIL

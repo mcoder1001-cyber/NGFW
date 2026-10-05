@@ -1,0 +1,6 @@
+--- apps/agent/internal/subsystems/igmp_mfib_test.go
++++ diagnostic-delay-overlay/apps/agent/internal/subsystems/igmp_mfib_test.go
+@@ -56,0 +57 @@
++ var delayed sync.Once
+@@ -72,0 +74 @@
++ delayed.Do(func() { time.Sleep(1200*time.Millisecond) })

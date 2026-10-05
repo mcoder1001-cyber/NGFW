@@ -77,6 +77,14 @@ func WatchEvents(ctx context.Context, c vpp.Client, owner string, opts ...df7.Op
 		if err != nil {
 			return SessionEvent{}, false
 		}
+		if uint32(ev.SwIfIndex) == df7.NoIndex {
+			local, peer := df7.FromAddress(ev.LocalAddr).String(), df7.FromAddress(ev.PeerAddr).String()
+			name, ok := ownedSession(owner, ifs, df7.NoIndex, local, peer)
+			if !ok {
+				return SessionEvent{}, false
+			}
+			return SessionEvent{Key: string(KeySession(name, local, peer)), Interface: name, Local: local, Peer: peer, State: StateName(ev.State)}, true
+		}
 		return DecodeEvent(ev, ifs)
 	}
 	return df7.Watch(ctx, c, &bfd.BfdUDPSessionEvent{}, want, decode)
@@ -101,7 +109,7 @@ func Sessions(ctx context.Context, c vpp.Client, owner string, opts ...df7.Optio
 	var out []SessionState
 	for _, d := range dets {
 		local, peer := df7.FromAddress(d.LocalAddr).String(), df7.FromAddress(d.PeerAddr).String()
-		name, ok := ifs.Owned(uint32(d.SwIfIndex), func(n string) string { return string(KeySession(n, local, peer)) })
+		name, ok := ownedSession(owner, ifs, uint32(d.SwIfIndex), local, peer)
 		if !ok {
 			continue
 		}

@@ -1,0 +1,552 @@
+{
+  "proof": "HTTP fixture observations; not native/appliance acceptance",
+  "results": [
+    {
+      "path": "/routing/bfd",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nBFD and redistribution\n\nConfigure BFD sessions and the routes each dynamic protocol redistributes. Changes are staged in the candidate.\n\nBFD sessions\nRedistribution\nBFD\nCommitted\n\nBFD is not configured — fill in the form to enable it\n\nSessions\n\nNo entries\n\nAdd\nProfiles\n\nNo entries\n\nAdd\nReset\nSave to candidate\nSessions\n\nNo BFD sessions configured\n\nLive BFD sessions\nRefresh\nEngine\tInterface\tPeer\tState\tTimers (µs)\nvpp\tfixture-loop\t192.0.2.2\tDown\t300000 / 300000 × 3\nRedistribution matrixRouting policy",
+      "mode": "light",
+      "screenshot": "en-light--routing-bfd.png"
+    },
+    {
+      "path": "/routing/redistribution",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nRedistribution matrix\nTarget protocol\tconnected\tstatic\tbgp\tospf\tisis\trip\nbgp\t—\t—\t—\t—\t—\t—\nospf\t—\tBLUE_FILTER (11) · VRF: blue\t—\t—\t—\t—\nisis\t—\t—\t—\t—\t—\t—\nrip\t—\t—\t—\t—\t—\t—\nospf6\t—\t—\t—\t—\t—\t—\nripng\t—\t—\t—\t—\t—\t—",
+      "mode": "light",
+      "screenshot": "en-light--routing-redistribution.png"
+    },
+    {
+      "path": "/routing/bfd",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nBFD and redistribution\n\nConfigure BFD sessions and the routes each dynamic protocol redistributes. Changes are staged in the candidate.\n\nBFD sessions\nRedistribution\nBFD\nCommitted\n\nBFD is not configured — fill in the form to enable it\n\nSessions\n\nNo entries\n\nAdd\nProfiles\n\nNo entries\n\nAdd\nReset\nSave to candidate\nSessions\n\nNo BFD sessions configured\n\nLive BFD sessions\nRefresh\nEngine\tInterface\tPeer\tState\tTimers (µs)\nvpp\tfixture-loop\t192.0.2.2\tDown\t300000 / 300000 × 3\nRedistribution matrixRouting policy",
+      "mode": "dark",
+      "screenshot": "en-dark--routing-bfd.png"
+    },
+    {
+      "path": "/routing/redistribution",
+      "lang": "en",
+      "dir": "ltr",
+      "text": "banner.undefined Install or view the licence\nRedistribution matrix\nTarget protocol\tconnected\tstatic\tbgp\tospf\tisis\trip\nbgp\t—\t—\t—\t—\t—\t—\nospf\t—\tBLUE_FILTER (11) · VRF: blue\t—\t—\t—\t—\nisis\t—\t—\t—\t—\t—\t—\nrip\t—\t—\t—\t—\t—\t—\nospf6\t—\t—\t—\t—\t—\t—\nripng\t—\t—\t—\t—\t—\t—",
+      "mode": "dark",
+      "screenshot": "en-dark--routing-redistribution.png"
+    },
+    {
+      "path": "/routing/bfd",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nBFD و بازتوزیع\n\nنشست‌های BFD و مسیرهایی را که هر پروتکل پویا بازتوزیع می‌کند تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره می‌شوند.\n\nنشست‌های BFD\nبازتوزیع\nBFD\nاعمال‌شده\n\nBFD پیکربندی نشده است — برای فعال‌سازی فرم را پر کنید\n\nSessions\n\nموردی وجود ندارد\n\nافزودن\nProfiles\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nنشست‌ها\n\nهیچ نشست BFD پیکربندی نشده است\n\nنشست‌های زنده BFD\nتازه‌سازی\nموتور\tرابط\tهمتا\tوضعیت\tزمان‌سنج‌ها (میکروثانیه)\nvpp\tfixture-loop\t192.0.2.2\tقطع\t300000 / 300000 × 3\nماتریس بازتوزیعسیاست مسیریابی",
+      "mode": "light",
+      "screenshot": "fa-light--routing-bfd.png"
+    },
+    {
+      "path": "/routing/redistribution",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nماتریس بازتوزیع\nپروتکل مقصد\tconnected\tstatic\tbgp\tospf\tisis\trip\nbgp\t—\t—\t—\t—\t—\t—\nospf\t—\tBLUE_FILTER (11) · VRF: blue\t—\t—\t—\t—\nisis\t—\t—\t—\t—\t—\t—\nrip\t—\t—\t—\t—\t—\t—\nospf6\t—\t—\t—\t—\t—\t—\nripng\t—\t—\t—\t—\t—\t—",
+      "mode": "light",
+      "screenshot": "fa-light--routing-redistribution.png"
+    },
+    {
+      "path": "/routing/bfd",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nBFD و بازتوزیع\n\nنشست‌های BFD و مسیرهایی را که هر پروتکل پویا بازتوزیع می‌کند تنظیم کنید. تغییرات در پیکربندی نامزد ذخیره می‌شوند.\n\nنشست‌های BFD\nبازتوزیع\nBFD\nاعمال‌شده\n\nBFD پیکربندی نشده است — برای فعال‌سازی فرم را پر کنید\n\nSessions\n\nموردی وجود ندارد\n\nافزودن\nProfiles\n\nموردی وجود ندارد\n\nافزودن\nبازنشانی\nذخیره در نامزد\nنشست‌ها\n\nهیچ نشست BFD پیکربندی نشده است\n\nنشست‌های زنده BFD\nتازه‌سازی\nموتور\tرابط\tهمتا\tوضعیت\tزمان‌سنج‌ها (میکروثانیه)\nvpp\tfixture-loop\t192.0.2.2\tقطع\t300000 / 300000 × 3\nماتریس بازتوزیعسیاست مسیریابی",
+      "mode": "dark",
+      "screenshot": "fa-dark--routing-bfd.png"
+    },
+    {
+      "path": "/routing/redistribution",
+      "lang": "fa",
+      "dir": "rtl",
+      "text": "banner.undefined نصب یا مشاهدهٔ مجوز\nماتریس بازتوزیع\nپروتکل مقصد\tconnected\tstatic\tbgp\tospf\tisis\trip\nbgp\t—\t—\t—\t—\t—\t—\nospf\t—\tBLUE_FILTER (11) · VRF: blue\t—\t—\t—\t—\nisis\t—\t—\t—\t—\t—\t—\nrip\t—\t—\t—\t—\t—\t—\nospf6\t—\t—\t—\t—\t—\t—\nripng\t—\t—\t—\t—\t—\t—",
+      "mode": "dark",
+      "screenshot": "fa-dark--routing-redistribution.png"
+    }
+  ],
+  "responses": [
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/bfd/sessions",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/redistribution",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

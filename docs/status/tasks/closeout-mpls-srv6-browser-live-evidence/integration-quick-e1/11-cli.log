@@ -1,0 +1,20 @@
+$ make -C apps/cli lint test build
+make: Entering directory '/root/ngfw-wt/codex-mpls-srv6-closeout-final/apps/cli'
+ok: apps/cli talks only to the REST API
+go vet ./...
+0 issues.
+go test -race -count=1 ./...
+?   	ngfw/cli/cmd/ngfw	[no test files]
+?   	ngfw/cli/cmd/ngfw-docgen	[no test files]
+?   	ngfw/cli/cmd/ngfw-opgen	[no test files]
+ok  	ngfw/cli/internal/api	2.728s
+?   	ngfw/cli/internal/api/opgen	[no test files]
+ok  	ngfw/cli/internal/cli	2.291s
+ok  	ngfw/cli/internal/cpath	1.086s
+ok  	ngfw/cli/internal/jschema	1.148s
+?   	ngfw/cli/internal/lineedit	[no test files]
+ok  	ngfw/cli/internal/render	1.130s
+ok  	ngfw/cli/internal/safe	1.126s
+ok  	ngfw/cli/test/e2e	1.107s
+go build -trimpath -ldflags "-s -w -X ngfw/cli/internal/cli.Version=8c0dda57" -o bin/ngfw ./cmd/ngfw
+make: Leaving directory '/root/ngfw-wt/codex-mpls-srv6-closeout-final/apps/cli'

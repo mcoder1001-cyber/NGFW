@@ -1,0 +1,20 @@
+{
+  "scope": "attempt10 diagnostic wholeFAIL; actual cleanup independently observed",
+  "sharedVpp": "MainPID=1014\nNRestarts=0",
+  "startupDigest": "a4763491ad8b173929546ba0cf83f438e7cdfa9aecd9068f15e202852ee22af0",
+  "ownedPidsStopped": [
+    1090035,
+    1090365,
+    1095089,
+    1090656
+  ],
+  "ownedDbAndRoleAbsent": true,
+  "ownedValkeyKeys": 0,
+  "browserProfiles": 0,
+  "artifactPrePostEntries": 1049,
+  "artifactPrePostEqual": true,
+  "configuredScreenshots": 16,
+  "browserRuntimeExceptions": 0,
+  "browserApi5xx": 0,
+  "rollback": "NOT RUN numeric URL fixture failure"
+}

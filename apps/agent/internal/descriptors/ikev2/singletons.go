@@ -31,7 +31,8 @@ var (
 // rsa-sig auth. The file is the secret: the agent passes its path and never reads it. A VPP-global
 // (D-071): registered as setter only for the globals owner. VPP has no getter, so the descriptor
 // is write-only (D-063): Retrieve returns vpn.ErrRetrieveUnsupported and the reconciler re-applies
-// the path on resync — idempotent (D-076): VPP frees the loaded key and loads the file again.
+// the path on resync — VPP frees the loaded key and loads the file again. A fresh native
+// globals-owner replay keeps live dependents while verifying/reloading the actual key.
 // Delete leaves VPP's loaded key (there is no unset).
 type LocalKey struct {
 	cfg    Config
@@ -41,6 +42,14 @@ type LocalKey struct {
 
 // NewLocalKey returns the descriptor.
 func NewLocalKey(cfg Config) *LocalKey { return &LocalKey{cfg: cfg} }
+
+// CreatePreservesDependents allows a fresh native globals-owner process to reload
+// the actual private key without deleting profiles that already use this generation.
+// Create still verifies immutable material/ownership, retires sessions on a real
+// generation change, and runs the native setter with normal uncertainty handling.
+func (d *LocalKey) CreatePreservesDependents() bool {
+	return d.cfg.NativeRoot != "" && d.cfg.GlobalsOwner
+}
 
 // Name implements scheduler.Descriptor.
 func (*LocalKey) Name() string { return LocalKeyName }

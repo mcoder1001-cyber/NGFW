@@ -1,0 +1,419 @@
+{
+  "state": {
+    "path": "http://127.0.0.1:15400/routing/mpls?tab=sr",
+    "title": "NGFW",
+    "lang": "fa",
+    "dir": "rtl"
+  },
+  "responses": [
+    {
+      "path": "/api/v1/auth/banner",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/methods",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/login",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/mpls/tunnels",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/srv6",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/routing/mpls/tunnels",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/interfaces",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/auth/refresh",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/commit/pending",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/system",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/state/license",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/diff",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/lock",
+      "status": 200
+    },
+    {
+      "path": "/api/v1/config/candidate/routing",
+      "status": 200
+    }
+  ],
+  "exceptions": []
+}

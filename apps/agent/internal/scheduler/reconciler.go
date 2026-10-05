@@ -1035,6 +1035,11 @@ func (x *executor) run(ctx context.Context, op PlannedOp) error {
 	switch op.Op {
 	case OpCreate:
 		idx := x.addResult(op.Key, OpCreate, CodeOK, nil)
+		if _, present := x.live[op.Key]; !present && x.res.Plan.writeOnly[op.Key.Descriptor()] {
+			if setter, ok := x.descriptor(op.Key).(WriteOnlyInPlaceCreator); ok && setter.CreatePreservesDependents() {
+				return x.create(ctx, op.Key, op.Value, idx)
+			}
+		}
 		return x.around(ctx, op.Key, op.Value, func() error { return x.create(ctx, op.Key, op.Value, idx) })
 	case OpDelete:
 		idx := x.addResult(op.Key, OpDelete, CodeOK, nil)

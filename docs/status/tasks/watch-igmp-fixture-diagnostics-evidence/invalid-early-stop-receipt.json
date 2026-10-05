@@ -1,0 +1,12 @@
+[
+  {
+    "path": "apps/agent/internal/subsystems/igmp_mfib.go",
+    "classification": "INVALID early-stop negative control, temporary Go overlay only; tracked product untouched",
+    "overlayDigest": "81f848251a86ac30177f361290eb01090ad3566438c50eb05308fa8482ce28c9"
+  },
+  {
+    "path": "apps/agent/internal/subsystems/igmp_mfib_test.go",
+    "classification": "INVALID early-stop negative control, temporary Go overlay only; tracked product untouched",
+    "overlayDigest": "41706cb8c6456ba6cfe78f401e3894265940d3a4699570a35a62a3b7e2a4f5b7"
+  }
+]

@@ -79,6 +79,7 @@ import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
+import { bfdRedistributionFeature } from "./features/bfd-redistribution/index.js";
 // wave-BC: F-ra-vpn
 import { raVpnFeature } from './features/ra-vpn/index.js';
 // wave-BC: F-mpls-ldp
@@ -209,6 +210,7 @@ export class AppModule {
         // wave-BC: F-lisp
         ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
+        ...bfdRedistributionFeature.controllers,
         // wave-BC: F-ra-vpn
         ...raVpnFeature.controllers,
         // wave-BC: F-mpls-ldp
@@ -327,6 +329,7 @@ export class AppModule {
         // wave-BC: F-lisp
         ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution
+        ...bfdRedistributionFeature.providers,
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         ...mplsLdpFeature.providers,

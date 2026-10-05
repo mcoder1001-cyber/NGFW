@@ -380,6 +380,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		desired.Lisp(p, ds.GetTunnels(), vrfID)
 	}
 	// wave-BC: F-bfd-redistribution
+	desired.Bfd(p, ds, in, subsystems.BfdProjection())
 	// wave-BC: F-igmp-mfib
 	desired.IgmpMfib(p, ds, in, vrfID, desired.IgmpGlobalsOwner())
 	// wave-BC: F-ha-state-sync
@@ -494,7 +495,7 @@ var routingLeaves = []routingLeaf{
 	{name: "isis", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
 	{name: "rip", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution
-	{name: "bfd", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBfd() != nil }},
+	{name: "bfd", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBfd() != nil }, handled: true},
 }
 
 // isEmptyDomain reports whether a present domain message carries nothing (the API sends all 13
@@ -613,6 +614,9 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleLisp(ds, kvs, nameOf)
 	}
 	// wave-BC: F-bfd-redistribution
+	if in["routing"] {
+		desired.AssembleBfd(ds, kvs, nil, subsystems.BfdProjection())
+	}
 	// wave-BC: F-igmp-mfib
 	if in["routing"] {
 		desired.AssembleIgmpMfib(ds, kvs, nameOf)

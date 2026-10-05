@@ -1,0 +1,313 @@
+$ make -C apps/agent lint test build
+make: Entering directory '/root/ngfw-wt/codex-mpls-srv6-closeout-final/apps/agent'
+NGFW_TIMING BEGIN agent.vet 2026-10-05T07:26:15.856517831Z
+go vet ./...
+NGFW_TIMING END agent.vet 2026-10-05T07:26:33.268757038Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-05T07:26:33.289806625Z
+0 issues.
+NGFW_TIMING END agent.lint-dispatch 2026-10-05T07:26:47.685873769Z
+NGFW_TIMING BEGIN agent.race-test 2026-10-05T07:26:47.715107541Z
+go test -race -count=1 ./...
+?   	ngfw/agent/binapi/abf	[no test files]
+?   	ngfw/agent/binapi/acl	[no test files]
+?   	ngfw/agent/binapi/acl_types	[no test files]
+?   	ngfw/agent/binapi/adl	[no test files]
+?   	ngfw/agent/binapi/af_packet	[no test files]
+?   	ngfw/agent/binapi/af_xdp	[no test files]
+?   	ngfw/agent/binapi/arp	[no test files]
+?   	ngfw/agent/binapi/arping	[no test files]
+?   	ngfw/agent/binapi/auto_sdl	[no test files]
+?   	ngfw/agent/binapi/bfd	[no test files]
+?   	ngfw/agent/binapi/bier	[no test files]
+?   	ngfw/agent/binapi/bond	[no test files]
+?   	ngfw/agent/binapi/bpf_trace_filter	[no test files]
+?   	ngfw/agent/binapi/cdp	[no test files]
+?   	ngfw/agent/binapi/classify	[no test files]
+?   	ngfw/agent/binapi/cnat	[no test files]
+?   	ngfw/agent/binapi/crypto	[no test files]
+?   	ngfw/agent/binapi/crypto_sw_scheduler	[no test files]
+?   	ngfw/agent/binapi/ct6	[no test files]
+?   	ngfw/agent/binapi/det44	[no test files]
+?   	ngfw/agent/binapi/dev	[no test files]
+?   	ngfw/agent/binapi/dhcp	[no test files]
+?   	ngfw/agent/binapi/dhcp6_ia_na_client_cp	[no test files]
+?   	ngfw/agent/binapi/dhcp6_pd_client_cp	[no test files]
+?   	ngfw/agent/binapi/dns	[no test files]
+?   	ngfw/agent/binapi/dslite	[no test files]
+?   	ngfw/agent/binapi/ethernet_types	[no test files]
+?   	ngfw/agent/binapi/feature	[no test files]
+?   	ngfw/agent/binapi/fib	[no test files]
+?   	ngfw/agent/binapi/fib_types	[no test files]
+?   	ngfw/agent/binapi/flow	[no test files]
+?   	ngfw/agent/binapi/flow_types	[no test files]
+?   	ngfw/agent/binapi/flowprobe	[no test files]
+?   	ngfw/agent/binapi/gateway	[no test files]
+?   	ngfw/agent/binapi/geneve	[no test files]
+?   	ngfw/agent/binapi/gre	[no test files]
+?   	ngfw/agent/binapi/gso	[no test files]
+?   	ngfw/agent/binapi/gtpu	[no test files]
+?   	ngfw/agent/binapi/http_static	[no test files]
+?   	ngfw/agent/binapi/idpf	[no test files]
+?   	ngfw/agent/binapi/igmp	[no test files]
+?   	ngfw/agent/binapi/ikev2	[no test files]
+?   	ngfw/agent/binapi/ikev2_types	[no test files]
+?   	ngfw/agent/binapi/interface	[no test files]
+?   	ngfw/agent/binapi/interface_input	[no test files]
+?   	ngfw/agent/binapi/interface_types	[no test files]
+?   	ngfw/agent/binapi/ioam_cache	[no test files]
+?   	ngfw/agent/binapi/ioam_export	[no test files]
+?   	ngfw/agent/binapi/ioam_vxlan_gpe	[no test files]
+?   	ngfw/agent/binapi/ip	[no test files]
+?   	ngfw/agent/binapi/ip6_dad	[no test files]
+?   	ngfw/agent/binapi/ip6_nd	[no test files]
+?   	ngfw/agent/binapi/ip_neighbor	[no test files]
+?   	ngfw/agent/binapi/ip_session_redirect	[no test files]
+?   	ngfw/agent/binapi/ip_types	[no test files]
+?   	ngfw/agent/binapi/ipfix_export	[no test files]
+?   	ngfw/agent/binapi/ipip	[no test files]
+?   	ngfw/agent/binapi/ipsec	[no test files]
+?   	ngfw/agent/binapi/ipsec_types	[no test files]
+?   	ngfw/agent/binapi/l2	[no test files]
+?   	ngfw/agent/binapi/l2tp	[no test files]
+?   	ngfw/agent/binapi/l3xc	[no test files]
+?   	ngfw/agent/binapi/lacp	[no test files]
+?   	ngfw/agent/binapi/lb	[no test files]
+?   	ngfw/agent/binapi/lb_types	[no test files]
+?   	ngfw/agent/binapi/lcp	[no test files]
+?   	ngfw/agent/binapi/lisp	[no test files]
+?   	ngfw/agent/binapi/lisp_gpe	[no test files]
+?   	ngfw/agent/binapi/lisp_types	[no test files]
+?   	ngfw/agent/binapi/lldp	[no test files]
+?   	ngfw/agent/binapi/mactime	[no test files]
+?   	ngfw/agent/binapi/map	[no test files]
+?   	ngfw/agent/binapi/mdata	[no test files]
+?   	ngfw/agent/binapi/memclnt	[no test files]
+?   	ngfw/agent/binapi/memif	[no test files]
+?   	ngfw/agent/binapi/mfib_types	[no test files]
+?   	ngfw/agent/binapi/mpls	[no test files]
+?   	ngfw/agent/binapi/mss_clamp	[no test files]
+?   	ngfw/agent/binapi/nat	[no test files]
+?   	ngfw/agent/binapi/nat44_ed	[no test files]
+?   	ngfw/agent/binapi/nat44_ei	[no test files]
+?   	ngfw/agent/binapi/nat64	[no test files]
+?   	ngfw/agent/binapi/nat66	[no test files]
+?   	ngfw/agent/binapi/nat_types	[no test files]
+?   	ngfw/agent/binapi/npol	[no test files]
+?   	ngfw/agent/binapi/npt66	[no test files]
+?   	ngfw/agent/binapi/nsh	[no test files]
+?   	ngfw/agent/binapi/nsim	[no test files]
+?   	ngfw/agent/binapi/one	[no test files]
+?   	ngfw/agent/binapi/p2p_ethernet	[no test files]
+?   	ngfw/agent/binapi/pci_types	[no test files]
+?   	ngfw/agent/binapi/pg	[no test files]
+?   	ngfw/agent/binapi/ping	[no test files]
+?   	ngfw/agent/binapi/pipe	[no test files]
+?   	ngfw/agent/binapi/pnat	[no test files]
+?   	ngfw/agent/binapi/policer	[no test files]
+?   	ngfw/agent/binapi/policer_types	[no test files]
+?   	ngfw/agent/binapi/pot	[no test files]
+?   	ngfw/agent/binapi/pppoe	[no test files]
+?   	ngfw/agent/binapi/punt	[no test files]
+?   	ngfw/agent/binapi/pvti	[no test files]
+?   	ngfw/agent/binapi/qos	[no test files]
+?   	ngfw/agent/binapi/rd_cp	[no test files]
+?   	ngfw/agent/binapi/rdma	[no test files]
+?   	ngfw/agent/binapi/sasc	[no test files]
+?   	ngfw/agent/binapi/selog	[no test files]
+?   	ngfw/agent/binapi/session	[no test files]
+?   	ngfw/agent/binapi/sfdp	[no test files]
+?   	ngfw/agent/binapi/sfdp_types	[no test files]
+?   	ngfw/agent/binapi/sflow	[no test files]
+?   	ngfw/agent/binapi/span	[no test files]
+?   	ngfw/agent/binapi/sr	[no test files]
+?   	ngfw/agent/binapi/sr_mobile	[no test files]
+?   	ngfw/agent/binapi/sr_mobile_types	[no test files]
+?   	ngfw/agent/binapi/sr_mpls	[no test files]
+?   	ngfw/agent/binapi/sr_pt	[no test files]
+?   	ngfw/agent/binapi/sr_types	[no test files]
+?   	ngfw/agent/binapi/stn	[no test files]
+?   	ngfw/agent/binapi/svs	[no test files]
+?   	ngfw/agent/binapi/syslog	[no test files]
+?   	ngfw/agent/binapi/tapv2	[no test files]
+?   	ngfw/agent/binapi/tcp	[no test files]
+?   	ngfw/agent/binapi/tcp_check	[no test files]
+?   	ngfw/agent/binapi/teib	[no test files]
+?   	ngfw/agent/binapi/tls_openssl	[no test files]
+?   	ngfw/agent/binapi/tm	[no test files]
+?   	ngfw/agent/binapi/trace	[no test files]
+?   	ngfw/agent/binapi/tunnel_types	[no test files]
+?   	ngfw/agent/binapi/udp	[no test files]
+?   	ngfw/agent/binapi/udp_ping	[no test files]
+?   	ngfw/agent/binapi/urpf	[no test files]
+?   	ngfw/agent/binapi/vhost_user	[no test files]
+?   	ngfw/agent/binapi/virtio	[no test files]
+?   	ngfw/agent/binapi/virtio_types	[no test files]
+?   	ngfw/agent/binapi/vlib	[no test files]
+?   	ngfw/agent/binapi/vmxnet3	[no test files]
+?   	ngfw/agent/binapi/vpe	[no test files]
+?   	ngfw/agent/binapi/vpe_types	[no test files]
+?   	ngfw/agent/binapi/vrrp	[no test files]
+?   	ngfw/agent/binapi/vxlan	[no test files]
+?   	ngfw/agent/binapi/vxlan_gpe	[no test files]
+?   	ngfw/agent/binapi/vxlan_gpe_ioam_export	[no test files]
+?   	ngfw/agent/binapi/wireguard	[no test files]
+?   	ngfw/agent/cmd/ngfw-agent	[no test files]
+?   	ngfw/agent/cmd/ngfw-agentctl	[no test files]
+ok  	ngfw/agent/cmd/ngfw-startupgen	1.862s
+?   	ngfw/agent/cmd/ngfw-vpp-preflight	[no test files]
+ok  	ngfw/agent/cmd/ngfw-vppcheck	1.836s
+?   	ngfw/agent/gen/ngfw/model/acl/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/model/iface/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/model/nat/v1	[no test files]
+?   	ngfw/agent/gen/ngfw/v1	[no test files]
+ok  	ngfw/agent/internal/actions/acl	1.317s
+ok  	ngfw/agent/internal/actions/capture-trace	19.487s
+ok  	ngfw/agent/internal/actions/nat44-ed-sessions	1.607s
+ok  	ngfw/agent/internal/actions/nat44-ei-64-66-nptv6	1.116s
+ok  	ngfw/agent/internal/actions/neighbors-ra	1.359s
+ok  	ngfw/agent/internal/actions/unbound-chrony-syslog	1.170s
+ok  	ngfw/agent/internal/actions/vrf-static-ecmp	5.034s
+ok  	ngfw/agent/internal/agent	99.819s
+ok  	ngfw/agent/internal/autoblock	1.780s
+ok  	ngfw/agent/internal/contracttest	3.110s
+ok  	ngfw/agent/internal/descriptors/abf	1.169s
+ok  	ngfw/agent/internal/descriptors/acl	1.235s
+ok  	ngfw/agent/internal/descriptors/adl	1.124s
+ok  	ngfw/agent/internal/descriptors/af_packet	8.450s
+ok  	ngfw/agent/internal/descriptors/arp	1.071s
+ok  	ngfw/agent/internal/descriptors/auto_sdl	1.080s
+ok  	ngfw/agent/internal/descriptors/bfd	1.198s
+ok  	ngfw/agent/internal/descriptors/bond	1.199s
+ok  	ngfw/agent/internal/descriptors/classify	12.863s
+ok  	ngfw/agent/internal/descriptors/cnat	1.180s
+ok  	ngfw/agent/internal/descriptors/core	1.571s
+ok  	ngfw/agent/internal/descriptors/core/coretest	1.240s
+ok  	ngfw/agent/internal/descriptors/det44	1.197s
+ok  	ngfw/agent/internal/descriptors/df2	5.969s
+?   	ngfw/agent/internal/descriptors/df2/df2test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df2/idempotency	1.224s
+ok  	ngfw/agent/internal/descriptors/df6	2.657s
+?   	ngfw/agent/internal/descriptors/df6/df6test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df7	1.221s
+?   	ngfw/agent/internal/descriptors/df7/df7test	[no test files]
+ok  	ngfw/agent/internal/descriptors/df7/registry	1.151s
+ok  	ngfw/agent/internal/descriptors/dfkit	5.621s
+?   	ngfw/agent/internal/descriptors/dfkit/dfkittest	[no test files]
+ok  	ngfw/agent/internal/descriptors/dfkit/persist	1.129s
+ok  	ngfw/agent/internal/descriptors/dfkit/restarttest	1.159s
+ok  	ngfw/agent/internal/descriptors/dhcp	5.965s
+ok  	ngfw/agent/internal/descriptors/dns	9.175s
+ok  	ngfw/agent/internal/descriptors/dslite	1.091s
+ok  	ngfw/agent/internal/descriptors/flowprobe	1.161s
+ok  	ngfw/agent/internal/descriptors/gre	1.135s
+ok  	ngfw/agent/internal/descriptors/gso	1.110s
+ok  	ngfw/agent/internal/descriptors/gtpu	1.108s
+ok  	ngfw/agent/internal/descriptors/hoststack	1.142s
+ok  	ngfw/agent/internal/descriptors/igmp	1.145s
+ok  	ngfw/agent/internal/descriptors/ikev2	6.708s
+ok  	ngfw/agent/internal/descriptors/interface	1.323s
+?   	ngfw/agent/internal/descriptors/interface/ifacetest	[no test files]
+ok  	ngfw/agent/internal/descriptors/ip6_nd	1.615s
+ok  	ngfw/agent/internal/descriptors/ip_neighbor	1.130s
+ok  	ngfw/agent/internal/descriptors/ip_session_redirect	1.092s
+ok  	ngfw/agent/internal/descriptors/ipfix	1.369s
+ok  	ngfw/agent/internal/descriptors/ipip	1.230s
+ok  	ngfw/agent/internal/descriptors/ipsec	6.716s
+ok  	ngfw/agent/internal/descriptors/kit	2.796s
+ok  	ngfw/agent/internal/descriptors/l2	1.143s
+ok  	ngfw/agent/internal/descriptors/l2tp	1.109s
+ok  	ngfw/agent/internal/descriptors/l3xc	1.167s
+ok  	ngfw/agent/internal/descriptors/lb	1.248s
+ok  	ngfw/agent/internal/descriptors/lcp	1.320s
+ok  	ngfw/agent/internal/descriptors/lcp_osi	1.151s
+ok  	ngfw/agent/internal/descriptors/lisp	1.116s
+ok  	ngfw/agent/internal/descriptors/lldp	1.094s
+ok  	ngfw/agent/internal/descriptors/mactime	1.159s
+ok  	ngfw/agent/internal/descriptors/mapnat	1.110s
+ok  	ngfw/agent/internal/descriptors/memif	1.097s
+ok  	ngfw/agent/internal/descriptors/mfib	1.108s
+ok  	ngfw/agent/internal/descriptors/mpls	1.178s
+ok  	ngfw/agent/internal/descriptors/nat44ed	1.248s
+ok  	ngfw/agent/internal/descriptors/nat44ei	1.153s
+ok  	ngfw/agent/internal/descriptors/nat46	1.109s
+ok  	ngfw/agent/internal/descriptors/nat64	1.106s
+ok  	ngfw/agent/internal/descriptors/nat66	1.077s
+ok  	ngfw/agent/internal/descriptors/natcommon	1.269s
+?   	ngfw/agent/internal/descriptors/natcommon/nattest	[no test files]
+ok  	ngfw/agent/internal/descriptors/npt66	1.134s
+ok  	ngfw/agent/internal/descriptors/nsim	1.118s
+ok  	ngfw/agent/internal/descriptors/pcap	1.099s
+ok  	ngfw/agent/internal/descriptors/pnat	1.271s
+ok  	ngfw/agent/internal/descriptors/policer	1.263s
+ok  	ngfw/agent/internal/descriptors/pppoe	9.941s
+ok  	ngfw/agent/internal/descriptors/qos	3.247s
+ok  	ngfw/agent/internal/descriptors/sflow	1.296s
+ok  	ngfw/agent/internal/descriptors/span	1.091s
+ok  	ngfw/agent/internal/descriptors/sr	1.126s
+ok  	ngfw/agent/internal/descriptors/sr_mpls	1.116s
+ok  	ngfw/agent/internal/descriptors/svs	1.146s
+ok  	ngfw/agent/internal/descriptors/tapv2	1.065s
+ok  	ngfw/agent/internal/descriptors/trace	1.090s
+ok  	ngfw/agent/internal/descriptors/urpf	1.067s
+ok  	ngfw/agent/internal/descriptors/vpn	1.474s
+?   	ngfw/agent/internal/descriptors/vpn/pb	[no test files]
+?   	ngfw/agent/internal/descriptors/vpn/vpntest	[no test files]
+ok  	ngfw/agent/internal/descriptors/vrrp	1.313s
+ok  	ngfw/agent/internal/descriptors/vxlan	1.117s
+ok  	ngfw/agent/internal/descriptors/vxlan_gpe	1.106s
+ok  	ngfw/agent/internal/descriptors/wireguard	2.436s
+ok  	ngfw/agent/internal/desired	30.899s
+ok  	ngfw/agent/internal/detectors	1.146s
+ok  	ngfw/agent/internal/frrsync/ldp	1.669s
+ok  	ngfw/agent/internal/frrsync/pim	1.397s
+ok  	ngfw/agent/internal/lcpmap	1.188s
+ok  	ngfw/agent/internal/multiwan	1.865s
+ok  	ngfw/agent/internal/objects	21.714s
+ok  	ngfw/agent/internal/ownertable	3.064s
+ok  	ngfw/agent/internal/pki	21.314s
+ok  	ngfw/agent/internal/promexport	2.118s
+ok  	ngfw/agent/internal/renderers	6.392s
+ok  	ngfw/agent/internal/renderers/basepolicy	1.276s
+ok  	ngfw/agent/internal/renderers/chrony	21.253s
+ok  	ngfw/agent/internal/renderers/frr	18.175s
+ok  	ngfw/agent/internal/renderers/frr/bgp	1.246s
+ok  	ngfw/agent/internal/renderers/frr/frrtest	1.114s
+ok  	ngfw/agent/internal/renderers/frr/isis	1.219s
+ok  	ngfw/agent/internal/renderers/frr/ldp	2.083s
+ok  	ngfw/agent/internal/renderers/frr/ospf	1.254s
+ok  	ngfw/agent/internal/renderers/frr/pim	1.130s
+?   	ngfw/agent/internal/renderers/frr/policy	[no test files]
+ok  	ngfw/agent/internal/renderers/frr/rip	1.222s
+ok  	ngfw/agent/internal/renderers/frr/ripng	1.152s
+ok  	ngfw/agent/internal/renderers/kea	19.172s
+ok  	ngfw/agent/internal/renderers/keepalived	6.998s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/ngfw-keepalived-notify	1.091s
+ok  	ngfw/agent/internal/renderers/nftables	10.883s
+?   	ngfw/agent/internal/renderers/nftables/nftest	[no test files]
+ok  	ngfw/agent/internal/renderers/pppoe	10.298s
+ok  	ngfw/agent/internal/renderers/rfkit	6.820s
+ok  	ngfw/agent/internal/renderers/rsyslog	23.741s
+ok  	ngfw/agent/internal/renderers/snmpd	9.081s
+ok  	ngfw/agent/internal/renderers/strongswan	25.799s
+?   	ngfw/agent/internal/renderers/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/renderers/sysident	8.755s
+ok  	ngfw/agent/internal/renderers/unbound	14.027s
+ok  	ngfw/agent/internal/renderers/vppstartup	15.931s
+ok  	ngfw/agent/internal/scheduler	4.328s
+ok  	ngfw/agent/internal/secretchannel	7.224s
+ok  	ngfw/agent/internal/snmpagent	2.839s
+ok  	ngfw/agent/internal/subsystems	42.625s
+ok  	ngfw/agent/internal/subsystems/ruleexpiry	1.353s
+?   	ngfw/agent/internal/testpeer/strongswan	[no test files]
+?   	ngfw/agent/internal/testpeer/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/vpp	3.151s
+ok  	ngfw/agent/internal/vpp/bootid	1.478s
+ok  	ngfw/agent/internal/vpp/fake	1.077s
+ok  	ngfw/agent/internal/vpp/ifsanitize	18.036s
+?   	ngfw/agent/internal/vpp/ifsanitize/sanitizetest	[no test files]
+ok  	ngfw/agent/internal/vpp/vpptest	1.095s
+NGFW_TIMING END agent.race-test 2026-10-05T07:29:14.043358846Z
+NGFW_TIMING BEGIN agent.build 2026-10-05T07:29:14.236028394Z
+go build -trimpath -ldflags "-s -w -X main.version=a4070815" -o bin/ngfw-agent ./cmd/ngfw-agent
+NGFW_TIMING END agent.build 2026-10-05T07:29:17.796179982Z
+make: Leaving directory '/root/ngfw-wt/codex-mpls-srv6-closeout-final/apps/agent'

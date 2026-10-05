@@ -1,0 +1,16 @@
+[Unit]
+Description=NGFW upgrade pre-migration database snapshot
+After=postgresql.service
+Requires=postgresql.service
+Before=ngfw-firstboot.service ngfw-api.service
+ConditionPathExists=/etc/ngfw/upgrade.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/ngfw/ngfw-upgrade-prepare
+RemainAfterExit=yes
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
+RequiredBy=ngfw-api.service ngfw-firstboot.service

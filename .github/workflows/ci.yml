@@ -46,7 +46,7 @@ jobs:
           set -euo pipefail
           npm install --global pnpm@12.5.1
           sudo apt-get update
-          sudo apt-get install --yes shellcheck
+          sudo apt-get install --yes shellcheck grub2-common zstd
           export NGFW_CI_TOOLS_DIR="$RUNNER_TEMP/ngfw-tools"
           echo "NGFW_CI_TOOLS_DIR=$NGFW_CI_TOOLS_DIR" >> "$GITHUB_ENV"
           echo "NGFW_CI_LOG_DIR=$RUNNER_TEMP/ngfw-ci" >> "$GITHUB_ENV"

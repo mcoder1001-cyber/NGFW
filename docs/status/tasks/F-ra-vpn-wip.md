@@ -109,3 +109,17 @@ Private authenticated6.1.0 make/install exited0; private charon --version report
 strongSwan6.1.0. Source/config/build/install logs owned /root/.cache/t19 only.
 Current remote f6f4187d. Next: network/PKI lifecycle descriptors, real private daemon
 startup/crypto/forwarding/ACL fixtures; runtime integration still incomplete.
+
+Namespace lifecycle checkpoint: fixed /usr/bin/unshare --net child binds its
+network namespace to exclusive root-private instance, persists observed inode;
+agent process namespace never changes. Root-only guarded parent creation,
+foreign inode and host namespace removal refused; held binding identity pinned
+through owned-only detach/cleanup. Actual integration under shared lab lock PASS
+0.049s, agent namespace inode unchanged, private mount+manifest removed.
+Initial thread-based creation failed actual agent namespace identity assertion;
+replaced with short-lived subprocess (never unshare a Go thread). Held namespace
+fd initially made normal umount EBUSY; exact verified binding detach fixes cleanup.
+Failed fixture mounts explicitly inode-verified and cleaned; no owned mounts remain.
+No VPP, shared namespaces/services/sysctls touched. Descriptor restart/recovery,
+PKI/VICI activation and packet acceptance remain incomplete. Current remote0919fcf0.
+Next: persist/readback namespace descriptors then TAP/ACL dependency handoff.

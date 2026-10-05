@@ -5,13 +5,19 @@ Owned: `test/topology/traffic-c/**`, `docs/status/tasks/TEST-traffic-C*`.
 Base: `d314f0728`; initial local checkpoints `718598479`, `3daf1023a`.
 Published checkpoint: remote SHA `7452f8be9c838167c14cec8371bb5ab5b91a5be8` via
 GitHub connector, same source tree as local `3daf1023a`. CLI push returned 403.
-New complete executor/globals-helper source checkpoint publication is pending.
+Published full source checkpoint: `3bd70b3941b14b03b7a822355c54c6d427aca0b0`.
+Draft PR: https://github.com/mcoder1001-cyber/NGFW/pull/186.
+Publication ancestry note: initial connector checkpoint parent was updated main
+`aebfc46f`, while the isolated local branch was based on `d314f0728`. Current
+publication must preserve the original remote parent main tree and compare
+owned source paths, rather than reversing newer board/progress rows. No main
+history is rewritten. Reviewed transport/process fixes publication pending.
 No live processes/daemon/slot ownership. No shared host modifications.
 Completed: leased product commit/rollback, MPLS/SRv6/VRRP/QoS/rider orchestration,
 private evidence capture, exact global restore, residue checks, TD-H18 host-test
 invocation, source/unit checks. Actual lab acceptance and independent review pending.
 Constraint: combined global-owner execution requires absent table0 at entry;
 see questions file. No acceptance claim for an existing shared table0.
-Tests: 13 Python checks pass; execute --dry-run passes; globals Go vet passed.
-Globals Go unit test and mandatory complete quick CI not yet recorded.
-Next command: `tools/heavy.sh go -C test/topology/traffic-c/globals test -count=1 ./...`.
+Tests: 16 Python checks pass (including real redirects/descendant/TERM regressions); execute --dry-run passes; globals Go vet passed.
+Globals Go unit tests passed (2 refusal tests), current check passed10s. Mandatory complete quick CI pending root union gate.
+Next: publish transport/process fixes, request reviewer recheck, and await root complete union gate.

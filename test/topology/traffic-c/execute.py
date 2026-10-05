@@ -9,10 +9,12 @@ import os
 from pathlib import Path
 import re
 import secrets
+import signal
 import stat
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 
 sys.dont_write_bytecode = True
@@ -23,10 +25,63 @@ spec = importlib.util.spec_from_file_location('wave_a_executor', A / 'execute.py
 wave_a = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(wave_a)
 sys.path.insert(0, str(HERE))
-from driver import applied, counter_deltas, mpls_packets, ping_outage, plan, require, srv6_packets
+from driver import applied, counter_deltas, mpls_packets, ping_outage, plan, require, srv6_packets, private_opener
+
+
+class Api(wave_a.Api):
+    def __init__(self, slot, token):
+        super().__init__(slot, token)
+        require('\n' not in token and '\r' not in token, 'invalid private API key')
+        self.opener = private_opener()
+
+    def response(self, request, timeout=30):
+        require(request.full_url.startswith(self.base + '/'), 'foreign API request URL')
+        return self.opener.open(request, timeout=timeout)
+
+    def call(self, method, path, body=None, want=200):
+        require(path.startswith('/') and not path.startswith('//'), 'invalid API path')
+        data = None if body is None else json.dumps(body).encode()
+        request = urllib.request.Request(self.base + path, data=data, method=method,
+            headers={'Authorization': 'ApiKey ' + self.token,
+                     'Content-Type': 'application/merge-patch+json' if method == 'PATCH' else 'application/json'})
+        try:
+            response = self.response(request)
+        except urllib.error.HTTPError as error:
+            response = error
+        with response:
+            status = response.status
+            raw = response.read(1048577)
+        require(len(raw) <= 1048576 and status == want, f'API HTTP {status}, expected {want}')
+        if want == 204:
+            require(not raw, 'DELETE returned an unexpected body')
+            return {}
+        return json.loads(raw)
+
+
+def interrupt(_signal, _frame):
+    raise KeyboardInterrupt('manager interrupted Wave-C')
 
 
 class Runner(wave_a.Runner):
+    @staticmethod
+    def stop(process):
+        # Preserve tcpdump accounting with SIGINT, then remove surviving owned
+        # descendants even if their group leader exited during the grace period.
+        try:
+            os.killpg(process.pid, signal.SIGINT)
+        except ProcessLookupError:
+            pass
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+        finally:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            process.wait(timeout=5)
+
     def lease(self):
         path = Path(f'/run/ngfw-test/{self.prefix}/traffic-c-lease.json')
         fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
@@ -312,7 +367,7 @@ class Runner(wave_a.Runner):
                     time.sleep(.1)
                 require(len(found) == 1 and found[0]['state'] == 'done' and int(found[0]['packets']) > 0, 'product capture not complete/nonempty')
                 request = urllib.request.Request(self.api.base + f'/state/captures/{capture_id}/file', headers={'Authorization': 'ApiKey ' + self.api.token})
-                with urllib.request.urlopen(request, timeout=30) as response:
+                with self.api.response(request, timeout=30) as response:
                     require(response.status == 200, 'product capture download failed')
                     pcap = response.read(16 * 1024 * 1024 + 1)
                 require(len(pcap) <= 16 * 1024 * 1024, 'product capture exceeded bound')
@@ -411,7 +466,7 @@ def main():
     require(stat.S_ISDIR(info.st_mode) and info.st_uid == 0 and stat.S_IMODE(info.st_mode) == 0o700, 'manager must provision owned0700 evidence parent')
     root = parent / secrets.token_hex(16)
     root.mkdir(mode=0o700)
-    runner = Runner(args.slot, root, wave_a.Api(args.slot, os.environ.get('NGFW_HOST_ACCESS_TOKEN', '')))
+    runner = Runner(args.slot, root, Api(args.slot, os.environ.get('NGFW_HOST_ACCESS_TOKEN', '')))
     runner.lease()
     with open('/run/lock/ngfw-lab.lock', 'a') as lab, open('/run/lock/ngfw-globals.lock', 'a') as globals_lock, open(f'/run/lock/ngfw-traffic-c-w{args.slot}.lock', 'a') as slot_lock:
         fcntl.flock(lab, fcntl.LOCK_SH | fcntl.LOCK_NB)
@@ -473,7 +528,10 @@ def main():
 
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGTERM, interrupt)
     try:
         main()
+    except KeyboardInterrupt:
+        raise SystemExit('Wave-C interrupted; cleanup attempted, inspect retained private evidence') from None
     except (OSError, RuntimeError, ValueError, subprocess.SubprocessError) as error:
         raise SystemExit('Wave-C refused/failed: ' + str(error)) from None

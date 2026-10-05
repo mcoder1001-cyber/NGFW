@@ -48,7 +48,7 @@ the rig baseline. QoS compares actual sent UDP count, WAN tcpdump count, socket
 received count, and all three policer counter increases. Riders use a live IPFIX
 collector, IGMPv3 INCLUDE peer, product capture download decoded with tcpdump,
 and owned-interface Prometheus counter deltas. TD-H18 runs its existing actual
-host test and rejects skipped proof. No packet trace or VPP restart is used.
+host test and rejects skipped proof. No packet trace or VPP restart is used. All authenticated API/download requests reject redirects and ignore proxy environment. TERM enters finally cleanup; every spawned group receives final SIGKILL after the graceful accounting interval, even when its leader exited.
 
 The globals helper saves exporter0, flowprobe parameters, SR source/hop limit
 and table0 readback. It restores exact values through generated binary API and

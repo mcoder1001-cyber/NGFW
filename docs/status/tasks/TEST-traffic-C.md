@@ -2,7 +2,7 @@
 
 سناریوی موج C و مسیرهای اجرای محصول پیاده‌سازی شده‌اند.
 تغییر تنظیمات، تحلیل بسته و پاک‌سازی خطاپذیر پوشش داده شده‌اند.
-۱۳ آزمون مستقل از آزمایشگاه موفق بوده‌اند؛ dry-run موفق است.
+۱۶ آزمون مستقل از آزمایشگاه موفق بوده‌اند؛ dry-run موفق است.
 اجرای واقعی VPP و داور مستقل هنوز تأیید نشده‌اند.
 پیش‌شرط table0 در فایل پرسش‌ها صریح است؛ وضعیت Done ادعا نمی‌شود.
 
@@ -31,7 +31,7 @@ shared existing-table0 acceptance remains constrained, see questions.
 
 ```
 python3 -m unittest discover -s test/topology/traffic-c -v
-Ran 13 tests in 0.006s
+Ran 16 tests in 1.747s
 OK
 python3 -m py_compile test/topology/traffic-c/execute.py test/topology/traffic-c/peer.py
 (exit 0)
@@ -45,8 +45,27 @@ tools/ci.sh check --base main
 check PASSED (0m22s) [initial foundation checkpoint]
 ```
 
-These checks use synthetic parser fixtures and mocked API transport. No real
-packets, VPP changes, globals or services were exercised. Globals Go unit checks,
-current full unchanged quick gate, independent review and live manager-window
+Additional actual regression output:
+
+```
+tools/heavy.sh go -C test/topology/traffic-c/globals test -count=1 ./...
+ok ngfw/test/topology/traffic-c/globals 0.015s (2 refusal tests)
+tools/ci.sh check --base origin/main
+check PASSED (0m10s)
+```
+
+Independent review found two source issues, now fixed: authenticated urllib
+redirects could forward credentials, and TERM/leader exit could leave child
+sessions alive. C-owned API/capture transport now rejects every redirect and
+disables proxies. A real two-local-server check verifies the fixture credential
+arrives only at the requested server and the redirected server sees no request.
+C installs TERM-to-KeyboardInterrupt and always final-kills its freshly spawned
+process group after graceful SIGINT accounting. Real leader/descendant and
+TERM-finally process regressions pass.
+
+Parser checks use synthetic fixtures; API/state orchestration uses mocked
+transport in unit tests. Redirect/process tests use real local HTTP servers and
+fresh owned subprocesses; they do not touch VPP. No real
+packets, VPP changes, globals or services were exercised. Current full unchanged quick gate, independent review and live manager-window
 acceptance remain pending; no invented host result is included. Runtime evidence
 belongs in a private `TEST-traffic-C-evidence` export as text; never commit pcap.

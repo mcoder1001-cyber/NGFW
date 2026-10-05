@@ -12,6 +12,15 @@ class Refused(RuntimeError):
     pass
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, request, fp, code, message, headers, newurl):
+        raise Refused('HTTP redirects are refused for slot API credentials')
+
+
+def private_opener():
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
+
+
 def require(condition, message):
     if not condition:
         raise Refused(message)
@@ -100,13 +109,13 @@ def ping_outage(text, started, ended):
 
 class API:
     """Only the assigned local slot API; token is never included in diagnostics."""
-    def __init__(self, slot, token, opener=urllib.request.urlopen):
+    def __init__(self, slot, token, opener=None):
         values = slot_values(slot)
         require(isinstance(token, str) and token and '\n' not in token and '\r' not in token,
                 'invalid private bearer token')
         self.base = f'http://127.0.0.1:{values["api_port"]}/api/v1/'
         self.token = token
-        self.opener = opener
+        self.opener = opener if opener is not None else private_opener().open
 
     def request(self, method, path, payload=None):
         require(method in ('GET', 'PATCH', 'POST'), 'unsupported HTTP method')

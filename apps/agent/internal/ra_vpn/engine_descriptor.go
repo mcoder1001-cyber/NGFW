@@ -141,7 +141,7 @@ func NewFileEngineStore(stateDir, owner string) (*FileEngineStore, error) {
 	if e != nil {
 		return nil, ErrEngine
 	}
-	defer unix.Close(parent)
+	defer func() { _ = unix.Close(parent) }() // Read-only descriptor; no buffered writes to commit.
 	var st unix.Stat_t
 	if unix.Fstat(parent, &st) != nil || st.Uid != 0 || st.Mode&0022 != 0 {
 		return nil, ErrEngine
@@ -399,7 +399,7 @@ func (s *LazyEngineStore) Preflight(ctx context.Context) error {
 		}
 		fd = next
 	}
-	defer unix.Close(fd)
+	defer func() { _ = unix.Close(fd) }() // Read-only descriptor; no buffered writes to commit.
 	var metadata unix.Stat_t
 	var filesystem unix.Statfs_t
 	if unix.Fstat(fd, &metadata) != nil || metadata.Uid != 0 || metadata.Mode&0022 != 0 || unix.Fstatfs(fd, &filesystem) != nil || filesystem.Flags&unix.ST_RDONLY != 0 {
@@ -412,7 +412,7 @@ func (s *LazyEngineStore) Preflight(ctx context.Context) error {
 	if e != nil {
 		return ErrEngine
 	}
-	defer unix.Close(child)
+	defer func() { _ = unix.Close(child) }() // Read-only descriptor; no buffered writes to commit.
 	if unix.Fstat(child, &metadata) != nil || metadata.Uid != 0 || metadata.Mode&0077 != 0 {
 		return ErrEngine
 	}

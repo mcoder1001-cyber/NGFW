@@ -109,12 +109,14 @@ func TestPersistentEngineReadinessIsReadOnlyAndRejectsUnsafeLocation(t *testing.
 	if _, err := os.Lstat(filepath.Join(root, "ra-engine")); !os.IsNotExist(err) {
 		t.Fatal("preflight created durable directory")
 	}
+	// #nosec G302 -- deliberate unsafe mode tests rejection; restored below in this owned temporary fixture.
 	if err := os.Chmod(root, 0777); err != nil {
 		t.Fatal(err)
 	}
 	if store.Preflight(context.Background()) == nil {
 		t.Fatal("writable state location accepted")
 	}
+	// #nosec G302 -- restore owner-only searchable fixture directory after the unsafe-mode negative.
 	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)
 	}

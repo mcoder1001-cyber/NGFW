@@ -42,7 +42,7 @@ func RetiredVPPBoot(old bootid.Identity) bool {
 
 // VerifyTAPAbsent enumerates every owner's TAP. A numeric-ID collision, reused
 // old index or same namespace/link refuses recovery without deleting anything.
-func VerifyTAPAbsent(ctx context.Context, client vpp.Client, endpoint *tapv2.Tap, oldIndex uint32) error {
+func VerifyTAPAbsent(ctx context.Context, client vpp.Client, endpoint *tapv2.Tap, oldIndex uint32) (result error) {
 	if client == nil || endpoint == nil {
 		return ErrBoundary
 	}
@@ -50,7 +50,11 @@ func VerifyTAPAbsent(ctx context.Context, client vpp.Client, endpoint *tapv2.Tap
 	if e != nil {
 		return ErrBoundary
 	}
-	defer stream.Close()
+	defer func() {
+		if err := stream.Close(); err != nil && result == nil {
+			result = ErrBoundary
+		}
+	}()
 	for count := 0; count <= 8193; count++ {
 		row, e := stream.Recv()
 		if errors.Is(e, io.EOF) {

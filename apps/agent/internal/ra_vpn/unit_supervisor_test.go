@@ -46,7 +46,11 @@ func TestUnitSnapshotRejectsProcLikeRegularDescriptor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error("fixture descriptor close failed")
+		}
+	}()
 	snapshot := &UnitProcessSnapshot{Instance: spec.Instance, Identity: units.id, ControlGroup: "/system.slice/ngfw-ra@" + spec.Instance + ".service", Network: file, Executable: file}
 	if _, err := verifyUnitSnapshot(verifier.plan, snapshot, true); err == nil {
 		t.Fatal("ordinary descriptor accepted as private NETNS")
@@ -61,9 +65,11 @@ func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
 	dir := t.TempDir()
 	owned := dir + "/owned"
 	other := dir + "/other"
+	// #nosec G306 -- executable fixture requires owner execute permission; no group or other access.
 	if err := os.WriteFile(owned, []byte("same bytes"), 0700); err != nil {
 		t.Fatal(err)
 	}
+	// #nosec G306 -- foreign executable fixture has the same owner-only mode to test exact inode authentication.
 	if err := os.WriteFile(other, []byte("same bytes"), 0700); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +77,11 @@ func TestUnitExecutableRequiresExactOwnedInode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			t.Error("fixture descriptor close failed")
+		}
+	}()
 	if os.Geteuid() != 0 {
 		if sameUnitExecutable(file, owned) {
 			t.Fatal("non-root artifact authenticated as root-owned executable")

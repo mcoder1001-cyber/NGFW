@@ -65,7 +65,11 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { os.RemoveAll(claims) })
+	t.Cleanup(func() {
+		if err := os.RemoveAll(claims); err != nil {
+			t.Error("own VPP claims cleanup refused")
+		}
+	})
 	privateCLI(t, "ip", "table", "add", "19000")
 	privateCLI(t, "ip", "table", "add", "19001")
 	var innerName string
@@ -198,12 +202,22 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 			t.Error("own diagnostic file refused")
 			return
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				t.Error("own VPP diagnostic close refused")
+			}
+		}()
 		for _, command := range []string{"show interface", "show ip fib", "show ip neighbors", "show errors", "show acl-plugin interface"} {
 			data, err := exec.Command("/usr/bin/vppctl", "-s", "/run/vpp/cli.sock", command).Output()
 			if err == nil && len(data) <= 1<<20 {
-				file.WriteString(command + "\n")
-				file.Write(data)
+				if _, err := file.WriteString(command + "\n"); err != nil {
+					t.Error("own VPP diagnostic header write refused")
+					return
+				}
+				if _, err := file.Write(data); err != nil {
+					t.Error("own VPP diagnostic body write refused")
+					return
+				}
 			}
 		}
 	})
@@ -215,14 +229,17 @@ func verifyPrivateVPPPackets(t *testing.T, client *NetworkPlan, vip string) {
 	ns := filepath.Join(InstanceRoot, client.Instance, "netns")
 	// This extra permit exists only in the disposable test client namespace.
 	// The production responder retains its fixed failclosed firewall.
+	// #nosec G204 -- fixed nft executable and literal owned disposable client policy; namespace and VIP come from the verified fixture.
 	if exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/sbin/nft", "add", "rule", "inet", "ngfw_ra", "output", "oifname", "xfrm0", "ip", "daddr", "10.19.0.0/16", "meta", "l4proto", "icmp", "accept").Run() != nil {
 		t.Fatal("private client packet fixture policy refused")
 	}
+	// #nosec G204 -- fixed nft executable and literal owned disposable client policy; namespace and VIP come from the verified fixture.
 	if exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/sbin/nft", "insert", "rule", "inet", "ngfw_ra", "input", "iifname", "xfrm0", "ip", "daddr", vip, "meta", "l4proto", "icmp", "accept").Run() != nil {
 		t.Fatal("private client encrypted reply fixture policy refused")
 	}
 	verifyWire := capturePrivateWire(t, client)
 	ping := func(address string) error {
+		// #nosec G204 -- fixed ping executable, verified fixture namespace/VIP, and literal private test destinations.
 		return exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/bin/ping", "-n", "-I", vip, "-c", "2", "-W", "2", address).Run()
 	}
 	if ping("10.19.0.53") != nil {

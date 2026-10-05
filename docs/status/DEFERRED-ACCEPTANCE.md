@@ -270,3 +270,7 @@ existing manager lease and an idle owned rig window for this single campaign.
 ## F-hardening-lite offline tooling acceptance (2026-10-05)
 
 Implemented and independently fixture-tested10controls/signature/key-rotation cases; complete reviewed-source quick PASS36m12. Full signed package install/keyrotation, real daemon runtime under optional profiles and appliance boot smoke NOTRUN: signed /srv/ngfw-artifacts/apt pool and disposable full appliance absent. Do not activate profiles on sharedhost. Owner permits deferring only these actual laboratory executions; offline source/tests and final/hosted current-main integration gates remain required. Follow docs/install/hardening.md on disposable target, record real servicehealth and effective settings before claiming runtime acceptance.
+
+## F-images target execution (2026-10-05)
+
+Implemented qcow2/vmdk/OVA/VHDX/VHD/GCP conversion and offlineVM/cloudtargetprofiles with independent13fixture/format cases andcomplete corrected-source quick PASS22m44. Full signed applianceimage build, actualfirmwareVMboot andAWS/Azure/GCP import NOTRUN: /srv/ngfw-artifacts/apt signedpool/manifest absent andrequiredfullappliancebuildspace unavailable. Disposableformatroundtrips are not applianceboot proof. Ownerpermitsdeferralonly ofthese genuine lab executions; codeguards/current-main local+hosted gates remainrequired. Run docs/install/images.md on isolated provisioned targetandrecordactualboot/interfaces/noautomaticdataplaneNICclaims.

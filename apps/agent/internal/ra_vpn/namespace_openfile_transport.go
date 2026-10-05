@@ -20,7 +20,7 @@ func numericPublisherInstallation() error {
 		return ErrBoundary
 	}
 	for _, item := range []struct{ path, digest string }{
-		{numericPublisherService, "83cf0231289a237c1de3d0df178ec48c1d3c0835f75e107eeeff2398e0fc7b42"},
+		{numericPublisherService, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
 		{numericPublisherSocket, "a1d59fdd0cef428f63f6fc2504fb21ee6a542037f9f4eee445d4986a1c77ad8f"},
 	} {
 		content, err := trustedInstallationFile(item.path, 16384, false)

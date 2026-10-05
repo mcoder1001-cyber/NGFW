@@ -15,11 +15,16 @@ func canonicalBrokerUnit(cgroup []byte) (string, error) {
 		return "", ErrBoundary
 	}
 	value := strings.TrimSpace(string(cgroup))
-	const prefix = "0::/system.slice/"
-	if !strings.HasPrefix(value, prefix) {
+	const direct = "0::/system.slice/"
+	const nested = "0::/system.slice/system-ngfw\\x2dra\\x2dnamespace\\x2dbroker.slice/"
+	name := ""
+	if strings.HasPrefix(value, nested) {
+		name = strings.TrimPrefix(value, nested)
+	} else if strings.HasPrefix(value, direct) {
+		name = strings.TrimPrefix(value, direct)
+	} else {
 		return "", ErrBoundary
 	}
-	name := strings.TrimPrefix(value, prefix)
 	if len(name) > 256 || !strings.HasPrefix(name, "ngfw-ra-namespace-broker@") || !strings.HasSuffix(name, ".service") {
 		return "", ErrBoundary
 	}
@@ -51,7 +56,7 @@ func normalizeCanonicalBroker(ctx context.Context) error {
 		return ErrBoundary
 	}
 	fields, err := namespaceSystemdProperties(ctx, name, "MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,ExecStart")
-	if err != nil || fields["MainPID"] != strconv.Itoa(identity.PID) || fields["ControlGroup"] != "/system.slice/"+name || fields["FragmentPath"] != namespaceBrokerUnit || fields["DropInPaths"] != "" || fields["User"] != "root" || fields["Group"] != "ngfw" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" ;") {
+	if err != nil || fields["MainPID"] != strconv.Itoa(identity.PID) || !canonicalBrokerControlGroup(name, fields["ControlGroup"]) || strings.TrimSpace(string(cgroup)) != "0::"+fields["ControlGroup"] || fields["FragmentPath"] != namespaceBrokerUnit || fields["DropInPaths"] != "" || fields["User"] != "root" || fields["Group"] != "ngfw" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" ;") {
 		return ErrBoundary
 	}
 	unit, unitErr := trustedInstallationFile(namespaceBrokerUnit, 16384, false)
@@ -78,4 +83,8 @@ func normalizeCanonicalBroker(ctx context.Context) error {
 		return ErrBoundary
 	}
 	return nil
+}
+
+func canonicalBrokerControlGroup(name, group string) bool {
+	return group == "/system.slice/"+name || group == "/system.slice/system-ngfw\\x2dra\\x2dnamespace\\x2dbroker.slice/"+name
 }

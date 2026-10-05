@@ -96,7 +96,11 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if request.Phase == "publish" && (!response.Published || previous == nil || !sameNumericPublisherSource(previous, files[0])) {
 		return empty, nil, ErrBoundary
 	}
-	if verifyFixedAgentPeer(ctx, &unix.Ucred{Pid: int32(request.Source.PID), Uid: 0, Gid: uint32(os.Getegid())}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || unix.Sendmsg(fd, []byte("OK"), nil, nil, 0) != nil {
+	pid, gid := request.Source.PID, os.Getegid()
+	if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 {
+		return empty, nil, ErrBoundary
+	}
+	if verifyFixedAgentPeer(ctx, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || unix.Sendmsg(fd, []byte("OK"), nil, nil, 0) != nil {
 		return empty, nil, ErrBoundary
 	}
 	success = true

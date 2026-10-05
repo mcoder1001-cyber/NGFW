@@ -233,7 +233,7 @@ func RunManagedNamespaceBroker(socketFD int) error {
 		return ErrBoundary
 	}
 	arguments := []string{request.Operation, instance, request.Target.Boot.String(), strconv.FormatUint(request.Target.MountInode, 10), strconv.FormatUint(request.HostNamespace, 10), strconv.FormatUint(request.Namespace, 10)}
-	if runAttestedNamespaceBrokerFDs(arguments, held[:3]) != nil {
+	if runAttestedNamespaceBrokerFDs(arguments, held, request.Source.MountInode) != nil {
 		return ErrBoundary
 	}
 	if verifyFixedAgentPeer(roleContext, peer, sourceBoot) != nil || readSourceAgentReference(sourceBoot) != nil || validateSourceAgentExecutable(sourceImage) != nil {

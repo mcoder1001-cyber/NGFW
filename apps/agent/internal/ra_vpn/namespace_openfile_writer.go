@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -159,6 +160,7 @@ func verifyNumericOpenFileTarget(ctx context.Context, kind NumericOpenFileKind, 
 	if hex.EncodeToString(sum[:]) != "bf5e89b553235d455db222039d5e8b2cdbe639a1d36054b5dab6cca3ea266d9a" {
 		return ErrBoundary
 	}
+	// #nosec G204 -- RenderObserverOpenFile above permits only a complete 64-lowerhex instance in the fixed owned unit family.
 	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,FragmentPath,DropInPaths,ExecStart", "ngfw-ra@"+instance+".service")
 	output, err := command.Output()
 	if err != nil || len(output) > 16384 {
@@ -214,6 +216,9 @@ func publishOrRefreshNumericOpenFile(ctx context.Context, kind NumericOpenFileKi
 }
 
 func numericSupplierInactive(ctx context.Context, kind NumericOpenFileKind, pid int) error {
+	if pid <= 1 || pid > math.MaxInt32 {
+		return ErrBoundary
+	}
 	prefix := "ngfw-ra-targets@"
 	if kind == NumericOpenFileObserver {
 		prefix = "ngfw-ra-observer@"
@@ -221,6 +226,7 @@ func numericSupplierInactive(ctx context.Context, kind NumericOpenFileKind, pid 
 		return ErrBoundary
 	}
 	name := prefix + strconv.Itoa(pid) + ".service"
+	// #nosec G204 -- Closed supplier kind and canonical bounded decimal PID derive this fixed unit, never caller text.
 	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,ControlPID,ActiveState,ControlGroup", name)
 	output, err := command.Output()
 	if err != nil {

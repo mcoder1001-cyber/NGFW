@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +21,7 @@ const namespaceExportReceipt = "namespace-exports.json"
 // FixedNamespaceHandoff invokes only the installed broker with held NSFS FDs.
 // Targets are trusted runtime identities, never configuration document fields.
 type FixedNamespaceHandoff struct {
-	Targets    func(context.Context) ([]MountTarget, error)
+	Targets func(context.Context) ([]MountTarget, error)
 	// Provider supplies manager-opened role descriptors. Consumers must retain
 	// these descriptors through dispatch and compare a fresh observation after
 	// dispatch; a process identity alone cannot detect a mount namespace change.
@@ -45,47 +44,49 @@ func (h *FixedNamespaceHandoff) executable() string {
 	}
 	return "/usr/lib/ngfw/ngfw-ra-namespace-broker"
 }
-func (h *FixedNamespaceHandoff) targets(ctx context.Context) ([]MountTarget, error) {
-	if h == nil || h.Targets == nil {
+func (h *FixedNamespaceHandoff) capture(ctx context.Context) (*NamespaceTargetSnapshot, error) {
+	if h == nil || h.Provider == nil {
 		return nil, ErrBoundary
 	}
-	targets, e := h.Targets(ctx)
-	if e != nil || len(targets) != 2 {
+	snapshot, err := h.Provider.Acquire(ctx)
+	if err != nil {
 		return nil, ErrBoundary
 	}
-	// Both roles are required even when they currently share a mount namespace.
-	for _, target := range targets {
-		if !target.Boot.Complete() || target.MountInode == 0 || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
-			return nil, ErrBoundary
+	if snapshot == nil || snapshot.Validate() != nil {
+		if snapshot != nil {
+			_ = snapshot.Close()
 		}
+		return nil, ErrBoundary
+	}
+	return snapshot, nil
+}
+
+func (h *FixedNamespaceHandoff) targets(ctx context.Context) ([]MountTarget, error) {
+	snapshot, err := h.capture(ctx)
+	if err != nil {
+		return nil, ErrBoundary
+	}
+	targets := append([]MountTarget(nil), snapshot.Targets[:]...)
+	if snapshot.Close() != nil {
+		return nil, ErrBoundary
 	}
 	return targets, nil
 }
+
 func (h *FixedNamespaceHandoff) Preflight(ctx context.Context) error {
+	if h == nil || h.Provider == nil || h.Provider.Preflight(ctx) != nil {
+		return ErrBoundary
+	}
 	executable := h.executable()
 	if !filepath.IsAbs(executable) || filepath.Clean(executable) != executable || validateNamespaceBrokerExecutable(executable) != nil {
 		return ErrBoundary
-	}
-	targets, e := h.targets(ctx)
-	if e != nil {
-		return e
-	}
-	for _, target := range targets {
-		file, e := os.Open("/proc/" + strconv.Itoa(target.Boot.PID) + "/ns/mnt")
-		if e != nil {
-			return ErrBoundary
-		}
-		err := brokerNamespaceFD(int(file.Fd()), unix.CLONE_NEWNS, target.MountInode)
-		_ = file.Close()
-		if err != nil || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
-			return ErrBoundary
-		}
 	}
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
 		dispatcher = &SystemdNamespaceBroker{Executable: executable}
 	}
-	if dispatcher.Preflight(ctx) != nil {
+	attested, ok := dispatcher.(NamespaceBrokerAttestedFDDispatch)
+	if !ok || attested.Preflight(ctx) != nil {
 		return ErrBoundary
 	}
 	return nil
@@ -168,59 +169,77 @@ func sameMountTargets(a, b []MountTarget) bool {
 	return true
 }
 func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan *NetworkPlan, target MountTarget) error {
-	// Proc PID/start is checked before AND after FD acquisition. The actual
-	// namespace object stays pinned across helper execution even if PID dies.
-	if !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
+	if plan == nil || plan.Validate() != nil {
 		return ErrBoundary
 	}
-	path := "/proc/" + strconv.Itoa(target.Boot.PID) + "/ns/mnt"
-	mount, err := os.Open(path)
+	bounded, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	before, err := h.capture(bounded)
 	if err != nil {
 		return ErrBoundary
 	}
-	defer func() { _ = mount.Close() }()
-	if brokerNamespaceFD(int(mount.Fd()), unix.CLONE_NEWNS, target.MountInode) != nil || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
-		return ErrBoundary
-	}
-
-	if plan == nil {
-		return ErrBoundary
+	defer func() { _ = before.Close() }()
+	role := -1
+	for index, observed := range before.Targets {
+		if observed.Boot.Equal(target.Boot) && observed.MountInode == target.MountInode {
+			role = index
+		}
 	}
 	source := (bootid.Reader{}).ForPID(os.Getpid())
-	var sourceMount unix.Stat_t
-	if unix.Stat("/proc/self/ns/mnt", &sourceMount) != nil || !source.Complete() {
+	if role < 0 || !source.Equal(before.Source) {
 		return ErrBoundary
 	}
-	host, e := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "hostnetns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-	if e != nil {
+	self, err := unix.Open("/proc/self/ns/mnt", unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return ErrBoundary
+	}
+	defer func() { _ = unix.Close(self) }()
+	var selfStat unix.Stat_t
+	if unix.Fstat(self, &selfStat) != nil || brokerNamespaceFD(self, unix.CLONE_NEWNS, selfStat.Ino) != nil {
+		return ErrBoundary
+	}
+	host, err := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "hostnetns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
 		return ErrBoundary
 	}
 	defer func() { _ = unix.Close(host) }()
-	private, e := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "netns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
-	if e != nil {
+	private, err := unix.Open(filepath.Join(InstanceRoot, plan.Instance, "netns"), unix.O_RDONLY|unix.O_NOFOLLOW|unix.O_CLOEXEC, 0)
+	if err != nil {
 		return ErrBoundary
 	}
 	defer func() { _ = unix.Close(private) }()
-	targets, e := h.targets(ctx)
-	if e != nil {
-		return e
+	request := NamespaceBrokerMessage{Operation: operation, Instance: plan.Instance, Source: MountTarget{source, selfStat.Ino}, Targets: append([]MountTarget(nil), before.Targets[:]...), Target: target, HostNamespace: plan.HostNamespaceInode, Namespace: plan.NamespaceInode}
+	fds := [4]int{int(before.Files[role].Fd()), host, private, self}
+	if validateAttestedBrokerFDs(request, fds) != nil {
+		return ErrBoundary
 	}
-	request := NamespaceBrokerMessage{Operation: operation, Instance: plan.Instance, Source: MountTarget{source, sourceMount.Ino}, Targets: targets, Target: target, HostNamespace: plan.HostNamespaceInode, Namespace: plan.NamespaceInode}
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
 		dispatcher = &SystemdNamespaceBroker{Executable: h.executable()}
 	}
-	bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	if dispatcher.RunFDs(bounded, request, [3]int{int(mount.Fd()), host, private}) != nil || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
+	attested, ok := dispatcher.(NamespaceBrokerAttestedFDDispatch)
+	if !ok {
 		return ErrBoundary
 	}
-	var current unix.Stat_t
-	if unix.Stat(path, &current) != nil || current.Ino != target.MountInode {
+	operationError := attested.RunAttestedFDs(bounded, request, fds)
+	after, afterError := h.capture(bounded)
+	if after != nil {
+		defer func() { _ = after.Close() }()
+	}
+	unchanged := afterError == nil && before.SameTargets(after) && (bootid.Reader{}).ForPID(source.PID).Equal(source)
+	if operationError != nil || !unchanged {
+		// Only undo this operation's exact owned exports while the original namespace
+		// objects are still held. Never adopt a newly observed target or delete its
+		// foreign bindings. Failed compensation leaves the pending durable receipt.
+		if operation == "export" {
+			request.Operation = "remove"
+			_ = attested.RunAttestedFDs(bounded, request, fds)
+		}
 		return ErrBoundary
 	}
 	return nil
 }
+
 func readNamespaceExport(plan *NetworkPlan) (namespaceExportRecord, error) {
 	var record namespaceExportRecord
 	if plan == nil || !ValidInstance(plan.Instance) {

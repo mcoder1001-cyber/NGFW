@@ -24,8 +24,27 @@ func runNamespaceBrokerFDs(args []string, fds []int) error {
 	return runNamespaceBrokerHeldFDs(args, fds, false)
 }
 
-func runAttestedNamespaceBrokerFDs(args []string, fds []int) error {
-	return runNamespaceBrokerHeldFDs(args, fds, true)
+func runAttestedNamespaceBrokerFDs(args []string, fds []int, sourceInode uint64) error {
+	if len(fds) != 4 || sourceInode == 0 || brokerNamespaceFD(fds[3], unix.CLONE_NEWNS, sourceInode) != nil {
+		return ErrBoundary
+	}
+	operationError := runNamespaceBrokerHeldFDs(args, fds[:3], true)
+	// Restore the authenticated source filesystem view before ANY post-operation
+	// source reference/artifact lookup. A failed restore exits without an ACK;
+	// the caller retains pending ownership and may compensate with held FDs.
+	if unix.Setns(fds[3], unix.CLONE_NEWNS) != nil {
+		return fmt.Errorf("%w: namespace broker source-restore", ErrBoundary)
+	}
+	current, err := unix.Open("/proc/thread-self/ns/mnt", unix.O_RDONLY|unix.O_CLOEXEC, 0)
+	if err != nil {
+		return ErrBoundary
+	}
+	verifyError := brokerNamespaceFD(current, unix.CLONE_NEWNS, sourceInode)
+	closeError := unix.Close(current)
+	if verifyError != nil || closeError != nil {
+		return ErrBoundary
+	}
+	return operationError
 }
 
 func runNamespaceBrokerHeldFDs(args []string, fds []int, attested bool) error {

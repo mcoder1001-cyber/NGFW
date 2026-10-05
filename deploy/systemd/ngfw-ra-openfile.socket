@@ -1,0 +1,16 @@
+[Unit]
+Description=NGFW fixed remote-access supplier configuration socket
+
+[Socket]
+ListenSequentialPacket=/run/ngfw/ra/openfile.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+FileDescriptorName=openfile-listener
+RemoveOnStop=yes
+TriggerLimitIntervalSec=2
+TriggerLimitBurst=64
+
+[Install]
+WantedBy=sockets.target

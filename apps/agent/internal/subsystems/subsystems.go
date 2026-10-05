@@ -265,6 +265,7 @@ type Wiring struct {
 	ifaceClaim *IfaceClaims
 	boot       *dfkit.FileBootStore
 	dhcpClient *dhcp.ClientDescriptor
+	raStartup  *raStartupInitialization
 
 	storesMu sync.Mutex
 	keyed    map[string]*KeyedClaims
@@ -276,6 +277,9 @@ type Wiring struct {
 
 // register is Register without the persistence guard (stores.go, TD-11b).
 func register(r scheduler.Registry, env Env) (*Wiring, error) {
+	if RARuntimeFor(env.Owner) != nil {
+		return nil, errors.New("remote-access owner already registered")
+	}
 	r = &raFilteringRegistry{Registry: r, byName: map[string]scheduler.Descriptor{}}
 	if env.Log == nil {
 		env.Log = slog.Default()
@@ -492,9 +496,13 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
+	sourceErr := w.initializeRASource(ctx)
 	if err := w.StopRA(ctx); err != nil {
 		w.env.Log.Error("remote-access reconnect cleanup refused", "reason", "owned generation could not be stopped")
 		return
+	}
+	if sourceErr != nil || w.initializeRATargets(ctx) != nil {
+		w.env.Log.Warn("remote-access initialization unavailable", "reason", "engine-not-ready")
 	}
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
 	w.bfdConnected()                 // wave-BC: F-bfd-redistribution

@@ -10,15 +10,15 @@ import (
 type SystemdNumericOpenFilePublisher struct{}
 
 // NewSystemdNumericOpenFilePublisher constructs a pure lazy provisioning client.
-// The concrete authenticated transport is implemented in the next checkpoint.
+// No provisioning or host command runs during construction.
 func NewSystemdNumericOpenFilePublisher() NumericOpenFilePublisher {
 	return &SystemdNumericOpenFilePublisher{}
 }
 
-// PublishNumericOpenFile is explicitly fail-closed until manager transport and
-// held executable authentication are complete; this is not runtime readiness.
-func (*SystemdNumericOpenFilePublisher) PublishNumericOpenFile(context.Context, NumericOpenFileKind, string, bootid.Identity) error {
-	return ErrBoundary
+// PublishNumericOpenFile performs bounded canonical-agent manager provisioning.
+// Missing authenticated installation or source identity fails closed.
+func (*SystemdNumericOpenFilePublisher) PublishNumericOpenFile(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) error {
+	return publishNumericThroughManager(ctx, kind, instance, target)
 }
 
 // NamespaceHandoffInitialization is an explicit startup operation after the

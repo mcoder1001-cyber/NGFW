@@ -23,6 +23,10 @@ const namespaceExportReceipt = "namespace-exports.json"
 // Targets are trusted runtime identities, never configuration document fields.
 type FixedNamespaceHandoff struct {
 	Targets    func(context.Context) ([]MountTarget, error)
+	// Provider supplies manager-opened role descriptors. Consumers must retain
+	// these descriptors through dispatch and compare a fresh observation after
+	// dispatch; a process identity alone cannot detect a mount namespace change.
+	Provider   NamespaceTargetProvider
 	Executable string
 	Dispatcher NamespaceBrokerFDDispatch
 }
@@ -309,4 +313,14 @@ func NewFixedNamespaceHandoff(targets func(context.Context) ([]MountTarget, erro
 		return nil, ErrBoundary
 	}
 	return &FixedNamespaceHandoff{Targets: targets}, nil
+}
+
+// NewFixedNamespaceHandoffForProvider is a pure constructor. Installation and
+// namespace readiness remain read-only preflight responsibilities; construction
+// never creates paths or starts a supplier service.
+func NewFixedNamespaceHandoffForProvider(provider NamespaceTargetProvider) (*FixedNamespaceHandoff, error) {
+	if provider == nil {
+		return nil, ErrBoundary
+	}
+	return &FixedNamespaceHandoff{Provider: provider}, nil
 }

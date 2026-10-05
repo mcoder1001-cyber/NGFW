@@ -1,6 +1,5 @@
 [Unit]
-Description=NGFW bounded manager-opened namespace observation for VPP PID %i
-After=vpp.service
+Description=NGFW manager-opened private-unit observation for PID %i
 StartLimitIntervalSec=10
 StartLimitBurst=64
 
@@ -8,7 +7,7 @@ StartLimitBurst=64
 Type=exec
 User=root
 Group=ngfw
-ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --targets %i
+ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --observe-unit %i
 OpenFile=/run/ngfw/ra/source-agent-exe:source-agent-exe:read-only
 UMask=0077
 RuntimeMaxSec=10
@@ -24,12 +23,13 @@ ProtectKernelLogs=yes
 ProtectControlGroups=yes
 PrivateTmp=yes
 PrivateDevices=yes
+RestrictNamespaces=yes
 RestrictSUIDSGID=yes
 RestrictRealtime=yes
 LockPersonality=yes
 SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX
-SystemCallFilter=~@reboot @swap @raw-io @debug
+SystemCallFilter=~@mount @reboot @swap @raw-io @debug
 StandardOutput=null
 StandardError=null
 LimitCORE=0

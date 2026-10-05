@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	ravpn "ngfw/agent/internal/ra_vpn"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -266,6 +267,7 @@ type Wiring struct {
 	boot       *dfkit.FileBootStore
 	dhcpClient *dhcp.ClientDescriptor
 	raStartup  *raStartupInitialization
+	raRepair   ravpn.NamespaceHandoffStoppedRepair
 
 	storesMu sync.Mutex
 	keyed    map[string]*KeyedClaims
@@ -501,8 +503,29 @@ func (w *Wiring) Connected(ctx context.Context) {
 		w.env.Log.Error("remote-access reconnect cleanup refused", "reason", "owned generation could not be stopped")
 		return
 	}
-	if sourceErr != nil || w.initializeRATargets(ctx) != nil {
+	targetsErr := sourceErr
+	if sourceErr == nil {
+		targetsErr = w.initializeRATargets(ctx)
+	}
+	if targetsErr != nil {
 		w.env.Log.Warn("remote-access initialization unavailable", "reason", "engine-not-ready")
+	}
+	repair := w.raRepair
+	if targetsErr != nil {
+		repair = nil
+	}
+	if runtime := RARuntimeFor(w.env.Owner); runtime != nil {
+		if w.raStartup != nil {
+			runtime.SetInitializationReady(false)
+		}
+		if runtime.RepairStoppedExports(ctx, repair) != nil {
+			runtime.SetInitializationReady(false)
+			w.env.Log.Error("remote-access stopped export repair unavailable", "reason", "engine-not-ready")
+			return
+		}
+		if w.raStartup != nil && targetsErr == nil {
+			runtime.SetInitializationReady(true)
+		}
 	}
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
 	w.bfdConnected()                 // wave-BC: F-bfd-redistribution

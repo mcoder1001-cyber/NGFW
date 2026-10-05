@@ -423,6 +423,10 @@ func (w *Wiring) registerRAController(reg scheduler.Registry) error {
 		if descriptor, ok := reader.Get(ravpn.NamespaceName); ok {
 			if namespace, ok := descriptor.(*ravpn.NamespaceDescriptor); ok {
 				namespace.Guard = runtime.TransportGuard
+				w.raRepair, _ = namespace.Handoff.(ravpn.NamespaceHandoffStoppedRepair)
+				if fixed, ok := namespace.Handoff.(*ravpn.FixedNamespaceHandoff); ok {
+					fixed.Guard = runtime.TransportGuard
+				}
 				w.configureRAInitialization(runtime, namespace.Handoff)
 			}
 		}

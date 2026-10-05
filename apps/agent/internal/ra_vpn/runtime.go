@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -888,4 +889,63 @@ func (r *Runtime) ChangeRequired(ctx context.Context, wanted []EngineSpec) (bool
 		}
 	}
 	return false, nil
+}
+
+// RepairStoppedExports inventories protected owned plans and proves every unit
+// inactive before the first repair. A missing repair component is safe only for
+// a positively empty inventory. Repair callbacks must also use TransportGuard.
+func (r *Runtime) RepairStoppedExports(ctx context.Context, repair NamespaceHandoffStoppedRepair) error {
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if ctx.Err() != nil {
+		return ErrEngine
+	}
+	r.mu.Lock()
+	if r.inventory == nil {
+		r.mu.Unlock()
+		return ErrEngine
+	}
+	plans, err := r.inventory(ctx, r.owner)
+	if err != nil || ctx.Err() != nil || len(plans) > 64 {
+		r.mu.Unlock()
+		return ErrEngine
+	}
+	copies := make([]*NetworkPlan, 0, len(plans))
+	seen := make(map[string]bool, len(plans))
+	for _, plan := range plans {
+		if plan == nil || plan.Validate() != nil || plan.Owner != r.owner || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || seen[plan.Instance] {
+			r.mu.Unlock()
+			return ErrEngine
+		}
+		seen[plan.Instance] = true
+		cp := *plan
+		cp.KernelLinks = slices.Clone(plan.KernelLinks)
+		cp.Pools = slices.Clone(plan.Pools)
+		cp.Split = slices.Clone(plan.Split)
+		cp.Radius = slices.Clone(plan.Radius)
+		if plan.InnerIPv6 != nil {
+			link := *plan.InnerIPv6
+			cp.InnerIPv6 = &link
+		}
+		copies = append(copies, &cp)
+	}
+	r.mu.Unlock()
+	if len(copies) == 0 {
+		return nil
+	}
+	if repair == nil {
+		return ErrEngine
+	}
+	// Validate the whole inventory before allowing any owned export mutation.
+	for _, plan := range copies {
+		if ctx.Err() != nil || r.TransportGuard(ctx, plan) != nil {
+			return ErrEngine
+		}
+	}
+	for _, plan := range copies {
+		if ctx.Err() != nil || r.TransportGuard(ctx, plan) != nil || repair.ExportExistingRepair(ctx, plan) != nil || r.TransportGuard(ctx, plan) != nil {
+			return ErrEngine
+		}
+	}
+	return nil
 }

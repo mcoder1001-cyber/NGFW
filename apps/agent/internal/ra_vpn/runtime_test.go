@@ -766,3 +766,64 @@ func TestInitializationGateRefusesActivationAndPreservesInstalledChecks(t *testi
 		t.Fatal("failed reconnect initialization retained old readiness")
 	}
 }
+
+type stoppedRepairFunc func(context.Context, *NetworkPlan) error
+
+func (f stoppedRepairFunc) ExportExistingRepair(ctx context.Context, p *NetworkPlan) error {
+	return f(ctx, p)
+}
+
+func TestStoppedRepairValidatesWholeInventoryBeforeMutation(t *testing.T) {
+	for _, mode := range []string{"empty", "missing", "foreign", "duplicate", "live", "callback-failure", "canceled", "success"} {
+		t.Run(mode, func(t *testing.T) {
+			r, v, _, units, _, _, _ := lifecycleFixture(t)
+			plan := *v.plan
+			plans := []*NetworkPlan{&plan}
+			if mode == "empty" {
+				plans = nil
+			}
+			if mode == "foreign" {
+				plan.Owner = "foreign"
+			}
+			if mode == "duplicate" {
+				plans = append(plans, &plan)
+			}
+			if mode == "live" {
+				units.started = true
+			}
+			r.SetNamespaceInventory(func(context.Context, string) ([]*NetworkPlan, error) { return plans, nil })
+			calls := 0
+			var callback NamespaceHandoffStoppedRepair = stoppedRepairFunc(func(ctx context.Context, p *NetworkPlan) error {
+				calls++
+				// The real implementation invokes this same guard; it must not deadlock.
+				if err := r.TransportGuard(ctx, p); err != nil {
+					return err
+				}
+				if mode == "callback-failure" {
+					return ErrEngine
+				}
+				return nil
+			})
+			if mode == "missing" || mode == "empty" {
+				callback = nil
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			if mode == "canceled" {
+				cancel()
+			}
+			err := r.RepairStoppedExports(ctx, callback)
+			expected := mode == "success" || mode == "empty"
+			if (err == nil) != expected {
+				t.Fatalf("result %v", err)
+			}
+			if mode == "success" || mode == "callback-failure" {
+				if calls != 1 {
+					t.Fatal("repair not executed exactly once", calls)
+				}
+			} else if calls != 0 {
+				t.Fatal("mutation before whole inventory proof", calls)
+			}
+		})
+	}
+}

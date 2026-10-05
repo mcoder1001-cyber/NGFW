@@ -385,8 +385,14 @@ func TestRAReconnectUnobservedRestartUnitPreventsEveryVPPEvent(t *testing.T) {
 	}
 	units := &raUnobservedUnit{live: true}
 	var startupEvents []string
-	handoff := &raInitializationFixture{events: &startupEvents}
-	options := &RAControllerOptions{Handoff: handoff, Units: units, Inventory: func(_ context.Context, currentOwner string) ([]*ravpn.NetworkPlan, error) {
+	handoff := &raInitializationFixture{events: &startupEvents, repairCheck: func() {
+		if len(v.Calls()) != 0 || model.Created != 0 {
+			t.Fatal("repair ran after native VPP mutation")
+		}
+	}}
+	// This fixture never activates; a concrete unconfigured sealed preparer keeps
+	// the transport guard assembled while installed readiness remains false.
+	options := &RAControllerOptions{Preparation: &ravpn.SealedPreparation{}, Handoff: handoff, Units: units, Inventory: func(_ context.Context, currentOwner string) ([]*ravpn.NetworkPlan, error) {
 		if currentOwner != owner {
 			t.Fatal("foreign inventory owner")
 		}
@@ -422,10 +428,20 @@ func TestRAReconnectUnobservedRestartUnitPreventsEveryVPPEvent(t *testing.T) {
 	if err := w.StopRA(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	handoff.repairErr = ravpn.ErrEngine
 	v.Reset()
 	w.Connected(context.Background())
-	if strings.Join(startupEvents, ",") != "source,source,targets" || model.Created != 1 {
-		t.Fatal("safe reconnect did not provision after its global barrier", startupEvents)
+	if strings.Join(startupEvents, ",") != "source,source,targets,repair" || len(v.Calls()) != 0 || model.Created != 0 {
+		t.Fatal("failed stopped repair reached VPP", startupEvents, v.Calls())
+	}
+	if data, err := os.ReadFile(foreign); err != nil || string(data) != "preserve" {
+		t.Fatal("failed repair changed foreign object")
+	}
+	handoff.repairErr = nil
+	v.Reset()
+	w.Connected(context.Background())
+	if strings.Join(startupEvents, ",") != "source,source,targets,repair,source,targets,repair" || model.Created != 1 {
+		t.Fatal("safe reconnect did not repair before native sentinel", startupEvents)
 	}
 }
 
@@ -490,6 +506,8 @@ func TestRADefaultFactoryUsesLazyManagerProvider(t *testing.T) {
 type raInitializationFixture struct {
 	events               *[]string
 	sourceErr, targetErr error
+	repairErr            error
+	repairCheck          func()
 }
 
 func (f *raInitializationFixture) Preflight(context.Context) error { return ravpn.ErrEngine }
@@ -506,6 +524,14 @@ func (f *raInitializationFixture) InitializeSource(context.Context) error {
 	*f.events = append(*f.events, "source")
 	return f.sourceErr
 }
+func (f *raInitializationFixture) ExportExistingRepair(context.Context, *ravpn.NetworkPlan) error {
+	*f.events = append(*f.events, "repair")
+	if f.repairCheck != nil {
+		f.repairCheck()
+	}
+	return f.repairErr
+}
+
 func (f *raInitializationFixture) Initialize(context.Context) error {
 	*f.events = append(*f.events, "targets")
 	return f.targetErr

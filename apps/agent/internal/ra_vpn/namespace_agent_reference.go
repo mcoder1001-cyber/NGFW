@@ -33,7 +33,11 @@ func readSourceAgentReference(expected bootid.Identity) error {
 }
 
 func readSourceAgentReferenceAt(root string, expected bootid.Identity) error {
-	if !expected.Complete() || expected.PID <= 1 || brokerProtectedParent(root) != nil || !(bootid.Reader{}).ForPID(expected.PID).Equal(expected) {
+	return readSourceAgentGeneration(root, expected, true)
+}
+
+func readSourceAgentGeneration(root string, expected bootid.Identity, requireLive bool) error {
+	if !expected.Complete() || expected.PID <= 1 || brokerProtectedParent(root) != nil || (requireLive && !(bootid.Reader{}).ForPID(expected.PID).Equal(expected)) {
 		return ErrBoundary
 	}
 	// Only the fixed alias layout is accepted. Resolve the current generation
@@ -80,7 +84,7 @@ func readSourceAgentReferenceAt(root string, expected bootid.Identity) error {
 		return ErrBoundary
 	}
 	target, err := os.Readlink(link)
-	if err != nil || target != "/proc/"+strconv.Itoa(expected.PID)+"/exe" || !(bootid.Reader{}).ForPID(expected.PID).Equal(expected) {
+	if err != nil || target != "/proc/"+strconv.Itoa(expected.PID)+"/exe" || (requireLive && !(bootid.Reader{}).ForPID(expected.PID).Equal(expected)) {
 		return ErrBoundary
 	}
 	if !sourceOwnedLink(filepath.Join(root, "source-agent-current"), generation) {

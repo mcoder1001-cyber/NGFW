@@ -13,7 +13,11 @@ import secrets
 import subprocess
 import time
 import urllib.error
+import sys
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from private_http import private_opener
 
 ROOT = Path(__file__).resolve().parents[3]
 EVENTS = []
@@ -84,7 +88,7 @@ def main():
             headers['Authorization'] = 'Bearer ' + token
         req = urllib.request.Request(url + '/api/v1' + path, raw, headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=20) as response:
+            with private_opener().open(req, timeout=20) as response:
                 status, data = response.status, response.read()
         except urllib.error.HTTPError as error:
             status, data = error.code, error.read()

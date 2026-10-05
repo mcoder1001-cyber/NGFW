@@ -1,7 +1,7 @@
 import importlib.util
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 import urllib.error
 import argparse
 import os
@@ -53,12 +53,12 @@ class RequestTests(unittest.TestCase):
     def test_http_error_returns_status_and_problem(self):
         import io
         error = urllib.error.HTTPError('http://localhost', 409, 'busy', {}, io.BytesIO(b'{"type":"capture-busy"}'))
-        with patch.object(live.urllib.request, 'urlopen', side_effect=error):
+        with patch.object(live, 'private_opener', return_value=Mock(open=Mock(side_effect=error))):
             self.assertEqual(live.request('http://localhost', 'test-only', 'POST', '/api/v1/actions/capture', {}),
                              (409, b'{"type":"capture-busy"}'))
 
     def test_timeout_is_not_converted_into_success(self):
-        with patch.object(live.urllib.request, 'urlopen', side_effect=TimeoutError('offline')):
+        with patch.object(live, 'private_opener', return_value=Mock(open=Mock(side_effect=TimeoutError('offline')))):
             with self.assertRaises(TimeoutError):
                 live.request('http://localhost', 'test-only', 'GET', '/api/v1/state/captures')
 

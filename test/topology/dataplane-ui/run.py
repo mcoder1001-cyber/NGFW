@@ -7,9 +7,12 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import sys
 import urllib.error
+import sys
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from private_http import private_opener
 
 sys.dont_write_bytecode = True
 
@@ -42,7 +45,7 @@ class Api:
         request = urllib.request.Request(self.base + path, data=data, method=method,
             headers={'Authorization': 'ApiKey ' + self.token, 'Content-Type': 'application/json'})
         try:
-            response = urllib.request.urlopen(request, timeout=30)
+            response = private_opener().open(request, timeout=30)
         except urllib.error.HTTPError as error:
             response = error
         with response:

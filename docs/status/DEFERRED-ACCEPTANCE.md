@@ -288,3 +288,24 @@ Native multihop actual two-peer packet/liveness/authentication and live FRR redi
 ## F-ha-state-sync remaining two-node execution (2026-10-05)
 
 Actual native NAT44-EI session/TCP continuity, dedicated-sync packet capture, VRRP convergence and owned failover/VM-fault execution are NOTRUN because the disposable second appliance ngfw-b has not been provisioned. The concrete acceptance.py driver leases only its own candidate, checks exact EI tuples/roles and a persistent TCP connection, safely restores priority/revision ownership and bounds private output; optional VM helper requires matching root-owned PID/boot/unit proof. Sixteen offline safety/timing/redirect tests, real API permission/failure-audit/restart scenarios and frontend browser cases were independently executed. Source/correctness/security/mandatory current-main local+hosted quick are not deferred. Follow test/topology/ha-state-sync/README.md on a provisioned isolated two-node rig. ED/ACL/IPsec-SA sequence/replay sync remains unsupported, not deferred implementation.
+
+## Six final tasks — 2026-10-05 freeze campaign
+
+Source completion of the six final rows is separate from release acceptance.
+The obsolete P11-pkg strongSwan/kernel-vpp build is superseded by the owner's
+DEC-ipsec-route-based decision; native product packages and installation remain
+tracked by P10/F-vpp-debs/P11-host. No historical package install is required.
+
+| Case | Current campaign outcome | Next acceptance |
+|---|---|---|
+| Cross-component offline freeze | PASS: contract build, reachability, commit-engine/service46 and auth11 checks | Rerun on the final merged source via test/acceptance/freeze/run.py |
+| Disposable VPP smoke, slot31 | PASS: af_packet ping/counters and cleanup; two tests, no skips | Does not certify API/browser or full product packet chains |
+| TEST-traffic-B | NOT RUN here | Owned native route-based IPsec/daemon campaign; record exact SHA and packet evidence |
+| TEST-traffic-C | NOT RUN | Complete and independently review driver, then owned quiet window; real MPLS/SRH/VRRP/QoS/riders and rollback |
+| Final browser | NOT RUN | Owned API/agent stack, en/fa real candidate/commit/rollback and console checks |
+| Appliance install/HA | NOT RUN | Clean target boot/install and authorized two-node failover; never restart shared VPP while handover is pending |
+
+Full local and hosted quick CI remain mandatory merge gates. The first freeze
+quick attempt failed timing checks during concurrent load; preserve that failure
+and rerun serially with existing concurrency controls, without weakening tests.
+STATUS-FINAL must retain every unresolved code or acceptance gap explicitly.

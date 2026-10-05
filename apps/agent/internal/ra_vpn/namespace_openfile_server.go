@@ -114,6 +114,14 @@ func RunNumericOpenFilePublisher() (result error) {
 	if readyErr != nil || unix.Sendmsg(socket, ready, unix.UnixRights(int(roles[sourceAgentExecutableRole].Fd())), nil, 0) != nil {
 		return ErrBoundary
 	}
+	if boundNumericPublisherValidationSocket(validationContext, socket) != nil {
+		return ErrBoundary
+	}
+	accepted, acceptedRights, acceptedErr := receiveUnitObserverPacket(socket, 0)
+	closeUnitObserverFiles(acceptedRights)
+	if acceptedErr != nil || string(accepted) != "READY" || validationContext.Err() != nil || proof.Verify(validationContext) != nil {
+		return ErrBoundary
+	}
 	ipcContext, ipcCancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
 	defer ipcCancel()
 	ctx = ipcContext

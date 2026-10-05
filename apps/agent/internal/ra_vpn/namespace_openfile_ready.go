@@ -12,6 +12,8 @@ import (
 // manager-opened canonical source executable FD accompanies it. The client must
 // verify the fresh fixed server identity and that held image before starting the
 // unchanged five-second request/reply phase; this frame alone grants no trust.
+// The literal READY acknowledgment has zero rights and lets the server begin
+// its own IPC clock only after the client completes those fresh checks.
 // Each one-shot server validates installation afresh, including both probe and
 // publish activations. No installation proof is reused across processes/calls.
 type numericPublisherReady struct {

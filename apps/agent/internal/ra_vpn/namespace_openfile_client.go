@@ -101,6 +101,9 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if err := numericPublisherManagerWithProof(ctx, ready.Server, proof); err != nil {
 		return empty, nil, err
 	}
+	if unix.Sendmsg(fd, []byte("READY"), nil, nil, 0) != nil {
+		return empty, nil, numericPublisherFailure(ctx, 17)
+	}
 	ipc, ipcCancel := context.WithTimeout(publicationContext, NumericPublisherIPCBudget)
 	defer ipcCancel()
 	ctx = ipc

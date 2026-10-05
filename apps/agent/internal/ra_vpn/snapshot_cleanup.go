@@ -30,7 +30,7 @@ type snapshotReceipt struct {
 
 func snapshotStat(fd int, name string, directory bool) (snapshotNode, error) {
 	var s unix.Stat_t
-	if unix.Fstatat(fd, name, &s, unix.AT_SYMLINK_NOFOLLOW) != nil || s.Uid != 0 || s.Gid != 0 {
+	if unix.Fstatat(fd, name, &s, unix.AT_SYMLINK_NOFOLLOW) != nil || s.Uid != 0 {
 		return snapshotNode{}, ErrBoundary
 	}
 	mode := uint32(unix.S_IFREG | 0600)
@@ -40,6 +40,8 @@ func snapshotStat(fd int, name string, directory bool) (snapshotNode, error) {
 	if s.Mode != mode || !directory && s.Nlink != 1 {
 		return snapshotNode{}, ErrBoundary
 	}
+	// Agent-owned material is root:ngfw under its fixed unit. Exact private
+	// modes grant no group access; CAP_CHOWN is neither needed nor permitted.
 	return snapshotNode{uint64(s.Dev), s.Ino, s.Mode}, nil
 }
 func writeSnapshotReceipt(fd int, plan *NetworkPlan, files []string, directories []string) error {
@@ -228,7 +230,7 @@ func verifySnapshotContents(instance string, expected map[string][]byte) error {
 	}
 	f := os.NewFile(uintptr(child), snapshotReceiptName)
 	var st unix.Stat_t
-	if unix.Fstat(child, &st) != nil || st.Mode != unix.S_IFREG|0600 || st.Uid != 0 || st.Gid != 0 || st.Nlink != 1 || st.Size > 8192 {
+	if unix.Fstat(child, &st) != nil || st.Mode != unix.S_IFREG|0600 || st.Uid != 0 || st.Nlink != 1 || st.Size > 8192 {
 		f.Close()
 		return ErrBoundary
 	}

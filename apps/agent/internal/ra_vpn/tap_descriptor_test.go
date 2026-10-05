@@ -122,3 +122,20 @@ func TestGuardedTAPBootChangeDuringCreateKeepsUncertainClaim(t *testing.T) {
 		t.Fatal("pending claim adopted after restart")
 	}
 }
+
+func TestGuardedTAPRetainsTransportWhenDaemonCannotQuiesce(t *testing.T) {
+	guard, tap, _, _, endpoint := guardedFixture(t)
+	guard.Guard = func(context.Context, *NetworkPlan) error { return ErrEngine }
+	if _, err := guard.Create(context.Background(), endpoint); err == nil || len(tap.rows) != 0 || len(guard.Store.(receiptMemory)) != 0 {
+		t.Fatal("failed quiesce mutated or claimed TAP")
+	}
+	guard.Guard = nil
+	meta, err := guard.Create(context.Background(), endpoint)
+	if err != nil {
+		t.Fatal(err)
+	}
+	guard.Guard = func(context.Context, *NetworkPlan) error { return ErrEngine }
+	if guard.Delete(context.Background(), endpoint, meta) == nil || tap.deleted != 0 || len(tap.rows) != 1 || len(guard.Store.(receiptMemory)) != 1 {
+		t.Fatal("failed stop removed active transport or its receipt")
+	}
+}

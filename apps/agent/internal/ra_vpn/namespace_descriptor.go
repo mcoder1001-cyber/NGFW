@@ -28,7 +28,11 @@ func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 }
 
 type NamespaceMeta struct{ Inode uint64 }
-type NamespaceDescriptor struct{ owner string }
+type NamespaceDescriptor struct {
+	owner   string
+	Handoff NamespaceHandoff
+	Guard   MutationGuard
+}
 
 // The protected root network.json records ownership and both kernel NSFS
 // identities. Retrieve validates those persisted records against held bindings.
@@ -79,11 +83,24 @@ func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (
 	if err != nil {
 		return nil, err
 	}
+	if d.Guard != nil {
+		if err := d.Guard(ctx, plan); err != nil {
+			return nil, err
+		}
+	}
 	if err = CreateNamespace(ctx, plan); err != nil {
 		if plan.NamespaceInode != 0 || plan.HostNamespaceInode != 0 {
 			return NamespaceMeta{plan.NamespaceInode}, scheduler.PartialCreate(errors.Join(err, scheduler.ErrUncertainOutcome))
 		}
 		return nil, err
+	}
+	if d.Handoff != nil {
+		if err := d.Handoff.Export(ctx, plan); err != nil {
+			return NamespaceMeta{plan.NamespaceInode}, scheduler.PartialCreate(errors.Join(err, scheduler.ErrUncertainOutcome))
+		}
+		if err := d.Handoff.Verify(ctx, plan); err != nil {
+			return NamespaceMeta{plan.NamespaceInode}, scheduler.PartialCreate(errors.Join(err, scheduler.ErrUncertainOutcome))
+		}
 	}
 	return NamespaceMeta{plan.NamespaceInode}, nil
 }
@@ -104,6 +121,20 @@ func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, m
 	identity, ok := meta.(NamespaceMeta)
 	if !ok || identity.Inode == 0 {
 		return ErrBoundary
+	}
+	actual, err := ReadAgentPlan(plan.Instance)
+	if err != nil || actual.NamespaceInode != identity.Inode {
+		return ErrBoundary
+	}
+	if d.Guard != nil {
+		if err := d.Guard(ctx, actual); err != nil {
+			return err
+		}
+	}
+	if d.Handoff != nil {
+		if err := d.Handoff.Remove(ctx, actual); err != nil {
+			return err
+		}
 	}
 	if err = RemoveNamespace(plan.Instance, identity.Inode); err != nil {
 		return err
@@ -166,6 +197,11 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		unix.Close(fd)
 		if bad || validateNamespaceAlias(&plan) != nil {
 			return nil, ErrBoundary
+		}
+		if d.Handoff != nil {
+			if err := d.Handoff.Verify(ctx, &plan); err != nil {
+				return nil, err
+			}
 		}
 		meta := NamespaceMeta{plan.NamespaceInode}
 		plan.NamespaceInode = 0

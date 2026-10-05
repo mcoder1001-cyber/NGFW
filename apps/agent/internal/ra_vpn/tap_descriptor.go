@@ -40,6 +40,7 @@ type GuardedTAP struct {
 	Boot      func() bootid.Identity
 	Plan      func(string) (*NetworkPlan, error)
 	AllowedID func(uint32) bool
+	Guard     MutationGuard
 	// Restart recovery requires an all-owner dump, not filtered Retrieve.
 	Absent  func(context.Context, *tapv2.Tap, uint32) error
 	Retired func(bootid.Identity) bool
@@ -117,6 +118,11 @@ func (d *GuardedTAP) Create(ctx context.Context, value proto.Message) (any, erro
 	if err != nil {
 		return nil, err
 	}
+	if d.Guard != nil {
+		if err := d.Guard(ctx, plan); err != nil {
+			return nil, err
+		}
+	}
 	previous, existing := d.Store.Load(endpoint.Name)
 	if !errors.Is(existing, os.ErrNotExist) {
 		if existing != nil || previous.Pending || previous.Boot.Equal(boot) || !previous.Boot.Complete() || previous.Boot.PID <= 0 || previous.Instance != plan.Instance || previous.NamespaceInode != plan.NamespaceInode || previous.HostNamespaceInode != plan.HostNamespaceInode || !proto.Equal(previous.Endpoint, endpoint) || d.Absent == nil || d.Retired == nil || !d.Retired(previous.Boot) || d.Absent(ctx, endpoint, previous.Index) != nil || !boot.Equal(d.Boot()) {
@@ -160,6 +166,11 @@ func (d *GuardedTAP) Delete(ctx context.Context, value proto.Message, meta any) 
 	endpoint, plan, boot, err := d.input(value)
 	if err != nil {
 		return err
+	}
+	if d.Guard != nil {
+		if err := d.Guard(ctx, plan); err != nil {
+			return err
+		}
 	}
 	receipt, ok := meta.(TAPReceipt)
 	if !ok || !receiptMatches(receipt, endpoint, plan, boot) {

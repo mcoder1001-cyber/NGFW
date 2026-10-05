@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { SECRET_KINDS, type SecretKind } from '@ngfw/schema';
-import { asc, eq, max } from 'drizzle-orm';
+import { asc, eq, max, sql } from 'drizzle-orm';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -60,7 +60,8 @@ export class SecretsService {
     try {
       key = readKeyFileBytes(file).bytes;
     } catch (e) {
-      if (e instanceof KeyFileError) throw problems.unavailable(`the secret store master key: ${e.message}`);
+      if (e instanceof KeyFileError)
+        throw problems.unavailable(`the secret store master key: ${e.message}`);
       throw e;
     }
     if (key.length !== 32)
@@ -119,6 +120,7 @@ export class SecretsService {
     const ref = `${kind}/${name}`;
     const ciphertext = this.encrypt(value, ref);
     const out = await this.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${ref}, 0))`);
       const [cur] = await tx
         .select({ version: secret.version })
         .from(secret)

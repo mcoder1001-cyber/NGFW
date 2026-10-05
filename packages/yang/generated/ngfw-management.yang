@@ -748,5 +748,118 @@ module ngfw-management {
         }
       }
     }
+    container backup {
+      leaf enabled {
+        type boolean;
+        default "false";
+      }
+      leaf schedule {
+        type string {
+          pattern "(\\*|\\*/[1-9][0-9]*|[0-9]+)( (\\*|\\*/[1-9][0-9]*|[0-9]+)){4}";
+        }
+        default "0 2 * * *";
+      }
+      container target {
+        leaf type {
+          type enumeration {
+            enum "local";
+            enum "sftp";
+            enum "https";
+          }
+          mandatory true;
+        }
+        leaf path {
+          type string {
+            length "1..2048";
+          }
+          mandatory true;
+        }
+        leaf host {
+          type string {
+            length "1..2048";
+          }
+        }
+        leaf port {
+          type uint32 {
+            range "1..65535";
+          }
+        }
+        leaf username {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
+        leaf credentialRef {
+          type string {
+            pattern "(password|key|token)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+            length "0..127";
+          }
+          description "reference to a stored secret of kind password or key or token";
+        }
+        leaf hostKeySha256 {
+          type string {
+            pattern "[a-f0-9]{64}";
+          }
+        }
+      }
+      leaf retention {
+        type uint32 {
+          range "1..365";
+        }
+        default "7";
+      }
+      leaf revisions {
+        type uint32 {
+          range "1..1000";
+        }
+        default "100";
+      }
+      leaf passphraseRef {
+        type string {
+          pattern "(password)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+          length "0..127";
+        }
+        description "reference to a stored secret of kind password";
+      }
+    }
+    list templates {
+      key "name";
+      leaf name {
+        type string;
+        description "The map key.";
+      }
+      leaf description {
+        type string {
+          length "0..1024";
+        }
+        default "";
+      }
+      list parameters {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        leaf type {
+          type enumeration {
+            enum "string";
+            enum "number";
+            enum "boolean";
+          }
+          mandatory true;
+        }
+        leaf required {
+          type boolean;
+          default "true";
+        }
+      }
+      leaf patchJson {
+        type string {
+          length "0..1048576";
+        }
+        mandatory true;
+      }
+    }
   }
 }

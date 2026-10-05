@@ -1,0 +1,10 @@
+Branch: codex/f-backup-restore-ui-20261005
+Remote checkpoint: 546116dbb46b3d868802fb109414b927c6cdd54b (connector publication succeeded); local authored checkpoint66d1ac2cc. Borrowed contract151983a38 cherry-picked527bd51ef solely for schema consumer builds; manager integrates frontend commits separately.
+Owned: domain frontend, en/fa locale, anchored router/nav/i18n, UI evidence.
+Completed: full encrypted download, restore candidate diff, schedule SchemaForm from management contract, template editor and parameter SchemaForm, support download; Upgrade slots/raw8GiB Blob upload/stage/activate/confirm/rollback with confirmation dialogs; authenticated refresh without cloning upload streams; admin-only page mounting; secrets cleared on submit.
+Tests: initial check PASSED0m10s; typecheck after workspace dependency build passed. Focused8 tests passed2 files (15:55:58UTC), including401 binary replay, restore staging without commit, role restriction and trial confirmation semantics. Latest candidate schedule route/schema-consumer checkpoint passed9/9 focused tests, lint and typecheck. Generated template/upgrade request type aliases added after own generator success; final generated-contract typecheck passed exit0.
+Remaining: successful response contract completion owned by backend; real en/fa light/dark screenshots against privateDB endpoint. Backend real stack not ready yet. No screenshot/live endpoint claim.
+Current failure: none identified in frontend. Backend successful OpenAPI response contracts and real stack browser evidence still owed.
+Next: manager integrates authored66d1ac2cc,7b7fe1ac8,dfc463089 (exclude borrowed527bd51ef,d23d80a66); fresh independent R6/T4 validate and capture real stack. Remote published c7834f78c20b29406d84e9da362e408159bb275d via connector.
+
+R6 source correction f01894264 published36aaa23bf1e0375c56e33618a12a5cac13654969: locale history timestamps, new-template reset, loading/empty states. Focused9/9 tests, typecheck and touched ESLint passed. Next manager cherry-picks f01894264 and status-only next commit, independent R6 verifies.

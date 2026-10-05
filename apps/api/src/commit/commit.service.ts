@@ -485,6 +485,12 @@ export class CommitService implements OnApplicationShutdown {
     notApplied: string[];
   }> {
     const c = await this.repo.candidate();
+    if (
+      c.payload !== null &&
+      Object.keys(c.restoreSecrets ?? {}).length > 0 &&
+      user.role !== 'admin'
+    )
+      throw problems.forbidden('only an admin may validate restored secrets');
     const running = await this.repo.latestRevision();
     const doc = c.payload ?? running?.payload;
     if (doc === undefined) return { ok: true, warnings: [], plan: [], notApplied: [] };
@@ -493,6 +499,7 @@ export class CommitService implements OnApplicationShutdown {
     await this.assertNoExternalUserCollision(doc);
     const v = await this.validation.validate(doc, `validate-${randomUUID()}`, {
       dryRunMs: this.budget.dryRunMs,
+      ...(c.payload !== null && c.restoreSecrets ? { secretVersions: c.restoreSecrets } : {}),
       running: running?.payload ?? emptyDocument(), // F-rule-expiry: expiry in the past on new/changed rules
     });
     if (!v.ok)
@@ -556,6 +563,12 @@ export class CommitService implements OnApplicationShutdown {
       await this.assertNoPending();
       const c = await this.repo.candidate();
       checkLock(c, user, new Date(), this.env.NGFW_LOCK_TTL_SEC);
+      if (
+        c.payload !== null &&
+        Object.keys(c.restoreSecrets ?? {}).length > 0 &&
+        user.role !== 'admin'
+      )
+        throw problems.forbidden('only an admin may commit restored secrets');
       if (c.payload === null)
         return {
           status: 'unchanged',
@@ -575,6 +588,14 @@ export class CommitService implements OnApplicationShutdown {
         ...opts,
         kind: 'commit',
         parentId: running?.id ?? null,
+        ...(c.restoreSecrets
+          ? {
+              restoreSecrets: pick(
+                c.restoreSecrets,
+                secretRefs(c.payload).map((r) => r.ref),
+              ),
+            }
+          : {}),
       });
     });
   }
@@ -1115,6 +1136,7 @@ export class CommitService implements OnApplicationShutdown {
           ownerKeyId: c.ownerKeyId,
           lockedAt: c.lockedAt,
           payload: c.payload,
+          restoreSecrets: c.restoreSecrets ?? null,
           baseRevisionId: revision.id,
         });
       }

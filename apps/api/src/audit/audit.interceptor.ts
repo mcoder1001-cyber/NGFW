@@ -33,6 +33,14 @@ export const PRIVILEGED_ROUTES: ReadonlySet<string> = new Set([
   'DELETE /api/v1/auth/api-keys/:id',
   'POST /api/v1/secrets',
   'DELETE /api/v1/secrets/:kind/:name',
+  // F-backup-restore: credential export/restore and appliance mutation require a write-ahead record.
+  'POST /api/v1/actions/backup',
+  'POST /api/v1/actions/restore',
+  'POST /api/v1/actions/support-bundle',
+  'POST /api/v1/actions/upgrade',
+  'POST /api/v1/actions/upgrade-upload',
+  'PUT /api/v1/config-templates/:name',
+  'POST /api/v1/config-templates/:name/apply',
   // F-pki: these actions create or replace encrypted secret material.
   'POST /api/v1/actions/pki/ca',
   'POST /api/v1/actions/pki/csr',

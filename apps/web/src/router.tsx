@@ -95,6 +95,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        { path: 'system/backup-restore', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/BackupRestorePage')).BackupRestorePage }) },
+        { path: 'system/upgrade', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/UpgradePage')).UpgradePage }) },
         // web: WEB-2
         // wave-A: UI-domain-editor
         // wave-A: F-bonding

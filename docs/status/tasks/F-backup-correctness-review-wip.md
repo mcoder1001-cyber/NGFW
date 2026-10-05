@@ -1,0 +1,3 @@
+# Final independent correctness checkpoint
+
+Branch codex/f-backup-correctness-final-review-20261005. Reviewed source 4c8640695c8ac9877819817506979e361e801216; tree 79c94d41e9a5e0fc71b7a8837ed9956d661258fd. Pre-report remote cf94a8b5b6cee5c53f576f0365914688f5368534. Completed full unchanged quick exit0/PASS21m16s, PostgreSQL9/9, external races2/2, security1/1, dependency audit0. No remaining reviewer checks; manager hosted final-squash CI/merge remains. Own files: R1/T1/T2/R2-delta reports, envelope/wip, terminal excerpt. Next command: publish this evidence commit with GitHub connector; report actual remote SHA to manager.

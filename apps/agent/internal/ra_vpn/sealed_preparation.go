@@ -22,12 +22,19 @@ type SealedPreparation struct {
 
 func (*SealedPreparation) String() string { return "remote-access sealed preparation <redacted>" }
 func (p *SealedPreparation) Prepare(ctx context.Context, s EngineSpec) (*PreparedEngine, error) {
-	return p.prepare(ctx, s, false)
+	return p.prepare(ctx, s, false, false)
 }
 func (p *SealedPreparation) Recover(ctx context.Context, s EngineSpec) (*PreparedEngine, error) {
-	return p.prepare(ctx, s, true)
+	return p.prepare(ctx, s, true, false)
 }
-func (p *SealedPreparation) prepare(ctx context.Context, s EngineSpec, recoverGeneration bool) (*PreparedEngine, error) {
+
+// Validate authenticates sealed credentials and canonical settings before any
+// mutation, without requiring or creating a namespace or private files.
+func (p *SealedPreparation) Validate(ctx context.Context, s EngineSpec) error {
+	_, err := p.prepare(ctx, s, false, true)
+	return err
+}
+func (p *SealedPreparation) prepare(ctx context.Context, s EngineSpec, recoverGeneration, validateOnly bool) (*PreparedEngine, error) {
 	if p == nil || p.Resolver == nil || s.Validate() != nil || s.ServerCertificate == nil {
 		return nil, ErrEngine
 	}
@@ -95,6 +102,11 @@ func (p *SealedPreparation) prepare(ctx context.Context, s EngineSpec, recoverGe
 	files, e := strongswan.BuildRAFiles(ctx, s.Profile, s.Configuration, s.Proposal, root, strongswan.SecretResolverFunc(resolve))
 	if e != nil {
 		return nil, ErrEngine
+	}
+	if validateOnly {
+		clear(files.Secrets)
+		clear(files.Daemon)
+		return nil, nil
 	}
 	snapshot := PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: s.Configuration.GetCertificate(), Identity: identity, CertificateClients: clients}
 	if clients {

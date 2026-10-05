@@ -152,3 +152,39 @@ func TestRAEnvironmentTwoOwnersAndCloseAreIsolated(t *testing.T) {
 		t.Fatal("close damaged another owner")
 	}
 }
+
+type raView map[scheduler.Key]proto.Message
+
+func (v raView) Get(k scheduler.Key) (proto.Message, bool) { x, ok := v[k]; return x, ok }
+func (v raView) List(name string) []scheduler.KV {
+	var out []scheduler.KV
+	for k, x := range v {
+		if k.Descriptor() == name {
+			out = append(out, scheduler.KV{Key: k, Value: x})
+		}
+	}
+	return out
+}
+
+type raObserveOnly struct{ *raMemoryDescriptor }
+
+func (*raObserveOnly) DeleteOnAbsence() bool { return false }
+func TestRAScopedValidationRejectsCollisionBeforeAnyWrite(t *testing.T) {
+	raw := &raMemoryDescriptor{name: core.RouteName, rows: map[scheduler.Key]scheduler.KV{}}
+	normal := &raScopedDescriptor{inner: raw}
+	route := &core.Route{TableId: 7, Prefix: "192.0.2.0/24", Paths: []*core.RoutePath{{Interface: "loop7", Weight: 1}}}
+	key := normal.KeyOf(route)
+	view := raView{scheduler.Join("remote-access."+core.RouteName, key.ID()): route}
+	if normal.Validate(context.Background(), key, route, view) == nil || raw.writes != 0 {
+		t.Fatal("collision was not rejected without mutation")
+	}
+	reserved := proto.Clone(route).(*core.Route)
+	reserved.Paths[0].Interface = ravpn.LinkName(ravpn.InstanceID("w19", "road"), false)
+	if normal.Validate(context.Background(), normal.KeyOf(reserved), reserved, raView{}) == nil {
+		t.Fatal("normal desired reserved path accepted")
+	}
+	wrapped := &raScopedDescriptor{inner: &raObserveOnly{raw}, private: true}
+	if wrapped.DeleteOnAbsence() {
+		t.Fatal("observe-only semantics lost")
+	}
+}

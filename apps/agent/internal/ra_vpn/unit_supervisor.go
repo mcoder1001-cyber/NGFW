@@ -145,3 +145,26 @@ func (u SystemdUnits) Stop(ctx context.Context, p *NetworkPlan, want UnitIdentit
 	}
 	return nil
 }
+
+// Retired proves an old kernel boot has ended and its ephemeral instance is
+// absent. It never touches a live/new fixed unit or adopts a recreated root.
+func (SystemdUnits) Retired(ctx context.Context, s EngineSpec, u UnitIdentity) (bool, error) {
+	current := (bootid.Reader{}).BootID()
+	if !u.Valid() || current == "" {
+		return false, ErrEngine
+	}
+	if current == u.BootID {
+		return false, nil
+	}
+	if s.Validate() != nil {
+		return false, ErrEngine
+	}
+	if _, e := os.Lstat(InstanceRoot + "/" + s.Instance); !os.IsNotExist(e) {
+		return false, ErrEngine
+	}
+	pid, e := unitPID(ctx, "ngfw-ra@"+s.Instance+".service")
+	if e != nil || pid != 0 {
+		return false, ErrEngine
+	}
+	return true, nil
+}

@@ -2,11 +2,11 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 96.2% by hours (1518.0/1577.5 h), 94.3% by tasks (199/211)**
+**Overall: 96.8% by hours (1528.0/1578.5 h), 94.3% by tasks (200/212)**
 
 | state | tasks |
 |---|---|
-| merged | 199 |
+| merged | 200 |
 | review | 0 |
 | running | 3 |
 | ready | 0 |
@@ -20,17 +20,17 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 979.0 / 1002.0 | 97.7% | 143/150 | 1 | 0 | 6 |
-| S5 | 132 / 155.5 | 84.9% | 13/16 | 2 | 0 | 1 |
+| S4 | 979.0 / 1003.0 | 97.6% | 143/151 | 2 | 0 | 6 |
+| S5 | 142 / 155.5 | 91.3% | 14/16 | 1 | 0 | 1 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
-- F-backup-restore — backup/restore, scheduled export, templates, support bundle, upgrade UI (running, /root/backup_restore; verified live developer in current chat)
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
 - TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, /root/traffic_b; verified live developer in current chat)
+- BUG-vpn-capability-warning — Remove obsolete blanket IPsec and PKI capability warnings (running, root developer; worker activity unverified)
 
 ## Parked
 

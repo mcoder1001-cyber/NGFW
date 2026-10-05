@@ -1,6 +1,6 @@
 # F-backup-restore acceptance evidence
 
-Author branch codex/f-backup-restore-20261005. Historical author checkpoint c8ec544708e1dcf06dfc225059a276d0a756112e corresponds to local a6fd289a6. Final integration product checkpoint is 2560e8511 atop main f57424992; independent final integrated quick passed21m16s on4c8640695; exact final hosted gate and merge remain pending. Manager owns combined frontend integration, independent reviews and final quick/hosted CI verdict.
+Author branch codex/f-backup-restore-20261005. Historical author checkpoint c8ec544708e1dcf06dfc225059a276d0a756112e corresponds to local a6fd289a6. Final integration product checkpoint is 2560e8511 atop main f57424992; independent final integrated quick passed21m16s on4c8640695; final hosted gate and actual main CI passed, and PR191 merged. Manager completed frontend integration and mandatory independent reviews.
 
 - Encrypted full backup, bounded authenticated import, revision/secret pins and normal candidate/commit recovery: PostgreSQL e2e6/6 PASS (/tmp/fbr-e2e8.log). Wiped running document recovers SHA256 ad27929269906644d14d795f096a6dd441780cbe241acf04821e88df696974e4. Wrong passphrase stages nothing; live ciphertext remains unchanged until promotion; discard clears pins. Current accounts remain unchanged.
 - Fail-closed write-ahead audit: actual API audit.begin rejection prevents restore version/candidate writes and upgrade agent calls in PostgreSQL e2e. Scheduled credential export also calls write-ahead audit.
@@ -8,7 +8,7 @@ Author branch codex/f-backup-restore-20261005. Historical author checkpoint c8ec
 - Templates: typed candidate diff, newline/prototype injection refusal PASS. Definitions use normal staging/commit.
 - Support: archive/templates unit5/5 PASS; collector Python2/2 PASS; injected quoted credentials/hash output rejected. Export contains redacted running config, value-free audit summaries, bounded fixed collector and subsystem health.
 - Upgrade: streamed10MiB upload and JSON restore body larger than8MiB PASS; archive bounds refusal PASS. Agent fixed operation tests2/2 and race PASS; helper allowlist, root request handoff and fixed systemd unit preserve privilege boundaries. Actual A/B reboot, signature rejection on appliance and power-loss recovery NOT RUN; require laboratory acceptance under F-ab-upgrade. No host upgrade executed.
-- Contracts: pnpm gen13/13 PASS; Go schema/proto drift PASS; API lint/typecheck and focused auth route tests PASS; CLI operations regenerated from OpenAPI. Complete unchanged quick gate running; no PASS claimed until manager records final result.
+- Contracts: pnpm gen13/13 PASS; Go schema/proto drift PASS; API lint/typecheck and focused auth route tests PASS; CLI operations regenerated from OpenAPI. Complete unchanged quick gate passed on the independently tested source; exact final hosted and main gates also passed as recorded below.
 - English/Persian pages: independent UI author branch integrated by manager. Independent R6/T4 approved eight English/Persian light/dark page screenshots plus actual candidate-only template staging; API fixture12600 is real authenticated private DB with fixed upgrade status mock that refuses host mutations.
 
 Recovery commands: tools/ci.sh --base origin/main; NGFW_TEST_PREFIX=w26 NGFW_VALKEY_DB=10 pnpm -C apps/api exec vitest run -c vitest.e2e.config.ts test/e2e/backup-restore.e2e.test.ts. Harness owns/drops ngfw_w26 only, cleans its prefix only, never flushes shared Valkey.
@@ -24,7 +24,7 @@ R5 run-history correction: generated migration creates f_backup_run_at_idx on at
 
 Final integration evidence (2026-10-05)
 
-The following excerpts are actual saved command output, not simulated expected output. Source-specific reports in this directory retain commands, boundaries and independent verdicts. R7 approves the documented checkpoint. Independent final fresh-main quick now passes; final report import, hosted CI, merge and main verification remain pending. No Done claim is made here.
+The following excerpts are actual saved command output, not simulated expected output. Source-specific reports in this directory retain commands, boundaries and independent verdicts. R7 approves the documented checkpoint. Independent final fresh-main quick now passes; final reports are imported and exact hosted CI, expected-head merge and actual main verification passed. Source completion is Done; laboratory-only acceptance remains deferred.
 
 ```text
 # Author actual PostgreSQL regression: source 0de1bd078, slot26
@@ -68,4 +68,10 @@ apply-startup harness: unchanged since a green run (2026-10-05T17:27:13+00:00 ha
 CI GATE PASSED
 ```
 
-Final exact squashed-commit hosted checks, expected-head merge and main CI remain required. Later root evidence additions change only docs paths and preserve the tested product tree under D226.
+Final exact squashed-commit hosted checks, expected-head merge and actual main CI passed. Later root evidence additions change only docs paths and preserve the tested product tree under D226.
+
+## Final merged source completion
+
+PR191 https://github.com/mcoder1001-cyber/NGFW/pull/191 merged expected head48d22114514b08ff01de1c63f739a2469977a0e7 into main as d6e1646cdfe57168dcb0e4ebf66c87026bc58863. Hosted complete quick37353160584 PASS, packaging37353160615 PASS, provisioning37353160580 PASS. Actual main complete quick37356235707 PASS, packaging37356235683 PASS, provisioning37356235710 PASS; each has exact main head d6e1646. All mandatory independent reviews approved.
+
+Task state is merged/Done. Owned API/UI processes stopped, candidate discarded through actual API, private w26browser database/role removed and only its35 Valkey prefix keys deleted (no flush); runtime socket/credentials removed. No active author/test fixture remains. Real appliance A/B reboot, power-loss and signature tests remain scoped NOT RUN under authorized deferred laboratory acceptance.

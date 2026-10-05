@@ -1,0 +1,5 @@
+# Independent R7 recovery
+
+Source033ac00ca; ownbranch codex/bug-vpn-capability-r7-20261005. Board validates212, all original211 rows identical, currentmerged199/running4/parked9. Actual regression logs checked: beforeFAIL obsoleteIPsec/PKI, afterPASSdesired0.115s/subsystems0.182s. No nontrivial decision or alwaysPENDING trigger. Current mandatory task status file absent; root informed to create with pasted real outputs before R7approval. Next: inspect root's bounded taskreport checkpoint, report verdict with exact final board closeout verification; commit report/envelope/WIP. No running commands or fixtures.
+
+Root914cc470b closure independently reviewed: taskreport/envelope corrected, R7 APPROVE in BUG-vpn-capability-warning-review-R7-closure.md. Board212unique, only originalbackuprow differs; BUGrunning. Fresh gh confirms backupPR191 merged exactd6 and main37356235707 success. Productdeltaempty. FinalBUGgates pending honestly. All commands finished. Next root publishes originalBLOCK and closure, then combines actual final gates.

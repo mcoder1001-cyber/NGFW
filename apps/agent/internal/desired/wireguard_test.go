@@ -67,7 +67,6 @@ func TestWireguardBuilderFindings(t *testing.T) {
 	Wireguard(s, ds, map[string]bool{"vpn": true}, wgVRFs, refs)
 	got := strings.Join(s.issues, "\n")
 	for _, want := range []string{
-		"W agent.unsupported-field /vpn/ipsec",
 		"W agent.cross-domain /vpn/wireguard/interfaces/a", // interfaces domain not in the transaction
 		"E agent.unsupported-value /vpn/wireguard/interfaces/a/peers/dns/endpoint/address",
 		"E vpn.vrf-exists /vpn/wireguard/interfaces/b/underlayVrf",
@@ -121,5 +120,23 @@ func TestWireguardRouteLoopRefused(t *testing.T) {
 	}
 	if !route || strings.Contains(strings.Join(s.issues, "\n"), "route-loop") {
 		t.Fatalf("overlay VRF red: keys %v issues %v", s.keys, s.issues)
+	}
+}
+
+// A transaction can configure IPsec/PKI alongside WireGuard. Those implemented
+// builders validate their own leaves; WireGuard must not mark their entire roots
+// unsupported. Remote access still has its own truthful capability warning.
+func TestWireguardOtherVpnCapabilities(t *testing.T) {
+	ds := wgState(t, `{"vpn":{"ipsec":{"settings":{"asyncCrypto":false}},"pki":{"certificates":{"site":{"certificateRef":"cert/site","privateKeyRef":"key/site"}}},"remoteAccess":{"road":{}}}}`)
+	s := &wgSink{}
+	Wireguard(s, ds, map[string]bool{"vpn": true}, wgVRFs, WireguardEnv{})
+	got := strings.Join(s.issues, "\n")
+	for _, obsolete := range []string{"W agent.unsupported-field /vpn/ipsec", "W agent.unsupported-field /vpn/pki"} {
+		if strings.Contains(got, obsolete) {
+			t.Errorf("implemented VPN capability wrongly rejected: %s\n%s", obsolete, got)
+		}
+	}
+	if !strings.Contains(got, "W agent.unsupported-field /vpn/remoteAccess") {
+		t.Errorf("unimplemented remote access warning lost: %s", got)
 	}
 }

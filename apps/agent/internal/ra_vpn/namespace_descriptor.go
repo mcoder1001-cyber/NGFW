@@ -123,7 +123,7 @@ func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (
 }
 
 // Update refuses unsupported namespace changes.
-func (d *NamespaceDescriptor) Update(_ context.Context, old, new proto.Message, meta any) (any, error) {
+func (d *NamespaceDescriptor) Update(_ context.Context, _, new proto.Message, meta any) (any, error) {
 	if _, err := d.input(new); err != nil {
 		return nil, err
 	}

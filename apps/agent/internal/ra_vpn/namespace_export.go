@@ -314,6 +314,7 @@ func writeNamespaceExport(record namespaceExportRecord, replace bool) error {
 		_ = os.Remove(temporary)
 		return ErrBoundary
 	}
+	// #nosec G304 -- derived full-instance root was validated before exclusive receipt publication; directory is opened only for synchronization.
 	directory, e := os.Open(root)
 	if e != nil {
 		return ErrBoundary

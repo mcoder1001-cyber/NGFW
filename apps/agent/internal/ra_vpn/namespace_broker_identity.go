@@ -34,7 +34,7 @@ func canonicalBrokerUnit(cgroup []byte) (string, error) {
 	}
 	for _, char := range instance {
 		if char < '0' || char > '9' {
-			if !(char == '-' || char == '_' || char == ':' || char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z') {
+			if char != '-' && char != '_' && char != ':' && (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') {
 				return "", ErrBoundary
 			}
 		}

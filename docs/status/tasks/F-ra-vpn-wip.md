@@ -216,3 +216,16 @@ replacement, recycledindex, foreignlink. Focused actual TestHandoff PASS0.026s.
 This contract will precede TAP/ACL/daemon consumers; actual ACL readback still
 mandatory before activation. Current remote160b00d9 namespace descriptor; next:
 publish handoff contract then guarded TAP wrapper and artifact ABI stage verifier.
+
+Host binding contract checkpoint: runtime plan/handoff additionally records
+trusted-agent hostNamespaceInode; handoff requires private!=host and exactpair.
+Concrete lowcap metadata probe exposed /proc/1/ns/net returning masked non-NSFS
+identity (mode040511/dev26/inode14523) instead of rootfullNSFS (dev5/inode4026531833).
+Never use a low-cap Proc1stat as authoritative host identity. Upcoming consumer
+captures root-owned NSFS hostnetns binding before creating distinctprivateNS,
+helper validates both heldNSFS identities plus current=private; namespace handling
+never calls setns/unshare insideGo. Pure handoff regression PASS0.040s;
+consumer actual lowcap hostrefusal/privateacceptance +namespace restart/cleanup
+underlablock PASS0.249s (not yet this contract-only remote tree). Contract publishes
+first; consumer follows. No daemon invocation, no leftoverprivate mounts.
+Current remoteef935936. Next: publish hostNSFS consumer/unitrunfs isolation.

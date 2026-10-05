@@ -36,18 +36,19 @@ type RadiusEndpoint struct {
 
 // NetworkPlan is public, bounded root-owned helper input; it has no credential field.
 type NetworkPlan struct {
-	Format         uint32           `json:"format"`
-	Owner          string           `json:"owner"`
-	Profile        string           `json:"profile"`
-	Instance       string           `json:"instance"`
-	NamespaceInode uint64           `json:"namespaceInode"`
-	LocalAddress   string           `json:"localAddress"`
-	Outer          Link             `json:"outer"`
-	Inner          Link             `json:"inner"`
-	InnerIPv6      *Link            `json:"innerIpv6,omitempty"`
-	Pools          []string         `json:"pools"`
-	Split          []string         `json:"split"`
-	Radius         []RadiusEndpoint `json:"radius"`
+	Format             uint32           `json:"format"`
+	Owner              string           `json:"owner"`
+	Profile            string           `json:"profile"`
+	Instance           string           `json:"instance"`
+	NamespaceInode     uint64           `json:"namespaceInode"`
+	HostNamespaceInode uint64           `json:"hostNamespaceInode"`
+	LocalAddress       string           `json:"localAddress"`
+	Outer              Link             `json:"outer"`
+	Inner              Link             `json:"inner"`
+	InnerIPv6          *Link            `json:"innerIpv6,omitempty"`
+	Pools              []string         `json:"pools"`
+	Split              []string         `json:"split"`
+	Radius             []RadiusEndpoint `json:"radius"`
 }
 
 // InstanceID is deterministic per agent owner/profile, never an operator-supplied path.

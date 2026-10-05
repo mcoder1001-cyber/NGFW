@@ -8,8 +8,9 @@ import (
 func TestHandoffRejectsNamespaceAndEveryVPPBootIdentityChange(t *testing.T) {
 	plan := networkFixture()
 	plan.NamespaceInode = 100
+	plan.HostNamespaceInode = 99
 	boot := bootid.Identity{BootID: "host-a", PID: 1000, StartTime: 2000}
-	receipt := Handoff{Format: 1, Instance: plan.Instance, NamespaceInode: 100, VPPBoot: boot, OuterIndex: 19001, InnerIndex: 19002, OuterName: LinkName(plan.Instance, true), InnerName: LinkName(plan.Instance, false)}
+	receipt := Handoff{Format: 1, Instance: plan.Instance, NamespaceInode: 100, HostNamespaceInode: 99, VPPBoot: boot, OuterIndex: 19001, InnerIndex: 19002, OuterName: LinkName(plan.Instance, true), InnerName: LinkName(plan.Instance, false)}
 	if ValidateHandoff(plan, receipt, boot, 19001, 19002) != nil {
 		t.Fatal("matching complete handoff refused")
 	}

@@ -5869,7 +5869,7 @@ tasks:
     deps: [F-ikev2-native, F-pki]
     priority: 1
     est_hours: 1
-    state: running
+    state: merged
     parked_on: ''
     wbs: []
     scope: Necessary native REST acceptance prerequisite; preserve intrinsic VPN guards
@@ -5878,5 +5878,7 @@ tasks:
     worktree: /root/ngfw-wt/bug-vpn-capability-warning-20261005
     owner: root developer
     started: '2026-10-05'
-    finished: ''
-    notes: Before-fix regression fails for obsolete IPsec and PKI warnings; independent reviews and full CI pending
+    finished: '2026-10-05'
+    notes: Only obsolete blanket IPsec and PKI warnings removed; intrinsic guards preserved. R1/R2/R4/R7 APPROVE and complete independent quick PASS; PR192 exact hosted and actual main quick SUCCESS.
+    worker_status: completed; all owned commands stopped
+    completion_evidence: PR192 head dada9d03c6da4a0fc0b4814827506b5bbeb9263b; merge 4788c90f4adaf57737b0cb8394452eadd58d53a1; hosted quick37362476115 SUCCESS; actual main quick37365022569 SUCCESS

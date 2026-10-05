@@ -58,8 +58,8 @@ func guardedFixture(t *testing.T) (*GuardedTAP, *tapMemory, *NetworkPlan, *booti
 	plan.HostNamespaceInode = 99
 	boot := &bootid.Identity{BootID: "host-a", PID: 1000, StartTime: 2000}
 	tap := &tapMemory{}
-	guard := &GuardedTAP{Tap: tap, Store: receiptMemory{}, Boot: func() bootid.Identity { return *boot }, Plan: func(string) (*NetworkPlan, error) { return plan, nil }, AllowedID: func(id uint32) bool { return id >= 19000 && id <= 19999 }}
-	outer, _, err := TransitTAPs(plan, 19000, 19001)
+	guard := &GuardedTAP{Tap: tap, Store: receiptMemory{}, Boot: func() bootid.Identity { return *boot }, Plan: func(string) (*NetworkPlan, error) { return plan, nil }, AllowedID: func(id uint32) bool { return id >= 2432 && id <= 2433 }}
+	outer, _, err := TransitTAPs(plan, 2432, 2433)
 	if err != nil {
 		t.Fatal(err)
 	}

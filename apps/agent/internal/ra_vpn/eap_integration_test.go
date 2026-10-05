@@ -110,7 +110,14 @@ func runPrivateEAP(t *testing.T, privateVPP bool) {
 		}
 	}
 	serverVICI := startPrivateEngine(t, server)
+
 	clientVICI := startPrivateEngine(t, client)
+	t.Cleanup(func() {
+		if privateVPP && t.Failed() {
+			collectPrivatePacketDiagnostics(t, server)
+			collectPrivatePacketDiagnostics(t, client)
+		}
+	})
 	if _, err := strongswan.LoadRA(context.Background(), serverVICI, serverFiles, strongswan.RAMaterial{Certificates: map[string][]byte{filepath.Join(InstanceRoot, server.Instance, "x509/server.pem"): credentials.Certificate}, PrivateKey: credentials.PrivateKey}); err != nil {
 		t.Fatal("private responder load refused", err)
 	}

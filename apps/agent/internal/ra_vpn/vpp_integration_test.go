@@ -69,13 +69,14 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 	privateCLI(t, "ip", "table", "add", "19000")
 	privateCLI(t, "ip", "table", "add", "19001")
 	var innerName string
+	outerNames := map[string]string{}
 	for p, plan := range []*NetworkPlan{server, client} {
 		backend := tapv2.New(connection, plan.Owner)
 		guard := &GuardedTAP{Tap: backend, Store: &LazyTAPReceipts{StateDir: claims}, Boot: func() bootid.Identity {
 			identity, _ := bootid.Current(context.Background(), connection)
 			return identity
-		}, Plan: ReadAgentPlanByNamespace, AllowedID: func(id uint32) bool { return id >= 19000 && id <= 19999 }}
-		outer, inner, err := TransitTAPs(plan, uint32(19010+p*2), uint32(19011+p*2))
+		}, Plan: ReadAgentPlanByNamespace, AllowedID: func(id uint32) bool { return id >= 2432 && id <= 2435 }}
+		outer, inner, err := TransitTAPs(plan, uint32(2432+p*2), uint32(2433+p*2))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,6 +106,9 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 			privateCLI(t, "set", "interface", "ip", "table", name, vrf)
 			privateCLI(t, "set", "interface", "ip", "address", name, prefix)
 			privateCLI(t, "set", "interface", "state", name, "up")
+			if n == 0 {
+				outerNames[plan.Owner] = name
+			}
 			if p == 0 && n == 1 {
 				innerName = name
 			}
@@ -177,13 +181,32 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 			}
 		}
 	}
-	privateCLI(t, "ip", "route", "add", "192.0.2.19/32", "table", "19000", "via", "198.18.19.1")
-	privateCLI(t, "ip", "route", "add", "192.0.2.20/32", "table", "19000", "via", "198.18.19.7")
-	privateCLI(t, "ip", "route", "add", "10.19.200.0/24", "table", "19001", "via", "198.18.19.3")
+	privateCLI(t, "ip", "route", "add", "192.0.2.19/32", "table", "19000", "via", "198.18.19.1", outerNames[server.Owner])
+	privateCLI(t, "ip", "route", "add", "192.0.2.20/32", "table", "19000", "via", "198.18.19.7", outerNames[client.Owner])
+	privateCLI(t, "ip", "route", "add", "10.19.200.0/24", "table", "19001", "via", "198.18.19.3", innerName)
 	// A protected VPP local address supplies an actual ICMP responder in the
 	// selected inner VRF; .54 is deliberately excluded by both explicit ACLs.
 	privateCLI(t, "set", "interface", "ip", "address", innerName, "10.19.0.53/32")
 	privateCLI(t, "set", "interface", "ip", "address", innerName, "10.19.0.54/32")
+	t.Cleanup(func() {
+		root := os.Getenv("NGFW_RA_VPP_RUNTIME")
+		if root == "" {
+			return
+		}
+		file, err := os.OpenFile(filepath.Join(root, "vpp-eap-diagnostics.txt"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if err != nil {
+			t.Error("own diagnostic file refused")
+			return
+		}
+		defer file.Close()
+		for _, command := range []string{"show interface", "show ip fib", "show ip neighbors", "show errors", "show acl-plugin interface"} {
+			data, err := exec.Command("/usr/bin/vppctl", "-s", "/run/vpp/cli.sock", command).Output()
+			if err == nil && len(data) <= 1<<20 {
+				file.WriteString(command + "\n")
+				file.Write(data)
+			}
+		}
+	})
 }
 func verifyPrivateVPPPackets(t *testing.T, client *NetworkPlan, vip string) {
 	t.Helper()

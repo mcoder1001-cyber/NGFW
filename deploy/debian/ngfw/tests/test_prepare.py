@@ -21,6 +21,8 @@ class Preparation(unittest.TestCase):
             shutil.copytree(SOURCE / 'debian', driver / 'debian')
             (driver / 'assets').mkdir()
             (driver / 'tests').mkdir()
+            shutil.copytree(SOURCE.parents[1] / 'hardening', root / 'deploy/hardening',
+                            ignore=shutil.ignore_patterns('__pycache__', '.scratch'))
             (root / 'deploy/vpp').mkdir()
             (root / 'deploy/vpp/verify.sh').write_text('#!/bin/sh\nexit 0\n')
             (root / 'deploy/vpp/verify.sh').chmod(0o755)
@@ -76,6 +78,11 @@ fi
                 for name in ['service', 'socket']:
                     self.assertTrue((root / f'output/stage/usr/lib/systemd/system/apply-executor.{name}').is_file())
                 self.assertTrue((root / 'output/stage/usr/lib/ngfw/apply-executor.py').is_file())
+                hardening = root / 'output/stage/usr/lib/ngfw/hardening'
+                self.assertTrue((hardening / 'stage.py').is_file())
+                self.assertTrue((hardening / 'signing/verify.py').is_file())
+                self.assertFalse(list(hardening.rglob('__pycache__')))
+                self.assertFalse((root / 'output/stage/etc/sysctl.d/60-ngfw.conf').exists())
                 self.assertEqual((root / 'commands.log').read_text().splitlines()[0],
                                  'exec turbo run build --filter=@ngfw/api --filter=@ngfw/web --concurrency=2')
             else:

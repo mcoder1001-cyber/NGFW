@@ -266,3 +266,7 @@ All actual packet forwarding/drop, both-path/selected-PBR, NAT translation and
 endpoint independence, rollback/residue, capture-loss and VPP identity cases
 remain **NOT RUN**. No live whole_chain_proven result was generated. Use the
 existing manager lease and an idle owned rig window for this single campaign.
+
+## F-hardening-lite offline tooling acceptance (2026-10-05)
+
+Implemented and independently fixture-tested10controls/signature/key-rotation cases; complete reviewed-source quick PASS36m12. Full signed package install/keyrotation, real daemon runtime under optional profiles and appliance boot smoke NOTRUN: signed /srv/ngfw-artifacts/apt pool and disposable full appliance absent. Do not activate profiles on sharedhost. Owner permits deferring only these actual laboratory executions; offline source/tests and final/hosted current-main integration gates remain required. Follow docs/install/hardening.md on disposable target, record real servicehealth and effective settings before claiming runtime acceptance.

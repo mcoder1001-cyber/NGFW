@@ -1,0 +1,9 @@
+PING 10.27.64.129 (10.27.64.129) 347(375) bytes of data.
+355 bytes from 10.27.64.129: icmp_seq=1 ttl=63 time=1.26 ms
+355 bytes from 10.27.64.129: icmp_seq=2 ttl=63 time=1.57 ms
+355 bytes from 10.27.64.129: icmp_seq=3 ttl=63 time=1.76 ms
+355 bytes from 10.27.64.129: icmp_seq=4 ttl=63 time=1.68 ms
+
+--- 10.27.64.129 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3006ms
+rtt min/avg/max/mdev = 1.262/1.569/1.760/0.189 ms

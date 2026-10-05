@@ -1,0 +1,45 @@
+16:52:33.065249 IP (tos 0x0, ttl 63, id 3902, offset 0, flags [DF], proto ICMP (1), length 375)
+    10.27.1.2 > 10.27.128.129: ICMP echo request, id 63826, seq 1, length 355
+16:52:33.065295 IP (tos 0x0, ttl 64, id 2187, offset 0, flags [none], proto ICMP (1), length 375)
+    10.27.128.129 > 10.27.1.2: ICMP echo reply, id 63826, seq 1, length 355
+16:52:34.067371 IP (tos 0x0, ttl 63, id 4730, offset 0, flags [DF], proto ICMP (1), length 375)
+    10.27.1.2 > 10.27.128.129: ICMP echo request, id 63826, seq 2, length 355
+16:52:34.067429 IP (tos 0x0, ttl 64, id 2472, offset 0, flags [none], proto ICMP (1), length 375)
+    10.27.128.129 > 10.27.1.2: ICMP echo reply, id 63826, seq 2, length 355
+16:52:35.069350 IP (tos 0x0, ttl 63, id 5550, offset 0, flags [DF], proto ICMP (1), length 375)
+    10.27.1.2 > 10.27.128.129: ICMP echo request, id 63826, seq 3, length 355
+16:52:35.069422 IP (tos 0x0, ttl 64, id 2642, offset 0, flags [none], proto ICMP (1), length 375)
+    10.27.128.129 > 10.27.1.2: ICMP echo reply, id 63826, seq 3, length 355
+16:52:36.070348 IP (tos 0x0, ttl 63, id 5980, offset 0, flags [DF], proto ICMP (1), length 375)
+    10.27.1.2 > 10.27.128.129: ICMP echo request, id 63826, seq 4, length 355
+16:52:36.070402 IP (tos 0x0, ttl 64, id 2999, offset 0, flags [none], proto ICMP (1), length 375)
+    10.27.128.129 > 10.27.1.2: ICMP echo reply, id 63826, seq 4, length 355
+16:52:36.250288 IP (tos 0x0, ttl 63, id 33256, offset 0, flags [DF], proto TCP (6), length 60)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [S], cksum 0x2c68 (correct), seq 2108748324, win 62720, options [mss 8960,sackOK,TS val 1507706734 ecr 0,nop,wscale 13], length 0
+16:52:36.250351 IP (tos 0x0, ttl 64, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [S.], cksum 0xd6ea (correct), seq 1916918277, ack 2108748325, win 62636, options [mss 8960,sackOK,TS val 2965264570 ecr 1507706734,nop,wscale 13], length 0
+16:52:36.251256 IP (tos 0x0, ttl 63, id 33257, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [.], cksum 0x17ac (correct), seq 1, ack 1, win 8, options [nop,nop,TS val 1507706736 ecr 2965264570], length 0
+16:52:36.251340 IP (tos 0x0, ttl 63, id 33258, offset 0, flags [DF], proto TCP (6), length 9000)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [.], cksum 0x7b45 (correct), seq 1:8949, ack 1, win 8, options [nop,nop,TS val 1507706736 ecr 2965264570], length 8948
+16:52:36.251359 IP (tos 0x0, ttl 64, id 4258, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [.], cksum 0xf4b4 (correct), seq 1, ack 8949, win 10, options [nop,nop,TS val 2965264571 ecr 1507706736], length 0
+16:52:36.251380 IP (tos 0x0, ttl 63, id 33259, offset 0, flags [DF], proto TCP (6), length 3904)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [P.], cksum 0x9b52 (correct), seq 8949:12801, ack 1, win 8, options [nop,nop,TS val 1507706736 ecr 2965264570], length 3852
+16:52:36.251391 IP (tos 0x0, ttl 64, id 4259, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [.], cksum 0xe5a5 (correct), seq 1, ack 12801, win 13, options [nop,nop,TS val 2965264571 ecr 1507706736], length 0
+16:52:36.251794 IP (tos 0x0, ttl 64, id 4260, offset 0, flags [DF], proto TCP (6), length 9000)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [.], cksum 0x493e (correct), seq 1:8949, ack 12801, win 13, options [nop,nop,TS val 2965264572 ecr 1507706736], length 8948
+16:52:36.251803 IP (tos 0x0, ttl 64, id 4261, offset 0, flags [DF], proto TCP (6), length 3904)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [P.], cksum 0x694b (correct), seq 8949:12801, ack 12801, win 13, options [nop,nop,TS val 2965264572 ecr 1507706736], length 3852
+16:52:36.253215 IP (tos 0x0, ttl 63, id 33260, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [.], cksum 0xc2b0 (correct), seq 12801, ack 8949, win 11, options [nop,nop,TS val 1507706738 ecr 2965264572], length 0
+16:52:36.253239 IP (tos 0x0, ttl 63, id 33261, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [.], cksum 0xb3a2 (correct), seq 12801, ack 12801, win 13, options [nop,nop,TS val 1507706738 ecr 2965264572], length 0
+16:52:36.254227 IP (tos 0x0, ttl 63, id 33262, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [F.], cksum 0xb3a1 (correct), seq 12801, ack 12801, win 13, options [nop,nop,TS val 1507706738 ecr 2965264572], length 0
+16:52:36.254419 IP (tos 0x0, ttl 64, id 4262, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.128.129.12742 > 10.27.1.2.45220: Flags [F.], cksum 0xb39e (correct), seq 12801, ack 12802, win 13, options [nop,nop,TS val 2965264574 ecr 1507706738], length 0
+16:52:36.255253 IP (tos 0x0, ttl 63, id 33263, offset 0, flags [DF], proto TCP (6), length 52)
+    10.27.1.2.45220 > 10.27.128.129.12742: Flags [.], cksum 0xb39c (correct), seq 12802, ack 12802, win 13, options [nop,nop,TS val 1507706740 ecr 2965264574], length 0
+

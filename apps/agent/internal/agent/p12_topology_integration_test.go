@@ -222,6 +222,10 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 	n, p := e.slot, e.prefix
 	lcp := func(host string) map[string]any {
 		if e.fib { // the default netns (linux-cp { default netns }) — the only netns linux-nl hears (M4)
+			if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+				// Current VPP dump reports its resolved default namespace explicitly.
+				return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
+			}
 			return map[string]any{"hostIfName": host, "hostIfType": "tap"}
 		}
 		return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
@@ -500,6 +504,12 @@ func TestP12TopologyOnHost(t *testing.T) {
 
 	// ---- 1. commit: pairs + FRR config; the peers come up after the preflight
 	if e.fib {
+		if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+			if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" || vppSocket() == "/run/vpp/api.sock" {
+				t.Fatal("Wave-B BGP default namespace requires private VPP socket")
+			}
+			t.Log(e.must("timeout", "10", "vppctl", "lcp", "default", "netns", e.frrNS))
+		}
 		e.checkPrivateFIB()
 		if n := e.vppFRRRoutes(); n != 0 {
 			t.Fatalf("%d linux-nl routes of 10.%d/16 already in VPP table 0 before the test", n, slot)
@@ -513,6 +523,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	e.waitEstablished(90 * time.Second)
 	e.waitRoutes("200 routes after commit", 200, 60*time.Second)
 	e.evidence("after commit")
+	trafficBProbe(t, e.repo, "bgp", slot, e.fib)
 
 	// Retrieve == desired for P12's leaves (routing.bgp, routing.policy, interfaces.<n>.lcp)
 	got, err := e.c.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})

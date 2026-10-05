@@ -738,6 +738,7 @@ func TestOSPFTopologyOnHost(t *testing.T) {
 	e.waitFull(90 * time.Second)
 	e.waitOSPF("100 routes after commit", 100, 60*time.Second)
 	e.evidence("after commit")
+	trafficBProbe(t, e.repo, "ospf", slot, e.fib)
 
 	// Retrieve == desired for routing.ospf and the pairs
 	got, err := e.c.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})

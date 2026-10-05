@@ -33,6 +33,11 @@ type RadiusEndpoint struct {
 	Address string `json:"address"`
 	Port    uint32 `json:"port"`
 }
+type KernelLink struct {
+	Name  string `json:"name"`
+	Kind  string `json:"kind"`
+	Index uint32 `json:"index"`
+}
 
 // NetworkPlan is public, bounded root-owned helper input; it has no credential field.
 type NetworkPlan struct {
@@ -42,6 +47,7 @@ type NetworkPlan struct {
 	Instance           string           `json:"instance"`
 	NamespaceInode     uint64           `json:"namespaceInode"`
 	HostNamespaceInode uint64           `json:"hostNamespaceInode"`
+	KernelLinks        []KernelLink     `json:"kernelLinks,omitempty"`
 	LocalAddress       string           `json:"localAddress"`
 	Outer              Link             `json:"outer"`
 	Inner              Link             `json:"inner"`
@@ -96,6 +102,16 @@ func (plan *NetworkPlan) Validate() error {
 	}
 	if !safeOwnerName(plan.Owner) || !safeOwnerName(plan.Profile) || InstanceID(plan.Owner, plan.Profile) != plan.Instance {
 		return ErrPlan
+	}
+	if len(plan.KernelLinks) > 16 {
+		return ErrPlan
+	}
+	seenKernel := map[string]bool{}
+	for _, link := range plan.KernelLinks {
+		if plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode || kernelFallbackKinds[link.Name] != link.Kind || link.Kind == "" || link.Index == 0 || seenKernel[link.Name] {
+			return ErrPlan
+		}
+		seenKernel[link.Name] = true
 	}
 	endpoint, err := netip.ParseAddr(plan.LocalAddress)
 	if err != nil || endpoint.IsUnspecified() || endpoint.IsMulticast() || endpoint.IsLoopback() || endpoint.IsLinkLocalUnicast() {

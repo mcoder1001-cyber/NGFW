@@ -13,6 +13,12 @@ import (
 	"time"
 )
 
+// NamespaceFailure exposes a fixed source stage number, never command output.
+type NamespaceFailure struct{ Step uint8 }
+
+func (e *NamespaceFailure) Error() string { return "remote-access: namespace operation refused" }
+func (e *NamespaceFailure) Unwrap() error { return ErrBoundary }
+
 type boundedOutput struct{ bytes.Buffer }
 
 func (out *boundedOutput) Write(data []byte) (int, error) {
@@ -43,23 +49,15 @@ func command(ctx context.Context, tool string, input []byte, args ...string) ([]
 func ConfigureNamespace(ctx context.Context, instance string) error {
 	plan, err := ReadPrivatePlan(instance)
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 1}
 	}
 	links, err := command(ctx, "/usr/sbin/ip", nil, "-j", "-d", "link", "show")
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 2}
 	}
-	var items []struct {
-		Name string `json:"ifname"`
-		Info struct {
-			Kind string `json:"info_kind"`
-			Data struct {
-				ID uint32 `json:"if_id"`
-			} `json:"info_data"`
-		} `json:"linkinfo"`
-	}
+	var items []observedLink
 	if json.Unmarshal(links, &items) != nil {
-		return ErrBoundary
+		return &NamespaceFailure{Step: 3}
 	}
 	addXfrm := true
 	outer, inner := false, false
@@ -71,16 +69,18 @@ func ConfigureNamespace(ctx context.Context, instance string) error {
 			inner = true
 		case "xfrm0":
 			if item.Info.Kind != "xfrm" || item.Info.Data.ID != 1 {
-				return ErrBoundary
+				return &NamespaceFailure{Step: 4}
 			}
 			addXfrm = false
 		case "lo":
 		default:
-			return ErrBoundary
+			if !matchesKernelLink(plan, item) {
+				return &NamespaceFailure{Step: 5}
+			}
 		}
 	}
 	if !outer || !inner {
-		return ErrBoundary
+		return &NamespaceFailure{Step: 6}
 	}
 	family := "-4"
 	endpoint, _ := netip.ParseAddr(plan.LocalAddress)
@@ -89,58 +89,58 @@ func ConfigureNamespace(ctx context.Context, instance string) error {
 	}
 	rules, err := command(ctx, "/usr/sbin/ip", nil, family, "-j", "rule", "show")
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 7}
 	}
 	addRule, err := ownedOuterRule(rules)
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 8}
 	}
 	tables, err := command(ctx, "/usr/sbin/nft", nil, "-j", "list", "ruleset")
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 9}
 	}
 	replace, err := ownedFirewall(tables, plan.Instance)
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 10}
 	}
 	if replace {
 		full, err := command(ctx, "/usr/sbin/nft", nil, "-j", "list", "table", "inet", "ngfw_ra")
 		if err != nil {
-			return err
+			return &NamespaceFailure{Step: 11}
 		}
 		if _, err = ownedFirewall(full, plan.Instance); err != nil {
-			return err
+			return &NamespaceFailure{Step: 12}
 		}
 	}
 	commands, err := plan.Commands(addXfrm, addRule)
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 13}
 	}
 	for _, args := range commands {
 		if _, err = command(ctx, "/usr/sbin/ip", nil, args...); err != nil {
-			return err
+			return &NamespaceFailure{Step: 14}
 		}
 	}
 	firewall, err := plan.Firewall(replace)
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 15}
 	}
 	if _, err = command(ctx, "/usr/sbin/nft", firewall, "--check", "--file", "-"); err != nil {
-		return err
+		return &NamespaceFailure{Step: 16}
 	}
 	if _, err = command(ctx, "/usr/sbin/nft", firewall, "--file", "-"); err != nil {
-		return err
+		return &NamespaceFailure{Step: 17}
 	}
 	values, err := plan.Sysctls()
 	if err != nil {
-		return err
+		return &NamespaceFailure{Step: 18}
 	}
 	for name, value := range values {
 		if !strings.HasPrefix(name, "net/") {
-			return ErrBoundary
+			return &NamespaceFailure{Step: 19}
 		}
 		if err = os.WriteFile(filepath.Join("/proc/sys", name), []byte(value), 0); err != nil {
-			return ErrBoundary
+			return &NamespaceFailure{Step: 20}
 		}
 	}
 	return nil

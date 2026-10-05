@@ -28,6 +28,9 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 		err = ErrBoundary
 	}
 	if err == nil {
+		plan.KernelLinks, err = recordKernelLinks(ctx, plan.Instance)
+	}
+	if err == nil {
 		data, _ := json.Marshal(plan)
 		var manifest *os.File
 		manifest, err = os.OpenFile(filepath.Join(dir, "network.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
@@ -59,6 +62,7 @@ func CreateNamespace(ctx context.Context, plan *NetworkPlan) error {
 		_ = os.Remove(dir)
 		plan.NamespaceInode = 0
 		plan.HostNamespaceInode = 0
+		plan.KernelLinks = nil
 	}
 	return err
 }

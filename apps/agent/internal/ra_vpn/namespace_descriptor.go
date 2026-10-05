@@ -166,6 +166,7 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		meta := NamespaceMeta{plan.NamespaceInode}
 		plan.NamespaceInode = 0
 		plan.HostNamespaceInode = 0
+		plan.KernelLinks = nil
 		value, err := NamespaceValue(&plan)
 		if err != nil {
 			return nil, err

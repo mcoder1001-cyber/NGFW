@@ -24,6 +24,26 @@ type NamespaceBrokerDispatch interface {
 	Run(context.Context, string) error
 }
 
+// NamespaceBrokerFDDispatch transfers only already-opened, typed namespace
+// descriptors. The manager must authenticate the root peer before accepting
+// their use; profile data never supplies descriptor numbers or paths.
+type NamespaceBrokerFDDispatch interface {
+	Preflight(context.Context) error
+	RunFDs(context.Context, NamespaceBrokerMessage, [3]int) error
+}
+
+// NamespaceBrokerMessage contains ownership metadata, never credentials or
+// caller-selected filesystem paths. Descriptor order is mount, host, private.
+type NamespaceBrokerMessage struct {
+	Operation     string
+	Instance      string
+	Source        MountTarget
+	Targets       []MountTarget
+	Target        MountTarget
+	HostNamespace uint64
+	Namespace     uint64
+}
+
 type namespaceBrokerRequest struct {
 	Operation                  string
 	Instance                   string

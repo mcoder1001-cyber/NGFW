@@ -18,7 +18,9 @@ A temporary extra root guide caused --check to refuse drift; the probe was
 removed and the unchanged checkout passed again. git diff --check passed.
 The full unchanged tools/ci.sh --base origin/main gate is not green:
 @ngfw/ui-kit SchemaForm.test.tsx:82 timed out at 30000ms (1 failed, 89 passed).
-Gate was still executing remaining checks when this checkpoint was written.
+Manager requested stopping the owned gate after the known timeout to reduce
+shared-host load. Its process tree was terminated; logs are preserved.
+Remaining gate checks are NOT RUN and require a sequential retry.
 No test configuration or product source was changed to hide the failure.
 Actual logs: /root/ngfw-wt/logs/ci/docs-gen-20261005-20261005-153524-3820172.
 

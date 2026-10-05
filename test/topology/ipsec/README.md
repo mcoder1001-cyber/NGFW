@@ -20,7 +20,7 @@ NGFW side uses VPP native IKEv2 and the agent (`engine: vpp-ikev2`, `routeBased.
 
 ## Status
 
-**NOT IMPLEMENTED**: the existing `run.sh` still exits 2 and refers to the previous policy-based implementation. Its replacement belongs to P11-host after `F-ikev2-native` route-based wiring. Native packet forwarding is not proven by the stock strongSwan renderer test or SA descriptor tests. P11-pkg/kernel-vpp is no longer a prerequisite for this topology.
+The native route-based production-agent campaign is executable through `run.sh`; its PSK packet, peer-loss, restart and rollback acceptance passed on a disposable VPP. Full quick and independent review remain merge gates. P11-pkg/kernel-vpp is no longer a prerequisite for this topology.
 
 ## Native route-based production agent proof
 
@@ -62,3 +62,20 @@ crash phase exercises unmodified VPP liveness defaults and peer recovery.
 Without `NGFW_NATIVE_AGENT_BIN`, the test is a descriptor/interoperability fixture
 and does not establish production secret delivery or reconciliation support.
 Product package builds use `deploy/vpp/build.sh`, not the disposable linker helper.
+
+## Reproducible P11-host campaign
+
+The former placeholder `run.sh` now runs `host-acceptance.py`. Set
+`NGFW_INTEGRATION=1` and use `run.sh --peer-loss` for both native responder and
+initiator with production sealed-secret delivery, default peer-loss recovery and
+explicit owned rollback before disposable VPP shutdown. The driver builds its own
+plugin and agent, uses private namespaces, refuses existing slot8 resources and
+checks shared VPP MainPID/NRestarts. No stock peer packages are installed as host
+services; the already extracted `swantest` peer root is required.
+
+For a repeat using the exact same product build, `--skip-build --agent PATH
+--plugin-directory PATH` selects those artifacts explicitly. This does not prove
+a different agent build. Raw failure logs stay0600 in worktree `.scratch`; share
+only the safe JSON summary and redact any manually inspected peer/SA output.
+Skipped tests cannot pass the driver. The committed PSK campaign summary is in
+`docs/status/tasks/P11-host-evidence/native-production-summary.json`.

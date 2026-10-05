@@ -1,0 +1,31 @@
+{
+  "source_sha": "7efd712f081654231deb3698401549c5868df27e",
+  "passed": true,
+  "peer_loss_requested": true,
+  "shared_before": {
+    "MainPID": "1014",
+    "NRestarts": "0"
+  },
+  "shared_after": {
+    "MainPID": "1014",
+    "NRestarts": "0"
+  },
+  "events": [
+    {
+      "phase": "responder",
+      "exit_code": 0
+    },
+    {
+      "phase": "initiator",
+      "exit_code": 0
+    },
+    {
+      "phase": "shared-VPP-unchanged-and-slot-clean",
+      "exit_code": 0
+    }
+  ],
+  "captures": {
+    "responder-underlay.pcap": "5bff07052e27a49b580e7070f608f25ef2fa4af597cc04c344ccd1962a35c178",
+    "initiator-underlay.pcap": "b082eaecc44f3b646971a9e4058735aaa3022a36957215c30da8c7a26d57c7b9"
+  }
+}

@@ -618,6 +618,31 @@ print('TCP exact 1048576 bytes passed')`))
 	if !strings.Contains(esp, "ESP") {
 		t.Fatal("no ESP in underlay capture")
 	}
+	if production {
+		result, err := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "native-owned-rollback", DesiredState: &ngfwv1.DesiredState{}, Subsystems: []string{"vpn", "tunnels", "routing", "interfaces", "vrfs"}})
+		if err != nil || result.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+			t.Fatal("production owned rollback failed", err, result.GetStatus())
+		}
+		actual, err := product.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "w8"})
+		if err != nil {
+			t.Fatal("post-rollback Retrieve failed", err)
+		}
+		state := actual.GetDesiredState()
+		if len(state.GetInterfaces()) != 0 || len(state.GetTunnels().GetIpip()) != 0 || len(state.GetRouting().GetStatic()) != 0 || len(state.GetVpn().GetIpsec().GetTunnels()) != 0 {
+			t.Fatal("owned configuration remains after production rollback")
+		}
+		profiles, err := desc.Retrieve(ctx)
+		if err != nil || len(profiles) != 0 {
+			t.Fatal("owned IKE profile remains after rollback", err)
+		}
+		if got := cli("show ipsec protect"); strings.Contains(got, "ipip8001") {
+			t.Fatal("owned tunnel protection remains after rollback")
+		}
+		if got := cli("show interface"); strings.Contains(got, "ipip8001") || strings.Contains(got, "host-w8n") {
+			t.Fatal("owned VPP tunnel/interface remains after rollback")
+		}
+		t.Log("production owned rollback removed profiles, protection, routes, tunnels and interfaces; Retrieve empty before disposable VPP shutdown")
+	}
 	t.Log("underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion")
 	t.Log("route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained")
 }

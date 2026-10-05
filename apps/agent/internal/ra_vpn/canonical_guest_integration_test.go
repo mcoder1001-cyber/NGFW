@@ -905,3 +905,245 @@ func canonicalGuestTransportRollback(t *testing.T, before canonicalPhysicalTrans
 		t.Fatal("canonical rollback foreign route proof absent")
 	}
 }
+
+type canonicalAPIHoldInput struct {
+	Version        int    `json:"version"`
+	Owner          string `json:"owner"`
+	BootID         string `json:"bootId"`
+	Generation     string `json:"generation"`
+	CertificatePEM string `json:"certificatePem"`
+	PrivateKeyPEM  string `json:"privateKeyPem"`
+	Password       string `json:"password"`
+}
+
+func canonicalAPIPrivateRead(path string, limit int64) ([]byte, error) {
+	// #nosec G304 -- callers supply only fixed guest fixture paths; held no-follow ownership and bounded reads are enforced below.
+	file, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if err != nil {
+		return nil, ErrBoundary
+	}
+	before, statErr := file.Stat()
+	var raw []byte
+	if statErr == nil {
+		value, ok := before.Sys().(*syscall.Stat_t)
+		if !ok || !before.Mode().IsRegular() || before.Mode().Perm() != 0600 || value.Uid != 0 || value.Nlink != 1 || before.Size() > limit {
+			statErr = ErrBoundary
+		} else {
+			raw, err = io.ReadAll(io.LimitReader(file, limit+1))
+		}
+	}
+	after, afterErr := file.Stat()
+	closeErr := file.Close()
+	current, currentErr := os.Lstat(path)
+	if statErr != nil || err != nil || afterErr != nil || closeErr != nil || currentErr != nil || !os.SameFile(before, after) || !os.SameFile(after, current) || len(raw) > int(limit) || !before.ModTime().Equal(after.ModTime()) || before.Size() != after.Size() {
+		clear(raw)
+		return nil, ErrBoundary
+	}
+	return raw, nil
+}
+
+func canonicalAPIHoldValidate(input canonicalAPIHoldInput, boot string) error {
+	generation, err := hex.DecodeString(input.Generation)
+	if input.Version != 1 || input.Owner != "ngfw-ra-independent-guest" || input.BootID != boot || err != nil || len(generation) != 16 || input.Generation != strings.ToLower(input.Generation) || len(input.Password) < 16 || len(input.Password) > 256 || input.CertificatePEM == "" || input.PrivateKeyPEM == "" {
+		return ErrBoundary
+	}
+	return nil
+}
+
+func TestCanonicalAPIHoldRejectsStalePrivateInput(t *testing.T) {
+	input := canonicalAPIHoldInput{Version: 1, Owner: "ngfw-ra-independent-guest", BootID: "current", Generation: "00112233445566778899aabbccddeeff", CertificatePEM: "fixture", PrivateKeyPEM: "fixture", Password: strings.Repeat("x", 32)}
+	if canonicalAPIHoldValidate(input, "current") != nil {
+		t.Fatal("bound input refused")
+	}
+	for _, mutate := range []func(*canonicalAPIHoldInput){
+		func(i *canonicalAPIHoldInput) { i.BootID = "old" },
+		func(i *canonicalAPIHoldInput) { i.Generation = "../foreign" },
+		func(i *canonicalAPIHoldInput) { i.Owner = "foreign" },
+		func(i *canonicalAPIHoldInput) { i.Password = "short" },
+		func(i *canonicalAPIHoldInput) { i.PrivateKeyPEM = "" },
+	} {
+		bad := input
+		mutate(&bad)
+		if canonicalAPIHoldValidate(bad, "current") == nil {
+			t.Fatal("stale or foreign credential binding accepted")
+		}
+	}
+}
+
+func TestCanonicalAPIPrivateReadRefusesLinks(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "input")
+	if os.WriteFile(path, []byte("private fixture"), 0600) != nil {
+		t.Fatal("private input fixture")
+	}
+	link := filepath.Join(root, "alias")
+	if os.Symlink(path, link) != nil {
+		t.Fatal("symlink fixture")
+	}
+	if _, err := canonicalAPIPrivateRead(link, 1024); err == nil {
+		t.Fatal("symlink input accepted")
+	}
+	if os.Remove(link) != nil || os.Link(path, link) != nil {
+		t.Fatal("hard link fixture")
+	}
+	if _, err := canonicalAPIPrivateRead(path, 1024); err == nil {
+		t.Fatal("input with a hard link accepted")
+	}
+}
+
+// TestIntegrationCanonicalGuestRAAPIHold is a read-only canonical-agent client
+// and genuine disposable EAP peer. API candidate commits deliver every server
+// credential; this driver never calls Apply or opens the agent's sealed store.
+func TestIntegrationCanonicalGuestRAAPIHold(t *testing.T) {
+	if os.Getenv("NGFW_RA_CANONICAL_API_HOLD") != "1" {
+		t.Skip("requires actual API-committed independent guest")
+	}
+	marker, err := canonicalAPIPrivateRead("/run/ngfw-ra-guest-fixture", 1024)
+	if err != nil {
+		t.Fatal("API peer guest marker")
+	}
+	var identity struct {
+		Owner  string `json:"owner"`
+		BootID string `json:"bootId"`
+	}
+	boot, bootErr := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	manager, managerErr := os.Readlink("/proc/1/exe")
+	if json.Unmarshal(marker, &identity) != nil || identity.Owner != "ngfw-ra-independent-guest" || bootErr != nil || identity.BootID != strings.TrimSpace(string(boot)) || managerErr != nil || (manager != "/usr/lib/systemd/systemd" && manager != "/lib/systemd/systemd") {
+		t.Fatal("API peer real guest identity")
+	}
+	raw, err := canonicalAPIPrivateRead("/run/ngfw-ra-api-peer.json", 262144)
+	if err != nil {
+		t.Fatal("API peer private input")
+	}
+	var input canonicalAPIHoldInput
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	decodeErr := decoder.Decode(&input)
+	var extra any
+	endErr := decoder.Decode(&extra)
+	clear(raw)
+	if decodeErr != nil || endErr != io.EOF || canonicalAPIHoldValidate(input, identity.BootID) != nil {
+		t.Fatal("API peer input binding")
+	}
+	password := []byte(input.Password)
+	credentials := Credentials{Certificate: []byte(input.CertificatePEM), PrivateKey: []byte(input.PrivateKeyPEM)}
+	input.Password, input.CertificatePEM, input.PrivateKeyPEM = "", "", ""
+	t.Cleanup(func() { clear(password); clear(credentials.Certificate); clear(credentials.PrivateKey) })
+	if VerifyCredentials(credentials, "vpn.example.test", false, time.Now()) != nil {
+		t.Fatal("API peer certificate key chain")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 900*time.Second)
+	defer cancel()
+	connection, err := grpc.NewClient("unix:///run/ngfw/agent.sock", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatal("API peer canonical socket")
+	}
+	t.Cleanup(func() {
+		if connection.Close() != nil {
+			t.Error("API peer canonical socket close")
+		}
+	})
+	client := ngfwv1.NewDataplaneClient(connection)
+	capability, err := client.RemoteAccessCapabilities(ctx, &ngfwv1.RemoteAccessCapabilitiesRequest{Owner: "ngfw"})
+	if err != nil || !capability.GetOperational() {
+		t.Fatal("API peer runtime not ready")
+	}
+	actual, err := client.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "ngfw", Subsystems: []string{"vpn"}})
+	var expected ngfwv1.DesiredState
+	if err != nil || protojson.Unmarshal([]byte(productionRADoc), &expected) != nil {
+		t.Fatal("API peer desired readback")
+	}
+	profile := actual.GetDesiredState().GetVpn().GetRemoteAccess()["road"]
+	proposal := actual.GetDesiredState().GetVpn().GetIpsec().GetProposals()["ra-proposal"]
+	if !proto.Equal(profile, expected.GetVpn().GetRemoteAccess()["road"]) || !proto.Equal(proposal, expected.GetVpn().GetIpsec().GetProposals()["ra-proposal"]) {
+		t.Fatal("API peer canonical profile differs")
+	}
+	sequence := uint64(0)
+	var prior string
+	var statusIdentity os.FileInfo
+	t.Cleanup(func() {
+		if !t.Failed() {
+			canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence+1, "stopped", prior)
+		}
+	})
+	peer, plan, _ := canonicalGuestPeer(t, profile, proposal, credentials, password, "api-"+input.Generation)
+	for ctx.Err() == nil {
+		rows, readErr := client.RemoteAccessSessions(ctx, &ngfwv1.RemoteAccessSessionsRequest{Owner: "ngfw", Profile: "road", Limit: 100})
+		if ctx.Err() != nil {
+			break
+		}
+		if readErr != nil || len(rows.GetSessions()) > 1 {
+			t.Fatal("API peer observed session boundary")
+		}
+		if len(rows.GetSessions()) == 0 {
+			sequence++
+			canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "disconnected", prior)
+			attempt, stop := context.WithTimeout(ctx, 15*time.Second)
+			if prior != "" {
+				terminated, terminateErr := peer.Call(attempt, "terminate", privateMessage("ike", "ra-client", "timeout", "2000"))
+				if terminateErr != nil || terminated == nil {
+					stop()
+					t.Fatal("API peer stale owned SA removal")
+				}
+			}
+			result, initiateErr := peer.Call(attempt, "initiate", privateMessage("child", "protected", "timeout", "12000"))
+			stop()
+			if initiateErr != nil || result == nil || result.Get("success") != "yes" {
+				t.Fatal("API peer genuine bounded reconnect")
+			}
+		} else {
+			row := rows.GetSessions()[0]
+			if row.GetId() != prior {
+				sequence++
+				canonicalAPIHoldStatus(t, &statusIdentity, input.Generation, sequence, "connected", row.GetId())
+				prior = row.GetId()
+			}
+			if len(row.GetAddresses()) != 1 {
+				t.Fatal("API peer observed VIP")
+			}
+			canonicalNegotiatedSelectors(t, peer, row.GetAddresses()[0])
+			canonicalGuestDNS(t, plan)
+		}
+		select {
+		case <-ctx.Done():
+		case <-time.After(time.Second):
+		}
+	}
+}
+
+func canonicalAPIHoldStatus(t *testing.T, owned *os.FileInfo, generation string, sequence uint64, state, session string) {
+	t.Helper()
+	// A fixed root-owned guest status file never contains credential or identity text.
+	data, err := json.Marshal(struct {
+		Generation string `json:"generation"`
+		Sequence   uint64 `json:"sequence"`
+		State      string `json:"state"`
+		SessionID  string `json:"sessionId"`
+	}{generation, sequence, state, session})
+	if err != nil {
+		t.Fatal("API peer status encoding")
+	}
+	path := "/run/ngfw-ra-api-peer-status.json"
+	if previous, statErr := os.Lstat(path); statErr == nil {
+		value, ok := previous.Sys().(*syscall.Stat_t)
+		if !ok || !previous.Mode().IsRegular() || previous.Mode().Perm() != 0600 || value.Uid != 0 || value.Nlink != 1 || *owned == nil || !os.SameFile(previous, *owned) {
+			t.Fatal("API peer status foreign boundary")
+		}
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		t.Fatal("API peer status readback")
+	}
+	file, err := os.OpenFile(path+".new", os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	if err != nil {
+		t.Fatal("API peer exclusive status")
+	}
+	_, writeErr := file.Write(data)
+	syncErr := file.Sync()
+	closeErr := file.Close()
+	if writeErr != nil || syncErr != nil || closeErr != nil || os.Rename(path+".new", path) != nil {
+		t.Fatal("API peer atomic status")
+	}
+	*owned, err = os.Lstat(path)
+	if err != nil {
+		t.Fatal("API peer status identity capture")
+	}
+}

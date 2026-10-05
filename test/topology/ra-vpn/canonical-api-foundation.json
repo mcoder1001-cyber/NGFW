@@ -1,0 +1,168 @@
+{
+  "vrfs": {
+    "outer": {
+      "id": 19000
+    },
+    "inner": {
+      "id": 19001
+    }
+  },
+  "interfaces": {
+    "loop2436": {
+      "enabled": true,
+      "vrf": "inner",
+      "ipv4": [
+        "10.19.0.53/32"
+      ]
+    },
+    "loop2437": {
+      "enabled": true,
+      "vrf": "inner",
+      "ipv4": [
+        "10.19.0.54/32"
+      ]
+    }
+  },
+  "acl": {
+    "lists": {
+      "outer-in": {
+        "rules": [
+          {
+            "sequence": 10,
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4"
+          }
+        ]
+      },
+      "outer-out": {
+        "rules": [
+          {
+            "sequence": 10,
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4"
+          }
+        ]
+      },
+      "inner-in": {
+        "rules": [
+          {
+            "sequence": 10,
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": {
+              "kind": "prefix",
+              "prefix": "10.19.200.0/24"
+            },
+            "destination": {
+              "kind": "prefix",
+              "prefix": "10.19.0.53/32"
+            }
+          }
+        ]
+      },
+      "inner-out": {
+        "rules": [
+          {
+            "sequence": 10,
+            "enabled": true,
+            "action": "permit",
+            "ipVersion": "ipv4",
+            "source": {
+              "kind": "prefix",
+              "prefix": "10.19.0.53/32"
+            },
+            "destination": {
+              "kind": "prefix",
+              "prefix": "10.19.200.0/24"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "vpn": {
+    "ipsec": {
+      "proposals": {
+        "ra-proposal": {
+          "ike": {
+            "encr": "aes256",
+            "integ": "sha256",
+            "prf": "prfsha256",
+            "dh": "ecp256"
+          },
+          "esp": {
+            "encr": "aes256gcm16",
+            "dh": "ecp256"
+          }
+        }
+      }
+    },
+    "pki": {
+      "certificates": {
+        "server": {
+          "certificateRef": "cert/server",
+          "privateKeyRef": "key/server"
+        }
+      }
+    },
+    "remoteAccess": {
+      "road": {
+        "enabled": false,
+        "localAddr": "192.0.2.19",
+        "localId": "vpn.example.test",
+        "vrf": "inner",
+        "underlayVrf": "outer",
+        "auth": "eap-mschapv2",
+        "certificate": "server",
+        "proposal": "ra-proposal",
+        "transport": {
+          "outer": {
+            "vpp": "198.18.19.0/31",
+            "namespace": "198.18.19.1/31"
+          },
+          "inner": {
+            "vpp": "198.18.19.2/31",
+            "namespace": "198.18.19.3/31"
+          }
+        },
+        "pools": [
+          {
+            "name": "clients",
+            "prefix": "10.19.200.0/24",
+            "dns": [
+              "10.19.0.53"
+            ]
+          }
+        ],
+        "splitTunnel": [
+          "10.19.0.0/16"
+        ],
+        "users": [
+          {
+            "username": "client",
+            "passwordRef": "password/client"
+          }
+        ],
+        "outerPolicy": {
+          "ingress": [
+            "outer-in"
+          ],
+          "egress": [
+            "outer-out"
+          ]
+        },
+        "accessPolicy": {
+          "ingress": [
+            "inner-in"
+          ],
+          "egress": [
+            "inner-out"
+          ]
+        }
+      }
+    }
+  }
+}

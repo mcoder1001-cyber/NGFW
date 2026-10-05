@@ -26,9 +26,19 @@ func TestSourceAgentReferenceOwnershipAndProcessBinding(t *testing.T) {
 			t.Error(err)
 		}
 	})
-	record := filepath.Join(root, "source-agent.json")
-	link := filepath.Join(root, "source-agent-exe")
-	data, err := json.Marshal(sourceAgentReferenceRecord{Source: identity})
+	generation := sourceAgentGeneration(identity)
+	dir := filepath.Join(root, generation)
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	for name, target := range map[string]string{"source-agent.json": "source-agent-current/identity.json", "source-agent-exe": "source-agent-current/exe", "source-agent-current": generation} {
+		if err := os.Symlink(target, filepath.Join(root, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record := filepath.Join(dir, "identity.json")
+	link := filepath.Join(dir, "exe")
+	data, err := json.Marshal(sourceAgentReferenceRecord{Source: identity, Version: 1, Owner: "ngfw-ra-source"})
 	if err != nil {
 		t.Fatal(err)
 	}

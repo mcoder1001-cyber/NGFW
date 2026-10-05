@@ -2212,7 +2212,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: todo
+    state: ready
     parked_on: ''
     wbs:
       - D8.5
@@ -2341,7 +2341,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D0.5
@@ -2351,9 +2351,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: 2026-10-05
     notes: 'prompts-s4: suggested deps +P14 (rootB partition layout) — docs/status/tasks/prompts-s4.md'
-    worker_status: Reviewed sourcebe144811; independent quick9m49 and private-loop acceptance PASS; final current-main integration pending.
+    worker_status: PR174 actually merged 31ad921385c5fe08227bc20f4150eda6a8e1d873; final local and hosted quick PASS.
   - id: F-images
     title: VM/cloud image builds
     prompt: prompts/features/F-images.md

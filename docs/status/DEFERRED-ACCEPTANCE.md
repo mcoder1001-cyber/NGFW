@@ -277,3 +277,7 @@ Implemented qcow2/vmdk/OVA/VHDX/VHD/GCP conversion and offlineVM/cloudtargetprof
 ## F-ab-upgrade appliance execution (2026-10-05)
 
 Signed preformat/staging/confirm/rollback tooling implemented;17independentfixtures, actualownedprivate-loopunsigned/tamperedrefusal,stageB/confirmB/healthfailuredefaultA passed; exactreviewedsourcequick PASS9m49. Actualfirmware one-shotboot/powerfailure,reboothealth onfullappliance,databasebackup/export/restore NOTRUN because disposabledual-slotfirmware/appliancetarget unavailable. Loopmount/GRUBenv fixtures are notfirmwarebootproof. Follow docs/install/ab-upgrade.md onprovisionedisolatedtarget; collectboot/rollback/health/backup evidence. Ownerpermitsonlythese genuine runtimeexecutionsdeferred; finalcurrent-main/hostedmandatory gates remainrequired.
+
+## P11-host remaining appliance execution (2026-10-05)
+
+Actual isolated native PSK responder/initiator production-agent forwarding, rekey, restart, peer loss/retry and authoritative rollback independently PASS; see P11-host-live-test-T3.md. Full appliance deployment acceptance is NOTRUN without a disposable appliance. Certificate peer acceptance belongs to the separate certificate campaign and is not inferred from this PSK evidence. Source and mandatory final integration gates are not deferred.

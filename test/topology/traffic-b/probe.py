@@ -10,7 +10,7 @@ import socket
 import subprocess
 import sys
 import time
-from scenario import Refused, slot_values
+from scenario import Refused, slot_values, private_identity
 
 
 def command(argv, timeout=30):
@@ -61,6 +61,7 @@ def probe(slot, phase, output):
     values=slot_values(slot);prefix=values['NGFW_TEST_PREFIX']
     if os.environ.get('NGFW_DISPOSABLE_VPP')!='1' or os.environ.get('NGFW_TRAFFIC_B')!='1':
         raise Refused('private Wave-B campaign only')
+    private_identity()
     output.mkdir(mode=0o700,parents=True,exist_ok=True)
     def peer(ns,*argv):return command(['ip','netns','exec',ns,*argv])
     if phase in ('bgp','ospf'):
@@ -115,7 +116,17 @@ def probe(slot, phase, output):
         try:
             # Foreground dhclient, harmless script; fixture's ordinary lease test
             # subsequently exercises the actual client address configuration.
-            peer(lan,'dhclient','-4','-1','-d','-v','-sf','/bin/true','-lf',str(lease),'-pf',str(pidfile),prefix+'l1')
+            log=output/'dhclient.private.log'
+            fd=os.open(log,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+            with os.fdopen(fd,'wb') as stream:
+                client=subprocess.Popen(['ip','netns','exec',lan,'dhclient','-4','-1','-d','-v','-sf','/bin/true','-lf',str(lease),'-pf',str(pidfile),prefix+'l1'],stdout=stream,stderr=subprocess.STDOUT)
+                try:
+                    deadline=time.monotonic()+40
+                    while not lease.exists() or ('fixed-address 10.'+str(slot)+'.1.') not in lease.read_text():
+                        if client.poll() is not None or time.monotonic()>deadline:raise Refused('foreground DHCP lease deadline')
+                        time.sleep(.05)
+                    capture.wait_text(lambda text:'Discover' in text and ('Gateway-IP 10.'+str(slot)+'.1.1') in text)
+                finally:stop(client)
         finally:capture.close()
         text=cap.read_text()
         if 'Discover' not in text or ('Gateway-IP 10.'+str(slot)+'.1.1') not in text:

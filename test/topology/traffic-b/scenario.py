@@ -86,3 +86,22 @@ def accept(phase, result, *, slot, run_id, source_sha):
     if result.get("cleanup") is not True:
         raise Refused("owned daemon and namespace cleanup unverified")
     return result
+
+
+def private_identity():
+    """Observe the socket and VPP process in this new mount namespace."""
+    import os
+    from pathlib import Path
+    raw=os.environ.get('NGFW_TRAFFIC_PRIVATE_VPP_PID','')
+    if not raw.isdecimal() or int(raw)<=0:
+        raise Refused('observed private VPP process required')
+    pid=int(raw)
+    mount=os.readlink('/proc/self/ns/mnt')
+    if mount==os.readlink('/proc/1/ns/mnt') or mount!=os.readlink(f'/proc/{pid}/ns/mnt'):
+        raise Refused('VPP and probe are not in the same private mount namespace')
+    if Path(os.readlink(f'/proc/{pid}/exe')).name!='vpp':
+        raise Refused('private process is not VPP')
+    api=Path(os.environ.get('NGFW_VPP_API_SOCKET','/run/vpp/api.sock'))
+    if str(api)=='/run/vpp/api.sock' or not os.path.samefile(api,'/run/vpp/api.sock'):
+        raise Refused('mounted socket is not the observed private VPP socket')
+    return {'pid':pid,'mount_namespace':mount,'api_socket':str(api)}

@@ -34,8 +34,51 @@ class AcceptanceTests(unittest.TestCase):
         self.assertEqual(vx['tunnels']['vxlan']['w27-tb-vxlan']['decap'],'l2')
         self.assertTrue(vx['interfaces']['loop2741']['l2']['bvi'])
     def test_failed_api_and_unsupported_commit(self):
+        check_commit({"status":"applied","revision":{"id":1},"notApplied":[]})
         for result in ({'status':'failed'}, {'status':'applied','notApplied':['interfaces']},
                        {'status':'applied','results':[{'reason':'agent.unsupported-field'}]}):
             with self.assertRaises(Refused):check_commit(result)
 
+    def test_baseline_warnings_never_allow_changed_or_new_fields(self):
+        warning = {'pointer': '/services/ntp', 'rule': 'agent.unsupported-field', 'message': 'disabled'}
+        result = {'status': 'applied', 'revision': {'id': 2}, 'warnings': [warning]}
+        baseline = check_commit(result, changed_paths=('/vrfs',))
+        check_commit(result, baseline_warnings=baseline, changed_paths=('/tunnels', '/interfaces'))
+        for pointer in ('/tunnels/gre/owned', '/interfaces/host-w27w0', '/services/new'):
+            changed = copy.deepcopy(result)
+            changed['warnings'][0]['pointer'] = pointer
+            with self.assertRaises(Refused):
+                check_commit(changed, baseline_warnings=baseline, changed_paths=('/tunnels', '/interfaces'))
+
 if __name__=='__main__':unittest.main()
+
+class SafetyTests(unittest.TestCase):
+    def test_direct_child_refuses_before_mounting(self):
+        import os
+        from pathlib import Path
+        import subprocess
+        import sys
+        before=os.readlink('/proc/self/ns/mnt')
+        result=subprocess.run([sys.executable,str(Path(__file__).parent/'private.py'),'--child','--slot','27','/usr/bin/true'],
+                              env=dict(os.environ,NGFW_INTEGRATION='1'),capture_output=True,timeout=10)
+        self.assertNotEqual(result.returncode,0)
+        self.assertEqual(os.readlink('/proc/self/ns/mnt'),before)
+    def test_capture_waits_for_ready_signal_and_protects_text(self):
+        import os
+        from pathlib import Path
+        import stat
+        import tempfile
+        from unittest.mock import patch
+        from probe import Capture
+        read,write=os.pipe();os.write(write,b'tcpdump: listening on w27w1\n');os.close(write)
+        class Process:
+            def __init__(self):self.stderr=os.fdopen(read,'rb');self.done=False
+            def poll(self):return 0 if self.done else None
+            def terminate(self):self.done=True
+            def wait(self,timeout=None):return 0
+        with tempfile.TemporaryDirectory() as directory:
+            output=Path(directory)/'capture.txt'
+            with patch('probe.subprocess.Popen',return_value=Process()):
+                capture=Capture('ns-w27-wan','w27w1','icmp',output)
+                self.assertEqual(stat.S_IMODE(output.stat().st_mode),0o600)
+                capture.close()

@@ -363,12 +363,30 @@ func newStack(t *testing.T, s slot, tp *topo) *stack {
 	st.startAgent(t)
 	t.Cleanup(func() { st.agent.stop(t) })
 	adminPW := secret()
+	valkeyDB := s.valkeyDB
+	cacheEndpoint := ""
+	if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+		if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" {
+			t.Fatal("private Wave-B Valkey only")
+		}
+		port, err := strconv.Atoi(s.httpPort)
+		if err != nil {
+			t.Fatal(err)
+		}
+		kv := start(t, "valkey", filepath.Join(tp.work, "valkey.log"), base, "valkey-server", "--bind", "127.0.0.1", "--port", strconv.Itoa(port+80), "--save", "", "--appendonly", "no", "--dir", tp.work)
+		t.Cleanup(func() { kv.stop(t) })
+		cacheEndpoint = "redis://127.0.0.1:" + strconv.Itoa(port+80)
+		valkeyDB = "0" // dedicated no-persistence process, never the shared host DB
+	}
 	apiEnv := append(append([]string{}, base...),
 		"NODE_ENV=production", "NGFW_HTTP_PORT="+s.httpPort, "NGFW_HTTP_HOST=127.0.0.1",
-		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+s.valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":kea:"+secret()[:6]+":",
+		"NGFW_PG_DSN="+pg["NGFW_PG_DSN"], "NGFW_VALKEY_DB="+valkeyDB, "NGFW_VALKEY_PREFIX=ngfw:"+s.prefix+":kea:"+secret()[:6]+":",
 		"NGFW_AGENT_SOCKET="+s.socket, "NGFW_AGENT_OWNER="+s.prefix, "NGFW_AGENT_TIMEOUT_MS=60000",
 		"NGFW_JWT_SECRET="+secret()+secret(), "NGFW_SECRET_KEY_FILE="+filepath.Join(tp.work, "secret.key"),
 		"NGFW_BOOTSTRAP_ADMIN_PASSWORD="+adminPW, "NGFW_COOKIE_SECURE=0", "NGFW_LOG_LEVEL=warn")
+	if cacheEndpoint != "" {
+		apiEnv = append(apiEnv, fmt.Sprintf("%s=%s", "NGFW_VALKEY_URL", cacheEndpoint))
+	}
 	st.apiProc = start(t, "ngfw-api", filepath.Join(tp.work, "api.log"), apiEnv, node, apiMain)
 	t.Cleanup(func() { st.apiProc.stop(t) })
 	st.api = &api{t: t, base: "http://127.0.0.1:" + s.httpPort}
@@ -509,6 +527,10 @@ func TestKeaDhcpRelay(t *testing.T) {
 	st := newStack(t, s, tp)
 	a := st.api
 
+	relaySource := tp.wanGW
+	if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+		relaySource = tp.lanGW
+	}
 	var revBase, revDHCP float64
 	parent := t
 	// best-effort cleanup through the API (runs before the stack stops, LIFO): nothing of ours stays in VPP even when a
@@ -535,7 +557,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 				}},
 			}},
 			"relays": map[string]any{"to-kea": map[string]any{
-				"description": "LAN → Kea", "vrf": tp.vrf, "interfaces": []string{tp.lanIf}, "servers": []string{tp.keaIP}, "sourceAddress": tp.wanGW,
+				"description": "LAN → Kea", "vrf": tp.vrf, "interfaces": []string{tp.lanIf}, "servers": []string{tp.keaIP}, "sourceAddress": relaySource,
 			}},
 		}})
 		a.patch("/interfaces/"+tp.cliIf, map[string]any{"dhcpClient": map[string]any{"hostname": s.prefix + "-vppclient"}})
@@ -674,7 +696,7 @@ func TestKeaDhcpRelay(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		// simulated loss behind the agent's back: relay server, DHCP client, Kea configuration
-		src := ip_types.NewAddress(net.ParseIP(tp.wanGW).To4())
+		src := ip_types.NewAddress(net.ParseIP(relaySource).To4())
 		srv := ip_types.NewAddress(net.ParseIP(tp.keaIP).To4())
 		if _, err := dhcp.NewServiceClient(conn).DHCPProxyConfig(ctx, &dhcp.DHCPProxyConfig{RxVrfID: tp.vrfID, ServerVrfID: tp.vrfID, IsAdd: false, DHCPServer: srv, DHCPSrcAddress: src}); err != nil {
 			t.Fatalf("loss: dhcp_proxy_config is_add=0: %v", err)

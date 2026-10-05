@@ -28,7 +28,8 @@ def main():
     agent=ROOT/'apps/agent/bin/ngfw-agent';api_bin=ROOT/'apps/api/dist/main.js'
     if not agent.is_file() or not api_bin.is_file():raise Refused('run complete quick gate to build product binaries first')
     port=int(values['NGFW_HTTP_PORT'])
-    with socket.socket() as check:check.bind(('127.0.0.1',port))
+    with socket.socket() as check:
+        check.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);check.bind(('127.0.0.1',port));check.listen(1)
     runtime=Path('/run/ngfw-test')/owner
     if runtime.exists():raise Refused('slot stack runtime already exists')
     # Never reuse/drop a foreign existing database. pg-test list contains no passwords.
@@ -51,7 +52,8 @@ def main():
             processes.append(process);return process
         ag=start([str(agent)],agent_env,'agent')
         kvport=port+80
-        with socket.socket() as check:check.bind(('127.0.0.1',kvport))
+        with socket.socket() as check:
+            check.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1);check.bind(('127.0.0.1',kvport));check.listen(1)
         kv=start(['valkey-server','--bind','127.0.0.1','--port',str(kvport),'--save','','--appendonly','no','--dir',str(runtime)],common,'valkey')
         admin=secrets.token_urlsafe(24)
         api_env=dict(common,NODE_ENV='production',NGFW_HTTP_PORT=str(port),NGFW_HTTP_HOST='127.0.0.1',
@@ -77,13 +79,13 @@ def main():
         # A fresh datastore has no historical revision. Establish an owned
         # harmless VRF baseline; never fabricate revision0 or rollback/null.
         api.call('PATCH','/config/vrfs',{base_name:{'id':args.slot*1000+40}})
-        check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine'))
+        baseline_warnings=check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine'), changed_paths=('/vrfs',))
         try:
-            events=run(args.slot,api,args.output)
+            events=run(args.slot,api,args.output,baseline_warnings)
         finally:
             api.call('POST','/config/discard')
             api.call('PATCH','/config/vrfs',{base_name:None})
-            check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine-cleanup'))
+            check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine-cleanup'), baseline_warnings=baseline_warnings, changed_paths=('/vrfs',))
         print(json.dumps({'phase':'tunnels','passed':len(events)==2,'source_sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}))
         return 0
     finally:
@@ -94,4 +96,4 @@ def main():
 if __name__=='__main__':
     try:sys.exit(main())
     except (OSError,ValueError,subprocess.SubprocessError) as error:
-        print((str(error) if isinstance(error,Refused) else type(error).__name__)+': slot stack failed; inspect private owned logs',file=sys.stderr);sys.exit(1)
+        print((str(error) if isinstance(error,(Refused,OSError)) else type(error).__name__)+': slot stack failed; inspect private owned logs',file=sys.stderr);sys.exit(1)

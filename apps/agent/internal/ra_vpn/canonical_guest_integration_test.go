@@ -183,7 +183,7 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	if err != nil || len(sessions.GetSessions()) != 0 {
 		t.Fatal("actual fresh unit VICI session readback")
 	}
-	peer, peerPlan := canonicalGuestPeer(t, desired.GetVpn().GetRemoteAccess()["road"], desired.GetVpn().GetIpsec().GetProposals()["ra-proposal"], credentials, password, transaction)
+	peer, peerPlan, dnsOwnership := canonicalGuestPeer(t, desired.GetVpn().GetRemoteAccess()["road"], desired.GetVpn().GetIpsec().GetProposals()["ra-proposal"], credentials, password, transaction)
 	initiate := func(success bool) {
 		t.Helper()
 		response, e := peer.Call(ctx, "initiate", privateMessage("child", "protected", "timeout", "20000"))
@@ -210,6 +210,8 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 	if len(established[0].GetAddresses()) != 1 || !strings.HasPrefix(established[0].GetAddresses()[0], "10.19.200.") {
 		t.Fatal("canonical pool VIP readback")
 	}
+	canonicalNegotiatedSelectors(t, peer, established[0].GetAddresses()[0])
+	canonicalGuestDNS(t, peerPlan)
 	verifyPrivateVPPPackets(t, peerPlan, established[0].GetAddresses()[0])
 	apply(ctx, "-normal-preserve", desired, []string{"vrfs", "interfaces", "acl"}, nil)
 	preserved := observe(1)
@@ -271,6 +273,8 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 		if scenario == "valid" {
 			initiate(true)
 			tlsSessions := observe(1)
+			canonicalNegotiatedSelectors(t, peer, tlsSessions[0].GetAddresses()[0])
+			canonicalGuestDNS(t, peerPlan)
 			removed, e := client.RemoteAccessDisconnect(ctx, &ngfwv1.RemoteAccessDisconnectRequest{Owner: "ngfw", Profile: "road", Id: tlsSessions[0].GetId()})
 			if e != nil || !removed.GetDisconnected() {
 				t.Fatal("actual TLS observed disconnect")
@@ -283,6 +287,7 @@ func TestIntegrationCanonicalGuestRAActivation(t *testing.T) {
 		t.Log("canonical actual EAP-TLS case:", scenario)
 	}
 
+	dnsOwnership.Capture(t)
 	apply(ctx, "-rollback", baseline.GetDesiredState(), domains, nil)
 	canonicalGuestUnitInactive(t)
 	changed = false
@@ -333,7 +338,7 @@ func canonicalRADocument(t *testing.T) *ngfwv1.DesiredState {
 	return state
 }
 
-func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, proposal *ngfwv1.IpsecProposal, credentials Credentials, password []byte, generation string) (strongswan.ViciConn, *NetworkPlan) {
+func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, proposal *ngfwv1.IpsecProposal, credentials Credentials, password []byte, generation string) (strongswan.ViciConn, *NetworkPlan, *canonicalDNSOwnership) {
 	t.Helper()
 	if profile == nil || proposal == nil || os.Getenv("NGFW_RA_ENGINE_ROOT") == "" || os.Getenv("NGFW_RA_HELPER") == "" {
 		t.Fatal("authenticated peer fixture artifacts absent")
@@ -346,7 +351,23 @@ func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, propo
 	plan.Outer = Link{VPP: "198.18.19.6/31", Namespace: "198.18.19.7/31"}
 	plan.Inner = Link{VPP: "198.18.19.4/31", Namespace: "198.18.19.5/31"}
 	plan.Radius = nil
-	createEAPNamespace(t, plan)
+	if e := CreateNamespace(context.Background(), plan); e != nil {
+		t.Fatal("private canonical peer namespace creation")
+	}
+	allowCleanup := true
+	t.Cleanup(func() {
+		if !allowCleanup {
+			t.Error("retaining owned private peer namespace after DNS ownership refusal")
+			return
+		}
+		if e := RemoveNamespace(plan.Instance, plan.NamespaceInode); e != nil {
+			t.Error("private peer exact namespace cleanup")
+			return
+		}
+		if e := os.RemoveAll(filepath.Join(InstanceRoot, plan.Instance)); e != nil {
+			t.Error("private peer owned directory cleanup")
+		}
+	})
 	connection := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{ReplyTimeout: 5 * time.Second})
 	t.Cleanup(func() { connection.Close() })
 	for stop := time.Now().Add(5 * time.Second); !connection.Connected() && time.Now().Before(stop); {
@@ -407,10 +428,34 @@ func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, propo
 	}
 	// The disposable test peer must exercise both supported EAP methods using
 	// the same authenticated engine. The production responder plugin list is unchanged.
-	files.Daemon = []byte(strings.Replace(string(files.Daemon), "eap-mschapv2 md4", "eap-mschapv2 md4 eap-tls", 1))
+	files.Daemon = []byte(strings.Replace(string(files.Daemon), "eap-mschapv2 md4", "eap-mschapv2 md4 eap-tls resolve", 1))
+	if !trustedFixturePath(filepath.Join(os.Getenv("NGFW_RA_ENGINE_ROOT"), "lib/ipsec/plugins/libstrongswan-resolve.so"), false) {
+		t.Fatal("authenticated DNS peer plugin absent")
+	}
+	resolvePath := filepath.Join(root, "daemon/client-resolv.conf")
+	files.Daemon = []byte(strings.Replace(string(files.Daemon), "vici {", "resolve { file = "+resolvePath+"\n }\n vici {", 1))
 	if e := WriteSnapshot(plan.Instance, PrivateSnapshot{Daemon: files.Daemon, Connection: files.Connection, Secrets: files.Secrets, Credentials: credentials, CertificateName: "server", Identity: "vpn.example.test"}, time.Now()); e != nil {
 		t.Fatal("peer private snapshot")
 	}
+	// #nosec G304 -- exclusive creation at a fixed basename within the newly verified root-private owned client snapshot directory.
+	resolver, e := os.OpenFile(resolvePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, 0600)
+	if e != nil {
+		t.Fatal("private client resolver creation")
+	}
+	if resolver.Close() != nil {
+		t.Fatal("private client resolver close")
+	}
+	dnsOwnership := &canonicalDNSOwnership{path: resolvePath}
+	dnsOwnership.Capture(t)
+	// Registered before starting the client: its exact process kill/reap runs
+	// first. Unknown/replaced resolver files are preserved, never added to the
+	// production CleanupSnapshot allowlist.
+	t.Cleanup(func() {
+		if !dnsOwnership.Cleanup() {
+			allowCleanup = false
+			t.Error("private peer resolver cleanup ownership refused")
+		}
+	})
 	peer := startPrivateEngine(t, plan)
 	call := func(name string, message *vici.Message) {
 		t.Helper()
@@ -429,7 +474,7 @@ func canonicalGuestPeer(t *testing.T, profile *ngfwv1.RemoteAccessProfile, propo
 	child := privateMessage("local_ts", []string{"dynamic"}, "remote_ts", []string{"10.19.0.0/16"}, "esp_proposals", []string{"aes256gcm16-ecp256"}, "if_id_in", "1", "if_id_out", "1", "set_mark_out", "1")
 	config := privateMessage("version", "2", "local_addrs", []string{plan.LocalAddress}, "remote_addrs", []string{profile.GetLocalAddr()}, "vips", []string{"0.0.0.0"}, "proposals", []string{"aes256-sha256-prfsha256-ecp256"}, "local", privateMessage("auth", "eap-mschapv2", "id", "client", "eap_id", "client"), "remote", privateMessage("auth", "pubkey", "id", "vpn.example.test"), "children", privateMessage("protected", child))
 	call("load-conn", privateMessage("ra-client", config))
-	return peer, plan
+	return peer, plan, dnsOwnership
 }
 
 func canonicalConfigureTLSClient(t *testing.T, peer strongswan.ViciConn, plan *NetworkPlan, profile *ngfwv1.RemoteAccessProfile, credentials Credentials, certificate, key []byte) {
@@ -538,5 +583,178 @@ func canonicalGuestUnitInactive(t *testing.T) {
 	}
 	if fields["MainPID"] != "0" || fields["ControlPID"] != "0" || fields["ActiveState"] != "inactive" {
 		t.Fatal("canonical rollback retained an active daemon")
+	}
+}
+
+func canonicalNegotiatedSelectors(t *testing.T, peer strongswan.ViciConn, vip string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	observed := 0
+	for event, e := range peer.CallStreaming(ctx, "list-sas", "list-sa", privateMessage("ike", "ra-client", "noblock", "yes")) {
+		if e != nil || event == nil {
+			t.Fatal("canonical peer negotiated selector readback")
+		}
+		sa, ok := event.Get("ra-client").(*vici.Message)
+		if !ok || sa.Get("state") != "ESTABLISHED" {
+			t.Fatal("canonical peer established IKE readback")
+		}
+		children, ok := sa.Get("child-sas").(*vici.Message)
+		if !ok {
+			t.Fatal("canonical peer CHILD readback")
+		}
+		for _, name := range children.Keys() {
+			child, ok := children.Get(name).(*vici.Message)
+			if !ok || child.Get("state") != "INSTALLED" {
+				t.Fatal("canonical installed CHILD readback")
+			}
+			remote, ok := child.Get("remote-ts").([]string)
+			if !ok || len(remote) != 1 || remote[0] != "10.19.0.0/16" {
+				t.Fatal("canonical negotiated split tunnel broadened")
+			}
+			local, ok := child.Get("local-ts").([]string)
+			if !ok || len(local) != 1 || (local[0] != vip && local[0] != vip+"/32") {
+				t.Fatal("canonical negotiated VIP selector differs")
+			}
+			observed++
+		}
+	}
+	if observed != 1 {
+		t.Fatal("canonical negotiated CHILD count differs")
+	}
+}
+
+func canonicalGuestDNS(t *testing.T, plan *NetworkPlan) {
+	t.Helper()
+	path := filepath.Join(InstanceRoot, plan.Instance, "daemon/client-resolv.conf")
+	artifact, e := openNumericPublisherArtifact(path, 4096, false)
+	if e != nil {
+		t.Fatal("private client DNS file boundary")
+	}
+	raw, e := io.ReadAll(io.LimitReader(artifact.file, 4097))
+	closeErr := artifact.file.Close()
+	if e != nil || closeErr != nil || len(raw) > 4096 {
+		t.Fatal("bounded actual client DNS readback")
+	}
+	nameservers := 0
+	for _, line := range strings.Split(string(raw), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 || strings.HasPrefix(fields[0], "#") {
+			continue
+		}
+		if fields[0] == "nameserver" {
+			if len(fields) != 2 || fields[1] != "10.19.0.53" {
+				t.Fatal("negotiated DNS differs from configured pool")
+			}
+			nameservers++
+		}
+	}
+	if nameservers != 1 {
+		t.Fatal("actual negotiated DNS was not installed in private client")
+	}
+}
+
+type canonicalDNSOwnership struct {
+	path   string
+	parent os.FileInfo
+	file   os.FileInfo
+}
+
+func (r *canonicalDNSOwnership) Capture(t *testing.T) {
+	t.Helper()
+	parent, e := os.Lstat(filepath.Dir(r.path))
+	if e != nil || !canonicalPrivateDNSInfo(parent, true) || (r.parent != nil && !os.SameFile(parent, r.parent)) {
+		t.Fatal("private resolver directory identity")
+	}
+	r.parent = parent
+	file, e := os.Lstat(r.path)
+	if os.IsNotExist(e) {
+		r.file = nil
+		return
+	}
+	if e != nil || !canonicalPrivateDNSInfo(file, false) {
+		t.Fatal("private resolver file identity")
+	}
+	r.file = file
+}
+
+func canonicalPrivateDNSInfo(info os.FileInfo, directory bool) bool {
+	if info == nil {
+		return false
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	return ok && stat.Uid == 0 && info.Mode().Perm()&0022 == 0 && ((directory && info.IsDir()) || (!directory && info.Mode().IsRegular() && stat.Nlink == 1))
+}
+
+func (r *canonicalDNSOwnership) Cleanup() bool {
+	parent, e := os.Lstat(filepath.Dir(r.path))
+	if e != nil || !canonicalPrivateDNSInfo(parent, true) || !os.SameFile(parent, r.parent) {
+		return false
+	}
+	current, e := os.Lstat(r.path)
+	if os.IsNotExist(e) {
+		return true
+	}
+	if e != nil || r.file == nil || !canonicalPrivateDNSInfo(current, false) || !os.SameFile(current, r.file) {
+		return false
+	}
+	// #nosec G304 -- exact captured root-private resolver inode and parent, client already killed/reaped; nofollow refuses any link replacement.
+	held, e := os.OpenFile(r.path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	if e != nil {
+		return false
+	}
+	actual, e := held.Stat()
+	closeErr := held.Close()
+	if e != nil || closeErr != nil || !os.SameFile(actual, r.file) {
+		return false
+	}
+	return os.Remove(r.path) == nil
+}
+
+func TestCanonicalDNSCleanupPreservesForeignReplacement(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("root-owned private DNS fixture requires root")
+	}
+	for _, scenario := range []string{"owned", "replacement", "symlink", "hardlink"} {
+		t.Run(scenario, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "client-resolv.conf")
+			if e := os.WriteFile(path, []byte("nameserver 10.19.0.53\n"), 0600); e != nil {
+				t.Fatal(e)
+			}
+			receipt := &canonicalDNSOwnership{path: path}
+			receipt.Capture(t)
+			switch scenario {
+			case "replacement":
+				if e := os.Rename(path, path+".original"); e != nil {
+					t.Fatal(e)
+				}
+				if e := os.WriteFile(path, []byte("foreign fixture marker\n"), 0600); e != nil {
+					t.Fatal(e)
+				}
+			case "symlink":
+				if e := os.Rename(path, path+".original"); e != nil {
+					t.Fatal(e)
+				}
+				if e := os.Symlink(path+".original", path); e != nil {
+					t.Fatal(e)
+				}
+			case "hardlink":
+				if e := os.Link(path, path+".alias"); e != nil {
+					t.Fatal(e)
+				}
+			}
+			removed := receipt.Cleanup()
+			if removed != (scenario == "owned") {
+				t.Fatal("DNS cleanup ownership result differs")
+			}
+			_, e := os.Lstat(path)
+			if scenario == "owned" {
+				if !os.IsNotExist(e) {
+					t.Fatal("owned DNS file remained")
+				}
+			} else if e != nil {
+				t.Fatal("foreign DNS replacement was removed")
+			}
+		})
 	}
 }

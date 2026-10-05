@@ -1,0 +1,9 @@
+Source8f83481c7869a83041dd2f985ebabb66043c06dc
+Started2026-10-05T19:16:33Z, slot27, first native phase only.
+Manager HOLD required proving actual inactive defaults before acceptance.
+Owned dispatcher SIGTERM; awaited exit143. CANCELLED/NO PASS.
+No completed protocol phase or full quick PASS is claimed.
+Cleanup: owned processes, slot namespaces/listeners/runtime dirs absent;
+exact ngfw_w27tb/ngfw_w27tbr/ngfw_w27tbi databases and roles absent.
+Shared VPP MainPID1014/NRestarts0 unchanged.
+Private incomplete diagnostics retained outside Git; no keys or raw captures published.

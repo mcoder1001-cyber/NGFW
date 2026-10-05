@@ -1,0 +1,24 @@
+Source-specific dispatcher result; NOT completed acceptance.
+Source: 3e94010253e78fc68fb742e3b98132cfb5a870ad
+Started: 2026-10-05T18:54:27Z
+Ended: 2026-10-05T19:05:23Z
+Command exit: 0; primary_passed=true; whole_wave_passed=false.
+DHCP strict notApplied/unsupported-warning guard is missing; independent R1 BLOCK.
+No raw native diagnostics, keys, tokens or packet files are included.
+
+ipsec: driver exit0; diagnostic SHA256 730a3adaaac8373392b7262896cf0b55a1da92e58c559e5c1167085c7fd0a3b1
+  {"candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53", "initial_revision": 2, "proof_sha256": "7c017a3ab15351583e53687bf486b9cba0ca24dcb8e84a830e1ebea968654e73", "subphase": "ipsec-responder"}
+  {"candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53", "initial_revision": 2, "proof_sha256": "17cdcba6aa98174ff3e52b9786d3899fcf5991a698ce1aebabf79d284aa475f4", "subphase": "ipsec-initiator"}
+ipsec-cert: driver exit0; diagnostic SHA256 d59412ecb98e72411723255e8c2dc2bd085caa146a3090d3fffd063fa453b797
+  {"candidate_sha256": "c49e356fbf534b298a6f7287fb9c6ad01bc16d5e0d720f45e46d64ff764389f0", "initial_revision": 2, "proof_sha256": "b1df9a617d1ed653d0ea7edf28aca5577666f13bbc427ffda9c5fd4dd9fdccca", "subphase": "ipsec-cert"}
+wireguard: driver exit0; diagnostic SHA256 e32440d00e55ab50f9f974e0a4a0ea8457a282e4f4d6381f934e89eef5ac6521
+tunnels: driver exit0; diagnostic SHA256 80b80ff424aaba89c4beae95cfa1ddf0f101a74c66fcd85d8018efd0598b07fb
+bgp: driver exit0; diagnostic SHA256 39322bbf579360607a9892b74782a21a9be4985de49b8528e14aade5b09e87eb
+  {"candidate_sha256": "796eb4e709c4acd3f44dfc6a31b31874a1f186546974b9da3baa819e1ebc8b60", "initial_revision": 2, "proof_sha256": "f5a43d607f5b0917b0a59b617dcc897e9c308f509b647d2e9e8e46c195ec8b78", "subphase": "bgp"}
+ospf: driver exit0; diagnostic SHA256 4d60142600cddd93385e2d1b3e1fe829f06690c676a97c431dd157c9ddd722c8
+  {"candidate_sha256": "d1f7e61aa7fa65e8f0ac4a377acf3b69edf631c5564883bf62b068913b363679", "initial_revision": 2, "proof_sha256": "ecb7be323cce62885bb7766255223dc297cee16b39d2d0f061f01f4cc1167f74", "subphase": "ospf"}
+dhcp-relay: driver exit0; diagnostic SHA256 9ddecd2eb356380af30b4889c8eb6d8f17e42ff0ea3223ac4e29893428969698
+
+Owned cleanup verified after dispatcher exit: no namespaces; ports12700/12780/16700 empty;
+ngfw_w27tb/ngfw_w27tbr/ngfw_w27tbi PostgreSQL databases and roles absent;
+no owned traffic-b runtime processes; shared VPP MainPID1014 NRestarts0.

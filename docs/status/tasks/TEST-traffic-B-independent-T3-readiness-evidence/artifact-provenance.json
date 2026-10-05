@@ -1,0 +1,31 @@
+{
+  "source_worktree": "/root/ngfw-wt/TEST-traffic-B-20261005",
+  "source_ref": "3c06cbdb1",
+  "copied_paths": [
+    "apps/api/dist",
+    "packages/ui-kit/dist",
+    "packages/api-client/dist",
+    "packages/yang/dist",
+    "packages/schema/dist",
+    "packages/proto/dist"
+  ],
+  "native_plugin": {
+    "path": ".scratch/traffic-b-native-plugin/plugin/ikev2_plugin.so",
+    "sha256": "fe0a5755f7b0ad5d7e18ac3ecf8ffd63490de6137b756764a1d068106301ea06",
+    "source_ref": "3c06cbdb1",
+    "source_inputs_unchanged": true
+  },
+  "own_builds": [
+    {
+      "path": "apps/agent/bin/ngfw-agent",
+      "sha256": "dbe4e239c7b398d3dc104c08725e084b0d48ba6b7ba4b105416eb5739bd7fb2a"
+    },
+    {
+      "path": ".scratch/traffic-b-wg-agent/ngfw-agent",
+      "sha256": "8ee8939f2255775ff958fa614dbfc48ba10ee4b1b2f237ca171d1d31ab84d6b5"
+    }
+  ],
+  "verified_file_count": 1553,
+  "product_source": "43cfd1c9217163745246fb8816399756e70ad71b",
+  "API_fresh_compile_claim": false
+}

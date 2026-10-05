@@ -1,0 +1,33 @@
+20:49:26.879889 IP (tos 0x0, ttl 64, id 32275, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 42305, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 2464, seq 1, length 64
+20:49:26.880777 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 12424, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 2464, seq 1, length 64
+20:49:27.881284 IP (tos 0x0, ttl 64, id 32980, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 43277, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 2464, seq 2, length 64
+20:49:27.881789 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 31452, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 2464, seq 2, length 64
+20:49:28.920927 IP (tos 0x0, ttl 64, id 33380, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 44128, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 2464, seq 3, length 64
+20:49:28.921737 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 20082, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 2464, seq 3, length 64
+20:49:29.921875 IP (tos 0x0, ttl 64, id 33603, offset 0, flags [DF], proto GRE (47), length 108)
+    10.28.2.2 > 10.28.2.1: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 44873, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.2 > 10.28.241.1: ICMP echo request, id 2464, seq 4, length 64
+20:49:29.922652 IP (tos 0x0, ttl 254, id 0, offset 0, flags [none], proto GRE (47), length 108)
+    10.28.2.1 > 10.28.2.2: GREv0, Flags [none], length 88
+	IP (tos 0x0, ttl 64, id 16222, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.28.241.1 > 10.28.241.2: ICMP echo reply, id 2464, seq 4, length 64
+

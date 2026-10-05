@@ -1,0 +1,44 @@
+BEFORE
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.27.128.0/24 fib:0 index:80 locks:2
+  lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+    path-list:[50] locks:100 flags:shared, uPRF-list:38 len:1 itfs:[1, ]
+      path:[66] pl-index:50 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+        10.27.2.2 host-w27w0
+      [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:82 buckets:1 uRPF:38 to:[0:0]]
+    [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+0.0.0.0/0 fib:1 index:12 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+      path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+AFTER
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.27.128.0/24 fib:0 index:80 locks:2
+  lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+    path-list:[50] locks:100 flags:shared, uPRF-list:38 len:1 itfs:[1, ]
+      path:[66] pl-index:50 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+        10.27.2.2 host-w27w0
+      [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:82 buckets:1 uRPF:38 to:[12:14724]]
+    [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] 4af5e2ff3a0a02fed9be95540800
+w27:w27-traffic-pristine, fib_index:1, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[API:1, ]
+0.0.0.0/0 fib:1 index:12 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[19] locks:2 flags:drop, uPRF-list:15 len:0 itfs:[]
+      path:[23] pl-index:19 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:15 to:[0:0]]
+    [0] [@0]: dpo-drop ip4

@@ -1,0 +1,18 @@
+Original SHA256 51041cf51814dca410d2028f110c55884a123af7335787b78f70589d1d6f54d9
+=== RUN   TestKeaDhcpRelay
+=== RUN   TestKeaDhcpRelay/commit
+=== RUN   TestKeaDhcpRelay/relay
+=== RUN   TestKeaDhcpRelay/restart-safety
+=== RUN   TestKeaDhcpRelay/rollback-and-validation
+    dhcp_test.go:766: POST /api/v1/config/rollback/1?comment=kea-rollback → 503, want 200: {"type":"https://ngfw.dev/problems/agent-unavailable","title":"Agent unavailable","status":503,"grpcCode":"UNAVAILABLE","detail":"agent: No connection established. Last error: Error: connect ENOENT /run/ngfw-test/w27/agent.sock. Resolution note: ","instance":"/api/v1/config/rollback/1"}
+=== RUN   TestKeaDhcpRelay/cleanup
+--- FAIL: TestKeaDhcpRelay (28.33s)
+    --- PASS: TestKeaDhcpRelay/commit (2.71s)
+    --- PASS: TestKeaDhcpRelay/relay (10.99s)
+    --- PASS: TestKeaDhcpRelay/restart-safety (3.67s)
+    --- FAIL: TestKeaDhcpRelay/rollback-and-validation (0.09s)
+    --- PASS: TestKeaDhcpRelay/cleanup (0.95s)
+FAIL
+FAIL	ngfw/test/topology/kea-dhcp-relay	28.352s
+FAIL
+SHARED_VPP_UNCHANGED

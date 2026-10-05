@@ -1,0 +1,79 @@
+{
+  "before_restart": {
+    "retrievedAt": "2026-10-05T18:18:54.259Z",
+    "eventsActive": false,
+    "interfaces": [
+      {
+        "name": "site",
+        "vppName": "wg2760",
+        "instance": 2760,
+        "swIfIndex": 3,
+        "publicKey": "9oKVf4Fg/h1U8Ajn57VBO44KXlY7W8K+4DaoGnOTG0Y=",
+        "listenAddress": "10.27.2.1",
+        "listenPort": 22710,
+        "adminUp": true,
+        "linkUp": true,
+        "rxPackets": 1,
+        "rxBytes": 0,
+        "txPackets": 0,
+        "txBytes": 0,
+        "peers": [
+          {
+            "name": "kernel",
+            "publicKey": "air3EgFOcqWUbeLOrrvd+T09wGvSjyI9tW2zEp93zQE=",
+            "peerIndex": 0,
+            "status": "established",
+            "established": true,
+            "dead": false,
+            "endpoint": "10.27.2.2",
+            "endpointPort": 22711,
+            "lastHandshake": null,
+            "persistentKeepaliveSec": 1,
+            "allowedIps": [
+              "10.27.61.2/32"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "after_restart": {
+    "retrievedAt": "2026-10-05T18:19:00.685Z",
+    "eventsActive": false,
+    "interfaces": [
+      {
+        "name": "site",
+        "vppName": "wg2760",
+        "instance": 2760,
+        "swIfIndex": 3,
+        "publicKey": "9oKVf4Fg/h1U8Ajn57VBO44KXlY7W8K+4DaoGnOTG0Y=",
+        "listenAddress": "10.27.2.1",
+        "listenPort": 22710,
+        "adminUp": true,
+        "linkUp": true,
+        "rxPackets": 5,
+        "rxBytes": 384,
+        "txPackets": 4,
+        "txBytes": 624,
+        "peers": [
+          {
+            "name": "kernel",
+            "publicKey": "air3EgFOcqWUbeLOrrvd+T09wGvSjyI9tW2zEp93zQE=",
+            "peerIndex": 0,
+            "status": "established",
+            "established": true,
+            "dead": false,
+            "endpoint": "10.27.2.2",
+            "endpointPort": 22711,
+            "lastHandshake": null,
+            "persistentKeepaliveSec": 1,
+            "allowedIps": [
+              "10.27.61.2/32"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "secret_source": "approved ngfwtestsecrets slot fixture; production secret channel pending"
+}

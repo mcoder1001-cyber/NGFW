@@ -1,0 +1,9 @@
+PING 10.28.241.1 (10.28.241.1) from 10.28.241.2 tbvx: 56(84) bytes of data.
+64 bytes from 10.28.241.1: icmp_seq=1 ttl=64 time=1.89 ms
+64 bytes from 10.28.241.1: icmp_seq=2 ttl=64 time=1.03 ms
+64 bytes from 10.28.241.1: icmp_seq=3 ttl=64 time=0.741 ms
+64 bytes from 10.28.241.1: icmp_seq=4 ttl=64 time=1.26 ms
+
+--- 10.28.241.1 ping statistics ---
+4 packets transmitted, 4 received, 0% packet loss, time 3003ms
+rtt min/avg/max/mdev = 0.741/1.228/1.889/0.422 ms

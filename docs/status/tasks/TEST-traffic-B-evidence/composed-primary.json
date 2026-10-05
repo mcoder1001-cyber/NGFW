@@ -1,0 +1,87 @@
+{
+  "task": "TEST-traffic-B",
+  "source_sha": "727775ae7c41b3c2cf3ead1387df22549ad4394d",
+  "slot": 27,
+  "started_utc": "2026-10-05T16:47:18Z",
+  "phases": [
+    {
+      "phase": "ipsec",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "4bbd9c3b6bf50f63dc7147c921203ad61c827dcc10ee3a1d6cf169f38026b8c8"
+    },
+    {
+      "phase": "ipsec-cert",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "2064ed2a2f7cca696e220ebdeaabfedac214fe138a47b4c21a436f254159ba31"
+    },
+    {
+      "phase": "wireguard",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "24df468ef3a8a0ee87610a1f68b11c992d5fa635b652a1023e6956234e1776db"
+    },
+    {
+      "phase": "tunnels",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "a6e4f1439a62179b051ebe6d0e677421d194f61ba1c0a3ffa918b1403c5a96b7"
+    },
+    {
+      "phase": "bgp",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "ec25c1c1e880759908061b7264a235876480953ff47773248541cfc45d348f0e"
+    },
+    {
+      "phase": "ospf",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "b66bb5536bd9402e215e2e2eaa982c1856a1f243d3288ba3ca3904bf83d48e3f"
+    },
+    {
+      "phase": "dhcp-relay",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "b149f89e83ea2f031b7ba8a32732dbbdd92228ac1bb1a165e3998feaa36343fb"
+    }
+  ],
+  "primary_passed": true,
+  "whole_wave_passed": false,
+  "smoke_not_run": [
+    {
+      "phase": "det44",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "dslite",
+      "reason": "DS-Lite pool deletion banned D-211; preserve pool"
+    },
+    {
+      "phase": "cnat",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "isis",
+      "reason": "requires private OSI punt window"
+    },
+    {
+      "phase": "bfd",
+      "reason": "dedicated BFD evidence export required"
+    },
+    {
+      "phase": "unbound",
+      "reason": "namespace DNS evidence export required"
+    },
+    {
+      "phase": "chrony",
+      "reason": "slot source evidence export required"
+    },
+    {
+      "phase": "syslog",
+      "reason": "slot receiver evidence export required"
+    }
+  ],
+  "ended_utc": "2026-10-05T16:54:11Z"
+}

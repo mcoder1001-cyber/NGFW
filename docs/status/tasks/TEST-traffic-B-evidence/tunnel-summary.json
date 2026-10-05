@@ -1,0 +1,103 @@
+{
+  "phases": [
+    {
+      "phase": "gre",
+      "packets": "kernel ping and underlay encapsulated ICMP",
+      "passed": true,
+      "revision": 2,
+      "candidate_sha256": "f065083be990396d87a97faf4f15213fec3c4ef64dcc1cca39be42b961ec4c54",
+      "unrelated_baseline_warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "private_vpp": {
+        "pid": 187932,
+        "mount_namespace": "mnt:[4026532598]",
+        "api_socket": "/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-187924/vpp/api.sock"
+      }
+    },
+    {
+      "phase": "vxlan",
+      "packets": "kernel ping and underlay encapsulated ICMP",
+      "passed": true,
+      "revision": 4,
+      "candidate_sha256": "1130472d0caf57140709fdd8d0ec41636bcf682df760bc1e6dadc97966eeb49e",
+      "unrelated_baseline_warnings": [
+        {
+          "pointer": "/management/aaa",
+          "message": "management.aaa is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/management/tls",
+          "message": "management.tls is not applied by this agent build",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/nat/ipfix",
+          "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/ipfix/flowprobe",
+          "message": "flowprobe parameters are applied only with at least one monitored interface",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/services/lldp",
+          "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)",
+          "rule": "agent.write-only"
+        },
+        {
+          "pointer": "/services/ntp",
+          "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare",
+          "rule": "agent.unsupported-field"
+        },
+        {
+          "pointer": "/vpn/ipsec",
+          "message": "vpn.ipsec is not implemented by this agent build (P11)",
+          "rule": "agent.unsupported-field"
+        }
+      ],
+      "private_vpp": {
+        "pid": 187932,
+        "mount_namespace": "mnt:[4026532598]",
+        "api_socket": "/root/ngfw-wt/TEST-traffic-B-20261005/.scratch/traffic-b-private-187924/vpp/api.sock"
+      }
+    }
+  ],
+  "whole_wave_passed": false
+}

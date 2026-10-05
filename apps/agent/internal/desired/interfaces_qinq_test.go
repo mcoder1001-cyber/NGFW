@@ -193,8 +193,14 @@ func closeQinqSvc(t *testing.T, s *agent.Service) {
 	t.Helper()
 	s.Close()
 	if value, ok := qinqWirings.Load(s); ok {
-		if err := value.(*subsystems.Wiring).Close(); err != nil {
-			t.Errorf("close paired QinQ wiring: %v", err)
+		wiring := value.(*subsystems.Wiring)
+		if err := wiring.StopRA(context.Background()); err != nil {
+			t.Errorf("stop paired QinQ runtime: %v", err)
+			return
+		}
+		wiring.Close()
+		if subsystems.RARuntimeFor(qinqOwner) != nil {
+			t.Error("paired QinQ close retained its runtime")
 			return
 		}
 		qinqWirings.Delete(s)

@@ -37,6 +37,13 @@ mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$S
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done
+# wave-BC: F-ab-upgrade — stage executables only; no upgrade/provision action here.
+(cd "$ROOT/deploy/upgrade/probe" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-upgrade-probe" .)
+install -m 0755 "$ROOT/deploy/upgrade/ngfw-upgrade" "$STAGE/usr/sbin/ngfw-upgrade"
+for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
+  install -m 0755 "$ROOT/deploy/upgrade/$helper" "$STAGE/usr/lib/ngfw/$helper"
+  install -m 0644 "$ROOT/deploy/upgrade/$helper.service" "$STAGE/usr/lib/systemd/system/$helper.service"
+done
 (cd "$ROOT" && pnpm --filter @ngfw/api deploy --prod "$STAGE/usr/lib/ngfw/api")
 [[ -f $STAGE/usr/lib/ngfw/api/dist/main.js ]] || { echo 'pnpm deploy omitted compiled API' >&2; exit 1; }
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/ngfw/api/"

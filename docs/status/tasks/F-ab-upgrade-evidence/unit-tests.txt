@@ -1,0 +1,19 @@
+test_failed_health_rolls_back_and_reboots (test_upgrade.HealthBoot.test_failed_health_rolls_back_and_reboots) ... ok
+test_health_confirms_only_trial (test_upgrade.HealthBoot.test_health_confirms_only_trial) ... ok
+test_old_slot_reconciles_consumed_trial_without_reboot (test_upgrade.HealthBoot.test_old_slot_reconciles_consumed_trial_without_reboot) ... ok
+test_activate_confirm_actual_grubenv (test_upgrade.Lifecycle.test_activate_confirm_actual_grubenv) ... ok
+test_failed_health_and_reboot_preserve_previous_default (test_upgrade.Lifecycle.test_failed_health_and_reboot_preserve_previous_default) ... ok
+test_refuse_stage_during_trial_before_write (test_upgrade.Lifecycle.test_refuse_stage_during_trial_before_write) ... ok
+test_builder_round_trip (test_upgrade.Verification.test_builder_round_trip) ... ok
+test_compatibility_and_vpp_provenance (test_upgrade.Verification.test_compatibility_and_vpp_provenance) ... ok
+test_directory_ownership_restored_after_population (test_upgrade.Verification.test_directory_ownership_restored_after_population) ... ok
+test_host_without_appliance_marker_refused (test_upgrade.Verification.test_host_without_appliance_marker_refused) ... ok
+test_manifest_signature_tampered (test_upgrade.Verification.test_manifest_signature_tampered) ... ok
+test_traversal_special_nodes_symlink_ancestors_persistent_data (test_upgrade.Verification.test_traversal_special_nodes_symlink_ancestors_persistent_data) ... ok
+test_unsigned_and_tampered_refused (test_upgrade.Verification.test_unsigned_and_tampered_refused) ... ok
+test_valid_signature_digest_and_snapshot (test_upgrade.Verification.test_valid_signature_digest_and_snapshot) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 3.338s
+
+OK

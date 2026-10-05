@@ -29,6 +29,7 @@ class Preparation(unittest.TestCase):
             (root / 'deploy/vpp/apply-startup.sh').write_text('#!/bin/sh\nexit 0\n')
             for name in ['apply-executor.py', 'apply-executor.service', 'apply-executor.socket']:
                 shutil.copyfile(SOURCE.parents[1] / 'vpp' / name, root / 'deploy/vpp' / name)
+            shutil.copytree(SOURCE.parents[1] / 'upgrade', root / 'deploy/upgrade', ignore=shutil.ignore_patterns('__pycache__'))
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
@@ -83,6 +84,11 @@ fi
                 self.assertTrue((hardening / 'signing/verify.py').is_file())
                 self.assertFalse(list(hardening.rglob('__pycache__')))
                 self.assertFalse((root / 'output/stage/etc/sysctl.d/60-ngfw.conf').exists())
+                self.assertTrue((root / 'output/stage/usr/sbin/ngfw-upgrade').is_file())
+                for helper in ['prepare', 'health']:
+                    self.assertTrue((root / f'output/stage/usr/lib/ngfw/ngfw-upgrade-{helper}').is_file())
+                    self.assertTrue((root / f'output/stage/usr/lib/systemd/system/ngfw-upgrade-{helper}.service').is_file())
+                self.assertTrue((root / 'output/stage/usr/lib/ngfw/ngfw-upgrade-probe').is_file())
                 self.assertEqual((root / 'commands.log').read_text().splitlines()[0],
                                  'exec turbo run build --filter=@ngfw/api --filter=@ngfw/web --concurrency=2')
             else:

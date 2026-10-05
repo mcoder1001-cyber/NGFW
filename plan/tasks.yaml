@@ -2365,7 +2365,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D11.2
@@ -2376,9 +2376,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: '2026-10-05T10:34:35.791386+00:00'
     notes: 'prompts-s4: suggested deps +P14 (autoinstall + offline pool reuse) — docs/status/tasks/prompts-s4.md'
-    worker_status: Reviewed source6bd58ecb; all applicable source approvals; final current-main integration/gates pending.
+    worker_status: Merged PR173 e5605d9c; exact tree4c735955 local complete quick23m34 and hosted CI37294953038 PASS; target appliance/cloud acceptance deferred.
   - id: F-hardening-lite
     title: CIS-lite OS hardening, systemd hardening, package signing (consumes F-host-acl-nftables' inet ngfw renderer, D-057)
     prompt: prompts/features/F-hardening-lite.md

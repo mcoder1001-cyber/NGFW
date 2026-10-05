@@ -6,5 +6,6 @@ Completed: auth/public/WS route boundary inventory; secret AES-GCM/AAD metadata-
 Actual dependency check: pnpm audit --prod baseline 5 high/7 moderate; patch tree 0 all severities. Updated static 10.1.2, exact Fastify 5.12.5 plus override for Nest pinned copy, js-yaml 5.4.1 scoped override. Current Nest peer accepts static 10.1.2. Same packages/licenses.
 Actual tests: initial focused API run 3 files passed/10 failed because generated schema/proto builds absent; not a product verdict. Initial full quick stopped (own PIDs) before completion when dependency patch superseded it. pnpm gen running, next focused rerun then final unchanged quick.
 Current failure: none confirmed in product; regression verification pending.
-Remaining: malformed Swagger regression, focused Go/TS checks, final gate, whole-tree report, independent review, PR.
-Next command: pnpm --filter @ngfw/api exec vitest run src/auth src/secrets src/features/pki/pki.security.test.ts src/features/aaa/mfa-guard.test.ts
+Completed checks: 82 existing focused TS cases PASS; new malformed/encoded Swagger 13 tests PASS; four focused Go race packages PASS; generation PASS and clean tracked outputs. Independent docs agent approved security source delta. Whole-tree report stored in SECURITY-REVIEW.md. Draft PR184 https://github.com/mcoder1001-cyber/NGFW/pull/184. Last published remote55edf8a7eaed66a7b8515536a36e47d19bd226a7 includes independent docs R2 review.
+Remaining: final unchanged quick (running turbo phase), hosted/current integration gate and manager whole-tree completion review.
+Next command: tail -20 /tmp/security-quick-final.log; logs /root/ngfw-wt/logs/ci/security-final-20261005-20261005-154309-3876040. Do not start another full gate while this one is alive.

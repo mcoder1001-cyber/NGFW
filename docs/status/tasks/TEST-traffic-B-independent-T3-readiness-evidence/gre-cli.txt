@@ -1,0 +1,1 @@
+[0] instance 28041 src 10.28.2.1 dst 10.28.2.2 fib-idx 0 sw-if-idx 3 payload L3 point-to-point 

@@ -1,0 +1,17 @@
+Private original SHA256 0e0b8ea86e226d81d662e6c29f710959d192f9edee9f11fc7b0bbc38d078a668
+=== RUN   TestKeaDhcpRelay
+=== RUN   TestKeaDhcpRelay/commit
+=== RUN   TestKeaDhcpRelay/relay
+=== RUN   TestKeaDhcpRelay/restart-safety
+=== RUN   TestKeaDhcpRelay/rollback-and-validation
+    dhcp_test.go:767: POST /config/rollback/1 → {"status":"applied","revision":{"id":3,"createdAt":"2026-10-05T19:51:28.812Z","authorId":1,"author":"admin","comment":"kea-rollback","parentId":2,"hash":"cc881f9e2aa5e4c6ef8fdf38c238bac70d2dbbf0c0a17d90b93004071a923525","txnId":"c541d0e0-2458-4378-ac80-9328ecf2a37c","kind":"rollback","secretChanges":[],"secretVersions":null},"txnId":"c541d0e0-2458-4378-ac80-9328ecf2a37c","results":[{"key":"dhcp.relay/to-kea","op":"delete","pointer":"","subsystem":"services","code":"ok","message":""},{"key":"dhcp.proxy/27001/27001/10.27.2.2","op":"delete","pointer":"","subsystem":"services","code":"ok","message…
+=== RUN   TestKeaDhcpRelay/cleanup
+--- PASS: TestKeaDhcpRelay (33.05s)
+    --- PASS: TestKeaDhcpRelay/commit (2.70s)
+    --- PASS: TestKeaDhcpRelay/relay (10.95s)
+    --- PASS: TestKeaDhcpRelay/restart-safety (3.85s)
+    --- PASS: TestKeaDhcpRelay/rollback-and-validation (1.15s)
+    --- PASS: TestKeaDhcpRelay/cleanup (1.60s)
+PASS
+ok  	ngfw/test/topology/kea-dhcp-relay	33.076s
+SHARED_VPP_UNCHANGED

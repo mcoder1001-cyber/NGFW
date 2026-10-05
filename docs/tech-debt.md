@@ -184,3 +184,7 @@ Items above that are not ticked keep their text; this table gives each one an ow
 ## Accepted dynamic route scaling debt — 2026-10-04
 
 - F-pim-frrsync and F-mpls-ldp-host: supported dynamic snapshot cap is 256 routes per source. Larger snapshots are rejected while retaining the prior valid cache. Existing safe per-object VPP collision/ownership dumps remain in force. Owner: Codex manager. Due: 2026-10-11. Follow-up: batched ownership-safe conflict retrieval and bounded shared-table snapshots before raising the cap. No throughput or large-table performance acceptance is claimed.
+
+## Native certificate route recovery flake — 2026-10-05
+
+- TEST-traffic-B: one native certificate packet run lost both immediate post-route-restore pings after successful rekey; the unchanged fixture passed independently before that failure and passed the final complete composed rerun (727775ae7). Classified FLAKY under TESTER-PROMPT; no timing assertion, guard or product code weakened. Investigate route/SA convergence after restore before choosing a bounded fixture wait or product fix. Owner: Codex manager. Due: 2026-10-12. Preserved failure excerpt and log SHA: [traffic evidence](status/tasks/TEST-traffic-B-evidence/certificate-flaky-provenance.json).

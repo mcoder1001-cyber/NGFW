@@ -1,0 +1,7 @@
+# Corrected readiness independent final R1/T1 checkpoint
+
+Own branchcodex/traffic-r1-readiness-20261005/worktree /root/ngfw-wt/traffic-r1-readiness-20261005. Productsource43cfd1c9217163745246fb8816399756e70ad71b/tree83e9078b796539cc14929e3e1e2bca4c2ba5b3eb. TestedownHEAD1b044c73d differsonlythree independent preflight Markdown docs. Base4788main; main3c99duringrunstatusdocsonlyverifiedproductunchanged(D226). Preflightremote57436fffbd9c4c24a939d0fbdba3b2aa94feb9e2; finalreportlocalSHA=thiscommit, remote publication pending managerconnector. Owned TEST-traffic-B-readiness-r1*.md and -full-quick-output.txt only.
+
+R1APPROVE; correctedsourceT1COMPLETEPASS exit0 wall28m57s, fresh149fake-host59+90 zero failures;35workspace/139agentrace/27Go modules/CLI/gen/guards/5shellcheck allpassed. Owned36602awaitedexit0 beforedocs, allpreflightcommandsfinished; sourcefrozenwhileactive. Exactcommand/output/stepdir in T1report/fulloutput. Two old8e actual503 failures fixed NOTFLAKY; old8equickPASS and earlier canceledNOTPASS preserved.
+
+Actual manager d3 completeall7PASS20:35:55–20:44:35, independentT3ccfde exact43c completeall7PASS20:45:43–20:54:38, reports ee40cab29860d1fb4c73ed4593b39d60a7929ed0. Attributedcampaigns cleaned/shared1014/0; reviewer no livehostcampaign. Remainingmanager actions publishfinalreviews, R7canonical/otherpanelclosure, exacthostedgate/freshtreeexpectedheadmerge/mainCI/boardDone. No finalDoneclaim by this checkpoint alone.

@@ -1,0 +1,75 @@
+20:15:34.962060 IP (tos 0x10, ttl 127, id 0, offset 0, flags [none], proto UDP (17), length 342)
+    10.28.1.1.68 > 10.28.2.2.67: [no cksum] BOOTP/DHCP, Request from 82:9c:40:fc:16:42, length 314, xid 0x6cea615c, secs 3, Flags [none] (0x0000)
+	  Gateway-IP 10.28.1.1
+	  Client-Ethernet-Address 82:9c:40:fc:16:42
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Discover
+	    Hostname (12), length 4: "ngfw"
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Default-Gateway (3)
+	      Domain-Name (15), Domain-Name-Server (6), Unknown (119), Hostname (12)
+	      Netbios-Name-Server (44), Netbios-Scope (47), MTU (26), Classless-Static-Route (121)
+	      NTP (42)
+	    Agent-Information (82), length 12: 
+	      Circuit-ID SubOption 1, length 4: ^@^@^@^B
+	      Unknown SubOption 5, length 4: 
+		0x0000:  0a1c 0101
+20:15:34.964756 IP (tos 0x10, ttl 128, id 0, offset 0, flags [DF], proto UDP (17), length 340)
+    10.28.2.2.67 > 10.28.1.1.67: [udp sum ok] BOOTP/DHCP, Reply, length 312, xid 0x6cea615c, Flags [none] (0x0000)
+	  Your-IP 10.28.1.100
+	  Gateway-IP 10.28.1.1
+	  Client-Ethernet-Address 82:9c:40:fc:16:42
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Offer
+	    Subnet-Mask (1), length 4: 255.255.255.0
+	    Default-Gateway (3), length 4: 10.28.1.1
+	    Domain-Name-Server (6), length 4: 10.28.1.1
+	    Hostname (12), length 4: "ngfw"
+	    Domain-Name (15), length 16: "w28.example.test"
+	    Lease-Time (51), length 4: 600
+	    Server-ID (54), length 4: 10.28.2.2
+	    Agent-Information (82), length 12: 
+	      Circuit-ID SubOption 1, length 4: ^@^@^@^B
+	      Unknown SubOption 5, length 4: 
+		0x0000:  0a1c 0101
+20:15:34.966971 IP (tos 0x10, ttl 127, id 0, offset 0, flags [none], proto UDP (17), length 342)
+    10.28.1.1.68 > 10.28.2.2.67: [no cksum] BOOTP/DHCP, Request from 82:9c:40:fc:16:42, length 314, xid 0x6cea615c, secs 3, Flags [none] (0x0000)
+	  Gateway-IP 10.28.1.1
+	  Client-Ethernet-Address 82:9c:40:fc:16:42
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: Request
+	    Server-ID (54), length 4: 10.28.2.2
+	    Requested-IP (50), length 4: 10.28.1.100
+	    Hostname (12), length 4: "ngfw"
+	    Parameter-Request (55), length 13: 
+	      Subnet-Mask (1), BR (28), Time-Zone (2), Default-Gateway (3)
+	      Domain-Name (15), Domain-Name-Server (6), Unknown (119), Hostname (12)
+	      Netbios-Name-Server (44), Netbios-Scope (47), MTU (26), Classless-Static-Route (121)
+	      NTP (42)
+	    Agent-Information (82), length 12: 
+	      Circuit-ID SubOption 1, length 4: ^@^@^@^B
+	      Unknown SubOption 5, length 4: 
+		0x0000:  0a1c 0101
+20:15:34.968609 IP (tos 0x10, ttl 128, id 0, offset 0, flags [DF], proto UDP (17), length 340)
+    10.28.2.2.67 > 10.28.1.1.67: [udp sum ok] BOOTP/DHCP, Reply, length 312, xid 0x6cea615c, Flags [none] (0x0000)
+	  Your-IP 10.28.1.100
+	  Gateway-IP 10.28.1.1
+	  Client-Ethernet-Address 82:9c:40:fc:16:42
+	  Vendor-rfc1048 Extensions
+	    Magic Cookie 0x63825363
+	    DHCP-Message (53), length 1: ACK
+	    Subnet-Mask (1), length 4: 255.255.255.0
+	    Default-Gateway (3), length 4: 10.28.1.1
+	    Domain-Name-Server (6), length 4: 10.28.1.1
+	    Hostname (12), length 4: "ngfw"
+	    Domain-Name (15), length 16: "w28.example.test"
+	    Lease-Time (51), length 4: 600
+	    Server-ID (54), length 4: 10.28.2.2
+	    Agent-Information (82), length 12: 
+	      Circuit-ID SubOption 1, length 4: ^@^@^@^B
+	      Unknown SubOption 5, length 4: 
+		0x0000:  0a1c 0101
+

@@ -59,7 +59,11 @@ plugins {{ {plugin_directive} plugin linux_cp_plugin.so {{ enable }} plugin linu
             else:
                 raise SystemExit('disposable VPP startup timed out')
             print(f'DISPOSABLE_VPP pid={vpp.pid} runtime={runtime}', flush=True)
-            result = subprocess.call(command)
+            child_env=os.environ.copy()
+            if child_env.get('NGFW_TRAFFIC_B_REST')=='1':
+                child_env['NGFW_TRAFFIC_PRIVATE_VPP_PID']=str(vpp.pid)
+                child_env['NGFW_VPP_API_SOCKET']=str(runtime/'api.sock')
+            result = subprocess.call(command,env=child_env)
             if vpp.poll() is not None:
                 print(f'DISPOSABLE_VPP_CRASH exit={vpp.returncode}', file=sys.stderr)
                 result = result or 1

@@ -1,0 +1,9 @@
+{
+  "status": "FLAKY",
+  "failure_log_sha256": "342ae84377c79dc8471ec59f58f966eb86dc9ec485b1807647aec2335821da2d",
+  "failure_source": "326902c48 (equivalent DHCP env formatting changed during aggregate; native certificate fixture unchanged)",
+  "unchanged_rerun_source": "727775ae7",
+  "unchanged_rerun_result": "PASS",
+  "owner": "Codex manager",
+  "due": "2026-10-12"
+}

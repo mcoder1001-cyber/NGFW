@@ -1,0 +1,5 @@
+# Fresh A3 DHCP restart readiness developer
+
+Base8e1c41d59ef177e81dfec3ed095c317c20b36dd5; own branch codex/traffic-restart-readiness-20261005 /root/ngfw-wt/traffic-restart-readiness-20261005. Root reassigned after TWO actual immediate post-restart rollback503/old-agent.socket ENOENT failures; notFLAKY/no waiver. Preserve both failures and earlier passing controls.
+
+Owned only test/topology/kea-dhcp-relay/{dhcp_test.go,stack_test.go,readiness_test.go} and this envelope/WIP. No product API/agent changes, host service/shared VPP operations, rollback retry, guard weakening, disabled tests or timeout increase. Prove authenticated read-only productAPI->actualagent Retrieve and exact recovered applied relay inside existing30s recovery budget before one unchanged strict rollback. Meaningful unavailable-to-ready/neverready/deadline/state negatives required. Manager publishes checkpoints and runs coordinated immutable DHCP/all7; independent R1/T1 and R4/T3 plus affected R2/R7/R8 approve. Prior fullquick8e PASS is oldsource only.

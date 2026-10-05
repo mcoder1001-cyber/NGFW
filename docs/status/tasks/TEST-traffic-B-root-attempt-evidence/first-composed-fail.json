@@ -1,0 +1,125 @@
+{
+  "task": "TEST-traffic-B",
+  "source_sha": "8e1c41d59ef177e81dfec3ed095c317c20b36dd5",
+  "slot": 27,
+  "started_utc": "2026-10-05T19:52:06Z",
+  "phases": [
+    {
+      "phase": "ipsec",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ipsec-responder",
+          "proof_sha256": "e7d0ea612d7bda4dfc621329b094581039785d0d346d585fdb2c15be7ce61226",
+          "initial_revision": 2,
+          "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53"
+        },
+        {
+          "subphase": "ipsec-initiator",
+          "proof_sha256": "b253bd704c9621c277c864aef8233275cd8eb2bbba7264ce979e78788ccecf9b",
+          "initial_revision": 2,
+          "candidate_sha256": "64fd74115c193064a8e034f09aa4b383a05f541c3998dbf4928d787c61111f53"
+        }
+      ],
+      "diagnostic_sha256": "d6f7712abfd634d72162534d0de183c5499d8903fff1f352ae61d3cdec875a43"
+    },
+    {
+      "phase": "ipsec-cert",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ipsec-cert",
+          "proof_sha256": "31bbaa9ec96a1fdecf1cbb610d6ea9be79af49c5770000840afe0cf6341da9f9",
+          "initial_revision": 2,
+          "candidate_sha256": "c49e356fbf534b298a6f7287fb9c6ad01bc16d5e0d720f45e46d64ff764389f0"
+        }
+      ],
+      "diagnostic_sha256": "b4f4e1df4855039cc013431f2c1790da8041ba24788cf40be2047d12652c4bf0"
+    },
+    {
+      "phase": "wireguard",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "a8acf7153ceb75f9bdd5d74231eee6b70833ada04eb8946e5c30b68c9eb1905f"
+    },
+    {
+      "phase": "tunnels",
+      "status": "passed",
+      "exit_code": 0,
+      "diagnostic_sha256": "70b1ce2b5d2f49b7093a7e87d78100b692efb3cc7464a31b04bc74de27adf3bd"
+    },
+    {
+      "phase": "bgp",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "bgp",
+          "proof_sha256": "f0a8ed045f10baabe9817979b817e365e180ecac88504080a5930420593bb38e",
+          "initial_revision": 2,
+          "candidate_sha256": "796eb4e709c4acd3f44dfc6a31b31874a1f186546974b9da3baa819e1ebc8b60"
+        }
+      ],
+      "diagnostic_sha256": "58a096bb66eb73392aedca9ade02a23a9b0ebdfb36d52cbe2b29614e74759f9e"
+    },
+    {
+      "phase": "ospf",
+      "status": "passed",
+      "exit_code": 0,
+      "rest_proofs": [
+        {
+          "subphase": "ospf",
+          "proof_sha256": "9b9bf9cf8ef13c1dd1e68b1720beffb3f1849c7e19860675684f4189f82b5120",
+          "initial_revision": 2,
+          "candidate_sha256": "d1f7e61aa7fa65e8f0ac4a377acf3b69edf631c5564883bf62b068913b363679"
+        }
+      ],
+      "diagnostic_sha256": "a62923f5b24fa71d077be5ee8a7bcb1e4cef867f77b9284d24beea81c7e13803"
+    },
+    {
+      "phase": "dhcp-relay",
+      "status": "failed",
+      "exit_code": 1,
+      "reason": "Refused: acceptance failed; private diagnostic retained"
+    }
+  ],
+  "primary_passed": false,
+  "whole_wave_passed": false,
+  "smoke_not_run": [
+    {
+      "phase": "det44",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "dslite",
+      "reason": "DS-Lite pool deletion banned D-211; preserve pool"
+    },
+    {
+      "phase": "cnat",
+      "reason": "requires private globals acceptance window"
+    },
+    {
+      "phase": "isis",
+      "reason": "requires private OSI punt window"
+    },
+    {
+      "phase": "bfd",
+      "reason": "dedicated BFD evidence export required"
+    },
+    {
+      "phase": "unbound",
+      "reason": "namespace DNS evidence export required"
+    },
+    {
+      "phase": "chrony",
+      "reason": "slot source evidence export required"
+    },
+    {
+      "phase": "syslog",
+      "reason": "slot receiver evidence export required"
+    }
+  ],
+  "ended_utc": "2026-10-05T20:02:33Z"
+}

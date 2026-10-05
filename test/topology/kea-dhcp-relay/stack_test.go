@@ -9,14 +9,17 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
@@ -210,9 +213,11 @@ func (p *proc) exited() bool {
 // ---- API client ----------------------------------------------------------------------------------
 
 type api struct {
-	t     *testing.T
-	base  string
-	token string
+	t                *testing.T
+	base             string
+	token            string
+	baselineWarnings []any
+	baselineDocument map[string]any
 }
 
 type resp struct {
@@ -223,12 +228,17 @@ type resp struct {
 
 func (a *api) call(method, path string, body any, headers ...string) resp {
 	a.t.Helper()
+	return a.callContext(context.Background(), method, path, body, headers...)
+}
+
+func (a *api) callContext(ctx context.Context, method, path string, body any, headers ...string) resp {
+	a.t.Helper()
 	var rd io.Reader
 	if body != nil {
 		b, _ := json.Marshal(body)
 		rd = bytes.NewReader(b)
 	}
-	req, _ := http.NewRequest(method, a.base+path, rd)
+	req, _ := http.NewRequestWithContext(ctx, method, a.base+path, rd)
 	if body != nil {
 		req.Header.Set("content-type", "application/json")
 	}
@@ -248,6 +258,48 @@ func (a *api) call(method, path string, body any, headers ...string) resp {
 	r := resp{status: res.StatusCode, raw: string(raw)}
 	_ = json.Unmarshal(raw, &r.body)
 	return r
+}
+
+// waitRelayReady proves the product API's live agent Retrieve reaches the recovered
+// relay. Poll only this read-only endpoint within the existing recovery deadline;
+// the following rollback mutation is still attempted exactly once.
+func (a *api) waitRelayReady(ctx context.Context, name string) bool {
+	for ctx.Err() == nil {
+		response := a.callContext(ctx, "GET", "/api/v1/state/dhcp/relays", nil)
+		if ctx.Err() == nil && relayReady(response, name) {
+			return true
+		}
+		timer := time.NewTimer(200 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return false
+		case <-timer.C:
+		}
+	}
+	return false
+}
+
+func relayReady(response resp, name string) bool {
+	if response.status != http.StatusOK {
+		return false
+	}
+	items, ok := response.body["items"].([]any)
+	if !ok {
+		return false
+	}
+	for _, value := range items {
+		item, ok := value.(map[string]any)
+		if !ok || item["name"] != name || item["state"] != "applied" {
+			continue
+		}
+		config, configured := item["config"].(map[string]any)
+		retrieved, observed := item["retrieved"].(map[string]any)
+		if configured && observed && len(config) > 0 && len(retrieved) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func (a *api) must(want int, method, path string, body any, headers ...string) resp {
@@ -275,13 +327,174 @@ func (a *api) patch(path string, body any) resp {
 	return a.must(200, "PATCH", "/api/v1/config"+path, body, "content-type", "application/merge-patch+json")
 }
 
-// commit commits the candidate and returns the response body.
+// appliedResponse refuses partial and unsupported commits, including misleading HTTP200s.
+// This fresh DHCP fixture does not exempt any unrelated baseline warnings.
+func appliedResponse(r resp) error {
+	if r.status != http.StatusOK || r.body["status"] != "applied" {
+		return fmt.Errorf("configuration did not apply")
+	}
+	if v, exists := r.body["notApplied"]; exists {
+		list, ok := v.([]any)
+		if !ok || len(list) != 0 {
+			return fmt.Errorf("configuration contains notApplied objects")
+		}
+	}
+	encoded, err := json.Marshal(r.body)
+	if err != nil {
+		return err
+	}
+	if bytes.Contains(encoded, []byte("agent.unsupported-field")) {
+		return fmt.Errorf("configuration contains unsupported fields")
+	}
+	revision, ok := r.body["revision"].(map[string]any)
+	if !ok {
+		return fmt.Errorf("applied revision absent")
+	}
+	id, ok := revision["id"].(float64)
+	if !ok || id <= 0 || id != float64(int64(id)) {
+		return fmt.Errorf("concrete applied revision required")
+	}
+	return nil
+}
+
+// baselineResponse permits only exactly unchanged disabled defaults observed during
+// the owned baseline setup. Changed DHCP/interface warnings can never enter it.
+func (a *api) baselineResponse(r resp, before, candidate map[string]any, establish bool) error {
+	copyBody := make(map[string]any, len(r.body))
+	for k, v := range r.body {
+		copyBody[k] = v
+	}
+	warnings, exists := r.body["warnings"]
+	if !exists {
+		warnings = []any{}
+	}
+	list, ok := warnings.([]any)
+	if !ok {
+		return fmt.Errorf("invalid warning list")
+	}
+	filtered := []any{}
+	allowed := map[string]bool{"/management/aaa": true, "/management/tls": true, "/management/backup": true, "/nat/ipfix": true, "/services/ipfix/flowprobe": true, "/services/ntp": true}
+	for _, item := range list {
+		warning, ok := item.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid warning")
+		}
+		if warning["rule"] != "agent.unsupported-field" {
+			filtered = append(filtered, item)
+			continue
+		}
+		pointer, _ := warning["pointer"].(string)
+		if !allowed[pointer] || !inactiveDefault(pointer, pointerValue(before, pointer)) || !reflect.DeepEqual(pointerValue(before, pointer), pointerValue(candidate, pointer)) {
+			return fmt.Errorf("unsupported changed or unrecognized field %s", pointer)
+		}
+		known := false
+		for _, baseline := range a.baselineWarnings {
+			if reflect.DeepEqual(baseline, item) {
+				known = true
+			}
+		}
+		if !establish && !known {
+			return fmt.Errorf("new unsupported warning %s", pointer)
+		}
+	}
+	copyBody["warnings"] = filtered
+	if err := appliedResponse(resp{status: r.status, body: copyBody}); err != nil {
+		return err
+	}
+	if establish {
+		a.baselineWarnings = append([]any{}, list...)
+	}
+	return nil
+}
+
+// Explicit fixture values from the current RootConfig schema defaults. These prove
+// external AAA/custom TLS/flowprobe unused, and enabled=false where available.
+// API TLS itself is not disabled. Missing, customized or future shapes fail closed.
+var inactiveDefaults = map[string]string{
+	"/management/aaa":           `{"order":["local"],"radius":{"servers":[]},"tacacs":{"servers":[]},"ldap":{"servers":[]},"roleMap":[],"mfa":{"required":"none","issuer":"ngfw"},"fallbackLocal":true}`,
+	"/management/tls":           `{"minVersion":"1.2"}`,
+	"/management/backup":        `{"enabled":false,"schedule":"0 2 * * *","retention":7,"revisions":100}`,
+	"/nat/ipfix":                `{"enabled":false}`,
+	"/services/ipfix/flowprobe": `{"activeTimerSec":15,"passiveTimerSec":120,"recordL2":false,"recordL3":true,"recordL4":true,"interfaces":[]}`,
+	"/services/ntp":             `{"enabled":false,"vrf":"default","servers":[],"pools":[],"allow":[],"listen":[],"deny":[],"port":123,"orphan":false,"rtcSync":true,"makestep":{"thresholdSec":1,"limit":3}}`,
+}
+
+func inactiveDefault(pointer string, value any) bool {
+	encoded, ok := inactiveDefaults[pointer]
+	if !ok {
+		return false
+	}
+	var expected any
+	if json.Unmarshal([]byte(encoded), &expected) != nil {
+		panic("invalid static fixture default")
+	}
+	return reflect.DeepEqual(value, expected)
+}
+
+func pointerValue(document map[string]any, pointer string) any {
+	var value any = document
+	for _, part := range strings.Split(strings.TrimPrefix(pointer, "/"), "/") {
+		object, ok := value.(map[string]any)
+		if !ok {
+			return nil
+		}
+		value = object[part]
+	}
+	return value
+}
+
+func configDigest(document map[string]any) string {
+	encoded, err := json.Marshal(document)
+	if err != nil {
+		panic(err)
+	} // decoded API JSON is always JSON-marshalable
+	return fmt.Sprintf("%x", sha256.Sum256(encoded))
+}
+
+// candidateOwner follows LockOut.ownerId: an integer account ID, not the display name.
+// JSON decoding uses float64; refuse non-integral, nonpositive and unsafe values.
+func candidateOwner(lock resp) (float64, error) {
+	owner, ok := lock.body["ownerId"].(float64)
+	if lock.status != http.StatusOK || lock.body["locked"] != true || !ok || owner <= 0 || owner > 9007199254740991 || math.Trunc(owner) != owner {
+		return 0, fmt.Errorf("candidate ownership absent")
+	}
+	return owner, nil
+}
+
+// commit proves candidate ownership and exact persistence in addition to full application.
 func (a *api) commit(comment string) map[string]any {
 	a.t.Helper()
-	r := a.must(200, "POST", "/api/v1/config/commit?comment="+comment, nil)
-	if r.body["status"] != "applied" {
-		a.t.Fatalf("commit %s: %s", comment, r.raw)
+	before := a.must(200, "GET", "/api/v1/config", nil)
+	lock := a.must(200, "GET", "/api/v1/config/lock", nil)
+	owner, err := candidateOwner(lock)
+	if err != nil {
+		a.t.Fatal(err)
 	}
+	candidate := a.must(200, "GET", "/api/v1/config/candidate", nil)
+	digest := configDigest(candidate.body)
+	observed := a.must(200, "GET", "/api/v1/config/lock", nil)
+	observedOwner, err := candidateOwner(observed)
+	if err != nil || observedOwner != owner {
+		a.t.Fatal("candidate ownership changed")
+	}
+	r := a.call("POST", "/api/v1/config/commit?comment="+comment, nil)
+	if err := a.baselineResponse(r, before.body, candidate.body, comment == "kea-base"); err != nil {
+		a.t.Fatalf("commit %s: %v", comment, err)
+	}
+	running := a.must(200, "GET", "/api/v1/config", nil)
+	if configDigest(running.body) != digest {
+		a.t.Fatal("committed candidate hash mismatch")
+	}
+	warnings := r.body["warnings"]
+	if warnings == nil {
+		warnings = []any{}
+	}
+	if comment == "kea-base" {
+		a.baselineDocument = running.body
+	}
+	proof := map[string]any{"txn": comment, "candidate_owner": owner, "candidate_sha256": digest,
+		"revision": r.body["revision"].(map[string]any)["id"], "status": r.body["status"], "notApplied": []any{}, "warnings": warnings, "baseline_warnings": a.baselineWarnings}
+	a.t.Logf("TRAFFIC_B_DHCP_REST_PROOF=%s", js(proof))
 	return r.body
 }
 

@@ -1,0 +1,3 @@
+# Independent final traffic envelope
+
+Roles R4/R8 static closure, then independent T3 ALL7 REST packet campaign. Frozen source3c06cbdb1; own branch/worktree codex/traffic-final-r4-t3-20261005, /root/ngfw-wt/traffic-final-r4-t3-20261005. Owned reviewer/test docs and reviewed bounded text/JSON evidence only, no product edits. Physical reserved28 HTTP12800/WEB16800/privateValkey12880 DB0. Logical native/routing fixture names stay private. No shared VPP restart/write/trace, hostunits or install. Author owns live27: T3 held until collision fix committed and source repinned, author campaign ends and manager releases. T1 owns full quick, no duplicate. Raw keys/pcaps remain ignored scratch.

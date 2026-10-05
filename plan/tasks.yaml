@@ -3619,13 +3619,13 @@ tasks:
       'review 6.6a: one scripted scenario over every wave-B feature back to back (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay; FRR/strongSwan peers in netns) with tcpdump
       evidence; wave B closes when this row is green'
     files_owned: test/topology/traffic-b/** docs/status/tasks/TEST-traffic-B*
-    branch: codex/test-traffic-b-20261005
-    worktree: /root/ngfw-wt/TEST-traffic-B-20261005
-    owner: /root/traffic_b
+    branch: codex/test-traffic-b-single-20261005
+    worktree: /root/ngfw-wt/test-traffic-b-final-20261005
+    owner: Codex manager
     started: '2026-10-05T15:35:54.133031+00:00'
     finished: ''
     notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
-    worker_status: verified live developer in current chat
+    worker_status: local acceptance passed; independent final review and hosted/main CI pending; manager preparing final integration
   - id: TEST-traffic-C
     title: Wave-C traffic scenario (MPLS/SRv6, VRRP failover, QoS policer) with tcpdump evidence
     prompt: ''

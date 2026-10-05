@@ -1,0 +1,24 @@
+BEFORE
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.27.64.128/25 fib:0 index:123 locks:2
+  lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+    path-list:[37] locks:200 flags:shared,popular, uPRF-list:31 len:1 itfs:[1, ]
+      path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+        10.27.2.2 host-w27w0
+      [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] ba7557c716ea02fefcba4d740800
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:125 buckets:1 uRPF:31 to:[0:0]]
+    [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] ba7557c716ea02fefcba4d740800
+AFTER
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.27.64.128/25 fib:0 index:123 locks:2
+  lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+    path-list:[37] locks:200 flags:shared,popular, uPRF-list:31 len:1 itfs:[1, ]
+      path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+        10.27.2.2 host-w27w0
+      [@0]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] ba7557c716ea02fefcba4d740800
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:125 buckets:1 uRPF:31 to:[26:15452]]
+    [0] [@5]: ipv4 via 10.27.2.2 host-w27w0: mtu:9000 next:8 flags:[] ba7557c716ea02fefcba4d740800

@@ -18,10 +18,15 @@ package agent
 // ns-<p>-frr cannot reach VPP, so the VPP checks run only with NGFW_P12_FIB=private: a VPP of this slot's own
 // (LAB-vpp-per-slot, NGFW_VPP_API_SOCKET ≠ /run/vpp/api.sock) whose startup.conf has `linux-cp { default netns
 // ns-<p>-frr }`. The test refuses that mode on anything else and never changes a VPP-global setting itself.
+//
+// NGFW_P12_FIB=root restores historical root-mode semantics only inside an owned
+// private outer network namespace and disposable VPP. Shared host root execution
+// is refused before any lab, VPP or FRR writes. The LCP default namespace remains unset.
 
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,8 +54,8 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// EnvP12FIB = "private" adds the VPP FIB checks (row P12-fib-proof: a private VPP whose lcp default netns is
-// ns-<p>-frr); anything else leaves them out.
+// EnvP12FIB = "private" adds the VPP FIB checks on a private VPP whose lcp default netns is ns-<p>-frr; "root" adds
+// them inside a private outer netns with the NGFW-side FRR in that netns (row P12-fib-proof); anything else leaves them out.
 const EnvP12FIB = "NGFW_P12_FIB"
 
 // EnvP12Topology runs the topology test (test/topology/bgp/run.sh sets it): it takes the slot's rig over (the agent
@@ -66,10 +71,37 @@ type p12Env struct {
 	c       ngfwv1.DataplaneClient
 	a       *Agent
 	cfg     Config
-	fib     bool // linux-nl FIB checks enabled (T2)
+	fib     bool // linux-nl FIB checks enabled (NGFW_P12_FIB=private|root)
 	frrNS   string
 	ngfwFRR *frrtest.Harness
+	rootFRR *rootFRR // NGFW_P12_FIB=root: the NGFW-side FRR in the root netns (the pairs' taps live there too)
 	peerFRR [2]*frrtest.Harness
+}
+
+func init() { rootFRRBins["bgpd"] = frrtest.BgpdBin } // rootFRR for NGFW_P12_FIB=root
+
+// ngfwRenderer is the NGFW-side FRR's renderer (root netns or ns-<p>-frr).
+func (e *p12Env) ngfwRenderer() *frr.Renderer {
+	if e.rootFRR != nil {
+		return e.rootFRR.Renderer()
+	}
+	return e.ngfwFRR.Renderer()
+}
+
+func (e *p12Env) ngfwPIDs() map[string]int {
+	if e.rootFRR != nil {
+		return e.rootFRR.PIDs()
+	}
+	return e.ngfwFRR.PIDs()
+}
+
+// tapCmd runs `ip <args>` where the taps live: the root netns in root mode, ns-<p>-frr otherwise.
+func (e *p12Env) tapCmd(args ...string) string {
+	if e.rootFRR == nil {
+		args = append([]string{"-n", e.frrNS}, args...)
+	}
+	out, _ := e.cmd("ip", args...)
+	return out
 }
 
 func (e *p12Env) cmd(name string, args ...string) (string, error) {
@@ -381,14 +413,22 @@ func (e *p12Env) evidence(when string) {
 	e.t.Helper()
 	lcp, _ := e.cmd("vppctl", "show", "lcp")
 	e.t.Logf("[%s] vppctl show lcp:\n%s", when, lcp)
-	addrs, _ := e.cmd("ip", "-n", e.frrNS, "-br", "addr", "show")
-	e.t.Logf("[%s] ip -n %s -br addr show:\n%s", when, e.frrNS, addrs)
-	if out, err := e.ngfwFRR.Renderer().Show(context.Background(), frr.ShowCommand("show bgp summary")); err == nil {
-		e.t.Logf("[%s] vtysh --vty_socket %s -N %s -c \"show bgp summary\":\n%s", when, e.ngfwFRR.Paths.RunDir, e.ngfwFRR.Paths.Namespace, out)
+	e.t.Logf("[%s] ip -br addr show dev %s-l0 / %s-w0 (taps):\n%s%s", when, e.prefix, e.prefix,
+		e.tapCmd("-br", "addr", "show", "dev", e.prefix+"-l0"), e.tapCmd("-br", "addr", "show", "dev", e.prefix+"-w0"))
+	if out, err := e.ngfwRenderer().Show(context.Background(), frr.ShowCommand("show bgp summary")); err == nil {
+		e.t.Logf("[%s] vtysh -N %s -c \"show bgp summary\":\n%s", when, e.prefix, out)
 	}
 	if e.fib {
 		fib, _ := e.cmd("vppctl", "show", "ip", "fib", "summary")
 		e.t.Logf("[%s] vppctl show ip fib summary:\n%s", when, fib)
+		for _, pfx := range []string{fmt.Sprintf("10.%d.64.0/25", e.slot), fmt.Sprintf("10.%d.163.128/25", e.slot)} {
+			one, _ := e.cmd("vppctl", "show", "ip", "fib", pfx)
+			e.t.Logf("[%s] vppctl show ip fib %s:\n%s", when, pfx, truncateLines(one, 14))
+		}
+		if e.rootFRR != nil {
+			kr, _ := e.cmd("ip", "-4", "route", "show", "proto", "bgp")
+			e.t.Logf("[%s] ip -4 route show proto bgp (root netns): %d routes\n%s", when, countLines(kr), truncateLines(kr, 3))
+		}
 	}
 }
 
@@ -410,15 +450,150 @@ func (e *p12Env) checkPrivateFIB() {
 	e.t.Logf("%s=private: VPP %s, lcp default netns %s — linux_nl hears FRR's netns", EnvP12FIB, sock, cur)
 }
 
+func countLines(s string) int {
+	if strings.TrimSpace(s) == "" {
+		return 0
+	}
+	return len(strings.Split(strings.TrimSpace(s), "\n"))
+}
+
+// checkRootFIB fails closed before anything of NGFW_P12_FIB=root starts (the F-ospf-host preconditions).
+func (e *p12Env) checkRootFIB() {
+	e.t.Helper()
+	lcp, _ := e.cmd("vppctl", "show", "lcp")
+	if strings.Contains(lcp, "itf-pair") {
+		e.t.Fatalf("%s=root: LCP pairs already exist on this VPP (linux_nl's socket is bound to their netns):\n%s", EnvP12FIB, lcp)
+	}
+	if !strings.Contains(lcp, "lcp default netns '<unset>'") {
+		e.t.Fatalf("%s=root: the lcp default netns is not unset (never changed from a slot, H3):\n%s", EnvP12FIB, lcp)
+	}
+	kr, _ := e.cmd("ip", "-4", "route", "show")
+	for _, l := range strings.Split(kr, "\n") {
+		for _, p := range []string{"proto zebra", "proto bgp", "proto ospf", "proto isis", "proto rip", "proto 196", "proto 11 "} {
+			if strings.Contains(l, p) {
+				e.t.Fatalf("%s=root: an FRR-protocol route is in the root kernel table (zebra would sweep it): %s", EnvP12FIB, l)
+			}
+		}
+	}
+	if out, _ := e.cmd("systemctl", "is-active", "frr"); strings.TrimSpace(out) == "active" {
+		e.t.Fatalf("%s=root: the system frr unit is active", EnvP12FIB)
+	}
+	e.t.Logf("%s=root preconditions: VPP %s, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:\n%s", EnvP12FIB, vppSocket(), lcp)
+}
+
+// requirePrivateP12Root independently verifies the runner's namespace and private
+// socket mapping before any mutation; flags alone cannot authorize shared root.
+func requirePrivateP12Root(t *testing.T) {
+	t.Helper()
+	host := os.Getenv("NGFW_P12_HOST_NETNS")
+	current, err := os.Readlink("/proc/self/ns/net")
+	initNS, initErr := os.Readlink("/proc/1/ns/net")
+	if initErr != nil || current == initNS || err != nil || host == "" || current == host || os.Getenv("NGFW_DISPOSABLE_VPP") != "1" {
+		t.Fatal("P12 root FIB requires the private outer namespace runner")
+	}
+	supplied := os.Getenv("NGFW_P12_PRIVATE_API")
+	scratch := filepath.Join(repoRootP12(t), ".scratch")
+	rel, err := filepath.Rel(scratch, supplied)
+	parts := strings.Split(rel, string(os.PathSeparator))
+	if err != nil || len(parts) != 2 || parts[1] != "api.sock" || !strings.HasPrefix(parts[0], "isolated-vpp-") {
+		t.Fatal("P12 private API must be inside the owned isolated runtime")
+	}
+	runtimePID, err := strconv.Atoi(strings.TrimPrefix(parts[0], "isolated-vpp-"))
+	if err != nil || runtimePID <= 1 {
+		t.Fatal("P12 private API runtime identity invalid")
+	}
+	owned := filepath.Join(scratch, fmt.Sprintf("isolated-vpp-%d", runtimePID), "api.sock")
+	if supplied != owned {
+		t.Fatal("P12 private API runtime path is not canonical")
+	}
+	if owned == "" || owned == "/run/vpp/api.sock" {
+		t.Fatal("P12 private API ownership receipt missing")
+	}
+	a, err := os.Stat(owned)
+	if err != nil {
+		t.Fatalf("P12 private API: %v", err)
+	}
+	b, err := os.Stat(vppSocket())
+	if err != nil || !os.SameFile(a, b) || a.Mode()&os.ModeSocket == 0 {
+		t.Fatal("P12 API is not the owned disposable VPP socket mapping")
+	}
+	pid := os.Getenv("NGFW_P12_PRIVATE_VPP_PID")
+	start := os.Getenv("NGFW_P12_PRIVATE_VPP_START")
+	pidNumber, err := strconv.Atoi(pid)
+	if err != nil || pidNumber <= 1 || start == "" {
+		t.Fatal("P12 owned VPP PID/starttime receipt missing")
+	}
+	proc := fmt.Sprintf("/proc/%d", pidNumber)
+	procFS := os.DirFS(proc)
+	ns, err := os.Readlink(filepath.Join(proc, "ns/net"))
+	if err != nil || ns != current {
+		t.Fatal("P12 VPP is outside the owned private network namespace")
+	}
+	stat, err := fs.ReadFile(procFS, "stat")
+	end := strings.LastIndex(string(stat), ")")
+	if err != nil || end < 0 {
+		t.Fatal("P12 owned VPP stat unavailable")
+	}
+	fields := strings.Fields(string(stat)[end+1:])
+	if len(fields) < 20 || fields[19] != start {
+		t.Fatal("P12 owned VPP PID starttime changed")
+	}
+	exe, err := os.Readlink(filepath.Join(proc, "exe"))
+	if err != nil || filepath.Base(exe) != "vpp" {
+		t.Fatal("P12 owned listener is not VPP")
+	}
+	unix, err := fs.ReadFile(procFS, "net/unix")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fds, err := os.ReadDir(filepath.Join(proc, "fd"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"api.sock", "cli.sock", "stats.sock"} {
+		private := filepath.Join(filepath.Dir(owned), name)
+		mapped := filepath.Join("/run/vpp", name)
+		a, err := os.Stat(private)
+		b, mappedErr := os.Stat(mapped)
+		if err != nil || mappedErr != nil || !os.SameFile(a, b) {
+			t.Fatalf("P12 %s is not the private bind mount", name)
+		}
+		inode := ""
+		listeners := 0
+		for _, line := range strings.Split(string(unix), "\n") {
+			parts := strings.Fields(line)
+			if len(parts) == 8 && parts[7] == mapped && parts[3] == "00010000" {
+				inode = parts[6]
+				listeners++
+			}
+		}
+		owns := false
+		for _, fd := range fds {
+			target, _ := os.Readlink(filepath.Join(proc, "fd", fd.Name()))
+			if inode != "" && target == "socket:["+inode+"]" {
+				owns = true
+			}
+		}
+		if listeners != 1 || !owns {
+			t.Fatalf("P12 owned private VPP does not hold %s listener", name)
+		}
+	}
+	t.Logf("P12 private root verified: host=%s current=%s owned API=%s", host, current, owned)
+}
+
 func TestP12TopologyOnHost(t *testing.T) {
 	vpptest.SkipUnlessIntegration(t)
 	if os.Getenv(EnvP12Topology) != "1" {
 		t.Skipf("P12 topology test: set %s=1 (test/topology/bgp/run.sh) — it takes the slot's rig over and runs 3 FRR instances", EnvP12Topology)
 	}
+	if os.Getenv(EnvP12FIB) == "root" {
+		requirePrivateP12Root(t)
+	}
 	vpptest.LockLab(t)
 	prefix := vpptest.Prefix(t)
 	slot := vpptest.Slot(t)
-	e := &p12Env{t: t, prefix: prefix, slot: slot, repo: repoRootP12(t), frrNS: "ns-" + prefix + "-frr", fib: os.Getenv(EnvP12FIB) == "private"}
+	e := &p12Env{t: t, prefix: prefix, slot: slot, repo: repoRootP12(t), frrNS: "ns-" + prefix + "-frr", fib: os.Getenv(EnvP12FIB) == "private" || os.Getenv(EnvP12FIB) == "root"}
+	rootMode := os.Getenv(EnvP12FIB) == "root"
 	restarts0 := nRestartsP12(t)
 	t.Logf("systemctl show vpp -p NRestarts (before) = %d", restarts0)
 	t.Cleanup(func() {
@@ -439,6 +614,9 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if _, err := lcpapi.NewServiceClient(raw).LcpDefaultNsGet(context.Background(), &lcpapi.LcpDefaultNsGet{}); err != nil {
 		t.Skipf("linux_cp is not loaded on this VPP: %v", err)
 	}
+	if rootMode {
+		e.checkRootFIB()
+	}
 
 	// V19 preflight (D-095) before any packet crosses the rig
 	pre, err := e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
@@ -457,7 +635,11 @@ func TestP12TopologyOnHost(t *testing.T) {
 
 	// FRR: the NGFW side in its own netns, the peers in the rig namespaces
 	daemons := []string{"mgmtd", "zebra", "staticd", "bgpd"}
-	e.ngfwFRR = frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
+	if rootMode {
+		e.rootFRR = startRootFRR(t, prefix, daemons)
+	} else {
+		e.ngfwFRR = frrtest.Start(t, frrtest.Options{Prefix: prefix, Daemons: daemons})
+	}
 	e.peerFRR[0] = frrtest.Start(t, frrtest.Options{Prefix: prefix, Instance: "p1", NetNS: "ns-" + prefix + "-lan", Daemons: daemons})
 	e.peerFRR[1] = frrtest.Start(t, frrtest.Options{Prefix: prefix, Instance: "p2", NetNS: "ns-" + prefix + "-wan", Daemons: daemons})
 	ngfwLan, ngfwWan := fmt.Sprintf("10.%d.1.1", slot), fmt.Sprintf("10.%d.2.1", slot)
@@ -491,8 +673,25 @@ func TestP12TopologyOnHost(t *testing.T) {
 		// a client of its own: the dialAgent clients are closed by their cleanups (LIFO) before this one runs
 		cc, err := grpc.NewClient("unix://"+e.cfg.Socket, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err == nil {
-			resp, aerr := ngfwv1.NewDataplaneClient(cc).Apply(ctx, &ngfwv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
+			c := ngfwv1.NewDataplaneClient(cc)
+			resp, aerr := c.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: prefix + "-p12-cleanup", Subsystems: []string{"interfaces", "routing"}})
 			t.Logf("cleanup apply: %v %s", aerr, protojson.Format(resp.GetSummary()))
+			if aerr != nil || resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+				t.Errorf("cleanup apply not APPLIED: %v %s", aerr, resp.GetStatus())
+			}
+			if e.fib {
+				if r, err := c.ListRoutes(ctx, &ngfwv1.ListRoutesRequest{Family: "ipv4", Prefix: fmt.Sprintf("10.%d.0.0/16", slot), Source: "lcp-rt-dynamic", Limit: 1}); err == nil {
+					t.Logf("cleanup: %d lcp-rt-dynamic routes of 10.%d/16 left in VPP table 0", r.GetTotal(), slot)
+					if r.GetTotal() != 0 {
+						t.Errorf("cleanup left %d lcp-rt-dynamic routes of this slot in table 0", r.GetTotal())
+					}
+				}
+			}
+			if rootMode {
+				if kr, _ := e.cmd("ip", "-4", "route", "show", "proto", "bgp"); countLines(kr) != 0 {
+					t.Errorf("cleanup left bgp routes in the root kernel table:\n%s", kr)
+				}
+			}
 			_ = cc.Close()
 		}
 		e.a.Stop()
@@ -500,12 +699,14 @@ func TestP12TopologyOnHost(t *testing.T) {
 
 	// ---- 1. commit: pairs + FRR config; the peers come up after the preflight
 	if e.fib {
-		e.checkPrivateFIB()
+		if !rootMode {
+			e.checkPrivateFIB()
+		}
 		if n := e.vppFRRRoutes(); n != 0 {
 			t.Fatalf("%d linux-nl routes of 10.%d/16 already in VPP table 0 before the test", n, slot)
 		}
 	} else {
-		t.Logf("VPP FIB checks not requested (%s=private on a VPP of the slot's own: row P12-fib-proof): FRR's RIB is checked", EnvP12FIB)
+		t.Logf("VPP FIB checks not requested (%s=root inside the private outer namespace, or =private on a VPP of the slot's own: row P12-fib-proof): FRR's RIB is checked", EnvP12FIB)
 	}
 	full := e.ngfwDoc(true, false, true)
 	e.apply("commit", full)
@@ -534,10 +735,10 @@ func TestP12TopologyOnHost(t *testing.T) {
 	}
 
 	// ---- 2. route map denying half → 100 remain (frr-reload.py, no daemon restart)
-	pids := e.ngfwFRR.PIDs()
+	pids := e.ngfwPIDs()
 	e.apply("deny-half", e.ngfwDoc(true, true, true))
 	e.waitRoutes("route map denies half", 100, 30*time.Second)
-	if after := e.ngfwFRR.PIDs(); fmt.Sprint(after) != fmt.Sprint(pids) {
+	if after := e.ngfwPIDs(); fmt.Sprint(after) != fmt.Sprint(pids) {
 		t.Errorf("FRR daemons restarted on a config edit: %v → %v", pids, after)
 	}
 
@@ -581,7 +782,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	down := time.Now()
 	var tapState string
 	for time.Since(down) < 15*time.Second {
-		out, _ := e.cmd("ip", "-n", e.frrNS, "-o", "link", "show", prefix+"-l0")
+		out := e.tapCmd("-o", "link", "show", prefix+"-l0")
 		nb := neighborsOf(e.state())[fmt.Sprintf("10.%d.1.2", slot)]
 		if tapState == "" && !strings.Contains(out, "LOWER_UP") {
 			tapState = fmt.Sprintf("carrier down after %v", time.Since(down).Round(100*time.Millisecond))
@@ -602,10 +803,10 @@ func TestP12TopologyOnHost(t *testing.T) {
 		t.Errorf("BGP instance left after rollback: %v", st.GetBgp())
 	}
 	// the pairs stay, and so do the VPP addresses on their Linux side (FRR keeps rendering them without BGP)
-	if addrs, _ := e.cmd("ip", "-n", e.frrNS, "-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
+	if addrs := e.tapCmd("-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
 		t.Errorf("tap %s-l0 lost its address with the BGP rollback: %s", prefix, addrs)
 	}
-	running, _ := e.ngfwFRR.Renderer().Show(context.Background(), frr.ShowRunningConfig)
+	running, _ := e.ngfwRenderer().Show(context.Background(), frr.ShowRunningConfig)
 	if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
 		t.Errorf("FRR still runs BGP/policy after rollback:\n%s", running)
 	}

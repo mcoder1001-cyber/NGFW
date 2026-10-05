@@ -1,0 +1,26 @@
+Wed Sep 30 03:42:24 PM +0330 2026
+lcp default netns '<unset>'
+lcp lcp-auto-subint off
+lcp lcp-sync off
+lcp lcp-sync-unnumbered on
+lcp del-static-on-link-down off
+lcp del-dynamic-on-link-down off
+w12 itfs: 0
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, det44-hi:2, lcp-rt:1, ]
+    Prefix length         Count     
+                   0               1
+                   4               2
+                  32               2
+bgp kernel routes: 0
+netns w12: 0
+bgpd procs: 0
+frr-p1.lock
+frr-p2.lock
+frr.lock
+ipv4-VRF:0, fib_index:0 flags:none
+(*, 224.0.0.0/24): 
+ fib:0 index:17 locks:1
+  src:plugin-low flags:none locks:1: 
+    path-list:[21] locks:2 flags:no-uRPF, uPRF-list:27 len:3 itfs:[1, 5, 6, ]
+      path:[36] pl-index:21 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+NRestarts=0

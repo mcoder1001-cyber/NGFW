@@ -1,0 +1,14 @@
+internal/agent/p12_topology_integration_test.go:497:19: G703: Path traversal via taint analysis (gosec)
+	a, err := os.Stat(owned)
+	                 ^
+internal/agent/p12_topology_integration_test.go:515:15: G304: Potential file inclusion via variable (gosec)
+	stat, err := os.ReadFile(filepath.Join(proc, "stat"))
+	             ^
+internal/agent/p12_topology_integration_test.go:528:15: G304: Potential file inclusion via variable (gosec)
+	unix, err := os.ReadFile(filepath.Join(proc, "net/unix"))
+	             ^
+internal/agent/p12_topology_integration_test.go:539:20: G703: Path traversal via taint analysis (gosec)
+		a, err := os.Stat(private)
+		                 ^
+4 issues:
+* gosec: 4

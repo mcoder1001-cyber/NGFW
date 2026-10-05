@@ -114,7 +114,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	if readyErr != nil || unix.Sendmsg(socket, ready, unix.UnixRights(int(roles[sourceAgentExecutableRole].Fd())), nil, 0) != nil {
 		return ErrBoundary
 	}
-	ipcContext, ipcCancel := context.WithTimeout(validationContext, NumericPublisherIPCBudget)
+	ipcContext, ipcCancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
 	defer ipcCancel()
 	ctx = ipcContext
 	diagnosticContext = ctx

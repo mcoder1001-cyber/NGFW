@@ -60,6 +60,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 }
 
 func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof) (numericPublisherResponse, *os.File, error) {
+	publicationContext := ctx
 	bounded, cancel := context.WithTimeout(ctx, NumericPublisherValidationBudget)
 	defer cancel()
 	ctx = bounded
@@ -79,7 +80,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 		return empty, nil, numericPublisherFailure(ctx, 13)
 	}
 	defer func() { _ = unix.Close(fd) }()
-	stopCancellation := watchNumericPublisherCancellation(ctx, fd)
+	stopCancellation := watchNumericPublisherCancellation(publicationContext, fd)
 	defer stopCancellation()
 	if boundNumericPublisherValidationSocket(ctx, fd) != nil || unix.Connect(fd, &unix.SockaddrUnix{Name: numericPublisherSocketPath}) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 14)
@@ -100,7 +101,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if err := numericPublisherManagerWithProof(ctx, ready.Server, proof); err != nil {
 		return empty, nil, err
 	}
-	ipc, ipcCancel := context.WithTimeout(bounded, NumericPublisherIPCBudget)
+	ipc, ipcCancel := context.WithTimeout(publicationContext, NumericPublisherIPCBudget)
 	defer ipcCancel()
 	ctx = ipc
 	if boundUnitObserverSocket(ctx, fd) != nil {

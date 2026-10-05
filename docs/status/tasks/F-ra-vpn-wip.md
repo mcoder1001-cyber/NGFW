@@ -9,3 +9,15 @@ Next command: implement semantic/ra-vpn.ts and desired/ra_vpn.go failclosed gate
 2026-10-05 owner decision: independent strongSwan RA engine authorized; DEC-independent-ra-vpn replaces pending proposal. Boundary: per-profile private namespace/charon/XFRM plus outer/inner VPP TAPs, explicit transit addresses and selected VRF/policy handoff; native S2S unaffected. Existing enabled-profile refusal remains until operational engine verified. Next command: commit additive transit contract and tests, then implement secure renderer/runtime descriptors and RPCs. RA is not delivered.
 
 Contract checkpoint: RemoteAccessProfile.transport field17 explicit outer/inner point-to-point pairs plus optional IPv6 inner pair; generated Go/TS stubs. Schema validators reject wrong families/subnets/same endpoints, duplicate ownership, interface/client pool/transit overlaps, native listener collision, IPv6 pool without IPv6 handoff. Only explicitly routed transport skips historical interface-owned local-address rule. Runtime remains failclosed. Focused7 tests PASS5.75s; buf lint PASS; proto regeneration PASS. Next: implement standalone secure RA renderer+descriptor lifecycle, namespace and VPP TAP/routes, actual VICI readback/actions. API/UI drafts not complete.
+
+Standalone private RA renderer implemented (not wired/operational): fresh
+kernel-netlink plugin configuration, private VICI socket, route installation
+explicitly off; IKEv2 EAP/user pools/DNS/split selectors/XFRM IDs/DPD/rekey;
+strict EAP-TLS/pubkey revocation trust and bounded numeric RADIUS sources.
+Sealed resolver values appear only in private file bytes; fmt/JSON serializers
+redact all file content, resolver failure details never propagate. Three focused
+Go renderer tests PASS0.081s. Existing S2S renderer untouched. Runtime ownership,
+PKI snapshots/CRLs, namespace/TAP/routes/readback/restart/rollback/session actions,
+packaging/API/UI and real packet acceptance remain to implement. Next command:
+implement RA runtime descriptor and bounded VICI observation using private roots;
+activation guard must remain until engine verified.

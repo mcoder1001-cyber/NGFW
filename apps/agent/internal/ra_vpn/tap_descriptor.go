@@ -25,6 +25,8 @@ type TAPReceipt struct {
 	Pending                            bool
 	Endpoint                           *tapv2.Tap
 }
+
+// TAPReceiptStore persists owner-bound pending and completed transit TAP receipts.
 type TAPReceiptStore interface {
 	Load(string) (TAPReceipt, error)
 	Save(string, TAPReceipt) error
@@ -46,12 +48,18 @@ type GuardedTAP struct {
 	Retired func(bootid.Identity) bool
 }
 
+// CheckPersistent requires durable ownership receipts before descriptor use.
 func (d *GuardedTAP) CheckPersistent() error {
 	return persist.Require("ra transit TAP claims", d.Store)
 }
 
-func (*GuardedTAP) Name() string                              { return tapv2.TapName }
+// Name identifies the underlying TAP scheduler descriptor.
+func (*GuardedTAP) Name() string { return tapv2.TapName }
+
+// KeyOf delegates the endpoint key to the underlying TAP descriptor.
 func (d *GuardedTAP) KeyOf(value proto.Message) scheduler.Key { return d.Tap.KeyOf(value) }
+
+// Dependencies requires the exact validated namespace alias before a transit TAP.
 func (d *GuardedTAP) Dependencies(value proto.Message) []scheduler.Dependency {
 	endpoint, ok := value.(*tapv2.Tap)
 	if !ok {
@@ -113,6 +121,8 @@ func (d *GuardedTAP) observed(ctx context.Context, endpoint *tapv2.Tap) (iface.M
 	}
 	return *found, nil
 }
+
+// Create persists a pending owner claim before mutation and verifies fresh endpoint readback.
 func (d *GuardedTAP) Create(ctx context.Context, value proto.Message) (any, error) {
 	endpoint, plan, boot, err := d.input(value)
 	if err != nil {
@@ -159,9 +169,13 @@ func (d *GuardedTAP) Create(ctx context.Context, value proto.Message) (any, erro
 	}
 	return receipt, nil
 }
+
+// Update requests recreation so ownership and readback guards run for changed endpoints.
 func (*GuardedTAP) Update(context.Context, proto.Message, proto.Message, any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
+
+// Delete removes only a fresh owner-bound endpoint matching its completed receipt.
 func (d *GuardedTAP) Delete(ctx context.Context, value proto.Message, meta any) error {
 	endpoint, plan, boot, err := d.input(value)
 	if err != nil {
@@ -185,6 +199,8 @@ func (d *GuardedTAP) Delete(ctx context.Context, value proto.Message, meta any) 
 	}
 	return d.Store.Remove(endpoint.Name)
 }
+
+// Retrieve refuses uncertain or unowned transit endpoints instead of adopting them.
 func (d *GuardedTAP) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	rows, err := d.Tap.Retrieve(ctx)
 	if err != nil {

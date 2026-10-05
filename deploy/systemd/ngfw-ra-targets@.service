@@ -1,20 +1,21 @@
 [Unit]
 Description=NGFW bounded manager-opened namespace observation for VPP PID %i
 After=vpp.service
+StartLimitIntervalSec=10
+StartLimitBurst=64
 
 [Service]
 Type=exec
 User=root
-Group=root
+Group=ngfw
 ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --targets %i
-OpenFile=/proc/%i/ns/mnt:vpp-mount:read-only
-OpenFile=/proc/1/ns/mnt:manager-mount:read-only
+OpenFile=/run/ngfw/ra/source-agent-exe:source-agent-exe:read-only
 UMask=0077
 RuntimeMaxSec=10
 TimeoutStopSec=2
 KillMode=control-group
 NoNewPrivileges=yes
-CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_CHROOT
+CapabilityBoundingSet=
 ProtectHome=yes
 ProtectSystem=strict
 ProtectKernelTunables=yes

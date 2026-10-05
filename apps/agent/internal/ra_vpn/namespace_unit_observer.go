@@ -26,7 +26,7 @@ type SystemdUnitObservation struct{}
 func NewSystemdUnitObservation() UnitObservationProvider { return &SystemdUnitObservation{} }
 
 func unitObserverInstallation() error {
-	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil {
+	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil || numericPublisherInstallation() != nil {
 		return ErrEngine
 	}
 	for _, item := range []struct{ path, digest string }{

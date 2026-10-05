@@ -36,6 +36,9 @@ def render():
              'and request schemas, use the OpenAPI document supplied by your installed API.', '',
              '[Source navigation](source-reference.md) identifies the current API controllers '
              'and schema sources for developers and operators auditing their installed version.', '']
+    lines += ["## Getting started", ""]
+    lines += [f"- {link(title(p), p)}" for p in pages if p.parent == USER]
+    lines.append("")
     groups = sorted({p.relative_to(USER).parts[0] for p in pages if p.parent != USER})
     for group in groups:
         lines += [f'## {group.replace("-", " ").title()}', '']

@@ -8,6 +8,10 @@ A guide or source file is not evidence that a feature passed live acceptance. Se
 
 [Source navigation](source-reference.md) identifies the current API controllers and schema sources for developers and operators auditing their installed version.
 
+## Getting started
+
+- [First-boot setup](getting-started.md)
+
 ## Cli
 
 - [ngfw CLI — command reference](cli/reference.md)

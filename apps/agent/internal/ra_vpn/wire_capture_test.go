@@ -3,7 +3,7 @@ package ravpn
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,8 +58,13 @@ func capturePrivateWire(t *testing.T, plan *NetworkPlan) func() {
 	}
 	t.Cleanup(func() {
 		if cmd.ProcessState == nil {
-			cmd.Process.Kill()
-			cmd.Wait()
+			if err := cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
+				t.Error("owned private capture termination failed")
+			}
+			var exitError *exec.ExitError
+			if err := cmd.Wait(); err != nil && !errors.As(err, &exitError) {
+				t.Error("owned private capture reap failed")
+			}
 		}
 	})
 	reader := bufio.NewReaderSize(stdout, 4096)
@@ -92,6 +97,6 @@ func capturePrivateWire(t *testing.T, plan *NetworkPlan) func() {
 				t.Fatal("private wire receipt write")
 			}
 		}
-		t.Log(fmt.Sprintf("owned underlay ESP-only proof RX=%d TX=%d plaintextICMP=0", counters.RX, counters.TX))
+		t.Logf("owned underlay ESP-only proof RX=%d TX=%d plaintextICMP=0", counters.RX, counters.TX)
 	}
 }

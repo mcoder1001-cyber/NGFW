@@ -15,8 +15,10 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
+// InstanceRoot is the fixed root-owned private runtime directory.
 const InstanceRoot = "/run/ngfw/ra"
 
+// ErrPlan is the bounded refusal returned for an invalid isolated network plan.
 var ErrPlan = errors.New("remote-access: invalid isolated network plan")
 var instanceName = regexp.MustCompile(`^[a-f0-9]{64}$`)
 var ownerName = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
@@ -29,10 +31,13 @@ type Link struct {
 	Namespace string `json:"namespace"`
 }
 
+// RadiusEndpoint pins a literal RADIUS address and UDP port for underlay routing.
 type RadiusEndpoint struct {
 	Address string `json:"address"`
 	Port    uint32 `json:"port"`
 }
+
+// KernelLink records an owned fallback interface kind and observed index.
 type KernelLink struct {
 	Name  string `json:"name"`
 	Kind  string `json:"kind"`
@@ -62,6 +67,8 @@ func InstanceID(owner, profile string) string {
 	sum := sha256.Sum256([]byte(owner + "\x00" + profile))
 	return hex.EncodeToString(sum[:])
 }
+
+// ValidInstance accepts only the complete canonical hexadecimal instance hash.
 func ValidInstance(instance string) bool { return instanceName.MatchString(instance) }
 
 // BuildNetworkPlan validates the exact addresses before namespace creation.

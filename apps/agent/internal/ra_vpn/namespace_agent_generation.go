@@ -17,6 +17,9 @@ import (
 // publishSourceAgentGeneration is called only after canonical source-unit
 // authentication. It never starts a service or accepts an operator path.
 func publishSourceAgentGeneration(ctx context.Context, root string, source bootid.Identity) error {
+	bounded, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ctx = bounded
 	if !source.Complete() || source.PID <= 1 || brokerProtectedParent(root) != nil || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
 		return ErrBoundary
 	}

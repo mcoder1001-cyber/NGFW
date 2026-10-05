@@ -6283,7 +6283,11 @@ export interface RemoteAccessProfile {
     | RemoteAccessTransport
     | undefined;
   /** Explicit ingress/egress ACLs on the protected TAP; no automatic permit. */
-  accessPolicy: RemoteAccessPolicy | undefined;
+  accessPolicy:
+    | RemoteAccessPolicy
+    | undefined;
+  /** Explicit existing ACLs on public outer transit; never implicit permit. */
+  outerPolicy: RemoteAccessPolicy | undefined;
 }
 
 /** RADIUS settings. */
@@ -54934,6 +54938,7 @@ function createBaseRemoteAccessProfile(): RemoteAccessProfile {
     underlayVrf: undefined,
     transport: undefined,
     accessPolicy: undefined,
+    outerPolicy: undefined,
   };
 }
 
@@ -54992,6 +54997,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     }
     if (message.accessPolicy !== undefined) {
       RemoteAccessPolicy.encode(message.accessPolicy, writer.uint32(146).fork()).join();
+    }
+    if (message.outerPolicy !== undefined) {
+      RemoteAccessPolicy.encode(message.outerPolicy, writer.uint32(154).fork()).join();
     }
     return writer;
   },
@@ -55153,6 +55161,14 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
             message.accessPolicy = RemoteAccessPolicy.decode(reader, reader.uint32());
             continue;
           }
+          case 19: {
+            if (tag !== 154) {
+              break;
+            }
+
+            message.outerPolicy = RemoteAccessPolicy.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -55210,6 +55226,11 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
         ? RemoteAccessPolicy.fromJSON(object.accessPolicy)
         : isSet(object.access_policy)
         ? RemoteAccessPolicy.fromJSON(object.access_policy)
+        : undefined,
+      outerPolicy: isSet(object.outerPolicy)
+        ? RemoteAccessPolicy.fromJSON(object.outerPolicy)
+        : isSet(object.outer_policy)
+        ? RemoteAccessPolicy.fromJSON(object.outer_policy)
         : undefined,
     };
   },
@@ -55270,6 +55291,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     if (message.accessPolicy !== undefined) {
       obj.accessPolicy = RemoteAccessPolicy.toJSON(message.accessPolicy);
     }
+    if (message.outerPolicy !== undefined) {
+      obj.outerPolicy = RemoteAccessPolicy.toJSON(message.outerPolicy);
+    }
     return obj;
   },
 
@@ -55303,6 +55327,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
       : undefined;
     message.accessPolicy = (object.accessPolicy !== undefined && object.accessPolicy !== null)
       ? RemoteAccessPolicy.fromPartial(object.accessPolicy)
+      : undefined;
+    message.outerPolicy = (object.outerPolicy !== undefined && object.outerPolicy !== null)
+      ? RemoteAccessPolicy.fromPartial(object.outerPolicy)
       : undefined;
     return message;
   },

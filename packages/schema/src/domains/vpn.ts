@@ -816,6 +816,10 @@ export const RemoteAccessProfileSchema = z
         egress: z.array(objectName).min(1).max(32),
       })
       .optional(),
+    outerPolicy: z.strictObject({
+      ingress: z.array(objectName).min(1).max(32),
+      egress: z.array(objectName).min(1).max(32),
+    }).optional(),
     vrf: withUi(vrfRef, {
       title: 'VRF',
       widget: 'vrf-picker',

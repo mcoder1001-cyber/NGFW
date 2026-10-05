@@ -4375,6 +4375,8 @@ message RemoteAccessProfile {
   RemoteAccessTransport transport = 17;
   // Explicit ingress/egress ACLs on the protected TAP; no automatic permit.
   RemoteAccessPolicy access_policy = 18;
+  // Explicit existing ACLs on public outer transit; never implicit permit.
+  RemoteAccessPolicy outer_policy = 19;
 
 }
 

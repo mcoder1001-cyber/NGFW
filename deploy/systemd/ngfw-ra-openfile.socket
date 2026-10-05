@@ -1,0 +1,17 @@
+[Unit]
+Description=NGFW fixed remote-access supplier configuration socket
+Wants=ngfw-ra-namespace-broker.socket
+
+[Socket]
+ListenSequentialPacket=/run/ngfw-ra-ipc/openfile.sock
+SocketUser=root
+SocketGroup=root
+SocketMode=0600
+DirectoryMode=0700
+FileDescriptorName=openfile-listener
+RemoveOnStop=yes
+TriggerLimitIntervalSec=2
+TriggerLimitBurst=64
+
+[Install]
+WantedBy=sockets.target

@@ -19,10 +19,11 @@ func TestAfterResyncReleasesQuarantine(t *testing.T) {
 		t.Fatal(err)
 	}
 	v := coretest.New()
-	w, err := Register(scheduler.NewRegistry(), Env{Client: v, Owner: "w1", StateDir: dir, Owned: owned})
+	w, err := registerMock(scheduler.NewRegistry(), Env{Client: v, Owner: "w1", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	v.AddInterface("loop16383", "Loopback", ifsanitize.QuarantineTagPrefix+"w1")
 	v.AddInterface("loop16382", "Loopback", ifsanitize.QuarantineTagPrefix+"w2")
 	w.AfterResync(context.Background())

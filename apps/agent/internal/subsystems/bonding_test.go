@@ -20,10 +20,11 @@ func TestBondingWiring(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := scheduler.NewRegistry()
-	w, err := Register(r, Env{Client: coretest.New(), Owner: "wb", StateDir: dir, Owned: owned})
+	w, err := registerMock(r, Env{Client: coretest.New(), Owner: "wb", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	for _, n := range []string{bond.BondName, bond.MemberName, bond.WeightName} {
 		if !slices.Contains(r.Names(), n) || DomainOf(n) != Interfaces {
 			t.Fatalf("%s: registered %v, domain %q", n, r.Names(), DomainOf(n))

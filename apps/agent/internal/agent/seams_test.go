@@ -395,10 +395,11 @@ func newSrcSvcIn(t *testing.T, v *coretest.VPP, dir string, md *memDesc, run fun
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	reg.Register(md)
 	src := &learnedSource{learned: map[string]bool{}}
@@ -412,7 +413,7 @@ func newSrcSvcIn(t *testing.T, v *coretest.VPP, dir string, md *memDesc, run fun
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc, src
 }
 

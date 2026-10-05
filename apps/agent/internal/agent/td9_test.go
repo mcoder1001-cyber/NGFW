@@ -150,10 +150,11 @@ func newSvcWith(t *testing.T, c vpp.Client, dir string) *Service {
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: c, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: c, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -162,7 +163,7 @@ func newSvcWith(t *testing.T, c vpp.Client, dir string) *Service {
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 
@@ -601,6 +602,7 @@ func TestConnectHookHasItsOwnDeadline(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(a.Stop)
+	isolateStartedMockNamespaces(t, a)
 	fc.releaseAtEnd(t)
 	sub := a.svc.events().subscribe(&ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	defer a.svc.events().unsubscribe(sub)

@@ -19,6 +19,7 @@ import (
 	"ngfw/agent/binapi/ip"
 	"ngfw/agent/binapi/ip_types"
 	"ngfw/agent/binapi/memclnt"
+	tapapi "ngfw/agent/binapi/tapv2"
 	"ngfw/agent/binapi/vpe"
 	"ngfw/agent/internal/vpp/fake"
 	"ngfw/agent/internal/vpp/ifsanitize/sanitizetest"
@@ -71,6 +72,7 @@ type routeKey struct {
 
 // VPP is the model. All fields are guarded by mu; tests may inspect them via the helpers.
 type VPP struct {
+	raTAPs map[uint32]tapapi.SwInterfaceTapV2Details
 	*fake.Client
 	mu     sync.Mutex
 	next   uint32

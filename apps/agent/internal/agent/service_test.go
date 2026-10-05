@@ -56,7 +56,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	}
 	t.Setenv(subsystems.EnvHostServicesDir, hostDirOf(t, dir))
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func newSvc(t *testing.T, v *coretest.VPP, dir string) *Service {
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour // tests drive retries explicitly
 	svc.claimsTxn = w.ClaimsTxn                       // as Start wires it (TD-11c)
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 
@@ -231,6 +231,7 @@ func TestApplyRequestValidation(t *testing.T) {
 	// Owner equal to ours is fine.
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "ok", Owner: testOwner, DesiredState: doc(t, `{"vrfs":{"red":{"id":7001}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	// VPP down → UNAVAILABLE.
+	s.Close()
 	v := coretest.New()
 	s2 := newSvc(t, v, t.TempDir())
 	v.SetConnected(false)
@@ -525,6 +526,7 @@ func TestResyncRecreatesAfterLoss(t *testing.T) {
 		t.Fatalf("RECONCILE_DONE %v", evs[0])
 	}
 	// A second restart with nothing lost changes nothing (kill -9 acceptance).
+	s2.Close()
 	_ = want
 	v.Reset()
 	s3 := newSvc(t, v, dir)
@@ -550,6 +552,7 @@ func TestResyncDeletesOwnedLeftovers(t *testing.T) {
 	s := newSvc(t, v, dir)
 	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "t1", DesiredState: doc(t, `{"interfaces":{"loop701":{}}}`)}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
 	// Drift while down: an extra owned loopback and a foreign one.
+	s.Close()
 	idx := v.AddInterface("loop709", "Loopback", testOwner+":loop709")
 	v.AddInterface("loop309", "Loopback", "w3:loop309")
 	_ = idx

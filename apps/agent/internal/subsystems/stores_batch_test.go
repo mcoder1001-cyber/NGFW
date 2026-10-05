@@ -23,10 +23,11 @@ func TestKeyedClaimsFlushOncePerTxn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w, err := Register(scheduler.NewRegistry(), Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
+	w, err := registerMock(scheduler.NewRegistry(), Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.identity.Set(bootid.Identity{BootID: "b", PID: 1, StartTime: 1})
 	nat, err := w.KeyedClaims("nat")
 	if err != nil {

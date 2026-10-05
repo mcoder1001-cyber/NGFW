@@ -35,6 +35,8 @@ class Preparation(unittest.TestCase):
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
+            for name in ['ngfw-ra@.service', 'ngfw-ra-openfile.service', 'ngfw-ra-openfile.socket', 'ngfw-ra-targets@.service', 'ngfw-ra-targets@.socket', 'ngfw-ra-observer@.service', 'ngfw-ra-observer@.socket', 'ngfw-ra-namespace-broker.socket', 'ngfw-ra-namespace-broker@.service']:
+                shutil.copyfile(SOURCE.parents[1] / 'systemd' / name, root / 'deploy/systemd' / name)
             for directory in ['apps/agent', 'apps/api/dist', 'apps/api/migrations', 'apps/web/dist', 'artifacts', 'stub']:
                 (root / directory).mkdir(parents=True, exist_ok=True)
             (root / 'apps/api/dist/main.js').write_text('stale API')
@@ -81,6 +83,10 @@ fi
                 for name in ['service', 'socket']:
                     self.assertTrue((root / f'output/stage/usr/lib/systemd/system/apply-executor.{name}').is_file())
                 self.assertTrue((root / 'output/stage/usr/lib/ngfw/apply-executor.py').is_file())
+                self.assertTrue((root / 'output/stage/usr/lib/ngfw/ngfw-ra-daemon').is_file())
+                import hashlib
+                self.assertEqual((root / 'output/stage/usr/lib/ngfw/ngfw-ra-daemon.sha256').read_text().strip(), hashlib.sha256(b'binary').hexdigest())
+                self.assertEqual((root / 'output/stage/usr/lib/systemd/system/ngfw-ra@.service').read_bytes(), (root / 'deploy/systemd/ngfw-ra@.service').read_bytes())
                 hardening = root / 'output/stage/usr/lib/ngfw/hardening'
                 self.assertTrue((hardening / 'stage.py').is_file())
                 self.assertTrue((hardening / 'signing/verify.py').is_file())
@@ -95,6 +101,19 @@ fi
                     tuple(line.split()) for line in (driver / 'debian/ngfw-agent.install').read_text().splitlines()
                     if line.strip() and not line.lstrip().startswith('#')
                 }
+                for helper in ['ngfw-ra-daemon', 'ngfw-ra-namespace-broker']:
+                    staged = root / 'output/stage/usr/lib/ngfw' / helper
+                    self.assertEqual(staged.read_bytes(), b'binary')
+                    self.assertEqual(staged.stat().st_mode & 0o777, 0o755)
+                    digest = root / 'output/stage/usr/lib/ngfw' / (helper + '.sha256')
+                    self.assertEqual(digest.read_text(), hashlib.sha256(staged.read_bytes()).hexdigest() + '\n')
+                    self.assertIn(('stage/usr/lib/ngfw/' + helper, 'usr/lib/ngfw/'), install_manifest)
+                    self.assertIn(('stage/usr/lib/ngfw/' + helper + '.sha256', 'usr/lib/ngfw/'), install_manifest)
+                for name in ['ngfw-ra@.service', 'ngfw-ra-openfile.service', 'ngfw-ra-openfile.socket', 'ngfw-ra-targets@.service', 'ngfw-ra-targets@.socket', 'ngfw-ra-observer@.service', 'ngfw-ra-observer@.socket', 'ngfw-ra-namespace-broker.socket', 'ngfw-ra-namespace-broker@.service']:
+                    staged = root / 'output/stage/usr/lib/systemd/system' / name
+                    self.assertEqual(staged.read_bytes(), (root / 'deploy/systemd' / name).read_bytes())
+                    self.assertEqual(staged.stat().st_mode & 0o777, 0o644)
+                    self.assertIn(('stage/usr/lib/systemd/system/' + name, 'usr/lib/systemd/system/'), install_manifest)
                 agent_control = (driver / 'debian/control').read_text().split('Package: ngfw-agent\n', 1)[1].split('\nPackage:', 1)[0]
                 self.assertIn('lsb-release', agent_control.split('Depends:', 1)[1].split('\n', 1)[0])
                 for helper in ['ngfw-support-collect', 'ngfw-upgrade-dispatch']:

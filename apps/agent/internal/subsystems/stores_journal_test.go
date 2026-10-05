@@ -92,10 +92,11 @@ func agentOn(t *testing.T, dir string, v *keyedVPP) (*Wiring, *scheduler.Schedul
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
+	w, err := registerMock(reg, Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.identity.Set(bootid.Identity{BootID: "b", PID: 1, StartTime: 1}) // the same VPP instance throughout
 	k, err := w.KeyedClaims("nat")
 	if err != nil {
@@ -123,6 +124,8 @@ func TestKeyedClaimsSurviveAgentDeathMidTransaction(t *testing.T) {
 	if len(v.objs) != 2 {
 		t.Fatalf("VPP %v", v.objs)
 	}
+
+	w1.Close()
 
 	// Agent 2 over the same state dir: the claims are known (journal replayed), so the objects are
 	// ours: re-committing the same document is a no-op, removing them converges.

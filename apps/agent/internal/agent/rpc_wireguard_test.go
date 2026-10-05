@@ -240,11 +240,12 @@ func TestWireguardPeerEventsPublished(t *testing.T) {
 	}
 	events := make(chan *ngfwv1.Event, 16)
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs,
 		Publish: func(ev *ngfwv1.Event) { events <- ev }})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	w.Connected(ctx) // starts the watcher (an event sink exists)

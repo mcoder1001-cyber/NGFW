@@ -78,3 +78,28 @@ func TestNativeAdminGuardRetainsProtectionWithoutSA(t *testing.T) {
 		t.Fatal("unprotected IPIP admin-up should remain available")
 	}
 }
+
+type normalizingAdminRecorder struct{ adminMutationRecorder }
+
+func (*normalizingAdminRecorder) Normalize(value proto.Message) proto.Message {
+	return (&iface.AdminStateDescriptor{}).Normalize(value)
+}
+func TestNativeAdminGuardPreservesNormalizationAndProtectedRefusal(t *testing.T) {
+	recorder := &normalizingAdminRecorder{}
+	guard := &nativeAdminGuard{Descriptor: recorder, owner: "normalize-test", profiles: func(context.Context, string) ([]scheduler.KV, error) {
+		return []scheduler.KV{{Value: &vpnpb.Ikev2Profile{TunnelInterface: "ipip8001"}}}, nil
+	}}
+	original := &iface.AdminState{Interface: "interface.ipip/ipip8001"}
+	normalized := guard.Normalize(original)
+	expected := &iface.AdminState{Interface: "interface/ipip8001"}
+	if !proto.Equal(normalized, expected) || !proto.Equal(guard.Normalize(normalized), expected) || original.Interface != "interface.ipip/ipip8001" {
+		t.Fatal("native wrapper changed canonical/idempotent normalization or input")
+	}
+	if _, err := guard.Create(context.Background(), normalized); err == nil || recorder.writes != 0 {
+		t.Fatal("normalization bypassed protected native admin refusal")
+	}
+	bare := &iface.AdminState{Interface: "loop7"}
+	if value := guard.Normalize(bare); !proto.Equal(value, (&iface.AdminStateDescriptor{}).Normalize(bare)) {
+		t.Fatal("normal interface default reference changed")
+	}
+}

@@ -59,10 +59,11 @@ func newSvcValidating(t *testing.T, v *coretest.VPP, dir, name string, check che
 		t.Fatal(err)
 	}
 	reg := &validatingRegistry{MapRegistry: scheduler.NewRegistry(), name: name, check: check}
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg.MapRegistry, nil)
 	sched.VerifyRetries = 0
@@ -71,7 +72,7 @@ func newSvcValidating(t *testing.T, v *coretest.VPP, dir, name string, check che
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = time.Hour, time.Hour
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 

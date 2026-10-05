@@ -86,10 +86,11 @@ func newSvcOwner(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) *
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globalsOwner})
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globalsOwner})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -98,7 +99,7 @@ func newSvcOwner(t *testing.T, v *coretest.VPP, dir string, globalsOwner bool) *
 		t.Fatal(err)
 	}
 	svc.retryMin, svc.retryMax = 1<<62, 1<<62
-	t.Cleanup(svc.Close)
+	trackTestService(t, svc, w)
 	return svc
 }
 

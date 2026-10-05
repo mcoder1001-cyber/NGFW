@@ -28,4 +28,8 @@ override_dh_installsystemd:
 # CGO_ENABLED=0 Go binaries have compressed DWARF that dwz cannot optimize.
 # Keep dwz processing enabled for all other native package contents.
 override_dh_dwz:
-	dh_dwz -Xngfw-agent -Xngfw-startupgen -Xngfw-vppcheck
+	dh_dwz -Xngfw-agent -Xngfw-startupgen -Xngfw-vppcheck -Xngfw-ra-daemon -Xngfw-ra-namespace-broker
+
+# Preserve the executable bytes bound by the prepared RA checksum receipts.
+override_dh_strip:
+	dh_strip -Xngfw-ra-daemon -Xngfw-ra-namespace-broker

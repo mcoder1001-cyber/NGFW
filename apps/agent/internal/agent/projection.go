@@ -188,6 +188,9 @@ type vrfResolver func(name string) (uint32, bool)
 // ds.vrfs (e.g. when `vrfs` is not part of this transaction) to table ids.
 // netdev (nil: no check) is the Linux netdev lookup of the af_packet veth rule (D-105).
 func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, nativeEnv ...desired.IKEv2Env) *projected {
+	return projectOwned(ds, domains, resolve, netdev, "", nativeEnv...)
+}
+func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, netdev desired.NetdevKind, owner string, nativeEnv ...desired.IKEv2Env) *projected {
 	p := &projected{pointers: map[scheduler.Key]string{}, scopeDomains: domains}
 	in := map[string]bool{}
 	for _, d := range domains {
@@ -356,6 +359,10 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	desired.Vrrp(p, ds, in, subsystems.VrrpEnv()) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
 	// wave-BC: F-pki
 	desired.PKI(p, ds, in, subsystems.PKIProjection())
+	// wave-BC: F-ra-vpn
+	raEnv := subsystems.RAEnvFor(owner)
+	raEnv.VRF = vrfID
+	desired.RemoteAccess(p, ds, in, raEnv)
 	// wave-BC: F-ikev2-native
 	native := subsystems.IKEv2Projection()
 	if len(nativeEnv) > 0 {
@@ -654,6 +661,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
+	desired.AssembleRA(ds, kvs, in)
 	desired.AssembleWireguard(ds, kvs, in, nameOf, stored) // vpn.wireguard; moves wg<N> leaves out of interfaces/routing
 	// wave-A: P12
 	if in["interfaces"] {

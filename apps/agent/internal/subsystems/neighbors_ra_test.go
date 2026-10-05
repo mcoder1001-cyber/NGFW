@@ -32,10 +32,11 @@ func registerNRA(t *testing.T, v *coretest.VPP, globals bool, publish func(*ngfw
 		t.Fatal(err)
 	}
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: "w9", StateDir: dir, Owned: owned, GlobalsOwner: globals, Publish: publish})
+	w, err := registerMock(reg, Env{Client: v, Owner: "w9", StateDir: dir, Owned: owned, GlobalsOwner: globals, Publish: publish})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	return reg, w
 }
 
@@ -44,7 +45,7 @@ func registerNRA(t *testing.T, v *coretest.VPP, globals bool, publish func(*ngfw
 func TestRegisterNeighborsRa(t *testing.T) {
 	t.Setenv(EnvTableBase, "9000")
 	t.Setenv(desired.EnvProxyNd, "")
-	reg, _ := registerNRA(t, coretest.New(), false, nil)
+	reg, previous := registerNRA(t, coretest.New(), false, nil)
 	names := reg.Names()
 	for _, n := range []string{neighborsRaRaConfig, neighborsRaRaPrefix, neighborsRaProxyArpIf, neighborsRaProxyRange, neighborsRaNeighbor} {
 		if !slices.Contains(names, n) || DomainOf(n) == "" {
@@ -60,7 +61,8 @@ func TestRegisterNeighborsRa(t *testing.T) {
 		t.Fatalf("projection options %+v", o)
 	}
 	t.Setenv(desired.EnvProxyNd, "1")
-	reg, _ = registerNRA(t, coretest.New(), true, nil)
+	previous.Close()
+	reg, previous = registerNRA(t, coretest.New(), true, nil)
 	names = reg.Names()
 	for _, n := range []string{neighborsRaConfig, neighborsRaDad, neighborsRaProxyNd} {
 		if !slices.Contains(names, n) || DomainOf(n) == "" {
@@ -71,6 +73,7 @@ func TestRegisterNeighborsRa(t *testing.T) {
 		t.Fatalf("projection options %+v", o)
 	}
 	t.Setenv(desired.EnvProxyNd, "")
+	previous.Close()
 	registerNRA(t, coretest.New(), false, nil) // leave the process-wide options at the default for other tests
 }
 
@@ -176,6 +179,7 @@ func TestNeighborsRaConnectedNeedsASink(t *testing.T) {
 		t.Fatal("subscribed without an event sink")
 	}
 	var got events
+	w.Close()
 	_, w = registerNRA(t, v, false, got.publish)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

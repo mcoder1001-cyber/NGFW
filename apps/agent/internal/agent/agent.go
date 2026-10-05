@@ -291,6 +291,11 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	if err = subsystems.SetRASecrets(cfg.Owner, cache); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	wan := multiwan.NewRuntime(nil)
 	if err := registerWANRoutes(reg, wiring, conn, cfg.Owner, owned, wan); err != nil {
@@ -408,6 +413,13 @@ func (a *Agent) watchVPP(ctx context.Context) {
 			a.metrics.setVPP(st.Connected)
 			connected = st.Connected
 			if !st.Connected {
+				if a.wiring != nil {
+					stopctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					if err := a.wiring.StopRA(stopctx); err != nil {
+						a.log.Error("remote-access disconnect stop refused", "reason", "owned generation retained")
+					}
+					cancel()
+				}
 				stopLinks()
 				msg := "VPP binary API disconnected"
 				if st.Err != nil {

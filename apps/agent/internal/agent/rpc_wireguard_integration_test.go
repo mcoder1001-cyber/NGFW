@@ -75,6 +75,7 @@ func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[strin
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	for ref, m := range secrets {
 		if err := subsystems.WireguardSecretsFor(owner).Put(ref, m); err != nil {
 			t.Fatal(err)

@@ -145,3 +145,24 @@ without adopting another owner's namespace. Native/session secrets remain absent
 Focused ravpn tests PASS0.018s; source namespace consumer tests underlablock PASS
 0.061s; publish contract before descriptor consumer. Current remoted66634f5.
 Next: publish namespace descriptor recovery and actual rollback evidence.
+
+INCIDENT 2026-10-05T08:27Z (host privilege boundary, disclosed to manager):
+I invoked `/root/.cache/t19/ra-engine/sbin/charon-systemd --version` assuming
+plaincharon version CLI. charon-systemd ignored argument and started on current
+host network namespace. No profiles/secrets supplied; process startup is still
+an unauthorized shared-host daemon invocation. Identified owned PID2211170,
+PPID2211149, exact cmdline checked in /proc before SIGTERM. PID stopped, no private
+engine descendants remaining. Journal confirms startup6.1.0 and SIGTERMshutdown.
+Readonly afterstate: rootns UDP500/4500 listener count0; host XFRM state/policy
+EMPTY (captured in memory, no key material printed); VPP MainPID1014/NRestarts0.
+/run/charon.vici socket root:root660 inode15570 remains, ctime1791188837547932031ns;
+ownfirstjournal1791188837496142us (51ms earlier). Likely incident-created but no
+before-baseline; no deletion made because ownership not yet independently proven.
+Manager checking readonly metadata; no foreign service/state cleanup authorized.
+Do not use any daemon CLI flags for version probing; use pinned source/build
+manifest or actual startup only inside verified dedicated disposable namespace.
+Private install exited0. Removed ONLY own extracted146MB build-only source tree
+using exact path/symlink/receipt guards; signedsource tar/key/signature, prefix
+and buildlogs retained. No shared cache cleared. Current remote301de89b ownership
+contract. Next: add namespace-equals-host/refused-start/noexec regressions and
+publish descriptor recovery; never invoke daemon on current host namespace.

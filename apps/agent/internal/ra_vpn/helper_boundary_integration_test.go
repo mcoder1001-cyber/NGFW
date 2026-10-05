@@ -58,7 +58,14 @@ func TestIntegrationLowCapabilityHelperRequiresActualPrivateNamespace(t *testing
 			args = append([]string{"--net=" + filepath.Join(dir, "netns"), "--", "/usr/bin/setpriv"}, args...)
 			expect = "private"
 		}
-		cmd := exec.Command(tool, args...)
+		var cmd *exec.Cmd
+		if tool == "/usr/bin/setpriv" {
+			// #nosec G204 -- fixed capability-drop tool executes this test binary with fixed test name; no supplied command.
+			cmd = exec.Command("/usr/bin/setpriv", args...)
+		} else {
+			// #nosec G204 -- fixed namespace tool enters the proven owned fixture binding and executes the fixed capability-drop probe.
+			cmd = exec.Command("/usr/bin/nsenter", args...)
+		}
 		cmd.Env = []string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "LANG=C", "NGFW_RA_BOUNDARY_PROBE=" + plan.Instance, "NGFW_RA_BOUNDARY_EXPECT=" + expect}
 		if output, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("%s boundary probe failed: %v %s", expect, err, output)

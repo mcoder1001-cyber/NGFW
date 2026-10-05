@@ -65,6 +65,7 @@ func TestIntegrationNamespaceDescriptorRestartReadbackAndRollback(t *testing.T) 
 		t.Fatal("trusted agent did not verify namespace pair", err)
 	}
 	manifest := filepath.Join(InstanceRoot, plan.Instance, "network.json")
+	// #nosec G304 -- reads the exact newly created owned fixture manifest before the deliberate corruption test.
 	original, err := os.ReadFile(manifest)
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +76,7 @@ func TestIntegrationNamespaceDescriptorRestartReadbackAndRollback(t *testing.T) 
 		t.Fatal("fixture manifest write")
 	}
 	_, refusal := ReadAgentPlan(plan.Instance)
+	// #nosec G703 -- manifest is derived from the validated test-only full-instance plan; restores the exact fixture bytes after corruption.
 	if os.WriteFile(manifest, original, 0600) != nil {
 		t.Fatal("fixture manifest restore")
 	}

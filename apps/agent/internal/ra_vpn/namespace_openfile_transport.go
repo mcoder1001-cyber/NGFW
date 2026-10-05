@@ -17,7 +17,7 @@ const numericPublisherSocket = "/usr/lib/systemd/system/ngfw-ra-openfile.socket"
 
 func numericPublisherInstallation() error {
 	if validateNamespaceBrokerExecutable(unitObserverExecutable) != nil {
-		return numericPublisherFailure(nil, 4)
+		return numericPublisherFailure(context.Background(), 4)
 	}
 	for _, item := range []struct{ path, digest string }{
 		{numericPublisherService, "8ad98855375d4485ed58e47af83fd28b66256089019505784885294f85bab590"},
@@ -26,7 +26,7 @@ func numericPublisherInstallation() error {
 		content, err := trustedInstallationFile(item.path, 16384, false)
 		sum := sha256.Sum256(content)
 		if err != nil || hex.EncodeToString(sum[:]) != item.digest {
-			return numericPublisherFailure(nil, 5)
+			return numericPublisherFailure(context.Background(), 5)
 		}
 	}
 	return nil

@@ -119,6 +119,7 @@ func publishNumericOpenFileAt(path string, data []byte) error {
 	if cleanup() != nil {
 		return ErrBoundary
 	}
+	// #nosec G304 -- parent is the validated closed-kind numeric drop-in directory, never a caller-selected path; opened only for synchronization.
 	held, err := os.Open(parent)
 	if err != nil {
 		return ErrBoundary

@@ -45,6 +45,7 @@ func TestIntegrationPrivateSnapshotExclusiveAndModes(t *testing.T) {
 	if WriteSnapshot(plan.Instance, snapshot, now) == nil {
 		t.Fatal("active credential generation overwritten")
 	}
+	// #nosec G304 -- fixed credential filename in the authenticated owned snapshot fixture; checks refused overwrite preserved bytes.
 	data, err := os.ReadFile(filepath.Join(dir, "swanctl.conf"))
 	if err != nil || string(data) != "connections {}\nprivate generated secrets\n" {
 		t.Fatal("refused overwrite altered existing generation")

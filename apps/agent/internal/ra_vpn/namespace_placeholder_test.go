@@ -29,6 +29,7 @@ func TestBrokerPlaceholderRootOwnerWithPrivateNonzeroGroup(t *testing.T) {
 	if err := brokerBindingState(path, 1, true); err != nil {
 		t.Fatalf("root-only placeholder with inaccessible group: %v", err)
 	}
+	// #nosec G302 -- deliberately insecure placeholder mode must be refused before namespace mutation.
 	if err := os.Chmod(path, 0640); err != nil {
 		t.Fatal(err)
 	}

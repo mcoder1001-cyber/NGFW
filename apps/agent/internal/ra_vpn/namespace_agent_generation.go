@@ -85,6 +85,7 @@ func publishSourceAgentGeneration(ctx context.Context, root string, source booti
 		return ErrBoundary
 	}
 	recordPath := filepath.Join(dir, "identity.json")
+	// #nosec G304 -- fixed identity basename under a verified private root and canonical full-boot generation; exclusive creation refuses existing nodes.
 	file, err := os.OpenFile(recordPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
 	if err != nil {
 		return ErrBoundary
@@ -114,6 +115,7 @@ func publishSourceAgentGeneration(ctx context.Context, root string, source booti
 	if err := os.Rename(temporary, current); err != nil {
 		return ErrBoundary
 	}
+	// #nosec G304 -- root has already passed protected ownership and no-link checks; this descriptor only synchronizes that fixed directory.
 	directory, err := os.Open(root)
 	if err != nil {
 		return ErrBoundary

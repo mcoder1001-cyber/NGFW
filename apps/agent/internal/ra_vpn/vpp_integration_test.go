@@ -1,6 +1,7 @@
 package ravpn
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
@@ -37,6 +38,7 @@ func TestIntegrationPrivateVPPPolicyEAP(t *testing.T) {
 func privateCLI(t *testing.T, args ...string) {
 	t.Helper()
 	argv := append([]string{"-s", "/run/vpp/cli.sock"}, args...)
+	// #nosec G204 -- fixed CLI socket belongs to the verified disposable VPP namespace; arguments are compile-time fixture operations.
 	if exec.Command("/usr/bin/vppctl", argv...).Run() != nil {
 		t.Fatal("own disposable VPP command refused")
 	}
@@ -197,17 +199,9 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 		if root == "" {
 			return
 		}
-		file, err := os.OpenFile(filepath.Join(root, "vpp-eap-diagnostics.txt"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-		if err != nil {
-			t.Error("own diagnostic file refused")
-			return
-		}
-		defer func() {
-			if err := file.Close(); err != nil {
-				t.Error("own VPP diagnostic close refused")
-			}
-		}()
+		var file bytes.Buffer
 		for _, command := range []string{"show interface", "show ip fib", "show ip neighbors", "show errors", "show acl-plugin interface"} {
+			// #nosec G204 -- command is one of the fixed diagnostic allowlist entries; CLI is the verified disposable VPP socket and output is redacted.
 			data, err := exec.Command("/usr/bin/vppctl", "-s", "/run/vpp/cli.sock", command).Output()
 			if err == nil && len(data) <= 1<<20 {
 				if _, err := file.WriteString(command + "\n"); err != nil {
@@ -219,6 +213,9 @@ func setupPrivateVPPTransport(t *testing.T, server, client *NetworkPlan) {
 					return
 				}
 			}
+		}
+		if _, err := writePrivateFixtureEvidence(root, server.Instance, file.Bytes()); err != nil {
+			t.Error("own VPP diagnostic publication refused")
 		}
 	})
 }

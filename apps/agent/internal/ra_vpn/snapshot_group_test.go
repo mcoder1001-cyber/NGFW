@@ -28,6 +28,7 @@ func TestSnapshotPrivateGroupDoesNotRequireChown(t *testing.T) {
 	if _, err := snapshotStat(fd, "credential", false); err != nil {
 		t.Fatalf("root-private material with inaccessible group: %v", err)
 	}
+	// #nosec G302 -- deliberately incorrect snapshot file group mode exercises strict rejection; restored private mode follows.
 	if err := os.Chmod(path, 0640); err != nil {
 		t.Fatal(err)
 	}
@@ -44,6 +45,7 @@ func TestSnapshotPrivateGroupDoesNotRequireChown(t *testing.T) {
 	if _, err := snapshotStat(fd, "private", true); err != nil {
 		t.Fatalf("root-private directory with inaccessible group: %v", err)
 	}
+	// #nosec G302 -- deliberately group-searchable credential directory tests strict refusal.
 	if err := os.Chmod(directory, 0710); err != nil {
 		t.Fatal(err)
 	}

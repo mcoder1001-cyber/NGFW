@@ -185,7 +185,7 @@ const localAddressConfigured: ValidatorDefinition = {
     for (const [name, t] of tunnelsOf(config))
       check(P('ipsec', 'tunnels', name, 'localAddr'), t.localAddr, t.underlayVrf);
     for (const [name, r] of remoteAccessOf(config))
-      check(P('remoteAccess', name, 'localAddr'), r.localAddr, r.underlayVrf);
+      if (!r.transport) check(P('remoteAccess', name, 'localAddr'), r.localAddr, r.underlayVrf);
     for (const [name, w] of wireguardOf(config)) {
       check(P('wireguard', 'interfaces', name, 'listenAddress'), w.listenAddress, w.underlayVrf);
     }

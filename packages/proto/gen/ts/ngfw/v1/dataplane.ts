@@ -6275,7 +6275,11 @@ export interface RemoteAccessProfile {
     | IpsecRekey
     | undefined;
   /** FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4). */
-  underlayVrf?: string | undefined;
+  underlayVrf?:
+    | string
+    | undefined;
+  /** Explicit VPP/private-namespace transit addressing. Required by operational RA. */
+  transport: RemoteAccessTransport | undefined;
 }
 
 /** RADIUS settings. */
@@ -10123,6 +10127,30 @@ export interface LispStateResponse {
   /** VNIs that have LISP-GPE forwarding entries. */
   gpeVnis: number[];
   retrievedAt: Date | undefined;
+}
+
+/** One explicitly addressed VPP/private-namespace TAP transit link. */
+export interface RemoteAccessTransitLink {
+  /** VPP side address including prefix length. */
+  vpp?:
+    | string
+    | undefined;
+  /** Namespace side address including the same prefix length. */
+  namespace?: string | undefined;
+}
+
+/** Route-based independent RA handoff, never an implicit Linux protected LAN route. */
+export interface RemoteAccessTransport {
+  /** Encrypted outer traffic in underlay_vrf. */
+  outer:
+    | RemoteAccessTransitLink
+    | undefined;
+  /** IPv4 decrypted traffic in vrf. */
+  inner:
+    | RemoteAccessTransitLink
+    | undefined;
+  /** Optional IPv6 decrypted traffic in vrf. */
+  innerIpv6: RemoteAccessTransitLink | undefined;
 }
 
 /** MplsLdp mirrors `routing.mpls.ldp`. */
@@ -54846,6 +54874,7 @@ function createBaseRemoteAccessProfile(): RemoteAccessProfile {
     dpd: undefined,
     rekey: undefined,
     underlayVrf: undefined,
+    transport: undefined,
   };
 }
 
@@ -54898,6 +54927,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     }
     if (message.underlayVrf !== undefined) {
       writer.uint32(130).string(message.underlayVrf);
+    }
+    if (message.transport !== undefined) {
+      RemoteAccessTransport.encode(message.transport, writer.uint32(138).fork()).join();
     }
     return writer;
   },
@@ -55043,6 +55075,14 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
             message.underlayVrf = reader.string();
             continue;
           }
+          case 17: {
+            if (tag !== 138) {
+              break;
+            }
+
+            message.transport = RemoteAccessTransport.decode(reader, reader.uint32());
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -55095,6 +55135,7 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
         : isSet(object.underlay_vrf)
         ? globalThis.String(object.underlay_vrf)
         : undefined,
+      transport: isSet(object.transport) ? RemoteAccessTransport.fromJSON(object.transport) : undefined,
     };
   },
 
@@ -55148,6 +55189,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
     if (message.underlayVrf !== undefined) {
       obj.underlayVrf = message.underlayVrf;
     }
+    if (message.transport !== undefined) {
+      obj.transport = RemoteAccessTransport.toJSON(message.transport);
+    }
     return obj;
   },
 
@@ -55176,6 +55220,9 @@ export const RemoteAccessProfile: MessageFns<RemoteAccessProfile> = {
       ? IpsecRekey.fromPartial(object.rekey)
       : undefined;
     message.underlayVrf = object.underlayVrf ?? undefined;
+    message.transport = (object.transport !== undefined && object.transport !== null)
+      ? RemoteAccessTransport.fromPartial(object.transport)
+      : undefined;
     return message;
   },
 };
@@ -91923,6 +91970,202 @@ export const LispStateResponse: MessageFns<LispStateResponse> = {
     message.mapServers = object.mapServers?.map((e) => e) || [];
     message.gpeVnis = object.gpeVnis?.map((e) => e) || [];
     message.retrievedAt = object.retrievedAt ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRemoteAccessTransitLink(): RemoteAccessTransitLink {
+  return { vpp: undefined, namespace: undefined };
+}
+
+export const RemoteAccessTransitLink: MessageFns<RemoteAccessTransitLink> = {
+  encode(message: RemoteAccessTransitLink, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.vpp !== undefined) {
+      writer.uint32(10).string(message.vpp);
+    }
+    if (message.namespace !== undefined) {
+      writer.uint32(18).string(message.namespace);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessTransitLink {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessTransitLink();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.vpp = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.namespace = reader.string();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessTransitLink {
+    return {
+      vpp: isSet(object.vpp) ? globalThis.String(object.vpp) : undefined,
+      namespace: isSet(object.namespace) ? globalThis.String(object.namespace) : undefined,
+    };
+  },
+
+  toJSON(message: RemoteAccessTransitLink): unknown {
+    const obj: any = {};
+    if (message.vpp !== undefined) {
+      obj.vpp = message.vpp;
+    }
+    if (message.namespace !== undefined) {
+      obj.namespace = message.namespace;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessTransitLink>): RemoteAccessTransitLink {
+    return RemoteAccessTransitLink.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessTransitLink>): RemoteAccessTransitLink {
+    const message = createBaseRemoteAccessTransitLink();
+    message.vpp = object.vpp ?? undefined;
+    message.namespace = object.namespace ?? undefined;
+    return message;
+  },
+};
+
+function createBaseRemoteAccessTransport(): RemoteAccessTransport {
+  return { outer: undefined, inner: undefined, innerIpv6: undefined };
+}
+
+export const RemoteAccessTransport: MessageFns<RemoteAccessTransport> = {
+  encode(message: RemoteAccessTransport, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.outer !== undefined) {
+      RemoteAccessTransitLink.encode(message.outer, writer.uint32(10).fork()).join();
+    }
+    if (message.inner !== undefined) {
+      RemoteAccessTransitLink.encode(message.inner, writer.uint32(18).fork()).join();
+    }
+    if (message.innerIpv6 !== undefined) {
+      RemoteAccessTransitLink.encode(message.innerIpv6, writer.uint32(26).fork()).join();
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): RemoteAccessTransport {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBaseRemoteAccessTransport();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.outer = RemoteAccessTransitLink.decode(reader, reader.uint32());
+            continue;
+          }
+          case 2: {
+            if (tag !== 18) {
+              break;
+            }
+
+            message.inner = RemoteAccessTransitLink.decode(reader, reader.uint32());
+            continue;
+          }
+          case 3: {
+            if (tag !== 26) {
+              break;
+            }
+
+            message.innerIpv6 = RemoteAccessTransitLink.decode(reader, reader.uint32());
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): RemoteAccessTransport {
+    return {
+      outer: isSet(object.outer) ? RemoteAccessTransitLink.fromJSON(object.outer) : undefined,
+      inner: isSet(object.inner) ? RemoteAccessTransitLink.fromJSON(object.inner) : undefined,
+      innerIpv6: isSet(object.innerIpv6)
+        ? RemoteAccessTransitLink.fromJSON(object.innerIpv6)
+        : isSet(object.inner_ipv6)
+        ? RemoteAccessTransitLink.fromJSON(object.inner_ipv6)
+        : undefined,
+    };
+  },
+
+  toJSON(message: RemoteAccessTransport): unknown {
+    const obj: any = {};
+    if (message.outer !== undefined) {
+      obj.outer = RemoteAccessTransitLink.toJSON(message.outer);
+    }
+    if (message.inner !== undefined) {
+      obj.inner = RemoteAccessTransitLink.toJSON(message.inner);
+    }
+    if (message.innerIpv6 !== undefined) {
+      obj.innerIpv6 = RemoteAccessTransitLink.toJSON(message.innerIpv6);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<RemoteAccessTransport>): RemoteAccessTransport {
+    return RemoteAccessTransport.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<RemoteAccessTransport>): RemoteAccessTransport {
+    const message = createBaseRemoteAccessTransport();
+    message.outer = (object.outer !== undefined && object.outer !== null)
+      ? RemoteAccessTransitLink.fromPartial(object.outer)
+      : undefined;
+    message.inner = (object.inner !== undefined && object.inner !== null)
+      ? RemoteAccessTransitLink.fromPartial(object.inner)
+      : undefined;
+    message.innerIpv6 = (object.innerIpv6 !== undefined && object.innerIpv6 !== null)
+      ? RemoteAccessTransitLink.fromPartial(object.innerIpv6)
+      : undefined;
     return message;
   },
 };

@@ -4366,6 +4366,9 @@ message RemoteAccessProfile {
   IpsecRekey rekey = 15;
   // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
   optional string underlay_vrf = 16;
+  // Explicit VPP/private-namespace transit addressing. Required by operational RA.
+  RemoteAccessTransport transport = 17;
+
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -7626,6 +7629,25 @@ message LispStateResponse {
 // ----- F-bfd-redistribution -----
 
 // ----- F-ra-vpn -----
+
+// One explicitly addressed VPP/private-namespace TAP transit link.
+message RemoteAccessTransitLink {
+  // VPP side address including prefix length.
+  optional string vpp = 1;
+  // Namespace side address including the same prefix length.
+  optional string namespace = 2;
+}
+
+// Route-based independent RA handoff, never an implicit Linux protected LAN route.
+message RemoteAccessTransport {
+  // Encrypted outer traffic in underlay_vrf.
+  RemoteAccessTransitLink outer = 1;
+  // IPv4 decrypted traffic in vrf.
+  RemoteAccessTransitLink inner = 2;
+  // Optional IPv6 decrypted traffic in vrf.
+  RemoteAccessTransitLink inner_ipv6 = 3;
+}
+
 
 // ----- F-mpls-ldp -----
 

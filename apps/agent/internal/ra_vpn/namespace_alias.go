@@ -67,8 +67,13 @@ func createNamespaceAlias(ctx context.Context, plan *NetworkPlan) (bool, error) 
 		return false, ErrBoundary
 	}
 	var original unix.Stat_t
-	unix.Fstat(child, &original)
-	unix.Close(child)
+	statErr := unix.Fstat(child, &original)
+	closeErr := unix.Close(child)
+	if statErr != nil || closeErr != nil {
+		// The exclusive placeholder exists, but its ownership identity was not
+		// established. Preserve it for recovery instead of mounting or unlinking.
+		return true, ErrBoundary
+	}
 	_, mountErr := command(ctx, "/usr/bin/mount", nil, "--bind", filepath.Join(InstanceRoot, plan.Instance, "netns"), NamespacePath(plan.Instance))
 	if validateNamespaceAlias(plan) == nil && mountErr == nil {
 		return true, nil

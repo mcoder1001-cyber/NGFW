@@ -80,7 +80,9 @@ func mountNamespaceBinding(ctx context.Context, instance, name string, isolated 
 	if err != nil {
 		return 0, ErrBoundary
 	}
-	file.Close()
+	if file.Close() != nil {
+		return 0, ErrBoundary
+	}
 	if isolated {
 		_, err = command(ctx, "/usr/bin/unshare", nil, "--net", "--", "/usr/bin/mount", "--bind", "/proc/self/ns/net", path)
 	} else {

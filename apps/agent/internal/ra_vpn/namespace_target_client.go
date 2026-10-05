@@ -20,8 +20,9 @@ import (
 // SystemdNamespaceTargets probes only the already-provisioned numeric VPP PID
 // socket. It never starts a unit, creates a path or opens another process's NS.
 type SystemdNamespaceTargets struct {
-	ExpectedVPP func(context.Context) (bootid.Identity, error)
-	Executable  string
+	ExpectedVPP   func(context.Context) (bootid.Identity, error)
+	Executable    string
+	requesterRole string // fixed internal client role; never profile input
 }
 
 func (p *SystemdNamespaceTargets) expected(ctx context.Context) (bootid.Identity, error) {
@@ -76,7 +77,14 @@ func (p *SystemdNamespaceTargets) Acquire(ctx context.Context) (*NamespaceTarget
 	if err != nil || peer.Uid != 0 || peer.Gid != 0 || peer.Pid != 1 {
 		return nil, ErrBoundary
 	}
-	request := namespaceTargetRequest{Source: (bootid.Reader{}).ForPID(os.Getpid()), ExpectedVPP: expected}
+	role := p.requesterRole
+	if role == "" {
+		role = "agent"
+	}
+	if role != "agent" && role != "broker" {
+		return nil, ErrBoundary
+	}
+	request := namespaceTargetRequest{Source: (bootid.Reader{}).ForPID(os.Getpid()), ExpectedVPP: expected, Role: role}
 	if !request.Source.Complete() {
 		return nil, ErrBoundary
 	}

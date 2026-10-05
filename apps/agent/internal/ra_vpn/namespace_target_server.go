@@ -17,6 +17,7 @@ import (
 type namespaceTargetRequest struct {
 	Source      bootid.Identity
 	ExpectedVPP bootid.Identity
+	Role        string
 }
 type namespaceTargetResponse struct {
 	Server  bootid.Identity
@@ -95,7 +96,7 @@ func RunNamespaceTargetProvider(instance string) error {
 	if decoder.Decode(&request) != nil || decoder.Decode(new(any)) != io.EOF || request.Source.PID != int(peer.Pid) || !request.Source.Complete() || !(bootid.Reader{}).ForPID(request.Source.PID).Equal(request.Source) || request.ExpectedVPP.PID != pid || !request.ExpectedVPP.Complete() {
 		return ErrBoundary
 	}
-	if validateNamespaceBrokerProcess(request.Source.PID, uint64(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_IPC_LOCK)) != nil {
+	if validateNamespaceTargetRequester(request) != nil {
 		return ErrBoundary
 	}
 	var response namespaceTargetResponse
@@ -130,6 +131,54 @@ func RunNamespaceTargetProvider(instance string) error {
 		return ErrBoundary
 	}
 	return nil
+}
+
+// Broker observations are authenticated as the fixed running broker unit,
+// rather than permitting every root process with the broker capability mask.
+func validateNamespaceTargetRequester(request namespaceTargetRequest) error {
+	switch request.Role {
+	case "agent":
+		return validateNamespaceBrokerProcess(request.Source.PID, uint64(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_IPC_LOCK))
+	case "broker":
+		if validateNamespaceBrokerProcess(request.Source.PID, uint64(1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_SYS_CHROOT)) != nil {
+			return ErrBoundary
+		}
+	default:
+		return ErrBoundary
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(request.Source.PID) + "/cgroup")
+	if err != nil || len(data) > 16384 {
+		return ErrBoundary
+	}
+	unit := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		if !strings.HasPrefix(line, "0::/system.slice/ngfw-ra-namespace-broker@") {
+			continue
+		}
+		candidate := strings.TrimPrefix(line, "0::/system.slice/")
+		if !strings.HasSuffix(candidate, ".service") || len(candidate) > 256 || strings.ContainsAny(candidate, "/\x00\r\n ") {
+			return ErrBoundary
+		}
+		for _, character := range candidate {
+			if !(character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' || character >= '0' && character <= '9' || strings.ContainsRune("-_.@\\", character)) {
+				return ErrBoundary
+			}
+		}
+		if unit != "" {
+			return ErrBoundary
+		}
+		unit = candidate
+	}
+	if unit == "" {
+		return ErrBoundary
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	fields, err := namespaceSystemdProperties(ctx, unit, "MainPID,ControlGroup,FragmentPath,DropInPaths,ExecStart")
+	if err != nil || fields["MainPID"] != strconv.Itoa(request.Source.PID) || fields["ControlGroup"] != "/system.slice/"+unit || fields["FragmentPath"] != namespaceBrokerUnit || fields["DropInPaths"] != "" || !strings.Contains(fields["ExecStart"], "path=/usr/lib/ngfw/ngfw-ra-namespace-broker ; argv[]=/usr/lib/ngfw/ngfw-ra-namespace-broker ;") || !(bootid.Reader{}).ForPID(request.Source.PID).Equal(request.Source) {
+		return ErrBoundary
+	}
+	return (&SystemdNamespaceBroker{Executable: "/usr/lib/ngfw/ngfw-ra-namespace-broker"}).Preflight(ctx)
 }
 
 func validateNamespaceBrokerProcess(pid int, expected uint64) error {

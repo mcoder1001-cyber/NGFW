@@ -44,3 +44,17 @@ policy gap before consumers. Schema9 focused tests PASS5.10s; proto regeneration
 and buf lint PASS. Runtime network plan source is unfinished and not activated.
 Next: publish contract18, then namespace helper/unit/firewall plus TAP dependency
 wrappers and daemon descriptor, preserving generic S2S and DF-1 ownership.
+
+Network-plan source checkpoint: internal/ra_vpn owns typed, bounded public helper
+input, explicit namespace outer/inner routing with mark1/table100, XFRM pool
+routes and RADIUS host routes preferring the dedicated public source address.
+Private nft rules drop client→outer/lo bypass, require pool-source xfrm→inner and
+pool-destination inner→xfrm, explicit crypto/RADIUS output and root-owned table
+comment. Only fixed network sysctls are produced. Four plan tests PASS0.066s with
+NGFW_INTEGRATION=1: real nft --check in an unnamed disposable network namespace,
+nf_tables already loaded, no host table installation or global ruleset flush.
+This verifies syntax/plan guards; it does not prove EAP or forwarding. Namespace
+helper/lifecycle/PKI/VPP handoff and API/UI still incomplete. Next: implement fixed
+root helper with namespace inode/capability checks, constrained unit, descriptor
+ordering/readback and disposable real daemon acceptance. Current RA remote84050494
+contract18; local plan checkpoint publication next.

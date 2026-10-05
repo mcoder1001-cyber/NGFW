@@ -37,7 +37,7 @@ func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identit
 	}()
 
 	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-openfile.socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || fields["FragmentPath"] != numericPublisherSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["SubState"] != "listening" || fields["Listen"] != numericPublisherSocketPath+" (SequentialPacket)" {
+	if err != nil || !numericPublisherSocketState(fields, server.Complete()) {
 		return numericPublisherFailure(ctx, 6)
 	}
 	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
@@ -63,6 +63,16 @@ func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identit
 		}
 	}
 	return nil
+}
+
+// numericPublisherSocketState permits the activated running state only when
+// the caller supplies a complete server identity. The caller must still verify
+// that server's fixed unit, actual process, capabilities, image and held proof.
+func numericPublisherSocketState(fields map[string]string, activeIdentity bool) bool {
+	if fields["FragmentPath"] != numericPublisherSocket || fields["DropInPaths"] != "" || fields["ActiveState"] != "active" || fields["Listen"] != numericPublisherSocketPath+" (SequentialPacket)" {
+		return false
+	}
+	return fields["SubState"] == "listening" || activeIdentity && fields["SubState"] == "running"
 }
 
 // A never-started socket-activated unit has no allocated cgroup. Empty is

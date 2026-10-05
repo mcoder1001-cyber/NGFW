@@ -84,3 +84,28 @@ APPROVE source scope; security dependency/guard delta remains APPROVE source
 scope. Complete quick/local/hosted and exact integration tree remain mandatory.
 Root's reported packet/offline campaign is owner evidence, not independently
 re-executed by this reviewer and not a release certificate.
+
+## Board recovery and CI preflight follow-up: APPROVE source scope
+
+Independently compared recovered task map to e9c3c9afd: 211 IDs before/after,
+zero removals/additions. Only F-backup-restore and TEST-traffic-B rows differ,
+preserving newer owner/state/branch/worktree/started/worker_status assignments.
+Observed origin/main literal tool truncation prefix; recovered board begins
+valid YAML and passes read-only validation. No WBS removal or false completion
+transition introduced by recovery.
+
+--check bypasses auto-ready, validates duplicate IDs, dangling dependencies,
+cycles and unknown states, and exits before board/PROGRESS writes. CI invokes
+it in the existing mandatory slot preflight and fails on invalid board; no
+checks removed, renamed, weakened or silently bypassed. Current wrapper needs
+the same existing python3-yaml dependency as board management.
+
+Independent pure run: python3 -B -m unittest discover -s test/acceptance/freeze
+-v: 9 tests PASS in0.845s. tools/board.py --check: board valid211/read-only.
+Generator --check: 58 guides/63 controllers/113 schema sources, all links resolve.
+Baseline diff whitespace check PASS. Product source union checked: API manifest,
+new security test, lockfile, workspace override and security prompt exactly
+match reviewed security branch. Other changes remain the approved runner,
+documentation/status and recovered board/preflight tests. No additional
+unintended product source edits observed. No full CI run concurrently; complete
+mandatory gate and tested current integration tree remain merge requirements.

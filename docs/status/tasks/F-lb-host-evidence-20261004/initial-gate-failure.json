@@ -1,0 +1,380 @@
+{
+  "result": "FAILED unchanged quick gate: public artifact/source digest labels matched generic-api-key; no exemption added",
+  "findings": [
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/source-receipt.json",
+      "line": 3,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 30,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 31,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 32,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 33,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 34,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 35,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 36,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 37,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 38,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 57,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 58,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 59,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 60,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 61,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 62,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 714,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 715,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 716,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 720,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 721,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 722,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 724,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 726,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 727,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 728,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 730,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 731,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 750,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 751,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 752,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 761,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 762,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 767,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 865,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 866,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 1011,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-after.json",
+      "line": 1012,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 30,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 31,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 32,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 33,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 34,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 35,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 36,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 37,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 38,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 57,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 58,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 59,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 60,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 61,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 62,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 714,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 715,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 716,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 720,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 721,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 722,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 724,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 726,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 727,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 728,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 730,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 731,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 750,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 751,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 752,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 761,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 762,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 767,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 865,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 866,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 1011,
+      "rule": "generic-api-key"
+    },
+    {
+      "file": "docs/status/tasks/closeout-browser-evidence/final/artifact-before.json",
+      "line": 1012,
+      "rule": "generic-api-key"
+    }
+  ]
+}

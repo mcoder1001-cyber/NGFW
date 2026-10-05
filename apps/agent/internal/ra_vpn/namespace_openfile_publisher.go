@@ -32,3 +32,16 @@ type NamespaceHandoffInitialization interface {
 type NamespaceTargetInitialization interface {
 	Initialize(context.Context) error
 }
+
+// NamespaceHandoffSourceInitialization prepares only canonical source identity
+// and monotonic self capability normalization before live-unit observations.
+// It never provisions a supplier, mutates VPP, or changes transport objects.
+type NamespaceHandoffSourceInitialization interface {
+	InitializeSource(context.Context) error
+}
+
+// NamespaceTargetSourceInitialization prepares immutable current source
+// references; manager provisioning remains in the separate Initialize phase.
+type NamespaceTargetSourceInitialization interface {
+	InitializeSource(context.Context) error
+}

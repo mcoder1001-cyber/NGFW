@@ -24,7 +24,7 @@ func run() error {
 		return err
 	}
 	// No environment inheritance, shell, user executable, plugin or config path.
-	return syscall.Exec("/opt/ngfw-ra/libexec/ipsec/charon", []string{"charon"}, []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "STRONGSWAN_CONF=" + config})
+	return syscall.Exec("/opt/ngfw-ra/sbin/charon-systemd", []string{"charon-systemd"}, []string{"LANG=C", "LC_ALL=C", "PATH=/usr/sbin:/usr/bin:/sbin:/bin", "STRONGSWAN_CONF=" + config})
 }
 func main() {
 	if run() != nil {

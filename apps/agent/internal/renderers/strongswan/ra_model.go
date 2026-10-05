@@ -207,7 +207,7 @@ func BuildRAFiles(ctx context.Context, name string, profile *ngfwv1.RemoteAccess
 	if auth == "eap-mschapv2" {
 		plugins += " md4"
 	}
-	fmt.Fprintf(&daemon, "charon { load_modular = no\n load = \"%s\"\n install_routes = no\n install_virtual_ip = no\n ikesa_limit = 1024\n plugins { socket-default { fwmark = 1\n }\n kernel-netlink { install_routes_xfrmi = no\n }\n vici { socket = %s\n }\n", plugins, socket)
+	fmt.Fprintf(&daemon, "charon-systemd { load_modular = no\n load = \"%s\"\n install_routes = no\n install_virtual_ip = no\n ikesa_limit = 1024\n plugins { socket-default { fwmark = 1\n }\n kernel-netlink { install_routes_xfrmi = no\n }\n vici { socket = %s\n }\n", plugins, socket)
 	if auth == "eap-radius" {
 		radius := profile.GetRadius()
 		if radius == nil || len(radius.GetServers()) == 0 || len(radius.GetServers()) > 8 || resolve == nil {

@@ -123,3 +123,18 @@ Failed fixture mounts explicitly inode-verified and cleaned; no owned mounts rem
 No VPP, shared namespaces/services/sysctls touched. Descriptor restart/recovery,
 PKI/VICI activation and packet acceptance remain incomplete. Current remote0919fcf0.
 Next: persist/readback namespace descriptors then TAP/ACL dependency handoff.
+
+Patched engine packaging checkpoint: additive deploy/ra-vpn/build-engine.sh pins
+signed source6.1.0 SHA256 and public release key fingerprint; new offline root
+only, heavy semaphore, build dependencies preflight, DESTDIR install beneath
+/opt/ngfw-ra, no host ldconfig/unit activation. Build on appliance Debian12 ABI;
+shared Ubuntu fixture binaries must never ship in appliance. shellcheck PASS.
+Use charon-systemd instead of plain charon: plaincharon compiled globalpidfile
+would collide across independent profile processes. Fixed daemon exec/config
+namespace nowcharon-systemd, no inherited systemd environment. Focused Go tests
+PASS ravpn0.034s/strongswan0.089s/cmdcompilation. Own fixture reconfigure needed
+explicit private --with-systemdsystemunitdir; corrected builder accordingly.
+Private source currently finishing systemd configure; retain signedsource receipt
+and remove own build intermediates after final private install due disk pressure.
+Current remote7bfaf4e2. Next: private systemddaemon startup fixture, descriptor
+readback/dependency/PKI/VICI lifecycle; RA not operationally delivered yet.

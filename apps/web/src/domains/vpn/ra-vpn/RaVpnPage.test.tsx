@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
@@ -195,8 +195,11 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
   });
   it('renders Persian profile and nested policy labels through the mounted VPN page', async () => {
     fixture('admin', false);
-    await i18n.changeLanguage('fa');
     await mount();
+    await act(async () => {
+      await i18n.changeLanguage('fa');
+    });
+    await screen.findByRole('heading', { name: 'VPN دسترسی از راه دور' });
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'پروفایل' }));
     fireEvent.click(await screen.findByRole('option', { name: 'office' }));
     fireEvent.click(screen.getByRole('button', { name: 'ویرایش پروفایل' }));

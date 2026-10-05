@@ -24,12 +24,14 @@ UI: four-step canonical-schema wizard for public endpoint/identities/VRFs/auth/c
 
 - Normal proto/schema/YANG/OpenAPI/API-client/CLI generation PASS.
 - All API unit tests:104files/694tests PASS125.68s on consumer code before the configured-owner follow-up. No actual PostgreSQL/Valkey integration or appliance acceptance claimed.
-- Targeted actual Unix gRPC→AgentClient→Nest HTTP:14tests PASS542ms/runner19.81s after owner injection; maxuint64, malformed IDs/bounds/queries, role/admin/unauth audit, foreign/stale conflict, unverified removal, runtime failures, diagnostic withholding. Latest capability consistency follow-up pending final rerun.
-- UI unit suite:8tests PASS20.95s/runner34.92s, including mounted four-step disabled-draft save, nonoperational enable refusal, exact counters/admin confirmation, readonly and no unsupported polling. Scripted unit HTTP fixture is explicitly not an actual-endpoint screenshot. Persian mounted nested labels added, pending rerun.
-- API/web typechecks PASS before latest nonstructural follow-ups; final reruns pending.
+- Targeted actual Unix gRPC→AgentClient→Nest HTTP:14tests PASS542ms/runner19.81s after owner injection; maxuint64, malformed IDs/bounds/queries, role/admin/unauth audit, foreign/stale conflict, unverified removal, runtime failures, diagnostic withholding. Latest capability consistency follow-up PASS14tests504ms/runner16.75s; configured owner injection observed for capabilities, sessions and disconnect.
+- UI unit suite:8tests PASS20.95s/runner34.92s, including mounted four-step disabled-draft save, nonoperational enable refusal, exact counters/admin confirmation, readonly and no unsupported polling. Scripted unit HTTP fixture is explicitly not an actual-endpoint screenshot. Latest mounted Persian nested-label case and unchanged branding guard PASS:9UI+3branding tests, runner39.22s.
+- API and web typechecks PASS after owner injection and recursive locale schema changes. Final frozen-source reruns running.
 - Scoped API lint PASS. Scoped web lint initially found missing translation identifiers then an unused local; fixed without suppressions, latest scoped lint PASS.
-- Full unchanged web suite running; do not claim pass until completion.
+- First unchanged full web suite:102files PASS,1file failed;605tests PASS,1failed/431.84s. Real failure was strongSwan client name in a locale hint violating the existing product branding guard. Both locale hints now say other IKEv2 clients; no tests/assertions changed or weakened. Scoped branding+UI9 tests PASS39.22s. Full unchanged web rerun running, do not claim pass until completion.
 
 ## Remaining and next command
 
-Run latest focused API14/UI9 cases, final typechecks/lint, inspect unchanged full web result, publish closure checkpoint. Then hand code to engine author and root for final actual backend integration, independent R1/R2/R3/R6/R7/R8 reviews, actual-endpoint screenshot and complete quick gate after latest-main integration. Privileged runtime/lifecycle/policy and full packet acceptance remain engine author's explicit unfinished scope. Neither this WIP nor local unit passes mark the overall RA task complete.
+Inspect unchanged full web rerun and final typecheck/lint results, publish result checkpoint. Then hand code to engine author and root for final actual backend integration, independent R1/R2/R3/R6/R7/R8 reviews, actual-endpoint screenshot and complete quick gate after latest-main integration. Privileged runtime/lifecycle/policy and full packet acceptance remain engine author's explicit unfinished scope. Neither this WIP nor local unit passes mark the overall RA task complete.
+
+Closure checkpoint localb62dcabb0 / remotefd2728dde1f41966270b2dfd697927f5f1841203 preserves all consumer ownership/privacy/activation code and generated CLI additions. Later locale-hint and Persian test-harness correction is a separate committed checkpoint.

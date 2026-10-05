@@ -8,7 +8,7 @@
   "refresh": "Refresh",
   "name": "Profile name",
   "unavailable": "The remote-access engine is not operational. You can edit disabled drafts; enabling requires a verified engine and explicit policies.",
-  "hints": "Windows, macOS and mobile clients: use native IKEv2, the configured server identity and a trusted server CA. strongSwan clients: use IKEv2 with the selected EAP method. Pool DNS and split routes come from this profile.",
+  "hints": "Windows, macOS and mobile clients: use native IKEv2, the configured server identity and a trusted server CA. Other IKEv2 clients: use IKEv2 with the selected EAP method. Pool DNS and split routes come from this profile.",
   "sessions": "Connected users",
   "identity": "Identity",
   "addresses": "Assigned addresses",

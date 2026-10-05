@@ -133,3 +133,12 @@ Curated actual REST3 evidence is local dcf54014c awaiting manager publication.
 Next: integrate the manager's independently reviewed native-warning prerequisite
 and exact fresh backup-main pin, then freeze source, build the owned binaries and
 run all seven primary REST phases followed by the unchanged complete quick gate.
+
+Independent R2 found that the dispatcher SIGTERM unit fixture chose WireGuard and
+therefore depended on an already built tagged binary in the author's ignored
+scratch directory. On a clean reviewer worktree the owned command never started.
+The fixture now selects BGP (no binary preflight) while retaining the real
+child/SIGTERM/cleanup assertion, and routes mocked gate/lock setup into its own
+temporary directory. No product or live preflight guard is changed. Actual
+updated safety/recovery suite15/15 PASS; reviewer rerun is required. Curated dcf
+checkpoint is verified remote8903182a384314a4e065c1bd796061663ea50247.

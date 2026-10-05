@@ -148,7 +148,7 @@ class StackRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);ready=root/'ready';clean=root/'clean';log=root/'log'
             child="import signal,time,pathlib; signal.signal(signal.SIGTERM,lambda s,f:(pathlib.Path("+repr(str(clean))+").write_text('clean'),exit(0))); pathlib.Path("+repr(str(ready))+").touch(); time.sleep(60)"
-            script="import run,sys,os; run.fcntl.flock=lambda *a:None; run.campaign=lambda *a,**k:run.execute([sys.executable,'-c',"+repr(child)+"],dict(os.environ),__import__('pathlib').Path("+repr(str(log))+")); sys.argv=['run.py','--slot','27','--phase','wireguard']; run.main()"
+            script="import run,sys,os; run.os.geteuid=lambda:0; run.open=lambda *a,**k:open("+repr(str(root/'lock'))+",'a'); run.fcntl.flock=lambda *a:None; run.campaign=lambda *a,**k:run.execute([sys.executable,'-c',"+repr(child)+"],dict(os.environ),__import__('pathlib').Path("+repr(str(log))+")); sys.argv=['run.py','--slot','27','--phase','bgp']; run.main()"
             worker=subprocess.Popen([sys.executable,'-c',script],cwd=Path(__file__).parent,env=dict(os.environ,NGFW_INTEGRATION='1'),stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             try:
                 deadline=time.monotonic()+5

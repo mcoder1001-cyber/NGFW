@@ -1,0 +1,1 @@
+$ go -C apps/agent build -o /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/mpls-srv6-stack-ci/codex-mpls-srv6-closeout-final-20261005-072349-1886103/ngfw-startupgen ./cmd/ngfw-startupgen

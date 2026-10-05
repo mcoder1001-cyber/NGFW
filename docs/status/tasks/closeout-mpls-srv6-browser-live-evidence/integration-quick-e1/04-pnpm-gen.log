@@ -1,0 +1,53 @@
+$ pnpm gen
+$ turbo run gen
+
+   • Packages in scope: @ngfw/api, @ngfw/api-client, @ngfw/proto, @ngfw/schema, @ngfw/ui-kit, @ngfw/web, @ngfw/yang
+   • Running gen in 7 packages
+   • Remote caching disabled
+
+@ngfw/schema:gen: cache bypass, force executing e71310870d6d86cf
+@ngfw/ui-kit:gen: cache bypass, force executing 58303f132ba807db
+@ngfw/ui-kit:gen: $ echo 'ui-kit: nothing to generate'
+@ngfw/ui-kit:gen: ui-kit: nothing to generate
+@ngfw/schema:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/ui-kit:build: cache hit, replaying logs 9b56f0191234ddff
+@ngfw/ui-kit:build: $ tsc -p tsconfig.build.json
+@ngfw/schema:gen: schema: wrote root + 14 domain schemas + openapi components
+@ngfw/schema:build: cache hit, replaying logs e0227207833e2aab
+@ngfw/schema:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: cache bypass, force executing 6afe9828df5c9833
+@ngfw/yang:gen: cache bypass, force executing d639aaa3058a2802
+@ngfw/yang:gen: $ tsc -p tsconfig.json && node dist/gen.js
+@ngfw/proto:gen: $ bash ./gen.sh
+@ngfw/yang:gen: yang: wrote 14 modules to generated/
+@ngfw/yang:build: cache hit, replaying logs fd5174a2ce263c43
+@ngfw/yang:build: $ tsc -p tsconfig.json
+@ngfw/proto:gen: proto: generated Go → apps/agent/gen (ngfw/v1 + ngfw/model), TS → packages/proto/gen/ts (ngfw/v1)
+@ngfw/proto:build: cache hit, replaying logs 25f303c5e6faf19e
+@ngfw/proto:build: $ tsc -p tsconfig.build.json
+@ngfw/api:gen: cache bypass, force executing cb7e092ff102be5f
+@ngfw/api:gen: $ echo 'api: nothing to generate'
+@ngfw/api:gen: api: nothing to generate
+@ngfw/api:build: cache hit, replaying logs 4f810bd08545f4a9
+@ngfw/api:build: $ tsc -p tsconfig.build.json
+@ngfw/api-client:gen: cache bypass, force executing d61c4616eabe691f
+@ngfw/api-client:gen: $ pnpm --filter @ngfw/api openapi:built && openapi-typescript openapi.json -o src/generated/schema.d.ts && prettier --write src/generated/schema.d.ts
+@ngfw/api-client:gen: $ node dist/openapi.js ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: api: OpenAPI written to ../../packages/api-client/openapi.json
+@ngfw/api-client:gen: ✨ openapi-typescript 7.13.0
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1state~1captures~1{id}/delete/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1start/get/responses
+@ngfw/api-client:gen:  ⚠  Operation must have at least one `2XX` response. at #/paths/~1api~1v1~1auth~1oidc~1callback/get/responses
+@ngfw/api-client:gen: 🚀 openapi.json → src/generated/schema.d.ts [2.6s]
+@ngfw/api-client:gen: src/generated/schema.d.ts 13963ms
+@ngfw/api-client:build: cache hit, replaying logs d0df44777142b1a3
+@ngfw/api-client:build: $ tsc -p tsconfig.json && node scripts/copy-types.mjs
+@ngfw/api-client:build: api-client: copied src/generated/schema.d.ts → dist/generated/schema.d.ts
+@ngfw/web:gen: cache bypass, force executing 153efb11681327c0
+@ngfw/web:gen: $ echo 'web: nothing to generate'
+@ngfw/web:gen: web: nothing to generate
+
+ Tasks:    13 successful, 13 total
+Cached:    6 cached, 13 total
+  Time:    1m18.836s 
+

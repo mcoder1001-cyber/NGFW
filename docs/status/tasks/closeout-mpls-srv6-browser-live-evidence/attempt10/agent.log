@@ -1,0 +1,1223 @@
+{"time":"2026-10-05T06:00:37.087385996Z","level":"INFO","msg":"ngfw-agent starting","version":"ff5333a9","pid":1090365,"owner":"w14","socket":"/run/ngfw-test/w14/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:00:37.088530837Z","level":"INFO","msg":"VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w14","component":"subsystems"}
+{"time":"2026-10-05T06:00:37.09486436Z","level":"INFO","msg":"VPP binary API connected","owner":"w14","component":"vpp","socket":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:00:39.769446167Z","level":"INFO","msg":"PKI file materialiser wired","owner":"w14","component":"subsystems","root":"/run/ngfw-test/w14/agent-state/pki-w14","source":true}
+{"time":"2026-10-05T06:00:39.771147666Z","level":"INFO","msg":"nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim","owner":"w14","component":"subsystems"}
+{"time":"2026-10-05T06:00:40.019540235Z","level":"INFO","msg":"fqdn state reloaded","owner":"w14","component":"subsystems","family":"objects","file":"/run/ngfw-test/w14/agent-state/objects-fqdn-w14.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-05T06:00:40.881891667Z","level":"INFO","msg":"objects domain wired","owner":"w14","component":"subsystems","store":"/run/ngfw-test/w14/agent-state/objects-w14.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-05T06:00:41.002323299Z","level":"INFO","msg":"acl domain wired","owner":"w14","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":true,"resync_hook":true}
+{"time":"2026-10-05T06:00:41.005342813Z","level":"INFO","msg":"host firewall wired","owner":"w14","component":"subsystems","table":"inet ngfw_w14","mode":"check","netns":"","rules_file":"/run/ngfw-test/w14/agent-state/host-acl-w14.nft"}
+{"time":"2026-10-05T06:00:41.006241919Z","level":"INFO","msg":"kea wired","owner":"w14","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+{"time":"2026-10-05T06:00:41.008368317Z","level":"INFO","msg":"host services wired","owner":"w14","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":true,"unbound_conf":"/etc/unbound/unbound.conf","chrony_conf":"/etc/chrony/chrony.conf","rsyslog_conf":"/etc/rsyslog.d/50-ngfw-export.conf","vpp_dns_cache":"applied (globals owner)"}
+{"time":"2026-10-05T06:00:41.208488783Z","level":"INFO","msg":"system identity wired","owner":"w14","component":"subsystems","product_paths":true,"hostname_file":"/etc/hostname"}
+{"time":"2026-10-05T06:00:41.209080958Z","level":"INFO","msg":"pppoe client wired","owner":"w14","component":"subsystems","feature":"pppoe-client","globals_owner":true,"product_paths":true}
+{"time":"2026-10-05T06:00:41.372545711Z","level":"INFO","msg":"subsystems wired","owner":"w14","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"wiring":"stores in /run/ngfw-test/w14/agent-state: claims-iface-w14.json, boot-w14.json; globals owner true","vpp_ids":"14000-14999"}
+{"time":"2026-10-05T06:00:41.714437917Z","level":"WARN","msg":"socket group does not exist; using the process's primary group","owner":"w14","group":"ngfw","gid":0}
+{"time":"2026-10-05T06:00:41.76953509Z","level":"INFO","msg":"ngfw-agent listening","owner":"w14","socket":"/run/ngfw-test/w14/agent.sock","metrics":"off","state_dir":"/run/ngfw-test/w14/agent-state","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:00:41.772242159Z","level":"INFO","msg":"classify table sentinel created at index 0 (INC-vpp-classify-crash M2)","owner":"w14","component":"subsystems","family":"classify-sentinel","state":"created","left":null,"report":"state=created pops=0"}
+{"time":"2026-10-05T06:00:41.773186279Z","level":"INFO","msg":"VPP boot identity","owner":"w14","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1090035/16098188","complete":true,"expired_claims":0}
+{"time":"2026-10-05T06:00:41.773828471Z","level":"WARN","msg":"neighbour events: interface dump","owner":"w14","component":"subsystems","err":"sw_interface_dump: context canceled"}
+{"time":"2026-10-05T06:00:41.818395416Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"resync","domains":null}
+{"time":"2026-10-05T06:00:45.479586846Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":3660771825,"err":""}
+{"time":"2026-10-05T06:00:45.893676621Z","level":"INFO","msg":"resync finished","owner":"w14","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+{"time":"2026-10-05T06:00:45.895040419Z","level":"INFO","msg":"dynamic source started","owner":"w14","source":"pppoe-watch","descriptors":["pppoe.client.observation"]}
+{"time":"2026-10-05T06:00:45.895133213Z","level":"INFO","msg":"dynamic source started","owner":"w14","source":"multiwan","descriptors":["ip.route.wan","nat44-ed.output-feature.wan","nat44-ed.interface-address.wan"]}
+{"time":"2026-10-05T06:01:03.755990044Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:05.148000403Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"acl.stats-enable/global"}
+{"time":"2026-10-05T06:01:06.882922337Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"created:1","reapplied":0,"duration":3126801938,"err":""}
+{"time":"2026-10-05T06:01:10.789500188Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:12.237596772Z","level":"WARN","msg":"PPPoE hook convergence pending","owner":"w14","component":"subsystems","feature":"pppoe-client","reason":"rpc error: code = DeadlineExceeded desc = context deadline exceeded"}
+{"time":"2026-10-05T06:01:17.238861429Z","level":"WARN","msg":"PPPoE hook convergence pending","owner":"w14","component":"subsystems","feature":"pppoe-client","reason":"rpc error: code = DeadlineExceeded desc = context deadline exceeded"}
+{"time":"2026-10-05T06:01:18.305390402Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":7515755809,"err":""}
+{"time":"2026-10-05T06:01:20.801588225Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:23.397040695Z","level":"WARN","msg":"PPPoE hook convergence pending","owner":"w14","component":"subsystems","feature":"pppoe-client","reason":"rpc error: code = DeadlineExceeded desc = context deadline exceeded"}
+{"time":"2026-10-05T06:01:24.710387251Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":3908768581,"err":""}
+{"time":"2026-10-05T06:01:27.097527585Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:28.008655454Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":911075200,"err":""}
+{"time":"2026-10-05T06:01:29.30218156Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:29.897681556Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":595515629,"err":""}
+{"time":"2026-10-05T06:01:31.610667794Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:31.746876209Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":136007797,"err":""}
+{"time":"2026-10-05T06:01:32.510440184Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"08acd88c-b9ea-4a96-b0e5-23922727f06c","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+{"time":"2026-10-05T06:01:32.744099871Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"08acd88c-b9ea-4a96-b0e5-23922727f06c","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:4","reapplied":0,"duration":233810698,"err":""}
+{"time":"2026-10-05T06:01:33.143515579Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:33.59021868Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":446644133,"err":""}
+{"time":"2026-10-05T06:01:34.172231255Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"5757d3a0-7365-42cb-bed4-41a86393d352","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+{"time":"2026-10-05T06:01:34.355090076Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"5757d3a0-7365-42cb-bed4-41a86393d352","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:4","reapplied":0,"duration":182785937,"err":""}
+{"time":"2026-10-05T06:01:34.629375623Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:35.039214987Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":409792673,"err":""}
+{"time":"2026-10-05T06:01:36.554453014Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:37.066982171Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":512319019,"err":""}
+{"time":"2026-10-05T06:01:38.807924112Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"a2ccd074-1d89-4044-b93f-ac0392da5f58","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+{"time":"2026-10-05T06:01:38.888346381Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"vrf/14060"}
+{"time":"2026-10-05T06:01:39.003374098Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"loop1460","sw_if_index":1,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+{"time":"2026-10-05T06:01:39.003795599Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface.loopback/loop1460"}
+{"time":"2026-10-05T06:01:39.014647785Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"loop1461","sw_if_index":2,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+{"time":"2026-10-05T06:01:39.015036268Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface.loopback/loop1461"}
+{"time":"2026-10-05T06:01:39.016311247Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface/loop1460"}
+{"time":"2026-10-05T06:01:39.018372386Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface-ip/loop1460/10.14.31.1/24"}
+{"time":"2026-10-05T06:01:39.019996175Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface-ip/loop1460/fd00:e:1::1/64"}
+{"time":"2026-10-05T06:01:39.020897044Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"interface/loop1461"}
+{"time":"2026-10-05T06:01:39.049502849Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-table/0"}
+{"time":"2026-10-05T06:01:39.17206615Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-table/14001"}
+{"time":"2026-10-05T06:01:39.173979575Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-interface/loop1460"}
+{"time":"2026-10-05T06:01:39.176160649Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-route/14001/140016/eos"}
+{"time":"2026-10-05T06:01:39.178069291Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-route/14001/140030/eos"}
+{"time":"2026-10-05T06:01:39.180243624Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-ip-bind/0/140040/14060/10.14.40.0/24"}
+{"time":"2026-10-05T06:01:39.19217Z","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"browser-t1","sw_if_index":3,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[1],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6"],"skipped":["lldp (retval -7)"]}
+{"time":"2026-10-05T06:01:39.19259909Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-tunnel/browser-t1"}
+{"time":"2026-10-05T06:01:39.22255977Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-route/0/140020/neos"}
+{"time":"2026-10-05T06:01:39.226032559Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr-mpls.policy/140100"}
+{"time":"2026-10-05T06:01:39.231078018Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr-mpls.steering/0/10.14.60.0/24"}
+{"time":"2026-10-05T06:01:39.234188334Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::1"}
+{"time":"2026-10-05T06:01:39.236678829Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::2"}
+{"time":"2026-10-05T06:01:39.239553139Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::a"}
+{"time":"2026-10-05T06:01:39.242477423Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::b"}
+{"time":"2026-10-05T06:01:39.245246751Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::c"}
+{"time":"2026-10-05T06:01:39.248403088Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.policy/fd00:e:bb::1"}
+{"time":"2026-10-05T06:01:39.251476771Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.policy/fd00:e:bb::2"}
+{"time":"2026-10-05T06:01:39.254650164Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.steering/ipv4/14060/10.14.160.0/24"}
+{"time":"2026-10-05T06:01:39.257798928Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.steering/ipv6/14060/fd00:e:160::/48"}
+{"time":"2026-10-05T06:01:39.260656238Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.steering/l2/loop1461"}
+{"time":"2026-10-05T06:01:39.440190051Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"a2ccd074-1d89-4044-b93f-ac0392da5f58","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"created:27  unchanged:4","reapplied":0,"duration":632316914,"err":""}
+{"time":"2026-10-05T06:01:39.694674183Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:39.828013235Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":133337019,"err":""}
+{"time":"2026-10-05T06:01:40.766406771Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"518c4a89-ce34-4aaa-9eab-5e1513e0405f","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+{"time":"2026-10-05T06:01:40.867796005Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr.localsid/fd00:e:ff::1"}
+{"time":"2026-10-05T06:01:41.285328768Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"518c4a89-ce34-4aaa-9eab-5e1513e0405f","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"created:1  unchanged:30","reapplied":0,"duration":518828382,"err":""}
+{"time":"2026-10-05T06:01:41.411666411Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:41.43191492Z","level":"INFO","msg":"dynamic source stopped","owner":"w14","source":"multiwan"}
+{"time":"2026-10-05T06:01:41.431942026Z","level":"INFO","msg":"dynamic source stopped","owner":"w14","source":"pppoe-watch"}
+{"time":"2026-10-05T06:01:41.715379728Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":303611150,"err":""}
+{"time":"2026-10-05T06:01:43.435563213Z","level":"INFO","msg":"ngfw-agent stopped","owner":"w14"}
+{"time":"2026-10-05T06:01:43.603537594Z","level":"INFO","msg":"ngfw-agent starting","version":"ff5333a9","pid":1095089,"owner":"w14","socket":"/run/ngfw-test/w14/agent.sock","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:01:43.604875209Z","level":"INFO","msg":"VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w14","component":"subsystems"}
+{"time":"2026-10-05T06:01:43.606088226Z","level":"INFO","msg":"PKI file materialiser wired","owner":"w14","component":"subsystems","root":"/run/ngfw-test/w14/agent-state/pki-w14","source":true}
+{"time":"2026-10-05T06:01:43.607227057Z","level":"INFO","msg":"nsim (lab tool) is off: set NGFW_NSIM=lab to apply services.nsim","owner":"w14","component":"subsystems"}
+{"time":"2026-10-05T06:01:43.611375146Z","level":"INFO","msg":"VPP binary API connected","owner":"w14","component":"vpp","socket":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:01:43.621052795Z","level":"INFO","msg":"fqdn state reloaded","owner":"w14","component":"subsystems","family":"objects","file":"/run/ngfw-test/w14/agent-state/objects-fqdn-w14.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+{"time":"2026-10-05T06:01:44.425156476Z","level":"INFO","msg":"objects domain wired","owner":"w14","component":"subsystems","store":"/run/ngfw-test/w14/agent-state/objects-w14.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"system (/etc/resolv.conf)"}
+{"time":"2026-10-05T06:01:44.425318603Z","level":"INFO","msg":"acl domain wired","owner":"w14","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":true,"resync_hook":true}
+{"time":"2026-10-05T06:01:44.425467065Z","level":"INFO","msg":"host firewall wired","owner":"w14","component":"subsystems","table":"inet ngfw_w14","mode":"check","netns":"","rules_file":"/run/ngfw-test/w14/agent-state/host-acl-w14.nft"}
+{"time":"2026-10-05T06:01:44.426219746Z","level":"INFO","msg":"kea wired","owner":"w14","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+{"time":"2026-10-05T06:01:44.428206586Z","level":"INFO","msg":"host services wired","owner":"w14","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":true,"unbound_conf":"/etc/unbound/unbound.conf","chrony_conf":"/etc/chrony/chrony.conf","rsyslog_conf":"/etc/rsyslog.d/50-ngfw-export.conf","vpp_dns_cache":"applied (globals owner)"}
+{"time":"2026-10-05T06:01:44.429179325Z","level":"INFO","msg":"system identity wired","owner":"w14","component":"subsystems","product_paths":true,"hostname_file":"/etc/hostname"}
+{"time":"2026-10-05T06:01:44.429577078Z","level":"INFO","msg":"pppoe client wired","owner":"w14","component":"subsystems","feature":"pppoe-client","globals_owner":true,"product_paths":true}
+{"time":"2026-10-05T06:01:44.431436133Z","level":"INFO","msg":"subsystems wired","owner":"w14","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"wiring":"stores in /run/ngfw-test/w14/agent-state: claims-iface-w14.json, boot-w14.json; globals owner true","vpp_ids":"14000-14999"}
+{"time":"2026-10-05T06:01:44.448856617Z","level":"WARN","msg":"socket group does not exist; using the process's primary group","owner":"w14","group":"ngfw","gid":0}
+{"time":"2026-10-05T06:01:44.449143376Z","level":"INFO","msg":"ngfw-agent listening","owner":"w14","socket":"/run/ngfw-test/w14/agent.sock","metrics":"off","state_dir":"/run/ngfw-test/w14/agent-state","vpp_api":"/run/vpp/api.sock"}
+{"time":"2026-10-05T06:01:44.452186964Z","level":"INFO","msg":"VPP boot identity","owner":"w14","component":"subsystems","identity":"cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1090035/16098188","complete":true,"expired_claims":0}
+{"time":"2026-10-05T06:01:44.452915851Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+{"time":"2026-10-05T06:01:44.452915664Z","level":"WARN","msg":"neighbour events: interface dump","owner":"w14","component":"subsystems","err":"sw_interface_dump: context canceled"}
+{"time":"2026-10-05T06:01:44.568884724Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"mpls-ip-bind/0/140040/14060/10.14.40.0/24"}
+{"time":"2026-10-05T06:01:44.571535812Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr-mpls.policy/140100"}
+{"time":"2026-10-05T06:01:44.577243291Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"sr-mpls.steering/0/10.14.60.0/24"}
+{"time":"2026-10-05T06:01:44.579275456Z","level":"INFO","msg":"created","owner":"w14","component":"scheduler","key":"acl.stats-enable/global"}
+{"time":"2026-10-05T06:01:44.745181624Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"created:4  unchanged:27","reapplied":1,"duration":292091108,"err":""}
+{"time":"2026-10-05T06:01:44.74532455Z","level":"INFO","msg":"resync finished","owner":"w14","why":"connect","status":"APPLY_STATUS_APPLIED","summary":"created:4  unchanged:27"}
+{"time":"2026-10-05T06:01:44.748233443Z","level":"INFO","msg":"dynamic source started","owner":"w14","source":"pppoe-watch","descriptors":["pppoe.client.observation"]}
+{"time":"2026-10-05T06:01:44.748306711Z","level":"INFO","msg":"dynamic source started","owner":"w14","source":"multiwan","descriptors":["ip.route.wan","nat44-ed.output-feature.wan","nat44-ed.interface-address.wan"]}
+{"time":"2026-10-05T06:01:44.750039146Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:44.924200752Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":173980065,"err":""}
+{"time":"2026-10-05T06:01:46.003886926Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:46.100569722Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":96645437,"err":""}
+{"time":"2026-10-05T06:01:51.000221426Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:51.115522589Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":115314702,"err":""}
+{"time":"2026-10-05T06:01:56.222416109Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:01:56.35360218Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":131221966,"err":""}
+{"time":"2026-10-05T06:02:01.265935904Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:01.926132334Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":660059903,"err":""}
+{"time":"2026-10-05T06:02:06.076321135Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:06.303122675Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":226729356,"err":""}
+{"time":"2026-10-05T06:02:11.13913668Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:11.641932666Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":502800864,"err":""}
+{"time":"2026-10-05T06:02:16.003651022Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:16.123447002Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":119792332,"err":""}
+{"time":"2026-10-05T06:02:21.010911433Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:21.113309938Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":102333129,"err":""}
+{"time":"2026-10-05T06:02:26.003381459Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:26.122445453Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":119027371,"err":""}
+{"time":"2026-10-05T06:02:31.218288361Z","level":"INFO","msg":"reconcile start","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"]}
+{"time":"2026-10-05T06:02:31.55920741Z","level":"INFO","msg":"reconcile done","owner":"w14","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:1","reapplied":0,"duration":340840926,"err":""}
+SIGQUIT: quit
+PC=0x4939a1 m=0 sigcode=0
+
+goroutine 0 gp=0x24ffd80 m=0 mp=0x2500f60 [idle]:
+runtime.futex(0x25010b8, 0x80, 0x0, 0x0, 0x0, 0x0)
+	runtime/sys_linux_amd64.s:569 +0x21 fp=0x7ffee2de91d0 sp=0x7ffee2de91c8 pc=0x4939a1
+runtime.futexsleep(0x7ffee2de9248?, 0x24ffd80?, 0x7ffee2de9248?)
+	runtime/os_linux.go:73 +0x30 fp=0x7ffee2de9220 sp=0x7ffee2de91d0 pc=0x44ea70
+runtime.notesleep(0x25010b8)
+	runtime/lock_futex.go:47 +0x87 fp=0x7ffee2de9258 sp=0x7ffee2de9220 pc=0x424807
+runtime.mPark(...)
+	runtime/proc.go:1967
+runtime.stoplockedm()
+	runtime/proc.go:3263 +0x73 fp=0x7ffee2de92b0 sp=0x7ffee2de9258 pc=0x45a713
+runtime.schedule()
+	runtime/proc.go:4143 +0x3a fp=0x7ffee2de92f0 sp=0x7ffee2de92b0 pc=0x45cc9a
+runtime.park_m(0x3bf43f4052c0)
+	runtime/proc.go:4304 +0x285 fp=0x7ffee2de9350 sp=0x7ffee2de92f0 pc=0x45d1a5
+runtime.mcall()
+	runtime/asm_amd64.s:496 +0x55 fp=0x7ffee2de9368 sp=0x7ffee2de9350 pc=0x490215
+
+goroutine 1 gp=0x3bf43ee621e0 m=nil [chan receive]:
+runtime.gopark(0x3bf43f34e8e8?, 0x13150e0?, 0xb0?, 0x79?, 0x13150e0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc17a98 sp=0x3bf43fc17a78 pc=0x48a6ce
+runtime.chanrecv(0x3bf43efda000, 0x0, 0x1)
+	runtime/chan.go:667 +0x4ae fp=0x3bf43fc17b10 sp=0x3bf43fc17a98 pc=0x41e70e
+runtime.chanrecv1(0x3bf43eeb8102?, 0x1d?)
+	runtime/chan.go:509 +0x12 fp=0x3bf43fc17b38 sp=0x3bf43fc17b10 pc=0x41e232
+ngfw/agent/internal/agent.Run({0x1771048, 0x3bf43f0d00c0}, {{0x3bf43eeb8102, 0x1d}, {0x16908a3, 0x4}, {0x16a36fc, 0x11}, {0x16a73d7, 0x13}, ...}, ...)
+	ngfw/agent/internal/agent/agent.go:616 +0xc6 fp=0x3bf43fc17c40 sp=0x3bf43fc17b38 pc=0x115da06
+main.main()
+	ngfw/agent/cmd/ngfw-agent/main.go:45 +0x5f6 fp=0x3bf43fc17f48 sp=0x3bf43fc17c40 pc=0x11d4656
+runtime.main()
+	runtime/proc.go:290 +0x2d5 fp=0x3bf43fc17fe0 sp=0x3bf43fc17f48 pc=0x4551f5
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc17fe8 sp=0x3bf43fc17fe0 pc=0x491e61
+
+goroutine 2 gp=0x3bf43ee62d20 m=nil [force gc (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef58fa8 sp=0x3bf43ef58f88 pc=0x48a6ce
+runtime.goparkunlock(...)
+	runtime/proc.go:468
+runtime.forcegchelper()
+	runtime/proc.go:375 +0xb3 fp=0x3bf43ef58fe0 sp=0x3bf43ef58fa8 pc=0x455513
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef58fe8 sp=0x3bf43ef58fe0 pc=0x491e61
+created by runtime.init.7 in goroutine 1
+	runtime/proc.go:363 +0x1a
+
+goroutine 3 gp=0x3bf43ee632c0 m=nil [GC sweep wait]:
+runtime.gopark(0x1?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef59788 sp=0x3bf43ef59768 pc=0x48a6ce
+runtime.goparkunlock(...)
+	runtime/proc.go:468
+runtime.bgsweep(0x3bf43eec8080)
+	runtime/mgcsweep.go:324 +0x151 fp=0x3bf43ef597c8 sp=0x3bf43ef59788 pc=0x43f091
+runtime.gcenable.gowrap1()
+	runtime/mgc.go:214 +0x17 fp=0x3bf43ef597e0 sp=0x3bf43ef597c8 pc=0x430437
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef597e8 sp=0x3bf43ef597e0 pc=0x491e61
+created by runtime.gcenable in goroutine 1
+	runtime/mgc.go:214 +0x66
+
+goroutine 4 gp=0x3bf43ee634a0 m=nil [GC scavenge wait]:
+runtime.gopark(0x10000?, 0x4397cd70?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef59f78 sp=0x3bf43ef59f58 pc=0x48a6ce
+runtime.goparkunlock(...)
+	runtime/proc.go:468
+runtime.(*scavengerState).park(0x24ff720)
+	runtime/mgcscavenge.go:425 +0x49 fp=0x3bf43ef59fa8 sp=0x3bf43ef59f78 pc=0x43cb09
+runtime.bgscavenge(0x3bf43eec8080)
+	runtime/mgcscavenge.go:658 +0x59 fp=0x3bf43ef59fc8 sp=0x3bf43ef59fa8 pc=0x43d099
+runtime.gcenable.gowrap2()
+	runtime/mgc.go:215 +0x17 fp=0x3bf43ef59fe0 sp=0x3bf43ef59fc8 pc=0x4303f7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef59fe8 sp=0x3bf43ef59fe0 pc=0x491e61
+created by runtime.gcenable in goroutine 1
+	runtime/mgc.go:215 +0xa5
+
+goroutine 5 gp=0x3bf43ee63a40 m=nil [GOMAXPROCS updater (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef5a788 sp=0x3bf43ef5a768 pc=0x48a6ce
+runtime.goparkunlock(...)
+	runtime/proc.go:468
+runtime.updateMaxProcsGoroutine()
+	runtime/proc.go:7095 +0xe7 fp=0x3bf43ef5a7e0 sp=0x3bf43ef5a788 pc=0x463a87
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef5a7e8 sp=0x3bf43ef5a7e0 pc=0x491e61
+created by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1
+	runtime/proc.go:7083 +0x37
+
+goroutine 6 gp=0x3bf43f00a1e0 m=nil [finalizer wait]:
+runtime.gopark(0x464ad5?, 0x1c8?, 0xe0?, 0xd6?, 0x3bf43ef58601?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef58620 sp=0x3bf43ef58600 pc=0x48a6ce
+runtime.runFinalizers()
+	runtime/mfinal.go:210 +0x107 fp=0x3bf43ef587e0 sp=0x3bf43ef58620 pc=0x42f3a7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef587e8 sp=0x3bf43ef587e0 pc=0x491e61
+created by runtime.createfing in goroutine 1
+	runtime/mfinal.go:172 +0x3d
+
+goroutine 7 gp=0x3bf43f00b0e0 m=nil [cleanup wait]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef5af68 sp=0x3bf43ef5af48 pc=0x48a6ce
+runtime.goparkunlock(...)
+	runtime/proc.go:468
+runtime.(*cleanupQueue).dequeue(0x24ffb60)
+	runtime/mcleanup.go:522 +0xd4 fp=0x3bf43ef5afa0 sp=0x3bf43ef5af68 pc=0x42c1f4
+runtime.runCleanups()
+	runtime/mcleanup.go:718 +0x45 fp=0x3bf43ef5afe0 sp=0x3bf43ef5afa0 pc=0x42c865
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef5afe8 sp=0x3bf43ef5afe0 pc=0x491e61
+created by runtime.(*cleanupQueue).createGs in goroutine 1
+	runtime/mcleanup.go:672 +0xa5
+
+goroutine 18 gp=0x3bf43f19e780 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef54740 sp=0x3bf43ef54720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef547c8 sp=0x3bf43ef54740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef547e0 sp=0x3bf43ef547c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef547e8 sp=0x3bf43ef547e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 8 gp=0x3bf43f00b4a0 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef5b740 sp=0x3bf43ef5b720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef5b7c8 sp=0x3bf43ef5b740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef5b7e0 sp=0x3bf43ef5b7c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef5b7e8 sp=0x3bf43ef5b7e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 34 gp=0x3bf43f304000 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30a740 sp=0x3bf43f30a720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30a7c8 sp=0x3bf43f30a740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30a7e0 sp=0x3bf43f30a7c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30a7e8 sp=0x3bf43f30a7e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 19 gp=0x3bf43f19e960 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef54f40 sp=0x3bf43ef54f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef54fc8 sp=0x3bf43ef54f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef54fe0 sp=0x3bf43ef54fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef54fe8 sp=0x3bf43ef54fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 20 gp=0x3bf43f19eb40 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef55740 sp=0x3bf43ef55720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef557c8 sp=0x3bf43ef55740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef557e0 sp=0x3bf43ef557c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef557e8 sp=0x3bf43ef557e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 9 gp=0x3bf43f00b680 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef5bf40 sp=0x3bf43ef5bf20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef5bfc8 sp=0x3bf43ef5bf40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef5bfe0 sp=0x3bf43ef5bfc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef5bfe8 sp=0x3bf43ef5bfe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 35 gp=0x3bf43f3041e0 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30af40 sp=0x3bf43f30af20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30afc8 sp=0x3bf43f30af40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30afe0 sp=0x3bf43f30afc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30afe8 sp=0x3bf43f30afe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 21 gp=0x3bf43f19ed20 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef55f40 sp=0x3bf43ef55f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef55fc8 sp=0x3bf43ef55f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef55fe0 sp=0x3bf43ef55fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef55fe8 sp=0x3bf43ef55fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 10 gp=0x3bf43f00b860 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f306740 sp=0x3bf43f306720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f3067c8 sp=0x3bf43f306740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f3067e0 sp=0x3bf43f3067c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3067e8 sp=0x3bf43f3067e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 36 gp=0x3bf43f3043c0 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30b740 sp=0x3bf43f30b720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30b7c8 sp=0x3bf43f30b740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30b7e0 sp=0x3bf43f30b7c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30b7e8 sp=0x3bf43f30b7e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 22 gp=0x3bf43f19ef00 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef56740 sp=0x3bf43ef56720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef567c8 sp=0x3bf43ef56740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef567e0 sp=0x3bf43ef567c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef567e8 sp=0x3bf43ef567e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 11 gp=0x3bf43f00ba40 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f306f40 sp=0x3bf43f306f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f306fc8 sp=0x3bf43f306f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f306fe0 sp=0x3bf43f306fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f306fe8 sp=0x3bf43f306fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 37 gp=0x3bf43f3045a0 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30bf40 sp=0x3bf43f30bf20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30bfc8 sp=0x3bf43f30bf40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30bfe0 sp=0x3bf43f30bfc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30bfe8 sp=0x3bf43f30bfe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 23 gp=0x3bf43f19f0e0 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef56f40 sp=0x3bf43ef56f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef56fc8 sp=0x3bf43ef56f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef56fe0 sp=0x3bf43ef56fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef56fe8 sp=0x3bf43ef56fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 12 gp=0x3bf43f00bc20 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f307740 sp=0x3bf43f307720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f3077c8 sp=0x3bf43f307740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f3077e0 sp=0x3bf43f3077c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3077e8 sp=0x3bf43f3077e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 38 gp=0x3bf43f304780 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30c740 sp=0x3bf43f30c720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30c7c8 sp=0x3bf43f30c740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30c7e0 sp=0x3bf43f30c7c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30c7e8 sp=0x3bf43f30c7e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 24 gp=0x3bf43f19f680 m=nil [GC worker (idle)]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef57740 sp=0x3bf43ef57720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef577c8 sp=0x3bf43ef57740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef577e0 sp=0x3bf43ef577c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef577e8 sp=0x3bf43ef577e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 25 gp=0x3bf43f19f860 m=nil [GC worker (idle)]:
+runtime.gopark(0x2522d20?, 0x3?, 0x3d?, 0x1c?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef57f40 sp=0x3bf43ef57f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43ef57fc8 sp=0x3bf43ef57f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43ef57fe0 sp=0x3bf43ef57fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef57fe8 sp=0x3bf43ef57fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 26 gp=0x3bf43f19fa40 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874dfea625?, 0x3?, 0x1a?, 0x9b?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b8740 sp=0x3bf43f2b8720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f2b87c8 sp=0x3bf43f2b8740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f2b87e0 sp=0x3bf43f2b87c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b87e8 sp=0x3bf43f2b87e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 50 gp=0x3bf43f384000 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874e0b2f28?, 0x1?, 0x5a?, 0x90?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b4740 sp=0x3bf43f2b4720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f2b47c8 sp=0x3bf43f2b4740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f2b47e0 sp=0x3bf43f2b47c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b47e8 sp=0x3bf43f2b47e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 39 gp=0x3bf43f304960 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874dfe394b?, 0x3?, 0x8d?, 0x2b?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30cf40 sp=0x3bf43f30cf20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30cfc8 sp=0x3bf43f30cf40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30cfe0 sp=0x3bf43f30cfc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30cfe8 sp=0x3bf43f30cfe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 13 gp=0x3bf43f0f8000 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874df15b2c?, 0x3?, 0x8b?, 0x1c?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f307f40 sp=0x3bf43f307f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f307fc8 sp=0x3bf43f307f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f307fe0 sp=0x3bf43f307fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f307fe8 sp=0x3bf43f307fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 14 gp=0x3bf43f0f81e0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874df14f94?, 0x1?, 0xe1?, 0x94?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f308740 sp=0x3bf43f308720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f3087c8 sp=0x3bf43f308740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f3087e0 sp=0x3bf43f3087c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3087e8 sp=0x3bf43f3087e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 51 gp=0x3bf43f3841e0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874df14bf5?, 0x3?, 0xde?, 0x5?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b4f40 sp=0x3bf43f2b4f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f2b4fc8 sp=0x3bf43f2b4f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f2b4fe0 sp=0x3bf43f2b4fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b4fe8 sp=0x3bf43f2b4fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 40 gp=0x3bf43f304b40 m=nil [GC worker (idle)]:
+runtime.gopark(0x927d89ad13af?, 0x1?, 0x60?, 0x1a?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30d740 sp=0x3bf43f30d720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30d7c8 sp=0x3bf43f30d740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30d7e0 sp=0x3bf43f30d7c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30d7e8 sp=0x3bf43f30d7e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 15 gp=0x3bf43f0f83c0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874e02bc04?, 0x1?, 0x4a?, 0x92?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f308f40 sp=0x3bf43f308f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f308fc8 sp=0x3bf43f308f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f308fe0 sp=0x3bf43f308fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f308fe8 sp=0x3bf43f308fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 41 gp=0x3bf43f304d20 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874e0c4544?, 0x1?, 0xb9?, 0x17?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f30df40 sp=0x3bf43f30df20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f30dfc8 sp=0x3bf43f30df40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f30dfe0 sp=0x3bf43f30dfc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f30dfe8 sp=0x3bf43f30dfe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 52 gp=0x3bf43f3843c0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874dfe3443?, 0x1?, 0x42?, 0x1b?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b5740 sp=0x3bf43f2b5720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f2b57c8 sp=0x3bf43f2b5740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f2b57e0 sp=0x3bf43f2b57c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b57e8 sp=0x3bf43f2b57e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 16 gp=0x3bf43f0f85a0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874e062371?, 0x1?, 0x9e?, 0x78?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f309740 sp=0x3bf43f309720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f3097c8 sp=0x3bf43f309740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f3097e0 sp=0x3bf43f3097c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3097e8 sp=0x3bf43f3097e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 42 gp=0x3bf43f304f00 m=nil [GC worker (idle)]:
+runtime.gopark(0x2522d20?, 0x1?, 0x8?, 0x7e?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f314740 sp=0x3bf43f314720 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f3147c8 sp=0x3bf43f314740 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f3147e0 sp=0x3bf43f3147c8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3147e8 sp=0x3bf43f3147e0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 43 gp=0x3bf43f3050e0 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874dfe43de?, 0x1?, 0x9c?, 0x67?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f314f40 sp=0x3bf43f314f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f314fc8 sp=0x3bf43f314f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f314fe0 sp=0x3bf43f314fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f314fe8 sp=0x3bf43f314fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 66 gp=0x3bf43f0f8780 m=nil [GC worker (idle)]:
+runtime.gopark(0x92874dfe4de8?, 0x3?, 0x2b?, 0x30?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f309f40 sp=0x3bf43f309f20 pc=0x48a6ce
+runtime.gcBgMarkWorker(0x3bf43efda310)
+	runtime/mgc.go:1791 +0xeb fp=0x3bf43f309fc8 sp=0x3bf43f309f40 pc=0x432f0b
+runtime.gcBgMarkStartWorkers.gowrap1()
+	runtime/mgc.go:1695 +0x17 fp=0x3bf43f309fe0 sp=0x3bf43f309fc8 pc=0x432df7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f309fe8 sp=0x3bf43f309fe0 pc=0x491e61
+created by runtime.gcBgMarkStartWorkers in goroutine 1
+	runtime/mgc.go:1695 +0x105
+
+goroutine 27 gp=0x3bf43f4052c0 m=nil [select, locked to thread]:
+runtime.gopark(0x3bf43f2b7fa8?, 0x2?, 0x1?, 0x52?, 0x3bf43f2b7f94?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b7e28 sp=0x3bf43f2b7e08 pc=0x48a6ce
+runtime.selectgo(0x3bf43f2b7fa8, 0x3bf43f2b7f90, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f2b7f58 sp=0x3bf43f2b7e28 pc=0x4685a5
+runtime.ensureSigM.func1()
+	runtime/signal_unix.go:1091 +0x188 fp=0x3bf43f2b7fe0 sp=0x3bf43f2b7f58 pc=0x484f08
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b7fe8 sp=0x3bf43f2b7fe0 pc=0x491e61
+created by runtime.ensureSigM in goroutine 1
+	runtime/signal_unix.go:1074 +0xc5
+
+goroutine 28 gp=0x3bf43f4054a0 m=4 mp=0x3bf43ef5d808 [syscall]:
+runtime.notetsleepg(0x2522000, 0xffffffffffffffff)
+	runtime/lock_futex.go:123 +0x29 fp=0x3bf43f2b8fa0 sp=0x3bf43f2b8f78 pc=0x424ae9
+os/signal.signal_recv()
+	runtime/sigqueue.go:152 +0x98 fp=0x3bf43f2b8fc0 sp=0x3bf43f2b8fa0 pc=0x48cad8
+os/signal.loop()
+	os/signal/signal_unix.go:23 +0x13 fp=0x3bf43f2b8fe0 sp=0x3bf43f2b8fc0 pc=0x570ab3
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b8fe8 sp=0x3bf43f2b8fe0 pc=0x491e61
+created by os/signal.Notify.func1.1 in goroutine 1
+	os/signal/signal.go:152 +0x1f
+
+goroutine 29 gp=0x3bf43f405680 m=nil [select]:
+runtime.gopark(0x3bf43f2b9798?, 0x2?, 0x28?, 0x21?, 0x3bf43f2b978c?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f2b9628 sp=0x3bf43f2b9608 pc=0x48a6ce
+runtime.selectgo(0x3bf43f2b9798, 0x3bf43f2b9788, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f2b9758 sp=0x3bf43f2b9628 pc=0x4685a5
+os/signal.NotifyContext.func1()
+	os/signal/signal.go:292 +0x7c fp=0x3bf43f2b97e0 sp=0x3bf43f2b9758 pc=0x57059c
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f2b97e8 sp=0x3bf43f2b97e0 pc=0x491e61
+created by os/signal.NotifyContext in goroutine 1
+	os/signal/signal.go:291 +0x158
+
+goroutine 30 gp=0x3bf43f405860 m=nil [select]:
+runtime.gopark(0x3bf43f669e68?, 0x2?, 0x18?, 0xe?, 0x3bf43f669e14?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc25c98 sp=0x3bf43fc25c78 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc25e68, 0x3bf43f669e10, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc25dc8 sp=0x3bf43fc25c98 pc=0x4685a5
+ngfw/agent/internal/vpp.(*Conn).watch(0x3bf43efbe000, 0x3bf43f48e070)
+	ngfw/agent/internal/vpp/conn.go:205 +0xa5 fp=0x3bf43fc25ec8 sp=0x3bf43fc25dc8 pc=0xa42e05
+ngfw/agent/internal/vpp.(*Conn).loop(0x3bf43efbe000)
+	ngfw/agent/internal/vpp/conn.go:176 +0x2c5 fp=0x3bf43fc25fc8 sp=0x3bf43fc25ec8 pc=0xa42b05
+ngfw/agent/internal/vpp.Dial.gowrap1()
+	ngfw/agent/internal/vpp/conn.go:127 +0x17 fp=0x3bf43fc25fe0 sp=0x3bf43fc25fc8 pc=0xa424f7
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc25fe8 sp=0x3bf43fc25fe0 pc=0x491e61
+created by ngfw/agent/internal/vpp.Dial in goroutine 1
+	ngfw/agent/internal/vpp/conn.go:127 +0x2b8
+
+goroutine 44 gp=0x3bf43f338780 m=nil [select]:
+runtime.gopark(0x3bf43ef6bef0?, 0x2?, 0x70?, 0x0?, 0x3bf43ef6be44?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef6bcd0 sp=0x3bf43ef6bcb0 pc=0x48a6ce
+runtime.selectgo(0x3bf43ef6bef0, 0x3bf43ef6be40, 0x174eec0?, 0x0, 0x2?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43ef6be00 sp=0x3bf43ef6bcd0 pc=0x4685a5
+go.fd.io/govpp/core.(*Connection).healthCheckLoop(0x3bf43f51c000)
+	go.fd.io/govpp@v0.13.0/core/connection.go:421 +0x1cc fp=0x3bf43ef6bf90 sp=0x3bf43ef6be00 pc=0xa33f0c
+go.fd.io/govpp/core.(*Connection).backgroundConnectionLoop(0x3bf43f51c000)
+	go.fd.io/govpp@v0.13.0/core/connection.go:361 +0x65 fp=0x3bf43ef6bfc8 sp=0x3bf43ef6bf90 pc=0xa33825
+go.fd.io/govpp/core.AsyncConnect.gowrap1()
+	go.fd.io/govpp@v0.13.0/core/connection.go:237 +0x17 fp=0x3bf43ef6bfe0 sp=0x3bf43ef6bfc8 pc=0xa32d37
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef6bfe8 sp=0x3bf43ef6bfe0 pc=0x491e61
+created by go.fd.io/govpp/core.AsyncConnect in goroutine 30
+	go.fd.io/govpp@v0.13.0/core/connection.go:237 +0x6e
+
+goroutine 31 gp=0x3bf43f405a40 m=nil [select]:
+runtime.gopark(0x3bf43f3e3f30?, 0x2?, 0x0?, 0x0?, 0x3bf43f3e3d14?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f3e3b50 sp=0x3bf43f3e3b30 pc=0x48a6ce
+runtime.selectgo(0x3bf43f3e3f30, 0x3bf43f3e3d10, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f3e3c80 sp=0x3bf43f3e3b50 pc=0x4685a5
+ngfw/agent/internal/pki.(*Materialiser).Watch(0x3bf43f1992c0, {0x1770e88, 0x3bf43efc6eb0}, 0x0?, 0x3bf43eeb0d90)
+	ngfw/agent/internal/pki/materialiser.go:458 +0x107 fp=0x3bf43f3e3f88 sp=0x3bf43f3e3c80 pc=0xce81a7
+ngfw/agent/internal/subsystems.(*PKIRuntime).startWatch.func1()
+	ngfw/agent/internal/subsystems/pki.go:168 +0x5e fp=0x3bf43f3e3fe0 sp=0x3bf43f3e3f88 pc=0x10f06be
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3e3fe8 sp=0x3bf43f3e3fe0 pc=0x491e61
+created by ngfw/agent/internal/subsystems.(*PKIRuntime).startWatch in goroutine 1
+	ngfw/agent/internal/subsystems/pki.go:166 +0x194
+
+goroutine 45 gp=0x3bf43f338960 m=nil [IO wait]:
+runtime.gopark(0x3bf43ef66c40?, 0x43aff7?, 0x20?, 0x2d?, 0xb?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef66c08 sp=0x3bf43ef66be8 pc=0x48a6ce
+runtime.netpollblock(0x4ad858?, 0x41b446?, 0x0?)
+	runtime/netpoll.go:575 +0xf7 fp=0x3bf43ef66c40 sp=0x3bf43ef66c08 pc=0x44dd17
+internal/poll.runtime_pollWait(0x723d9366dc00, 0x72)
+	runtime/netpoll.go:351 +0x85 fp=0x3bf43ef66c60 sp=0x3bf43ef66c40 pc=0x4898a5
+internal/poll.(*pollDesc).wait(0x3bf43f080000?, 0x3bf43f5ea000?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3bf43ef66c88 sp=0x3bf43ef66c60 pc=0x5045e7
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3bf43f080000, {0x3bf43f5ea000, 0x1000, 0x1000})
+	internal/poll/fd_unix.go:165 +0x2ae fp=0x3bf43ef66d20 sp=0x3bf43ef66c88 pc=0x50580e
+net.(*netFD).Read(0x3bf43f080000, {0x3bf43f5ea000?, 0x487414?, 0x1000?})
+	net/fd_posix.go:68 +0x25 fp=0x3bf43ef66d68 sp=0x3bf43ef66d20 pc=0x5a1765
+net.(*conn).Read(0x3bf43f31a048, {0x3bf43f5ea000?, 0x6c7685?, 0x4881e5?})
+	net/net.go:196 +0x45 fp=0x3bf43ef66db0 sp=0x3bf43ef66d68 pc=0x5b38c5
+bufio.(*Reader).Read(0x3bf43f5e8000, {0x3bf43f7f6040, 0x10, 0x3bf43f5e8000?})
+	bufio/bufio.go:245 +0x197 fp=0x3bf43ef66de8 sp=0x3bf43ef66db0 pc=0x6c75b7
+io.ReadAtLeast({0x17502a0, 0x3bf43f5e8000}, {0x3bf43f7f6040, 0x10, 0x10}, 0x10)
+	io/io.go:335 +0x8e fp=0x3bf43ef66e30 sp=0x3bf43ef66de8 pc=0x4f956e
+go.fd.io/govpp/adapter/socketclient.readMsgHeader({0x17502a0?, 0x3bf43f5e8000?}, {0x3bf43f7f6040, 0x10, 0x10})
+	go.fd.io/govpp@v0.13.0/adapter/socketclient/socketclient.go:670 +0x3c fp=0x3bf43ef66e98 sp=0x3bf43ef66e30 pc=0xa2eb7c
+go.fd.io/govpp/adapter/socketclient.(*Client).readMsg(0x3bf43f0322c0, {0x3bf43f5a2000, 0x2000, 0x2000})
+	go.fd.io/govpp@v0.13.0/adapter/socketclient/socketclient.go:651 +0xcf fp=0x3bf43ef66f10 sp=0x3bf43ef66e98 pc=0xa2e96f
+go.fd.io/govpp/adapter/socketclient.(*Client).readerLoop(0x3bf43f0322c0)
+	go.fd.io/govpp@v0.13.0/adapter/socketclient/socketclient.go:588 +0xec fp=0x3bf43ef66fc8 sp=0x3bf43ef66f10 pc=0xa2e3cc
+go.fd.io/govpp/adapter/socketclient.(*Client).Connect.gowrap1()
+	go.fd.io/govpp@v0.13.0/adapter/socketclient/socketclient.go:278 +0x17 fp=0x3bf43ef66fe0 sp=0x3bf43ef66fc8 pc=0xa2bc37
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef66fe8 sp=0x3bf43ef66fe0 pc=0x491e61
+created by go.fd.io/govpp/adapter/socketclient.(*Client).Connect in goroutine 44
+	go.fd.io/govpp@v0.13.0/adapter/socketclient/socketclient.go:278 +0x198
+
+goroutine 46 gp=0x3bf43f338b40 m=nil [chan receive]:
+runtime.gopark(0x3bf43faab260?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f7b1ea0 sp=0x3bf43f7b1e80 pc=0x48a6ce
+runtime.chanrecv(0x3bf43f48e5b0, 0x3bf43f7b1fa8, 0x1)
+	runtime/chan.go:667 +0x4ae fp=0x3bf43f7b1f18 sp=0x3bf43f7b1ea0 pc=0x41e70e
+runtime.chanrecv2(0x3bf43f51c000?, 0x3bf43f48e540?)
+	runtime/chan.go:514 +0x12 fp=0x3bf43f7b1f40 sp=0x3bf43f7b1f18 pc=0x41e252
+go.fd.io/govpp/core.(*Connection).watchRequests(0x3bf43f51c000, 0x3bf43f48e540)
+	go.fd.io/govpp@v0.13.0/core/request_handler.go:40 +0x45 fp=0x3bf43f7b1fc0 sp=0x3bf43f7b1f40 pc=0xa35ba5
+go.fd.io/govpp/core.(*Connection).newAPIChannel.gowrap1()
+	go.fd.io/govpp@v0.13.0/core/connection.go:329 +0x1b fp=0x3bf43f7b1fe0 sp=0x3bf43f7b1fc0 pc=0xa3349b
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f7b1fe8 sp=0x3bf43f7b1fe0 pc=0x491e61
+created by go.fd.io/govpp/core.(*Connection).newAPIChannel in goroutine 44
+	go.fd.io/govpp@v0.13.0/core/connection.go:329 +0x7d
+
+goroutine 53 gp=0x3bf43f4be780 m=nil [select]:
+runtime.gopark(0x3bf43f2ba740?, 0x3?, 0x70?, 0x0?, 0x3bf43f2ba722?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ef68db8 sp=0x3bf43ef68d98 pc=0x48a6ce
+runtime.selectgo(0x3bf43ef68f40, 0x3bf43f2ba71c, 0x3bf43efc6230?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43ef68ee8 sp=0x3bf43ef68db8 pc=0x4685a5
+ngfw/agent/internal/objects.(*resolver).run(0x3bf43f014320, {0x1770e88, 0x3bf43efc6230})
+	ngfw/agent/internal/objects/resolver.go:688 +0x1eb fp=0x3bf43ef68f80 sp=0x3bf43ef68ee8 pc=0xba1fab
+ngfw/agent/internal/objects.(*Runtime).Start.func1(0x3bf43f2ba7b8?)
+	ngfw/agent/internal/objects/runtime.go:116 +0x4f fp=0x3bf43ef68fc8 sp=0x3bf43ef68f80 pc=0xba2fef
+ngfw/agent/internal/objects.(*Runtime).Start.gowrap2()
+	ngfw/agent/internal/objects/runtime.go:117 +0x1b fp=0x3bf43ef68fe0 sp=0x3bf43ef68fc8 pc=0xba2f7b
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ef68fe8 sp=0x3bf43ef68fe0 pc=0x491e61
+created by ngfw/agent/internal/objects.(*Runtime).Start in goroutine 1
+	ngfw/agent/internal/objects/runtime.go:114 +0x1b6
+
+goroutine 54 gp=0x3bf43f4be960 m=nil [select]:
+runtime.gopark(0x3bf43f2b5f80?, 0x2?, 0x70?, 0x0?, 0x3bf43f2b5f6c?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f3e1e00 sp=0x3bf43f3e1de0 pc=0x48a6ce
+runtime.selectgo(0x3bf43f3e1f80, 0x3bf43f2b5f68, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f3e1f30 sp=0x3bf43f3e1e00 pc=0x4685a5
+ngfw/agent/internal/subsystems.(*aclWatcher).start.func1()
+	ngfw/agent/internal/subsystems/acl.go:157 +0xe5 fp=0x3bf43f3e1fe0 sp=0x3bf43f3e1f30 pc=0x10d3ac5
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3e1fe8 sp=0x3bf43f3e1fe0 pc=0x491e61
+created by ngfw/agent/internal/subsystems.(*aclWatcher).start in goroutine 1
+	ngfw/agent/internal/subsystems/acl.go:152 +0xc8
+
+goroutine 55 gp=0x3bf43f4beb40 m=nil [select]:
+runtime.gopark(0x3bf43fc19d78?, 0x3?, 0x60?, 0x18?, 0x3bf43fc19c82?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc19b00 sp=0x3bf43fc19ae0 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc19d78, 0x3bf43fc19c7c, 0x3bf440297e30?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc19c30 sp=0x3bf43fc19b00 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchVrrp(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0})
+	ngfw/agent/internal/agent/rpc_vrrp.go:138 +0x1f8 fp=0x3bf43fc19f98 sp=0x3bf43fc19c30 pc=0x11b6938
+ngfw/agent/internal/agent.Start.func5()
+	ngfw/agent/internal/agent/agent.go:334 +0x54 fp=0x3bf43fc19fe0 sp=0x3bf43fc19f98 pc=0x115b1b4
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc19fe8 sp=0x3bf43fc19fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:334 +0x1cd7
+
+goroutine 56 gp=0x3bf43f4bed20 m=nil [select]:
+runtime.gopark(0x3bf43f3e2db8?, 0x2?, 0x20?, 0xed?, 0x3bf43f3e2d04?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f3e2b80 sp=0x3bf43f3e2b60 pc=0x48a6ce
+runtime.selectgo(0x3bf43f3e2db8, 0x3bf43f3e2d00, 0x3bf43f8066e0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f3e2cb0 sp=0x3bf43f3e2b80 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchNativeAutoBlock(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0})
+	ngfw/agent/internal/agent/autoblock_detectors.go:88 +0x17e fp=0x3bf43f3e2f98 sp=0x3bf43f3e2cb0 pc=0x115e9fe
+ngfw/agent/internal/agent.Start.func6()
+	ngfw/agent/internal/agent/agent.go:335 +0x54 fp=0x3bf43f3e2fe0 sp=0x3bf43f3e2f98 pc=0x115b0f4
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3e2fe8 sp=0x3bf43f3e2fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:335 +0x1d3f
+
+goroutine 58 gp=0x3bf43f4bf0e0 m=nil [select]:
+runtime.gopark(0x3bf43f3dcf50?, 0x2?, 0x0?, 0x0?, 0x3bf43f3dcf44?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f3dcdd8 sp=0x3bf43f3dcdb8 pc=0x48a6ce
+runtime.selectgo(0x3bf43f3dcf50, 0x3bf43f3dcf40, 0x3bf43f286dc0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f3dcf08 sp=0x3bf43f3dcdd8 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchAutoBlock(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0})
+	ngfw/agent/internal/agent/rpc_autoblock.go:115 +0xdd fp=0x3bf43f3dcf98 sp=0x3bf43f3dcf08 pc=0x117d95d
+ngfw/agent/internal/agent.Start.func8()
+	ngfw/agent/internal/agent/agent.go:337 +0x54 fp=0x3bf43f3dcfe0 sp=0x3bf43f3dcf98 pc=0x115af74
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3dcfe8 sp=0x3bf43f3dcfe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:337 +0x1e0b
+
+goroutine 59 gp=0x3bf43f4bf2c0 m=nil [select]:
+runtime.gopark(0x3bf43fc15ed8?, 0x2?, 0x10?, 0xb1?, 0x3bf43fc15b9c?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc159f8 sp=0x3bf43fc159d8 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc15ed8, 0x3bf43fc15b98, 0x3bf43fc15e20?, 0x0, 0x2520f20?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc15b28 sp=0x3bf43fc159f8 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchWAN(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0}, 0x3bf43f47bb90)
+	ngfw/agent/internal/agent/rpc_wan.go:195 +0xe2f fp=0x3bf43fc15f90 sp=0x3bf43fc15b28 pc=0x11b91ef
+ngfw/agent/internal/agent.Start.func9()
+	ngfw/agent/internal/agent/agent.go:338 +0x58 fp=0x3bf43fc15fe0 sp=0x3bf43fc15f90 pc=0x115aeb8
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc15fe8 sp=0x3bf43fc15fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:338 +0x1e89
+
+goroutine 60 gp=0x3bf43f4bf4a0 m=nil [select]:
+runtime.gopark(0x3bf43f3deef8?, 0x2?, 0x0?, 0x0?, 0x3bf43f3deeb4?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f3ded48 sp=0x3bf43f3ded28 pc=0x48a6ce
+runtime.selectgo(0x3bf43f3deef8, 0x3bf43f3deeb0, 0x77359400?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f3dee78 sp=0x3bf43f3ded48 pc=0x4685a5
+ngfw/agent/internal/agent.watchNativeSAEvents({0x1770e88, 0x3bf43f8066e0}, 0x0?, 0x3bf43f3def78, 0x3bf43f3def68)
+	ngfw/agent/internal/agent/native_events.go:98 +0x19a fp=0x3bf43f3def40 sp=0x3bf43f3dee78 pc=0x117303a
+ngfw/agent/internal/agent.(*Agent).watchNativeIPsec(0x0?, {0x1770e88?, 0x3bf43f8066e0?})
+	ngfw/agent/internal/agent/native_events.go:107 +0x65 fp=0x3bf43f3def98 sp=0x3bf43f3def40 pc=0x11731c5
+ngfw/agent/internal/agent.Start.func10()
+	ngfw/agent/internal/agent/agent.go:339 +0x54 fp=0x3bf43f3defe0 sp=0x3bf43f3def98 pc=0x115adf4
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f3defe8 sp=0x3bf43f3defe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:339 +0x1eef
+
+goroutine 61 gp=0x3bf43f4bf680 m=nil [IO wait]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc21bc8 sp=0x3bf43fc21ba8 pc=0x48a6ce
+runtime.netpollblock(0x3bf43fc21ce0?, 0x41b446?, 0x0?)
+	runtime/netpoll.go:575 +0xf7 fp=0x3bf43fc21c00 sp=0x3bf43fc21bc8 pc=0x44dd17
+internal/poll.runtime_pollWait(0x723d9366da00, 0x72)
+	runtime/netpoll.go:351 +0x85 fp=0x3bf43fc21c20 sp=0x3bf43fc21c00 pc=0x4898a5
+internal/poll.(*pollDesc).wait(0x3bf43f787780?, 0x20?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3bf43fc21c48 sp=0x3bf43fc21c20 pc=0x5045e7
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Accept(0x3bf43f787780)
+	internal/poll/fd_unix.go:613 +0x28c fp=0x3bf43fc21cf0 sp=0x3bf43fc21c48 pc=0x50966c
+net.(*netFD).accept(0x3bf43f787780)
+	net/fd_unix.go:150 +0x29 fp=0x3bf43fc21da8 sp=0x3bf43fc21cf0 pc=0x5a34a9
+net.(*UnixListener).accept(0x45f140?)
+	net/unixsock_posix.go:172 +0x16 fp=0x3bf43fc21dd0 sp=0x3bf43fc21da8 pc=0x5c3636
+net.(*UnixListener).Accept(0x3bf43f801650)
+	net/unixsock.go:267 +0x30 fp=0x3bf43fc21e00 sp=0x3bf43fc21dd0 pc=0x5c21d0
+google.golang.org/grpc.(*Server).Serve(0x3bf43f74e908, {0x175c3f0, 0x3bf43f801650})
+	google.golang.org/grpc@v1.84.0/server.go:952 +0x45c fp=0x3bf43fc21f40 sp=0x3bf43fc21e00 pc=0x92d93c
+ngfw/agent/internal/agent.Start.func11()
+	ngfw/agent/internal/agent/agent.go:342 +0x76 fp=0x3bf43fc21fe0 sp=0x3bf43fc21f40 pc=0x115acb6
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc21fe8 sp=0x3bf43fc21fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:340 +0x1f6d
+
+goroutine 62 gp=0x3bf43f4bf860 m=nil [select]:
+runtime.gopark(0x3bf43fa49e90?, 0x4?, 0xa2?, 0x5e?, 0x3bf43fa49d78?)
+	runtime/proc.go:462 +0xce fp=0x3bf44008bbf0 sp=0x3bf44008bbd0 pc=0x48a6ce
+runtime.selectgo(0x3bf44008be90, 0x3bf43fa49d70, 0x3bf43f8066e0?, 0x0, 0x7?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf44008bd20 sp=0x3bf44008bbf0 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchVPP(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0})
+	ngfw/agent/internal/agent/agent.go:384 +0x1d8 fp=0x3bf44008bf98 sp=0x3bf44008bd20 pc=0x115b6b8
+ngfw/agent/internal/agent.Start.func12()
+	ngfw/agent/internal/agent/agent.go:348 +0x54 fp=0x3bf44008bfe0 sp=0x3bf44008bf98 pc=0x115abd4
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf44008bfe8 sp=0x3bf44008bfe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:346 +0x1fd5
+
+goroutine 63 gp=0x3bf43f4bfa40 m=nil [select]:
+runtime.gopark(0x3bf43f313f50?, 0x2?, 0x48?, 0xff?, 0x3bf43f313f44?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f313dd8 sp=0x3bf43f313db8 pc=0x48a6ce
+runtime.selectgo(0x3bf43f313f50, 0x3bf43f313f40, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f313f08 sp=0x3bf43f313dd8 pc=0x4685a5
+ngfw/agent/internal/agent.(*Agent).watchDrift(0x3bf43f286dc0, {0x1770e88, 0x3bf43f8066e0})
+	ngfw/agent/internal/agent/agent.go:525 +0xe6 fp=0x3bf43f313f98 sp=0x3bf43f313f08 pc=0x115cd06
+ngfw/agent/internal/agent.Start.func13()
+	ngfw/agent/internal/agent/agent.go:352 +0x54 fp=0x3bf43f313fe0 sp=0x3bf43f313f98 pc=0x115ab14
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f313fe8 sp=0x3bf43f313fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.Start in goroutine 1
+	ngfw/agent/internal/agent/agent.go:350 +0x203f
+
+goroutine 293 gp=0x3bf43f83c3c0 m=nil [select]:
+runtime.gopark(0x3bf43fc26e90?, 0x2?, 0x0?, 0x80?, 0x3bf43fc26e64?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc26d00 sp=0x3bf43fc26ce0 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc26e90, 0x3bf43fc26e60, 0x8bbad3?, 0x0, 0x3bf43fc26e78?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc26e30 sp=0x3bf43fc26d00 pc=0x4685a5
+google.golang.org/grpc/internal/transport.(*controlBuffer).get(0x3bf43f92a640, 0x1)
+	google.golang.org/grpc@v1.84.0/internal/transport/controlbuf.go:431 +0x10a fp=0x3bf43fc26ec0 sp=0x3bf43fc26e30 pc=0x89a6aa
+google.golang.org/grpc/internal/transport.(*loopyWriter).run(0x3bf43f785d60)
+	google.golang.org/grpc@v1.84.0/internal/transport/controlbuf.go:606 +0x78 fp=0x3bf43fc26f20 sp=0x3bf43fc26ec0 pc=0x89ae58
+google.golang.org/grpc/internal/transport.NewServerTransport.func3()
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:350 +0xdc fp=0x3bf43fc26fe0 sp=0x3bf43fc26f20 pc=0x8b1d5c
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc26fe8 sp=0x3bf43fc26fe0 pc=0x491e61
+created by google.golang.org/grpc/internal/transport.NewServerTransport in goroutine 292
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:348 +0x18e7
+
+goroutine 295 gp=0x3bf43f83da40 m=nil [IO wait]:
+runtime.gopark(0x3bf43fcbfa98?, 0x89237f?, 0x0?, 0x80?, 0x12e6240?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fcbfa70 sp=0x3bf43fcbfa50 pc=0x48a6ce
+runtime.netpollblock(0x3bf43f3662a0?, 0x3f85a000?, 0xf4?)
+	runtime/netpoll.go:575 +0xf7 fp=0x3bf43fcbfaa8 sp=0x3bf43fcbfa70 pc=0x44dd17
+internal/poll.runtime_pollWait(0x723d9366d800, 0x72)
+	runtime/netpoll.go:351 +0x85 fp=0x3bf43fcbfac8 sp=0x3bf43fcbfaa8 pc=0x4898a5
+internal/poll.(*pollDesc).wait(0x8?, 0x7?, 0x0)
+	internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3bf43fcbfaf0 sp=0x3bf43fcbfac8 pc=0x5045e7
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).RawRead(0x3bf43f081000, 0x3bf43f48ac20)
+	internal/poll/fd_unix.go:710 +0x125 fp=0x3bf43fcbfb50 sp=0x3bf43fcbfaf0 pc=0x50a245
+net.(*rawConn).Read(0x3bf43f31a1d8, 0x3bf43fcbfbb8?)
+	net/rawconn.go:44 +0x36 fp=0x3bf43fcbfb88 sp=0x3bf43fcbfb50 pc=0x5b79b6
+google.golang.org/grpc/internal/transport/readyreader.(*nonBlockingReader).ReadOnReady(0x3bf43f793090, 0x3bf43fcbfc18?, {0x175a638, 0x3bf43f3662a0})
+	google.golang.org/grpc@v1.84.0/internal/transport/readyreader/ready_reader.go:114 +0xa7 fp=0x3bf43fcbfbe0 sp=0x3bf43fcbfb88 pc=0x897b27
+google.golang.org/grpc/internal/transport/readyreader.(*bufReadyReader).Read(0x3bf43f0bb7a0, {0x3bf43f082664, 0x9, 0x4baa9a?})
+	google.golang.org/grpc@v1.84.0/internal/transport/readyreader/ready_reader.go:221 +0x174 fp=0x3bf43fcbfc18 sp=0x3bf43fcbfbe0 pc=0x897df4
+io.ReadAtLeast({0x1757500, 0x3bf43f0bb7a0}, {0x3bf43f082664, 0x9, 0x9}, 0x9)
+	io/io.go:335 +0x8e fp=0x3bf43fcbfc60 sp=0x3bf43fcbfc18 pc=0x4f956e
+io.ReadFull(...)
+	io/io.go:354
+golang.org/x/net/http2.readFrameHeader({0x3bf43f082664, 0x9, 0x8b5fb2?}, {0x1757500?, 0x3bf43f0bb7a0?})
+	golang.org/x/net@v0.57.0/http2/frame.go:250 +0x65 fp=0x3bf43fcbfcb0 sp=0x3bf43fcbfc60 pc=0x887725
+golang.org/x/net/http2.(*Framer).ReadFrameHeader(0x3bf43f082620)
+	golang.org/x/net@v0.57.0/http2/frame.go:513 +0x6b fp=0x3bf43fcbfd38 sp=0x3bf43fcbfcb0 pc=0x887deb
+google.golang.org/grpc/internal/transport.(*framer).readFrame(0x3bf43f081200)
+	google.golang.org/grpc@v1.84.0/internal/transport/http_util.go:504 +0x45 fp=0x3bf43fcbfd78 sp=0x3bf43fcbfd38 pc=0x8bc6a5
+google.golang.org/grpc/internal/transport.(*http2Server).HandleStreams(0x3bf43f91e340, {0x1770e50, 0x3bf43f366450}, 0x3bf43f366480)
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:653 +0xff fp=0x3bf43fcbfe98 sp=0x3bf43fcbfd78 pc=0x8b4aff
+google.golang.org/grpc.(*Server).serveStreams(0x3bf43f74e908, {0x1770e18?, 0x2520f20?}, {0x17717f8, 0x3bf43f91e340}, {0x1781340?, 0x3bf43f31a1d0?})
+	google.golang.org/grpc@v1.84.0/server.go:1090 +0x368 fp=0x3bf43fcbff70 sp=0x3bf43fcbfe98 pc=0x92eba8
+google.golang.org/grpc.(*Server).handleRawConn.func1()
+	google.golang.org/grpc@v1.84.0/server.go:1024 +0x56 fp=0x3bf43fcbffe0 sp=0x3bf43fcbff70 pc=0x92e376
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fcbffe8 sp=0x3bf43fcbffe0 pc=0x491e61
+created by google.golang.org/grpc.(*Server).handleRawConn in goroutine 292
+	google.golang.org/grpc@v1.84.0/server.go:1023 +0x1cb
+
+goroutine 294 gp=0x3bf43fc9c000 m=nil [select]:
+runtime.gopark(0x3bf43fc93750?, 0x4?, 0x70?, 0x0?, 0x3bf43fc936c0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc20d48 sp=0x3bf43fc20d28 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc20f50, 0x3bf43fc936b8, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc20e78 sp=0x3bf43fc20d48 pc=0x4685a5
+google.golang.org/grpc/internal/transport.(*http2Server).keepalive(0x3bf43f91e340)
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:1221 +0x1e5 fp=0x3bf43fc20fc8 sp=0x3bf43fc20e78 pc=0x8b91c5
+google.golang.org/grpc/internal/transport.NewServerTransport.gowrap1()
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:371 +0x17 fp=0x3bf43fc20fe0 sp=0x3bf43fc20fc8 pc=0x8b1c57
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc20fe8 sp=0x3bf43fc20fe0 pc=0x491e61
+created by google.golang.org/grpc/internal/transport.NewServerTransport in goroutine 292
+	google.golang.org/grpc@v1.84.0/internal/transport/http2_server.go:371 +0x1929
+
+goroutine 691 gp=0x3bf43f795680 m=nil [select]:
+runtime.gopark(0x3bf43fc27f70?, 0x2?, 0x48?, 0xff?, 0x3bf43fc27f2c?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fc27db0 sp=0x3bf43fc27d90 pc=0x48a6ce
+runtime.selectgo(0x3bf43fc27f70, 0x3bf43fc27f28, 0x16af013?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fc27ee0 sp=0x3bf43fc27db0 pc=0x4685a5
+go.fd.io/govpp/core.(*watcher).watch(0x3bf43fa8c540)
+	go.fd.io/govpp@v0.13.0/core/stream.go:122 +0x13d fp=0x3bf43fc27fc8 sp=0x3bf43fc27ee0 pc=0xa3f7dd
+go.fd.io/govpp/core.(*Connection).WatchEventWithOptions.gowrap1()
+	go.fd.io/govpp@v0.13.0/core/stream.go:206 +0x17 fp=0x3bf43fc27fe0 sp=0x3bf43fc27fc8 pc=0xa40357
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fc27fe8 sp=0x3bf43fc27fe0 pc=0x491e61
+created by go.fd.io/govpp/core.(*Connection).WatchEventWithOptions in goroutine 690
+	go.fd.io/govpp@v0.13.0/core/stream.go:206 +0x5e5
+
+goroutine 2131 gp=0x3bf43f795860 m=nil [select]:
+runtime.gopark(0x3bf43f7b3920?, 0x2?, 0x1?, 0x0?, 0x3bf43f7b38b4?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f7b3740 sp=0x3bf43f7b3720 pc=0x48a6ce
+runtime.selectgo(0x3bf43f7b3920, 0x3bf43f7b38b0, 0x30?, 0x0, 0x15f4320?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f7b3870 sp=0x3bf43f7b3740 pc=0x4685a5
+ngfw/agent/internal/agent.(*subscriber).next(0x3bf43fae68c0, {0x1770e50, 0x3bf43fd34150})
+	ngfw/agent/internal/agent/events.go:138 +0x135 fp=0x3bf43f7b3960 sp=0x3bf43f7b3870 pc=0x116d575
+ngfw/agent/internal/agent.(*server).StreamEvents(0x3bf43f801740, 0x168ad00?, {0x177bbc0, 0x3bf43f80d490})
+	ngfw/agent/internal/agent/server.go:103 +0xad fp=0x3bf43f7b39e0 sp=0x3bf43f7b3960 pc=0x11bc4ed
+ngfw/agent/gen/ngfw/v1._Dataplane_StreamEvents_Handler({0x168ad00, 0x3bf43f801740}, {0x1779d98, 0x3bf43f9a4100})
+	ngfw/agent/gen/ngfw/v1/dataplane_grpc.pb.go:1445 +0x113 fp=0x3bf43f7b3a20 sp=0x3bf43f7b39e0 pc=0x9b1733
+ngfw/agent/internal/agent.newGRPCServer.func3({0x168ad00?, 0x3bf43f801740?}, {0x1779d98?, 0x3bf43f9a4100?}, 0x12cff40?, 0x3bf43fadadc0?)
+	ngfw/agent/internal/agent/server.go:49 +0x79 fp=0x3bf43f7b3a90 sp=0x3bf43f7b3a20 pc=0x11bb8d9
+google.golang.org/grpc.(*Server).processRPC(0x3bf43f74e908, {0x1770e50, 0x3bf43fd340f0}, 0x3bf43ee5ca80, 0x3bf43f8017a0, 0x24eaba0, 0x0)
+	google.golang.org/grpc@v1.84.0/server.go:1457 +0x11c8 fp=0x3bf43f7b3db0 sp=0x3bf43f7b3a90 pc=0x930fe8
+google.golang.org/grpc.(*Server).handleStream(0x3bf43f74e908, {0x17717f8, 0x3bf43f91e340}, 0x3bf43ee5ca80)
+	google.golang.org/grpc@v1.84.0/server.go:1595 +0xa70 fp=0x3bf43f7b3f78 sp=0x3bf43f7b3db0 pc=0x932ed0
+google.golang.org/grpc.(*Server).serveStreams.func2.1()
+	google.golang.org/grpc@v1.84.0/server.go:1096 +0x7f fp=0x3bf43f7b3fe0 sp=0x3bf43f7b3f78 pc=0x92edff
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f7b3fe8 sp=0x3bf43f7b3fe0 pc=0x491e61
+created by google.golang.org/grpc.(*Server).serveStreams.func2 in goroutine 295
+	google.golang.org/grpc@v1.84.0/server.go:1107 +0x11d
+
+goroutine 690 gp=0x3bf43fdaa000 m=nil [chan receive]:
+runtime.gopark(0x3bf43f85be48?, 0xca8c88?, 0x80?, 0xa0?, 0x1770e88?)
+	runtime/proc.go:462 +0xce fp=0x3bf44000cdb8 sp=0x3bf44000cd98 pc=0x48a6ce
+runtime.chanrecv(0x3bf43fde9420, 0x3bf43f85bf70, 0x1)
+	runtime/chan.go:667 +0x4ae fp=0x3bf44000ce30 sp=0x3bf44000cdb8 pc=0x41e70e
+runtime.chanrecv2(0x1770e88?, 0x3bf43fa913b0?)
+	runtime/chan.go:514 +0x12 fp=0x3bf44000ce58 sp=0x3bf44000ce30 pc=0x41e252
+ngfw/agent/internal/subsystems.(*Wiring).igmpMfibAfterResync.func1()
+	ngfw/agent/internal/subsystems/igmp_mfib.go:86 +0x185 fp=0x3bf44000cfe0 sp=0x3bf44000ce58 pc=0x10e09c5
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf44000cfe8 sp=0x3bf44000cfe0 pc=0x491e61
+created by ngfw/agent/internal/subsystems.(*Wiring).igmpMfibAfterResync in goroutine 62
+	ngfw/agent/internal/subsystems/igmp_mfib.go:81 +0x25c
+
+goroutine 693 gp=0x3bf43fdaa5a0 m=nil [select]:
+runtime.gopark(0x3bf43fdb16f0?, 0x2?, 0x0?, 0x0?, 0x3bf43fdb1654?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fdb14e0 sp=0x3bf43fdb14c0 pc=0x48a6ce
+runtime.selectgo(0x3bf43fdb16f0, 0x3bf43fdb1650, 0x0?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fdb1610 sp=0x3bf43fdb14e0 pc=0x4685a5
+ngfw/agent/internal/descriptors/df7.Watch[...].func1()
+	ngfw/agent/internal/descriptors/df7/events.go:40 +0x1ba fp=0x3bf43fdb17e0 sp=0x3bf43fdb1610 pc=0xcb0d9a
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fdb17e8 sp=0x3bf43fdb17e0 pc=0x491e61
+created by ngfw/agent/internal/descriptors/df7.Watch[...] in goroutine 690
+	ngfw/agent/internal/descriptors/df7/events.go:31 +0x26f
+
+goroutine 707 gp=0x3bf43f7db2c0 m=nil [select]:
+runtime.gopark(0x3bf440087e70?, 0x2?, 0x60?, 0x18?, 0x3bf440087e24?)
+	runtime/proc.go:462 +0xce fp=0x3bf440087ca0 sp=0x3bf440087c80 pc=0x48a6ce
+runtime.selectgo(0x3bf440087e70, 0x3bf440087e20, 0x3bf43f1824d0?, 0x0, 0x2?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf440087dd0 sp=0x3bf440087ca0 pc=0x4685a5
+ngfw/agent/internal/subsystems.(*PppoeRuntime).watch(0x3bf43f069680, {0x1770e88, 0x3bf43f8066e0}, 0xa31f01?)
+	ngfw/agent/internal/subsystems/pppoe_watch.go:29 +0x11f fp=0x3bf440087eb8 sp=0x3bf440087dd0 pc=0x10f4a5f
+ngfw/agent/internal/subsystems.(*PppoeRuntime).watch-fm({0x1770e88?, 0x3bf43f8066e0?}, 0x0?)
+	<autogenerated>:1 +0x2d fp=0x3bf440087ee8 sp=0x3bf440087eb8 pc=0x111bbcd
+ngfw/agent/internal/agent.(*Agent).startSources.func1()
+	ngfw/agent/internal/agent/agent.go:567 +0x149 fp=0x3bf440087fe0 sp=0x3bf440087ee8 pc=0x115d289
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf440087fe8 sp=0x3bf440087fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.(*Agent).startSources in goroutine 62
+	ngfw/agent/internal/agent/agent.go:559 +0x231
+
+goroutine 708 gp=0x3bf43fa1f4a0 m=nil [select]:
+runtime.gopark(0x3bf43ff7fea0?, 0x2?, 0x8?, 0x12?, 0x3bf43ff7fe94?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ff7fd28 sp=0x3bf43ff7fd08 pc=0x48a6ce
+runtime.selectgo(0x3bf43ff7fea0, 0x3bf43ff7fe90, 0x20?, 0x0, 0x3bf43fdd4be0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43ff7fe58 sp=0x3bf43ff7fd28 pc=0x4685a5
+ngfw/agent/internal/agent.registerWANRoutes.func2({0x1770e88, 0x3bf43f8066e0}, 0x3bf43fdd4be0)
+	ngfw/agent/internal/agent/wan_routes.go:54 +0xfc fp=0x3bf43ff7fee8 sp=0x3bf43ff7fe58 pc=0x11d2adc
+ngfw/agent/internal/agent.(*Agent).startSources.func1()
+	ngfw/agent/internal/agent/agent.go:567 +0x149 fp=0x3bf43ff7ffe0 sp=0x3bf43ff7fee8 pc=0x115d289
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ff7ffe8 sp=0x3bf43ff7ffe0 pc=0x491e61
+created by ngfw/agent/internal/agent.(*Agent).startSources in goroutine 62
+	ngfw/agent/internal/agent/agent.go:559 +0x231
+
+goroutine 709 gp=0x3bf43fa1f680 m=nil [select]:
+runtime.gopark(0x3bf43fcbdc00?, 0x2?, 0xc7?, 0x33?, 0x3bf43fcbd9e8?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fcbd868 sp=0x3bf43fcbd848 pc=0x48a6ce
+runtime.selectgo(0x3bf43fcbdc00, 0x3bf43fcbd9e4, 0x3bf43f7d57c0?, 0x0, 0x10b5b1?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fcbd998 sp=0x3bf43fcbd868 pc=0x4685a5
+ngfw/agent/internal/agent.watchLinks({0x1770e88, 0x3bf43f7d57c0}, {0x723d90467660, 0x3bf43efbe000}, 0x3bf43f483950, 0x3bf43f483920)
+	ngfw/agent/internal/agent/telemetry.go:193 +0x465 fp=0x3bf43fcbddb8 sp=0x3bf43fcbd998 pc=0x11d10c5
+ngfw/agent/internal/agent.(*Agent).runLinks.func1()
+	ngfw/agent/internal/agent/agent.go:498 +0x6c fp=0x3bf43fcbde28 sp=0x3bf43fcbddb8 pc=0x115cb6c
+ngfw/agent/internal/agent.(*Agent).safely(0x0?, {0x169a434?, 0x0?}, 0x0?)
+	ngfw/agent/internal/agent/agent.go:481 +0x51 fp=0x3bf43fcbde68 sp=0x3bf43fcbde28 pc=0x115c551
+ngfw/agent/internal/agent.(*Agent).runLinks(0x3bf43f286dc0, {0x1770e88, 0x3bf43f7d57c0})
+	ngfw/agent/internal/agent/agent.go:498 +0xdc fp=0x3bf43fcbdf98 sp=0x3bf43fcbde68 pc=0x115c8fc
+ngfw/agent/internal/agent.(*Agent).watchVPP.func5()
+	ngfw/agent/internal/agent/agent.go:448 +0x54 fp=0x3bf43fcbdfe0 sp=0x3bf43fcbdf98 pc=0x115be94
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fcbdfe8 sp=0x3bf43fcbdfe0 pc=0x491e61
+created by ngfw/agent/internal/agent.(*Agent).watchVPP in goroutine 62
+	ngfw/agent/internal/agent/agent.go:446 +0x889
+
+goroutine 710 gp=0x3bf43fa1f860 m=nil [select]:
+runtime.gopark(0x3bf43f868f70?, 0x2?, 0x28?, 0x21?, 0x3bf43f868f2c?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f868db0 sp=0x3bf43f868d90 pc=0x48a6ce
+runtime.selectgo(0x3bf43f868f70, 0x3bf43f868f28, 0x16af013?, 0x0, 0x0?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43f868ee0 sp=0x3bf43f868db0 pc=0x4685a5
+go.fd.io/govpp/core.(*watcher).watch(0x3bf43fa27b80)
+	go.fd.io/govpp@v0.13.0/core/stream.go:122 +0x13d fp=0x3bf43f868fc8 sp=0x3bf43f868ee0 pc=0xa3f7dd
+go.fd.io/govpp/core.(*Connection).WatchEventWithOptions.gowrap1()
+	go.fd.io/govpp@v0.13.0/core/stream.go:206 +0x17 fp=0x3bf43f868fe0 sp=0x3bf43f868fc8 pc=0xa40357
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f868fe8 sp=0x3bf43f868fe0 pc=0x491e61
+created by go.fd.io/govpp/core.(*Connection).WatchEventWithOptions in goroutine 709
+	go.fd.io/govpp@v0.13.0/core/stream.go:206 +0x5e5
+
+goroutine 2132 gp=0x3bf440083860 m=nil [chan receive]:
+runtime.gopark(0x3bf43faf6690?, 0x7000000000020?, 0xa8?, 0xa7?, 0x723dda49c858?)
+	runtime/proc.go:462 +0xce fp=0x3bf43f7ad858 sp=0x3bf43f7ad838 pc=0x48a6ce
+runtime.chanrecv(0x3bf43faf6620, 0x3bf43f7ad940, 0x1)
+	runtime/chan.go:667 +0x4ae fp=0x3bf43f7ad8d0 sp=0x3bf43f7ad858 pc=0x41e70e
+runtime.chanrecv2(0x20?, 0x4?)
+	runtime/chan.go:514 +0x12 fp=0x3bf43f7ad8f8 sp=0x3bf43f7ad8d0 pc=0x41e252
+ngfw/agent/internal/agent.streamStats({0x1770e50, 0x3bf43fd34690}, {0x174f1c0, 0x3bf43f8015c0}, 0x3bf43fae69b0, 0x3bf43f7ad9a8, 0x3bf43f483920)
+	ngfw/agent/internal/agent/telemetry.go:139 +0x1a5 fp=0x3bf43f7ad958 sp=0x3bf43f7ad8f8 pc=0x11d0825
+ngfw/agent/internal/agent.(*server).StreamStats(0x3bf43f801740, 0x3bf43fae69b0, {0x177bc10, 0x3bf43f80d5f0})
+	ngfw/agent/internal/agent/server.go:92 +0x114 fp=0x3bf43f7ad9e0 sp=0x3bf43f7ad958 pc=0x11bc2f4
+ngfw/agent/gen/ngfw/v1._Dataplane_StreamStats_Handler({0x168ad00, 0x3bf43f801740}, {0x1779d98, 0x3bf43f9a4200})
+	ngfw/agent/gen/ngfw/v1/dataplane_grpc.pb.go:1434 +0x113 fp=0x3bf43f7ada20 sp=0x3bf43f7ad9e0 pc=0x9b15d3
+ngfw/agent/internal/agent.newGRPCServer.func3({0x168ad00?, 0x3bf43f801740?}, {0x1779d98?, 0x3bf43f9a4200?}, 0x12cff40?, 0x3bf43fadae80?)
+	ngfw/agent/internal/agent/server.go:49 +0x79 fp=0x3bf43f7ada90 sp=0x3bf43f7ada20 pc=0x11bb8d9
+google.golang.org/grpc.(*Server).processRPC(0x3bf43f74e908, {0x1770e50, 0x3bf43fd34630}, 0x3bf43ee5cfc0, 0x3bf43f8017a0, 0x24eab80, 0x0)
+	google.golang.org/grpc@v1.84.0/server.go:1457 +0x11c8 fp=0x3bf43f7addb0 sp=0x3bf43f7ada90 pc=0x930fe8
+google.golang.org/grpc.(*Server).handleStream(0x3bf43f74e908, {0x17717f8, 0x3bf43f91e340}, 0x3bf43ee5cfc0)
+	google.golang.org/grpc@v1.84.0/server.go:1595 +0xa70 fp=0x3bf43f7adf78 sp=0x3bf43f7addb0 pc=0x932ed0
+google.golang.org/grpc.(*Server).serveStreams.func2.1()
+	google.golang.org/grpc@v1.84.0/server.go:1096 +0x7f fp=0x3bf43f7adfe0 sp=0x3bf43f7adf78 pc=0x92edff
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43f7adfe8 sp=0x3bf43f7adfe0 pc=0x491e61
+created by google.golang.org/grpc.(*Server).serveStreams.func2 in goroutine 295
+	google.golang.org/grpc@v1.84.0/server.go:1107 +0x11d
+
+goroutine 2133 gp=0x3bf43fae4000 m=nil [select]:
+runtime.gopark(0x3bf43fec9f50?, 0x2?, 0xa0?, 0x66?, 0x3bf43fec9ee0?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fec9d60 sp=0x3bf43fec9d40 pc=0x48a6ce
+runtime.selectgo(0x3bf43fec9f50, 0x3bf43fec9edc, 0x3bf43f378ee0?, 0x0, 0x19?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43fec9e90 sp=0x3bf43fec9d60 pc=0x4685a5
+ngfw/agent/internal/agent.streamStats.func1()
+	ngfw/agent/internal/agent/telemetry.go:132 +0x2b8 fp=0x3bf43fec9fe0 sp=0x3bf43fec9e90 pc=0x11d0b78
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fec9fe8 sp=0x3bf43fec9fe0 pc=0x491e61
+created by ngfw/agent/internal/agent.streamStats in goroutine 2132
+	ngfw/agent/internal/agent/telemetry.go:110 +0x188
+
+goroutine 2134 gp=0x3bf43fae4960 m=nil [IO wait]:
+runtime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0xb?)
+	runtime/proc.go:462 +0xce fp=0x3bf43fe3dcc8 sp=0x3bf43fe3dca8 pc=0x48a6ce
+runtime.netpollblock(0x4ad858?, 0x41b446?, 0x0?)
+	runtime/netpoll.go:575 +0xf7 fp=0x3bf43fe3dd00 sp=0x3bf43fe3dcc8 pc=0x44dd17
+internal/poll.runtime_pollWait(0x723d9366d400, 0x72)
+	runtime/netpoll.go:351 +0x85 fp=0x3bf43fe3dd20 sp=0x3bf43fe3dd00 pc=0x4898a5
+internal/poll.(*pollDesc).wait(0x3bf43f66cf00?, 0x3bf43fe3de53?, 0x1)
+	internal/poll/fd_poll_runtime.go:84 +0x27 fp=0x3bf43fe3dd48 sp=0x3bf43fe3dd20 pc=0x5045e7
+internal/poll.(*pollDesc).waitRead(...)
+	internal/poll/fd_poll_runtime.go:89
+internal/poll.(*FD).Read(0x3bf43f66cf00, {0x3bf43fe3de53, 0x10000, 0x10000})
+	internal/poll/fd_unix.go:165 +0x2ae fp=0x3bf43fe3dde0 sp=0x3bf43fe3dd48 pc=0x50580e
+os.(*File).read(...)
+	os/file_posix.go:29
+os.(*File).Read(0x3bf43f31aa38, {0x3bf43fe3de53?, 0x0?, 0x0?})
+	os/file.go:144 +0x4f fp=0x3bf43fe3de20 sp=0x3bf43fe3dde0 pc=0x510f8f
+github.com/fsnotify/fsnotify.(*inotify).readEvents(0x3bf43f2872c0)
+	github.com/fsnotify/fsnotify@v1.9.0/backend_inotify.go:357 +0xcf fp=0x3bf43fe4dfc8 sp=0x3bf43fe3de20 pc=0xa17c6f
+github.com/fsnotify/fsnotify.newBackend.gowrap1()
+	github.com/fsnotify/fsnotify@v1.9.0/backend_inotify.go:155 +0x17 fp=0x3bf43fe4dfe0 sp=0x3bf43fe4dfc8 pc=0xa16857
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43fe4dfe8 sp=0x3bf43fe4dfe0 pc=0x491e61
+created by github.com/fsnotify/fsnotify.newBackend in goroutine 2133
+	github.com/fsnotify/fsnotify@v1.9.0/backend_inotify.go:155 +0x1f6
+
+goroutine 2135 gp=0x3bf43fae4b40 m=nil [select]:
+runtime.gopark(0x3bf43ff4f768?, 0x3?, 0xf0?, 0xfb?, 0x3bf43ff4f6fa?)
+	runtime/proc.go:462 +0xce fp=0x3bf43ff4f588 sp=0x3bf43ff4f568 pc=0x48a6ce
+runtime.selectgo(0x3bf43ff4f768, 0x3bf43ff4f6f4, 0x3bf43ff4f780?, 0x0, 0x3bf43f179ee1?, 0x1)
+	runtime/select.go:351 +0xaa5 fp=0x3bf43ff4f6b8 sp=0x3bf43ff4f588 pc=0x4685a5
+go.fd.io/govpp/adapter/statsclient.(*StatsClient).monitorSocket.func1()
+	go.fd.io/govpp@v0.13.0/adapter/statsclient/statsclient.go:451 +0xce fp=0x3bf43ff4f7e0 sp=0x3bf43ff4f6b8 pc=0xb83e8e
+runtime.goexit({})
+	runtime/asm_amd64.s:1771 +0x1 fp=0x3bf43ff4f7e8 sp=0x3bf43ff4f7e0 pc=0x491e61
+created by go.fd.io/govpp/adapter/statsclient.(*StatsClient).monitorSocket in goroutine 2133
+	go.fd.io/govpp@v0.13.0/adapter/statsclient/statsclient.go:449 +0xcc
+
+rax    0xca
+rbx    0x0
+rcx    0x4939a3
+rdx    0x0
+rdi    0x25010b8
+rsi    0x80
+rbp    0x7ffee2de9210
+rsp    0x7ffee2de91c8
+r8     0x0
+r9     0x0
+r10    0x0
+r11    0x286
+r12    0x7ffee2de91f0
+r13    0x3bf43f47a000
+r14    0x24ffd80
+r15    0x0
+rip    0x4939a1
+rflags 0x286
+cs     0x33
+fs     0x0
+gs     0x0

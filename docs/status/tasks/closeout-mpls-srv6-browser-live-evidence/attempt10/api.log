@@ -1,0 +1,254 @@
+[Nest] 1090656  - 10/05/2026, 6:00:46 AM     LOG [NestFactory] Starting Nest application...
+[Nest] 1090656  - 10/05/2026, 6:00:46 AM     LOG [InstanceLoader] AppModule dependencies initialized +607ms
+[Nest] 1090656  - 10/05/2026, 6:00:59 AM     LOG [Auth] bootstrap admin 'admin' created
+[Nest] 1090656  - 10/05/2026, 6:01:00 AM     LOG [SeedDefaultNics] default NIC seeding disabled (NGFW_SEED_DEFAULT_NICS is not 1)
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RoutesResolver] NotificationsController {/api/v1}: +750ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/state/management/notifications, GET} route +16ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/management/notifications/:name/test, POST} route +194ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RoutesResolver] HealthController {/api/v1/health}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/health, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RoutesResolver] AuthController {/api/v1/auth}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/login, POST} route +5ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/refresh, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/logout, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/me, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/password, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/api-keys, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/api-keys, POST} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/api-keys/:id, DELETE} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RoutesResolver] ConfigController {/api/v1/config}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/candidate, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/candidate/*, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/diff, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/lock, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/lock, DELETE} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/validate, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/commit, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/commit/confirm, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/commit/pending, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/discard, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/revisions, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/revisions/:rev, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/revisions/:rev/diff, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/rollback/:rev, POST} route +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/export, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/import, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config, PATCH} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/*, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/*, PATCH} route +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:01 AM     LOG [RouterExplorer] Mapped {/api/v1/config/*, PUT} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/config/*, DELETE} route +262ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] SetupController {/api/v1/config/setup}: +6ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/config/setup/preview, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/config/setup/stage, POST} route +8ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] StateController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/system, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/interfaces, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/interfaces/:name/counters, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/drift, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/events, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] LoginBannerController {/api/v1/auth}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/banner, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] ActionsController {/api/v1/actions}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/:action, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] SecretsController {/api/v1/secrets}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/secrets, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/secrets, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/secrets/:kind/:name, DELETE} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] AuditController {/api/v1/audit}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/audit, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] UsersController {/api/v1/users}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/users/:name/password, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Det44MapDsliteCnatController {/api/v1}: +50ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/det44/sessions, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/nat/det44/lookup, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/nat/det44/sessions/close, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/cnat/sessions, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/nat/cnat/sessions/purge, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Nat46Controller {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/nat46, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/nat46/client, GET} route +19ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] TunnelsController {/api/v1/state}: +12ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/tunnels, GET} route +4ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] VrrpConfigSyncController {/api/v1}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ha/vrrp, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ha/cluster, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/ha/sync, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/ha/receive, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] PkiController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/ca, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/csr, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/sign, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/import, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/export/:name, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/crl/refresh, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/pki/ocsp/check, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/pki, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] IpsecController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ipsec/tunnels, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ipsec/sas, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Ikev2NativeController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ipsec/ikev2/sas, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/ipsec/ikev2/:tunnel/:operation, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] OspfController {/api/v1/state}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ospf, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/ospf/neighbors, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/ospf/interfaces, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/ospf/database, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] IsisRipController {/api/v1/state/routing}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/isis/adjacencies, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/isis/database, GET} route +16ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/rip/peers, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/rip/routes, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] MplsSrmplsController {/api/v1/state/routing/mpls}: +5ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/mpls/fib, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/mpls/tunnels, GET} route +5ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] LbController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/lb/vips, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/lb/vips/:name/flush, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] QosFlatController {/api/v1}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/services/qos/policers, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/qos/policers/:name/reset, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] HostStackController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/host-stack, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] SnmpStateController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/snmp, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] DataplaneController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/dataplane, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/dataplane/preview, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] DataplaneApplyController {/api/v1/actions/dataplane}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/dataplane/approve, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/dataplane/apply, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] MgmtTlsController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/management/tls, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] IpfixSflowController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ipfix, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] CaptureTraceController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/capture, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/capture/:id/stop, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/captures, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/captures/:id/file, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/captures/:id, DELETE} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Srv6Controller {/api/v1}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/srv6, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] LispController {/api/v1/state}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/lisp, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] MplsLdpController {/api/v1/state/routing/mpls/ldp}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/mpls/ldp/neighbors, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/mpls/ldp/bindings, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/mpls/ldp/sync, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] IgmpMfibController {/api/v1/state/routing/multicast}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/multicast/groups, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/multicast/mroutes, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routing/multicast/pim-neighbors, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] HostMetricsController {/api/v1/state}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/host, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] LicensingController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/license, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/system/license, PUT} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] BondingController {/api/v1/state/interfaces}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/interfaces/bonds, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] BridgeL2Controller {/api/v1/state/l2}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/l2/bridge-domains, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/l2/bridge-domains/:id/macs, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] LoopbackBviGsoLldpSpanController {/api/v1/state/lldp}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/lldp/neighbors, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] VrfStaticEcmpController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/routes, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] NeighborsRaController {/}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/neighbors, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/arp-flush, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] RpfAdlPbrController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/pbr, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] ObjectModelController {/api/v1/state/objects}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/objects/fqdn, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/objects/usage, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] AclController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/acl/lists, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/acl/lists/:name/rules, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/acl/attachments, GET} route +4ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/acl/export.csv, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/acl/import, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/acl/lists/:name/rules/bulk, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] GlobalBlockingController {/api/v1/security/global-blocking}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/security/global-blocking, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/security/global-blocking/lists/:name/import, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/security/global-blocking/lists/:name/fetch, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/security/global-blocking/lists/:name/export, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] PppoeController {/api/v1/actions/interfaces}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/interfaces/:name/pppoe/reconnect, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] DashboardController {/api/v1}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/alarms, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/alarms/:id/ack, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/dashboard, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] MultiwanController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/wan, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] AaaController {/api/v1/actions/aaa}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/aaa/test, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] MfaController {/api/v1/auth/mfa}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/verify, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/enroll, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/setup, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/activate, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/users/:name/enrolment-token, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/users/:name/enrolment-token, DELETE} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/mfa/users/:name, DELETE} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] OidcController {/api/v1/auth}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/methods, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/oidc/start, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/auth/oidc/callback, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] AutoBlockController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/auto-block, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/auto-block/unblock, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/auto-block/block, POST} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] RestconfController {/}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/.well-known/host-meta, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/yang-library-version, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/data, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/data/*, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/data/*, PUT} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/data/*, PATCH} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/data/*, DELETE} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/restconf/operations/*, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] YangController {/api/v1/system/yang}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/system/yang, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/system/yang/:name, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] HostAclNftablesController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/host-acl, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Nat44EdSessionsController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/sessions, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/summary, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/nat/sessions/kill, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] Nat44Ei6466Nptv6Controller {/api/v1}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/ei/sessions, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/nat/ei/sessions/kill, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/nat64/sessions, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/nat/nptv6, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] WireguardController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/vpn/wireguard, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/vpn/wireguard/keypair, POST} route +4ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] BgpController {/api/v1/state}: +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/bgp, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] KeaDhcpRelayController {/api/v1/state}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/dhcp/leases, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/dhcp/relays, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/interfaces/:name/dhcp-client, GET} route +3ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RoutesResolver] UnboundChronySyslogController {/api/v1}: +0ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/dns, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/ntp, GET} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/syslog, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/state/logs, GET} route +2ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [RouterExplorer] Mapped {/api/v1/actions/dns-lookup, POST} route +1ms
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM    WARN [mgmt-tls] NGFW_HTTPS_PORT is set but management.tls has no usable certificate: HTTPS listener not started
+[Nest] 1090656  - 10/05/2026, 6:01:02 AM     LOG [NestApplication] Nest application successfully started +1ms
+ngfw-api listening on http://127.0.0.1:11400 (docs at /api/docs)
+[Nest] 1090656  - 10/05/2026, 6:01:33 AM     LOG [mgmt-tls] HTTPS listener on 127.0.0.1:11401 (certificate from management.tls)
+[Nest] 1090656  - 10/05/2026, 6:01:33 AM     LOG [mgmt-tls] management.tls applied: CN=w14a (sha256 64:7F:D1:3E:3A:31:4D:4C:58:A1:F1:E1:37:B3:0F:51:15:31:B7:88:80:AC:15:97:0C:C8:6F:F7:6C:0C:60:23)
+[Nest] 1090656  - 10/05/2026, 6:01:34 AM     LOG [mgmt-tls] management.tls applied: CN=w14b (sha256 BF:94:27:EA:95:41:DD:F0:98:43:EA:B1:7D:C5:C1:82:7A:D4:84:DD:3C:91:1B:42:2B:43:26:39:21:8F:7C:01)
+[Nest] 1090656  - 10/05/2026, 6:01:39 AM     LOG [mgmt-tls] management.tls applied: CN=w14b (sha256 BF:94:27:EA:95:41:DD:F0:98:43:EA:B1:7D:C5:C1:82:7A:D4:84:DD:3C:91:1B:42:2B:43:26:39:21:8F:7C:01)
+[Nest] 1090656  - 10/05/2026, 6:01:41 AM     LOG [mgmt-tls] management.tls applied: CN=w14b (sha256 BF:94:27:EA:95:41:DD:F0:98:43:EA:B1:7D:C5:C1:82:7A:D4:84:DD:3C:91:1B:42:2B:43:26:39:21:8F:7C:01)
+[Nest] 1090656  - 10/05/2026, 6:01:41 AM    WARN [auto-block] auto-block enforcement failed; retrying: ProblemError: agent: No connection established. Last error: Error: connect ENOENT /run/ngfw-test/w14/agent.sock. Resolution note: 
+[Nest] 1090656  - 10/05/2026, 6:01:42 AM    WARN [Commit] last_txn_id check (agent reconcile) failed: agent: No connection established. Last error: Error: connect ENOENT /run/ngfw-test/w14/agent.sock. Resolution note: 

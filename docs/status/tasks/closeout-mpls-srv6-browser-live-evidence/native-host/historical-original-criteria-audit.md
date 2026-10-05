@@ -1,0 +1,15 @@
+# Exact MPLS/SRv6 host closure audit
+
+Own branch codex/mpls-srv6-host-closure-audit, isolated /root/ngfw-wt/codex-mpls-srv6-closure-audit, base9baf98dafa11aef7dc5004ebae4cc5cb464dcc05. Own this docs-only audit. No product/tests changed; publication pending parent helper.
+
+Original criteria read: F-mpls-srmpls reviewH1/envelope/questions/pending steps; F-srv6 reviewH1/envelope/questions and F-srv6.md167-185; original prompts and plan rows. Packet-level MPLS/SRv6 acceptance explicitly not required; optional globals SRv6 stage must not become new mandatory requirement. Broad future feature/HA/traffic work is outside these host rows.
+
+Certified64fffb9d real13-host manifest and raw8c-complete-agent-host/mpls.jsonl: TestMplsOnHost PASS9.26s, noSKIP. Includes actual globals table0 creation, MPLS interface/ip-bind/table0route/SRpolicy/steering, idempotence, state, loss/restart canonical convergence5.874s, rollback strict no-label-leak and cleanup. NRestarts0 before/after; outer shared PID1014/0 unchanged. Earlier MPLS ip-bind leakage fixed in product and unchanged assertion now passes; retained simulated-loss compensation error is not final rollback failure. Relevant MPLS descriptor/host/API/UI source64→9b byte-identical.
+
+SRv6 raw: TestSrv6OnHost PASS3.63s, TestSrv6GlobalsOnHost PASS0.63s, noSKIP. Native Retrieve/state, source validation, loss528ms convergence, convergedrestart unchanged16, rollback order, no nativeobjects and strict IPv4/IPv6 FIB leftovers assert checked. Globals restored from fd00:a::99/33 to ::/64. Certified shared VPP unchanged. Relevant DF6/SRv6 host/API/UI source64→9b byte-identical.
+
+Remaining MPLS H1: configured real production API/agent/VPP screenshots English/Persian for MPLS interfaces,labelroutes,tunnels and SRpolicies/steering views. Questions call screenshots optional, but reviewed H1 and host row explicitly include them, so do not close using existing empty MPLS navigation screenshot. Native slot/global host steps already satisfied; no new packet requirement. Historical table0/VPPpatch blocker is superseded by actual exact fixed source PASS, not a reason to restart shared VPP.
+
+Remaining SRv6 mandatory original step3: actual API commit, GETstate/srv6, drift, encap-without-source400, owned agent restart excerpt/resync, rollback to baseline revision, configured real-agent screenshots (localSIDs/policies/steering/SID-list editor/counters English+Persian). GoRPC nativehost test is step2 and does not establish this API transaction step3. Existing browser18 has noSRv6route. Original historical board says previous API stage ran before crashes with screenshots owed; fresh current evidence still required to certify current component campaign. Extend existing owned browser/API fixture with these exact preserved assertions; do not substitute navigation-only or configured image alone for API restart/rollback proof.
+
+Verdict: do not blanket mark either host rowDone yet. No missing fresh native Go host stage identified; execute bounded configured MPLS UI and SRv6 API+configured UI using private VPP/known exact artifacts/cleanup receipts. Complete unchanged integration quick gate remains separate.

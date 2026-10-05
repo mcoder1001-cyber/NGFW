@@ -1,16 +1,17 @@
 [Unit]
-Description=NGFW owned remote-access namespace handoff %i
-After=ngfw-agent.service
-ConditionPathExists=/run/ngfw/ra/%i/namespace-request.json
+Description=NGFW authenticated remote-access namespace FD operation
 
 [Service]
-Type=oneshot
+Type=exec
 User=root
 Group=root
-ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker %i
+ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker
+StandardInput=socket
+StandardOutput=null
+StandardError=null
 UMask=0077
-TimeoutStartSec=10
-TimeoutStopSec=5
+RuntimeMaxSec=10
+TimeoutStopSec=2
 KillMode=control-group
 NoNewPrivileges=yes
 CapabilityBoundingSet=CAP_SYS_ADMIN CAP_SYS_CHROOT
@@ -29,8 +30,6 @@ SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX
 SystemCallFilter=~@reboot @swap @raw-io @debug
 ReadWritePaths=/run/ngfw/ra
-StandardOutput=null
-StandardError=null
 LimitCORE=0
 LimitNOFILE=32
 TasksMax=16

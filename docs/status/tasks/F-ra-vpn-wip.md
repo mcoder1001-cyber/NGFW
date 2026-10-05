@@ -331,3 +331,23 @@ Current MAINbb785 union: normal pnpm gen PASS3m00 and CLI normal generation PASS
 Public handoff/mutation contract published a936883cb6ab6872af97fd4d45fe386e7f0c95da after MAINunion7b292 exact-tree publication. Helper namespace/TAP callbacks now guard before mutations; namespace exports verify at Create/Retrieve and remove before local bindings only after quiesce. Guarded TAP failed-stop regression retains rows and root receipts PASS0.056s; existing guarded/namespace unit regressionsPASS0.055s. Actual broker not yet implemented; callbacks alone do not prove production handoff. Next: fixed FD-only namespace broker and persistent multi-target export receipts, then paired controller648 source and cross-mount real lifecycle campaign.
 
 Broker development checkpoint (UNFINISHED): actual exact-agent-cap private Setns failsEPERM despite successful FD-open; CLONE_FS was unshared. Exact brokerSYS_ADMIN|SYS_CHROOT cannot reopen sourceagent3caps /proc/PID/fd/N (permission refused). These invalidate both inherited-agent execution and proc-FD manager draft; neither is operational/accepted. Executable test_broker_caps.py PASS0.537s instead proves bounded root peer SCM_RIGHTS of exactly3 typed/inodechecked NSFS descriptors, deniedprocFD access, private-target actualSetns with CLONE_FS unshared, exactagent3/broker2 caps and NoNewPrivs, with complete own cleanup. Current managerprocFD draft is explicitly unfinished and must be replaced by fixed root600 SOCK_SEQPACKET socket activation receiving authenticatedSCM_RIGHTS. No agent/daemon bounds increased. Draft broker library compiles (helper no tests, guarded regressionPASS0.048s), but this does NOT prove operational manager handoff. Remaining all original fullproduction packet/restart/rollback/lint/security work; sixotheroriginal tasks nowactuallymerged by manager. Exact next command: replace namespace_manager.go transport with socket-activated fixed helper, add protected service/socket artifact/read-only readiness, then run actual broker and cross-mount fullService fixture.
+
+2026-10-05 recovery/SCM consumer checkpoint: rejected whole-controller9517
+merge627d2dc06 archived (archive/ra-rejected-controller-merge-627d2dc06), never
+published: stale controller broader tree inferred deletions of MAIN/BFD files.
+Own source reset to exact published8ac; paired consumer integration will use
+owned paths and original assembly baseline1495 only. FD contract published
+db0aee83 (local5b0eed1a4, exact connector tree equality proved).
+Replaced invalid proc-FD reopening manager transport with bounded root-authenticated
+SOCK_SEQPACKET SCM_RIGHTS. Exactly three NSFS descriptors are closed on all parsed
+refusal paths, including oversized/truncated messages. Added fixed socket-activated
+broker unit with only SYS_ADMIN/SYS_CHROOT and no agent/daemon cap increases.
+Actual Go targeted guard+malformed-rights/leak regressions PASS0.087s; preceding
+exact-cap Python SCM/setns fixture PASS0.537s. These are boundary/component evidence,
+NOT full product broker cross-mount/packet/recovery proof. Source unfinished.
+Remaining: actual Go broker under exact caps in private manager/VPP roles, durable
+partial-export/recovery/removal semantics, stop-first explicit handoff repair,
+scoped latest controller/APIecc2 integration, full Service.Apply cross-mount
+packet/restart/rollback, packaging/install readiness, owned lint/full gates.
+Next command: compile broker into owned RAM; extend private PID/mount fixture to
+exercise socket-activated Go helper and exact role readback, without host activation.

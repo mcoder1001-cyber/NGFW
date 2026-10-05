@@ -24,7 +24,7 @@ const namespaceExportReceipt = "namespace-exports.json"
 type FixedNamespaceHandoff struct {
 	Targets    func(context.Context) ([]MountTarget, error)
 	Executable string
-	Dispatcher NamespaceBrokerDispatch
+	Dispatcher NamespaceBrokerFDDispatch
 }
 
 type namespaceExportRecord struct {
@@ -201,18 +201,14 @@ func (h *FixedNamespaceHandoff) call(ctx context.Context, operation string, plan
 	if e != nil {
 		return e
 	}
-	request := namespaceBrokerRequest{Operation: operation, Instance: plan.Instance, Source: MountTarget{source, sourceMount.Ino}, Targets: targets, Target: target, MountFD: int(mount.Fd()), HostFD: host, PrivateFD: private, HostNamespace: plan.HostNamespaceInode, Namespace: plan.NamespaceInode}
-	if writeNamespaceBrokerRequest(request) != nil {
-		return ErrBoundary
-	}
-	defer func() { _ = os.Remove(filepath.Join(InstanceRoot, plan.Instance, "namespace-request.json")) }()
+	request := NamespaceBrokerMessage{Operation: operation, Instance: plan.Instance, Source: MountTarget{source, sourceMount.Ino}, Targets: targets, Target: target, HostNamespace: plan.HostNamespaceInode, Namespace: plan.NamespaceInode}
 	dispatcher := h.Dispatcher
 	if dispatcher == nil {
 		dispatcher = &SystemdNamespaceBroker{Executable: h.executable()}
 	}
 	bounded, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	if dispatcher.Run(bounded, plan.Instance) != nil || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
+	if dispatcher.RunFDs(bounded, request, [3]int{int(mount.Fd()), host, private}) != nil || !(bootid.Reader{}).ForPID(target.Boot.PID).Equal(target.Boot) {
 		return ErrBoundary
 	}
 	var current unix.Stat_t

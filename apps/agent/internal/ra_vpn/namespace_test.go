@@ -34,7 +34,9 @@ func TestIntegrationNamespaceProcessIsolationAndOwnedCleanup(t *testing.T) {
 		t.Fatal("current namespace inaccessible")
 	}
 	plan := networkFixture()
-	plan.Instance = InstanceID("w19-fixture", strconv.Itoa(os.Getpid()))
+	plan.Owner = "w19-fixture"
+	plan.Profile = strconv.Itoa(os.Getpid())
+	plan.Instance = InstanceID(plan.Owner, plan.Profile)
 	dir := filepath.Join(InstanceRoot, plan.Instance)
 	if err := CreateNamespace(context.Background(), plan); err != nil {
 		t.Fatal(err)

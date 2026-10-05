@@ -138,3 +138,10 @@ Private source currently finishing systemd configure; retain signedsource receip
 and remove own build intermediates after final private install due disk pressure.
 Current remote7bfaf4e2. Next: private systemddaemon startup fixture, descriptor
 readback/dependency/PKI/VICI lifecycle; RA not operationally delivered yet.
+
+Ownership contract checkpoint: public helper plan now records explicit bounded
+owner/profile and must hash exactly to instance. This permits restart filtering
+without adopting another owner's namespace. Native/session secrets remain absent.
+Focused ravpn tests PASS0.018s; source namespace consumer tests underlablock PASS
+0.061s; publish contract before descriptor consumer. Current remoted66634f5.
+Next: publish namespace descriptor recovery and actual rollback evidence.

@@ -19,6 +19,9 @@ const InstanceRoot = "/run/ngfw/ra"
 
 var ErrPlan = errors.New("remote-access: invalid isolated network plan")
 var instanceName = regexp.MustCompile(`^[a-f0-9]{64}$`)
+var ownerName = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,128}$`)
+
+func safeOwnerName(name string) bool { return ownerName.MatchString(name) }
 
 // Link is an explicit point-to-point namespace/VPP transit pair.
 type Link struct {
@@ -34,6 +37,8 @@ type RadiusEndpoint struct {
 // NetworkPlan is public, bounded root-owned helper input; it has no credential field.
 type NetworkPlan struct {
 	Format         uint32           `json:"format"`
+	Owner          string           `json:"owner"`
+	Profile        string           `json:"profile"`
 	Instance       string           `json:"instance"`
 	NamespaceInode uint64           `json:"namespaceInode"`
 	LocalAddress   string           `json:"localAddress"`
@@ -61,7 +66,7 @@ func BuildNetworkPlan(owner, name string, profile *ngfwv1.RemoteAccessProfile) (
 	link := func(value *ngfwv1.RemoteAccessTransitLink) Link {
 		return Link{VPP: value.GetVpp(), Namespace: value.GetNamespace()}
 	}
-	plan := &NetworkPlan{Format: 1, Instance: InstanceID(owner, name), LocalAddress: profile.GetLocalAddr(), Outer: link(source.GetOuter()), Inner: link(source.GetInner())}
+	plan := &NetworkPlan{Format: 1, Owner: owner, Profile: name, Instance: InstanceID(owner, name), LocalAddress: profile.GetLocalAddr(), Outer: link(source.GetOuter()), Inner: link(source.GetInner())}
 	if source.GetInnerIpv6() != nil {
 		v6 := link(source.GetInnerIpv6())
 		plan.InnerIPv6 = &v6
@@ -86,6 +91,9 @@ func BuildNetworkPlan(owner, name string, profile *ngfwv1.RemoteAccessProfile) (
 // Validate is repeated by the helper; a valid instance name never bypasses bounds.
 func (plan *NetworkPlan) Validate() error {
 	if plan == nil || plan.Format != 1 || !ValidInstance(plan.Instance) || len(plan.Pools) == 0 || len(plan.Pools) > 16 || len(plan.Split) > 64 || len(plan.Radius) > 8 {
+		return ErrPlan
+	}
+	if !safeOwnerName(plan.Owner) || !safeOwnerName(plan.Profile) || InstanceID(plan.Owner, plan.Profile) != plan.Instance {
 		return ErrPlan
 	}
 	endpoint, err := netip.ParseAddr(plan.LocalAddress)

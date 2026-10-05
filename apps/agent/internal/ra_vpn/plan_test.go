@@ -13,7 +13,7 @@ import (
 )
 
 func networkFixture() *NetworkPlan {
-	return &NetworkPlan{Format: 1, Instance: InstanceID("w19", "road"), LocalAddress: "192.0.2.19", Outer: Link{VPP: "198.18.19.0/31", Namespace: "198.18.19.1/31"}, Inner: Link{VPP: "198.18.19.2/31", Namespace: "198.18.19.3/31"}, Pools: []string{"10.19.200.0/24"}, Split: []string{"10.19.0.0/16"}, Radius: []RadiusEndpoint{{Address: "192.0.2.20", Port: 18120}}}
+	return &NetworkPlan{Format: 1, Owner: "w19", Profile: "road", Instance: InstanceID("w19", "road"), LocalAddress: "192.0.2.19", Outer: Link{VPP: "198.18.19.0/31", Namespace: "198.18.19.1/31"}, Inner: Link{VPP: "198.18.19.2/31", Namespace: "198.18.19.3/31"}, Pools: []string{"10.19.200.0/24"}, Split: []string{"10.19.0.0/16"}, Radius: []RadiusEndpoint{{Address: "192.0.2.20", Port: 18120}}}
 }
 func TestIsolatedPlanRoutesMarkedOuterAndProtectedInner(t *testing.T) {
 	plan := networkFixture()

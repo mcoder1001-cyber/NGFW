@@ -43,7 +43,8 @@ func WriteSnapshot(instance string, snapshot PrivateSnapshot, now time.Time) err
 	if snapshot.Validate(now) != nil {
 		return ErrBoundary
 	}
-	if _, err := ReadAgentPlan(instance); err != nil {
+	plan, err := ReadAgentPlan(instance)
+	if err != nil {
 		return err
 	}
 	dir := filepath.Join(InstanceRoot, instance)
@@ -93,6 +94,15 @@ func WriteSnapshot(instance string, snapshot PrivateSnapshot, now time.Time) err
 		}
 	}
 	if unix.Fsync(fd) != nil {
+		rollback()
+		return ErrBoundary
+	}
+	if writeSnapshotReceipt(fd, plan, createdFiles, createdDirs) != nil {
+		rollback()
+		return ErrBoundary
+	}
+	if unix.Fsync(fd) != nil {
+		unix.Unlinkat(fd, snapshotReceiptName, 0)
 		rollback()
 		return ErrBoundary
 	}

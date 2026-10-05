@@ -45,7 +45,7 @@ func (s EngineSpec) Validate() error {
 			return ErrEngine
 		}
 	}
-	if len(s.Fingerprints) > 32 {
+	if len(s.Fingerprints) > 1040 {
 		return ErrEngine
 	}
 	for ref, digest := range s.Fingerprints {
@@ -78,7 +78,7 @@ func DecodeEngine(value *structpb.Struct) (EngineSpec, error) {
 	if err != nil {
 		return s, ErrEngine
 	}
-	if len(data) > 65536 || json.Unmarshal(data, &s) != nil || s.Validate() != nil {
+	if len(data) > 262144 || json.Unmarshal(data, &s) != nil || s.Validate() != nil {
 		return EngineSpec{}, ErrEngine
 	}
 	return s, nil
@@ -99,3 +99,7 @@ type PreparedEngine struct {
 func (*PreparedEngine) String() string     { return "remote-access prepared generation <redacted>" }
 func (p *PreparedEngine) GoString() string { return p.String() }
 func (s EngineSpec) String() string        { return fmt.Sprintf("remote-access engine %s", s.Instance) }
+
+// EngineReadiness verifies actual installed components without starting any
+// daemon. Readiness is distinct from the existence of an active profile (D236).
+type EngineReadiness interface{ Preflight(context.Context) error }

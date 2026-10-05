@@ -61,6 +61,9 @@ func TransportObjects(s EngineSpec) ([]scheduler.KV, error) {
 		peer, _ := netip.ParsePrefix(link.Namespace)
 		addRoute(s.InnerTable, text, peer.Addr().String(), inner.Name)
 	}
+	for i := range out {
+		out[i].Key = PrivateKey(out[i].Key)
+	}
 	return out, nil
 }
 
@@ -133,11 +136,11 @@ func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPl
 	ids := []uint32{}
 	for _, outer := range []bool{true, false} {
 		row := dumps[tapv2.TapName][scheduler.Join(tapv2.TapName, LinkName(s.Instance, outer))]
-		meta, ok := row.Meta.(iface.Meta)
-		if !ok {
+		meta, ok := row.Meta.(TAPReceipt)
+		if !ok || meta.Pending {
 			return nil, Handoff{}, ErrEngine
 		}
-		ids = append(ids, meta.SwIfIndex)
+		ids = append(ids, meta.Index)
 	}
 	receipt := Handoff{Format: 1, Instance: s.Instance, NamespaceInode: p.NamespaceInode, HostNamespaceInode: p.HostNamespaceInode, VPPBoot: boot, OuterIndex: ids[0], InnerIndex: ids[1], OuterName: LinkName(s.Instance, true), InnerName: LinkName(s.Instance, false)}
 	if ValidateHandoff(p, receipt, boot, ids[0], ids[1]) != nil {
@@ -148,4 +151,12 @@ func (v *RegistryVerifier) Verify(ctx context.Context, s EngineSpec) (*NetworkPl
 		return nil, Handoff{}, ErrEngine
 	}
 	return p, receipt, nil
+}
+
+func PrivateKey(k scheduler.Key) scheduler.Key {
+	switch k.Descriptor() {
+	case core.InterfaceTableName, core.InterfaceAddrName, core.RouteName, iface.AliasName, iface.AdminStateName, acl.NameInterfaceBinding:
+		return scheduler.Join("remote-access."+k.Descriptor(), k.ID())
+	}
+	return k
 }

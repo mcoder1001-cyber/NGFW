@@ -2,6 +2,7 @@ package ravpn
 
 import (
 	"context"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -47,5 +48,42 @@ func TestIntegrationPrivateSnapshotExclusiveAndModes(t *testing.T) {
 	data, err := os.ReadFile(filepath.Join(dir, "swanctl.conf"))
 	if err != nil || string(data) != "connections {}\nprivate generated secrets\n" {
 		t.Fatal("refused overwrite altered existing generation")
+	}
+	// A replacement with the same permissions is not the recorded generation.
+	original := filepath.Join(dir, "private/server.pem")
+	backup := filepath.Join(dir, "held-key.pem")
+	if os.Rename(original, backup) != nil || os.WriteFile(original, []byte("replacement"), 0600) != nil {
+		t.Fatal("replacement fixture")
+	}
+	if CleanupSnapshot(plan.Instance) == nil {
+		t.Fatal("replacement credential inode accepted")
+	}
+	if os.Remove(original) != nil || os.Rename(backup, original) != nil {
+		t.Fatal("replacement fixture restore")
+	}
+	listener, err := net.ListenUnix("unix", &net.UnixAddr{Name: filepath.Join(dir, "daemon/vici.sock"), Net: "unix"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	listener.SetUnlinkOnClose(false)
+	if os.Chmod(filepath.Join(dir, "daemon/vici.sock"), 0600) != nil {
+		t.Fatal("socket mode")
+	}
+	if CleanupSnapshot(plan.Instance) == nil {
+		listener.Close()
+		t.Fatal("live daemon generation removed")
+	}
+	listener.Close()
+	if err := CleanupSnapshot(plan.Instance); err != nil {
+		t.Fatal("inactive exact generation cleanup", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "network.json")); err != nil {
+		t.Fatal("cleanup removed namespace ownership", err)
+	}
+	if err := WriteSnapshot(plan.Instance, snapshot, now); err != nil {
+		t.Fatal("replacement generation", err)
+	}
+	if err := CleanupSnapshot(plan.Instance); err != nil {
+		t.Fatal(err)
 	}
 }

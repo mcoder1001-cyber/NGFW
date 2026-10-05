@@ -284,6 +284,11 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	if err = subsystems.SetRASecrets(cfg.Owner, cache); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	m.collectors = wiring.MetricsCollectors // TD-8: feature metric families on /metrics
 	wan := multiwan.NewRuntime(nil)
 	if err := registerWANRoutes(reg, wiring, conn, cfg.Owner, owned, wan); err != nil {

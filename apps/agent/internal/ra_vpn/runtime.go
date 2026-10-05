@@ -58,11 +58,13 @@ type Runtime struct {
 	units       UnitSupervisor
 	store       EngineStore
 	dial        func(context.Context, *NetworkPlan, UnitIdentity) (strongswan.ViciConn, error)
+	readPlan    func(string) (*NetworkPlan, error)
+	readiness   func(context.Context) error
 	active      map[string]*engineGeneration
 }
 
 func NewRuntime(owner string, v HandoffVerifier, p SnapshotPreparation, u UnitSupervisor, s EngineStore) *Runtime {
-	return &Runtime{owner: owner, verifier: v, preparation: p, units: u, store: s, active: map[string]*engineGeneration{}, dial: verifiedDial}
+	return &Runtime{owner: owner, verifier: v, preparation: p, units: u, store: s, active: map[string]*engineGeneration{}, dial: verifiedDial, readPlan: ReadAgentPlan}
 }
 func verifiedDial(ctx context.Context, plan *NetworkPlan, unit UnitIdentity) (strongswan.ViciConn, error) {
 	if !unit.Valid() || unit.NamespaceInode != plan.NamespaceInode {
@@ -130,7 +132,7 @@ func (r *Runtime) Create(ctx context.Context, s EngineSpec) (EngineRecord, error
 	return r.create(ctx, s)
 }
 func (r *Runtime) stop(ctx context.Context, g *engineGeneration) error {
-	plan, err := ReadAgentPlan(g.record.Spec.Instance)
+	plan, err := r.readPlan(g.record.Spec.Instance)
 	if err != nil {
 		return ErrEngine
 	}
@@ -283,4 +285,28 @@ func (r *Runtime) StopAll(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (r *Runtime) SetReadiness(check func(context.Context) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.readiness = check
+}
+func (r *Runtime) Ready(ctx context.Context) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !r.configured() || r.readiness == nil {
+		return ErrEngine
+	}
+	p, ok := r.preparation.(EngineReadiness)
+	if !ok || p.Preflight(ctx) != nil || r.readiness(ctx) != nil {
+		return ErrEngine
+	}
+	return nil
+}
+
+func (r *Runtime) SetPreparation(p SnapshotPreparation) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.preparation = p
 }

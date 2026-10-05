@@ -8,7 +8,7 @@ import (
 
 func TestTransitReadbackRefusesReusedOrMovedEndpoint(t *testing.T) {
 	plan := networkFixture()
-	outer, inner, err := TransitTAPs(plan, 19001, 19002)
+	outer, inner, err := TransitTAPs(plan, 2432, 2433)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,7 +42,7 @@ func TestTransitReadbackRefusesReusedOrMovedEndpoint(t *testing.T) {
 
 func TestTransitNamespaceAliasFitsFixedAPIField(t *testing.T) {
 	plan := networkFixture()
-	outer, inner, err := TransitTAPs(plan, 19001, 19002)
+	outer, inner, err := TransitTAPs(plan, 2432, 2433)
 	if err != nil {
 		t.Fatal(err)
 	}

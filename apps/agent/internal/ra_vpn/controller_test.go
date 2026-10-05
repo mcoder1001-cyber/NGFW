@@ -61,7 +61,7 @@ func TestTransportCarriesExplicitVRFsRoutesAndBothACLDirections(t *testing.T) {
 				t.Fatal("inner vrf")
 			}
 		}
-		if kv.Key.Descriptor() == acl.NameInterfaceBinding {
+		if kv.Key.Descriptor() == "remote-access."+acl.NameInterfaceBinding {
 			bindings++
 			b, e := acl.InterfaceBindingFromProto(kv.Value)
 			if e != nil || len(b.Input) != 1 || len(b.Output) != 1 {

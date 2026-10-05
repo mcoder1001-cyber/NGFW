@@ -357,7 +357,9 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	// wave-BC: F-pki
 	desired.PKI(p, ds, in, subsystems.PKIProjection())
 	// wave-BC: F-ra-vpn
-	desired.RemoteAccess(p, ds, in)
+	raEnv := subsystems.RAProjection()
+	raEnv.VRF = vrfID
+	desired.RemoteAccess(p, ds, in, raEnv)
 	// wave-BC: F-ikev2-native
 	native := subsystems.IKEv2Projection()
 	if len(nativeEnv) > 0 {
@@ -650,6 +652,7 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 	// wave-A: F-nat44-ei-64-66-nptv6
 	// wave-A: P11
 	// wave-A: F-wireguard
+	desired.AssembleRA(ds, kvs, in)
 	desired.AssembleWireguard(ds, kvs, in, nameOf, stored) // vpn.wireguard; moves wg<N> leaves out of interfaces/routing
 	// wave-A: P12
 	if in["interfaces"] {

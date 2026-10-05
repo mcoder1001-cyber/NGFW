@@ -274,6 +274,7 @@ type Wiring struct {
 
 // register is Register without the persistence guard (stores.go, TD-11b).
 func register(r scheduler.Registry, env Env) (*Wiring, error) {
+	r = &raFilteringRegistry{Registry: r, byName: map[string]scheduler.Descriptor{}}
 	if env.Log == nil {
 		env.Log = slog.Default()
 	}
@@ -450,6 +451,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	registerSystemIdentity(r, env) // F-system-identity (unanchored)
 	w.registerPppoe()
 	if err := w.registerPppoeClient(r); err != nil {
+		return nil, err
+	}
+	if err := w.registerRAController(r); err != nil {
 		return nil, err
 	}
 	return w, nil

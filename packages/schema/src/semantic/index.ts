@@ -37,6 +37,7 @@ import { srv6Validators } from './srv6.js';
 import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
 // wave-BC: F-ra-vpn
+import { raVpnValidators } from './ra-vpn.js';
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-ha-state-sync
@@ -126,6 +127,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...lispValidators,
   // wave-BC: F-bfd-redistribution
   // wave-BC: F-ra-vpn
+  ...raVpnValidators,
   // wave-BC: F-mpls-ldp
   ...mplsLdpValidators,
   // wave-BC: F-igmp-mfib

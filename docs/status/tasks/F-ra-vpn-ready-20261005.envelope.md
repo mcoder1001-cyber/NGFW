@@ -1,0 +1,6 @@
+# F-ra-vpn recovery execution envelope
+Branch codex/ready-f-ra-vpn-20261005; worktree /root/ngfw-wt/ready-f-ra-vpn-20261005; base7b507db5; slot19.
+Owner direction2026-10-05 via manager supersedes retired strongSwan/kernel-vpp prompt: native-only and no VPP C changes/security-boundary changes. Investigate concrete native capabilities; implement honest failclosed validation/API/UI while source dependency is unavailable. Remote-access EAP/pools/session service is NOT claimed operational.
+Owned: new semantic/ra-vpn.ts/test, desired/ra_vpn.go/test, apps/api/src/features/ra-vpn/**, apps/web/src/domains/vpn/ra-vpn/**, locales/*/ra-vpn.json, docs/user/vpn/ra-vpn.md, own status and PENDING-native-ra-vpn.md.
+Shared authorized: semantic index import/spread; projection guard call; remove own retired unsupported-warning leaf; app.module import/controller; VPN tab+i18n anchors; generated outputs through pnpm gen only. Additive contract commits first. No agent core/privilege/VPP binding/renderer changes.
+No daemon owner, host objects/services/packages or lab changes. Root owns independent review/merge/board. Disabled profiles may remain editable draft documentation, but enabling unsupported profiles must fail before any runtime write. Retired implementation requires separate architectural/security approval.

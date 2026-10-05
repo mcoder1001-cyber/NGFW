@@ -74,9 +74,6 @@ func Wireguard(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(s
 	if v.GetPki() != nil && proto.Size(v.GetPki()) > 0 {
 		s.Warnf(Ptr("vpn", "pki"), ruleUnsupportedField, "vpn.pki is not implemented by this agent build (F-pki)")
 	}
-	if len(v.GetRemoteAccess()) > 0 {
-		s.Warnf(Ptr("vpn", "remoteAccess"), ruleUnsupportedField, "vpn.remoteAccess is not implemented by this agent build (F-ra-vpn)")
-	}
 	ifs := v.GetWireguard().GetInterfaces()
 	eps := wireguardEndpoints(ifs)
 	for _, name := range sortedKeys(ifs) {

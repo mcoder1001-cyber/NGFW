@@ -356,6 +356,8 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 	desired.Vrrp(p, ds, in, subsystems.VrrpEnv()) // ha.vrrp: engine vpp → vrrp.*, engine keepalived → keepalived.config (internal/desired/vrrp.go)
 	// wave-BC: F-pki
 	desired.PKI(p, ds, in, subsystems.PKIProjection())
+	// wave-BC: F-ra-vpn
+	desired.RemoteAccess(p, ds, in)
 	// wave-BC: F-ikev2-native
 	native := subsystems.IKEv2Projection()
 	if len(nativeEnv) > 0 {

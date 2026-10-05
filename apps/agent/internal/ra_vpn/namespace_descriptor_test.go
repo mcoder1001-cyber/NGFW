@@ -2,6 +2,7 @@ package ravpn
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -59,6 +60,27 @@ func TestIntegrationNamespaceDescriptorRestartReadbackAndRollback(t *testing.T) 
 			}
 		}
 	})
+	runtime, err := ReadAgentPlan(plan.Instance)
+	if err != nil || runtime.NamespaceInode == 0 || runtime.HostNamespaceInode == 0 || runtime.NamespaceInode == runtime.HostNamespaceInode {
+		t.Fatal("trusted agent did not verify namespace pair", err)
+	}
+	manifest := filepath.Join(InstanceRoot, plan.Instance, "network.json")
+	original, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runtime.HostNamespaceInode++
+	changed, _ := json.Marshal(runtime)
+	if os.WriteFile(manifest, changed, 0600) != nil {
+		t.Fatal("fixture manifest write")
+	}
+	_, refusal := ReadAgentPlan(plan.Instance)
+	if os.WriteFile(manifest, original, 0600) != nil {
+		t.Fatal("fixture manifest restore")
+	}
+	if refusal == nil {
+		t.Fatal("replaced host namespace pair accepted")
+	}
 	// A fresh descriptor has no memory of Create and must recover real binding.
 	actual, err := NewNamespaceDescriptor(plan.Owner).Retrieve(context.Background())
 	if err != nil {

@@ -2212,7 +2212,7 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: ready
+    state: running
     parked_on: ''
     wbs:
       - D8.5
@@ -2222,14 +2222,15 @@ tasks:
     files_owned:
       '- apps/api/src/features/backup-restore/** (index.ts exports {controllers, providers}; `BackupRestoreController`; scheduler provider; template renderer; bundle builder;
       real fake-agent behaviour in fake.ts)'
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: codex/f-backup-restore-20261005
+    worktree: /root/ngfw-wt/f-backup-restore-20261005
+    owner: /root/backup_restore
+    started: '2026-10-05T15:35:54.132904+00:00'
     finished: ''
     notes:
       'prompts-s4: suggested deps +F-ab-upgrade (upgrade UI D8.7 drives vrx-upgrade); +P07b/P08 (web frame; overlap check) — docs/status/tasks/prompts-s4.md | D-125 envelope: POST
       /api/v1/actions/{reboot,shutdown} through vrx-power@<op>.service (review 6.3b, +2 h)'
+    worker_status: verified live developer in current chat
   - id: F-ra-vpn
     title: remote-access VPN IKEv2+EAP
     prompt: prompts/features/F-ra-vpn.md
@@ -2498,7 +2499,7 @@ tasks:
       - TEST-traffic-C
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2507,8 +2508,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: task-specific envelope
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: SECURITY-REVIEW
     title: 'Freeze: adversarial security review of the whole tree'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2571,7 +2573,7 @@ tasks:
       - TD-9
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2580,8 +2582,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: 'task-specific envelope | D-125: prompt → prompts/SECURITY-REVIEW.md (whole tree + auth delta since SEC-auth) once the manager writes it (1 h)'
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: DOCS-GEN
     title: 'Freeze: generate user docs from code and status files'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2642,7 +2645,7 @@ tasks:
       - F-mpls-ldp
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2651,8 +2654,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: task-specific envelope
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: STATUS-FINAL
     title: 'Freeze: have/have-not report for the product owner'
     prompt: prompts/INTEGRATOR-PROMPT.md
@@ -2665,7 +2669,7 @@ tasks:
       - TD-11a
     priority: 7
     est_hours: 12
-    state: todo
+    state: merged
     parked_on: ''
     wbs: []
     scope: freeze phase
@@ -2674,10 +2678,11 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes:
       'task-specific envelope | D-059: report must list as explicit have-not: D10.1 VDOM, D12.3 pentest, D12.4 full docs, D12.5 QA/interop, D12.6 soak/chaos 72h, D12.7 certification
       | D-125: have-not register docs/status/have-not.md (manager; D-059 six, Ansible, NETCONF, …)'
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: F-startup-gen
     title: 'startup.conf generator: hugepages, workers, RSS, NUMA, isolcpus, dpdk dev/name mapping, plugin enable list'
     prompt: prompts/features/F-startup-gen.md
@@ -2783,7 +2788,7 @@ tasks:
     started: ''
     finished: '2026-10-05'
     notes: 'Actual merge PR178 d314f0728; complete independent final T1 and all applicable panels approved; scoped second-appliance/VM-fault execution NOT RUN. | D-058: added | prompts-s4: suggested deps +F-nat44-ei-64-66-nptv6 (only nat44_ei_ha exists, V2) — docs/status/tasks/prompts-s4.md'
-    worker_status: 'Merged PR178 d314f0728; final independent unchanged quick 36m51 PASS; hosted and actual-main CI37318033192 green.'
+    worker_status: Merged PR178 d314f0728; final independent unchanged quick 36m51 PASS; hosted and actual-main CI37318033192 green.
   - id: TD-1
     title: 'Tech-debt: one VPP boot-identity helper (D-080) in the agent vpp package; retrofit DF-2 classify store + DF-4 acl stats flag + dfkit/df6/df7 callers on main'
     prompt: ''
@@ -3605,7 +3610,7 @@ tasks:
       - F-unbound-chrony-syslog
     priority: 4
     est_hours: 8
-    state: ready
+    state: running
     parked_on: ''
     wbs:
       - D0.13
@@ -3613,12 +3618,13 @@ tasks:
       'review 6.6a: one scripted scenario over every wave-B feature back to back (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay; FRR/strongSwan peers in netns) with tcpdump
       evidence; wave B closes when this row is green'
     files_owned: test/topology/traffic-b/** docs/status/tasks/TEST-traffic-B*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: codex/test-traffic-b-20261005
+    worktree: /root/ngfw-wt/TEST-traffic-B-20261005
+    owner: /root/traffic_b
+    started: '2026-10-05T15:35:54.133031+00:00'
     finished: ''
     notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
+    worker_status: verified live developer in current chat
   - id: TEST-traffic-C
     title: Wave-C traffic scenario (MPLS/SRv6, VRRP failover, QoS policer) with tcpdump evidence
     prompt: ''
@@ -3641,7 +3647,7 @@ tasks:
       - F-ha-state-sync
     priority: 5
     est_hours: 6
-    state: ready
+    state: merged
     parked_on: ''
     wbs:
       - D0.13
@@ -3651,8 +3657,9 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
+    worker_status: "Reviewed source closeout in this integration; independent reviews and focused tests PASS. Complete quick required before merge; laboratory acceptance NOT RUN/deferred, not release certification."
   - id: LAB-vpp-per-slot
     title: Per-slot VPP instances for tests (tools/lab vpp up|down <slot>)
     prompt: ''
@@ -5147,7 +5154,7 @@ tasks:
     worktree: ''
     owner: ''
     started: ''
-    finished: ''
+    finished: "2026-10-05"
     notes: 'D-188 | 2026-10-01 held (D-223): manager read of P11-review.md refused by the permission classifier; owner action to confirm the source'
     id: P11-pkg
     title:
@@ -5157,11 +5164,12 @@ tasks:
       - P11
     priority: 3
     est_hours: 14
-    state: todo
+    state: merged
     scope:
       Superseded by route-based-only scope on 2026-10-03; do not implement the strongSwan/kernel-vpp package for IPsec. Native wiring is F-ikev2-native; retain this row as historical
       deferred work.
     files_owned: deploy/strongswan/** deploy/debian/ngfw-strongswan/** docs/09-os-packages.md (strongSwan rows) docs/status/tasks/P11-pkg*
+    worker_status: "Superseded by owner native route-based IKEv2 decision; no obsolete package built."
   - prompt: prompts/features/P11-host.md
     template: prompts/HOST-FOLLOWUP-TEMPLATE.md
     stage: S4

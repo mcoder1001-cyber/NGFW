@@ -1,0 +1,22 @@
+# TEST-traffic-C independent R2/R4 review
+
+Verdict: APPROVE corrected owned source at remote 018fb00d14ce4912bff681dac66a66e07120797a, tree 63e18d6c53a920e86bef4d7855ea3e2da68df526. Executed pure checks in local cf92b47ed162f0f4d5cc9467bcd535c2414530f2/tree727614782a189f6892dd68f8fd5ae324e408eadc. Verified remote/local diff is only plan/tasks.yaml and docs/status/PROGRESS.md; owned C source/status files are identical. Manager reconciles board separately.
+
+Review read-only in /tmp/ngfw-traffic-c; report owned in security branch. No VPP API/CLI, namespace rig, daemon, packet or shared-global operation was executed.
+
+Earlier findings corrected before approval:
+- Default urllib redirect forwarded fixture Authorization to another origin. Independently reproduced in inherited A Api with two ephemeral loopback servers; shared A and other acceptance clients are fixed in separate SECURITY-REVIEW source commit. C independently uses a no-proxy/no-redirect opener for API, foundation bearer client, capture download and owned metrics. Real C regression confirms the configured origin receives expected fixture credentials and redirect sink receives zero requests. Fixtures now use sanctioned NGFW_TEST_PSK names.
+- Default SIGTERM bypassed finally while separately sessioned owned children survived. C installs TERM-to-KeyboardInterrupt and unwinds cleanup. Its owned-group stop escalates to KILL for surviving descendants even if the group leader exits. Independently executed real owned-process regressions confirm finally cleanup and descendant termination. No PID patterns or foreign process groups are killed.
+
+Inspected execute.py, driver.py, peer.py, globals/main.go, source checks and README/status limits. Root-owned0600/unaliased/bounded lease file uses NOFOLLOW/NONBLOCK plus descriptor checks, exact task/slot/prefix/boot/lease identity, expiry and quiet/daemon/globals grants. Lab shared lock, exclusive slot and globals lock precede live operations; binary helper requires inherited same-inode globals descriptor and obtains exclusive flock. It uses generated bindings, validated SR address/hop-limit restore and constant/read-only or restore CLI argv, not a shell. Private snapshot creation is exclusive0600; restore rejects symlinks/nonregular/public/oversized/trailing/unknown-field data, then compares all saved readback. This is procedural manager-issued authority, not an unprivileged security sandbox.
+
+Candidate claims compare owner key/timestamp; recovery preserves foreign candidate, enforces current revision and verifies original document/candidate restoration. Rig/keepalived/peer namespaces are newly owned and prefixed; existing namespaces/interfaces and MPLS table0 are refused before rig mutation. Table0 absent entry requires a manager-provisioned otherwise idle/private VPP; the source does not adopt/delete existing foreign table0. Product commits configure stages; direct helper snapshots/restores finite globals and demands exact comparison. VPP MainPID/NRestarts are checked. Snapshot, packet/readback/collector/metrics and residue failures prevent PASS. Namespace/process teardown, original product rollback and exact globals restoration precede result publication.
+
+Lease expiry/revocation remains fail closed even during recovery; it can require renewed manager-authorized recovery, as README explicitly states. Approval does not grant a quiet window, daemon ownership, new host privileges or authority to bypass expiry. A hard kill/crash still requires recovery from retained private evidence; soft TERM regression is not a promise of cleanup after SIGKILL. Existing-table0 shared-host acceptance and all live packet/failover/global restoration checks remain NOT RUN. Code source implementation is reviewable; it is not live acceptance.
+
+Actual independent checks:
+- python3 -B -m unittest discover -s test/topology/traffic-c -p 'test*.py' -v: 16 PASS,1.692s (real loopback redirect and owned process/signal checks; transaction/protocol guards are offline fixtures).
+- cd test/topology/traffic-c/globals && go test -count=1 ./...: PASS,0.016s; two guard tests refuse missing authorization/foreign descriptor before connecting VPP.
+- git diff --check origin/main: PASS.
+
+Mandatory complete unchanged local/hosted quick on the exact final integration tree remains manager-owned and pending. No repeated broad gate or global-host execution was run by this reviewer. Protocol claims receive the separate protocol reviewer; this report approves security, host ownership and truthful evidence scope.

@@ -402,6 +402,7 @@ do_forbidden() {
 # formats the same records). Prose is exempt (docs/, prompts/, wbs/, plan/, *.md, comment-only lines), as are the generated
 # bindings (apps/agent/binapi). No escape hatch: the ban holds until VPP carries the fix.
 do_slot_check() {  # D-156: 30 developer slots - every per-slot port/table/db is unique and matches `tools/lab env`
+  python3 tools/board.py --check || fail "task board validation failed"
   step "slot resource scheme (1..32, no collisions)"
   CUR_LOG=""
   local out; out=$(python3 tools/slot-check.py 2>&1) || fail "slot scheme collision (docs/lab/shared-host-rules.md §1):\n$(sed 's/^/    /' <<<"$out")"

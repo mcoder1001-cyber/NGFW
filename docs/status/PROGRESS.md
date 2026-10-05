@@ -2,17 +2,17 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 91.9% by hours (1450.0/1577.5 h), 91.5% by tasks (193/211)**
+**Overall: 96.2% by hours (1518.0/1577.5 h), 94.3% by tasks (199/211)**
 
 | state | tasks |
 |---|---|
-| merged | 193 |
+| merged | 199 |
 | review | 0 |
-| running | 1 |
-| ready | 3 |
+| running | 3 |
+| ready | 0 |
 | parked | 9 |
 | failed | 0 |
-| todo | 5 |
+| todo | 0 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,15 +20,17 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 959.0 / 1002.0 | 95.7% | 141/150 | 0 | 2 | 6 |
-| S5 | 132 / 155.5 | 84.9% | 13/16 | 1 | 1 | 1 |
-| S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
+| S4 | 979.0 / 1002.0 | 97.7% | 143/150 | 1 | 0 | 6 |
+| S5 | 132 / 155.5 | 84.9% | 13/16 | 2 | 0 | 1 |
+| S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
+- F-backup-restore — backup/restore, scheduled export, templates, support bundle, upgrade UI (running, /root/backup_restore; verified live developer in current chat)
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
+- TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, /root/traffic_b; verified live developer in current chat)
 
 ## Parked
 

@@ -103,6 +103,7 @@ func TestIntegrationBrokerPartialRemovalRetry(t *testing.T) {
 	paths := []string{filepath.Join(InstanceRoot, plan.Instance, "hostnetns"), filepath.Join(InstanceRoot, plan.Instance, "netns"), NamespacePath(plan.Instance)}
 	var files []*os.File
 	for _, path := range []string{"/proc/self/ns/mnt", paths[0], paths[1]} {
+		// #nosec G304 -- paths contain only own current mount namespace and the exact newly created owned instance bindings.
 		file, err := os.Open(path)
 		if err != nil {
 			t.Fatal(err)

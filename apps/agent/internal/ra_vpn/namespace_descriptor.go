@@ -219,9 +219,13 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		var baseFS unix.Statfs_t
 		bad := err != nil || unix.Fstat(fd, &stat) != nil || unix.Fstatfs(fd, &fs) != nil || fs.Type != unix.NSFS_MAGIC || stat.Ino != plan.NamespaceInode || unix.Fstat(base, &host) != nil || unix.Fstatfs(base, &baseFS) != nil || baseFS.Type != unix.NSFS_MAGIC || host.Ino != plan.HostNamespaceInode || stat.Ino == host.Ino && stat.Dev == host.Dev
 		if base >= 0 {
-			unix.Close(base)
+			if unix.Close(base) != nil {
+				bad = true
+			}
 		}
-		unix.Close(fd)
+		if unix.Close(fd) != nil {
+			bad = true
+		}
 		if bad || validateNamespaceAlias(&plan) != nil {
 			return nil, ErrBoundary
 		}

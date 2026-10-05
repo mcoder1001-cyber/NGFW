@@ -58,17 +58,7 @@ func collectPrivatePacketDiagnostics(t *testing.T, plan *NetworkPlan) {
 	if root == "" {
 		return
 	}
-	file, err := os.OpenFile(filepath.Join(root, plan.Instance+"-packet-metadata.json"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		t.Error("own public packet metadata file refused")
-		return
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			t.Error("own public packet metadata close refused")
-		}
-	}()
-	if _, err := file.Write(data); err != nil {
-		t.Error("own public packet metadata write refused")
+	if _, err := writePrivateFixtureEvidence(root, plan.Instance, data); err != nil {
+		t.Error("own public packet metadata publication refused")
 	}
 }

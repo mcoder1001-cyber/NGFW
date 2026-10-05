@@ -56,6 +56,7 @@ func TestIntegrationNamespaceProcessIsolationAndOwnedCleanup(t *testing.T) {
 	if unix.Stat("/proc/self/ns/net", &after) != nil || before.Ino != after.Ino || before.Dev != after.Dev || plan.NamespaceInode == before.Ino {
 		t.Fatal("agent namespace changed")
 	}
+	// #nosec G304 -- exact fixed manifest basename in the newly created owned fixture namespace root.
 	data, err := os.ReadFile(filepath.Join(dir, "network.json"))
 	if err != nil {
 		t.Fatal(err)

@@ -47,6 +47,7 @@ func TestNumericOpenFilePrivateMatchedReuseAndForeignPreservation(t *testing.T) 
 	if publishNumericOpenFileAt(path, data) == nil {
 		t.Fatal("replaced unknown contents")
 	}
+	// #nosec G304 -- path is derived by the fixed numeric publisher writer under the newly generated private fixture root; verifies preserved bytes.
 	actual, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(actual, foreign) {
 		t.Fatal("modified foreign configuration")
@@ -88,12 +89,14 @@ func TestNumericOpenFileReplacementChecksExpectedPrivateContent(t *testing.T) {
 	if err := replaceNumericOpenFileAt(path, old, replacement); err == nil {
 		t.Fatal("accepted stale expected contents")
 	}
+	// #nosec G302 -- deliberately insecure private drop-in mode tests refusal without modifying its contents.
 	if err := os.Chmod(path, 0640); err != nil {
 		t.Fatal(err)
 	}
 	if err := replaceNumericOpenFileAt(path, replacement, old); err == nil {
 		t.Fatal("replaced nonprivate configuration")
 	}
+	// #nosec G304 -- path is derived by the fixed numeric publisher writer under the newly generated private fixture root; verifies preserved bytes.
 	actual, err := os.ReadFile(path)
 	if err != nil || !bytes.Equal(actual, replacement) {
 		t.Fatal("modified refused configuration")

@@ -72,6 +72,7 @@ func TestIntegrationSealedPreparationImmutableGenerationRecovery(t *testing.T) {
 		t.Fatal("recover", e)
 	}
 	path := filepath.Join(InstanceRoot, spec.Instance, "strongswan.conf")
+	// #nosec G304 -- reads the fixed immutable snapshot fixture manifest before deliberate corruption and restoration.
 	original, e := os.ReadFile(path)
 	if e != nil {
 		t.Fatal(e)

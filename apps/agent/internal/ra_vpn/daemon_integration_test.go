@@ -146,6 +146,7 @@ func startPrivateEngine(t *testing.T, plan *NetworkPlan) strongswan.ViciConn {
 		}
 	})
 	t.Cleanup(func() {
+		// #nosec G304 -- fixed log basename in the newly generated test-private workspace; bounded diagnostic text is redacted before output.
 		data, err := os.ReadFile(filepath.Join(workspace, "private-startup.log"))
 		if err == nil && len(data) < 1<<20 {
 			for _, line := range strings.Split(string(data), "\n") {
@@ -350,6 +351,7 @@ func TestPrivateFixturePathsAndEvidenceRefuseUnsafeOwnership(t *testing.T) {
 	if err != nil || first == second {
 		t.Fatal("per-launch evidence generation not isolated", err)
 	}
+	// #nosec G304 -- first is returned by the exclusive owned evidence writer in this generated private fixture; verifies retained bytes.
 	data, err := os.ReadFile(first)
 	if err != nil || string(data) != "first" {
 		t.Fatal("evidence ownership refusal lost original", err)

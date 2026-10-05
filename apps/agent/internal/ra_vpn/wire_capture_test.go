@@ -47,6 +47,7 @@ func capturePrivateWire(t *testing.T, plan *NetworkPlan) func() {
 		t.Fatal("private capture boundary")
 	}
 	ns := filepath.Join(InstanceRoot, plan.Instance, "netns")
+	// #nosec G204 -- fixed capture program enters only the current authenticated owned plan namespace; all extra arguments are canonical inode numbers.
 	cmd := exec.Command("/usr/bin/nsenter", "--net="+ns, "--", "/usr/bin/python3", "-c", privateWireCapture, strconv.FormatUint(plan.NamespaceInode, 10), strconv.FormatUint(plan.HostNamespaceInode, 10))
 	stdout, e := cmd.StdoutPipe()
 	if e != nil {
@@ -87,15 +88,10 @@ func capturePrivateWire(t *testing.T, plan *NetworkPlan) func() {
 		evidence := os.Getenv("NGFW_RA_EVIDENCE_ROOT")
 		if evidence != "" {
 			data, _ := json.Marshal(counters)
-			f, e := os.OpenFile(filepath.Join(evidence, plan.Instance+"-wire.json"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0600)
-			if e != nil {
-				t.Fatal("private wire receipt")
+			if _, err := writePrivateFixtureEvidence(evidence, plan.Instance, data); err != nil {
+				t.Fatal("private wire receipt publication refused")
 			}
-			_, e = f.Write(data)
-			ce := f.Close()
-			if e != nil || ce != nil {
-				t.Fatal("private wire receipt write")
-			}
+
 		}
 		t.Logf("owned underlay ESP-only proof RX=%d TX=%d plaintextICMP=0", counters.RX, counters.TX)
 	}

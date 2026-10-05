@@ -2,13 +2,13 @@
 
 Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 96.9% by hours (1529.0/1578.5 h), 94.8% by tasks (201/212)**
+**Overall: 97.4% by hours (1537.0/1578.5 h), 95.3% by tasks (202/212)**
 
 | state | tasks |
 |---|---|
-| merged | 201 |
+| merged | 202 |
 | review | 0 |
-| running | 2 |
+| running | 1 |
 | ready | 0 |
 | parked | 9 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 980.0 / 1003.0 | 97.7% | 144/151 | 1 | 0 | 6 |
+| S4 | 988.0 / 1003.0 | 98.5% | 145/151 | 0 | 0 | 6 |
 | S5 | 142 / 155.5 | 91.3% | 14/16 | 1 | 0 | 1 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
@@ -29,7 +29,6 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 ## Remaining implementation / review
 
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
-- TEST-traffic-B — Wave-B traffic scenario (IPsec, WireGuard, GRE/VXLAN, BGP/OSPF→FIB, DHCP relay) with FRR/strongSwan peers in netns (running, Codex manager; local acceptance passed; independent final review and hosted/main CI pending; manager preparing final integration)
 
 ## Parked
 

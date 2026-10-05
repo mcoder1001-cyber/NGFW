@@ -3611,7 +3611,7 @@ tasks:
       - F-unbound-chrony-syslog
     priority: 4
     est_hours: 8
-    state: running
+    state: merged
     parked_on: ''
     wbs:
       - D0.13
@@ -3623,9 +3623,10 @@ tasks:
     worktree: /root/ngfw-wt/test-traffic-b-final-20261005
     owner: Codex manager
     started: '2026-10-05T15:35:54.133031+00:00'
-    finished: ''
-    notes: D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate)
-    worker_status: local acceptance passed; independent final review and hosted/main CI pending; manager preparing final integration
+    finished: '2026-10-05'
+    notes: "D-125 | runs once in a manager window with VPP otherwise idle | per-wave traffic rule (docs/12 S4 gate) | Completed reviewed REST-backed all-seven primary acceptance. R1/R2/R4/R7/R8 APPROVE; complete independent quick28m57s/fresh149 startup PASS; ROOT and independent T3 all7 PASS with owned cleanup/shared VPP unchanged. Optional8 NOT RUN individually documented; authorized WG test-secret fixture does not establish production secret transport. PR194 head a6abc1fd568bc3c94b7fc60add3d8a1051ceef2d; merge 6610ae7988f3bff487f2d6179740671b40f3b6b7; hosted quick37374941239 SUCCESS; actual main quick37377763621 SUCCESS"
+    worker_status: completed; all owned development/test commands stopped
+    completion_evidence: "PR194 head a6abc1fd568bc3c94b7fc60add3d8a1051ceef2d; merge 6610ae7988f3bff487f2d6179740671b40f3b6b7; hosted quick37374941239 SUCCESS; actual main quick37377763621 SUCCESS"
   - id: TEST-traffic-C
     title: Wave-C traffic scenario (MPLS/SRv6, VRRP failover, QoS policer) with tcpdump evidence
     prompt: ''

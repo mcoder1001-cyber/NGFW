@@ -32,6 +32,9 @@ type NamespaceDescriptor struct {
 	owner   string
 	Handoff NamespaceHandoff
 	Guard   MutationGuard
+	// Inventory is a trusted Go fixture seam for observed plans. Nil retains
+	// the production protected filesystem and held namespace binding checks.
+	Inventory NamespacePlanInventory
 }
 
 // The protected root network.json records ownership and both kernel NSFS
@@ -146,6 +149,9 @@ func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, m
 	return nil
 }
 func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+	if d.Inventory != nil {
+		return d.retrieveInventory(ctx)
+	}
 	entries, err := os.ReadDir(InstanceRoot)
 	if os.IsNotExist(err) {
 		return nil, nil
@@ -210,6 +216,44 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 		value, err := NamespaceValue(&plan)
 		if err != nil {
 			return nil, err
+		}
+		result = append(result, scheduler.KV{Key: scheduler.Join(NamespaceName, NamespaceKeyID(plan.Instance)), Value: value, Meta: meta})
+	}
+	return result, nil
+}
+
+func (d *NamespaceDescriptor) retrieveInventory(ctx context.Context) ([]scheduler.KV, error) {
+	plans, err := d.Inventory(ctx, d.owner)
+	if err != nil || len(plans) > 1024 {
+		return nil, ErrBoundary
+	}
+	result := make([]scheduler.KV, 0, len(plans))
+	seen := map[string]bool{}
+	for _, plan := range plans {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if plan == nil || plan.Validate() != nil {
+			return nil, ErrBoundary
+		}
+		if plan.Owner != d.owner {
+			continue
+		}
+		if seen[plan.Instance] || plan.NamespaceInode == 0 || plan.HostNamespaceInode == 0 || plan.NamespaceInode == plan.HostNamespaceInode {
+			return nil, ErrBoundary
+		}
+		seen[plan.Instance] = true
+		if d.Handoff != nil && d.Handoff.Verify(ctx, plan) != nil {
+			return nil, ErrBoundary
+		}
+		valuePlan := *plan
+		meta := NamespaceMeta{Inode: plan.NamespaceInode}
+		valuePlan.NamespaceInode = 0
+		valuePlan.HostNamespaceInode = 0
+		valuePlan.KernelLinks = nil
+		value, err := NamespaceValue(&valuePlan)
+		if err != nil {
+			return nil, ErrBoundary
 		}
 		result = append(result, scheduler.KV{Key: scheduler.Join(NamespaceName, NamespaceKeyID(plan.Instance)), Value: value, Meta: meta})
 	}

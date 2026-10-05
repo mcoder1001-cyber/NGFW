@@ -132,3 +132,10 @@ type EngineReadiness interface{ Preflight(context.Context) error }
 type SnapshotValidation interface {
 	Validate(context.Context, EngineSpec) error
 }
+
+// NamespacePlanInventory reads protected full-instance plans independently of
+// daemon observation receipts. The trusted construction seam exists for owned
+// private fixtures; profile/API data never supplies a root, path or inventory.
+// Errors and unknown entries must fail closed; returned plans remain subject to
+// owner validation and actual fixed-unit positive quiescence checks.
+type NamespacePlanInventory func(context.Context, string) ([]*NetworkPlan, error)

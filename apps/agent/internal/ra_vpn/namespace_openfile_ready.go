@@ -11,7 +11,9 @@ import (
 // numericPublisherReady is the closed validation-phase frame. Exactly one
 // manager-opened canonical source executable FD accompanies it. The client must
 // verify the fresh fixed server identity and that held image before starting the
-// unchanged five-second request/reply phase; this frame alone grants no trust.
+// five-second request phase; publish work has its own clipped budget and final
+// reply has a separate five-second budget. Probe request/reply remains five
+// seconds. This frame alone grants no trust.
 // The literal READY acknowledgment has zero rights and lets the server begin
 // its own IPC clock only after the client completes those fresh checks.
 // Each one-shot server validates installation afresh, including both probe and

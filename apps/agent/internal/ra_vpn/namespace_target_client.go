@@ -265,7 +265,9 @@ func namespaceSystemdProperties(ctx context.Context, unit, properties string) (m
 	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	// #nosec G204 -- fixed read-only executable; internal callers derive canonical unit names and constant property lists, never profile input or shell commands.
-	output, err := exec.CommandContext(bounded, "/usr/bin/systemctl", "show", "--property="+properties, unit).Output()
+	command := exec.CommandContext(bounded, "/usr/bin/systemctl", "show", "--property="+properties, unit)
+	command.WaitDelay = time.Second
+	output, err := command.Output()
 	if err != nil || len(output) > 16384 {
 		return nil, ErrBoundary
 	}

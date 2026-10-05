@@ -18,6 +18,8 @@ import (
 // The manager preopens both named descriptors before the service drops all caps.
 func RunNumericOpenFilePublisher() (result error) {
 	started := time.Now()
+	wholeContext, wholeCancel := context.WithTimeout(context.Background(), NumericPublisherServerWholeBudget)
+	defer wholeCancel()
 	stage := NumericPublisherServerRoles
 	diagnosticContext := context.Background()
 	setStage := func(value NumericPublisherServerStage) {
@@ -63,7 +65,7 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerInstallation)
-	validationContext, validationCancel := context.WithTimeout(context.Background(), NumericPublisherValidationBudget)
+	validationContext, validationCancel := context.WithTimeout(wholeContext, NumericPublisherValidationBudget)
 	defer validationCancel()
 	diagnosticContext = validationContext
 	proof, err := newNumericPublisherInstallationProof(validationContext)
@@ -91,6 +93,8 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	defer func() { _ = unix.Close(socket) }()
+	stopPeer := watchNumericPublisherPeer(wholeContext, socket, wholeCancel)
+	defer stopPeer()
 	if boundUnitObserverSocket(ctx, socket) != nil {
 		return ErrBoundary
 	}
@@ -133,7 +137,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	if acceptedErr != nil || string(accepted) != "READY" || validationContext.Err() != nil || proof.Verify(validationContext) != nil {
 		return ErrBoundary
 	}
-	ipcContext, ipcCancel := context.WithTimeout(context.Background(), NumericPublisherIPCBudget)
+	ipcContext, ipcCancel := context.WithTimeout(wholeContext, NumericPublisherIPCBudget)
 	defer ipcCancel()
 	ctx = ipcContext
 	diagnosticContext = ctx
@@ -162,6 +166,16 @@ func RunNumericOpenFilePublisher() (result error) {
 		if string(previousData) != "SOURCE" || request.PreviousServer.Equal(server) || (bootid.Reader{}).ForPID(request.PreviousServer.PID).Equal(request.PreviousServer) || validateSourceAgentExecutable(previousFiles[0]) != nil || !sameNumericPublisherSource(previousFiles[0], roles[sourceAgentExecutableRole]) {
 			return ErrBoundary
 		}
+		if ctx.Err() != nil {
+			return ErrBoundary
+		}
+		workContext, workCancel := context.WithTimeout(wholeContext, NumericPublisherWorkBudget)
+		defer workCancel()
+		ctx = workContext
+		diagnosticContext = ctx
+		if boundNumericPublisherWorkSocket(ctx, socket) != nil {
+			return ErrBoundary
+		}
 		setStage(NumericPublisherServerProof)
 		if proof.Verify(ctx) != nil {
 			return ErrBoundary
@@ -186,6 +200,29 @@ func RunNumericOpenFilePublisher() (result error) {
 		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
+		if numericPublisherManagerWithProof(ctx, server, proof) != nil || verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil || validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil || proof.Verify(ctx) != nil {
+			return ErrBoundary
+		}
+		token, tokenErr := newNumericPublisherWorkToken()
+		if tokenErr != nil {
+			return ErrBoundary
+		}
+		if sendNumericPublisherWorkFrame(socket, "publication-complete", source, server, token, int(roles[sourceAgentExecutableRole].Fd())) != nil {
+			return ErrBoundary
+		}
+		ackData, ackRights, ackErr := receiveUnitObserverPacket(socket, 0)
+		closeUnitObserverFiles(ackRights)
+		var ack numericPublisherWorkFrame
+		if ackErr != nil || decodeUnitObserverPacket(ackData, &ack) != nil || validateNumericPublisherWorkFrame(ack, "publication-ack", source, server, token) != nil || ctx.Err() != nil || noNumericPublisherQueuedInput(socket) != nil || proof.Verify(ctx) != nil || verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil {
+			return ErrBoundary
+		}
+		finalContext, finalCancel := context.WithTimeout(wholeContext, NumericPublisherIPCBudget)
+		defer finalCancel()
+		ctx = finalContext
+		diagnosticContext = ctx
+		if boundUnitObserverSocket(ctx, socket) != nil {
+			return ErrBoundary
+		}
 		published = true
 	}
 
@@ -203,6 +240,9 @@ func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucre
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerSend)
+	if published && noNumericPublisherQueuedInput(socket) != nil {
+		return ErrBoundary
+	}
 	output, err := json.Marshal(numericPublisherResponse{Phase: request.Phase, Source: request.Source, Server: server, Published: published})
 	if err != nil || len(output) > numericPublisherPacketLimit || unix.Sendmsg(socket, output, unix.UnixRights(int(image.Fd())), nil, 0) != nil {
 		return ErrBoundary
@@ -229,11 +269,17 @@ func activateNumericSupplier(ctx context.Context, kind NumericOpenFileKind, targ
 	if !validNumericOpenFileTarget(target) {
 		return ErrBoundary
 	}
-	if exec.CommandContext(ctx, "/usr/bin/systemctl", "daemon-reload").Run() != nil {
+	log.Print("remote-access publisher-server activation_step=1")
+	reload := exec.CommandContext(ctx, "/usr/bin/systemctl", "daemon-reload")
+	reload.WaitDelay = time.Second
+	if reload.Run() != nil {
 		return ErrBoundary
 	}
 	// #nosec G204 -- Only the two literal supplier families plus verified canonical PID can reach this fixed command.
-	if exec.CommandContext(ctx, "/usr/bin/systemctl", "start", name).Run() != nil {
+	start := exec.CommandContext(ctx, "/usr/bin/systemctl", "start", name)
+	start.WaitDelay = time.Second
+	log.Print("remote-access publisher-server activation_step=2")
+	if start.Run() != nil {
 		return ErrBoundary
 	}
 	return nil

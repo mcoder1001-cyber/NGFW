@@ -25,8 +25,8 @@ RestrictRealtime=yes
 SystemCallArchitectures=native
 UMask=0077
 ReadWritePaths=/run/systemd/system
-# Finite validation20 + unchanged request/reply5 + cleanup5 watchdog.
-RuntimeMaxSec=30
+# Immutable whole35 clips validation20/request5/work15/reply5; cleanup5 watchdog.
+RuntimeMaxSec=40
 TimeoutStartSec=5
 TimeoutStopSec=2
 StandardOutput=null

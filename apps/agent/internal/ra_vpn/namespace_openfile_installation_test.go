@@ -108,7 +108,7 @@ func TestNumericPublisherStreamingHashAndCancellation(t *testing.T) {
 }
 
 func TestNumericPublisherDiagnosticTransportPinned(t *testing.T) {
-	if NumericPublisherValidationBudget != 20*time.Second || NumericPublisherIPCBudget != 5*time.Second || NumericPublisherCleanupBudget != 5*time.Second || NumericPublisherServiceRuntimeBudget != 30*time.Second || NumericOpenFilePublicationBudget != 40*time.Second {
+	if NumericPublisherValidationBudget != 20*time.Second || NumericPublisherIPCBudget != 5*time.Second || NumericPublisherCleanupBudget != 5*time.Second || NumericPublisherServiceRuntimeBudget != 40*time.Second || NumericPublisherWorkBudget != 15*time.Second || NumericPublisherServerWholeBudget != 35*time.Second || NumericOpenFilePublicationBudget != 40*time.Second {
 		t.Fatal("publisher phase or whole-call budget changed")
 	}
 	data, err := os.ReadFile("../../../../deploy/systemd/ngfw-ra-openfile.service")
@@ -123,7 +123,7 @@ func TestNumericPublisherDiagnosticTransportPinned(t *testing.T) {
 	if strings.Count(text, "StandardOutput=null\n") != 1 || strings.Count(text, "StandardError=journal\n") != 1 || strings.Contains(text, "StandardError=null") {
 		t.Fatal("bounded publisher diagnostics cannot reach journal")
 	}
-	if !strings.Contains(text, "RuntimeMaxSec=30\n") || !strings.Contains(text, "CapabilityBoundingSet=\n") || !strings.Contains(text, "ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --publish-openfile\n") {
+	if !strings.Contains(text, "RuntimeMaxSec=40\n") || !strings.Contains(text, "CapabilityBoundingSet=\n") || !strings.Contains(text, "ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --publish-openfile\n") {
 		t.Fatal("diagnostic transport changed fixed privilege or runtime contract")
 	}
 }

@@ -120,6 +120,39 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if previous != nil && unix.Sendmsg(fd, []byte("SOURCE"), unix.UnixRights(int(previous.Fd())), nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 18)
 	}
+
+	if request.Phase == "publish" {
+		if ctx.Err() != nil {
+			return empty, nil, numericPublisherFailure(ctx, 19)
+		}
+		work, workCancel := context.WithTimeout(publicationContext, NumericPublisherWorkBudget)
+		defer workCancel()
+		if boundNumericPublisherWorkSocket(work, fd) != nil {
+			return empty, nil, numericPublisherFailure(work, 14)
+		}
+		completed, images, workErr := receiveUnitObserverPacket(fd, 1)
+		if workErr != nil {
+			return empty, nil, numericPublisherFailure(work, 19)
+		}
+		defer closeUnitObserverFiles(images)
+		var frame numericPublisherWorkFrame
+		if decodeUnitObserverPacket(completed, &frame) != nil || validateNumericPublisherWorkFrame(frame, "publication-complete", request.Source, ready.Server, frame.Token) != nil || previous == nil || !sameNumericPublisherSource(images[0], readyFiles[0]) || !sameNumericPublisherSource(images[0], previous) || validateSourceAgentExecutable(images[0]) != nil {
+			return empty, nil, numericPublisherFailure(work, 20)
+		}
+		if err := numericPublisherManagerWithProof(work, frame.Server, proof); err != nil {
+			return empty, nil, err
+		}
+		pid, gid := request.Source.PID, os.Getegid()
+		if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 || verifyFixedAgentPeer(work, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || proof.Verify(work) != nil || sendNumericPublisherWorkFrame(fd, "publication-ack", request.Source, ready.Server, frame.Token, -1) != nil {
+			return empty, nil, numericPublisherFailure(work, 22)
+		}
+		final, finalCancel := context.WithTimeout(publicationContext, NumericPublisherIPCBudget)
+		defer finalCancel()
+		ctx = final
+		if boundUnitObserverSocket(ctx, fd) != nil {
+			return empty, nil, numericPublisherFailure(ctx, 14)
+		}
+	}
 	data, files, err := receiveUnitObserverPacket(fd, 1)
 	if err != nil {
 		return empty, nil, numericPublisherFailure(ctx, 19)

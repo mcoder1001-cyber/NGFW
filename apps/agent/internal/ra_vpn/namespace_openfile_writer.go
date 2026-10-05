@@ -158,11 +158,12 @@ func verifyNumericOpenFileTarget(ctx context.Context, kind NumericOpenFileKind, 
 		return ErrBoundary
 	}
 	sum := sha256.Sum256(content)
-	if hex.EncodeToString(sum[:]) != "bf5e89b553235d455db222039d5e8b2cdbe639a1d36054b5dab6cca3ea266d9a" {
+	if hex.EncodeToString(sum[:]) != "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246" {
 		return ErrBoundary
 	}
 	// #nosec G204 -- RenderObserverOpenFile above permits only a complete 64-lowerhex instance in the fixed owned unit family.
 	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,FragmentPath,DropInPaths,ExecStart", "ngfw-ra@"+instance+".service")
+	command.WaitDelay = time.Second
 	output, err := command.Output()
 	if err != nil || len(output) > 16384 {
 		return ErrBoundary
@@ -229,6 +230,7 @@ func numericSupplierInactive(ctx context.Context, kind NumericOpenFileKind, pid 
 	name := prefix + strconv.Itoa(pid) + ".service"
 	// #nosec G204 -- Closed supplier kind and canonical bounded decimal PID derive this fixed unit, never caller text.
 	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,ControlPID,ActiveState,ControlGroup", name)
+	command.WaitDelay = time.Second
 	output, err := command.Output()
 	if err != nil {
 		return ErrBoundary

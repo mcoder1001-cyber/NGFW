@@ -78,8 +78,22 @@ def main():
     PHASE = 5
     mount("-t", "tmpfs", "-o", "mode=0755,size=1m", "tmpfs", "/run")
     root.mkdir(mode=0o700, parents=True)
-    bind(held_root, root)
-    bind(held_root / "daemon", root / "daemon", readonly=False)
+    mount("-t", "tmpfs", "-o", "mode=0700,size=1m", "tmpfs", str(root))
+    # Match the production daemon's individual asset view; never expose the
+    # host namespace binding or ownership/export receipts to child NET_ADMIN.
+    for name in ("network.json", "netns", "strongswan.conf", "swanctl.conf",
+                 "private", "x509", "x509ca", "x509crl", "daemon"):
+        source, target = held_root / name, root / name
+        if source.is_symlink():
+            refuse()
+        if name in ("private", "x509", "x509ca", "x509crl", "daemon"):
+            target.mkdir(mode=0o700)
+        else:
+            target.touch(mode=0o600)
+        bind(source, target, readonly=name != "daemon")
+    mount("-o", "remount,ro", str(root))
+    if os.path.lexists(root / "hostnetns"):
+        refuse()
     PHASE = 6
     mount("-t", "tmpfs", "-o", "mode=0755,size=1m", "tmpfs", "/etc")
     for name in ("passwd", "group", "nsswitch.conf", "ld.so.cache", "protocols", "services"):

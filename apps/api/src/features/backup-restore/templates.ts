@@ -39,7 +39,13 @@ export function renderTemplate(
           throw problems.badRequest('missing template parameter', [
             { pointer, message: 'unresolved placeholder' },
           ]);
-        return walk(parameters[name], pointer);
+        const value = parameters[name];
+        if (typeof value === 'string' && unsafe(value))
+          throw problems.badRequest('unsafe template text', [
+            { pointer, message: 'control character' },
+          ]);
+        // Parameter values are terminal literals, not another template to expand.
+        return value;
       }
       return v;
     }

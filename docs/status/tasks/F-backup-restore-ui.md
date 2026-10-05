@@ -35,3 +35,16 @@ Tests cover raw upload and401 token-refresh binary replay, problem pointers, arc
 Browser screenshots NOT RUN: backend private PostgreSQL/Valkey authenticated stack has not yet been provided; T4 needs both pages in en/fa light/dark, real candidate endpoints and safe upgrade fake-argv status fixture. No browser/live acceptance is claimed. Slot28 ports verified by tools/lab env: HTTP12800 WEB16800 metrics9381 database ngfw_w28; no servers or host mutations performed.
 
 The complete mandatory hosted quick gate and independent review remain manager prerequisites. Backend current generated success responses for templates/runs/upgrade are absent and restore has only staged without diff; backend notified. Frontend template input and upgrade operation types derive generated paths. Own `turbo run gen --filter=@ngfw/api-client` passed9 tasks in2m6.209s with missing200 response warnings; no handwritten generated edits. Generated client artifacts are backend-owned; no handwritten generated edits.
+
+## R6 author correction, 2026-10-05
+
+Source f01894264 resolves review feedback: scheduled history formats timestamps with existing useFormatters().dateTime in en/fa; New template resets all previous metadata; pending and empty schedule/history/template states translated. This is author implementation evidence, not independent review.
+
+Focused existing suite on f01894264:
+```
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  16:21:28
+   Duration  20.00s
+```
+Remote source checkpoint36aaa23bf1e0375c56e33618a12a5cac13654969 successfully published via connector. `tools/heavy.sh pnpm --filter @ngfw/web typecheck` passed exit0 ($ tsc -p tsconfig.json --noEmit). `tools/heavy.sh pnpm --filter @ngfw/web exec eslint src/domains/system/backup-restore` passed exit0; only existing repository MODULE_TYPELESS_PACKAGE_JSON warning.

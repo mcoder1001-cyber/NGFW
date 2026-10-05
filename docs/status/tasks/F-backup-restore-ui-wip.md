@@ -6,3 +6,5 @@ Tests: initial check PASSED0m10s; typecheck after workspace dependency build pas
 Remaining: successful response contract completion owned by backend; real en/fa light/dark screenshots against privateDB endpoint. Backend real stack not ready yet. No screenshot/live endpoint claim.
 Current failure: none identified in frontend. Backend successful OpenAPI response contracts and real stack browser evidence still owed.
 Next: manager integrates authored66d1ac2cc,7b7fe1ac8,dfc463089 (exclude borrowed527bd51ef,d23d80a66); fresh independent R6/T4 validate and capture real stack. Remote published c7834f78c20b29406d84e9da362e408159bb275d via connector.
+
+R6 source correction f01894264 published36aaa23bf1e0375c56e33618a12a5cac13654969: locale history timestamps, new-template reset, loading/empty states. Focused9/9 tests, typecheck and touched ESLint passed. Next manager cherry-picks f01894264 and status-only next commit, independent R6 verifies.

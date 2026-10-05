@@ -28,6 +28,22 @@ describe('operational configuration safety', () => {
     ).toThrow();
     expect({}).not.toHaveProperty('polluted');
   });
+  it('substitutes self-referential and cyclic-looking parameter values as literals', () => {
+    const template = {
+      parameters: {
+        first: { type: 'string' as const, required: true },
+        second: { type: 'string' as const, required: true },
+      },
+      patch: { system: { hostname: '${first}', domain: '${second}' } },
+    };
+    expect(renderTemplate(template, { first: '${first}', second: '${second}' })).toEqual({
+      system: { hostname: '${first}', domain: '${second}' },
+    });
+    expect(renderTemplate(template, { first: '${second}', second: '${first}' })).toEqual({
+      system: { hostname: '${second}', domain: '${first}' },
+    });
+    expect(() => renderTemplate(template, { first: 'bad\nname', second: '${first}' })).toThrow();
+  });
   it('fails the final support scan on quoted or serialized credential keys and hashes', () => {
     for (const raw of [
       '{"psk":"raw"}',

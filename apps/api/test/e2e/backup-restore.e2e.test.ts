@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
-import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readdir, readFile, rm, writeFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BackupScheduleService } from '../../src/features/backup-restore/schedule.js';
@@ -29,6 +29,7 @@ describe('backup recovery on PostgreSQL with the normal commit API', () => {
   beforeAll(async () => {
     h = await startHarness();
     token = await h.login('admin', h.adminPassword);
+    h.app.get(BackupScheduleService).onModuleDestroy(); // Tick deterministically; prevent fixture timer races.
     directory = await mkdtemp(join(tmpdir(), 'ngfw-fbr-'));
   });
   afterAll(async () => {
@@ -236,6 +237,35 @@ describe('backup recovery on PostgreSQL with the normal commit API', () => {
       1,
     );
     expect(runs.body.runs[0].result).toBe('success');
+  });
+  it('raw upgrade uploads bypass JSON size limit while restore remains bounded and authenticated', async () => {
+    const previous = process.env['NGFW_UPDATES_DIR'];
+    process.env['NGFW_UPDATES_DIR'] = directory;
+    try {
+      const reply = await h.app.inject({
+        method: 'POST',
+        url: '/api/v1/actions/upgrade-upload',
+        headers: {
+          authorization: `Bearer ${token}`,
+          'content-type': 'application/vnd.ngfw.update',
+          'x-ngfw-filename': 'ngfw-update-1.2.3.tar',
+        },
+        payload: Buffer.alloc(10 * 1024 * 1024, 1),
+      });
+      expect(reply.statusCode).toBe(200);
+      const file = reply.json().bundle as string;
+      expect(file.startsWith(directory + '/ngfw-update-')).toBe(true);
+      expect((await stat(file)).size).toBe(10 * 1024 * 1024);
+      expect(h.fake.calls.filter((call) => call.method === 'Action')).toHaveLength(0); // Upload never stages the appliance.
+      const badRestore = await h.call(token, 'POST', '/api/v1/actions/restore', {
+        passphrase,
+        archive: Buffer.alloc(9 * 1024 * 1024).toString('base64'),
+      });
+      expect(badRestore.status).toBe(400); // Route accepts bounded larger JSON, then rejects invalid archive.
+    } finally {
+      if (previous === undefined) delete process.env['NGFW_UPDATES_DIR'];
+      else process.env['NGFW_UPDATES_DIR'] = previous;
+    }
   });
   it('refuses oversized revision history before selecting JSON document payloads into Node', async () => {
     // Grow only the dedicated fixture DB; SQL generates the data, avoiding a large client payload.

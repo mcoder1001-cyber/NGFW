@@ -38,12 +38,25 @@ def main():
         if identity()!=before:raise Refused('shared VPP changed during private campaign')
         print('SHARED_VPP_UNCHANGED',flush=True)
         return result
+    current_mnt=os.readlink('/proc/self/ns/mnt')
+    parent_mnt=os.readlink('/proc/'+str(os.getppid())+'/ns/mnt')
+    if current_mnt==parent_mnt or current_mnt==os.readlink('/proc/1/ns/mnt'):
+        raise Refused('child requires independently observed new mount namespace')
+    if not args.host_network and os.readlink('/proc/self/ns/net')==os.readlink('/proc/'+str(os.getppid())+'/ns/net'):
+        raise Refused('child requires independently observed new network namespace')
     os.umask(0o022)  # daemon traversal dirs; diagnostic logs set0600 explicitly
     runtime=ROOT/'.scratch'/('traffic-b-private-'+str(os.getpid()))
     runtime.mkdir(mode=0o700,parents=True)
     for target,label in [('/run/netns','netns'),('/run/ngfw-test','ngfw-test'),('/run/vpp','vpp'),('/run/frr','frr')]:
         directory=runtime/label;directory.mkdir(mode=0o755)
         subprocess.run(['mount','--bind',str(directory),target],check=True)
+    stock=os.environ.get('NGFW_TRAFFIC_STOCK_ROOT')
+    if stock:
+        source=Path(stock).resolve(strict=True)
+        if source==Path('/') or not (source/'usr/sbin/charon-systemd').is_file():raise Refused('extracted stock root required')
+        target=Path('/run/ngfw-test/w10/swan-stock/root');target.mkdir(parents=True,mode=0o755)
+        subprocess.run(['mount','--bind',str(source),str(target)],check=True)
+        subprocess.run(['mount','-o','remount,bind,ro',str(target)],check=True)
     if not args.host_network:subprocess.run(['ip','link','set','lo','up'],check=True)
     conf=runtime/'startup.conf'
     plugins=os.environ.get('NGFW_ISOLATED_PLUGIN_PATH','')
@@ -69,7 +82,15 @@ def main():
                      NGFW_TRAFFIC_PRIVATE_VPP_PID=str(vpp.pid),
                      NGFW_VPP_API_SOCKET=str(runtime/'vpp/api.sock'),
                      NGFW_TRAFFIC_B_EVIDENCE=str(runtime/'evidence'))
-            result=subprocess.call(args.command,env=env,cwd=ROOT)
+            child=subprocess.Popen(args.command,env=env,cwd=ROOT,start_new_session=True)
+            try:
+                result=child.wait(timeout=1800)
+            finally:
+                if child.poll() is None:
+                    os.killpg(child.pid,signal.SIGTERM)
+                    try:child.wait(timeout=15)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(child.pid,signal.SIGKILL);child.wait()
             if vpp.poll() is not None:raise Refused('private VPP died during campaign')
             print(json.dumps({'private_runtime':str(runtime),'exit_code':result,'slot':args.slot}),flush=True)
             return result

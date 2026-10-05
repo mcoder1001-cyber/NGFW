@@ -12,7 +12,7 @@ import time
 import urllib.request
 from scenario import Refused,slot_values
 from probe import stop
-from tunnels import Api,run
+from tunnels import Api,run,check_commit
 ROOT=Path(__file__).resolve().parents[3]
 
 
@@ -42,7 +42,7 @@ def main():
         dsn=dict(line.split('=',1) for line in (runtime/'pg.env').read_text().splitlines())['NGFW_PG_DSN']
         common={'PATH':os.environ['PATH'],'HOME':os.environ['HOME'],**values}
         agent_env=dict(common,NGFW_OWNER=owner,NGFW_GLOBALS_OWNER='0',NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),
-                       NGFW_AGENT_STATE_DIR=str(runtime/'state'),NGFW_VPP_API_SOCKET=str(api_socket),
+                       NGFW_AGENT_STATE_DIR=str(runtime/'state'),NGFW_AGENT_VPP_API_SOCKET=str(api_socket),
                        NGFW_METRICS_ADDR='off',NGFW_SOCKET_GROUP='root',NGFW_KEA_MODE='off',NGFW_LOG_LEVEL='info')
         def start(argv,env,label):
             path=runtime/(label+'.private.log');fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
@@ -50,9 +50,12 @@ def main():
             process=subprocess.Popen(argv,env=env,cwd=ROOT,stdout=stream,stderr=subprocess.STDOUT)
             processes.append(process);return process
         ag=start([str(agent)],agent_env,'agent')
+        kvport=port+80
+        with socket.socket() as check:check.bind(('127.0.0.1',kvport))
+        kv=start(['valkey-server','--bind','127.0.0.1','--port',str(kvport),'--save','','--appendonly','no','--dir',str(runtime)],common,'valkey')
         admin=secrets.token_urlsafe(24)
         api_env=dict(common,NODE_ENV='production',NGFW_HTTP_PORT=str(port),NGFW_HTTP_HOST='127.0.0.1',
-                     NGFW_PG_DSN=dsn,NGFW_VALKEY_DB=values['NGFW_SLOT'],NGFW_VALKEY_PREFIX='ngfw:'+owner+':tb:',
+                     NGFW_PG_DSN=dsn,NGFW_VALKEY_URL='redis://127.0.0.1:'+str(kvport),NGFW_VALKEY_DB='0',NGFW_VALKEY_PREFIX='ngfw:'+owner+':tb:',
                      NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),NGFW_AGENT_OWNER=owner,NGFW_AGENT_TIMEOUT_MS='60000',
                      NGFW_JWT_SECRET=secrets.token_hex(32),NGFW_SECRET_KEY_FILE=str(runtime/'secret.key'),
                      NGFW_BOOTSTRAP_ADMIN_PASSWORD=admin,NGFW_COOKIE_SECURE='0',NGFW_LOG_LEVEL='warn')
@@ -60,7 +63,7 @@ def main():
         endpoint='http://127.0.0.1:'+str(port)+'/api/v1'
         deadline=time.monotonic()+90
         while True:
-            if ag.poll() is not None or ap.poll() is not None:raise Refused('owned stack exited; inspect private logs')
+            if ag.poll() is not None or ap.poll() is not None or kv.poll() is not None:raise Refused('owned stack exited; inspect private logs')
             try:
                 with urllib.request.urlopen(endpoint+'/health',timeout=2) as response:
                     if response.status==200:break
@@ -69,18 +72,26 @@ def main():
             time.sleep(.2)
         request=urllib.request.Request(endpoint+'/auth/login',data=json.dumps({'username':'admin','password':admin}).encode(),headers={'Content-Type':'application/json'})
         with urllib.request.urlopen(request,timeout=10) as response:token=json.load(response)['accessToken']
-        events=run(args.slot,Api(args.slot,token),args.output)
+        api=Api(args.slot,token)
+        base_name=owner+'-pristine'
+        # A fresh datastore has no historical revision. Establish an owned
+        # harmless VRF baseline; never fabricate revision0 or rollback/null.
+        api.call('PATCH','/config/vrfs',{base_name:{'id':args.slot*1000+40}})
+        check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine'))
+        try:
+            events=run(args.slot,api,args.output)
+        finally:
+            api.call('POST','/config/discard')
+            api.call('PATCH','/config/vrfs',{base_name:None})
+            check_commit(api.call('POST','/config/commit?comment=traffic-b-pristine-cleanup'))
         print(json.dumps({'phase':'tunnels','passed':len(events)==2,'source_sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip()}))
         return 0
     finally:
         for process in reversed(processes):stop(process)
         for stream in streams:stream.close()
         if database:subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'drop',owner],check=True,stdout=subprocess.DEVNULL)
-        # Remove only this stack's Valkey keys; no FLUSHDB shared command.
-        script='local c="0" repeat local r=redis.call("SCAN",c,"MATCH",ARGV[1].."*","COUNT",100) c=r[1] for _,k in ipairs(r[2]) do redis.call("DEL",k) end until c=="0" return 0'
-        subprocess.run(['valkey-cli','-n',str(args.slot),'EVAL',script,'0','ngfw:'+owner+':tb:'],check=True,stdout=subprocess.DEVNULL)
 
 if __name__=='__main__':
     try:sys.exit(main())
     except (OSError,ValueError,subprocess.SubprocessError) as error:
-        print(type(error).__name__+': slot stack failed; inspect private owned logs',file=sys.stderr);sys.exit(1)
+        print((str(error) if isinstance(error,Refused) else type(error).__name__)+': slot stack failed; inspect private owned logs',file=sys.stderr);sys.exit(1)

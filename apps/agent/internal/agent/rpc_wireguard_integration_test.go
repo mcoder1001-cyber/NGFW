@@ -428,11 +428,17 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 		t.Fatal(err)
 	}
 	// the agent: the wg interface and its peer
+	wgInstance := base + 60
+	if os.Getenv("NGFW_TRAFFIC_B") == "1" && os.Getenv("NGFW_DISPOSABLE_VPP") == "1" {
+		// VPP WireGuard caps instances at16384; slot table IDs are a separate
+		// allocator. A private fixture uses its existing slot loopback range.
+		wgInstance = uint32(slot*100 + 60)
+	}
 	js := fmt.Sprintf(`{
 	  "vpn": {"wireguard": {"interfaces": {"road": {"instance": %[2]d, "listenAddress": "10.%[1]d.60.1", "listenPort": %[3]d,
 	    "privateKeyRef": "key/%[4]s-a", "address": ["10.%[1]d.61.1/24"], "routeAllowedIps": true,
 	    "peers": {"kernel": {"publicKey": %[5]q, "endpoint": {"address": "10.%[1]d.60.2", "port": %[6]d}, "allowedIps": ["10.%[1]d.61.2/32"]}}}}}}
-	}`, slot, base+60, vppPort, owner, kernPub, kernPort)
+	}`, slot, wgInstance, vppPort, owner, kernPub, kernPort)
 	h := startWgHost(t, raw, owner, dir, keys)
 	defer h.stop()
 	if resp := apply(t, h.svc, &ngfwv1.ApplyRequest{TxnId: owner + "-hs", DesiredState: doc(t, js), Subsystems: allDomains}); resp.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {

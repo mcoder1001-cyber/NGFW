@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import selectors
+import re
 import socket
 import subprocess
 import sys
@@ -25,8 +26,9 @@ def stop(process):
 
 class Capture:
     def __init__(self, namespace, device, expression, output):
-        self.stream = output.open('x')
-        self.process = subprocess.Popen(['ip','netns','exec',namespace,'tcpdump','-n','-l','-vv','-i',device,expression],
+        self.output=output
+        self.stream = os.fdopen(os.open(output,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w')
+        self.process = subprocess.Popen(['ip','netns','exec',namespace,'tcpdump','--immediate-mode','-n','-l','-vv','-i',device,expression],
                                         stdout=self.stream,stderr=subprocess.PIPE)
         try:
             selector=selectors.DefaultSelector();selector.register(self.process.stderr,selectors.EVENT_READ)
@@ -41,6 +43,15 @@ class Capture:
             finally:selector.close()
         except BaseException:
             self.close();raise
+    def wait_text(self, predicate):
+        deadline=time.monotonic()+10
+        while time.monotonic()<deadline:
+            if self.output.stat().st_size>1048576:raise Refused('capture text exceeds bound')
+            data=self.output.read_text()
+            if predicate(data):return data
+            if self.process.poll() is not None:raise Refused('capture exited before required packets')
+            time.sleep(.05)
+        raise Refused('required packet capture deadline')
     def close(self):
         stop(self.process)
         self.process.stderr.close();self.stream.close()
@@ -57,29 +68,37 @@ def probe(slot, phase, output):
         target=f'10.{slot}.64.129' if phase=='bgp' else f'10.{slot}.128.129'
         port=int(values['NGFW_HTTP_PORT'])+42
         peer(wan,'ip','addr','add',target+'/32','dev','lo')
+        peer(wan,'ip','route','add',f'10.{slot}.1.2/32','via',f'10.{slot}.2.1','dev',device)
         server=None;capture=None
         try:
             ready=output/(phase+'-server-ready')
+            if ready.exists():raise Refused('stale TCP readiness artifact')
             server=subprocess.Popen(['ip','netns','exec',wan,sys.executable,str(Path(__file__).resolve()),'--server',target,str(port),str(ready)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
             deadline=time.monotonic()+10
             while not ready.exists():
                 if server.poll() is not None or time.monotonic()>deadline:raise Refused('TCP server did not start')
                 time.sleep(.05)
-            before=command(['timeout','10','vppctl','show','ip','fib',target+'/32'])
+            learned=f'10.{slot}.64.128/25' if phase=='bgp' else f'10.{slot}.128.0/24'
+            before=command(['timeout','10','vppctl','show','ip','fib',learned])
+            if learned not in before or 'lcp-rt' not in before:raise Refused('exact learned FIB prefix absent')
+            (output/(phase+'-peer-route.txt')).write_text(peer(wan,'ip','route','get',f'10.{slot}.1.2'))
             cap=output/(phase+'-tcpdump.txt')
             capture=Capture(wan,device,'host '+target+' and (icmp or tcp port '+str(port)+')',cap)
             ping=peer(lan,'ping','-n','-c','4','-s','347','-W','3',target)
             peer(lan,sys.executable,str(Path(__file__).resolve()),'--client',target,str(port))
+            capture.wait_text(lambda text:'ICMP echo reply' in text and 'Flags [S.]' in text)
             capture.close();capture=None
             text=cap.read_text()
             if target not in text or 'ICMP echo request' not in text or 'ICMP echo reply' not in text or 'Flags [S]' not in text or 'Flags [S.]' not in text:
                 raise Refused('learned-route bidirectional ICMP/TCP absent from capture')
             (output/(phase+'-ping.txt')).write_text(ping)
-            after=command(['timeout','10','vppctl','show','ip','fib',target+'/32'])
+            after=command(['timeout','10','vppctl','show','ip','fib',learned])
+            if learned not in after or 'lcp-rt' not in after:raise Refused('learned FIB prefix vanished during packets')
             (output/(phase+'-fib.txt')).write_text('BEFORE\n'+before+'AFTER\n'+after)
         finally:
             if capture:capture.close()
             if server:stop(server)
+            peer(wan,'ip','route','del',f'10.{slot}.1.2/32','via',f'10.{slot}.2.1','dev',device)
             peer(wan,'ip','addr','del',target+'/32','dev','lo')
     elif phase=='wireguard':
         ns=f'ns-{prefix}wh';device=prefix+'wh-t0';target=f'10.{slot}.61.1'
@@ -109,7 +128,8 @@ def probe(slot, phase, output):
 def main():
     if len(sys.argv)>1 and sys.argv[1]=='--server':
         address,port,ready=sys.argv[2:];server=socket.socket();server.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
-        server.bind((address,int(port)));server.listen(4);Path(ready).write_text('ready')
+        server.bind((address,int(port)));server.listen(4)
+        fd=os.open(ready,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600);os.write(fd,b'ready');os.close(fd)
         while True:
             connection,_=server.accept()
             with connection:

@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import urllib.request
+import urllib.error
 from scenario import Refused, slot_values
 from probe import Capture
 ROOT = Path(__file__).resolve().parents[3]
@@ -54,7 +55,14 @@ class Api:
         data = None if body is None else json.dumps(body).encode()
         req = urllib.request.Request(self.base + path, data=data, method=method,
                                      headers={"Authorization": "Bearer " + self.token, "Content-Type": "application/merge-patch+json" if method == "PATCH" else "application/json"})
-        with urllib.request.urlopen(req, timeout=30) as response:
+        try:
+            response = urllib.request.urlopen(req, timeout=30)
+        except urllib.error.HTTPError as error:
+            raw = error.read(1048576)
+            try:problem=json.loads(raw)
+            except ValueError:problem={}
+            raise Refused(f"API HTTP {error.code} {method} {path}; problem {problem.get('type','unknown')} pointers {[e.get('pointer') for e in problem.get('errors',[])]} title {problem.get('title')} detail {problem.get('detail')}") from None
+        with response:
             raw = response.read(1048577)
         if len(raw) > 1048576:
             raise Refused("API response exceeds bound")

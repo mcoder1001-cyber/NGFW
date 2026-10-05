@@ -222,6 +222,10 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 	n, p := e.slot, e.prefix
 	lcp := func(host string) map[string]any {
 		if e.fib { // the default netns (linux-cp { default netns }) — the only netns linux-nl hears (M4)
+			if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+				// Current VPP dump reports its resolved default namespace explicitly.
+				return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
+			}
 			return map[string]any{"hostIfName": host, "hostIfType": "tap"}
 		}
 		return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}

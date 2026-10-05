@@ -49,3 +49,15 @@ The first composed run failed once at native certificate immediate post-route-re
 Acceptance limits remain explicit. WG/BGP/OSPF use product gRPC integration fixtures; their REST candidate/commit acceptance is not established. DHCP and tunnels prove REST configuration. Unrelated disabled baseline agent warnings are recorded exactly; unsupported changed tunnel/interface/routing-l2 fields and new warnings refuse. Optional phase6 smokes are individually not-run with reasons in the summary; whole_wave_passed remains false, primary_passed is true. Native peer-loss is not requested and is not claimed.
 
 Before merge: obtain independent applicable reviews/T1/T3, pin fresh main after the backup merge, validate the combined tree and actual REST baseline including any newly introduced disabled API-owned defaults, and run the required integration gate on that tree. This report does not claim those future checks passed.
+
+## Independent R1 scope correction 2026-10-05
+
+Original prompt Goal and Phases require slot REST API commit → applied for every
+primary phase. Native IPsec, WireGuard, BGP and OSPF currently configure through
+product gRPC fixtures; their real packet evidence is valid for that narrower
+path but does not prove the required API path. No owner decision waived this.
+This is missing orchestrator code, not deferrable laboratory execution. Task
+remains running; independent R1 verdict is BLOCK pending REST configuration
+wrappers and repeated real packets/rollback. The standalone tunnels.py entry
+also lacks baseline_warnings argument and requires correction. Prior complete
+quick and seven-phase results remain source-specific historical evidence.

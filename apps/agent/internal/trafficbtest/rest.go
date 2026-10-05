@@ -76,7 +76,10 @@ func New(t *testing.T, socket, owner, phase string, expectedPID ...int) *Client 
 	if err != nil {
 		t.Fatal(err)
 	}
-	diagnostic, err := os.OpenFile(filepath.Join(t.TempDir(), "rest.private.log"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err := os.MkdirAll(os.Getenv("NGFW_TRAFFIC_B_EVIDENCE"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	diagnostic, err := os.OpenFile(filepath.Join(os.Getenv("NGFW_TRAFFIC_B_EVIDENCE"), phase+"-rest.private.log"), os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}

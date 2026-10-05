@@ -99,7 +99,7 @@ class StackRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             physical=Path(folder)/'api';physical.touch()
             with patch.dict(os.environ,NGFW_DISPOSABLE_VPP='1',NGFW_TRAFFIC_PRIVATE_VPP_PID='1',NGFW_VPP_API_SOCKET=str(physical)), \
-                 patch('stack.os.path.samefile',return_value=True), \
+                 patch('stack.socket.socket'),patch('stack.private_identity'),patch('stack.os.path.samefile',return_value=True), \
                  patch.object(Path,'is_file',return_value=True),patch.object(Path,'exists',return_value=False), \
                  patch('stack.subprocess.check_output',return_value=''),patch('stack.subprocess.run',side_effect=invoke):
                 with self.assertRaises(subprocess.CalledProcessError):
@@ -115,7 +115,7 @@ class StackRecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             physical=Path(folder)/'api';physical.touch()
             with patch.dict(os.environ,NGFW_DISPOSABLE_VPP='1',NGFW_TRAFFIC_PRIVATE_VPP_PID='1',NGFW_VPP_API_SOCKET=str(physical)), \
-                 patch('stack.os.path.samefile',return_value=True),patch.object(Path,'is_file',return_value=True), \
+                 patch('stack.socket.socket'),patch('stack.private_identity'),patch('stack.os.path.samefile',return_value=True),patch.object(Path,'is_file',return_value=True), \
                  patch.object(Path,'exists',return_value=False),patch('stack.subprocess.check_output',side_effect=['','ngfw_w27tb']), \
                  patch('stack.subprocess.run') as mutate:
                 with self.assertRaises(Refused):
@@ -160,3 +160,32 @@ class StackRecoveryTests(unittest.TestCase):
                 self.assertEqual(worker.returncode,143)
             finally:
                 if worker.poll() is None:worker.kill();worker.wait()
+
+    def test_wireguard_rig_cleanup_survives_rollback_and_state_failure(self):
+        from unittest.mock import Mock
+        from wireguard_rest import cleanup
+        for rollback in (True,False):
+            control=Mock();api=Mock();command=Mock()
+            if rollback:control.close.side_effect=Refused('rollback failed')
+            else:api.call.side_effect=Refused('state failed')
+            with self.assertRaises(Refused):cleanup(control,api,True,command,'w27')
+            self.assertEqual(command.call_args[0][0][-3:],['rig','down','w27'])
+
+    def test_owned_fixture_peer_identity_positive_and_namespace_negative(self):
+        import os
+        from pathlib import Path
+        import socket
+        import tempfile
+        from unittest.mock import patch
+        import stack
+        with tempfile.TemporaryDirectory() as directory:
+            address=Path(directory)/'agent.sock'
+            with socket.socket(socket.AF_UNIX) as server:
+                server.bind(str(address));server.listen()
+                def links(path):
+                    return '/private/agent.test' if path.endswith('/exe') else 'private-namespace'
+                with patch.dict(os.environ,NGFW_TRAFFIC_EXPECTED_AGENT_PID=str(os.getpid()),NGFW_TRAFFIC_VERIFIED_OWNER='w27'), \
+                     patch('stack.os.getppid',return_value=os.getpid()),patch('stack.os.readlink',side_effect=links):
+                    self.assertEqual(stack.attached_identity(address,'w27')['pid'],os.getpid())
+                    with patch('stack.os.readlink',side_effect=['foreign','private']):
+                        with self.assertRaises(Refused):stack.attached_identity(address,'w27')

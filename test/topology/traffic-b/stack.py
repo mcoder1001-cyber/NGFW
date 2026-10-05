@@ -15,7 +15,7 @@ import sys
 import time
 import urllib.request
 from urllib.parse import urlsplit, urlunsplit, urlencode, parse_qsl
-from scenario import Refused,slot_values
+from scenario import Refused,slot_values,private_identity
 from probe import stop
 from tunnels import Api,run,check_commit
 ROOT=Path(__file__).resolve().parents[3]
@@ -46,7 +46,8 @@ def attached_identity(path, owner):
 
 
 @contextmanager
-def product_stack(slot, *, target_socket=None, target_owner=None):
+def product_stack(slot, *, target_socket=None, target_owner=None, agent_binary=None, wg_secrets=None):
+    private_identity()
     values=slot_values(slot);owner=values['NGFW_TEST_PREFIX']+'tb'
     agent_owner=target_owner or owner
     if os.environ.get('NGFW_DISPOSABLE_VPP')!='1' or not os.environ.get('NGFW_TRAFFIC_PRIVATE_VPP_PID'):
@@ -55,7 +56,7 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
     if api_socket.resolve()==mounted.resolve() or not os.path.samefile(api_socket,mounted):
         raise Refused('private API socket does not match mounted private VPP')
     if target_socket is not None:attached_identity(target_socket,target_owner)
-    agent=ROOT/'apps/agent/bin/ngfw-agent';api_bin=ROOT/'apps/api/dist/main.js'
+    agent=Path(agent_binary) if agent_binary else ROOT/'apps/agent/bin/ngfw-agent';api_bin=ROOT/'apps/api/dist/main.js'
     if not agent.is_file() or not api_bin.is_file():raise Refused('run complete quick gate to build product binaries first')
     port=int(values['NGFW_HTTP_PORT'])
     with socket.socket() as check:
@@ -71,27 +72,33 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
     processes=[];streams=[];database=False
     try:
         database=True  # reserved absent owner; partial create failures must also clean up
-        subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'create',owner],check=True,stdout=subprocess.DEVNULL)
+        subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'create',owner],check=True,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL,
+                       env=dict(os.environ,**({'NGFW_PG_HOST':os.environ['NGFW_TRAFFIC_PG_PROXY_DIR']} if os.environ.get('NGFW_TRAFFIC_PG_PROXY_DIR') else {})))
         runtime.chmod(0o700)
-        dsn=dict(line.split('=',1) for line in (runtime/'pg.env').read_text().splitlines())['NGFW_PG_DSN']
+        pg=dict(line.split('=',1) for line in (runtime/'pg.env').read_text().splitlines())
+        dsn=pg['NGFW_PG_DSN']
         proxy=os.environ.get('NGFW_TRAFFIC_PG_PROXY_DIR')
         if proxy:
-            parsed=urlsplit(dsn);query=dict(parse_qsl(parsed.query));query['host']=proxy
-            dsn=urlunsplit((parsed.scheme,parsed.netloc,parsed.path,urlencode(query),parsed.fragment))
+            dsn=urlunsplit(('postgres',pg['NGFW_PG_USER']+':'+pg['NGFW_PG_PASSWORD']+'@127.0.0.1:5432','/'+pg['NGFW_PG_DATABASE'],urlencode({'sslmode':'disable','host':proxy}),''))
         keys=runtime/'license-keys';licence=runtime/'test.ngfwlic';serial=owner+'-traffic-test'
         issuer=str(ROOT/'tools/license/ngfw-license')
         for arguments in ([issuer,'keygen','--out-dir',str(keys)],
                           [issuer,'issue','--key',str(keys/'ngfw-license-signing.pem'),'--customer','Traffic B isolated fixture','--id',serial,'--days','1','--serial',serial,'--features','ipsec,wireguard,bgp,ospf','--limit','ipsecTunnels=8','--limit','wireguardInterfaces=8','--out',str(licence)],
                           [issuer,'verify','--pub',str(keys/'ngfw-license-public.pem'),str(licence)]):
-            subprocess.run(arguments,check=True,stdout=subprocess.DEVNULL,timeout=15)
+            subprocess.run(arguments,check=True,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL,timeout=15)
         common={'PATH':os.environ['PATH'],'HOME':os.environ['HOME'],**values}
         agent_env=dict(common,NGFW_OWNER=agent_owner,NGFW_GLOBALS_OWNER='0',NGFW_AGENT_SOCKET=str(runtime/'agent.sock'),
                        NGFW_AGENT_STATE_DIR=str(runtime/'state'),NGFW_AGENT_VPP_API_SOCKET=str(api_socket),
                        NGFW_METRICS_ADDR='off',NGFW_SOCKET_GROUP='root',NGFW_KEA_MODE='off',NGFW_LOG_LEVEL='info')
+        if wg_secrets is not None:
+            if agent_binary is None or target_socket is not None:raise Refused('WireGuard fixture requires an owned tagged agent')
+            build=subprocess.check_output(['go','version','-m',str(agent)],text=True,timeout=10)
+            if '-tags=ngfwtestsecrets' not in build:raise Refused('WireGuard fixture binary lacks approved test tag')
+            agent_env['NGFW_TEST_WG_SECRETS']=str(wg_secrets)
         def start(argv,env,label):
             path=runtime/(label+'.private.log');fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
             stream=os.fdopen(fd,'wb');streams.append(stream)
-            process=subprocess.Popen(argv,env=env,cwd=ROOT,stdout=stream,stderr=subprocess.STDOUT)
+            process=subprocess.Popen(argv,env=env,cwd=ROOT,stdin=subprocess.DEVNULL,stdout=stream,stderr=subprocess.STDOUT)
             processes.append(process);return process
         ag=start([str(agent)],agent_env,'agent') if target_socket is None else None
         agent_socket=target_socket or str(runtime/'agent.sock')
@@ -135,7 +142,7 @@ def product_stack(slot, *, target_socket=None, target_owner=None):
     finally:
         for process in reversed(processes):stop(process)
         for stream in streams:stream.close()
-        if database:subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'drop',owner],check=True,stdout=subprocess.DEVNULL)
+        if database:subprocess.run([str(ROOT/'deploy/dev/pg-test.sh'),'drop',owner],check=True,stdout=subprocess.DEVNULL,stdin=subprocess.DEVNULL)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--slot',type=int,required=True)

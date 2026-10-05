@@ -130,6 +130,7 @@ def main():
             for line in sys.stdin:
                 if len(line)>1048576:raise Refused('bounded private request required')
                 request=json.loads(line)
+                print('REST_BRIDGE_REQUEST '+str(request.get('txn','close')),file=sys.stderr,flush=True)
                 if request.get('close'):break
                 try:response=controller.apply(request)
                 except (OSError,ValueError) as error:

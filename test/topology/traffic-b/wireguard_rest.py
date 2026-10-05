@@ -14,6 +14,15 @@ from probe import Capture
 from scenario import Refused,private_identity
 ROOT=Path(__file__).resolve().parents[3]
 
+def cleanup(control,api,created,command,prefix):
+    try:
+        control.close()
+        if api.call('GET','/state/vpn/wireguard').get('interfaces'):
+            raise Refused('WireGuard residue after REST rollback')
+    finally:
+        if created:command([str(ROOT/'tools/lab'),'rig','down',prefix])
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--slot',type=int,required=True);parser.add_argument('--output',type=Path,required=True);args=parser.parse_args()
     private_identity();args.output.mkdir(mode=0o700,parents=True,exist_ok=False)
@@ -23,12 +32,15 @@ def main():
     def command(argv,data=None):return subprocess.check_output(argv,input=data,stderr=subprocess.STDOUT,timeout=40)
     def peer(*argv):return command(['ip','netns','exec',namespace,*argv]).decode()
     created=False
-    with product_stack(args.slot) as (api,runtime,restart):
+    vpp_key=command(['wg','genkey']).strip();kernel_key=command(['wg','genkey']).strip()
+    fixture=args.output/'wg-secret.private.json';fd=os.open(fixture,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
+    with os.fdopen(fd,'w') as stream:json.dump({'key/'+prefix+'tb-a':vpp_key.decode()},stream)
+    tagged=ROOT/'.scratch/traffic-b-wg-agent/ngfw-agent'
+    with product_stack(args.slot,agent_binary=tagged,wg_secrets=fixture) as (api,runtime,restart):
         control=Controller(api,prefix+'tb',args.output/'wireguard-rest.json')
         try:
             created=True;command([str(ROOT/'tools/lab'),'rig','up',prefix])
             command(['vppctl','delete','host-interface','name',prefix+'w0'])
-            vpp_key=command(['wg','genkey']).strip();kernel_key=command(['wg','genkey']).strip()
             vpp_pub=command(['wg','pubkey'],vpp_key+b'\n').decode().strip();kernel_pub=command(['wg','pubkey'],kernel_key+b'\n').decode().strip()
             key_path=runtime/'kernel.key';fd=os.open(key_path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
             with os.fdopen(fd,'wb') as stream:stream.write(kernel_key+b'\n')
@@ -48,6 +60,7 @@ def main():
                     deadline=time.monotonic()+30
                     while time.monotonic()<deadline:
                         state=api.call('GET','/state/vpn/wireguard')
+                        (args.output/'wireguard-last-state.json').write_text(json.dumps(state,indent=2))
                         if any(p.get('established') and p.get('lastHandshake') for i in state.get('interfaces',[]) for p in i.get('peers',[])):
                             return state
                         time.sleep(.2)
@@ -55,14 +68,12 @@ def main():
                 state=established();ping=peer('ping','-n','-c','4','-W','3','-I',device,f'10.{args.slot}.61.1')
                 (args.output/'wireguard-ping.txt').write_text(ping)
                 capture.wait_text(lambda text:f'.{vpp_port} >' in text and f'> 10.{args.slot}.2.2.{kernel_port}' in text)
-                # Production process restart reopens its sealed key store; state/ping must recover.
+                # Tagged owned process restart reloads the approved secret fixture; state/ping must recover.
                 restart();after=established();peer('ping','-n','-c','3','-W','3','-I',device,f'10.{args.slot}.61.1')
-                (args.output/'wireguard-state.json').write_text(json.dumps({'before_restart':state,'after_restart':after},indent=2))
+                (args.output/'wireguard-state.json').write_text(json.dumps({'before_restart':state,'after_restart':after,'secret_source':'approved ngfwtestsecrets slot fixture; production secret channel pending'},indent=2))
             finally:capture.close()
         finally:
-            control.close()
-            if api.call('GET','/state/vpn/wireguard').get('interfaces'):raise Refused('WireGuard residue after REST rollback')
-            if created:command([str(ROOT/'tools/lab'),'rig','down',prefix])
+            cleanup(control,api,created,command,prefix)
         print('REST_WIREGUARD_PACKETS=PASS',flush=True)
         return 0
 

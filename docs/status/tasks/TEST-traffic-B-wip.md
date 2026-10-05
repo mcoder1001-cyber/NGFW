@@ -66,3 +66,22 @@ Primary REST acceptance and complete quick gate are still pending; this task is
 not Done. Next command: repeat owned BGP/OSPF/native REST drivers and capture
 strict warning failures while manager handles the separate secret-channel
 prerequisite.
+
+## Tagged WireGuard and relay follow-up
+
+The original task explicitly permits `-tags ngfwtestsecrets`. The owned WireGuard
+agent now verifies that build tag and reads an approved private0600 fixture. REST
+still creates and commits every configuration change through the production API,
+and licensing remains enabled. This proves the authorized test-secret path;
+production WireGuard secret delivery remains pending and its actual422 failure
+is retained. Tagged first commit applied and capture contained handshake packets;
+API established/last-handshake assertion timed out, so acceptance remains failed.
+
+Private-network PostgreSQL creation now directs its login check through the
+protected Unix relay and constructs a DSN with a Unix host query. Helper/daemon
+stdin is detached from the bridge control pipe. Persistent private diagnostics
+are retained, and WireGuard rig cleanup runs even if rollback/state checks fail.
+Actual host-independent suite:14/14 PASS. Go compile3packages PASS at130 source.
+Current BGP repeat is executing real REST and learned-route packet checks; no
+final verdict is claimed before command completion. Next: await BGP, then repeat
+WireGuard with retained actual state and native REST under strict warning checks.

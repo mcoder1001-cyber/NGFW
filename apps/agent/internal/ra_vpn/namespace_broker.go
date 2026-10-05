@@ -21,7 +21,15 @@ import (
 func RunNamespaceBroker(args []string) error { return runNamespaceBrokerFDs(args, []int{3, 4, 5}) }
 
 func runNamespaceBrokerFDs(args []string, fds []int) error {
-	if os.Geteuid() != 0 || len(args) != 6 {
+	return runNamespaceBrokerHeldFDs(args, fds, false)
+}
+
+func runAttestedNamespaceBrokerFDs(args []string, fds []int) error {
+	return runNamespaceBrokerHeldFDs(args, fds, true)
+}
+
+func runNamespaceBrokerHeldFDs(args []string, fds []int, attested bool) error {
+	if os.Geteuid() != 0 || len(args) != 6 || len(fds) != 3 {
 		return fmt.Errorf("%w: namespace broker authority", ErrBoundary)
 	}
 	if unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != nil {
@@ -50,7 +58,7 @@ func runNamespaceBrokerFDs(args []string, fds []int) error {
 	if err != nil {
 		return fmt.Errorf("%w: namespace broker private-network", ErrBoundary)
 	}
-	if !brokerCurrentMount(targetBoot, mountInode) {
+	if !attested && !brokerCurrentMount(targetBoot, mountInode) {
 		return fmt.Errorf("%w: namespace broker target-current", ErrBoundary)
 	}
 	if brokerNamespaceFD(fds[0], unix.CLONE_NEWNS, mountInode) != nil {
@@ -150,7 +158,7 @@ func runNamespaceBrokerFDs(args []string, fds []int) error {
 			}
 		}
 	}
-	if !brokerCurrentMount(targetBoot, mountInode) {
+	if !attested && !brokerCurrentMount(targetBoot, mountInode) {
 		return fmt.Errorf("%w: namespace broker final-boundary-23", ErrBoundary)
 	}
 	return nil

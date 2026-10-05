@@ -4,9 +4,10 @@ Description=NGFW authenticated remote-access namespace FD operation
 [Service]
 Type=exec
 User=root
-Group=root
+Group=ngfw
 ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker
 StandardInput=socket
+OpenFile=/run/ngfw/ra/source-agent-exe:source-agent-exe:read-only
 StandardOutput=null
 StandardError=null
 UMask=0077

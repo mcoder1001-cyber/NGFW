@@ -1,0 +1,5 @@
+# Unfinished VM15 coordinator pairing
+
+Branch codex/ra-stop-coordinator-vm15-20261006; own precise coordinator2strings+contract/WIP/envelope only. WT/root/ngfw-wt/ra-stop-coordinator-vm15-20261006 exactf1ace/0e2d. Freshprod3 actual86381EXIT0 handedP11; campaign65796RUNNING. Contract before any script change. Next: after actualcampaignEXIT0 measureStopSHA/protectedmetadata, updateexactpair, reversebyteequality+AST+fullhash checks, publishfourpaths for independentreview. No privileged execution.
+
+ContractFIRST local83dfe847a92e00edc16967abe212662ce5d89c1f / remotecba558d13c768a7efc60178356c6562f5112d48a / exacttree81dea09c840ba0de6ee9d926aca2c0bda43212e9 published before consumer. Actualcampaign65796EXIT0 cleanf1ace/0e2d; Stop/root/rct/ra-actual-stop-vm15.test SHA9b18c66e92af38a5376d5be5f09e9f02a8fc405e7c7f0797cf2eb140c235fe83 Root0755singlelink. Exactly2coordinatorstrings changed13→15 basename+SHA; reversed substitutions matchparentbyteforbyte, AST andactualELFmetadata/fullhash PASS. Receipt4docs durableb372cf9ae0045b19683a505d8de9f4505dc42465. Independentreview next; no privilegedexecution/actualmanagerfailuregrade.

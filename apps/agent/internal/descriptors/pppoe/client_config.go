@@ -10,7 +10,6 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/descriptors/lcp"
-	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/renderers"
 	ren "ngfw/agent/internal/renderers/pppoe"
@@ -36,7 +35,7 @@ type ClientRuntime interface {
 // ClientConfig resolves credentials only at the final renderer boundary.
 type ClientConfig struct {
 	mu       sync.RWMutex
-	resolver vpn.Resolver
+	secrets  func(string) ([]byte, error)
 	runtime  ClientRuntime
 	renderer *ren.Renderer
 	manifest string
@@ -49,8 +48,14 @@ func NewClientConfig(runtime ClientRuntime, r *ren.Renderer, manifest string) *C
 	return &ClientConfig{runtime: runtime, renderer: r, manifest: manifest}
 }
 
-// SetResolver installs the owner-scoped secret channel.
-func (d *ClientConfig) SetResolver(r vpn.Resolver) { d.mu.Lock(); d.resolver = r; d.mu.Unlock() }
+// SetSecretSource installs the owner-scoped sealed secret cache lookup (secretchannel.Store.Text), which resolves a
+// literal "password/<name>" reference in the transaction-selected snapshot, as FRR and PKI do. The cache's Resolve
+// matches keyed fingerprints only and never resolves a config reference.
+func (d *ClientConfig) SetSecretSource(source func(string) ([]byte, error)) {
+	d.mu.Lock()
+	d.secrets = source
+	d.mu.Unlock()
+}
 
 // Name implements scheduler.Descriptor.
 func (d *ClientConfig) Name() string { return ClientConfigName }
@@ -79,13 +84,13 @@ func (d *ClientConfig) Dependencies(value proto.Message) []scheduler.Dependency 
 	}
 	return out
 }
-func (d *ClientConfig) sessions(ctx context.Context, value proto.Message, strict bool) ([]ren.Session, *rfkit.Redactor, error) {
+func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict bool) ([]ren.Session, *rfkit.Redactor, error) {
 	doc, ok := value.(*ngfwv1.DesiredState)
 	if !ok {
 		return nil, nil, errors.New("invalid PPPoE client configuration")
 	}
 	d.mu.RLock()
-	resolver := d.resolver
+	secrets := d.secrets
 	d.mu.RUnlock()
 	redactor := &rfkit.Redactor{}
 	var out []ren.Session
@@ -108,8 +113,8 @@ func (d *ClientConfig) sessions(ctx context.Context, value proto.Message, strict
 		}
 		password := ""
 		var material []byte
-		if resolver != nil {
-			material, err = resolver.Resolve(ctx, c.GetPasswordRef())
+		if secrets != nil {
+			material, err = secrets(c.GetPasswordRef())
 			if err == nil {
 				password = string(material)
 				redactor.Add(password)

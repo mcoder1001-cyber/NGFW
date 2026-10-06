@@ -5,7 +5,6 @@ import (
 	"errors"
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/pppoe"
-	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/descriptors/vrrp"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
@@ -21,15 +20,16 @@ func init() { Domains[Interfaces] = append(Domains[Interfaces], pppoe.ClientConf
 // PppoeSupervised reports whether this process may supervise host units.
 func PppoeSupervised() bool { rt := pppoeActive.Load(); return rt != nil && rt.globalsOwner }
 
-// SetPppoeSecrets injects the existing socket-only sealed secret cache.
-func SetPppoeSecrets(owner string, r vpn.Resolver) error {
+// SetPppoeSecrets reuses the sealed transaction-selected cache (secretchannel.Store.Text) like SetFRRSecrets and
+// SetPKISecrets; no plaintext enters desired state.
+func SetPppoeSecrets(owner string, source func(string) ([]byte, error)) error {
 	pppoeMu.Lock()
 	d := pppoeConfigs[owner]
 	pppoeMu.Unlock()
 	if d == nil {
 		return errors.New("PPPoE client is not registered")
 	}
-	d.SetResolver(r)
+	d.SetSecretSource(source)
 	return nil
 }
 func (w *Wiring) registerPppoeClient(reg scheduler.Registry) error {

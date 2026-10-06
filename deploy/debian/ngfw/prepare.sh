@@ -49,7 +49,7 @@ for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
 done
 # Stage fixed helpers and their installation attestations; never invoke them here.
 for helper in ngfw-ra-daemon ngfw-ra-namespace-broker; do
-  (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/$helper" "./cmd/$helper")
+  (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$STAGE/usr/lib/ngfw/$helper" "./cmd/$helper")
   sha256sum "$STAGE/usr/lib/ngfw/$helper" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/$helper.sha256"
 done
 for unit in ngfw-ra@.service ngfw-ra-openfile.service ngfw-ra-openfile.socket ngfw-ra-targets@.service ngfw-ra-targets@.socket ngfw-ra-observer@.service ngfw-ra-observer@.socket ngfw-ra-namespace-broker.socket ngfw-ra-namespace-broker@.service; do

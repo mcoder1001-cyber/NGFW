@@ -1,0 +1,7 @@
+75434a3e5b3d827c76d030c9592b95f15fcb8e5b
+=== RUN   TestClientResolvesPasswordFromRealSecretChannel
+    client_secretchannel_test.go:42: apply with sealed password: PPPoE password reference is unavailable
+--- FAIL: TestClientResolvesPasswordFromRealSecretChannel (0.02s)
+FAIL
+FAIL	ngfw/agent/internal/descriptors/pppoe	0.190s
+FAIL

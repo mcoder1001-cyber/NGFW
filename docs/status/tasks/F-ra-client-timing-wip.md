@@ -1,0 +1,9 @@
+# Unfinished client timing
+
+Branch codex/ra-client-timing-20261006 WT/root/ngfw-wt/ra-client-timing-20261006. Contract before consumer. Actual Boot30 remains supplier-negative; pair process reduction only1.169s second entry improvement does not justify speculative triple/caching/budget change. Observer digest fix separate reviewed scope. Next: local fixed milestone recorder/closed failure formatter, precise client observation hooks, meaningful tests, whole race/lint, freeze for independent review.
+
+Contract FIRST local8e2c14bb8b21e7a9c353eea1867c7a1bd352fb24 / remote6a70c876693521b9a2e6d03294e99a1e24d41fb1 / exacttreee3a88f9594032442f1a6c50a067cc4c092d1149d published before consumer. Implemented private per-call trace and only observational client hooks; all original conditions/call order/context ancestry/FD cleanup/protocol untouched. Failure defer runs after operations and all existing cleanup, emitting at most3fixedlines; healthy silent. Caller deadline flag explicitly original caller only, no inferred inner error. Elapsed monotonic millis clamped0..existingpublic40000; unvisited -1. Probe/publish phase labels are fixed formatter literals, never request input.
+
+Actual whole RA race32155 EXIT0 2.749s; contextual unchanged lint41773 EXIT0zeroissues. Logs /root/rct/rc-client-timing-race.log and rc-client-timing-lint.log. Tests healthy silence, exactunsetphase output, phaseisolation, monotonic milestones, invalid recorder index no mutation, elapsedupper/futurelowerbounds and closed bounded label/character representation. Source type stores only clock+integer arrays, no caller request/identity/error text. No host/subprocess/guest actions in this scope.
+
+Remaining independent review+Root combines separatelyAPPobserver0abpin; fresh VM15 artifact after coherent integration; actual nextguest supplier result. No READY or optimization claim. Next: send frozen six-pathmanifest and exacttree to Root/P11.

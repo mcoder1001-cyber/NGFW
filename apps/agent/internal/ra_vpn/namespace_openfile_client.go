@@ -10,12 +10,15 @@ import (
 )
 
 func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) (result error) {
+	trace := newNumericPublisherClientTiming()
+	defer func() { trace.logFailure(result != nil, ctx.Err() == context.DeadlineExceeded) }()
 	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
 	proof, err := newNumericPublisherInstallationProof(bounded)
 	if err != nil {
 		return err
 	}
+	trace.markPreflight(1)
 	defer func() {
 		if proof.Close() != nil {
 			result = ErrBoundary
@@ -32,11 +35,13 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	if readSourceAgentReference(source) != nil {
 		return numericPublisherFailure(bounded, 3)
 	}
+	trace.markPreflight(2)
 	if err := numericPublisherManagerWithProof(bounded, bootid.Identity{}, proof); err != nil {
 		return err
 	}
+	trace.markPreflight(3)
 	probe := numericPublisherRequest{Phase: "probe", Source: source}
-	first, image, err := numericPublisherExchange(bounded, probe, nil, proof)
+	first, image, err := numericPublisherExchange(bounded, probe, nil, proof, trace, 0)
 	if err != nil {
 		return err
 	}
@@ -48,7 +53,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	if validateNumericPublisherRequest(request) != nil {
 		return numericPublisherFailure(bounded, 11)
 	}
-	second, fresh, err := numericPublisherExchange(bounded, request, image, proof)
+	second, fresh, err := numericPublisherExchange(bounded, request, image, proof, trace, 1)
 	if err != nil {
 		return err
 	}
@@ -59,7 +64,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	return nil
 }
 
-func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof) (numericPublisherResponse, *os.File, error) {
+func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof, trace *numericPublisherClientTiming, phase int) (numericPublisherResponse, *os.File, error) {
 	publicationContext := ctx
 	bounded, cancel := context.WithTimeout(ctx, NumericPublisherValidationBudget)
 	defer cancel()
@@ -82,9 +87,11 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	defer func() { _ = unix.Close(fd) }()
 	stopCancellation := watchNumericPublisherCancellation(publicationContext, fd)
 	defer stopCancellation()
+	trace.markExchange(phase, 0)
 	if boundNumericPublisherValidationSocket(ctx, fd) != nil || unix.Connect(fd, &unix.SockaddrUnix{Name: numericPublisherSocketPath}) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 14)
 	}
+	trace.markExchange(phase, 1)
 	peer, err := unix.GetsockoptUcred(fd, unix.SOL_SOCKET, unix.SO_PEERCRED)
 	if err != nil || peer.Uid != 0 || peer.Gid != 0 || peer.Pid != 1 {
 		return empty, nil, numericPublisherFailure(ctx, 15)
@@ -93,6 +100,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if readyErr != nil {
 		return empty, nil, numericPublisherFailure(ctx, 19)
 	}
+	trace.markExchange(phase, 2)
 	defer closeUnitObserverFiles(readyFiles)
 	var ready numericPublisherReady
 	if decodeUnitObserverPacket(readyData, &ready) != nil || validateNumericPublisherReady(ready, request.Source) != nil || validateSourceAgentExecutable(readyFiles[0]) != nil {
@@ -101,6 +109,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if err := numericPublisherManagerWithProof(ctx, ready.Server, proof); err != nil {
 		return empty, nil, err
 	}
+	trace.markExchange(phase, 3)
 	if unix.Sendmsg(fd, []byte("READY"), nil, nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 17)
 	}
@@ -117,6 +126,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if unix.Sendmsg(fd, content, nil, nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 17)
 	}
+	trace.markExchange(phase, 4)
 	if previous != nil && unix.Sendmsg(fd, []byte("SOURCE"), unix.UnixRights(int(previous.Fd())), nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 18)
 	}

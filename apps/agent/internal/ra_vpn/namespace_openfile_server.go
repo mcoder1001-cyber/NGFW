@@ -105,7 +105,8 @@ func RunNumericOpenFilePublisher() (result error) {
 	// Authenticate the actual canonical peer before accepting any caller rights.
 	source := (bootid.Reader{}).ForPID(int(peer.Pid))
 	setStage(NumericPublisherServerPeer)
-	if verifyFixedAgentPeer(ctx, peer, source) != nil {
+	trust, peerErr := numericPublisherSourceTrust(ctx, peer, source, proof)
+	if peerErr != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerReference)
@@ -122,7 +123,7 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerManager)
-	if err := numericPublisherManagerWithProof(ctx, server, proof); err != nil {
+	if err := numericPublisherManagerFromTrust(ctx, server, proof, trust); err != nil {
 		return err
 	}
 	ready, readyErr := json.Marshal(numericPublisherReady{Version: 1, Phase: "validation-ready", Source: source, Server: server})
@@ -200,7 +201,8 @@ func RunNumericOpenFilePublisher() (result error) {
 		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
-		if numericPublisherManagerWithProof(ctx, server, proof) != nil || verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil || validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil || proof.Verify(ctx) != nil {
+		workTrust, trustErr := numericPublisherManagerTrust(ctx, server, proof, source)
+		if trustErr != nil || numericPublisherPeerFromTrust(ctx, peer, source, workTrust) != nil || readSourceAgentReference(source) != nil || validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil || proof.Verify(ctx) != nil {
 			return ErrBoundary
 		}
 		token, tokenErr := newNumericPublisherWorkToken()
@@ -232,11 +234,12 @@ func RunNumericOpenFilePublisher() (result error) {
 func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage), stopPeer numericPublisherPeerStop) error {
 	server := (bootid.Reader{}).ForPID(os.Getpid())
 	setStage(NumericPublisherServerManager)
-	if numericPublisherManagerWithProof(ctx, server, proof) != nil {
+	trust, trustErr := numericPublisherManagerTrust(ctx, server, proof, request.Source)
+	if trustErr != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerReplyPeer)
-	if verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+	if numericPublisherPeerFromTrust(ctx, peer, request.Source, trust) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
 		return ErrBoundary
 	}
 	if proof.Verify(ctx) != nil || enterNumericPublisherTerminal(ctx, socket, stopPeer) != nil {

@@ -29,14 +29,15 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 		return numericPublisherFailure(bounded, 1)
 	}
 	source := (bootid.Reader{}).ForPID(pid)
-	if verifyFixedAgentPeer(bounded, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, source) != nil {
+	trust, peerErr := numericPublisherSourceTrust(bounded, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, source, proof)
+	if peerErr != nil {
 		return numericPublisherFailure(bounded, 2)
 	}
 	if readSourceAgentReference(source) != nil {
 		return numericPublisherFailure(bounded, 3)
 	}
 	trace.markPreflight(2)
-	if err := numericPublisherManagerWithProof(bounded, bootid.Identity{}, proof); err != nil {
+	if err := numericPublisherManagerFromTrust(bounded, bootid.Identity{}, proof, trust); err != nil {
 		return err
 	}
 	trace.markPreflight(3)
@@ -149,11 +150,12 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 		if decodeUnitObserverPacket(completed, &frame) != nil || validateNumericPublisherWorkFrame(frame, "publication-complete", request.Source, ready.Server, frame.Token) != nil || previous == nil || !sameNumericPublisherSource(images[0], readyFiles[0]) || !sameNumericPublisherSource(images[0], previous) || validateSourceAgentExecutable(images[0]) != nil {
 			return empty, nil, numericPublisherFailure(work, 20)
 		}
-		if err := numericPublisherManagerWithProof(work, frame.Server, proof); err != nil {
+		trust, err := numericPublisherManagerTrust(work, frame.Server, proof, request.Source)
+		if err != nil {
 			return empty, nil, err
 		}
 		pid, gid := request.Source.PID, os.Getegid()
-		if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 || verifyFixedAgentPeer(work, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || proof.Verify(work) != nil || sendNumericPublisherWorkFrame(fd, "publication-ack", request.Source, ready.Server, frame.Token, -1) != nil {
+		if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 || numericPublisherPeerFromTrust(work, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source, trust) != nil || readSourceAgentReference(request.Source) != nil || proof.Verify(work) != nil || sendNumericPublisherWorkFrame(fd, "publication-ack", request.Source, ready.Server, frame.Token, -1) != nil {
 			return empty, nil, numericPublisherFailure(work, 22)
 		}
 		final, finalCancel := context.WithTimeout(publicationContext, NumericPublisherIPCBudget)
@@ -177,7 +179,8 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if len(data) > numericPublisherPacketLimit || decodeUnitObserverPacket(data, &response) != nil || response.Phase != request.Phase || !response.Source.Equal(request.Source) || !response.Server.Equal(ready.Server) || !sameNumericPublisherSource(readyFiles[0], files[0]) {
 		return empty, nil, numericPublisherFailure(ctx, 20)
 	}
-	if err := numericPublisherManagerWithProof(ctx, response.Server, proof); err != nil {
+	trust, err := numericPublisherManagerTrust(ctx, response.Server, proof, request.Source)
+	if err != nil {
 		return empty, nil, err
 	}
 	if validateSourceAgentExecutable(files[0]) != nil {
@@ -193,7 +196,7 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if pid <= 1 || pid > math.MaxInt32 || gid < 0 || gid > math.MaxUint32 {
 		return empty, nil, numericPublisherFailure(ctx, 1)
 	}
-	if verifyFixedAgentPeer(ctx, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source) != nil || readSourceAgentReference(request.Source) != nil || unix.Sendmsg(fd, []byte("OK"), nil, nil, 0) != nil {
+	if numericPublisherPeerFromTrust(ctx, &unix.Ucred{Pid: int32(pid), Uid: 0, Gid: uint32(gid)}, request.Source, trust) != nil || readSourceAgentReference(request.Source) != nil || unix.Sendmsg(fd, []byte("OK"), nil, nil, 0) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 22)
 	}
 	if proof.Verify(ctx) != nil {

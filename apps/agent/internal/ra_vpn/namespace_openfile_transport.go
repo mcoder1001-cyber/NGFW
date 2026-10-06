@@ -26,7 +26,11 @@ func numericPublisherInstallation() (result error) {
 	return proof.Verify(context.Background())
 }
 
-func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof) (result error) {
+func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof) error {
+	return numericPublisherManagerUsing(ctx, server, proof, numericPublisherManagerPair)
+}
+
+func numericPublisherManagerUsing(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof, properties func(context.Context) (numericPublisherManagerSnapshot, error)) (result error) {
 	if proof.Verify(ctx) != nil {
 		return numericPublisherFailure(ctx, 4)
 	}
@@ -36,7 +40,7 @@ func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identit
 		}
 	}()
 
-	snapshot, err := numericPublisherManagerPair(ctx)
+	snapshot, err := properties(ctx)
 	if err != nil || !numericPublisherSocketState(snapshot.socket, server.Complete()) {
 		return numericPublisherFailure(ctx, 6)
 	}

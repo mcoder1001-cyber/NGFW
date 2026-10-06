@@ -2,7 +2,7 @@
 
 - raised: 2026-09-24 14:40 by the manager (ngfw-46), from the read-only VPP audit (workflow wf_7f25cdf3, 4 investigators + 4 adversarial verifiers)
 - decision: **partially superseded by live host state verified 2026-10-03**: 4096 × 2 MiB hugepages are configured and all allocated; netlink rmem/wmem limits are 256 MiB. See `docs/lab/host-ngfw-a.md`. VMware balloon state is not guest-visible and remains unverified. Do not treat the 2026-09-24 measurements below as current.
-- parked tasks: LAB-vpp-per-slot (option F, D-125). Everything else keeps running on the current VPP. Items A–C below change `/etc/vpp`, `vpp.service`, the host or the VM, so they need you (decision-policy always-ask #6/#7).
+- parked tasks: none for option F — **LAB-vpp-per-slot implemented 2026-10-06 without any host change** (branch claude/vpp-per-slot-20261006, `docs/status/tasks/claude-vpp-per-slot-wip.md`): per-slot VPPs run on 4k pages (no hugepages), no DPDK, MemoryMax 1G, capped at 2 developer instances (ceiling 4 until option A) + the CI slot, refused under an 8 GiB MemAvailable floor. The owner approval of 2026-10-06 to change /etc/vpp and vpp.service for this task was **not used**: /etc/vpp, vpp.service and the shared VPP process are unchanged (MainPID 1014, NRestarts 0 before/after). (Previously: LAB-vpp-per-slot parked here, option F, D-125.) Everything else keeps running on the current VPP. Items A–C below change `/etc/vpp`, `vpp.service`, the host or the VM, so they need you (decision-policy always-ask #6/#7).
 
 ## Context (verified facts)
 **Historical check 2026-09-24 (D-125; superseded for memory and netlink settings):** vpp.service up since 13:03:29, NRestarts=0, no coredumps, nr_hugepages=555, rmem_max=4194304, no hugepage cmdline args.

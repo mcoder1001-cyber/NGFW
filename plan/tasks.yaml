@@ -3672,8 +3672,8 @@ tasks:
       - F-startup-gen
     priority: 3
     est_hours: 10
-    state: parked
-    parked_on: PENDING-vpp-host-hardening
+    state: review
+    parked_on: ''
     wbs:
       - D0.13
     scope:
@@ -3681,12 +3681,12 @@ tasks:
       main-heap ~512M, small buffers, startup.conf rendered by ngfw-startupgen; `tools/lab env` exports the socket variables and `vppctl -s`; tests that hard-code /run/vpp/*.sock migrate;
       CI slot 12 gets its own VPP; the shared VPP stays for tools/app'
     files_owned: tools/lab (vpp up|down|env hunks) socket-path hunks in tests that hard-code /run/vpp/*.sock docs/status/tasks/LAB-vpp-per-slot*
-    branch: ''
-    worktree: ''
-    owner: ''
-    started: ''
+    branch: claude/vpp-per-slot-20261006
+    worktree: /root/ngfw-wt/claude-vpp-per-slot
+    owner: Claude (subagent, 2026-10-06)
+    started: '2026-10-06'
     finished: ''
-    notes: 'D-125 | parked: needs PENDING-vpp-host-hardening A+B (≈12×(heap+buffers), hugepages above 555) — option F there'
+    notes: 'D-125 | 2026-10-06 implemented without host change (no hugepages, 4k pages, MemoryMax 1G, cap 2+CI); slot 20 up/down proven; docs/status/tasks/claude-vpp-per-slot-wip.md'
   - template: ''
     parked_on: ''
     branch: ''

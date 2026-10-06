@@ -87,6 +87,10 @@ ngfw-startupgen [flags] [document.json|-]
   --mgmt-if <ifs>      extra management interfaces   --mgmt-pci <pcis>  extra management NICs
   --online-cpus L  --isolcpus L  --numa-nodes N  --hugepages-mb N  --plugin-dir D   host fact overrides
   --no-host            read nothing from /sys and /proc: every fact from flags (--mgmt-pci mandatory)
+  --lab-slot N [--lab-root D]  a test slot's own small VPP (LAB-vpp-per-slot, `tools/lab vpp up N`): runtime-dir, log and
+                       cli/api/stats sockets in D/wN/vpp (D default /run/ngfw-test), api-segment prefix wN, memory
+                       { main-heap-size 512M main-heap-page-size 4k }, buffers page-size 4k, statseg size 32M; the document
+                       must disable dpdk_plugin.so and the rendering is re-checked (no /run/vpp path, no socksvr default)
 exit: 0 ok / identical · 1 different · 2 invalid input, missing host facts or error
 ```
 

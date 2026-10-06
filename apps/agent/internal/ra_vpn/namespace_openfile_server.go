@@ -226,10 +226,10 @@ func RunNumericOpenFilePublisher() (result error) {
 		published = true
 	}
 
-	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, setStage)
+	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, setStage, stopPeer)
 }
 
-func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage)) error {
+func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage), stopPeer numericPublisherPeerStop) error {
 	server := (bootid.Reader{}).ForPID(os.Getpid())
 	setStage(NumericPublisherServerManager)
 	if numericPublisherManagerWithProof(ctx, server, proof) != nil {
@@ -237,6 +237,9 @@ func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucre
 	}
 	setStage(NumericPublisherServerReplyPeer)
 	if verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+		return ErrBoundary
+	}
+	if proof.Verify(ctx) != nil || enterNumericPublisherTerminal(ctx, socket, stopPeer) != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerSend)
@@ -248,9 +251,7 @@ func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucre
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerAck)
-	ack, rights, err := receiveUnitObserverPacket(socket, 0)
-	closeUnitObserverFiles(rights)
-	if err != nil || string(ack) != "OK" || ctx.Err() != nil || proof.Verify(ctx) != nil {
+	if receiveNumericPublisherTerminalACK(ctx, socket) != nil || proof.Verify(ctx) != nil {
 		return ErrBoundary
 	}
 	return nil

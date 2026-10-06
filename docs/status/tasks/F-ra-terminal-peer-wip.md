@@ -1,0 +1,17 @@
+# RA terminal peer phase (source complete; actual replay pending)
+
+Branch codex/ra-terminal-peer-20261005; isolated WT /root/ngfw-wt/ra-terminal-peer-20261005. Base local a8c8b1a538d49119bbb40b1775c074a34e0f6afa / remote 64d8b8d5a4e9ee4b81fc21605dbfad827cdd9758 / tree 7acad2812d9f818115c687bd4895673a32065220.
+
+Owned ONLY new namespace_openfile_terminal.go/test, precise namespace_openfile_work.go watcher stop-and-join hunk, namespace_openfile_server.go terminal handoff hunk and WIP/envelope. No budgets/templates/unit/capabilities or unrelated provider changes.
+
+Observed actual Boot28 negative: valid queued final OK followed by normal client closure canceled the exact work watcher, then server final context/proof guard refused completion. Independent exact private seqpacket reproduction established the race. The receipt 16d426b90f04f2d026c6f27cc9109081fce81933 retains actual negative evidence; prior source approval is superseded for the terminal race.
+
+Contract FIRST: stop/join is idempotent. Watcher remains active through ALL final manager/source/proof checks, then stops/joins before reply send. Terminal ownership checks unchanged original context after join and rebinds socket timeout to remaining original IPC/whole budget; final zero-rights OK, EOF, context/proof checks remain. No manager subprocess after stop. A valid queued OK plus normal peer close is success; early close without OK and work disconnect remain fail closed. Every budget stays unchanged.
+
+Contract FIRST published 08200d0cbb4628ccfd7e67a3275279d57d857c6b / local a2bc88d872d6d74f07c94092bbf356adab3c8d96 / tree f84a6dc3018a679cbb9cf93b7b3785a8d250ac30, with remote tree equality verified before update_ref.
+
+Completed consumer: sync.Once idempotent joined stop; watcher remains active through final manager, canonical source/image and fresh proof checks. Terminal transition stops/joins, refuses expired original context and rebinds existing socket timeout to remaining original phase deadline. No new context or manager subprocess follows the handoff. The final exact zero-rights OK/EOF/context checks and post-ACK proof.Verify remain. Original work cancellation, full identities, token, typed FDs, source/target guards, two fresh oneshots, original units and all budgets remain unchanged.
+
+Actual tests: whole RA race EXIT0 2.920s, /root/rct/rc-terminal-peer-race.log; unchanged contextual lint EXIT0 0 issues, /root/rct/rc-terminal-peer-lint.log. New actual seqpacket tests use the exact watcher/terminal reader: final reply then valid OK plus immediate normal peer closure stays successful after multiple former poll periods; early EOF fails; concurrent repeated stop/join is safe; actual residual socket timeout and expired original deadline refuse reset. Existing actual work-HUP/owned child cancellation/reaping, wrong-rights closure, early/duplicate work-ACK, clipped budget and immutable artifact tests all ran in the same whole package. No host service, manager process or privileged namespace was invoked.
+
+Remaining: independent source review, coherent manager integration, new immutable VM13 original-unit guest replay and all genuine profile/packet/restart/rollback/HTTP/browser acceptance. Previous Boot28 actual negative remains recorded; no actual correction/READY/DONE claim. Next: manager/P11 independent review of exact frozen source, then build fresh bundle only from their coherent source pin.

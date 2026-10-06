@@ -36,12 +36,12 @@ func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identit
 		}
 	}()
 
-	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-openfile.socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || !numericPublisherSocketState(fields, server.Complete()) {
+	snapshot, err := numericPublisherManagerPair(ctx)
+	if err != nil || !numericPublisherSocketState(snapshot.socket, server.Complete()) {
 		return numericPublisherFailure(ctx, 6)
 	}
-	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
-	if err != nil || fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
+	fields := snapshot.service
+	if fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
 		return numericPublisherFailure(ctx, 7)
 	}
 	if server.Complete() {

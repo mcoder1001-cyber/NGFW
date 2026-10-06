@@ -1,0 +1,3 @@
+# RA session display correction contract
+
+Owner-author scope: only RaVpnPage.tsx, its existing test, en/fa ra-vpn locale keys, this contract and F-ra-ui-localization-fix-wip.md in isolated codex/ra-ui-localization-fix-20261006. API/schema/proto/ownership/auth/session IDs unchanged. Counter/uptime display uses existing formatCounter/useFormatters, preserving full uint64 precision and honoring locale grouping/Persian-digit preference. Actual selected operational initial session fetch has translated role=status loading feedback; no-selection/nonoperational/success-empty remain distinct. Source/unit verification only; real en/fa/light/dark screenshots remain manager's T4 gate. Independent reviewer must verify the author correction.

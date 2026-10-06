@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from '../../../App';
 import i18n from '../../../i18n';
@@ -30,6 +30,7 @@ const profile = {
   outerPolicy: { ingress: ['outside-in'], egress: ['outside-out'] },
 };
 afterEach(async () => {
+  cleanup();
   await resetSession();
   localStorage.clear();
   await i18n.changeLanguage('en');
@@ -127,7 +128,7 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
     await mount();
     await selectOffice();
     await screen.findByText('roadwarrior');
-    expect(screen.getAllByText(MAX)).toHaveLength(3);
+    expect(screen.getAllByText('18,446,744,073,709,551,615')).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
     expect(
       api.calls.filter((x) => x.method === 'POST' && x.path.includes('/disconnect')),
@@ -136,6 +137,46 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Disconnect' }));
     await screen.findByText('roadwarrior');
     expect(api.calls.find((x) => x.path.includes('/disconnect'))?.search).toBe('?profile=office');
+  });
+  it('localizes maximum uint64 counters with Persian digits without precision loss', async () => {
+    fixture();
+    localStorage.setItem('ngfw.ui.settings', JSON.stringify({ lang: 'fa', persianDigits: true }));
+    await mount();
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'پروفایل' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'office' }));
+    await screen.findByText('roadwarrior');
+    expect(screen.getAllByText('۱۸,۴۴۶,۷۴۴,۰۷۳,۷۰۹,۵۵۱,۶۱۵')).toHaveLength(3);
+    expect(screen.queryByText(MAX)).not.toBeInTheDocument();
+  });
+  it('shows session loading only during an eligible initial fetch, then the successful empty state', async () => {
+    const api = fixture();
+    api.on('GET /api/v1/state/vpn/remote-access/sessions', { body: { items: [], nextCursor: '' } });
+    const original = globalThis.fetch;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    globalThis.fetch = async (...args) => {
+      const input = args[0];
+      const url = typeof input === 'string' ? input : 'url' in input ? input.url : input.href;
+      if (url.includes('/remote-access/sessions')) await waiting;
+      return original(...args);
+    };
+    try {
+      await mount();
+      expect(screen.queryByText('Loading observed sessions…')).not.toBeInTheDocument();
+      await selectOffice();
+      expect(await screen.findByRole('status')).toHaveTextContent('Loading observed sessions…');
+      expect(screen.queryByText('No observed sessions for this profile.')).not.toBeInTheDocument();
+      await act(async () => {
+        release();
+      });
+      expect(await screen.findByText('No observed sessions for this profile.')).toBeInTheDocument();
+      expect(screen.queryByText('Loading observed sessions…')).not.toBeInTheDocument();
+    } finally {
+      release();
+      globalThis.fetch = original;
+    }
   });
   it('saves a disabled draft through all four wizard steps with explicit existing policies and reference-only credentials', async () => {
     const api = fixture('admin', false);
@@ -226,6 +267,7 @@ describe('RA real UI transport consumers (scripted unit API)', () => {
     await selectOffice();
     expect(screen.getByText(/engine is not operational/)).toBeInTheDocument();
     expect(api.calls.some((x) => x.path.endsWith('/sessions'))).toBe(false);
+    expect(screen.queryByText('Loading observed sessions…')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Edit profile' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(screen.getByRole('switch', { name: 'Enabled' })).not.toBeChecked();

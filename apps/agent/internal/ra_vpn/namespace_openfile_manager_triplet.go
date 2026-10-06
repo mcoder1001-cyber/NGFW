@@ -4,9 +4,7 @@ import (
 	"context"
 	"golang.org/x/sys/unix"
 	"ngfw/agent/internal/vpp/bootid"
-	"os/exec"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -20,12 +18,6 @@ type numericPublisherTrustSnapshot struct {
 	proof                     *numericPublisherInstallationProof
 	identity                  bootid.Identity
 	sourceUsed, publisherUsed bool
-}
-
-func numericPublisherTripletCommand(ctx context.Context) *exec.Cmd {
-	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--all", "--property="+numericPublisherManagerProperties, "ngfw-ra-openfile.socket", "ngfw-ra-openfile.service", "ngfw-agent.service")
-	command.WaitDelay = time.Second
-	return command
 }
 
 func parseNumericPublisherManagerTriplet(output []byte) (*numericPublisherTrustSnapshot, error) {
@@ -101,15 +93,15 @@ func loadNumericPublisherManagerBracketedTrust(ctx context.Context, proof *numer
 	if ctx.Err() != nil || proof == nil || !proof.source.Complete() || !source.Complete() || source.PID <= 1 || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
 		return nil, ErrBoundary
 	}
-	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	output, err := numericPublisherTripletCommand(bounded).Output()
-	if err != nil || bounded.Err() != nil || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
+	roles := append([]managerDBusRole(nil), managerDBusPublisherRoles...)
+	roles = append(roles, managerDBusSourceRole)
+	values, err := readManagerDBusRoles(ctx, roles)
+	if err != nil || len(values) != 3 || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
 		return nil, ErrBoundary
 	}
-	snapshot, err := parseNumericPublisherManagerTriplet(output)
-	if err != nil {
-		return nil, err
+	snapshot := &numericPublisherTrustSnapshot{
+		publisher: numericPublisherManagerSnapshot{socket: values[0], service: values[1]},
+		source:    values[2],
 	}
 	snapshot.proof = proof
 	snapshot.identity = source

@@ -2,7 +2,6 @@ package ravpn
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -60,13 +59,11 @@ func TestNumericPublisherManagerPairPreservesForeignPredicateRefusal(t *testing.
 		t.Fatal("live process adopted as inactive")
 	}
 }
-func TestNumericPublisherManagerPairFixedCommandAndCancelledCaller(t *testing.T) {
+func TestNumericPublisherManagerPairFixedNativeQueryAndCancelledCaller(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	cmd := numericPublisherManagerCommand(ctx)
-	want := []string{"/usr/bin/systemctl", "show", "--all", "--property=" + numericPublisherManagerProperties, "ngfw-ra-openfile.socket", "ngfw-ra-openfile.service"}
-	if cmd.Path != want[0] || !reflect.DeepEqual(cmd.Args, want) || cmd.WaitDelay != time.Second {
-		t.Fatal("fixed command/reap bound changed")
+	if managerDBusQueryBudget != 2*time.Second || managerDBusSocket != "/run/systemd/private" || len(managerDBusPublisherRoles) != 2 || managerDBusPublisherRoles[0].name != "ngfw-ra-openfile.socket" || managerDBusPublisherRoles[1].name != "ngfw-ra-openfile.service" {
+		t.Fatal("fixed native manager roles or original query budget changed")
 	}
 	start := time.Now()
 	s, e := numericPublisherManagerPair(ctx)

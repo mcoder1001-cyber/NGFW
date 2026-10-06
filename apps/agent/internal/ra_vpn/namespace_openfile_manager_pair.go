@@ -2,9 +2,7 @@ package ravpn
 
 import (
 	"context"
-	"os/exec"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -21,21 +19,12 @@ type numericPublisherManagerSnapshot struct {
 
 const numericPublisherManagerProperties = "Id,FragmentPath,DropInPaths,ActiveState,SubState,Listen,MainPID,ControlPID,ControlGroup,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart"
 
-// numericPublisherManagerCommand accepts no caller-selected unit or properties.
-func numericPublisherManagerCommand(ctx context.Context) *exec.Cmd {
-	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--all", "--property="+numericPublisherManagerProperties, "ngfw-ra-openfile.socket", "ngfw-ra-openfile.service")
-	command.WaitDelay = time.Second
-	return command
-}
-
 func numericPublisherManagerPair(ctx context.Context) (numericPublisherManagerSnapshot, error) {
-	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
-	defer cancel()
-	output, err := numericPublisherManagerCommand(bounded).Output()
-	if err != nil || bounded.Err() != nil {
+	roles, err := readManagerDBusRoles(ctx, managerDBusPublisherRoles)
+	if err != nil || len(roles) != 2 {
 		return numericPublisherManagerSnapshot{}, ErrBoundary
 	}
-	return parseNumericPublisherManagerPair(output)
+	return numericPublisherManagerSnapshot{socket: roles[0], service: roles[1]}, nil
 }
 
 func parseNumericPublisherManagerPair(output []byte) (numericPublisherManagerSnapshot, error) {

@@ -6,7 +6,6 @@ import (
 	"ngfw/agent/internal/vpp/bootid"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -161,19 +160,15 @@ func TestNumericPublisherTripletRefusesChangedIdentityAndCaller(t *testing.T) {
 	}
 }
 
-func TestNumericPublisherTripletFixedCommandAndSourceGuardBeforeGetter(t *testing.T) {
+func TestNumericPublisherTripletFixedNativeQueryAndSourceGuardBeforeGetter(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	command := numericPublisherTripletCommand(ctx)
-	want := []string{"/usr/bin/systemctl", "show", "--all", "--property=" + numericPublisherManagerProperties, "ngfw-ra-openfile.socket", "ngfw-ra-openfile.service", "ngfw-agent.service"}
-	if !reflect.DeepEqual(command.Args, want) || command.WaitDelay != time.Second {
-		t.Fatal("fixed three-unit argv/reap bound changed")
+	roles := append(append([]managerDBusRole(nil), managerDBusPublisherRoles...), managerDBusSourceRole)
+	if managerDBusQueryBudget != 2*time.Second || roles[2].name != "ngfw-agent.service" || roles[2].path != "/org/freedesktop/systemd1/unit/ngfw_2dagent_2eservice" {
+		t.Fatal("fixed native Source role or original query budget changed")
 	}
-	if err := command.Run(); err == nil {
-		t.Fatal("cancelled command executed")
-	}
-	if command.Process != nil {
-		t.Fatal("already-cancelled context launched host manager process")
+	if _, err := readManagerDBusRoles(ctx, roles); err != ErrBoundary {
+		t.Fatal("already-cancelled caller reached manager")
 	}
 	called := false
 	getter := func(context.Context) (map[string]string, error) { called = true; return map[string]string{}, nil }

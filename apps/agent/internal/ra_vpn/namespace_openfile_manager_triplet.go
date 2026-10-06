@@ -82,14 +82,29 @@ func parseNumericPublisherManagerTriplet(output []byte) (*numericPublisherTrustS
 	return snapshot, nil
 }
 
-func loadNumericPublisherTrust(ctx context.Context, proof *numericPublisherInstallationProof, source bootid.Identity) (*numericPublisherTrustSnapshot, error) {
-	if proof.Verify(ctx) != nil || !source.Complete() || source.PID <= 1 || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
+// loadNumericPublisherSourceTrust protects the Source-first query before the
+// original manager verifier is entered.
+func loadNumericPublisherSourceTrust(ctx context.Context, proof *numericPublisherInstallationProof, source bootid.Identity) (*numericPublisherTrustSnapshot, error) {
+	if proof.Verify(ctx) != nil {
+		return nil, ErrBoundary
+	}
+	snapshot, err := loadNumericPublisherManagerBracketedTrust(ctx, proof, source)
+	if err != nil || proof.Verify(ctx) != nil {
+		return nil, ErrBoundary
+	}
+	return snapshot, nil
+}
+
+// loadNumericPublisherManagerBracketedTrust is called within the original
+// manager verifier's proof bracket, or the explicit Source-first bracket above.
+func loadNumericPublisherManagerBracketedTrust(ctx context.Context, proof *numericPublisherInstallationProof, source bootid.Identity) (*numericPublisherTrustSnapshot, error) {
+	if ctx.Err() != nil || proof == nil || !proof.source.Complete() || !source.Complete() || source.PID <= 1 || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
 		return nil, ErrBoundary
 	}
 	bounded, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	output, err := numericPublisherTripletCommand(bounded).Output()
-	if err != nil || bounded.Err() != nil || proof.Verify(ctx) != nil || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
+	if err != nil || bounded.Err() != nil || !(bootid.Reader{}).ForPID(source.PID).Equal(source) {
 		return nil, ErrBoundary
 	}
 	snapshot, err := parseNumericPublisherManagerTriplet(output)
@@ -102,7 +117,7 @@ func loadNumericPublisherTrust(ctx context.Context, proof *numericPublisherInsta
 }
 
 func (snapshot *numericPublisherTrustSnapshot) guard(ctx context.Context) error {
-	if snapshot == nil || snapshot.proof.Verify(ctx) != nil || !snapshot.identity.Complete() || snapshot.identity.PID <= 1 || !(bootid.Reader{}).ForPID(snapshot.identity.PID).Equal(snapshot.identity) {
+	if ctx.Err() != nil || snapshot == nil || snapshot.proof == nil || !snapshot.proof.source.Complete() || !snapshot.identity.Complete() || snapshot.identity.PID <= 1 || !(bootid.Reader{}).ForPID(snapshot.identity.PID).Equal(snapshot.identity) {
 		return ErrBoundary
 	}
 	return nil
@@ -128,7 +143,7 @@ func numericPublisherSourceTrust(ctx context.Context, peer *unix.Ucred, source b
 	var snapshot *numericPublisherTrustSnapshot
 	err := verifyFixedAgentPeerUsing(ctx, peer, source, func(read context.Context) (map[string]string, error) {
 		var err error
-		snapshot, err = loadNumericPublisherTrust(read, proof, source)
+		snapshot, err = loadNumericPublisherSourceTrust(read, proof, source)
 		if err != nil {
 			return nil, err
 		}
@@ -144,7 +159,7 @@ func numericPublisherManagerTrust(ctx context.Context, server bootid.Identity, p
 	var snapshot *numericPublisherTrustSnapshot
 	err := numericPublisherManagerUsing(ctx, server, proof, func(read context.Context) (numericPublisherManagerSnapshot, error) {
 		var err error
-		snapshot, err = loadNumericPublisherTrust(read, proof, source)
+		snapshot, err = loadNumericPublisherManagerBracketedTrust(read, proof, source)
 		if err != nil {
 			return numericPublisherManagerSnapshot{}, err
 		}

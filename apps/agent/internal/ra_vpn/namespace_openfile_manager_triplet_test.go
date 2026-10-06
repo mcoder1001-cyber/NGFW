@@ -121,14 +121,22 @@ func TestNumericPublisherTripletSingleUseAndFreshHeldGuards(t *testing.T) {
 	if _, err := fresh.sourceProperties(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	// The owned metadata fixture is not an installed-engine readiness attestation.
-	// Changing its held artifact after one consumer must refuse the other consumer.
+	// Direct consumption retires metadata validation; original manager brackets retain it.
 	if err := os.WriteFile(proof.files[0].path, []byte("replaced byte content"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := fresh.publisherProperties(context.Background()); err != ErrBoundary {
-		t.Fatal("changed held proof accepted between role consumers")
+	if _, err := fresh.publisherProperties(context.Background()); err != nil {
+		t.Fatal("retired direct metadata validation")
 	}
+	called := false
+	err := numericPublisherManagerUsing(context.Background(), bootid.Identity{}, proof, func(context.Context) (numericPublisherManagerSnapshot, error) {
+		called = true
+		return fresh.publisher, nil
+	})
+	if err == nil || called {
+		t.Fatal("manager pre-proof accepted replacement or reached getter")
+	}
+
 }
 
 func TestNumericPublisherTripletRefusesChangedIdentityAndCaller(t *testing.T) {
@@ -174,5 +182,37 @@ func TestNumericPublisherTripletFixedCommandAndSourceGuardBeforeGetter(t *testin
 	}
 	if verifyFixedAgentIdentityUsing(context.Background(), &unix.Ucred{Pid: 0, Uid: 0, Gid: 0}, bootid.Identity{}, getter) != ErrBoundary || called {
 		t.Fatal("zero-PID foreign identity reached getter")
+	}
+}
+
+func TestNumericPublisherTripletOriginalManagerPostProofRefusesReplacement(t *testing.T) {
+	proof := tripletMetadataProof(t)
+	snapshot := tripletMetadataSnapshot(t, proof)
+	if err := numericPublisherManagerUsing(context.Background(), bootid.Identity{}, proof, func(context.Context) (numericPublisherManagerSnapshot, error) { return snapshot.publisher, nil }); err != nil {
+		t.Fatal("intact fixture must pass original manager predicates", err)
+	}
+	called := false
+	err := numericPublisherManagerUsing(context.Background(), bootid.Identity{}, proof, func(ctx context.Context) (numericPublisherManagerSnapshot, error) {
+		called = true
+		fields, err := snapshot.publisherProperties(ctx)
+		if err != nil {
+			return fields, err
+		}
+		if err := os.WriteFile(proof.files[0].path, []byte("changed during manager bracket"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		return fields, nil
+	})
+	if err == nil || !called {
+		t.Fatal("manager post-proof failed to reject replacement")
+	}
+}
+func TestNumericPublisherTripletSourceFirstRefusesChangedProofBeforeQuery(t *testing.T) {
+	proof := tripletMetadataProof(t)
+	if err := os.WriteFile(proof.files[0].path, []byte("changed before Source query"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadNumericPublisherSourceTrust(context.Background(), proof, (bootid.Reader{}).ForPID(os.Getpid())); err == nil {
+		t.Fatal("changed proof reached Source-first query")
 	}
 }

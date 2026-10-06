@@ -2,6 +2,7 @@ package ravpn
 
 import (
 	"context"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -153,9 +154,17 @@ func managerDBusPropertyInterface(role managerDBusRole, key string) string {
 func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (result []map[string]string, resultErr error) {
 	ctx, cancel := context.WithTimeout(parent, managerDBusQueryBudget)
 	defer cancel()
+	started := time.Now()
+	checkpoint := uint8(1)
+	defer func() {
+		if line := numericPublisherCheckpointLine(ctx, 1, checkpoint, time.Since(started), resultErr != nil); line != "" {
+			log.Print(line)
+		}
+	}()
 	if ctx.Err() != nil || os.Geteuid() != 0 || len(roles) < 2 || len(roles) > 3 {
 		return nil, ErrBoundary
 	}
+	checkpoint = 2
 	for i, role := range roles {
 		want := managerDBusSourceRole
 		if i < 2 {
@@ -165,6 +174,7 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 			return nil, ErrBoundary
 		}
 	}
+	checkpoint = 3
 	manager := (bootid.Reader{}).ForPID(1)
 	held, err := holdManagerDBusSocket()
 	if err != nil {
@@ -172,10 +182,12 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 	}
 	defer func() {
 		if held.Close() != nil {
+			checkpoint = 10
 			result = nil
 			resultErr = ErrBoundary
 		}
 	}()
+	checkpoint = 4
 	dialer := net.Dialer{}
 	raw, err := dialer.DialContext(ctx, "unix", managerDBusSocket)
 	if err != nil {
@@ -191,10 +203,12 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 	transport := &managerDBusTransport{conn: conn, pending: make(map[uint32]bool)}
 	defer func() {
 		if transport.Close() != nil {
+			checkpoint = 10
 			result = nil
 			resultErr = ErrBoundary
 		}
 	}()
+	checkpoint = 5
 	deadline, ok := ctx.Deadline()
 	if !ok || conn.SetDeadline(deadline) != nil || held.Verify() != nil || !managerDBusPeer(conn, manager) {
 		return nil, ErrBoundary
@@ -211,19 +225,23 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 			<-callbackDone
 		}
 	}()
+	checkpoint = 6
 	bus, err := dbus.NewConn(transport, dbus.WithContext(ctx))
 	if err != nil {
 		return nil, ErrBoundary
 	}
 	defer func() {
 		if bus.Close() != nil {
+			checkpoint = 10
 			result = nil
 			resultErr = ErrBoundary
 		}
 	}()
+	checkpoint = 7
 	if bus.Auth([]dbus.Auth{dbus.AuthExternal("0")}) != nil {
 		return nil, ErrBoundary
 	}
+	checkpoint = 8
 	result, err = readManagerDBusProperties(ctx, roles, func(role managerDBusRole, key string) (dbus.Variant, error) {
 		var value dbus.Variant
 		err := bus.Object("org.freedesktop.systemd1", dbus.ObjectPath(role.path)).CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", dbus.FlagNoAutoStart, managerDBusPropertyInterface(role, key), key).Store(&value)
@@ -233,6 +251,7 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 		return nil, ErrBoundary
 	}
 
+	checkpoint = 9
 	if held.Verify() != nil || !managerDBusPeer(conn, manager) || ctx.Err() != nil {
 		return nil, ErrBoundary
 	}

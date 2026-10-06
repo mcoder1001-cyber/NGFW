@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/vpp/bootid"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -825,6 +826,94 @@ func TestStoppedRepairValidatesWholeInventoryBeforeMutation(t *testing.T) {
 				}
 			} else if calls != 0 {
 				t.Fatal("mutation before whole inventory proof", calls)
+			}
+		})
+	}
+}
+
+// boundedSessionVICI is a controlled host-only observation fixture, never a live daemon.
+type boundedSessionVICI struct {
+	lifecycleVICI
+	events        chan<- vici.Event
+	count         int
+	foreign, drop bool
+	closes, stats int
+}
+
+func (f *boundedSessionVICI) NotifyEvents(c chan<- vici.Event) { f.events = c }
+func (f *boundedSessionVICI) Close() error                     { f.closes++; return nil }
+func (f *boundedSessionVICI) Call(ctx context.Context, cmd string, in *vici.Message) (*vici.Message, error) {
+	switch cmd {
+	case "get-conns":
+		name := "ra-road"
+		if f.foreign {
+			name = "foreign"
+		}
+		return sessionMessage("conns", []string{name}), nil
+	case "stats":
+		f.stats++
+		return sessionMessage("ikesas", sessionMessage("total", strconv.Itoa(f.count))), nil
+	case "list-sas":
+		for id := 1; id <= f.count; id++ {
+			if f.drop && id == 1 {
+				continue
+			}
+			child := sessionMessage("state", "INSTALLED", "if-id-in", "00000001", "if-id-out", "00000001", "bytes-in", "18446744073709551615", "bytes-out", "9007199254740993")
+			sa := sessionMessage("uniqueid", strconv.Itoa(id), "state", "ESTABLISHED", "remote-eap-id", "client", "remote-vips", []string{"10.10.0.5"}, "established", "42", "child-sas", sessionMessage("protected-1", child))
+			f.events <- vici.Event{Name: "list-sa", Message: sessionMessage("ra-road", sa)}
+		}
+		return sessionMessage("success", "yes"), nil
+	}
+	return f.lifecycleVICI.Call(ctx, cmd, in)
+}
+func TestLifecycleSessionsUseSharedCompleteObservationBound(t *testing.T) {
+	for _, count := range []int{201, strongswan.MaxRASessions} {
+		t.Run(strconv.Itoa(count), func(t *testing.T) {
+			rt, verifier, _, _, _, _, spec := lifecycleFixture(t)
+			fake := &boundedSessionVICI{}
+			rt.dial = func(context.Context, *NetworkPlan, UnitIdentity) (strongswan.ViciConn, error) { return fake, nil }
+			if _, err := rt.Create(context.Background(), spec); err != nil {
+				t.Fatal(err)
+			}
+			fake.count = count
+			calls, closes, stats := verifier.calls, fake.closes, fake.stats
+			observed, err := rt.Sessions(context.Background(), spec.Profile)
+			if err != nil || len(observed) != count || verifier.calls <= calls || fake.closes != closes+1 || fake.stats != stats+2 {
+				t.Fatalf("complete verified snapshot lost: count=%d len=%d error=%v", count, len(observed), err)
+			}
+			seen := map[string]bool{}
+			for _, row := range observed {
+				if !ValidInstance(row.ID) || seen[row.ID] || row.Profile != spec.Profile || row.BytesIn != ^uint64(0) || row.BytesOut != 9007199254740993 {
+					t.Fatal("opaque membership or exact counters lost")
+				}
+				seen[row.ID] = true
+			}
+		})
+	}
+}
+func TestLifecycleSessionsPreserveBoundForeignIncompleteAndStaleRefusals(t *testing.T) {
+	for _, failure := range []string{"overflow", "foreign", "incomplete", "stale-generation"} {
+		t.Run(failure, func(t *testing.T) {
+			rt, _, _, units, _, _, spec := lifecycleFixture(t)
+			fake := &boundedSessionVICI{}
+			rt.dial = func(context.Context, *NetworkPlan, UnitIdentity) (strongswan.ViciConn, error) { return fake, nil }
+			if _, err := rt.Create(context.Background(), spec); err != nil {
+				t.Fatal(err)
+			}
+			fake.count = 201
+			switch failure {
+			case "overflow":
+				fake.count = strongswan.MaxRASessions + 1
+			case "foreign":
+				fake.foreign = true
+			case "incomplete":
+				fake.drop = true
+			case "stale-generation":
+				units.id.StartTicks++
+			}
+			observed, err := rt.Sessions(context.Background(), spec.Profile)
+			if !errors.Is(err, ErrEngine) || len(observed) != 0 {
+				t.Fatal("unsafe or stale snapshot exposed", err)
 			}
 		})
 	}

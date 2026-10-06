@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	ravpn "ngfw/agent/internal/ra_vpn"
+	"ngfw/agent/internal/renderers/strongswan"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
 	"regexp"
@@ -53,6 +54,18 @@ func (s *Service) RemoteAccessSessions(ctx context.Context, req *ngfwv1.RemoteAc
 	rows, e := rt.Sessions(ctx, req.GetProfile())
 	if e != nil {
 		return nil, status.Error(codes.FailedPrecondition, "verified remote-access observations unavailable")
+	}
+	return pageRemoteAccessSessions(rows, req)
+}
+
+// pageRemoteAccessSessions pages an already verified complete runtime snapshot.
+// It never acquires observations or weakens the caller's owner/runtime checks.
+func pageRemoteAccessSessions(rows []strongswan.RASession, req *ngfwv1.RemoteAccessSessionsRequest) (*ngfwv1.RemoteAccessSessionsResponse, error) {
+	if len(rows) > strongswan.MaxRASessions {
+		return nil, status.Error(codes.FailedPrecondition, "verified remote-access observations unavailable")
+	}
+	if req.GetLimit() > 100 || (req.GetCursor() != "" && !ravpn.ValidInstance(req.GetCursor())) {
+		return nil, status.Error(codes.InvalidArgument, "invalid remote-access page")
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].ID < rows[j].ID })
 	start := 0

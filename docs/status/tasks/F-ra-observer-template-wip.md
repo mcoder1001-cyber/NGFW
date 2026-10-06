@@ -1,0 +1,5 @@
+# Unfinished observer pin correction
+
+Branch codex/ra-observer-template-20261006; own precise pin constant, new test, contract/WIP only. Contract before consumer. Current stale bf5e digest always refuses actual shipped0ab template. Next: fix constant, test actual shipped file and altered-byte refusal, whole RA race/contextlint, publish exacttree for independent review. No guest or READY claim.
+
+Contract FIRST local5feb55093ee9b761df90d2195313cb3736b48f04 / remotef0fd1d334fd241f1ed83496f4c46dfd2b67f588f / exacttreedd19f77935e08b7a6c049704ec49a9c0e1ac88af published. Consumer only replaces stale RA digest with named closed0ab102 constant; all other observer predicates/paths/budgets untouched. New actual shipped-template read/hash regression plus historical-pin and modified privilege-template negative checks. Whole RA race92103 EXIT0 2.766s; contextual lint78861 EXIT0zeroissues, logs /root/rct/rc-observer-template-race.log and rc-observer-template-lint.log. No guest/READY claim; independent source review next. Doublehelper hash audit is separate and unimplemented.

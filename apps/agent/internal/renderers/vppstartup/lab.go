@@ -17,10 +17,12 @@ const DefaultLabRoot = "/run/ngfw-test"
 
 // Lab instance sizing: no workers, no DPDK, a small main heap on normal pages and buffers on
 // normal pages, so an instance needs no hugepages (the host's 4096 × 2 MiB stay for vpp.service).
+// No poll-sleep-usec: VPP then sleeps a fixed interval and polls epoll with timeout 0 on every
+// main-loop turn (vlib/file.c vlib_file_poll), measured at ~17 % of a core idle with 100 µs; without
+// it the idle main thread blocks in epoll for up to 10 ms.
 const (
 	LabMainHeapMB        = 512
 	LabStatsegMB         = 32
-	LabPollSleepUsec     = 100
 	LabPageSize          = "4k"
 	SharedRuntimeDir     = "/run/vpp"
 	maxLabSlot           = 32
@@ -65,7 +67,6 @@ func LabSlotSettings(root string, slot int) (Settings, error) {
 		StatsSocket:      filepath.Join(dir, "stats.sock"),
 		Group:            "vpp",
 		RuntimeDir:       dir,
-		PollSleepUsec:    LabPollSleepUsec,
 		APIPrefix:        fmt.Sprintf("w%d", slot),
 		APISocket:        filepath.Join(dir, "api.sock"),
 		StatsegMB:        LabStatsegMB,

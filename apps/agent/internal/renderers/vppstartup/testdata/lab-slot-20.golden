@@ -8,7 +8,6 @@ unix {
   log /run/ngfw-test/w20/vpp/vpp.log
   full-coredump
   cli-listen /run/ngfw-test/w20/vpp/cli.sock
-  poll-sleep-usec 100
   gid vpp
 }
 

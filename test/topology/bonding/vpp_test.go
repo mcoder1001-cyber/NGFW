@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -27,7 +28,14 @@ import (
 	"ngfw/agent/binapi/tapv2"
 )
 
-const apiSocket = "/run/vpp/api.sock"
+// apiSocket follows `tools/lab env <N>` (NGFW_VPP_API_SOCKET: the slot's own VPP while `tools/lab vpp up <N>` runs,
+// LAB-vpp-per-slot); unset = the shared VPP.
+var apiSocket = func() string {
+	if s := os.Getenv("NGFW_VPP_API_SOCKET"); s != "" {
+		return s
+	}
+	return "/run/vpp/api.sock"
+}()
 
 const noIndex = ^uint32(0)
 

@@ -51,9 +51,9 @@ func (hostClient) Connected() bool { return true }
 
 func connectHost(t *testing.T) vpp.Client {
 	t.Helper()
-	conn, err := core.Connect(socketclient.NewVppClient(socketclient.DefaultSocketName))
+	conn, err := core.Connect(socketclient.NewVppClient(vpptest.APISocket()))
 	if err != nil {
-		t.Fatalf("connect %s: %v", socketclient.DefaultSocketName, err)
+		t.Fatalf("connect %s: %v", vpptest.APISocket(), err)
 	}
 	t.Cleanup(conn.Disconnect)
 	return hostClient{conn}

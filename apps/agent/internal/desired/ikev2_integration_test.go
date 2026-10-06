@@ -30,6 +30,7 @@ import (
 	"ngfw/agent/internal/testpeer/strongswan/swantest"
 	"ngfw/agent/internal/trafficbtest"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // TestIKEv2NativePackets runs only in the disposable VPP namespace. It uses a
@@ -51,7 +52,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	}
 	productBinary := os.Getenv("NGFW_NATIVE_AGENT_BIN")
 	production := productBinary != ""
-	cli := func(cmd string) string { return run("vppctl", "-s", "/run/vpp/cli.sock", cmd) }
+	cli := func(cmd string) string { return run("vppctl", "-s", vpptest.CLISocket(), cmd) }
 	if os.Getenv("NGFW_NATIVE_FAST_DPD") == "1" {
 		cli("ikev2 set liveness 1 3")
 	}
@@ -121,7 +122,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 		t.Fatalf("traffic escaped before SA installation: %s", out)
 	}
-	conn := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{})
+	conn := vpp.Dial(vpptest.APISocket(), vpp.ConnOptions{})
 	defer conn.Close()
 	if e := conn.WaitConnected(ctx); e != nil {
 		t.Fatal(e)
@@ -406,7 +407,7 @@ print('TCP exact 1048576 bytes passed')`))
 	if e := server.Wait(); e != nil {
 		t.Fatal(e)
 	}
-	counters, e := ikev2.SACounters(ctx, conn, "/run/vpp/stats.sock", sas)
+	counters, e := ikev2.SACounters(ctx, conn, vpptest.StatsSocket(), sas)
 	if e != nil {
 		t.Fatal(e)
 	}

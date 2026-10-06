@@ -236,11 +236,9 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 		return nil, ErrBoundary
 	}
 	checkpoint = 8
-	result, err = readManagerDBusProperties(ctx, roles, func(role managerDBusRole, key string) (dbus.Variant, error) {
-		var value dbus.Variant
-		err := bus.Object("org.freedesktop.systemd1", dbus.ObjectPath(role.path)).CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", dbus.FlagNoAutoStart, managerDBusPropertyInterface(role, key), key).Store(&value)
-		return value, err
-	})
+	result, err = readManagerDBusPipelineProperties(ctx, roles, func(callContext context.Context, role managerDBusRole, key string) *dbus.Call {
+		return bus.Object("org.freedesktop.systemd1", dbus.ObjectPath(role.path)).GoWithContext(callContext, "org.freedesktop.DBus.Properties.Get", dbus.FlagNoAutoStart, make(chan *dbus.Call, 1), managerDBusPropertyInterface(role, key), key)
+	}, bus.Close)
 	if err != nil {
 		return nil, ErrBoundary
 	}

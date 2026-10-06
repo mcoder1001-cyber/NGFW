@@ -1,0 +1,11 @@
+# Fixed single-role PID1 readback contract
+
+Source base local2e869022bd41ba29e8bafda627b1b6e746c85a42 / remotefd4772ac70cd66c40e3b43dbfa5cd088910cea86 / tree43a8a0aa1574eaf61fb6c91f4e8114d08abdb739. Owner authorized only three remaining fixed read-only property backends after actual Boot35 negative ce1fe69b. No performance or readiness claim.
+
+A private closed single-role factory permits exactly Source (ngfw-agent.service: MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,ExecStart), VPP (vpp.service: MainPID,FragmentPath,DropInPaths,ExecStart), or publisher exit (ngfw-ra-openfile.service: MainPID,ControlPID,ActiveState,SubState). Each adds mandatory Id before fields and rechecks Id after fields. No arbitrary unit/fieldset, no public skip or unchecked trust flag. Existing paired/triplet role validation remains closed.
+
+Every read uses the existing fresh protected Root PID1 socket, kernel peer/fullboot and pre/post metadata checks, explicit EXTERNAL UID0, no-FD transport, bounded predecoder/typed variants, total direction bounds, cancellation ownership and caller-clipped two-second context. No cache, CLI/error fallback, new authority, mutations, Hello, load, subscription or system bus.
+
+Only fixedAgentUnitProperties backend, verifyBrokerVPPUnitIdentity query/parsing block, and waitNumericPublisherExit property backend change. All Source/capabilities/held proof/Target/unit digest/DropIn/PID/process/inactive predicates, ordering, phases, original contexts, budgets, unit templates and existing outer stages remain. Other namespaceSystemdProperties families remain unchanged. Failure classification remains ErrBoundary; existing bounded native failure checkpoint logging is retained.
+
+Owned exact product/test paths under apps/agent/internal/ra_vpn: namespace_openfile_manager_dbus.go (closed role validation only), new namespace_openfile_manager_single_role.go and _test.go, namespace_agent_peer.go (fixed getter only), namespace_manager.go (VPP query/parsing only), namespace_openfile_transport.go (exit getter only). Owned docs: this contract, matching WIP/envelope. Tests must reject unknown/foreign/custom fieldsets, changed pre/post Id and types, cancellation, and preserve paired/triplet rejection. Actual legitimate PID1 and timing acceptance require independent new owned guest; source tests do not claim actual readiness.

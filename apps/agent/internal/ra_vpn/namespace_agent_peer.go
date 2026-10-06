@@ -21,7 +21,7 @@ func verifyFixedAgentPeer(ctx context.Context, peer *unix.Ucred, identity bootid
 }
 
 func fixedAgentUnitProperties(ctx context.Context) (map[string]string, error) {
-	return namespaceSystemdProperties(ctx, "ngfw-agent.service", "MainPID,ControlGroup,FragmentPath,DropInPaths,User,Group,ExecStart")
+	return readManagerDBusSingleRole(ctx, managerDBusSingleSource)
 }
 
 func verifyFixedAgentPeerUsing(ctx context.Context, peer *unix.Ucred, identity bootid.Identity, properties func(context.Context) (map[string]string, error)) error {

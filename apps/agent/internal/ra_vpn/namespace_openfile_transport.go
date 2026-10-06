@@ -95,7 +95,7 @@ func waitNumericPublisherExit(ctx context.Context, server bootid.Identity) error
 	defer ticker.Stop()
 	for {
 		if !(bootid.Reader{}).ForPID(server.PID).Equal(server) {
-			fields, err := namespaceSystemdProperties(wait, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState")
+			fields, err := readManagerDBusSingleRole(wait, managerDBusSinglePublisherExit)
 			if err == nil && fields["MainPID"] == "0" && fields["ControlPID"] == "0" && fields["ActiveState"] == "inactive" && fields["SubState"] == "dead" {
 				return nil
 			}

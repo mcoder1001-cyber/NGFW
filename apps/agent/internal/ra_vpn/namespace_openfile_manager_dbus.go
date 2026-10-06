@@ -161,18 +161,12 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 			log.Print(line)
 		}
 	}()
-	if ctx.Err() != nil || os.Geteuid() != 0 || len(roles) < 2 || len(roles) > 3 {
+	if ctx.Err() != nil || os.Geteuid() != 0 || len(roles) < 1 || len(roles) > 3 {
 		return nil, ErrBoundary
 	}
 	checkpoint = 2
-	for i, role := range roles {
-		want := managerDBusSourceRole
-		if i < 2 {
-			want = managerDBusPublisherRoles[i]
-		}
-		if role != want {
-			return nil, ErrBoundary
-		}
+	if !validManagerDBusRoles(roles) {
+		return nil, ErrBoundary
 	}
 	checkpoint = 3
 	manager := (bootid.Reader{}).ForPID(1)
@@ -262,17 +256,8 @@ func readManagerDBusRoles(parent context.Context, roles []managerDBusRole) (resu
 // readManagerDBusProperties is the fixed-role conversion stage. The production
 // getter exists only after the real held socket/PID1/authentication proofs.
 func readManagerDBusProperties(ctx context.Context, roles []managerDBusRole, get func(managerDBusRole, string) (dbus.Variant, error)) ([]map[string]string, error) {
-	if ctx.Err() != nil || get == nil || len(roles) < 2 || len(roles) > 3 {
+	if ctx.Err() != nil || get == nil || !validManagerDBusRoles(roles) {
 		return nil, ErrBoundary
-	}
-	for i, role := range roles {
-		want := managerDBusSourceRole
-		if i < 2 {
-			want = managerDBusPublisherRoles[i]
-		}
-		if role != want {
-			return nil, ErrBoundary
-		}
 	}
 	var result []map[string]string
 	for _, role := range roles {

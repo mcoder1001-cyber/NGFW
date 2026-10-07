@@ -92,6 +92,10 @@ export function SetupWizardPage() {
           (item) =>
             item.kind === 'interface' &&
             item.state !== null &&
+            (running.data?.doc.interfaces[item.name] !== undefined ||
+              (!item.state.managed &&
+                item.state.vrf === 'default' &&
+                ['dpdk', 'vmxnet3', 'virtio'].includes(item.state.type))) &&
             item.name !== 'local0' &&
             item.physical?.owner !== 'host' &&
             parentInterfaceName.safeParse(item.name).success &&

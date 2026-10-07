@@ -66,8 +66,8 @@ describe('setup staging and security', () => {
   it('previews and stages live interfaces absent from running without changing running', async () => {
     interfaceState.mockResolvedValue({
       interfaces: [
-        InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default' }),
-        InterfaceState.fromPartial({ name: 'liveLan', swIfIndex: 5, vrf: 'default' }),
+        InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+        InterfaceState.fromPartial({ name: 'liveLan', swIfIndex: 5, vrf: 'default', type: 'dpdk' }),
       ],
     });
     const liveBody = { ...body(), input: { ...input, wan: 'liveWan', lan: 'liveLan' } };
@@ -93,6 +93,26 @@ describe('setup staging and security', () => {
       interfaces: [InterfaceState.fromPartial({ name: 'missing', swIfIndex: 4, parent: 'wan0' })],
     });
     await expect(c.stage({ ...missing, current, password }, request())).rejects.toThrow('existing');
+    expect((await repo.candidate()).payload).toBeNull();
+  });
+  it('rejects live VRF drift and agent-managed orphans after preview', async () => {
+    const liveBody = { ...body(), input: { ...input, wan: 'liveWan', lan: 'liveLan' } };
+    const states = [
+      InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+      InterfaceState.fromPartial({ name: 'liveLan', swIfIndex: 5, vrf: 'default', type: 'dpdk' }),
+    ];
+    interfaceState.mockResolvedValue({ interfaces: states });
+    await c.preview(liveBody, request());
+    interfaceState.mockResolvedValue({
+      interfaces: states.map((state) => ({ ...state, vrf: 'blue' })),
+    });
+    await expect(c.stage({ ...liveBody, current, password }, request())).rejects.toThrow(
+      'non-default',
+    );
+    interfaceState.mockResolvedValue({
+      interfaces: states.map((state) => ({ ...state, managed: true })),
+    });
+    await expect(c.preview(liveBody, request())).rejects.toThrow('existing');
     expect((await repo.candidate()).payload).toBeNull();
   });
   it('rejects host-owned and local interfaces', async () => {

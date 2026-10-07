@@ -106,3 +106,38 @@ Preserved reviewer objects read: `6e81d2de3` integrated source coverage (explici
 After B1/B2 and future exact-source review: manager-hosted unchanged complete quick; manager-assigned isolated engine first activation/defaultREADY, original-unit mount handoff/asset visibility/isolation, EAP-MSCHAPv2 and valid/revoked/foreign TLS, pools/DNS/split routes, ESP/ACL allow+deny, owned session disconnect, original-agent restart/reconnect<30s, actual VICI pool/connection rollback and physical owned cleanup. Actual HTTP licensing/PKI/sealed credentials/roles/audits/second-pool400 pointer and real backend browser en/fa modes are separate missing acceptance, eligible for explicit lab-only deferral only once source/prerequisites are established. RADIUS remains rendered/golden only, as authorized; no unsolicited live throughput gate is added.
 
 Exact next action: manager supplies future frozen source SHA/tree; reviewer compares its delta to9f2b30433 and rechecks changed scopes. Default READY remains failed/unresolved; no live reexecution until manager assigns the owned guest slot. Report publication cannot be used as final future-freeze approval.
+
+## Final closed Verify diagnostics review, 2026-10-07
+
+Exact author source `f3ae748601acfc768661c7503cedd0aa2c7092e5`, tree `bfb0187190d42a8646cd6efe2588a2638279161b`; source/tree independently resolved and remote `codex/resume-ra-20261007` matches. Diagnostic contract `e851196e99a058e094240477febb5b6aa3c023de` precedes consumer f3ae. Read its envelope/WIP journal contract and enum/formatter, then exact consumer/test delta against approved cancellation source0a34a8b12. Reviewer branch inherits author source by history-preserving merge; `git diff f3ae74860 HEAD --name-only` prints only this report. No product edits.
+
+**R1/R3/R4/R8: APPROVE for this exact diagnostics delta, source-ready.** No scoped BLOCKER/MAJOR/MINOR. This grade does not approve the whole engine, installed publisher performance or default READY. B1 and B2 above remain **BLOCK**; no VM replay authorized or performed. New diagnostics are attribution infrastructure, not a runtime fix or proof of Boot38's cause.
+
+Closed contract: reasons1..9 only; helper/receipt/service/socket indices1..4 only for held-stat/fresh-open/stamp/close/artifact-context reasons, zero for other reasons. Context accepts only nil/Canceled/DeadlineExceeded; unknown enum/index/state yields no output. Output contains only numeric reason/index and two fixed context booleans. No caller-controlled artifact/path/identity/raw error/string is an input, no elapsed field or new service/API authority. Failure-only defer samples the context before return/caller cleanup and emits one line; success does not sample this defer context or log. Sampled concurrent cancellation is observation, not proof that cancellation caused the failing primitive.
+
+Guard/order inspection: entry cancellation/proof/source completeness, pre-process full boot identity, four-file shape, each artifact cancellation, held fd/Fstat and complete stamp, protected canonical reopen, stamp comparison and checked fresh Close, final context/process identity/context remain in their original successful order. Fresh Close still executes before either stamp or close-error refusal, including stamp mismatch; caller-owned held descriptors remain open. Splitting boolean chains changes only reason attribution. Final cancellation repair remains intact. Every failure returns original ErrBoundary. Proof hashing, four-slot contents/digests/limits, protected-parent/readback checks, current-process boot verification, validation20/IPC5/work15/cleanup5/server35/publication40, original connect30 and all nine unit templates are unchanged.
+
+Independent exact source controls:
+
+```text
+GOMAXPROCS=2 go test -p 2 -race -count=1 -v -timeout 45s -run '^TestNumericPublisher(ProofDiagnosticClosedValues|ProofActualFailureAttributionAndSilence|ProofRejectsCancellationAfterSuccessfulSample|HeldInstallationRejectsChanges|StreamingHashAndCancellation|DiagnosticTransportPinned)$' ./internal/ra_vpn
+PASS; ok ngfw/agent/internal/ra_vpn 1.375s; exit0
+```
+
+All six selected top-level tests ran (no SKIP): closed invalid values/state suppression; actual healthy-file silence; entry cancellation/deadline; artifact traversal and final identity cancellation; changed content in each of four real owned files; inaccessible canonical reopen in each of four real owned directories; retained held descriptors; prior replacement/content/mode/hardlink/symlink guards; whole streamed hash/cancel and immutable deadline/template pin. Thirteen attribution cases each begin with a successful silent positive proof. Canonical-access negatives rename the parent directory, retaining the held file stamp, so they exercise actual open failure separately from stamp failure. Changed negatives write real different-length bytes. They are local OS-file controls, not installed-engine or VM acceptance.
+
+The caller is canceled only after Verify returns in live-context failure cases; captured diagnostics correctly remain `canceled=false`. Tests reject private fixture markers, boot IDs, PID labels and raw access errors in output. Table controls cover invalid reasons0/10/255, invalid artifact0/5/255, wrong reason/index combinations and unknown context state. All caller-held files still stat successfully after Verify.
+
+Independent silent-success mutation, ignored `.scratch` Go overlay only: invert the new failure-only defer predicate `result != nil` to `result == nil`, leaving product guards unchanged, and select only healthy-1:
+
+```text
+GOMAXPROCS=2 go test -p 2 -race -count=1 -timeout 30s -overlay=/root/ngfw-wt/resume-p12-20261007/.scratch/review-ra-diagnostic-overlay.json -run '^TestNumericPublisherProofActualFailureAttributionAndSilence/healthy-1$' ./internal/ra_vpn
+FAIL healthy-1: healthy proof refused or emitted diagnostics <nil>
+FAIL ngfw/agent/internal/ra_vpn 0.235s; expected exit1
+```
+
+This demonstrates the positive test catches success logging independently of the formatter's implementation. Production files remained unchanged. `git diff --check` and gofmt on all three diagnostic/consumer files are clean. Full quick, generation, broad developer test runs and live VM replay were not repeated. Original defaultREADY remains unexplained; an eventual separately authorized replay may use these closed observations without changing guards or deadlines.
+
+Exact-source static replay `tools/ci.sh check --base origin/main` also exits1: ordinary static boundaries pass, mandatory gitleaks history scan remains red. Report: `/root/ngfw-wt/logs/ci/resume-p12-20261007-20261007-075018-2305098/gitleaks-report.json`; matched contents are withheld. This is not a complete hosted quick result.
+
+Exact next command: `git ls-remote origin refs/heads/codex/review-ra-correctness-20261007` to verify the published review checkpoint. Manager/R2 resolves mandatory history findings and defaultREADY diagnosis/acceptance separately; final diagnostic source remains frozen at f3ae748601acfc768661c7503cedd0aa2c7092e5. No whole-engine merge approval follows from scoped diagnostics approval.

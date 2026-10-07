@@ -1,0 +1,3 @@
+# TD19 source fixture compatibility WIP
+
+Accepted at main4fcdc4557e857efb8d079bf2c52c0e2f0fedd9db. No fixture changes yet. Hosted37651344590 Go reader failure fixture uses obsolete PATH AWK injection; product now invokes trusted /usr/bin/awk. Hosted37651344539 FRR actual-entry failures are copied-entry/helper/harness incompatibilities; exact causes pending reproduction. Initial envelope containing SHA resolved by git rev-parse HEAD/git ls-remote origin refs/heads/codex/td19-source-fixture-compat-20261007. Owned files in envelope. Tests not run. Next: reproduce exact two fixed runners with TMPDIR=/tdc; adapt copied helpers and only explicit owned subprocess fault injection. Preserve every gate/authority/no-effect assertion. No product or host changes authorized.

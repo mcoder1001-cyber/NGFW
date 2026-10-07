@@ -82,6 +82,8 @@ export function SetupWizardPage() {
     queryFn: ({ signal }) => fetchInterfacesState(signal),
     enabled: step === 3 || step === 4,
   });
+  const interfacesUnavailable =
+    interfaces.isError || (interfaces.data?.observationErrors?.length ?? 0) > 0;
   const interfaceNames = [
     ...new Set([
       ...Object.entries(running.data?.doc.interfaces ?? {})
@@ -295,7 +297,7 @@ export function SetupWizardPage() {
       {(step === 3 || step === 4) && interfaces.isFetching && (
         <Typography>{t('loadingInterfaces')}</Typography>
       )}
-      {(step === 3 || step === 4) && interfaces.isError && (
+      {(step === 3 || step === 4) && interfacesUnavailable && (
         <Alert severity="warning">
           {t('interfacesFailed')}
           <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>

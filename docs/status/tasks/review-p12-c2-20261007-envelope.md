@@ -1,0 +1,3 @@
+# Independent P12 C2 review envelope
+
+Manager authorizes new branch `codex/review-p12-c2-20261007`, worktree `/root/ngfw-wt/review-p12-c2-20261007`, from published d4617b5bc9798125d66b75c3a7c0916392de1e41. Own matching review report, envelope, WIP and evidence only. Applicable R1/R2/R4/R7/R8. Review exact 1ae2c16184f8da21d107a0ad7f689d4f715bf90f..d4617b5bc9798125d66b75c3a7c0916392de1e41 against Jason c42c C2 findings and manager integration notes. No product edits, namespace creation, live replay, host package/unit/sysctl/security changes or shared VPP mutation. Real detailed host inventory reads and modeled validator negatives authorized. Preserve isolation, counts and deadlines; publish independent freeze verdict.

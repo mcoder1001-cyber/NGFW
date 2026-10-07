@@ -320,7 +320,10 @@ function DrawerBody({
                 [t('inventory.pci'), item.hostInventory?.pci || '—'],
                 [t('inventory.driver'), item.hostInventory?.driver || '—'],
                 [t('live.mac'), item.hostInventory?.mac || '—'],
-                [t('col.link'), t(item.hostInventory?.linkUp ? 'status.up' : 'status.down')],
+                [
+                  t('col.link'),
+                  t(item.hostInventory?.linkUp ? 'status.up' : 'inventory.linkDownOrUnknown'),
+                ],
               ].map(([label, value]) => (
                 <TableRow key={label}>
                   <TableCell component="th">{label}</TableCell>

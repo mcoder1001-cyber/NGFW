@@ -123,7 +123,10 @@ export function InterfacesPage() {
         queryFn: () => fetchInterfacesState(signal),
         staleTime: 1000,
       });
-      setObservationErrors(data.observationErrors ?? []);
+      setObservationErrors((previous) => {
+        const next = data.observationErrors ?? [];
+        return JSON.stringify(previous) === JSON.stringify(next) ? previous : next;
+      });
       return pageOf(data.items.map(toRow), req);
     },
     [qc],
@@ -206,7 +209,13 @@ export function InterfacesPage() {
           p.row.link ? (
             <StatusChip size="small" status={linkStatus(p.row.item.state)!} />
           ) : p.row.item.hostInventory ? (
-            <StatusChip size="small" status={p.row.item.hostInventory.linkUp ? 'up' : 'down'} />
+            p.row.item.hostInventory.linkUp ? (
+              <StatusChip size="small" status="up" />
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {t('inventory.linkDownOrUnknown')}
+              </Typography>
+            )
           ) : null,
       },
       {

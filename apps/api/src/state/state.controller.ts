@@ -356,13 +356,12 @@ export class StateController {
     }
     for (const nic of nics) {
       if (!nic.pci) continue;
-      // PCI metadata is authoritative; otherwise correlate exact Linux/VPP names or a unique DPDK MAC.
+      // PCI metadata is authoritative; otherwise correlate exact names or a unique physical-engine MAC.
       const configured = [...names].find((name) => {
-        const physical = physicalView(
-          (runIfs.get(name)?.value ?? candIfs.get(name)?.value ?? actIfs.get(name)?.value ?? {})[
-            'physical'
-          ],
-        );
+        const physical =
+          physicalView(runIfs.get(name)?.value['physical']) ??
+          physicalView(candIfs.get(name)?.value['physical']) ??
+          physicalView(actIfs.get(name)?.value['physical']);
         return physical?.pci.toLowerCase() === nic.pci?.toLowerCase();
       });
       const exact =
@@ -374,9 +373,12 @@ export class StateController {
             liveBy.get(name)?.vppName === `host-${nic.netdev}`,
         );
       const matches =
-        nic.mac && nic.boundToDpdk && macCounts.get(nic.mac.toLowerCase()) === 1
+        nic.mac && macCounts.get(nic.mac.toLowerCase()) === 1
           ? [...liveBy.values()].filter(
-              (st) => st.type === 'dpdk' && st.mac.toLowerCase() === nic.mac?.toLowerCase(),
+              (st) =>
+                ((st.type === 'dpdk' && nic.boundToDpdk) ||
+                  (st.type === 'vmxnet3' && nic.driver === 'vmxnet3')) &&
+                st.mac.toLowerCase() === nic.mac?.toLowerCase(),
             )
           : [];
       let name = configured || exact || (matches.length === 1 ? matches[0]?.name : undefined);
@@ -394,8 +396,9 @@ export class StateController {
       const parent = cfg?.parent ?? (st?.parent ? st.parent : null);
       const c = counters.get(st?.vppName ?? name);
       // wave-BC: F-default-vpp-nics — the physical marker from the running (else candidate) config of this interface
-      const physCfg = (runIfs.get(name)?.value ?? candIfs.get(name)?.value ?? {})['physical'];
-      const physical = physicalView(physCfg);
+      const physical =
+        physicalView(runIfs.get(name)?.value['physical']) ??
+        physicalView(candIfs.get(name)?.value['physical']);
       const host = hostBy.get(name);
       return {
         name,

@@ -182,6 +182,49 @@ describe('interface rows', () => {
 });
 
 describe('interfaces screen', () => {
+  it(
+    'does not report unavailable host carrier as a definite link failure',
+    { timeout: 60_000 },
+    async () => {
+      const api = installFakeApi();
+      api.on('GET /api/v1/state/interfaces', {
+        body: {
+          items: [
+            {
+              name: 'pci-0000:01:00.0',
+              kind: 'interface',
+              parent: null,
+              state: null,
+              config: null,
+              running: null,
+              counters: null,
+              hasPendingChange: false,
+              inventoryOnly: true,
+              hostInventory: {
+                netdev: '',
+                pci: '0000:01:00.0',
+                driver: 'vfio-pci',
+                mac: '',
+                isManagement: false,
+                boundToDpdk: true,
+                linkUp: false,
+              },
+            },
+          ],
+        },
+      });
+      api.on('GET /api/v1/config/candidate/interfaces', { body: {} });
+      await signIn();
+      render(app('/interfaces'));
+      const grid = await screen.findByRole('grid', {}, { timeout: 15_000 });
+      expect(await within(grid).findByText('down or unknown')).toBeInTheDocument();
+      fireEvent.click(within(grid).getByText('pci-0000:01:00.0'));
+      const drawer = await screen.findByRole('region', { name: 'Interface pci-0000:01:00.0' });
+      expect(await within(drawer).findByText('down or unknown')).toBeInTheDocument();
+      expect(within(drawer).queryByRole('button', { name: 'Save to candidate' })).toBeNull();
+    },
+  );
+
   it.each(['en', 'fa'])(
     'automatically displays host and management NICs with a read-only drawer (%s)',
     { timeout: 60_000 },

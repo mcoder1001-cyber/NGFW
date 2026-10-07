@@ -37,5 +37,16 @@ for name in ('gre0', 'gretap0', 'erspan0', 'ip6tnl0'):
         if source.empty_outer_link(mutant):
             accepted_missing.append(field)
     print(f'{name}: missing required evidence accepted={accepted_missing}')
-    assert accepted_missing == ['flags']
+    assert accepted_missing == []
+    malformed = [None, 'NOARP', {}, (), 0, False, [False], [0], [None],
+                 ['NOARP', {}], ['UP'], ['LOWER_UP'], ['MASTER']]
+    for flags in malformed:
+        mutant = copy.deepcopy(link)
+        mutant['flags'] = flags
+        assert not source.empty_outer_link(mutant), (name, flags)
+    for other in ('eth0', 'tun0', 'gre1', 'gretap1', 'erspan1', 'ip6tnl1'):
+        mutant = copy.deepcopy(link)
+        mutant['ifname'] = other
+        assert not source.empty_outer_link(mutant), (name, other)
+    print(f'{name}: 13 malformed/active flag controls and 6 outside-boundary names rejected')
 print('NO_NAMESPACE_MOUNT_DAEMON_OR_RUNNER_EXECUTION=True')

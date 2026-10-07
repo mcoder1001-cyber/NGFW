@@ -1,0 +1,5 @@
+# RA VPN PR193 recovery envelope
+
+Developer branch `codex/resume-ra-20261007`, isolated worktree `/root/ngfw-wt/resume-ra-20261007`, manager-created. Recover reviewed union `711e18e12ac2776ad4fc15066f811b60599e63f2`; merge origin/main only here. Own RA production/API/web/schema/proto/packaging changes already in the union and these two recovery documents. No PPPoE/P12/board/main edits, PR creation or merge. Preserve both historical decision entries when resolving the main merge.
+
+Host-independent focused tests, unit/template/offline packaging fixtures, context/cancellation/lifecycle audit and true defect fixes are authorized. Use `GOMAXPROCS=2`, Go `-p 2`. No security boundary expansion, host package/unit changes, daemon restarts or shared VPP mutation. Manager runs exact complete hosted quick gate; do not run full local quick. Publish coherent named checkpoints immediately. Deliver frozen SHA/tree, independent-review checklist, genuine blockers and separate remaining laboratory acceptance.

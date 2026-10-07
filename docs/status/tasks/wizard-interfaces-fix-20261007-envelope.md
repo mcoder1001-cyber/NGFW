@@ -7,3 +7,5 @@ Owned: apps/web/src/domains/system/setup/SetupWizardPage{,.test}.tsx, apps/web/s
 Also owned: apps/web/src/domains/system/setup/SetupWizardPage.regression.test.tsx; docs/user/getting-started.md and additive decision log entry D-239.
 No schema/proto change, no host services or live configuration mutations.
 Independent reviewers must use separate branches/worktrees and never change product code.
+
+Also owned: append-only wizard acceptance in docs/status/DEFERRED-ACCEPTANCE.md; HA scheduling flake evidence in docs/tech-debt.md.

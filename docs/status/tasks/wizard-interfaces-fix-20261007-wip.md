@@ -1,10 +1,11 @@
 Branch: codex/wizard-interfaces-fix-20261007
 Base: 3ddb1680e475e94d43e8036cd3776bc60c87208b
-Published product/test checkpoint: 3947362b691e056c1532ad16e3c340ae93eb3ad9 (origin branch; successful push).
-Owned files: see task envelope.
-Completed: configured + live physical default-VRF WAN/LAN choices; translated loading/retry/empty/missing-selection guidance; exclusions for local0, host-owned, virtual and managed-orphan discovery; API rechecks live interfaces and uses deterministic defaults so drift cannot change the reviewed policy; exact preview includes additions, stage remains atomic.
-Actual tests: independent corrected API targeted suite 13/13 PASS; developer corrected main setup UI file 4/4 PASS. Initial fresh-worktree runs failed before collection until dependencies built. Independent old-source retry/Persian suite 3/3 PASS; latest combined run 6/7 PASS because remaining Persian fixture lacked physical type/VRF, corrected in 3947362b and awaiting final rerun.
-Gate: initial complete quick stopped after review fixes made it obsolete. /tmp inode exhaustion caused ENOSPC in independent tests; use dedicated TMPDIR on root filesystem. Final independent unchanged quick running in /root/ngfw-wt/wizard-test-20261007, log /tmp/wizard-test-final-quick.log. Hosted PR198 quick running on 3947362b.
-Reviews: independent R1/R2/R3/R6 source review no remaining product findings; durable reports pending. R7 final evidence pending.
-Remaining: final whole gate, updated Persian fixture test, durable reviews, hosted CI, D112 archive/squash and expected-head merge. No deployment or appliance acceptance claimed.
-Exact next command: tail -n 25 /tmp/wizard-test-final-quick.log
+Published checkpoint: 30eb90243e01f5e6df0509b36c7b6f96f1d9e3d7 (successful remote push).
+Owned files: task envelope, plus docs/status/DEFERRED-ACCEPTANCE.md and docs/tech-debt.md append-only task evidence.
+Completed: configured + live physical default-VRF WAN/LAN choices; translated loading/retry/empty/missing-selection guidance; excludes local0, host-owned, virtual and managed-orphan discovery; API rechecks live interfaces and deterministic defaults preserve reviewed policy; exact preview includes additions; atomic stage.
+Actual tests: API targeted13/13; corrected original+independent web7/7; complete API109files/716tests and web107files/623tests PASS. Independent bounded full quick passed all35Turbo tasks, agent lint/race/test/build, CLI, all27 Go module unit checks; final fake-host apply-startup harness still running. Do not call whole gate PASS before final marker.
+Earlier failures: /tmp inode exhaustion; overlong TMPDIR Unix sockets; baseline HA50ms resync scheduling flake. Complete fixture typecheck and Persian fixture repaired and independently approved. HA flake accepted with owner/due date in tech debt; no checks skipped. Final retry uses TMPDIR=/wzt GOMAXPROCS=4.
+Reviews: independent R1/R2/R3/R6/R7 APPROVE including final fixture addendum; durable reports in this directory.
+Hosted: previous source79fc48403 mandatory quick PASS; current30eb90243 quick in progress. PR198.
+Remaining: independent exact final CI GATE PASSED/report; D112 remote archive/squash; final local and hosted gates on integration head; expected-head merge. Live appliance/browser acceptance deferred explicitly; no deployment.
+Exact next command: tail -n25 /tmp/wizard-test-bounded-final-quick.log

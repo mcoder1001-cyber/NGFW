@@ -1,7 +1,8 @@
 # D-238: TD-19 repository bootstrap trust anchors
 
 - raised: 2026-10-04 by TD-19 (was PENDING-TD19-repository-trust)
-- decision: product owner chose **option 2** in chat (relayed 2026-10-06): the recorded official HTTPS key endpoints are the initial trust anchors for exactly the observed identities.
+- decision: product owner chose **option 2**: the recorded official HTTPS key endpoints are the initial trust anchors for exactly the observed identities.
+- source: Owner answer given directly in the Claude Code chat session on 2026-10-06 (verbatim: 'به‌عنوان مرجع اعتماد بپذیر (گزینه ۲)').
 - affected tasks: TD-19 (unparked for implementation; real target installation remains NOT RUN).
 
 ## Context
@@ -21,9 +22,10 @@ Rules implemented in scripts/00-add-repos.sh:
 
 1. The sets are reviewed source constants (`NGFW_FRR_AUTHORIZED_PRIMARIES`, `NGFW_NODESOURCE_AUTHORIZED_PRIMARIES`). An unset administrator variable resolves to them; a set variable must equal the authorized set exactly (order-insensitive), otherwise setup refuses before artifact preflight, network or APT.
 2. The downloaded FRR bundle must contain exactly the four authorized primaries. Repeated copies of an authorized certificate (the endpoint repeats BBC9…975B) are canonicalized by the private import/export; any extra, missing or replaced primary is refused.
-3. The NodeSource download must contain exactly the one authorized primary (existing strict exact-set verifier; a duplicate is refused).
-4. Existing strict validation stays: secret-material refusal, validity/capability checks, private GnuPG homes, bounded files, exact product VPP artifact manifest/digest preflight, both key sets validated before any global mutation.
-5. A changed downloaded identity is never accepted automatically. Any new set (rotation, added signer) requires a new recorded owner decision and a reviewed source change.
+3. The NodeSource download must contain exactly the one authorized primary; a duplicate is refused.
+4. Both repositories take the same path: raw primary-set gate, private GnuPG import, complete export of exactly the pinned primaries, exact verification of the export. Only GnuPG-validated material reaches the installed keyrings (an attacker subkey without a valid binding to a pinned primary is dropped; a revoked or expired pinned primary is refused). One shared parser (`check_primary_set`) applies identical validity/capability/fingerprint rules to raw downloads and exports; all refusals name D-238.
+5. Existing strict validation stays: secret-material refusal, validity/capability checks, private GnuPG homes, bounded files, exact product VPP artifact manifest/digest preflight, both key sets validated before any global mutation.
+6. A changed downloaded identity is never accepted automatically. Any new set (rotation, added signer) requires a new recorded owner decision and a reviewed source change.
 
 ## Options considered
 

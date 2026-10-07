@@ -101,7 +101,7 @@ else: raise SystemExit(91)
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('trusted exact primary',result.stderr)
         self.assertLess(source.index('\ncheck_key_pins\n'),source.index('\ncurl -fsSL'))
-        self.assertLess(source.index('verify_repo_key "$repo_work/node.key"'), source.index('\napt-get update'))
+        self.assertLess(source.index('select_pinned_certificates "$repo_work/node.key"'), source.index('\napt-get update'))
 
     def test_actual_repository_entry_uses_authorized_pins_and_refuses_differing_override(self):
         # D-238: unset overrides resolve to built-in owner-authorized pins and

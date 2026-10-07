@@ -1,6 +1,6 @@
 {
   "title": "Interfaces",
-  "intro": "Live interface table of the data plane (from the agent) with the configured view. Click a row to edit it; changes go to the candidate and apply on Commit.",
+  "intro": "Existing physical network interfaces and live engine interfaces appear automatically. Click a configured or engine interface to edit it; changes apply on Commit. Host-only interfaces are read-only.",
   "add": "Add interface",
   "addTitle": "Add an interface to the configuration",
   "addHelp": "Engine interface name: host-<netdev> (af_packet lab interface), loop<N>, a NIC name or a bond. The agent creates host- and loop interfaces; other names must exist on the data plane.",
@@ -173,5 +173,22 @@
       "dialing": "dialing",
       "failed": "failed"
     }
+  },
+  "inventory": {
+    "host": "host interface",
+    "management": "management",
+    "title": "Host network interface",
+    "netdev": "Host interface name",
+    "pci": "PCI address",
+    "driver": "Driver",
+    "readOnlyInfo": "This physical interface was discovered automatically on the host. It is not configured in the engine; viewing it does not change its ownership or create configuration.",
+    "managementInfo": "This interface carries host management traffic. Its discovered details are read-only; viewing it does not change management connectivity.",
+    "unavailable": "{{source}} is unavailable. The list may be incomplete.",
+    "sources": {
+      "retrieve": "Engine configuration observation",
+      "live": "Live engine interface state",
+      "hostInventory": "Host interface discovery"
+    },
+    "linkDownOrUnknown": "down or unknown"
   }
 }

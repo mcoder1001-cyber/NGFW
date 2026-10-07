@@ -9,7 +9,7 @@ ngfw_install_init() {
     echo 'usage: installer [--dry-run]' >&2; return 2
   fi
   NGFW_INSTALL_ROOT=${NGFW_INSTALL_ROOT:-/}
-  /usr/bin/python3 - "$NGFW_INSTALL_ROOT" <<'PYROOT' || return 1
+  /usr/bin/python3 -I - "$NGFW_INSTALL_ROOT" <<'PYROOT' || return 1
 import pathlib, sys
 value = sys.argv[1]
 p = pathlib.Path(value)
@@ -29,7 +29,7 @@ PYROOT
     }
     local recorder_dir
     recorder_dir=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
-    /usr/bin/python3 - "$NGFW_INSTALL_STUB_DIR" "$recorder_dir/install-recording-stub.py" "$NGFW_INSTALL_ROOT" <<'PYSTUBS' || return 1
+    /usr/bin/python3 -I - "$NGFW_INSTALL_STUB_DIR" "$recorder_dir/install-recording-stub.py" "$NGFW_INSTALL_ROOT" <<'PYSTUBS' || return 1
 import pathlib, sys
 stubs, contract, root = map(pathlib.Path, sys.argv[1:])
 if not stubs.is_absolute() or stubs.is_symlink() or not stubs.is_dir():
@@ -55,7 +55,7 @@ ngfw_install_path() {
   local path=${1:?absolute target required} target
   [[ $path == /* && $path != / && $path != *'/../'* && $path != */.. ]] || return 1
   target=${NGFW_INSTALL_ROOT%/}$path
-  /usr/bin/python3 - "$target" <<'PYPATH' || return 1
+  /usr/bin/python3 -I - "$target" <<'PYPATH' || return 1
 import pathlib, sys
 p = pathlib.Path(sys.argv[1])
 for ancestor in [p, *p.parents]:

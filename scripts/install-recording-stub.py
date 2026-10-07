@@ -1,8 +1,8 @@
-#!/usr/bin/python3
+#!/usr/bin/python3 -I
 import json, os, pathlib, subprocess, sys
 name = pathlib.Path(sys.argv[0]).name
 if name == 'python3' and sys.argv[1:3] != ['-m', 'venv']:
-    os.execv('/usr/bin/python3', ['/usr/bin/python3', *sys.argv[1:]])
+    os.execv('/usr/bin/python3', ['/usr/bin/python3', '-I', *sys.argv[1:]])
 if name == 'gpg':
     args = sys.argv[1:]
     if '--homedir' not in args: raise SystemExit(91)

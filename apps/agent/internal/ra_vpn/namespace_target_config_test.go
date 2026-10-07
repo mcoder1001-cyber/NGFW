@@ -44,7 +44,7 @@ func TestTargetsOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	root := protectedOpenFileTestDir(t)
 	// #nosec G302 -- private directory needs owner traversal; no group/other access.
 	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)
@@ -93,5 +93,62 @@ func TestTargetsOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 	}
 	if readTargetsOpenFileAt(path, identity) == nil {
 		t.Fatal("extra command accepted")
+	}
+}
+
+// OpenFile readback checks every parent, so a positive fixture must not live
+// beneath the world-writable system temporary directory.
+func protectedOpenFileTestDir(t *testing.T) string {
+	t.Helper()
+	parent, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := brokerProtectedParent(parent); err != nil {
+		t.Fatal("positive fixture requires a protected checkout", err)
+	}
+	root, err := os.MkdirTemp(parent, ".ra-openfile-test-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(root); err != nil {
+			t.Error(err)
+		}
+	})
+	return root
+}
+
+func TestOpenFileReadbackRefusesWritableParent(t *testing.T) {
+	if os.Geteuid() != 0 {
+		t.Skip("protected root-owned file fixtures require UID 0")
+	}
+	root := protectedOpenFileTestDir(t)
+	identity := bootid.Identity{BootID: "12345678-1234-1234-1234-123456789abc", PID: 123, StartTime: 456}
+	target, err := RenderTargetsOpenFile(identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	observer, err := RenderObserverOpenFile(instance, identity)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targetPath := filepath.Join(root, "target.conf")
+	observerPath := filepath.Join(root, "observer.conf")
+	for path, content := range map[string][]byte{targetPath: target, observerPath: observer} {
+		if err := os.WriteFile(path, content, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if readTargetsOpenFileAt(targetPath, identity) != nil || readObserverOpenFileAt(observerPath, instance, identity) != nil {
+		t.Fatal("protected positive control refused")
+	}
+	// #nosec G302 -- deliberate writable-parent negative fixture, within this test's owned checkout directory.
+	if err := os.Chmod(root, 0720); err != nil {
+		t.Fatal(err)
+	}
+	if readTargetsOpenFileAt(targetPath, identity) == nil || readObserverOpenFileAt(observerPath, instance, identity) == nil {
+		t.Fatal("writable parent accepted")
 	}
 }

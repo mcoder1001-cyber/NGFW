@@ -73,7 +73,7 @@ func TestObserverOpenFileReadbackProtectsOwnedFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := t.TempDir()
+	root := protectedOpenFileTestDir(t)
 	// #nosec G302 -- private directory needs owner traversal; no group/other access.
 	if err := os.Chmod(root, 0700); err != nil {
 		t.Fatal(err)

@@ -21,11 +21,11 @@ class ShellSource(unittest.TestCase):
             self.assertEqual(result.stdout, code + '\n')
             self.assertIn(expected, result.stdout)
 
-    def test_profile_defers_home_and_path_to_login_shell(self):
+    def test_profile_defers_path_and_includes_rooted_generators(self):
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
         code = re.search(r"<<'GO_PROFILE'\n(.*?)\nGO_PROFILE", source, re.S).group(1)
         result = subprocess.run(['bash', '-c', "cat <<'GO_PROFILE'\n" + code + '\nGO_PROFILE'], text=True, capture_output=True, check=True)
-        self.assertEqual(result.stdout, 'export PATH=/usr/local/go/bin:$HOME/go/bin:$PATH\n')
+        self.assertEqual(result.stdout, 'export PATH=/usr/local/go/bin:/opt/ngfw-build/go/bin:$PATH\n')
 
     def test_actual_teardown_preserves_failure_fallback_and_argv(self):
         function = re.search(r'^rig_side_down\(\).*?^}', SOURCE, re.M | re.S).group(0)

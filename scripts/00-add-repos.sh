@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Configure non-VPP repositories only after verified product artifact preflight.
 set -euo pipefail
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 preflight_artifacts() {
   local output=${1:?artifact directory required}
   output=$(realpath -e -- "$output")
@@ -141,7 +141,7 @@ select_pinned_certificates() (
   set -euo pipefail
   local key=$1 expected=$2 output=$3 label=$4 selection_work
   check_selection_pins "$expected" "$label"
-  selection_work=$(mktemp -d /tmp/ngfw-frr-selection.XXXXXXXX)
+  selection_work=$(mktemp -d "${work_dir:-${TMPDIR:-/tmp}}"/ngfw-frr-selection.XXXXXXXX)
   trap 'rm -rf -- "$selection_work"' EXIT
   mkdir -m 0700 "$selection_work/import" "$selection_work/verify"
   # Open once without following the caller's final symlink; all GPG operations
@@ -243,8 +243,9 @@ if [[ ${1:-} == --check-artifacts ]]; then
   preflight_artifacts "$2"
   exit 0
 fi
-[[ $# == 0 ]] || { echo 'unknown repository setup argument' >&2; exit 2; }
-[[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
+# shellcheck source=install-common.sh
+source "$ROOT/scripts/install-common.sh"
+ngfw_install_init "$@"
 [[ -n ${NGFW_VPP_ARTIFACTS:-} ]] || { echo 'NGFW_VPP_ARTIFACTS required before repository setup' >&2; exit 1; }
 NGFW_FRR_KEY_FINGERPRINTS=${NGFW_FRR_KEY_FINGERPRINTS-$NGFW_FRR_AUTHORIZED_PRIMARIES}
 NGFW_NODESOURCE_KEY_FINGERPRINTS=${NGFW_NODESOURCE_KEY_FINGERPRINTS-$NGFW_NODESOURCE_AUTHORIZED_PRIMARIES}
@@ -252,15 +253,45 @@ check_key_pins
 require_authorized_pins
 check_selection_pins "$NGFW_FRR_KEY_FINGERPRINTS" FRR
 check_selection_pins "$NGFW_NODESOURCE_KEY_FINGERPRINTS" NodeSource
+if [[ $NGFW_INSTALL_DRY_RUN == 1 ]]; then
+  ngfw_install_plan 'verify seven signed product artifacts; verify both D-238 exact repository key sets; APT bootstrap; write /usr/share/keyrings and /etc/apt/sources.list.d; APT refresh (no FD.io repo)'
+  exit 0
+fi
+# Artifact verifier fixtures also use temporary files: bind their staging to
+# the selected root before invoking the original verification gate.
+work_dir=$(ngfw_install_path /tmp)
+mkdir -p "$work_dir"
+export TMPDIR="$work_dir"
 preflight_artifacts "$NGFW_VPP_ARTIFACTS" >/dev/null
-CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+os_release=$(ngfw_install_os_release)
+keyring_dir=$(ngfw_install_path /usr/share/keyrings)
+sources_dir=$(ngfw_install_path /etc/apt/sources.list.d)
+# OS metadata is data, including under the recording fixture root. Never source
+# a caller-provided os-release file as executable shell text.
+CODENAME=$(python3 - "$os_release" <<'PYOSRELEASE'
+import os, re, stat, sys
+fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+with os.fdopen(fd) as stream:
+    info = os.fstat(stream.fileno())
+    if not stat.S_ISREG(info.st_mode) or not 0 < info.st_size <= 65536:
+        raise SystemExit('REFUSED: bounded regular OS metadata required')
+    data = stream.read(65537)
+if len(data) > 65536:
+    raise SystemExit('REFUSED: OS metadata too large')
+lines = [line.split('=', 1)[1] for line in data.splitlines()
+         if line.startswith('VERSION_CODENAME=')]
+if len(lines) != 1 or not re.fullmatch(r"(?:[a-z0-9][a-z0-9._-]*|\"[a-z0-9][a-z0-9._-]*\"|'[a-z0-9][a-z0-9._-]*')", lines[0]):
+    raise SystemExit('REFUSED: one literal VERSION_CODENAME required')
+print(lines[0].strip('\"\''))
+PYOSRELEASE
+)
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
 
 # Bootstrap tools must be preinstalled; no APT or network without authorized pins.
 for prerequisite in curl gpg python3 install mktemp; do
   command -v "$prerequisite" >/dev/null || { echo "missing bootstrap prerequisite: $prerequisite" >&2; exit 1; }
 done
-repo_work=$(mktemp -d /tmp/ngfw-repo-keys.XXXXXXXX)
+repo_work=$(mktemp -d "$work_dir"/ngfw-repo-keys.XXXXXXXX)
 repo_target=
 trap 'rm -rf -- "$repo_work"; [[ -z "$repo_target" ]] || rm -f -- "$repo_target"' EXIT
 mkdir -m 0700 "$repo_work/frr-home" "$repo_work/node-home"
@@ -273,14 +304,15 @@ select_pinned_certificates "$repo_work/node.key" "$NGFW_NODESOURCE_KEY_FINGERPRI
 # Both exact public-key sets must validate before any global mutation.
 apt-get update
 apt-get install -y ca-certificates lsb-release apt-transport-https
+mkdir -p "$keyring_dir" "$sources_dir"
 for name in frr nodesource; do
   source_name=$name
   [[ $name != nodesource ]] || source_name=node
-  repo_target=$(mktemp "/usr/share/keyrings/.ngfw-${name}.XXXXXXXX")
+  repo_target=$(mktemp "$keyring_dir/.ngfw-${name}.XXXXXXXX")
   install -m 0644 "$repo_work/$source_name.gpg" "$repo_target"
   target_name=$name
   [[ $name != frr ]] || target_name=frrouting
-  mv -fT -- "$repo_target" "/usr/share/keyrings/$target_name.gpg"
+  mv -fT -- "$repo_target" "$keyring_dir/$target_name.gpg"
   repo_target=
 done
 
@@ -292,11 +324,11 @@ done
 # 'resolute' suite yet, the apt-get update below 404s on this repo - fall back
 # to Ubuntu's own 'frr' package (present in the resolute archive) until it does.
 echo "deb [signed-by=/usr/share/keyrings/frrouting.gpg] https://deb.frrouting.org/frr ${CODENAME} frr-stable" \
-  > /etc/apt/sources.list.d/frr.list
+  > "$sources_dir/frr.list"
 
 # --- Node.js 22 LTS --------------------------------------------------------
 echo "deb [signed-by=/usr/share/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
-  > /etc/apt/sources.list.d/nodesource.list
+  > "$sources_dir/nodesource.list"
 
 apt-get update
 echo "non-VPP repositories added: frr-stable, nodesource node_22.x"

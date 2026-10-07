@@ -2,9 +2,11 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	"ngfw/agent/internal/renderers/strongswan"
 	"strings"
 	"testing"
 )
@@ -37,5 +39,54 @@ func TestRARPCOwnerFirstUnavailableAndMalformedBoundaries(t *testing.T) {
 	}
 	if _, e := svc.RemoteAccessDisconnect(ctx, &ngfwv1.RemoteAccessDisconnectRequest{Owner: svc.owner, Profile: "road", Id: strings.Repeat("a", 64)}); status.Code(e) != codes.Unavailable {
 		t.Fatal("missing engine claimed removal", e)
+	}
+}
+
+func TestRAVerifiedSnapshotPaginationBeyondTwoHundred(t *testing.T) {
+	for _, count := range []int{201, strongswan.MaxRASessions} {
+		t.Run(fmt.Sprint(count), func(t *testing.T) {
+			rows := make([]strongswan.RASession, count)
+			for i := range rows {
+				rows[i] = strongswan.RASession{ID: fmt.Sprintf("%064x", count-i), Profile: "road", Identity: "client", BytesIn: ^uint64(0), BytesOut: 9007199254740993}
+			}
+			cursor := ""
+			seen := map[string]bool{}
+			pageSizes := []int{}
+			for page := 0; page < 12; page++ {
+				response, err := pageRemoteAccessSessions(rows, &ngfwv1.RemoteAccessSessionsRequest{Profile: "road", Cursor: cursor, Limit: 100})
+				if err != nil || len(response.GetSessions()) > 100 || len(response.GetSessions()) == 0 {
+					t.Fatal("bounded page lost", err)
+				}
+				pageSizes = append(pageSizes, len(response.GetSessions()))
+				for _, row := range response.GetSessions() {
+					if seen[row.GetId()] || row.GetId() <= cursor || row.GetProfile() != "road" || row.GetBytesIn() != ^uint64(0) || row.GetBytesOut() != 9007199254740993 {
+						t.Fatal("membership, cursor or exact counter lost")
+					}
+					seen[row.GetId()] = true
+				}
+				if response.GetNextCursor() == "" {
+					break
+				}
+				if response.GetNextCursor() != response.GetSessions()[len(response.GetSessions())-1].GetId() {
+					t.Fatal("cursor does not bind last owned row")
+				}
+				cursor = response.GetNextCursor()
+			}
+			if len(seen) != count {
+				t.Fatalf("truncated complete snapshot: %d/%d", len(seen), count)
+			}
+			if count == 201 && fmt.Sprint(pageSizes) != "[100 100 1]" {
+				t.Fatal("201 sessions did not form three bounded pages", pageSizes)
+			}
+			if _, err := pageRemoteAccessSessions(rows, &ngfwv1.RemoteAccessSessionsRequest{Profile: "road", Cursor: strings.Repeat("f", 64), Limit: 100}); status.Code(err) != codes.FailedPrecondition {
+				t.Fatal("stale cursor accepted", err)
+			}
+			if _, err := pageRemoteAccessSessions(rows, &ngfwv1.RemoteAccessSessionsRequest{Profile: "road", Limit: 101}); status.Code(err) != codes.InvalidArgument {
+				t.Fatal("oversized page accepted", err)
+			}
+		})
+	}
+	if _, err := pageRemoteAccessSessions(make([]strongswan.RASession, strongswan.MaxRASessions+1), &ngfwv1.RemoteAccessSessionsRequest{Profile: "road", Limit: 100}); status.Code(err) != codes.FailedPrecondition {
+		t.Fatal("oversized total snapshot accepted", err)
 	}
 }

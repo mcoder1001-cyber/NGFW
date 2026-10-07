@@ -17,6 +17,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { useFormatters } from '@ngfw/ui-kit';
+import { formatCounter } from '../../../config/widgets/format';
 import { SchemaForm } from '@ngfw/ui-kit/schema-form';
 import { usePermissions } from '../../../auth/AuthProvider';
 import { ProblemAlert } from '../../../config/ProblemAlert';
@@ -40,6 +42,7 @@ import {
 export default function RaVpnPage() {
   const { t } = useTranslation('ra-vpn');
   const permissions = usePermissions();
+  const fmt = useFormatters();
   const capability = useCapabilities();
   const profiles = useProfiles();
   const [selected, setSelected] = useState('');
@@ -147,6 +150,9 @@ export default function RaVpnPage() {
           {t('refresh')}
         </Button>
       </Stack>
+      {selected && capability.data?.operational && sessions.isFetching && !sessions.data && (
+        <Typography role="status">{t('loadingSessions')}</Typography>
+      )}
       {sessions.error && <ProblemAlert error={sessions.error} />}
       {disconnect.error && <ProblemAlert error={disconnect.error} />}
       {disconnect.data?.disconnected === false && (
@@ -165,9 +171,9 @@ export default function RaVpnPage() {
             <TableRow key={session.id}>
               <TableCell>{session.identity}</TableCell>
               <TableCell dir="ltr">{session.addresses.join(', ')}</TableCell>
-              <TableCell dir="ltr">{session.establishedSeconds}</TableCell>
-              <TableCell dir="ltr">{session.bytesIn}</TableCell>
-              <TableCell dir="ltr">{session.bytesOut}</TableCell>
+              <TableCell dir="ltr">{formatCounter(fmt, session.establishedSeconds)}</TableCell>
+              <TableCell dir="ltr">{formatCounter(fmt, session.bytesIn)}</TableCell>
+              <TableCell dir="ltr">{formatCounter(fmt, session.bytesOut)}</TableCell>
               <TableCell>
                 <Button
                   disabled={

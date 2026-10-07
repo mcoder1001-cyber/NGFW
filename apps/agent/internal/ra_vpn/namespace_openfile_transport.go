@@ -26,7 +26,11 @@ func numericPublisherInstallation() (result error) {
 	return proof.Verify(context.Background())
 }
 
-func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof) (result error) {
+func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof) error {
+	return numericPublisherManagerUsing(ctx, server, proof, numericPublisherManagerPair)
+}
+
+func numericPublisherManagerUsing(ctx context.Context, server bootid.Identity, proof *numericPublisherInstallationProof, properties func(context.Context) (numericPublisherManagerSnapshot, error)) (result error) {
 	if proof.Verify(ctx) != nil {
 		return numericPublisherFailure(ctx, 4)
 	}
@@ -36,12 +40,12 @@ func numericPublisherManagerWithProof(ctx context.Context, server bootid.Identit
 		}
 	}()
 
-	fields, err := namespaceSystemdProperties(ctx, "ngfw-ra-openfile.socket", "FragmentPath,DropInPaths,ActiveState,SubState,Listen")
-	if err != nil || !numericPublisherSocketState(fields, server.Complete()) {
+	snapshot, err := properties(ctx)
+	if err != nil || !numericPublisherSocketState(snapshot.socket, server.Complete()) {
 		return numericPublisherFailure(ctx, 6)
 	}
-	fields, err = namespaceSystemdProperties(ctx, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState,ControlGroup,FragmentPath,DropInPaths,User,Group,CapabilityBoundingSet,NoNewPrivileges,ExecStart")
-	if err != nil || fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
+	fields := snapshot.service
+	if fields["FragmentPath"] != numericPublisherService || fields["DropInPaths"] != "" || !numericPublisherCgroup(fields, server.Complete()) || fields["User"] != "root" || fields["Group"] != "ngfw" || fields["CapabilityBoundingSet"] != "" || fields["NoNewPrivileges"] != "yes" || !strings.Contains(fields["ExecStart"], "path="+unitObserverExecutable+" ; argv[]="+unitObserverExecutable+" --publish-openfile ;") {
 		return numericPublisherFailure(ctx, 7)
 	}
 	if server.Complete() {
@@ -91,7 +95,7 @@ func waitNumericPublisherExit(ctx context.Context, server bootid.Identity) error
 	defer ticker.Stop()
 	for {
 		if !(bootid.Reader{}).ForPID(server.PID).Equal(server) {
-			fields, err := namespaceSystemdProperties(wait, "ngfw-ra-openfile.service", "MainPID,ControlPID,ActiveState,SubState")
+			fields, err := readManagerDBusSingleRole(wait, managerDBusSinglePublisherExit)
 			if err == nil && fields["MainPID"] == "0" && fields["ControlPID"] == "0" && fields["ActiveState"] == "inactive" && fields["SubState"] == "dead" {
 				return nil
 			}

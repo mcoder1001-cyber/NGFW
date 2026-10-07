@@ -6,5 +6,5 @@ No unresolved documentation/scope finding. Final task/envelope/WIP/contract file
 
 Manager still owns final sequential merge, board update, final quick/hosted CI evidence and explicit lab-only acceptance entry. R1/R6 own selected tests are not mistaken for live proof. No board changes by reviewer.
 
-Findings:0 BLOCKER;0 MAJOR;0 MINOR.
+Findings: 0 BLOCKER;0 MAJOR;0 MINOR.
 Verdict: APPROVE (source review; integration gates still required).

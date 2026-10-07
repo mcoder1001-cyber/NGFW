@@ -1,11 +1,25 @@
-# Independent review WIP
+# Independent review WIP / recovery
 
 Branch: codex/interfaces-review-20261007
-Source local HEAD: 83a59de0b5c63d76f1d6e4c384d78d79b2063239 (developer a3d2322f7).
-Owned files: this task review/envelope/WIP documents only.
-Completed: required prompts read; API/read-only boundary and UI drawer reviewed; dependency packages regenerated with clean git state.
-Actual commands: pnpm install --frozen-lockfile --prefer-offline PASS; tools/ci.sh check --base 3ddb1680e -> check PASSED (0m13s), gitleaks no leaks; turbo prerequisite build 12 successful/12 total, generated source unchanged.
-Actual targeted results: API discovery6/6 PASS; all state15/15 PASS; new EN/FA inventory drawer2/2 PASS. Full InterfacesPage suite unverified: terminated after >3m without default-reporter result; cause unverified, concurrent host load possible; terminated only verified own process IDs and developer informed. Initial API attempt failed only because isolated worktree lacked package dist; prerequisite build now succeeded and rerun pending.
-Remaining: developer completed full UI verification/evidence, authorized virtio PCI reader fixture and native vmxnet3 correlation, contract/final task report, bounded inventory documentation, final verdict.
-Exact next command: cherry-pick developer final fix checkpoint when supplied; review read-only virtio PCI resolver and rerun changed targeted tests.
-Published report-only remote checkpoint: 1fcdcaf6d; git push succeeded to codex/interfaces-review-20261007.
+Remote report-only checkpoint: edc731f29 (successfully pushed). Source reviewed:4292daa82, own verification cherry-pick22b3f9ceb. Owned files: this task review/envelope/WIP/findings documents only; no product edits.
+
+Completed: independent R1/R2/R3/R4 safety/R5/R6/R7 review APPROVE, all raised source issues addressed. Final report files and panel summary published. R8 not applicable.
+
+Actual final tests:
+
+```text
+API discovery: Test Files 1 passed (1); Tests 8 passed (8)
+Selected UI EN/FA: Test Files 1 passed (1); Tests 2 passed | 13 skipped (15)
+Selected UI unavailable carrier: Test Files 1 passed (1); Tests 1 passed | 14 skipped (15)
+Go HostNICs/NetdevPCI/ReadHost: ok ngfw/agent/internal/renderers/vppstartup 0.112s
+TMPDIR=/root/ngfw-review-tmp/interfaces-review tools/ci.sh check --base 3ddb1680e
+ok: gitleaks — scanned ~1575882 bytes (1.58 MB) in 4.96s no leaks found
+board valid: 212 tasks; read-only validation
+check PASSED (0m43s)
+```
+
+Earlier isolated API run required package-dist build, then passed. Earlier full frontend run terminated before result, cause unverified/host-load possible; no render-loop claim. No full quick or live acceptance pass claimed by reviewer.
+
+Remaining manager work: unchanged complete quick, final D112 integration/rebase + hosted gate, sequential merge/main CI, board/status and explicit lab-only acceptance tracking. Root notified all final source approvals and actual independent results.
+
+Exact next command: manager imports report-only docs (initial R2/R5 introduction5ceac5d27 then final reviewedc731f29), or copies final report paths from reviewer branch. Never merge reviewer branch as product candidate. Any final product-tree change needs bounded review verification.

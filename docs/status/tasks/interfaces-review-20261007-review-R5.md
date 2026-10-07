@@ -8,5 +8,5 @@ No throughput/benchmark claim and no live measurement performed. Host-independen
 
 Final source precomputes host MAC counts; still bounded physical inventory scans and no added per-row RPC.
 
-Findings:0 BLOCKER;0 MAJOR;0 MINOR.
+Findings: 0 BLOCKER;0 MAJOR;0 MINOR.
 Verdict: APPROVE (source review; integration gates still required).

@@ -7,14 +7,14 @@ No unresolved UX finding. Automatic host/management rows and read-only drawer us
 Own EN/FA and VFIO/no-carrier selected regressions pass. Live stack screenshots were not produced or claimed; this laboratory-only acceptance is deferred under owner instruction and must be tracked by manager. Full frontend suite and quick gate remain separate integration requirements.
 ```text
 TMPDIR=/root/ngfw-review-tmp/interfaces-review pnpm --filter @ngfw/api exec vitest run src/state/interface-discovery.test.ts
-Test Files1 passed; Tests8 passed; tests49ms; duration43.62s
+Test Files 1 passed; Tests 8 passed; tests49ms; duration43.62s
 TMPDIR=/root/ngfw-review-tmp/interfaces-review pnpm --filter @ngfw/web exec vitest run src/domains/interfaces/InterfacesPage.test.tsx -t 'automatically displays|bound PCI host NIC'
-Test Files1 passed; Tests2 passed/13 excluded; EN3404ms; FA2666ms
+Test Files 1 passed; Tests 2 passed/13 excluded; EN3404ms; FA2666ms
 TMPDIR=/root/ngfw-review-tmp/interfaces-review pnpm --filter @ngfw/web exec vitest run src/domains/interfaces/InterfacesPage.test.tsx -t 'does not report unavailable host carrier'
-Test Files1 passed; Tests1 passed/14 excluded; tests3036ms; duration50.08s
+Test Files 1 passed; Tests 1 passed/14 excluded; tests3036ms; duration50.08s
 TMPDIR=/root/ngfw-review-tmp/interfaces-review go test ./internal/renderers/vppstartup -run 'TestHostNICs|TestNetdevPCI|TestReadHost' -count=1
-ok ngfw/agent/internal/renderers/vppstartup0.112s
+ok ngfw/agent/internal/renderers/vppstartup 0.112s
 ```
 
-Findings:0 BLOCKER;0 MAJOR;0 MINOR.
+Findings: 0 BLOCKER;0 MAJOR;0 MINOR.
 Verdict: APPROVE (source review; integration gates still required).

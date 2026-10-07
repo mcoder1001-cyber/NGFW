@@ -1,5 +1,58 @@
 # PPPoE IPv6 PR196 recovery WIP
 
+## Frozen source handoff — authoritative current status
+
+Local/remote tested checkpoint `88fca3168e775fd0bbf699bdc9e82c2295091f00`, tree
+`afbd6626295e20d290519ecbd10da4df932dfbef`, published on the named branch below.
+Merged main `3ddb1680e475e94d43e8036cd3776bc60c87208b` cleanly; upstream delta
+docs/board-only, no executable change or owned edits outside scope.
+Frozen executable trees: apps `b85d6dcb068be6f1f22d931ac66f2790f6523f7d`, deploy
+`3af47703e8d7d71133594209d0779aa580fc5b7d`, packages
+`4e36d6a20a1163148072c5011b27a4b591c4e2e3`. Final WIP-only receipt SHA/tree
+is resolved externally via `git rev-parse HEAD HEAD^{tree}`; verify publication
+with `git ls-remote origin refs/heads/codex/resume-pppoe-20261007`.
+
+Complete independent reports cbeea9a55/9ec1f1d17 mandatory findings addressed:
+pidfd/starttime/command identity rejects bare/zero/foreign/reused PID; verified
+refresher and direct DHCP child stop before handle/hook deletion; locked revocation
+and generation-gated publication reject late writers; exec/sysctl/client failures
+observable; packaged dhcpcd-base dependency; inherited contract status recorded.
+Reconnect now serializes with existing transaction exclusion and clears both
+families; mode-change regression fixed. No disagreement needing arbiter.
+These are author fixes/controls, NOT an independent APPROVE verdict.
+
+Final post-merge bounded focused race PASS: renderer 44.096s, descriptor 2.145s,
+subsystem 3.150s. Covers noforeignsignal, childgone, TERM/KILL, late DHCP event,
+collection barrier, abrupt pppd/link loss, replacement, remove/off/mode/credentials,
+failure reporting and reconnect. Scoped golangci-lint PASS zero issues. Post-merge
+`tools/ci.sh check --base origin/main` PASS 0m14s; golden/allowlist checks passed.
+No full local quick, actual shared daemon/VPP/sysctl mutation or fresh live dial.
+
+Remaining bounded lifecycle code: none identified by these controls. Exact-source
+independent re-review and manager unchanged complete hosted quick remain REQUIRED.
+Actual packaged dhcpcd privsep descendants and live dial/reconnect are untested;
+fake direct-child controls do not certify them. Discovery and missing IPv4/IPv6 LAN
+PPPoE encapsulation remain unsupported PRODUCT gaps, NOT laboratory-only acceptance
+or full-feature DONE. Discovery conflict: plugin owns EtherType 0x8863, linux-cp
+registration rejects it, global CP dispatch cannot resolve client broadcast PADI
+through server learned-MAC state. Physical-interface address/FIB mirroring has no
+PPPoE encapsulation DPO/session and lacks required AC/session metadata. Resolving
+forwarding/coexistence needs separately authorized design, possibly VPP C/security
+boundary; no generated binding change, plugin-disable or privilege workaround.
+Existing namespace refusal and unsupported disclosure preserved.
+
+Current blocker: independent current-source review/hosted gate; full product datapath
+still unsupported. Do not declare PR196/all merged work complete or merge APPROVE.
+Exact next command, if reviewer requests rerun:
+`cd /root/ngfw-wt/resume-pppoe-20261007/apps/agent && ../../tools/heavy.sh timeout 300s go test -race -p 2 -count=1 -timeout 240s ./internal/renderers/pppoe ./internal/descriptors/pppoe ./internal/subsystems -run 'Pppoe|PPPoE|Client|ReadState|ReadIPv6|IPv6|DHCP6|Render|Apply|Secrets'`.
+Manager next: re-review frozen source and run unchanged hosted quick on exact final
+integration tree; preserve explicit discovery/transit product gaps.
+
+New inventory additions to inherited list below: renderer `lifecycle.go`,
+`lifecycle_test.go`, `templates/ipv6.tmpl`; shared renderer `ALLOWLIST.md`;
+`deploy/debian/ngfw/debian/control`; `resume-pppoe-20261007-contract.md`.
+Exact complete changed-file inventory: `git diff --name-only origin/main HEAD`.
+
 ## Active independent-review repair — supersedes readiness below
 
 Published lifecycle checkpoint: local/remote `1cc677129ba564eb0fec1f2251856aba6fc13299`

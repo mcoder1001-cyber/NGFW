@@ -13,6 +13,48 @@ Source commit `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, exact tree `7d91483666
 
 Combined verdict: BLOCK. Developer must fence the complete stop/invalidate/replace/restart transition against hook admission and pin original pppd identity. Add deterministic transition, reconnect, failure/rollback and reused-parent regressions. This is implementable owner-scoped code work; no new host privilege or human authorization is required. Product discovery/transit failures remain explicit and cannot be classified as deferred lab-only acceptance.
 
+### Immediate reproduction and A2 handoff
+
+Owner steering: preserve source failures; manager repairs in its own isolated tree; third review round requires A2 arbitration and a fresh independent reviewer assigned by manager after P12. This reviewer retains review-only role; no further repair/review loop or human blocker inferred.
+
+Admission reproduction **specified from source, not independently executed end to end**: (1) create an active private fixture session; (2) pause Go Apply/Remove/Reconnect just after StopIPv6 returns and before state removal/helper replacement; (3) execute old session's IPv6-up hook while pppd is still alive; (4) verify fresh identity/generation is admitted after the stop action lock has ended; (5) resume invalidation/replacement and check writer identity, late PD events and state. Go transaction exclusion cannot block an external hook. A real successful systemd restart may subsequently kill the unit's descendants; the vulnerable window and failed restart/rollback still need proof. Do not claim this source interleaving was a completed live reproduction.
+
+Mandatory repair criteria: fence hook admission through whole transition (including errors and rollback); verify original pppd session identity with starttime/pidfd; preserve handles if extinction fails; old generation and DHCP event writers cannot publish/delete new state; deterministic interleaving tests for edit/mode/off/removal/credentials/reconnect plus failed apply/rollback; no foreign signals, pattern kills, host changes or privilege widening; complete unchanged hosted quick on final composition. Applicable independent reviewer/A2 verdict remains required.
+
+Exact independently executed parent-reuse probe (read/execute template in memory; no files or processes created):
+
+```python
+from pathlib import Path
+import contextlib, types
+source = Path('apps/agent/internal/renderers/pppoe/templates/ipv6.tmpl').read_text()
+source = source.replace('{{if .DefaultRoute}}True{{else}}False{{end}}', 'False')
+for label in ['StateDir', 'HostIf', 'IPv6UpHook', 'IPv6Helper', 'IPv6', 'DhcpcdBin', 'DhcpcdConf']:
+    source = source.replace('{{quoted .' + label + '}}', '"fixture"')
+n = {'__name__': 'review_fixture'}
+exec(compile(source, 'frozen-ipv6-helper', 'exec'), n)
+class FakePath:
+    def __truediv__(self, other): return self
+    def is_dir(self): return True
+    def exists(self): return True
+    def unlink(self, **kw): pass
+n.update(SYSCTL=FakePath(), HOOK=FakePath(), PID=FakePath(), PD=FakePath(),
+         MODE='slaac', locked=lambda: contextlib.nullcontext(), current=lambda g: True,
+         collect=lambda i: [], identity=lambda p: 'REUSED_NEW_STARTTIME', print=lambda *a, **k: None)
+observed = []
+def publish(phase, *args, **kw):
+    observed.append(phase)
+    n['stopping'] = True
+n['state'] = publish
+n['sys'] = types.SimpleNamespace(stdout=types.SimpleNamespace(close=lambda: None))
+n['refresh']('original-session', 'ppp0', '', '', '12345')
+print('parent PID reused with different starttime: published', observed)
+assert observed[0] == 'up'
+```
+
+Output: `parent PID reused with different starttime: published ['up', 'down']`. This establishes the code accepts any non-null identity; it does not claim actual kernel PID reuse was forced. Mandatory repaired regression must retain the original parent's identity and reject the replacement.
+
+Duplicate local quick stopped at owner's explicit request after coherent partial evidence: generated clean, all35 workspace tasks, agent vet/lint/race/build and CLI lint/test/build PASS; topology unit modules passed through object-model, gate unfinished. Session62224 exited143 after pidfd TERM only to verified spawned controller PID2325819/start2026-10-07 09:21:26UTC and then-owned child2419253. No complete `CI GATE PASSED` claimed, no check disabled or weakened. Hosted freeze run37601246627 is manager's active authority; final hosted outcome must be verified there.
+
 Actual reviewer command: `GOTOOLCHAIN=local go test -race -count=1 -timeout 180s ./internal/renderers/pppoe ./internal/subsystems -run 'PPPoE|Pppoe|IPv6|ReadSession'` from apps/agent:
 
 ```text

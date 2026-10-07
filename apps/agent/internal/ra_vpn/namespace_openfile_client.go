@@ -12,6 +12,8 @@ import (
 func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) (result error) {
 	trace := newNumericPublisherClientTiming()
 	defer func() { trace.logFailure(result != nil, ctx.Err() == context.DeadlineExceeded) }()
+	gaps := newNumericPublisherGapTiming(ctx)
+	defer func() { gaps.logFailure(result != nil) }()
 	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()
 	proof, err := newNumericPublisherInstallationProof(bounded)
@@ -42,7 +44,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	}
 	trace.markPreflight(3)
 	probe := numericPublisherRequest{Phase: "probe", Source: source}
-	first, image, err := numericPublisherExchange(bounded, probe, nil, proof, trace, 0)
+	first, image, err := numericPublisherExchange(bounded, probe, nil, proof, trace, gaps, 0)
 	if err != nil {
 		return err
 	}
@@ -50,11 +52,12 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	if err := waitNumericPublisherExit(bounded, first.Server); err != nil {
 		return err
 	}
+	gaps.mark(2)
 	request := numericPublisherRequest{Phase: "publish", Source: source, Kind: kind, Instance: instance, Target: target, PreviousServer: first.Server}
 	if validateNumericPublisherRequest(request) != nil {
 		return numericPublisherFailure(bounded, 11)
 	}
-	second, fresh, err := numericPublisherExchange(bounded, request, image, proof, trace, 1)
+	second, fresh, err := numericPublisherExchange(bounded, request, image, proof, trace, gaps, 1)
 	if err != nil {
 		return err
 	}
@@ -65,7 +68,7 @@ func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind,
 	return nil
 }
 
-func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof, trace *numericPublisherClientTiming, phase int) (numericPublisherResponse, *os.File, error) {
+func numericPublisherExchange(ctx context.Context, request numericPublisherRequest, previous *os.File, proof *numericPublisherInstallationProof, trace *numericPublisherClientTiming, gaps *numericPublisherGapTiming, phase int) (numericPublisherResponse, *os.File, error) {
 	publicationContext := ctx
 	bounded, cancel := context.WithTimeout(ctx, NumericPublisherValidationBudget)
 	defer cancel()
@@ -169,6 +172,12 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	if err != nil {
 		return empty, nil, numericPublisherFailure(ctx, 19)
 	}
+	switch phase {
+	case 0:
+		gaps.mark(0)
+	case 1:
+		gaps.mark(3)
+	}
 	success := false
 	defer func() {
 		if !success {
@@ -201,6 +210,12 @@ func numericPublisherExchange(ctx context.Context, request numericPublisherReque
 	}
 	if proof.Verify(ctx) != nil {
 		return empty, nil, numericPublisherFailure(ctx, 4)
+	}
+	switch phase {
+	case 0:
+		gaps.mark(1)
+	case 1:
+		gaps.mark(4)
 	}
 	success = true
 	return response, files[0], nil

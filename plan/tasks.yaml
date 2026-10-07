@@ -721,7 +721,7 @@ tasks:
       run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round follows after ci full (PID 10894)
       ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review APPROVE WITH
       CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118) | fix round 2 done abb6950 (code 1a90988), CI
-      green, topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green'
+      green, topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green | 2026-10-07 new product bugfix PR199 merged 62325fd4d4e38fd330aa2df9af85a9a06d2d4ef9: read-only host NIC inventory automatically displayed, physical correlation and partial observation diagnostics; independent APPROVE, exact head local quick PASS12m41s and hosted37611599559 SUCCESS. Actual merged-main verification underway; existing merged task state retained, real appliance acceptance deferred.'
   - id: W-seed
     title:
       'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services

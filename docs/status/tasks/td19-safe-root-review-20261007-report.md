@@ -49,3 +49,7 @@ Full strict and safe9 output preserved alongside report as reviewer-owned log te
  Original trust routines/constants and SHA validation order remain in source; pnpm derives exact packageManager. Python lock requires explicit exact version/hash direct-package input, pip enforces dependency closure during apply; no authoritative default release closure provided. Dry-run branches are read-only in source and do not claim real artifact verification.
 
 Verdict: **BLOCK** at exact545f; independent reproduction confirms unsafe fixture execution boundary. No actual host install/network effects were exercised.
+
+## Repair verification in progress (not final approval)
+
+Source664f3f7f9 imported in own report branch. Original harmless B1/B2 controls now both refuse exit1, external markers false, no effect calls. Deterministic shipped recorder bytes are checked using trusted absolute Python before effect execution; alternate PATH reset to validated stubs plus system utilities; no fake-root bin prepend; fake pip dispatch fixed. New10 suite PASS10.844s; syntax/ShellCheck pass. Strict45 rerun pending. Remaining shell-source of fake /etc/os-release identified independently; developer replacing with strict read-only data parser. Approval withheld until updated frozen source and verification.

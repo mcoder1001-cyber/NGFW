@@ -1,0 +1,29 @@
+7.0.0-31-generic
+net.core.fb_tunnels_only_for_init_net = 0
+ip_gre
+7.0.0-31-generic SMP preempt mod_unload modversions 
+netdev-erspan0
+netdev-gretap0
+netdev-gre0
+rtnl-link-erspan
+rtnl-link-gretap
+rtnl-link-gre
+/usr/bin/python3
+/usr/bin/unshare
+/usr/bin/mount
+/usr/sbin/ip
+unshare from util-linux 2.41.3
+ip utility, iproute2-6.19.0, libbpf 1.6.3
+EXACT_SOURCE_PREDICATE=any((link['ifname'] not in {'lo', 'ip6tnl0'} for link in links))
+HOST_DEFAULT_LINK={"address": "0.0.0.0", "allmulti": 0, "broadcast": "0.0.0.0", "flags": ["NOARP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 830, "ifname": "gre0", "link": null, "link_type": "gre", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gre"}, "linkmode": "DEFAULT", "max_mtu": 0, "min_mtu": 0, "mtu": 1476, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}
+HOST_DEFAULT_LINK={"address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 831, "ifname": "gretap0", "inet6_addr_gen_mode": "eui64", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gretap"}, "linkmode": "DEFAULT", "max_mtu": 0, "min_mtu": 68, "mtu": 1462, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}
+HOST_DEFAULT_LINK={"address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 832, "ifname": "erspan0", "inet6_addr_gen_mode": "eui64", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"erspan_index": 0, "erspan_ver": 1, "local": "any", "okey": "0.0.0.0", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "erspan"}, "linkmode": "DEFAULT", "max_mtu": 0, "min_mtu": 68, "mtu": 1450, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}
+REPEAT_1_LO_IP6TNL_ALLOWED=True
+REPEAT_1_KERNEL_DEFAULT_gre0_REJECTED=True
+REPEAT_1_KERNEL_DEFAULT_gretap0_REJECTED=True
+REPEAT_1_KERNEL_DEFAULT_erspan0_REJECTED=True
+REPEAT_2_LO_IP6TNL_ALLOWED=True
+REPEAT_2_KERNEL_DEFAULT_gre0_REJECTED=True
+REPEAT_2_KERNEL_DEFAULT_gretap0_REJECTED=True
+REPEAT_2_KERNEL_DEFAULT_erspan0_REJECTED=True
+NO_NETNS_MOUNTS_DAEMONS_OR_RUNNER_EXECUTED=True

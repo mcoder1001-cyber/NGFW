@@ -3,11 +3,11 @@
 set -euo pipefail
 # These versions match the reviewed CI and agent module contracts.
 PINNED_GO_VER=1.26.0
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+SCRIPT_DIR=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 GO_MODULE="$SCRIPT_DIR/../apps/agent/go.mod"
 [[ -f $GO_MODULE && ! -L $GO_MODULE ]] || { echo "REFUSED: canonical agent go.mod must be a regular file" >&2; exit 1; }
 # Only one canonical numeric go directive is supported; never evaluate module text.
-if ! GO_VER=$(awk '
+if ! GO_VER=$(/usr/bin/awk '
   /^[ \t]*go([ \t]|$)/ {
     count++
     if ($0 ~ /^go[ \t]+[1-9][0-9]*\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?[ \t]*$/) {
@@ -33,7 +33,7 @@ GO_SHA256=aac1b08a0fb0c4e0a7c1555beb7b59180b05dfc5a3d62e40e9de90cd42f88235
   echo "REFUSED: NGFW_GO_SHA256 override differs from the pinned official Go archive" >&2
   exit 1
 }
-[[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || { echo "only linux-amd64 build bootstrap is supported" >&2; exit 1; }
+[[ $(/usr/bin/uname -s) == Linux && $(/usr/bin/uname -m) == x86_64 ]] || { echo "only linux-amd64 build bootstrap is supported" >&2; exit 1; }
 if [[ ${1:-} == --check-config && $# == 1 ]]; then
   printf 'Go=%s protoc-gen-go=%s protoc-gen-go-grpc=%s govpp=%s\n' "$GO_VER" "$PROTOC_GO_VER" "$PROTOC_GRPC_VER" "$GOVPP_VER"
   exit 0
@@ -95,7 +95,9 @@ fi
 cat > "$profile_file" <<'GO_PROFILE'
 export PATH=/usr/local/go/bin:/opt/ngfw-build/go/bin:$PATH
 GO_PROFILE
-export PATH="$go_dir/bin:$GOBIN:$PATH"
+if [[ $NGFW_INSTALL_ROOT == / ]]; then
+  export PATH="$go_dir/bin:$GOBIN:$PATH"
+fi
 hash -r
 [[ "$(go version)" == "go version go${GO_VER} linux/amd64" ]] || {
   echo "REFUSED: selected Go does not match the pinned version/platform" >&2

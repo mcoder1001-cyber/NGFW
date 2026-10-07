@@ -34,8 +34,26 @@ class SafeRoot(unittest.TestCase):
         (self.f.stubs / 'apt-get').unlink()
         result = self.f.run('20-install-build.sh')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('regular stub', result.stderr)
+        self.assertIn('recording harness', result.stderr)
         self.assertEqual(self.f.calls(), [])
+
+    def test_unknown_regular_command_and_rooted_executables_refused(self):
+        sentinel = self.f.base / 'outside-sentinel'
+        payload = '#!/bin/sh\necho unsafe > "' + str(sentinel) + '"\necho "go version go1.26.0 linux/amd64"\n'
+        for destination in (self.f.stubs / 'apt-get', self.f.root / 'usr/local/go/bin/go',
+                            self.f.root / 'opt/ngfw-build/go/bin/corepack', self.f.root / 'opt/ngfw-test/bin/pip'):
+            with self.subTest(destination=str(destination)):
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_text(payload); destination.chmod(0o755)
+                result = self.f.run('20-install-build.sh')
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn('REFUSED', result.stderr)
+                self.assertFalse(sentinel.exists())
+                self.assertEqual(self.f.calls(), [])
+                if destination.parent == self.f.stubs:
+                    destination.write_bytes((fixture.ROOT / 'scripts/install-recording-stub.py').read_bytes())
+                else:
+                    destination.unlink()
 
     def test_symlink_escape_refused_before_commands(self):
         (self.f.root / 'usr').symlink_to(self.f.base, target_is_directory=True)

@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   DesiredState,
+  type HostNic,
   type InterfaceCounters,
   type InterfaceState,
   IssueSeverity,
@@ -148,6 +149,23 @@ const InterfaceItemOut = z.object({
     .nullable()
     .optional()
     .describe('set on physical NICs seeded from the host inventory; null otherwise'),
+  hostInventory: z
+    .object({
+      netdev: z.string(),
+      pci: z.string(),
+      driver: z.string(),
+      mac: z.string(),
+      isManagement: z.boolean(),
+      boundToDpdk: z.boolean(),
+      linkUp: z.boolean(),
+    })
+    .nullable()
+    .optional()
+    .describe('Read-only physical NIC inventory; does not configure or claim a host NIC'),
+  inventoryOnly: z
+    .boolean()
+    .optional()
+    .describe('Observed host NIC without a configured or live data-plane interface; read-only'),
   builtIn: z
     .boolean()
     .optional()
@@ -161,6 +179,11 @@ const InterfaceItemOut = z.object({
     ),
 });
 const InterfacesOut = z.object({
+  observationErrors: z
+    .array(z.object({ source: z.enum(['retrieve', 'live', 'hostInventory']), message: z.string() }))
+    .optional(),
+  hostInventoryStatus: z.enum(['available', 'unavailable']).optional(),
+  dataplaneStatus: z.enum(['available', 'unavailable']).optional(),
   retrievedAt: z.string().optional(),
   countersAt: z.string().optional(),
   items: z.array(InterfaceItemOut),
@@ -198,6 +221,14 @@ const EventsOut = z.object({
 });
 
 type Json = Record<string, unknown>;
+
+async function observe<T>(request: Promise<T>): Promise<{ value?: T; error?: string }> {
+  try {
+    return { value: await request };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Observation unavailable' };
+  }
+}
 
 /**
  * `/api/v1/state/**` — live, read-only (00-CONTEXT rule 8). Everything comes from the agent (Retrieve, Health,
@@ -292,14 +323,17 @@ export class StateController {
     // P08: merged view — live state (InterfaceState, dumped from VPP by the agent), what the agent retrieved as
     // configured (Retrieve → `config`, its pre-P08 meaning, D-105), the running configuration (`running`), the
     // latest counters and whether the candidate changes it.
-    const [r, live, stats, running, candidate] = await Promise.all([
-      this.agent.retrieve(['interfaces']),
-      this.liveState(),
+    const [retrieved, observed, inventory, stats, running, candidate] = await Promise.all([
+      observe(this.agent.retrieve(['interfaces'])),
+      observe(this.liveState()),
+      observe(this.agent.hostNics()),
       this.statsSnapshot(),
       this.ds.getRunning(),
       this.ds.getCandidate(),
     ]);
-    const actual = DesiredState.toJSON(r.desiredState ?? DesiredState.fromPartial({})) as Json;
+    const r = retrieved.value;
+    const live = observed.value;
+    const actual = DesiredState.toJSON(r?.desiredState ?? DesiredState.fromPartial({})) as Json;
     const counters = new Map((stats?.interfaceCounters ?? []).map((c) => [c.name, c]));
     const runIfs = flattenInterfaces(running.doc['interfaces']);
     const candIfs = flattenInterfaces(candidate['interfaces']);
@@ -311,6 +345,44 @@ export class StateController {
       ...actIfs.keys(),
       ...liveBy.keys(),
     ]);
+    const hostBy = new Map<string, HostNic>();
+    const nics = inventory.value?.nics ?? [];
+    for (const nic of nics) {
+      if (!nic.pci) continue;
+      // PCI metadata is authoritative; otherwise correlate exact Linux/VPP names or a unique DPDK MAC.
+      const configured = [...names].find((name) => {
+        const physical = physicalView(
+          (runIfs.get(name)?.value ?? candIfs.get(name)?.value ?? actIfs.get(name)?.value ?? {})[
+            'physical'
+          ],
+        );
+        return physical?.pci.toLowerCase() === nic.pci?.toLowerCase();
+      });
+      const exact =
+        nic.netdev &&
+        [...names].find(
+          (name) =>
+            liveBy.get(name)?.name === nic.netdev ||
+            liveBy.get(name)?.vppName === nic.netdev ||
+            liveBy.get(name)?.vppName === `host-${nic.netdev}`,
+        );
+      const matches =
+        nic.mac &&
+        nic.boundToDpdk &&
+        nics.filter((n) => n.mac?.toLowerCase() === nic.mac?.toLowerCase()).length === 1
+          ? [...liveBy.values()].filter(
+              (st) => st.type === 'dpdk' && st.mac.toLowerCase() === nic.mac?.toLowerCase(),
+            )
+          : [];
+      let name = configured || exact || (matches.length === 1 ? matches[0]?.name : undefined);
+      if (!name) {
+        name = nic.netdev || `pci-${nic.pci}`;
+        // An unrelated configured name must never acquire the host NIC's identity.
+        if (names.has(name)) name = `pci-${nic.pci}`;
+      }
+      names.add(name);
+      hostBy.set(name, nic);
+    }
     const items = [...names].sort().map((name) => {
       const st = liveBy.get(name);
       const cfg = runIfs.get(name) ?? candIfs.get(name) ?? actIfs.get(name);
@@ -319,8 +391,21 @@ export class StateController {
       // wave-BC: F-default-vpp-nics — the physical marker from the running (else candidate) config of this interface
       const physCfg = (runIfs.get(name)?.value ?? candIfs.get(name)?.value ?? {})['physical'];
       const physical = physicalView(physCfg);
+      const host = hostBy.get(name);
       return {
         name,
+        hostInventory: host
+          ? {
+              netdev: host.netdev ?? '',
+              pci: host.pci ?? '',
+              driver: host.driver ?? '',
+              mac: host.mac ?? '',
+              isManagement: host.isManagement ?? false,
+              boundToDpdk: host.boundToDpdk ?? false,
+              linkUp: host.linkUp ?? false,
+            }
+          : null,
+        inventoryOnly: host !== undefined && cfg === undefined && st === undefined,
         kind: parent ? ('subinterface' as const) : ('interface' as const),
         parent,
         state: st ? liveJson(st) : null,
@@ -344,7 +429,23 @@ export class StateController {
       };
     });
     return {
-      retrievedAt: r.retrievedAt?.toISOString(),
+      observationErrors: [
+        ...(retrieved.error ? [{ source: 'retrieve' as const, message: retrieved.error }] : []),
+        ...(observed.error || live === undefined
+          ? [
+              {
+                source: 'live' as const,
+                message: observed.error ?? 'Live interface RPC unavailable',
+              },
+            ]
+          : []),
+        ...(inventory.error
+          ? [{ source: 'hostInventory' as const, message: inventory.error }]
+          : []),
+      ],
+      hostInventoryStatus: inventory.value ? ('available' as const) : ('unavailable' as const),
+      dataplaneStatus: r && live !== undefined ? ('available' as const) : ('unavailable' as const),
+      retrievedAt: r?.retrievedAt?.toISOString(),
       countersAt: stats?.ts?.toISOString(),
       items,
     };

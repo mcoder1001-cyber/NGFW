@@ -1,4 +1,35 @@
-# Independent PPPoE correctness/evidence review — provisional
+# Independent PPPoE correctness/evidence review
+
+## Authoritative frozen re-review, 2026-10-07
+
+Exact source `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, tree
+`7d914836662eb129ada7ac33459b97d4ce449b28`, merged only into the assigned
+reviewer worktree after verifying clean and published starting checkpoint.
+Product paths remain byte-equal to freeze; no product edits by reviewer.
+
+| Assigned aspect | Bounded repair verdict | BLOCKER/MAJOR/MINOR | Evidence |
+|---|---|---|---|
+| R1 correctness/tests | APPROVE | 0/0/1 | [R1](review-pppoe-correctness-20261007-review-R1.md) |
+| R5 lifecycle/scale | APPROVE | 0/0/1 | [R5](review-pppoe-correctness-20261007-review-R5.md) |
+| R6 status/UX | APPROVE | 0/0/1 | [R6](review-pppoe-correctness-20261007-review-R6.md) |
+| R7 docs/evidence | APPROVE | 0/0/1 | [R7](review-pppoe-correctness-20261007-review-R7.md) |
+
+Independent focused race results: renderer41.846s, descriptor1.309s,
+subsystem3.045s; exit0. Lightweight check PASS0m14s. R1 contains exact commands
+and output. State/lifecycle/docs findings below are historical; final freeze
+resolves their blocking issues. Retained MINORs are mirror boundary hardening,
+repeated observations/dumps, English summary text and stale internal dial comment.
+
+This is approval of the assigned bounded repair, not complete PPPoE feature DONE
+or a combined whole-panel verdict. Mandatory unchanged full hosted quick remains
+manager-owned, including TS consumers and generation. Separate R2/R4/applicable
+R8 reviews remain required. Product discovery and IPv4/IPv6 LAN encapsulation are
+unsupported source gaps, not lab-only acceptance; real packaged DHCP descendants
+and live dial/reconnect/rollback/traffic remain unverified. No human prerequisite
+blocks this completed review. Manager next: retain freeze, collect other scoped
+reviews, gate exact final integration, preserve explicit product gaps.
+
+## Historical checkpoints (superseded by frozen verdict above)
 
 Reviewed checkpoint: `8fbf4e1491505427f3a0935a03dfd2048f38ff7f`, branch `codex/resume-pppoe-20261007`, compared with integrated main `0ec397e327123cadfd5d278a9a1cda37532fdc2c`. Reviewer branch `codex/review-pppoe-correctness-20261007` in the assigned clean reviewer worktree `/root/ngfw-wt/resume-review-evidence-20261007`. Own this report only; no product changes. Initial PR196 GitHub head is `992b264b2084a8adfcee755d2b5650b771a6a8f1`, not the repaired/frozen candidate.
 

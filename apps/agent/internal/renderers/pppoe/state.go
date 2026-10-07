@@ -90,6 +90,12 @@ func (r *Renderer) ReadSessionState(hostIf string, failCount uint32, lastErr str
 			}
 		}
 	}
+	if v6.Failure != "" {
+		st.LastError = "PPPoE IPv6: " + v6.Failure
+		if st.Phase != "up" {
+			st.Phase = "failed"
+		}
+	}
 	if failCount > 0 && st.Phase != "up" {
 		st.Phase = "failed"
 	}

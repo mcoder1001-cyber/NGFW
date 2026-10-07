@@ -17,6 +17,8 @@ import (
 type IPv6State struct {
 	// Up is true between IPv6CP up and down.
 	Up bool
+	// Failure is a fixed helper error code, never daemon output or network text.
+	Failure string
 	// LinkLocal / PeerLinkLocal are the IPv6CP-negotiated link-local addresses (ours, the ISP's).
 	LinkLocal, PeerLinkLocal netip.Addr
 	// Addrs are the global unicast addresses the kernel holds on the PPP link (SLAAC, DHCPv6 IA_NA), sorted, with
@@ -53,6 +55,11 @@ func (r *Renderer) ReadIPv6(hostIf string) (IPv6State, error) {
 		switch strings.TrimSpace(k) {
 		case "phase":
 			st.Up = v == "up"
+		case "error":
+			switch v {
+			case "dhcpv6-client-unavailable", "dhcpv6-client-exited", "ipv6-setup-failed", "ipv6-observation-failed", "ipv6-state-write-failed", "ipv6-start-failed", "ipv6-stop-timeout", "ipv6-lock-timeout", "ipv6-process-identity-invalid", "ipv6-process-identity-mismatch", "ipv6-process-control-unavailable":
+				st.Failure = v
+			}
 		case "lllocal":
 			if a, err := netip.ParseAddr(v); err == nil && a.Is6() && a.IsLinkLocalUnicast() {
 				st.LinkLocal = a
@@ -81,7 +88,7 @@ func (r *Renderer) ReadIPv6(hostIf string) (IPv6State, error) {
 	}
 	if !st.Up {
 		// Down: nothing negotiated is current any more.
-		return IPv6State{}, nil
+		return IPv6State{Failure: st.Failure}, nil
 	}
 	sort.Slice(st.Addrs, func(i, j int) bool { return st.Addrs[i].Addr().Less(st.Addrs[j].Addr()) })
 	st.Addrs = dedupe(st.Addrs)

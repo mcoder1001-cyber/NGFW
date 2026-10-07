@@ -222,3 +222,26 @@ func TestPppoeIPv6StaleStateIgnoredWhenOff(t *testing.T) {
 		t.Fatalf("disabled IPv6 state=%v error=%v", st, err)
 	}
 }
+
+func TestPppoeReconnectInvalidatesBothFamiliesUnderExclusion(t *testing.T) {
+	rt, _, _ := newTestRuntime(t)
+	s := pppoe.Session{Iface: "wan0", HostIf: "tap0", Username: "u", Password: "NGFW_TEST_PSK_F-pppoe-client-wiring", MTU: 1492, IPv6: "slaac"} //nolint:gosec // non-production fixture
+	if err := rt.Apply(t.Context(), []pppoe.Session{s}); err != nil {
+		t.Fatal(err)
+	}
+	for suffix, body := range map[string]string{".state": "phase=up\nlocal=192.0.2.4\n", ".state6": "phase=up\naddr=2001:db8::1/64\n", ".pd": "pd=2001:db8:100::/56\n"} {
+		if err := os.WriteFile(filepath.Join(rt.stateDir, "tap0"+suffix), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	called := false
+	rt.exclusive = func(ctx context.Context, f func(context.Context) error) error { called = true; return f(ctx) }
+	accepted, _, err := rt.Reconnect(t.Context(), s.Iface)
+	if err != nil || !accepted || !called {
+		t.Fatalf("reconnect accepted=%v exclusion=%v error=%v", accepted, called, err)
+	}
+	st, err := rt.State(s.Iface, 0, "")
+	if err != nil || st.GetPhase() != "down" || st.GetIpv6() != "" || st.GetLocalIpv4() != "" {
+		t.Fatalf("reconnect kept old family state: %v %v", st, err)
+	}
+}

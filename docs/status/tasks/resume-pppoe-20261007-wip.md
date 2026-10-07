@@ -2,14 +2,15 @@
 
 ## Active independent-review repair — supersedes readiness below
 
-Latest verified published checkpoint: `793837f80` (unsupported discovery/transit
-documentation). Read complete independent reports `cbeea9a55` and `9ec1f1d17`.
+Latest verified published checkpoint before this source checkpoint: `9d63a56a8`
+(DHCPv6 dependency and contract status); docs checkpoint `793837f80` discloses
+unsupported discovery/transit. Read complete independent reports `cbeea9a55` and `9ec1f1d17`.
 The family fixes at `17de38549` resolve the stale-family findings only; remaining
 mandatory lifecycle/security/operation findings block final freeze/approval.
 Current checkpoint adds required `dhcpcd-base` dependency to ngfw-agent and the
 inherited PPPoE contract status record. New ownership is in the envelope.
 
-Uncommitted active repair in this own worktree: replace bare-PID shell termination
+Unfinished source checkpoint in this own worktree: replace bare-PID shell termination
 with a fixed rendered Python3 helper (existing packaged runtime), verified starttime
 and command identity after pidfd_open, pidfd-only signals, bounded TERM/KILL and
 exit verification, session action/publication locks and generation-gated DHCP events.
@@ -26,9 +27,22 @@ zero/reserved/bare/foreign PID refusal, missing/invalid client, sysctl/state-wri
 failure and asynchronous child-exit visibility. Tests use private sysctl/IP/client
 substitutes, never shared host configuration or a real DHCP daemon.
 
-Remaining: rerun all focused controls after refinements, regenerate golden, scoped
-race/lint/check, commit/publish lifecycle source, request exact-delta re-review.
-Exact next command: `cd /root/ngfw-wt/resume-pppoe-20261007/apps/agent && ../../tools/heavy.sh timeout 240s go test -p 2 -count=1 -timeout 180s ./internal/renderers/pppoe -v`.
+Expanded renderer tests found two failures, recorded honestly: the golden was
+stale after template refinements (regenerated); DHCPv6 -> SLAAC did not stop the
+old generation because both peer files contain +ipv6. Fixed change detection to
+include rendered helper and optional session files. Expanded rerun PASS: renderer
+46.420s, shared renderer 0.079s (IPv6/ReadState/ReadIPv6/Render/Apply/DHCP6/Secrets/
+AllowlistDocumented selection, timeout 240s). `tools/ci.sh check --base origin/main`
+PASS 0m14s. Final race/lint and independent re-review remain pending.
+Reconnect now uses existing transaction exclusion and runtime mutex, stops verified
+IPv6 writers, withdraws tracked mirrors and invalidates both family states before
+unit restart. Added a focused regression for exclusion and stale-state invalidation.
+This checkpoint is NOT final/frozen/approved; remaining controls must finish.
+
+Remaining: finish latest expanded controls, scoped race/lint/check, exact-delta
+re-review, then publish final source freeze. Manager reports new main `3ddb1680e`
+is docs/board-only; do not claim that as fresh product verification.
+Exact next command: `cd /root/ngfw-wt/resume-pppoe-20261007/apps/agent && ../../tools/heavy.sh timeout 600s go test -race -p 2 -count=1 -timeout 240s ./internal/renderers/pppoe ./internal/descriptors/pppoe ./internal/subsystems -run 'Pppoe|PPPoE|Client|ReadState|ReadIPv6|IPv6|DHCP6|Render|Apply|Secrets'`.
 Current failure: mandatory final lifecycle verification/re-review incomplete;
 discovery/encapsulation remain explicit unsupported product behavior.
 

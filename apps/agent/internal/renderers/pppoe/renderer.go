@@ -184,7 +184,7 @@ type hookData struct {
 }
 type hook6Data struct {
 	Session
-	Kind, Phase, StateDir, DhcpcdBin, DhcpcdConf string
+	Kind, Phase, StateDir, DhcpcdBin, DhcpcdConf, IPv6Helper, IPv6UpHook string
 }
 type dhcpcdData struct {
 	Session
@@ -194,11 +194,19 @@ type dhcpcdData struct {
 // renderIPv6 adds a session's IPv6 files: the ipv6-up/ipv6-down hooks (kernel SLAAC on the PPP link and the
 // "<hostif>.state6" refresher) and, for "dhcpv6", the dhcpcd configuration and event script (IA_NA + IA_PD).
 func (r *Renderer) renderIPv6(files renderers.Files, s Session) error {
+	data := hook6Data{Session: s, StateDir: r.paths.StateDir, DhcpcdBin: DhcpcdBin,
+		DhcpcdConf: r.paths.dhcpcdConf(s.HostIf), IPv6Helper: r.paths.ipv6Helper(s.HostIf),
+		IPv6UpHook: r.paths.IPv6UpDir + "/ngfw-" + s.HostIf}
+	helper, err := renderers.ExecuteTemplate(r.tmpl, "ipv6.tmpl", data)
+	if err != nil {
+		return err
+	}
+	files[data.IPv6Helper] = renderers.File{Mode: 0o755, Content: helper}
 	for _, h := range []struct {
 		dir, kind, phase string
 	}{{r.paths.IPv6UpDir, "ipv6-up", "up"}, {r.paths.IPv6DownDir, "ipv6-down", "down"}} {
-		body, err := renderers.ExecuteTemplate(r.tmpl, "hook6.tmpl", hook6Data{Session: s, Kind: h.kind, Phase: h.phase,
-			StateDir: r.paths.StateDir, DhcpcdBin: DhcpcdBin, DhcpcdConf: r.paths.dhcpcdConf(s.HostIf)})
+		data.Kind, data.Phase = h.kind, h.phase
+		body, err := renderers.ExecuteTemplate(r.tmpl, "hook6.tmpl", data)
 		if err != nil {
 			return err
 		}
@@ -212,7 +220,7 @@ func (r *Renderer) renderIPv6(files renderers.Files, s Session) error {
 		return err
 	}
 	files[r.paths.dhcpcdConf(s.HostIf)] = renderers.File{Mode: 0o644, Content: conf}
-	script, err := renderers.ExecuteTemplate(r.tmpl, "dhcp6.tmpl", hookData{Session: s, StateDir: r.paths.StateDir})
+	script, err := renderers.ExecuteTemplate(r.tmpl, "dhcp6.tmpl", data)
 	if err != nil {
 		return err
 	}

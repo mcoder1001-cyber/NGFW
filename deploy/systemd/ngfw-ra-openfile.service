@@ -1,0 +1,39 @@
+[Unit]
+Description=NGFW fixed remote-access supplier configuration publisher
+StartLimitIntervalSec=10
+StartLimitBurst=64
+
+[Service]
+Type=exec
+User=root
+Group=ngfw
+ExecStart=/usr/lib/ngfw/ngfw-ra-namespace-broker --publish-openfile
+OpenFile=/run/ngfw/ra/source-agent-exe:source-agent-exe:read-only
+CapabilityBoundingSet=
+AmbientCapabilities=
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=yes
+LockPersonality=yes
+RestrictRealtime=yes
+SystemCallArchitectures=native
+UMask=0077
+ReadWritePaths=/run/systemd/system
+# Immutable whole35 clips validation20/request5/work15/reply5; cleanup5 watchdog.
+RuntimeMaxSec=40
+TimeoutStartSec=5
+TimeoutStopSec=2
+StandardOutput=null
+# Publisher diagnostics contain only fixed stage/deadline/elapsed fields.
+StandardError=journal
+KillMode=control-group
+LimitCORE=0
+LimitNOFILE=32
+TasksMax=16
+MemoryMax=64M

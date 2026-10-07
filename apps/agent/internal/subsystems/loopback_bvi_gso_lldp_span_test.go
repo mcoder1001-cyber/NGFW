@@ -34,10 +34,12 @@ func TestLoopbackBviGsoLldpSpanWiring(t *testing.T) {
 			t.Fatal(err)
 		}
 		r := &recorder{Registry: scheduler.NewRegistry()}
-		if _, err := Register(r, Env{Client: coretest.New(), Owner: "w7", StateDir: dir, Owned: owned, GlobalsOwner: owner,
-			NetdevKind: func(string) (string, bool, error) { return "", false, nil }}); err != nil {
+		w, err := registerMock(r, Env{Client: coretest.New(), Owner: "w7", StateDir: dir, Owned: owned, GlobalsOwner: owner,
+			NetdevKind: func(string) (string, bool, error) { return "", false, nil }})
+		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(w.Close)
 		seen := map[string]bool{}
 		for _, d := range r.ds {
 			if !mine[d.Name()] {
@@ -63,6 +65,7 @@ func TestLoopbackBviGsoLldpSpanWiring(t *testing.T) {
 		if got := LoopbackBviGsoLldpSpanEnv().GlobalsOwner; got != owner {
 			t.Errorf("projection env globals owner %v, want %v", got, owner)
 		}
+		w.Close()
 	}
 	count := map[string]int{}
 	for _, n := range Domains[servicesDomain] {
@@ -101,10 +104,12 @@ func TestNsimLabGate(t *testing.T) {
 			t.Fatal(err)
 		}
 		r := &recorder{Registry: scheduler.NewRegistry()}
-		if _, err := Register(r, Env{Client: coretest.New(), Owner: "w7", StateDir: dir, Owned: owned, GlobalsOwner: c.owner,
-			NetdevKind: func(string) (string, bool, error) { return "", false, nil }}); err != nil {
+		w, err := registerMock(r, Env{Client: coretest.New(), Owner: "w7", StateDir: dir, Owned: owned, GlobalsOwner: c.owner,
+			NetdevKind: func(string) (string, bool, error) { return "", false, nil }})
+		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(w.Close)
 		got := false
 		for _, d := range r.ds {
 			got = got || d.Name() == nsim.ConfigName
@@ -112,5 +117,6 @@ func TestNsimLabGate(t *testing.T) {
 		if got != c.want || LoopbackBviGsoLldpSpanEnv().Nsim != c.want {
 			t.Errorf("owner %v %s=%q: nsim registered %v, projection gate %v (want %v)", c.owner, EnvNsim, c.env, got, LoopbackBviGsoLldpSpanEnv().Nsim, c.want)
 		}
+		w.Close()
 	}
 }

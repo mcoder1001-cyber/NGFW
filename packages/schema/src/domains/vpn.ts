@@ -788,15 +788,38 @@ export const RemoteAccessUserSchema = z.strictObject({
   // wave-BC: F-ra-vpn
 });
 
+/** Explicit addresses for one private-namespace/VPP transit link. */
+export const RemoteAccessTransitLinkSchema = z.strictObject({
+  vpp: ipv4OrIpv6Cidr,
+  namespace: ipv4OrIpv6Cidr,
+});
+export const RemoteAccessTransportSchema = z.strictObject({
+  outer: RemoteAccessTransitLinkSchema,
+  inner: RemoteAccessTransitLinkSchema,
+  // IPv6 pool forwarding needs a separately addressed IPv6 inner link.
+  innerIpv6: RemoteAccessTransitLinkSchema.optional(),
+});
+
 export const RemoteAccessProfileSchema = z
   .strictObject({
     enabled: enabledFlag,
     description: descriptionField.optional(),
     localAddr: withUi(ipAddress, {
       title: 'Local address',
-      help: 'Must be configured on an interface in the underlay VRF',
+      help: 'Dedicated routed endpoint owned by the private remote-access namespace',
     }),
     localId: ikeIdentity.optional(),
+    transport: RemoteAccessTransportSchema.optional(),
+    accessPolicy: z
+      .strictObject({
+        ingress: z.array(objectName).min(1).max(32),
+        egress: z.array(objectName).min(1).max(32),
+      })
+      .optional(),
+    outerPolicy: z.strictObject({
+      ingress: z.array(objectName).min(1).max(32),
+      egress: z.array(objectName).min(1).max(32),
+    }).optional(),
     vrf: withUi(vrfRef, {
       title: 'VRF',
       widget: 'vrf-picker',

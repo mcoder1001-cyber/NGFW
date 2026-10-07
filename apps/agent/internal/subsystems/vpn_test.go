@@ -21,10 +21,11 @@ func TestVPNOptionsArePersisted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	w, err := Register(scheduler.NewRegistry(), Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
+	w, err := registerMock(scheduler.NewRegistry(), Env{Client: coretest.New(), Owner: "w1", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	iopts, err := w.IPsecOptions()
 	if err != nil {
 		t.Fatal(err)

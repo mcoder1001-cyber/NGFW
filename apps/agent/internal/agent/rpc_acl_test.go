@@ -73,7 +73,7 @@ func newACLSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) (*Servic
 	}
 	reg := scheduler.NewRegistry()
 	var svc *Service
-	w, err := subsystems.Register(reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals,
+	w, err := registerTestWiring(t, reg, subsystems.Env{Client: v, Owner: testOwner, StateDir: dir, Owned: owned, NetdevKind: fakeNetdevs, GlobalsOwner: globals,
 		Resync: func() {
 			if svc != nil {
 				svc.Resync(context.Background())
@@ -82,6 +82,7 @@ func newACLSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) (*Servic
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(w.Close)
 	w.Connected(context.Background())
 	sched := scheduler.New(reg, nil)
 	sched.VerifyRetries = 0
@@ -95,6 +96,7 @@ func newACLSvc(t *testing.T, v *coretest.VPP, dir string, globals bool) (*Servic
 		t.Fatal("acl runtime not registered")
 	}
 	rt.SetStats(v.ACL().Stats)
+	trackTestService(t, svc, w)
 	t.Cleanup(func() {
 		svc.Close()
 		w.Close()

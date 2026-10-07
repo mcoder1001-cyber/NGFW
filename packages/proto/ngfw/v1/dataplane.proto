@@ -40,6 +40,11 @@ option go_package = "ngfw/agent/gen/ngfw/v1;ngfwv1";
 service Dataplane {
   rpc IpsecState(IpsecStateRequest) returns (IpsecStateResponse);
   rpc TunnelState(TunnelStateRequest) returns (TunnelStateResponse);
+  // Independent strongSwan remote access; observed runtime only.
+  rpc RemoteAccessCapabilities(RemoteAccessCapabilitiesRequest) returns (RemoteAccessCapabilitiesResponse);
+  rpc RemoteAccessSessions(RemoteAccessSessionsRequest) returns (RemoteAccessSessionsResponse);
+  // Admin-authorized API action; the agent verifies owned session removal by readback.
+  rpc RemoteAccessDisconnect(RemoteAccessDisconnectRequest) returns (RemoteAccessDisconnectResponse);
   // Apply converges the data plane (VPP + daemons) to the desired state of the selected
   // subsystems inside one transaction: validate → plan → apply → verify; on any error the
   // operations of this transaction are reverted in reverse order (status ROLLED_BACK). Applying the
@@ -4389,6 +4394,13 @@ message RemoteAccessProfile {
   IpsecRekey rekey = 15;
   // FIB IKE/ESP run in (outer packets); local_addr is configured in it. `vrf` is the overlay (F4).
   optional string underlay_vrf = 16;
+  // Explicit VPP/private-namespace transit addressing. Required by operational RA.
+  RemoteAccessTransport transport = 17;
+  // Explicit ingress/egress ACLs on the protected TAP; no automatic permit.
+  RemoteAccessPolicy access_policy = 18;
+  // Explicit existing ACLs on public outer transit; never implicit permit.
+  RemoteAccessPolicy outer_policy = 19;
+
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -7697,6 +7709,34 @@ message RedistributionMatrixResponse {
 
 // ----- F-ra-vpn -----
 
+// Explicit ordered ACL references for the independent remote-access inner TAP.
+message RemoteAccessPolicy {
+  // At least one ingress ACL when operational.
+  repeated string ingress = 1;
+  // At least one egress ACL when operational.
+  repeated string egress = 2;
+}
+
+
+// One explicitly addressed VPP/private-namespace TAP transit link.
+message RemoteAccessTransitLink {
+  // VPP side address including prefix length.
+  optional string vpp = 1;
+  // Namespace side address including the same prefix length.
+  optional string namespace = 2;
+}
+
+// Route-based independent RA handoff, never an implicit Linux protected LAN route.
+message RemoteAccessTransport {
+  // Encrypted outer traffic in underlay_vrf.
+  RemoteAccessTransitLink outer = 1;
+  // IPv4 decrypted traffic in vrf.
+  RemoteAccessTransitLink inner = 2;
+  // Optional IPv6 decrypted traffic in vrf.
+  RemoteAccessTransitLink inner_ipv6 = 3;
+}
+
+
 // ----- F-mpls-ldp -----
 
 // MplsLdp mirrors `routing.mpls.ldp`.
@@ -8568,6 +8608,43 @@ message HaSyncStateResponse {
   string observation_error = 11;
 }
 
+// ----- F-ra-vpn independent engine observed runtime -----
+message RemoteAccessCapabilitiesRequest { string owner = 1; }
+message RemoteAccessCapabilitiesResponse {
+  string engine = 1;
+  bool operational = 2;
+  repeated string supported_auth = 3;
+  // Bounded static reason, never daemon output or credentials.
+  string reason = 4;
+  bool editable_disabled_drafts = 5;
+}
+message RemoteAccessSessionsRequest {
+  string profile = 1;
+  string cursor = 2;
+  uint32 limit = 3; // 1..100; cursor is opaque, never a daemon identifier.
+  string owner = 4;
+}
+message RemoteAccessSession {
+  string id = 1; // Owner-scoped opaque lowercase 64-hex identifier.
+  string profile = 2;
+  string identity = 3;
+  repeated string addresses = 4;
+  uint64 established_seconds = 5;
+  uint64 bytes_in = 6;
+  uint64 bytes_out = 7;
+}
+message RemoteAccessSessionsResponse {
+  repeated RemoteAccessSession sessions = 1;
+  string next_cursor = 2;
+}
+message RemoteAccessDisconnectRequest {
+  string profile = 1;
+  string id = 2;
+  string owner = 3;
+}
+message RemoteAccessDisconnectResponse {
+  bool disconnected = 1; // True only after actual owned removal and readback.
+}
 // ManagementBackup is evaluated by the API; times use UTC.
 message ManagementBackup {
   optional bool enabled = 1;

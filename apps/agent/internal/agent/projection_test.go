@@ -52,6 +52,28 @@ func TestProjectSchemaExamples(t *testing.T) {
 		}
 		n++
 		pj := project(ds, implementedDomains(), nil, nil, native)
+		if base == "vpn-remote-access.json" {
+			refused := false
+			for _, issue := range pj.issues {
+				if issue.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR && issue.rule == "vpn.remote-access-native-capability" {
+					refused = true
+				}
+			}
+			if !refused {
+				t.Fatal("ownerless legacy projection accepted an enabled independent engine")
+			}
+			for _, kv := range pj.kvs {
+				if strings.HasPrefix(string(kv.Key), "remote-access.") {
+					t.Fatal("refused example emitted private transport or engine")
+				}
+			}
+			ds = proto.Clone(ds).(*ngfwv1.DesiredState)
+			disabled := false
+			for _, profile := range ds.GetVpn().GetRemoteAccess() {
+				profile.Enabled = &disabled
+			}
+			pj = project(ds, implementedDomains(), nil, nil, native)
+		}
 		for _, is := range pj.issues {
 			// F-unbound-chrony-syslog: secret references are refused until PENDING-secret-channel lands (envelope).
 			// TODO(PENDING-secret-channel): remove this exemption when the API→agent secret channel lands (review L9).

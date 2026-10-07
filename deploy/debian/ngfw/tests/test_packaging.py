@@ -252,6 +252,25 @@ for name in ('backups','updates','support'):
         self.assertNotIn('systemctl start', meta)
         self.assertNotIn('systemctl restart', meta)
 
+    def test_meta_only_registers_fixed_boot_units_without_starting_services(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            commands = root / 'commands'
+            helper = root / 'deb-systemd-helper'
+            helper.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$FIXTURE_COMMANDS"\n')
+            helper.chmod(0o755)
+            env = {**os.environ, 'PATH': str(root), 'FIXTURE_COMMANDS': str(commands)}
+            subprocess.run(['/bin/sh', str(SOURCE / 'debian/ngfw-meta.postinst'), 'configure'],
+                           env=env, check=True, capture_output=True)
+            self.assertEqual(commands.read_text().splitlines(), [
+                'enable ngfw-ra-openfile.socket', 'enable apply-executor.socket',
+                'enable ngfw-firstboot.service', 'enable ngfw-agent.service', 'enable ngfw-api.service',
+            ])
+            commands.unlink()
+            subprocess.run(['/bin/sh', str(SOURCE / 'debian/ngfw-meta.postinst'), 'abort-upgrade'],
+                           env=env, check=True, capture_output=True)
+            self.assertFalse(commands.exists())
+
     def test_maintainer_scripts_are_valid_and_no_destructive_actions(self):
         for path in (SOURCE / 'debian').glob('*.postinst'):
             subprocess.run(['sh', '-n', str(path)], check=True)

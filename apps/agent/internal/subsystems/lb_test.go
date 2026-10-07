@@ -57,7 +57,7 @@ func lbWiring(t *testing.T, owner string, globals bool) (*scheduler.MapRegistry,
 		return []api.Message{&vlib.CliInbandReply{Retval: -1, Reply: "lb_vip_find_index error -6"}}, nil
 	})
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, GlobalsOwner: globals,
+	w, err := registerMock(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, GlobalsOwner: globals,
 		NetdevKind: func(string) (string, bool, error) { return "veth", true, nil }})
 	if err != nil {
 		t.Fatal(err) // includes the TD-11b guard over the lb descriptors

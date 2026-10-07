@@ -62,7 +62,7 @@ func TestPBRPolicyNamesFACLList(t *testing.T) {
 	}
 	t.Setenv(EnvDNSServers, "127.0.0.1:9")
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: "w3", StateDir: dir, Owned: owned})
+	w, err := registerMock(reg, Env{Client: v, Owner: "w3", StateDir: dir, Owned: owned})
 	if err != nil {
 		t.Fatal(err)
 	}

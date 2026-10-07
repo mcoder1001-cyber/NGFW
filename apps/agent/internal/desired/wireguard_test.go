@@ -125,18 +125,15 @@ func TestWireguardRouteLoopRefused(t *testing.T) {
 
 // A transaction can configure IPsec/PKI alongside WireGuard. Those implemented
 // builders validate their own leaves; WireGuard must not mark their entire roots
-// unsupported. Remote access still has its own truthful capability warning.
+// unsupported. Remote access is implemented by the registered RA controller.
 func TestWireguardOtherVpnCapabilities(t *testing.T) {
 	ds := wgState(t, `{"vpn":{"ipsec":{"settings":{"asyncCrypto":false}},"pki":{"certificates":{"site":{"certificateRef":"cert/site","privateKeyRef":"key/site"}}},"remoteAccess":{"road":{}}}}`)
 	s := &wgSink{}
 	Wireguard(s, ds, map[string]bool{"vpn": true}, wgVRFs, WireguardEnv{})
 	got := strings.Join(s.issues, "\n")
-	for _, obsolete := range []string{"W agent.unsupported-field /vpn/ipsec", "W agent.unsupported-field /vpn/pki"} {
+	for _, obsolete := range []string{"W agent.unsupported-field /vpn/ipsec", "W agent.unsupported-field /vpn/pki", "W agent.unsupported-field /vpn/remoteAccess"} {
 		if strings.Contains(got, obsolete) {
 			t.Errorf("implemented VPN capability wrongly rejected: %s\n%s", obsolete, got)
 		}
-	}
-	if !strings.Contains(got, "W agent.unsupported-field /vpn/remoteAccess") {
-		t.Errorf("unimplemented remote access warning lost: %s", got)
 	}
 }

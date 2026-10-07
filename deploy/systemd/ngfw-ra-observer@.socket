@@ -1,0 +1,14 @@
+[Unit]
+Description=NGFW authenticated private-unit observation for PID %i
+
+[Socket]
+ListenSequentialPacket=/run/ngfw-ra-ipc/observers/%i.sock
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0700
+FileDescriptorName=unit-listener
+Accept=no
+TriggerLimitIntervalSec=2
+TriggerLimitBurst=64
+RemoveOnStop=yes

@@ -65,11 +65,8 @@ func Wireguard(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, vrfID func(s
 		return
 	}
 	v := ds.GetVpn()
-	// IPsec and PKI validate their own implemented capabilities. Remote access
-	// still has no registered materializer in this build.
-	if len(v.GetRemoteAccess()) > 0 {
-		s.Warnf(Ptr("vpn", "remoteAccess"), ruleUnsupportedField, "vpn.remoteAccess is not implemented by this agent build (F-ra-vpn)")
-	}
+	// IPsec, PKI and remote access validate their own implemented capabilities.
+
 	ifs := v.GetWireguard().GetInterfaces()
 	eps := wireguardEndpoints(ifs)
 	for _, name := range sortedKeys(ifs) {

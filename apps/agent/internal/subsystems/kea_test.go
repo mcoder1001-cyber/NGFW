@@ -25,7 +25,10 @@ func registerFor(t *testing.T, owner string, ids IDScope) (*scheduler.MapRegistr
 	}
 	v := coretest.New()
 	reg := scheduler.NewRegistry()
-	w, err := Register(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, IDs: ids})
+	w, err := registerMock(reg, Env{Client: v, Owner: owner, StateDir: dir, Owned: owned, IDs: ids})
+	if err == nil {
+		t.Cleanup(w.Close)
+	}
 	return reg, w, v, err
 }
 

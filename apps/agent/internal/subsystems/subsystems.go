@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	ravpn "ngfw/agent/internal/ra_vpn"
 	"path/filepath"
 	"sort"
 	"sync"
@@ -227,6 +228,8 @@ func DomainOf(descriptor string) string {
 
 // Env is what the wiring needs.
 type Env struct {
+	// RA is a trusted construction seam for disposable private fixtures; production leaves it nil.
+	RA     *RAControllerOptions
 	Client vpp.Client
 	Owner  string
 	// StateDir holds the persisted stores (the agent's NGFW_AGENT_STATE_DIR).
@@ -263,6 +266,8 @@ type Wiring struct {
 	ifaceClaim *IfaceClaims
 	boot       *dfkit.FileBootStore
 	dhcpClient *dhcp.ClientDescriptor
+	raStartup  *raStartupInitialization
+	raRepair   ravpn.NamespaceHandoffStoppedRepair
 
 	storesMu sync.Mutex
 	keyed    map[string]*KeyedClaims
@@ -274,6 +279,10 @@ type Wiring struct {
 
 // register is Register without the persistence guard (stores.go, TD-11b).
 func register(r scheduler.Registry, env Env) (*Wiring, error) {
+	if RARuntimeFor(env.Owner) != nil {
+		return nil, errors.New("remote-access owner already registered")
+	}
+	r = &raFilteringRegistry{Registry: r, byName: map[string]scheduler.Descriptor{}}
 	if env.Log == nil {
 		env.Log = slog.Default()
 	}
@@ -334,6 +343,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	}
 	// wave-BC: F-pki
 	if err := w.registerPKI(r); err != nil {
+		return nil, err
+	}
+	if err := w.registerRATransport(r); err != nil {
 		return nil, err
 	}
 	// wave-BC: F-ikev2-native
@@ -453,6 +465,9 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := w.registerPppoeClient(r); err != nil {
 		return nil, err
 	}
+	if err := w.registerRAController(r); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 
@@ -483,6 +498,35 @@ func (w *Wiring) NetdevKind() NetdevKind { return w.env.NetdevKind }
 // interface indexes and tells DF-8's DHCP client that the API connection is new (its lease-event
 // subscriptions must be re-made on this connection).
 func (w *Wiring) Connected(ctx context.Context) {
+	sourceErr := w.initializeRASource(ctx)
+	if err := w.StopRA(ctx); err != nil {
+		w.env.Log.Error("remote-access reconnect cleanup refused", "reason", "owned generation could not be stopped")
+		return
+	}
+	targetsErr := sourceErr
+	if sourceErr == nil {
+		targetsErr = w.initializeRATargets(ctx)
+	}
+	if targetsErr != nil {
+		w.env.Log.Warn("remote-access initialization unavailable", "reason", "engine-not-ready")
+	}
+	repair := w.raRepair
+	if targetsErr != nil {
+		repair = nil
+	}
+	if runtime := RARuntimeFor(w.env.Owner); runtime != nil {
+		if w.raStartup != nil {
+			runtime.SetInitializationReady(false)
+		}
+		if runtime.RepairStoppedExports(ctx, repair) != nil {
+			runtime.SetInitializationReady(false)
+			w.env.Log.Error("remote-access stopped export repair unavailable", "reason", "engine-not-ready")
+			return
+		}
+		if w.raStartup != nil && targetsErr == nil {
+			runtime.SetInitializationReady(true)
+		}
+	}
 	w.classifySentinelConnected(ctx) // globals owner establishes table 0 before other reconnect work
 	w.bfdConnected()                 // wave-BC: F-bfd-redistribution
 	w.igmpMfibConnected()            // wave-BC: F-igmp-mfib-host

@@ -81,10 +81,11 @@ func TestUntaggedNICClaimsOnHost(t *testing.T) {
 			t.Fatal(err)
 		}
 		reg := scheduler.NewRegistry()
-		w, err := Register(reg, Env{Client: c, Owner: owner, StateDir: dir, Owned: owned})
+		w, err := registerMock(reg, Env{Client: c, Owner: owner, StateDir: dir, Owned: owned})
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(w.Close)
 		ctx, cancel := call()
 		defer cancel()
 		w.Connected(ctx) // D-080 boot identity for the claim stores

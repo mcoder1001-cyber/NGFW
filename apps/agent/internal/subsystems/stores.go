@@ -697,6 +697,7 @@ func Register(r scheduler.Registry, env Env) (*Wiring, error) {
 		return nil, err
 	}
 	if err := RequirePersistent(g.ds); err != nil {
+		w.Close() // Release only callbacks of the failed new construction.
 		return nil, err
 	}
 	return w, nil

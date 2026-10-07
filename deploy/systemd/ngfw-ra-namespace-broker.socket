@@ -1,0 +1,15 @@
+[Unit]
+Description=NGFW bounded remote-access namespace FD handoff
+
+[Socket]
+ListenSequentialPacket=/run/ngfw-ra-ipc/namespace.sock
+SocketMode=0600
+SocketUser=root
+SocketGroup=root
+DirectoryMode=0700
+Accept=yes
+MaxConnections=4
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

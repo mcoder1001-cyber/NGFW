@@ -1,0 +1,736 @@
+SLOT_LOCK=/run/lock/ngfw-slot-9.lock held
+SOURCE_SHA=192ae7fe6a445d280a6f691bca05ed75ddf113ef
+MODE=product IPV6=dhcpv6
+PPP_VERSIONS=ppp	2.5.2-1+1.2 pppoe	4.0-1ubuntu2 
+DRIVER_DIGEST=7c2d0577316b286c66c6780fc24ef9237d8bbcddc3d4115ba681d646671a3f9e
+TOOL_DIGEST ra.py=b13e17085be5790c5b74d9c818f9cbc626e600969d6efb31e1520a2affe5cda7
+TOOL_DIGEST dhcp6s.py=bc8a19e72cd6a6f0ced97c577bba8c92569d60539681183c57a786c9a86a854f
+PRIVATE_NETNS=net:[4026532607]
+DISPOSABLE_VPP pid=2091959 runtime=/root/ngfw-wt/claude-pppoe-ipv6/.scratch/isolated-vpp-2091956
+=== RUN   TestPppoeClientLive
+2026/10/07 06:09:12 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    zz_pppoe_live_overlay_test.go:502: VPP pppoe plugin: Plugin path is: /usr/lib/x86_64-linux-gnu/vpp_plugins, plugins shown in load order
+        
+             Plugin                                   Version                          Description
+          1. abf_plugin.so                            26.06-release                    Access Control List (ACL) Based Forwarding
+          2. acl_plugin.so                            26.06-release                    Access Control Lists (ACL)
+          3. adl_plugin.so                            26.06-release                    Allow/deny list plugin
+          4. af_packet_plugin.so                      26.06-release                    af-packet
+          5. af_xdp_plugin.so                         26.06-release                    AF_XDP Device Plugin
+          6. arping_plugin.so                         26.06-release                    Arping (arping)
+          7. auto_sdl_plugin.so                       26.06-release                    Auto SDL
+          8. bpf_trace_filter_plugin.so               26.06-release                    BPF Trace Filter Plugin
+          9. cdp_plugin.so                            26.06-release                    Cisco Discovery Protocol (CDP)
+         10. cnat_plugin.so                           26.06-release                    CNat Translate
+         11. crypto_sw_scheduler_plugin.so            26.06-release                    SW Scheduler Crypto Async Engine plugin
+         12. ct6_plugin.so                            26.06-release                    IPv6 Connection Tracker
+         13. det44_plugin.so                          26.06-release                    Deterministic NAT (CGN)
+         14. dhcp_plugin.so                           26.06-release                    Dynamic Host Configuration Protocol (DHCP)
+         15. dma_intel_plugin.so                      26.06-release                    Intel DSA Backend
+         16. dns_plugin.so                            26.06-release                    Simple DNS name resolver
+         17. dpdk_plugin.so                           26.06-release                    Data Plane Development Kit (DPDK)
+         18. dslite_plugin.so                         26.06-release                    Dual-Stack Lite
+         19. flowprobe_plugin.so                      26.06-release                    Flow per Packet
+         20. geneve_plugin.so                         26.06-release                    GENEVE Tunnels
+         21. gre_plugin.so                            26.06-release                    Generic Routing Encapsulation (GRE) plugin
+         22. gtpu_plugin.so                           26.06-release                    GPRS Tunnelling Protocol, User Data (GTPv1-U)
+         23. hs_apps_plugin.so                        26.06-release                    Host Stack Applications
+         24. hsi_plugin.so                            26.06-release                    Host Stack Intercept (HSI)
+         25. http_plugin.so                           26.06-release                    Hypertext Transfer Protocol (HTTP)
+         26. http_static_plugin.so                    26.06-release                    HTTP Static Server
+         27. igmp_plugin.so                           26.06-release                    Internet Group Management Protocol (IGMP)
+         28. ikev2_plugin.so                          26.06-release                    Internet Key Exchange (IKEv2) Protocol
+         29. ila_plugin.so                            26.06-release                    Identifier Locator Addressing (ILA) for IPv6
+         30. ioam_plugin.so                           26.06-release                    Inbound Operations, Administration, and Maintenance (OAM)
+         31. ip_session_redirect_plugin.so            26.06-release                    IP session redirect
+         32. l2tp_plugin.so                           26.06-release                    Layer 2 Tunneling Protocol v3 (L2TP)
+         33. l3xc_plugin.so                           26.06-release                    L3 Cross-Connect (L3XC)
+         34. lacp_plugin.so                           26.06-release                    Link Aggregation Control Protocol (LACP)
+         35. lb_plugin.so                             26.06-release                    Load Balancer (LB)
+         36. linux_cp_plugin.so                       26.06-release                    Linux Control Plane - Interface Mirror
+         37. linux_nl_plugin.so                       26.06-release                    linux Control Plane - Netlink listener
+         38. lisp_plugin.so                           26.06-release                    Locator ID Separation Protocol (LISP)
+         39. lldp_plugin.so                           26.06-release                    Link Layer Discovery Protocol (LLDP)
+         40. mactime_plugin.so                        26.06-release                    Time-based MAC Source Address Filter
+         41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+         42. mdata_plugin.so                          26.06-release                    Buffer metadata change tracker.
+         43. memif_plugin.so                          26.06-release                    Packet Memory Interface (memif) -- Experimental
+         44. mss_clamp_plugin.so                      26.06-release                    TCP MSS clamping plugin
+         45. nat44_ei_plugin.so                       26.06-release                    IPv4 Endpoint-Independent NAT (NAT44 EI)
+         46. nat64_plugin.so                          26.06-release                    NAT64
+         47. nat66_plugin.so                          26.06-release                    NAT66
+         48. nat_plugin.so                            26.06-release                    Network Address Translation (NAT)
+         49. npol_plugin.so                           26.06-release                    Network Policy
+         50. npt66_plugin.so                          26.06-release                    NPTv6
+         51. nsh_plugin.so                            26.06-release                    Network Service Header (NSH)
+         52. nsim_plugin.so                           26.06-release                    Network Delay Simulator
+         53. osi_plugin.so                            26.06-release                    OSI plugin
+         54. ping_plugin.so                           26.06-release                    Ping (ping)
+         55. pnat_plugin.so                           26.06-release                    Policy 1:1 NAT
+         56. policer_plugin.so                        26.06-release                    Policer
+         57. ppp_plugin.so                            26.06-release                    Point-to-Point Protocol (PPP) plugin
+         58. pppoe_plugin.so                          26.06-release                    PPP over Ethernet (PPPoE)
+         59. prom_plugin.so                           26.06-release                    Prometheus Stats Exporter
+         60. pvti_plugin.so                           26.06-release                    Packet Vector Tunnel Interface plugin
+         61. quic_plugin.so                           26.06-release                    QUIC transport protocol
+         62. quic_quicly_plugin.so                    26.06-release                    Quicly QUIC Engine
+         63. rdma_plugin.so                           26.06-release                    RDMA IBverbs Device Driver
+         64. sasc_plugin.so                           26.06-release                    Session Aware Service Chaining (sasc)
+         65. selog_plugin.so                          26.06-release                    sFlow random packet sampling
+         66. sfdp_services_plugin.so                  26.06-release                    SFDP Services Plugin
+         67. sflow_plugin.so                          26.06-release                    sFlow random packet sampling
+         68. soft_rss_plugin.so                       26.06-release                    Software RSS feature arc template
+         69. srmpls_plugin.so                         26.06-release                    Segment Routing for MPLS plugin
+         70. srv6ad_plugin.so                         26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         71. srv6adflow_plugin.so                     26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         72. srv6am_plugin.so                         26.06-release                    Masquerading Segment Routing for IPv6 (SRv6) Proxy
+         73. srv6as_plugin.so                         26.06-release                    Static Segment Routing for IPv6 (SRv6) Proxy
+         74. srv6mobile_plugin.so                     26.06-release                    SRv6 GTP Endpoint Functions
+         75. stn_plugin.so                            26.06-release                    VPP Steals the NIC (STN) for Container Integration
+         76. svs_plugin.so                            26.06-release                    Source Virtual Routing and Forwarding (VRF) Select
+         77. tap_plugin.so                            26.06-release                    TAP/TUN device (virtio backend)
+         78. tlsopenssl_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, OpenSSL Based
+         79. tlspicotls_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, Picotls Based
+         80. udp_echo_plugin.so                       26.06-release                    UDP Echo Plugin
+         81. urpf_plugin.so                           26.06-release                    Unicast Reverse Path Forwarding (uRPF)
+         82. vhost_plugin.so                          26.06-release                    Vhost-User
+         83. vmxnet3_plugin.so                        26.06-release                    VMWare Vmxnet3 Device Driver
+         84. vrrp_plugin.so                           26.06-release                    VRRP v3 (RFC 5798)
+         85. vxlan-gpe_plugin.so                      26.06-release                    VxLan GPE Tunnels
+         86. vxlan_plugin.so                          26.06-release                    VxLan Tunnels
+         87. wireguard_plugin.so                      26.06-release                    Wireguard Protocol
+    zz_pppoe_live_overlay_test.go:514: rig up w9 (slot 9, path af_packet)
+          create netns ns-w9-lan
+          create veth w9l0 <-> ns-w9-lan:w9l1
+          create vpp host-w9l0 (af_packet on w9l0)
+          reset  ip/ip6 classify host-w9l0 (table-index ~0)
+          set    addr host-w9l0 10.9.1.1/24
+          create netns ns-w9-wan
+          create veth w9w0 <-> ns-w9-wan:w9w1
+          create vpp host-w9w0 (af_packet on w9w0)
+          reset  ip/ip6 classify host-w9w0 (table-index ~0)
+          set    addr host-w9w0 10.9.2.1/24
+        rig: up
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: 10.9.1.1/24 
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: 10.9.2.1/24 
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+        
+    zz_pppoe_live_overlay_test.go:520: rig VPP side handed to the agent: af_packet_delete w9l0 (veth down)
+    zz_pppoe_live_overlay_test.go:520: rig VPP side handed to the agent: af_packet_delete w9w0 (veth down)
+2026/10/07 06:09:14 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w9 component=subsystems
+2026/10/07 06:09:14 INFO VPP binary API connected owner=w9 component=vpp socket=/run/vpp/api.sock
+2026/10/07 06:09:14 INFO PKI file materialiser wired owner=w9 component=subsystems root=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state/pki-w9 source=true
+2026/10/07 06:09:14 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w9 component=subsystems
+2026/10/07 06:09:14 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w9 component=subsystems
+2026/10/07 06:09:14 INFO fqdn state reloaded owner=w9 component=subsystems family=objects file=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/07 06:09:15 INFO objects domain wired owner=w9 component=subsystems store=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/07 06:09:15 INFO acl domain wired owner=w9 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/07 06:09:15 INFO host firewall wired owner=w9 component=subsystems table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state/host-acl-w9.nft
+2026/10/07 06:09:15 INFO kea wired owner=w9 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/07 06:09:15 INFO host services wired owner=w9 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-3460992673/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-3460992673/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-3460992673/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/07 06:09:15 INFO system identity wired owner=w9 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-3460992673/sysident/etc/hostname
+2026/10/07 06:09:15 INFO pppoe client wired owner=w9 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/07 06:09:15 INFO subsystems wired owner=w9 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state: claims-iface-w9.json, boot-w9.json; globals owner false" vpp_ids=9000-9999
+2026/10/07 06:09:15 INFO ngfw-agent listening owner=w9 socket=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state vpp_api=/run/vpp/api.sock
+2026/10/07 06:09:15 INFO VPP boot identity owner=w9 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/2091959/33430281 complete=true expired_claims=0
+2026/10/07 06:09:15 WARN neighbour events: interface dump owner=w9 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/07 06:09:15 INFO reconcile start owner=w9 txn_id="" mode=resync domains=[]
+2026/10/07 06:09:15 INFO reconcile done owner=w9 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=531.135703ms err=""
+2026/10/07 06:09:15 INFO resync finished owner=w9 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/07 06:09:15 INFO dynamic source started owner=w9 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/07 06:09:15 INFO dynamic source started owner=w9 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/07 06:09:15 INFO reconcile start owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]"
+2026/10/07 06:09:15 INFO created owner=w9 component=scheduler key=vrf/9401
+2026/10/07 06:09:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/07 06:09:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface/host-w9l0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface/host-w9w0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/07 06:09:16 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/07 06:09:16 INFO reconcile done owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=382.489626ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply base: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  11
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:565: show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w9w0 tap4096 w9-w0 10 type tap
+2026/10/07 06:09:16 INFO reconcile start owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]"
+2026/10/07 06:09:16 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:09:16 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:09:16 INFO reconcile done owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1  unchanged:11" reapplied=0 duration=199.92073ms err=""
+    zz_pppoe_live_overlay_test.go:125: apply dial: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  1,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-dial",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:575: rendered slot tree:
+        /tmp/ngfw-agent-test-3460992673/pppoe:
+        total 0
+        drwx------ 4 root root 80 Oct  7 06:09 etc
+        drwx------ 3 root root 60 Oct  7 06:09 run
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc:
+        total 0
+        drwx------ 7 root root 220 Oct  7 06:09 ppp
+        drwx------ 3 root root  60 Oct  7 06:09 systemd
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp:
+        total 16
+        -rw------- 1 root root 115 Oct  7 06:09 chap-secrets
+        drwx------ 2 root root  60 Oct  7 06:09 ip-down.d
+        drwx------ 2 root root  60 Oct  7 06:09 ip-up.d
+        drwx------ 2 root root  60 Oct  7 06:09 ipv6-down.d
+        drwx------ 2 root root  60 Oct  7 06:09 ipv6-up.d
+        -rwxr-xr-x 1 root root 980 Oct  7 06:09 ngfw-dhcp6-w9-w0
+        -rw-r--r-- 1 root root 500 Oct  7 06:09 ngfw-dhcpcd-w9-w0.conf
+        -rw------- 1 root root 115 Oct  7 06:09 pap-secrets
+        drwx------ 2 root root  60 Oct  7 06:09 peers
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ip-down.d:
+        total 4
+        -rwxr-xr-x 1 root root 714 Oct  7 06:09 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ip-up.d:
+        total 4
+        -rwxr-xr-x 1 root root 710 Oct  7 06:09 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ipv6-down.d:
+        total 4
+        -rwxr-xr-x 1 root root 2131 Oct  7 06:09 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ipv6-up.d:
+        total 4
+        -rwxr-xr-x 1 root root 3485 Oct  7 06:09 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/peers:
+        total 4
+        -rw-r--r-- 1 root root 320 Oct  7 06:09 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/systemd:
+        total 0
+        drwx------ 2 root root 60 Oct  7 06:09 system
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/etc/systemd/system:
+        total 4
+        -rw-r--r-- 1 root root 339 Oct  7 06:09 ngfw-pppoe-w9-w0.service
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/run:
+        total 0
+        drwx------ 3 root root 60 Oct  7 06:09 ngfw
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/run/ngfw:
+        total 0
+        drwx------ 2 root root 40 Oct  7 06:09 pppoe
+        
+        /tmp/ngfw-agent-test-3460992673/pppoe/run/ngfw/pppoe:
+        total 0
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/peers/ngfw-w9-w0:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        plugin rp-pppoe.so
+        nic-w9-w0
+        user "uw9"
+        remotename ngfw-w9-w0
+        mtu 1492
+        mru 1492
+        noipdefault
+        defaultroute
+        replacedefaultroute
+        +ipv6
+        hide-password
+        noauth
+        lcp-echo-interval 20
+        lcp-echo-failure 3
+        persist
+        holdoff 3
+        maxfail 2
+    zz_pppoe_live_overlay_test.go:579: rendered etc/systemd/system/ngfw-pppoe-w9-w0.service:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        [Unit]
+        Description=ngfw PPPoE client on w9-w0
+        After=network.target vpp.service
+        [Service]
+        Type=simple
+        ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Restart=on-failure
+        RestartSec=3
+        [Install]
+        WantedBy=multi-user.target
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ip-up.d/ngfw-w9-w0:
+        #!/bin/sh
+        # ngfw-agent PPPoE ip-up hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+        # IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+        # and writes a state file the agent reads. Rendered; hand edits are overwritten.
+        set -eu
+        [ "${PPP_IPPARAM:-}" = "ngfw-w9-w0" ] || exit 0
+        dir="/tmp/ngfw-agent-test-3460992673/pppoe/run/ngfw/pppoe"
+        f="$dir/w9-w0.state"
+        mkdir -p "$dir"
+        tmp="$f.tmp.$$"
+        {
+          echo "phase=up"
+          echo "hostif=w9-w0"
+          echo "ppp_iface=${PPP_IFACE:-}"
+          echo "local=${IPLOCAL:-}"
+          echo "peer=${IPREMOTE:-}"
+          echo "dns1=${DNS1:-}"
+          echo "dns2=${DNS2:-}"
+          echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        } > "$tmp"
+        mv -f "$tmp" "$f"
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ipv6-up.d/ngfw-w9-w0:
+        #!/bin/sh
+        # ngfw-agent PPPoE ipv6-up hook (F-pppoe-client, IPv6 = dhcpv6). pppd runs this after IPv6CP and sets
+        # PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+        # "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+        # PPP link (SLAAC from the ISP's Router Advertisements, plus the DHCPv6 IA_NA address dhcpcd adds)
+        # and the DHCPv6-PD prefix the dhcpcd event script records. Rendered; hand edits are overwritten.
+        set -u
+        PATH=/usr/sbin:/usr/bin:/sbin:/bin
+        [ "${PPP_IPPARAM:-}" = "ngfw-w9-w0" ] || exit 0
+        iface="${PPP_IFACE:-}"
+        case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+        self="$0"
+        dir="/tmp/ngfw-agent-test-3460992673/pppoe/run/ngfw/pppoe"
+        f="$dir/w9-w0.state6"
+        pidf="$dir/w9-w0.ipv6.pid"
+        pdf="$dir/w9-w0.pd"
+        mkdir -p "$dir"
+        ll="${LLLOCAL:-}"
+        case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+        peer="${LLREMOTE:-}"
+        case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+        since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        
+        # stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+        # late refresh can never overwrite the down state.
+        stop() {
+          [ -f "$pidf" ] || return 0
+          while read -r p; do
+            case "$p" in ''|*[!0-9]*) continue ;; esac
+            kill "$p" 2>/dev/null || true
+            n=0
+            while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+          done < "$pidf"
+          rm -f "$pidf"
+        }
+        
+        # write PHASE renders the state file atomically and only when its content changed.
+        write() {
+          tmp="$f.tmp.$$"
+          {
+            echo "phase=$1"
+            echo "hostif=w9-w0"
+            echo "ppp_iface=$iface"
+            echo "lllocal=$ll"
+            echo "llremote=$peer"
+            if [ "$1" = up ]; then
+              ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+              ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+              [ -f "$pdf" ] && grep '^pd=' "$pdf"
+            fi
+            echo "at=$since"
+          } > "$tmp"
+          if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+        }
+        
+        stop
+        rm -f "$pdf"
+        # Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
+        # when the session carries the default route.
+        c="/proc/sys/net/ipv6/conf/$iface"
+        echo 2 > "$c/accept_ra"
+        echo 1 > "$c/autoconf"
+        echo 1 > "$c/accept_ra_defrtr"
+        # pppd added the link-local (with the peer, nodad) before the sysctls above, so the kernel did not solicit;
+        # re-adding it the same way sends the Router Solicitation now instead of waiting for the ISP's next periodic RA.
+        if [ -n "$ll" ] && [ -n "$peer" ]; then
+          ip -6 addr del "$ll" peer "$peer" dev "$iface" 2>/dev/null || true
+          ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
+        fi
+        write up
+        (
+          trap 'exit 0' TERM INT
+          /usr/sbin/dhcpcd -B -f "/tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ngfw-dhcpcd-w9-w0.conf" "$iface" </dev/null >/dev/null 2>&1 &
+          d=$!
+          trap 'kill "$d" 2>/dev/null; exit 0' TERM INT
+          # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
+          # along, when any is gone. A withdrawn session also loses its IPv6 state.
+          while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+            write up
+            sleep 2
+          done
+          rm -f "$pidf"
+          [ -e "$self" ] || rm -f "$f" "$pdf"
+          kill "$d" 2>/dev/null
+        ) </dev/null >/dev/null 2>&1 &
+        echo "$!" > "$pidf"
+        exit 0
+    zz_pppoe_live_overlay_test.go:579: rendered etc/ppp/ngfw-dhcpcd-w9-w0.conf:
+        # ngfw-agent PPPoE DHCPv6 client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        # Started by the ipv6-up hook on the PPP link only. The kernel handles Router Advertisements (SLAAC + default
+        # route), so dhcpcd solicits DHCPv6 directly: an address (IA_NA) and a delegated prefix (IA_PD). The prefix is
+        # recorded by the event script, not assigned to any interface.
+        ipv6only
+        noipv6rs
+        noup
+        script /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/ngfw-dhcp6-w9-w0
+        ia_na 1
+        ia_pd 2
+    zz_pppoe_live_overlay_test.go:434: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:434: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:442: rendered config/manifest: scanned 17 files under [/tmp/ngfw-agent-test-3460992673/pppoe /root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state]
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+    zz_pppoe_live_overlay_test.go:212: ISP pppoe-server started pid=2095370 in ns-w9-wan
+    zz_pppoe_live_overlay_test.go:400: supervisor: started rendered ExecStart pid=2095373: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+    zz_pppoe_live_overlay_test.go:596: session did not come up within 40s; state={
+          "phase":  "down"
+        }
+        client log:
+        === supervisor start 2026-10-07T06:09:17.517177067Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        
+        VPP errors:
+           Count                  Node                              Reason               Severity 
+                 4            pppoe-input                 good packets decapsulated        error  
+                18          af-packet-input                    timed out block             error  
+                18          af-packet-input                  total received block          error  
+                 2        ip6-local-hop-by-hop       Unknown protocol ip6 local h-b-h pa   error  
+                14           ethernet-input                        no error                error  
+                 4           local0-output                    interface is down            error  
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE dial-up=FAIL phase=down (no PADO; see VPP errors / client log)
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv4-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE mss-clamp=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-negotiation=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE traffic=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE server-restart-reconnect=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE wrong-password=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:434: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:434: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-3460992673/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:442: before withdrawal: scanned 17 files under [/tmp/ngfw-agent-test-3460992673/pppoe /root/.cache/go-tmp/TestPppoeClientLive2173547372/002/state]
+2026/10/07 06:09:58 INFO reconcile start owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]"
+2026/10/07 06:09:58 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:09:58 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:10:03 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:10:08 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:10:13 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:10:18 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:10:23 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:10:23 INFO reconcile done owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:11" reapplied=0 duration=25.851331986s err=""
+2026/10/07 06:10:28 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+    zz_pppoe_live_overlay_test.go:125: apply withdraw: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted":  1,
+          "unchanged":  11
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-withdrawal-cleanup=PASS no IPv6 /128 or ::/0 path left after removing pppoe
+    zz_pppoe_live_overlay_test.go:820: after withdrawal: addr=false route=false mss=none recv:EOF files="" manifest-absent=true state=<nil>
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+2026/10/07 06:10:35 INFO reconcile start owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]"
+2026/10/07 06:10:35 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:10:36 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:10:36 INFO confirm timer armed owner=w9 txn_id=w9-pppoe-confirm deadline=2026-10-07T06:11:06Z in=29.999958997s
+2026/10/07 06:10:38 INFO reconcile done owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1  unchanged:11" reapplied=0 duration=3.121591669s err=""
+2026/10/07 06:10:39 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+    zz_pppoe_live_overlay_test.go:125: apply confirm: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created":  1,
+          "unchanged":  11
+        } validation={
+          "txnId":  "w9-pppoe-confirm",
+          "ok":  true,
+          "errors":  [
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe",
+              "message":  "session files are rendered in the slot tree; the host units are not supervised",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.not-supervised"
+            },
+            {
+              "pointer":  "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message":  "the password reference must resolve in the agent secret cache before apply",
+              "severity":  "ISSUE_SEVERITY_WARNING",
+              "rule":  "pppoe.secret-unavailable"
+            }
+          ],
+          "summary":  {}
+        } message=""
+2026/10/07 06:11:08 WARN confirm timeout: reverting to the last confirmed state owner=w9 txn_id=w9-pppoe-confirm
+2026/10/07 06:11:08 INFO reconcile start owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]"
+2026/10/07 06:11:08 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/07 06:11:08 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/07 06:11:09 INFO reconcile done owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:11" reapplied=1 duration=1.071748945s err=""
+    zz_pppoe_live_overlay_test.go:868: rollback IPv6: after revert [] route=false
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE ipv6-confirm-rollback=PASS IPv6 mirror of the unconfirmed candidate removed at the deadline
+    zz_pppoe_live_overlay_test.go:877: rollback: candidate addr=false route=false; reverted=true; after addr=false route=false mss=none recv:EOF files="" manifestGone=true
+    zz_pppoe_live_overlay_test.go:93: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=false) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:887: client (rendered pppd) log:
+        === supervisor start 2026-10-07T06:09:17.517177067Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        === supervisor observed exit status 8 at 2026-10-07T06:10:30.742251281Z
+    zz_pppoe_live_overlay_test.go:889: server log:
+    zz_pppoe_live_overlay_test.go:470: PPPOE_SUMMARY_BEGIN
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE dial-up=FAIL phase=down (no PADO; see VPP errors / client log)
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv4-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE mss-clamp=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-negotiation=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE traffic=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE server-restart-reconnect=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE wrong-password=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-withdrawal-cleanup=PASS no IPv6 /128 or ::/0 path left after removing pppoe
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE ipv6-confirm-rollback=PASS IPv6 mirror of the unconfirmed candidate removed at the deadline
+    zz_pppoe_live_overlay_test.go:472: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=false) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:474: PPPOE_SUMMARY_END
+2026/10/07 06:11:11 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+2026/10/07 06:11:12 INFO reconcile start owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]"
+2026/10/07 06:11:12 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/07 06:11:12 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/07 06:11:12 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/07 06:11:12 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/07 06:11:12 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/07 06:11:12 INFO deleted owner=w9 component=scheduler key=vrf/9401
+2026/10/07 06:11:15 INFO reconcile done owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=3.404705392s err=""
+2026/10/07 06:11:16 WARN PPPoE hook convergence pending owner=w9 component=subsystems feature=pppoe-client reason="rpc error: code = DeadlineExceeded desc = context deadline exceeded"
+    zz_pppoe_live_overlay_test.go:125: apply cleanup: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted":  9
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:545: cleanup apply: <nil> APPLY_STATUS_APPLIED
+    zz_pppoe_live_overlay_test.go:553: cleanup: VPP interfaces of w9 left: []; table 9401: [0] table_id:0 ipv4-VRF:0
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=interface.rx-placement err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 INFO dynamic source stopped owner=w9 source=pppoe-watch
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=dhcp.client err="dhcp_client_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=det44.interface err="det44.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=det44.map err="det44.map: retrieve: det44_map_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=dslite.pool err="dslite.pool: retrieve: dslite_address_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=map.domain err="map.domain: retrieve: map_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=map.rule err="map.rule: retrieve: map_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=map.interface err="map.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=cnat.interface-feature err="cnat.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=cnat.translation err="cnat.translation: retrieve: cnat_translation_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=pnat.binding err="pnat.binding: retrieve: pnat_bindings_get: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=pnat.attachment err="pnat.attachment: retrieve: pnat_interfaces_get: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=gre.tunnel err="gre.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ipip.tunnel err="ipip.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=vxlan.tunnel err="vxlan.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=vxlan-gpe.tunnel err="vxlan-gpe.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=gtpu.tunnel err="gtpu.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2tp.tunnel err="l2tp.tunnel: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=pppoe.session err="pppoe.session: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ikev2.profile err="ikev2_profile_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mpls-table err="mpls-table: retrieve: mpls_table_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mpls-interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mpls-route err="mpls-route: retrieve: mpls_table_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mpls-tunnel err="mpls-tunnel: mpls_tunnel_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=sr.localsid err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=sr.policy err="vpp boot identity: control_ping: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=sr.steering err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:65535 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.locator-set err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:2 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.locator err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:9401 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.eid-table-map err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:9401 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.local-eid err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:657665 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.map-resolver err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:9401 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.map-server err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.remote-mapping err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:9401 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lisp.adjacency err="vpp boot identity: control_ping: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=bfd.auth-key err="bfd.auth-key: bfd_auth_keys_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=bfd.udp-session err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=igmp.listen err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mfib.route err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=bond.bond err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=bond.member err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=bond.member-weight err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.bridge-domain err="bridge_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.bridge-domain-member err="bridge_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.xconnect err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.fib-entry err="bridge_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.flags err="bridge_domain_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l2.vlan-tag-rewrite err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=l3xc.l3xc err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mactime.range err="mactime_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=mactime.enable err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=gso.interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=span.mirror err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=svs.table err="ip_table_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=svs.interface err="ip_table_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *mactime.MactimeDumpReply &{Retval:-160 TableEpoch:0}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=svs.route err="ip_table_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ip-neighbor.neighbor err="sw_interface_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:65535 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ip6-nd.ra-config err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ip6-nd.ra-prefix err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=arp.proxy-range err="proxy_arp_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=arp.proxy-interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=urpf.interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=adl.interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=abf.policy err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=abf.attach err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.tag err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.address err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.address-group err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.service err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.service-group err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.schedule err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=objects.zone err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=acl.acl err="acl_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=acl.macip-acl err="macip_acl_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=acl.interface-binding err="acl_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=acl.etype-whitelist err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=acl.macip-interface-binding err="macip_acl_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:3 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:1 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.vrf-table err="nat44-ed.vrf-table: retrieve: nat44_ed_vrf_tables_v2_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:657665 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.interface-feature err="nat44-ed.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.output-feature err="nat44-ed.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.address-pool err="nat44-ed.address-pool: retrieve: nat44_address_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.interface-address err="nat44-ed.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.static-mapping err="nat44-ed.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.identity-mapping err="nat44-ed.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ed.lb-static-mapping err="nat44-ed.lb-static-mapping: retrieve: nat44_lb_static_mapping_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.interface-feature err="nat44-ei.interface-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.output-feature err="nat44-ei.output-feature: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.address-pool err="nat44-ei.address-pool: retrieve: nat44_ei_address_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.interface-address err="nat44-ei.interface-address: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.static-mapping err="nat44-ei.static-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat44-ei.identity-mapping err="nat44-ei.identity-mapping: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat64.prefix err="nat64.prefix: retrieve: nat64_prefix_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat64.pool err="nat64.pool: retrieve: nat64_pool_addr_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat64.interface err="nat64.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat64.static-bib err="nat64.static-bib: retrieve: nat64_bib_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat66.interface err="nat66.interface: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=nat66.static-mapping err="nat66.static-mapping: retrieve: nat66_static_mapping_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=wireguard.interface err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=wireguard.peer err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=lcp.itf-pair err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=dhcp.proxy err="dhcp_proxy_dump(is_ip6=false): context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:657665 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=dhcp.proxy-vss err="dhcp_proxy_dump(is_ip6=false): context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=hoststack.session-rule err="session_rules_v2_dump: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:2 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=ipfix.exporter err="ipfix_all_exporter_get: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=flowprobe.interface err="flowprobe_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=sflow.interface err="vpp boot identity: control_ping: context canceled"
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+time="2026-10-07T06:11:19Z" level=error msg="Channel ID not known, ignoring the message: *memclnt.ControlPingReply &{Retval:0 ClientIndex:0 VpePID:2091959}" async=true connId=2
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=policer.policer err="policer.policer: policer_dump_v2: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=qos.egress-map err="qos.egress-map: qos_egress_map_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=qos.record err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=qos.store err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=qos.mark err="sw_interface_dump: context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=prometheus.listener err="context canceled"
+2026/10/07 06:11:19 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w9 component=scheduler descriptor=pppoe.client.config err="context canceled"
+2026/10/07 06:11:19 INFO reconcile done owner=w9 mode=sync source=multiwan status=APPLY_STATUS_FAILED summary="" duration=21.934027ms err="retrieve nat44-ed.output-feature.wan: nat44-ed.output-feature.wan: retrieve: sw_interface_dump: context canceled"
+2026/10/07 06:11:19 INFO dynamic source stopped owner=w9 source=multiwan
+2026/10/07 06:11:19 INFO ngfw-agent stopped owner=w9
+    zz_pppoe_live_overlay_test.go:517: rig down: <nil>
+        rig down w9
+          delete netns ns-w9-lan (and its veth peer)
+          delete netns ns-w9-wan (and its veth peer)
+        rig: down
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: -
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+--- FAIL: TestPppoeClientLive (127.49s)
+FAIL
+FAIL	ngfw/agent/internal/agent	127.604s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=2091959
+JOURNAL_PPP_LINES:
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Unable to complete PPPoE Discovery phase 1
+Unable to complete PPPoE Discovery phase 1
+Terminating on signal 15 -- killing all PPPoE sessions
+PASSWORD_GREP={"test-output": 0, "journal-since-start": 0} PASS
+LEFTOVER_PPP_PROCESSES=none
+HOST_NETNS_LIST=none
+SHARED_VPP before=MainPID=1014,NRestarts=0 after=MainPID=1014,NRestarts=0
+TEST_EXIT=1

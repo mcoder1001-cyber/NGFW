@@ -103,6 +103,18 @@ describe('App frame', () => {
     ).toHaveAttribute('id', 'routing-tab-route-maps');
   });
 
+  it('expands the current section when only the tab changes to a different section', async () => {
+    const router = createTestRouter(['/routing?tab=static']);
+    const queryClient = new QueryClient({ defaultOptions: { queries: { enabled: false, retry: false } } });
+    render(<App router={router} streamUrl={STREAM} queryClient={queryClient} />);
+    await screen.findByRole('heading', { level: 2, name: 'Routing' });
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' });
+    expect(within(nav).getByRole('button', { name: 'Tools' })).toHaveAttribute('aria-expanded', 'false');
+    await act(async () => { await router.navigate('/routing?tab=ping'); });
+    expect(within(nav).getByRole('button', { name: 'Tools' })).toHaveAttribute('aria-expanded', 'true');
+    expect(within(nav).getByRole('link', { name: 'Ping' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('shows "not yet available" for unbuilt domain screens, with the schema title and no data', async () => {
     render(app('/firewall/security')); // F-vrrp-config-sync built /system/ha; the security domain has no screen yet
     expect(await screen.findByRole('heading', { level: 2, name: 'Security' })).toBeInTheDocument();

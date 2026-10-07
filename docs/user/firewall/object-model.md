@@ -1,6 +1,6 @@
 # Firewall objects — addresses, groups, FQDNs, services, schedules, zones, tags
 
-**Screen:** *Firewall → Objects* (`/firewall/objects`, one tab per kind: `?tab=addresses|addressGroups|services|
+**Screen:** *Objects → Objects* (`/firewall/objects`, one tab per kind: `?tab=addresses|addressGroups|services|
 serviceGroups|schedules|zones|tags`). **REST:** the generic configuration routes under `/api/v1/config/objects/<kind>/<name>`,
 plus `GET /api/v1/state/objects/fqdn` (FQDN resolution) and `GET /api/v1/state/objects/usage?name=` (where-used).
 **CLI:** `ngfw set|merge|delete objects …`, `ngfw show configuration objects` (`docs/user/cli/reference.md`).

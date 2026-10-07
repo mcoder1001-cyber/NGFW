@@ -19,7 +19,7 @@ import { UI_KIT_NS } from '@ngfw/ui-kit';
 import { useWsStatus } from '@ngfw/ui-kit/ws';
 import { Suspense, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { NavLink, Outlet, useLocation } from 'react-router';
+import { Link, Outlet, useLocation } from 'react-router';
 import { DEV_ROUTES } from '../build-flags';
 import { buildNav, currentNavPath, isCollapsible, type NavGroup } from '../nav/nav';
 import { domains } from '../schema/registry';
@@ -46,11 +46,10 @@ function NavList({ nav, current, open, onToggle, onNavigate }: NavListProps) {
   const itemButton = (item: NavGroup['items'][number], indent: number) => (
     <ListItemButton
       key={item.id}
-      component={NavLink}
+      component={Link}
       to={item.path}
-      end
       selected={item.path === current}
-      aria-current={item.path === current ? 'page' : 'false'}
+      aria-current={item.path === current ? 'page' : undefined}
       onClick={onNavigate}
       sx={{ paddingInlineStart: (theme) => theme.spacing(indent) }}
     >
@@ -121,9 +120,10 @@ function useNavGroups(devRoutes: boolean) {
   const currentGroup = nav.find((g) => isCollapsible(g) && g.items.some((i) => i.path === current))?.id;
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(currentGroup ? [currentGroup] : []));
   // open the current page's group when the location changes (state adjusted during render, not in an effect)
-  const [seenPath, setSeenPath] = useState(pathname);
-  if (seenPath !== pathname) {
-    setSeenPath(pathname);
+  const locationKey = `${pathname}${search}`;
+  const [seenPath, setSeenPath] = useState(locationKey);
+  if (seenPath !== locationKey) {
+    setSeenPath(locationKey);
     if (currentGroup && !open.has(currentGroup)) setOpen(new Set(open).add(currentGroup));
   }
   const toggle = (id: string) =>

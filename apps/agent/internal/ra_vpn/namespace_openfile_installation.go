@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -201,33 +202,72 @@ func hashNumericPublisherArtifact(ctx context.Context, artifact numericPublisher
 	return hex.EncodeToString(hash.Sum(nil)), header, nil
 }
 
-func (p *numericPublisherInstallationProof) Verify(ctx context.Context) error {
-	if ctx.Err() != nil || p == nil || !p.source.Complete() || !(bootid.Reader{}).ForPID(os.Getpid()).Equal(p.source) || len(p.files) != 4 {
+func (p *numericPublisherInstallationProof) Verify(ctx context.Context) (result error) {
+	reason := numericPublisherProofEntry
+	artifactIndex := uint8(0)
+	defer func() {
+		if result != nil {
+			// Sample before returning to caller cleanup. Never expose the cause's
+			// raw error or installation data, and never log a successful proof.
+			if line := numericPublisherProofFailureLine(reason, artifactIndex, ctx.Err()); line != "" {
+				log.Print(line)
+			}
+		}
+	}()
+	if ctx.Err() != nil || p == nil || !p.source.Complete() {
 		return ErrBoundary
 	}
-	for _, artifact := range p.files {
+	reason = numericPublisherProofPreProcess
+	if !(bootid.Reader{}).ForPID(os.Getpid()).Equal(p.source) {
+		return ErrBoundary
+	}
+	reason = numericPublisherProofEntry
+	if len(p.files) != 4 {
+		return ErrBoundary
+	}
+	for index, artifact := range p.files {
+		artifactIndex = uint8(index + 1)
+		reason = numericPublisherProofArtifactContext
 		if ctx.Err() != nil {
 			return ErrBoundary
 		}
+		reason = numericPublisherProofHeldStat
 		var held unix.Stat_t
-		if artifact.file == nil || unix.Fstat(int(artifact.file.Fd()), &held) != nil || !sameNumericPublisherArtifact(held, artifact.stat) {
+		if artifact.file == nil || unix.Fstat(int(artifact.file.Fd()), &held) != nil {
 			return ErrBoundary
 		}
+		reason = numericPublisherProofStamp
+		if !sameNumericPublisherArtifact(held, artifact.stat) {
+			return ErrBoundary
+		}
+		reason = numericPublisherProofFreshOpen
 		fresh, err := openNumericPublisherArtifact(artifact.path, artifact.limit, artifact.executable)
 		if err != nil {
 			return ErrBoundary
 		}
 		same := sameNumericPublisherArtifact(fresh.stat, artifact.stat)
 		closeErr := fresh.file.Close()
-		if !same || closeErr != nil {
+		reason = numericPublisherProofStamp
+		if !same {
+			return ErrBoundary
+		}
+		reason = numericPublisherProofClose
+		if closeErr != nil {
 			return ErrBoundary
 		}
 	}
-	if ctx.Err() != nil || !(bootid.Reader{}).ForPID(os.Getpid()).Equal(p.source) {
+	artifactIndex = 0
+	reason = numericPublisherProofExit
+	if ctx.Err() != nil {
+		return ErrBoundary
+	}
+	reason = numericPublisherProofPostProcess
+	if !(bootid.Reader{}).ForPID(os.Getpid()).Equal(p.source) {
 		return ErrBoundary
 	}
 	// The final proc read is synchronous and may outlast the preceding context
 	// sample. Never report a successful proof after caller cancellation.
+	reason = numericPublisherProofExit
 	if ctx.Err() != nil {
 		return ErrBoundary
 	}

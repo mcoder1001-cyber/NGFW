@@ -50,12 +50,11 @@ GO=(protobuf-compiler)
 NODE=(nodejs)
 PKG=(devscripts debhelper dh-make dpkg-dev fakeroot reprepro gnupg)
 IMAGE=(xorriso isolinux squashfs-tools cloud-image-utils qemu-utils debootstrap)
-CONTAINER=(docker.io docker-compose-v2)
 QUALITY=(shellcheck jq)
 
 apt-get update
 apt-get install -y "${BUILD[@]}" "${VPPDEP[@]}" "${SSWAN[@]}" "${GO[@]}" "${NODE[@]}" \
-                   "${PKG[@]}" "${IMAGE[@]}" "${CONTAINER[@]}" "${QUALITY[@]}"
+                   "${PKG[@]}" "${IMAGE[@]}" "${QUALITY[@]}"
 
 # Go from the official tarball - the distro package lags and govpp tracks new releases.
 if [[ ! -x /usr/local/go/bin/go ]] || [[ "$(/usr/local/go/bin/go version)" != "go version go${GO_VER} linux/amd64" ]]; then

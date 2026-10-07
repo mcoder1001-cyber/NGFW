@@ -1,0 +1,7 @@
+# MPLS original host acceptance closeout
+
+The original bounded H1 evidence was integrated in PR177 (`492c0156e`), with campaign11/native13 source manifests, original failures and independent reviews retained under `docs/status/tasks/closeout-mpls-srv6-browser-live-evidence`. The campaign covers real configuration/state/native reads, 16 configured English/Persian browser pages, native drift/recommit, owned-agent restart/resync, revision rollback, residue checks and owned resource cleanup. This closes only that original checklist; mixed component evidence is not whole-appliance certification.
+
+Earlier recommit HTTP504 attempts7/9 remain recorded failures. PR195 (`0ec397e32`) subsequently integrated the independently tested AutoBlock inactive-publication correction. The committed `claude-autoblock-noop-wip.md` records 13 later attempts with zero HTTP504; attempts1/2/7 failed health connection and attempt4 failed browser evaluation. Do not call all13 PASS or assert every reliability issue resolved. Private P12/OSPF peer-inventory concerns remain with their separate acceptance work.
+
+Current main complete hosted quick `37583587580` succeeded on `0ec397e327123cadfd5d278a9a1cda37532fdc2c`. This docs-only board proposal takes effect after independent R2/R7 evidence review, current candidate checks and sequential merge. Broader packet/platform/auth/fresh-machine acceptance remains deferred or open under its own criteria.

@@ -1,23 +1,5 @@
 #!/bin/sh
-# ngfw-agent PPPoE DHCPv6 event script (F-pppoe-client) — session {{ident .HostIf}}. dhcpcd runs this on every
-# DHCPv6 event; it records the delegated prefix for the ipv6-up hook's state file. Values come from the network,
-# so only an IPv6 literal and a numeric length are accepted. dhcpcd numbers IA_PD options by position (ia_pd1 =
-# the one IA_PD requested, IAID 2), not by IAID. Rendered; hand edits are overwritten.
-set -u
-PATH=/usr/sbin:/usr/bin:/sbin:/bin
-dir={{quoted .StateDir}}
-pdf="$dir/{{ident .HostIf}}.pd"
-case "${reason:-}" in
-  BOUND6|RENEW6|REBIND6|REBOOT6|INFORM6|DELEGATED6)
-    p="${new_dhcp6_ia_pd1_prefix1:-}"
-    l="${new_dhcp6_ia_pd1_prefix1_length:-}"
-    case "$p" in ''|*[!0-9A-Fa-f:]*) exit 0 ;; esac
-    case "$l" in ''|*[!0-9]*) exit 0 ;; esac
-    mkdir -p "$dir"
-    echo "pd=$p/$l" > "$pdf.tmp.$$" && mv -f "$pdf.tmp.$$" "$pdf"
-    ;;
-  EXPIRE6|RELEASE6|STOP6|STOPPED|DEPARTED|NOCARRIER)
-    rm -f "$pdf"
-    ;;
-esac
-exit 0
+# Rendered DHCPv6 event handler: the helper validates network values and gates
+# publication by the active generation under the session lock.
+set -eu
+exec /usr/bin/python3 {{quoted .IPv6Helper}} event

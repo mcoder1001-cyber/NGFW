@@ -137,18 +137,42 @@ func (rt *PppoeRuntime) Reconnect(ctx context.Context, iface string) (accepted b
 	if !rt.globalsOwner {
 		return false, "", ErrNotGlobalsOwner
 	}
-	rt.mu.Lock()
-	s, ok := rt.applied[iface]
-	rt.mu.Unlock()
-	if !ok {
-		return false, "no active PPPoE session for interface " + iface, nil
+	run := func(ctx context.Context) error {
+		rt.mu.Lock()
+		defer rt.mu.Unlock()
+		s, ok := rt.applied[iface]
+		if !ok {
+			message = "no active PPPoE session for interface " + iface
+			return nil
+		}
+		if err := rt.renderer.StopIPv6(ctx, s.HostIf); err != nil {
+			return err
+		}
+		if old, ok := rt.mirrored[iface]; ok {
+			if err := rt.Mirror(ctx, old, false); err != nil {
+				return err
+			}
+			delete(rt.mirrored, iface)
+		}
+		for _, suffix := range []string{".state", ".state6", ".pd"} {
+			if err := os.Remove(filepath.Join(rt.stateDir, s.HostIf+suffix)); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+		unit := "ngfw-pppoe-" + s.HostIf + ".service"
+		if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"restart", unit}}); err != nil {
+			return fmt.Errorf("pppoe reconnect %s: %w", iface, err)
+		}
+		rt.log.Info("pppoe reconnect", "interface", iface, "unit", unit)
+		accepted, message = true, "redialing "+iface
+		return nil
 	}
-	unit := "ngfw-pppoe-" + s.HostIf + ".service"
-	if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"restart", unit}}); err != nil {
-		return false, "", fmt.Errorf("pppoe reconnect %s: %w", iface, err)
+	if rt.exclusive != nil {
+		err = rt.exclusive(ctx, run)
+	} else {
+		err = run(ctx)
 	}
-	rt.log.Info("pppoe reconnect", "interface", iface, "unit", unit)
-	return true, "redialing " + iface, nil
+	return
 }
 
 // Apply renders and supervises the resolved sessions and remembers them for Reconnect/State. The caller resolves the
@@ -201,6 +225,10 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 			continue
 		}
 		// Derive the state filenames from the renderer's fixed slot/product paths (IPv4 and IPv6 hooks, PD prefix).
+		if err := rt.renderer.StopIPv6(ctx, oldSession.HostIf); err != nil {
+			rt.mu.Unlock()
+			return err
+		}
 		for _, suffix := range []string{".state", ".state6", ".pd", ".ipv6.pid"} {
 			if err := os.Remove(filepath.Join(rt.stateDir, oldSession.HostIf+suffix)); err != nil && !os.IsNotExist(err) {
 				rt.mu.Unlock()
@@ -312,7 +340,7 @@ func (rt *PppoeRuntime) State(iface string, failCount uint32, lastErr string) (*
 	if !ok {
 		return &ngfwv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}, nil
 	}
-	return rt.renderer.ReadState(s.HostIf, failCount, lastErr)
+	return rt.renderer.ReadSessionState(s.HostIf, failCount, lastErr, s.IPv6Enabled())
 }
 
 // Renderer exposes the pppd renderer (RPC state; tests).

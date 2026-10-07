@@ -112,7 +112,7 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 // observe reads a session's hook state (IPv4 ip-up/ip-down and, when IPv6 is on, ipv6-up/ipv6-down) and returns
 // the mirror it implies and whether the session is up (either NCP).
 func (rt *PppoeRuntime) observe(s pppoe.Session) (desc.Mirror, bool, error) {
-	st, err := rt.renderer.ReadState(s.HostIf, 0, "")
+	st, err := rt.renderer.ReadSessionState(s.HostIf, 0, "", s.IPv6Enabled())
 	if err != nil {
 		return desc.Mirror{}, false, err
 	}

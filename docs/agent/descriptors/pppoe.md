@@ -1,5 +1,12 @@
 # pppoe descriptors (DF-6, WBS D6.6)
 
+Client limitation: address/route mirroring does not provide PPPoE encapsulation for
+VPP forwarding. IPv4 and IPv6 LAN transit through this client remain unsupported.
+With the product PPPoE plugin loaded, discovery also conflicts with linux-cp's
+EtherType registration; the plugin's global server-side CP setter is not a
+per-client routing solution. Diagnostic plugin-disabled runs are not product acceptance.
+Existing globals-owner, namespace and route-table refusals remain enforced.
+
 Package `apps/agent/internal/descriptors/pppoe`. Messages only from `apps/agent/binapi/pppoe`. Shared rules: [df6.md](df6.md).
 
 | Object type | Descriptor / key | Create / Delete | Retrieve | Update | Dependencies |

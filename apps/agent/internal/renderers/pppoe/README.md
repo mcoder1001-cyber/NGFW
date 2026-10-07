@@ -7,6 +7,11 @@ so a client must run in Linux. The parent interface is mirrored into Linux by a 
 PPPoE discovery on that tap; the agent mirrors the ISP-assigned address and default route into VPP's FIB and
 clamps the forwarded TCP MSS on the WAN.
 
+The client data path is incomplete: the product plugin set conflicts with linux-cp
+discovery delivery, and mirrored addresses/routes do not encapsulate forwarded packets
+into PPPoE. Both IPv4 and IPv6 LAN transit remain unsupported. A hook reporting `up`
+proves negotiated state only; plugin-disabled diagnostic runs do not prove product dial-up.
+
 ## What this package renders (pure `Render(sessions)`)
 
 Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (password from its
@@ -19,6 +24,7 @@ Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (p
 | `/etc/ppp/ip-up.d/ngfw-<hostif>`, `/etc/ppp/ip-down.d/ngfw-<hostif>` | 0755 | hook pppd runs on link up/down; writes `<StateDir>/<hostif>.state` for the state reader |
 | `/etc/ppp/ipv6-up.d/ngfw-<hostif>`, `/etc/ppp/ipv6-down.d/ngfw-<hostif>` | 0755 | only with IPv6 on: kernel SLAAC on the PPP link (`accept_ra=2`, `autoconf=1`, `accept_ra_defrtr` = default route), re-adds the link-local to send an RS, keeps `<StateDir>/<hostif>.state6` current (global addresses, RA default router, PD prefix) from a refresher that lives while pppd and the link do; down stops it first |
 | `/etc/ppp/ngfw-dhcpcd-<hostif>.conf`, `/etc/ppp/ngfw-dhcp6-<hostif>` | 0644 / 0755 | only with `dhcpv6`: `dhcpcd` (dhcpcd-base) config — `ipv6only`, `noipv6rs` (the kernel does RA), `ia_na 1`, `ia_pd 2` — and its event script, which records a validated delegated prefix in `<hostif>.pd` |
+| `/etc/ppp/ngfw-ipv6-<hostif>` | 0755 | fixed Python3 lifecycle helper, used by IPv6 hooks and DHCP events |
 | `/etc/systemd/system/ngfw-pppoe-<hostif>.service` | 0644 | one unit per session, `ExecStart=pppd call ngfw-<hostif> … ipparam ngfw-<hostif>`, `Restart=on-failure` |
 
 Every user-controlled string goes through `ident`/`quoted` in the templates; `Session.validate` rejects a
@@ -40,10 +46,25 @@ up is `failed`. `ReadIPv6(hostIf)` parses `<hostif>.state6` (values are validate
 link-local or global router, a /16–/64 delegated prefix); `ReadState` puts its summary
 (`"2001:db8::5/64, delegated 2001:db8:100::/56"`) in the `ipv6` field and reports an IPv6-only session as `up`.
 A session with IPv6 on must have MTU ≥ 1280. `failCount`/`lastError` come from the agent's pppd supervisor, not the hook.
+The runtime uses `ReadSessionState` with the configured IPv6 mode, so stale IPv6
+files cannot mark an IPv6-disabled session up. IPv4 down clears IPCP addresses and
+DNS even when IPv6 remains up. Each refresher records its generation, process start
+time and command identity. Stop verifies these identities and uses pinned Linux
+pidfds, bounded TERM/KILL and exit verification for the refresher and direct DHCPv6
+child before deleting handles or replacing hooks. Zero, legacy bare and foreign
+PIDs fail closed without signals. Existing Python3 and packaged dhcpcd-base are
+required; unavailable pidfd support refuses IPv6 operations without a privilege fallback.
+Persistent per-session action/publication lock files must not be unlinked while
+writers may exist. Publication and generation revocation share one lock; delayed
+collection and DHCP events cannot overwrite a revoked generation. Natural pppd/link
+loss records down; prerequisite/client failures return nonzero and expose fixed
+non-secret errors in session status when state storage is writable. State-write
+failure itself returns nonzero. These controls do not prove live dhcpcd privsep
+descendant behavior or the unsupported product discovery/transit path.
 
 ## Not in this package (agent side, `F-pppoe-client-host`)
 
 Starting/stopping the units, tracking pppd exits for `failCount`/`lastError`, mirroring the negotiated
 address/route into VPP, and the MSS clamp are the agent's Apply on the box — they need `/dev/ppp` and VPP, so
-they are proven on the lab host (topology test against an accel-ppp/rp-pppoe server: connect, traffic through
-NAT, server restart → reconnect within holdoff, wrong password → clear error).
+live product verification remains owed. Diagnostic topology evidence covers negotiation
+and mirroring only; traffic through NAT remains blocked by the missing client data path.

@@ -23,6 +23,12 @@ const maxStateFile = 64 << 10
 // ReadIPv6) fills the ipv6 field and makes an IPv6-only session "up". fail and lastErr come from the
 // agent's supervisor (pppd exit tracking), not the hook, so they are passed in.
 func (r *Renderer) ReadState(hostIf string, failCount uint32, lastErr string) (*ngfwv1.PppoeSessionState, error) {
+	return r.ReadSessionState(hostIf, failCount, lastErr, true)
+}
+
+// ReadSessionState reads only the negotiated families enabled for the session.
+// An old IPv6 hook file must not resurrect a session configured with IPv6 off.
+func (r *Renderer) ReadSessionState(hostIf string, failCount uint32, lastErr string, ipv6 bool) (*ngfwv1.PppoeSessionState, error) {
 	st := &ngfwv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}
 	b, err := os.ReadFile(filepath.Join(r.paths.StateDir, hostIf+".state")) //nolint:gosec // StateDir is a fixed product path
 	if err != nil && !os.IsNotExist(err) {
@@ -57,15 +63,23 @@ func (r *Renderer) ReadState(hostIf string, failCount uint32, lastErr string) (*
 	}
 	sort.Strings(dns)
 	st.Dns = dns
+	if st.Phase != "up" {
+		// ip-down carries the previous IPCP values. IPv6CP may remain up,
+		// but those IPv4 values have already been withdrawn by pppd.
+		st.LocalIpv4, st.PeerIpv4, st.Dns = "", "", nil
+	}
 	if v := kv["at"]; v != "" && st.Phase == "up" {
 		if ts, err := time.Parse(time.RFC3339, v); err == nil {
 			st.Since = timestamppb.New(ts)
 		}
 	}
 	// IPv6 runs its own NCP (IPv6CP): an IPv6-only session is up too, and its addresses/prefix are reported.
-	v6, err := r.ReadIPv6(hostIf)
-	if err != nil {
-		return nil, err
+	var v6 IPv6State
+	if ipv6 {
+		v6, err = r.ReadIPv6(hostIf)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if v6.Up {
 		st.Ipv6 = v6.Summary()
@@ -74,6 +88,12 @@ func (r *Renderer) ReadState(hostIf string, failCount uint32, lastErr string) (*
 			if !v6.Since.IsZero() {
 				st.Since = timestamppb.New(v6.Since)
 			}
+		}
+	}
+	if v6.Failure != "" {
+		st.LastError = "PPPoE IPv6: " + v6.Failure
+		if st.Phase != "up" {
+			st.Phase = "failed"
 		}
 	}
 	if failCount > 0 && st.Phase != "up" {

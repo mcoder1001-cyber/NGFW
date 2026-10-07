@@ -94,3 +94,19 @@ PASS: 4 destination-key assertions preserve unrelated-query collapse state and d
 
 Supplemental R1 verdict: APPROVE for the reviewed working diff, subject to a published developer checkpoint and manager-run regression/gate results.
 Supplemental R2 verdict: APPROVE; no security-sensitive changes.
+
+## Final published-source supplementary review
+
+Exact published source reviewed read-only: `f6d8315b6f290aa32de488820308b213d7e13657`. Inspected this commit and the intervening product delta from `885e2c190` with `git show`/`git diff`; no product edits or additional merges were performed.
+
+- The previously approved destination key correction is present in committed AppShell source.
+- `App.test.tsx` is identical to origin/main; existing collapsed-group preference coverage remains unchanged.
+- New Policy alias, exact current Objects destination, shared routing-object/Persian RTL, and query-only cross-group regressions moved intact into `nav/navigation-structure.test.tsx`.
+- Persian RTL test now stores the actual `ngfw.ui.settings` language before mounting. That matches `loadSettings` and UiSettingsProvider initialization; assertions retain the Persian heading, RTL direction and selected route-map tab. afterEach clears storage/session and restores English to avoid cross-test settings leakage.
+- No security-sensitive product changes or new secret material are introduced by this followup.
+
+Manager reports the full web suite passed: 109 files, 644 tests. This reviewer did not independently rerun that suite and does not relabel the manager's result as independent evidence. Prior independent nav assertions and security check evidence remain above; complete quick-gate success is a separate manager prerequisite.
+
+Final R1 verdict on `f6d8315b6f290aa32de488820308b213d7e13657`: APPROVE, zero outstanding findings.
+Final R2 verdict on `f6d8315b6f290aa32de488820308b213d7e13657`: APPROVE, zero findings.
+No merge authorized; explicit owner approval remains required.

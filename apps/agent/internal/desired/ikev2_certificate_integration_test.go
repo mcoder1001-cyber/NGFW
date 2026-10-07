@@ -20,6 +20,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+
+	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // This exercises the production sealed-cache/projection/scheduler connection,
@@ -138,7 +140,7 @@ func TestIKEv2NativeCertificateProduction(t *testing.T) {
 	show := func() string {
 		t.Helper()
 		//nolint:gosec // Fixed CLI arguments; sockets refer only to disposable VPP.
-		out, err := exec.CommandContext(ctx, "vppctl", "-s", "/run/vpp/cli.sock", "show ikev2 profile").CombinedOutput()
+		out, err := exec.CommandContext(ctx, "vppctl", "-s", vpptest.CLISocket(), "show ikev2 profile").CombinedOutput()
 		if err != nil {
 			t.Fatal(err, string(out))
 		}
@@ -172,7 +174,7 @@ func TestIKEv2NativeCertificateProduction(t *testing.T) {
 	// Restart must recover from persisted desired state and sealed secrets,
 	// without sending another Apply request.
 	//nolint:gosec // Fixed CLI command targets only the disposable fixture's owned profile.
-	if out, err := exec.CommandContext(ctx, "vppctl", "-s", "/run/vpp/cli.sock", "ikev2 profile del w8-site").CombinedOutput(); err != nil {
+	if out, err := exec.CommandContext(ctx, "vppctl", "-s", vpptest.CLISocket(), "ikev2 profile del w8-site").CombinedOutput(); err != nil {
 		t.Fatal(err, string(out))
 	}
 	files, err := filepath.Glob(filepath.Join(work, "state", "native-ikev2-w8", "*.pem"))

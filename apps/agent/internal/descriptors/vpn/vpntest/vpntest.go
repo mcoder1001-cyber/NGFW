@@ -23,7 +23,8 @@ import (
 	"ngfw/agent/internal/vpp/vpptest"
 )
 
-// APISocket is the host VPP binary API socket (docs/lab/host-ngfw-a.md).
+// APISocket is the shared VPP's binary API socket (docs/lab/host-ngfw-a.md); Connect uses
+// vpptest.APISocket(), which follows NGFW_VPP_API_SOCKET (a slot VPP, tools/lab vpp up).
 const APISocket = "/run/vpp/api.sock"
 
 // Client adapts govpp's *core.Connection to vpp.Client for tests.
@@ -40,9 +41,9 @@ func Connect(t testing.TB) vpp.Client {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
-	conn, err := govpp.Connect(APISocket)
+	conn, err := govpp.Connect(vpptest.APISocket())
 	if err != nil {
-		t.Fatalf("govpp connect %s: %v", APISocket, err)
+		t.Fatalf("govpp connect %s: %v", vpptest.APISocket(), err)
 	}
 	t.Cleanup(conn.Disconnect)
 	return Client{conn}

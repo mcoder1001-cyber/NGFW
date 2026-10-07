@@ -64,10 +64,7 @@ func Connect(t testing.TB) *Conn {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
-	sock := os.Getenv("NGFW_VPP_API_SOCKET")
-	if sock == "" {
-		sock = APISocket
-	}
+	sock := vpptest.APISocket()
 	conn, err := govpp.Connect(sock)
 	if err != nil {
 		t.Fatalf("govpp connect %s: %v", sock, err)

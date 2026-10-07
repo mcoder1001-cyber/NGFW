@@ -152,7 +152,7 @@ func HostNICs(src HostSources) ([]HostNIC, []string, error) {
 		if err != nil {
 			continue // no PCI device symlink: not a physical NIC (veth, tap, bond, loopback)
 		}
-		pci, err := PCIAddress(filepath.Base(target))
+		pci, err := netdevPCI(target)
 		if err != nil {
 			continue // a non-PCI device (virtio-mmio, USB): not a DPDK candidate — not enumerated
 		}
@@ -190,6 +190,23 @@ func HostNICs(src HostSources) ([]HostNIC, []string, error) {
 	}
 	slices.SortFunc(out, func(a, b HostNIC) int { return strings.Compare(a.PCI, b.PCI) })
 	return out, notes, nil
+}
+
+// netdevPCI accepts direct PCI devices and the one-level virtio-pci/virtioN layout.
+// Never walk arbitrary ancestors: a USB NIC must not become the PCI USB controller
+// above it, and virtio-mmio devices have no PCI function.
+func netdevPCI(device string) (string, error) {
+	if pci, err := PCIAddress(filepath.Base(device)); err == nil {
+		return pci, nil
+	}
+	id, virtio := strings.CutPrefix(filepath.Base(device), "virtio")
+	if virtio && id != "" {
+		n, err := strconv.ParseUint(id, 10, 32)
+		if err == nil && strconv.FormatUint(n, 10) == id {
+			return PCIAddress(filepath.Base(filepath.Dir(device)))
+		}
+	}
+	return "", fmt.Errorf("not a PCI network device: %s", filepath.Base(device))
 }
 
 // readNICDriver returns the kernel driver bound to a NIC (/sys/class/net/<if>/device/driver), "" if none.
@@ -494,7 +511,7 @@ func ifacePCIs(at func(string) string, ifname string, depth int) (pcis []string,
 	}
 	dir := at(filepath.Join("sys/class/net", ifname))
 	if target, err := os.Readlink(filepath.Join(dir, "device")); err == nil {
-		pci, err := PCIAddress(filepath.Base(target))
+		pci, err := netdevPCI(target)
 		if err != nil {
 			return nil, false, err
 		}

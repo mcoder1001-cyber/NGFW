@@ -209,3 +209,54 @@ func TestHostNICsToleratesUnreadableTCPTable(t *testing.T) {
 		t.Fatalf("expected a permission-denied note, got %v", notes)
 	}
 }
+
+func TestHostNICsVirtioPCIManagementAndData(t *testing.T) {
+	root := ngfwALikeRoot(t)
+	for _, device := range []struct{ name, pci, child string }{
+		{"ens192", "0000:0b:00.0", "virtio0"},
+		{"ens161", "0000:04:00.0", "virtio1"},
+	} {
+		dir := filepath.Join(root, "sys/class/net", device.name)
+		link := filepath.Join(dir, "device")
+		target, err := os.Readlink(link)
+		if err != nil {
+			t.Fatal(err)
+		}
+		child := filepath.Join(dir, target, device.child)
+		if err := os.MkdirAll(child, 0o750); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink("../../../../bus/virtio/drivers/virtio_net", filepath.Join(child, "driver")); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Remove(link); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(target, device.child), link); err != nil {
+			t.Fatal(err)
+		}
+	}
+	nics, _, err := HostNICs(HostSources{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(nics) != 7 {
+		t.Fatalf("want 7 physical NICs including virtio-pci, got %+v", nics)
+	}
+	for _, nic := range nics {
+		if nic.Netdev == "ens192" && (nic.PCI != "0000:0b:00.0" || !nic.IsManagement) {
+			t.Fatalf("management virtio-pci: %+v", nic)
+		}
+		if nic.Netdev == "ens161" && (nic.PCI != "0000:04:00.0" || nic.IsManagement) {
+			t.Fatalf("data virtio-pci: %+v", nic)
+		}
+	}
+}
+
+func TestNetdevPCIRejectsNonPCIDevices(t *testing.T) {
+	for _, path := range []string{"../../../devices/platform/virtio-mmio/virtio0", "../../../devices/pci0000:00/0000:00:01.0/usb1/1-1", "../../../devices/pci0000:00/0000:00:01.0/virtioinvalid", "../../../devices/pci0000:00/0000:00:01.0/virtio01"} {
+		if pci, err := netdevPCI(path); err == nil {
+			t.Errorf("accepted non-PCI layout %s as %s", path, pci)
+		}
+	}
+}

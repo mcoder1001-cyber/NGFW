@@ -4139,7 +4139,7 @@ tasks:
     owner: Codex completion campaign 2026-10-04
     started: '2026-10-01T20:33:27.076593+00:00'
     finished: '2026-10-04'
-    notes: 'Completed reviewed source on 2026-10-04. Seven-step bilingual staged setup, password and confirmed commit; PPPoE disabled pending real client; live rig/browser acceptance deferred.'
+    notes: 'Completed reviewed source on 2026-10-04. Seven-step bilingual staged setup, password and confirmed commit; PPPoE disabled pending real client; live rig/browser acceptance deferred. | 2026-10-07 new product bugfix PR198 merged e74c33ebd2c083ef45d733b8d4494a78eb67edd9: eligible live physical WAN/LAN discovery and translated selection guard, independent reviews and local/hosted quick PASS. Existing merged task state retained; actual appliance acceptance remains deferred.'
     worker_status: source complete, focused verification and independent APPROVE; remote b496d619b49a5f6f57c377e68c5022c4dcf66a4b; acceptance boundaries documented
   - id: F-rule-expiry
     title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'

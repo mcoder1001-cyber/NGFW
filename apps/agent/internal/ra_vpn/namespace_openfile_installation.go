@@ -206,6 +206,9 @@ func (p *numericPublisherInstallationProof) Verify(ctx context.Context) error {
 		return ErrBoundary
 	}
 	for _, artifact := range p.files {
+		if ctx.Err() != nil {
+			return ErrBoundary
+		}
 		var held unix.Stat_t
 		if artifact.file == nil || unix.Fstat(int(artifact.file.Fd()), &held) != nil || !sameNumericPublisherArtifact(held, artifact.stat) {
 			return ErrBoundary
@@ -221,6 +224,11 @@ func (p *numericPublisherInstallationProof) Verify(ctx context.Context) error {
 		}
 	}
 	if ctx.Err() != nil || !(bootid.Reader{}).ForPID(os.Getpid()).Equal(p.source) {
+		return ErrBoundary
+	}
+	// The final proc read is synchronous and may outlast the preceding context
+	// sample. Never report a successful proof after caller cancellation.
+	if ctx.Err() != nil {
 		return ErrBoundary
 	}
 	return nil

@@ -1,14 +1,24 @@
-# Interfaces discovery WIP
+# Interfaces discovery — developer handoff
 
 Branch: codex/interfaces-discovery-20261007
-Last published local/remote contract SHA: c450739df14ee4abd97f021b71d5a8104222fa00. UI checkpoint published a3d2322f7284f49ff5d58173a18c6fbd4e824f6f; final reviewed source published4292daa826c5904aaf851f22f9f586f9c6112c57. Report-only reviews and deferred appliance/browser acceptance published9f9793e99ae59ed2ae67cb208731bb8bb8759e0c.
-Owned files: see task envelope.
-Completed: additive read-only host inventory controller response/client, graceful separate inventory/dataplane availability plus source diagnostics, EN/FA automatic host/management labels and read-only drawer, collision regression and user documentation.
-Actual tests: pnpm gen PASS (13 tasks), API state suite PASS (17 tests), API and web typechecks PASS, targeted new EN/FA/unknown-link UI3 PASS, Go vppstartup PASS. Independent R1–R7 APPROVE reviewed source4292daa82. Obsolete quick cancelled after reviewed source changes; short-path complete quick session20037 failed web lint on source9075; preserve interfaces-discovery-quick-shorttmp.log and CI directory20261007-100722-2600221. Source lint fix checkpoint follows this commit; fresh complete quick next.. Duplicate full target run stopped to reduce host load; complete gate will certify all final tests.
-Remaining: final complete unchanged quick gate, hosted quick gate, manager integration. Real appliance/browser acceptance deferred explicitly.
-Current failure: complete short-path gate detected i18next/no-literal-string for literal JSX status="up"; fixed with typed HOST_LINK_UP constant and targeted web lint PASS (check-logical-css455 files OK). Fresh complete quick must rerun. Prior source regression native-vmxnet3 outer DPDK guard was fixed and final API17 PASS. Long-TMPDIR full gates intentionally cancelled before completion; short path avoids observed Unix socket length failure in separate wizard task. Complete gate still unverified.
-Exact next command: TMPDIR=/ift GOMAXPROCS=4 tools/ci.sh quick --base origin/main
+Worktree: /root/ngfw-wt/interfaces-discovery-20261007
+Status: code complete, independently approved, complete unchanged local quick PASS; awaiting manager integration. Developer becomes read-only after publishing this report.
 
-Acceptance limit: automatic host inventory covers physical PCI NICs; Linux-only virtual devices require future agent inventory extension. Existing VPP virtual interfaces continue to show. No live host changes performed.
+Published local/remote checkpoint validated by gate: f4fde915037dfe6607fb939df4ec5125b9d0cf74. Product source: e9e94d17e56470caf7526a61c59d915cc2c0866e. This final report is a documentation-only child of that verified checkpoint; its exact published SHA is available from this branch HEAD and remote branch ref. Owned files and task scope: task envelope. PR199 attached by manager.
 
-Actual final source gate result before retry: TS35/35 PASS; full web106 files/622 tests PASS, InterfacesPage15/15 PASS. Go phase failed existing TestResyncCorrelatesCompletionAndReportsMisses at0.36s with zero observations; evidence CI directory20261007-101441-2618508/10-agent.log. No product patch or threshold weakening. Retry full unchanged gate with TMPDIR=/ift GOMAXPROCS=4 per manager baseline timing-flake evidence.
+Completed: additive read-only physical host inventory state/client, automatic host/management rows and safe inventory-only drawer, PCI/exact-name/unique physical-engine correlation, candidate marker precedence, separate observation diagnostics, conservative carrier status, virtio-pci child discovery/management resolver, EN/FA strings, documentation, regression tests and D240. No remaining developer code.
+
+Actual verification:
+- pnpm gen PASS (13 tasks), API state17/17 PASS, new UI selection3/3 PASS.
+- Complete web106 files/622 tests PASS, InterfacesPage15/15 PASS.
+- Independent R1–R7 APPROVE, independent tiny lint fix APPROVE.
+- TMPDIR=/ift GOMAXPROCS=4 tools/ci.sh quick --base origin/main: **CI GATE PASSED**, exit0, wall13m59s; TS35/35, agent full lint/race/build, CLI lint/race/build, all Go test modules in unit mode, all fake-host deployment shards PASS.
+- Final log: /root/ngfw-wt/logs/interfaces-discovery-quick-gomax4.log
+- Detailed logs: /root/ngfw-wt/logs/ci/interfaces-discovery-20261007-20261007-102928-2714377
+
+Failure history retained: initial native vmxnet3 outer DPDK guard fixed (API regression now passes); JSX status="up" lint fixed with typed constant (full lint passes); long TMPDIR runs intentionally cancelled before possible Unix path failure; final unconstrained Go reproduced existing HA50ms scheduling miss (0.36s, zero observations) in CI directory20261007-101441-2618508. No timing threshold or gate weakened; complete GOMAXPROCS4 retry passed all original checks.
+
+Remaining: manager remote archive/D112 final integration atop actual post-wizard main, any combined consumer adjustment review, exact combined-tree local+hosted quick, merge/post-merge CI and board updates. Real appliance/browser hardware inventory and screenshots NOT EXECUTED, explicitly deferred under owner instruction. Scope remains agent-returned one-per-PCI-function physical inventory plus existing VPP virtual interfaces; Linux-only virtual/USB discovery and ambiguous virtio identity remain outside this task.
+
+Exact next recovery command: git ls-remote origin refs/heads/codex/interfaces-discovery-20261007
+Manager owns the integration worktree; do not resume product edits or push this original branch after handoff unless manager explicitly reassigns it.

@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { RootConfig, SetupInputSchema, type SetupInput } from '@ngfw/schema';
+import { RootConfig, SetupInputSchema, parentInterfaceName, type SetupInput } from '@ngfw/schema';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router';
 import { api, authMiddleware } from '../../../api';
 import { call } from '../../../api-problem';
 import { useAuth, usePermissions } from '../../../auth/AuthProvider';
+import { fetchInterfacesState, ifaceKeys } from '../../interfaces/queries';
 import { useUiSettings } from '../../../settings/UiSettings';
 
 const STEP_KEYS = ['time', 'password', 'identity', 'wan', 'lan', 'defaults', 'summary'];
@@ -76,6 +77,33 @@ export function SetupWizardPage() {
     rerun: false,
   });
   const [step, setStep] = useState(0);
+  const interfaces = useQuery({
+    queryKey: ifaceKeys.state,
+    queryFn: ({ signal }) => fetchInterfacesState(signal),
+    enabled: step === 3 || step === 4,
+  });
+  const interfaceNames = [
+    ...new Set([
+      ...Object.entries(running.data?.doc.interfaces ?? {})
+        .filter(([name, config]) => name !== 'local0' && config.physical?.owner !== 'host')
+        .map(([name]) => name),
+      ...(interfaces.data?.items ?? [])
+        .filter(
+          (item) =>
+            item.kind === 'interface' &&
+            item.state !== null &&
+            (running.data?.doc.interfaces[item.name] !== undefined ||
+              (!item.state.managed &&
+                item.state.vrf === 'default' &&
+                ['dpdk', 'vmxnet3', 'virtio'].includes(item.state.type))) &&
+            item.name !== 'local0' &&
+            item.physical?.owner !== 'host' &&
+            parentInterfaceName.safeParse(item.name).success &&
+            running.data?.doc.interfaces[item.name]?.physical?.owner !== 'host',
+        )
+        .map((item) => item.name),
+    ]),
+  ].sort();
   const [current, setCurrent] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -120,6 +148,8 @@ export function SetupWizardPage() {
         ['lan', 'lanAddress', 'dhcp'],
         [],
       ];
+      if ((step === 3 || step === 4) && !values[step === 3 ? 'wan' : 'lan'])
+        throw new Error(t('selectInterface'));
       for (const key of fields[step] ?? []) SetupInputSchema.shape[key].parse(values[key]);
       if (step === 1 && (password.length < 12 || current === '' || current === password))
         throw new Error(t('passwordPolicy'));
@@ -253,12 +283,26 @@ export function SetupWizardPage() {
           value={values[step === 3 ? KEY.wan : KEY.lan] ?? ''}
           onChange={(e) => set(step === 3 ? KEY.wan : KEY.lan, e.target.value)}
         >
-          {Object.keys(running.data.doc.interfaces).map((name) => (
-            <MenuItem key={name} value={name}>
-              {name}
-            </MenuItem>
-          ))}
+          {interfaceNames
+            .filter((name) => name !== values[step === 3 ? 'lan' : 'wan'])
+            .map((name) => (
+              <MenuItem key={name} value={name}>
+                {name}
+              </MenuItem>
+            ))}
         </TextField>
+      )}
+      {(step === 3 || step === 4) && interfaces.isFetching && (
+        <Typography>{t('loadingInterfaces')}</Typography>
+      )}
+      {(step === 3 || step === 4) && interfaces.isError && (
+        <Alert severity="warning">
+          {t('interfacesFailed')}
+          <Button onClick={() => void interfaces.refetch()}>{t('retryInterfaces')}</Button>
+        </Alert>
+      )}
+      {(step === 3 || step === 4) && !interfaces.isFetching && interfaceNames.length === 0 && (
+        <Alert severity="warning">{t('noInterfaces')}</Alert>
       )}
       {step === 3 && (
         <>

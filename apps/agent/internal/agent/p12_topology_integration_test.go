@@ -854,8 +854,10 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if addrs := e.tapCmd("-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
 		t.Errorf("tap %s-l0 lost its address with the BGP rollback: %s", prefix, addrs)
 	}
-	running, _ := e.ngfwRenderer().Show(context.Background(), frr.ShowRunningConfig)
-	if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
+	running, showErr := e.ngfwRenderer().Show(context.Background(), frr.ShowRunningConfig)
+	if showErr != nil {
+		t.Errorf("FRR running-config read after rollback failed: %v", showErr)
+	} else if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
 		t.Errorf("FRR still runs BGP/policy after rollback:\n%s", running)
 	}
 	e.evidence("after rollback")

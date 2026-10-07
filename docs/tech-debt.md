@@ -188,3 +188,19 @@ Items above that are not ticked keep their text; this table gives each one an ow
 ## Native certificate route recovery flake — 2026-10-05
 
 - TEST-traffic-B: one native certificate packet run lost both immediate post-route-restore pings after successful rekey; the unchanged fixture passed independently before that failure and passed the final complete composed rerun (727775ae7). Classified FLAKY under TESTER-PROMPT; no timing assertion, guard or product code weakened. Investigate route/SA convergence after restore before choosing a bounded fixture wait or product fix. Owner: Codex manager. Due: 2026-10-12. Preserved failure excerpt and log SHA: [traffic evidence](status/tasks/TEST-traffic-B-evidence/certificate-flaky-provenance.json).
+
+## HA resync unit-test scheduling flake — 2026-10-07
+
+Owner: HA state-sync maintainers / integration manager. Review by: 2026-10-08.
+During the wizard quick gate, `TestResyncCorrelatesCompletionAndReportsMisses`
+in `apps/agent/internal/actions/ha-state-sync/action_test.go` missed its 50 ms
+observation deadline under parallel Go package load (observations zero; test took
+0.18 s). The isolated official race test passed, then the whole HA package passed
+10 race-test repetitions. Hosted quick passed the same product tree.
+
+Keep this failure visible in the wizard independent T1 report. Follow up with a
+deterministic observer synchronization/clock fixture while preserving missing-peer
+and timeout assertions. For the current complete gate, bound test-process
+scheduling with `GOMAXPROCS=4`; no tests, checks, race instrumentation or deadlines
+are removed or changed. This does not authorize data-plane performance tuning.
+A successful unchanged whole quick gate is still required before merge.

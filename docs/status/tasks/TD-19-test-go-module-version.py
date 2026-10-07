@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -15,6 +16,8 @@ class ModuleVersion(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory);repo=root/'repo';(repo/'scripts').mkdir(parents=True)
             target=repo/'scripts/20-install-build.sh';shutil.copyfile(ROOT/'scripts/20-install-build.sh',target)
+            for helper in ('install-common.sh', 'install-recording-stub.py'):
+                shutil.copyfile(ROOT/'scripts'/helper,repo/'scripts'/helper)
             parent=repo/'apps/agent';parent.mkdir(parents=True)
             if module is not None:
                 path=parent/'go.mod'
@@ -26,6 +29,12 @@ class ModuleVersion(unittest.TestCase):
                 stub=fake/name;stub.write_text('#!/bin/sh\nprintf "%s\\n" "$0" >> "$CALL_LOG"\nexit 91\n');stub.chmod(0o755)
             if reader_failure:
                 stub=fake/'awk';stub.write_text('#!/bin/sh\necho "fixture module read failed" >&2\nexit 2\n');stub.chmod(0o755)
+                # Trusted absolute readers intentionally ignore PATH. Fault-inject
+                # this one subprocess in the disposable entry, retaining the
+                # actual AWK program, failure branch and canonical module input.
+                source=target.read_text();needle='GO_VER=$(/usr/bin/awk '
+                self.assertEqual(source.count(needle),1)
+                target.write_text(source.replace(needle,'GO_VER=$('+shlex.quote(str(stub))+' ',1))
             cwd=root/'elsewhere';(cwd/'apps/agent').mkdir(parents=True)
             (cwd/'apps/agent/go.mod').write_text('go 9.99.9\n')
             env=dict(os.environ,PATH=f'{fake}:/usr/bin:/bin',CALL_LOG=str(log),GO_MODULE=str(cwd/'apps/agent/go.mod'),GO_VER='9.99.9')

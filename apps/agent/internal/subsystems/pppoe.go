@@ -312,7 +312,7 @@ func (rt *PppoeRuntime) State(iface string, failCount uint32, lastErr string) (*
 	if !ok {
 		return &ngfwv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}, nil
 	}
-	return rt.renderer.ReadState(s.HostIf, failCount, lastErr)
+	return rt.renderer.ReadSessionState(s.HostIf, failCount, lastErr, s.IPv6Enabled())
 }
 
 // Renderer exposes the pppd renderer (RPC state; tests).

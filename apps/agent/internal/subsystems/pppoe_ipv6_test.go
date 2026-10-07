@@ -147,6 +147,16 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 		}
 	}
 	check("unchanged", dualAddrs, dualRoutes)
+	// IPCP can go down independently while IPv6CP remains up. The down hook
+	// still carries the old addresses, which must no longer be mirrored.
+	cmd4 := exec.Command(filepath.Join(paths.IPDownDir, "ngfw-tap0")) //nolint:gosec // rendered private test hook
+	cmd4.Env = append(os.Environ(), "PPP_IPPARAM=ngfw-tap0", "IPLOCAL=198.51.100.5", "IPREMOTE=198.51.100.1")
+	if out, err := cmd4.CombinedOutput(); err != nil {
+		t.Fatal(err, string(out))
+	}
+	check("ipv4 down, ipv6 up", dualAddrs[1:], dualRoutes[1:])
+	ipup()
+	check("ipv4 restored", dualAddrs, dualRoutes)
 	// renumbering (new SLAAC prefix): the old address goes, the new one comes
 	state6("phase=up\nppp_iface=ppp0\naddr=2001:db8:9::100/128\naddr=2001:db8:a:0:1:2:3:4/64\ngw=fe80::9\n")
 	check("renumbered", []string{"198.51.100.5/32", "2001:db8:9::100/128", "2001:db8:a:0:1:2:3:4/128"}, dualRoutes)
@@ -188,5 +198,27 @@ func TestPppoeIPv6IgnoredWhenOff(t *testing.T) {
 	m := mirrorFor(s, nil, v6)
 	if len(m.LocalIPv6) != 0 || m.PeerIPv6 != "" {
 		t.Fatal(m)
+	}
+}
+
+func TestPppoeIPv6StaleStateIgnoredWhenOff(t *testing.T) {
+	rt, _, _ := newTestRuntime(t)
+	paths := pppoe.PathsUnder(t.TempDir())
+	rt.renderer = pppoe.New(pppoe.WithPaths(paths))
+	if err := os.MkdirAll(paths.StateDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "tap0.state6"), []byte("phase=up\naddr=2001:db8::1/64\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := pppoe.Session{Iface: "wan0", HostIf: "tap0", IPv6: "off"}
+	rt.applied = map[string]pppoe.Session{s.Iface: s}
+	_, up, err := rt.observe(s)
+	if err != nil || up {
+		t.Fatalf("disabled IPv6 observation up=%v error=%v", up, err)
+	}
+	st, err := rt.State(s.Iface, 0, "")
+	if err != nil || st.GetPhase() != "down" || st.GetIpv6() != "" {
+		t.Fatalf("disabled IPv6 state=%v error=%v", st, err)
 	}
 }

@@ -1,6 +1,7 @@
 package pppoe
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +13,87 @@ import (
 
 	"ngfw/agent/internal/renderers"
 )
+
+// The refresh entry point reads the loopback's IPv6 state but never writes its
+// sysctls or addresses. All hook state and processes belong to this test.
+func TestIPv6RefresherLifetime(t *testing.T) {
+	for _, event := range []string{"pppd-exit", "withdrawal", "replacement"} {
+		t.Run(event, func(t *testing.T) {
+			s := minimalSession()
+			s.IPv6 = "slaac"
+			_, paths := renderTo(t, s)
+			hook := filepath.Join(paths.IPv6UpDir, "ngfw-"+s.HostIf)
+			pidf := filepath.Join(paths.StateDir, s.HostIf+".ipv6.pid")
+			state := filepath.Join(paths.StateDir, s.HostIf+".state6")
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			pppd := exec.CommandContext(ctx, "sleep", "30")
+			if err := pppd.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = pppd.Process.Kill(); _ = pppd.Wait() }()
+			refresh := exec.CommandContext(ctx, hook, "refresh") //nolint:gosec // rendered private test hook
+			refresh.Env = []string{"PPP_IPPARAM=" + s.Remotename(), "PPP_IFACE=lo", "PPPD_PID=" + strconv.Itoa(pppd.Process.Pid)}
+			if err := refresh.Start(); err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = refresh.Process.Kill() }()
+			if err := os.WriteFile(pidf, []byte(strconv.Itoa(refresh.Process.Pid)+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			for {
+				if b, _ := os.ReadFile(state); strings.HasPrefix(string(b), "phase=up\n") { //nolint:gosec // private state
+					break
+				}
+				if ctx.Err() != nil {
+					t.Fatal("refresher never recorded up")
+				}
+				time.Sleep(20 * time.Millisecond)
+			}
+			switch event {
+			case "pppd-exit":
+				_ = pppd.Process.Kill()
+				_ = pppd.Wait()
+			case "withdrawal":
+				if err := os.Remove(hook); err != nil {
+					t.Fatal(err)
+				}
+			case "replacement":
+				if err := os.WriteFile(pidf, []byte("replacement\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(state, []byte("replacement-state\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := refresh.Wait(); err != nil {
+				t.Fatalf("refresher failed to exit: %v", err)
+			}
+			b, err := os.ReadFile(state) //nolint:gosec // private state
+			switch event {
+			case "pppd-exit":
+				if err != nil || !strings.HasPrefix(string(b), "phase=down\n") {
+					t.Fatalf("pppd exit left state=%q error=%v", b, err)
+				}
+			case "withdrawal":
+				if !os.IsNotExist(err) {
+					t.Fatalf("withdrawal left state=%q error=%v", b, err)
+				}
+			case "replacement":
+				if err != nil || string(b) != "replacement-state\n" {
+					t.Fatalf("old refresher changed replacement state=%q error=%v", b, err)
+				}
+				if b, _ := os.ReadFile(pidf); string(b) != "replacement\n" { //nolint:gosec // private PID file
+					t.Fatalf("old refresher removed replacement PID: %q", b)
+				}
+				return
+			}
+			if _, err := os.Stat(pidf); !os.IsNotExist(err) {
+				t.Fatal("exited refresher left PID file")
+			}
+		})
+	}
+}
 
 // IPv6 selects which files a session gets: off → none and `noipv6`; slaac → `+ipv6` and the ipv6-up/down hooks;
 // dhcpv6 → additionally the dhcpcd configuration (IA_NA + IA_PD, kernel RA) and its event script.

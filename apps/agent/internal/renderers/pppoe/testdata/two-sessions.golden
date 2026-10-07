@@ -318,11 +318,36 @@ write() {
   if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
 }
 
+# Run the refresher as its own shell so $$ is the PID recorded by the parent.
+# Losing that PID file (configuration edit) revokes this instance's ownership.
+c="/proc/sys/net/ipv6/conf/$iface"
+if [ "${1:-}" = refresh ]; then
+  n=0
+  while [ "$(cat "$pidf" 2>/dev/null)" != "$$" ]; do
+    [ "$n" -lt 50 ] || exit 0
+    sleep 0.1
+    n=$((n + 1))
+  done
+  owns() { [ "$(cat "$pidf" 2>/dev/null)" = "$$" ]; }
+  cleanup() {
+    trap - EXIT TERM INT
+    if owns; then
+      if [ -e "$self" ]; then write down; else rm -f "$f"; fi
+      rm -f "$pidf" "$pdf"
+    fi
+  }
+  trap cleanup EXIT
+  trap 'exit 0' TERM INT
+  while owns && [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+    write up
+    sleep 2
+  done
+  exit 0
+fi
 stop
 rm -f "$pdf"
 # Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
 # when the session carries the default route.
-c="/proc/sys/net/ipv6/conf/$iface"
 echo 2 > "$c/accept_ra"
 echo 1 > "$c/autoconf"
 echo 1 > "$c/accept_ra_defrtr"
@@ -333,17 +358,7 @@ if [ -n "$ll" ] && [ -n "$peer" ]; then
   ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
 fi
 write up
-(
-  trap 'exit 0' TERM INT
-  # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
-  # along, when any is gone. A withdrawn session also loses its IPv6 state.
-  while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
-    write up
-    sleep 2
-  done
-  rm -f "$pidf"
-  [ -e "$self" ] || rm -f "$f" "$pdf"
-) </dev/null >/dev/null 2>&1 &
+"$self" refresh </dev/null >/dev/null 2>&1 &
 echo "$!" > "$pidf"
 exit 0
 
@@ -403,11 +418,39 @@ write() {
   if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
 }
 
+# Run the refresher as its own shell so $$ is the PID recorded by the parent.
+# Losing that PID file (configuration edit) revokes this instance's ownership.
+c="/proc/sys/net/ipv6/conf/$iface"
+if [ "${1:-}" = refresh ]; then
+  n=0
+  while [ "$(cat "$pidf" 2>/dev/null)" != "$$" ]; do
+    [ "$n" -lt 50 ] || exit 0
+    sleep 0.1
+    n=$((n + 1))
+  done
+  owns() { [ "$(cat "$pidf" 2>/dev/null)" = "$$" ]; }
+  cleanup() {
+    trap - EXIT TERM INT
+    if [ -n "${d:-}" ]; then kill "$d" 2>/dev/null || true; wait "$d" 2>/dev/null || true; fi
+    if owns; then
+      if [ -e "$self" ]; then write down; else rm -f "$f"; fi
+      rm -f "$pidf" "$pdf"
+    fi
+  }
+  trap cleanup EXIT
+  trap 'exit 0' TERM INT
+  /usr/sbin/dhcpcd -B -f "/srv/etc/ppp/ngfw-dhcpcd-wan2.conf" "$iface" </dev/null >/dev/null 2>&1 &
+  d=$!
+  while owns && [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+    write up
+    sleep 2
+  done
+  exit 0
+fi
 stop
 rm -f "$pdf"
 # Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
 # when the session carries the default route.
-c="/proc/sys/net/ipv6/conf/$iface"
 echo 2 > "$c/accept_ra"
 echo 1 > "$c/autoconf"
 echo 0 > "$c/accept_ra_defrtr"
@@ -418,21 +461,7 @@ if [ -n "$ll" ] && [ -n "$peer" ]; then
   ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
 fi
 write up
-(
-  trap 'exit 0' TERM INT
-  /usr/sbin/dhcpcd -B -f "/srv/etc/ppp/ngfw-dhcpcd-wan2.conf" "$iface" </dev/null >/dev/null 2>&1 &
-  d=$!
-  trap 'kill "$d" 2>/dev/null; exit 0' TERM INT
-  # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
-  # along, when any is gone. A withdrawn session also loses its IPv6 state.
-  while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
-    write up
-    sleep 2
-  done
-  rm -f "$pidf"
-  [ -e "$self" ] || rm -f "$f" "$pdf"
-  kill "$d" 2>/dev/null
-) </dev/null >/dev/null 2>&1 &
+"$self" refresh </dev/null >/dev/null 2>&1 &
 echo "$!" > "$pidf"
 exit 0
 

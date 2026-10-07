@@ -1,0 +1,9 @@
+# P12 corrective integration WIP
+
+Branch/worktree/ownership in envelope. Initial recovered source `ff3c0c3f3f84df32ba0d6421f86bb5888b361d4a`, current main0ec397. Local/remote corrective checkpoint pending tests/publication; no success claimed yet.
+
+Independent current-source review `6b5cce35cc4305df98f03f36cf25c636bc6cb0b1` BLOCK C1: failed ListRoutes/kernel-route reads and failed client creation could pass cleanup. Corrective test-only patch rejects read error/missing response/residue, checks client creation/close, still reads kernel inventory on client failure and defers agent Stop so all nonfatal errors preserve cleanup. New unit controls exercise empty-success vs empty-error, cancellation, missing response and remaining routes. No production code, deadline, route counts or private-namespace boundary change.
+
+Actual validation: initial focused race `TestP12CleanupInventoryRequiresSuccessfulRead` PASS1.228s; final rerun adds inconsistent zero-total/nonempty-row refusal. Scoped vet/static validation follows. Original developer8 Python controls/focused Go tests passed only before this corrective patch, not final proof. Original live mgmtd30s failure remains unresolved historical failure. Source/model cleanup cannot establish real current native acceptance. Jason read-only prerequisite checks found existing binaries/capabilities; no live run authorized yet.
+
+Remaining: final focused tests/static checks, publish coherent fix, independent C1 verification, current hosted complete quick, safe owned original live proof if approved and prerequisite checks pass, or explicit lab-only deferred ledger. Keep P12 board parked until live criteria actually pass. Next command: final Go race/vet and executable diff-check, commit/push this branch, send frozen corrective SHA to reviewer.

@@ -24,3 +24,5 @@ Independent applicable R1–R7 reviews APPROVE source4292daa826c5904aaf851f22f9f
 Out of scope: Linux-only virtual and USB NIC discovery; new RPC/protocol shape; NIC claiming, host/engine ownership mutation, live host configuration changes. Host inventory contract exposes one row per PCI function, not one row per multiport Linux netdev. Ambiguous virtio engine/hardware identities remain separate until exact name or configured PCI identifies them. No live acceptance performed.
 
 Real target appliance/browser screenshots and physical inventory verification NOT EXECUTED; explicitly deferred in docs/status/DEFERRED-ACCEPTANCE.md under owner instruction.
+
+Actual gate failure and fix: short-TMPDIR complete quick reported i18next/no-literal-string on new JSX status="up". Replaced that JSX literal with typed HOST_LINK_UP constant; targeted web lint PASS, logical CSS455 files OK. Complete quick must rerun on this corrected source.

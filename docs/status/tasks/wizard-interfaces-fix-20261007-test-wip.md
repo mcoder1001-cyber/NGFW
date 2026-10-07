@@ -1,7 +1,8 @@
 Branch: codex/wizard-test-20261007
-Remote source checkpoint: d06a83cae successfully published.
+Remote checkpoint: 366159179 successfully published; source correction d06a83cae.
 Owned: independent regression tests and tester evidence/envelope/WIP docs only.
-Completed: API targeted 13/13 PASS; web 7/7 PASS. Real TypeScript fixture TS2352 reproduced twice and developer repair verified API typecheck exit 0. Replacement complete quick passed all 35 Turbo tasks (API 716, web 623 tests), then failed existing Go socket/path tests under long root-backed TMPDIR. Long-path unbound failure reproduced; short TMPDIR affected unbound/chrony/snmpd packages and own agent lifecycle test PASS. No product Go change.
-Remaining: short-TMPDIR subsystems targeted run; full unchanged gate with manager-approved TMPDIR=/wzt; final report/checkpoint.
-Current failure: environment path length caused Unix socket bind invalid argument; original /tmp inode exhaustion requires short root-backed TMPDIR. Live T2/T4 no slot/provisioned stack, not run.
-Exact next command: tail -n 20 /tmp/wizard-test-short-tmp-go.log
+Completed: targeted API13/web7 PASS, corrected API typecheck PASS; complete Turbo35 tasks PASS; short /wzt all affected socket packages PASS; prior short full gate one HA50ms scheduling occurrence did not reproduce isolated or10pkg race repetitions. Manager accepted FLAKY and published tech-debt30eb90243.
+Actual final gate: TMPDIR=/wzt GOMAXPROCS=4 tools/ci.sh --base origin/main running unchanged; full Turbo35, agent lint/race/test/build, CLI lint/race/test/build, all27 test modules unit-mode PASS. Current last stage deploy/vpp shellcheck PASS and fake-host harness shards progressing. Log /tmp/wizard-test-bounded-final-quick.log; detailed /root/ngfw-wt/logs/ci/wizard-test-20261007-20261007-101458-2619331.
+Remaining: exact final CI GATE PASSED, final report-only commit/push.
+Current failure: no current failure; past real TS2352 repaired, long TMP socket failures corrected environmentally, HA timing accepted as flake with tech debt. Live T2/T4 not provisioned and not run.
+Exact next command: tail -n 30 /tmp/wizard-test-bounded-final-quick.log

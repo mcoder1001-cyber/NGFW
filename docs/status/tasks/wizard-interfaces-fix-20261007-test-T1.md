@@ -136,4 +136,26 @@ ok  	ngfw/agent/internal/subsystems	35.463s
 ok  	ngfw/agent/internal/agent	1.560s
 ```
 
-Subystems targeted command still completing. Next full gate will use manager-approved `/wzt` (same length as baseline `/tmp`) with every original check intact. No product Go patch or test-policy change. Final verdict remains pending mandatory complete gate.
+Subsystems package subsequently passed: `ok ngfw/agent/internal/subsystems 35.463s`. Next full gate will use manager-approved `/wzt` (same length as baseline `/tmp`) with every original check intact. No product Go patch or test-policy change. Final verdict remains pending mandatory complete gate.
+
+## Short-TMPDIR full gate and HA timing observation
+
+`TMPDIR=/wzt tools/ci.sh --base origin/main` passed all 35 Turbo tasks and resolved every earlier Unix socket/path failure. It then observed one existing HA timing failure:
+
+```text
+--- FAIL: TestResyncCorrelatesCompletionAndReportsMisses (0.18s)
+    action_test.go:41: observation={CompletedAt:0001-01-01 00:00:00 +0000 UTC MissedCount:0 Completed:0}
+FAIL
+FAIL ngfw/agent/internal/actions/ha-state-sync 0.318s
+```
+
+This test fixture configures a 50 ms runtime deadline. It did not reproduce in isolated official race mode nor ten package repetitions; classify this observed occurrence as FLAKY, not silently omit it:
+
+```text
+ok  	ngfw/agent/internal/actions/ha-state-sync	1.126s
+ok  	ngfw/agent/internal/actions/ha-state-sync	1.771s
+```
+
+Commands: `TMPDIR=/wzt go test -race -count=1 ./internal/actions/ha-state-sync -run '^TestResyncCorrelatesCompletionAndReportsMisses$'`; `TMPDIR=/wzt go test -race -count=10 ./internal/actions/ha-state-sync`. Manager notified to record tech debt and arrange final gate. Full failed log: `/root/ngfw-wt/logs/ci/wizard-test-20261007-20261007-100757-2601696`. No Go sources changed. Final mandatory gate verdict still pending.
+
+Manager accepted HA timing occurrence as FLAKY after isolated and ten-package race repetition passed, and committed `docs/tech-debt.md` row in `30eb90243` (HA maintainers/integration manager; review 2026-10-08). Manager authorized test-process scheduling `GOMAXPROCS=4` with short root-backed `TMPDIR=/wzt`; every check remains unchanged. Complete final gate is currently through all TS tasks, agent/CLI lint-race-test-build and 27 test-module unit checks, with final fake-host harness in progress.

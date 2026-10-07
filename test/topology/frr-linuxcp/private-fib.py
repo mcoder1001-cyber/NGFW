@@ -82,6 +82,11 @@ def retain_namespaces(current, retained, handles, observed):
     processes[os.getpid()] = process_identity(os.getpid())
     forbidden = {os.environ['NGFW_P12_HOST_NETNS'], os.readlink('/proc/1/ns/net')}
     for pid, identity in processes.items():
+        def require_producer_identity():
+            if (identity is None or identity[1] != current
+                    or process_identity(pid) != identity):
+                raise RuntimeError('P12 namespace inventory process identity changed')
+        require_producer_identity()
         directory = Path(f'/proc/{pid}/root/run/netns')
         try:
             entries = list(directory.iterdir())
@@ -89,7 +94,9 @@ def retain_namespaces(current, retained, handles, observed):
             if process_identity(pid) != identity:
                 continue
             raise
+        require_producer_identity()
         for handle in entries:
+            require_producer_identity()
             if handle.name not in {'ns-w14-lan', 'ns-w14-wan', 'ns-w14-frr'}:
                 raise RuntimeError('unexpected P12 namespace handle: ' + handle.name)
             try:
@@ -108,6 +115,7 @@ def retain_namespaces(current, retained, handles, observed):
                 namespace = 'net:[' + str(os.fstat(fd).st_ino) + ']'
                 if namespace in forbidden or namespace == current:
                     raise RuntimeError('P12 peer handle points to shared host')
+                require_producer_identity()
                 observed.add(handle.name)
                 if namespace not in retained:
                     retained[namespace] = fd
@@ -256,6 +264,47 @@ def self_test():
                         retain_namespaces('private', retained, handles, observed)
                 self.assertGreaterEqual(close.call_count, 1)
             return retained, observed
+
+        def test_inventory_producer_identity_must_remain_pinned(self):
+            for phase in ['before inventory', 'during inventory', 'after open']:
+                for replacement in [('new-start', 'private'), ('start', 'foreign')]:
+                    with self.subTest(phase=phase, replacement=replacement):
+                        state = {'changed': phase == 'before inventory'}
+                        directory = MagicMock()
+                        handle = SimpleNamespace(name='ns-w14-lan')
+                        def identity(pid):
+                            if pid == 999:
+                                return ('self-start', 'private')
+                            return replacement if state['changed'] else ('start', 'private')
+                        def entries():
+                            if phase == 'during inventory':
+                                state['changed'] = True
+                            return [handle]
+                        def namespace_kind(fd, command):
+                            if phase == 'after open':
+                                state['changed'] = True
+                            return 0x40000000
+                        directory.iterdir.side_effect = entries
+                        retained, observed = {}, set()
+                        with ExitStack() as mocks:
+                            mocks.enter_context(patch(__name__ + '.members', return_value={123: ('start', 'private')}))
+                            mocks.enter_context(patch(__name__ + '.process_identity', side_effect=identity))
+                            mocks.enter_context(patch(__name__ + '.Path', return_value=directory))
+                            mocks.enter_context(patch.dict(os.environ, NGFW_P12_HOST_NETNS='net:[1]'))
+                            mocks.enter_context(patch.object(os, 'getpid', return_value=999))
+                            mocks.enter_context(patch.object(os, 'readlink', return_value='net:[1]'))
+                            opened = mocks.enter_context(patch.object(os, 'open', return_value=42))
+                            mocks.enter_context(patch.object(os, 'fstat', return_value=SimpleNamespace(st_ino=777)))
+                            mocks.enter_context(patch.object(fcntl, 'ioctl', side_effect=namespace_kind))
+                            closed = mocks.enter_context(patch.object(os, 'close'))
+                            with ExitStack() as handles, self.assertRaisesRegex(RuntimeError, 'identity changed'):
+                                retain_namespaces('private', retained, handles, observed)
+                            self.assertEqual(retained, {})
+                            self.assertEqual(observed, set())
+                            if phase == 'after open':
+                                closed.assert_called_once_with(42)
+                            else:
+                                opened.assert_not_called()
 
         def test_actual_nsfs_retained_and_deduplicated(self):
             retained, observed = self.exercise(repeat=True)

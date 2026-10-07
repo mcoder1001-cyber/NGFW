@@ -1,0 +1,4 @@
+{"case": "isolated-python-startup", "script": "20-install-build.sh", "returncode": 0, "external_marker": false}
+{"case": "isolated-python-startup", "script": "40-install-lab.sh", "returncode": 0, "external_marker": false}
+{"case": "isolated-python-startup", "script": "00-add-repos.sh", "returncode": 0, "external_marker": false}
+{"case": "nonexecutable-os-release-shell-text", "returncode": 1, "external_marker": false, "effect_calls": []}

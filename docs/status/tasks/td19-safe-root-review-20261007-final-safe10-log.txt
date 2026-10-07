@@ -1,0 +1,15 @@
+test_alternate_root_without_stubs_refused (__main__.SafeRoot.test_alternate_root_without_stubs_refused) ... ok
+test_bad_go_archive_refused_before_tar (__main__.SafeRoot.test_bad_go_archive_refused_before_tar) ... ok
+test_build_success_is_rooted_and_pnpm_pinned (__main__.SafeRoot.test_build_success_is_rooted_and_pnpm_pinned) ... ok
+test_dry_run_has_no_effect_commands_or_writes (__main__.SafeRoot.test_dry_run_has_no_effect_commands_or_writes) ... ok
+test_lab_lock_missing_or_floating_refused_before_apt (__main__.SafeRoot.test_lab_lock_missing_or_floating_refused_before_apt) ... ok
+test_lab_success_uses_hashed_snapshot_in_fake_venv (__main__.SafeRoot.test_lab_success_uses_hashed_snapshot_in_fake_venv) ... ok
+test_repo_changed_pins_refused_even_in_dry_run (__main__.SafeRoot.test_repo_changed_pins_refused_even_in_dry_run) ... ok
+test_shadowed_effect_command_refused (__main__.SafeRoot.test_shadowed_effect_command_refused) ... ok
+test_symlink_escape_refused_before_commands (__main__.SafeRoot.test_symlink_escape_refused_before_commands) ... ok
+test_unknown_regular_command_and_rooted_executables_refused (__main__.SafeRoot.test_unknown_regular_command_and_rooted_executables_refused) ... ok
+
+----------------------------------------------------------------------
+Ran 10 tests in 11.083s
+
+OK

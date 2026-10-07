@@ -1,0 +1,2 @@
+{"case": "existing-go-shadow", "returncode": 1, "external_marker": false, "calls": []}
+{"case": "regular-nonrecording-command", "returncode": 1, "external_marker": false}

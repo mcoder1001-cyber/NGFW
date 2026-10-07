@@ -35,3 +35,11 @@ No node_modules exist in this reviewer worktree, so no runtime test pass is clai
 R6 verdict: APPROVE.
 R7 verdict: APPROVE, one optional ancillary-doc wording followup.
 Combined review verdict: APPROVE for the inspected product/documentation checkpoint; runtime gate and evidence prerequisites are independent and still pending.
+
+## Supplemental review
+
+Inspected developer commit `9fa82a6d211cf1daab534f91a3582b26671ab501` read-only: current navigation destination now governs group reopening, preserving intentional collapse across unrelated query changes while reopening when a tab destination changes. The Persian test mounts the page before changing language inside `act`, avoiding a global-language timing assumption. Both changes preserve the requested appearance and configuration behavior. R1 independently owns runtime validation.
+
+Also inspected the pending developer-worktree lint-only change to `RoutingObjectsPage.tsx`: existing `bgp/model` namespace constant replaces the identical literal `bgp`, and constants replace JSX literal translation/domain keys. `NS` is already defined as `bgp`. All values, translation lookup, editors and routes remain identical. No additional finding. This inspection is of the actual uncommitted diff, not a publication claim.
+
+Supplemental R6/R7 verdict: APPROVE; complete quick gate and owner merge authorization remain required separately.

@@ -33,6 +33,8 @@ environment (all optional):
   NGFW_CI_LOCK=<file>             lab lock for `full` (default /run/lock/ngfw-lab.lock)
   NGFW_CI_LOCK_TIMEOUT=<seconds>  how long `full` waits for the exclusive lab lock (the barrier before rig up; default 1800)
   NGFW_CI_SLOT=<n>                slot used by `full` (default 12 = the CI slot, docs/lab/shared-host-rules.md)
+  NGFW_CI_SLOT_VPP=1              `full` runs rig + suites on the CI slot's own VPP (tools/lab vpp up <slot>, LAB-vpp-per-slot)
+                                  instead of the shared one; default off until the suites are validated on a slot VPP
   NGFW_CI_REQUIRE_INTEGRATION=1   make `full` fail (instead of warn) when tools/lab is not available
   NGFW_CI_HEAD_REF=<ref>          the branch tip for --base (default HEAD; the pre-merge-commit hook passes the ref being merged)
   NGFW_CI_TASK_CONCURRENCY=<n>    optional Turbo task concurrency (1..64); unset preserves Turbo's default
@@ -88,7 +90,7 @@ else B='' G='' R='' Y='' D='' N=''; fi
 
 LOG_DIR=""; CUR_LOG=""; STEP_N=0; STEP_NAME=""; STEP_T0=0; MERGE_BASE=""
 declare -a SUMMARY=() WARNINGS=()
-INTEGRATION_STATUS=""; RIG_UP=0; RIG_PREFIX=""
+INTEGRATION_STATUS=""; RIG_UP=0; RIG_PREFIX=""; SLOT_VPP_UP=0
 
 say()  { printf '%s\n' "$*"; }
 note() { printf '%s%s%s\n' "$D" "$*" "$N"; }
@@ -133,6 +135,10 @@ cleanup() {
   if [[ $RIG_UP == 1 ]]; then
     warn "cleanup: bringing the rig down for prefix $RIG_PREFIX after a failure"
     tools/lab rig down "$RIG_PREFIX" >>"$LOG_DIR/99-rig-down-cleanup.log" 2>&1 || true
+  fi
+  if [[ $SLOT_VPP_UP == 1 ]]; then
+    warn "cleanup: stopping the CI slot's own VPP (tools/lab vpp down $CI_SLOT) after a failure"
+    tools/lab vpp down "$CI_SLOT" >>"$LOG_DIR/99-vpp-down-cleanup.log" 2>&1 || true
   fi
 }
 trap cleanup EXIT
@@ -402,6 +408,7 @@ do_forbidden() {
 # formats the same records). Prose is exempt (docs/, prompts/, wbs/, plan/, *.md, comment-only lines), as are the generated
 # bindings (apps/agent/binapi). No escape hatch: the ban holds until VPP carries the fix.
 do_slot_check() {  # D-156: 30 developer slots - every per-slot port/table/db is unique and matches `tools/lab env`
+  python3 tools/board.py --check || fail "task board validation failed"
   step "slot resource scheme (1..32, no collisions)"
   CUR_LOG=""
   local out; out=$(python3 tools/slot-check.py 2>&1) || fail "slot scheme collision (docs/lab/shared-host-rules.md §1):\n$(sed 's/^/    /' <<<"$out")"
@@ -518,7 +525,9 @@ slot_env() {
       line=${line#export }; line=${line%%#*}
       [[ $line =~ ^[[:space:]]*(NGFW_[A-Z0-9_]+)=(.*)$ ]] || continue
       k=${BASH_REMATCH[1]}; v=${BASH_REMATCH[2]}; v=${v%%[[:space:]]}; v=${v#[\"\']}; v=${v%[\"\']}
-      [[ $v =~ ^[A-Za-z0-9_./:@-]*$ ]] || { warn "tools/lab env: ignoring unsafe value for $k"; continue; }
+      # NGFW_VPPCTL is the one export with a space: exactly `vppctl -s <socket path>` (LAB-vpp-per-slot)
+      if [[ $k == NGFW_VPPCTL && $v =~ ^vppctl\ -s\ /[A-Za-z0-9_./-]+$ ]]; then :
+      elif [[ ! $v =~ ^[A-Za-z0-9_./:@-]*$ ]]; then warn "tools/lab env: ignoring unsafe value for $k"; continue; fi
       export "$k=$v"; got[$k]=1
     done < <(tools/lab env "$n" 2>/dev/null || true)
   fi
@@ -547,8 +556,8 @@ v19_preflight() {
     run v19-preflight-build go -C apps/agent build -o "$V19_PREFLIGHT_BIN" ./cmd/ngfw-vpp-preflight \
       || fail "could not build apps/agent/cmd/ngfw-vpp-preflight"
   fi
-  say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the shared VPP"
-  run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" || rc=$?
+  say "V19 pre-flight ($when): interfaces + classify/SPD bindings on the VPP at ${NGFW_VPP_API_SOCKET:-/run/vpp/api.sock}"
+  run "v19-preflight-$when" "$V19_PREFLIGHT_BIN" -socket "${NGFW_VPP_API_SOCKET:-/run/vpp/api.sock}" || rc=$?
   # every FAIL line (the interface the gate message refers to), then the tail of the rest (TD-3 re-review L5)
   { grep '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /'
   { grep -v '^FAIL' "$CUR_LOG" || true; } | sed 's/^/  /' | tail -n 20
@@ -605,6 +614,14 @@ do_integration() {
   flock -s 9 || fail "could not convert the lab lock to shared"
   export NGFW_LAB_LOCK_HELD=1 NGFW_CI_FULL=1
   say "lab lock converted to shared for rig up → suites → rig down"
+  if [[ ${NGFW_CI_SLOT_VPP:-0} == 1 ]]; then
+    # LAB-vpp-per-slot: the CI slot's own small VPP; tools/lab env then names its sockets, so the rig, the V19 pre-flight and
+    # every suite that follows NGFW_VPP_*_SOCKET run there (tests that still dial /run/vpp directly keep using the shared VPP)
+    run vpp-up tools/lab vpp up "$CI_SLOT" || fail "tools/lab vpp up $CI_SLOT failed"
+    SLOT_VPP_UP=1
+    slot_env "$CI_SLOT"
+    [[ $NGFW_VPP_API_SOCKET == /run/ngfw-test/w$CI_SLOT/vpp/api.sock ]] || fail "tools/lab env $CI_SLOT does not name the slot VPP after vpp up"
+  fi
   if run lab-status tools/lab status; then sed 's/^/  /' "$CUR_LOG" | tail -n 15; else warn "tools/lab status failed (non-fatal)"; fi
   local mod
   while IFS= read -r mod; do
@@ -633,9 +650,13 @@ do_integration() {
     RIG_UP=0
   fi
   ((v19_after == 0)) || fail "$(v19_message after-tests "$v19_after")"
+  if [[ $SLOT_VPP_UP == 1 ]]; then
+    run vpp-down tools/lab vpp down "$CI_SLOT" || fail "tools/lab vpp down $CI_SLOT failed — see 'tools/lab vpp status $CI_SLOT'"
+    SLOT_VPP_UP=0
+  fi
   unset NGFW_LAB_LOCK_HELD NGFW_CI_FULL
   exec 9>&-
-  INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX): rig up → Go + TS suites with NGFW_INTEGRATION=1 → rig down"
+  INTEGRATION_STATUS="ran on slot $CI_SLOT (prefix $RIG_PREFIX$([[ ${NGFW_CI_SLOT_VPP:-0} == 1 ]] && echo ", own VPP")): rig up → Go + TS suites with NGFW_INTEGRATION=1 → rig down"
 }
 
 # deploy/vpp host scripts (TD-6 L1, D-103): shellcheck of deploy/vpp/*.sh + the apply-startup.sh fake-host harness

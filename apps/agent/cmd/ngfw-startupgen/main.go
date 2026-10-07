@@ -15,6 +15,11 @@
 //	--plugin-dir, --online-cpus, --isolcpus, --numa-nodes, --hugepages-mb
 //	                     host fact overrides; --no-host reads nothing from /sys and /proc, so every
 //	                     fact must then come from a flag (the management NIC via --mgmt-pci)
+//	--lab-slot <N>       render test slot N's own small VPP (LAB-vpp-per-slot, `tools/lab vpp up`):
+//	                     runtime dir, log, CLI/API/stats sockets under <lab-root>/w<N>/vpp, api-segment
+//	                     prefix w<N>, 512M main heap and buffers on 4k pages; the document must disable
+//	                     dpdk_plugin.so and the rendering is re-checked fail-closed (never /run/vpp)
+//	--lab-root <dir>     runtime root for --lab-slot (default /run/ngfw-test)
 //
 // Exit status: 0 = ok / no difference, 1 = --diff found differences, 2 = invalid input or error.
 // It never restarts VPP and never touches the running data plane; applying the file is the
@@ -52,6 +57,8 @@ type options struct {
 	controlPorts            string
 	onlineCPUs, isolcpus    string
 	numaNodes, hugepagesMB  int
+	labSlot                 int
+	labRoot                 string
 	input                   string
 	sysRoot                 string // "" = "/", tests point it at a fake tree
 }
@@ -74,6 +81,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	fs.StringVar(&o.isolcpus, "isolcpus", "", "isolated CPU `list` (default: /sys/devices/system/cpu/isolated)")
 	fs.IntVar(&o.numaNodes, "numa-nodes", 0, "number of NUMA nodes (default: /sys/devices/system/node)")
 	fs.IntVar(&o.hugepagesMB, "hugepages-mb", 0, "hugepage memory reserved by the host in MiB (default: /proc/meminfo)")
+	fs.IntVar(&o.labSlot, "lab-slot", 0, "render test `slot` N's own lab VPP (paths under --lab-root/w<N>/vpp) instead of the appliance file")
+	fs.StringVar(&o.labRoot, "lab-root", vppstartup.DefaultLabRoot, "runtime root `dir` of --lab-slot instances")
 	fs.Usage = func() {
 		_, _ = fmt.Fprintln(stderr, "usage: ngfw-startupgen [flags] [document.json|-]")
 		fs.PrintDefaults()
@@ -103,6 +112,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	}
 	visited := map[string]bool{}
 	fs.Visit(func(f *flag.Flag) { visited[f.Name] = true })
+	if visited["lab-root"] && !visited["lab-slot"] {
+		_, _ = fmt.Fprintln(stderr, "ngfw-startupgen: --lab-root needs --lab-slot")
+		return 2
+	}
 
 	code, err := generate(o, visited, stdin, stdout, stderr)
 	if err != nil {
@@ -120,13 +133,30 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 	if err := protojson.Unmarshal(raw, doc); err != nil {
 		return 2, fmt.Errorf("document is not a JSON object: %w", err)
 	}
+	settings := vppstartup.DefaultSettings()
+	if visited["lab-slot"] {
+		if settings, err = vppstartup.LabSlotSettings(o.labRoot, o.labSlot); err != nil {
+			return 2, err
+		}
+	}
 	host, err := hostFacts(o, visited)
 	if err != nil {
 		return 2, err
 	}
-	out, model, err := vppstartup.Generate(doc, host, vppstartup.DefaultSettings())
+	out, model, err := vppstartup.Generate(doc, host, settings)
 	if err != nil {
 		return 2, err
+	}
+	if visited["lab-slot"] {
+		// a lab instance never probes PCI devices, and nothing in its file may name /run/vpp
+		if model.DPDK {
+			return 2, fmt.Errorf("--lab-slot %d: the document must disable dpdk_plugin.so (dataplane.plugins.switches)", o.labSlot)
+		}
+		if err := vppstartup.CheckLabRendering(out, settings); err != nil {
+			return 2, err
+		}
+		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: lab slot %d instance in %s (api %s, cli %s, stats %s, api-segment prefix %s)\n",
+			o.labSlot, settings.RuntimeDir, settings.APISocket, settings.CLISocket, settings.StatsSocket, settings.APIPrefix)
 	}
 	_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
 	for _, n := range host.ManagementNotes {

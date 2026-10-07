@@ -1,0 +1,6 @@
+75434a3e5b3d827c76d030c9592b95f15fcb8e5b
++ working tree fix
+=== RUN   TestClientResolvesPasswordFromRealSecretChannel
+--- PASS: TestClientResolvesPasswordFromRealSecretChannel (0.10s)
+PASS
+ok  	ngfw/agent/internal/descriptors/pppoe	1.271s

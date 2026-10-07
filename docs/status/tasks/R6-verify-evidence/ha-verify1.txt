@@ -1,0 +1,16 @@
+
+ RUN  v3.2.7 /dev/shm/r6-verify-ha/apps/web
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx
+🌐 i18next is made possible by our own product, Locize — consider powering your project with managed localization (AI, CDN, integrations): https://locize.com 💙
+
+stdout | ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx > reproduces active cached ownership and enabled resync after failed refresh
+VERIFY: failed refresh suppresses active cache and disables Resync
+
+ ✓ ../../docs/status/tasks/R6-verify-evidence/ha-probe.test.tsx (1 test) 640ms
+   ✓ reproduces active cached ownership and enabled resync after failed refresh  636ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  10:22:12
+   Duration  6.64s (transform 1.35s, setup 693ms, collect 3.10s, tests 640ms, environment 1.28s, prepare 243ms)

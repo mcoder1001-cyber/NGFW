@@ -66,8 +66,10 @@ exit "${VERIFY_FAILURE:-0}"
         with tempfile.TemporaryDirectory() as directory:
             root, entry, manifest, env = self.fixture(directory)
             (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))
-            env.update(NGFW_VPP_ARTIFACTS=str(root / 'artifacts'), VERIFY_FAILURE='17',
-                       NGFW_FRR_KEY_FINGERPRINTS='A' * 40, NGFW_NODESOURCE_KEY_FINGERPRINTS='B' * 40)
+            # D-238: unset overrides resolve to the built-in owner-authorized pins.
+            env.update(NGFW_VPP_ARTIFACTS=str(root / 'artifacts'), VERIFY_FAILURE='17')
+            env.pop('NGFW_FRR_KEY_FINGERPRINTS', None)
+            env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
             result = subprocess.run(['bash', str(entry)], env=env, capture_output=True)
             self.assertEqual(result.returncode, 17)
             self.assertTrue((root / 'verify-log').exists())

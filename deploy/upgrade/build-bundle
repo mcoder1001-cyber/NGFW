@@ -1,0 +1,104 @@
+#!/usr/bin/python3
+"""Build a signed update from an offline P14 chroot; never stores signing keys."""
+import argparse
+import hashlib
+import importlib.machinery
+import importlib.util
+import os
+from pathlib import Path
+import subprocess
+import tarfile
+import tempfile
+
+loader = importlib.machinery.SourceFileLoader('upgrade', str(Path(__file__).with_name('ngfw-upgrade')))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+u = importlib.util.module_from_spec(spec)
+loader.exec_module(u)
+p = argparse.ArgumentParser()
+p.add_argument('--root', type=Path, required=True)
+p.add_argument('--version', required=True)
+p.add_argument('--min-from-version', required=True)
+p.add_argument('--key', type=Path, required=True)
+p.add_argument('--vpp-manifest', type=Path, required=True)
+p.add_argument('--output', type=Path, required=True)
+a = p.parse_args()
+u.version(a.version)
+u.version(a.min_from_version)
+root = a.root.resolve()
+if root == Path('/') or not root.is_dir() or a.output.exists():
+    p.error('offline root and new output required')
+u.regular(a.key)
+key = a.key.resolve()
+if key.is_relative_to(root):
+    p.error("signing key must be outside offline root")
+key_identity = (key.stat().st_dev, key.stat().st_ino)
+# Reject aliases before opening output or creating any archive. No key bytes
+# may enter a bundle even when a publisher hardlinks its external key.
+for current, directories, files in os.walk(root, followlinks=False):
+    for name in files:
+        candidate = Path(current) / name
+        metadata = candidate.lstat()
+        if (metadata.st_dev, metadata.st_ino) == key_identity:
+            p.error("signing key inode is present inside offline root")
+if a.key.stat().st_mode & 0o077:
+    p.error('private key must have mode 0600 or stricter')
+u.regular(a.vpp_manifest)
+if not u.run('openssl', 'pkey', '-in', str(a.key), '-text', '-noout').startswith(b'ED25519 Private-Key:'):
+    p.error('Ed25519 private key required')
+if (root / 'usr/share/ngfw/vpp-manifest.json').read_bytes() != a.vpp_manifest.read_bytes():
+    p.error('embedded VPP manifest must match --vpp-manifest')
+with tempfile.TemporaryDirectory(prefix='ngfw-bundle-') as temporary:
+    work = Path(temporary)
+    with tarfile.open(work / 'rootfs.tar', 'w', dereference=False) as tf:
+        # Iterate explicitly: do not follow directory symlinks or copy shared data,
+        # proc/sys/dev/run state, machine identity, installed signing keys or backups.
+        excluded = ('data', 'var/lib/postgresql', 'var/lib/ngfw', 'var/log', 'proc', 'sys', 'dev', 'run', 'boot/efi', 'root', 'home')
+        def filt(info):
+            name = str(Path(info.name))
+            if any(name == x or name.startswith(x + '/') for x in excluded):
+                return None
+            if name.startswith('etc/ngfw/') and name != 'etc/ngfw/appliance':
+                return None
+            if name.startswith('etc/ssh/ssh_host_') or name.startswith('etc/ssl/private/'):
+                return None
+            if name in ('etc/machine-id', 'etc/hostname'):
+                return None
+            if info.islnk():
+                # Hardlinks would alias later configuration writes; export regular
+                # files individually by disabling inode deduplication below.
+                raise u.Refused('hardlinks must be exported as files')
+            if info.issym() and info.linkname.startswith('/'):
+                info.linkname = os.path.relpath(info.linkname.lstrip('/'), str(Path(name).parent))
+            return info
+        for current, directories, files in os.walk(root, followlinks=False):
+            directories.sort()
+            for name in sorted(directories + files):
+                child = Path(current) / name
+                relative = str(child.relative_to(root))
+                # Clear inode cache for EACH entry, including siblings beneath
+                # /usr: hardlinked files become independent regular members.
+                tf.inodes.clear()
+                tf.add(child, arcname=relative, recursive=False, filter=filt)
+            directories[:] = [name for name in directories
+                if not any(str((Path(current) / name).relative_to(root)) == x
+                           or str((Path(current) / name).relative_to(root)).startswith(x + '/') for x in excluded)]
+        # Boot targets are fixed regular filenames regardless of kernel version.
+        # They must be prepared by the image publisher, not resolved during stage.
+    u.unpack_root(work / 'rootfs.tar', work / 'unused')
+    subprocess.run(['zstd', '-q', '-T1', '-o', str(work / 'rootfs.tar.zst'), str(work / 'rootfs.tar')], check=True)
+    with open(work / 'rootfs.tar.zst', 'rb') as f:
+        digest = hashlib.file_digest(f, 'sha256').hexdigest()
+    with open(a.vpp_manifest, 'rb') as f:
+        vpp = hashlib.file_digest(f, 'sha256').hexdigest()
+    manifest = {'format': 1, 'version': a.version, 'min_from_version': a.min_from_version,
+                'sha256': {'rootfs.tar.zst': digest}, 'vpp_manifest_sha256': vpp,
+                'migration_policy': 'backward-compatible'}
+    (work / 'manifest.json').write_bytes(u.json_bytes(manifest))
+    subprocess.run(['openssl', 'pkeyutl', '-sign', '-inkey', str(a.key), '-rawin',
+                    '-in', str(work / 'manifest.json'), '-out', str(work / 'manifest.sig')], check=True)
+    # Publish only a complete bundle; callers move it under /data/updates.
+    with open(a.output, 'xb') as dest, tarfile.open(fileobj=dest, mode='w') as tf:
+        for name in ('manifest.json', 'manifest.sig', 'rootfs.tar.zst'):
+            tf.add(work / name, arcname=name)
+        dest.flush()
+        os.fsync(dest.fileno())

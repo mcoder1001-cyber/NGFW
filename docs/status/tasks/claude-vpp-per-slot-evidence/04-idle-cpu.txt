@@ -1,0 +1,14 @@
+## re-render without poll-sleep-usec: down + up 2026-10-06T10:35:18+00:00
+vpp down 20 (ngfw-vpp-w20 only — never vpp.service)
+  stopped ngfw-vpp-w20.service
+  removed /run/ngfw-test/w20/vpp
+vpp: down
+slot: 20
+vpp up 20 → ngfw-vpp-w20 (runtime /run/ngfw-test/w20/vpp, MemAvailable 14949 MiB, HugePages_Free 4020 untouched)
+  rendered /run/ngfw-test/w20/vpp/startup.conf (main-core 21; 42 lines; sha256 6abdeab6d34c)
+  ngfw-vpp-w20 answers on /run/ngfw-test/w20/vpp/cli.sock after 1.0s
+vpp: active
+1383558 root      20   0   16.7g 314556  70480 S   0.0   0.5   0:01.17 vpp_main
+1383558 root      20   0   16.7g 314556  70480 S   2.7   0.5   0:01.25 vpp_main
+1383558 root      20   0   16.7g 314556  70480 S   3.0   0.5   0:01.34 vpp_main
+0

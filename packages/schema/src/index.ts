@@ -84,6 +84,7 @@ export * from './domains/ext/srv6.js';
 // wave-BC: F-lisp
 export * from './domains/ext/lisp.js';
 // wave-BC: F-bfd-redistribution
+export { BfdProfileSchema } from "./domains/ext/bfd-redistribution.js";
 // wave-BC: F-mpls-ldp
 export * from './domains/ext/mpls-ldp.js';
 // wave-BC: F-igmp-mfib
@@ -132,3 +133,5 @@ export * from './secrets.js';
 export * from './domains/ext/notifications.js';
 
 export * from './setup.js';
+
+export { HaNatListenerSchema, HaNatFailoverSchema } from './domains/ext/ha-state-sync.js';

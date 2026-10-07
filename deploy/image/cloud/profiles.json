@@ -1,0 +1,6 @@
+{
+  "vm": {"datasources": ["NoCloud", "ConfigDrive", "None"], "modules": ["virtio_net", "vmxnet3", "hv_vmbus", "hv_netvsc", "hv_storvsc"]},
+  "aws": {"datasources": ["Ec2", "None"], "modules": ["ena", "nvme"]},
+  "azure": {"datasources": ["Azure", "None"], "modules": ["hv_vmbus", "hv_netvsc", "hv_storvsc"]},
+  "gcp": {"datasources": ["GCE", "None"], "modules": ["virtio_net", "virtio_scsi", "nvme"]}
+}

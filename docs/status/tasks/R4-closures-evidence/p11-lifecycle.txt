@@ -1,0 +1,30 @@
+responder:
+DISPOSABLE_VPP pid=2363951 runtime=/dev/shm/r4p/.scratch/isolated-vpp-2363945
+    ikev2_integration_test.go:381: TCP exact 1048576 bytes passed
+    ikev2_integration_test.go:436: production native state measured inbound/outbound counters without keys; foreign SPI actions refused
+    ikev2_integration_test.go:447: production Apply reconciliation retained active SA and traffic
+    ikev2_integration_test.go:457: production agent restart reopened sealed secrets, initial Service.Resync retained identical active IKE/CHILD SPIs and protected traffic
+    ikev2_integration_test.go:495: rekey changed CHILD SPI
+    ikev2_integration_test.go:524: peer crashed; awaiting native VPP default liveness expiry (30 seconds, 3 retries)
+    ikev2_integration_test.go:538: default VPP DPD removed crashed peer SA
+    ikev2_integration_test.go:575: default VPP DPD cleared crashed peer and lowered IPIP; peer restart and automatic native retry restored bidirectional encrypted traffic
+    ikev2_integration_test.go:644: production owned rollback removed profiles, protection, routes, tunnels and interfaces; Retrieve empty before disposable VPP shutdown
+    ikev2_integration_test.go:646: underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion
+    ikev2_integration_test.go:647: route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained
+--- PASS: TestIKEv2NativePackets (107.48s)
+DISPOSABLE_VPP_STOPPED pid=2363951
+initiator:
+DISPOSABLE_VPP pid=2372133 runtime=/dev/shm/r4p/.scratch/isolated-vpp-2372123
+    ikev2_integration_test.go:381: TCP exact 1048576 bytes passed
+    ikev2_integration_test.go:436: production native state measured inbound/outbound counters without keys; foreign SPI actions refused
+    ikev2_integration_test.go:447: production Apply reconciliation retained active SA and traffic
+    ikev2_integration_test.go:457: production agent restart reopened sealed secrets, initial Service.Resync retained identical active IKE/CHILD SPIs and protected traffic
+    ikev2_integration_test.go:495: rekey changed CHILD SPI
+    ikev2_integration_test.go:524: peer crashed; awaiting native VPP default liveness expiry (30 seconds, 3 retries)
+    ikev2_integration_test.go:538: default VPP DPD removed crashed peer SA
+    ikev2_integration_test.go:575: default VPP DPD cleared crashed peer and lowered IPIP; peer restart and automatic native retry restored bidirectional encrypted traffic
+    ikev2_integration_test.go:644: production owned rollback removed profiles, protection, routes, tunnels and interfaces; Retrieve empty before disposable VPP shutdown
+    ikev2_integration_test.go:646: underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion
+    ikev2_integration_test.go:647: route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained
+--- PASS: TestIKEv2NativePackets (109.40s)
+DISPOSABLE_VPP_STOPPED pid=2372133

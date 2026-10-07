@@ -82,6 +82,9 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-capture-trace
         { path: 'tools/capture', lazy: async () => ({ Component: (await import('./domains/tools/capture-trace/CapturePage')).CapturePage }) },
         // wave-BC: F-bfd-redistribution
+        { path: 'routing/bfd', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).BfdRedistributionPage }) },
+        { path: 'routing/redistribution', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).RedistributionPage }) },
+        { path: 'routing/policy', lazy: async () => ({ Component: (await import('./domains/routing/bfd-redistribution/BfdRedistributionPage')).PolicyUsagePage }) },
         // wave-BC: F-igmp-mfib
         { path: 'routing/multicast', lazy: async () => ({ Component: (await import('./domains/routing/igmp-mfib/MulticastPage')).MulticastPage }) },
         // wave-BC: F-hardening-lite
@@ -92,6 +95,8 @@ export function buildRoutes({ devRoutes = DEV_ROUTES }: RouteOptions = {}): Rout
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        { path: 'system/backup-restore', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/BackupRestorePage')).BackupRestorePage }) },
+        { path: 'system/upgrade', lazy: async () => ({ Component: (await import('./domains/system/backup-restore/UpgradePage')).UpgradePage }) },
         // web: WEB-2
         // wave-A: UI-domain-editor
         // wave-A: F-bonding

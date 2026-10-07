@@ -21,12 +21,17 @@ class Preparation(unittest.TestCase):
             shutil.copytree(SOURCE / 'debian', driver / 'debian')
             (driver / 'assets').mkdir()
             (driver / 'tests').mkdir()
+            shutil.copytree(SOURCE.parents[1] / 'hardening', root / 'deploy/hardening',
+                            ignore=shutil.ignore_patterns('__pycache__', '.scratch'))
             (root / 'deploy/vpp').mkdir()
             (root / 'deploy/vpp/verify.sh').write_text('#!/bin/sh\nexit 0\n')
             (root / 'deploy/vpp/verify.sh').chmod(0o755)
             (root / 'deploy/vpp/apply-startup.sh').write_text('#!/bin/sh\nexit 0\n')
             for name in ['apply-executor.py', 'apply-executor.service', 'apply-executor.socket']:
                 shutil.copyfile(SOURCE.parents[1] / 'vpp' / name, root / 'deploy/vpp' / name)
+            shutil.copytree(SOURCE.parents[1] / 'upgrade', root / 'deploy/upgrade', ignore=shutil.ignore_patterns('__pycache__'))
+            shutil.copytree(SOURCE.parents[1] / 'support-bundle', root / 'deploy/support-bundle',
+                            ignore=shutil.ignore_patterns('__pycache__'))
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
@@ -76,6 +81,31 @@ fi
                 for name in ['service', 'socket']:
                     self.assertTrue((root / f'output/stage/usr/lib/systemd/system/apply-executor.{name}').is_file())
                 self.assertTrue((root / 'output/stage/usr/lib/ngfw/apply-executor.py').is_file())
+                hardening = root / 'output/stage/usr/lib/ngfw/hardening'
+                self.assertTrue((hardening / 'stage.py').is_file())
+                self.assertTrue((hardening / 'signing/verify.py').is_file())
+                self.assertFalse(list(hardening.rglob('__pycache__')))
+                self.assertFalse((root / 'output/stage/etc/sysctl.d/60-ngfw.conf').exists())
+                self.assertTrue((root / 'output/stage/usr/sbin/ngfw-upgrade').is_file())
+                for helper in ['prepare', 'health']:
+                    self.assertTrue((root / f'output/stage/usr/lib/ngfw/ngfw-upgrade-{helper}').is_file())
+                    self.assertTrue((root / f'output/stage/usr/lib/systemd/system/ngfw-upgrade-{helper}.service').is_file())
+                self.assertTrue((root / 'output/stage/usr/lib/ngfw/ngfw-upgrade-probe').is_file())
+                install_manifest = {
+                    tuple(line.split()) for line in (driver / 'debian/ngfw-agent.install').read_text().splitlines()
+                    if line.strip() and not line.lstrip().startswith('#')
+                }
+                agent_control = (driver / 'debian/control').read_text().split('Package: ngfw-agent\n', 1)[1].split('\nPackage:', 1)[0]
+                self.assertIn('lsb-release', agent_control.split('Depends:', 1)[1].split('\n', 1)[0])
+                for helper in ['ngfw-support-collect', 'ngfw-upgrade-dispatch']:
+                    staged = root / f'output/stage/usr/lib/ngfw/{helper}'
+                    self.assertEqual(staged.read_bytes(), (root / f'deploy/support-bundle/{helper}').read_bytes())
+                    self.assertEqual(staged.stat().st_mode & 0o777, 0o755)
+                    self.assertIn((f'stage/usr/lib/ngfw/{helper}', 'usr/lib/ngfw/'), install_manifest)
+                staged_unit = root / 'output/stage/usr/lib/systemd/system/ngfw-upgrade@.service'
+                self.assertEqual(staged_unit.read_bytes(), (root / 'deploy/support-bundle/ngfw-upgrade@.service').read_bytes())
+                self.assertEqual(staged_unit.stat().st_mode & 0o777, 0o644)
+                self.assertIn(('stage/usr/lib/systemd/system/ngfw-upgrade@.service', 'usr/lib/systemd/system/'), install_manifest)
                 self.assertEqual((root / 'commands.log').read_text().splitlines()[0],
                                  'exec turbo run build --filter=@ngfw/api --filter=@ngfw/web --concurrency=2')
             else:

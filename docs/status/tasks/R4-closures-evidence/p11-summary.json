@@ -1,0 +1,39 @@
+{
+  "source_sha": "f59c3ea7b9cf0d6ad52a0f1c4db82bb0f6bddd1b",
+  "passed": true,
+  "peer_loss_requested": true,
+  "shared_before": {
+    "MainPID": "1014",
+    "NRestarts": "0"
+  },
+  "shared_after": {
+    "MainPID": "1014",
+    "NRestarts": "0"
+  },
+  "events": [
+    {
+      "phase": "build-plugin",
+      "exit_code": 0
+    },
+    {
+      "phase": "build-agent",
+      "exit_code": 0
+    },
+    {
+      "phase": "responder",
+      "exit_code": 0
+    },
+    {
+      "phase": "initiator",
+      "exit_code": 0
+    },
+    {
+      "phase": "shared-VPP-unchanged-and-slot-clean",
+      "exit_code": 0
+    }
+  ],
+  "captures": {
+    "initiator-underlay.pcap": "889fde1a821e83a7df2a441e059ca13f198e1659a64b6493db75e3558e0b86d9",
+    "responder-underlay.pcap": "2dea03e00564066e0061c25ad6c040c435da4f9aedceae17a0062280292800fe"
+  }
+}

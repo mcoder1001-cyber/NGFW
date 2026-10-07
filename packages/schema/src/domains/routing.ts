@@ -24,6 +24,7 @@ import { pbrField } from './ext/rpf-adl-pbr.js';
 import { wanGroupsField } from './ext/multiwan.js'; // F-multiwan (unanchored)
 import { multicastField } from './ext/igmp-mfib.js'; // wave-BC: F-igmp-mfib
 import { staticRouteTag } from './ext/frr-linuxcp.js'; // wave-A: P12
+import { bfdAuth, bfdMultihop, bfdProfiles, bfdProfile } from './ext/bfd-redistribution.js'; // wave-BC: F-bfd-redistribution
 import { srv6Field } from './ext/srv6.js';
 
 /**
@@ -593,6 +594,7 @@ export const OspfInterfaceSchema = z.strictObject({
   // wave-BC: F-ospf
   auth: withUi(OspfAuthSchema.optional(), { title: 'Authentication', order: 9 }),
   // wave-BC: F-bfd-redistribution
+  bfdProfile: bfdProfile,
 });
 
 /** Record keyed by the interface an IGP runs on (parent or `<parent>.<id>`). */
@@ -630,7 +632,7 @@ export const OspfSchema = z
 export type OspfConfig = z.infer<typeof OspfSchema>;
 
 // OSPFv3 shares the area model; NBMA and v2 authentication are deliberately unavailable.
-export const Ospf6InterfaceSchema = OspfInterfaceSchema.omit({ auth: true, bfd: true }).extend({
+export const Ospf6InterfaceSchema = OspfInterfaceSchema.omit({ auth: true, bfd: true, bfdProfile: true }).extend({
   networkType: withUi(z.enum(['broadcast', 'point-to-point', 'point-to-multipoint']).optional(), {
     title: 'Network type',
   }),
@@ -667,6 +669,7 @@ export const IsisInterfaceSchema = z.strictObject({
   ipv4: withUi(z.boolean().default(true), { title: 'IPv4', order: 7 }),
   ipv6: withUi(z.boolean().default(true), { title: 'IPv6', order: 8 }),
   // wave-BC: F-bfd-redistribution
+  bfdProfile: bfdProfile,
 });
 
 export const IsisSchema = z.strictObject({
@@ -752,6 +755,8 @@ export const BfdSessionSchema = z
     }),
     enabled: withUi(z.boolean().default(true), { title: 'Enabled', order: 7 }),
     // wave-BC: F-bfd-redistribution
+    auth: bfdAuth,
+    multihop: bfdMultihop,
   })
   .refine((s) => ipFamily(s.localAddress) === ipFamily(s.peerAddress), {
     message: 'local and peer address must be in the same address family',
@@ -766,6 +771,7 @@ export const BfdSchema = z.strictObject({
     order: 1,
   }),
   // wave-BC: F-bfd-redistribution
+  profiles: bfdProfiles,
 });
 export type BfdConfig = z.infer<typeof BfdSchema>;
 

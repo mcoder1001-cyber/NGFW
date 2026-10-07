@@ -1,0 +1,16 @@
+# HA API permission correction — fresh reassigned developer
+
+Branch: `codex/ha-api-permission-fix-20261005`; worktree: `/dev/shm/ha-api-fix-20261005`.
+Exact preserved source parent: `48e5af12fd6a42323f3c83d04129eb6563cef650`, tree `c42eb2959321f7a7bd135b9312b595c37f0baef8`; published parent `4cf795488ae93480330f174281f29bd675d589f6` has the same tree. Fresh A1 ruling authorizes this narrow third-round reassignment; no boundary change.
+
+Owned product files: `apps/api/src/agent/agent.client.ts`, `apps/api/src/agent/action-transport.test.ts`. Owned recovery: this WIP/envelope, carried A1 ruling/dispute and append-only arbitration log. No other source, contract, generated, Go, UI or host edits.
+
+Implemented generic PERMISSION_DENIED → HTTP403 `agent-permission-denied`, with `grpcCode` and fixed non-sensitive detail. Existing mappings remain unchanged. Added actual Unix-socket gRPC server → AgentClient action tests for HA refusal, FAILED_PRECONDITION/ABORTED409, UNAVAILABLE503, INTERNAL502, partial-output rejection, absent completion and failure audit without success.
+
+Actual checks so far: Prettier ran; git diff --check passed before dependency generation. RAM-only frozen-lockfile install passed (1m05s). Schema/proto dependency build PASS (four tasks, 1m23s), generated outputs unchanged. Actual transport/controller/capture/secret-delivery tests PASS: four files, 17 tests, 15.08s (including seven new transport regressions). Scoped ESLint passed (existing Node module-type warning only). Full API typecheck PASS after building the missing @ngfw/yang dependency (initial fresh-checkout missing-dist errors were environmental). Entire API unit suite PASS: 105 files, 691 tests, 131.67s. Unchanged check gate against exact source parent PASS (10s), including gitleaks; no full quick or real API/DB replay claimed. Independent R1/R2/R3/T2 and current-main full quick/hosted gate remain manager-owned mandatory prerequisites. Restart supplemental remains UNVERIFIED until corrected fixture executes.
+
+All new dependency/store/cache/temp data resides in owned executable RAM paths `/dev/shm/haf-{store,cache,tmp}`. No shared PostgreSQL/Valkey/VPP/service changes or process termination. No merges. Published correction local `18e831a6b165b9cae79849ab5d8a0791c22b287c`, remote `3d24b540e7e1da2af8d09cb15bb460e3555b31ae`, identical tree `6acd64f1591f02356603eb6933e1532baea492b3`. First publication `8bacee8f7f4e4c89a6d644f5b07a6365b93babf1` preserved in remote `codex/archive-ha-api-permission-pre-prose-20261005` and local archive ref. Its carried A1 dispute run-on paragraph triggered generic-api-key on ordinary prose. Rewrote the paragraph with normal word spacing and preserved all facts; scanner/config unchanged. Own branch recreated from exact source and publication confirmed. Product code identical before/after prose correction. This recovery update changes docs only.
+
+Completed targeted command: TMPDIR=/dev/shm/haf-tmp pnpm --filter @ngfw/api exec vitest run src/agent/action-transport.test.ts src/agent/capture-stream.test.ts src/agent/secret-delivery.test.ts src/features/ha-state-sync/controller.test.ts
+
+Next action: independent R1/R2/R3 closure and real API T2 replay on this frozen product; manager prepares and verifies current-main integration. Restart supplemental remains UNVERIFIED. Developer does not merge.

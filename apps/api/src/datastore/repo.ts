@@ -44,6 +44,7 @@ export interface NewRevision {
 }
 
 export interface CandidateState {
+  restoreSecrets?: Record<string, number> | null;
   ownerId: number | null;
   owner: string | null;
   /**
@@ -120,6 +121,10 @@ export interface ConfigReads {
 
 /** Operations inside one transaction. `lockCandidate()` serialises writers (SELECT … FOR UPDATE). */
 export interface ConfigTx extends ConfigReads {
+  stageRestoreSecrets?(
+    rows: readonly { ref: string; ciphertext: string }[],
+    authorId: number,
+  ): Promise<Record<string, number>>;
   lockCandidate(): Promise<CandidateState>;
   saveCandidate(c: Omit<CandidateState, 'owner' | 'ownerKey' | 'updatedAt'>): Promise<void>;
   insertRevision(r: NewRevision): Promise<Revision>;

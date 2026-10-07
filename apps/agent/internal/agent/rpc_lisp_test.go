@@ -233,9 +233,9 @@ func TestLispRequiresGlobalsOnSlotAgents(t *testing.T) {
 }
 
 func TestLispProjectionWarnsForTunnelKindsNotWired(t *testing.T) {
-	// F-tunnels wired gre/ipip/vxlan: the unsupported-field example is a routing leaf no build renders yet
+	// F-bfd-redistribution wires the formerly unsupported routing leaf.
 	p := project(doc(t, `{"routing": {"bfd": {}}}`), []string{"routing"}, nil, nil)
-	if len(p.issues) != 1 || p.issues[0].rule != "agent.unsupported-field" || p.issues[0].pointer != "/routing/bfd" {
+	if len(p.issues) != 0 {
 		t.Fatalf("issues %+v", p.issues)
 	}
 	p = project(doc(t, `{"tunnels": {"lisp": {"enabled": true, "localEids": [{"vni": 1, "eid": "10.1.2.0/24", "locatorSet": "x"}]}}}`), []string{"tunnels"}, nil, nil)

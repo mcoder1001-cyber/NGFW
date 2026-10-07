@@ -27,6 +27,7 @@
 // Native PSK material travels separately in request-only SecretBundle, never read-back.
 syntax = "proto3";
 
+
 package ngfw.v1;
 
 import "google/protobuf/timestamp.proto";
@@ -176,11 +177,17 @@ service Dataplane {
   rpc LispState(LispStateRequest) returns (LispStateResponse);
 
   // wave-BC: F-bfd-redistribution
+
+  rpc BfdState(BfdStateRequest) returns (BfdStateResponse);
+  rpc RedistributionMatrix(RedistributionMatrixRequest) returns (RedistributionMatrixResponse);
+
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
   // wave-BC: F-dashboard-prom-alarms
   // wave-BC: F-ha-state-sync
+  // Observe NAT44-EI HA globals and explicit support gaps.
+  rpc HaSyncState(HaSyncStateRequest) returns (HaSyncStateResponse);
   // wave-A: F-bonding
 
   // BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
@@ -720,6 +727,7 @@ enum EventKind {
   // wave-BC: F-isis-rip
   EVENT_KIND_ISIS_ADJACENCY_CHANGED = 21;
   // wave-BC: F-bfd-redistribution
+  EVENT_KIND_BFD_STATE_CHANGED = 22;
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   // wave-BC: F-igmp-mfib
@@ -806,7 +814,11 @@ message ActionRequest {
     Ikev2Action ikev2 = 11;
     // wave-BC: F-ra-vpn
     // wave-BC: F-ha-state-sync
+    // NAT44-EI resync/flush, globals owner only.
+    HaSyncAction ha_sync = 13;
     // wave-BC: F-backup-restore
+    UpgradeAction upgrade = 20;
+    SupportBundleAction support_bundle = 21;
     // wave-A: F-neighbors-ra
 
     // Flush learned ARP/ND entries (F-neighbors-ra); static neighbours stay.
@@ -1775,6 +1787,7 @@ message OspfInterface {
   // wave-BC: F-ospf
   OspfAuth auth = 9;
   // wave-BC: F-bfd-redistribution
+  optional string bfd_profile = 10;
 }
 
 message OspfAuth {
@@ -1834,6 +1847,7 @@ message IsisInterface {
   optional bool ipv4 = 6;
   optional bool ipv6 = 7;
   // wave-BC: F-bfd-redistribution
+  optional string bfd_profile = 8;
 }
 
 // IsisConfig mirrors `routing.isis`.
@@ -1909,6 +1923,8 @@ message BfdSession {
   optional bool enabled = 7;
 
   // wave-BC: F-bfd-redistribution
+  BfdAuth auth = 8;
+  optional bool multihop = 9;
 }
 
 // BfdConfig mirrors `routing.bfd`.
@@ -1917,6 +1933,7 @@ message BfdConfig {
   repeated BfdSession sessions = 1;
 
   // wave-BC: F-bfd-redistribution
+  map<string, BfdProfile> profiles = 2;
 }
 
 // ----- tunnels (P02c, mirrors packages/schema/src/domains/tunnels.ts) -----
@@ -2807,6 +2824,10 @@ message HaCluster {
     optional bool acl = 3;
 
     // wave-BC: F-ha-state-sync
+    // Explicit local IPv4 endpoint and HA path MTU.
+    HaNatListener nat_listener = 4;
+    // Explicit remote IPv4 endpoint and refresh interval.
+    HaNatFailover nat_failover = 5;
   }
   // Enabled.
   optional bool enabled = 1;
@@ -2854,6 +2875,8 @@ message ManagementConfig {
   // API-owned email/webhook configuration, mirrored for schema drift validation.
   ManagementNotifications notifications = 7;
   // wave-BC: F-backup-restore
+  ManagementBackup backup = 8;
+  map<string, ConfigTemplate> templates = 9;
 }
 
 // ManagementNotifications mirrors management.notifications; the API dispatches deliveries.
@@ -7625,6 +7648,53 @@ message LispStateResponse {
 
 // ----- F-bfd-redistribution -----
 
+message BfdAuth {
+  optional string type = 1;
+  optional uint32 key_id = 2;
+  optional string key_ref = 3;
+}
+message BfdProfile {
+  optional uint32 desired_min_tx_us = 1;
+  optional uint32 required_min_rx_us = 2;
+  optional uint32 detect_multiplier = 3;
+}
+message BfdStateRequest { string owner = 1; }
+message BfdSessionState {
+  string engine = 1;
+  string interface = 2;
+  string local_address = 3;
+  string peer_address = 4;
+  string state = 5;
+  uint32 desired_min_tx_us = 6;
+  uint32 required_min_rx_us = 7;
+  uint32 detect_multiplier = 8;
+  google.protobuf.Timestamp last_flap = 9;
+  bool multihop = 10;
+}
+message BfdStateResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated BfdSessionState sessions = 3;
+  string error = 4;
+}
+message RedistributionMatrixRequest { string owner = 1; }
+message RedistributionEdge {
+  string source = 1;
+  string target = 2;
+  string vrf = 3;
+  string route_map = 4;
+  optional uint32 metric = 5;
+  optional uint64 route_count = 6;
+  bool read_only = 7;
+}
+message RedistributionMatrixResponse {
+  string owner = 1;
+  google.protobuf.Timestamp retrieved_at = 2;
+  repeated RedistributionEdge edges = 3;
+  string error = 4;
+}
+
+
 // ----- F-ra-vpn -----
 
 // ----- F-mpls-ldp -----
@@ -8420,3 +8490,124 @@ message VrrpStateResponse {
   google.protobuf.Timestamp retrieved_at = 2;
   repeated VrrpRuntime routers = 3;
 }
+
+// ----- F-ha-state-sync -----
+// Native NAT44-EI HA listener configuration (UDP is unauthenticated).
+message HaNatListener {
+  // Explicit local unicast IPv4 address.
+  optional string address = 1;
+  // UDP port.
+  optional uint32 port = 2;
+  // Maximum HA packet size.
+  optional uint32 path_mtu = 3;
+}
+// Native NAT44-EI peer endpoint.
+message HaNatFailover {
+  // Remote unicast IPv4 address.
+  optional string address = 1;
+  // Peer UDP port.
+  optional uint32 port = 2;
+  // HA session refresh interval.
+  optional uint32 session_refresh_sec = 3;
+}
+// Explicit global action, never callable by a shared-host slot agent.
+enum HaSyncOp {
+  // No operation requested.
+  HA_SYNC_OP_UNSPECIFIED = 0;
+  // Resend sessions and wait for the completion event.
+  HA_SYNC_OP_RESYNC = 1;
+  // Flush queued HA update packets (does not delete NAT sessions).
+  HA_SYNC_OP_FLUSH = 2;
+}
+// NAT44-EI global state-sync action.
+message HaSyncAction {
+  // Operation to perform.
+  HaSyncOp op = 1;
+}
+// Owner-scoped request for global HA observations (does not mutate).
+message HaSyncStateRequest {
+  // Expected agent owner.
+  string owner = 1;
+}
+// Supported kind with honest configured/active state.
+message HaSyncKindState {
+  // nat44-ei, nat44-ed, acl or ipsec.
+  string kind = 1;
+  // True only when VPP exposes a session state-sync API.
+  bool supported = 2;
+  // Desired state requested this kind.
+  bool configured = 3;
+  // Observed HA endpoints are enabled and match desired endpoints.
+  bool active = 4;
+  // Support gap or operational explanation.
+  string reason = 5;
+}
+// Native HA global observation and bounded action telemetry.
+message HaSyncStateResponse {
+  // Agent identity.
+  string owner = 1;
+  // Per-kind support and observation.
+  repeated HaSyncKindState kinds = 2;
+  // Live listener, absent when disabled.
+  HaNatListener listener = 3;
+  // Live failover peer, absent when disabled.
+  HaNatFailover failover = 4;
+  // Most recent native completion in this agent process, absent when unknown.
+  google.protobuf.Timestamp last_resync = 5;
+  // Unacknowledged HA messages reported by that completion (not a session counter).
+  optional uint32 last_missed_count = 6;
+  // Completed resync actions since this agent process started.
+  uint64 resync_count = 7;
+  // VPP HA packet counters are not exposed through the pinned API.
+  bool packet_counters_available = 8;
+  // A slot cannot invoke resync/flush on shared globals.
+  bool actions_allowed = 9;
+  // Observation time.
+  google.protobuf.Timestamp retrieved_at = 10;
+  // API observation failure; unavailable is never active.
+  string observation_error = 11;
+}
+
+// ManagementBackup is evaluated by the API; times use UTC.
+message ManagementBackup {
+  optional bool enabled = 1;
+  optional string schedule = 2;
+  BackupTarget target = 3;
+  optional uint32 retention = 4;
+  optional uint32 revisions = 5;
+  optional string passphrase_ref = 6;
+}
+// BackupTarget carries references only; credentials never leave the secret store.
+message BackupTarget {
+  optional string type = 1;
+  optional string path = 2;
+  optional string host = 3;
+  optional uint32 port = 4;
+  optional string username = 5;
+  optional string credential_ref = 6;
+  optional string host_key_sha256 = 7;
+}
+// ConfigTemplate is a validated RFC 7386 patch with typed parameters.
+message ConfigTemplate {
+  optional string description = 1;
+  map<string, TemplateParameter> parameters = 2;
+  optional string patch_json = 3;
+}
+// TemplateParameter defines the type of one placeholder.
+message TemplateParameter {
+  optional string type = 1;
+  optional bool required = 2;
+}
+// UpgradeAction exposes only fixed appliance upgrade operations.
+message UpgradeAction { UpgradeOp op = 1; string bundle = 2; }
+// UpgradeOp is not a generic command execution interface.
+enum UpgradeOp {
+  UPGRADE_OP_UNSPECIFIED = 0;
+  UPGRADE_OP_STATUS = 1;
+  UPGRADE_OP_STAGE = 2;
+  UPGRADE_OP_ACTIVATE = 3;
+  UPGRADE_OP_CONFIRM = 4;
+  UPGRADE_OP_ROLLBACK = 5;
+}
+// SupportBundleAction requests a bounded, read-only host summary.
+message SupportBundleAction { uint32 since_sec = 1; uint32 audit_rows = 2; }

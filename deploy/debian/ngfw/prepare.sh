@@ -37,6 +37,16 @@ mkdir -p "$STAGE/usr/sbin" "$STAGE/usr/lib/ngfw" "$STAGE/usr/share/ngfw/web" "$S
 for binary in ngfw-agent ngfw-startupgen ngfw-vppcheck; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/sbin/$binary" "./cmd/$binary")
 done
+# wave-BC: F-backup-restore — install only, never execute host operations.
+install -m 0755 "$ROOT/deploy/support-bundle/ngfw-support-collect" "$ROOT/deploy/support-bundle/ngfw-upgrade-dispatch" "$STAGE/usr/lib/ngfw/"
+install -m 0644 "$ROOT/deploy/support-bundle/ngfw-upgrade@.service" "$STAGE/usr/lib/systemd/system/"
+# wave-BC: F-ab-upgrade — stage executables only; no upgrade/provision action here.
+(cd "$ROOT/deploy/upgrade/probe" && CGO_ENABLED=0 go build -trimpath -o "$STAGE/usr/lib/ngfw/ngfw-upgrade-probe" .)
+install -m 0755 "$ROOT/deploy/upgrade/ngfw-upgrade" "$STAGE/usr/sbin/ngfw-upgrade"
+for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
+  install -m 0755 "$ROOT/deploy/upgrade/$helper" "$STAGE/usr/lib/ngfw/$helper"
+  install -m 0644 "$ROOT/deploy/upgrade/$helper.service" "$STAGE/usr/lib/systemd/system/$helper.service"
+done
 (cd "$ROOT" && pnpm --filter @ngfw/api deploy --prod "$STAGE/usr/lib/ngfw/api")
 [[ -f $STAGE/usr/lib/ngfw/api/dist/main.js ]] || { echo 'pnpm deploy omitted compiled API' >&2; exit 1; }
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/ngfw/api/"
@@ -45,6 +55,11 @@ install -m 0755 "$ROOT/deploy/vpp/apply-startup.sh" "$STAGE/usr/lib/ngfw/apply-s
 install -m 0644 "$ROOT/deploy/systemd/ngfw-agent.service" "$ROOT/deploy/systemd/ngfw-api.service" "$ROOT/deploy/systemd/ngfw-firstboot.service" "$ROOT/deploy/systemd/ngfw-firewall-bootstrap.service" "$STAGE/usr/lib/systemd/system/"
 install -m 0755 "$ROOT/deploy/vpp/apply-executor.py" "$STAGE/usr/lib/ngfw/apply-executor.py"
 install -m 0644 "$ROOT/deploy/vpp/apply-executor.service" "$ROOT/deploy/vpp/apply-executor.socket" "$STAGE/usr/lib/systemd/system/"
+# F-hardening-lite: ship profiles/tools without activating unverified daemon sandboxes.
+mkdir -p "$STAGE/usr/lib/ngfw/hardening"
+cp -a "$ROOT/deploy/hardening/baseline" "$ROOT/deploy/hardening/systemd" "$ROOT/deploy/hardening/signing" "$STAGE/usr/lib/ngfw/hardening/"
+install -m 0755 "$ROOT/deploy/hardening/stage.py" "$ROOT/deploy/hardening/check.py" "$ROOT/deploy/hardening/check.sh" "$STAGE/usr/lib/ngfw/hardening/"
+find "$STAGE/usr/lib/ngfw/hardening" -type d -name __pycache__ -exec rm -r -- {} +
 printf '%s\n' "$VPP_VERSION" > "$STAGE/VPP_VERSION"
 COMMIT=$(git -C "$ROOT" rev-parse --short=12 HEAD)
 [[ -z $(git -C "$ROOT" status --porcelain) ]] || { echo 'refusing dirty source checkout' >&2; exit 1; }

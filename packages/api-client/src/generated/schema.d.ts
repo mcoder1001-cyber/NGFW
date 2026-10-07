@@ -1598,6 +1598,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/api/v1/state/routing/bfd/sessions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Live VPP and FRR BFD sessions */
+    get: operations['BfdRedistribution_sessions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/routing/redistribution': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Redistribution matrix with scoped protocol route counts */
+    get: operations['BfdRedistribution_matrix'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/api/v1/state/routing/mpls/ldp/neighbors': {
     parameters: {
       query?: never;
@@ -1745,6 +1779,194 @@ export interface paths {
     /** Upload a .ngfwlic licence file (verified before it is stored) */
     put: operations['Licensing_put'];
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/ha/sync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Observed NAT HA endpoints and explicit unsupported session kinds */
+    get: operations['HaStateSync_state'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/ha/sync/resync': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Globals owner only: wait up to 15 seconds for native NAT44-EI resync completion */
+    post: operations['HaStateSync_resync'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/backup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Download a passphrase-encrypted full configuration backup */
+    post: operations['BackupRestore_download'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/restore': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Authenticate a backup and stage document and inactive secret versions */
+    post: operations['BackupRestore_restore'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config-templates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List candidate configuration templates */
+    get: operations['BackupRestore_templates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config-templates/{name}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a candidate configuration template */
+    get: operations['BackupRestore_template'];
+    /** Stage a configuration template in the candidate */
+    put: operations['BackupRestore_putTemplate'];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/config-templates/{name}/apply': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Render typed parameters and merge template patch into candidate */
+    post: operations['BackupRestore_apply'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/state/backup': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read recent scheduled export outcomes */
+    get: operations['BackupRestore_runs'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/support-bundle': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Download a redacted read-only support summary */
+    post: operations['BackupRestore_support'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/upgrade': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run an allow-listed appliance upgrade operation through the agent */
+    post: operations['BackupRestore_upgrade'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/v1/actions/upgrade-upload': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stream a signed update bundle to the dedicated updates directory (maximum 8 GiB) */
+    post: operations['BackupRestore_upload'];
     delete?: never;
     options?: never;
     head?: never;
@@ -3972,6 +4194,8 @@ export interface components {
               /** Secret reference */
               keyRef?: string;
             };
+            /** Name */
+            bfdProfile?: string;
           };
         };
         /**
@@ -4075,6 +4299,8 @@ export interface components {
              * @default true
              */
             ipv6: boolean;
+            /** Name */
+            bfdProfile?: string;
           };
         };
         /**
@@ -4242,7 +4468,27 @@ export interface components {
            * @default true
            */
           enabled: boolean;
+          auth?: {
+            /** @enum {string} */
+            type: 'keyed-sha1' | 'meticulous-keyed-sha1';
+            keyId: number;
+            /** Secret reference */
+            keyRef: string;
+          };
+          /** @default false */
+          multihop: boolean;
         }[];
+        /** @default {} */
+        profiles: {
+          [key: string]: {
+            /** @default 300000 */
+            desiredMinTxUs: number;
+            /** @default 300000 */
+            requiredMinRxUs: number;
+            /** @default 3 */
+            detectMultiplier: number;
+          };
+        };
       };
       /** OSPFv3 */
       ospf6?: {
@@ -9824,6 +10070,40 @@ export interface components {
            * @default false
            */
           acl: boolean;
+          natListener?: {
+            /**
+             * NAT HA listener IPv4 address
+             * Format: ipv4
+             */
+            address: string;
+            /**
+             * NAT HA UDP port
+             * @default 8750
+             */
+            port: number;
+            /**
+             * HA path MTU
+             * @default 1500
+             */
+            pathMtu: number;
+          };
+          natFailover?: {
+            /**
+             * NAT HA peer IPv4 address
+             * Format: ipv4
+             */
+            address: string;
+            /**
+             * NAT HA peer UDP port
+             * @default 8750
+             */
+            port: number;
+            /**
+             * HA session refresh seconds
+             * @default 10
+             */
+            sessionRefreshSec: number;
+          };
         };
         /** @default [] */
         syncExclude: string[];
@@ -10313,6 +10593,51 @@ export interface components {
           /** @default 60 */
           throttleSec: number;
         }[];
+      };
+      /**
+       * Scheduled backup
+       * @default {}
+       */
+      backup: {
+        /** @default false */
+        enabled: boolean;
+        /** @default 0 2 * * * */
+        schedule: string;
+        target?: {
+          /** @enum {string} */
+          type: 'local' | 'sftp' | 'https';
+          path: string;
+          host?: string;
+          port?: number;
+          /** Name */
+          username?: string;
+          /** Secret reference */
+          credentialRef?: string;
+          hostKeySha256?: string;
+        };
+        /** @default 7 */
+        retention: number;
+        /** @default 100 */
+        revisions: number;
+        /** Secret reference */
+        passphraseRef?: string;
+      };
+      /** @default {} */
+      templates: {
+        [key: string]: {
+          /** @default  */
+          description: string;
+          /** @default {} */
+          parameters: {
+            [key: string]: {
+              /** @enum {string} */
+              type: 'string' | 'number' | 'boolean';
+              /** @default true */
+              required?: boolean;
+            };
+          };
+          patchJson: string;
+        };
       };
     };
     /**
@@ -18939,6 +19264,107 @@ export interface operations {
       };
     };
   };
+  BfdRedistribution_sessions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            agentError: string | null;
+            sessions: {
+              engine: string;
+              interface: string;
+              localAddress: string;
+              peerAddress: string;
+              state: string;
+              desiredMinTxUs: number;
+              requiredMinRxUs: number;
+              detectMultiplier: number;
+              lastFlap: string | null;
+              multihop: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BfdRedistribution_matrix: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            retrievedAt: string | null;
+            agentError: string | null;
+            edges: {
+              source: string;
+              target: string;
+              vrf: string;
+              routeMap: string;
+              metric?: number;
+              routeCount: string | null;
+              readOnly: boolean;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
   MplsLdp_neighbors: {
     parameters: {
       query?: never;
@@ -19430,6 +19856,845 @@ export interface operations {
       };
       /** @description Role too low */
       403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HaStateSync_state: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            owner: string;
+            kinds: {
+              kind: string;
+              supported: boolean;
+              configured: boolean;
+              active: boolean;
+              reason: string;
+            }[];
+            listener: {
+              address?: string;
+              port?: number;
+              pathMtu?: number;
+            } | null;
+            failover: {
+              address?: string;
+              port?: number;
+              sessionRefreshSec?: number;
+            } | null;
+            lastResync: string | null;
+            lastMissedCount: number | null;
+            resyncCount: string;
+            packetCountersAvailable: boolean;
+            actionsAllowed: boolean;
+            retrievedAt: string;
+            observationError: string;
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Role too low */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  HaStateSync_resync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            summary: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent error */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_download: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          passphrase: string;
+          /** @default 100 */
+          revisions?: number;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/octet-stream': string;
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_restore: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          passphrase: string;
+          archive: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            staged: boolean;
+            diff: {
+              baseRevision: number | null;
+              changes: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                from?: unknown;
+                to?: unknown;
+                redacted?: boolean;
+              }[];
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_templates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            items?: {
+              [key: string]: {
+                /** @default  */
+                description: string;
+                /** @default {} */
+                parameters: {
+                  [key: string]: {
+                    /** @enum {string} */
+                    type: 'string' | 'number' | 'boolean';
+                    /** @default true */
+                    required: boolean;
+                  };
+                };
+                patch: {
+                  [key: string]: unknown;
+                };
+              };
+            };
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_template: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            /** @default  */
+            description: string;
+            /** @default {} */
+            parameters: {
+              [key: string]: {
+                /** @enum {string} */
+                type: 'string' | 'number' | 'boolean';
+                /** @default true */
+                required: boolean;
+              };
+            };
+            patch: {
+              [key: string]: unknown;
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_putTemplate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @default  */
+          description?: string;
+          /** @default {} */
+          parameters?: {
+            [key: string]: {
+              /** @enum {string} */
+              type: 'string' | 'number' | 'boolean';
+              /** @default true */
+              required?: boolean;
+            };
+          };
+          patch: {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            staged: boolean;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_apply: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          parameters: {
+            [key: string]: string | number | boolean;
+          };
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            staged: boolean;
+            diff: {
+              baseRevision: number | null;
+              changes: {
+                /** @enum {string} */
+                op: 'add' | 'remove' | 'replace';
+                pointer: string;
+                from?: unknown;
+                to?: unknown;
+                redacted?: boolean;
+              }[];
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_runs: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            runs: {
+              at: string;
+              result: string;
+              filename?: string;
+              error?: string;
+            }[];
+          };
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_support: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': string;
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_upgrade: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': {
+          /** @enum {string} */
+          op: 'status' | 'stage' | 'activate' | 'confirm' | 'rollback';
+          bundle?: string;
+        };
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            lines: string[];
+            done?: {
+              summary: string;
+              exitCode: number;
+              stats: {
+                [key: string]: string;
+              };
+            };
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Agent or database unavailable */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+    };
+  };
+  BackupRestore_upload: {
+    parameters: {
+      query?: never;
+      header: {
+        /** @description Signed bundle filename, for example ngfw-update-1.2.3.tar */
+        'x-ngfw-filename': string;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/vnd.ngfw.update': string;
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': {
+            bundle: string;
+          };
+        };
+      };
+      /** @description Invalid request or configuration (errors[] with JSON pointers) */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Not authenticated */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /**
+       * @description Role too low
+       *
+       *     Error
+       */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/problem+json': components['schemas']['Problem'];
+        };
+      };
+      /** @description Conflict (candidate locked by another user, commit pending, …) */
+      409: {
         headers: {
           [name: string]: unknown;
         };

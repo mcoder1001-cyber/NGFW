@@ -5,3 +5,4 @@ assets/render-base-policy.py usr/lib/ngfw/
 assets/nftables-ngfw.conf usr/lib/systemd/system/nftables.service.d/
 assets/firewall-bootstrap.sh usr/lib/ngfw/
 stage/usr/lib/systemd/system/ngfw-firewall-bootstrap.service usr/lib/systemd/system/
+stage/usr/lib/ngfw/hardening usr/lib/ngfw/

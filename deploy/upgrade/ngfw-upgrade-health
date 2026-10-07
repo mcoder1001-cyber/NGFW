@@ -1,0 +1,33 @@
+#!/usr/bin/python3
+"""Confirm only a healthy trial boot; otherwise restore old default and reboot."""
+import json
+import subprocess
+import time
+
+
+def command(*args):
+    return subprocess.run(args, check=True, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, timeout=15).stdout
+
+
+try:
+    state = json.loads(command('/usr/sbin/ngfw-upgrade', 'status', '--json'))
+    if state['pending_slot'] != state['active_slot']:
+        # A consumed trial that already fell back is reconciled explicitly.
+        if state['pending_slot']:
+            command('/usr/sbin/ngfw-upgrade', 'rollback')
+        raise SystemExit(0)
+    deadline = time.monotonic() + 180
+    while time.monotonic() < deadline:
+        try:
+            command('/usr/lib/ngfw/ngfw-upgrade-probe')
+            command('/usr/sbin/ngfw-upgrade', 'confirm')
+            raise SystemExit(0)
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            time.sleep(3)
+except (OSError, ValueError, subprocess.SubprocessError):
+    # If status is unreadable, fail closed: never bless an unknown root.
+    raise SystemExit(1)
+command('/usr/sbin/ngfw-upgrade', 'rollback')
+command('/usr/bin/systemctl', '--no-block', 'reboot')
+raise SystemExit(1)

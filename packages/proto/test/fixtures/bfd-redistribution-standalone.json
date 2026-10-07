@@ -1,0 +1,19 @@
+{
+  "interfaces": { "loop1401": { "ipv4": ["10.14.1.1/24"] } },
+  "routing": {
+    "bfd": {
+      "sessions": [
+        {
+          "interface": "loop1401",
+          "localAddress": "10.14.1.1",
+          "peerAddress": "10.14.1.2",
+          "desiredMinTxUs": 300000,
+          "requiredMinRxUs": 300000,
+          "detectMultiplier": 3,
+          "enabled": true,
+          "multihop": false
+        }
+      ]
+    }
+  }
+}

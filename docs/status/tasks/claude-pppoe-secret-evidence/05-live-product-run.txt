@@ -1,0 +1,468 @@
+SLOT_LOCK=/run/lock/ngfw-slot-9.lock held
+SOURCE_SHA=fd6c5788dc7c041adfe5308fd64eb5453f3ba2f4
+MODE=product
+PPP_VERSIONS=ppp	2.5.2-1+1.2 pppoe	4.0-1ubuntu2 
+DRIVER_DIGEST=7c702becd9c3ac63035f85c4bc0c19041df265bc56a7d780f4b40670d42e9f2e
+PRIVATE_NETNS=net:[4026532607]
+DISPOSABLE_VPP pid=1646377 runtime=/root/ngfw-wt/claude-pppoe-secret/.scratch/isolated-vpp-1646374
+=== RUN   TestPppoeClientLive
+2026/10/06 11:28:30 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    zz_pppoe_live_overlay_test.go:351: VPP pppoe plugin: Plugin path is: /usr/lib/x86_64-linux-gnu/vpp_plugins, plugins shown in load order
+        
+             Plugin                                   Version                          Description
+          1. abf_plugin.so                            26.06-release                    Access Control List (ACL) Based Forwarding
+          2. acl_plugin.so                            26.06-release                    Access Control Lists (ACL)
+          3. adl_plugin.so                            26.06-release                    Allow/deny list plugin
+          4. af_packet_plugin.so                      26.06-release                    af-packet
+          5. af_xdp_plugin.so                         26.06-release                    AF_XDP Device Plugin
+          6. arping_plugin.so                         26.06-release                    Arping (arping)
+          7. auto_sdl_plugin.so                       26.06-release                    Auto SDL
+          8. bpf_trace_filter_plugin.so               26.06-release                    BPF Trace Filter Plugin
+          9. cdp_plugin.so                            26.06-release                    Cisco Discovery Protocol (CDP)
+         10. cnat_plugin.so                           26.06-release                    CNat Translate
+         11. crypto_sw_scheduler_plugin.so            26.06-release                    SW Scheduler Crypto Async Engine plugin
+         12. ct6_plugin.so                            26.06-release                    IPv6 Connection Tracker
+         13. det44_plugin.so                          26.06-release                    Deterministic NAT (CGN)
+         14. dhcp_plugin.so                           26.06-release                    Dynamic Host Configuration Protocol (DHCP)
+         15. dma_intel_plugin.so                      26.06-release                    Intel DSA Backend
+         16. dns_plugin.so                            26.06-release                    Simple DNS name resolver
+         17. dpdk_plugin.so                           26.06-release                    Data Plane Development Kit (DPDK)
+         18. dslite_plugin.so                         26.06-release                    Dual-Stack Lite
+         19. flowprobe_plugin.so                      26.06-release                    Flow per Packet
+         20. geneve_plugin.so                         26.06-release                    GENEVE Tunnels
+         21. gre_plugin.so                            26.06-release                    Generic Routing Encapsulation (GRE) plugin
+         22. gtpu_plugin.so                           26.06-release                    GPRS Tunnelling Protocol, User Data (GTPv1-U)
+         23. hs_apps_plugin.so                        26.06-release                    Host Stack Applications
+         24. hsi_plugin.so                            26.06-release                    Host Stack Intercept (HSI)
+         25. http_plugin.so                           26.06-release                    Hypertext Transfer Protocol (HTTP)
+         26. http_static_plugin.so                    26.06-release                    HTTP Static Server
+         27. igmp_plugin.so                           26.06-release                    Internet Group Management Protocol (IGMP)
+         28. ikev2_plugin.so                          26.06-release                    Internet Key Exchange (IKEv2) Protocol
+         29. ila_plugin.so                            26.06-release                    Identifier Locator Addressing (ILA) for IPv6
+         30. ioam_plugin.so                           26.06-release                    Inbound Operations, Administration, and Maintenance (OAM)
+         31. ip_session_redirect_plugin.so            26.06-release                    IP session redirect
+         32. l2tp_plugin.so                           26.06-release                    Layer 2 Tunneling Protocol v3 (L2TP)
+         33. l3xc_plugin.so                           26.06-release                    L3 Cross-Connect (L3XC)
+         34. lacp_plugin.so                           26.06-release                    Link Aggregation Control Protocol (LACP)
+         35. lb_plugin.so                             26.06-release                    Load Balancer (LB)
+         36. linux_cp_plugin.so                       26.06-release                    Linux Control Plane - Interface Mirror
+         37. linux_nl_plugin.so                       26.06-release                    linux Control Plane - Netlink listener
+         38. lisp_plugin.so                           26.06-release                    Locator ID Separation Protocol (LISP)
+         39. lldp_plugin.so                           26.06-release                    Link Layer Discovery Protocol (LLDP)
+         40. mactime_plugin.so                        26.06-release                    Time-based MAC Source Address Filter
+         41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+         42. mdata_plugin.so                          26.06-release                    Buffer metadata change tracker.
+         43. memif_plugin.so                          26.06-release                    Packet Memory Interface (memif) -- Experimental
+         44. mss_clamp_plugin.so                      26.06-release                    TCP MSS clamping plugin
+         45. nat44_ei_plugin.so                       26.06-release                    IPv4 Endpoint-Independent NAT (NAT44 EI)
+         46. nat64_plugin.so                          26.06-release                    NAT64
+         47. nat66_plugin.so                          26.06-release                    NAT66
+         48. nat_plugin.so                            26.06-release                    Network Address Translation (NAT)
+         49. npol_plugin.so                           26.06-release                    Network Policy
+         50. npt66_plugin.so                          26.06-release                    NPTv6
+         51. nsh_plugin.so                            26.06-release                    Network Service Header (NSH)
+         52. nsim_plugin.so                           26.06-release                    Network Delay Simulator
+         53. osi_plugin.so                            26.06-release                    OSI plugin
+         54. ping_plugin.so                           26.06-release                    Ping (ping)
+         55. pnat_plugin.so                           26.06-release                    Policy 1:1 NAT
+         56. policer_plugin.so                        26.06-release                    Policer
+         57. ppp_plugin.so                            26.06-release                    Point-to-Point Protocol (PPP) plugin
+         58. pppoe_plugin.so                          26.06-release                    PPP over Ethernet (PPPoE)
+         59. prom_plugin.so                           26.06-release                    Prometheus Stats Exporter
+         60. pvti_plugin.so                           26.06-release                    Packet Vector Tunnel Interface plugin
+         61. quic_plugin.so                           26.06-release                    QUIC transport protocol
+         62. quic_quicly_plugin.so                    26.06-release                    Quicly QUIC Engine
+         63. rdma_plugin.so                           26.06-release                    RDMA IBverbs Device Driver
+         64. sasc_plugin.so                           26.06-release                    Session Aware Service Chaining (sasc)
+         65. selog_plugin.so                          26.06-release                    sFlow random packet sampling
+         66. sfdp_services_plugin.so                  26.06-release                    SFDP Services Plugin
+         67. sflow_plugin.so                          26.06-release                    sFlow random packet sampling
+         68. soft_rss_plugin.so                       26.06-release                    Software RSS feature arc template
+         69. srmpls_plugin.so                         26.06-release                    Segment Routing for MPLS plugin
+         70. srv6ad_plugin.so                         26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         71. srv6adflow_plugin.so                     26.06-release                    Dynamic Segment Routing for IPv6 (SRv6) Proxy
+         72. srv6am_plugin.so                         26.06-release                    Masquerading Segment Routing for IPv6 (SRv6) Proxy
+         73. srv6as_plugin.so                         26.06-release                    Static Segment Routing for IPv6 (SRv6) Proxy
+         74. srv6mobile_plugin.so                     26.06-release                    SRv6 GTP Endpoint Functions
+         75. stn_plugin.so                            26.06-release                    VPP Steals the NIC (STN) for Container Integration
+         76. svs_plugin.so                            26.06-release                    Source Virtual Routing and Forwarding (VRF) Select
+         77. tap_plugin.so                            26.06-release                    TAP/TUN device (virtio backend)
+         78. tlsopenssl_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, OpenSSL Based
+         79. tlspicotls_plugin.so                     26.06-release                    Transport Layer Security (TLS) Engine, Picotls Based
+         80. udp_echo_plugin.so                       26.06-release                    UDP Echo Plugin
+         81. urpf_plugin.so                           26.06-release                    Unicast Reverse Path Forwarding (uRPF)
+         82. vhost_plugin.so                          26.06-release                    Vhost-User
+         83. vmxnet3_plugin.so                        26.06-release                    VMWare Vmxnet3 Device Driver
+         84. vrrp_plugin.so                           26.06-release                    VRRP v3 (RFC 5798)
+         85. vxlan-gpe_plugin.so                      26.06-release                    VxLan GPE Tunnels
+         86. vxlan_plugin.so                          26.06-release                    VxLan Tunnels
+         87. wireguard_plugin.so                      26.06-release                    Wireguard Protocol
+    zz_pppoe_live_overlay_test.go:363: rig up w9 (slot 9, path af_packet)
+          create netns ns-w9-lan
+          create veth w9l0 <-> ns-w9-lan:w9l1
+          create vpp host-w9l0 (af_packet on w9l0)
+          reset  ip/ip6 classify host-w9l0 (table-index ~0)
+          set    addr host-w9l0 10.9.1.1/24
+          create netns ns-w9-wan
+          create veth w9w0 <-> ns-w9-wan:w9w1
+          create vpp host-w9w0 (af_packet on w9w0)
+          reset  ip/ip6 classify host-w9w0 (table-index ~0)
+          set    addr host-w9w0 10.9.2.1/24
+        rig: up
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: 10.9.1.1/24 
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: 10.9.2.1/24 
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+        
+    zz_pppoe_live_overlay_test.go:369: rig VPP side handed to the agent: af_packet_delete w9l0 (veth down)
+    zz_pppoe_live_overlay_test.go:369: rig VPP side handed to the agent: af_packet_delete w9w0 (veth down)
+2026/10/06 11:28:32 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w9 component=subsystems
+2026/10/06 11:28:32 INFO VPP binary API connected owner=w9 component=vpp socket=/run/vpp/api.sock
+2026/10/06 11:28:32 INFO PKI file materialiser wired owner=w9 component=subsystems root=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state/pki-w9 source=true
+2026/10/06 11:28:32 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w9 component=subsystems
+2026/10/06 11:28:32 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w9 component=subsystems
+2026/10/06 11:28:32 INFO fqdn state reloaded owner=w9 component=subsystems family=objects file=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state/objects-fqdn-w9.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/06 11:28:32 INFO objects domain wired owner=w9 component=subsystems store=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state/objects-w9.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/06 11:28:32 INFO acl domain wired owner=w9 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/06 11:28:32 INFO host firewall wired owner=w9 component=subsystems table="inet ngfw_w9" mode=check netns="" rules_file=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state/host-acl-w9.nft
+2026/10/06 11:28:32 INFO kea wired owner=w9 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/06 11:28:32 INFO host services wired owner=w9 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-agent-test-2761425867/unbound/unbound.conf chrony_conf=/tmp/ngfw-agent-test-2761425867/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-agent-test-2761425867/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/06 11:28:32 INFO system identity wired owner=w9 component=subsystems product_paths=false hostname_file=/tmp/ngfw-agent-test-2761425867/sysident/etc/hostname
+2026/10/06 11:28:32 INFO pppoe client wired owner=w9 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/06 11:28:32 INFO subsystems wired owner=w9 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state: claims-iface-w9.json, boot-w9.json; globals owner false" vpp_ids=9000-9999
+2026/10/06 11:28:32 INFO ngfw-agent listening owner=w9 socket=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/agent.sock metrics=off state_dir=/root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state vpp_api=/run/vpp/api.sock
+2026/10/06 11:28:32 INFO VPP boot identity owner=w9 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/1646377/26703454 complete=true expired_claims=0
+2026/10/06 11:28:32 WARN neighbour events: interface dump owner=w9 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/06 11:28:32 INFO reconcile start owner=w9 txn_id="" mode=resync domains=[]
+2026/10/06 11:28:32 INFO reconcile done owner=w9 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=66.182105ms err=""
+2026/10/06 11:28:32 INFO resync finished owner=w9 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/06 11:28:32 INFO dynamic source started owner=w9 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/06 11:28:32 INFO dynamic source started owner=w9 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/06 11:28:32 INFO reconcile start owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]"
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=vrf/9401
+2026/10/06 11:28:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/06 11:28:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface/host-w9l0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface/host-w9w0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/06 11:28:32 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/06 11:28:32 INFO reconcile done owner=w9 txn_id=w9-pppoe-base mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=433.026137ms err=""
+    zz_pppoe_live_overlay_test.go:112: apply base: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created": 11
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:414: show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w9w0 tap4096 w9-w0 10 type tap
+2026/10/06 11:28:32 INFO reconcile start owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]"
+2026/10/06 11:28:32 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/06 11:28:32 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/06 11:28:33 INFO reconcile done owner=w9 txn_id=w9-pppoe-dial mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1 unchanged:11" reapplied=0 duration=188.085413ms err=""
+    zz_pppoe_live_overlay_test.go:112: apply dial: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created": 1,
+          "unchanged": 11
+        } validation={
+          "txnId": "w9-pppoe-dial",
+          "ok": true,
+          "errors": [
+            {
+              "pointer": "/interfaces/host-w9w0/pppoe",
+              "message": "session files are rendered in the slot tree; the host units are not supervised",
+              "severity": "ISSUE_SEVERITY_WARNING",
+              "rule": "pppoe.not-supervised"
+            },
+            {
+              "pointer": "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message": "the password reference must resolve in the agent secret cache before apply",
+              "severity": "ISSUE_SEVERITY_WARNING",
+              "rule": "pppoe.secret-unavailable"
+            }
+          ],
+          "summary": {}
+        } message=""
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:424: rendered slot tree:
+        /tmp/ngfw-agent-test-2761425867/pppoe:
+        total 0
+        drwx------ 4 root root 80 Oct  6 11:28 etc
+        drwx------ 3 root root 60 Oct  6 11:28 run
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc:
+        total 0
+        drwx------ 5 root root 140 Oct  6 11:28 ppp
+        drwx------ 3 root root  60 Oct  6 11:28 systemd
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp:
+        total 8
+        -rw------- 1 root root 115 Oct  6 11:28 chap-secrets
+        drwx------ 2 root root  60 Oct  6 11:28 ip-down.d
+        drwx------ 2 root root  60 Oct  6 11:28 ip-up.d
+        -rw------- 1 root root 115 Oct  6 11:28 pap-secrets
+        drwx------ 2 root root  60 Oct  6 11:28 peers
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/ip-down.d:
+        total 4
+        -rwxr-xr-x 1 root root 714 Oct  6 11:28 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/ip-up.d:
+        total 4
+        -rwxr-xr-x 1 root root 710 Oct  6 11:28 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/peers:
+        total 4
+        -rw-r--r-- 1 root root 321 Oct  6 11:28 ngfw-w9-w0
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/systemd:
+        total 0
+        drwx------ 2 root root 60 Oct  6 11:28 system
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/etc/systemd/system:
+        total 4
+        -rw-r--r-- 1 root root 339 Oct  6 11:28 ngfw-pppoe-w9-w0.service
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/run:
+        total 0
+        drwx------ 3 root root 60 Oct  6 11:28 ngfw
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/run/ngfw:
+        total 0
+        drwx------ 2 root root 40 Oct  6 11:28 pppoe
+        
+        /tmp/ngfw-agent-test-2761425867/pppoe/run/ngfw/pppoe:
+        total 0
+    zz_pppoe_live_overlay_test.go:427: rendered etc/ppp/peers/ngfw-w9-w0:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        plugin rp-pppoe.so
+        nic-w9-w0
+        user "uw9"
+        remotename ngfw-w9-w0
+        mtu 1492
+        mru 1492
+        noipdefault
+        defaultroute
+        replacedefaultroute
+        noipv6
+        hide-password
+        noauth
+        lcp-echo-interval 20
+        lcp-echo-failure 3
+        persist
+        holdoff 3
+        maxfail 2
+    zz_pppoe_live_overlay_test.go:427: rendered etc/systemd/system/ngfw-pppoe-w9-w0.service:
+        # ngfw-agent PPPoE client (F-pppoe-client) — session w9-w0. Rendered; hand edits are overwritten.
+        [Unit]
+        Description=ngfw PPPoE client on w9-w0
+        After=network.target vpp.service
+        [Service]
+        Type=simple
+        ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Restart=on-failure
+        RestartSec=3
+        [Install]
+        WantedBy=multi-user.target
+    zz_pppoe_live_overlay_test.go:427: rendered etc/ppp/ip-up.d/ngfw-w9-w0:
+        #!/bin/sh
+        # ngfw-agent PPPoE ip-up hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+        # IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+        # and writes a state file the agent reads. Rendered; hand edits are overwritten.
+        set -eu
+        [ "${PPP_IPPARAM:-}" = "ngfw-w9-w0" ] || exit 0
+        dir="/tmp/ngfw-agent-test-2761425867/pppoe/run/ngfw/pppoe"
+        f="$dir/w9-w0.state"
+        mkdir -p "$dir"
+        tmp="$f.tmp.$$"
+        {
+          echo "phase=up"
+          echo "hostif=w9-w0"
+          echo "ppp_iface=${PPP_IFACE:-}"
+          echo "local=${IPLOCAL:-}"
+          echo "peer=${IPREMOTE:-}"
+          echo "dns1=${DNS1:-}"
+          echo "dns2=${DNS2:-}"
+          echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        } > "$tmp"
+        mv -f "$tmp" "$f"
+    zz_pppoe_live_overlay_test.go:291: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:291: rendered config/manifest: password present only in secret file /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:299: rendered config/manifest: scanned 13 files under [/tmp/ngfw-agent-test-2761425867/pppoe /root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state]
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+    zz_pppoe_live_overlay_test.go:199: ISP pppoe-server started pid=1649206 in ns-w9-wan
+    zz_pppoe_live_overlay_test.go:257: supervisor: started rendered ExecStart pid=1649211: /usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+    zz_pppoe_live_overlay_test.go:444: session did not come up within 40s; state={
+          "phase": "down"
+        }
+        client log:
+        === supervisor start 2026-10-06T11:28:34.138507869Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        
+        VPP errors:
+           Count                  Node                              Reason               Severity 
+                 4            pppoe-input                 good packets decapsulated        error  
+                18          af-packet-input                    timed out block             error  
+                18          af-packet-input                  total received block          error  
+                17           ethernet-input                        no error                error  
+                 4           local0-output                    interface is down            error  
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE dial-up=FAIL phase=down (no PADO; see VPP errors / client log)
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE ipv4-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE mss-clamp=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE traffic=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE server-restart-reconnect=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE wrong-password=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:291: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/chap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:291: before withdrawal: password present only in secret file /tmp/ngfw-agent-test-2761425867/pppoe/etc/ppp/pap-secrets (mode -rw-------) — expected
+    zz_pppoe_live_overlay_test.go:299: before withdrawal: scanned 13 files under [/tmp/ngfw-agent-test-2761425867/pppoe /root/.cache/go-tmp/TestPppoeClientLive3466229076/002/state]
+2026/10/06 11:29:14 INFO reconcile start owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]"
+2026/10/06 11:29:14 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/06 11:29:14 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/06 11:29:14 INFO reconcile done owner=w9 txn_id=w9-pppoe-withdraw mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1 unchanged:11" reapplied=0 duration=214.555072ms err=""
+    zz_pppoe_live_overlay_test.go:112: apply withdraw: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted": 1,
+          "unchanged": 11
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:593: after withdrawal: addr=false route=false mss=none recv:EOF files="" manifest-absent=true state=<nil>
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+2026/10/06 11:29:16 INFO reconcile start owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]"
+2026/10/06 11:29:16 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/06 11:29:16 INFO created owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/06 11:29:16 INFO confirm timer armed owner=w9 txn_id=w9-pppoe-confirm deadline=2026-10-06T11:29:46Z in=29.999948477s
+2026/10/06 11:29:16 INFO reconcile done owner=w9 txn_id=w9-pppoe-confirm mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="created:1 unchanged:11" reapplied=0 duration=155.317988ms err=""
+    zz_pppoe_live_overlay_test.go:112: apply confirm: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "created": 1,
+          "unchanged": 11
+        } validation={
+          "txnId": "w9-pppoe-confirm",
+          "ok": true,
+          "errors": [
+            {
+              "pointer": "/interfaces/host-w9w0/pppoe",
+              "message": "session files are rendered in the slot tree; the host units are not supervised",
+              "severity": "ISSUE_SEVERITY_WARNING",
+              "rule": "pppoe.not-supervised"
+            },
+            {
+              "pointer": "/interfaces/host-w9w0/pppoe/passwordRef",
+              "message": "the password reference must resolve in the agent secret cache before apply",
+              "severity": "ISSUE_SEVERITY_WARNING",
+              "rule": "pppoe.secret-unavailable"
+            }
+          ],
+          "summary": {}
+        } message=""
+2026/10/06 11:29:46 WARN confirm timeout: reverting to the last confirmed state owner=w9 txn_id=w9-pppoe-confirm
+2026/10/06 11:29:46 INFO reconcile start owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]"
+2026/10/06 11:29:47 WARN pppoe.not-supervised owner=w9 component=subsystems feature=pppoe-client owner=w9
+2026/10/06 11:29:47 INFO deleted owner=w9 component=scheduler key=pppoe.client.config/ngfw
+2026/10/06 11:29:47 INFO reconcile done owner=w9 txn_id="" mode=revert domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary="deleted:1 unchanged:11" reapplied=1 duration=214.928207ms err=""
+    zz_pppoe_live_overlay_test.go:629: rollback: candidate addr=false route=false; reverted=true; after addr=false route=false mss=none recv:EOF files="" manifestGone=true
+    zz_pppoe_live_overlay_test.go:84: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=false) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:639: client (rendered pppd) log:
+        === supervisor start 2026-10-06T11:28:34.138507869Z: ExecStart=/usr/sbin/pppd call ngfw-w9-w0 nodetach ipparam ngfw-w9-w0
+        Plugin rp-pppoe.so loaded.
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        select (waitForPADO): Interrupted system call
+        Timeout waiting for PADO packets
+        Unable to complete PPPoE Discovery phase 1
+        === supervisor observed exit status 8 at 2026-10-06T11:29:16.623638522Z
+    zz_pppoe_live_overlay_test.go:641: server log:
+    zz_pppoe_live_overlay_test.go:327: PPPOE_SUMMARY_BEGIN
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE apply-pppoe=PASS APPLIED with SecretBundle password/w9wan
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE password-not-in-rendered-config=PASS only 0600 chap/pap secret files hold it; peer/unit/hooks/manifest/RPC responses clean
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE dial-up=FAIL phase=down (no PADO; see VPP errors / client log)
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE ipv4-addr-route-mirror=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE mss-clamp=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE traffic=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE server-restart-reconnect=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE wrong-password=NOT-RUN depends on dial-up
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE withdrawal-cleanup=PASS address, default path, MSS clamp, slot files and manifest removed
+    zz_pppoe_live_overlay_test.go:329: PPPOE_CASE confirm-rollback=PASS unconfirmed candidate (session mirrored=false) reverted: files, manifest and VPP mirror removed
+    zz_pppoe_live_overlay_test.go:331: PPPOE_SUMMARY_END
+2026/10/06 11:29:50 INFO reconcile start owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]"
+2026/10/06 11:29:50 INFO interface sanitized (VPP V19/V21 inherited state) interface=w9-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=lcp.itf-pair/host-w9w0
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9w0
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=interface.admin-state/host-w9l0
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9w0
+2026/10/06 11:29:50 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/06 11:29:50 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9w0
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=interface-ip/host-w9l0/10.9.1.1/24
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=interface-ip.table/host-w9l0
+2026/10/06 11:29:50 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w9l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/06 11:29:50 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w9l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=af-packet.host-interface/host-w9l0
+2026/10/06 11:29:50 INFO deleted owner=w9 component=scheduler key=vrf/9401
+2026/10/06 11:29:50 INFO reconcile done owner=w9 txn_id=w9-pppoe-cleanup mode=apply domains="[interfaces vrfs]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=334.735975ms err=""
+    zz_pppoe_live_overlay_test.go:112: apply cleanup: err=<nil> status=APPLY_STATUS_APPLIED summary={
+          "deleted": 9
+        } validation=<nil> message=""
+    zz_pppoe_live_overlay_test.go:394: cleanup apply: <nil> APPLY_STATUS_APPLIED
+    zz_pppoe_live_overlay_test.go:402: cleanup: VPP interfaces of w9 left: []; table 9401: [0] table_id:0 ipv4-VRF:0
+2026/10/06 11:29:50 INFO dynamic source stopped owner=w9 source=pppoe-watch
+2026/10/06 11:29:50 INFO dynamic source stopped owner=w9 source=multiwan
+2026/10/06 11:29:50 INFO ngfw-agent stopped owner=w9
+    zz_pppoe_live_overlay_test.go:366: rig down: <nil>
+        rig down w9
+          delete netns ns-w9-lan (and its veth peer)
+          delete netns ns-w9-wan (and its veth peer)
+          delete veth w9w0
+        rig: down
+        prefix: w9
+        slot: 9
+        path: af_packet
+        lan_ns: ns-w9-lan
+        lan_veth: w9l1
+        lan_ip: 10.9.1.2/24
+        lan_gw: 10.9.1.1
+        vpp_lan_if: host-w9l0
+        vpp_lan_addr: -
+        wan_ns: ns-w9-wan
+        wan_veth: w9w1
+        wan_ip: 10.9.2.2/24
+        wan_gw: 10.9.2.1
+        vpp_wan_if: host-w9w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w9-lan ping -c 3 10.9.2.2
+--- FAIL: TestPppoeClientLive (81.02s)
+FAIL
+FAIL	ngfw/agent/internal/agent	81.125s
+FAIL
+DISPOSABLE_VPP_STOPPED pid=1646377
+JOURNAL_PPP_LINES:
+Plugin rp-pppoe.so loaded.
+pppd 2.5.2 started by root, uid 0
+Unable to complete PPPoE Discovery phase 1
+Unable to complete PPPoE Discovery phase 1
+Terminating on signal 15 -- killing all PPPoE sessions
+PASSWORD_GREP={"test-output": 0, "journal-since-start": 0} PASS
+LEFTOVER_PPP_PROCESSES=none
+HOST_NETNS_LIST=none
+SHARED_VPP before=MainPID=1014,NRestarts=0 after=MainPID=1014,NRestarts=0
+TEST_EXIT=1
+RUN_EXIT=1

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"fmt"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -27,7 +28,9 @@ import (
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/testpeer/strongswan"
 	"ngfw/agent/internal/testpeer/strongswan/swantest"
+	"ngfw/agent/internal/trafficbtest"
 	"ngfw/agent/internal/vpp"
+	"ngfw/agent/internal/vpp/vpptest"
 )
 
 // TestIKEv2NativePackets runs only in the disposable VPP namespace. It uses a
@@ -49,7 +52,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	}
 	productBinary := os.Getenv("NGFW_NATIVE_AGENT_BIN")
 	production := productBinary != ""
-	cli := func(cmd string) string { return run("vppctl", "-s", "/run/vpp/cli.sock", cmd) }
+	cli := func(cmd string) string { return run("vppctl", "-s", vpptest.CLISocket(), cmd) }
 	if os.Getenv("NGFW_NATIVE_FAST_DPD") == "1" {
 		cli("ikev2 set liveness 1 3")
 	}
@@ -119,7 +122,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 	if out, e := exec.CommandContext(ctx, "ip", "netns", "exec", lan, "ping", "-c", "1", "-W", "1", "198.18.82.2").CombinedOutput(); e == nil {
 		t.Fatalf("traffic escaped before SA installation: %s", out)
 	}
-	conn := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{})
+	conn := vpp.Dial(vpptest.APISocket(), vpp.ConnOptions{})
 	defer conn.Close()
 	if e := conn.WaitConnected(ctx); e != nil {
 		t.Fatal(e)
@@ -130,6 +133,11 @@ func TestIKEv2NativePackets(t *testing.T) {
 	}
 	material := make([]byte, 32)
 	rand.Read(material)
+	if trafficbtest.Enabled() {
+		text := []byte(fmt.Sprintf("%x", material))
+		vpn.Zero(material)
+		material = text
+	}
 	defer vpn.Zero(material)
 	resolver := vpn.NewMapResolver(key, material)
 	env := IKEv2Env{SecretRef: func(context.Context, string) (string, error) { return key.Ref(material), nil }}
@@ -148,6 +156,7 @@ func TestIKEv2NativePackets(t *testing.T) {
 		profile.Responder = &vpnpb.Ikev2Responder{Interface: "host-w8nwan", Address: "198.18.8.2"}
 	}
 	desc := ikev2.NewProfile(ikev2.Config{Client: conn, Owner: "w8", Secrets: resolver, Keys: key})
+	var restControl *trafficbtest.Client
 	var product ngfwv1.DataplaneClient
 	var productApply func(string)
 	var productPartial func(string)
@@ -232,9 +241,18 @@ func TestIKEv2NativePackets(t *testing.T) {
 				time.Sleep(200 * time.Millisecond)
 			}
 		}
+		productSecrets := map[string][]byte{"psk/site": append([]byte(nil), material...)}
+		if trafficbtest.Enabled() {
+			restControl = trafficbtest.New(t, socket, "w8", os.Getenv("NGFW_TRAFFIC_B_PHASE"), process.Process.Pid)
+			defer restControl.Close(t)
+		}
 		productApply = func(txn string) {
 			t.Helper()
-			result, e := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: ds, SecretBundle: &ngfwv1.SecretBundle{Values: map[string][]byte{"psk/site": append([]byte(nil), material...)}}})
+			if restControl != nil {
+				restControl.Apply(t, txn, ds, productSecrets)
+				return
+			}
+			result, e := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: txn, DesiredState: ds, SecretBundle: &ngfwv1.SecretBundle{Values: productSecrets}})
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -389,7 +407,7 @@ print('TCP exact 1048576 bytes passed')`))
 	if e := server.Wait(); e != nil {
 		t.Fatal(e)
 	}
-	counters, e := ikev2.SACounters(ctx, conn, "/run/vpp/stats.sock", sas)
+	counters, e := ikev2.SACounters(ctx, conn, vpptest.StatsSocket(), sas)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -617,6 +635,37 @@ print('TCP exact 1048576 bytes passed')`))
 	esp := run("tcpdump", "-n", "-r", pcap, "ip proto 50")
 	if !strings.Contains(esp, "ESP") {
 		t.Fatal("no ESP in underlay capture")
+	}
+	if production {
+		if restControl != nil {
+			restControl.Close(t)
+		}
+		if restControl == nil {
+			result, err := product.Apply(ctx, &ngfwv1.ApplyRequest{TxnId: "native-owned-rollback", DesiredState: &ngfwv1.DesiredState{}, Subsystems: []string{"vpn", "tunnels", "routing", "interfaces", "vrfs"}})
+			if err != nil || result.GetStatus() != ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED {
+				t.Fatal("production owned rollback failed", err, result.GetStatus())
+			}
+		}
+
+		actual, err := product.Retrieve(ctx, &ngfwv1.RetrieveRequest{Owner: "w8"})
+		if err != nil {
+			t.Fatal("post-rollback Retrieve failed", err)
+		}
+		state := actual.GetDesiredState()
+		if len(state.GetInterfaces()) != 0 || len(state.GetTunnels().GetIpip()) != 0 || len(state.GetRouting().GetStatic()) != 0 || len(state.GetVpn().GetIpsec().GetTunnels()) != 0 {
+			t.Fatal("owned configuration remains after production rollback")
+		}
+		profiles, err := desc.Retrieve(ctx)
+		if err != nil || len(profiles) != 0 {
+			t.Fatal("owned IKE profile remains after rollback", err)
+		}
+		if got := cli("show ipsec protect"); strings.Contains(got, "ipip8001") {
+			t.Fatal("owned tunnel protection remains after rollback")
+		}
+		if got := cli("show interface"); strings.Contains(got, "ipip8001") || strings.Contains(got, "host-w8n") {
+			t.Fatal("owned VPP tunnel/interface remains after rollback")
+		}
+		t.Log("production owned rollback removed profiles, protection, routes, tunnels and interfaces; Retrieve empty before disposable VPP shutdown")
 	}
 	t.Log("underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion")
 	t.Log("route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained")

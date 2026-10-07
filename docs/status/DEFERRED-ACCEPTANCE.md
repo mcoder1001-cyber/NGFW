@@ -266,3 +266,46 @@ All actual packet forwarding/drop, both-path/selected-PBR, NAT translation and
 endpoint independence, rollback/residue, capture-loss and VPP identity cases
 remain **NOT RUN**. No live whole_chain_proven result was generated. Use the
 existing manager lease and an idle owned rig window for this single campaign.
+
+## F-hardening-lite offline tooling acceptance (2026-10-05)
+
+Implemented and independently fixture-tested10controls/signature/key-rotation cases; complete reviewed-source quick PASS36m12. Full signed package install/keyrotation, real daemon runtime under optional profiles and appliance boot smoke NOTRUN: signed /srv/ngfw-artifacts/apt pool and disposable full appliance absent. Do not activate profiles on sharedhost. Owner permits deferring only these actual laboratory executions; offline source/tests and final/hosted current-main integration gates remain required. Follow docs/install/hardening.md on disposable target, record real servicehealth and effective settings before claiming runtime acceptance.
+
+## F-images target execution (2026-10-05)
+
+Implemented qcow2/vmdk/OVA/VHDX/VHD/GCP conversion and offlineVM/cloudtargetprofiles with independent13fixture/format cases andcomplete corrected-source quick PASS22m44. Full signed applianceimage build, actualfirmwareVMboot andAWS/Azure/GCP import NOTRUN: /srv/ngfw-artifacts/apt signedpool/manifest absent andrequiredfullappliancebuildspace unavailable. Disposableformatroundtrips are not applianceboot proof. Ownerpermitsdeferralonly ofthese genuine lab executions; codeguards/current-main local+hosted gates remainrequired. Run docs/install/images.md on isolated provisioned targetandrecordactualboot/interfaces/noautomaticdataplaneNICclaims.
+## F-ab-upgrade appliance execution (2026-10-05)
+
+Signed preformat/staging/confirm/rollback tooling implemented;17independentfixtures, actualownedprivate-loopunsigned/tamperedrefusal,stageB/confirmB/healthfailuredefaultA passed; exactreviewedsourcequick PASS9m49. Actualfirmware one-shotboot/powerfailure,reboothealth onfullappliance,databasebackup/export/restore NOTRUN because disposabledual-slotfirmware/appliancetarget unavailable. Loopmount/GRUBenv fixtures are notfirmwarebootproof. Follow docs/install/ab-upgrade.md onprovisionedisolatedtarget; collectboot/rollback/health/backup evidence. Ownerpermitsonlythese genuine runtimeexecutionsdeferred; finalcurrent-main/hostedmandatory gates remainrequired.
+
+## P11-host remaining appliance execution (2026-10-05)
+
+Actual isolated native PSK responder/initiator production-agent forwarding, rekey, restart, peer loss/retry and authoritative rollback independently PASS; see P11-host-live-test-T3.md. Full appliance deployment acceptance is NOTRUN without a disposable appliance. Certificate peer acceptance belongs to the separate certificate campaign and is not inferred from this PSK evidence. Source and mandatory final integration gates are not deferred.
+
+## F-bfd-redistribution remaining native peer execution (2026-10-05)
+
+Native multihop actual two-peer packet/liveness/authentication and live FRR redistribution counters across forwarding VRFs are NOTRUN because the isolated owned peer rig has not been provisioned. Durable native ownership/compensation/recovery,1024-session indexing, bounded observation lifecycle, FRR parsing/timers/family matrix and authenticated API/browser fixtures were implemented and independently tested. Their source tests and complete current-main local/hosted quick are mandatory, never deferred. Provision the owned private peer rig following docs/user/routing/bfd-redistribution.md; do not use shared VPP or infer native packet PASS from mock race/API fixtures.
+## F-ha-state-sync remaining two-node execution (2026-10-05)
+
+Actual native NAT44-EI session/TCP continuity, dedicated-sync packet capture, VRRP convergence and owned failover/VM-fault execution are NOTRUN because the disposable second appliance ngfw-b has not been provisioned. The concrete acceptance.py driver leases only its own candidate, checks exact EI tuples/roles and a persistent TCP connection, safely restores priority/revision ownership and bounds private output; optional VM helper requires matching root-owned PID/boot/unit proof. Sixteen offline safety/timing/redirect tests, real API permission/failure-audit/restart scenarios and frontend browser cases were independently executed. Source/correctness/security/mandatory current-main local+hosted quick are not deferred. Follow test/topology/ha-state-sync/README.md on a provisioned isolated two-node rig. ED/ACL/IPsec-SA sequence/replay sync remains unsupported, not deferred implementation.
+
+## Six final tasks — 2026-10-05 freeze campaign
+
+Source completion of the six final rows is separate from release acceptance.
+The obsolete P11-pkg strongSwan/kernel-vpp build is superseded by the owner's
+DEC-ipsec-route-based decision; native product packages and installation remain
+tracked by P10/F-vpp-debs/P11-host. No historical package install is required.
+
+| Case | Current campaign outcome | Next acceptance |
+|---|---|---|
+| Cross-component offline freeze | PASS: contract build, reachability, commit-engine/service46 and auth11 checks | Rerun on the final merged source via test/acceptance/freeze/run.py |
+| Disposable VPP smoke, slot31 | PASS: af_packet ping/counters and cleanup; two tests, no skips | Does not certify API/browser or full product packet chains |
+| TEST-traffic-B | NOT RUN here | Owned native route-based IPsec/daemon campaign; record exact SHA and packet evidence |
+| TEST-traffic-C | NOT RUN | Complete and independently review driver, then owned quiet window; real MPLS/SRH/VRRP/QoS/riders and rollback |
+| Final browser | NOT RUN | Owned API/agent stack, en/fa real candidate/commit/rollback and console checks |
+| Appliance install/HA | NOT RUN | Clean target boot/install and authorized two-node failover; never restart shared VPP while handover is pending |
+
+Full local and hosted quick CI remain mandatory merge gates. The first freeze
+quick attempt failed timing checks during concurrent load; preserve that failure
+and rerun serially with existing concurrency controls, without weakening tests.
+STATUS-FINAL must retain every unresolved code or acceptance gap explicitly.

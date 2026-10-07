@@ -90,3 +90,7 @@ Not a binary: `kea.DefaultHooksDir` = `/usr/lib/x86_64-linux-gnu/kea/hooks` is o
 Integration tests that start a daemon as a child process (`zebra -N`, `kea-dhcp4 -c`,
 `unbound -c`, `chronyd -f -x`, `charon`) use the same runner and the same rule: the binary is
 listed here, the argv is fixed, and the process is killed by the PID the test spawned.
+
+| `/usr/sbin/ngfw-upgrade` | backup-restore | Fixed `status --json`; read-only in agent sandbox. |
+| `/usr/lib/ngfw/ngfw-support-collect` | backup-restore | No arguments; bounded fixed read-only service/version collection. |
+| `/usr/bin/systemctl` | backup-restore | Fixed `show --property=ActiveState --value` for the four dedicated instances; `start ngfw-upgrade@stage.service`, `@activate`, `@confirm`, `@rollback` only; enum selected dedicated root units. |

@@ -1,0 +1,100 @@
+#!/usr/bin/python3
+"""Offline-only A/B provisioning; never edits the build host's boot or marker."""
+import argparse
+import importlib.machinery
+import importlib.util
+import json
+from pathlib import Path
+import os
+import shutil
+
+loader = importlib.machinery.SourceFileLoader('upgrade', str(Path(__file__).with_name('ngfw-upgrade')))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+u = importlib.util.module_from_spec(spec)
+loader.exec_module(u)
+p = argparse.ArgumentParser()
+p.add_argument('--root', required=True, type=Path)
+p.add_argument('--version', required=True)
+p.add_argument('--key', required=True, type=Path)
+p.add_argument('--kernel-args', required=True, type=Path, help='P14 common/kernel/cmdline')
+for name in ('root-a', 'root-b', 'efi', 'data', 'pg', 'log'):
+    p.add_argument('--' + name, required=True)
+a = p.parse_args()
+root = a.root.resolve()
+if root == Path('/') or not root.is_mount():
+    p.error('provision requires an offline mounted image root')
+u.regular(root / 'etc/ngfw/appliance')
+u.regular(root / 'boot/vmlinuz')
+u.regular(root / 'boot/initrd.img')
+u.regular(root / 'boot/grub/grub.cfg')
+fstab = u.regular(root / 'etc/fstab')
+if '/var/lib/ngfw' in fstab.read_text() or (root / 'data/ngfw').exists():
+    p.error('shared state already exists/configured; migrate it explicitly first')
+import re
+kernel_args = [line.strip() for line in u.regular(a.kernel_args).read_text().splitlines() if line.strip() and not line.lstrip().startswith('#')]
+if not kernel_args or any(not re.fullmatch('[A-Za-z0-9_.,=:/+-]+', arg) or arg.startswith(('root=', 'init=', 'rdinit=')) for arg in kernel_args):
+    p.error('invalid kernel arguments')
+u.version(a.version)
+# Validate mount/device identities before writing image configuration or GRUB.
+config = {'format': 1, 'root_devices': {'A': a.root_a, 'B': a.root_b},
+          'efi_device': a.efi, 'data_device': a.data, 'pg_device': a.pg, 'log_device': a.log}
+import stat
+all_devices = [a.root_a, a.root_b, a.efi, a.data, a.pg, a.log]
+for dev in all_devices:
+    if not dev.startswith('/dev/') or not stat.S_ISBLK(os.stat(dev).st_mode):
+        p.error('all devices must be block devices')
+if len({os.stat(d).st_rdev for d in all_devices}) != 6 or root.stat().st_dev != os.stat(a.root_a).st_rdev:
+    p.error('six distinct devices and mounted root A required')
+for mount, dev in [('boot/efi', a.efi), ('data', a.data), ('var/lib/postgresql', a.pg), ('var/log', a.log)]:
+    if (root / mount).stat().st_dev != os.stat(dev).st_rdev:
+        p.error('image persistent/EFI mounts must be mounted')
+if (root / 'data/ngfw-upgrade/state.json').exists():
+    p.error('upgrade state already initialized')
+# Firmware/GRUB must support writes to this filesystem for next_entry consumption.
+if u.run('blkid', '-s', 'TYPE', '-o', 'value', a.efi).decode().strip() != 'vfat':
+    p.error('EFI filesystem must be vfat')
+if not u.run('openssl', 'pkey', '-pubin', '-in', str(u.regular(a.key)), '-text', '-noout').startswith(b'ED25519 Public-Key:'):
+    p.error('Ed25519 public key required')
+u.atomic(root / 'etc/ngfw/upgrade.json', u.json_bytes(config))
+u.atomic(root / 'etc/ngfw/upgrade-signing.pub', a.key.read_bytes(), 0o644)
+app = u.Appliance(root, offline_initialization=True)
+shared = root / 'data/ngfw'
+shutil.copytree(root / 'var/lib/ngfw', shared, symlinks=False)
+os.chown(shared, 0, (root / 'var/lib/ngfw').stat().st_gid)
+os.chmod(shared, 0o750)
+with app.lock():
+    app.env.parent.mkdir(parents=True, exist_ok=True)
+    app.grub('create')
+    app.grub('set', 'saved_entry=ngfw-A')
+    efi_uuid = u.run('blkid', '-s', 'UUID', '-o', 'value', a.efi).decode().strip()
+    lines = ['set timeout=3', 'load_env -f ($ngfw_efi)/EFI/ngfw/grub/grubenv',
+             'if [ "${next_entry}" ]; then', '  set default="${next_entry}"',
+             '  set next_entry=', '  save_env -f ($ngfw_efi)/EFI/ngfw/grub/grubenv next_entry',
+             'else', '  set default="${saved_entry}"', 'fi']
+    for slot, dev in [('A', a.root_a), ('B', a.root_b)]:
+        label = 'ngfw-root' + slot
+        lines += ['menuentry "NGFW root ' + slot + '" --id ngfw-' + slot + ' {',
+                  '  search --no-floppy --label --set=ngfw_root ' + label,
+                  '  linux ($ngfw_root)/boot/vmlinuz root=LABEL=' + label + ' ro ' + ' '.join(kernel_args),
+                  '  initrd ($ngfw_root)/boot/initrd.img', '}']
+    u.atomic(root / 'boot/efi/EFI/ngfw/grub/grub.cfg', ('\n'.join(lines) + '\n').encode(), 0o644)
+    # Existing P14 firmware GRUB loads slot A /boot/grub/grub.cfg. This fixed
+    # trampoline locates EFI and keeps slot switching independent of rootfs.
+    trampoline = 'search --no-floppy --fs-uuid --set=ngfw_efi ' + efi_uuid + '\nconfigfile ($ngfw_efi)/EFI/ngfw/grub/grub.cfg\n'
+    bootcfg = root / 'boot/grub/grub.cfg'
+    u.regular(bootcfg)
+    shutil.copy2(bootcfg, bootcfg.with_suffix('.pre-ab'))
+    u.atomic(bootcfg, trampoline.encode(), 0o644)
+    u.atomic(fstab, fstab.read_bytes() + b'\n/data/ngfw /var/lib/ngfw none bind 0 0\n', 0o644)
+    for dirname, names in [('multi-user.target.wants', ['ngfw-upgrade-prepare.service', 'ngfw-upgrade-health.service']),
+                            ('ngfw-api.service.requires', ['ngfw-upgrade-prepare.service']),
+                            ('ngfw-firstboot.service.requires', ['ngfw-upgrade-prepare.service'])]:
+        target = root / 'etc/systemd/system' / dirname
+        target.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            link = target / name
+            if not link.exists() and not link.is_symlink():
+                link.symlink_to('/usr/lib/systemd/system/' + name)
+    app.save({'format': 1, 'versions': {'A': a.version, 'B': None}, 'default_slot': 'A',
+              'staged_slot': None, 'pending_slot': None})
+print('Provisioned offline image. VM boot acceptance is required before release.')

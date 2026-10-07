@@ -22,9 +22,7 @@
       "0000:1c:00.0",
       "0000:1d:00.0"
     ],
-    "managementPci": [
-      "0000:0b:00.0"
-    ],
+    "managementPci": ["0000:0b:00.0"],
     "devices": {
       "0000:04:00.0": {
         "name": "ens161"
@@ -312,9 +310,7 @@
   "management": {
     "users": [],
     "aaa": {
-      "order": [
-        "local"
-      ],
+      "order": ["local"],
       "radius": {
         "servers": []
       },
@@ -344,7 +340,14 @@
     "alarms": {
       "rules": {},
       "targets": {}
-    }
+    },
+    "backup": {
+      "enabled": false,
+      "schedule": "0 2 * * *",
+      "retention": 7,
+      "revisions": 100
+    },
+    "templates": {}
   },
   "security": {
     "autoBlock": {

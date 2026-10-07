@@ -1,0 +1,14 @@
+#!/usr/bin/python3
+"""Minimal fixed read-only facts; no raw journal/config/log content in support exports."""
+import json
+import subprocess
+
+services = ['ngfw-api.service', 'ngfw-agent.service', 'vpp.service', 'postgresql.service', 'valkey.service']
+result = {'services': {}, 'versions': {}}
+for service in services:
+    run = subprocess.run(['/usr/bin/systemctl', 'show', service, '--property=ActiveState,SubState', '--no-pager'], check=False, capture_output=True, timeout=5)
+    result['services'][service] = run.stdout.decode('utf8', errors='replace').strip()[:256]
+for name, argv in {'kernel': ['/usr/bin/uname', '-r'], 'os': ['/usr/bin/lsb_release', '-ds']}.items():
+    run = subprocess.run(argv, check=False, capture_output=True, timeout=5)
+    result['versions'][name] = run.stdout.decode('utf8', errors='replace').strip()[:256]
+print(json.dumps(result))

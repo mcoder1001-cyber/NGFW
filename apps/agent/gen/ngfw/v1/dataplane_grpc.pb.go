@@ -76,6 +76,9 @@ const (
 	Dataplane_CaptureDelete_FullMethodName           = "/ngfw.v1.Dataplane/CaptureDelete"
 	Dataplane_Srv6State_FullMethodName               = "/ngfw.v1.Dataplane/Srv6State"
 	Dataplane_LispState_FullMethodName               = "/ngfw.v1.Dataplane/LispState"
+	Dataplane_BfdState_FullMethodName                = "/ngfw.v1.Dataplane/BfdState"
+	Dataplane_RedistributionMatrix_FullMethodName    = "/ngfw.v1.Dataplane/RedistributionMatrix"
+	Dataplane_HaSyncState_FullMethodName             = "/ngfw.v1.Dataplane/HaSyncState"
 	Dataplane_BondState_FullMethodName               = "/ngfw.v1.Dataplane/BondState"
 	Dataplane_BridgeDomainState_FullMethodName       = "/ngfw.v1.Dataplane/BridgeDomainState"
 	Dataplane_BridgeDomainMacs_FullMethodName        = "/ngfw.v1.Dataplane/BridgeDomainMacs"
@@ -209,6 +212,15 @@ type DataplaneClient interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(ctx context.Context, in *LispStateRequest, opts ...grpc.CallOption) (*LispStateResponse, error)
+	BfdState(ctx context.Context, in *BfdStateRequest, opts ...grpc.CallOption) (*BfdStateResponse, error)
+	RedistributionMatrix(ctx context.Context, in *RedistributionMatrixRequest, opts ...grpc.CallOption) (*RedistributionMatrixResponse, error)
+	// wave-BC: F-ra-vpn
+	// wave-BC: F-mpls-ldp
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-dashboard-prom-alarms
+	// wave-BC: F-ha-state-sync
+	// Observe NAT44-EI HA globals and explicit support gaps.
+	HaSyncState(ctx context.Context, in *HaSyncStateRequest, opts ...grpc.CallOption) (*HaSyncStateResponse, error)
 	// BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
 	// algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
 	// actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
@@ -651,6 +663,36 @@ func (c *dataplaneClient) LispState(ctx context.Context, in *LispStateRequest, o
 	return out, nil
 }
 
+func (c *dataplaneClient) BfdState(ctx context.Context, in *BfdStateRequest, opts ...grpc.CallOption) (*BfdStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BfdStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_BfdState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) RedistributionMatrix(ctx context.Context, in *RedistributionMatrixRequest, opts ...grpc.CallOption) (*RedistributionMatrixResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RedistributionMatrixResponse)
+	err := c.cc.Invoke(ctx, Dataplane_RedistributionMatrix_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *dataplaneClient) HaSyncState(ctx context.Context, in *HaSyncStateRequest, opts ...grpc.CallOption) (*HaSyncStateResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HaSyncStateResponse)
+	err := c.cc.Invoke(ctx, Dataplane_HaSyncState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *dataplaneClient) BondState(ctx context.Context, in *BondStateRequest, opts ...grpc.CallOption) (*BondStateResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(BondStateResponse)
@@ -1016,6 +1058,15 @@ type DataplaneServer interface {
 	// LispState reports the live LISP / LISP-GPE state (switches, locator sets, EID table / map-cache,
 	// adjacencies, EID-table maps, resolvers) read from the VPP dumps (F-lisp). Never mutates.
 	LispState(context.Context, *LispStateRequest) (*LispStateResponse, error)
+	BfdState(context.Context, *BfdStateRequest) (*BfdStateResponse, error)
+	RedistributionMatrix(context.Context, *RedistributionMatrixRequest) (*RedistributionMatrixResponse, error)
+	// wave-BC: F-ra-vpn
+	// wave-BC: F-mpls-ldp
+	// wave-BC: F-igmp-mfib
+	// wave-BC: F-dashboard-prom-alarms
+	// wave-BC: F-ha-state-sync
+	// Observe NAT44-EI HA globals and explicit support gaps.
+	HaSyncState(context.Context, *HaSyncStateRequest) (*HaSyncStateResponse, error)
 	// BondState dumps the live state of this agent's bond interfaces (sw_bond_interface_dump): mode, load-balance
 	// algorithm, member and active-member counts, and per member the weight, link state and, for LACP bonds, the
 	// actor/partner LACP state (sw_member_interface_dump, sw_interface_lacp_dump; docs/contracts/proto.md "F-bonding").
@@ -1218,6 +1269,15 @@ func (UnimplementedDataplaneServer) Srv6State(context.Context, *Srv6StateRequest
 }
 func (UnimplementedDataplaneServer) LispState(context.Context, *LispStateRequest) (*LispStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method LispState not implemented")
+}
+func (UnimplementedDataplaneServer) BfdState(context.Context, *BfdStateRequest) (*BfdStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method BfdState not implemented")
+}
+func (UnimplementedDataplaneServer) RedistributionMatrix(context.Context, *RedistributionMatrixRequest) (*RedistributionMatrixResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RedistributionMatrix not implemented")
+}
+func (UnimplementedDataplaneServer) HaSyncState(context.Context, *HaSyncStateRequest) (*HaSyncStateResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method HaSyncState not implemented")
 }
 func (UnimplementedDataplaneServer) BondState(context.Context, *BondStateRequest) (*BondStateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method BondState not implemented")
@@ -1812,6 +1872,60 @@ func _Dataplane_LispState_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Dataplane_BfdState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BfdStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).BfdState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_BfdState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).BfdState(ctx, req.(*BfdStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_RedistributionMatrix_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RedistributionMatrixRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).RedistributionMatrix(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_RedistributionMatrix_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).RedistributionMatrix(ctx, req.(*RedistributionMatrixRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Dataplane_HaSyncState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HaSyncStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DataplaneServer).HaSyncState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Dataplane_HaSyncState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DataplaneServer).HaSyncState(ctx, req.(*HaSyncStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Dataplane_BondState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BondStateRequest)
 	if err := dec(in); err != nil {
@@ -2386,6 +2500,18 @@ var Dataplane_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "LispState",
 			Handler:    _Dataplane_LispState_Handler,
+		},
+		{
+			MethodName: "BfdState",
+			Handler:    _Dataplane_BfdState_Handler,
+		},
+		{
+			MethodName: "RedistributionMatrix",
+			Handler:    _Dataplane_RedistributionMatrix_Handler,
+		},
+		{
+			MethodName: "HaSyncState",
+			Handler:    _Dataplane_HaSyncState_Handler,
 		},
 		{
 			MethodName: "BondState",

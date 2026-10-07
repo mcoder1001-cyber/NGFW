@@ -128,10 +128,14 @@ func (g *server) Action(req *ngfwv1.ActionRequest, stream grpc.ServerStreamingSe
 		return g.ikev2Action(req.GetIkev2(), stream)
 	// wave-BC: F-ra-vpn
 	// wave-BC: F-ha-state-sync
+	case *ngfwv1.ActionRequest_HaSync:
+		return g.haSyncAction(req.GetHaSync(), stream)
 	// wave-BC: F-capture-trace
 	case *ngfwv1.ActionRequest_Capture:
 		return g.actionCapture(req.GetCapture(), stream)
 	// wave-BC: F-backup-restore
+	case *ngfwv1.ActionRequest_Upgrade, *ngfwv1.ActionRequest_SupportBundle:
+		return g.backupRestoreAction(req, stream)
 	// wave-A: F-vrf-static-ecmp
 	case *ngfwv1.ActionRequest_Ping:
 		return g.actionPing(req.GetPing(), stream)

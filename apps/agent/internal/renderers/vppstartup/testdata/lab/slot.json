@@ -1,0 +1,15 @@
+{
+  "dataplane": {
+    "mainCore": 21,
+    "workers": 0,
+    "buffersPerNuma": 4096,
+    "plugins": {
+      "switches": {
+        "dpdk_plugin.so": false,
+        "linux_cp_plugin.so": false,
+        "linux_nl_plugin.so": false,
+        "npt66_plugin.so": true
+      }
+    }
+  }
+}

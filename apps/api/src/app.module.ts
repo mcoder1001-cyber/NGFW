@@ -79,6 +79,7 @@ import { srv6Feature } from './features/srv6/index.js';
 // wave-BC: F-lisp
 import { lispFeature } from './features/lisp/index.js';
 // wave-BC: F-bfd-redistribution
+import { bfdRedistributionFeature } from './features/bfd-redistribution/index.js';
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 import { mplsLdpFeature } from './features/mpls-ldp/index.js';
@@ -93,9 +94,11 @@ import { hostMetricsFeature } from './features/host-metrics/index.js';
 import { licensingFeature } from './features/licensing/index.js';
 // wave-BC: F-restconf-yang
 // wave-BC: F-ha-state-sync
+import { haStateSyncFeature } from './features/ha-state-sync/index.js';
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
 // wave-BC: F-backup-restore
+import { backupRestoreFeature } from './features/backup-restore/index.js';
 // wave-A: F-bonding
 import { bondingFeature } from './features/bonding/index.js';
 // wave-A: F-bridge-l2
@@ -208,6 +211,7 @@ export class AppModule {
         // wave-BC: F-lisp
         ...lispFeature.controllers,
         // wave-BC: F-bfd-redistribution
+        ...bfdRedistributionFeature.controllers,
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         ...mplsLdpFeature.controllers,
@@ -222,9 +226,11 @@ export class AppModule {
         ...licensingFeature.controllers,
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
+        ...haStateSyncFeature.controllers,
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        ...backupRestoreFeature.controllers,
         // wave-A: F-bonding
         ...bondingFeature.controllers,
         // wave-A: F-bridge-l2
@@ -325,6 +331,7 @@ export class AppModule {
         // wave-BC: F-lisp
         ...lispFeature.providers,
         // wave-BC: F-bfd-redistribution
+        ...bfdRedistributionFeature.providers,
         // wave-BC: F-ra-vpn
         // wave-BC: F-mpls-ldp
         ...mplsLdpFeature.providers,
@@ -341,9 +348,11 @@ export class AppModule {
         ...mgmtTlsFeature.providers, // F-management-ui (unanchored)
         // wave-BC: F-restconf-yang
         // wave-BC: F-ha-state-sync
+        ...haStateSyncFeature.providers,
         // wave-BC: F-ab-upgrade
         // wave-BC: F-images
         // wave-BC: F-backup-restore
+        ...backupRestoreFeature.providers,
         // wave-A: F-bonding
         ...bondingFeature.providers,
         // wave-A: F-bridge-l2

@@ -1,0 +1,72 @@
+## running instance 2026-10-06T07:14:15+00:00
+● ngfw-vpp-w20.service - NGFW lab VPP of slot 20 (tools/lab vpp)
+     Loaded: loaded (/run/systemd/transient/ngfw-vpp-w20.service; transient)
+  Transient: yes
+     Active: active (running) since Tue 2026-10-06 07:14:04 UTC; 10s ago
+ Invocation: 5a1126e58888460caec35f25ef582047
+   Main PID: 1349429 (vpp_main)
+      Tasks: 1 (limit: 70847)
+     Memory: 260.7M (max: 1G, available: 763.2M, peak: 260.7M)
+        CPU: 2.688s
+     CGroup: /system.slice/ngfw-vpp-w20.service
+             └─1349429 /usr/bin/vpp -c /run/ngfw-test/w20/vpp/startup.conf
+
+VmRSS:	  314504 kB
+RssAnon:	  244072 kB
+RssFile:	   48872 kB
+RssShmem:	   21560 kB
+Cpus_allowed_list:	21
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+1349429 root      20   0   16.7g 314504  70432 S  15.9   0.5   0:03.84 vpp_main
+MemAvailable:   16026140 kB
+HugePages_Free:     4020
+## /dev/shm new entries
+comm: file 1 is not in sorted order
+comm: file 2 is not in sorted order
+w20-global_vm
+w20-vpe-api
+comm: input is not in sorted order
+total 16
+drwxr-xr-x 2 root root 180 Oct  6 07:14 .
+drwxr-xr-x 3 root root  60 Oct  6 07:14 ..
+srwxrwxr-x 1 root vpp    0 Oct  6 07:14 api.sock
+srwxrwxr-x 1 root vpp    0 Oct  6 07:14 cli.sock
+-rw-r--r-- 1 root root 208 Oct  6 07:14 dataplane.json
+-rw-r--r-- 1 root root 890 Oct  6 07:14 startup.conf
+-rw-r--r-- 1 root root 376 Oct  6 07:14 startupgen.log
+srwxrwxr-x 1 root vpp    0 Oct  6 07:14 stats.sock
+-rw-r--r-- 1 root root 208 Oct  6 07:14 vpp.log
+## vppctl -s /run/ngfw-test/w20/vpp/cli.sock
+vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+plugins loaded: 84
+  4. af_packet_plugin.so                      26.06-release                    af-packet
+ 47. npt66_plugin.so                          26.06-release                    NPTv6
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+local0                            0     down          0/0/0/0       
+Pool Name            Index NUMA  Size  Data Size  Total  Avail  Cached   Used  
+default-numa-0         0     0   2304     2048    2989   2989      0       0   
+  base 0x7054d77ff000, size 512m, locked, unmap-on-destroy, name 'main heap'
+    page stats: page-size 4K, total 131072, populated 60441, not-populated 70631
+      numa 0: 60441 pages, 236.10m bytes
+    total: 512.00M, used: 233.92M, free: 278.08M, trimmable: 276.91M
+Model name:               Intel(R) Xeon(R) CPU E5-2699 v4 @ 2.20GHz
+Microarch model (family): [0x6] Haswell ([0x3f] Haswell E) stepping 0x0
+Flags:                    sse3 pclmulqdq ssse3 sse41 sse42 avx rdrand avx2 bmi2 aes fma movbe popcnt f16c bmi1 lzcnt cmpxchg16b lahf_sahf osxsave invariant_tsc 
+Base frequency:           2.1967 GHz
+ID     Name                Type        LWP     Sched Policy (Priority)  lcore  Core   Socket State     
+0      vpp_main                        1349429 other (0)                21     5      0                
+## shared VPP unchanged
+MainPID=1014
+NRestarts=0
+vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+0
+## tools/lab env 20 (slot VPP up)
+# VPP: slot instance ngfw-vpp-w20
+export NGFW_VPP_API_SOCKET=/run/ngfw-test/w20/vpp/api.sock
+export NGFW_VPP_CLI_SOCKET=/run/ngfw-test/w20/vpp/cli.sock
+export NGFW_VPP_STATS_SOCKET=/run/ngfw-test/w20/vpp/stats.sock
+export NGFW_AGENT_VPP_API_SOCKET=/run/ngfw-test/w20/vpp/api.sock
+export NGFW_AGENT_VPP_STATS_SOCKET=/run/ngfw-test/w20/vpp/stats.sock
+export NGFW_VPPCTL="vppctl -s /run/ngfw-test/w20/vpp/cli.sock"
+locks:       /run/lock/ngfw-lab.lock: free · /run/lock/ngfw-vpp.lock: free (no file)
+slot VPPs:   ngfw-vpp-w20 (tools/lab vpp status)

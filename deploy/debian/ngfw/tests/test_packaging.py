@@ -4,6 +4,7 @@ import pathlib
 import importlib.util
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -16,6 +17,65 @@ SPEC.loader.exec_module(STORAGE)
 
 
 class Packaging(unittest.TestCase):
+    def setUp(self):
+        # Hosted unit runners are unprivileged. Exercise the real descriptor and
+        # mode handling while mapping requested root ownership to fixture owner.
+        # The separate privilege test below runs actual uid boundaries as root.
+        if os.geteuid() != 0:
+            real_chown = os.fchown
+            patcher = mock.patch.object(STORAGE.os, 'fchown',
+                side_effect=lambda fd, uid, gid: real_chown(fd, os.getuid() if uid == 0 else uid, gid))
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def test_api_storage_parent_requests_root_ownership(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            with mock.patch.object(STORAGE.os, 'fchown') as chown:
+                STORAGE.provision(root / 'api', root / 'data', 1234, 5678)
+            self.assertEqual([call.args[1:] for call in chown.call_args_list],
+                             [(1234, 5678), (0, 5678), (1234, 5678), (1234, 5678), (1234, 5678)])
+
+    def test_api_cannot_replace_root_state_but_can_write_owned_children(self):
+        if os.geteuid() != 0:
+            result = subprocess.run(["sudo", "-n", sys.executable, str(pathlib.Path(__file__).resolve()),
+                "Packaging.test_api_cannot_replace_root_state_but_can_write_owned_children"],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, "real UID boundary fixture requires passwordless sudo: " + result.stderr)
+            self.assertIn("Ran 1 test", result.stderr)
+            self.assertNotIn("skipped", result.stderr)
+            return
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            root.chmod(0o755)
+            data = root / 'data'
+            STORAGE.provision(root / 'api', data, 65534, 65534)
+            state = data / 'ngfw-upgrade'
+            state.mkdir(mode=0o700)
+            (state / 'state.json').write_bytes(b'protected')
+            script = """import os,sys
+from pathlib import Path
+data=Path(sys.argv[1])
+try:
+    os.rename(data/'ngfw-upgrade', data/'replacement')
+except PermissionError:
+    pass
+else:
+    raise SystemExit('API renamed privileged state')
+for name in ('backups','updates','support'):
+    (data/name/'api-owned').write_bytes(b'allowed')
+"""
+            def unprivileged():
+                os.setgroups([])
+                os.setgid(65534)
+                os.setuid(65534)
+            result = subprocess.run(['python3', '-c', script, str(data)], preexec_fn=unprivileged,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual((state / 'state.json').read_bytes(), b'protected')
+            for name in ('backups', 'updates', 'support'):
+                self.assertEqual((data / name / 'api-owned').read_bytes(), b'allowed')
+
     def test_api_storage_reconfigure_preserves_existing_data(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)

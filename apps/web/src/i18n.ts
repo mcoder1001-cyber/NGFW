@@ -88,6 +88,8 @@ import faSrv6 from './locales/fa/srv6.json';
 import enLisp from './locales/en/lisp.json';
 import faLisp from './locales/fa/lisp.json';
 // wave-BC: F-bfd-redistribution
+import enBfdRedistribution from "./locales/en/bfd-redistribution.json";
+import faBfdRedistribution from "./locales/fa/bfd-redistribution.json";
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 import enMplsLdp from './locales/en/mpls-ldp.json';
@@ -110,9 +112,13 @@ import faLicensing from './locales/fa/licensing.json';
 import enRestconfYang from './locales/en/restconf-yang.json';
 import faRestconfYang from './locales/fa/restconf-yang.json';
 // wave-BC: F-ha-state-sync
+import enHaStateSync from './locales/en/ha-state-sync.json';
+import faHaStateSync from './locales/fa/ha-state-sync.json';
 // wave-BC: F-ab-upgrade
 // wave-BC: F-images
 // wave-BC: F-backup-restore
+import enBackupRestore from './locales/en/backup-restore.json';
+import faBackupRestore from './locales/fa/backup-restore.json';
 // wave-A: UI-domain-editor
 // wave-A: F-vlan-qinq
 import enVlanQinq from './locales/en/vlan-qinq.json';
@@ -229,6 +235,7 @@ export const NAMESPACES = [
   // wave-BC: F-lisp
   'lisp',
   // wave-BC: F-bfd-redistribution
+  'bfd-redistribution',
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp',
@@ -245,9 +252,11 @@ export const NAMESPACES = [
   // wave-BC: F-restconf-yang
   'restconf-yang',
   // wave-BC: F-ha-state-sync
+  'ha-state-sync',
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore',
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq',
@@ -341,6 +350,7 @@ const en = {
   // wave-BC: F-lisp
   lisp: enLisp,
   // wave-BC: F-bfd-redistribution
+  "bfd-redistribution": enBfdRedistribution,
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp': enMplsLdp,
@@ -357,9 +367,11 @@ const en = {
   // wave-BC: F-restconf-yang
   'restconf-yang': enRestconfYang,
   // wave-BC: F-ha-state-sync
+  'ha-state-sync': enHaStateSync,
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore': enBackupRestore,
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq': enVlanQinq,
@@ -450,6 +462,7 @@ const fa = {
   // wave-BC: F-lisp
   lisp: faLisp,
   // wave-BC: F-bfd-redistribution
+  "bfd-redistribution": faBfdRedistribution,
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   'mpls-ldp': faMplsLdp,
@@ -466,9 +479,11 @@ const fa = {
   // wave-BC: F-restconf-yang
   'restconf-yang': faRestconfYang,
   // wave-BC: F-ha-state-sync
+  'ha-state-sync': faHaStateSync,
   // wave-BC: F-ab-upgrade
   // wave-BC: F-images
   // wave-BC: F-backup-restore
+  'backup-restore': faBackupRestore,
   // wave-A: UI-domain-editor
   // wave-A: F-vlan-qinq
   'vlan-qinq': faVlanQinq,

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { DEV_ROUTES } from './build-flags';
 import i18n from './i18n';
 import { App } from './App';
-import { buildNav, isCollapsible } from './nav/nav';
+import { buildNav, domainPath, isCollapsible } from './nav/nav';
 import { buildRoutes, createTestRouter, type RouteOptions } from './router';
 import { domains } from './schema/registry';
 import { installFakeApi, resetSession, signIn } from './test-api';
@@ -51,7 +51,12 @@ describe('App frame', () => {
       expect(header).toHaveAttribute('aria-expanded', 'true');
     }
     for (const key of ROOT_KEYS) {
-      expect(await within(nav).findByRole('link', { name: new RegExp(`^${i18n.t(`nav:domains.${key}`)}`) })).toBeVisible();
+      const candidates = await within(nav).findAllByRole('link', {
+        name: new RegExp(`^${i18n.t(`nav:domains.${key}`)}`),
+      });
+      const rootLinks = candidates.filter((link) => link.getAttribute('href') === domainPath(key));
+      expect(rootLinks).toHaveLength(1);
+      expect(rootLinks[0]).toBeVisible();
     }
     expect(screen.getByRole('region', { name: 'Traffic, all interfaces' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main');

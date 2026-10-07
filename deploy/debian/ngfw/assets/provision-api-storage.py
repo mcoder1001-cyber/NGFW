@@ -44,8 +44,10 @@ def permissions(descriptor, uid, gid):
 def provision(api, data, uid, gid):
     with directory(api) as descriptor:
         permissions(descriptor, uid, gid)
+    # The parent also contains privileged shared upgrade/config state. API owns
+    # only the three fixed children, so it cannot rename/replace root state.
     with directory(data) as descriptor:
-        permissions(descriptor, uid, gid)
+        permissions(descriptor, 0, gid)
         for name in ('backups', 'updates', 'support'):
             child = open_child(descriptor, name)
             try:

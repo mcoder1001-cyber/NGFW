@@ -1,0 +1,7 @@
+# F-ab-upgrade: independent T1 verification
+
+Verdict PASS. Exact source `be1448118afd246f39b0d6a7db01d2f986448482`, unchanged complete quick started2026-10-05 08:01:40UTC, ended08:11:29UTC, exit0/wall9m49s. Own authorized reusable fixture /root/ngfw-wt/r1-gate-hardening-20261005; exact head rechecked after gate, real generation and full final status clean. Archived refs/archive/review-r1/upgrade-be144811.
+
+Command: `TURBO_ENV_MODE=loose TMPDIR=/root/.cache/review-r1-tmp GOMAXPROCS=2 GOFLAGS=-p=2 NGFW_CI_TASK_CONCURRENCY=2 tools/heavy.sh tools/ci.sh quick --base origin/main`. No checks altered. TS35/35 (28cached)1m03s; generation1m04s; agent lint/race/build5m38s; CLI15s; topology1m25s, upgrade wrapper PASS20.323s invoking signed-bundle/lifecycle17regressions and health-probe race suite. Built-in unchanged green fake-host harness cache reused after shellcheck; my previous exact-harness149assertions run is preserved in hardening evidence.
+
+Raw log upgrade-quick.log and CI steps /root/ngfw-wt/logs/ci/r1-gate-hardening-20261005-20261005-080141-2036108. Gate captured a start-time untracked warning for exactly four prior hardening .pyc outputs; these were inspected/removed before remaining checks, no untracked source, final status empty. Earlier independent production script17tests PASS12.206s covers missing/nonexec health probe rollback and initial status failclosed. Actual loop/mount, firmware, DB migration and encrypted data acceptance not run; only explicit laboratory execution deferred, no code failure deferred.

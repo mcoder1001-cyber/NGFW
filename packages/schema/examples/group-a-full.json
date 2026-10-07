@@ -108,7 +108,7 @@
           "remoteAs": 65001,
           "description": "upstream",
           "passwordRef": "password/bgp-upstream",
-          "bfd": true,
+          "bfd": false,
           "afi": { "ipv4Unicast": { "prefixListIn": "customer-a-in", "softReconfig": true } }
         },
         "192.168.10.254": { "peerGroup": "customers" }

@@ -373,9 +373,11 @@ func project(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver, net
 		desired.Lisp(p, ds.GetTunnels(), vrfID)
 	}
 	// wave-BC: F-bfd-redistribution
+	desired.Bfd(p, ds, in, subsystems.BfdProjection())
 	// wave-BC: F-igmp-mfib
 	desired.IgmpMfib(p, ds, in, vrfID, desired.IgmpGlobalsOwner())
 	// wave-BC: F-ha-state-sync
+	desired.HaSync(p, ds, in)
 	// wave-A: F-bonding
 	if in["interfaces"] {
 		desired.Bonds(p, ds.GetInterfaces()) // interfaces.<BondEthernet<id>>.bond → bond.bond, bond.member, bond.member-weight
@@ -487,7 +489,7 @@ var routingLeaves = []routingLeaf{
 	{name: "isis", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetIsis() != nil }, handled: true}, // F-isis-rip
 	{name: "rip", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetRip() != nil }, handled: true},   // F-isis-rip
 	// wave-BC: F-bfd-redistribution
-	{name: "bfd", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBfd() != nil }},
+	{name: "bfd", present: func(r *ngfwv1.RoutingConfig) bool { return r.GetBfd() != nil }, handled: true},
 }
 
 // isEmptyDomain reports whether a present domain message carries nothing (the API sends all 13
@@ -606,11 +608,15 @@ func assemble(kvs []scheduler.KV, domains []string, names func(id uint32) (strin
 		desired.AssembleLisp(ds, kvs, nameOf)
 	}
 	// wave-BC: F-bfd-redistribution
+	if in["routing"] {
+		desired.AssembleBfd(ds, kvs, nil, subsystems.BfdProjection())
+	}
 	// wave-BC: F-igmp-mfib
 	if in["routing"] {
 		desired.AssembleIgmpMfib(ds, kvs, nameOf)
 	}
 	// wave-BC: F-ha-state-sync
+	desired.AssembleHaSync(ds, kvs, in)
 	// wave-A: F-bonding
 	if in["interfaces"] {
 		desired.AssembleBonds(ds, kvs, stored, nameOf) // the bond leaf of every retrieved bond (F-bonding)

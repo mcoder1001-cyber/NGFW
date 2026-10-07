@@ -1,0 +1,14 @@
+[Unit]
+Description=NGFW A/B trial boot health confirmation
+After=ngfw-upgrade-prepare.service ngfw-agent.service ngfw-api.service vpp.service
+Wants=ngfw-agent.service ngfw-api.service vpp.service
+ConditionPathExists=/etc/ngfw/upgrade.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/ngfw/ngfw-upgrade-health
+TimeoutStartSec=240
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

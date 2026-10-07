@@ -1,18 +1,18 @@
 # Progress
 
-Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
+Updated 2026-10-05 from plan/tasks.yaml (estimated hours are the plan's, not actuals).
 
-**Overall: 88.4% by hours (1394.0/1577.5 h), 88.6% by tasks (187/211)**
+**Overall: 97.4% by hours (1537.0/1578.5 h), 95.3% by tasks (202/212)**
 
 | state | tasks |
 |---|---|
-| merged | 187 |
+| merged | 202 |
 | review | 0 |
-| running | 0 |
-| ready | 7 |
+| running | 1 |
+| ready | 0 |
 | parked | 9 |
 | failed | 0 |
-| todo | 8 |
+| todo | 0 |
 
 | stage | merged h / total h | % | tasks merged/total | running | ready | parked |
 |---|---|---|---|---|---|---|
@@ -20,20 +20,21 @@ Updated 2026-10-04 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 264 / 274 | 96.4% | 28/29 | 0 | 0 | 1 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 1 |
-| S4 | 933.0 / 1002.0 | 93.1% | 138/150 | 0 | 3 | 6 |
-| S5 | 102 / 155.5 | 65.6% | 10/16 | 0 | 4 | 1 |
-| S6 | 0 / 48 | 0.0% | 0/4 | 0 | 0 | 0 |
+| S4 | 988.0 / 1003.0 | 98.5% | 145/151 | 0 | 0 | 6 |
+| S5 | 142 / 155.5 | 91.3% | 14/16 | 1 | 0 | 1 |
+| S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.)
 
 ## Parked
 
 - TD-19 — parked_on: PENDING-TD19-repository-trust
 - LAB-vpp-per-slot — parked_on: PENDING-vpp-host-hardening
-- P12-fib-proof — parked_on: PENDING-vpp-host-hardening (via LAB-vpp-per-slot)
+- P12-fib-proof — parked_on: PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof
 - F-srv6-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-mpls-srmpls-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN
 - F-global-blocking-host — parked_on: lab topology/host acceptance prerequisite; NOTRUN

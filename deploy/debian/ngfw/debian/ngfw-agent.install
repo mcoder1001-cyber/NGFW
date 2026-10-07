@@ -6,3 +6,14 @@ stage/usr/lib/systemd/system/ngfw-agent.service usr/lib/systemd/system/
 stage/usr/lib/ngfw/apply-executor.py usr/lib/ngfw/
 stage/usr/lib/systemd/system/apply-executor.service usr/lib/systemd/system/
 stage/usr/lib/systemd/system/apply-executor.socket usr/lib/systemd/system/
+# wave-BC: F-ab-upgrade
+stage/usr/sbin/ngfw-upgrade usr/sbin/
+stage/usr/lib/ngfw/ngfw-upgrade-probe usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-upgrade-prepare usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-upgrade-health usr/lib/ngfw/
+stage/usr/lib/systemd/system/ngfw-upgrade-prepare.service usr/lib/systemd/system/
+stage/usr/lib/systemd/system/ngfw-upgrade-health.service usr/lib/systemd/system/
+# wave-BC: F-backup-restore
+stage/usr/lib/ngfw/ngfw-support-collect usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-upgrade-dispatch usr/lib/ngfw/
+stage/usr/lib/systemd/system/ngfw-upgrade@.service usr/lib/systemd/system/

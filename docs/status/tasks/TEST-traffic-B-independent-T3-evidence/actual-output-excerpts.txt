@@ -1,0 +1,38 @@
+ipsec-cert: SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0
+ipsec-cert:     ikev2_integration_test.go:293: REST commit native-initial status=applied (actual object results=17)
+ipsec-cert:         5 packets transmitted, 5 received, 0% packet loss, time 4034ms
+ipsec-cert:         5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+ipsec-cert:     ikev2_integration_test.go:501: REST commit native-active-reconcile status=applied (actual object results=0)
+ipsec-cert:         3 packets transmitted, 3 received, 0% packet loss, time 2041ms
+ipsec-cert:         3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+ipsec-cert:         3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+ipsec-cert:     ikev2_integration_test.go:560: REST commit native-route-withdraw status=applied (actual object results=1)
+ipsec-cert:     ikev2_integration_test.go:570: REST commit native-route-restore status=applied (actual object results=1)
+ipsec-cert:         2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+ipsec-cert: --- PASS: TestIKEv2NativeCertificatePackets (49.82s)
+ipsec-cert: PRODUCTION_CERTIFICATE_PEER_PACKETS=PASS
+ipsec-cert: SHARED_VPP_UNCHANGED
+bgp:     p12_topology_integration_test.go:553: REST commit w28-p12-commit status=applied (actual object results=11)
+bgp:     p12_topology_integration_test.go:574: REST commit w28-p12-idempotent status=applied (actual object results=0)
+bgp:     p12_topology_integration_test.go:581: REST commit w28-p12-deny-half status=applied (actual object results=1)
+bgp:     p12_topology_integration_test.go:611: recovered 5.3s after the agent restart
+bgp:     p12_topology_integration_test.go:623: REST commit w28-p12-lan-down status=applied (actual object results=1)
+bgp:     p12_topology_integration_test.go:638: REST commit w28-p12-lan-up status=applied (actual object results=0)
+bgp:     p12_topology_integration_test.go:642: REST commit w28-p12-rollback status=applied (actual object results=1)
+bgp: --- PASS: TestP12TopologyOnHost (122.78s)
+bgp: SHARED_VPP_UNCHANGED
+ospf:     ospf_topology_integration_test.go:748: REST commit w28-p12-commit status=applied (actual object results=11)
+ospf:     ospf_topology_integration_test.go:770: REST commit w28-p12-idempotent status=applied (actual object results=0)
+ospf:     ospf_topology_integration_test.go:809: recovered 7s after the agent restart (target ≤ 30 s)
+ospf:     ospf_topology_integration_test.go:824: REST commit w28-p12-rollback status=applied (actual object results=1)
+ospf:     ospf_topology_integration_test.go:628: globals window closed at 2026-10-05T20:14:23Z
+ospf: --- PASS: TestOSPFTopologyOnHost (83.35s)
+ospf: SHARED_VPP_UNCHANGED
+dhcp-relay:     dhcp_test.go:767: POST /config/rollback/1 → {"status":"applied","revision":{"id":3,"createdAt":"2026-10-05T20:15:44.314Z","authorId":1,"author":"admin","comment":"kea-rollback","parentId":2,"hash":"54c12e2e583cd387094b1835ee53e719e80c8371443e84d4800d6bb2893840a2","txnId":"2e6879d1-ebcb-4d41-a7af-3dbd684d4ad2","kind":"rollback","secretChanges":[],"secretVersions":null},"txnId":"2e6879d1-ebcb-4d41-a7af-3dbd684d4ad2","results":[{"key":"dhcp.relay/to-kea","op":"delete","pointer":"","subsystem":"services","code":"ok","message":""},{"key":"dhcp.proxy/28001/28001/10.28.2.2","op":"delete","pointer":"","subsystem":"services","code":"ok","message…
+dhcp-relay: --- PASS: TestKeaDhcpRelay (29.39s)
+dhcp-relay:     --- PASS: TestKeaDhcpRelay/commit (3.02s)
+dhcp-relay:     --- PASS: TestKeaDhcpRelay/relay (10.78s)
+dhcp-relay:     --- PASS: TestKeaDhcpRelay/restart-safety (3.63s)
+dhcp-relay:     --- PASS: TestKeaDhcpRelay/rollback-and-validation (0.85s)
+dhcp-relay:     --- PASS: TestKeaDhcpRelay/cleanup (0.84s)
+dhcp-relay: SHARED_VPP_UNCHANGED

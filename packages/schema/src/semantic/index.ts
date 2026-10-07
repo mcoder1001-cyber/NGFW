@@ -36,10 +36,12 @@ import { srv6Validators } from './srv6.js';
 // wave-BC: F-lisp
 import { lispValidators } from './lisp.js';
 // wave-BC: F-bfd-redistribution
+import { bfdRedistributionValidators } from "./bfd-redistribution.js";
 // wave-BC: F-ra-vpn
 // wave-BC: F-mpls-ldp
 // wave-BC: F-igmp-mfib
 // wave-BC: F-ha-state-sync
+import { haStateSyncValidators } from './ha-state-sync.js';
 // wave-A: F-bonding
 import { bondingValidators } from './bonding.js';
 // wave-A: F-bridge-l2
@@ -102,6 +104,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   ...tunnelsValidators,
   ...servicesValidators,
   ...haValidators,
+  ...haStateSyncValidators,
   ...managementValidators,
   // Feature rules: one spread line under the feature's anchor (wave-A-hotspots C2).
   // wave-BC: F-default-vpp-nics
@@ -125,6 +128,7 @@ export const SEMANTIC_VALIDATORS: readonly ValidatorDefinition[] = [
   // wave-BC: F-lisp
   ...lispValidators,
   // wave-BC: F-bfd-redistribution
+  ...bfdRedistributionValidators,
   // wave-BC: F-ra-vpn
   // wave-BC: F-mpls-ldp
   ...mplsLdpValidators,

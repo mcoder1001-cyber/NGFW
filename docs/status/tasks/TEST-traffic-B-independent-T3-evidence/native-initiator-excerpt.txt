@@ -1,0 +1,14 @@
+    ikev2_integration_test.go:275: REST commit native-initial status=applied (actual object results=15)
+        5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+        5 packets transmitted, 5 received, 0% packet loss, time 4007ms
+    ikev2_integration_test.go:459: REST commit native-active-reconcile status=applied (actual object results=0)
+        3 packets transmitted, 3 received, 0% packet loss, time 2019ms
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+        3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+    ikev2_integration_test.go:518: REST commit native-route-withdraw status=applied (actual object results=1)
+    ikev2_integration_test.go:528: REST commit native-route-restore status=applied (actual object results=1)
+        2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+    ikev2_integration_test.go:667: production owned rollback removed profiles, protection, routes, tunnels and interfaces; Retrieve empty before disposable VPP shutdown
+    ikev2_integration_test.go:669: underlay capture: ESP present; plaintext IPIP absent before negotiation, during ICMP/TCP/rekey, and after SA deletion
+    ikev2_integration_test.go:670: route withdrawal and recovery passed; SA deletion lowered IPIP and stopped traffic while route remained
+--- PASS: TestIKEv2NativePackets (46.46s)

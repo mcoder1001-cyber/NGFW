@@ -867,6 +867,12 @@ module ngfw-routing {
             description "reference to a stored secret of kind password";
           }
         }
+        leaf bfdProfile {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
+        }
       }
       container redistribute {
         description "routes of these sources are announced; presence of a key enables it";
@@ -1009,6 +1015,12 @@ module ngfw-routing {
         leaf ipv6 {
           type boolean;
           default "true";
+        }
+        leaf bfdProfile {
+          type string {
+            pattern "[A-Za-z0-9][A-Za-z0-9_.-]*";
+            length "1..63";
+          }
         }
       }
       container redistribute {
@@ -1276,6 +1288,58 @@ module ngfw-routing {
         leaf enabled {
           type boolean;
           default "true";
+        }
+        container auth {
+          leaf type {
+            type enumeration {
+              enum "keyed-sha1";
+              enum "meticulous-keyed-sha1";
+            }
+            mandatory true;
+          }
+          leaf keyId {
+            type uint32 {
+              range "0..255";
+            }
+            mandatory true;
+          }
+          leaf keyRef {
+            type string {
+              pattern "(key)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
+              length "0..127";
+            }
+            mandatory true;
+            description "reference to a stored secret of kind key";
+          }
+        }
+        leaf multihop {
+          type boolean;
+          default "false";
+        }
+      }
+      list profiles {
+        key "name";
+        leaf name {
+          type string;
+          description "The map key.";
+        }
+        leaf desiredMinTxUs {
+          type uint32 {
+            range "10000..60000000";
+          }
+          default "300000";
+        }
+        leaf requiredMinRxUs {
+          type uint32 {
+            range "10000..60000000";
+          }
+          default "300000";
+        }
+        leaf detectMultiplier {
+          type uint32 {
+            range "1..255";
+          }
+          default "3";
         }
       }
     }

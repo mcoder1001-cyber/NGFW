@@ -1,0 +1,1 @@
+[0] instance 27041 src 10.27.2.1 dst 10.27.2.2 src_port 4789 dst_port 4789 vni 27041 fib-idx 0 sw-if-idx 4 encap-dpo-idx 6 

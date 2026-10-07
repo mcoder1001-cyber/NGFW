@@ -125,6 +125,9 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // wave-BC: F-isis-rip
   groups.get('routing')!.push({ id: 'isis-rip', path: '/routing/isis-rip', labelKey: 'routingIgp:isisRip.title', fallbackLabel: 'IS-IS and RIP', available: true });
   // wave-BC: F-bfd-redistribution
+  groups.get('routing')!.push({ id: 'bfd', path: '/routing/bfd', labelKey: 'bfd-redistribution:nav', fallbackLabel: 'BFD', available: true });
+  groups.get('routing')!.push({ id: 'redistribution', path: '/routing/redistribution', labelKey: 'bfd-redistribution:matrix', fallbackLabel: 'Redistribution matrix', available: true });
+  groups.get('routing')!.push({ id: 'policy', path: '/routing/policy', labelKey: 'bfd-redistribution:policy', fallbackLabel: 'Routing policy', available: true });
   // wave-BC: F-mpls-srmpls
   groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });
   // wave-BC: F-igmp-mfib
@@ -161,6 +164,8 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-aaa
     { id: 'aaa', path: '/system/aaa', labelKey: 'aaa:nav', fallbackLabel: 'Login & MFA', available: true },
     // wave-BC: F-backup-restore
+    { id: 'backup-restore', path: '/system/backup-restore', labelKey: 'backup-restore:title', fallbackLabel: 'Backup & Restore', available: true },
+    { id: 'upgrade', path: '/system/upgrade', labelKey: 'backup-restore:upgrade', fallbackLabel: 'System Upgrade', available: true },
     // wave-BC: P10
     // wave-BC: P14
     // wave-BC: F-ab-upgrade

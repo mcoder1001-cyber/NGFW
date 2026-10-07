@@ -1,0 +1,14 @@
+[Unit]
+Description=NGFW fixed appliance upgrade operation %i
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/lib/ngfw/ngfw-upgrade-dispatch %i
+TimeoutStartSec=15min
+UMask=0077
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes

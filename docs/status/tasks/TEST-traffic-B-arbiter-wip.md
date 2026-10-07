@@ -1,0 +1,3 @@
+# A3 arbitration checkpoint
+
+Branch/worktree and owned files: see arbiter envelope. Frozen base3e94010253e78fc68fb742e3b98132cfb5a870ad. Read source-specific independent reports and manager case. Conditional FINISH ruling recorded with strict original acceptance and escalation/reassignment trigger. No product/tests modified and no test PASS claimed. All read-only commands finished; no owned process/socket/fixture remains. Local commit and remote publication identifiers are supplied in the manager handoff; manager imports this documentation before final integration. Next action: commit these five docs and publish own checkpoint, then return slot.

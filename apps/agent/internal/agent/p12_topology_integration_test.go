@@ -50,6 +50,7 @@ import (
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/renderers/frr/frrtest"
 	"ngfw/agent/internal/subsystems"
+	"ngfw/agent/internal/trafficbtest"
 	"ngfw/agent/internal/vpp"
 	"ngfw/agent/internal/vpp/vpptest"
 )
@@ -68,6 +69,7 @@ type p12Env struct {
 	slot    int
 	repo    string
 	raw     vpp.Client
+	rest    *trafficbtest.Client
 	c       ngfwv1.DataplaneClient
 	a       *Agent
 	cfg     Config
@@ -254,6 +256,10 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 	n, p := e.slot, e.prefix
 	lcp := func(host string) map[string]any {
 		if e.fib { // the default netns (linux-cp { default netns }) — the only netns linux-nl hears (M4)
+			if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+				// Current VPP dump reports its resolved default namespace explicitly.
+				return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
+			}
 			return map[string]any{"hostIfName": host, "hostIfType": "tap"}
 		}
 		return map[string]any{"hostIfName": host, "hostIfType": "tap", "netns": e.frrNS}
@@ -293,6 +299,30 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 			},
 		}
 	}
+	if trafficbtest.Enabled() && withBGP {
+		// Materialize the documented API defaults before REST; Retrieve still compares
+		// every configured leaf and these defaults exactly (no comparison exclusions).
+		routing := d["routing"].(map[string]any)
+		bgp := routing["bgp"].(map[string]any)
+		bgp["vrf"], bgp["gracefulRestart"], bgp["redistribute"] = "default", false, map[string]any{}
+		groups := bgp["peerGroups"].(map[string]any)
+		group := groups["peers"].(map[string]any)
+		group["bfd"] = false
+		afi := group["afi"].(map[string]any)["ipv4Unicast"].(map[string]any)
+		afi["nextHopSelf"], afi["softReconfig"], afi["defaultOriginate"] = false, false, false
+		for _, value := range bgp["neighbors"].(map[string]any) {
+			neighbor := value.(map[string]any)
+			neighbor["bfd"], neighbor["shutdown"], neighbor["afi"] = false, false, map[string]any{}
+		}
+		entries := routing["policy"].(map[string]any)["routeMaps"].(map[string]any)["rm-in"].(map[string]any)["entries"].([]any)
+		for _, value := range entries {
+			entry := value.(map[string]any)
+			if entry["match"] == nil {
+				entry["match"] = map[string]any{}
+			}
+			entry["set"] = map[string]any{"communityAdditive": false}
+		}
+	}
 	raw, err := structpb.NewStruct(d)
 	if err != nil {
 		e.t.Fatal(err)
@@ -307,6 +337,12 @@ func (e *p12Env) ngfwDoc(withBGP, denyHalf, lanUp bool) *ngfwv1.DesiredState {
 
 func (e *p12Env) apply(id string, ds *ngfwv1.DesiredState, subsystems ...string) *ngfwv1.ApplyResponse {
 	e.t.Helper()
+	if trafficbtest.Enabled() {
+		if e.rest == nil {
+			e.rest = trafficbtest.New(e.t, e.cfg.Socket, e.prefix, os.Getenv("NGFW_TRAFFIC_B_PHASE"))
+		}
+		return e.rest.Apply(e.t, e.prefix+"-p12-"+id, ds, nil)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
 	if len(subsystems) == 0 {
@@ -699,6 +735,12 @@ func TestP12TopologyOnHost(t *testing.T) {
 
 	// ---- 1. commit: pairs + FRR config; the peers come up after the preflight
 	if e.fib {
+		if os.Getenv("NGFW_TRAFFIC_B") == "1" {
+			if os.Getenv("NGFW_DISPOSABLE_VPP") != "1" || vppSocket() == "/run/vpp/api.sock" {
+				t.Fatal("Wave-B BGP default namespace requires private VPP socket")
+			}
+			t.Log(e.must("timeout", "10", "vppctl", "lcp", "default", "netns", e.frrNS))
+		}
 		if !rootMode {
 			e.checkPrivateFIB()
 		}
@@ -714,6 +756,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	e.waitEstablished(90 * time.Second)
 	e.waitRoutes("200 routes after commit", 200, 60*time.Second)
 	e.evidence("after commit")
+	trafficBProbe(t, e.repo, "bgp", slot, e.fib)
 
 	// Retrieve == desired for P12's leaves (routing.bgp, routing.policy, interfaces.<n>.lcp)
 	got, err := e.c.Retrieve(context.Background(), &ngfwv1.RetrieveRequest{Subsystems: []string{"interfaces", "routing"}})

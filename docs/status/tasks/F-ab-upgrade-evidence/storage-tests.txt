@@ -1,0 +1,19 @@
+test_api_cannot_replace_root_state_but_can_write_owned_children (test_packaging.Packaging.test_api_cannot_replace_root_state_but_can_write_owned_children) ... ok
+test_api_storage_child_swap_cannot_redirect_permissions (test_packaging.Packaging.test_api_storage_child_swap_cannot_redirect_permissions) ... ok
+test_api_storage_helper_is_shipped_with_direct_python_dependency (test_packaging.Packaging.test_api_storage_helper_is_shipped_with_direct_python_dependency) ... ok
+test_api_storage_parent_requests_root_ownership (test_packaging.Packaging.test_api_storage_parent_requests_root_ownership) ... ok
+test_api_storage_reconfigure_preserves_existing_data (test_packaging.Packaging.test_api_storage_reconfigure_preserves_existing_data) ... ok
+test_api_storage_refuses_links_without_touching_targets (test_packaging.Packaging.test_api_storage_refuses_links_without_touching_targets) ... ok
+test_build_refuses_missing_verified_inputs (test_packaging.Packaging.test_build_refuses_missing_verified_inputs) ... ok
+test_http_never_proxies_and_tls_has_ws_and_api_routes (test_packaging.Packaging.test_http_never_proxies_and_tls_has_ws_and_api_routes) ... ok
+test_maintainer_scripts_are_valid_and_no_destructive_actions (test_packaging.Packaging.test_maintainer_scripts_are_valid_and_no_destructive_actions) ... ok
+test_product_startup_apply_finds_packaged_helpers (test_packaging.Packaging.test_product_startup_apply_finds_packaged_helpers) ... ok
+test_runtime_dependency_contract (test_packaging.Packaging.test_runtime_dependency_contract) ... ok
+test_tls_first_run_retry_and_partial_pair_refusal (test_packaging.Packaging.test_tls_first_run_retry_and_partial_pair_refusal) ... ok
+test_units_preserve_privilege_boundary (test_packaging.Packaging.test_units_preserve_privilege_boundary) ... ok
+test_vpp_waits_for_successful_firstboot_not_only_ordering (test_packaging.Packaging.test_vpp_waits_for_successful_firstboot_not_only_ordering) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 1.985s
+
+OK

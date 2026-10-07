@@ -13,7 +13,11 @@ import shutil
 import subprocess
 import time
 import urllib.error
+import sys
 import urllib.request
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from private_http import private_opener
 
 
 def main():
@@ -50,7 +54,7 @@ def main():
                                      data=None if body is None else json.dumps(body).encode(),
                                      headers=headers, method=method)
         try:
-            with urllib.request.urlopen(req, timeout=40) as response:
+            with private_opener().open(req, timeout=40) as response:
                 status, raw = response.status, response.read()
         except urllib.error.HTTPError as exc:
             status, raw = exc.code, exc.read()

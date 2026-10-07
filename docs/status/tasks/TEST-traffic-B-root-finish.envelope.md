@@ -1,0 +1,5 @@
+# Fresh root repair envelope
+
+A3 reassignment after eb1a634 DHCP helper numeric LockOut contract failure. Root is the fresh fixture developer on codex/traffic-b-root-finish-20261005, isolated /root/ngfw-wt/traffic-b-root-finish-20261005. Base eb1a634da6858e3c6599e9586044b5030309f39b; previous authors completed and all owned campaigns/gates cancelled143 with NO PASS and cleaned resources.
+
+Owned: test/topology/kea-dhcp-relay/stack_test.go and commit_guard_test.go; test/topology/traffic-b/run.py and test_scenario.py; own root-finish status, canonical task/README evidence closeout, review imports and named board/status final integration. No production API/agent changes. Fix integer owner IDs and test full real HTTP helper lifecycle using actual LockOut shape, preserve strict partial/warning/revision/owner/hash/baseline guards. Require independent R1/R2/R4/R8/R7 and T1/T3, immutable all7 REST, unchanged complete quick and exact hosted/main CI, D112 archive/single-commit integration. Root owns slot27; independent T3 slot28 remains held until explicit release.

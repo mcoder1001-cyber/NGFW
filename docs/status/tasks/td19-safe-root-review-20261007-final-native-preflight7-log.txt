@@ -1,0 +1,12 @@
+test_foreign_symlink_inputs_refuse_before_original_verifier (__main__.ArtifactPreflight.test_foreign_symlink_inputs_refuse_before_original_verifier) ... ok
+test_missing_artifacts_blocks_repo_setup_before_host_commands (__main__.ArtifactPreflight.test_missing_artifacts_blocks_repo_setup_before_host_commands) ... ok
+test_nonroot_preflight_selects_only_seven_runtimes_without_mutation (__main__.ArtifactPreflight.test_nonroot_preflight_selects_only_seven_runtimes_without_mutation) ... ok
+test_original_verifier_rejects_missing_release_manifest (__main__.ArtifactPreflight.test_original_verifier_rejects_missing_release_manifest) ... ok
+test_os_release_is_not_executable_shell (__main__.ArtifactPreflight.test_os_release_is_not_executable_shell) ... ok
+test_unsafe_or_nonproduct_selection_refuses (__main__.ArtifactPreflight.test_unsafe_or_nonproduct_selection_refuses) ... ok
+test_verifier_failure_blocks_repo_setup_before_host_commands (__main__.ArtifactPreflight.test_verifier_failure_blocks_repo_setup_before_host_commands) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 54.720s
+
+OK

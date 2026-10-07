@@ -90,6 +90,20 @@ exit "${VERIFY_FAILURE:-0}"
             self.assertIn(b'NGFW_VPP_ARTIFACTS required', result.stderr)
             self.assertFalse((root / 'host-log').exists())
 
+    def test_os_release_is_not_executable_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, entry, manifest, env = self.fixture(directory)
+            (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))
+            env['NGFW_VPP_ARTIFACTS'] = str(root / 'artifacts')
+            os_dir = root / 'install-root/etc'; os_dir.mkdir()
+            sentinel = root / 'outside-sentinel'
+            (os_dir / 'os-release').write_text('VERSION_CODENAME=$(touch ' + str(sentinel) + ')\n')
+            result = subprocess.run(['bash', str(entry)], env=env, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('literal VERSION_CODENAME', result.stderr)
+            self.assertFalse(sentinel.exists())
+            self.assertFalse((root / 'install-root/.ngfw-fixture-calls').exists())
+
     def test_unsafe_or_nonproduct_selection_refuses(self):
         with tempfile.TemporaryDirectory() as directory:
             root, entry, original, env = self.fixture(directory)

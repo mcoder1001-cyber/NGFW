@@ -49,13 +49,15 @@ export function toRow(item: InterfaceItem): Row {
     id: item.name,
     name: item.name,
     item,
-    type: s?.type ?? (item.kind === 'subinterface' ? 'sub-interface' : ''),
+    type:
+      s?.type ??
+      (item.hostInventory ? 'physical' : item.kind === 'subinterface' ? 'sub-interface' : ''),
     admin: adminStatus(s) ?? '',
     link: linkStatus(s) ?? '',
     // VPP reports 0 for a sub-interface that inherits its parent's MTU: show nothing rather than 0
     mtu: s?.mtu || cfg.mtu || null,
     addresses: addressesOf(item).join(' '),
-    vrf: s?.vrf ?? cfg.vrf ?? 'default',
+    vrf: s?.vrf ?? cfg.vrf ?? (item.inventoryOnly ? '' : 'default'),
     errors: Number(item.counters?.errors ?? 0) + Number(item.counters?.drops ?? 0),
   };
 }
@@ -110,6 +112,9 @@ export function InterfacesPage() {
   const [newName, setNewName] = useState('');
   const patch = usePatchInterfaces();
   const [lastError, setLastError] = useState<unknown>(null);
+  const [observationErrors, setObservationErrors] = useState<{ source: string; message: string }[]>(
+    [],
+  );
 
   const fetchPage = useCallback(
     async (req: ServerPageRequest, signal: AbortSignal) => {
@@ -118,6 +123,7 @@ export function InterfacesPage() {
         queryFn: () => fetchInterfacesState(signal),
         staleTime: 1000,
       });
+      setObservationErrors(data.observationErrors ?? []);
       return pageOf(data.items.map(toRow), req);
     },
     [qc],
@@ -147,6 +153,17 @@ export function InterfacesPage() {
             >
               {p.row.name}
             </Box>
+            {p.row.item.inventoryOnly && (
+              <Chip size="small" variant="outlined" label={t('inventory.host')} />
+            )}
+            {p.row.item.hostInventory?.isManagement && (
+              <Chip
+                size="small"
+                color="info"
+                variant="outlined"
+                label={t('inventory.management')}
+              />
+            )}
             {p.row.item.builtIn && (
               <Chip size="small" color="info" variant="outlined" label={t('builtIn')} />
             )}
@@ -186,7 +203,11 @@ export function InterfacesPage() {
         headerName: t('col.link'),
         width: 120,
         renderCell: (p) =>
-          p.row.link ? <StatusChip size="small" status={linkStatus(p.row.item.state)!} /> : null,
+          p.row.link ? (
+            <StatusChip size="small" status={linkStatus(p.row.item.state)!} />
+          ) : p.row.item.hostInventory ? (
+            <StatusChip size="small" status={p.row.item.hostInventory.linkUp ? 'up' : 'down'} />
+          ) : null,
       },
       {
         field: 'mtu',
@@ -283,6 +304,12 @@ export function InterfacesPage() {
       <Typography color="text.secondary" sx={{ mb: 2 }}>
         {t('intro')}
       </Typography>
+      {observationErrors.map((error) => (
+        <Alert severity="warning" key={error.source} sx={{ mb: 1 }}>
+          {t('inventory.unavailable', { source: t(`inventory.sources.${error.source}`) })}{' '}
+          {error.message}
+        </Alert>
+      ))}
       <Stack direction="row" gap={1} sx={{ mb: 1 }} alignItems="center">
         <Tooltip title={perms.editConfig ? '' : t('readonly')}>
           <span>

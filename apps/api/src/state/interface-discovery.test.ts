@@ -100,6 +100,20 @@ describe('automatic read-only physical NIC discovery', () => {
     expect(result.items.find((i) => i.name === 'wan')?.hostInventory).toBeNull();
   });
 
+  it('keeps an unrelated configured Linux name separate from the discovered host NIC', async () => {
+    const { controller } = fixture(
+      [{ pci: '0000:01:00.0', netdev: 'ens192', isManagement: true }],
+      { ens192: { enabled: false } },
+    );
+    const result = await controller.interfaces();
+    expect(result.items).toHaveLength(2);
+    expect(result.items.find((i) => i.name === 'ens192')?.hostInventory).toBeNull();
+    expect(result.items.find((i) => i.name === 'pci-0000:01:00.0')).toMatchObject({
+      inventoryOnly: true,
+      hostInventory: { isManagement: true },
+    });
+  });
+
   it('keeps inventory visible with explicit diagnostics when VPP is unavailable', async () => {
     const { controller, agent } = fixture([{ pci: '0000:01:00.0', netdev: 'ens192' }]);
     agent.retrieve.mockRejectedValue(new Error('VPP unavailable'));

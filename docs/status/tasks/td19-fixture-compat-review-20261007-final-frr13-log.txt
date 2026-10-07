@@ -1,0 +1,19 @@
+test_actual_gpg_malformed_raw_refuses_without_key_generation (td19_frr_selection.ControlledSelection.test_actual_gpg_malformed_raw_refuses_without_key_generation) ... ok
+test_export_failure_and_existing_output_preserve_private_invariants (td19_frr_selection.ControlledSelection.test_export_failure_and_existing_output_preserve_private_invariants) ... ok
+test_nonregular_size_and_nonfull40_pins_refuse_before_gpg (td19_frr_selection.ControlledSelection.test_nonregular_size_and_nonfull40_pins_refuse_before_gpg) ... ok
+test_partial_import_nonzero_never_exports_or_publishes (td19_frr_selection.ControlledSelection.test_partial_import_nonzero_never_exports_or_publishes) ... ok
+test_repository_entry_failure_at_either_gate_never_mutates_host (td19_frr_selection.ControlledSelection.test_repository_entry_failure_at_either_gate_never_mutates_host) ... ok
+test_secret_or_parser_failure_refuses_before_import (td19_frr_selection.ControlledSelection.test_secret_or_parser_failure_refuses_before_import) ... ok
+test_actual_expired_primary_is_refused (td19_frr_selection.RealCertificates.test_actual_expired_primary_is_refused) ... ok
+test_actual_non_signing_authorized_primary_is_refused (td19_frr_selection.RealCertificates.test_actual_non_signing_authorized_primary_is_refused) ... ok
+test_conflicting_duplicate_revocation_is_preserved_and_refused (td19_frr_selection.RealCertificates.test_conflicting_duplicate_revocation_is_preserved_and_refused) ... ok
+test_missing_authorized_primary_is_not_silently_omitted (td19_frr_selection.RealCertificates.test_missing_authorized_primary_is_not_silently_omitted) ... ok
+test_real_duplicate_extra_selection_preserves_subkeys_and_exact_installed_set (td19_frr_selection.RealCertificates.test_real_duplicate_extra_selection_preserves_subkeys_and_exact_installed_set) ... ok
+test_secret_and_malformed_raw_material_are_rejected (td19_frr_selection.RealCertificates.test_secret_and_malformed_raw_material_are_rejected) ... ok
+test_unselected_signer_refused_until_fixture_owner_explicitly_authorizes_it (td19_frr_selection.RealCertificates.test_unselected_signer_refused_until_fixture_owner_explicitly_authorizes_it) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 25.082s
+
+OK
+selector fixtures: started=13 completed=13 failures=0 errors=0 skipped=0 expectedFailures=0 unexpectedSuccesses=0 accepted=True

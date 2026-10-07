@@ -1,0 +1,12 @@
+test_current_minor_and_explicit_patch_use_original_pin (module_version_fixtures.ModuleVersion.test_current_minor_and_explicit_patch_use_original_pin) ... ok
+test_unsupported_versions_refuse_before_any_mutation (module_version_fixtures.ModuleVersion.test_unsupported_versions_refuse_before_any_mutation) ... ok
+test_missing_duplicate_malformed_and_trailing_directives_refuse (module_version_fixtures.ModuleVersion.test_missing_duplicate_malformed_and_trailing_directives_refuse) ... ok
+test_script_location_ignores_cwd_and_alternate_environment (module_version_fixtures.ModuleVersion.test_script_location_ignores_cwd_and_alternate_environment) ... ok
+test_nonregular_symlink_canonical_module_refused (module_version_fixtures.ModuleVersion.test_nonregular_symlink_canonical_module_refused) ... ok
+test_module_reader_failure_refuses_before_mutation (module_version_fixtures.ModuleVersion.test_module_reader_failure_refuses_before_mutation) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.965s
+
+OK
+Go module source fixtures: tests=6 failures=0 errors=0 skipped=0 expectedFailures=0 unexpectedSuccesses=0

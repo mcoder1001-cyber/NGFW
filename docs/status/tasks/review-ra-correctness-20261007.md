@@ -1,5 +1,7 @@
 # Independent RA correctness/contracts/dataplane/packaging review
 
+Recovery replay at 2026-10-07 09:20 UTC resumed published reviewer01821b8f217e7c22ab1bfdf29b42a2c9673455b8 without rebuilding. Fresh six-test race replay PASS1.368s, exit0; exact source/tree and author remote unchanged. Static gate replay exit1, four inherited history findings (180 commits); see matching WIP for exact commands/report. R1/R3/R4/R8 diagnostics-only APPROVE reaffirmed; whole default READY and integration remain BLOCK. Ownership now includes this report and matching recovery envelope/WIP only.
+
 Reviewer branch `codex/review-ra-correctness-20261007`, worktree `/root/ngfw-wt/resume-p12-20261007`. Owned file: this report only. Reviewer did not author RA. P12 developer branch remains unchanged at `ff3c0c3f3f84df32ba0d6421f86bb5888b361d4a`.
 
 Reviewed source: `9f2b3043399fb6f95242ed94c20effce8f6e2c27`, tree `c41d6661081cca876ea537ba7438e0139ccdbd7a`, against current fetched main `0ec397e327123cadfd5d278a9a1cda37532fdc2c` (main is an ancestor). This is the preliminary integration review, NOT approval of the future freeze that the manager will supply. No RA product edits, live guest/namespace/service activation or heavy/full gate by this reviewer.

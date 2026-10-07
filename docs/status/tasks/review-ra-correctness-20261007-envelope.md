@@ -1,0 +1,3 @@
+# Independent RA review recovery envelope
+
+Resume existing branch `codex/review-ra-correctness-20261007` in `/root/ngfw-wt/resume-p12-20261007`. Own only `review-ra-correctness-20261007.md`, this envelope and matching WIP. Review R1/R3/R4/R8 of author f3ae748601acfc768661c7503cedd0aa2c7092e5, tree bfb0187190d42a8646cd6efe2588a2638279161b, against 0a34a8b1269bb23329bc7f0217c07479e07b7c2e and contract e851196e99a058e094240477febb5b6aa3c023de. No product edits, VM execution, host changes or main/board edits. Preserve whole default READY BLOCK. Publish review checkpoints immediately; manager runs unchanged complete hosted quick.

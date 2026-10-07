@@ -1,5 +1,10 @@
 # Independent wizard interface test evidence
 
+Final verdict: **PASS (T1 and host-independent regression)**. Actual lab T2/T4: **BLOCKED-ENV / not run**. Final complete unchanged gate exited 0 with exact `CI GATE PASSED`; all known failures and their resolution remain recorded below.
+
+Final product comparison: `git diff --quiet codex/wizard-interfaces-fix-20261007 -- apps packages tools test deploy` exited 0 after the green gate against developer `be487f630579254212fbe4e5405fd7f9a6cf715c`. Stable final apps tree: `3e1c76b4730cecab2d2e516357b2a1f1320ffaba`. Tester source checkpoint during final gate: `366159179`; later tester commits changed report/WIP only, no product code.
+
+
 Test date: 2026-10-07. Tester branch: `codex/wizard-test-20261007`; no lab slot assigned.
 
 Product source tested: `3947362b6` and later documentation-only checkpoints. Tester source `840c4fdf6a88bb177393494dab2bb2601cec9b8a`; durable tester envelope checkpoint `c8563850153081b25304528d093de5fe678b6622`. `git diff --quiet codex/wizard-interfaces-fix-20261007 -- apps packages tools test deploy` exited 0 after targeted execution (developer ref then `02e2d1fbc4711c98da50c077b6580f87ddaa295a`). Product `apps` tree object `cee4e8c06d70e75f8ae24252a621721a1e6f919f`.
@@ -159,3 +164,21 @@ ok  	ngfw/agent/internal/actions/ha-state-sync	1.771s
 Commands: `TMPDIR=/wzt go test -race -count=1 ./internal/actions/ha-state-sync -run '^TestResyncCorrelatesCompletionAndReportsMisses$'`; `TMPDIR=/wzt go test -race -count=10 ./internal/actions/ha-state-sync`. Manager notified to record tech debt and arrange final gate. Full failed log: `/root/ngfw-wt/logs/ci/wizard-test-20261007-20261007-100757-2601696`. No Go sources changed. Final mandatory gate verdict still pending.
 
 Manager accepted HA timing occurrence as FLAKY after isolated and ten-package race repetition passed, and committed `docs/tech-debt.md` row in `30eb90243` (HA maintainers/integration manager; review 2026-10-08). Manager authorized test-process scheduling `GOMAXPROCS=4` with short root-backed `TMPDIR=/wzt`; every check remains unchanged. Complete final gate is currently through all TS tasks, agent/CLI lint-race-test-build and 27 test-module unit checks, with final fake-host harness in progress.
+
+## Final mandatory quick verification — PASS
+
+Exact command: `TMPDIR=/wzt GOMAXPROCS=4 tools/ci.sh --base origin/main` (exit 0). Manager authorized these test-process environment settings to avoid `/tmp` inode exhaustion, long Unix socket paths and accepted 50 ms HA scheduling flake. No tests, race checks, linters, generated checks or harness scenarios were removed or changed; no missing-tools override.
+
+Final log: `/tmp/wizard-test-bounded-final-quick.log`; detailed step logs: `/root/ngfw-wt/logs/ci/wizard-test-20261007-20261007-101458-2619331`. Compact actual output:
+
+```text
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    1m4.52s  
+apply-startup harness: green (4 shards; 149 checks passed in the parallel run)
+  mode quick · wall time 15m46s · logs /root/ngfw-wt/logs/ci/wizard-test-20261007-20261007-101458-2619331
+CI GATE PASSED
+```
+
+This complete green run includes agent lint/race-tests/build, CLI lint/race-tests/build, all 27 Go test modules in unit mode, shellcheck and the unchanged 149-check fake-host harness. The full uncached unit execution earlier established API 109 files / 716 tests and web 107 files / 623 tests; all 35 Turbo tasks green again in the final gate. Targeted behavioral suites: API 13/13, web 7/7.
+
+Final scenario status: mandatory gate PASS; host-independent WAN/LAN discovery/error/retry/empty/Persian regressions PASS; historical HA timing occurrence FLAKY with manager-owned `docs/tech-debt.md` entry `30eb90243`; actual slot-based API/browser/VPP acceptance not run. No real laboratory config or host service was changed. No remaining tester code work. Manager must gate the final integration tree and handle laboratory acceptance/deferred tracking.

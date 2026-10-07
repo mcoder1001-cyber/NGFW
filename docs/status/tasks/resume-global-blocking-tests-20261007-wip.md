@@ -17,11 +17,15 @@ to existing nftables.Chain, no product defect. Initial focused Go race PASS1.276
 API new14 + existing fetcher3 PASS17/17 in26.68s. Final exact rule constraint
 assertion strengthened and race recheck PASS1.207s; 3subcases, no skip.
 Focused ESLint exit0; emitted pre-existing root MODULE_TYPELESS_PACKAGE_JSON warning,
-no lint findings. Check mode PASS22s. API typecheck and scoped Go lint in progress.
-Current product failure: none reproduced. Remaining: finish typecheck/Go lint,
-publish final evidence; independent review/full hosted quick manager-owned.
-Exact next command: poll ongoing API typecheck and scoped Go lint, then verify
-only four envelope-owned files differ and publish final WIP.
+no lint findings. Check mode PASS22s. API typecheck exit0; scoped Go lint0issues.
+Verified local/remote tested source checkpoint
+`35f601ef67919ef5a34237751b7a0ca52f279149`; CLI push succeeded, ls-remote matched.
+Current product failure: none reproduced. Remaining owned code: none.
+Independent review/full hosted quick on final integration manager-owned; no merge
+or full quick PASS claimed here. Final documentation receipt follows the tested
+source SHA; resolve final tip with git rev-parse/ls-remote (cannot embed own SHA).
+Exact next command: `git push origin codex/resume-global-blocking-tests-20261007`;
+manager reads this WIP and reviews only the two scoped new test files.
 
 ## Actual command output
 
@@ -45,6 +49,19 @@ no contract files changed in the 1 commit(s) of HEAD since origin/main (3ddb1680
 board valid: 212 tasks; read-only validation
 ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
 check PASSED (0m22s)
+tools/heavy.sh pnpm --filter @ngfw/api typecheck
+$ tsc -p tsconfig.json
+(no errors; exit0)
+cd apps/agent
+../../tools/heavy.sh golangci-lint run ./internal/renderers/nftables/...
+0 issues.
+exit0
+git diff --check
+(no output; exit0)
+Final pre-receipt tools/ci.sh check --base origin/main
+no contract files changed in the 2 commit(s) of HEAD since origin/main (3ddb1680e)
+ok: gitleaks — scanned ~17311 bytes (17.31 KB) in 646ms no leaks found
+check PASSED (0m13s)
 ```
 
 The API service uses real parser/refusal/state/event logic, fake transport and
@@ -59,3 +76,9 @@ the broad IPv6 drop, no-source/disabled bypass absence and overlap collapse.
 No packets or actual nft execution; current protectHost all-host-interface limitation
 is preserved, not certified as selected-interface enforcement.
 Native/feed/browser acceptance NOTRUN; no full task completion claim.
+This includes real scheduled URL refresh/retention against the deployed commit
+engine, native IPv6 packets/anti-lockout behavior and selected-interface local-in
+semantics, real en/fa browser/screenshots. Historical native IPv4 evidence from
+the audit is preserved as historical; no fresh native claim. Performance/200k
+execution not performed. No production fix proposed because no defect reproduced;
+any future negative control requires a manager-authorized narrow production fix.

@@ -1,0 +1,3 @@
+# TD19 safe root envelope
+
+Branch codex/td19-safe-root-20261007; worktree /root/ngfw-wt/td19-safe-root-20261007; base f6ae6e555. Own scripts/00-add-repos.sh, scripts/20-install-build.sh, scripts/40-install-lab.sh, narrowly necessary scripts/install-common.sh, scripts/tests/td19-safe-root*, docs/status/tasks/td19-safe-root-20261007*. No board, tools/lab, inventory or deployment writes. Implement safe alternate root and read-only dry-run preserving trust/digest refusals; pin pnpm from package.json; no guessed Python pins. Stub/fake-root tests and syntax/ShellCheck only; no aggregate CI, downloads or installs. Root manager owns independent review/merge.

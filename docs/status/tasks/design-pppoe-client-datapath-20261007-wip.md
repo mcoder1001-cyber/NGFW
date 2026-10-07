@@ -1,0 +1,13 @@
+# PPPoE datapath design WIP
+
+Branch/worktree/base/ownership: adjacent envelope. Initial local head equals base main3ddb1680e; this source-audit checkpoint publication pending. Exact local SHA `git rev-parse HEAD`; exact remote SHA `git ls-remote origin refs/heads/codex/design-pppoe-client-datapath-20261007`. Containing documentation commit hashes must be resolved externally, not self-embedded.
+
+Prior audit durably published local=remote `1098a41b22a1ae5a3f433e0230a4471743237530`, tree6be8fee0c213ea07fc04db70cc7ccb28f387a4df. Its only changes are its envelope/WIP. Source recovery and plan are available from that branch; OSPF full feature is not declared DONE.
+
+Completed: created authorized isolated design branch from fetched origin/main; read current ClientMirror, globals-only write-only CP singleton, server session descriptor, PPP unit/hook, schema/semantics, architecture/datamodel/master prompt; inspected historical4d0260dc7d7bd992ae5417e6525f7abeda8495dc native runtime/projection/unit/hook/two-hunk safety patch and historical native NAT packet receipts. Current upstream VPP source c3200b88dc46bd380f00a49ca3392a102cc1980b is clean and unchanged by this task.
+
+Findings: current mirror/default route has no PPPoE encapsulation or AC/session metadata. Historical native path refuses more than one client; L2 physical↔LCP cross-connect during discovery, L3 native session and CP feature after IPCP, AC/session hook metadata, default/MSS on session and NAT-outside inheritance. CP is still a single VPP-global index. Historical patch fixes missing-CP control drop and session dump message-base; it does not implement multiple CPs or collision-safe client/server demux. Historical product pass is IPv4 only. Source rewrite supports IPv4/IPv6 PPP protocol values, but one decap FIB and server-oriented API/family handling require separate validation before claiming dual-family client support. Namespace/systemd private paths differ materially from current sandbox.
+
+Actual checks: read-only Git/source/evidence inspection only so far; no live test or product edit. Remaining: complete options/cost/security matrix, bounded recommendation and test plan/PENDING approval question; run documentation/static validation and publish. Current blocker: owner authorization for any future VPP C/security or support-scope implementation, not for this ongoing source design. Worker inventory unverifiable. Main hosted quick37590128647 SUCCESS was observed in prior audit; not a gate on this new branch.
+
+Exact next command: `cd /root/ngfw-wt/design-pppoe-client-datapath-20261007 && tools/ci.sh check --base origin/main`, then commit/push the owned checkpoint and finish the PENDING design.

@@ -3,6 +3,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+import subprocess
+import os
 
 spec = importlib.util.spec_from_file_location('fixture', Path(__file__).with_name('td19-safe-root-fixtures.py'))
 fixture = importlib.util.module_from_spec(spec)
@@ -60,6 +62,19 @@ class SafeRoot(unittest.TestCase):
         result = self.f.run('20-install-build.sh')
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('symlinks', result.stderr)
+        self.assertEqual(self.f.calls(), [])
+
+    def test_native_metadata_path_is_read_only_and_standard_symlink_supported(self):
+        helper = fixture.ROOT / 'scripts/install-common.sh'
+        result = subprocess.run(['bash', '-c', 'source "$1"; NGFW_INSTALL_ROOT=/; ngfw_install_os_release',
+                                 'native-metadata-fixture', str(helper)],
+                                env=dict(os.environ, PATH='/usr/bin:/bin'), text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        metadata = Path(result.stdout.strip())
+        expected = Path('/usr/lib/os-release') if Path('/etc/os-release').is_symlink() else Path('/etc/os-release')
+        self.assertEqual(metadata, expected)
+        self.assertTrue(metadata.is_file())
+        self.assertFalse(metadata.is_symlink())
         self.assertEqual(self.f.calls(), [])
 
     def test_bad_go_archive_refused_before_tar(self):

@@ -1,0 +1,1 @@
+refusing P12 in shared host root namespace

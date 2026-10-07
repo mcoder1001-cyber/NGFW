@@ -1,0 +1,4 @@
+$ gitleaks git . --no-banner --redact --exit-code 1 --report-format json --report-path /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/p12-fib-recovery-ci/codex-p12-fib-proof-recovery-20261005-081526-2095822/gitleaks-report.json --config .github/gitleaks.toml --log-opts=492c0156e38ee73acca235527d7979b447067bb8..HEAD
+8:17AM INF 1 commits scanned.
+8:17AM INF scanned ~208707 bytes (208.71 KB) in 659ms
+8:17AM INF no leaks found

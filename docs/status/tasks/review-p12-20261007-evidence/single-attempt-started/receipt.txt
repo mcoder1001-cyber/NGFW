@@ -1,0 +1,4 @@
+The ONE authorized original live attempt was launched 2026-10-07T07:45:37Z.
+Original runner PID2301456; private child PID2301462; exit1 at outer-network
+namespace empty-interface precondition. No VPP/FRR/test launch. Do not rerun.
+See ../live-attempt.txt, ../postcheck.txt and the task report.

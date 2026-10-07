@@ -1,0 +1,49 @@
+POSTCHECK_UTC=2026-10-07T07:47:18Z
+MainPID=1014
+NRestarts=0
+inactive
+/run/lock/ngfw-lab.lock: free
+/run/lock/ngfw-vpp.lock: free (no file)
+SLOT14_LOCK_PROBE_EXIT=0
+OWN_PID_ABSENT=2301456
+OWN_PID_ABSENT=2301462
+.scratch/p12-outer-2301462/frr:
+total 8
+drwxr-xr-x 2 root root 4096 Oct  7 07:45 .
+drwxr-xr-x 4 root root 4096 Oct  7 07:45 ..
+
+.scratch/p12-outer-2301462/netns:
+total 8
+drwxr-xr-x 2 root root 4096 Oct  7 07:45 .
+drwxr-xr-x 4 root root 4096 Oct  7 07:45 ..
+
+/run/frr:
+total 0
+drwxr-xr-x  2 frr  frr   40 Oct  5 13:04 .
+drwxr-xr-x 37 root root 900 Oct  7 07:40 ..
+
+/run/netns:
+total 0
+drwxr-xr-x  2 root root  40 Oct  6 10:34 .
+drwxr-xr-x 37 root root 900 Oct  7 07:40 ..
+
+/run/ngfw-test/w14:
+total 0
+drwxr-xr-x 3 root root  60 Oct  4 19:32 .
+drwxr-xr-x 8 root root 160 Oct  6 10:41 ..
+drwxr-xr-x 3 root root  60 Oct  4 19:31 sysident
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000\    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens161: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:46:f2 brd ff:ff:ff:ff:ff:ff\    altname enp4s0\    altname enx0050569f46f2
+3: ens192: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:1e:53 brd ff:ff:ff:ff:ff:ff\    altname enp11s0\    altname enx0050569f1e53
+5: ens224: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:32:8c brd ff:ff:ff:ff:ff:ff\    altname enp19s0\    altname enx0050569f328c
+6: ens225: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:85:ce brd ff:ff:ff:ff:ff:ff\    altname enp20s0\    altname enx0050569f85ce
+7: ens256: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:73:f8 brd ff:ff:ff:ff:ff:ff\    altname enp27s0\    altname enx0050569f73f8
+8: ens257: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:cd:88 brd ff:ff:ff:ff:ff:ff\    altname enp28s0\    altname enx0050569fcd88
+9: virbr0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc noqueue state DOWN mode DEFAULT group default qlen 1000\    link/ether 52:54:00:90:10:d7 brd ff:ff:ff:ff:ff:ff
+65: ens193: <BROADCAST,MULTICAST> mtu 1500 qdisc mq state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:50:56:9f:4b:c6 brd ff:ff:ff:ff:ff:ff\    altname enp12s0\    altname enx0050569f4bc6
+82: ip6tnl0@NONE: <NOARP> mtu 1452 qdisc noop state DOWN mode DEFAULT group default qlen 1000\    link/tunnel6 :: brd :: permaddr 2e5b:4edc:62bd::
+830: gre0@NONE: <NOARP> mtu 1476 qdisc noop state DOWN mode DEFAULT group default qlen 1000\    link/gre 0.0.0.0 brd 0.0.0.0
+831: gretap0@NONE: <BROADCAST,MULTICAST> mtu 1462 qdisc noop state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff
+832: erspan0@NONE: <BROADCAST,MULTICAST> mtu 1450 qdisc noop state DOWN mode DEFAULT group default qlen 1000\    link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff
+ip6_tunnel
+ip_gre

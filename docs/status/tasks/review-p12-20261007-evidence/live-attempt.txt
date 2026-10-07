@@ -1,0 +1,13 @@
+PRECONDITION_FREE=ngfw-acceptance-slot14.lock
+PRECONDITION_SHARED_LAB_LOCK=ACQUIRED
+VALIDATED_SLOT={"NGFW_AGENT_SOCKET": "/run/ngfw-test/w14/agent.sock", "NGFW_AGENT_VPP_API_SOCKET": "/run/vpp/api.sock", "NGFW_AGENT_VPP_STATS_SOCKET": "/run/vpp/stats.sock", "NGFW_HTTP_PORT": "11400", "NGFW_LAB_LOCK": "/run/lock/ngfw-lab.lock", "NGFW_METRICS_PORT": "9241", "NGFW_PG_DATABASE": "ngfw_w14", "NGFW_SLOT": "14", "NGFW_TEST_PREFIX": "w14", "NGFW_VALKEY_DB": "14", "NGFW_VPPCTL": "vppctl -s /run/vpp/cli.sock", "NGFW_VPP_API_SOCKET": "/run/vpp/api.sock", "NGFW_VPP_CLI_SOCKET": "/run/vpp/cli.sock", "NGFW_VPP_STATS_SOCKET": "/run/vpp/stats.sock", "NGFW_VPP_TABLE_BASE": "14000", "NGFW_WEB_PORT": "15400"}
+LIVE_START_UTC=2026-10-07T07:45:37Z
+OBSERVER_ORIGINAL_RUNNER_PID=2301456
+P12_SLOT14_EXCLUSIVE=ACQUIRED
+P12_SHARED_BEFORE=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+P12 outer network namespace is not empty
+P12_SHARED_AFTER=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+ORIGINAL_RUN_EXIT=1
+ORIGINAL_RUN_SECONDS=0.55
+LIVE_END_UTC=2026-10-07T07:45:37Z
+OBSERVER_SHARED_LAB_LOCK=RELEASED

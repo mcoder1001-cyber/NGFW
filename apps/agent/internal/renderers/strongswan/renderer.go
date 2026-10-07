@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -188,7 +189,25 @@ func (r *Renderer) check() error {
 
 // ------------------------------------------------------------------------------ templates
 
-var templates = func() *template.Template {
+type rendererTemplatesLoader struct {
+	once sync.Once
+	load func() *template.Template
+}
+
+func (l *rendererTemplatesLoader) get(parse func() *template.Template) *template.Template {
+	l.once.Do(func() {
+		l.load = sync.OnceValue(parse)
+	})
+	return l.load()
+}
+
+var templatesLoader rendererTemplatesLoader
+
+func getTemplates() *template.Template {
+	return templatesLoader.get(parseTemplates)
+}
+
+func parseTemplates() *template.Template {
 	t := renderers.NewTemplate("strongswan").Funcs(template.FuncMap{
 		"name":  SectionName,
 		"q":     Quote,
@@ -200,7 +219,7 @@ var templates = func() *template.Template {
 		"deref": func(p *uint32) uint32 { return *p },
 	})
 	return template.Must(t.ParseFS(templateFS, "templates/*.tmpl"))
-}()
+}
 
 // tokenList renders a comma list of bare tokens (each validated; no element may be empty or
 // contain a comma).
@@ -237,15 +256,15 @@ func (r *Renderer) RenderModel(m *Model) (renderers.Files, error) {
 	if err := r.checkOwnedModel(m); err != nil {
 		return nil, err
 	}
-	conns, err := renderers.ExecuteTemplate(templates, "ngfw.conf.tmpl", m)
+	conns, err := renderers.ExecuteTemplate(getTemplates(), "ngfw.conf.tmpl", m)
 	if err != nil {
 		return nil, r.secrets.redactErr(err)
 	}
-	secrets, err := renderers.ExecuteTemplate(templates, "ngfw-secrets.conf.tmpl", m)
+	secrets, err := renderers.ExecuteTemplate(getTemplates(), "ngfw-secrets.conf.tmpl", m)
 	if err != nil {
 		return nil, r.secrets.redactErr(err)
 	}
-	conf, err := renderers.ExecuteTemplate(templates, "strongswan.conf.tmpl", confView{
+	conf, err := renderers.ExecuteTemplate(getTemplates(), "strongswan.conf.tmpl", confView{
 		DaemonConfig: r.daemon, ViciURI: "unix://" + r.paths.ViciSocket, LogFile: r.paths.LogFile,
 	})
 	if err != nil {

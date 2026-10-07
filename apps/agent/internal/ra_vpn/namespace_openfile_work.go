@@ -8,6 +8,7 @@ import (
 	"golang.org/x/sys/unix"
 	"math"
 	"ngfw/agent/internal/vpp/bootid"
+	"sync"
 	"time"
 )
 
@@ -81,7 +82,7 @@ func sendNumericPublisherWorkFrame(fd int, phase string, source, server bootid.I
 
 // The watcher never consumes packets. POLLIN can mean a legitimate queued
 // acknowledgment and is deliberately ignored. Its owner joins before fd reuse.
-func watchNumericPublisherPeer(ctx context.Context, fd int, cancel context.CancelFunc) func() {
+func watchNumericPublisherPeer(ctx context.Context, fd int, cancel context.CancelFunc) numericPublisherPeerStop {
 	if fd < 0 || fd > math.MaxInt32 {
 		cancel()
 		return func() {}
@@ -112,7 +113,8 @@ func watchNumericPublisherPeer(ctx context.Context, fd int, cancel context.Cance
 			}
 		}
 	}()
-	return func() { close(stop); <-exited }
+	var stopOnce sync.Once
+	return func() { stopOnce.Do(func() { close(stop) }); <-exited }
 }
 
 func newNumericPublisherWorkToken() (string, error) {

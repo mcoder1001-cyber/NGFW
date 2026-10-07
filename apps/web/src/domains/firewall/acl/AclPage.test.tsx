@@ -487,7 +487,7 @@ describe('ACL screen', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { level: 2, name: 'فهرست‌های دسترسی' },
+          { level: 2, name: 'پالیسی‌ها' },
           { timeout: 15_000 },
         ),
       ).toBeInTheDocument();

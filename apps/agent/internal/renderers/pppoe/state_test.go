@@ -52,3 +52,73 @@ func TestReadState(t *testing.T) {
 		t.Fatalf("failed: %+v", st)
 	}
 }
+
+func writeState6(t *testing.T, r *Renderer, hostIf, body string) {
+	t.Helper()
+	if err := os.MkdirAll(r.paths.StateDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".state6"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReadIPv6(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	if st, err := r.ReadIPv6("wan0"); err != nil || st.Up {
+		t.Fatalf("missing: %+v %v", st, err)
+	}
+	// Values come from the network: only well-formed, correctly scoped ones survive.
+	writeState6(t, r, "wan0", "phase=up\nppp_iface=ppp0\nlllocal=fe80::494e:09cd:477c:b51c\nllremote=fe80::940e:fe14:36be:d2f3\n"+
+		"addr=2001:db8:9:0:494e:9cd:477c:b51c/64\naddr=2001:db8:9::100/128\naddr=fe80::1/64\naddr=::ffff:192.0.2.1/128\naddr=junk\n"+
+		"addr=2001:db8:9::100/128\ngw=fe80::940e:fe14:36be:d2f3\npd=2001:db8:9100::1/56\nat=2026-10-07T05:32:35Z\n")
+	st, err := r.ReadIPv6("wan0")
+	if err != nil || !st.Up {
+		t.Fatal(st, err)
+	}
+	if len(st.Addrs) != 2 || st.Addrs[0].String() != "2001:db8:9::100/128" || st.Addrs[1].String() != "2001:db8:9:0:494e:9cd:477c:b51c/64" {
+		t.Fatalf("addrs %v", st.Addrs)
+	}
+	if got := st.HostAddrs(); len(got) != 2 || got[1] != "2001:db8:9:0:494e:9cd:477c:b51c/128" {
+		t.Fatalf("host addrs %v", got)
+	}
+	if st.Gateway.String() != "fe80::940e:fe14:36be:d2f3" || st.Delegated.String() != "2001:db8:9100::/56" || st.LinkLocal.String() != "fe80::494e:9cd:477c:b51c" {
+		t.Fatalf("gw %v pd %v ll %v", st.Gateway, st.Delegated, st.LinkLocal)
+	}
+	if st.Summary() != "2001:db8:9::100/128, 2001:db8:9:0:494e:9cd:477c:b51c/64, delegated 2001:db8:9100::/56" {
+		t.Fatalf("summary %q", st.Summary())
+	}
+	writeState6(t, r, "wan0", "phase=up\ngw=203.0.113.1\npd=2001:db8::/8\n")
+	if st, _ := r.ReadIPv6("wan0"); st.Gateway.IsValid() || st.Delegated.IsValid() {
+		t.Fatalf("IPv4 gateway / implausible prefix accepted: %+v", st)
+	}
+	// down: nothing negotiated is current
+	writeState6(t, r, "wan0", "phase=down\naddr=2001:db8:9::100/128\ngw=fe80::1\n")
+	if st, _ := r.ReadIPv6("wan0"); st.Up || len(st.Addrs) != 0 || st.Gateway.IsValid() {
+		t.Fatalf("down kept values: %+v", st)
+	}
+}
+
+func TestReadStateIncludesIPv6(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	// dual stack: IPv4 hook up, IPv6 summary filled
+	writeState(t, r, "wan0", "phase=up\nlocal=203.0.113.5\npeer=203.0.113.1\n")
+	writeState6(t, r, "wan0", "phase=up\naddr=2001:db8:9::5/64\ngw=fe80::1\npd=2001:db8:9100::/56\n")
+	st, err := r.ReadState("wan0", 0, "")
+	if err != nil || st.GetPhase() != "up" || st.GetIpv6() != "2001:db8:9::5/64, delegated 2001:db8:9100::/56" || st.GetLocalIpv4() != "203.0.113.5/32" {
+		t.Fatalf("%+v %v", st, err)
+	}
+	// IPv6-only session (no IPCP): still up, with its own since
+	writeState6(t, r, "wan1", "phase=up\naddr=2001:db8:9::6/64\nat=2026-10-07T05:00:00Z\n")
+	st, err = r.ReadState("wan1", 2, "x")
+	if err != nil || st.GetPhase() != "up" || st.GetIpv6() != "2001:db8:9::6/64" || st.GetSince() == nil || st.GetLocalIpv4() != "" {
+		t.Fatalf("v6-only: %+v %v", st, err)
+	}
+	// IPv6 down, IPv4 down with failures → failed, no IPv6 text
+	writeState(t, r, "wan2", "phase=down\n")
+	writeState6(t, r, "wan2", "phase=down\naddr=2001:db8:9::7/64\n")
+	st, _ = r.ReadState("wan2", 1, "peer did not respond")
+	if st.GetPhase() != "failed" || st.GetIpv6() != "" {
+		t.Fatalf("down: %+v", st)
+	}
+}

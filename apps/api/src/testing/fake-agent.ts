@@ -729,7 +729,13 @@ export class FakeAgent {
           acName: 'fake-ac',
           localIpv4: '203.0.113.5/32',
           peerIpv4: '203.0.113.1',
-          ipv6: p['ipv6'] === 'off' || p['ipv6'] === undefined ? '' : '2001:db8:1::2/64',
+          // the agent reports the SLAAC/DHCPv6 addresses and, for dhcpv6, the delegated prefix
+          ipv6:
+            p['ipv6'] === 'slaac'
+              ? '2001:db8:1::2/64'
+              : p['ipv6'] === 'dhcpv6'
+                ? '2001:db8:1::2/64, delegated 2001:db8:100::/56'
+                : '',
           dns: p['dnsFromPeer'] === true ? ['203.0.113.53', '203.0.113.54'] : [],
           since: new Date('2026-09-27T00:00:00.000Z'),
           failCount: 0,

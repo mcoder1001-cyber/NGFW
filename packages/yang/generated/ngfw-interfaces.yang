@@ -742,7 +742,7 @@ module ngfw-interfaces {
           enum "dhcpv6";
         }
         default "off";
-        description "off; slaac (accept a /64 via RA over the link); dhcpv6 (request a prefix via DHCPv6-PD)";
+        description "off; slaac (address and IPv6 default route from the ISP router advertisements); dhcpv6 (slaac plus a DHCPv6 address and delegated prefix, IA_NA + IA_PD); needs MTU >= 1280";
       }
       container reconnect {
         description "what to do when the session drops";

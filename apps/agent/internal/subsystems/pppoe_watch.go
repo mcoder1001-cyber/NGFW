@@ -68,11 +68,11 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 		}
 		for name, old := range rt.mirrored {
 			s, exists := rt.applied[name]
-			st, err := rt.renderer.ReadState(s.HostIf, 0, "")
+			next, up, err := rt.observe(s)
 			if err != nil && exists {
 				return err
 			}
-			if !exists || st.GetPhase() != "up" || !reflect.DeepEqual(old, mirrorFor(s, st)) {
+			if !exists || !up || !reflect.DeepEqual(old, next) {
 				if err := rt.Mirror(ctx, old, false); err != nil {
 					return err
 				}
@@ -80,13 +80,12 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 			}
 		}
 		for name, s := range rt.applied {
-			st, err := rt.renderer.ReadState(s.HostIf, 0, "")
+			next, up, err := rt.observe(s)
 			if err != nil {
 				return err
 			}
-			if st.GetPhase() == "up" {
+			if up {
 				rt.failures[name] = pppoeFailure{}
-				next := mirrorFor(s, st)
 				// Reassert on every observation: address addition is dump-idempotent,
 				// route addition updates only this session path. Repairs VPP loss.
 				// Track before writes: a partial failure must remain withdrawable.
@@ -109,8 +108,34 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 	}
 	return run(ctx)
 }
-func mirrorFor(s pppoe.Session, st *ngfwv1.PppoeSessionState) desc.Mirror {
-	return desc.Mirror{Interface: s.Iface, LocalIPv4: st.GetLocalIpv4(), PeerIPv4: st.GetPeerIpv4(), DefaultRoute: s.DefaultRoute, MSSClamp: s.MSSClamp, MTU: s.MTU}
+
+// observe reads a session's hook state (IPv4 ip-up/ip-down and, when IPv6 is on, ipv6-up/ipv6-down) and returns
+// the mirror it implies and whether the session is up (either NCP).
+func (rt *PppoeRuntime) observe(s pppoe.Session) (desc.Mirror, bool, error) {
+	st, err := rt.renderer.ReadSessionState(s.HostIf, 0, "", s.IPv6Enabled())
+	if err != nil {
+		return desc.Mirror{}, false, err
+	}
+	var v6 pppoe.IPv6State
+	if s.IPv6Enabled() {
+		if v6, err = rt.renderer.ReadIPv6(s.HostIf); err != nil {
+			return desc.Mirror{}, false, err
+		}
+	}
+	return mirrorFor(s, st, v6), st.GetPhase() == "up", nil
+}
+
+func mirrorFor(s pppoe.Session, st *ngfwv1.PppoeSessionState, v6 pppoe.IPv6State) desc.Mirror {
+	m := desc.Mirror{Interface: s.Iface, LocalIPv4: st.GetLocalIpv4(), PeerIPv4: st.GetPeerIpv4(), DefaultRoute: s.DefaultRoute, MSSClamp: s.MSSClamp, MTU: s.MTU}
+	if s.IPv6Enabled() && v6.Up {
+		if addrs := v6.HostAddrs(); len(addrs) > 0 {
+			m.LocalIPv6 = addrs
+		}
+		if v6.Gateway.IsValid() {
+			m.PeerIPv6 = v6.Gateway.String()
+		}
+	}
+	return m
 }
 
 type pppoeFailure struct {
@@ -175,25 +200,27 @@ func (rt *PppoeRuntime) runtimeAddresses(ctx context.Context, addrs map[uint32]m
 		addrs = map[uint32]map[string]bool{}
 	}
 	for _, s := range sessions {
-		state, err := rt.renderer.ReadState(s.HostIf, 0, "")
+		m, up, err := rt.observe(s)
 		if err != nil {
 			return nil, err
 		}
-		if state.Phase != "up" {
+		if !up {
 			continue
 		}
 		idx, err := ifs.Index(s.Iface)
 		if err != nil {
 			continue
 		}
-		p, err := netip.ParsePrefix(state.LocalIpv4)
-		if err != nil {
-			continue
+		for _, raw := range append([]string{m.LocalIPv4}, m.LocalIPv6...) {
+			p, err := netip.ParsePrefix(raw)
+			if err != nil {
+				continue
+			}
+			if addrs[uint32(idx)] == nil {
+				addrs[uint32(idx)] = map[string]bool{}
+			}
+			addrs[uint32(idx)][p.Addr().String()] = true
 		}
-		if addrs[uint32(idx)] == nil {
-			addrs[uint32(idx)] = map[string]bool{}
-		}
-		addrs[uint32(idx)][p.Addr().String()] = true
 	}
 	return addrs, nil
 }

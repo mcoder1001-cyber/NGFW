@@ -32,6 +32,13 @@ func minimalSession() Session {
 	}
 }
 
+func dhcp6Session() Session {
+	return Session{
+		Iface: "eth2", HostIf: "wan2", Username: "carol", Password: "pw2",
+		MTU: 1492, MSSClamp: true, DefaultRoute: false, IPv6: "dhcpv6", HoldoffSec: 5,
+	}
+}
+
 func golden(t *testing.T, name string, got []byte) {
 	t.Helper()
 	path := filepath.Join("testdata", name+".golden")
@@ -54,7 +61,7 @@ func golden(t *testing.T, name string, got []byte) {
 }
 
 func TestRenderGolden(t *testing.T) {
-	files, err := testRenderer().Render([]Session{fullSession(), minimalSession()})
+	files, err := testRenderer().Render([]Session{fullSession(), minimalSession(), dhcp6Session()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,6 +125,8 @@ func TestHostileInputRejected(t *testing.T) {
 		"newline svc":  func(s *Session) { s.ServiceName = "a\nx" },
 		"tiny mtu":     func(s *Session) { s.MTU = 64 },
 		"huge mtu":     func(s *Session) { s.MTU = 9000 },
+		"ipv6 mode":    func(s *Session) { s.IPv6 = "dhcpv6-pd" },
+		"ipv6 mtu":     func(s *Session) { s.IPv6 = "slaac"; s.MTU = 1279 },
 	} {
 		t.Run(name, func(t *testing.T) {
 			s := base
@@ -151,7 +160,7 @@ func TestValidateMatchesRender(t *testing.T) {
 
 // every rendered file passes the shared CheckRendered backstop (no CR/NUL/ESC).
 func TestRenderedFilesAreClean(t *testing.T) {
-	files, err := testRenderer().Render([]Session{fullSession(), minimalSession()})
+	files, err := testRenderer().Render([]Session{fullSession(), minimalSession(), dhcp6Session()})
 	if err != nil {
 		t.Fatal(err)
 	}

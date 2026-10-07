@@ -1,0 +1,9 @@
+#!/bin/sh
+# Rendered PPPoE IPv6 {{.Kind}} hook. The helper verifies process ownership,
+# serializes state publication and returns setup/shutdown failures.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = {{quoted .Remotename}} ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+exec /usr/bin/python3 {{quoted .IPv6Helper}} {{.Phase}} "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"

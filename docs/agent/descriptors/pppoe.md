@@ -1,5 +1,12 @@
 # pppoe descriptors (DF-6, WBS D6.6)
 
+Client limitation: address/route mirroring does not provide PPPoE encapsulation for
+VPP forwarding. IPv4 and IPv6 LAN transit through this client remain unsupported.
+With the product PPPoE plugin loaded, discovery also conflicts with linux-cp's
+EtherType registration; the plugin's global server-side CP setter is not a
+per-client routing solution. Diagnostic plugin-disabled runs are not product acceptance.
+Existing globals-owner, namespace and route-table refusals remain enforced.
+
 Package `apps/agent/internal/descriptors/pppoe`. Messages only from `apps/agent/binapi/pppoe`. Shared rules: [df6.md](df6.md).
 
 | Object type | Descriptor / key | Create / Delete | Retrieve | Update | Dependencies |
@@ -26,3 +33,5 @@ opt-in (`NGFW_DF6_PPPOE_CP_HOST=1`) and never runs on the shared VPP.
 The `pppoe-watch` source runs a one-second poll under the agent lifetime context. `Env.Exclusive` serializes mirror I/O with config commit/resync/rollback. The combined runtime-address classifier keeps PPPoE-assigned addresses and accepted VRRP VIPs out of static-address reconciliation. Mirroring validates the full negotiated record before writes; additions and withdrawals dump first to remain idempotent. An attempted partial mirror is tracked before I/O, so later down/removal can withdraw it. Route operations carry one path and `IsMultipath=true`; only an exact `api.NO_SUCH_ENTRY` on withdrawal is benign. Globals-owner exit observation deduplicates unit `ExecMainStatus`/`NRestarts` snapshots and resets on up.
 
 Exit messages map pppd statuses 1–8, 10, 11, 15, 16 and 19; other nonzero statuses receive a numeric message. Source: [upstream pppd manual, EXIT STATUS](https://github.com/ppp-project/ppp/blob/master/pppd/pppd.8). No daemon output or credential is copied into state errors. Credentials-only edits receive an explicit unit restart when the existing renderer's peer/unit comparison would otherwise miss them. Clamp-only edits preserve hook state; removed/changed dial sessions delete their owned state file.
+
+IPv6 (`ipv6` = `slaac` | `dhcpv6`): the poll also reads `<hostif>.state6` (ipv6-up/ipv6-down hook, see the renderer README) and the mirror adds every global IPv6 address as a /128 on the WAN interface and, with `defaultRoute`, the single `::/0` path via the RA router (usually the ISP's link-local, `FIB_API_PATH_NH_PROTO_IP6`) in the interface's own IPv6 table (`sw_interface_get_table` with `is_ipv6`), policy-checked like the IPv4 table before any write. Withdrawal removes the routes before the addresses. An IPv6 down withdraws only the IPv6 part (the poll re-mirrors the remaining IPv4 record), and a renumbering replaces the address. The runtime-address classifier covers the IPv6 addresses too. State for a session with IPv6 off is ignored. The DHCPv6-PD prefix is reported in `PppoeSessionState.ipv6` (`delegated <prefix>`) but not routed or assigned: the schema has no downstream target for it.

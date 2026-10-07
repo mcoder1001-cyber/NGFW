@@ -8,9 +8,11 @@ package pppoe
 // package (cp.go, session.go) are unrelated (the AC/decap side).
 //
 // It resolves the WAN interface by its logical name to the running sw_if_index (df6.DumpInterfaces, owner-scoped,
-// so a foreign interface is refused) and, for up=true, adds the ISP-assigned local IPv4/IPv6 address, an optional
-// default route via the peer in the interface's own FIB, and (when requested) enables TCP MSS clamping in both
-// directions; up=false withdraws exactly those.
+// so a foreign interface is refused) and, for up=true, adds the ISP-assigned local IPv4 address (/32) and IPv6
+// addresses (/128 each: SLAAC and/or DHCPv6 IA_NA), optional default routes — 0.0.0.0/0 via the IPCP peer and ::/0
+// via the IPv6 router learned from the RA (the ISP's link-local) — each in the interface's own FIB of that family,
+// and (when requested) enables TCP MSS clamping in both directions for both families; up=false withdraws exactly
+// those (routes first, then addresses).
 //
 // Route safety (R4 B1): the default route is added and removed with IsMultipath=true and a SINGLE path — VPP then
 // only adds/removes this session's path, so a static default, an ECMP default or a second PPPoE session's default
@@ -51,16 +53,19 @@ var ErrNotGlobalsOwner = errors.New("pppoe: default route refused: not the globa
 type Mirror struct {
 	// Interface is the logical (owner-scoped) name of the WAN VPP interface the session runs over.
 	Interface string
-	// LocalIPv4 / LocalIPv6 are the ISP-assigned addresses in CIDR form ("a.b.c.d/32", "…/64"); empty = none.
+	// LocalIPv4 is the ISP-assigned IPv4 address in CIDR form ("a.b.c.d/32"); empty = none.
 	LocalIPv4 string
-	LocalIPv6 string
+	// LocalIPv6 are the ISP-assigned global IPv6 addresses in CIDR form ("…/128": SLAAC, DHCPv6 IA_NA); nil = none.
+	LocalIPv6 []string
 	// PeerIPv4 is the peer/gateway address (the default-route next hop); empty = a link-only default route.
 	PeerIPv4 string
-	// DefaultRoute adds/removes the default 0.0.0.0/0 path out this interface via the peer.
+	// PeerIPv6 is the IPv6 default router (from the ISP's RA, usually its link-local); empty = no IPv6 default route.
+	PeerIPv6 string
+	// DefaultRoute adds/removes the default 0.0.0.0/0 path out this interface via the peer, and ::/0 via PeerIPv6.
 	DefaultRoute bool
 	// MSSClamp enables TCP MSS clamping (RX+TX) on the interface; MSS is derived from MTU.
 	MSSClamp bool
-	// MTU is the negotiated link MTU; the IPv4 clamp is MTU-40, the IPv6 clamp MTU-60.
+	// MTU is the negotiated link MTU; the IPv4 clamp is MTU-40, the IPv6 clamp MTU-60 (one clamp covers both).
 	MTU uint32
 }
 
@@ -104,17 +109,26 @@ func (m *ClientMirror) Apply(ctx context.Context, mir Mirror, up bool) error {
 		return fmt.Errorf("%w: pppoe mirror needs an interface", df6.ErrBadValue)
 	}
 	// Validate the whole negotiated record before the first write.
-	for _, raw := range []string{mir.LocalIPv4, mir.LocalIPv6} {
-		if raw != "" {
-			if _, err := netip.ParsePrefix(raw); err != nil {
-				return fmt.Errorf("%w: invalid negotiated address", df6.ErrBadValue)
-			}
+	if mir.LocalIPv4 != "" {
+		if p, err := netip.ParsePrefix(mir.LocalIPv4); err != nil || !p.Addr().Is4() {
+			return fmt.Errorf("%w: invalid negotiated address", df6.ErrBadValue)
+		}
+	}
+	for _, raw := range mir.LocalIPv6 {
+		if p, err := netip.ParsePrefix(raw); err != nil || !p.Addr().Is6() || p.Addr().Is4In6() {
+			return fmt.Errorf("%w: invalid negotiated IPv6 address", df6.ErrBadValue)
 		}
 	}
 	if mir.PeerIPv4 != "" {
 		peer, err := netip.ParseAddr(mir.PeerIPv4)
 		if err != nil || !peer.Is4() {
 			return fmt.Errorf("%w: invalid negotiated peer", df6.ErrBadValue)
+		}
+	}
+	if mir.PeerIPv6 != "" {
+		peer, err := netip.ParseAddr(mir.PeerIPv6)
+		if err != nil || !peer.Is6() || peer.Is4In6() || peer.Zone() != "" {
+			return fmt.Errorf("%w: invalid negotiated IPv6 router", df6.ErrBadValue)
 		}
 	}
 	if mir.MSSClamp && (mir.MTU < 128 || mir.MTU > 1500) {
@@ -132,26 +146,55 @@ func (m *ClientMirror) Apply(ctx context.Context, mir Mirror, up bool) error {
 		}
 		return err
 	}
-	// Resolve the table and check the route policy BEFORE touching VPP: a refusal is permanent, so an up that would be
-	// refused must not leave the address behind.
-	wantRoute := mir.DefaultRoute && mir.LocalIPv4 != ""
-	var table uint32
-	if wantRoute {
-		if table, err = m.tableOf(ctx, idx); err != nil {
+	// Resolve the tables and check the route policy BEFORE touching VPP: a refusal is permanent, so an up that would
+	// be refused must not leave an address behind.
+	want4 := mir.DefaultRoute && mir.LocalIPv4 != ""
+	want6 := mir.DefaultRoute && len(mir.LocalIPv6) > 0 && mir.PeerIPv6 != ""
+	var table4, table6 uint32
+	if want4 {
+		if table4, err = m.tableOf(ctx, idx, false); err != nil {
 			return err
 		}
-		if !m.allowRoute(table) {
-			return fmt.Errorf("%w (table %d)", ErrNotGlobalsOwner, table)
+		if !m.allowRoute(table4) {
+			return fmt.Errorf("%w (table %d)", ErrNotGlobalsOwner, table4)
 		}
 	}
-	if err := m.address(ctx, idx, mir.LocalIPv4, up); err != nil {
-		return err
+	if want6 {
+		if table6, err = m.tableOf(ctx, idx, true); err != nil {
+			return err
+		}
+		if !m.allowRoute(table6) {
+			return fmt.Errorf("%w (IPv6 table %d)", ErrNotGlobalsOwner, table6)
+		}
 	}
-	if err := m.address(ctx, idx, mir.LocalIPv6, up); err != nil {
-		return err
+	addrs := append([]string{mir.LocalIPv4}, mir.LocalIPv6...)
+	routes := func() error {
+		if want4 {
+			if err := m.defaultRoute(ctx, idx, table4, mir.PeerIPv4, up); err != nil {
+				return err
+			}
+		}
+		if want6 {
+			if err := m.defaultRoute6(ctx, idx, table6, mir.PeerIPv6, up); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	if wantRoute {
-		if err := m.defaultRoute(ctx, idx, table, mir.PeerIPv4, up); err != nil {
+	if !up {
+		// Withdraw the routes before the addresses they egress with (the IPv6 router is reached over the
+		// interface's IPv6 enablement, which its addresses hold).
+		if err := routes(); err != nil {
+			return err
+		}
+	}
+	for _, a := range addrs {
+		if err := m.address(ctx, idx, a, up); err != nil {
+			return err
+		}
+	}
+	if up {
+		if err := routes(); err != nil {
 			return err
 		}
 	}
@@ -161,7 +204,7 @@ func (m *ClientMirror) Apply(ctx context.Context, mir Mirror, up bool) error {
 		}
 	}
 	m.log.Info("pppoe mirror", "interface", mir.Interface, "sw_if_index", uint32(idx), "up", up,
-		"local4", mir.LocalIPv4, "local6", mir.LocalIPv6, "default_route", mir.DefaultRoute, "mss_clamp", mir.MSSClamp)
+		"local4", mir.LocalIPv4, "local6", mir.LocalIPv6, "router6", mir.PeerIPv6, "default_route", mir.DefaultRoute, "mss_clamp", mir.MSSClamp)
 	return nil
 }
 
@@ -204,9 +247,9 @@ func (m *ClientMirror) address(ctx context.Context, idx interface_types.Interfac
 	return nil
 }
 
-// tableOf returns the IPv4 FIB table (VRF) the interface is bound to.
-func (m *ClientMirror) tableOf(ctx context.Context, idx interface_types.InterfaceIndex) (uint32, error) {
-	rep, err := interfaces.NewServiceClient(m.c).SwInterfaceGetTable(ctx, &interfaces.SwInterfaceGetTable{SwIfIndex: idx, IsIPv6: false})
+// tableOf returns the IPv4 or IPv6 FIB table (VRF) the interface is bound to.
+func (m *ClientMirror) tableOf(ctx context.Context, idx interface_types.InterfaceIndex, ipv6 bool) (uint32, error) {
+	rep, err := interfaces.NewServiceClient(m.c).SwInterfaceGetTable(ctx, &interfaces.SwInterfaceGetTable{SwIfIndex: idx, IsIPv6: ipv6})
 	if err != nil {
 		return 0, fmt.Errorf("sw_interface_get_table sw_if_index=%d: %w", uint32(idx), err)
 	}
@@ -245,6 +288,36 @@ func (m *ClientMirror) defaultRoute(ctx context.Context, idx interface_types.Int
 			return nil
 		}
 		return fmt.Errorf("ip_route_add_del default in table %d via %q add=%v: %w", table, peer, add, err)
+	}
+	return nil
+}
+
+// defaultRoute6 adds or removes this session's single ::/0 path via the IPv6 router (usually the ISP's link-local,
+// resolved on idx) in the interface's own IPv6 FIB table — the same IsMultipath single-path discipline as IPv4, so
+// another ::/0 path survives this session's withdrawal.
+func (m *ClientMirror) defaultRoute6(ctx context.Context, idx interface_types.InterfaceIndex, table uint32, router string, add bool) error {
+	pfx, err := ip_types.ParsePrefix("::/0")
+	if err != nil {
+		return err
+	}
+	a, err := netip.ParseAddr(router)
+	if err != nil || !a.Is6() || a.Is4In6() {
+		return fmt.Errorf("%w: pppoe IPv6 router %q is not an IPv6 address", df6.ErrBadValue, router)
+	}
+	fp := fib_types.FibPath{
+		SwIfIndex: uint32(idx),
+		TableID:   table,
+		Type:      fib_types.FIB_API_PATH_TYPE_NORMAL,
+		Proto:     fib_types.FIB_API_PATH_NH_PROTO_IP6,
+		Weight:    1,
+	}
+	fp.Nh.Address = ip_types.AddressUnionIP6(ip_types.IP6Address(a.As16()))
+	route := ip.IPRoute{TableID: table, Prefix: pfx, NPaths: 1, Paths: []fib_types.FibPath{fp}}
+	if _, err := ip.NewServiceClient(m.c).IPRouteAddDel(ctx, &ip.IPRouteAddDel{IsAdd: add, IsMultipath: true, Route: route}); err != nil {
+		if !add && errors.Is(err, api.NO_SUCH_ENTRY) {
+			return nil
+		}
+		return fmt.Errorf("ip_route_add_del ::/0 in IPv6 table %d via %q add=%v: %w", table, router, add, err)
 	}
 	return nil
 }

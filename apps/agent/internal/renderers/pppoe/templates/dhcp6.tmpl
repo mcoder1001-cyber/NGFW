@@ -1,0 +1,5 @@
+#!/bin/sh
+# Rendered DHCPv6 event handler: the helper validates network values and gates
+# publication by the active generation under the session lock.
+set -eu
+exec /usr/bin/python3 {{quoted .IPv6Helper}} event

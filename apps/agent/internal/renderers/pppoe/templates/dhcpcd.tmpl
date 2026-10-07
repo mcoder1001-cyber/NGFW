@@ -1,0 +1,10 @@
+# ngfw-agent PPPoE DHCPv6 client (F-pppoe-client) — session {{ident .HostIf}}. Rendered; hand edits are overwritten.
+# Started by the ipv6-up hook on the PPP link only. The kernel handles Router Advertisements (SLAAC + default
+# route), so dhcpcd solicits DHCPv6 directly: an address (IA_NA) and a delegated prefix (IA_PD). The prefix is
+# recorded by the event script, not assigned to any interface.
+ipv6only
+noipv6rs
+noup
+script {{.Script}}
+ia_na 1
+ia_pd 2

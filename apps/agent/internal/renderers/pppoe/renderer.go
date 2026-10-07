@@ -45,6 +45,9 @@ type Session struct {
 	HoldoffSec, MaxFail uint32
 }
 
+// MinIPv6MTU is the IPv6 minimum link MTU (RFC 8200 §5): a session with IPv6 on must carry at least this.
+const MinIPv6MTU = 1280
+
 // Remotename is the pppd `remotename` / secrets server field / ip-param: stable per session, ties a
 // secrets line to this peer and lets the shared hook tell our sessions apart.
 func (s Session) Remotename() string { return "ngfw-" + s.HostIf }
@@ -64,6 +67,10 @@ func (s Session) validate() error {
 		return fmt.Errorf("%w: service name of %q has quotes/control characters", ErrInput, s.Iface)
 	case s.MTU < 128 || s.MTU > 1500:
 		return fmt.Errorf("%w: MTU %d of %q is out of range (128..1500)", ErrInput, s.MTU, s.Iface)
+	case s.IPv6 != "" && s.IPv6 != "off" && !s.IPv6Enabled():
+		return fmt.Errorf("%w: IPv6 mode %q of %q is not off, slaac or dhcpv6", ErrInput, s.IPv6, s.Iface)
+	case s.IPv6Enabled() && s.MTU < MinIPv6MTU:
+		return fmt.Errorf("%w: MTU %d of %q is below the IPv6 minimum link MTU %d", ErrInput, s.MTU, s.Iface, MinIPv6MTU)
 	}
 	return nil
 }
@@ -139,6 +146,12 @@ func (r *Renderer) Render(sessions []Session) (renderers.Files, error) {
 			files[h.dir+"/ngfw-"+s.HostIf] = renderers.File{Mode: 0o755, Content: body}
 		}
 
+		if s.IPv6Enabled() {
+			if err := r.renderIPv6(files, s); err != nil {
+				return nil, err
+			}
+		}
+
 		line := secretLine(s.Username, s.Remotename(), s.Password)
 		chap.WriteString(line)
 		pap.WriteString(line)
@@ -168,4 +181,49 @@ type unitData struct {
 type hookData struct {
 	Session
 	Kind, Phase, StateDir string
+}
+type hook6Data struct {
+	Session
+	Kind, Phase, StateDir, DhcpcdBin, DhcpcdConf, IPv6Helper, IPv6UpHook string
+}
+type dhcpcdData struct {
+	Session
+	Script string
+}
+
+// renderIPv6 adds a session's IPv6 files: the ipv6-up/ipv6-down hooks (kernel SLAAC on the PPP link and the
+// "<hostif>.state6" refresher) and, for "dhcpv6", the dhcpcd configuration and event script (IA_NA + IA_PD).
+func (r *Renderer) renderIPv6(files renderers.Files, s Session) error {
+	data := hook6Data{Session: s, StateDir: r.paths.StateDir, DhcpcdBin: DhcpcdBin,
+		DhcpcdConf: r.paths.dhcpcdConf(s.HostIf), IPv6Helper: r.paths.ipv6Helper(s.HostIf),
+		IPv6UpHook: r.paths.IPv6UpDir + "/ngfw-" + s.HostIf}
+	helper, err := renderers.ExecuteTemplate(r.tmpl, "ipv6.tmpl", data)
+	if err != nil {
+		return err
+	}
+	files[data.IPv6Helper] = renderers.File{Mode: 0o755, Content: helper}
+	for _, h := range []struct {
+		dir, kind, phase string
+	}{{r.paths.IPv6UpDir, "ipv6-up", "up"}, {r.paths.IPv6DownDir, "ipv6-down", "down"}} {
+		data.Kind, data.Phase = h.kind, h.phase
+		body, err := renderers.ExecuteTemplate(r.tmpl, "hook6.tmpl", data)
+		if err != nil {
+			return err
+		}
+		files[h.dir+"/ngfw-"+s.HostIf] = renderers.File{Mode: 0o755, Content: body}
+	}
+	if s.IPv6 != "dhcpv6" {
+		return nil
+	}
+	conf, err := renderers.ExecuteTemplate(r.tmpl, "dhcpcd.tmpl", dhcpcdData{Session: s, Script: r.paths.dhcp6Script(s.HostIf)})
+	if err != nil {
+		return err
+	}
+	files[r.paths.dhcpcdConf(s.HostIf)] = renderers.File{Mode: 0o644, Content: conf}
+	script, err := renderers.ExecuteTemplate(r.tmpl, "dhcp6.tmpl", data)
+	if err != nil {
+		return err
+	}
+	files[r.paths.dhcp6Script(s.HostIf)] = renderers.File{Mode: 0o755, Content: script}
+	return nil
 }

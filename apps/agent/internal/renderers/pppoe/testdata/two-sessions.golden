@@ -2,6 +2,7 @@
 # ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.
 "alice@isp" ngfw-wan0 "s3cr#t \"x" *
 "bob" ngfw-wan1 "pw" *
+"carol" ngfw-wan2 "pw2" *
 
 ### /etc/ppp/ip-down.d/ngfw-wan0 mode=-rwxr-xr-x
 #!/bin/sh
@@ -40,6 +41,29 @@ tmp="$f.tmp.$$"
 {
   echo "phase=down"
   echo "hostif=wan1"
+  echo "ppp_iface=${PPP_IFACE:-}"
+  echo "local=${IPLOCAL:-}"
+  echo "peer=${IPREMOTE:-}"
+  echo "dns1=${DNS1:-}"
+  echo "dns2=${DNS2:-}"
+  echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$tmp"
+mv -f "$tmp" "$f"
+
+### /etc/ppp/ip-down.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ip-down hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+# IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+# and writes a state file the agent reads. Rendered; hand edits are overwritten.
+set -eu
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state"
+mkdir -p "$dir"
+tmp="$f.tmp.$$"
+{
+  echo "phase=down"
+  echo "hostif=wan2"
   echo "ppp_iface=${PPP_IFACE:-}"
   echo "local=${IPLOCAL:-}"
   echo "peer=${IPREMOTE:-}"
@@ -95,10 +119,811 @@ tmp="$f.tmp.$$"
 } > "$tmp"
 mv -f "$tmp" "$f"
 
+### /etc/ppp/ip-up.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ip-up hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+# IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+# and writes a state file the agent reads. Rendered; hand edits are overwritten.
+set -eu
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state"
+mkdir -p "$dir"
+tmp="$f.tmp.$$"
+{
+  echo "phase=up"
+  echo "hostif=wan2"
+  echo "ppp_iface=${PPP_IFACE:-}"
+  echo "local=${IPLOCAL:-}"
+  echo "peer=${IPREMOTE:-}"
+  echo "dns1=${DNS1:-}"
+  echo "dns2=${DNS2:-}"
+  echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$tmp"
+mv -f "$tmp" "$f"
+
+### /etc/ppp/ipv6-down.d/ngfw-wan0 mode=-rwxr-xr-x
+#!/bin/sh
+# Rendered PPPoE IPv6 ipv6-down hook. The helper verifies process ownership,
+# serializes state publication and returns setup/shutdown failures.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+
+### /etc/ppp/ipv6-down.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# Rendered PPPoE IPv6 ipv6-down hook. The helper verifies process ownership,
+# serializes state publication and returns setup/shutdown failures.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+
+### /etc/ppp/ipv6-up.d/ngfw-wan0 mode=-rwxr-xr-x
+#!/bin/sh
+# Rendered PPPoE IPv6 ipv6-up hook. The helper verifies process ownership,
+# serializes state publication and returns setup/shutdown failures.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+
+### /etc/ppp/ipv6-up.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# Rendered PPPoE IPv6 ipv6-up hook. The helper verifies process ownership,
+# serializes state publication and returns setup/shutdown failures.
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+
+### /etc/ppp/ngfw-dhcp6-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# Rendered DHCPv6 event handler: the helper validates network values and gates
+# publication by the active generation under the session lock.
+set -eu
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" event
+
+### /etc/ppp/ngfw-dhcpcd-wan2.conf mode=-rw-r--r--
+# ngfw-agent PPPoE DHCPv6 client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+# Started by the ipv6-up hook on the PPP link only. The kernel handles Router Advertisements (SLAAC + default
+# route), so dhcpcd solicits DHCPv6 directly: an address (IA_NA) and a delegated prefix (IA_PD). The prefix is
+# recorded by the event script, not assigned to any interface.
+ipv6only
+noipv6rs
+noup
+script /srv/etc/ppp/ngfw-dhcp6-wan2
+ia_na 1
+ia_pd 2
+
+### /etc/ppp/ngfw-ipv6-wan0 mode=-rwxr-xr-x
+#!/usr/bin/python3
+"""Fixed-path PPPoE IPv6 supervisor; no shell, numeric-PID signals or new privileges."""
+import contextlib
+import datetime
+import fcntl
+import json
+import os
+from pathlib import Path
+import select
+import signal
+import subprocess
+import sys
+import time
+import uuid
+
+ROOT = Path("/srv/run/ngfw/pppoe")
+HOST = "wan0"
+HOOK = Path("/srv/etc/ppp/ipv6-up.d/ngfw-wan0")
+HELPER = "/srv/etc/ppp/ngfw-ipv6-wan0"
+MODE = "slaac"
+DEFAULT_ROUTE = True
+DHCPCD = "/usr/sbin/dhcpcd"
+CONF = "/srv/etc/ppp/ngfw-dhcpcd-wan0.conf"
+IP = "/usr/sbin/ip"
+SYSCTL = Path("/proc/sys/net/ipv6/conf")
+STATE = ROOT / (HOST + ".state6")
+PID = ROOT / (HOST + ".ipv6.pid")
+PD = ROOT / (HOST + ".pd")
+LOCK = ROOT / (HOST + ".ipv6.lock")
+stopping = False
+
+
+class Failure(Exception):
+    pass
+
+
+@contextlib.contextmanager
+def locked(path=LOCK):
+    ROOT.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as lock:
+        deadline = time.monotonic() + 8
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise Failure("ipv6-lock-timeout")
+                time.sleep(0.02)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def atomic(path, text):
+    tmp = path.with_name(path.name + ".tmp." + str(os.getpid()))
+    try:
+        tmp.write_text(text)
+        os.replace(tmp, path)
+    except OSError as exc:
+        tmp.unlink(missing_ok=True)
+        raise Failure("ipv6-state-write-failed") from exc
+
+
+def record():
+    try:
+        item = json.loads(PID.read_text())
+        if not isinstance(item, dict):
+            raise ValueError()
+        return item
+    except FileNotFoundError:
+        return None
+    except (ValueError, OSError) as exc:
+        raise Failure("ipv6-process-identity-invalid") from exc
+
+
+def identity(pid):
+    # stat's comm may contain spaces or ')'; fields after its last ')' start
+    # at state (field 3), making starttime (field 22) index 19.
+    try:
+        fields = Path("/proc", str(pid), "stat").read_text().rsplit(")", 1)[1].split()
+        return None if fields[0] == "Z" else fields[19]
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+
+
+def owned_fd(info, child=False):
+    if not isinstance(info, dict):
+        raise Failure("ipv6-process-identity-invalid")
+    pid, start, argv = info.get("pid"), info.get("start"), info.get("argv")
+    if not isinstance(pid, int) or pid <= 1 or not isinstance(start, str) or not isinstance(argv, list):
+        raise Failure("ipv6-process-identity-invalid")
+    try:
+        fd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        return None
+    try:
+        current = identity(pid)
+        if current is None:
+            os.close(fd)
+            return None
+        actual = Path("/proc", str(pid), "cmdline").read_bytes().split(b"\0")[:-1]
+        if child and info.get("exe") is not None:
+            matches = os.readlink("/proc/" + str(pid) + "/exe") == info["exe"]
+        else:
+            matches = actual == [str(a).encode() for a in argv] and len(argv) > 3 and argv[1] == HELPER and argv[2] == "refresh"
+        if current != start or not matches:
+            raise Failure("ipv6-process-identity-mismatch")
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def terminate(fd):
+    if fd is None:
+        return
+    poll = select.poll()
+    poll.register(fd, select.POLLIN)
+    try:
+        signal.pidfd_send_signal(fd, signal.SIGTERM)
+        if not poll.poll(2000):
+            signal.pidfd_send_signal(fd, signal.SIGKILL)
+            if not poll.poll(2000):
+                raise Failure("ipv6-stop-timeout")
+    except ProcessLookupError:
+        pass
+
+
+def stop():
+    handles = []
+    try:
+        # Verify every identity before signalling/revocation. pidfds pin the
+        # verified processes even if /proc later reuses their numeric PIDs.
+        with locked():
+            old = record()
+            if old is None:
+                return
+            if not isinstance(old.get("generation"), str) or not old["generation"]:
+                raise Failure("ipv6-process-identity-invalid")
+            if old.get("argv", [])[3:4] != [old["generation"]]:
+                raise Failure("ipv6-process-identity-invalid")
+            handles.append(owned_fd(old))
+            if old.get("child") is not None:
+                if len(old["argv"]) < 5 or old["child"].get("argv") != [DHCPCD, "-B", "-f", CONF, old["argv"][4]]:
+                    raise Failure("ipv6-process-identity-invalid")
+                handles.append(owned_fd(old["child"], child=True))
+            atomic(PID, json.dumps(dict(old, revoked=True)))
+        # Stop child first. Abrupt refresher death still leaves enough identity
+        # evidence to terminate exactly its DHCP event writer and verify exit.
+        for fd in reversed(handles):
+            terminate(fd)
+        with locked():
+            item = record()
+            if item and item.get("generation") == old.get("generation"):
+                PID.unlink(missing_ok=True)
+                PD.unlink(missing_ok=True)
+    finally:
+        for fd in handles:
+            if fd is not None:
+                os.close(fd)
+
+
+def state(phase, iface, ll, peer, since, lines=(), error=""):
+    body = ["phase=" + phase, "hostif=" + HOST, "ppp_iface=" + iface,
+            "lllocal=" + ll, "llremote=" + peer, *lines, "at=" + since]
+    if error:
+        body.append("error=" + error)
+    atomic(STATE, "\n".join(body) + "\n")
+
+
+def current(generation):
+    item = record()
+    return item and item.get("generation") == generation and not item.get("revoked")
+
+
+def collect(iface):
+    try:
+        addr = subprocess.run([IP, "-6", "-o", "addr", "show", "dev", iface, "scope", "global", "-tentative", "-dadfailed"],
+                              capture_output=True, text=True, check=True, timeout=2)
+        route = subprocess.run([IP, "-6", "route", "show", "default", "dev", iface],
+                               capture_output=True, text=True, check=True, timeout=2)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Failure("ipv6-observation-failed") from exc
+    lines = ["addr=" + row.split()[3] for row in addr.stdout.splitlines() if len(row.split()) > 3]
+    for row in route.stdout.splitlines():
+        parts = row.split()
+        if len(parts) > 2 and parts[1] == "via":
+            lines.append("gw=" + parts[2])
+            break
+    try:
+        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+    except FileNotFoundError:
+        pass
+    return lines
+
+
+def refresh(generation, iface, ll, peer, pppd):
+    signal.signal(signal.SIGTERM, lambda *_: globals().__setitem__("stopping", True))
+    signal.signal(signal.SIGINT, lambda *_: globals().__setitem__("stopping", True))
+    child, child_fd, error, ready = None, None, "", False
+    since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        with locked():
+            if not current(generation):
+                return
+            if MODE == "dhcpv6":
+                try:
+                    args = [DHCPCD, "-B", "-f", CONF, iface]
+                    child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                    child_fd = os.pidfd_open(child.pid)
+                    item = record()
+                    item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
+                                     "exe": os.readlink("/proc/" + str(child.pid) + "/exe")}
+                    atomic(PID, json.dumps(item))
+                except OSError as exc:
+                    raise Failure("dhcpv6-client-unavailable") from exc
+        while not stopping:
+            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or (pppd and identity(int(pppd)) is None):
+                break
+            if child is not None and child.poll() is not None:
+                raise Failure("dhcpv6-client-exited")
+            lines = collect(iface)
+            # Collection may be in flight when stop revokes this generation.
+            # Recheck AND publish inside the exact same lock as revocation.
+            with locked():
+                if not current(generation):
+                    break
+                state("up", iface, ll, peer, since, lines)
+            if not ready:
+                print("READY", flush=True)
+                sys.stdout.close()
+                ready = True
+            for _ in range(20):
+                if stopping:
+                    break
+                time.sleep(0.1)
+    except Failure as exc:
+        error = str(exc)
+        if not ready:
+            print("FAIL:" + error, flush=True)
+    finally:
+        if child_fd is not None:
+            try:
+                terminate(child_fd)
+                child.wait(timeout=1)
+            except (Failure, subprocess.TimeoutExpired):
+                error = "ipv6-stop-timeout"
+            finally:
+                os.close(child_fd)
+        with locked():
+            if current(generation):
+                if HOOK.exists():
+                    state("failed" if error else "down", iface, ll, peer, since, error=error)
+                else:
+                    STATE.unlink(missing_ok=True)
+                if error != "ipv6-stop-timeout":
+                    PID.unlink(missing_ok=True)
+                    PD.unlink(missing_ok=True)
+
+
+def up(iface, ll, peer, pppd):
+    stop()
+    if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
+        raise Failure("dhcpv6-client-unavailable")
+    try:
+        (SYSCTL / iface / "accept_ra").write_text("2\n")
+        (SYSCTL / iface / "autoconf").write_text("1\n")
+        (SYSCTL / iface / "accept_ra_defrtr").write_text("1\n" if DEFAULT_ROUTE else "0\n")
+        if ll and peer:
+            subprocess.run([IP, "-6", "addr", "del", ll, "peer", peer, "dev", iface], check=True, timeout=2, capture_output=True)
+            subprocess.run([IP, "-6", "addr", "add", ll, "peer", peer, "dev", iface, "nodad"], check=True, timeout=2, capture_output=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Failure("ipv6-setup-failed") from exc
+    generation = uuid.uuid4().hex
+    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd]
+    with locked():
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        PD.unlink(missing_ok=True)
+    poll = select.poll()
+    poll.register(child.stdout, select.POLLIN | select.POLLHUP)
+    if not poll.poll(8000):
+        stop()
+        raise Failure("ipv6-start-failed")
+    result = child.stdout.readline().decode().strip()
+    child.stdout.close()
+    if result != "READY":
+        stop()
+        raise Failure(result.removeprefix("FAIL:") if result.startswith("FAIL:") else "ipv6-start-failed")
+
+
+def main():
+    action = sys.argv[1]
+    if action == "event":
+        generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
+        with locked():
+            if not generation or not current(generation):
+                return
+            reason = os.environ.get("reason", "")
+            if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
+                PD.unlink(missing_ok=True)
+            elif reason in ("BOUND6", "RENEW6", "REBIND6", "REBOOT6", "INFORM6", "DELEGATED6"):
+                import ipaddress
+                prefix = os.environ.get("new_dhcp6_ia_pd1_prefix1", "")
+                length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
+                try:
+                    if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        return
+                    network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
+                    atomic(PD, "pd=" + str(network) + "\n")
+                except ValueError:
+                    return
+        return
+    if action == "stop":
+        stop()
+        return
+    if action == "refresh":
+        refresh(*sys.argv[2:])
+        return
+    iface, ll, peer, pppd = sys.argv[2:]
+    if not iface or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in iface):
+        raise Failure("ipv6-interface-invalid")
+    if pppd and (not pppd.isdecimal() or int(pppd) <= 1):
+        raise Failure("ipv6-process-identity-invalid")
+    ll = ll if all(c in "0123456789abcdefABCDEF:" for c in ll) else ""
+    peer = peer if all(c in "0123456789abcdefABCDEF:" for c in peer) else ""
+    since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        if action == "up":
+            up(iface, ll, peer, pppd)
+        else:
+            stop()
+            with locked():
+                state("down", iface, ll, peer, since)
+    except Failure as exc:
+        with locked():
+            state("failed", iface, ll, peer, since, error=str(exc))
+        raise
+
+
+if __name__ == "__main__":
+    try:
+        if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+            raise Failure("ipv6-process-control-unavailable")
+        if len(sys.argv) > 1 and sys.argv[1] in ("up", "down", "stop"):
+            with locked(ROOT / (HOST + ".ipv6.action.lock")):
+                main()
+        else:
+            main()
+    except (Failure, OSError, ValueError, IndexError):
+        print("ngfw PPPoE IPv6 operation failed; inspect session state", file=sys.stderr)
+        sys.exit(1)
+
+### /etc/ppp/ngfw-ipv6-wan2 mode=-rwxr-xr-x
+#!/usr/bin/python3
+"""Fixed-path PPPoE IPv6 supervisor; no shell, numeric-PID signals or new privileges."""
+import contextlib
+import datetime
+import fcntl
+import json
+import os
+from pathlib import Path
+import select
+import signal
+import subprocess
+import sys
+import time
+import uuid
+
+ROOT = Path("/srv/run/ngfw/pppoe")
+HOST = "wan2"
+HOOK = Path("/srv/etc/ppp/ipv6-up.d/ngfw-wan2")
+HELPER = "/srv/etc/ppp/ngfw-ipv6-wan2"
+MODE = "dhcpv6"
+DEFAULT_ROUTE = False
+DHCPCD = "/usr/sbin/dhcpcd"
+CONF = "/srv/etc/ppp/ngfw-dhcpcd-wan2.conf"
+IP = "/usr/sbin/ip"
+SYSCTL = Path("/proc/sys/net/ipv6/conf")
+STATE = ROOT / (HOST + ".state6")
+PID = ROOT / (HOST + ".ipv6.pid")
+PD = ROOT / (HOST + ".pd")
+LOCK = ROOT / (HOST + ".ipv6.lock")
+stopping = False
+
+
+class Failure(Exception):
+    pass
+
+
+@contextlib.contextmanager
+def locked(path=LOCK):
+    ROOT.mkdir(parents=True, exist_ok=True)
+    with path.open("a") as lock:
+        deadline = time.monotonic() + 8
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise Failure("ipv6-lock-timeout")
+                time.sleep(0.02)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def atomic(path, text):
+    tmp = path.with_name(path.name + ".tmp." + str(os.getpid()))
+    try:
+        tmp.write_text(text)
+        os.replace(tmp, path)
+    except OSError as exc:
+        tmp.unlink(missing_ok=True)
+        raise Failure("ipv6-state-write-failed") from exc
+
+
+def record():
+    try:
+        item = json.loads(PID.read_text())
+        if not isinstance(item, dict):
+            raise ValueError()
+        return item
+    except FileNotFoundError:
+        return None
+    except (ValueError, OSError) as exc:
+        raise Failure("ipv6-process-identity-invalid") from exc
+
+
+def identity(pid):
+    # stat's comm may contain spaces or ')'; fields after its last ')' start
+    # at state (field 3), making starttime (field 22) index 19.
+    try:
+        fields = Path("/proc", str(pid), "stat").read_text().rsplit(")", 1)[1].split()
+        return None if fields[0] == "Z" else fields[19]
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+
+
+def owned_fd(info, child=False):
+    if not isinstance(info, dict):
+        raise Failure("ipv6-process-identity-invalid")
+    pid, start, argv = info.get("pid"), info.get("start"), info.get("argv")
+    if not isinstance(pid, int) or pid <= 1 or not isinstance(start, str) or not isinstance(argv, list):
+        raise Failure("ipv6-process-identity-invalid")
+    try:
+        fd = os.pidfd_open(pid)
+    except ProcessLookupError:
+        return None
+    try:
+        current = identity(pid)
+        if current is None:
+            os.close(fd)
+            return None
+        actual = Path("/proc", str(pid), "cmdline").read_bytes().split(b"\0")[:-1]
+        if child and info.get("exe") is not None:
+            matches = os.readlink("/proc/" + str(pid) + "/exe") == info["exe"]
+        else:
+            matches = actual == [str(a).encode() for a in argv] and len(argv) > 3 and argv[1] == HELPER and argv[2] == "refresh"
+        if current != start or not matches:
+            raise Failure("ipv6-process-identity-mismatch")
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def terminate(fd):
+    if fd is None:
+        return
+    poll = select.poll()
+    poll.register(fd, select.POLLIN)
+    try:
+        signal.pidfd_send_signal(fd, signal.SIGTERM)
+        if not poll.poll(2000):
+            signal.pidfd_send_signal(fd, signal.SIGKILL)
+            if not poll.poll(2000):
+                raise Failure("ipv6-stop-timeout")
+    except ProcessLookupError:
+        pass
+
+
+def stop():
+    handles = []
+    try:
+        # Verify every identity before signalling/revocation. pidfds pin the
+        # verified processes even if /proc later reuses their numeric PIDs.
+        with locked():
+            old = record()
+            if old is None:
+                return
+            if not isinstance(old.get("generation"), str) or not old["generation"]:
+                raise Failure("ipv6-process-identity-invalid")
+            if old.get("argv", [])[3:4] != [old["generation"]]:
+                raise Failure("ipv6-process-identity-invalid")
+            handles.append(owned_fd(old))
+            if old.get("child") is not None:
+                if len(old["argv"]) < 5 or old["child"].get("argv") != [DHCPCD, "-B", "-f", CONF, old["argv"][4]]:
+                    raise Failure("ipv6-process-identity-invalid")
+                handles.append(owned_fd(old["child"], child=True))
+            atomic(PID, json.dumps(dict(old, revoked=True)))
+        # Stop child first. Abrupt refresher death still leaves enough identity
+        # evidence to terminate exactly its DHCP event writer and verify exit.
+        for fd in reversed(handles):
+            terminate(fd)
+        with locked():
+            item = record()
+            if item and item.get("generation") == old.get("generation"):
+                PID.unlink(missing_ok=True)
+                PD.unlink(missing_ok=True)
+    finally:
+        for fd in handles:
+            if fd is not None:
+                os.close(fd)
+
+
+def state(phase, iface, ll, peer, since, lines=(), error=""):
+    body = ["phase=" + phase, "hostif=" + HOST, "ppp_iface=" + iface,
+            "lllocal=" + ll, "llremote=" + peer, *lines, "at=" + since]
+    if error:
+        body.append("error=" + error)
+    atomic(STATE, "\n".join(body) + "\n")
+
+
+def current(generation):
+    item = record()
+    return item and item.get("generation") == generation and not item.get("revoked")
+
+
+def collect(iface):
+    try:
+        addr = subprocess.run([IP, "-6", "-o", "addr", "show", "dev", iface, "scope", "global", "-tentative", "-dadfailed"],
+                              capture_output=True, text=True, check=True, timeout=2)
+        route = subprocess.run([IP, "-6", "route", "show", "default", "dev", iface],
+                               capture_output=True, text=True, check=True, timeout=2)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Failure("ipv6-observation-failed") from exc
+    lines = ["addr=" + row.split()[3] for row in addr.stdout.splitlines() if len(row.split()) > 3]
+    for row in route.stdout.splitlines():
+        parts = row.split()
+        if len(parts) > 2 and parts[1] == "via":
+            lines.append("gw=" + parts[2])
+            break
+    try:
+        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+    except FileNotFoundError:
+        pass
+    return lines
+
+
+def refresh(generation, iface, ll, peer, pppd):
+    signal.signal(signal.SIGTERM, lambda *_: globals().__setitem__("stopping", True))
+    signal.signal(signal.SIGINT, lambda *_: globals().__setitem__("stopping", True))
+    child, child_fd, error, ready = None, None, "", False
+    since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        with locked():
+            if not current(generation):
+                return
+            if MODE == "dhcpv6":
+                try:
+                    args = [DHCPCD, "-B", "-f", CONF, iface]
+                    child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                    child_fd = os.pidfd_open(child.pid)
+                    item = record()
+                    item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
+                                     "exe": os.readlink("/proc/" + str(child.pid) + "/exe")}
+                    atomic(PID, json.dumps(item))
+                except OSError as exc:
+                    raise Failure("dhcpv6-client-unavailable") from exc
+        while not stopping:
+            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or (pppd and identity(int(pppd)) is None):
+                break
+            if child is not None and child.poll() is not None:
+                raise Failure("dhcpv6-client-exited")
+            lines = collect(iface)
+            # Collection may be in flight when stop revokes this generation.
+            # Recheck AND publish inside the exact same lock as revocation.
+            with locked():
+                if not current(generation):
+                    break
+                state("up", iface, ll, peer, since, lines)
+            if not ready:
+                print("READY", flush=True)
+                sys.stdout.close()
+                ready = True
+            for _ in range(20):
+                if stopping:
+                    break
+                time.sleep(0.1)
+    except Failure as exc:
+        error = str(exc)
+        if not ready:
+            print("FAIL:" + error, flush=True)
+    finally:
+        if child_fd is not None:
+            try:
+                terminate(child_fd)
+                child.wait(timeout=1)
+            except (Failure, subprocess.TimeoutExpired):
+                error = "ipv6-stop-timeout"
+            finally:
+                os.close(child_fd)
+        with locked():
+            if current(generation):
+                if HOOK.exists():
+                    state("failed" if error else "down", iface, ll, peer, since, error=error)
+                else:
+                    STATE.unlink(missing_ok=True)
+                if error != "ipv6-stop-timeout":
+                    PID.unlink(missing_ok=True)
+                    PD.unlink(missing_ok=True)
+
+
+def up(iface, ll, peer, pppd):
+    stop()
+    if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
+        raise Failure("dhcpv6-client-unavailable")
+    try:
+        (SYSCTL / iface / "accept_ra").write_text("2\n")
+        (SYSCTL / iface / "autoconf").write_text("1\n")
+        (SYSCTL / iface / "accept_ra_defrtr").write_text("1\n" if DEFAULT_ROUTE else "0\n")
+        if ll and peer:
+            subprocess.run([IP, "-6", "addr", "del", ll, "peer", peer, "dev", iface], check=True, timeout=2, capture_output=True)
+            subprocess.run([IP, "-6", "addr", "add", ll, "peer", peer, "dev", iface, "nodad"], check=True, timeout=2, capture_output=True)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Failure("ipv6-setup-failed") from exc
+    generation = uuid.uuid4().hex
+    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd]
+    with locked():
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        PD.unlink(missing_ok=True)
+    poll = select.poll()
+    poll.register(child.stdout, select.POLLIN | select.POLLHUP)
+    if not poll.poll(8000):
+        stop()
+        raise Failure("ipv6-start-failed")
+    result = child.stdout.readline().decode().strip()
+    child.stdout.close()
+    if result != "READY":
+        stop()
+        raise Failure(result.removeprefix("FAIL:") if result.startswith("FAIL:") else "ipv6-start-failed")
+
+
+def main():
+    action = sys.argv[1]
+    if action == "event":
+        generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
+        with locked():
+            if not generation or not current(generation):
+                return
+            reason = os.environ.get("reason", "")
+            if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
+                PD.unlink(missing_ok=True)
+            elif reason in ("BOUND6", "RENEW6", "REBIND6", "REBOOT6", "INFORM6", "DELEGATED6"):
+                import ipaddress
+                prefix = os.environ.get("new_dhcp6_ia_pd1_prefix1", "")
+                length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
+                try:
+                    if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        return
+                    network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
+                    atomic(PD, "pd=" + str(network) + "\n")
+                except ValueError:
+                    return
+        return
+    if action == "stop":
+        stop()
+        return
+    if action == "refresh":
+        refresh(*sys.argv[2:])
+        return
+    iface, ll, peer, pppd = sys.argv[2:]
+    if not iface or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in iface):
+        raise Failure("ipv6-interface-invalid")
+    if pppd and (not pppd.isdecimal() or int(pppd) <= 1):
+        raise Failure("ipv6-process-identity-invalid")
+    ll = ll if all(c in "0123456789abcdefABCDEF:" for c in ll) else ""
+    peer = peer if all(c in "0123456789abcdefABCDEF:" for c in peer) else ""
+    since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        if action == "up":
+            up(iface, ll, peer, pppd)
+        else:
+            stop()
+            with locked():
+                state("down", iface, ll, peer, since)
+    except Failure as exc:
+        with locked():
+            state("failed", iface, ll, peer, since, error=str(exc))
+        raise
+
+
+if __name__ == "__main__":
+    try:
+        if not hasattr(os, "pidfd_open") or not hasattr(signal, "pidfd_send_signal"):
+            raise Failure("ipv6-process-control-unavailable")
+        if len(sys.argv) > 1 and sys.argv[1] in ("up", "down", "stop"):
+            with locked(ROOT / (HOST + ".ipv6.action.lock")):
+                main()
+        else:
+            main()
+    except (Failure, OSError, ValueError, IndexError):
+        print("ngfw PPPoE IPv6 operation failed; inspect session state", file=sys.stderr)
+        sys.exit(1)
+
 ### /etc/ppp/pap-secrets mode=-rw------- secret
 # ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.
 "alice@isp" ngfw-wan0 "s3cr#t \"x" *
 "bob" ngfw-wan1 "pw" *
+"carol" ngfw-wan2 "pw2" *
 
 ### /etc/ppp/peers/ngfw-wan0 mode=-rw-r--r--
 # ngfw-agent PPPoE client (F-pppoe-client) — session wan0. Rendered; hand edits are overwritten.
@@ -141,6 +966,25 @@ persist
 holdoff 10
 maxfail 3
 
+### /etc/ppp/peers/ngfw-wan2 mode=-rw-r--r--
+# ngfw-agent PPPoE client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+plugin rp-pppoe.so
+nic-wan2
+user "carol"
+remotename ngfw-wan2
+mtu 1492
+mru 1492
+noipdefault
+nodefaultroute
++ipv6
+hide-password
+noauth
+lcp-echo-interval 20
+lcp-echo-failure 3
+persist
+holdoff 5
+maxfail 0
+
 ### /etc/systemd/system/ngfw-pppoe-wan0.service mode=-rw-r--r--
 # ngfw-agent PPPoE client (F-pppoe-client) — session wan0. Rendered; hand edits are overwritten.
 [Unit]
@@ -164,6 +1008,19 @@ Type=simple
 ExecStart=/usr/sbin/pppd call ngfw-wan1 nodetach ipparam ngfw-wan1
 Restart=on-failure
 RestartSec=10
+[Install]
+WantedBy=multi-user.target
+
+### /etc/systemd/system/ngfw-pppoe-wan2.service mode=-rw-r--r--
+# ngfw-agent PPPoE client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+[Unit]
+Description=ngfw PPPoE client on wan2
+After=network.target vpp.service
+[Service]
+Type=simple
+ExecStart=/usr/sbin/pppd call ngfw-wan2 nodetach ipparam ngfw-wan2
+Restart=on-failure
+RestartSec=5
 [Install]
 WantedBy=multi-user.target
 

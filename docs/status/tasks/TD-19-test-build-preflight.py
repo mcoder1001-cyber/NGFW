@@ -10,39 +10,21 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 
+import importlib.util
+spec = importlib.util.spec_from_file_location('safe_fixture', ROOT / 'scripts/tests/td19-safe-root-fixtures.py')
+safe_fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(safe_fixture)
+
 
 class BuildPreflight(unittest.TestCase):
     def run_package_boundary(self, fail_at):
-        """Run the real entry; APT refuses before any absolute-path writes."""
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            log = root / 'calls'
-            recorder = '''#!/usr/bin/python3
-import json, os, pathlib, sys
-name = pathlib.Path(sys.argv[0]).name
-with open(os.environ['CALL_LOG'], 'a') as stream:
-    stream.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
-raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'] else
-                 0 if name == 'apt-get' and sys.argv[1] == 'update' else 91)
-'''
-            for command in ('apt-get', 'curl', 'go', 'tar', 'rm', 'corepack', 'npm', 'python3'):
-                stub = root / command
-                stub.write_text(recorder)
-                stub.chmod(0o755)
-            env = dict(os.environ, PATH=f'{root}:/usr/bin:/bin', CALL_LOG=str(log), FAIL_AT=fail_at)
-            env.pop('NGFW_GO_SHA256', None)
-            # Portable hosted fixture: bypass only UID gate; retain actual control
-            # flow and canonical module validation, with every mutation blocked.
-            source = (ROOT / 'scripts/20-install-build.sh').read_text()
-            source = source.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
-            source = source.replace('GO_MODULE="$SCRIPT_DIR/../apps/agent/go.mod"',
-                                    'GO_MODULE=' + shlex.quote(str(ROOT / 'apps/agent/go.mod')), 1)
-            entry = root / 'entry.sh'
-            entry.write_text(source)
-            result = subprocess.run(['bash', str(entry)],
-                                    env=env, text=True, capture_output=True, timeout=10)
-            calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
-            return result, calls
+        f = safe_fixture.Fixture()
+        try:
+            f.env['FAIL_AT'] = fail_at
+            result = f.run('20-install-build.sh')
+            return result, f.calls()
+        finally:
+            f.close()
 
     def test_build_package_plan_excludes_container_and_hypervisor_dependencies(self):
         result, calls = self.run_package_boundary('install')
@@ -99,7 +81,7 @@ raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'
         self.assertIn('go.fd.io/govpp v0.13.0', module)
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
         self.assertNotIn('@latest', source)
-        self.assertLess(source.index('sha256sum --check'), source.index('rm -rf /usr/local/go'))
+        self.assertLess(source.index('sha256sum --check'), source.index('rm -rf -- "$go_dir"'))
 
     def test_invalid_cli_refuses_host_mutation(self):
         result, calls = self.run_check(None, ['--unknown'])
@@ -120,11 +102,13 @@ raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'
                 binary.write_text(f'#!/bin/sh\nif [ "$1" = version ]; then echo "go version go{version} linux/amd64"; else printf "{label} %s\\n" "$*" >> "$CALL_LOG"; fi\n')
                 binary.chmod(0o755)
             source = (ROOT / 'scripts/20-install-build.sh').read_text()
-            start = source.index('export PATH=/usr/local/go/bin:$PATH')
-            end = source.index('\ncorepack enable', start)
-            fragment = source[start:end].replace('/usr/local/go/bin', str(fresh))
+            start = source.index('export PATH="$go_dir/bin:$GOBIN:$PATH"')
+            end = source.index('\nif ! corepack enable', start)
+            fragment = source[start:end]
+            setup_paths = 'go_dir=' + shlex.quote(str(fresh.parent)) + '\nGOBIN=' + shlex.quote(str(fresh)) + '\n'
+            fragment = fragment.replace('$go_dir/bin', str(fresh))
             setup = 'set -euo pipefail\nGO_VER=1.26.0 PROTOC_GO_VER=v1.36.12 PROTOC_GRPC_VER=v1.6.2 GOVPP_VER=v0.13.0\n'
-            result = subprocess.run(['bash', '-c', setup + fragment], text=True, capture_output=True,
+            result = subprocess.run(['bash', '-c', setup + setup_paths + fragment], text=True, capture_output=True,
                                     env=dict(os.environ, PATH=f'{old}:/usr/bin:/bin', CALL_LOG=str(log)))
             return result, log.read_text() if log.exists() else ''
 
@@ -136,7 +120,7 @@ raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'
             'fresh install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2',
             'fresh install go.fd.io/govpp/cmd/binapi-generator@v0.13.0'])
         source = (ROOT / 'scripts/20-install-build.sh').read_text()
-        self.assertIn("<<'GO_PROFILE'\nexport PATH=/usr/local/go/bin:$HOME/go/bin:$PATH\nGO_PROFILE", source)
+        self.assertIn("<<'GO_PROFILE'\nexport PATH=/usr/local/go/bin:/opt/ngfw-build/go/bin:$PATH\nGO_PROFILE", source)
 
     def test_wrong_selected_version_refuses_generator_execution(self):
         result, calls = self.run_shadow('1.23.4')

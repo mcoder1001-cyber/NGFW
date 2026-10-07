@@ -17,13 +17,14 @@ SHIP = ['libvppinfra', 'python3-vpp-api', 'vpp', 'vpp-crypto-engines',
 class ArtifactPreflight(unittest.TestCase):
     def fixture(self, directory):
         root = Path(directory)
-        for name in ['source/scripts', 'source/deploy/vpp', 'artifacts', 'bin']:
+        for name in ['source/scripts', 'source/deploy/vpp', 'artifacts', 'bin', 'install-root']:
             (root / name).mkdir(parents=True)
         script = (ROOT / 'scripts/00-add-repos.sh').read_text()
         # Only the root precondition is modeled for the no-mutation refusal case.
         script = script.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
         entry = root / 'source/scripts/00-add-repos.sh'
         entry.write_text(script)
+        shutil.copy2(ROOT / 'scripts/install-common.sh', root / 'source/scripts/install-common.sh')
         for name in ['VERSION', 'lib.sh']:
             shutil.copy2(ROOT / 'deploy/vpp' / name, root / 'source/deploy/vpp' / name)
         def executable(path, body):
@@ -34,8 +35,9 @@ class ArtifactPreflight(unittest.TestCase):
 printf 'original verifier invoked\\n' >> "$VERIFY_LOG"
 exit "${VERIFY_FAILURE:-0}"
 ''')
-        for command in ['apt-get', 'curl', 'ssh', 'scp', 'systemctl']:
+        for command in ['apt-get', 'curl', 'ssh', 'scp', 'systemctl', 'gpg', 'go', 'npm', 'corepack', 'tar']:
             executable('bin/' + command, 'printf "forbidden command\\n" >> "$HOST_LOG"\nexit 99\n')
+        executable('bin/python3', 'exec /usr/bin/python3 "$@"\n')
         version = '26.06-release+ngfw1'
         packages = [dict(package=name, file=f'{name}_{version}_amd64.deb', version=version,
                          architecture='amd64', ship=True, sha256='a' * 64) for name in SHIP]
@@ -45,7 +47,9 @@ exit "${VERIFY_FAILURE:-0}"
         (root / 'artifacts/SHA256SUMS').write_text('fixture metadata; original verifier is modeled')
         manifest = dict(schema='ngfw.vpp-debs.manifest/v2', version=version, packages=packages)
         env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
-                   VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'))
+                   VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'),
+                   NGFW_INSTALL_ROOT=str(root / 'install-root'), NGFW_INSTALL_STUBS='1',
+                   NGFW_INSTALL_STUB_DIR=str(root / 'bin'))
         return root, entry, manifest, env
 
     def test_nonroot_preflight_selects_only_seven_runtimes_without_mutation(self):

@@ -14,34 +14,21 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
 
+import importlib.util
+spec = importlib.util.spec_from_file_location('safe_fixture', ROOT / 'scripts/tests/td19-safe-root-fixtures.py')
+safe_fixture = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(safe_fixture)
+
 
 class NativeLab(unittest.TestCase):
     def run_entry(self, args=(), fail_at='install'):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            log = root / 'calls'
-            recorder = '''#!/usr/bin/python3
-import json, os, pathlib, sys
-name = pathlib.Path(sys.argv[0]).name
-with open(os.environ['CALL_LOG'], 'a') as stream:
-    stream.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
-raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'] else
-                 0 if name == 'apt-get' and sys.argv[1] == 'update' else 91)
-'''
-            for command in ('apt-get', 'curl', 'dpkg-deb', 'dpkg-query', 'sha256sum',
-                            'mktemp', 'python3', 'pip', 'systemctl', 'go', 'tar', 'rm'):
-                stub = root / command
-                stub.write_text(recorder)
-                stub.chmod(0o755)
-            env = dict(os.environ, PATH=f'{root}:/usr/bin:/bin', CALL_LOG=str(log), FAIL_AT=fail_at)
-            # Only UID gate is bypassed for unprivileged hosted fixture runners.
-            source = (ROOT / 'scripts/40-install-lab.sh').read_text()
-            entry = root / 'entry.sh'
-            entry.write_text(source.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1))
-            result = subprocess.run(['bash', str(entry), *args],
-                                    env=env, text=True, capture_output=True, timeout=10)
-            calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
-            return result, calls
+        f = safe_fixture.Fixture()
+        try:
+            f.env['FAIL_AT'] = fail_at
+            result = f.run('40-install-lab.sh', args)
+            return result, f.calls()
+        finally:
+            f.close()
 
     def test_native_package_plan_without_download_or_virtualization(self):
         result, calls = self.run_entry()

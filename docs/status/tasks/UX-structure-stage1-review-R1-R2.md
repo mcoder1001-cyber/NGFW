@@ -14,7 +14,7 @@
 
 The new routing-object page uses the existing lazy prefix-list and route-map editors against `routing.policy`, rather than introducing BGP-specific storage or duplicating schemas. NAT still targets `/firewall/nat`. Both policy URLs load the same editor and preserve selection parameters. Static/dynamic routing categories retain existing screen implementations. Objects use the actual existing tab identifiers.
 
-R1 verdict: BLOCK at the original checkpoint pending finding 1 verification. Findings 2–3 are optional MINOR corrections.
+Original checkpoint R1 verdict: BLOCK pending finding 1 verification. Superseded by the final verify round below.
 
 ## R2 findings
 
@@ -55,3 +55,26 @@ The full quick gate and React regression suite are manager-owned in this review 
 - Await developer followup SHA for NavLink correction and optional query-navigation fixes.
 - Next command: `git merge --ff-only <developer-followup-SHA>` in the isolated review worktree before this review-file commit, or inspect `git show <SHA>` if the review branch has already diverged.
 - Publish this reviewer branch after every review checkpoint; remote SHA is reported to the manager only after successful push. Product merging remains forbidden without owner approval.
+
+
+## Final verify round — product `885e2c1909c2f1095297bf6eacb90745f29b3d28`
+
+Merged the published followup into this isolated reviewer branch solely to review its actual final product files. No product code was authored by the reviewer.
+
+- Finding 1 resolved: links now use Link with explicit `aria-current`, and NavLink-only `end` was removed. Existing App regression checks one current Objects link and policy alias selection.
+- Finding 2 resolved: group reopening observes pathname plus search. New App regression navigates static routes to Ping without a pathname change and checks Tools opens and Ping is current.
+- Finding 3 resolved: missing, unknown, and empty routing-object tabs select the prefix-list destination consistent with the page's fallback. New navigation regressions cover absent and unknown tabs.
+- ACL Persian heading expectation now matches Policy naming. Documentation additions preserve technical ACL semantics, explain standalone NAT, shared routing object editors and legacy URLs, and explicitly exclude unsupported reference zone behavior.
+
+Independent Node harness against final reviewer nav source:
+
+```text
+PASS: 8 independent navigation assertions, including absent/invalid/empty routing-object tabs.
+PASS: source checks confirm Link and full-location group reopening.
+```
+
+Final security check was rerun with `tools/ci.sh check --base origin/main`; gitleaks scanned 21.07 KB with no leaks, and the command ended `check PASSED (0m14s)`. Full-gate and React test results remain manager-owned and are prerequisites to merge readiness; no merge is authorized by this review.
+
+Final R1 verdict: APPROVE — zero outstanding BLOCKER/MAJOR/MINOR findings.
+Final R2 verdict: APPROVE — zero findings.
+Next command: `git push origin codex/ux-structure-review-correctness-20261007`, then report the actual remote reviewer SHA to the manager. No product merge until explicit owner approval.

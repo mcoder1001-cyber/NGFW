@@ -1,5 +1,7 @@
 # A2 PPPoE lifecycle arbitration WIP
 
+Verified durable ruling checkpoint: local/remote `81be12f2a12cb890c844f6f4b63350c6b76d330c`; CLI push successful and ls-remote returned the identical SHA. Post-publication product diff and clean-tree checks exit0. Post-commit redacted gitleaks scanned1 commit/~14796 bytes, no leaks, exit0 (earlier pre-commit empty-range scan was not evidence of scanning the new records). This receipt-only follow-up contains no ruling or product change; its final HEAD/remote are verified and reported after push.
+
 Branch `codex/arbitrate-pppoe-lifecycle-20261007`; tree `/root/ngfw-wt/arbitrate-pppoe-lifecycle-20261007`. Initial local source4bcf9f4977e2a9c248548de23cf552e4bcef94da/tree7d914836662eb129ada7ac33459b97d4ce449b28; clean-check passed. Own matching envelope/ruling/WIP and case log row only.
 
 Completed: independent review of both published positions, exact R4/R8 code/tests and author claims. Verified review remotes cc68cd898791717d0747f20f49930524cd515b67 and7dcdd60924ea1e6be446accd193b91dca6f2f72b. Hosted run37601246627 independently verified completed/success at exact4bcf9f. Executed two in-memory reused-parent probes and two modeled post-stop admissions: all reproduced source gaps; no files/processes/signals/sysctl/namespace mutations. Product paths unchanged versus freeze; diff-check PASS. No local quick, Go suite, live service/dial/rollback or actual kernel PID reuse run; existing reviewer suite receipts are historical to this arbiter.

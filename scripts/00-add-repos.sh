@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Configure non-VPP repositories only after verified product artifact preflight.
 set -euo pipefail
-ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+ROOT=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 preflight_artifacts() {
   local output=${1:?artifact directory required}
   output=$(realpath -e -- "$output")

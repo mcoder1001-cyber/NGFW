@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # VMware lab / test machine: native traffic tools, analysis, automation.
 set -euo pipefail
-[[ $(uname -s) == Linux && $(uname -m) == x86_64 ]] || {
+[[ $(/usr/bin/uname -s) == Linux && $(/usr/bin/uname -m) == x86_64 ]] || {
   echo "only linux-amd64 lab bootstrap is supported" >&2; exit 1;
 }
 if [[ ${1:-} == --check-config && $# == 1 ]]; then
   printf 'lab=vmware native-tools=iperf3,netperf,tshark,tcpdump,frr\n'
   exit 0
 fi
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
+SCRIPT_DIR=$(cd -- "$(/usr/bin/dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 # shellcheck source=install-common.sh
 source "$SCRIPT_DIR/install-common.sh"
 ngfw_install_init "$@"
@@ -55,7 +55,7 @@ if [[ $NGFW_INSTALL_DRY_RUN == 1 ]]; then
 fi
 venv_dir=$(ngfw_install_path /opt/ngfw-test)
 work_dir=$(ngfw_install_path /tmp)
-mkdir -p "$work_dir" "$(dirname -- "$venv_dir")"
+mkdir -p "$work_dir" "$(/usr/bin/dirname -- "$venv_dir")"
 lock_snapshot=$(mktemp "$work_dir/ngfw-lab-lock.XXXXXXXX")
 trap 'rm -f -- "$lock_snapshot"' EXIT
 printf '%s\n' "$lab_requirements" > "$lock_snapshot"
@@ -67,5 +67,7 @@ apt-get update
 apt-get install -y "${TRAFFIC[@]}" "${ANALYSIS[@]}" "${BASE[@]}"
 python3 -m venv "$venv_dir"
 export TMPDIR="$work_dir"
-"$venv_dir/bin/pip" --isolated --cache-dir "$work_dir/pip-cache" install --quiet --upgrade --require-hashes -r "$lock_snapshot"
+pip_command="$venv_dir/bin/pip"
+[[ $NGFW_INSTALL_ROOT == / ]] || pip_command="$NGFW_INSTALL_STUB_DIR/pip"
+"$pip_command" --isolated --cache-dir "$work_dir/pip-cache" install --quiet --upgrade --require-hashes -r "$lock_snapshot"
 echo "Lab tools installed. Activate test env: source $venv_dir/bin/activate"

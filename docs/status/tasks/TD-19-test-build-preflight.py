@@ -102,10 +102,10 @@ class BuildPreflight(unittest.TestCase):
                 binary.write_text(f'#!/bin/sh\nif [ "$1" = version ]; then echo "go version go{version} linux/amd64"; else printf "{label} %s\\n" "$*" >> "$CALL_LOG"; fi\n')
                 binary.chmod(0o755)
             source = (ROOT / 'scripts/20-install-build.sh').read_text()
-            start = source.index('export PATH="$go_dir/bin:$GOBIN:$PATH"')
+            start = source.index('if [[ $NGFW_INSTALL_ROOT == / ]]; then')
             end = source.index('\nif ! corepack enable', start)
             fragment = source[start:end]
-            setup_paths = 'go_dir=' + shlex.quote(str(fresh.parent)) + '\nGOBIN=' + shlex.quote(str(fresh)) + '\n'
+            setup_paths = 'NGFW_INSTALL_ROOT=/\ngo_dir=' + shlex.quote(str(fresh.parent)) + '\nGOBIN=' + shlex.quote(str(fresh)) + '\n'
             fragment = fragment.replace('$go_dir/bin', str(fresh))
             setup = 'set -euo pipefail\nGO_VER=1.26.0 PROTOC_GO_VER=v1.36.12 PROTOC_GRPC_VER=v1.6.2 GOVPP_VER=v0.13.0\n'
             result = subprocess.run(['bash', '-c', setup + setup_paths + fragment], text=True, capture_output=True,

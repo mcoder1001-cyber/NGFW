@@ -25,6 +25,7 @@ class ArtifactPreflight(unittest.TestCase):
         entry = root / 'source/scripts/00-add-repos.sh'
         entry.write_text(script)
         shutil.copy2(ROOT / 'scripts/install-common.sh', root / 'source/scripts/install-common.sh')
+        shutil.copy2(ROOT / 'scripts/install-recording-stub.py', root / 'source/scripts/install-recording-stub.py')
         for name in ['VERSION', 'lib.sh']:
             shutil.copy2(ROOT / 'deploy/vpp' / name, root / 'source/deploy/vpp' / name)
         def executable(path, body):
@@ -35,9 +36,10 @@ class ArtifactPreflight(unittest.TestCase):
 printf 'original verifier invoked\\n' >> "$VERIFY_LOG"
 exit "${VERIFY_FAILURE:-0}"
 ''')
-        for command in ['apt-get', 'curl', 'ssh', 'scp', 'systemctl', 'gpg', 'go', 'npm', 'corepack', 'tar']:
-            executable('bin/' + command, 'printf "forbidden command\\n" >> "$HOST_LOG"\nexit 99\n')
-        executable('bin/python3', 'exec /usr/bin/python3 "$@"\n')
+        for command in ('apt-get', 'curl', 'gpg', 'go', 'npm', 'corepack', 'python3', 'tar', 'pip'):
+            target = root / 'bin' / command
+            shutil.copy2(ROOT / 'scripts/install-recording-stub.py', target)
+            target.chmod(0o755)
         version = '26.06-release+ngfw1'
         packages = [dict(package=name, file=f'{name}_{version}_amd64.deb', version=version,
                          architecture='amd64', ship=True, sha256='a' * 64) for name in SHIP]

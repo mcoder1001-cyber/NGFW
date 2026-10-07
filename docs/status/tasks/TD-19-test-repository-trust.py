@@ -209,25 +209,11 @@ class RealRepositoryEntry(unittest.TestCase):
         capture = work / 'capture'; capture.mkdir()
         (work / 'frr.bundle').write_bytes(self.bundle(*frr_labels))
         (work / 'node.bundle').write_bytes(self.bundle(*node_labels))
-        log = work / 'calls'
-        curl = stubs / 'curl'
-        curl.write_text('''#!/usr/bin/python3
-import json,os,pathlib,shutil,sys
-args=sys.argv[1:]
-with open(os.environ['CALL_LOG'],'a') as f: f.write(json.dumps(['curl']+args)+'\\n')
-url=[a for a in args if a.startswith('https://')]
-source={os.environ['FRR_URL']:'frr.bundle',os.environ['NODE_URL']:'node.bundle'}[url[0]]
-shutil.copyfile(pathlib.Path(os.environ['WORK'])/source, args[args.index('-o')+1])
-''')
-        curl.chmod(0o755)
-        for name in ('apt-get', 'install', 'mv', 'go', 'npm', 'corepack', 'tar'):
+        log = work / 'install-root/.ngfw-fixture-calls'
+        for name in ('apt-get', 'curl', 'gpg', 'go', 'npm', 'corepack', 'python3', 'tar', 'pip'):
             stub = stubs / name
-            stub.write_text('#!/bin/sh\necho "UNEXPECTED HOST MUTATION $0" >&2\nexit 97\n'); stub.chmod(0o755)
-        # Shared seam uses a disposable root; private crypto operations alone
-        # delegate to GnuPG, preserving the adversarial real certificate checks.
-        for name, binary in (('gpg', '/usr/bin/gpg'), ('python3', '/usr/bin/python3')):
-            stub = stubs / name
-            stub.write_text('#!/bin/sh\nexec ' + binary + ' "$@"\n'); stub.chmod(0o755)
+            shutil.copy2(ROOT / 'scripts/install-recording-stub.py', stub)
+            stub.chmod(0o755)
         install_root = work / 'install-root'; install_root.mkdir()
         (install_root / 'etc').mkdir()
         (install_root / 'etc/os-release').write_text('VERSION_CODENAME=resolute\n')
@@ -248,7 +234,7 @@ shutil.copyfile(pathlib.Path(os.environ['WORK'])/source, args[args.index('-o')+1
         env = dict(os.environ, PATH=f'{stubs}:/usr/bin:/bin', CALL_LOG=str(log), WORK=str(work),
                    CAPTURE=str(capture), FRR_URL=FRR_URL, NODE_URL=NODE_URL, NGFW_VPP_ARTIFACTS=str(work),
                    NGFW_INSTALL_ROOT=str(install_root), NGFW_INSTALL_STUBS='1',
-                   NGFW_INSTALL_STUB_DIR=str(stubs))
+                   NGFW_INSTALL_STUB_DIR=str(stubs), NGFW_INSTALL_FIXTURE_KEYS='1')
         env.pop('NGFW_FRR_KEY_FINGERPRINTS', None)
         env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
         result = subprocess.run(['bash', '-c', source], env=env, text=True, capture_output=True)

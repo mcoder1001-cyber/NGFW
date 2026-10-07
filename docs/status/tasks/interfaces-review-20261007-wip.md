@@ -27,3 +27,5 @@ Final lint addendum: own targeted eslint exit0; APPROVE, no behavioral change.
 Exact next command: manager imports report-only docs (initial R2/R5 introduction5ceac5d27 then final reviewedc731f29), or copies final report paths from reviewer branch. Never merge reviewer branch as product candidate. Any final product-tree change needs bounded review verification.
 
 Resumed integration review: wizard dfb7844a vs Interfaces e9e94 metadata; R6 MAJOR successful partial observation payload hides wizard failure/retry warning. Root accepted and owns consumer fix; combined verdict BLOCK until independently verified. Exact next command: inspect root combined integration SHA/fix when supplied, without product edits.
+
+Final combined verification: source134543ff6 matches own product tree exactly; own HTTP200 partial-failure/retry regression 1/1 PASS26.69s (3 deliberately excluded). R6 MAJOR closed; combined APPROVE, no outstanding code finding. Final report-only publication follows. Next action: manager imports final integration-review report, runs full unchanged final-tree/hosted gates, archives reviewed history then merges expected head sequentially.

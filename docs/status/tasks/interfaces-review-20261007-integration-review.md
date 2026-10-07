@@ -22,4 +22,29 @@ This is a combined-contract issue, not a blocker on isolated wizard PR198 agains
 
 No command/test pass claimed for the combined tree; final integrated SHA, consumer warning fix/regression and full unchanged gate still pending.
 
-Verdict: BLOCK combined integration pending R6 MAJOR fix; prior isolated source approvals remain applicable.
+Initial verdict: BLOCK pending the R6 MAJOR consumer fix; superseded by the independent verification below.
+
+## Final independent verification
+
+Combined integration source: `134543ff619feb49bdca7fdce55e3e57b61f0b6f` on `codex/interfaces-integration-20261007`. Imported exact wizard checkpointdfb7844a and consumer134543ff6 into own worktree (own consumer copye014d16d0), keeping Interfaces e9e94 product unchanged. Decision log resolved using exact combined d0ffe4213 blob, preserving D239/D240; no reviewer product edits.
+
+Consumer predicate now displays warning/retry for request errors OR any nonempty observationErrors, covering retrieve/live/hostInventory failures. The original source-specific contract and read-only inventory remain unchanged. EN/FA wording accurately says some network interfaces failed to load. Configured choices remain available and a successful retry clears the warning without resetting WAN selection.
+
+Own actual command/output:
+
+```text
+git diff --name-only 134543ff6..HEAD -- apps packages deploy tools .github
+(no output: exact product tree matches the combined source)
+TMPDIR=/root/ngfw-review-tmp/interfaces-review pnpm --filter @ngfw/web exec vitest run src/domains/system/setup/SetupWizardPage.regression.test.tsx -t 'warns on partial observation failure and retry preserves configured choices'
+✓ src/domains/system/setup/SetupWizardPage.regression.test.tsx (4 tests | 3 skipped) 9672ms
+✓ warns on partial observation failure and retry preserves configured choices 9664ms
+Test Files 1 passed (1)
+Tests 1 passed | 3 skipped (4)
+Duration 26.69s
+```
+
+The selected regression independently proves HTTP200/live error warns, configured WAN is preserved across retry, configured LAN remains usable, at least two state reads occur and no config POST occurs. Other three tests are intentionally excluded; no full-suite claim. Existing router HydrateFallback console warning is unchanged and not a test failure.
+
+R6 MAJOR resolved. No new compatibility/security/atomic-preview issue found. State:null host inventory cannot be selected/adopted; host-owned/local0 remain excluded; missing setup interfaces are independently validated using actual agent InterfaceState before constructing a non-mutating preview/atomic stage. Prior source R1–R7 approvals remain applicable.
+
+Final verdict: APPROVE combined source134543ff6. Mandatory full unchanged integration quick gate, current-tree hosted CI, D112 archive/squash/expected-head merge and post-merge main CI remain manager requirements. No live host/lab acceptance or full integration gate pass is claimed by reviewer.

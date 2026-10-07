@@ -15,6 +15,34 @@ ROOT = Path(__file__).resolve().parents[3]
 SELF = str(Path(__file__).resolve())
 
 
+def empty_outer_link(link):
+    """Accept loopback or strictly unconfigured immutable kernel fallbacks."""
+    if link.get('ifname') == 'lo':
+        return link.get('link_type') == 'loopback' and 'LOOPBACK' in link.get('flags', [])
+    defaults = {
+        'gre0': ('gre', 'gre', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+        'gretap0': ('gretap', 'ether', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+        'erspan0': ('erspan', 'ether', {'remote': 'any', 'local': 'any', 'ttl': 0,
+                                      'pmtudisc': False, 'okey': '0.0.0.0',
+                                      'erspan_index': 0, 'erspan_ver': 1}),
+        'ip6tnl0': ('ip6tnl', 'tunnel6', {'proto': 'ip6ip6', 'remote': 'any', 'local': 'any',
+                                        'ttl': 0, 'encap_limit': 0, 'tclass': '0x00',
+                                        'flowlabel': '0x00000'}),
+    }
+    expected = defaults.get(link.get('ifname'))
+    if expected is None:
+        return False
+    kind, link_type, data = expected
+    info = link.get('linkinfo', {})
+    return (link.get('netns-immutable') is True and link.get('operstate') == 'DOWN'
+            and not {'UP', 'LOWER_UP', 'MASTER'}.intersection(link.get('flags', []))
+            and link.get('link') is None and 'master' not in link
+            and link.get('group') == 'default' and link.get('promiscuity') == 0
+            and link.get('allmulti') == 0 and link.get('addr_info') == []
+            and link.get('link_type') == link_type and info.get('info_kind') == kind
+            and info.get('info_data') == data)
+
+
 def snapshot():
     commands = [
         ['systemctl', 'show', 'vpp', '-p', 'MainPID', '-p', 'NRestarts'],
@@ -154,6 +182,55 @@ def self_test():
     from unittest.mock import MagicMock, patch
 
     class Controls(unittest.TestCase):
+        def fallback(self):
+            return {'ifname': 'gre0', 'link_type': 'gre', 'netns-immutable': True,
+                    'operstate': 'DOWN', 'flags': ['NOARP'], 'link': None,
+                    'group': 'default', 'promiscuity': 0, 'allmulti': 0, 'addr_info': [],
+                    'linkinfo': {'info_kind': 'gre', 'info_data': {
+                        'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}}}
+
+        def test_unconfigured_kernel_fallbacks_accepted(self):
+            link = self.fallback()
+            self.assertTrue(empty_outer_link(link))
+            for name in ['gretap0', 'erspan0']:
+                link['ifname'] = name
+                link['link_type'] = 'ether'
+                link['linkinfo']['info_kind'] = name[:-1]
+                if name == 'erspan0':
+                    link['linkinfo']['info_data'].update(okey='0.0.0.0', erspan_index=0, erspan_ver=1)
+                self.assertTrue(empty_outer_link(link), name)
+            self.assertTrue(empty_outer_link({'ifname': 'lo', 'link_type': 'loopback',
+                                             'flags': ['LOOPBACK', 'UP']}))
+            link.update(ifname='ip6tnl0', link_type='tunnel6')
+            link['linkinfo'] = {'info_kind': 'ip6tnl', 'info_data': {
+                'proto': 'ip6ip6', 'remote': 'any', 'local': 'any', 'ttl': 0,
+                'encap_limit': 0, 'tclass': '0x00', 'flowlabel': '0x00000'}}
+            self.assertTrue(empty_outer_link(link))
+
+        def test_active_configured_or_impostor_defaults_rejected(self):
+            import copy
+            mutations = [
+                {'flags': ['NOARP', 'UP']}, {'flags': ['LOWER_UP']}, {'operstate': 'UNKNOWN'},
+                {'netns-immutable': False}, {'link_type': 'ether'}, {'link': 9}, {'master': 'br0'},
+                {'group': 'other'}, {'promiscuity': 1}, {'allmulti': 1},
+                {'addr_info': [{'local': '192.0.2.1'}]}, {'ifname': 'eth0'},
+                {'linkinfo': {'info_kind': 'veth', 'info_data': {}}},
+                {'linkinfo': {'info_kind': 'gre', 'info_data': {'remote': '192.0.2.1'}}},
+            ]
+            for mutation in mutations:
+                with self.subTest(mutation=mutation):
+                    link = copy.deepcopy(self.fallback())
+                    link.update(mutation)
+                    self.assertFalse(empty_outer_link(link))
+            for field in ['addr_info', 'netns-immutable', 'linkinfo']:
+                link = self.fallback()
+                del link[field]
+                self.assertFalse(empty_outer_link(link))
+            link = self.fallback()
+            link['linkinfo']['info_data']['ikey'] = '0.0.0.1'
+            self.assertFalse(empty_outer_link(link))
+            self.assertFalse(empty_outer_link({'ifname': 'lo', 'link_type': 'veth', 'flags': []}))
+
         def exercise(self, kind=0x40000000, inode=777, repeat=False):
             directory = MagicMock()
             directory.iterdir.return_value = [SimpleNamespace(name='ns-w14-lan')]
@@ -321,8 +398,9 @@ def main():
         source.mkdir(parents=True, mode=0o755)
         subprocess.run(['mount', '--bind', str(source), '/run/' + name], check=True)
     subprocess.run(['ip', 'link', 'set', 'lo', 'up'], check=True)
-    links = json.loads(subprocess.check_output(['ip', '-j', 'link', 'show']))
-    if any(link['ifname'] not in {'lo', 'ip6tnl0'} for link in links):
+    links = json.loads(subprocess.check_output(['ip', '-d', '-j', 'address', 'show']))
+    print('P12_OUTER_LINK_INVENTORY=' + json.dumps(links, sort_keys=True), flush=True)
+    if not links or any(not empty_outer_link(link) for link in links):
         raise SystemExit('P12 outer network namespace is not empty')
     os.environ['NGFW_ISOLATED_TEST_RUN'] = '1'
     print('P12_PRIVATE_NETNS=' + current, flush=True)

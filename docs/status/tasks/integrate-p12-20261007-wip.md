@@ -1,5 +1,13 @@
 # P12 corrective integration WIP
 
+## C2 continuation, owner no-idle instruction
+
+Current published base checkpoint `1ae2c16184f8da21d107a0ad7f689d4f715bf90f`. C1 and rollback-read corrections independently approved; follow-up unit PASS0.108s/vet PASS. Original single live attempt exited1 in0.55s before private VPP/FRR/Go launch. Reviewer `c42c8b599` demonstrated C2 compatibility failure: legitimate DOWN immutable kernel fallback tunnel shapes are rejected by the name-only predicate. Exact exited namespace inventory absent; cause is supported inference, not direct observation. Shared snapshots unchanged, no remaining owned processes/locks. Original mgmtd failure remains unresolved.
+
+Manager now implements strict fallback validation using detailed address inventory: exact known name/type/info_kind/default info_data, immutable flag, administratively DOWN, no UP/LOWER_UP/MASTER, parent/master/address/promiscuity/allmulti absent or zero as appropriate. Configured or impostor devices remain rejected. Prints actual inventory before refusal. Added two controls covering four fallback types and configured/active/impostor/missing evidence negatives. Actual10 self-tests PASS0.026s; scoped diff-check PASS. Read-only host `ip -d -j address show gre0` confirms required detailed fields, no namespace/live replay or host mutation. Commit/publication SHA resolved from HEAD/remote after push.
+
+Next: independent C2 review, unchanged complete hosted quick of final D112 current-main tree, then newly assigned isolated original proof if source approved. No automatic rerun, deadline/count relaxation or host sysctl workaround.
+
 Branch/worktree/ownership in envelope. Initial recovered source `ff3c0c3f3f84df32ba0d6421f86bb5888b361d4a`, current main0ec397. Local/remote corrective checkpoint pending tests/publication; no success claimed yet.
 
 Independent current-source review `6b5cce35cc4305df98f03f36cf25c636bc6cb0b1` BLOCK C1: failed ListRoutes/kernel-route reads and failed client creation could pass cleanup. Corrective test-only patch rejects read error/missing response/residue, checks client creation/close, still reads kernel inventory on client failure and defers agent Stop so all nonfatal errors preserve cleanup. New unit controls exercise empty-success vs empty-error, cancellation, missing response and remaining routes. No production code, deadline, route counts or private-namespace boundary change.

@@ -67,3 +67,15 @@ PYPATH
 ngfw_install_plan() {
   printf 'DRY-RUN root=%q: %s\n' "$NGFW_INSTALL_ROOT" "$1"
 }
+ngfw_install_os_release() {
+  local metadata=/etc/os-release link
+  if [[ $NGFW_INSTALL_ROOT == / && -L /etc/os-release ]]; then
+    # Ubuntu's standard metadata link is read-only data, not a write target.
+    link=$(/usr/bin/readlink -- /etc/os-release)
+    [[ $link == ../usr/lib/os-release || $link == /usr/lib/os-release ]] || {
+      echo 'REFUSED: unsupported native os-release symlink' >&2; return 1;
+    }
+    metadata=/usr/lib/os-release
+  fi
+  ngfw_install_path "$metadata"
+}

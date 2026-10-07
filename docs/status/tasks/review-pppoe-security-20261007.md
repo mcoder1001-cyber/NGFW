@@ -1,5 +1,7 @@
 # Frozen PR196 independent review — R2 / R3 / R4 / R8
 
+Final hosted receipt: independently ran `gh run view 37601246627 --json headSha,status,conclusion,url`: head `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, status `completed`, conclusion `success`, https://github.com/mcoder1001-cyber/NGFW/actions/runs/37601246627. This supersedes earlier absent/running hosted observations below. Hosted success does not resolve R4/R8 findings; retained BLOCK goes to A2. No duplicate local gate restart. Stopped local controller2325819 and child2419253 are absent in subsequent ps. Exact-reproduction checkpoint published as remote `febd9066b6472820916085e33dd590d9b989878c`; local `f87225ba8` has identical tree `afedaf74d8ac46fc37b0680bf0a8d7482f913b76`.
+
 ## Final frozen-source regrade (2026-10-07)
 
 Source commit `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, exact tree `7d914836662eb129ada7ac33459b97d4ce449b28`, verified with git show. Clean existing branch resumed; freeze merged only in assigned reviewer worktree. No product edits. Detailed final findings are in `review-pppoe-security-20261007-review-R2.md`, `-review-R3.md`, `-review-R4.md`, `-review-R8.md`; these supersede historical provisional findings below.

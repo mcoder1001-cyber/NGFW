@@ -1,5 +1,7 @@
 # Frozen PPPoE review recovery checkpoint
 
+Final receipt: hosted37601246627 independently verified completed/success on exact freeze4bcf9f4977e2a9c248548de23cf552e4bcef94da. Local duplicate stopped/unfinished exit143; observed controller2325819 and child2419253 absent. No rerun required. Reproduction/A2 handoff published remote `febd9066b6472820916085e33dd590d9b989878c`, local `f87225ba8`, identical tree `afedaf74d8ac46fc37b0680bf0a8d7482f913b76`. Remaining product repairs and independent arbitration unchanged; reviewer work complete after publishing this receipt. Do not report this session as a persistent worker.
+
 Branch `codex/review-pppoe-security-20261007`; worktree `/root/ngfw-wt/resume-review-security-20261007`. Owned paths enumerated in matching envelope. No product code authored.
 Frozen source `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, tree `7d914836662eb129ada7ac33459b97d4ce449b28`.
 Before report commit: local merge `95da82d1f977efe3bc2622376be8944c80adad41`; equivalent published remote merge `2735bfcef9c2cc5e79d7fbdbf6d33aa5593c46be`, confirmed ls-remote. Final report SHAs are reported after publication; a commit cannot include its own hash.

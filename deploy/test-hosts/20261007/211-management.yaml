@@ -1,0 +1,14 @@
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    enp4s0:
+      dhcp4: false
+      dhcp6: false
+      addresses: [172.30.110.211/24]
+      routes:
+        - to: default
+          via: 172.30.110.1
+      nameservers:
+        addresses: [172.30.18.4]
+        search: [Amnafzar.local]

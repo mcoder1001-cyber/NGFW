@@ -92,8 +92,9 @@ describe('App frame', () => {
     expect(current).toHaveLength(1);
     expect(current[0]).toHaveAttribute('href', '/firewall/objects?tab=zones');
     rendered.unmount();
-    await i18n.changeLanguage('fa');
     render(app('/routing/objects?tab=route-maps'));
+    await screen.findByRole('heading', { level: 2, name: 'Routing objects' });
+    await act(async () => { await i18n.changeLanguage('fa'); });
     expect(
       await screen.findByRole('heading', { level: 2, name: 'آبجکت‌های مسیریابی' }),
     ).toBeInTheDocument();

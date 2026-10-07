@@ -120,7 +120,7 @@ function useNavGroups(devRoutes: boolean) {
   const currentGroup = nav.find((g) => isCollapsible(g) && g.items.some((i) => i.path === current))?.id;
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(currentGroup ? [currentGroup] : []));
   // open the current page's group when the location changes (state adjusted during render, not in an effect)
-  const locationKey = `${pathname}${search}`;
+  const locationKey = `${pathname}|${current ?? ""}`;
   const [seenPath, setSeenPath] = useState(locationKey);
   if (seenPath !== locationKey) {
     setSeenPath(locationKey);

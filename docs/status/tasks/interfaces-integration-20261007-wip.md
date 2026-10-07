@@ -1,9 +1,9 @@
 Branch: codex/interfaces-integration-20261007
 Worktree: /root/ngfw-wt/interfaces-integration-20261007
 Base: speculative wizard dfb7844a84c8653f7fbf59845da5654d68355697 (D114), actual main unchanged 3ddb1680e475e94d43e8036cd3776bc60c87208b.
-Published contract: d0ffe4213 (successful remote push). Imported Interfaces source f4fde9150; product e9e94 independently approved. Source branch final unchanged full retry GOMAXPROCS=4 pending final fake-host marker; all preceding checks passed. Historical HA scheduling failure retained in source task report.
+Published contract: d0ffe4213 (successful remote push). Imported Interfaces source f4fde9150; product e9e94 independently approved. Source final complete quick PASS exit0, wall13m59s, all checks enabled with TMPDIR=/ift GOMAXPROCS=4. Developer handoff bf06b77942db03523abff605cd227eeb781ca0ea published and clean; original branch now read-only. Historical HA scheduling failure retained in source task report.
 Root owns combined import, append conflicts preserving D239/D240 and both deferrals, wizard consumer partial-observation warning/retry, regression, EN/FA wording and integration reports (see envelope).
 Completed consumer: warn on any nonempty observationErrors from HTTP 200 as well as failed request; retry preserves configured selections. Targeted regression 4/4 PASS (28.98s); targeted ESLint exit0. Web typecheck exit0. Dependencies build12/12 PASS; generation official through Turbo.
 Independent compatibility report647638bdd found R6 consumer gap; reviewer inspected fix without new finding, exact134543ff6 independent single HTTP200 regression1/1 PASS26.69s and product-tree match; finalAPPROVE1556a5846 published and imported.
-Remaining: final source PASS/report handoff, remote archive reviewed history, single-commit integration atop actual post-wizard main, full unchanged root quick and final hosted quick, expected-head merge and main validation. No live deployment or appliance acceptance.
+Remaining: remote archive reviewed history, single-commit integration atop actual post-wizard main, full unchanged root quick and final hosted quick, expected-head merge and main validation. No live deployment or appliance acceptance.
 Exact next command: tail -n20 /root/ngfw-wt/logs/interfaces-integration-web-typecheck.log

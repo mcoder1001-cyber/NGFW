@@ -263,8 +263,17 @@ keyring_dir=$(ngfw_install_path /usr/share/keyrings)
 sources_dir=$(ngfw_install_path /etc/apt/sources.list.d)
 work_dir=$(ngfw_install_path /tmp)
 mkdir -p "$work_dir"
-# shellcheck disable=SC1090
-CODENAME="$(. "$os_release" && echo "$VERSION_CODENAME")"
+# OS metadata is data, including under the recording fixture root. Never source
+# a caller-provided os-release file as executable shell text.
+CODENAME=$(python3 - "$os_release" <<'PYOSRELEASE'
+import pathlib, re, sys
+lines = [line.split('=', 1)[1] for line in pathlib.Path(sys.argv[1]).read_text().splitlines()
+         if line.startswith('VERSION_CODENAME=')]
+if len(lines) != 1 or not re.fullmatch(r"(?:[a-z0-9][a-z0-9._-]*|\"[a-z0-9][a-z0-9._-]*\"|'[a-z0-9][a-z0-9._-]*')", lines[0]):
+    raise SystemExit('REFUSED: one literal VERSION_CODENAME required')
+print(lines[0].strip('\"\''))
+PYOSRELEASE
+)
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
 
 # Bootstrap tools must be preinstalled; no APT or network without authorized pins.

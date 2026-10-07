@@ -492,7 +492,7 @@ describe('ACL screen', () => {
         ),
       ).toBeInTheDocument();
       expect(document.documentElement).toHaveAttribute('dir', 'rtl');
-      expect(screen.getByRole('tab', { name: 'فهرست‌ها', selected: true })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'مجموعه‌های پالیسی', selected: true })).toBeInTheDocument();
       const table = await screen.findByRole('table', { name: 'فهرست‌های دسترسی' });
       const web = (await within(table).findByText('web-in')).closest('tr')!;
       expect(within(web).getByText('ACL شمارهٔ ۷')).toBeInTheDocument();

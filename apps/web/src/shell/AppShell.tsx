@@ -50,6 +50,7 @@ function NavList({ nav, current, open, onToggle, onNavigate }: NavListProps) {
       to={item.path}
       end
       selected={item.path === current}
+      aria-current={item.path === current ? 'page' : 'false'}
       onClick={onNavigate}
       sx={{ paddingInlineStart: (theme) => theme.spacing(indent) }}
     >
@@ -113,10 +114,10 @@ function NavList({ nav, current, open, onToggle, onNavigate }: NavListProps) {
  */
 function useNavGroups(devRoutes: boolean) {
   const nav = useMemo(() => buildNav(domains, { devRoutes }), [devRoutes]);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   // Exactly one item is current (review L4): the longest nav path that is the location or a parent of it, so `/vpn/tunnels`
   // selects "Tunnels" only, not also "VPN" (`/vpn`).
-  const current = useMemo(() => currentNavPath(nav, pathname), [nav, pathname]);
+  const current = useMemo(() => currentNavPath(nav, pathname, search), [nav, pathname, search]);
   const currentGroup = nav.find((g) => isCollapsible(g) && g.items.some((i) => i.path === current))?.id;
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set(currentGroup ? [currentGroup] : []));
   // open the current page's group when the location changes (state adjusted during render, not in an effect)

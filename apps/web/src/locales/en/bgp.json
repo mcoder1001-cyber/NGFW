@@ -316,5 +316,7 @@
         }
       }
     }
-  }
+  },
+  "routingObjectsTitle": "Routing objects",
+  "routingObjectsTabs": "Routing object sections"
 }

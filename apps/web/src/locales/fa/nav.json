@@ -7,7 +7,10 @@
     "vpn": "VPN",
     "services": "سرویس‌ها",
     "system": "سیستم",
-    "tools": "ابزارها"
+    "tools": "ابزارها",
+    "objects": "آبجکت‌ها",
+    "dynamic-routing": "مسیریابی پویا",
+    "routing-objects": "آبجکت‌های مسیریابی"
   },
   "dashboard": "داشبورد",
   "users": "کاربران",
@@ -19,15 +22,18 @@
     "dataplane": "صفحهٔ داده",
     "interfaces": "اینترفیس‌ها",
     "vrfs": "VRFها",
-    "routing": "مسیریابی",
+    "routing": "مسیرهای ایستا",
     "nat": "NAT",
     "objects": "اشیا",
-    "acl": "ACLها",
+    "acl": "پالیسی‌ها",
     "vpn": "IPsec / WireGuard",
     "tunnels": "تونل‌ها",
     "services": "سرویس‌ها",
     "ha": "دسترس‌پذیری بالا",
     "management": "مدیریت",
     "security": "امنیت"
+  },
+  "routingObjects": {
+    "usage": "کاربرد و ترتیب"
   }
 }

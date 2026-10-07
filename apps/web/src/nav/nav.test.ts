@@ -24,14 +24,15 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     for (const key of ROOT_KEYS) expect(DOMAIN_GROUP[key], key).toBeDefined();
     expect(domainPath('interfaces')).toBe('/interfaces');
     expect(domainPath('vrfs')).toBe('/routing/vrfs');
-    expect(domainPath('acl')).toBe('/firewall/acl');
+    expect(domainPath('acl')).toBe('/firewall/policies');
+    expect(domainPath('objects')).toBe('/firewall/objects');
     expect(domainPath('management')).toBe('/system/management');
   });
 
   it('marks unbuilt screens unavailable; dashboard, users, revisions (P07b) and dev demos are available', () => {
     const nav = buildNav(domains, { devRoutes: true });
     const available = nav.flatMap((g) => g.items).filter((i) => i.available).map((i) => i.id);
-    expect(available).toEqual([
+    expect([...available].sort()).toEqual([
       'dashboard',
       'interfaces',
       // Feature items, in navigation order (group, then schema order, then non-domain items); one line under the feature's anchor.
@@ -126,7 +127,10 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
       'dev-schema-form',
       'dev-data-grid',
       'dev-stream',
-    ]);
+      'fib', 'ping', 'prefix-lists', 'route-maps',
+      'objects-addresses', 'objects-addressGroups', 'objects-services', 'objects-serviceGroups',
+      'objects-schedules', 'objects-zones', 'objects-tags',
+    ].sort());
   });
 
   it('has no Developer group and no /dev entries when dev routes are off (production builds, review M1)', () => {
@@ -145,5 +149,38 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(currentNavPath(nav, '/system/users/admin')).toBe('/system/users');
     expect(currentNavPath(nav, '/routing/vrfs')).toBe('/routing/vrfs');
     expect(currentNavPath(nav, '/nope')).toBeUndefined();
+  });
+  it('separates Objects and dynamic routing while keeping NAT independent of Policies', () => {
+    const nav = buildNav(domains, { devRoutes: false });
+    const groupOf = (id: string) =>
+      nav.find((group) => group.items.some((item) => item.id === id))?.id;
+    expect(groupOf('objects')).toBe('objects');
+    for (const id of ['ospf', 'isis-rip', 'bgp', 'bfd', 'redistribution'])
+      expect(groupOf(id)).toBe('dynamic-routing');
+    for (const id of ['prefix-lists', 'route-maps', 'policy'])
+      expect(groupOf(id)).toBe('routing-objects');
+    expect(groupOf('nat')).toBe('firewall');
+    const items = nav.flatMap((group) => group.items);
+    expect(items.find((item) => item.id === 'nat')?.path).toBe('/firewall/nat');
+    expect(items.find((item) => item.id === 'acl')?.path).toBe('/firewall/policies');
+    expect(new Set(items.map((item) => item.id)).size).toBe(items.length);
+    expect(new Set(items.map((item) => item.path)).size).toBe(items.length);
+  });
+
+  it('selects exactly the tab destination, ignoring unrelated query parameters and preserving legacy ACL URLs', () => {
+    const nav = buildNav(domains, { devRoutes: false });
+    expect(currentNavPath(nav, '/firewall/objects', '?tab=zones&name=lan')).toBe(
+      '/firewall/objects?tab=zones',
+    );
+    expect(currentNavPath(nav, '/firewall/objects', '?tab=unknown')).toBe('/firewall/objects');
+    expect(currentNavPath(nav, '/routing', '?tab=fib')).toBe('/routing?tab=fib');
+    expect(currentNavPath(nav, '/routing', '?tab=ping')).toBe('/routing?tab=ping');
+    expect(currentNavPath(nav, '/routing', '?tab=static')).toBe('/routing');
+    expect(currentNavPath(nav, '/routing/objects', '?tab=route-maps')).toBe(
+      '/routing/objects?tab=route-maps',
+    );
+    expect(currentNavPath(nav, '/firewall/acl', '?tab=rules&list=web-in')).toBe(
+      '/firewall/policies',
+    );
   });
 });

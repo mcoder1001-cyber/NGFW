@@ -1,0 +1,8 @@
+$ env -u NGFW_TEST_SHARD -u KEEP NGFW_TEST_ONLY=15  deploy/vpp/test-apply-startup.sh /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/p12-fib-recovery-ci/codex-p12-fib-proof-recovery-20261005-081526-2095822/ngfw-startupgen
+== 15. a logical interface missing in VPP → rollback
+  ok   exit 1, rolled back, original file restored, locks released
+  ok   reason logged
+  ok   VPP stopped, reset-failed, started on the old file
+  ok   replaying the rolled-back work dir with --stage run: refused (exit 3), no restart
+
+apply-startup tests: 4 passed, 0 failed

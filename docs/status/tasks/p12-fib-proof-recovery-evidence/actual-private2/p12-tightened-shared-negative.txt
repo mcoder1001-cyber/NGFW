@@ -1,0 +1,6 @@
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:590: P12 root FIB requires the private outer namespace runner
+--- FAIL: TestP12TopologyOnHost (0.00s)
+FAIL
+FAIL	ngfw/agent/internal/agent	0.112s
+FAIL

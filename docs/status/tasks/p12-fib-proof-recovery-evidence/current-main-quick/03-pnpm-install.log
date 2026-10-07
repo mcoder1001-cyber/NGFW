@@ -1,0 +1,33 @@
+$ pnpm install --frozen-lockfile --prefer-offline
+Scope: all 8 workspace projects
+✓ Lockfile passes supply-chain policies (verified 1d ago)
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /root/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Progress: resolved 82, reused 82, downloaded 0, added 20
+Progress: resolved 245, reused 245, downloaded 0, added 181
+Progress: resolved 451, reused 450, downloaded 0, added 375
+Progress: resolved 577, reused 577, downloaded 0, added 520
+Progress: resolved 597, reused 597, downloaded 0, added 579
+Progress: resolved 597, reused 597, downloaded 0, added 580
+Progress: resolved 597, reused 597, downloaded 0, added 582
+Packages: +597
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 597, reused 597, downloaded 0, added 597, done
+.../node_modules/protobufjs postinstall$ node scripts/postinstall
+.../node_modules/@swc/core postinstall$ node postinstall.js
+.../node_modules/protobufjs postinstall: Done
+.../node_modules/@swc/core postinstall: Done
+
+devDependencies:
++ @eslint/js 9.39.5
++ eslint 9.39.5
++ globals 16.5.0
++ prettier 3.9.8
++ turbo 2.11.2
++ typescript 5.9.3
++ typescript-eslint 8.70.1
+
+Done in 24.3s using pnpm v12.5.1

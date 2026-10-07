@@ -1,0 +1,5 @@
+[
+  "MainPID=1014\nNRestarts=0\n",
+  "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n",
+  "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"
+]

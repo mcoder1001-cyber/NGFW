@@ -1,0 +1,1 @@
+$ go -C apps/agent build -o /root/.codex/worktrees/6189/NGFW/artifacts/test-closeout/p12-fib-recovery-ci/codex-p12-fib-proof-recovery-20261005-081526-2095822/ngfw-startupgen ./cmd/ngfw-startupgen

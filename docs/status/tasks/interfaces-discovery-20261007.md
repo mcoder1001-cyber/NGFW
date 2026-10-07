@@ -26,3 +26,5 @@ Out of scope: Linux-only virtual and USB NIC discovery; new RPC/protocol shape; 
 Real target appliance/browser screenshots and physical inventory verification NOT EXECUTED; explicitly deferred in docs/status/DEFERRED-ACCEPTANCE.md under owner instruction.
 
 Actual gate failure and fix: short-TMPDIR complete quick reported i18next/no-literal-string on new JSX status="up". Replaced that JSX literal with typed HOST_LINK_UP constant; targeted web lint PASS, logical CSS455 files OK. Complete quick must rerun on this corrected source.
+
+Before final scheduling retry, complete TS35/35 and full web106 files/622 tests passed, including InterfacesPage15/15. Go phase then reproduced existing HA resync50ms timing failure (0.36s, zero observations) already classified by manager as baseline scheduling flake. Full unchanged quick is retried with TMPDIR=/ift GOMAXPROCS=4; all checks and race remain enabled. No full gate pass claimed yet. Evidence: /root/ngfw-wt/logs/ci/interfaces-discovery-20261007-20261007-101441-2618508/10-agent.log.

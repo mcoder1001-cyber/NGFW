@@ -31,9 +31,25 @@ import (
 	"ngfw/agent/binapi/vpe"
 )
 
+// apiSocket follows `tools/lab env <N>` (NGFW_VPP_API_SOCKET: the slot's own VPP while `tools/lab vpp up <N>` runs,
+// LAB-vpp-per-slot); unset = the shared VPP.
+var apiSocket = func() string {
+	if s := os.Getenv("NGFW_VPP_API_SOCKET"); s != "" {
+		return s
+	}
+	return "/run/vpp/api.sock"
+}()
+
+// statsSocket follows `tools/lab env <N>` (NGFW_VPP_STATS_SOCKET: the slot's own VPP while `tools/lab vpp up <N>` runs,
+// LAB-vpp-per-slot); unset = the shared VPP.
+var statsSocket = func() string {
+	if s := os.Getenv("NGFW_VPP_STATS_SOCKET"); s != "" {
+		return s
+	}
+	return "/run/vpp/stats.sock"
+}()
+
 const (
-	apiSocket   = "/run/vpp/api.sock"
-	statsSocket = "/run/vpp/stats.sock"
 	labLock     = "/run/lock/ngfw-lab.lock"
 	wantVersion = "26.06"
 	dataPath    = "af_packet"

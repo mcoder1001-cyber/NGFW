@@ -1,0 +1,28 @@
+## vpp down 20 and leftover proof 2026-10-06T10:41:35+00:00
+vpp down 20 (ngfw-vpp-w20 only — never vpp.service)
+  stopped ngfw-vpp-w20.service
+  removed /run/ngfw-test/w20/vpp
+vpp: down
+slot: 20
+rc=0
+LoadState=not-found
+ActiveState=inactive
+total 0
+drwxr-xr-x 2 root root  40 Oct  6 10:41 .
+drwxr-xr-x 9 root root 180 Oct  6 07:14 ..
+/dev/shm w20-*: 0
+1410796 bash -c cd /root/ngfw-wt/claude-vpp-per-slot && E=docs/status/tasks/claude-vpp-per-slot-evidence; { echo "## vpp down 20 and leftover proof $(date -Is)"; tools/lab vpp down 20; echo rc=$?; systemctl show ngfw-vpp-w20 -p ActiveState -p LoadState; ls -la /run/ngfw-test/w20 2>&1; echo "/dev/shm w20-*: $(ls /dev/shm | grep -c "^w20-")"; pgrep -af "ngfw-test/w20" || echo "no w20 process"; ip netns list | grep -c w20; ip -o link | grep -c "w20[lw]"; tools/lab vpp status; tools/lab env 20 | grep -E "VPP_API|VPPCTL"; echo "## shared VPP after"; systemctl show vpp -p NRestarts -p MainPID -p ActiveEnterTimestamp; timeout 5 vppctl show version; grep -E "MemAvailable|HugePages_Free" /proc/meminfo; } 2>&1 | tee $E/06-down.txt; rmdir /run/ngfw-test/w20 2>/dev/null; ls -d /run/ngfw-test/w20 2>&1
+1410797 bash -c cd /root/ngfw-wt/claude-vpp-per-slot && E=docs/status/tasks/claude-vpp-per-slot-evidence; { echo "## vpp down 20 and leftover proof $(date -Is)"; tools/lab vpp down 20; echo rc=$?; systemctl show ngfw-vpp-w20 -p ActiveState -p LoadState; ls -la /run/ngfw-test/w20 2>&1; echo "/dev/shm w20-*: $(ls /dev/shm | grep -c "^w20-")"; pgrep -af "ngfw-test/w20" || echo "no w20 process"; ip netns list | grep -c w20; ip -o link | grep -c "w20[lw]"; tools/lab vpp status; tools/lab env 20 | grep -E "VPP_API|VPPCTL"; echo "## shared VPP after"; systemctl show vpp -p NRestarts -p MainPID -p ActiveEnterTimestamp; timeout 5 vppctl show version; grep -E "MemAvailable|HugePages_Free" /proc/meminfo; } 2>&1 | tee $E/06-down.txt; rmdir /run/ngfw-test/w20 2>/dev/null; ls -d /run/ngfw-test/w20 2>&1
+0
+0
+no slot VPP instances (tools/lab vpp up <slot>)
+export NGFW_VPP_API_SOCKET=/run/vpp/api.sock
+export NGFW_AGENT_VPP_API_SOCKET=/run/vpp/api.sock
+export NGFW_VPPCTL="vppctl -s /run/vpp/cli.sock"
+## shared VPP after
+ActiveEnterTimestamp=Sat 2026-10-03 09:18:02 UTC
+MainPID=1014
+NRestarts=0
+vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+MemAvailable:   16220616 kB
+HugePages_Free:     4020

@@ -27,6 +27,11 @@ Verified read-only on 2026-10-03 17:02 +0330. Re-verify before relying on anythi
 2. **P12 (FRR/linux-cp) and NPTv6 need startup.conf changes** → they are gated on the handover flag below or on an explicit PENDING decision.
 3. **Workers:** no `cpu { corelist-workers }` yet — fine for functional work; irrelevant for FAST MODE (no performance work).
 
+## Per-slot test VPPs (LAB-vpp-per-slot, 2026-10-06)
+No host change: `tools/lab vpp up <N>` starts extra VPP processes (`ngfw-vpp-w<N>`, `/run/ngfw-test/w<N>/vpp`, shm prefix `w<N>`) without
+hugepages, without DPDK and without touching `/etc/vpp`, `vpp.service` or `/run/vpp`; see `shared-host-rules.md` §13. Verified 2026-10-06:
+slot 20 up/down twice, `vpp.service` MainPID 1014 / NRestarts 0 before and after, HugePages_Free unchanged by the instance.
+
 ## Handover
 `handover: pending` — owner of `/root/vpp`, `/etc/vpp/startup.conf`, packages and `vpp.service` is the VPP bring-up agent.
 Until `handover: done`: everyone may **use** VPP (API, vppctl, create *prefixed* interfaces/tables/routes per `shared-host-rules.md`); **nobody restarts or kills the VPP process** and nobody changes startup.conf, packages or the unit (D-012). Restart-safety is proven by the agent-restart simulation in FAST MODE DoD (3).

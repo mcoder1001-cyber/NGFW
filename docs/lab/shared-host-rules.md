@@ -118,3 +118,27 @@ policy, map and pool ids. No agent owns "every id" by default.
 - An id-allocating family takes its range only from `w.IDRange()` (never `nil`, never a missing option; df7: `df7.WithIDs(ids.DF7())`),
   and its test asserts that `NoIDs()` owns nothing.
 - Take VRF table ids typed by hand into tools/app from 13000–13999 too. The `vrf` descriptor does not check them.
+
+## 13. Per-slot VPP for tests (LAB-vpp-per-slot, D-125 option F)
+`tools/lab vpp up <N>` starts a small VPP of slot N **beside** the shared one; `tools/lab vpp down <N>` stops it and removes everything it
+left; `tools/lab vpp status [<N>]` shows unit, PID, RSS, sockets and version. The shared VPP (`vpp.service`, `/run/vpp/*`) is never
+touched and stays the VPP of tools/app, the product stack and every test that does not opt in.
+- **What it is:** the transient unit `ngfw-vpp-w<N>` (`systemd-run --collect -p MemoryMax=1024M -p Restart=no /usr/bin/vpp -c …`), runtime
+  dir `/run/ngfw-test/w<N>/vpp` (startup.conf, vpp.log, `api.sock`, `cli.sock`, `stats.sock`), API segment prefix `w<N>` →
+  `/dev/shm/w<N>-global_vm`, `/dev/shm/w<N>-vpe-api`. Main core `2 + (N-1) mod (cpus-2)` (never 0 or 1, the shared VPP's), no workers.
+- **Rendering:** `ngfw-startupgen --no-host --lab-slot <N>` from the document in `dataplane.json` next to it: dpdk, linux_cp and
+  linux_nl disabled (no PCI probing, no listener on the host's netlink), npt66 on, af_packet on (the rig), 4096 buffers, 512M main heap
+  and buffers on 4k pages — **no hugepages** (the host's 4096 × 2 MiB stay for vpp.service), statseg 32M, no poll-sleep-usec (with
+  it the idle main thread spins at ~17 % of a core; without it ~3 %). Generator and tool both refuse a file that names `/run/vpp` or
+  `socksvr { default }`. Measured on ngfw-a (2026-10-06): start ≈ 1 s, RSS ≈ 310 MiB (heap populated 236 MiB), 84 plugins.
+- **Limits:** at most `NGFW_LAB_VPP_MAX` developer instances (default 2, hard ceiling 4 until PENDING-vpp-host-hardening option A —
+  the VMware reservation — is answered); the CI slot 12 is not counted. Refused when MemAvailable − 1024 MiB would fall under 8192 MiB
+  (D-219), or when `tools/mem-canary.sh` (if present) fails. Slot 13 does not exist. Root only; the shared lab lock is held (`flock -s`)
+  while an instance starts/stops.
+- **Using it:** `eval "$(tools/lab env <N>)"` exports `NGFW_VPP_API_SOCKET`, `NGFW_VPP_CLI_SOCKET`, `NGFW_VPP_STATS_SOCKET`,
+  `NGFW_AGENT_VPP_API_SOCKET`, `NGFW_AGENT_VPP_STATS_SOCKET` and `NGFW_VPPCTL` (`vppctl -s <cli>`) — the slot instance's paths while its
+  unit is active, else the shared `/run/vpp/*` (so nothing changes for a slot without an instance). `tools/lab rig` follows
+  `NGFW_VPP_CLI_SOCKET`; Go helpers `vpptest.APISocket()/CLISocket()/StatsSocket()/VPPCtl()` and the test fixtures follow the variables.
+  `tools/ci.sh full` uses the CI slot's own VPP only with `NGFW_CI_SLOT_VPP=1` (opt-in until the suites are validated there).
+- **Rules that still apply:** packet trace stays banned (§11, the ci.sh guard has no escape hatch), prefixed objects only, stop your
+  instance (`tools/lab vpp down <N>`) before you finish — it is a process you started (§5, §10).

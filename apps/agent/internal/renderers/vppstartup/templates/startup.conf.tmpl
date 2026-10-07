@@ -9,9 +9,15 @@
 
 unix {
   nodaemon
+{{- if .S.RuntimeDir}}
+  runtime-dir {{pathtok .S.RuntimeDir}}
+{{- end}}
   log {{pathtok .S.LogFile}}
   full-coredump
   cli-listen {{pathtok .S.CLISocket}}
+{{- if .S.PollSleepUsec}}
+  poll-sleep-usec {{.S.PollSleepUsec}}
+{{- end}}
   gid {{ident .S.Group}}
 }
 
@@ -20,16 +26,35 @@ api-trace {
 }
 
 api-segment {
+{{- if .S.APIPrefix}}
+  prefix {{ident .S.APIPrefix}}
+{{- end}}
   gid {{ident .S.Group}}
 }
 
 socksvr {
+{{- if .S.APISocket}}
+  socket-name {{pathtok .S.APISocket}}
+{{- else}}
   default
+{{- end}}
 }
 
 statseg {
   socket-name {{pathtok .S.StatsSocket}}
+{{- if .S.StatsegMB}}
+  size {{.S.StatsegMB}}M
+{{- end}}
 }
+{{- if .S.MainHeapMB}}
+
+memory {
+  main-heap-size {{.S.MainHeapMB}}M
+{{- if .S.MainHeapPageSize}}
+  main-heap-page-size {{ident .S.MainHeapPageSize}}
+{{- end}}
+}
+{{- end}}
 
 cpu {
   main-core {{.M.MainCore}}
@@ -37,10 +62,15 @@ cpu {
   corelist-workers {{.M.Corelist}}
 {{- end}}
 }
-{{- if .M.BuffersPerNuma}}
+{{- if or .M.BuffersPerNuma .S.BuffersPageSize}}
 
 buffers {
+{{- if .M.BuffersPerNuma}}
   buffers-per-numa {{.M.BuffersPerNuma}}
+{{- end}}
+{{- if .S.BuffersPageSize}}
+  page-size {{ident .S.BuffersPageSize}}
+{{- end}}
 }
 {{- end}}
 {{- if .M.DPDK}}

@@ -13,7 +13,14 @@
 #   tools/lab kill-vpp <vm>                  same guard; SIGKILL to the vpp unit (systemd restarts it) — simulates a crash
 #   tools/lab lock shared|exclusive <cmd...> run <cmd> under flock -s|-x /run/lock/ngfw-lab.lock (test harnesses use shared)
 #   tools/lab lock status                    who holds the lab lock
-#   tools/lab env <slot>                     print the slot exports from docs/lab/shared-host-rules.md (eval "$(tools/lab env 3)")
+#   tools/lab env <slot>                     print the slot exports from docs/lab/shared-host-rules.md (eval "$(tools/lab env 3)");
+#                                            NGFW_VPP_{API,CLI,STATS}_SOCKET, NGFW_AGENT_VPP_{API,STATS}_SOCKET, NGFW_VPPCTL name the
+#                                            slot's own VPP while `vpp up <slot>` runs, else the shared /run/vpp/* (unchanged)
+#   tools/lab vpp up|down <slot>             a small VPP of this slot (LAB-vpp-per-slot, §13 of shared-host-rules.md): transient unit
+#                                            ngfw-vpp-w<N>, runtime dir /run/ngfw-test/w<N>/vpp, api-segment prefix w<N>, own api/cli/stats
+#                                            sockets, dpdk/linux_cp/linux_nl off, 512M heap, buffers on 4k pages (no hugepages); the
+#                                            startup.conf is rendered by ngfw-startupgen --lab-slot. Never touches vpp.service or /run/vpp
+#   tools/lab vpp status [<slot>]            the slot instances: unit state, PID, RSS, sockets, version
 #   tools/lab rig up|down|gc|show <prefix>   veth/netns packet rig through VPP af_packet host-interfaces (prefix = NGFW_TEST_PREFIX);
 #                                            w<N> → 10.<N>.{1,2}.0/24 (the prefix wins over NGFW_SLOT); other prefixes need NGFW_SLOT
 #   tools/lab inventory                      list test/topology/*.yml
@@ -21,6 +28,8 @@
 # Hard rules (docs/lab/host-ngfw-a.md, docs/lab/shared-host-rules.md): never edits /etc/vpp/*, never installs/removes packages on
 # this host, never restarts or kills VPP while handover is pending, only touches objects that carry the caller's prefix
 # (rig down/gc match the exact rig names: `w1` never touches `w11`'s objects). rig up/down/gc hold flock -s on the lab lock.
+# The rig's VPP CLI helpers talk to $NGFW_VPP_CLI_SOCKET (default /run/vpp/cli.sock): after `eval "$(tools/lab env N)"` with the
+# slot VPP up, `rig up wN` builds the rig on the slot's own VPP. `vpp up|down` only ever start/stop the unit ngfw-vpp-w<N>.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
@@ -146,17 +155,22 @@ MSG
 
 # ---------------------------------------------------------------- vppctl
 vppctl_on() { run_on "$1" vppctl "${@:2}"; }
+SHARED_CLI_SOCK=/run/vpp/cli.sock
+# the rig's VPP: $NGFW_VPP_CLI_SOCKET (tools/lab env <N> names the slot's own VPP while it runs), else the shared one.
+# Bounded (LAB_VPPCTL_TIMEOUT, default 120 s: af_packet ring setup has stalled the shared VPP for minutes, D-108).
+lab_cli_sock() { echo "${NGFW_VPP_CLI_SOCKET:-$SHARED_CLI_SOCK}"; }
+lab_vppctl() { timeout "${LAB_VPPCTL_TIMEOUT:-120}" vppctl -s "$(lab_cli_sock)" "$@"; }
 vpp_cli_ok() {  # run a vppctl command locally, fail on CLI error text. Prints output.
   local out
-  out="$(vppctl "$@" 2>&1)" || { echo "$out"; return 1; }
+  out="$(lab_vppctl "$@" 2>&1)" || { echo "$out"; return 1; }
   if grep -qiE '(^|[^a-z])(error|fail|failed|unknown input|invalid|not found|no such|conflicts?|already)' <<<"$out"; then echo "$out"; return 1; fi
   echo "$out"
 }
-vpp_plugins() { vppctl show plugins 2>/dev/null || true; }          # captured by callers via $(...), never piped into grep -q
-vpp_ifnames() { vppctl show interface 2>/dev/null | tr -d '\r' | awk 'NR>1 && /^[^ ]/{print $1}' || true; }   # skip counter rows; vppctl emits CRLF
+vpp_plugins() { lab_vppctl show plugins 2>/dev/null || true; }          # captured by callers via $(...), never piped into grep -q
+vpp_ifnames() { lab_vppctl show interface 2>/dev/null | tr -d '\r' | awk 'NR>1 && /^[^ ]/{print $1}' || true; }   # skip counter rows; vppctl emits CRLF
 vpp_has_plugin() { grep -qE "^ *[0-9]+\. +${1}_plugin\.so" <<<"$(vpp_plugins)"; }
 vpp_if_exists() { grep -qx -- "$1" <<<"$(vpp_ifnames)"; }
-vpp_if_addrs() { vppctl show interface addr "$1" 2>/dev/null | tr -d '\r' | awk '$1=="L3"{print $2}' || true; }   # L3 addresses VPP really has (CRLF stripped)
+vpp_if_addrs() { lab_vppctl show interface addr "$1" 2>/dev/null | tr -d '\r' | awk '$1=="L3"{print $2}' || true; }   # L3 addresses VPP really has (CRLF stripped)
 
 # ---------------------------------------------------------------- status
 svc_line() {  # <unit> → "active (enabled) pid 123 since ..."
@@ -189,6 +203,7 @@ REMOTE
   apisock="$(inv_get "$vm" vpp.api_socket /run/vpp/api.sock)"
   clisock="$(inv_get "$vm" vpp.cli_socket /run/vpp/cli.sock)"
   statsock="$(inv_get "$vm" vpp.stats_socket /run/vpp/stats.sock)"
+  local NGFW_VPP_CLI_SOCKET="$clisock"   # status describes the shared VPP, whatever slot env the caller evaluated
   echo "host:        $(hostname) · $(. /etc/os-release && echo "$PRETTY_NAME") · $(uname -r) · load $(cut -d' ' -f1-3 /proc/loadavg)"
   echo "vpp.service: $(svc_line "$unit")"
   if [[ "$(systemctl is-active "$unit" 2>/dev/null)" == "active" ]] && [[ -S "$clisock" ]]; then
@@ -233,6 +248,7 @@ REMOTE
   vk_listen="$(ss -Hltn 2>/dev/null | awk '$4 ~ /:6379$/ {print $4}' | tr '\n' ' ')"
   echo "valkey:      ${vk_state:-absent} · ${vk_ver:-?} · listen ${vk_listen:-none} · ping $vk_ping"
   echo "locks:       $LAB_LOCK: $(lock_status_word "$LAB_LOCK") · $VPP_LOCK: $(lock_status_word "$VPP_LOCK")"
+  echo "slot VPPs:   $(lab_vpp_units active | tr '\n' ' ')(tools/lab vpp status)"
 }
 
 # ---------------------------------------------------------------- locks
@@ -253,10 +269,11 @@ cmd_lock() {
 }
 
 # ---------------------------------------------------------------- env <slot>
+valid_slot() { [[ "$1" =~ ^[0-9]+$ ]] && (( 10#$1 >= 1 && 10#$1 <= 32 && 10#$1 != 13 )); }
 cmd_env() {
   local n="${1:-}" http web
   # slots 1-11 workers, 12 CI, 13 does not exist (13000-13999 = tools/app), 14-32 workers (D-156): 30 developer slots
-  if [[ "$n" =~ ^[0-9]+$ ]] && (( n >= 1 && n <= 32 && n != 13 )); then :; else die "env <slot>: slot must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"; fi
+  if valid_slot "$n" && [[ "$n" != 0* ]]; then :; else die "env <slot>: slot must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"; fi
   if (( n <= 12 )); then http=$(( 3000 + n * 100 )); web=$(( 5000 + n * 100 ))    # unchanged for the running slots
   else http=$(( 10000 + n * 100 )); web=$(( 14000 + n * 100 )); fi                # 3<N>00 would hit 5<M>00 of slots 1-12
   cat <<EOV
@@ -270,6 +287,18 @@ export NGFW_PG_DATABASE=ngfw_w$n
 export NGFW_VALKEY_DB=$n
 export NGFW_VPP_TABLE_BASE=$(( n * 1000 ))
 export NGFW_LAB_LOCK=$LAB_LOCK
+EOV
+  # the VPP this slot's tests talk to: its own instance while `tools/lab vpp up <n>` runs, else the shared one (D-125 option F)
+  local dir="/run/vpp" what="shared vpp.service"
+  if lab_vpp_running "$n"; then dir="$(lab_vpp_dir "$n")"; what="slot instance $(lab_vpp_unit "$n")"; fi
+  cat <<EOV
+# VPP: $what
+export NGFW_VPP_API_SOCKET=$dir/api.sock
+export NGFW_VPP_CLI_SOCKET=$dir/cli.sock
+export NGFW_VPP_STATS_SOCKET=$dir/stats.sock
+export NGFW_AGENT_VPP_API_SOCKET=$dir/api.sock
+export NGFW_AGENT_VPP_STATS_SOCKET=$dir/stats.sock
+export NGFW_VPPCTL="vppctl -s $dir/cli.sock"
 EOV
 }
 
@@ -414,10 +443,10 @@ cmd_rig() {
     up)
       rig_require_root; need vppctl; need ip
       rig_resolve_slot 1
-      [[ -S "$(inv_get "$DEFAULT_VM" vpp.cli_socket /run/vpp/cli.sock)" ]] || die "rig: VPP CLI socket missing — is VPP running?"
+      [[ -S "$(lab_cli_sock)" ]] || die "rig: VPP CLI socket $(lab_cli_sock) missing — is VPP running? (NGFW_VPP_CLI_SOCKET selects a slot VPP)"
       vpp_has_plugin af_packet || die "rig: af_packet plugin is not loaded in VPP"
       rig_shared_lock
-      hdr "rig up $P (slot $SLOT, path af_packet)"
+      hdr "rig up $P (slot $SLOT, path af_packet, VPP $(lab_cli_sock))"
       rig_side_up "$NS_LAN" "$L0" "$L1" "$VL" "$LAN_GW" "$LAN_IP"
       rig_side_up "$NS_WAN" "$W0" "$W1" "$VW" "$WAN_GW" "$WAN_IP"
       rig_print up ;;
@@ -451,6 +480,188 @@ cmd_rig() {
   esac
 }
 
+# ---------------------------------------------------------------- per-slot VPP (LAB-vpp-per-slot, D-125 option F)
+# A small VPP of ONE test slot beside the shared vpp.service: its own process (transient systemd unit ngfw-vpp-w<N>), runtime dir,
+# sockets and /dev/shm segments (api-segment prefix w<N>), so nothing it does can reach /run/vpp or the shared VPP's state.
+# No host change: no DPDK, no workers, a 512M main heap and buffers on 4k pages (no hugepages), MemoryMax=1G.
+# Overridable for tests only (tools/tests/test_lab_vpp.py): NGFW_LAB_VPP_ROOT, NGFW_LAB_SHM_DIR, NGFW_LAB_MEMINFO, NGFW_STARTUPGEN,
+# NGFW_LAB_VPP_BIN, NGFW_LAB_PLUGIN_DIR, NGFW_LAB_VPP_WAIT.
+LAB_VPP_ROOT="${NGFW_LAB_VPP_ROOT:-/run/ngfw-test}"
+LAB_SHM_DIR="${NGFW_LAB_SHM_DIR:-/dev/shm}"
+LAB_MEMINFO="${NGFW_LAB_MEMINFO:-/proc/meminfo}"
+LAB_VPP_BIN="${NGFW_LAB_VPP_BIN:-/usr/bin/vpp}"
+LAB_PLUGIN_DIR="${NGFW_LAB_PLUGIN_DIR:-/usr/lib/x86_64-linux-gnu/vpp_plugins}"
+LAB_VPP_MEMORY_MAX_MB=1024             # systemd MemoryMax of one instance (heap 512M + statseg 32M + buffers ~10M + plugins)
+LAB_VPP_MEM_FLOOR_MB=8192              # MemAvailable that must remain after an instance's MemoryMax (D-219)
+LAB_VPP_MAX_CEILING=4                  # hard ceiling until PENDING-vpp-host-hardening option A (VMware reservation) is answered
+LAB_VPP_CI_SLOT=12                     # the CI slot's instance is not counted against the developer cap (one CI gate at a time)
+lab_vpp_unit() { echo "ngfw-vpp-w$1"; }
+lab_vpp_dir() { echo "$LAB_VPP_ROOT/w$1/vpp"; }
+lab_vpp_units() {  # [active|all] → unit names ngfw-vpp-w<N>, one per line
+  local state=(--state=active); [[ "${1:-active}" == all ]] && state=(--all)
+  systemctl list-units --type=service "${state[@]}" --no-legend --plain 'ngfw-vpp-w*' 2>/dev/null \
+    | awk '{print $1}' | sed -nE 's/^(ngfw-vpp-w[0-9]+)\.service$/\1/p' | sort -V || true
+}
+lab_vpp_running() { valid_slot "$1" && systemctl is-active --quiet "$(lab_vpp_unit "$1").service" 2>/dev/null && [[ -S "$(lab_vpp_dir "$1")/api.sock" ]]; }
+lab_vpp_slot() {  # <slot> → validated number (refuses 13, 0, > 32, leading zeros) and the shared VPP's paths
+  local n="${1:-}"
+  { valid_slot "$n" && [[ "$n" != 0* ]]; } || die "vpp: slot '$n' must be 1..12 or 14..32 (13 is reserved for tools/app; docs/lab/shared-host-rules.md §1)"
+  local dir; dir="$(lab_vpp_dir "$n")"
+  [[ "$dir" == /* && "$dir" != /run/vpp && "$dir" != /run/vpp/* ]] || die "vpp: runtime dir $dir would be the shared VPP's /run/vpp"
+  [[ "$(lab_vpp_unit "$n")" =~ ^ngfw-vpp-w[0-9]+$ ]] || die "vpp: bad unit name"
+  echo "$n"
+}
+lab_meminfo_mb() { awk -v k="$1:" '$1==k {print int($2/1024)}' "$LAB_MEMINFO"; }
+lab_startupgen() {  # → path of an ngfw-startupgen built from THIS tree (or $NGFW_STARTUPGEN)
+  if [[ -n "${NGFW_STARTUPGEN:-}" ]]; then [[ -x "$NGFW_STARTUPGEN" ]] || die "vpp: NGFW_STARTUPGEN=$NGFW_STARTUPGEN is not executable"; echo "$NGFW_STARTUPGEN"; return; fi
+  need go
+  local out="${XDG_CACHE_HOME:-$HOME/.cache}/ngfw-lab/ngfw-startupgen"
+  mkdir -p "$(dirname "$out")"
+  go -C "$ROOT/apps/agent" build -o "$out" ./cmd/ngfw-startupgen >&2 || die "vpp: go build ./cmd/ngfw-startupgen failed"
+  echo "$out"
+}
+lab_vpp_document() {  # <slot> <main-core> → the dataplane document of a slot instance (no workers, no DPDK/linux-cp/linux-nl)
+  cat <<DOC
+{"dataplane": {"mainCore": $2, "workers": 0, "buffersPerNuma": 4096, "plugins": {"switches": {
+  "dpdk_plugin.so": false, "linux_cp_plugin.so": false, "linux_nl_plugin.so": false, "npt66_plugin.so": true}}}}
+DOC
+}
+lab_vpp_main_core() {  # <slot> → a CPU of its own per slot, never 0 or 1 (vpp.service's main thread runs on 1): 2 + (N-1) mod (cpus-2)
+  local cpus; cpus="$(nproc 2>/dev/null || echo 4)"; (( cpus > 2 )) || { echo 0; return; }
+  echo $(( 2 + ($1 - 1) % (cpus - 2) ))
+}
+lab_vpp_leftovers() {  # <slot> → what of this slot's instance still exists (empty = clean)
+  local n="$1" dir unit f; dir="$(lab_vpp_dir "$n")"; unit="$(lab_vpp_unit "$n")"
+  local st; st="$(systemctl show "$unit.service" -p ActiveState --value 2>/dev/null || true)"
+  [[ -z "$st" || "$st" == inactive ]] || echo "unit $unit.service ($st)"
+  [[ ! -e "$dir" ]] || echo "runtime dir $dir"
+  for f in "$LAB_SHM_DIR/w$n"-*; do [[ -e "$f" ]] && echo "shm $f"; done
+  pgrep -f -x "$LAB_VPP_BIN -c $dir/startup.conf" >/dev/null 2>&1 && echo "process $LAB_VPP_BIN -c $dir/startup.conf"
+  return 0
+}
+lab_vpp_remove_files() {  # <slot> — the runtime dir and /dev/shm/w<N>-* of a STOPPED instance (exact names: w2 never matches w20-*)
+  local n="$1" dir f; dir="$(lab_vpp_dir "$n")"
+  [[ "$dir" == "$LAB_VPP_ROOT/w$n/vpp" && "$dir" != /run/vpp* ]] || die "vpp: refusing to remove $dir"
+  if [[ -e "$dir" ]]; then rm -rf -- "$dir" && echo "  removed $dir"; fi
+  for f in "$LAB_SHM_DIR/w$n"-*; do if [[ -e "$f" ]]; then rm -f -- "$f" && echo "  removed $f"; fi; done
+}
+lab_vpp_stop_unit() {  # <slot>
+  local unit; unit="$(lab_vpp_unit "$1").service"
+  if systemctl is-active --quiet "$unit" 2>/dev/null; then
+    timeout 60 systemctl stop "$unit" || die "vpp: systemctl stop $unit failed"; echo "  stopped $unit"; fi
+  systemctl reset-failed "$unit" >/dev/null 2>&1 || true   # a failed transient unit stays listed until reset (--collect covers the rest)
+}
+lab_vpp_lock() {  # flock -s on the lab lock while an instance starts/stops (a VPP restart / ci full barrier holds it exclusively)
+  [[ -n "${NGFW_LAB_LOCK_HELD:-}" ]] && return 0
+  exec 9>>"$LAB_LOCK" || die "vpp: cannot open $LAB_LOCK"
+  flock -s -w 120 9 || die "vpp: $LAB_LOCK is held exclusively (manager ci full / VPP restart) — retry when 'tools/lab lock status' says free"
+}
+lab_vpp_print() {  # <slot>
+  local n="$1" unit dir pid rss ver
+  unit="$(lab_vpp_unit "$n")"; dir="$(lab_vpp_dir "$n")"
+  pid="$(systemctl show "$unit.service" -p MainPID --value 2>/dev/null || echo 0)"
+  rss="$(awk '/^VmRSS:/{printf "%d MiB", $2/1024}' "/proc/${pid:-0}/status" 2>/dev/null || true)"
+  ver="$(timeout 10 vppctl -s "$dir/cli.sock" show version 2>/dev/null | tr -d '\r' || true)"
+  cat <<EOS
+vpp: $(systemctl show "$unit.service" -p ActiveState --value 2>/dev/null || echo unknown)
+slot: $n
+unit: $unit.service
+pid: ${pid:-0}
+rss: ${rss:--}
+runtime_dir: $dir
+api_socket: $dir/api.sock $([[ -S "$dir/api.sock" ]] && echo present || echo absent)
+cli_socket: $dir/cli.sock $([[ -S "$dir/cli.sock" ]] && echo present || echo absent)
+stats_socket: $dir/stats.sock $([[ -S "$dir/stats.sock" ]] && echo present || echo absent)
+version: ${ver:--}
+vppctl: vppctl -s $dir/cli.sock
+env: eval "\$(tools/lab env $n)"
+EOS
+}
+cmd_vpp_up() {
+  local n; n="$(lab_vpp_slot "${1:-}")"
+  local unit dir conf; unit="$(lab_vpp_unit "$n")"; dir="$(lab_vpp_dir "$n")"; conf="$dir/startup.conf"
+  [[ $EUID -eq 0 ]] || die "vpp: must run as root (systemd-run, /run/ngfw-test)"
+  need systemd-run; need vppctl; [[ -x "$LAB_VPP_BIN" ]] || die "vpp: $LAB_VPP_BIN not found"
+  if lab_vpp_running "$n"; then hdr "vpp up $n: $unit already running"; lab_vpp_print "$n"; return 0; fi
+  # caps (D-219/D-224): instance count, memory floor; mem-canary when the tree has it
+  local max="${NGFW_LAB_VPP_MAX:-2}" running others
+  if [[ "$max" =~ ^[0-9]+$ ]] && (( max >= 1 && max <= LAB_VPP_MAX_CEILING )); then :; else die "vpp: NGFW_LAB_VPP_MAX=$max must be 1..$LAB_VPP_MAX_CEILING (hard ceiling until PENDING-vpp-host-hardening option A is answered)"; fi
+  others="$(lab_vpp_units active | grep -vx "ngfw-vpp-w$LAB_VPP_CI_SLOT" || true)"
+  running="$(grep -c . <<<"$others" || true)"
+  if (( n != LAB_VPP_CI_SLOT && running >= max )); then
+    die "vpp: $running slot VPP(s) already run ($(tr '\n' ' ' <<<"$others")) — NGFW_LAB_VPP_MAX=$max (ceiling $LAB_VPP_MAX_CEILING); stop one with 'tools/lab vpp down <slot>'"
+  fi
+  local avail; avail="$(lab_meminfo_mb MemAvailable)"
+  [[ -n "$avail" ]] || die "vpp: cannot read MemAvailable from $LAB_MEMINFO"
+  (( avail - LAB_VPP_MEMORY_MAX_MB >= LAB_VPP_MEM_FLOOR_MB )) \
+    || die "vpp: MemAvailable ${avail} MiB − ${LAB_VPP_MEMORY_MAX_MB} MiB (this instance) is under the ${LAB_VPP_MEM_FLOOR_MB} MiB floor (D-219)"
+  if [[ -x "$ROOT/tools/mem-canary.sh" ]]; then "$ROOT/tools/mem-canary.sh" >&2 || die "vpp: tools/mem-canary.sh failed (D-224)"; fi
+  # buffers and the main heap are on 4k pages: an instance needs no hugepages (HugePages_Free is reported, not consumed)
+  local hp_free; hp_free="$(awk '$1=="HugePages_Free:"{print $2}' "$LAB_MEMINFO")"
+  lab_vpp_lock
+  hdr "vpp up $n → $unit (runtime $dir, MemAvailable ${avail} MiB, HugePages_Free ${hp_free:-?} untouched)"
+  # stale state of an instance that is not running (crash, reboot of /run is fine, killed unit): remove exactly its files
+  local left; left="$(lab_vpp_leftovers "$n")"
+  if [[ -n "$left" ]]; then echo "  stale state of a stopped instance:"; printf '    %s\n' "${left//$'\n'/$'\n    '}"; lab_vpp_stop_unit "$n"; lab_vpp_remove_files "$n"; fi
+  mkdir -p "$dir"; chmod 0755 "$dir"
+  local gen core mgmt hp_mb; gen="$(lab_startupgen)"; core="$(lab_vpp_main_core "$n")"
+  # the generator's buffer budget check wants the host's reservation; the instance itself uses none of it (4k pages)
+  hp_mb=$(( $(awk '$1=="HugePages_Total:"{print $2}' "$LAB_MEMINFO") * 2 )); (( hp_mb > 0 )) || hp_mb=64
+  mgmt="$(inv_nics "$DEFAULT_VM" 2>/dev/null | awk '$4=="mgmt"{print $2}' | head -1)"; [[ "$mgmt" =~ ^[0-9a-f]{4}: ]] || mgmt=0000:0b:00.0
+  lab_vpp_document "$n" "$core" > "$dir/dataplane.json"
+  # --no-host: every fact from flags (dpdk is off, so the management NIC is never rendered; it only satisfies Host.Check)
+  "$gen" --no-host --lab-slot "$n" --lab-root "$LAB_VPP_ROOT" --mgmt-pci "$mgmt" --plugin-dir "$LAB_PLUGIN_DIR" \
+    --online-cpus "0-$(( $(nproc) - 1 ))" --numa-nodes 1 --hugepages-mb "$hp_mb" \
+    --current none -o "$conf" "$dir/dataplane.json" 2> "$dir/startupgen.log" \
+    || { cat "$dir/startupgen.log" >&2; lab_vpp_remove_files "$n" >/dev/null; die "vpp: ngfw-startupgen --lab-slot $n failed"; }
+  # fail closed a second time, independent of the generator: no shared path, no `socksvr { default }`
+  if grep -q '/run/vpp' "$conf" || tr -s ' \n\t' ' ' < "$conf" | grep -qE 'socksvr \{ default'; then
+    lab_vpp_remove_files "$n" >/dev/null; die "vpp: rendered $conf names the shared VPP — refusing to start"; fi
+  if ! grep -qE "^ *prefix w$n\$" "$conf" || ! grep -qE "^ *runtime-dir $dir\$" "$conf"; then
+    lab_vpp_remove_files "$n" >/dev/null; die "vpp: $conf lacks prefix w$n / runtime-dir $dir"; fi
+  echo "  rendered $conf (main-core $core; $(grep -c . "$conf") lines; sha256 $(sha256sum "$conf" | cut -c1-12))"
+  systemd-run --quiet --unit="$unit" --collect --description="NGFW lab VPP of slot $n (tools/lab vpp)" \
+    -p MemoryMax="${LAB_VPP_MEMORY_MAX_MB}M" -p Restart=no \
+    "$LAB_VPP_BIN" -c "$conf" || { lab_vpp_remove_files "$n" >/dev/null; die "vpp: systemd-run $unit failed"; }
+  local i wait="${NGFW_LAB_VPP_WAIT:-60}"
+  for (( i = 0; i < wait * 2; i++ )); do
+    if ! systemctl is-active --quiet "$unit.service"; then
+      journalctl -u "$unit.service" -n 30 --no-pager >&2 2>/dev/null || true
+      [[ -r "$dir/vpp.log" ]] && tail -n 20 "$dir/vpp.log" >&2
+      lab_vpp_stop_unit "$n"; lab_vpp_remove_files "$n" >/dev/null
+      die "vpp: $unit exited during start (log above)"
+    fi
+    if [[ -S "$dir/api.sock" && -S "$dir/cli.sock" ]] && timeout 10 vppctl -s "$dir/cli.sock" show version >/dev/null 2>&1; then break; fi
+    sleep 0.5
+  done
+  if (( i >= wait * 2 )); then lab_vpp_stop_unit "$n"; lab_vpp_remove_files "$n" >/dev/null; die "vpp: $unit did not answer on $dir/cli.sock within ${wait}s"; fi
+  echo "  $unit answers on $dir/cli.sock after $(( i / 2 )).$(( i % 2 * 5 ))s"
+  lab_vpp_print "$n"
+}
+cmd_vpp_down() {
+  local n; n="$(lab_vpp_slot "${1:-}")"
+  [[ $EUID -eq 0 ]] || die "vpp: must run as root"
+  lab_vpp_lock
+  hdr "vpp down $n ($(lab_vpp_unit "$n") only — never vpp.service)"
+  lab_vpp_stop_unit "$n"
+  lab_vpp_remove_files "$n"
+  local left; left="$(lab_vpp_leftovers "$n")"
+  [[ -z "$left" ]] || { printf '  LEFTOVER %s\n' "${left//$'\n'/$'\n  LEFTOVER '}"; die "vpp down $n left state behind"; }
+  echo "vpp: down"; echo "slot: $n"
+}
+cmd_vpp() {
+  local action="${1:-}"; shift || true
+  case "$action" in
+    up)   [[ $# -eq 1 ]] || die "vpp up <slot>";   cmd_vpp_up "$1" ;;
+    down) [[ $# -eq 1 ]] || die "vpp down <slot>"; cmd_vpp_down "$1" ;;
+    status|show)
+      if [[ $# -ge 1 ]]; then lab_vpp_print "$(lab_vpp_slot "$1")"; else
+        local u any=0; while read -r u; do [[ -n "$u" ]] || continue; any=1; lab_vpp_print "${u#ngfw-vpp-w}"; echo; done < <(lab_vpp_units all)
+        (( any )) || echo "no slot VPP instances (tools/lab vpp up <slot>)"; fi ;;
+    *) die "vpp up|down <slot> | vpp status [<slot>]" ;;
+  esac
+}
+
 # ---------------------------------------------------------------- provision
 cmd_provision_local_verify() {
   local vm="$1"
@@ -458,6 +669,7 @@ cmd_provision_local_verify() {
   local want_os apisock clisock statsock api_dir
   want_os="$(inv_get "$vm" os ubuntu-26.04)"
   apisock="$(inv_get "$vm" vpp.api_socket /run/vpp/api.sock)"; clisock="$(inv_get "$vm" vpp.cli_socket /run/vpp/cli.sock)"; statsock="$(inv_get "$vm" vpp.stats_socket /run/vpp/stats.sock)"
+  local NGFW_VPP_CLI_SOCKET="$clisock"   # verify the shared VPP, whatever slot env the caller evaluated
   api_dir="${VPP_API_DIR:-/usr/share/vpp/api}"
   # shellcheck disable=SC1091
   local os_id; os_id="$(. /etc/os-release && echo "$ID-$VERSION_ID")"
@@ -644,6 +856,7 @@ main() {
     lock)        cmd_lock "$@" ;;
     env)         cmd_env "$@" ;;
     rig)         cmd_rig "$@" ;;
+    vpp)         cmd_vpp "$@" ;;
     inventory)   for v in $(inv_list); do printf '%-12s mgmt=%-16s role=%-10s state=%s\n' "$v" "$(inv_get "$v" mgmt)" "$(inv_get "$v" role)" "$(inv_get "$v" state active)"; done ;;
     help|-h|--help) usage 0 ;;
     *) echo "unknown command: $cmd" >&2; usage 1 ;;

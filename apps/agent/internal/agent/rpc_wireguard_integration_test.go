@@ -284,7 +284,7 @@ func TestWireguardOnHost(t *testing.T) {
 	t.Logf("idempotent apply: %s", protojson.Format(resp.GetSummary()))
 
 	// 3. live state
-	st, err := h.svc.WireguardState(ctx, &ngfwv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
+	st, err := h.svc.WireguardState(ctx, &ngfwv1.WireguardStateRequest{}, newStatsReader(vpptest.StatsSocket(), h.svc.log))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -461,7 +461,7 @@ func TestWireguardHandshakeOnHost(t *testing.T) {
 	trafficBProbe(t, repoRootP12(t), "wireguard", slot, true)
 	t.Logf("ping through the tunnel:\n%s", run("ip", "netns", "exec", ns, "ping", "-c", "3", "-W", "2", fmt.Sprintf("10.%d.61.1", slot)))
 	t.Logf("kernel peer (wg show, keys are public):\n%s", run("ip", "netns", "exec", ns, "wg", "show", kernIf, "latest-handshakes"))
-	st, err := h.svc.WireguardState(context.Background(), &ngfwv1.WireguardStateRequest{}, newStatsReader("/run/vpp/stats.sock", h.svc.log))
+	st, err := h.svc.WireguardState(context.Background(), &ngfwv1.WireguardStateRequest{}, newStatsReader(vpptest.StatsSocket(), h.svc.log))
 	if err != nil {
 		t.Fatal(err)
 	}

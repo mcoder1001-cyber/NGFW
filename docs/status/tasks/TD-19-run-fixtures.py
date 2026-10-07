@@ -15,6 +15,7 @@ SCRIPTS = (
     'TD-19-test-build-preflight.py',
     'TD-19-test-containerlab.py',
     'TD-19-test-repo-keys.py',
+    'TD-19-test-repository-trust.py',
     'TD-19-test-shell-source.py',
 )
 

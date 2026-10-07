@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -47,6 +48,44 @@ type Settings struct {
 	StatsSocket string
 	// Group owns the API segment and the CLI socket (`gid`).
 	Group string
+
+	// The fields below describe a lab instance (LAB-vpp-per-slot, LabSlotSettings: a small VPP of
+	// one test slot beside the shared one). Their zero values render nothing, so the appliance file
+	// is byte-identical to a rendering without them.
+
+	// RuntimeDir is `unix { runtime-dir … }` (VPP's default is /run/vpp).
+	RuntimeDir string
+	// PollSleepUsec is `unix { poll-sleep-usec … }` (0 = VPP's default).
+	PollSleepUsec uint32
+	// APIPrefix is `api-segment { prefix … }`: the name prefix of the instance's /dev/shm segments.
+	APIPrefix string
+	// APISocket is `socksvr { socket-name … }`; "" renders `socksvr { default }`.
+	APISocket string
+	// StatsegMB is `statseg { size <n>M }` (0 = VPP's default, 32M).
+	StatsegMB uint32
+	// MainHeapMB is `memory { main-heap-size <n>M }` (0 = no memory section: VPP's 1G default).
+	MainHeapMB uint32
+	// MainHeapPageSize is `memory { main-heap-page-size … }` (one of PageSizes; "" = VPP's default).
+	MainHeapPageSize string
+	// BuffersPageSize is `buffers { page-size … }` (one of PageSizes; "" = VPP's default, which
+	// tries hugepages first).
+	BuffersPageSize string
+}
+
+// PageSizes are the page-size words the renderer accepts (VPP's unformat_log2_page_size).
+var PageSizes = []string{"4k", "2m", "1g", "default", "default-hugepage"}
+
+// check validates the optional lab fields; the appliance defaults always pass.
+func (s Settings) check() error {
+	for _, p := range []struct{ name, v string }{{"main-heap-page-size", s.MainHeapPageSize}, {"buffers page-size", s.BuffersPageSize}} {
+		if p.v != "" && !slices.Contains(PageSizes, p.v) {
+			return fmt.Errorf("%w: %s %q is not one of %v", renderers.ErrUnsafe, p.name, p.v, PageSizes)
+		}
+	}
+	if s.MainHeapMB > 0 && s.MainHeapMB < 64 {
+		return fmt.Errorf("%w: main-heap-size %dM is below 64M", renderers.ErrUnsafe, s.MainHeapMB)
+	}
+	return nil
 }
 
 // DefaultSettings returns the appliance constants.
@@ -98,6 +137,9 @@ func Generate(msg proto.Message, host Host, s Settings) ([]byte, *Model, error) 
 func RenderModel(m *Model, s Settings) ([]byte, error) {
 	if m == nil {
 		return nil, fmt.Errorf("%w: nil model", ErrInput)
+	}
+	if err := s.check(); err != nil {
+		return nil, err
 	}
 	return renderers.Execute(startupTmpl, struct {
 		M *Model

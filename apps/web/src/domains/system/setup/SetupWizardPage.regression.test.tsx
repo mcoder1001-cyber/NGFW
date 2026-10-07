@@ -114,8 +114,18 @@ describe('setup wizard independent network-picker regression', () => {
     fake.on('GET /api/v1/state/interfaces', {
       body: {
         items: [
-          { name: 'wanNic', kind: 'interface', state: { swIfIndex: 4 }, physical: null },
-          { name: 'lanNic', kind: 'interface', state: { swIfIndex: 5 }, physical: null },
+          {
+            name: 'wanNic',
+            kind: 'interface',
+            state: { swIfIndex: 4, managed: false, vrf: 'default', type: 'dpdk' },
+            physical: null,
+          },
+          {
+            name: 'lanNic',
+            kind: 'interface',
+            state: { swIfIndex: 5, managed: false, vrf: 'default', type: 'dpdk' },
+            physical: null,
+          },
         ],
       },
     });

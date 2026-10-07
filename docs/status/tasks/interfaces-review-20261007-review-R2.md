@@ -10,11 +10,11 @@ Own check: `TMPDIR=/root/ngfw-review-tmp/interfaces-review tools/ci.sh check --b
 ok — contract commit(s) on the branch
 ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
 ok: no secret-shaped strings
-ok: gitleaks — scanned ~1554810 bytes(1.55 MB) in821ms no leaks found
-check PASSED(0m13s)
+ok: gitleaks — scanned ~1575882 bytes (1.58 MB) in 4.96s no leaks found
+check PASSED (0m43s)
 ```
 
 Final read-only Go resolver inspected: no new security boundary, host writes or shell; numeric virtio child bound excludes arbitrary USB/MMIO ancestry.
 
-Findings:0 BLOCKER;0 MAJOR;0 MINOR.
+Findings: 0 BLOCKER;0 MAJOR;0 MINOR.
 Verdict: APPROVE (source review; integration gates still required).

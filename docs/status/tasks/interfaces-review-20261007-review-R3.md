@@ -6,5 +6,5 @@ No unresolved contract finding. Response fields are optional/additive; existing 
 
 Inventory is one row per PCI function. Native vmxnet3 MAC matching also requires matching host driver and unique host/engine match. virtio/TAP MAC identity is deliberately not guessed; bounds disclosed. No migration or proto shape change.
 
-Findings:0 BLOCKER;0 MAJOR;0 MINOR.
+Findings: 0 BLOCKER;0 MAJOR;0 MINOR.
 Verdict: APPROVE (source review; integration gates still required).

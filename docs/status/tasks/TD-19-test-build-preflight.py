@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Exercise build-bootstrap configuration without running any host mutation."""
+import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -10,6 +12,55 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class BuildPreflight(unittest.TestCase):
+    def run_package_boundary(self, fail_at):
+        """Run the real entry; APT refuses before any absolute-path writes."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            log = root / 'calls'
+            recorder = '''#!/usr/bin/python3
+import json, os, pathlib, sys
+name = pathlib.Path(sys.argv[0]).name
+with open(os.environ['CALL_LOG'], 'a') as stream:
+    stream.write(json.dumps([name, *sys.argv[1:]]) + '\\n')
+raise SystemExit(42 if name == 'apt-get' and sys.argv[1] == os.environ['FAIL_AT'] else
+                 0 if name == 'apt-get' and sys.argv[1] == 'update' else 91)
+'''
+            for command in ('apt-get', 'curl', 'go', 'tar', 'rm', 'corepack', 'npm', 'python3'):
+                stub = root / command
+                stub.write_text(recorder)
+                stub.chmod(0o755)
+            env = dict(os.environ, PATH=f'{root}:/usr/bin:/bin', CALL_LOG=str(log), FAIL_AT=fail_at)
+            env.pop('NGFW_GO_SHA256', None)
+            # Portable hosted fixture: bypass only UID gate; retain actual control
+            # flow and canonical module validation, with every mutation blocked.
+            source = (ROOT / 'scripts/20-install-build.sh').read_text()
+            source = source.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
+            source = source.replace('GO_MODULE="$SCRIPT_DIR/../apps/agent/go.mod"',
+                                    'GO_MODULE=' + shlex.quote(str(ROOT / 'apps/agent/go.mod')), 1)
+            entry = root / 'entry.sh'
+            entry.write_text(source)
+            result = subprocess.run(['bash', str(entry)],
+                                    env=env, text=True, capture_output=True, timeout=10)
+            calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
+            return result, calls
+
+    def test_build_package_plan_excludes_container_and_hypervisor_dependencies(self):
+        result, calls = self.run_package_boundary('install')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertEqual(calls[0], ['apt-get', 'update'])
+        self.assertEqual(len(calls), 2, calls)
+        self.assertEqual(calls[1][:3], ['apt-get', 'install', '-y'])
+        packages = set(calls[1][3:])
+        self.assertFalse(packages & {'docker.io', 'docker-compose-v2', 'containerlab', 'qemu-kvm',
+                                     'libvirt-daemon-system', 'libvirt-clients', 'virtinst'})
+        self.assertTrue({'build-essential', 'libpcap-dev', 'libmnl-dev', 'protobuf-compiler',
+                         'nodejs', 'reprepro', 'qemu-utils', 'debootstrap'} <= packages)
+
+    def test_build_update_failure_stops_before_install_or_download(self):
+        result, calls = self.run_package_boundary('update')
+        self.assertEqual(result.returncode, 42, result.stderr)
+        self.assertEqual(calls, [['apt-get', 'update']])
+
     def run_check(self, digest, args=()):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

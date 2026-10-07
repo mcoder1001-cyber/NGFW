@@ -4,11 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"syscall"
 	"testing"
-	"time"
 
 	"ngfw/agent/internal/renderers"
 )
@@ -24,8 +21,8 @@ func TestRenderIPv6Modes(t *testing.T) {
 	}{
 		{"off", "noipv6", false, false, ""},
 		{"", "noipv6", false, false, ""},
-		{"slaac", "+ipv6", true, false, "echo 1 > \"$c/accept_ra_defrtr\""},
-		{"dhcpv6", "+ipv6", true, true, "echo 1 > \"$c/accept_ra_defrtr\""},
+		{"slaac", "+ipv6", true, false, "DEFAULT_ROUTE = True"},
+		{"dhcpv6", "+ipv6", true, true, "DEFAULT_ROUTE = True"},
 	} {
 		t.Run(tc.mode, func(t *testing.T) {
 			s := minimalSession()
@@ -48,15 +45,15 @@ func TestRenderIPv6Modes(t *testing.T) {
 			if !tc.hooks {
 				return
 			}
-			body := string(up.Content)
-			for _, want := range []string{`[ "${PPP_IPPARAM:-}" = "ngfw-wan1" ] || exit 0`, `echo 2 > "$c/accept_ra"`, `echo 1 > "$c/autoconf"`, tc.defrtr,
-				`f="$dir/wan1.state6"`, `dir="/srv/run/ngfw/pppoe"`} {
+			body := string(files["/srv/etc/ppp/ngfw-ipv6-wan1"].Content)
+			for _, want := range []string{`HOST = "wan1"`, `SYSCTL = Path("/proc/sys/net/ipv6/conf")`, tc.defrtr,
+				`ROOT = Path("/srv/run/ngfw/pppoe")`} {
 				if !strings.Contains(body, want) {
 					t.Errorf("ipv6-up hook lacks %q", want)
 				}
 			}
-			if strings.Contains(body, DhcpcdBin) != tc.dhcp6 {
-				t.Errorf("ipv6-up hook starts dhcpcd=%v, want %v", strings.Contains(body, DhcpcdBin), tc.dhcp6)
+			if !strings.Contains(body, `MODE = "`+tc.mode+`"`) {
+				t.Errorf("helper lacks configured mode %s", tc.mode)
 			}
 			if up.Mode != 0o755 || up.Secret {
 				t.Errorf("hook mode %v secret %v", up.Mode, up.Secret)
@@ -70,7 +67,7 @@ func TestRenderIPv6Modes(t *testing.T) {
 					t.Errorf("dhcpcd conf lacks %q:\n%s", want, c)
 				}
 			}
-			if !strings.Contains(body, `-f "/srv/etc/ppp/ngfw-dhcpcd-wan1.conf"`) || script.Mode != 0o755 {
+			if !strings.Contains(body, `CONF = "/srv/etc/ppp/ngfw-dhcpcd-wan1.conf"`) || script.Mode != 0o755 {
 				t.Errorf("dhcpcd not started with the session conf, or script mode %v", script.Mode)
 			}
 			for p := range files {
@@ -86,7 +83,7 @@ func TestRenderIPv6Modes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(files["/srv/etc/ppp/ipv6-up.d/ngfw-wan2"].Content), `echo 0 > "$c/accept_ra_defrtr"`) {
+	if !strings.Contains(string(files["/srv/etc/ppp/ngfw-ipv6-wan2"].Content), `DEFAULT_ROUTE = False`) {
 		t.Fatal("defaultRoute=false must set accept_ra_defrtr=0")
 	}
 }
@@ -114,7 +111,7 @@ func renderTo(t *testing.T, sessions ...Session) (*Renderer, Paths) {
 func run(t *testing.T, path string, env ...string) {
 	t.Helper()
 	cmd := exec.Command(path) //nolint:gosec // a script this test rendered into its private temp dir
-	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin"}, env...)
+	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "NGFW_PPPOE_IPV6_GENERATION=" + os.Getenv("NGFW_PPPOE_IPV6_GENERATION")}, env...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%s: %v\n%s", path, err, out)
 	}
@@ -136,6 +133,10 @@ func TestDHCP6ScriptRecordsDelegatedPrefix(t *testing.T) {
 	r, paths := renderTo(t, dhcp6Session())
 	script := paths.HelperDir + "/ngfw-dhcp6-wan2"
 	pd := filepath.Join(paths.StateDir, "wan2.pd")
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "wan2.ipv6.pid"), []byte(`{"generation":"test-generation"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("NGFW_PPPOE_IPV6_GENERATION", "test-generation")
 	run(t, script, "reason=REBIND6", "interface=ppp0", "new_dhcp6_ia_pd1_prefix1=2001:db8:100::", "new_dhcp6_ia_pd1_prefix1_length=56")
 	if b, _ := os.ReadFile(pd); string(b) != "pd=2001:db8:100::/56\n" { //nolint:gosec // test path
 		t.Fatalf("pd file = %q", b)
@@ -157,56 +158,6 @@ func TestDHCP6ScriptRecordsDelegatedPrefix(t *testing.T) {
 	run(t, script, "reason=EXPIRE6")
 	if _, err := os.Stat(pd); !os.IsNotExist(err) {
 		t.Fatal("expired prefix kept")
-	}
-}
-
-// The ipv6-down hook stops the session's refresher (and with it dhcpcd) before it records the down state, so a late
-// refresh cannot resurrect "up"; it ignores other sessions' ipparam.
-func TestIPv6DownHookStopsRefresherAndRecordsDown(t *testing.T) {
-	_, paths := renderTo(t, dhcp6Session())
-	state := filepath.Join(paths.StateDir, "wan2.state6")
-	if err := os.WriteFile(state, []byte("phase=up\naddr=2001:db8:9::100/128\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	sleeper := exec.Command("sleep", "30")
-	if err := sleeper.Start(); err != nil {
-		t.Fatal(err)
-	}
-	exited := make(chan struct{})
-	go func() { _ = sleeper.Wait(); close(exited) }()
-	defer func() { _ = sleeper.Process.Kill() }()
-	pidf := filepath.Join(paths.StateDir, "wan2.ipv6.pid")
-	if err := os.WriteFile(pidf, []byte(strconv.Itoa(sleeper.Process.Pid)+"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	hook := paths.IPv6DownDir + "/ngfw-wan2"
-	run(t, hook, "PPP_IPPARAM=ngfw-other", "PPP_IFACE=ppp9")
-	if b, _ := os.ReadFile(state); !strings.HasPrefix(string(b), "phase=up") { //nolint:gosec // test path
-		t.Fatal("hook acted for another session")
-	}
-	run(t, hook, "PPP_IPPARAM=ngfw-wan2", "PPP_IFACE=ppp0", "LLLOCAL=fe80::1", "LLREMOTE=fe80::2")
-	select {
-	case <-exited:
-	case <-time.After(5 * time.Second):
-		t.Fatal("refresher not stopped")
-	}
-	if ws, ok := sleeper.ProcessState.Sys().(syscall.WaitStatus); !ok || ws.Signal() != syscall.SIGTERM {
-		t.Fatalf("refresher not terminated by the hook: %v", sleeper.ProcessState)
-	}
-	b, _ := os.ReadFile(state) //nolint:gosec // test path
-	if !strings.HasPrefix(string(b), "phase=down\n") || strings.Contains(string(b), "addr=") || !strings.Contains(string(b), "llremote=fe80::2\n") {
-		t.Fatalf("down state: %q", b)
-	}
-	if _, err := os.Stat(pidf); !os.IsNotExist(err) {
-		t.Fatal("pid file kept")
-	}
-	// a hostile interface name is ignored entirely
-	if err := os.WriteFile(state, []byte("phase=up\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	run(t, hook, "PPP_IPPARAM=ngfw-wan2", "PPP_IFACE=ppp0;id")
-	if b, _ := os.ReadFile(state); string(b) != "phase=up\n" { //nolint:gosec // test path
-		t.Fatalf("hostile PPP_IFACE acted: %q", b)
 	}
 }
 

@@ -3,6 +3,12 @@
 Some ISPs deliver service over **PPPoE**: you authenticate with a username and password and the ISP assigns your
 WAN address. Configure it per interface under **Interfaces → (the WAN interface) → PPPoE client**.
 
+Current support is limited to client configuration, hook state and address/route mirroring.
+Product dial-up is blocked when VPP's PPPoE plugin owns discovery EtherType 0x8863;
+the current client path also lacks VPP PPPoE encapsulation for forwarded IPv4 and IPv6.
+A session status of `up` or a mirrored default route does not establish working LAN transit.
+These are unresolved product limitations, not deferred laboratory checks.
+
 ## How it works
 The box runs `pppd` (the `rp-pppoe` kernel plugin) on a Linux tap of the WAN interface, does PPPoE discovery and
 PPP authentication (PAP/CHAP), and the agent mirrors the ISP-assigned IPv4/IPv6 address and the default route into
@@ -39,9 +45,9 @@ down. The delegated prefix is reported but not assigned to a LAN interface (ther
 MSS clamp covers IPv6 too (MTU − 60).
 
 ## Firewall, NAT and blocking
-The WAN interface is an ordinary interface as far as the rest of the configuration is concerned: point NAT44
-outbound, ACL attachments and Global blocking at it by name. When the ISP changes the assigned address, those keep
-working (they are attached to the interface, not the address).
+NAT44 outbound, ACL attachments and Global blocking can reference the WAN interface by name.
+Their configuration does not supply the missing PPPoE encapsulation; forwarded traffic through
+this client remains unsupported for both IP families.
 
 ## Live status and reconnect
 Open the interface in **Interfaces** — the drawer shows a **PPPoE session** panel: the phase (up / dialing / down /
@@ -62,4 +68,10 @@ The globals-owner agent supervises the per-tap pppd units. Other agents render u
 
 The interface-state endpoint includes phase, negotiated addresses, peer DNS and observed consecutive unit failures. Successful up hooks reset failure state. Reconnect uses the existing `POST /api/v1/actions/interfaces/{name}/pppoe/reconnect` action. Equivalent operator inspection is `systemctl show ngfw-pppoe-<tap>.service -p ExecMainStatus -p NRestarts` plus `vppctl show interface address`, `show ip fib` and `mss_clamp_get`. Configure the client with the normal candidate → commit workflow; do not edit generated files.
 
-Actual live dialing still needs the owner's PPP kernel/package provisioning and ISP or test AC. Production supervision in an LCP network namespace is currently rejected because the packaged pppd unit does not enter that namespace; slot rendering and hook tests can use the slot tap without supervising host units. Real dialing, peer restart/holdoff, wrong-password unit exits, NAT packets and appliance restart acceptance remain in the deferred acceptance ledger. No packages are installed by this development task.
+Actual live dialing needs the owner's PPP kernel/package provisioning and ISP or test AC,
+and resolution of the discovery limitation above. Production supervision in an LCP network
+namespace is rejected because the packaged pppd unit does not enter that namespace; slot
+rendering and hook tests can use the slot tap without supervising host units. Laboratory
+reruns of peer restart/holdoff, wrong-password exits and appliance restart remain owed.
+NAT/transit acceptance requires implementation of the missing data path first.
+No packages are installed by this development task.

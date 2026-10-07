@@ -34,6 +34,18 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		peer := r.paths.PeersDir + "/ngfw-" + hostIf
 		unit := r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service"
 		changed[hostIf] = !sameOnDisk(peer, files[peer]) || !sameOnDisk(unit, files[unit])
+		// dhcpv6 -> slaac leaves +ipv6 in the peer unchanged, but changes
+		// the helper/config. Stop the old generation before replacing them.
+		for _, path := range r.sessionFiles(hostIf) {
+			if strings.HasPrefix(path, r.paths.StateDir+"/") {
+				continue
+			}
+			if file, exists := files[path]; exists {
+				changed[hostIf] = changed[hostIf] || !sameOnDisk(path, file)
+			} else if _, err := os.Stat(path); err == nil {
+				changed[hostIf] = true
+			}
+		}
 	}
 
 	stale := r.installedHostIfs()
@@ -43,6 +55,9 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 			continue
 		}
 		// gone: stop the unit, then remove its files
+		if err := r.StopIPv6(ctx, hostIf); err != nil {
+			return err
+		}
 		if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
 			return err
 		}
@@ -65,6 +80,11 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	// A kept session may have dropped an optional file (IPv6 turned off, dhcpv6 → slaac): remove what is no longer
 	// rendered. Hook state files are the hooks' own and stay.
 	for hostIf := range want {
+		if changed[hostIf] {
+			if err := r.StopIPv6(ctx, hostIf); err != nil {
+				return err
+			}
+		}
 		for _, p := range r.sessionFiles(hostIf) {
 			if _, keep := files[p]; keep || strings.HasPrefix(p, r.paths.StateDir+"/") {
 				continue
@@ -125,6 +145,7 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 		r.paths.IPv6DownDir + "/ngfw-" + hostIf,
 		r.paths.dhcpcdConf(hostIf),
 		r.paths.dhcp6Script(hostIf),
+		r.paths.ipv6Helper(hostIf),
 		r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service",
 		r.paths.StateDir + "/" + hostIf + ".state",
 		r.paths.StateDir + "/" + hostIf + ".state6",

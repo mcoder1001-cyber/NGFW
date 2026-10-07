@@ -3,6 +3,7 @@ package pppoe
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"ngfw/agent/internal/renderers"
 )
@@ -13,10 +14,11 @@ const (
 	PppdBin      = "/usr/sbin/pppd"
 	SystemctlBin = "/usr/bin/systemctl"
 	DhcpcdBin    = "/usr/sbin/dhcpcd"
+	Python3Bin   = "/usr/bin/python3"
 )
 
 // Binaries is the renderer's allow-list (helpers_exec, ALLOWLIST.md).
-func Binaries() []string { return []string{PppdBin, SystemctlBin} }
+func Binaries() []string { return []string{PppdBin, SystemctlBin, Python3Bin} }
 
 // Paths are the file locations the renderer writes. All absolute and clean.
 type Paths struct {
@@ -79,7 +81,7 @@ func (p Paths) Validate() error {
 		"IPUpDir": p.IPUpDir, "IPDownDir": p.IPDownDir, "IPv6UpDir": p.IPv6UpDir, "IPv6DownDir": p.IPv6DownDir,
 		"HelperDir": p.HelperDir, "UnitDir": p.UnitDir, "StateDir": p.StateDir,
 	} {
-		if !filepath.IsAbs(v) {
+		if !filepath.IsAbs(v) || filepath.Clean(v) != v || strings.ContainsAny(v, "$`\"'\\\n\r\t ;&|<>()") {
 			return fmt.Errorf("%w: %s %q is not absolute", renderers.ErrInvalidFiles, name, v)
 		}
 	}
@@ -96,3 +98,5 @@ func (p Paths) dhcpcdConf(hostIf string) string {
 	return p.HelperDir + "/ngfw-dhcpcd-" + hostIf + ".conf"
 }
 func (p Paths) dhcp6Script(hostIf string) string { return p.HelperDir + "/ngfw-dhcp6-" + hostIf }
+
+func (p Paths) ipv6Helper(hostIf string) string { return p.HelperDir + "/ngfw-ipv6-" + hostIf }

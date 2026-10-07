@@ -7,13 +7,16 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"io/fs"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/autoblock"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/renderers/nftables"
 	"ngfw/agent/internal/scheduler"
+	"os"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -196,5 +199,113 @@ func TestAutoBlockJournalAuthority(t *testing.T) {
 	}
 	if !journalObservationEnabled("ssh", enabled) || !journalObservationEnabled("portScan", enabled) {
 		t.Fatal("owned host observations disabled")
+	}
+}
+
+// The API republishes even an empty, disabled runtime every five seconds. Once
+// cleanup was confirmed, that publication must not enqueue another ACL pass or
+// rewrite the cache while unrelated configuration transactions need the gate.
+func TestAutoBlockConfirmedInactivePublicationDoesNotSchedule(t *testing.T) {
+	v := coretest.New()
+	dir := t.TempDir()
+	s, _ := newACLSvc(t, v, dir, false)
+	ds := doc(t, `{"interfaces":{"loop711":{"ipv4":["10.71.1.1/24"]}}}`)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "ordinary-interface", DesiredState: ds}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	baseline := v.ACL().ACLs()
+	var transactions atomic.Int64
+	beforeTxn := s.beforeTxn
+	s.beforeTxn = func() { transactions.Add(1); beforeTxn() }
+	req := &ngfwv1.AutoBlockSetRequest{Owner: testOwner}
+	if _, err := s.AutoBlockSet(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if transactions.Load() != 1 || s.autoBlock.dirty || s.autoBlock.fingerprint == "" {
+		t.Fatal("initial unknown runtime did not confirm cleanup")
+	}
+	cacheRoot := os.DirFS(dir)
+	cache, err := cacheRoot.Open("auto-block.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cache.Close() })
+	original, err := cache.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 20 {
+		resp, callErr := s.AutoBlockSet(context.Background(), req)
+		if callErr != nil || resp.GetActiveEntries() != 0 {
+			t.Fatalf("confirmed empty publication: %v %v", resp, callErr)
+		}
+	}
+	if transactions.Load() != 1 {
+		t.Fatalf("repeated inactive publications scheduled %d ACL transactions", transactions.Load()-1)
+	}
+	after, err := fs.Stat(cacheRoot, "auto-block.json")
+	if err != nil || !os.SameFile(original, after) {
+		t.Fatal("no-op publication rewrote the confirmed cache", err)
+	}
+	if !reflect.DeepEqual(baseline, v.ACL().ACLs()) || !proto.Equal(ds, s.st.desired) {
+		t.Fatal("empty runtime publication changed ordinary ACLs or desired state")
+	}
+	// A persisted empty cache is dirty after restart; it must still execute its
+	// first cleanup rather than inheriting the old process's confirmation.
+	s.Close()
+	s2, err := NewService(ServiceConfig{Owner: testOwner, VPP: v, Scheduler: s.sched, StateDir: dir, BeforeTxn: s.beforeTxn})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s2.Close()
+	if !s2.autoBlock.dirty {
+		t.Fatal("cache replay lost the cleanup obligation")
+	}
+	if _, err := s2.AutoBlockSet(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	if transactions.Load() != 2 || s2.autoBlock.dirty {
+		t.Fatal("dirty replay was incorrectly treated as a confirmed no-op")
+	}
+}
+
+func TestAutoBlockInactivePublicationStillClearsRetainedEntries(t *testing.T) {
+	v := coretest.New()
+	s, _ := newACLSvc(t, v, t.TempDir(), false)
+	host := &autoBlockHostMemory{}
+	reg := scheduler.NewRegistry()
+	for _, d := range s.sched.Registry().Descriptors() {
+		if d.Name() != nftables.DescriptorName {
+			reg.Register(d)
+		}
+	}
+	reg.Register(host)
+	s.sched = scheduler.New(reg, nil)
+	s.sched.VerifyRetries = 0
+	ds := doc(t, `{"interfaces":{"loop711":{"ipv4":["10.71.1.1/24"]}},"security":{"autoBlock":{"enabled":true,"maxEntries":100}}}`)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "enabled", DesiredState: ds}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	entry := &ngfwv1.AutoBlockRuntimeEntry{Source: "192.0.2.7", ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}
+	if _, err := s.AutoBlockSet(context.Background(), &ngfwv1.AutoBlockSetRequest{Owner: testOwner, Entries: []*ngfwv1.AutoBlockRuntimeEntry{entry}}); err != nil {
+		t.Fatal(err)
+	}
+	disabled := proto.Clone(ds.Security).(*ngfwv1.SecurityConfig)
+	disabled.AutoBlock.Enabled = proto.Bool(false)
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "disabled", DesiredState: &ngfwv1.DesiredState{Security: disabled}, Subsystems: []string{"security"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	var transactions atomic.Int64
+	beforeTxn := s.beforeTxn
+	s.beforeTxn = func() { transactions.Add(1); beforeTxn() }
+	empty := &ngfwv1.AutoBlockSetRequest{Owner: testOwner}
+	if _, err := s.AutoBlockSet(context.Background(), empty); err != nil {
+		t.Fatal(err)
+	}
+	if transactions.Load() != 1 || len(s.autoBlock.entries) != 0 || s.autoBlock.dirty || host.value != nil || len(v.ACL().ACLs()) != 0 {
+		t.Fatal("disabled retained entries were not explicitly cleared")
+	}
+	// Enabling protection restores authority even though both caches are empty.
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "reenabled", DesiredState: &ngfwv1.DesiredState{Security: ds.Security}, Subsystems: []string{"security"}}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	count := transactions.Load()
+	if _, err := s.AutoBlockSet(context.Background(), empty); err != nil {
+		t.Fatal(err)
+	}
+	if transactions.Load() != count+1 {
+		t.Fatal("enabled empty protection lost its reconciliation authority")
 	}
 }

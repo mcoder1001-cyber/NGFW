@@ -116,11 +116,10 @@ describe('setup staging and security', () => {
     expect((await repo.candidate()).payload).toBeNull();
   });
   it('rejects host-owned and local interfaces', async () => {
-    const running = RootConfig.parse((await ds.getRunning()).doc);
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
     running.interfaces.wan0!.physical = { pci: '0000:03:00.0', owner: 'host', builtIn: true };
-    vi.spyOn(ds, 'getRunning').mockResolvedValue({ doc: running, revision: { id: 1 } } as Awaited<
-      ReturnType<DatastoreService['getRunning']>
-    >);
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
     await expect(c.preview(body(), request())).rejects.toThrow('dataplane');
     await expect(
       c.preview({ ...body(), input: { ...input, wan: 'local0' } }, request()),

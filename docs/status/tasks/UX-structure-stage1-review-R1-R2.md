@@ -78,3 +78,19 @@ Final security check was rerun with `tools/ci.sh check --base origin/main`; gitl
 Final R1 verdict: APPROVE — zero outstanding BLOCKER/MAJOR/MINOR findings.
 Final R2 verdict: APPROVE — zero findings.
 Next command: `git push origin codex/ux-structure-review-correctness-20261007`, then report the actual remote reviewer SHA to the manager. No product merge until explicit owner approval.
+
+## Supplemental followup review — collapsed navigation preference
+
+Read-only reviewed the two pending developer changes on top of `b31d51736daeffa516f82e341f64b8da26992a0a` in the developer worktree; no developer file was modified by the reviewer. Publication of the final developer SHA and passing manager-run tests remain required.
+
+- `AppShell.tsx` destination key now combines pathname and currentNavPath instead of the raw query. This retains a user's collapsed-group preference when irrelevant query parameters change while still reopening a group for a tab link that selects a different navigation destination. The existing VPN unrelated-query regression and new Static-to-Ping regression cover both behaviors.
+- `App.test.tsx` waits for the mounted Routing objects page before changing language inside act. UiSettingsProvider sets language from persisted settings after mount; the revised order tests the actual live language-change behavior and avoids racing that initialization. Assertions for Persian heading and RTL remain present.
+
+Independent Node destination-key harness against reviewer nav source:
+
+```text
+PASS: 4 destination-key assertions preserve unrelated-query collapse state and distinguish routing tab destinations.
+```
+
+Supplemental R1 verdict: APPROVE for the reviewed working diff, subject to a published developer checkpoint and manager-run regression/gate results.
+Supplemental R2 verdict: APPROVE; no security-sensitive changes.

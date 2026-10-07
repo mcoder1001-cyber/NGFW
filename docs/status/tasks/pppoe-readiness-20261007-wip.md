@@ -32,3 +32,12 @@ to LAN and live dial/reconnect/rollback also remain unresolved. No DONE claim.
 Current failure: above lifecycle and datapath findings; focused packaging tests pass.
 Exact next command: `git push origin codex/pppoe-readiness-20261007`, then create a
 small draft packaging PR and attach it. Root coordinates lifecycle repair scope.
+
+## Published handoff
+
+Code checkpoint d67e29aa38844d9da575ace8340c68a3db8349b8 was successfully
+pushed and independently matched by git ls-remote. Draft PR201:
+https://github.com/mcoder1001-cyber/NGFW/pull/201 . Product/package files frozen
+at that checkpoint; subsequent task receipts only. No lifecycle fix is included.
+Next command for reviewer: `TMPDIR=/ppr python3 -B deploy/debian/ngfw/tests/test_packaging.py Packaging.test_pppoe_runtime_dependencies_belong_to_agent Packaging.test_runtime_dependency_contract -v`.
+Manager integration is pending independent review; no merge performed by worker.

@@ -1,0 +1,1 @@
+Source/local start 545f118af511a3903f03a5ade5fff9c0b928364b. Remote publication pending first checkpoint. Completed: required instruction and source reads. Tests: none yet. Remaining: strict fixture tests, alternate-root containment/path-command checks, trust invariants, report. Failure: none yet. Next command: TMPDIR=/tdr scripts/tests/td19.sh (inspect runner first).

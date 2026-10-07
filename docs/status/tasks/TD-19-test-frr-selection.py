@@ -130,28 +130,56 @@ else:raise SystemExit(95)
         for failing in ('frr-import', 'node-identity'):
             with self.subTest(failing=failing):
                 self.log.unlink(missing_ok=True)
-                for name in ('apt-get', 'install', 'mv'):
-                    stub = self.bin / name
-                    stub.write_text('#!/bin/sh\necho "UNEXPECTED HOST MUTATION" >&2\nexit 97\n'); stub.chmod(0o755)
-                curl = self.bin / 'curl'
-                curl.write_text('#!/usr/bin/python3\nimport pathlib,sys\npathlib.Path(sys.argv[sys.argv.index("-o")+1]).write_bytes(b"controlled raw public bytes")\n')
-                curl.chmod(0o755)
-                source = SOURCE.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
+                repository = self.root / 'entry-repo'
+                scripts = repository / 'scripts'; scripts.mkdir(parents=True, exist_ok=True)
+                for helper in ('install-common.sh', 'install-recording-stub.py'):
+                    shutil.copyfile(ROOT / 'scripts' / helper, scripts / helper)
+                harness = self.root / 'recording-bin'; harness.mkdir(exist_ok=True)
+                for command in ('apt-get', 'curl', 'gpg', 'go', 'npm', 'corepack', 'python3', 'tar', 'pip'):
+                    stub = harness / command
+                    shutil.copyfile(ROOT / 'scripts/install-recording-stub.py', stub)
+                    stub.chmod(0o755)
+                install_root = self.root / 'install-root'; install_root.mkdir(exist_ok=True)
+                metadata = install_root / 'etc'; metadata.mkdir(exist_ok=True)
+                (metadata / 'os-release').write_text('VERSION_CODENAME=resolute\n')
+                source = SOURCE
+                # The helper and recording-PATH authority checks are unchanged.
+                # Inject only the eight owned GPG subprocess call sites in this
+                # disposable entry: the mock controls parser/import responses,
+                # while actual trust gates, refusal flow and cleanup still run.
+                source, count = re.subn(r'(?m)^  gpg ', '  "$NGFW_FIXTURE_GPG" ', source)
+                self.assertEqual(count, 8)
                 source = source.replace('\ncheck_key_pins\n', '\npreflight_artifacts() { :; }\ncheck_key_pins\n', 1)
                 # D-238: authorize the controlled fixture identities so the run reaches both gates.
                 source, count = re.subn(r'(?m)^readonly NGFW_FRR_AUTHORIZED_PRIMARIES=\S+$', 'readonly NGFW_FRR_AUTHORIZED_PRIMARIES=' + A, source)
                 self.assertEqual(count, 1)
                 source, count = re.subn(r'(?m)^readonly NGFW_NODESOURCE_AUTHORIZED_PRIMARIES=\S+$', 'readonly NGFW_NODESOURCE_AUTHORIZED_PRIMARIES=' + B, source)
                 self.assertEqual(count, 1)
-                env = dict(os.environ, **self.env, NGFW_VPP_ARTIFACTS=str(self.root),
+                entry = scripts / '00-add-repos.sh'; entry.write_text(source)
+                env = dict({**os.environ, **self.env}, PATH=f'{harness}:/usr/bin:/bin',
+                    NGFW_INSTALL_ROOT=str(install_root), NGFW_INSTALL_STUBS='1',
+                    NGFW_INSTALL_STUB_DIR=str(harness), NGFW_FIXTURE_GPG=str(self.bin / 'gpg'),
+                    NGFW_VPP_ARTIFACTS=str(self.root),
                     NGFW_FRR_KEY_FINGERPRINTS=A, NGFW_NODESOURCE_KEY_FINGERPRINTS=B,
                     IMPORT_RC='2' if failing == 'frr-import' else '0', NODE_IDENTITIES=primary(A))
-                result = subprocess.run(['bash', '-c', source], env=env, text=True, capture_output=True)
+                result = subprocess.run(['bash', str(entry)], env=env, text=True, capture_output=True, timeout=20)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('UNEXPECTED HOST MUTATION', result.stderr)
                 self.assertNotIn('REFUSED: NGFW_', result.stderr)
                 gate = '--import' if failing == 'frr-import' else '--show-keys'
                 self.assertTrue(any(gate in args for args in self.calls()))
+                if failing == 'node-identity':
+                    self.assertTrue(any('--show-keys' in args and args[-1].endswith('/node.key')
+                                        for args in self.calls()))
+                    self.assertIn('downloaded NodeSource primary key set', result.stderr)
+                else:
+                    self.assertFalse(any('--show-keys' in args and args[-1].endswith('/node.key')
+                                         for args in self.calls()))
+                recorded = install_root / '.ngfw-fixture-calls'
+                effects = [json.loads(line)[0] for line in recorded.read_text().splitlines()] if recorded.exists() else []
+                self.assertNotIn('apt-get', effects)
+                self.assertFalse((install_root / 'usr/share/keyrings').exists())
+                self.assertFalse((install_root / 'etc/apt/sources.list.d').exists())
                 for args in self.calls(): self.assertFalse(Path(args[2]).exists())
 
 

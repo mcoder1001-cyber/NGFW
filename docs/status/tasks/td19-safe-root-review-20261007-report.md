@@ -27,6 +27,25 @@ Fix: trusted reviewed fixture harness/recognizable fixed content contract for ef
 
 `bash -n scripts/{install-common,00-add-repos,20-install-build,40-install-lab}.sh` and `shellcheck -x -P SCRIPTDIR` on those four files: exit0, no diagnostics.
 
-Strict fixed inventory45 fixture run in progress; already observed failure in `RepoKeys.test_actual_repository_entry_uses_authorized_pins_and_refuses_differing_override`, traceback pending run completion. New safe-root9 queued in same shell after strict run. Original trust routines/constants and SHA validation order remain in source; pnpm derives exact packageManager. Python lock requires explicit exact version/hash direct-package input, pip enforces dependency closure during apply; no authoritative default release closure provided. Dry-run branches are read-only in source and do not claim real artifact verification.
+## BLOCKER B3 — mandatory focused fixture regression
+
+`docs/status/tasks/TD-19-test-repo-keys.py:108-119`: copied actual repository entry was not adapted to include its new shared helper. Independent unchanged strict runner exit1:45 tests,1failure,0errors,0skips in115.017s. Expected `realpath:` error is replaced by `/tdr/tmpirjmzfuv/setup.sh: line 247: /tdr/scripts/install-common.sh: No such file or directory`. Fix the fixture copy/layout and rerun complete strict45, preserving authority assertions.
+
+```
+Ran 45 tests in 115.017s
+FAILED (failures=1)
+TD19 fixtures: tests=45 failures=1 errors=0 skipped=0 expectedFailures=0 unexpectedSuccesses=0
+```
+
+Independent new safe-root command finished:
+
+```
+Ran 9 tests in 11.320s
+OK
+```
+
+Full strict and safe9 output preserved alongside report as reviewer-owned log text. These passing nine checks do not cover confirmed B1/B2.
+
+ Original trust routines/constants and SHA validation order remain in source; pnpm derives exact packageManager. Python lock requires explicit exact version/hash direct-package input, pip enforces dependency closure during apply; no authoritative default release closure provided. Dry-run branches are read-only in source and do not claim real artifact verification.
 
 Verdict: **BLOCK** at exact545f; independent reproduction confirms unsafe fixture execution boundary. No actual host install/network effects were exercised.

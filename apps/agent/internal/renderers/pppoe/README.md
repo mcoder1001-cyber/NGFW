@@ -68,3 +68,11 @@ Starting/stopping the units, tracking pppd exits for `failCount`/`lastError`, mi
 address/route into VPP, and the MSS clamp are the agent's Apply on the box — they need `/dev/ppp` and VPP, so
 live product verification remains owed. Diagnostic topology evidence covers negotiation
 and mirroring only; traffic through NAT remains blocked by the missing client data path.
+
+## Packaged prerequisites
+
+The ngfw-agent Debian package directly depends on `ppp` (pppd and the kernel
+PPPoE plugin), `pppoe` (rp-pppoe tooling), `dhcpcd-base` (IPv6 DHCP client), and
+`python3` (fixed lifecycle helper). This applies when installing ngfw-agent
+without ngfw-meta. Declaring prerequisites does not resolve the product discovery
+or forwarding limitations above, or grant additional agent sandbox paths.

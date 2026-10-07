@@ -197,6 +197,16 @@ for name in ('backups','updates','support'):
             self.assertIn('ProtectHome=yes', unit)
             self.assertIn('NoNewPrivileges=yes', unit)
 
+    def test_pppoe_runtime_dependencies_belong_to_agent(self):
+        # The agent renders pppd/rp-pppoe units and starts DHCPv6 helpers.
+        # Direct dependencies keep standalone ngfw-agent installs usable too.
+        control = (SOURCE / 'debian/control').read_text()
+        agent = control.split('Package: ngfw-agent\n', 1)[1].split('\n\n', 1)[0]
+        dependencies = agent.split('Depends: ', 1)[1].split('\n', 1)[0].split(', ')
+        for package in ('ppp', 'pppoe', 'dhcpcd-base', 'python3'):
+            with self.subTest(package=package):
+                self.assertIn(package, dependencies)
+
     def test_runtime_dependency_contract(self):
         control = (SOURCE / 'debian/control').read_text()
         self.assertIn('vpp (= ${ngfw:VppVersion})', control)

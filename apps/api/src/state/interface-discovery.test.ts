@@ -86,6 +86,20 @@ describe('automatic read-only physical NIC discovery', () => {
     expect(result.items.every((i) => i.hostInventory && !i.inventoryOnly)).toBe(true);
   });
 
+  it('correlates native vmxnet3 only with matching driver and unique MAC, never a virtual lookalike', async () => {
+    const mac = '02:00:00:00:00:01';
+    const native = fixture([{ pci: '0000:01:00.0', driver: 'vmxnet3', mac }], {}, [
+      InterfaceState.fromPartial({ name: 'native-wan', type: 'vmxnet3', mac }),
+    ]);
+    expect((await native.controller.interfaces()).items).toHaveLength(1);
+    const virtual = fixture([{ pci: '0000:01:00.0', driver: 'virtio-pci', mac }], {}, [
+      InterfaceState.fromPartial({ name: 'tap0', type: 'virtio', mac }),
+    ]);
+    const rows = (await virtual.controller.interfaces()).items;
+    expect(rows).toHaveLength(2);
+    expect(rows.find((i) => i.name === 'tap0')?.hostInventory).toBeNull();
+  });
+
   it('never merges ambiguous MACs or unrelated configured Linux names', async () => {
     const { controller } = fixture(
       [
@@ -111,6 +125,27 @@ describe('automatic read-only physical NIC discovery', () => {
     expect(result.items.find((i) => i.name === 'pci-0000:01:00.0')).toMatchObject({
       inventoryOnly: true,
       hostInventory: { isManagement: true },
+    });
+  });
+
+  it('correlates candidate-only physical metadata when the running row has no marker', async () => {
+    const { controller, ds } = fixture([{ pci: '0000:01:00.0', netdev: 'ens192' }], {
+      wan: { enabled: false },
+    });
+    ds.getCandidate.mockResolvedValue({
+      interfaces: {
+        wan: {
+          enabled: false,
+          physical: { pci: '0000:01:00.0', owner: 'dataplane', builtIn: true },
+        },
+      },
+    });
+    const rows = (await controller.interfaces()).items;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      name: 'wan',
+      hasPendingChange: true,
+      physical: { pci: '0000:01:00.0' },
     });
   });
 

@@ -188,6 +188,7 @@
       "retrieve": "Engine configuration observation",
       "live": "Live engine interface state",
       "hostInventory": "Host interface discovery"
-    }
+    },
+    "linkDownOrUnknown": "down or unknown"
   }
 }

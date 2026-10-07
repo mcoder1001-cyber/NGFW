@@ -1,0 +1,1 @@
+REFUSED: installation path cannot traverse symlinks

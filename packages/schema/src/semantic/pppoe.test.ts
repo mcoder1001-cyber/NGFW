@@ -55,4 +55,15 @@ describe('F-pppoe-client semantic rules', () => {
     ]);
     expect(run({ interfaces: { eth0: wan({ mtu: 1500 }, { mtu: 1492 }) } })).toEqual([]);
   });
+
+  it('requires the IPv6 minimum link MTU when IPv6 is on', () => {
+    expect(run({ interfaces: { wan0: wan({}, { ipv6: 'slaac', mtu: 1279 }) } })).toEqual([
+      expect.objectContaining({
+        pointer: '/interfaces/wan0/pppoe/mtu',
+        message: expect.stringContaining('IPv6 minimum link MTU 1280'),
+      }),
+    ]);
+    expect(run({ interfaces: { wan0: wan({}, { ipv6: 'dhcpv6', mtu: 1280 }) } })).toEqual([]);
+    expect(run({ interfaces: { wan0: wan({}, { ipv6: 'off', mtu: 1279 }) } })).toEqual([]);
+  });
 });

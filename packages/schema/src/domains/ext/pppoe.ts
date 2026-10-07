@@ -103,7 +103,7 @@ export const InterfacePppoeSchema = z.strictObject({
   ipv6: withUi(z.enum(['off', 'slaac', 'dhcpv6']).default('off'), {
     title: 'IPv6',
     widget: 'select',
-    help: 'off; slaac (accept a /64 via RA over the link); dhcpv6 (request a prefix via DHCPv6-PD)',
+    help: 'off; slaac (address and IPv6 default route from the ISP router advertisements); dhcpv6 (slaac plus a DHCPv6 address and delegated prefix, IA_NA + IA_PD); needs MTU >= 1280',
     order: 10,
   }),
   reconnect: withUi(PppoeReconnectSchema.default({ holdoffSec: 5, maxFail: 0 }), {

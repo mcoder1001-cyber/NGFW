@@ -179,6 +179,8 @@ describe('navigation from the schema (vdom.md guardrail 4)', () => {
     expect(currentNavPath(nav, '/routing/objects', '?tab=route-maps')).toBe(
       '/routing/objects?tab=route-maps',
     );
+    expect(currentNavPath(nav, '/routing/objects', '?tab=unknown')).toBe('/routing/objects?tab=prefix-lists');
+    expect(currentNavPath(nav, '/routing/objects')).toBe('/routing/objects?tab=prefix-lists');
     expect(currentNavPath(nav, '/firewall/acl', '?tab=rules&list=web-in')).toBe(
       '/firewall/policies',
     );

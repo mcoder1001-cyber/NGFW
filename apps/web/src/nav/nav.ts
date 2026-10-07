@@ -247,7 +247,7 @@ export function currentNavPath(
 ): string | undefined {
   const canonical = pathname.replace(/^\/firewall\/acl(?=\/|$)/, '/firewall/policies');
   const params = new URLSearchParams(search);
-  if (canonical === '/routing/objects' && !params.has('tab')) params.set('tab', 'prefix-lists');
+  if (canonical === '/routing/objects' && !['prefix-lists', 'route-maps'].includes(params.get('tab') ?? '')) params.set('tab', 'prefix-lists');
   let best: string | undefined;
   let bestScore = -1;
   for (const item of nav.flatMap((g) => g.items)) {

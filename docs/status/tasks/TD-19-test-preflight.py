@@ -97,12 +97,23 @@ exit "${VERIFY_FAILURE:-0}"
             env['NGFW_VPP_ARTIFACTS'] = str(root / 'artifacts')
             os_dir = root / 'install-root/etc'; os_dir.mkdir()
             sentinel = root / 'outside-sentinel'
-            (os_dir / 'os-release').write_text('VERSION_CODENAME=$(touch ' + str(sentinel) + ')\n')
-            result = subprocess.run(['bash', str(entry)], env=env, text=True, capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn('literal VERSION_CODENAME', result.stderr)
-            self.assertFalse(sentinel.exists())
-            self.assertFalse((root / 'install-root/.ngfw-fixture-calls').exists())
+            metadata = os_dir / 'os-release'
+            for case in ('shell', 'fifo', 'oversize'):
+                with self.subTest(case=case):
+                    if metadata.exists():
+                        metadata.unlink()
+                    if case == 'shell':
+                        metadata.write_text('VERSION_CODENAME=$(touch ' + str(sentinel) + ')\n')
+                    elif case == 'fifo':
+                        os.mkfifo(metadata)
+                    else:
+                        metadata.write_text('x' * 65537)
+                    result = subprocess.run(['bash', str(entry)], env=env, text=True,
+                                            capture_output=True, timeout=15)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('literal VERSION_CODENAME' if case == 'shell' else 'bounded regular OS metadata', result.stderr)
+                    self.assertFalse(sentinel.exists())
+                    self.assertFalse((root / 'install-root/.ngfw-fixture-calls').exists())
 
     def test_unsafe_or_nonproduct_selection_refuses(self):
         with tempfile.TemporaryDirectory() as directory:

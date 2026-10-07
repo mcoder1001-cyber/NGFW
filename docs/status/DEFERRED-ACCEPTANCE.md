@@ -309,3 +309,15 @@ Full local and hosted quick CI remain mandatory merge gates. The first freeze
 quick attempt failed timing checks during concurrent load; preserve that failure
 and rerun serially with existing concurrency controls, without weakening tests.
 STATUS-FINAL must retain every unresolved code or acceptance gap explicitly.
+
+### Wizard interface discovery fix (2026-10-07, PR #198)
+
+Host-independent acceptance: exact API preview/stage for discovered physical NICs,
+rejection of host-owned/virtual/managed-orphan interfaces and live VRF drift, and
+English/Persian picker loading/empty/retry/selection regressions. See
+docs/status/tasks/wizard-interfaces-fix-20261007-wip.md and the independent reports.
+
+Deferred laboratory acceptance: real appliance NIC inventory, browser screenshots
+against an owned API/agent stack, and confirmed-commit DHCP/NAT/LAN management
+packet checks. No appliance configuration or service was modified for this fix.
+The unchanged complete local and hosted quick gates remain mandatory before merge.

@@ -1,4 +1,6 @@
 import 'reflect-metadata';
+import type { AgentClient } from '../../agent/agent.client.js';
+import { InterfaceState } from '@ngfw/proto';
 import { RootConfig, SetupInputSchema, buildSetup } from '@ngfw/schema';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AuthService } from '../../auth/auth.service.js';
@@ -31,7 +33,10 @@ describe('setup staging and security', () => {
   let ds: DatastoreService;
   let c: SetupController;
   const checked = vi.fn();
+  const interfaceState = vi.fn();
   beforeEach(async () => {
+    interfaceState.mockReset();
+    interfaceState.mockResolvedValue({ interfaces: [] });
     checked.mockReset();
     checked.mockResolvedValue(undefined);
     repo = new MemoryConfigRepo();
@@ -51,9 +56,76 @@ describe('setup staging and security', () => {
         }),
       }),
     );
-    c = new SetupController(ds, { checkSetupPassword: checked } as unknown as AuthService);
+    c = new SetupController(
+      ds,
+      { checkSetupPassword: checked } as unknown as AuthService,
+      { interfaceState } as unknown as AgentClient,
+    );
   });
   const body = () => ({ input, baseRevision: 1, completedAt: new Date().toISOString() });
+  it('previews and stages live interfaces absent from running without changing running', async () => {
+    interfaceState.mockResolvedValue({
+      interfaces: [
+        InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+        InterfaceState.fromPartial({ name: 'liveLan', swIfIndex: 5, vrf: 'default', type: 'dpdk' }),
+      ],
+    });
+    const liveBody = { ...body(), input: { ...input, wan: 'liveWan', lan: 'liveLan' } };
+    const preview = await c.preview(liveBody, request());
+    expect(preview.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ op: 'add', pointer: '/interfaces/liveWan' }),
+        expect.objectContaining({ op: 'add', pointer: '/interfaces/liveLan' }),
+      ]),
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+    await c.stage({ ...liveBody, current, password }, request());
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.interfaces.liveWan?.dhcpClient).toBeDefined();
+    expect(candidate.interfaces.liveLan?.ipv4).toEqual(['192.168.40.1/24']);
+    expect(RootConfig.parse((await ds.getRunning()).doc).interfaces.liveWan).toBeUndefined();
+    expect(interfaceState).toHaveBeenCalledWith(['liveWan', 'liveLan']);
+  });
+  it('rejects unavailable and subinterfaces without staging', async () => {
+    const missing = { ...body(), input: { ...input, wan: 'missing' } };
+    await expect(c.preview(missing, request())).rejects.toThrow('existing');
+    interfaceState.mockResolvedValue({
+      interfaces: [InterfaceState.fromPartial({ name: 'missing', swIfIndex: 4, parent: 'wan0' })],
+    });
+    await expect(c.stage({ ...missing, current, password }, request())).rejects.toThrow('existing');
+    expect((await repo.candidate()).payload).toBeNull();
+  });
+  it('rejects live VRF drift and agent-managed orphans after preview', async () => {
+    const liveBody = { ...body(), input: { ...input, wan: 'liveWan', lan: 'liveLan' } };
+    const states = [
+      InterfaceState.fromPartial({ name: 'liveWan', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+      InterfaceState.fromPartial({ name: 'liveLan', swIfIndex: 5, vrf: 'default', type: 'dpdk' }),
+    ];
+    interfaceState.mockResolvedValue({ interfaces: states });
+    await c.preview(liveBody, request());
+    interfaceState.mockResolvedValue({
+      interfaces: states.map((state) => ({ ...state, vrf: 'blue' })),
+    });
+    await expect(c.stage({ ...liveBody, current, password }, request())).rejects.toThrow(
+      'non-default',
+    );
+    interfaceState.mockResolvedValue({
+      interfaces: states.map((state) => ({ ...state, managed: true })),
+    });
+    await expect(c.preview(liveBody, request())).rejects.toThrow('existing');
+    expect((await repo.candidate()).payload).toBeNull();
+  });
+  it('rejects host-owned and local interfaces', async () => {
+    const stored = await ds.getRunning();
+    const running = RootConfig.parse(stored.doc);
+    running.interfaces.wan0!.physical = { pci: '0000:03:00.0', owner: 'host', builtIn: true };
+    vi.spyOn(ds, 'getRunning').mockResolvedValue({ ...stored, doc: running });
+    await expect(c.preview(body(), request())).rejects.toThrow('dataplane');
+    await expect(
+      c.preview({ ...body(), input: { ...input, wan: 'local0' } }, request()),
+    ).rejects.toThrow('dataplane');
+    expect(interfaceState).not.toHaveBeenCalled();
+  });
   it('preview reads stored credentials for validation and neither stages nor leaks hashes', async () => {
     const req = request();
     const result = await c.preview(body(), req);

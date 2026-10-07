@@ -90,6 +90,40 @@ describe('setup wizard independent network-picker regression', () => {
       fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
     ).toBe(false);
   });
+  it('warns on partial observation failure and retry preserves configured choices', async () => {
+    const fake = installFakeApi();
+    await signIn();
+    fake.on('GET /api/v1/config', {
+      body: RootConfig.parse({ interfaces: { configuredWan: {}, configuredLan: {} } }),
+    });
+    fake.on('GET /api/v1/state/interfaces', {
+      body: {
+        items: [],
+        dataplaneStatus: 'unavailable',
+        observationErrors: [{ source: 'live', message: 'Agent unavailable' }],
+      },
+    });
+    render(app());
+    await reachWan();
+    expect(await screen.findByText(i18n.t('setup:interfacesFailed'))).toBeInTheDocument();
+    await select(i18n.t('setup:wan'), 'configuredWan');
+    fake.on('GET /api/v1/state/interfaces', { body: { items: [], observationErrors: [] } });
+    fireEvent.click(screen.getByRole('button', { name: i18n.t('setup:retryInterfaces') }));
+    await waitFor(() =>
+      expect(screen.queryByText(i18n.t('setup:interfacesFailed'))).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole('combobox', { name: i18n.t('setup:wan') })).toHaveTextContent(
+      'configuredWan',
+    );
+    next();
+    await select(i18n.t('setup:lan'), 'configuredLan');
+    expect(
+      fake.calls.filter((r) => r.path === '/api/v1/state/interfaces').length,
+    ).toBeGreaterThanOrEqual(2);
+    expect(
+      fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
+    ).toBe(false);
+  });
   it('shows empty-state guidance without exposing undefined schema validation', async () => {
     const fake = installFakeApi();
     await signIn();

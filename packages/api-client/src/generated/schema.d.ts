@@ -13196,6 +13196,15 @@ export interface operations {
         };
         content: {
           'application/json': {
+            observationErrors?: {
+              /** @enum {string} */
+              source: 'retrieve' | 'live' | 'hostInventory';
+              message: string;
+            }[];
+            /** @enum {string} */
+            hostInventoryStatus?: 'available' | 'unavailable';
+            /** @enum {string} */
+            dataplaneStatus?: 'available' | 'unavailable';
             retrievedAt?: string;
             countersAt?: string;
             items: {
@@ -13270,6 +13279,18 @@ export interface operations {
                 owner: 'dataplane' | 'host';
                 builtIn: boolean;
               } | null;
+              /** @description Read-only physical NIC inventory; does not configure or claim a host NIC */
+              hostInventory?: {
+                netdev: string;
+                pci: string;
+                driver: string;
+                mac: string;
+                isManagement: boolean;
+                boundToDpdk: boolean;
+                linkUp: boolean;
+              } | null;
+              /** @description Observed host NIC without a configured or live data-plane interface; read-only */
+              inventoryOnly?: boolean;
               /** @description a built-in (seeded) physical NIC — non-deletable in the UI/API */
               builtIn?: boolean;
               /** @description a dataplane-owned physical NIC that VPP does not have yet (not handed to DPDK); null when the live state is unavailable (agent older than P08) */

@@ -257,12 +257,15 @@ if [[ $NGFW_INSTALL_DRY_RUN == 1 ]]; then
   ngfw_install_plan 'verify seven signed product artifacts; verify both D-238 exact repository key sets; APT bootstrap; write /usr/share/keyrings and /etc/apt/sources.list.d; APT refresh (no FD.io repo)'
   exit 0
 fi
+# Artifact verifier fixtures also use temporary files: bind their staging to
+# the selected root before invoking the original verification gate.
+work_dir=$(ngfw_install_path /tmp)
+mkdir -p "$work_dir"
+export TMPDIR="$work_dir"
 preflight_artifacts "$NGFW_VPP_ARTIFACTS" >/dev/null
 os_release=$(ngfw_install_path /etc/os-release)
 keyring_dir=$(ngfw_install_path /usr/share/keyrings)
 sources_dir=$(ngfw_install_path /etc/apt/sources.list.d)
-work_dir=$(ngfw_install_path /tmp)
-mkdir -p "$work_dir"
 # OS metadata is data, including under the recording fixture root. Never source
 # a caller-provided os-release file as executable shell text.
 CODENAME=$(python3 - "$os_release" <<'PYOSRELEASE'

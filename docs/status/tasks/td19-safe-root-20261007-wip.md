@@ -9,3 +9,5 @@ Independent source BLOCK B1/B2 on545: regular declared stubs could contain arbit
 Own audit found os-release sourcing could execute non-executable caller metadata despite rooted-executable guard. Replaced shell sourcing with strict literal VERSION_CODENAME data parsing; new fake-root injection/sentinel regression. Product source changes once more;664 not final reviewed head. Trusted harness10/10PASS11.076s; strict45 run on664 in progress must be replaced by strict46 run after this parser fix.
 
 Trusted parser and shipped recording harness now launch Python in isolated mode (-I), excluding caller PYTHONPATH/site customization from fixture content validation and subsequent parser dispatch. This addresses reviewer environment import caveat without changing key identities or package contracts.
+
+Final staging audit: script00 now binds TMPDIR to selected-root /tmp before original artifact verifier, which can generate private temporary fixture files. Dry-run still exits before staging; no keyring/list/APT mutation precedes original artifact and D-238 gates. This is a narrow staging correction, no gate bypass.

@@ -69,6 +69,15 @@ func (s *Service) AutoBlockSet(ctx context.Context, req *ngfwv1.AutoBlockSetRequ
 	if s.closed {
 		return nil, status.Error(codes.Unavailable, "agent stopped")
 	}
+	// An already-confirmed inactive empty runtime has nothing to enforce. The
+	// API republishes this snapshot periodically; scheduling ACL work here would
+	// compete with configuration transactions without changing runtime state.
+	// A fresh or replayed cache must still reconcile before gaining this proof.
+	if !s.autoBlock.dirty && s.autoBlock.fingerprint != "" &&
+		len(s.autoBlock.entries) == 0 && len(req.GetEntries()) == 0 &&
+		!s.st.desired.GetSecurity().GetAutoBlock().GetEnabled() {
+		return &ngfwv1.AutoBlockSetResponse{}, nil
+	}
 	snapshot := proto.Clone(req).(*ngfwv1.AutoBlockSetRequest)
 	b, err := protojson.Marshal(snapshot)
 	if err != nil {

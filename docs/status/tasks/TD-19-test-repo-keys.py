@@ -101,9 +101,11 @@ else: raise SystemExit(91)
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('trusted exact primary',result.stderr)
         self.assertLess(source.index('\ncheck_key_pins\n'),source.index('\ncurl -fsSL'))
-        self.assertLess(source.index('verify_repo_key "$repo_work/node.key"'), source.index('\napt-get update'))
+        self.assertLess(source.index('select_pinned_certificates "$repo_work/node.key"'), source.index('\napt-get update'))
 
-    def test_actual_repository_entry_refuses_missing_pins_before_verifier(self):
+    def test_actual_repository_entry_uses_authorized_pins_and_refuses_differing_override(self):
+        # D-238: unset overrides resolve to built-in owner-authorized pins and
+        # reach artifact preflight; a differing override refuses before it.
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             script = root / 'setup.sh'
@@ -114,8 +116,14 @@ else: raise SystemExit(91)
             env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
             result = subprocess.run(['bash', str(script)], env=env, text=True, capture_output=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('NGFW_FRR_KEY_FINGERPRINTS', result.stderr)
-            self.assertNotIn('realpath:', result.stderr)
+            self.assertIn('realpath:', result.stderr)
+            self.assertNotIn('REFUSED', result.stderr)
+            for name in ('NGFW_FRR_KEY_FINGERPRINTS', 'NGFW_NODESOURCE_KEY_FINGERPRINTS'):
+                with self.subTest(name=name):
+                    result = subprocess.run(['bash', str(script)], env=dict(env, **{name: A}), text=True, capture_output=True)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn('REFUSED: ' + name, result.stderr)
+                    self.assertNotIn('realpath:', result.stderr)
 
     def test_revoked_or_expired_primary_refused(self):
         for validity in ('r', 'e', 'i', 'd', '?', 'n', 'w', 's', '', 'future'):

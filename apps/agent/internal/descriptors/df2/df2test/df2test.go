@@ -45,7 +45,7 @@ func Connect(t testing.TB) vpp.Client {
 	t.Helper()
 	vpptest.SkipUnlessIntegration(t)
 	vpptest.LockLab(t)
-	conn, err := core.Connect(socketclient.NewVppClient(socketclient.DefaultSocketName))
+	conn, err := core.Connect(socketclient.NewVppClient(vpptest.APISocket()))
 	if err != nil {
 		t.Fatalf("connect to VPP: %v", err)
 	}

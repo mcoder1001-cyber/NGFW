@@ -39,6 +39,23 @@ def lab_env(n):
     }
 
 
+SHARED_VPP_DIR = "/run/vpp"
+VPP_SOCKET_KEYS = {"NGFW_VPP_API_SOCKET": "api", "NGFW_VPP_CLI_SOCKET": "cli", "NGFW_VPP_STATS_SOCKET": "stats",
+                   "NGFW_AGENT_VPP_API_SOCKET": "api", "NGFW_AGENT_VPP_STATS_SOCKET": "stats"}
+
+
+def slot_vpp_dir(n):
+    """LAB-vpp-per-slot: slot N's own VPP (tools/lab vpp up N) lives in /run/ngfw-test/w<N>/vpp."""
+    return f"/run/ngfw-test/w{n}/vpp"
+
+
+def vpp_env(d):
+    """The VPP socket exports of `tools/lab env` for a VPP whose runtime dir is d."""
+    env = {k: f"{d}/{kind}.sock" for k, kind in VPP_SOCKET_KEYS.items()}
+    env["NGFW_VPPCTL"] = f"vppctl -s {d}/cli.sock"
+    return env
+
+
 def ports(n):
     """every TCP/UDP port slot n may listen on, with where the formula lives"""
     p = {}
@@ -90,6 +107,8 @@ def main():
     for (a_lo, a_hi, a), (b_lo, b_hi, b) in zip(ranges, ranges[1:]):
         if b_lo <= a_hi:
             errs.append(f"VPP id ranges overlap: {a} {a_lo}-{a_hi} and {b} {b_lo}-{b_hi}")
+    if len({slot_vpp_dir(n) for n in ALL_SLOTS}) != len(ALL_SLOTS) or any(slot_vpp_dir(n).startswith(SHARED_VPP_DIR + "/") for n in ALL_SLOTS):
+        errs.append("per-slot VPP runtime dirs collide or sit inside the shared VPP's /run/vpp")
     for n in ALL_SLOTS:
         if len(f"w{n}") > 6:
             errs.append(f"slot {n}: prefix too long for IFNAMSIZ")
@@ -103,10 +122,14 @@ def main():
     if os.access(lab, os.X_OK):
         for n in ALL_SLOTS:
             out = subprocess.run([lab, "env", str(n)], capture_output=True, text=True, check=False)
-            got = dict(re.findall(r"^export (NGFW_[A-Z_]+)=(\S*)$", out.stdout, re.M))
+            got = {k: v.strip('"') for k, v in re.findall(r'^export (NGFW_[A-Z_]+)=("[^"]*"|\S*)$', out.stdout, re.M)}
             for k, v in lab_env(n).items():
                 if got.get(k) != v:
                     errs.append(f"tools/lab env {n}: {k}={got.get(k)!r}, expected {v!r}")
+            # the VPP sockets: all of the shared VPP's, or all of slot N's own instance - never a mix, never another slot's
+            vpp_got = {k: got.get(k) for k in vpp_env(SHARED_VPP_DIR)}
+            if vpp_got not in (vpp_env(SHARED_VPP_DIR), vpp_env(slot_vpp_dir(n))):
+                errs.append(f"tools/lab env {n}: VPP sockets {vpp_got} are neither the shared {SHARED_VPP_DIR} nor {slot_vpp_dir(n)}")
             checked += 1
         for bad in (0, 13, 33):
             if subprocess.run([lab, "env", str(bad)], capture_output=True, check=False).returncode == 0:

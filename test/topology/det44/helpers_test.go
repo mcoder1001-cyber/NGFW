@@ -36,10 +36,18 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 )
 
+// apiSocket follows `tools/lab env <N>` (NGFW_VPP_API_SOCKET: the slot's own VPP while `tools/lab vpp up <N>` runs,
+// LAB-vpp-per-slot); unset = the shared VPP.
+var apiSocket = func() string {
+	if s := os.Getenv("NGFW_VPP_API_SOCKET"); s != "" {
+		return s
+	}
+	return "/run/vpp/api.sock"
+}()
+
 const (
 	labLock     = "/run/lock/ngfw-lab.lock"     // shared for the run (D-094)
 	globalsLock = "/run/lock/ngfw-globals.lock" // exclusive around the global steps (D-082, D-167)
-	apiSocket   = "/run/vpp/api.sock"
 	noIndex     = ^uint32(0)
 )
 

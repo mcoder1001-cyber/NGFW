@@ -21,6 +21,8 @@ func RunNumericOpenFilePublisher() (result error) {
 	wholeContext, wholeCancel := context.WithTimeout(context.Background(), NumericPublisherServerWholeBudget)
 	defer wholeCancel()
 	stage := NumericPublisherServerRoles
+	checkpoint16 := uint8(0)
+	var diagnosticState numericPublisherDiagnosticState
 	diagnosticContext := context.Background()
 	setStage := func(value NumericPublisherServerStage) {
 		stage = value
@@ -29,6 +31,11 @@ func RunNumericOpenFilePublisher() (result error) {
 	setStage(NumericPublisherServerRoles)
 	defer func() {
 		if result != nil {
+			if stage == NumericPublisherServerPostTarget {
+				if line := diagnosticState.line(2, checkpoint16, time.Since(started), true); line != "" {
+					log.Print(line)
+				}
+			}
 			innerStage := uint8(0)
 			var failure *NumericPublisherFailure
 			if errors.As(result, &failure) && failure.Stage >= 1 && failure.Stage <= 24 {
@@ -66,7 +73,7 @@ func RunNumericOpenFilePublisher() (result error) {
 	}
 	setStage(NumericPublisherServerInstallation)
 	validationContext, validationCancel := context.WithTimeout(wholeContext, NumericPublisherValidationBudget)
-	defer validationCancel()
+	defer func() { diagnosticState.captureBeforeCancel(diagnosticContext, result != nil); validationCancel() }()
 	diagnosticContext = validationContext
 	proof, err := newNumericPublisherInstallationProof(validationContext)
 	if err != nil {
@@ -105,7 +112,8 @@ func RunNumericOpenFilePublisher() (result error) {
 	// Authenticate the actual canonical peer before accepting any caller rights.
 	source := (bootid.Reader{}).ForPID(int(peer.Pid))
 	setStage(NumericPublisherServerPeer)
-	if verifyFixedAgentPeer(ctx, peer, source) != nil {
+	trust, peerErr := numericPublisherSourceTrust(ctx, peer, source, proof)
+	if peerErr != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerReference)
@@ -122,7 +130,7 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerManager)
-	if err := numericPublisherManagerWithProof(ctx, server, proof); err != nil {
+	if err := numericPublisherManagerFromTrust(ctx, server, proof, trust); err != nil {
 		return err
 	}
 	ready, readyErr := json.Marshal(numericPublisherReady{Version: 1, Phase: "validation-ready", Source: source, Server: server})
@@ -138,7 +146,7 @@ func RunNumericOpenFilePublisher() (result error) {
 		return ErrBoundary
 	}
 	ipcContext, ipcCancel := context.WithTimeout(wholeContext, NumericPublisherIPCBudget)
-	defer ipcCancel()
+	defer func() { diagnosticState.captureBeforeCancel(diagnosticContext, result != nil); ipcCancel() }()
 	ctx = ipcContext
 	diagnosticContext = ctx
 	if boundUnitObserverSocket(ctx, socket) != nil {
@@ -170,7 +178,7 @@ func RunNumericOpenFilePublisher() (result error) {
 			return ErrBoundary
 		}
 		workContext, workCancel := context.WithTimeout(wholeContext, NumericPublisherWorkBudget)
-		defer workCancel()
+		defer func() { diagnosticState.captureBeforeCancel(diagnosticContext, result != nil); workCancel() }()
 		ctx = workContext
 		diagnosticContext = ctx
 		if boundNumericPublisherWorkSocket(ctx, socket) != nil {
@@ -197,46 +205,102 @@ func RunNumericOpenFilePublisher() (result error) {
 			return ErrBoundary
 		}
 		setStage(NumericPublisherServerPostTarget)
+		checkpoint16 = 1
 		if verifyNumericOpenFileTarget(ctx, request.Kind, request.Instance, request.Target) != nil {
 			return ErrBoundary
 		}
-		if numericPublisherManagerWithProof(ctx, server, proof) != nil || verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil || validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil || proof.Verify(ctx) != nil {
+		checkpoint16 = 2
+		workTrust, trustErr := numericPublisherManagerTrust(ctx, server, proof, source)
+		if trustErr != nil {
 			return ErrBoundary
 		}
+		checkpoint16 = 3
+		if numericPublisherPeerFromTrust(ctx, peer, source, workTrust) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 4
+		if readSourceAgentReference(source) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 5
+		if validateSourceAgentExecutable(roles[sourceAgentExecutableRole]) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 6
+		if proof.Verify(ctx) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 7
 		token, tokenErr := newNumericPublisherWorkToken()
 		if tokenErr != nil {
 			return ErrBoundary
 		}
+		checkpoint16 = 8
 		if sendNumericPublisherWorkFrame(socket, "publication-complete", source, server, token, int(roles[sourceAgentExecutableRole].Fd())) != nil {
 			return ErrBoundary
 		}
+		checkpoint16 = 9
 		ackData, ackRights, ackErr := receiveUnitObserverPacket(socket, 0)
 		closeUnitObserverFiles(ackRights)
 		var ack numericPublisherWorkFrame
-		if ackErr != nil || decodeUnitObserverPacket(ackData, &ack) != nil || validateNumericPublisherWorkFrame(ack, "publication-ack", source, server, token) != nil || ctx.Err() != nil || noNumericPublisherQueuedInput(socket) != nil || proof.Verify(ctx) != nil || verifyFixedAgentPeer(ctx, peer, source) != nil || readSourceAgentReference(source) != nil {
+		if ackErr != nil {
 			return ErrBoundary
 		}
+		checkpoint16 = 10
+		if decodeUnitObserverPacket(ackData, &ack) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 11
+		if validateNumericPublisherWorkFrame(ack, "publication-ack", source, server, token) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 12
+		if ctx.Err() != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 13
+		if noNumericPublisherQueuedInput(socket) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 14
+		if proof.Verify(ctx) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 15
+		if verifyFixedAgentPeer(ctx, peer, source) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 16
+		if readSourceAgentReference(source) != nil {
+			return ErrBoundary
+		}
+		checkpoint16 = 17
 		finalContext, finalCancel := context.WithTimeout(wholeContext, NumericPublisherIPCBudget)
-		defer finalCancel()
+		defer func() { diagnosticState.captureBeforeCancel(diagnosticContext, result != nil); finalCancel() }()
 		ctx = finalContext
 		diagnosticContext = ctx
+		checkpoint16 = 18
 		if boundUnitObserverSocket(ctx, socket) != nil {
 			return ErrBoundary
 		}
 		published = true
 	}
 
-	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, setStage)
+	return serveNumericPublisherReply(ctx, socket, peer, request, roles[sourceAgentExecutableRole], published, proof, setStage, stopPeer)
 }
 
-func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage)) error {
+func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucred, request numericPublisherRequest, image *os.File, published bool, proof *numericPublisherInstallationProof, setStage func(NumericPublisherServerStage), stopPeer numericPublisherPeerStop) error {
 	server := (bootid.Reader{}).ForPID(os.Getpid())
 	setStage(NumericPublisherServerManager)
-	if numericPublisherManagerWithProof(ctx, server, proof) != nil {
+	trust, trustErr := numericPublisherManagerTrust(ctx, server, proof, request.Source)
+	if trustErr != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerReplyPeer)
-	if verifyFixedAgentPeer(ctx, peer, request.Source) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+	if numericPublisherPeerFromTrust(ctx, peer, request.Source, trust) != nil || readSourceAgentReference(request.Source) != nil || validateSourceAgentExecutable(image) != nil {
+		return ErrBoundary
+	}
+	if proof.Verify(ctx) != nil || enterNumericPublisherTerminal(ctx, socket, stopPeer) != nil {
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerSend)
@@ -248,9 +312,7 @@ func serveNumericPublisherReply(ctx context.Context, socket int, peer *unix.Ucre
 		return ErrBoundary
 	}
 	setStage(NumericPublisherServerAck)
-	ack, rights, err := receiveUnitObserverPacket(socket, 0)
-	closeUnitObserverFiles(rights)
-	if err != nil || string(ack) != "OK" || ctx.Err() != nil || proof.Verify(ctx) != nil {
+	if receiveNumericPublisherTerminalACK(ctx, socket) != nil || proof.Verify(ctx) != nil {
 		return ErrBoundary
 	}
 	return nil

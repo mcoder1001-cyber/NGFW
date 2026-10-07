@@ -16,6 +16,7 @@ import (
 const unitObserverExecutable = "/usr/lib/ngfw/ngfw-ra-namespace-broker"
 const unitObserverService = "/usr/lib/systemd/system/ngfw-ra-observer@.service"
 const unitObserverSocket = "/usr/lib/systemd/system/ngfw-ra-observer@.socket"
+const unitObserverRAServiceDigest = "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246"
 
 // SystemdUnitObservation obtains fresh manager-opened namespace and executable
 // descriptors for the canonical private unit without reading target proc NS/exe.
@@ -31,7 +32,7 @@ func unitObserverInstallation() error {
 	for _, item := range []struct{ path, digest string }{
 		{unitObserverService, "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a"},
 		{unitObserverSocket, "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4"},
-		{"/usr/lib/systemd/system/ngfw-ra@.service", "bf5e89b553235d455db222039d5e8b2cdbe639a1d36054b5dab6cca3ea266d9a"},
+		{"/usr/lib/systemd/system/ngfw-ra@.service", unitObserverRAServiceDigest},
 	} {
 		content, err := trustedInstallationFile(item.path, 16384, false)
 		digest := sha256.Sum256(content)

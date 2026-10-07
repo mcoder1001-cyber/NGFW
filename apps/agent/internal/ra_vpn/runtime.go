@@ -471,7 +471,7 @@ func (r *Runtime) Sessions(ctx context.Context, profile string) ([]strongswan.RA
 	}
 	defer func() { _ = client.Close() }()
 	sessions, err := strongswan.ObserveRASessions(ctx, client, profile, g.record.Unit.Generation(plan.Instance), g.record.Spec.Configuration.GetPools())
-	if err != nil || len(sessions) > 200 {
+	if err != nil || len(sessions) > strongswan.MaxRASessions {
 		return nil, ErrEngine
 	}
 	return sessions, nil

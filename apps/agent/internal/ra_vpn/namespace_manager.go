@@ -252,17 +252,9 @@ func verifyBrokerVPPUnitIdentity(ctx context.Context, target MountTarget) error 
 	if hex.EncodeToString(digest[:]) != "6b004cdaa5b541c5d836eb45b65204d3b38a3081ce11717c9d3be6b4268c1716" {
 		return ErrBoundary
 	}
-	command := exec.CommandContext(ctx, "/usr/bin/systemctl", "show", "--property=MainPID,FragmentPath,DropInPaths,ExecStart", "vpp.service")
-	output, err := command.Output()
-	if err != nil || len(output) > 16384 {
+	fields, err := readManagerDBusSingleRole(ctx, managerDBusSingleVPP)
+	if err != nil {
 		return ErrBoundary
-	}
-	fields := map[string]string{}
-	for _, line := range strings.Split(string(output), "\n") {
-		key, value, ok := strings.Cut(line, "=")
-		if ok {
-			fields[key] = value
-		}
 	}
 	pid, err := strconv.Atoi(fields["MainPID"])
 	if err != nil || pid != target.Boot.PID || fields["FragmentPath"] != "/usr/lib/systemd/system/vpp.service" || !strings.Contains(fields["ExecStart"], "path=/usr/bin/vpp ; argv[]=/usr/bin/vpp -c /etc/vpp/startup.conf ;") {

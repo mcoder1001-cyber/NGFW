@@ -14,8 +14,8 @@ import time
 
 MARKER = "/run/ngfw-ra-guest-fixture"
 MANIFEST = "/run/ngfw-ra-stop-fixture.json"
-ELF = "/dev/shm/ngfw-ra-stop-fixture/ra-actual-stop-vm9.test"
-ELF_SHA = "efb25a9b871a4d1b2df1ee1d135dc03d70d646f4a21679153c8a047f3c86bfc3"
+ELF = "/dev/shm/ngfw-ra-stop-fixture/ra-actual-stop-vm15.test"
+ELF_SHA = "9b18c66e92af38a5376d5be5f09e9f02a8fc405e7c7f0797cf2eb140c235fe83"
 CGROUP = "/system.slice/ngfw-agent.service"
 OUTPUT = "/run/ngfw-ra-stop-coordinator"
 

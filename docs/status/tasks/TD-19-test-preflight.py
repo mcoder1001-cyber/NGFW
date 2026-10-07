@@ -17,13 +17,15 @@ SHIP = ['libvppinfra', 'python3-vpp-api', 'vpp', 'vpp-crypto-engines',
 class ArtifactPreflight(unittest.TestCase):
     def fixture(self, directory):
         root = Path(directory)
-        for name in ['source/scripts', 'source/deploy/vpp', 'artifacts', 'bin']:
+        for name in ['source/scripts', 'source/deploy/vpp', 'artifacts', 'bin', 'install-root']:
             (root / name).mkdir(parents=True)
         script = (ROOT / 'scripts/00-add-repos.sh').read_text()
         # Only the root precondition is modeled for the no-mutation refusal case.
         script = script.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
         entry = root / 'source/scripts/00-add-repos.sh'
         entry.write_text(script)
+        shutil.copy2(ROOT / 'scripts/install-common.sh', root / 'source/scripts/install-common.sh')
+        shutil.copy2(ROOT / 'scripts/install-recording-stub.py', root / 'source/scripts/install-recording-stub.py')
         for name in ['VERSION', 'lib.sh']:
             shutil.copy2(ROOT / 'deploy/vpp' / name, root / 'source/deploy/vpp' / name)
         def executable(path, body):
@@ -34,8 +36,10 @@ class ArtifactPreflight(unittest.TestCase):
 printf 'original verifier invoked\\n' >> "$VERIFY_LOG"
 exit "${VERIFY_FAILURE:-0}"
 ''')
-        for command in ['apt-get', 'curl', 'ssh', 'scp', 'systemctl']:
-            executable('bin/' + command, 'printf "forbidden command\\n" >> "$HOST_LOG"\nexit 99\n')
+        for command in ('apt-get', 'curl', 'gpg', 'go', 'npm', 'corepack', 'python3', 'tar', 'pip'):
+            target = root / 'bin' / command
+            shutil.copy2(ROOT / 'scripts/install-recording-stub.py', target)
+            target.chmod(0o755)
         version = '26.06-release+ngfw1'
         packages = [dict(package=name, file=f'{name}_{version}_amd64.deb', version=version,
                          architecture='amd64', ship=True, sha256='a' * 64) for name in SHIP]
@@ -45,7 +49,9 @@ exit "${VERIFY_FAILURE:-0}"
         (root / 'artifacts/SHA256SUMS').write_text('fixture metadata; original verifier is modeled')
         manifest = dict(schema='ngfw.vpp-debs.manifest/v2', version=version, packages=packages)
         env = dict(os.environ, PATH=str(root / 'bin') + ':' + os.environ['PATH'],
-                   VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'))
+                   VERIFY_LOG=str(root / 'verify-log'), HOST_LOG=str(root / 'host-log'),
+                   NGFW_INSTALL_ROOT=str(root / 'install-root'), NGFW_INSTALL_STUBS='1',
+                   NGFW_INSTALL_STUB_DIR=str(root / 'bin'))
         return root, entry, manifest, env
 
     def test_nonroot_preflight_selects_only_seven_runtimes_without_mutation(self):
@@ -83,6 +89,20 @@ exit "${VERIFY_FAILURE:-0}"
             self.assertNotEqual(result.returncode, 0)
             self.assertIn(b'NGFW_VPP_ARTIFACTS required', result.stderr)
             self.assertFalse((root / 'host-log').exists())
+
+    def test_os_release_is_not_executable_shell(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, entry, manifest, env = self.fixture(directory)
+            (root / 'artifacts/manifest.json').write_text(json.dumps(manifest))
+            env['NGFW_VPP_ARTIFACTS'] = str(root / 'artifacts')
+            os_dir = root / 'install-root/etc'; os_dir.mkdir()
+            sentinel = root / 'outside-sentinel'
+            (os_dir / 'os-release').write_text('VERSION_CODENAME=$(touch ' + str(sentinel) + ')\n')
+            result = subprocess.run(['bash', str(entry)], env=env, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('literal VERSION_CODENAME', result.stderr)
+            self.assertFalse(sentinel.exists())
+            self.assertFalse((root / 'install-root/.ngfw-fixture-calls').exists())
 
     def test_unsafe_or_nonproduct_selection_refuses(self):
         with tempfile.TemporaryDirectory() as directory:

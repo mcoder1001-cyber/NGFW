@@ -129,7 +129,9 @@ describe('setup wizard', () => {
     next();
     await screen.findByRole('combobox', { name: 'WAN interface' });
     next();
-    expect(await screen.findByRole('alert')).toHaveTextContent('Select a network interface');
+    expect(
+      await screen.findByText('Select a network interface before continuing.'),
+    ).toBeInTheDocument();
     fireEvent.mouseDown(screen.getByRole('combobox', { name: 'WAN interface' }));
     const list = await screen.findByRole('listbox');
     expect(

@@ -99,6 +99,7 @@ export function pageOf(rows: Row[], req: ServerPageRequest): { rows: Row[]; tota
 const LTR = { dir: 'ltr' } as const;
 const BPS = 'bps' as const;
 const PPS = 'pps' as const;
+const HOST_LINK_UP = 'up' as const;
 const NAME_RE = /^[A-Za-z][A-Za-z0-9_./-]{0,62}$/;
 
 export function InterfacesPage() {
@@ -210,7 +211,7 @@ export function InterfacesPage() {
             <StatusChip size="small" status={linkStatus(p.row.item.state)!} />
           ) : p.row.item.hostInventory ? (
             p.row.item.hostInventory.linkUp ? (
-              <StatusChip size="small" status="up" />
+              <StatusChip size="small" status={HOST_LINK_UP} />
             ) : (
               <Typography variant="body2" color="text.secondary">
                 {t('inventory.linkDownOrUnknown')}

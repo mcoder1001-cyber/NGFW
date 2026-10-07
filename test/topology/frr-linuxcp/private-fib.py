@@ -17,8 +17,11 @@ SELF = str(Path(__file__).resolve())
 
 def empty_outer_link(link):
     """Accept loopback or strictly unconfigured immutable kernel fallbacks."""
+    flags = link.get('flags')
+    if not isinstance(flags, list) or any(not isinstance(flag, str) for flag in flags):
+        return False
     if link.get('ifname') == 'lo':
-        return link.get('link_type') == 'loopback' and 'LOOPBACK' in link.get('flags', [])
+        return link.get('link_type') == 'loopback' and 'LOOPBACK' in flags
     defaults = {
         'gre0': ('gre', 'gre', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
         'gretap0': ('gretap', 'ether', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
@@ -35,7 +38,7 @@ def empty_outer_link(link):
     kind, link_type, data = expected
     info = link.get('linkinfo', {})
     return (link.get('netns-immutable') is True and link.get('operstate') == 'DOWN'
-            and not {'UP', 'LOWER_UP', 'MASTER'}.intersection(link.get('flags', []))
+            and not {'UP', 'LOWER_UP', 'MASTER'}.intersection(flags)
             and link.get('link') is None and 'master' not in link
             and link.get('group') == 'default' and link.get('promiscuity') == 0
             and link.get('allmulti') == 0 and link.get('addr_info') == []
@@ -210,7 +213,8 @@ def self_test():
         def test_active_configured_or_impostor_defaults_rejected(self):
             import copy
             mutations = [
-                {'flags': ['NOARP', 'UP']}, {'flags': ['LOWER_UP']}, {'operstate': 'UNKNOWN'},
+                {'flags': ['NOARP', 'UP']}, {'flags': ['LOWER_UP']}, {'flags': None},
+                {'flags': 'NOARP'}, {'flags': [False]}, {'operstate': 'UNKNOWN'},
                 {'netns-immutable': False}, {'link_type': 'ether'}, {'link': 9}, {'master': 'br0'},
                 {'group': 'other'}, {'promiscuity': 1}, {'allmulti': 1},
                 {'addr_info': [{'local': '192.0.2.1'}]}, {'ifname': 'eth0'},
@@ -222,7 +226,7 @@ def self_test():
                     link = copy.deepcopy(self.fallback())
                     link.update(mutation)
                     self.assertFalse(empty_outer_link(link))
-            for field in ['addr_info', 'netns-immutable', 'linkinfo']:
+            for field in ['addr_info', 'netns-immutable', 'linkinfo', 'flags']:
                 link = self.fallback()
                 del link[field]
                 self.assertFalse(empty_outer_link(link))

@@ -17,7 +17,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[3]
 SOURCE = (ROOT / 'scripts/00-add-repos.sh').read_text()
 FUNCTIONS = SOURCE[SOURCE.index('check_key_pins() {'):SOURCE.index('if [[ ${1:-} == --check-artifacts ]]')]
-RESOLUTION = SOURCE[SOURCE.index('NGFW_FRR_KEY_FINGERPRINTS=${'):SOURCE.index('preflight_artifacts "$NGFW_VPP_ARTIFACTS"')]
+RESOLUTION = SOURCE[SOURCE.index('NGFW_FRR_KEY_FINGERPRINTS=${'):SOURCE.index('if [[ $NGFW_INSTALL_DRY_RUN == 1 ]]')]
 
 # Exact identities from docs/status/tasks/TD-19-trust-material-20261004.md (D-238).
 FRR = ('4A56C7738BB3F81595A805D2A832769908F13ED1', '3D9968AC9AE7BE1169288DDB1FD5839895F57FDA',
@@ -209,21 +209,16 @@ class RealRepositoryEntry(unittest.TestCase):
         capture = work / 'capture'; capture.mkdir()
         (work / 'frr.bundle').write_bytes(self.bundle(*frr_labels))
         (work / 'node.bundle').write_bytes(self.bundle(*node_labels))
-        log = work / 'calls'
-        curl = stubs / 'curl'
-        curl.write_text('''#!/usr/bin/python3
-import json,os,pathlib,shutil,sys
-args=sys.argv[1:]
-with open(os.environ['CALL_LOG'],'a') as f: f.write(json.dumps(['curl']+args)+'\\n')
-url=[a for a in args if a.startswith('https://')]
-source={os.environ['FRR_URL']:'frr.bundle',os.environ['NODE_URL']:'node.bundle'}[url[0]]
-shutil.copyfile(pathlib.Path(os.environ['WORK'])/source, args[args.index('-o')+1])
-''')
-        curl.chmod(0o755)
-        for name in ('apt-get', 'install', 'mv'):
+        log = work / 'install-root/.ngfw-fixture-calls'
+        for name in ('apt-get', 'curl', 'gpg', 'go', 'npm', 'corepack', 'python3', 'tar', 'pip'):
             stub = stubs / name
-            stub.write_text('#!/bin/sh\necho "UNEXPECTED HOST MUTATION $0" >&2\nexit 97\n'); stub.chmod(0o755)
-        source = SOURCE.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
+            shutil.copy2(ROOT / 'scripts/install-recording-stub.py', stub)
+            stub.chmod(0o755)
+        install_root = work / 'install-root'; install_root.mkdir()
+        (install_root / 'etc').mkdir()
+        (install_root / 'etc/os-release').write_text('VERSION_CODENAME=resolute\n')
+        source = SOURCE.replace('source "$ROOT/scripts/install-common.sh"',
+                                'source ' + json.dumps(str(ROOT / 'scripts/install-common.sh')), 1)
         source = source.replace('\ncheck_key_pins\n', '\npreflight_artifacts() { :; }\ncheck_key_pins\n', 1)
         frr_pins = ','.join(self.fpr[label] for label in frr_pins)
         values = constants()
@@ -237,7 +232,9 @@ shutil.copyfile(pathlib.Path(os.environ['WORK'])/source, args[args.index('-o')+1
         source = source.replace('\napt-get update\n', boundary, 1)
         self.assertNotIn(values['NGFW_FRR_AUTHORIZED_PRIMARIES'], source)
         env = dict(os.environ, PATH=f'{stubs}:/usr/bin:/bin', CALL_LOG=str(log), WORK=str(work),
-                   CAPTURE=str(capture), FRR_URL=FRR_URL, NODE_URL=NODE_URL, NGFW_VPP_ARTIFACTS=str(work))
+                   CAPTURE=str(capture), FRR_URL=FRR_URL, NODE_URL=NODE_URL, NGFW_VPP_ARTIFACTS=str(work),
+                   NGFW_INSTALL_ROOT=str(install_root), NGFW_INSTALL_STUBS='1',
+                   NGFW_INSTALL_STUB_DIR=str(stubs), NGFW_INSTALL_FIXTURE_KEYS='1')
         env.pop('NGFW_FRR_KEY_FINGERPRINTS', None)
         env.pop('NGFW_NODESOURCE_KEY_FINGERPRINTS', None)
         result = subprocess.run(['bash', '-c', source], env=env, text=True, capture_output=True)

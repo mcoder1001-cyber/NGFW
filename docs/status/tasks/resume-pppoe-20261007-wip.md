@@ -2,6 +2,16 @@
 
 ## Active independent-review repair — supersedes readiness below
 
+Published lifecycle checkpoint: local/remote `1cc677129ba564eb0fec1f2251856aba6fc13299`
+(CLI push and ls-remote verified). New owned files are `lifecycle.go`,
+`lifecycle_test.go`, `templates/ipv6.tmpl`, and the already-owned renderer README.
+Focused race PASS: renderer 36.731s, descriptor 1.427s, subsystem 3.601s using
+the exact next command below. Added abrupt-pppd-loss/child-gone race control plus
+setup failures PASS 12.675s. Initial lint found only private executable fixture
+permissions, then path/permission annotations; fixes are test-only. Final scoped
+golangci-lint PASS, zero issues; check against fetched main PASS 0m15s.
+No executable production change after this published checkpoint.
+
 Latest verified published checkpoint before this source checkpoint: `9d63a56a8`
 (DHCPv6 dependency and contract status); docs checkpoint `793837f80` discloses
 unsupported discovery/transit. Read complete independent reports `cbeea9a55` and `9ec1f1d17`.

@@ -24,6 +24,7 @@ Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (p
 | `/etc/ppp/ip-up.d/ngfw-<hostif>`, `/etc/ppp/ip-down.d/ngfw-<hostif>` | 0755 | hook pppd runs on link up/down; writes `<StateDir>/<hostif>.state` for the state reader |
 | `/etc/ppp/ipv6-up.d/ngfw-<hostif>`, `/etc/ppp/ipv6-down.d/ngfw-<hostif>` | 0755 | only with IPv6 on: kernel SLAAC on the PPP link (`accept_ra=2`, `autoconf=1`, `accept_ra_defrtr` = default route), re-adds the link-local to send an RS, keeps `<StateDir>/<hostif>.state6` current (global addresses, RA default router, PD prefix) from a refresher that lives while pppd and the link do; down stops it first |
 | `/etc/ppp/ngfw-dhcpcd-<hostif>.conf`, `/etc/ppp/ngfw-dhcp6-<hostif>` | 0644 / 0755 | only with `dhcpv6`: `dhcpcd` (dhcpcd-base) config — `ipv6only`, `noipv6rs` (the kernel does RA), `ia_na 1`, `ia_pd 2` — and its event script, which records a validated delegated prefix in `<hostif>.pd` |
+| `/etc/ppp/ngfw-ipv6-<hostif>` | 0755 | fixed Python3 lifecycle helper, used by IPv6 hooks and DHCP events |
 | `/etc/systemd/system/ngfw-pppoe-<hostif>.service` | 0644 | one unit per session, `ExecStart=pppd call ngfw-<hostif> … ipparam ngfw-<hostif>`, `Restart=on-failure` |
 
 Every user-controlled string goes through `ident`/`quoted` in the templates; `Session.validate` rejects a
@@ -47,9 +48,19 @@ link-local or global router, a /16–/64 delegated prefix); `ReadState` puts its
 A session with IPv6 on must have MTU ≥ 1280. `failCount`/`lastError` come from the agent's pppd supervisor, not the hook.
 The runtime uses `ReadSessionState` with the configured IPv6 mode, so stale IPv6
 files cannot mark an IPv6-disabled session up. IPv4 down clears IPCP addresses and
-DNS even when IPv6 remains up. Each refresher runs in its own shell, verifies its
-PID-file ownership, stops its DHCPv6 child on exit, and records down on pppd/link
-loss. A superseded instance leaves replacement state untouched.
+DNS even when IPv6 remains up. Each refresher records its generation, process start
+time and command identity. Stop verifies these identities and uses pinned Linux
+pidfds, bounded TERM/KILL and exit verification for the refresher and direct DHCPv6
+child before deleting handles or replacing hooks. Zero, legacy bare and foreign
+PIDs fail closed without signals. Existing Python3 and packaged dhcpcd-base are
+required; unavailable pidfd support refuses IPv6 operations without a privilege fallback.
+Persistent per-session action/publication lock files must not be unlinked while
+writers may exist. Publication and generation revocation share one lock; delayed
+collection and DHCP events cannot overwrite a revoked generation. Natural pppd/link
+loss records down; prerequisite/client failures return nonzero and expose fixed
+non-secret errors in session status when state storage is writable. State-write
+failure itself returns nonzero. These controls do not prove live dhcpcd privsep
+descendant behavior or the unsupported product discovery/transit path.
 
 ## Not in this package (agent side, `F-pppoe-client-host`)
 

@@ -35,7 +35,10 @@ func newIPv6Rig(t *testing.T, mode string) *ipv6Rig {
 	}
 	write := func(path, body string) {
 		t.Helper()
-		if err := os.WriteFile(path, []byte(body), 0o700); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil { //nolint:gosec // G703: paths belong to this private rendered fixture
+			t.Fatal(err)
+		}
+		if err := os.Chmod(path, 0o700); err != nil { //nolint:gosec // G302: private fake executables/helper require owner execute permission
 			t.Fatal(err)
 		}
 	}
@@ -223,7 +226,7 @@ func TestIPv6SetupAndClientFailures(t *testing.T) {
 					t.Fatal(err)
 				}
 			case "exec-failure":
-				if err := os.WriteFile(filepath.Join(x.fixture, "dhcpcd"), []byte("invalid executable\n"), 0o700); err != nil {
+				if err := os.WriteFile(filepath.Join(x.fixture, "dhcpcd"), []byte("invalid executable\n"), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			case "sysctl-failure":
@@ -294,6 +297,33 @@ func TestIPv6NaturalLossAndGenerationReplacement(t *testing.T) {
 				t.Fatalf("natural loss retained state: %v %v", st, err)
 			}
 		})
+	}
+}
+
+func TestIPv6AbruptPppdLossStopsChild(t *testing.T) {
+	x := newIPv6Rig(t, "dhcpv6")
+	pppd := exec.Command("sleep", "30")
+	if err := pppd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = pppd.Process.Kill(); _ = pppd.Wait() }()
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, Python3Bin, x.paths.ipv6Helper(x.host), "up", "ppp0", "", "", strconv.Itoa(pppd.Process.Pid)) //nolint:gosec // own private fixture
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("up: %v %s", err, out)
+	}
+	item := x.record(t)
+	refresher := int(item["pid"].(float64))
+	child := int(item["child"].(map[string]any)["pid"].(float64))
+	if err := pppd.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = pppd.Wait()
+	waitIPv6(t, func() bool { return ipv6ProcessGone(refresher) && ipv6ProcessGone(child) })
+	st, err := x.r.ReadState(x.host, 0, "")
+	if err != nil || st.GetPhase() != "down" || st.GetIpv6() != "" {
+		t.Fatalf("pppd loss retained state: %v %v", st, err)
 	}
 }
 

@@ -153,7 +153,7 @@ function DrawerBody({
   );
   const live = item?.state;
   const rate = rates.get(live?.vppName ?? name);
-  const readOnly = !perms.editConfig;
+  const readOnly = !perms.editConfig || item?.inventoryOnly === true;
 
   // The form edits the value it opened with (review N4): a refetch of the candidate never remounts it (unsaved edits
   // stay), and Save sends only what changed against that value — a field another session changed meanwhile is not
@@ -266,7 +266,9 @@ function DrawerBody({
         </IconButton>
       </Stack>
       {(state.isPending || candidate.isPending) && <LinearProgress aria-label={t('loading')} />}
-      {!live && state.isSuccess && <Alert severity="info">{t('drawer.notInVpp')}</Alert>}
+      {!live && !item?.inventoryOnly && state.isSuccess && (
+        <Alert severity="info">{t('drawer.notInVpp')}</Alert>
+      )}
       {live && (
         <Table size="small" aria-label={t('drawer.liveTitle')} sx={{ mb: 2 }}>
           <TableBody>
@@ -302,7 +304,35 @@ function DrawerBody({
       {live?.pppoe && <PppoePanel name={name} pppoe={live.pppoe} readOnly={readOnly} />}
       <Divider sx={{ mb: 2 }} />
 
-      {isSub ? (
+      {item?.inventoryOnly ? (
+        <>
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {t(
+              item.hostInventory?.isManagement
+                ? 'inventory.managementInfo'
+                : 'inventory.readOnlyInfo',
+            )}
+          </Alert>
+          <Table size="small" aria-label={t('inventory.title')}>
+            <TableBody>
+              {[
+                [t('inventory.netdev'), item.hostInventory?.netdev || '—'],
+                [t('inventory.pci'), item.hostInventory?.pci || '—'],
+                [t('inventory.driver'), item.hostInventory?.driver || '—'],
+                [t('live.mac'), item.hostInventory?.mac || '—'],
+                [t('col.link'), t(item.hostInventory?.linkUp ? 'status.up' : 'status.down')],
+              ].map(([label, value]) => (
+                <TableRow key={label}>
+                  <TableCell component="th">{label}</TableCell>
+                  <TableCell>
+                    <bdi dir="ltr">{value}</bdi>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </>
+      ) : isSub ? (
         <Alert severity="info">{t('drawer.subHint', { parent: parentName })}</Alert>
       ) : (
         <>

@@ -347,6 +347,13 @@ export class StateController {
     ]);
     const hostBy = new Map<string, HostNic>();
     const nics = inventory.value?.nics ?? [];
+    const macCounts = new Map<string, number>();
+    for (const nic of nics) {
+      if (nic.mac) {
+        const mac = nic.mac.toLowerCase();
+        macCounts.set(mac, (macCounts.get(mac) ?? 0) + 1);
+      }
+    }
     for (const nic of nics) {
       if (!nic.pci) continue;
       // PCI metadata is authoritative; otherwise correlate exact Linux/VPP names or a unique DPDK MAC.
@@ -367,9 +374,7 @@ export class StateController {
             liveBy.get(name)?.vppName === `host-${nic.netdev}`,
         );
       const matches =
-        nic.mac &&
-        nic.boundToDpdk &&
-        nics.filter((n) => n.mac?.toLowerCase() === nic.mac?.toLowerCase()).length === 1
+        nic.mac && nic.boundToDpdk && macCounts.get(nic.mac.toLowerCase()) === 1
           ? [...liveBy.values()].filter(
               (st) => st.type === 'dpdk' && st.mac.toLowerCase() === nic.mac?.toLowerCase(),
             )

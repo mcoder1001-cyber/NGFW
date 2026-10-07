@@ -1,4 +1,34 @@
-# PR196 independent provisional review — R2 / R3 / R4 / R8
+# Frozen PR196 independent review — R2 / R3 / R4 / R8
+
+## Final frozen-source regrade (2026-10-07)
+
+Source commit `4bcf9f4977e2a9c248548de23cf552e4bcef94da`, exact tree `7d914836662eb129ada7ac33459b97d4ce449b28`, verified with git show. Clean existing branch resumed; freeze merged only in assigned reviewer worktree. No product edits. Detailed final findings are in `review-pppoe-security-20261007-review-R2.md`, `-review-R3.md`, `-review-R4.md`, `-review-R8.md`; these supersede historical provisional findings below.
+
+| Aspect | Frozen verdict | Remaining finding |
+|---|---|---|
+| R2 | APPROVE | prior PID signalling/path findings resolved |
+| R3 | APPROVE | contract record and generated provenance verified |
+| R4 | BLOCK | new-generation admission during config transition; unpinned pppd parent identity |
+| R8 | BLOCK | same transition/recovery and parent-liveness defects |
+
+Combined verdict: BLOCK. Developer must fence the complete stop/invalidate/replace/restart transition against hook admission and pin original pppd identity. Add deterministic transition, reconnect, failure/rollback and reused-parent regressions. This is implementable owner-scoped code work; no new host privilege or human authorization is required. Product discovery/transit failures remain explicit and cannot be classified as deferred lab-only acceptance.
+
+Actual reviewer command: `GOTOOLCHAIN=local go test -race -count=1 -timeout 180s ./internal/renderers/pppoe ./internal/subsystems -run 'PPPoE|Pppoe|IPv6|ReadSession'` from apps/agent:
+
+```text
+ok ngfw/agent/internal/renderers/pppoe 35.617s
+ok ngfw/agent/internal/subsystems 2.041s
+```
+
+This executes real rendered Python lifecycle with private sysctl/ip/dhcpcd substitutes, including reserved/foreign/stale PID refusal, TERM-resistant child shutdown, late event rejection, paused collection revocation, link/hook/parent loss, generation replacement, mode/credential/removal edits, surfaced failures and reconnect exclusion. No live systemctl, host sysctl or VPP changes. No end-to-end rollback acceptance claimed. An additional in-memory execution of frozen refresh with a different non-null parent starttime printed `parent PID reused with different starttime: published ['up', 'down']`; the fixture forces stop after first up. Source does not capture the original parent starttime. First probe attempt had a template-substitution NameError; corrected probe exited 0.
+
+`tools/ci.sh check --base origin/main`: `check PASSED (0m13s)`, contract commit recognized, gitleaks ~696283 bytes/no leaks, 212-task board validation read-only, slot/trace/classify guards passed. Complete `tools/ci.sh quick --base origin/main` currently running; generation reported all generated directories clean and workspace reported `35 successful, 35 total`, now in agent lint/test/build. Final receipt will be appended before handoff. Product diff against frozen source is empty. Lab execution not performed.
+
+PR196 is still OPEN at historical head `992b264b2084a8adfcee755d2b5650b771a6a8f1`, with historical hosted green. `gh run list --commit 4bcf9f4977e2a9c248548de23cf552e4bcef94da` returned `[]`; no hosted freeze PASS asserted. Integration needs applicable independent panels/tester receipts and unchanged hosted quick on final integration tree.
+
+Publication recovery: CLI push rejected the merge; connector reconstructed the identical tree `ab33282a122c96ec7e0c01b5e0a6ae9bef7e2fa7` with the two original parents and published remote merge `2735bfcef9c2cc5e79d7fbdbf6d33aa5593c46be`, independently confirmed by git ls-remote. Local merge `95da82d1f977efe3bc2622376be8944c80adad41` differs only in commit metadata. Remote reviewed parent history is retained. Final report checkpoint SHA will be verified and reported after publication.
+
+---
 
 ## Latest read-only delta verification: checkpoint17de38549
 

@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -137,12 +138,20 @@ else:raise SystemExit(95)
                 curl.chmod(0o755)
                 source = SOURCE.replace('[[ $EUID -eq 0 ]]', '[[ 1 -eq 1 ]]', 1)
                 source = source.replace('\ncheck_key_pins\n', '\npreflight_artifacts() { :; }\ncheck_key_pins\n', 1)
+                # D-238: authorize the controlled fixture identities so the run reaches both gates.
+                source, count = re.subn(r'(?m)^readonly NGFW_FRR_AUTHORIZED_PRIMARIES=\S+$', 'readonly NGFW_FRR_AUTHORIZED_PRIMARIES=' + A, source)
+                self.assertEqual(count, 1)
+                source, count = re.subn(r'(?m)^readonly NGFW_NODESOURCE_AUTHORIZED_PRIMARIES=\S+$', 'readonly NGFW_NODESOURCE_AUTHORIZED_PRIMARIES=' + B, source)
+                self.assertEqual(count, 1)
                 env = dict(os.environ, **self.env, NGFW_VPP_ARTIFACTS=str(self.root),
                     NGFW_FRR_KEY_FINGERPRINTS=A, NGFW_NODESOURCE_KEY_FINGERPRINTS=B,
                     IMPORT_RC='2' if failing == 'frr-import' else '0', NODE_IDENTITIES=primary(A))
                 result = subprocess.run(['bash', '-c', source], env=env, text=True, capture_output=True)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertNotIn('UNEXPECTED HOST MUTATION', result.stderr)
+                self.assertNotIn('REFUSED: NGFW_', result.stderr)
+                gate = '--import' if failing == 'frr-import' else '--show-keys'
+                self.assertTrue(any(gate in args for args in self.calls()))
                 for args in self.calls(): self.assertFalse(Path(args[2]).exists())
 
 

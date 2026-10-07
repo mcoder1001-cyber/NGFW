@@ -54,7 +54,8 @@ for package in packages:
 print(json.dumps(dict(version=version, packages=sorted(packages, key=lambda p: p['package']))))
 PYARTIFACT
 }
-# Pins come from a trusted administrator, not from the downloaded key server.
+# Pins are owner-authorized source constants (D-238), never taken from the
+# downloaded key server; an optional administrator override must match exactly.
 check_key_pins() {
   python3 - "${NGFW_FRR_KEY_FINGERPRINTS:-}" "${NGFW_NODESOURCE_KEY_FINGERPRINTS:-}" <<'PYPINS'
 import re, sys
@@ -197,6 +198,46 @@ except BaseException:
     raise
 PYFRROUT
 )
+# D-238 (owner, 2026-10-06): the official HTTPS key endpoints are initial trust
+# anchors for exactly these observed primaries (TD-19 trust material 2026-10-04).
+# A changed, extra or missing identity is never accepted automatically; a new
+# set requires a new recorded owner decision and a reviewed source change.
+readonly NGFW_FRR_AUTHORIZED_PRIMARIES=4A56C7738BB3F81595A805D2A832769908F13ED1,3D9968AC9AE7BE1169288DDB1FD5839895F57FDA,BBC9ACA9D13025A2C186FF7F741E92A1F6E3975B,A90FC36D9429409798E9C2D874DEED43AB194DBF
+readonly NGFW_NODESOURCE_AUTHORIZED_PRIMARIES=6F71F525282841EEDAF851B42F59B5F99B1BE0B4
+require_authorized_pins() {
+  python3 - "$NGFW_FRR_KEY_FINGERPRINTS" "$NGFW_FRR_AUTHORIZED_PRIMARIES" "$NGFW_NODESOURCE_KEY_FINGERPRINTS" "$NGFW_NODESOURCE_AUTHORIZED_PRIMARIES" <<'PYAUTHORIZED'
+import sys
+for name, value, authorized in (('NGFW_FRR_KEY_FINGERPRINTS', *sys.argv[1:3]), ('NGFW_NODESOURCE_KEY_FINGERPRINTS', *sys.argv[3:5])):
+    pins, allowed = value.split(','), authorized.split(',')
+    if len(set(pins)) != len(pins) or set(pins) != set(allowed):
+        raise SystemExit('REFUSED: ' + name + ' differs from the owner-authorized D-238 primary set; changed identities require a new owner decision')
+PYAUTHORIZED
+}
+# The downloaded FRR bundle must contain exactly the authorized primaries before
+# selection. Repeated copies of an authorized certificate are canonicalized by
+# the private import/export; any extra, missing or replaced primary is refused.
+check_frr_raw_primaries() {
+  local key=$1 expected=$2 home=$3
+  gpg --no-options --homedir "$home" --batch --no-auto-key-retrieve --auto-key-locate clear --with-colons --with-fingerprint --show-keys "$key" > "$home/raw-identities"
+  python3 - "$home/raw-identities" "$expected" <<'PYFRRRAWSET'
+import pathlib, re, sys
+primaries = []; pending = False
+for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
+    fields = line.split(':')
+    if fields[0] in {'sec', 'ssb'}:
+        raise SystemExit('raw FRR secret identity refused')
+    if fields[0] == 'pub':
+        if pending:
+            raise SystemExit('raw FRR primary fingerprint missing')
+        pending = True
+    elif fields[0] == 'fpr' and pending:
+        if len(fields) <= 9 or not re.fullmatch('[0-9A-F]{40}', fields[9]):
+            raise SystemExit('raw FRR primary fingerprint malformed')
+        primaries.append(fields[9]); pending = False
+if pending or not primaries or set(primaries) != set(sys.argv[2].split(',')):
+    raise SystemExit('REFUSED: downloaded FRR primary set differs from the owner-authorized D-238 pins; changed identities require a new owner decision')
+PYFRRRAWSET
+}
 if [[ ${1:-} == --check-artifacts ]]; then
   [[ $# == 2 ]] || { echo 'usage: 00-add-repos.sh --check-artifacts DIRECTORY' >&2; exit 2; }
   preflight_artifacts "$2"
@@ -205,13 +246,16 @@ fi
 [[ $# == 0 ]] || { echo 'unknown repository setup argument' >&2; exit 2; }
 [[ $EUID -eq 0 ]] || { echo "run as root" >&2; exit 1; }
 [[ -n ${NGFW_VPP_ARTIFACTS:-} ]] || { echo 'NGFW_VPP_ARTIFACTS required before repository setup' >&2; exit 1; }
+NGFW_FRR_KEY_FINGERPRINTS=${NGFW_FRR_KEY_FINGERPRINTS-$NGFW_FRR_AUTHORIZED_PRIMARIES}
+NGFW_NODESOURCE_KEY_FINGERPRINTS=${NGFW_NODESOURCE_KEY_FINGERPRINTS-$NGFW_NODESOURCE_AUTHORIZED_PRIMARIES}
 check_key_pins
+require_authorized_pins
 check_frr_selection_pins "$NGFW_FRR_KEY_FINGERPRINTS"
 preflight_artifacts "$NGFW_VPP_ARTIFACTS" >/dev/null
 CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
 [[ "$CODENAME" == "resolute" ]] || echo "WARNING: tested on Ubuntu 26.04 (resolute); found '$CODENAME'"
 
-# Bootstrap tools must be preinstalled; no APT or network without valid pins.
+# Bootstrap tools must be preinstalled; no APT or network without authorized pins.
 for prerequisite in curl gpg python3 install mktemp; do
   command -v "$prerequisite" >/dev/null || { echo "missing bootstrap prerequisite: $prerequisite" >&2; exit 1; }
 done
@@ -221,6 +265,7 @@ trap 'rm -rf -- "$repo_work"; [[ -z "$repo_target" ]] || rm -f -- "$repo_target"
 mkdir -m 0700 "$repo_work/frr-home" "$repo_work/node-home"
 curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.frrouting.org/frr/keys.gpg -o "$repo_work/frr.key"
 curl -fsSL --connect-timeout 10 --max-time 60 --max-filesize 1048576 https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key -o "$repo_work/node.key"
+check_frr_raw_primaries "$repo_work/frr.key" "$NGFW_FRR_KEY_FINGERPRINTS" "$repo_work/frr-home"
 select_frr_certificates "$repo_work/frr.key" "$NGFW_FRR_KEY_FINGERPRINTS" "$repo_work/frr.gpg"
 verify_repo_key "$repo_work/node.key" "$NGFW_NODESOURCE_KEY_FINGERPRINTS" "$repo_work/node-home" "$repo_work/node.gpg"
 # Both exact public-key sets must validate before any global mutation.

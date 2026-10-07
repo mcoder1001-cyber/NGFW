@@ -43,3 +43,9 @@ Inspected developer commit `9fa82a6d211cf1daab534f91a3582b26671ab501` read-only:
 Also inspected the pending developer-worktree lint-only change to `RoutingObjectsPage.tsx`: existing `bgp/model` namespace constant replaces the identical literal `bgp`, and constants replace JSX literal translation/domain keys. `NS` is already defined as `bgp`. All values, translation lookup, editors and routes remain identical. No additional finding. This inspection is of the actual uncommitted diff, not a publication claim.
 
 Supplemental R6/R7 verdict: APPROVE; complete quick gate and owner merge authorization remain required separately.
+
+## Final source checkpoint
+
+Exact published development checkpoint reviewed read-only: `f6d8315b6f290aa32de488820308b213d7e13657`. Compared its web changes against `9fa82a6d211cf1daab534f91a3582b26671ab501` and confirmed the former App.test regressions moved intact into `nav/navigation-structure.test.tsx`; `App.test.tsx` now matches origin/main. The Persian regression persists `ngfw.ui.settings` before mount, matching actual language initialization, and clears persisted settings afterward. Existing current-page, selected-policy URL, RTL and query-only group expansion assertions remain. The previously reviewed lint-only constants are now committed without semantic changes.
+
+No new R6/R7 findings. Exact-source R6 verdict: APPROVE. Exact-source R7 verdict: APPROVE. Developer-reported web suite results are not relabeled as independent execution; manager/R1 owns the actual test logs and mandatory quick gate. No merge, deployment or live screenshot validation performed by this reviewer.

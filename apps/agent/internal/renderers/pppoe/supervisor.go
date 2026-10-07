@@ -62,8 +62,20 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 			}
 		}
 	}
+	// A kept session may have dropped an optional file (IPv6 turned off, dhcpv6 → slaac): remove what is no longer
+	// rendered. Hook state files are the hooks' own and stay.
+	for hostIf := range want {
+		for _, p := range r.sessionFiles(hostIf) {
+			if _, keep := files[p]; keep || strings.HasPrefix(p, r.paths.StateDir+"/") {
+				continue
+			}
+			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+				return fmt.Errorf("pppoe: remove %s: %w", p, err)
+			}
+		}
+	}
 	if len(files) > 0 {
-		for _, dir := range []string{r.paths.PeersDir, r.paths.IPUpDir, r.paths.IPDownDir, r.paths.UnitDir, r.paths.StateDir} {
+		for _, dir := range r.paths.Dirs() {
 			if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // secrets are the 0600 files inside
 				return fmt.Errorf("pppoe: mkdir %s: %w", dir, err)
 			}
@@ -109,8 +121,14 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 		r.paths.PeersDir + "/ngfw-" + hostIf,
 		r.paths.IPUpDir + "/ngfw-" + hostIf,
 		r.paths.IPDownDir + "/ngfw-" + hostIf,
+		r.paths.IPv6UpDir + "/ngfw-" + hostIf,
+		r.paths.IPv6DownDir + "/ngfw-" + hostIf,
+		r.paths.dhcpcdConf(hostIf),
+		r.paths.dhcp6Script(hostIf),
 		r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service",
 		r.paths.StateDir + "/" + hostIf + ".state",
+		r.paths.StateDir + "/" + hostIf + ".state6",
+		r.paths.StateDir + "/" + hostIf + ".pd",
 	}
 }
 

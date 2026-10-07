@@ -200,10 +200,12 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 		if exists && !secretsChanged && reflect.DeepEqual(oldDial, nextDial) {
 			continue
 		}
-		// Derive the state filename from the renderer's fixed slot/product paths.
-		if err := os.Remove(filepath.Join(rt.stateDir, oldSession.HostIf+".state")); err != nil && !os.IsNotExist(err) {
-			rt.mu.Unlock()
-			return err
+		// Derive the state filenames from the renderer's fixed slot/product paths (IPv4 and IPv6 hooks, PD prefix).
+		for _, suffix := range []string{".state", ".state6", ".pd"} {
+			if err := os.Remove(filepath.Join(rt.stateDir, oldSession.HostIf+suffix)); err != nil && !os.IsNotExist(err) {
+				rt.mu.Unlock()
+				return err
+			}
 		}
 
 		restartHost := ""
@@ -269,7 +271,7 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 				}
 			}
 		}
-		for _, dir := range []string{paths.PeersDir, paths.IPUpDir, paths.IPDownDir, paths.UnitDir, paths.StateDir} {
+		for _, dir := range paths.Dirs() {
 			if err := os.MkdirAll(dir, 0700); err != nil {
 				return err
 			}

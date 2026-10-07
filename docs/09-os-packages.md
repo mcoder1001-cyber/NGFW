@@ -73,6 +73,8 @@
 | بسته | نقش |
 |---|---|
 | `kea-dhcp4-server` `kea-dhcp6-server` | DHCP با سوکت کنترل UNIX؛ بدون kea-ctrl-agent (D-079) |
+| `ppp` `pppoe` | کلاینت PPPoE (`pppd` با پلاگین کرنلی `rp-pppoe.so`) روی tap لینوکسی WAN |
+| `dhcpcd-base` | کلاینت DHCPv6 (IA_NA + IA_PD) روی لینک PPP برای `pppoe.ipv6 = dhcpv6`؛ در Ubuntu اولویت important دارد و در ایمیج پایه هست |
 | `unbound` `dns-root-data` | resolver/forwarder + DNSSEC |
 | `chrony` | NTP |
 | `snmpd` `snmp` `libsnmp-base` | SNMP v2c/v3 |

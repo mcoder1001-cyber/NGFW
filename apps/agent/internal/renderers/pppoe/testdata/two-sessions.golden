@@ -2,6 +2,7 @@
 # ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.
 "alice@isp" ngfw-wan0 "s3cr#t \"x" *
 "bob" ngfw-wan1 "pw" *
+"carol" ngfw-wan2 "pw2" *
 
 ### /etc/ppp/ip-down.d/ngfw-wan0 mode=-rwxr-xr-x
 #!/bin/sh
@@ -40,6 +41,29 @@ tmp="$f.tmp.$$"
 {
   echo "phase=down"
   echo "hostif=wan1"
+  echo "ppp_iface=${PPP_IFACE:-}"
+  echo "local=${IPLOCAL:-}"
+  echo "peer=${IPREMOTE:-}"
+  echo "dns1=${DNS1:-}"
+  echo "dns2=${DNS2:-}"
+  echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$tmp"
+mv -f "$tmp" "$f"
+
+### /etc/ppp/ip-down.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ip-down hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+# IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+# and writes a state file the agent reads. Rendered; hand edits are overwritten.
+set -eu
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state"
+mkdir -p "$dir"
+tmp="$f.tmp.$$"
+{
+  echo "phase=down"
+  echo "hostif=wan2"
   echo "ppp_iface=${PPP_IFACE:-}"
   echo "local=${IPLOCAL:-}"
   echo "peer=${IPREMOTE:-}"
@@ -95,10 +119,355 @@ tmp="$f.tmp.$$"
 } > "$tmp"
 mv -f "$tmp" "$f"
 
+### /etc/ppp/ip-up.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ip-up hook (F-pppoe-client). pppd runs this and sets PPP_IFACE, PPP_IPPARAM,
+# IPLOCAL, IPREMOTE, DNS1, DNS2. It only acts for our own session (PPP_IPPARAM = the config interface)
+# and writes a state file the agent reads. Rendered; hand edits are overwritten.
+set -eu
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state"
+mkdir -p "$dir"
+tmp="$f.tmp.$$"
+{
+  echo "phase=up"
+  echo "hostif=wan2"
+  echo "ppp_iface=${PPP_IFACE:-}"
+  echo "local=${IPLOCAL:-}"
+  echo "peer=${IPREMOTE:-}"
+  echo "dns1=${DNS1:-}"
+  echo "dns2=${DNS2:-}"
+  echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+} > "$tmp"
+mv -f "$tmp" "$f"
+
+### /etc/ppp/ipv6-down.d/ngfw-wan0 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ipv6-down hook (F-pppoe-client, IPv6 = slaac). pppd runs this after IPv6CP and sets
+# PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+# "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+# PPP link (SLAAC from the ISP's Router Advertisements). Rendered; hand edits are overwritten.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan0.state6"
+pidf="$dir/wan0.ipv6.pid"
+pdf="$dir/wan0.pd"
+mkdir -p "$dir"
+ll="${LLLOCAL:-}"
+case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+peer="${LLREMOTE:-}"
+case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+# late refresh can never overwrite the down state.
+stop() {
+  [ -f "$pidf" ] || return 0
+  while read -r p; do
+    case "$p" in ''|*[!0-9]*) continue ;; esac
+    kill "$p" 2>/dev/null || true
+    n=0
+    while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+  done < "$pidf"
+  rm -f "$pidf"
+}
+
+# write PHASE renders the state file atomically and only when its content changed.
+write() {
+  tmp="$f.tmp.$$"
+  {
+    echo "phase=$1"
+    echo "hostif=wan0"
+    echo "ppp_iface=$iface"
+    echo "lllocal=$ll"
+    echo "llremote=$peer"
+    if [ "$1" = up ]; then
+      ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+      ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+      [ -f "$pdf" ] && grep '^pd=' "$pdf"
+    fi
+    echo "at=$since"
+  } > "$tmp"
+  if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+}
+
+stop
+rm -f "$pdf"
+write down
+exit 0
+
+### /etc/ppp/ipv6-down.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ipv6-down hook (F-pppoe-client, IPv6 = dhcpv6). pppd runs this after IPv6CP and sets
+# PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+# "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+# PPP link (SLAAC from the ISP's Router Advertisements, plus the DHCPv6 IA_NA address dhcpcd adds)
+# and the DHCPv6-PD prefix the dhcpcd event script records. Rendered; hand edits are overwritten.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state6"
+pidf="$dir/wan2.ipv6.pid"
+pdf="$dir/wan2.pd"
+mkdir -p "$dir"
+ll="${LLLOCAL:-}"
+case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+peer="${LLREMOTE:-}"
+case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+# late refresh can never overwrite the down state.
+stop() {
+  [ -f "$pidf" ] || return 0
+  while read -r p; do
+    case "$p" in ''|*[!0-9]*) continue ;; esac
+    kill "$p" 2>/dev/null || true
+    n=0
+    while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+  done < "$pidf"
+  rm -f "$pidf"
+}
+
+# write PHASE renders the state file atomically and only when its content changed.
+write() {
+  tmp="$f.tmp.$$"
+  {
+    echo "phase=$1"
+    echo "hostif=wan2"
+    echo "ppp_iface=$iface"
+    echo "lllocal=$ll"
+    echo "llremote=$peer"
+    if [ "$1" = up ]; then
+      ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+      ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+      [ -f "$pdf" ] && grep '^pd=' "$pdf"
+    fi
+    echo "at=$since"
+  } > "$tmp"
+  if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+}
+
+stop
+rm -f "$pdf"
+write down
+exit 0
+
+### /etc/ppp/ipv6-up.d/ngfw-wan0 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ipv6-up hook (F-pppoe-client, IPv6 = slaac). pppd runs this after IPv6CP and sets
+# PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+# "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+# PPP link (SLAAC from the ISP's Router Advertisements). Rendered; hand edits are overwritten.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan0.state6"
+pidf="$dir/wan0.ipv6.pid"
+pdf="$dir/wan0.pd"
+mkdir -p "$dir"
+ll="${LLLOCAL:-}"
+case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+peer="${LLREMOTE:-}"
+case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+# late refresh can never overwrite the down state.
+stop() {
+  [ -f "$pidf" ] || return 0
+  while read -r p; do
+    case "$p" in ''|*[!0-9]*) continue ;; esac
+    kill "$p" 2>/dev/null || true
+    n=0
+    while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+  done < "$pidf"
+  rm -f "$pidf"
+}
+
+# write PHASE renders the state file atomically and only when its content changed.
+write() {
+  tmp="$f.tmp.$$"
+  {
+    echo "phase=$1"
+    echo "hostif=wan0"
+    echo "ppp_iface=$iface"
+    echo "lllocal=$ll"
+    echo "llremote=$peer"
+    if [ "$1" = up ]; then
+      ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+      ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+      [ -f "$pdf" ] && grep '^pd=' "$pdf"
+    fi
+    echo "at=$since"
+  } > "$tmp"
+  if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+}
+
+stop
+rm -f "$pdf"
+# Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
+# when the session carries the default route.
+c="/proc/sys/net/ipv6/conf/$iface"
+echo 2 > "$c/accept_ra"
+echo 1 > "$c/autoconf"
+echo 1 > "$c/accept_ra_defrtr"
+# pppd added the link-local (with the peer, nodad) before the sysctls above, so the kernel did not solicit;
+# re-adding it the same way sends the Router Solicitation now instead of waiting for the ISP's next periodic RA.
+if [ -n "$ll" ] && [ -n "$peer" ]; then
+  ip -6 addr del "$ll" peer "$peer" dev "$iface" 2>/dev/null || true
+  ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
+fi
+write up
+(
+  trap 'exit 0' TERM INT
+  # Refresh while the link and pppd live; exit (taking the DHCPv6 client along) when either is gone.
+  while [ -d "$c" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+    write up
+    sleep 2
+  done
+) </dev/null >/dev/null 2>&1 &
+echo "$!" > "$pidf"
+exit 0
+
+### /etc/ppp/ipv6-up.d/ngfw-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE ipv6-up hook (F-pppoe-client, IPv6 = dhcpv6). pppd runs this after IPv6CP and sets
+# PPP_IFACE, PPP_IPPARAM, LLLOCAL, LLREMOTE, PPPD_PID. It only acts for our own session (PPP_IPPARAM) and keeps
+# "<hostif>.state6" current for the agent: the global addresses and IPv6 default router the kernel holds on the
+# PPP link (SLAAC from the ISP's Router Advertisements, plus the DHCPv6 IA_NA address dhcpcd adds)
+# and the DHCPv6-PD prefix the dhcpcd event script records. Rendered; hand edits are overwritten.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+[ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
+iface="${PPP_IFACE:-}"
+case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+dir="/srv/run/ngfw/pppoe"
+f="$dir/wan2.state6"
+pidf="$dir/wan2.ipv6.pid"
+pdf="$dir/wan2.pd"
+mkdir -p "$dir"
+ll="${LLLOCAL:-}"
+case "$ll" in *[!0-9A-Fa-f:]*) ll="" ;; esac
+peer="${LLREMOTE:-}"
+case "$peer" in *[!0-9A-Fa-f:]*) peer="" ;; esac
+since="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+# stop ends this session's refresher (and the DHCPv6 client it supervises) and waits until they are gone, so a
+# late refresh can never overwrite the down state.
+stop() {
+  [ -f "$pidf" ] || return 0
+  while read -r p; do
+    case "$p" in ''|*[!0-9]*) continue ;; esac
+    kill "$p" 2>/dev/null || true
+    n=0
+    while kill -0 "$p" 2>/dev/null && [ "$n" -lt 50 ]; do sleep 0.1; n=$((n + 1)); done
+  done < "$pidf"
+  rm -f "$pidf"
+}
+
+# write PHASE renders the state file atomically and only when its content changed.
+write() {
+  tmp="$f.tmp.$$"
+  {
+    echo "phase=$1"
+    echo "hostif=wan2"
+    echo "ppp_iface=$iface"
+    echo "lllocal=$ll"
+    echo "llremote=$peer"
+    if [ "$1" = up ]; then
+      ip -6 -o addr show dev "$iface" scope global -tentative -dadfailed 2>/dev/null | awk '{print "addr=" $4}'
+      ip -6 route show default dev "$iface" 2>/dev/null | awk '$2 == "via" {print "gw=" $3; exit}'
+      [ -f "$pdf" ] && grep '^pd=' "$pdf"
+    fi
+    echo "at=$since"
+  } > "$tmp"
+  if cmp -s "$tmp" "$f"; then rm -f "$tmp"; else mv -f "$tmp" "$f"; fi
+}
+
+stop
+rm -f "$pdf"
+# Kernel SLAAC on the PPP link (accept_ra=2: the box forwards). The IPv6 default route is learned from the RA only
+# when the session carries the default route.
+c="/proc/sys/net/ipv6/conf/$iface"
+echo 2 > "$c/accept_ra"
+echo 1 > "$c/autoconf"
+echo 0 > "$c/accept_ra_defrtr"
+# pppd added the link-local (with the peer, nodad) before the sysctls above, so the kernel did not solicit;
+# re-adding it the same way sends the Router Solicitation now instead of waiting for the ISP's next periodic RA.
+if [ -n "$ll" ] && [ -n "$peer" ]; then
+  ip -6 addr del "$ll" peer "$peer" dev "$iface" 2>/dev/null || true
+  ip -6 addr add "$ll" peer "$peer" dev "$iface" nodad 2>/dev/null || true
+fi
+write up
+(
+  trap 'exit 0' TERM INT
+  /usr/sbin/dhcpcd -B -f "/srv/etc/ppp/ngfw-dhcpcd-wan2.conf" "$iface" </dev/null >/dev/null 2>&1 &
+  d=$!
+  trap 'kill "$d" 2>/dev/null; exit 0' TERM INT
+  # Refresh while the link and pppd live; exit (taking the DHCPv6 client along) when either is gone.
+  while [ -d "$c" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+    write up
+    sleep 2
+  done
+  kill "$d" 2>/dev/null
+) </dev/null >/dev/null 2>&1 &
+echo "$!" > "$pidf"
+exit 0
+
+### /etc/ppp/ngfw-dhcp6-wan2 mode=-rwxr-xr-x
+#!/bin/sh
+# ngfw-agent PPPoE DHCPv6 event script (F-pppoe-client) — session wan2. dhcpcd runs this on every
+# DHCPv6 event; it records the delegated prefix for the ipv6-up hook's state file. Values come from the network,
+# so only an IPv6 literal and a numeric length are accepted. dhcpcd numbers IA_PD options by position (ia_pd1 =
+# the one IA_PD requested, IAID 2), not by IAID. Rendered; hand edits are overwritten.
+set -u
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+dir="/srv/run/ngfw/pppoe"
+pdf="$dir/wan2.pd"
+case "${reason:-}" in
+  BOUND6|RENEW6|REBIND6|REBOOT6|INFORM6|DELEGATED6)
+    p="${new_dhcp6_ia_pd1_prefix1:-}"
+    l="${new_dhcp6_ia_pd1_prefix1_length:-}"
+    case "$p" in ''|*[!0-9A-Fa-f:]*) exit 0 ;; esac
+    case "$l" in ''|*[!0-9]*) exit 0 ;; esac
+    mkdir -p "$dir"
+    echo "pd=$p/$l" > "$pdf.tmp.$$" && mv -f "$pdf.tmp.$$" "$pdf"
+    ;;
+  EXPIRE6|RELEASE6|STOP6|STOPPED|DEPARTED|NOCARRIER)
+    rm -f "$pdf"
+    ;;
+esac
+exit 0
+
+### /etc/ppp/ngfw-dhcpcd-wan2.conf mode=-rw-r--r--
+# ngfw-agent PPPoE DHCPv6 client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+# Started by the ipv6-up hook on the PPP link only. The kernel handles Router Advertisements (SLAAC + default
+# route), so dhcpcd solicits DHCPv6 directly: an address (IA_NA) and a delegated prefix (IA_PD). The prefix is
+# recorded by the event script, not assigned to any interface.
+ipv6only
+noipv6rs
+noup
+script /srv/etc/ppp/ngfw-dhcp6-wan2
+ia_na 1
+ia_pd 2
+
 ### /etc/ppp/pap-secrets mode=-rw------- secret
 # ngfw-agent PPPoE client secrets (F-pppoe-client). Rendered; do not edit.
 "alice@isp" ngfw-wan0 "s3cr#t \"x" *
 "bob" ngfw-wan1 "pw" *
+"carol" ngfw-wan2 "pw2" *
 
 ### /etc/ppp/peers/ngfw-wan0 mode=-rw-r--r--
 # ngfw-agent PPPoE client (F-pppoe-client) — session wan0. Rendered; hand edits are overwritten.
@@ -141,6 +510,25 @@ persist
 holdoff 10
 maxfail 3
 
+### /etc/ppp/peers/ngfw-wan2 mode=-rw-r--r--
+# ngfw-agent PPPoE client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+plugin rp-pppoe.so
+nic-wan2
+user "carol"
+remotename ngfw-wan2
+mtu 1492
+mru 1492
+noipdefault
+nodefaultroute
++ipv6
+hide-password
+noauth
+lcp-echo-interval 20
+lcp-echo-failure 3
+persist
+holdoff 5
+maxfail 0
+
 ### /etc/systemd/system/ngfw-pppoe-wan0.service mode=-rw-r--r--
 # ngfw-agent PPPoE client (F-pppoe-client) — session wan0. Rendered; hand edits are overwritten.
 [Unit]
@@ -164,6 +552,19 @@ Type=simple
 ExecStart=/usr/sbin/pppd call ngfw-wan1 nodetach ipparam ngfw-wan1
 Restart=on-failure
 RestartSec=10
+[Install]
+WantedBy=multi-user.target
+
+### /etc/systemd/system/ngfw-pppoe-wan2.service mode=-rw-r--r--
+# ngfw-agent PPPoE client (F-pppoe-client) — session wan2. Rendered; hand edits are overwritten.
+[Unit]
+Description=ngfw PPPoE client on wan2
+After=network.target vpp.service
+[Service]
+Type=simple
+ExecStart=/usr/sbin/pppd call ngfw-wan2 nodetach ipparam ngfw-wan2
+Restart=on-failure
+RestartSec=5
 [Install]
 WantedBy=multi-user.target
 

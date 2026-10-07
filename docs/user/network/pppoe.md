@@ -21,12 +21,22 @@ used here.
 | Clamp TCP MSS | Rewrite the MSS of forwarded TCP SYNs to fit the MTU (avoids large packets being black-holed). On by default. |
 | Default route from peer | Install a default route via the session (the ISP is your gateway). |
 | Use peer DNS | Use the DNS servers the ISP sends as the system resolvers. |
-| IPv6 | `off`; `slaac` (accept a /64 via RA); `dhcpv6` (request a prefix via DHCPv6-PD). |
+| IPv6 | `off`; `slaac` — negotiate IPv6 on the link and take the address and IPv6 default router from the ISP's Router Advertisements; `dhcpv6` — `slaac` plus a DHCPv6 address (IA_NA) and a delegated prefix (IA_PD). Needs MTU ≥ 1280. |
 | Reconnect → Hold-off | Seconds to wait before redialling after the session drops. |
 | Reconnect → Max failures | Give up after this many failed dials in a row; 0 = keep trying forever. |
 
 A PPPoE interface must **not** carry static IPv4/IPv6 addresses — the peer assigns them, so the commit is refused if
 you set both.
+
+## IPv6
+With IPv6 on, pppd negotiates IPv6CP (link-local addresses) next to IPCP. The kernel accepts the ISP's Router
+Advertisements on the PPP link (SLAAC) — the global address and, when *Default route from peer* is on, the IPv6
+default router (normally the ISP's link-local). With `dhcpv6` the box also runs `dhcpcd` (from the base OS
+`dhcpcd-base` package) on the PPP link to request an address (IA_NA) and a delegated prefix (IA_PD). The agent
+mirrors every global IPv6 address into the data plane as a /128 on the WAN interface (as IPv4 is mirrored as a /32)
+and the `::/0` path via the router into the interface's IPv6 table, and withdraws them when IPv6 or the session goes
+down. The delegated prefix is reported but not assigned to a LAN interface (there is no setting for that yet). The
+MSS clamp covers IPv6 too (MTU − 60).
 
 ## Firewall, NAT and blocking
 The WAN interface is an ordinary interface as far as the rest of the configuration is concerned: point NAT44
@@ -35,7 +45,7 @@ working (they are attached to the interface, not the address).
 
 ## Live status and reconnect
 Open the interface in **Interfaces** — the drawer shows a **PPPoE session** panel: the phase (up / dialing / down /
-failed), the assigned local and peer addresses, IPv6, the peer DNS, how long the session has been up, and, on a
+failed), the assigned local and peer addresses, IPv6 (addresses and, with `dhcpv6`, `delegated <prefix>`), the peer DNS, how long the session has been up, and, on a
 failure, the consecutive-failure count and the last error. **Reconnect** redials immediately, ignoring the hold-off.
 
 ## Troubleshooting
@@ -48,7 +58,7 @@ failure, the consecutive-failure count and the last error. **Reconnect** redials
 
 Enabled `interfaces.<name>.pppoe` is reconciled from the committed configuration through the `pppoe.client.config` daemon descriptor. Its parent must have a linux-cp tap; `parent` defaults to the configured interface. Username, service, MTU, route, DNS, IPv6 negotiation and reconnect policy are rendered from the schema. The existing encrypted, revision-pinned secret channel delivers only an enabled client's `password/<name>` reference. References remain in desired state and the private applied manifest; resolved passwords appear only in mode-0600 PAP/CHAP files. Missing material produces a passwordRef finding and prevents dialing.
 
-The globals-owner agent supervises the per-tap pppd units. Other agents render under `/run/ngfw-test/<owner>/pppoe/` and report `pppoe.not-supervised`; they never call systemctl. Hook polling converges negotiated IPv4 addresses, a single multipath-safe default-route path and MSS clamp under the agent transaction lock. Down and configuration removal withdraw those effects before deleting dependencies. Credential edits invalidate previous hook state and restart the dialer even when peer options are unchanged; changing only MSS clamp keeps the negotiated hook state.
+The globals-owner agent supervises the per-tap pppd units. Other agents render under `/run/ngfw-test/<owner>/pppoe/` and report `pppoe.not-supervised`; they never call systemctl. Hook polling converges negotiated IPv4 and IPv6 addresses, single multipath-safe IPv4/IPv6 default-route paths and MSS clamp under the agent transaction lock. Down and configuration removal withdraw those effects before deleting dependencies. Credential edits invalidate previous hook state and restart the dialer even when peer options are unchanged; changing only MSS clamp keeps the negotiated hook state.
 
 The interface-state endpoint includes phase, negotiated addresses, peer DNS and observed consecutive unit failures. Successful up hooks reset failure state. Reconnect uses the existing `POST /api/v1/actions/interfaces/{name}/pppoe/reconnect` action. Equivalent operator inspection is `systemctl show ngfw-pppoe-<tap>.service -p ExecMainStatus -p NRestarts` plus `vppctl show interface address`, `show ip fib` and `mss_clamp_get`. Configure the client with the normal candidate → commit workflow; do not edit generated files.
 

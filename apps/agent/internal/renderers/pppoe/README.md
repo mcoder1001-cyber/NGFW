@@ -17,6 +17,8 @@ Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (p
 | `/etc/ppp/peers/ngfw-<hostif>` | 0644 | pppd options: `plugin rp-pppoe.so`, `nic-<hostif>`, `user`, `remotename ngfw-<hostif>`, `mtu`/`mru`, `defaultroute`/`nodefaultroute`, `usepeerdns`, `+ipv6`, `persist`, `holdoff`, `maxfail`, LCP echo keepalives |
 | `/etc/ppp/chap-secrets`, `/etc/ppp/pap-secrets` | 0600 **Secret** | one `"<user>" ngfw-<hostif> "<password>" *` line per session |
 | `/etc/ppp/ip-up.d/ngfw-<hostif>`, `/etc/ppp/ip-down.d/ngfw-<hostif>` | 0755 | hook pppd runs on link up/down; writes `<StateDir>/<hostif>.state` for the state reader |
+| `/etc/ppp/ipv6-up.d/ngfw-<hostif>`, `/etc/ppp/ipv6-down.d/ngfw-<hostif>` | 0755 | only with IPv6 on: kernel SLAAC on the PPP link (`accept_ra=2`, `autoconf=1`, `accept_ra_defrtr` = default route), re-adds the link-local to send an RS, keeps `<StateDir>/<hostif>.state6` current (global addresses, RA default router, PD prefix) from a refresher that lives while pppd and the link do; down stops it first |
+| `/etc/ppp/ngfw-dhcpcd-<hostif>.conf`, `/etc/ppp/ngfw-dhcp6-<hostif>` | 0644 / 0755 | only with `dhcpv6`: `dhcpcd` (dhcpcd-base) config — `ipv6only`, `noipv6rs` (the kernel does RA), `ia_na 1`, `ia_pd 2` — and its event script, which records a validated delegated prefix in `<hostif>.pd` |
 | `/etc/systemd/system/ngfw-pppoe-<hostif>.service` | 0644 | one unit per session, `ExecStart=pppd call ngfw-<hostif> … ipparam ngfw-<hostif>`, `Restart=on-failure` |
 
 Every user-controlled string goes through `ident`/`quoted` in the templates; `Session.validate` rejects a
@@ -34,7 +36,10 @@ The live dial is validated by the session coming up (state phase `up`), reported
 
 `ReadState(hostIf, failCount, lastError)` parses `<StateDir>/<hostif>.state` (written by the hook) into
 `PppoeSessionState` (phase, local/peer IPv4, DNS, since); a missing file is `down`; `failCount > 0` while not
-up is `failed`. `failCount`/`lastError` come from the agent's pppd supervisor, not the hook.
+up is `failed`. `ReadIPv6(hostIf)` parses `<hostif>.state6` (values are validated: global unicast addresses, a
+link-local or global router, a /16–/64 delegated prefix); `ReadState` puts its summary
+(`"2001:db8::5/64, delegated 2001:db8:100::/56"`) in the `ipv6` field and reports an IPv6-only session as `up`.
+A session with IPv6 on must have MTU ≥ 1280. `failCount`/`lastError` come from the agent's pppd supervisor, not the hook.
 
 ## Not in this package (agent side, `F-pppoe-client-host`)
 

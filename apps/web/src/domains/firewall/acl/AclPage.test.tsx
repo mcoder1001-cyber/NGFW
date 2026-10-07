@@ -172,7 +172,7 @@ describe('ACL screen', () => {
       await signIn();
       render(app('/firewall/acl'));
       expect(
-        await screen.findByRole('heading', { level: 2, name: 'Access lists' }, { timeout: 15_000 }),
+        await screen.findByRole('heading', { level: 2, name: 'Policies' }, { timeout: 15_000 }),
       ).toBeInTheDocument();
       const table = await screen.findByRole('table', { name: 'Access lists' });
       const web = (await within(table).findByText('web-in')).closest('tr')!;

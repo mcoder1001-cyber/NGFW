@@ -47,3 +47,13 @@ Identical full quick-gate retry is running, stdout `/root/ngfw-wt/logs/ux-struct
 | Live integration / browser T4 | Separate applicable execution | Not part of T1 quick gate | NOT RUN |
 
 Provisional verdict: BLOCKED-ENV — complete retry pending; this report is not merge approval.
+
+
+## Second recovery checkpoint
+
+- Provisional report checkpoint `8591e3834` was successfully published to `origin/codex/ux-structure-t1-20261007`.
+- Identical complete retry also passed all 35 Turbo tasks, then reproduced two `ra_vpn` readback failures. The unchanged targeted pair failed twice with default `/tmp`.
+- Go 1.26 `testing.TempDir` explicitly uses `GOTMPDIR` (`/usr/lib/go-1.26/src/testing/testing.go:1420,1460`), overriding separate secure `TMPDIR`. Both readback tests passed twice when both variables pointed to a root-owned protected directory; no source/test/security-guard edits.
+- Complete bounded secure retry (`GOFLAGS=-p=2`, `GOMAXPROCS=4`, same concurrency2) passed Turbo35/35 and `ra_vpn`, but the long hidden `.t1-tmp` path caused Unix socket `bind: invalid argument` and existing SNMP clean-path rejection. Agent, chrony, snmpd, strongswan, unbound and subsystem packages consequently failed. Logs: `/root/ngfw-wt/logs/ux-structure-final-T1-20261007-secure-bounded.log`; step directory `ux-structure-t1-20261007-20261007-164312-3253370`.
+- Manager authorized task-owned short secure `/root/ux-t1-20261007` (verified absent before creation; created root-owned0700) for both temp variables. Targeted unchanged affected-package rerun is active, log `/root/ngfw-wt/logs/ux-structure-final-T1-shorttmp-targeted.log`. Exact next action: finish targeted affected-package checks, then at most one final complete unchanged gate if they pass; publish final report regardless of outcome.
+- Neither the protected-parent security check nor Unix socket/path guards were weakened. Complete gate still pending; no merge authorization.

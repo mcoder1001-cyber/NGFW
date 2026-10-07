@@ -57,3 +57,54 @@ Provisional verdict: BLOCKED-ENV — complete retry pending; this report is not 
 - Complete bounded secure retry (`GOFLAGS=-p=2`, `GOMAXPROCS=4`, same concurrency2) passed Turbo35/35 and `ra_vpn`, but the long hidden `.t1-tmp` path caused Unix socket `bind: invalid argument` and existing SNMP clean-path rejection. Agent, chrony, snmpd, strongswan, unbound and subsystem packages consequently failed. Logs: `/root/ngfw-wt/logs/ux-structure-final-T1-20261007-secure-bounded.log`; step directory `ux-structure-t1-20261007-20261007-164312-3253370`.
 - Manager authorized task-owned short secure `/root/ux-t1-20261007` (verified absent before creation; created root-owned0700) for both temp variables. Targeted unchanged affected-package rerun is active, log `/root/ngfw-wt/logs/ux-structure-final-T1-shorttmp-targeted.log`. Exact next action: finish targeted affected-package checks, then at most one final complete unchanged gate if they pass; publish final report regardless of outcome.
 - Neither the protected-parent security check nor Unix socket/path guards were weakened. Complete gate still pending; no merge authorization.
+
+
+## Final result — PASS
+
+The single final complete gate exited 0 with all original checks enabled. Product source is still exactly `f6d8315b6f290aa32de488820308b213d7e13657`; report-only checkpoint HEAD during this run was `94675f651`. Generated/product paths have no diff against that source. Test fixture/temp artifacts were removed only from this worktree and the explicitly authorized task-owned directory.
+
+Exact final command:
+
+```text
+TMPDIR=/root/ux-t1-20261007 GOTMPDIR=/root/ux-t1-20261007 GOFLAGS=-p=2 GOMAXPROCS=4 NGFW_CI_TASK_CONCURRENCY=2 tools/ci.sh quick --base origin/main
+```
+
+These environment values bound scheduling and provide protected, short fixture paths; they do not disable tests, assertions, race detection, lints, generation, guards, builds, or the unchanged gate.
+
+Full stdout: `/root/ngfw-wt/logs/ux-structure-final-T1-20261007-final.log`.
+Step logs: `/root/ngfw-wt/logs/ci/ux-structure-t1-20261007-20261007-165315-3261513/`.
+
+Actual final output:
+
+```text
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    57.225s
+apply-startup harness: green (4 shards; 149 checks passed in the parallel run)
+  generate + generated-output gate                   0m57s
+  lint · typecheck · unit tests · build (turbo)   0m58s
+  apps/agent: make lint test build                   6m45s
+  apps/cli: make lint test build                     0m27s
+  test/ Go modules, unit mode (...)                  1m59s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   5m08s
+  mode quick · wall time 16m31s
+CI GATE PASSED
+```
+
+All 27 Go modules under `test/` passed gofmt, vet and unit execution. Agent vet, golangci-lint (0 issues), unchanged `go test -race -count=1 ./...` and build passed. Existing integration tests intentionally skipped because `NGFW_INTEGRATION` is unset by the quick-gate contract; this does not claim live integration or browser T4 acceptance. Full web suite ran on immutable final product source in the first invocation: 109/109 files and 644/644 tests PASS, including existing App and new navigation tests. Later full gates replayed those successful package caches while regenerating/guarding the tree.
+
+Short protected fixture recovery also independently passed unchanged affected tests twice: `ra_vpn`, chrony, snmpd, strongswan, unbound packages and the five previously failing agent/subsystem cases. Their logs are `/root/ngfw-wt/logs/ux-structure-final-T1-shorttmp-targeted.log` and `ux-structure-final-T1-shorttmp-agent-targeted.log`. The original ENOSPC and long/default-temp failures remain preserved above and in the logs. No production/security/test code was changed to recover.
+
+The final gate warned about only the task-owned `.t1-tmp` leftovers and pre-existing documented control-plane test ALLOW lines. The temp leftovers were removed after completion; final tracked/generated product paths are clean.
+
+| Scenario | Expected | Observed | Status |
+|---|---|---|---|
+| Final source web suite | All assertions pass | 109 files / 644 tests pass | PASS |
+| All workspace lint/typecheck/test/build | Every Turbo task green | 35/35 | PASS |
+| Agent/CLI vet/lint/race/build | Every mandatory check succeeds | Both gate steps complete | PASS |
+| Test-module formatting/vet/unit | Every module green | 27 modules complete | PASS |
+| Startup shell/harness guards | Every unchanged shard green | 149 checks / 4 shards | PASS |
+| Complete unchanged quick gate | CI GATE PASSED | exit0,16m31s | PASS |
+| Hosted CI / live lab / browser T4 | Separate execution evidence | Not established by this T1 run | NOT VERIFIED |
+
+Final verdict: PASS (T1 quick/unit scope only). No merge or deployment authorized or performed.
+
+Publication: checkpoint `8591e3834` was successfully pushed. Interim `94675f651` publication was rejected twice with GitHub Internal Server Error; final report publication outcome must be taken from actual subsequent push output, not assumed.

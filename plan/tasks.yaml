@@ -2258,8 +2258,9 @@ tasks:
     started: ''
     finished: ''
     notes: ''
-    worker_status: Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.
+    worker_status: "source developer and independent reviewer completed; native acceptance awaiting resume; no verified live native worker"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
+    advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md
@@ -3482,8 +3483,8 @@ tasks:
       - P10
     priority: 1
     est_hours: 3.5
-    state: parked
-    parked_on: 'PENDING-TD19-repository-trust'
+    state: running
+    parked_on: ''
     wbs:
       - D0.4
       - D0.13
@@ -3492,9 +3493,9 @@ tasks:
       with a pinned sha256; protoc-gen versions as tools/ci.sh), 5.6 (tools/lab provision from the published artifact dir and manifest.json, verify.sh --require-files, dpkg-query against
       the manifest version), the FD.io part of 5.5a
     files_owned: scripts/{00-add-repos,20-install-build,40-install-lab}.sh tools/lab (provision hunk :505-530) docs/status/tasks/TD-19*
-    branch: ''
-    worktree: ''
-    owner: ''
+    branch: codex/td19-safe-root-20261007
+    worktree: /root/ngfw-wt/td19-safe-root-20261007
+    owner: td19_developer
     started: ''
     finished: ''
     notes:
@@ -3502,9 +3503,10 @@ tasks:
 
       Published reconciliation: D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision vrx-b|vrx-c --apply` | 2026-10-03
       reconciliation: Partial pinned installer/provisioning source integrated. Authoritative FRR fourth signer and Node key-source pins remain source gaps. Real installation/boot NOTRUN.'
-    worker_status: "awaiting owner decision; no active developer; TD19 strict36/36 PASS; canonical repository signature/index evidence recorded; initial trust authority unanswered; default strict refusal preserved; real provisioning/boot NOTRUN"
-    completion_evidence: "TD19 strict36/36 PASS; canonical repository signature/index evidence recorded; initial trust authority unanswered; default strict refusal preserved; real provisioning/boot NOTRUN"
+    worker_status: "verified live developer repairing independent BLOCK B1/B2 alternate-root execution; reviewer completed BLOCK and available for repaired-source verification; source545f118af not approved"
+    completion_evidence: "D-238/DEC-238-td19-repository-trust.md answered owner trust decision; PR204 partial source. New9/9 PASS but strict45 had44PASS/1FAIL copied-helper fixture; B1/B2 harmless outside-root sentinel controls confirmed failures. Complete authoritative Python hash lock and actual install/boot remain open."
     integration_receipt_20261007: "PR197 merged4a262edb925c5378e007aa6bec3da5f3e0a4be3b: bounded VMware/native installer cleanup. Owner2026-10-07 explicitly requested all PR merges without fresh CI. Repository trust/source gaps and real installation/boot remain open; task state parked retained."
+    advance_receipt_20261007: "Trust no longer blocks development. PR204 draft remains unmerged while actual source safety failures are corrected; old parked trust reason was stale. No aggregate CI requested; focused tests/review retained."
   - id: SEC-auth
     title: Auth security review, moved forward from SECURITY-REVIEW (read-only, 3 lenses + adversarial verify)
     prompt: ''
@@ -3942,6 +3944,7 @@ tasks:
       prefixes; merged 8084739c'
     worker_status: awaiting resume; acceptance chat stopped; historical PASS does not prove current acceptance
     integration_receipt_20261007: "PR180 merged668f54244ac96a2c25527e9778f6c5e4ab6502a4: recovery proof source and retained negative receipts. One conflict resolved preserving root-mode and private Wave-B guards; final PR headc7073344350a7ad1239ee05a526a74d03f65fab1. No fresh CI by explicit owner request. Current mgmtd deadline failure/200-route native acceptance remains unresolved; state parked retained."
+    advance_receipt_20261007: "PR203 merged188a2ea9835298466e9fc2601add2bfa587204b1: recovered namespace inventory/cleanup guards plus independent PID reuse fix; round2 APPROVE1409c4739. Current-main Python11/11 PASS0.041s and focused race agent1.857s BGP1.128s PASS. Actual mgmtd30s failure cause/200-route proof still open; no lab execution."
   - id: F-global-blocking
     title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
     prompt: prompts/features/F-global-blocking.md
@@ -4377,6 +4380,7 @@ tasks:
       as-is after ipclassify | merged 98af9493'
     worker_status: "source completed; no active developer; PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
     completion_evidence: "PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
+    advance_receipt_20261007: "PR201 merged1c3092efbe411566d1ab5815790a47cfd8d62352: agent direct ppp/pppoe package prerequisites; two focused contracts PASS and independent APPROVE. Mandatory transition-admission resurrection and parent numeric PID identity source failures remain; product PADO/LAN encapsulation/PD and real packet/restart/browser acceptance open. These source failures are not lab-only deferrals."
   - id: F-aaa-login
     title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
     stage: S4

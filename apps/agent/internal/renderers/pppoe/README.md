@@ -7,6 +7,11 @@ so a client must run in Linux. The parent interface is mirrored into Linux by a 
 PPPoE discovery on that tap; the agent mirrors the ISP-assigned address and default route into VPP's FIB and
 clamps the forwarded TCP MSS on the WAN.
 
+The client data path is incomplete: the product plugin set conflicts with linux-cp
+discovery delivery, and mirrored addresses/routes do not encapsulate forwarded packets
+into PPPoE. Both IPv4 and IPv6 LAN transit remain unsupported. A hook reporting `up`
+proves negotiated state only; plugin-disabled diagnostic runs do not prove product dial-up.
+
 ## What this package renders (pure `Render(sessions)`)
 
 Per enabled `interfaces.<name>.pppoe`, resolved by the agent into a `Session` (password from its
@@ -40,10 +45,15 @@ up is `failed`. `ReadIPv6(hostIf)` parses `<hostif>.state6` (values are validate
 link-local or global router, a /16–/64 delegated prefix); `ReadState` puts its summary
 (`"2001:db8::5/64, delegated 2001:db8:100::/56"`) in the `ipv6` field and reports an IPv6-only session as `up`.
 A session with IPv6 on must have MTU ≥ 1280. `failCount`/`lastError` come from the agent's pppd supervisor, not the hook.
+The runtime uses `ReadSessionState` with the configured IPv6 mode, so stale IPv6
+files cannot mark an IPv6-disabled session up. IPv4 down clears IPCP addresses and
+DNS even when IPv6 remains up. Each refresher runs in its own shell, verifies its
+PID-file ownership, stops its DHCPv6 child on exit, and records down on pppd/link
+loss. A superseded instance leaves replacement state untouched.
 
 ## Not in this package (agent side, `F-pppoe-client-host`)
 
 Starting/stopping the units, tracking pppd exits for `failCount`/`lastError`, mirroring the negotiated
 address/route into VPP, and the MSS clamp are the agent's Apply on the box — they need `/dev/ppp` and VPP, so
-they are proven on the lab host (topology test against an accel-ppp/rp-pppoe server: connect, traffic through
-NAT, server restart → reconnect within holdoff, wrong password → clear error).
+live product verification remains owed. Diagnostic topology evidence covers negotiation
+and mirroring only; traffic through NAT remains blocked by the missing client data path.

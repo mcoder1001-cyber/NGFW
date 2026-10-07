@@ -3,12 +3,59 @@
 Branch/worktree: `codex/resume-global-blocking-tests-20261007`,
 `/root/ngfw-wt/resume-global-blocking-tests-20261007`.
 Local starting SHA `3ddb1680e475e94d43e8036cd3776bc60c87208b` from origin/main,
-clean. New branch publication pending; do not infer remote existence.
+clean. Verified local/remote envelope checkpoint
+`f755bbbfa497f7432bd1b42632b6f9704fa4fd58`; CLI push succeeded and ls-remote matched.
 Exact owned paths in matching envelope. No production edits authorized.
 Completed: required instructions, published audit, original prompt/status and
 current service/fetcher/renderer/tests inspected. Existing integration retained.
-Tests: none newly run. Remaining: implement service retention controls and IPv6
-anti-lockout render controls, focused tests/check, commit/publish evidence.
-Current failure: none. Exact next command: implement only envelope-owned tests,
-then `tools/heavy.sh pnpm --filter @ngfw/api exec vitest run src/features/global-blocking/refresh-retention.test.ts`.
+Implemented only owned tests: service/parser retention14cases, transport fixture
+failures (no real feed) and IPv6-only anti-lockout rendering3cases. No production edit.
+Workspace frozen pnpm install PASS19.2s (all604 reused, no host package install);
+schema/proto/yang prerequisite builds PASS; no tracked generated change.
+First Go compile failed because the test used nonexistent HostAclChain; corrected
+to existing nftables.Chain, no product defect. Initial focused Go race PASS1.276s.
+API new14 + existing fetcher3 PASS17/17 in26.68s. Final exact rule constraint
+assertion strengthened and race recheck PASS1.207s; 3subcases, no skip.
+Focused ESLint exit0; emitted pre-existing root MODULE_TYPELESS_PACKAGE_JSON warning,
+no lint findings. Check mode PASS22s. API typecheck and scoped Go lint in progress.
+Current product failure: none reproduced. Remaining: finish typecheck/Go lint,
+publish final evidence; independent review/full hosted quick manager-owned.
+Exact next command: poll ongoing API typecheck and scoped Go lint, then verify
+only four envelope-owned files differ and publish final WIP.
+
+## Actual command output
+
+```text
+tools/heavy.sh pnpm --filter @ngfw/api exec vitest run src/features/global-blocking/refresh-retention.test.ts src/features/global-blocking/fetch.test.ts
+✓ src/features/global-blocking/fetch.test.ts (3 tests) 345ms
+✓ src/features/global-blocking/refresh-retention.test.ts (14 tests) 110ms
+Test Files  2 passed (2)
+Tests  17 passed (17)
+Duration  26.68s
+cd apps/agent
+../../tools/heavy.sh go test -race -count=1 -timeout 120s ./internal/renderers/nftables -run '^TestGlobalBlockingIPv6AntiLockoutConstraints$' -v
+--- PASS: TestGlobalBlockingIPv6AntiLockoutConstraints (0.08s)
+    --- PASS: TestGlobalBlockingIPv6AntiLockoutConstraints/explicit_IPv6_management (0.07s)
+    --- PASS: TestGlobalBlockingIPv6AntiLockoutConstraints/no_sources_must_not_bypass_blocking (0.00s)
+    --- PASS: TestGlobalBlockingIPv6AntiLockoutConstraints/disabled_must_not_bypass_blocking (0.00s)
+PASS
+ok ngfw/agent/internal/renderers/nftables 1.207s
+tools/ci.sh check --base origin/main
+no contract files changed in the 1 commit(s) of HEAD since origin/main (3ddb1680e)
+board valid: 212 tasks; read-only validation
+ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+check PASSED (0m22s)
+```
+
+The API service uses real parser/refusal/state/event logic, fake transport and
+in-memory persistence. Controls cover scheduled and manual network/HTTP failures,
+empty/comment-only/garbage/partially-valid refusal; both IP families retained;
+scheduled last-good validators/count retained, alarms/notification emitted, lease
+released, later valid feed recovers;304 clears failure without commit; failed
+systemCommit retains old list/metadata. Existing fetcher uses a private ephemeral
+loopback HTTP fixture; no real remote feed or datastore/agent is exercised.
+Go controls assert exact IPv6 management source/interface/custom-port accept before
+the broad IPv6 drop, no-source/disabled bypass absence and overlap collapse.
+No packets or actual nft execution; current protectHost all-host-interface limitation
+is preserved, not certified as selected-interface enforcement.
 Native/feed/browser acceptance NOTRUN; no full task completion claim.

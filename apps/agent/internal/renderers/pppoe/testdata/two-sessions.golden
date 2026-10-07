@@ -153,6 +153,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+self="$0"
 dir="/srv/run/ngfw/pppoe"
 f="$dir/wan0.state6"
 pidf="$dir/wan0.ipv6.pid"
@@ -213,6 +214,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+self="$0"
 dir="/srv/run/ngfw/pppoe"
 f="$dir/wan2.state6"
 pidf="$dir/wan2.ipv6.pid"
@@ -272,6 +274,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+self="$0"
 dir="/srv/run/ngfw/pppoe"
 f="$dir/wan0.state6"
 pidf="$dir/wan0.ipv6.pid"
@@ -332,11 +335,14 @@ fi
 write up
 (
   trap 'exit 0' TERM INT
-  # Refresh while the link and pppd live; exit (taking the DHCPv6 client along) when either is gone.
-  while [ -d "$c" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+  # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
+  # along, when any is gone. A withdrawn session also loses its IPv6 state.
+  while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
     write up
     sleep 2
   done
+  rm -f "$pidf"
+  [ -e "$self" ] || rm -f "$f" "$pdf"
 ) </dev/null >/dev/null 2>&1 &
 echo "$!" > "$pidf"
 exit 0
@@ -353,6 +359,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+self="$0"
 dir="/srv/run/ngfw/pppoe"
 f="$dir/wan2.state6"
 pidf="$dir/wan2.ipv6.pid"
@@ -416,11 +423,14 @@ write up
   /usr/sbin/dhcpcd -B -f "/srv/etc/ppp/ngfw-dhcpcd-wan2.conf" "$iface" </dev/null >/dev/null 2>&1 &
   d=$!
   trap 'kill "$d" 2>/dev/null; exit 0' TERM INT
-  # Refresh while the link and pppd live; exit (taking the DHCPv6 client along) when either is gone.
-  while [ -d "$c" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+  # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
+  # along, when any is gone. A withdrawn session also loses its IPv6 state.
+  while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
     write up
     sleep 2
   done
+  rm -f "$pidf"
+  [ -e "$self" ] || rm -f "$f" "$pdf"
   kill "$d" 2>/dev/null
 ) </dev/null >/dev/null 2>&1 &
 echo "$!" > "$pidf"

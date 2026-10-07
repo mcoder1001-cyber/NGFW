@@ -201,7 +201,7 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 			continue
 		}
 		// Derive the state filenames from the renderer's fixed slot/product paths (IPv4 and IPv6 hooks, PD prefix).
-		for _, suffix := range []string{".state", ".state6", ".pd"} {
+		for _, suffix := range []string{".state", ".state6", ".pd", ".ipv6.pid"} {
 			if err := os.Remove(filepath.Join(rt.stateDir, oldSession.HostIf+suffix)); err != nil && !os.IsNotExist(err) {
 				rt.mu.Unlock()
 				return err

@@ -129,6 +129,7 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 		r.paths.StateDir + "/" + hostIf + ".state",
 		r.paths.StateDir + "/" + hostIf + ".state6",
 		r.paths.StateDir + "/" + hostIf + ".pd",
+		r.paths.StateDir + "/" + hostIf + ".ipv6.pid",
 	}
 }
 

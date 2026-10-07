@@ -9,6 +9,7 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = {{quoted .Remotename}} ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
+self="$0"
 dir={{quoted .StateDir}}
 f="$dir/{{ident .HostIf}}.state6"
 pidf="$dir/{{ident .HostIf}}.ipv6.pid"
@@ -74,11 +75,14 @@ write up
   d=$!
   trap 'kill "$d" 2>/dev/null; exit 0' TERM INT
 {{- end}}
-  # Refresh while the link and pppd live; exit (taking the DHCPv6 client along) when either is gone.
-  while [ -d "$c" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
+  # Refresh while the link, pppd and this session's configuration (this hook) live; exit, taking the DHCPv6 client
+  # along, when any is gone. A withdrawn session also loses its IPv6 state.
+  while [ -d "$c" ] && [ -e "$self" ] && { [ -z "${PPPD_PID:-}" ] || kill -0 "$PPPD_PID" 2>/dev/null; }; do
     write up
     sleep 2
   done
+  rm -f "$pidf"
+  [ -e "$self" ] || rm -f "$f" "$pdf"
 {{- if eq .IPv6 "dhcpv6"}}
   kill "$d" 2>/dev/null
 {{- end}}

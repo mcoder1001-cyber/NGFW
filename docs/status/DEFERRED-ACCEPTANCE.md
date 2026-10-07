@@ -309,3 +309,7 @@ Full local and hosted quick CI remain mandatory merge gates. The first freeze
 quick attempt failed timing checks during concurrent load; preserve that failure
 and rerun serially with existing concurrency controls, without weakening tests.
 STATUS-FINAL must retain every unresolved code or acceptance gap explicitly.
+
+## Automatic Interfaces host discovery — 2026-10-07
+
+PR199 / interfaces-discovery-20261007 source is independently reviewed; unit checks use scripted API/agent and fake sysfs fixtures. Real appliance/browser acceptance has **not been executed**: confirm all agent-returned physical PCI functions (including management and userspace-bound devices) appear automatically on the target appliance, capture EN/FA browser screenshots, confirm host-only drawers have no configuration actions, and observe unavailable engine/inventory diagnostics without changing NIC ownership. No claim of real seven-NIC VMware inventory or host connectivity verification is made by unit evidence. Existing HostNics scope is one entry per PCI function; Linux-only virtual/USB inventory and ambiguous virtio engine identity are explicitly outside this change. This laboratory-only acceptance is deferred under the owner instruction; complete local and hosted quick gates remain mandatory before merge.

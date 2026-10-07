@@ -22,8 +22,7 @@ func numericPublisherRemainingBudget(started, deadline time.Time, present bool) 
 	return min(max(deadline.Sub(started).Milliseconds(), 0), NumericOpenFilePublicationBudget.Milliseconds())
 }
 
-func newNumericPublisherGapTiming(ctx context.Context) *numericPublisherGapTiming {
-	started := time.Now()
+func newNumericPublisherGapTiming(ctx context.Context, started time.Time) *numericPublisherGapTiming {
 	deadline, present := ctx.Deadline()
 	trace := &numericPublisherGapTiming{started: started, budget: numericPublisherRemainingBudget(started, deadline, present)}
 	for index := range trace.marks {

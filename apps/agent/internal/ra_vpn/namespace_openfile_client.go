@@ -12,7 +12,7 @@ import (
 func publishNumericThroughManager(ctx context.Context, kind NumericOpenFileKind, instance string, target bootid.Identity) (result error) {
 	trace := newNumericPublisherClientTiming()
 	defer func() { trace.logFailure(result != nil, ctx.Err() == context.DeadlineExceeded) }()
-	gaps := newNumericPublisherGapTiming(ctx)
+	gaps := newNumericPublisherGapTiming(ctx, trace.started)
 	defer func() { gaps.logFailure(result != nil) }()
 	bounded, cancel := context.WithTimeout(ctx, NumericOpenFilePublicationBudget)
 	defer cancel()

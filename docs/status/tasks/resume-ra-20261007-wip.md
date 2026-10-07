@@ -1,5 +1,11 @@
 # RA VPN recovery WIP
 
+## Common-clock final timing freeze
+
+Consumer published8afa7a6f8384eaa6d9efb95d27bdd7770e948b88/treed775798a01c6749a48f9cb2b73eb077cd25eb628; whole-source race3.973s/vet exit0 on that exact consumer. Follow-up passes original trace.started into supplemental constructor so every milestone and entry-budget measurement has identical monotonic origin; no original formatter/predicate changes. Final whole RA race3.653s, vet exit0, contextual lint0 issues/exit0. Archive transformer inspect-only exit0: exact preserved image87efa2ed and all three producer21 ELF hashes/receipts match; no archive output or guest execution in this inspection.
+
+New scratchAUVylC allocated. Attempted standalone no-hardlink source clone was slow and was stopped using only its observed spawned git/shell PIDs2424664/2424663; partial clone preserved, no source rebuilt or VM started. Use immutable git archive into distinct `build-source` for release build (external SHA/tree provenance as original producer had no embedded VCS). Planned binary/cache/tmp/image/kernel/console outputs exclusively in new scratch. Final freeze discoverable by `git log -1 --format='%H %T' -- apps/agent/internal/ra_vpn/namespace_openfile_gap_timing.go`; replay review records actual built pins separately. Frozen f3ae748 proof diagnostics, all original RA units/hardening remain byte-identical.
+
 ## Pre-publication timing consumer freeze
 
 Verified published timing-contract SHA5ab40daf6 (resolve full SHA with `git rev-parse 5ab40daf6`). Add only one supplemental failure defer, call-local trace argument, and five marks in existing client. Original frozen proof and timing formatters untouched; no changed predicate/order, context Err sample, deadline, descriptor ownership or unit. Probe response mark occurs after successful final receive, verified mark after existing final Verify, exit mark after existing wait succeeds. Publish response/verified marks use the same boundaries. The2.874s gap can now be split into receive, verification, helper exit and second-exchange preparation using original before-connect mark. Diagnostics cannot instrument pre-Go service startup from within the client; existing server entry logs plus READY receive still include scheduling/delivery.

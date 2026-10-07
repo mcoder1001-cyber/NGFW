@@ -8,7 +8,7 @@ import (
 )
 
 func TestNumericPublisherGapTimingClosedFailureAndSilence(t *testing.T) {
-	trace := newNumericPublisherGapTiming(context.Background())
+	trace := newNumericPublisherGapTiming(context.Background(), time.Now())
 	if trace.failureLine(false) != "" {
 		t.Fatal("healthy call logged")
 	}

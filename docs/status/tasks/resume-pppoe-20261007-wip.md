@@ -1,5 +1,37 @@
 # PPPoE IPv6 PR196 recovery WIP
 
+## Active independent-review repair — supersedes readiness below
+
+Latest verified published checkpoint: `793837f80` (unsupported discovery/transit
+documentation). Read complete independent reports `cbeea9a55` and `9ec1f1d17`.
+The family fixes at `17de38549` resolve the stale-family findings only; remaining
+mandatory lifecycle/security/operation findings block final freeze/approval.
+Current checkpoint adds required `dhcpcd-base` dependency to ngfw-agent and the
+inherited PPPoE contract status record. New ownership is in the envelope.
+
+Uncommitted active repair in this own worktree: replace bare-PID shell termination
+with a fixed rendered Python3 helper (existing packaged runtime), verified starttime
+and command identity after pidfd_open, pidfd-only signals, bounded TERM/KILL and
+exit verification, session action/publication locks and generation-gated DHCP events.
+Runtime stops and verifies old writers before deleting state/handles or replacing
+hooks. Hook setup, client launch/exit and state-write failures fail closed and
+use fixed non-secret error codes exposed in PPPoE status. Custom paths reject
+shell expansion/control tokens. No new privilege model or VPP mutation.
+
+First focused controls passed (before final action-lock/identity refinements):
+`../../tools/heavy.sh timeout 240s go test -p 2 -count=1 -timeout 180s ./internal/renderers/pppoe -run 'TestIPv6Owned|TestIPv6Collection|TestIPv6PID|TestIPv6Setup|TestRenderIPv6|TestDHCP6' -v`
+reported PASS, renderer 13.837s: verified child+refresher gone, TERM-ignoring child
+KILL fallback, late DHCP event rejected, barrier-controlled collection revocation,
+zero/reserved/bare/foreign PID refusal, missing/invalid client, sysctl/state-write
+failure and asynchronous child-exit visibility. Tests use private sysctl/IP/client
+substitutes, never shared host configuration or a real DHCP daemon.
+
+Remaining: rerun all focused controls after refinements, regenerate golden, scoped
+race/lint/check, commit/publish lifecycle source, request exact-delta re-review.
+Exact next command: `cd /root/ngfw-wt/resume-pppoe-20261007/apps/agent && ../../tools/heavy.sh timeout 240s go test -p 2 -count=1 -timeout 180s ./internal/renderers/pppoe -v`.
+Current failure: mandatory final lifecycle verification/re-review incomplete;
+discovery/encapsulation remain explicit unsupported product behavior.
+
 Branch/worktree: `codex/resume-pppoe-20261007`, `/root/ngfw-wt/resume-pppoe-20261007`.
 Initial source: `992b264b2084a8adfcee755d2b5650b771a6a8f1`.
 Local and verified remote code checkpoint: `17de38549129ab742fe18051b629cc93ba1be558`.

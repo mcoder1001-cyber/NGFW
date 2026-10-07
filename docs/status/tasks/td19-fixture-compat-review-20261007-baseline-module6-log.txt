@@ -1,0 +1,21 @@
+test_current_minor_and_explicit_patch_use_original_pin (module_version_fixtures.ModuleVersion.test_current_minor_and_explicit_patch_use_original_pin) ... ok
+test_unsupported_versions_refuse_before_any_mutation (module_version_fixtures.ModuleVersion.test_unsupported_versions_refuse_before_any_mutation) ... ok
+test_missing_duplicate_malformed_and_trailing_directives_refuse (module_version_fixtures.ModuleVersion.test_missing_duplicate_malformed_and_trailing_directives_refuse) ... ok
+test_script_location_ignores_cwd_and_alternate_environment (module_version_fixtures.ModuleVersion.test_script_location_ignores_cwd_and_alternate_environment) ... ok
+test_nonregular_symlink_canonical_module_refused (module_version_fixtures.ModuleVersion.test_nonregular_symlink_canonical_module_refused) ... ok
+test_module_reader_failure_refuses_before_mutation (module_version_fixtures.ModuleVersion.test_module_reader_failure_refuses_before_mutation) ... FAIL
+
+======================================================================
+FAIL: test_module_reader_failure_refuses_before_mutation (module_version_fixtures.ModuleVersion.test_module_reader_failure_refuses_before_mutation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/root/ngfw-wt/td19-fixture-compat-review-20261007/docs/status/tasks/TD-19-test-go-module-version.py", line 68, in test_module_reader_failure_refuses_before_mutation
+    self.assertNotEqual(result.returncode,0);self.assertIn('fixture module read failed',result.stderr)
+                                             ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'fixture module read failed' not found in '/tdr/tmp6anb4djc/repo/scripts/20-install-build.sh: line 42: /tdr/tmp6anb4djc/repo/scripts/install-common.sh: No such file or directory\n'
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.980s
+
+FAILED (failures=1)
+Go module source fixtures: tests=6 failures=1 errors=0 skipped=0 expectedFailures=0 unexpectedSuccesses=0

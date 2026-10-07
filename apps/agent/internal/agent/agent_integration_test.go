@@ -207,7 +207,7 @@ func hostConfig(t *testing.T, owner string) Config {
 	t.Helper()
 	dir := t.TempDir()
 	return Config{
-		Socket: filepath.Join(dir, "agent.sock"), VPPAPISocket: vppSocket(), VPPStatsSocket: "/run/vpp/stats.sock",
+		Socket: filepath.Join(dir, "agent.sock"), VPPAPISocket: vppSocket(), VPPStatsSocket: vpptest.StatsSocket(),
 		StateDir: filepath.Join(dir, "state"), Owner: owner, MetricsAddr: "off",
 	}
 }

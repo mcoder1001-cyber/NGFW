@@ -13,16 +13,15 @@ import (
 	"testing"
 )
 
-type fixtureResolver struct {
-	value string
-	fail  bool
-}
-
-func (r *fixtureResolver) Resolve(context.Context, string) ([]byte, error) {
-	if r.fail {
-		return nil, errors.New("resolver failed")
+// fixtureSecrets resolves only the reference clientDocument names, so a lookup by the wrong key fails as it does
+// with the real secretchannel.Store.
+func fixtureSecrets(value string) func(string) ([]byte, error) {
+	return func(ref string) ([]byte, error) {
+		if ref != "password/test" {
+			return nil, errors.New("secret unavailable")
+		}
+		return []byte(value), nil
 	}
-	return []byte(r.value), nil
 }
 
 type clientStub struct {
@@ -43,7 +42,7 @@ func TestClientValidateStagesExactlyOnceAndRedactsChecker(t *testing.T) {
 	dir := t.TempDir()
 	d := NewClientConfig(stub, ren.New(ren.WithPaths(ren.PathsUnder(dir))), filepath.Join(dir, "applied.pb"))
 	fixture := "NGFW_TEST_PSK_F-pppoe-client-wiring"
-	d.SetResolver(&fixtureResolver{value: fixture})
+	d.SetSecretSource(fixtureSecrets(fixture))
 	calls := 0
 	d.Check = func(ctx context.Context, r *ren.Renderer, s []ren.Session) error {
 		calls++
@@ -102,7 +101,7 @@ func TestClientManifestNeverContainsResolvedPassword(t *testing.T) {
 	dir := t.TempDir()
 	d := NewClientConfig(stub, ren.New(ren.WithPaths(ren.PathsUnder(dir))), filepath.Join(dir, "applied.pb"))
 	fixture := "NGFW_TEST_PSK_F-pppoe-client-wiring"
-	d.SetResolver(&fixtureResolver{value: fixture})
+	d.SetSecretSource(fixtureSecrets(fixture))
 	if _, err := d.Create(context.Background(), clientDocument()); err != nil {
 		t.Fatal(err)
 	}

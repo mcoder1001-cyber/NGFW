@@ -55,7 +55,7 @@ func Connect(t testing.TB) *Host {
 	slot := vpptest.Slot(t)
 	sock := os.Getenv(EnvSocket)
 	if sock == "" {
-		sock = socketclient.DefaultSocketName
+		sock = vpptest.APISocket()
 	}
 	conn, err := core.Connect(socketclient.NewVppClient(sock))
 	if err != nil {
@@ -79,7 +79,7 @@ func (h *Host) Reconnect() vpp.Client {
 	h.T.Helper()
 	sock := os.Getenv(EnvSocket)
 	if sock == "" {
-		sock = socketclient.DefaultSocketName
+		sock = vpptest.APISocket()
 	}
 	conn, err := core.Connect(socketclient.NewVppClient(sock))
 	if err != nil {

@@ -1,0 +1,45 @@
+## core descriptor integration test on the slot VPP 2026-10-06T10:35:41+00:00
+NGFW_VPP_API_SOCKET=/run/ngfw-test/w20/vpp/api.sock
+=== RUN   TestOwnershipDeclared
+--- PASS: TestOwnershipDeclared (0.00s)
+=== RUN   TestInterfaceObjectsRecordNoStore
+--- PASS: TestInterfaceObjectsRecordNoStore (0.00s)
+=== RUN   TestInterfaceObjectsRequirePersistedClaims
+--- PASS: TestInterfaceObjectsRequirePersistedClaims (0.00s)
+=== RUN   TestCoreOnHost
+--- PASS: TestCoreOnHost (0.33s)
+=== RUN   TestClaimRulesOnHost
+--- PASS: TestClaimRulesOnHost (0.09s)
+=== RUN   TestRouteOverVPPEntriesOnHost
+--- PASS: TestRouteOverVPPEntriesOnHost (0.09s)
+=== RUN   TestKeysAndDependencies
+--- PASS: TestKeysAndDependencies (0.00s)
+=== RUN   TestApplyRetrieveIdempotent
+--- PASS: TestApplyRetrieveIdempotent (0.00s)
+=== RUN   TestOtherOwnerInvisible
+--- PASS: TestOtherOwnerInvisible (0.00s)
+=== RUN   TestUpdatesAndRecreate
+--- PASS: TestUpdatesAndRecreate (0.01s)
+=== RUN   TestRepairAfterLoss
+--- PASS: TestRepairAfterLoss (0.00s)
+=== RUN   TestDeleteAll
+--- PASS: TestDeleteAll (0.01s)
+=== RUN   TestErrors
+--- PASS: TestErrors (0.00s)
+=== RUN   TestCanon
+--- PASS: TestCanon (0.00s)
+=== RUN   TestVRFTableIDOfAnotherOwner
+--- PASS: TestVRFTableIDOfAnotherOwner (0.00s)
+=== RUN   TestRouteOfAnotherOwner
+--- PASS: TestRouteOfAnotherOwner (0.00s)
+=== RUN   TestRouteOverVPPGeneratedEntries
+--- PASS: TestRouteOverVPPGeneratedEntries (0.01s)
+=== RUN   TestInterfaceAddrRetrieveOmitsDHCPLease
+--- PASS: TestInterfaceAddrRetrieveOmitsDHCPLease (0.00s)
+=== RUN   TestPlanHasNoDeleteForDHCPLease
+--- PASS: TestPlanHasNoDeleteForDHCPLease (0.00s)
+=== RUN   TestReconcileAndResyncKeepDHCPLease
+--- PASS: TestReconcileAndResyncKeepDHCPLease (0.00s)
+slot VPP interfaces after: local0 
+MainPID=1014
+NRestarts=0

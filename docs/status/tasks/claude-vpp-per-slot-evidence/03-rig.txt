@@ -1,0 +1,66 @@
+## idle CPU 2026-10-06T10:34:17+00:00
+1349429 root      20   0   16.7g 315528  70432 S  18.2   0.5  36:08.59 vpp_main
+1349429 root      20   0   16.7g 315528  70432 S  16.3   0.5  36:09.08 vpp_main
+1349429 root      20   0   16.7g 315528  70432 S  18.3   0.5  36:09.63 vpp_main
+VmRSS:	  315528 kB
+## rig up/down against the slot VPP
+rig up w20 (slot 20, path af_packet, VPP /run/ngfw-test/w20/vpp/cli.sock)
+  create netns ns-w20-lan
+  create veth w20l0 <-> ns-w20-lan:w20l1
+  create vpp host-w20l0 (af_packet on w20l0)
+  reset  ip/ip6 classify host-w20l0 (table-index ~0)
+  set    addr host-w20l0 10.20.1.1/24
+  create netns ns-w20-wan
+  create veth w20w0 <-> ns-w20-wan:w20w1
+  create vpp host-w20w0 (af_packet on w20w0)
+  reset  ip/ip6 classify host-w20w0 (table-index ~0)
+  set    addr host-w20w0 10.20.2.1/24
+rig: up
+prefix: w20
+slot: 20
+path: af_packet
+lan_ns: ns-w20-lan
+lan_veth: w20l1
+lan_ip: 10.20.1.2/24
+lan_gw: 10.20.1.1
+vpp_lan_if: host-w20l0
+vpp_lan_addr: 10.20.1.1/24 
+wan_ns: ns-w20-wan
+wan_veth: w20w1
+wan_ip: 10.20.2.2/24
+wan_gw: 10.20.2.1
+vpp_wan_if: host-w20w0
+vpp_wan_addr: 10.20.2.1/24 
+ping: ip netns exec ns-w20-lan ping -c 3 10.20.2.2
+host-w20l0 (up):
+  L3 10.20.1.1/24
+host-w20w0 (up):
+  L3 10.20.2.1/24
+local0 (dn):
+shared VPP host-w20*: 0
+3 packets transmitted, 3 received, 0% packet loss, time 2002ms
+rtt min/avg/max/mdev = 0.399/1.067/2.030/0.697 ms
+rig down w20
+  delete vpp host-w20l0
+  delete netns ns-w20-lan (and its veth peer)
+  delete vpp host-w20w0
+  delete netns ns-w20-wan (and its veth peer)
+  delete veth w20w0
+rig: down
+prefix: w20
+slot: 20
+path: af_packet
+lan_ns: ns-w20-lan
+lan_veth: w20l1
+lan_ip: 10.20.1.2/24
+lan_gw: 10.20.1.1
+vpp_lan_if: host-w20l0
+vpp_lan_addr: -
+wan_ns: ns-w20-wan
+wan_veth: w20w1
+wan_ip: 10.20.2.2/24
+wan_gw: 10.20.2.1
+vpp_wan_if: host-w20w0
+vpp_wan_addr: -
+ping: ip netns exec ns-w20-lan ping -c 3 10.20.2.2
+rig-down rc=0

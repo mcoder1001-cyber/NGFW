@@ -15,12 +15,15 @@
 package vpptest
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 )
 
 // Environment variables set by the task envelope / tools/lab env <N>.
@@ -30,7 +33,49 @@ const (
 	EnvSlot        = "NGFW_SLOT"
 	EnvTableBase   = "NGFW_VPP_TABLE_BASE"
 	EnvLabLock     = "NGFW_LAB_LOCK"
+	// The VPP a slot's tests talk to (LAB-vpp-per-slot): `tools/lab env <N>` names the slot's own
+	// instance (/run/ngfw-test/w<N>/vpp/*.sock) while `tools/lab vpp up <N>` runs, else the shared one.
+	EnvAPISocket   = "NGFW_VPP_API_SOCKET"
+	EnvCLISocket   = "NGFW_VPP_CLI_SOCKET"
+	EnvStatsSocket = "NGFW_VPP_STATS_SOCKET"
 )
+
+// The shared VPP's sockets (vpp.service, docs/lab/host-ngfw-a.md): the defaults when the
+// variables above are unset.
+const (
+	SharedAPISocket   = "/run/vpp/api.sock"
+	SharedCLISocket   = "/run/vpp/cli.sock"
+	SharedStatsSocket = "/run/vpp/stats.sock"
+)
+
+func envOr(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+// APISocket is the binary API socket of the VPP this test talks to ($NGFW_VPP_API_SOCKET, default
+// the shared /run/vpp/api.sock).
+func APISocket() string { return envOr(EnvAPISocket, SharedAPISocket) }
+
+// CLISocket is the CLI socket of that VPP ($NGFW_VPP_CLI_SOCKET, default /run/vpp/cli.sock).
+func CLISocket() string { return envOr(EnvCLISocket, SharedCLISocket) }
+
+// StatsSocket is the stats segment socket of that VPP ($NGFW_VPP_STATS_SOCKET, default
+// /run/vpp/stats.sock).
+func StatsSocket() string { return envOr(EnvStatsSocket, SharedStatsSocket) }
+
+// VPPCtlTimeout bounds every VPPCtl call (shared-host rule: no unbounded vppctl).
+const VPPCtlTimeout = 10 * time.Second
+
+// VPPCtl runs `vppctl -s <CLISocket()> args…` bounded by VPPCtlTimeout and returns its combined
+// output. Packet trace commands are banned on the shared VPP (D-128) — never pass them.
+func VPPCtl(ctx context.Context, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, VPPCtlTimeout)
+	defer cancel()
+	return exec.CommandContext(ctx, "vppctl", append([]string{"-s", CLISocket()}, args...)...).CombinedOutput() //nolint:gosec // test helper, fixed binary
+}
 
 // DefaultLabLock is the shared lab lock file; integration harnesses take it shared, the
 // manager's full CI and (after handover) VPP restarts take it exclusive.

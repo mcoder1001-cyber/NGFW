@@ -57,9 +57,9 @@ func StartHost(t *testing.T) *Host {
 // restart simulation uses: a fresh client with no cached Meta.
 func Connect(t *testing.T) vpp.Client {
 	t.Helper()
-	conn, err := core.Connect(socketclient.NewVppClient(socketclient.DefaultSocketName))
+	conn, err := core.Connect(socketclient.NewVppClient(vpptest.APISocket()))
 	if err != nil {
-		t.Fatalf("connect %s: %v", socketclient.DefaultSocketName, err)
+		t.Fatalf("connect %s: %v", vpptest.APISocket(), err)
 	}
 	t.Cleanup(conn.Disconnect)
 	return hostClient{conn}

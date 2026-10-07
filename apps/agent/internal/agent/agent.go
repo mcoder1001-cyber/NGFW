@@ -286,7 +286,7 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
-	if err = subsystems.SetPppoeSecrets(cfg.Owner, cache); err != nil {
+	if err = subsystems.SetPppoeSecrets(cfg.Owner, cache.Text); err != nil {
 		wiring.Close()
 		conn.Close()
 		return nil, err

@@ -1,24 +1,43 @@
-# NGFW progress — 2026-10-07
+# گزارش پیشرفت NGFW — ۷ اکتبر ۲۰۲۶
 
-Fresh checkpoint at16:01UTC. Owner requested advancing available tasks and previously explicitly authorized all ready merges without fresh CI. Focused unchanged tests and independent source reviews retained; no manually launched aggregate CI, host installations, shared VPP/service/NIC changes or production deployment. Automatically triggered GitHub workflows are observed separately.
+زمان بررسی: ۱۶:۲۷ UTC، ۱۹:۵۷ تهران. main محصول پس از ادغام‌های این مرحله: `aede625c1b78702c133d21df4555dbd347a22f43`. کارهای قابل انجام بدون تغییر میزبان در چهار بخش جلو رفتند و مرج شدند؛ یک اصلاح سازگاری fixture هم پس از مشاهدهٔ شکست خودکار اضافه شد.
 
-| Work | Actual outcome | Evidence and limits |
+## ادغام‌های جدید و شواهد
+
+| بخش | PR و merge SHA | نتیجهٔ واقعی |
 |---|---|---|
-| PPPoE prerequisites | PR201 merged1c3092efbe411566d1ab5815790a47cfd8d62352 | Direct agent ppp/pppoe dependencies; author and independent packaging2/2 PASS. Discovery/encapsulation/PD and transition-admission/parent identity code failures remain. |
-| P12 safety recovery | PR203 merged188a2ea9835298466e9fc2601add2bfa587204b1 | Actual nsfs handle inventory, strict fallback and cleanup failures recovered; independent producer identity BLOCK fixed and round2 APPROVE1409c4739. Latest combination Python11/11 PASS0.041s; Go race agent1.857s/BGP1.128s PASS. Current mgmtd30s failure cause and native200route proof still unknown/open. |
-| Remote-access VPN | PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9 | Exact45-path reviewed final-union delta restored; bounded authenticated PID1 property transport, session pagination, lazy renderer and localized counters. Independent source APPROVE97f83b97b. Latest integration Go race runtime3.341s/renderer7.145s/agent74.701s; packaging3/3 PASS2.632s. Author UI11/11, tsc/scoped ESLint PASS after documented initial failures. Actual runtime READY/EAP/TLS/API/browser/restart acceptance remains open. |
-| TD19 installers | PR204 draft, not approved at545f118af | Alternate-root/dry-run seam and pinned build tools added, but independent review112fa6382 BLOCK: unchecked rooted executable/PATH and arbitrary regular stubs can escape recording. New9/9 PASS missed these failures; strict45 had44PASS/1FAIL copied helper fixture. Live developer repairing source and fixture; no actual installation. Python dependency hash closure still requires authoritative supplied lock; default apply fails closed. |
+| وابستگی‌های PPPoE | PR201، `1c3092efbe411566d1ab5815790a47cfd8d62352` | وابستگی مستقیم agent به ppp و pppoe اضافه شد؛ دو آزمون بسته‌بندی و بازبینی مستقل موفق. |
+| کنترل‌های P12 | PR203، `188a2ea9835298466e9fc2601add2bfa587204b1` | inventory واقعی nsfs، خطاهای cleanup و کنترل هویت immutable پردازش بازیابی/اصلاح شد. ۱۱ آزمون Python روی ترکیب main موفق در0.041s؛ race آزمون‌های agent1.857s و BGP1.128s موفق. یافتهٔ PID reuse در بازبینی اولیه رفع شد؛ APPROVE دور دوم1409c4739. |
+| نسخهٔ نهایی VPN | PR202، `19052bb130ab46977dc5b7aa7be25e976fb5aaf9` | delta دقیق۴۵ مسیر union نهایی بازیابی شد: transport احرازشده و محدود PID1، pagination، renderer lazy، counter/locale. بازبینی مستقل APPROVE97f83b97b؛ race ترکیب نهایی runtime3.341s، renderer7.145s، agent74.701s و سه آزمون packaging2.632s موفق. نویسندهUI11/11، typecheck و lint محدود را گذراند؛ شکست‌های اولیه در گزارش اصلی حفظ شده‌اند. تصمیم canonical PID1 نیز درPR203 حفظ شد. |
+| installer TD19 | PR204، `4fcdc4557e857efb8d079bf2c52c0e2f0fedd9db` | dry-run، ریشهٔ آزمایشی با recording harness دقیق، pnpm ثابت و الزام hash closure Python؛ اجرای unchecked command، تزریق Python، shell metadata، مسیر استاندارد native و staging اصلاح شدند. ۴۶ آزمون نهایی موفق149.121s؛ بازبین۱۱ safe-root و۷ preflight و کنترل‌های مستقل را گذراند، APPROVE4c50ca949. روی ترکیب actual main،۱۱ آزمون محدود10.586s و کنترل metadata نهایی0.119s موفق؛ tree واقعی main5865c794… دقیقاً برابر tree ترکیب آزمایش‌شده بود. |
+| سازگاری fixtureهای TD19 | PR207، `aede625c1b78702c133d21df4555dbd347a22f43` | دو fixture قدیمی با helper و مسیر reader فعلی هماهنگ شدند. هیچ محصول، runner، workflow، تعداد آزمون یا شرطی ضعیف نشد. آزمون‌های مستقل module6/6 موفق0.965s وFRR13/13 موفق25.082s؛ policy کنترل‌ها موفق، APPROVE5cd6c7cf. |
 
-Reviewed history preserved on remote codex/archive-pppoe-readiness-20261007, codex/archive-p12-recovery-20261007 and codex/archive-ra-union-20261007 before single-commit squash integrations. Main never rewritten. RA's existing approved source decision docs/decisions/DEC-ra-pid1-property-readback-20261006.md preserved in203.
+تاریخچهٔ بازبینی‌شده قبل از squash در شاخه‌های remote `codex/archive-pppoe-readiness-20261007`، `codex/archive-p12-recovery-20261007`، `codex/archive-ra-union-20261007`، `codex/archive-td19-safe-root-20261007` و `codex/archive-td19-source-fixture-compat-20261007` حفظ شد. main بازنویسی نشد. گزارش‌های BLOCK اولیه، اصلاحات، آزمون‌های ناموفق اولیه و تأییدهای نهایی حفظ شده‌اند.
 
-Board reconciliation: TD19's repository-trust decision was already answered in DEC-238-td19-repository-trust.md; stale parked trust reason corrected. TD19 currently running means observed source work; RA running means remaining functionality/acceptance, with source workers completed. Fresh counts205/212 merged,2running,5parked; seven original rows remain open. Original remaining estimate27.5hours is not measured time-to-finish or operational readiness.
+## CI و محدودهٔ پذیرش
 
-Observed live inventory: root manager/developer and TD19 developer running; independent reviewers completed and available, no active tester claimed. RA/PPP developers completed. Global chat worker inventory unverifiable; no persistent supervisor process/checkpoint evidence asserted. Native work awaiting resume requires existing authorized host/slot preflight; handover remains pending.
+طبق دستور صریح مالک، گیت تجمیعی تازه به‌صورت دستی اجرا نشد. آزمون‌های محدود واقعی و بازبینی مستقل انجام شدند. GitHub به‌صورت خودکار workflow اجرا کرد: روی4fcdc، دو source-fixture قدیمی37651344590/37651344539 شکست خوردند؛ این شکست‌ها بازتولید و درPR207 اصلاح شدند. روی main جدیدaede625c1، همان workflowها37652990531 و37652990565 SUCCESS هستند. provisioning37652990588 درحال اجرا و CI gate37652990461 pending بود؛ گیت کامل نهایی PASS اعلام نمی‌شود.
 
-Automatic main workflows on19052bb13 (37649374922/37649374791) in_progress at this checkpoint; previous main1c3092efb workflows37648058922/37648059006 SUCCESS. This is neither fresh full gate certification nor a claim that final main CI has passed.
+هیچ نصب واقعی، deploy، تغییر بسته/سرویس/NIC، تغییر shared VPP یا startup انجام نشد. پذیرش آزمایشگاه NOTRUN باقی است؛ handover میزبان pending است. موفقیت آزمون‌های بدون میزبان واقعی، آمادگی نسخهٔ عملیاتی نیست.
 
-TD19 repair checkpoint863d9c8eb published: deterministic recording harness, rooted executable/PATH refusal, literal os-release data parser and isolated Python validation. Root current-main combination safe-root10/10 PASS10.986s. Final author strict46 (new metadata-negative) and independent final-source adversarial review underway; prior BLOCK remains until final APPROVE. Next: merge only approved repaired source, refresh this report and board. Remaining host acceptance (global blocking, NAT46, OSPF, P12, PPP, RA), P10 privilege/file ownership decision, PPP datapath/PD and multi-WAN gateway handoff are still explicit. No laboratory failure relabeled PASS.
+## کارهای باز
 
-Update16:17UTC: TD19 bounded source integrated by PR204 at4fcdc4557e857efb8d079bf2c52c0e2f0fedd9db after final269 strict46/46 PASS149.121s and independent APPROVE4c50ca949. Reviewed-history archive codex/archive-td19-safe-root-20261007 at24fe6a4c1. Actual main tree5865c7941adf822c98705fe006b680e6ea64c6bc exactly equals tested root integration tree. Source release Python closure/native install/boot still open.
+برد معتبر۲۱۲ ردیف دارد:۲۰۵ merged،۲ running،۵ parked؛ ready/review/todo/failed صفر. همان هفت ردیف اصلی هنوز بازند. پیشرفت برنامه۱۵۵۱ از۱۵۷۸٫۵ ساعت تخمینی است؛۲۷٫۵ ساعت باقی‌مانده تخمین اولیهٔ کل ردیف‌های باز است، زمان واقعی باقی‌مانده یا موعد تحویل نیست.
 
-Automatically triggered4fcdc source-fixture runs37651344590 and37651344539 FAILED: module-reader negative still injects PATH awk and copied entry lacks helper; FRR entry test uses bash-c and misses actual imported helper/staging before reachedgate assertions. These are compatibility failures in old fixtures, not passed or ignored under CI waiver. New isolated followup developer task owns only those two fixture sources and taskdocs; product/runners/workflows/assertions untouched. Root final report remains draft pending targeted repair and independent review. No additional aggregateCI launched.
+| تسک | کار باقی‌مانده |
+|---|---|
+| TD-19 | قفل معتبر release برای closure وابستگی‌های Python و نصب/boot واقعی. تصمیم اعتماد repository قبلاً درDEC-238 پاسخ داده شده و مانع قدیمی برد اصلاح شد. |
+| F-ra-vpn | supplier/runtime READY و پذیرش واقعی EAP/TLS، packet، session/disconnect/restart، API و browser. وضعیت running اثبات نویسندهٔ زنده نیست. |
+| P12-fib-proof | علت شکست mgmtd در deadline اصلی۳۰ثانیه هنوز معلوم نیست؛ اثبات واقعی۲۰۰ route باقی است. اصلاح cleanup این شکست را PASS نکرده است. |
+| F-pppoe-client-host | ایراد source transition-admission/resurrection و هویت parent PID، discovery/PADO، encapsulation، LAN delegated-prefix و پذیرش packet/FIB/MSS/reconnect/browser. این ایرادهای منبع به‌عنوان lab-only deferred ثبت نشده‌اند. |
+| F-global-blocking-host | پذیرش واقعی forwarding/local-in، ظرفیت lookup و screenshot. |
+| F-nat46-host | packet/FIB/rollback/restart/API واقعی. |
+| F-ospf-host | rig/FIB/packet/restart/rollback/API واقعی. |
+
+P10 هنوز محدودیت privilege/file ownership دارد؛ multi-WAN gateway handoff نیز تکمیل نشده است. درصد merged برد این پذیرش‌های باقی‌مانده را حذف نمی‌کند.
+
+فهرست زندهٔ همین گفتگو: فقط root مدیر برای ثبت گزارش فعال است؛ توسعه‌دهندگان و بازبین‌های این مرحله با checkpoint منتشرشده پایان داده‌اند. موجودی workerهای گفتگوهای دیگر unverifiable است؛ سرویس supervisor دائمی تأیید نشده است.
+
+PR206 جدیدِ ساختار ناوبری یک پیش‌نمایش جداگانه است؛ در متنش صریحاً آمده «Owner review only: do not merge until the owner explicitly approves.» این PR در این مرحله ادغام نشد؛ بررسی/CI ذکرشده در متن آن اثبات worker زنده در این گفتگو نیست.
+
+گام بعدی: release Python closure و اصلاح source lifecycle PPPoE قابل ازسرگیری‌اند؛ پذیرش‌های native فقط با preflight/slot/اختیار میزبان موجود اجرا می‌شوند. این گزارش پایان کارهای محدود این مرحله است و تکمیل همهٔ قابلیت‌ها را ادعا نمی‌کند.

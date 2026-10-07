@@ -29,7 +29,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 ## Remaining implementation / review
 
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, unassigned; source developer and independent reviewer completed; native acceptance awaiting resume; no verified live native worker)
-- TD-19 — Install & lab provisioning from product artifacts (running, td19_developer; verified live developer repairing independent BLOCK B1/B2 alternate-root execution; reviewer completed BLOCK and available for repaired-source verification; source545f118af not approved)
+- TD-19 — Install & lab provisioning from product artifacts (running, unassigned; source and fixture developers/reviewers completed with published checkpoints; remaining release Python dependency closure/native install/boot awaiting resume; no verified live developer)
 
 ## Parked
 

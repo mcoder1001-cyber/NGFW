@@ -721,7 +721,7 @@ tasks:
       run caused the V24 crash (confirmed); review spawned | 14:00 ngfw-46: review CONTINUE (Agent tool), envelope /root/ngfw-wt/P08.review2.md; fix round follows after ci full (PID 10894)
       ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review APPROVE WITH
       CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118) | fix round 2 done abb6950 (code 1a90988), CI
-      green, topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green'
+      green, topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green | 2026-10-07 new product bugfix PR199 merged 62325fd4d4e38fd330aa2df9af85a9a06d2d4ef9: read-only host NIC inventory automatically displayed, physical correlation and partial observation diagnostics; independent APPROVE, exact head local quick PASS12m41s and hosted37611599559 SUCCESS. Actual merged-main verification underway; existing merged task state retained, real appliance acceptance deferred.'
   - id: W-seed
     title:
       'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services
@@ -2259,6 +2259,7 @@ tasks:
     finished: ''
     notes: ''
     worker_status: Owner-approved independent strongSwan engine; active author upgrade; guarded lifecycle and actual EAP acceptance implementation ongoing.
+    integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md
@@ -3503,6 +3504,7 @@ tasks:
       reconciliation: Partial pinned installer/provisioning source integrated. Authoritative FRR fourth signer and Node key-source pins remain source gaps. Real installation/boot NOTRUN.'
     worker_status: "awaiting owner decision; no active developer; TD19 strict36/36 PASS; canonical repository signature/index evidence recorded; initial trust authority unanswered; default strict refusal preserved; real provisioning/boot NOTRUN"
     completion_evidence: "TD19 strict36/36 PASS; canonical repository signature/index evidence recorded; initial trust authority unanswered; default strict refusal preserved; real provisioning/boot NOTRUN"
+    integration_receipt_20261007: "PR197 merged4a262edb925c5378e007aa6bec3da5f3e0a4be3b: bounded VMware/native installer cleanup. Owner2026-10-07 explicitly requested all PR merges without fresh CI. Repository trust/source gaps and real installation/boot remain open; task state parked retained."
   - id: SEC-auth
     title: Auth security review, moved forward from SECURITY-REVIEW (read-only, 3 lenses + adversarial verify)
     prompt: ''
@@ -3939,6 +3941,7 @@ tasks:
       test design in docs/status/tasks/P12.md (fix round 1) | 2026-09-30 rescoped to root mode (F-ospf-host pattern, no lcp default-netns change); LAB-vpp-per-slot dep dropped (D-218) | root-mode PASS 200/100/50
       prefixes; merged 8084739c'
     worker_status: awaiting resume; acceptance chat stopped; historical PASS does not prove current acceptance
+    integration_receipt_20261007: "PR180 merged668f54244ac96a2c25527e9778f6c5e4ab6502a4: recovery proof source and retained negative receipts. One conflict resolved preserving root-mode and private Wave-B guards; final PR headc7073344350a7ad1239ee05a526a74d03f65fab1. No fresh CI by explicit owner request. Current mgmtd deadline failure/200-route native acceptance remains unresolved; state parked retained."
   - id: F-global-blocking
     title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
     prompt: prompts/features/F-global-blocking.md
@@ -4306,6 +4309,7 @@ tasks:
       9, envelope /root/ngfw-wt/F-pppoe-client-host.envelope.md, base main@f1f885a6 | 2026-09-28 done d2bc7776 CI PASSED: D-168 wiring (client mirror, runtime subsystem, PppoeReconnect)
       + real-VPP smoke; owed: interfaces.pppoe→Session projection (F-default-vpp-nics files + secret channel), live dial after ppp install; panel RV-H2 | round 1 done 3fc010c5 CI PASSED
       (R4 B1/M1/M2, R2, R7 addressed); verify round R4+R7 | verify MAJOR + MINORs fixed, ff0cf852 CI PASSED (maxPending 15 after igmp merge) → merge queue | merged 990d36bb'
+    integration_receipt_20261007: "PR196 merged4ce03004e8a5f7d7a093ab634c5004c9127cce9c: PPPoE IPv6 source. No fresh CI by explicit owner request. Product discovery/encapsulation, LAN delegated-prefix and full host packet/browser acceptance remain open; state parked retained."
   - template: ''
     parked_on: ''
     branch: task/F-dashboard-prom-alarms-host-codex

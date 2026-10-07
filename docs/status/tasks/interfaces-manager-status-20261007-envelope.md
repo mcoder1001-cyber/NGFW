@@ -10,3 +10,5 @@ Also owned after independent handoff: imported A3 ruling docs/status/tasks/inter
 Also owned: docs/status/2026-10-07-1137-interfaces.md hourly scoped evidence.
 
 Report follow-up ownership authorized by user: docs/status/2026-10-07-1836-task-report.{md,csv}, matching-prs.json snapshot; final integrated report/WIP updates only. No product/board-state changes or deployment.
+
+Latest owner merge-all instruction authorizes report/board integration receipts for TD19/F-ra-vpn/P12-fib-proof/F-pppoe-client-host and docs/status/2026-10-07-owner-merge-all.md. No live deployment, no fresh CI. All actual source heads archived and merged except acceptance closure explicitly retained.

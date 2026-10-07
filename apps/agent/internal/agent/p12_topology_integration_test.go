@@ -702,6 +702,7 @@ func TestP12TopologyOnHost(t *testing.T) {
 	}
 	start()
 	t.Cleanup(func() {
+		defer e.a.Stop()
 		// peers down first: the agent deletes its af_packet interfaces (D-101/V24), then the pairs and FRR's config
 		e.peers(false)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
@@ -716,21 +717,25 @@ func TestP12TopologyOnHost(t *testing.T) {
 				t.Errorf("cleanup apply not APPLIED: %v %s", aerr, resp.GetStatus())
 			}
 			if e.fib {
-				if r, err := c.ListRoutes(ctx, &ngfwv1.ListRoutesRequest{Family: "ipv4", Prefix: fmt.Sprintf("10.%d.0.0/16", slot), Source: "lcp-rt-dynamic", Limit: 1}); err == nil {
-					t.Logf("cleanup: %d lcp-rt-dynamic routes of 10.%d/16 left in VPP table 0", r.GetTotal(), slot)
-					if r.GetTotal() != 0 {
-						t.Errorf("cleanup left %d lcp-rt-dynamic routes of this slot in table 0", r.GetTotal())
-					}
+				r, readErr := c.ListRoutes(ctx, &ngfwv1.ListRoutesRequest{Family: "ipv4", Prefix: fmt.Sprintf("10.%d.0.0/16", slot), Source: "lcp-rt-dynamic", Limit: 1})
+				if inventoryErr := p12CleanupVPPInventory(r, readErr); inventoryErr != nil {
+					t.Errorf("cleanup VPP inventory of slot %d: %v", slot, inventoryErr)
+				} else {
+					t.Logf("cleanup: zero lcp-rt-dynamic routes of 10.%d/16 left in VPP table 0", slot)
 				}
 			}
-			if rootMode {
-				if kr, _ := e.cmd("ip", "-4", "route", "show", "proto", "bgp"); countLines(kr) != 0 {
-					t.Errorf("cleanup left bgp routes in the root kernel table:\n%s", kr)
-				}
+			if closeErr := cc.Close(); closeErr != nil {
+				t.Errorf("cleanup client close: %v", closeErr)
 			}
-			_ = cc.Close()
+		} else {
+			t.Errorf("cleanup client creation: %v", err)
 		}
-		e.a.Stop()
+		if rootMode {
+			kr, readErr := e.cmd("ip", "-4", "route", "show", "proto", "bgp")
+			if inventoryErr := p12CleanupKernelInventory(kr, readErr); inventoryErr != nil {
+				t.Errorf("cleanup kernel inventory: %v", inventoryErr)
+			}
+		}
 	})
 
 	// ---- 1. commit: pairs + FRR config; the peers come up after the preflight
@@ -849,8 +854,10 @@ func TestP12TopologyOnHost(t *testing.T) {
 	if addrs := e.tapCmd("-br", "addr", "show", prefix+"-l0"); !strings.Contains(addrs, fmt.Sprintf("10.%d.1.1/24", slot)) {
 		t.Errorf("tap %s-l0 lost its address with the BGP rollback: %s", prefix, addrs)
 	}
-	running, _ := e.ngfwRenderer().Show(context.Background(), frr.ShowRunningConfig)
-	if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
+	running, showErr := e.ngfwRenderer().Show(context.Background(), frr.ShowRunningConfig)
+	if showErr != nil {
+		t.Errorf("FRR running-config read after rollback failed: %v", showErr)
+	} else if strings.Contains(string(running), "router bgp") || strings.Contains(string(running), "route-map") {
 		t.Errorf("FRR still runs BGP/policy after rollback:\n%s", running)
 	}
 	e.evidence("after rollback")

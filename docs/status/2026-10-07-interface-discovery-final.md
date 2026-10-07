@@ -13,3 +13,5 @@ Scoped workers: root manager active for merged-main verification; all developers
 Next: observe hosted main37621226818 completion, record final result and publish status. Board check PASS212 tasks.
 
 Final handoff: code, applicable independent review, mandatory premerge local/hosted gates, sequential merges and actual-main bare quick complete. Fresh board state counts: {'merged': 205, 'running': 1, 'parked': 6}. Scoped root worker only (report finalization); all scoped child workers completed, global inventory unverifiable. Main hosted37621226818 remains in progress at final observation; do not report it green. Exact follow-up command: `gh run view 37621226818 --json status,conclusion,headSha`. If it reports a real failure, retain evidence and repair under the mandatory gate policy. No appliance deployment or hardware acceptance claimed.
+
+Fresh2026-10-07 18:36 Tehran observation: hosted main37621226818 completed SUCCESS on exact62325fd4d. Earlier pending status resolved. Both original user bugfixes have local and hosted final-main green; installed service still unchanged. Full current task snapshot in2026-10-07-1836-task-report.md.

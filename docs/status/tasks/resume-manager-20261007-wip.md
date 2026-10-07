@@ -1,5 +1,15 @@
 # Remaining branch queue, 2026-10-07
 
+## Owner no-idle recovery, 2026-10-07
+
+All six former chat agent IDs returned `not_found` on a fresh inventory; the old board `running` label did not establish liveness. Resumed from published checkpoints rather than rebuilding. Main `3ddb1680e475e94d43e8036cd3776bc60c87208b` complete hosted quick `37590128647` SUCCESS. Current board remains205 merged/1running/6parked; operational work is recorded separately, not falsely relabelled accepted.
+
+New dispatched workers: Hilbert `01a115a9-8d96-7c41-a389-148f6c8f523d` PPPoE correctness review; Mill `01a115a9-8e1c-7ed0-98df-7ef3f4092f2e` PPPoE security review, both exactfreeze4bcf9f4977e2a9c248548de23cf552e4bcef94da. Averroes `01a115a9-8e9e-76b2-9385-efff75084ef1` RA developer resume; Poincare `01a115a9-8f27-77a3-8e17-879372954d62` RA independent review, then P12 C2 review. Einstein `01a115a9-8fe1-7fb3-838d-c927fabbcd1a` TD19/NAT46/global-blocking prerequisites; Goodall `01a115a9-9068-7a32-9ed1-6dd9b7dfaf3a` OSPF/PPPoE host prerequisites. Each owns isolated existing or named new worktree and envelope, publishes checkpoints. Dispatch is not proof of a persistent service.
+
+Actual returned evidence: RA diagnostics independent R1/R3/R4/R8 APPROVE at reviewer remotee985ec3b4c88b67409f6e4d499e69882194030b5. Developer published caller-expiry propagation reproducer c15a6113239941ad918518b2951b7b6e843d57b3:20race runs/wholeRArace/vet/lint PASS, but cause of20.357s prepublication delay remains unresolved; assigned causal tracing/timer tests instead of idle. Four inherited history scanner findings require archived D112 consolidation, not allowlist widening. No original READY replay or guard/deadline waiver.
+
+Manager unblocked independently demonstrated P12 runner C2 in isolated corrective branch, published d4617b5bc9798125d66b75c3a7c0916392de1e41: strict immutable/down/unconfigured fallback validation and detailed address inventory. Ten host-independent controls PASS0.026s; unchanged `check` PASS0m14s. Assigned fresh independent reviewer Poincare on new isolated review-p12-c2 tree. No host sysctl/module change or live retry. Next: final PPPoE/P12 verdicts, current-main D112 integration+hosted quick; collect backlog audit's exact human requirements and immediately assign safe followups. No task is claimed complete or active solely from a stale board row.
+
 ## Current recovery checkpoint after PR179 merge
 
 PR179 MERGED as `3ddb1680e475e94d43e8036cd3776bc60c87208b`; candidate `92b0b637e2fa25df1962bc9081cbac6809f52219` passed unchanged complete hosted quick `37587806352`. Post-merge main quick `37590128647` is IN_PROGRESS, not yet PASS. Published main board now 205 merged, 1 running, 6 parked (212 unique); these three status corrections were already integrated source, not new product implementations. Manager now owns `codex/resume-manager-postmerge-20261007` in the same isolated manager worktree. Historical queue entries below are retained but superseded by this section.

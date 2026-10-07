@@ -89,6 +89,52 @@ describe('setup wizard', () => {
       'Bearer h.p.s',
     );
   });
+  it('loads live WAN/LAN interfaces on an empty configuration and requires a selection', async () => {
+    const fake = installFakeApi();
+    await signIn();
+    fake.on('GET /api/v1/config', { body: RootConfig.parse({}) });
+    fake.on('GET /api/v1/state/interfaces', {
+      body: {
+        items: [
+          { name: 'liveWan', kind: 'interface', state: { swIfIndex: 4 }, physical: null },
+          { name: 'liveLan', kind: 'interface', state: { swIfIndex: 5 }, physical: null },
+          { name: 'local0', kind: 'interface', state: { swIfIndex: 0 }, physical: null },
+          { name: 'liveWan.10', kind: 'subinterface', state: {}, physical: null },
+          { name: 'hostNic', kind: 'interface', state: {}, physical: { owner: 'host' } },
+        ],
+      },
+    });
+    render(app());
+    await screen.findByRole('heading', { name: 'Setup wizard' });
+    next();
+    await screen.findByLabelText('Current password');
+    fireEvent.change(screen.getByLabelText('Current password'), {
+      target: { value: 'NGFW_TEST_PSK_setup_old' },
+    });
+    fireEvent.change(screen.getByLabelText('New administrator password'), {
+      target: { value: 'NGFW_TEST_PSK_setup_new' },
+    });
+    next();
+    await screen.findByLabelText('Hostname');
+    next();
+    await screen.findByRole('combobox', { name: 'WAN interface' });
+    next();
+    expect(await screen.findByRole('alert')).toHaveTextContent('Select a network interface');
+    fireEvent.mouseDown(screen.getByRole('combobox', { name: 'WAN interface' }));
+    const list = await screen.findByRole('listbox');
+    expect(
+      within(list)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['liveLan', 'liveWan']);
+    fireEvent.click(within(list).getByRole('option', { name: 'liveWan' }));
+    next();
+    await select('LAN interface', 'liveLan');
+    expect(fake.calls.some((r) => r.path === '/api/v1/state/interfaces')).toBe(true);
+    expect(
+      fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
+    ).toBe(false);
+  });
   it('refuses a weak password before advancing', async () => {
     const fake = installFakeApi();
     await signIn();

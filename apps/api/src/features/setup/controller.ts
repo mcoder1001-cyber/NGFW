@@ -1,7 +1,8 @@
 import { Body, Controller, HttpCode, Post, Req } from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { RootConfig, SetupInputSchema, buildSetup, diff } from '@ngfw/schema';
+import { RootConfig, SetupInputSchema, InterfaceSchema, buildSetup, diff } from '@ngfw/schema';
 import { z } from 'zod';
+import { AgentClient } from '../../agent/agent.client.js';
 import { AuditUnavailableDoc } from '../../audit/audit.interceptor.js';
 import { AuthService } from '../../auth/auth.service.js';
 import { hashPassword } from '../../auth/password.js';
@@ -29,6 +30,7 @@ export class SetupController {
   constructor(
     private readonly ds: DatastoreService,
     private readonly auth: AuthService,
+    private readonly agent: AgentClient,
   ) {}
 
   private async proposed(body: z.infer<typeof Preview>) {
@@ -40,7 +42,30 @@ export class SetupController {
       throw problems.badRequest('setup summary expired; preview again');
     try {
       const base = RootConfig.parse(running.doc);
-      const doc = buildSetup(base, body.input, body.completedAt);
+      const selected = [body.input.wan, body.input.lan];
+      if (
+        selected.some(
+          (name) => name === 'local0' || base.interfaces[name]?.physical?.owner === 'host',
+        )
+      )
+        throw problems.badRequest('Select dataplane interfaces');
+      const source = structuredClone(base);
+      const missing = selected.filter((name) => !source.interfaces[name]);
+      if (missing.length > 0) {
+        const live = await this.agent.interfaceState(missing);
+        for (const name of missing) {
+          const state = live.interfaces.find(
+            (item) =>
+              item.name === name &&
+              !item.parent &&
+              item.type !== 'sub-interface' &&
+              item.swIfIndex !== 0,
+          );
+          if (!state) throw problems.badRequest('Select existing dataplane interfaces');
+          source.interfaces[name] = InterfaceSchema.parse({ vrf: state.vrf });
+        }
+      }
+      const doc = buildSetup(source, body.input, body.completedAt);
       await this.ds.validateSetupPreview(doc);
       return { base, doc };
     } catch (error) {

@@ -96,8 +96,18 @@ describe('setup wizard', () => {
     fake.on('GET /api/v1/state/interfaces', {
       body: {
         items: [
-          { name: 'liveWan', kind: 'interface', state: { swIfIndex: 4 }, physical: null },
-          { name: 'liveLan', kind: 'interface', state: { swIfIndex: 5 }, physical: null },
+          {
+            name: 'liveWan',
+            kind: 'interface',
+            state: { swIfIndex: 4, managed: false, vrf: 'default', type: 'dpdk' },
+            physical: null,
+          },
+          {
+            name: 'liveLan',
+            kind: 'interface',
+            state: { swIfIndex: 5, managed: false, vrf: 'default', type: 'dpdk' },
+            physical: null,
+          },
           { name: 'local0', kind: 'interface', state: { swIfIndex: 0 }, physical: null },
           { name: 'liveWan.10', kind: 'subinterface', state: {}, physical: null },
           { name: 'hostNic', kind: 'interface', state: {}, physical: { owner: 'host' } },

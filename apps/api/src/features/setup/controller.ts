@@ -58,11 +58,14 @@ export class SetupController {
             (item) =>
               item.name === name &&
               !item.parent &&
-              item.type !== 'sub-interface' &&
+              ['dpdk', 'vmxnet3', 'virtio'].includes(item.type) &&
+              !item.managed &&
               item.swIfIndex !== 0,
           );
           if (!state) throw problems.badRequest('Select existing dataplane interfaces');
-          source.interfaces[name] = InterfaceSchema.parse({ vrf: state.vrf });
+          if (state.vrf !== 'default')
+            throw problems.badRequest('Configure non-default VRF interfaces before setup');
+          source.interfaces[name] = InterfaceSchema.parse({});
         }
       }
       const doc = buildSetup(source, body.input, body.completedAt);

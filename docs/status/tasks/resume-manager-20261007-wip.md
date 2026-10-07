@@ -1,5 +1,17 @@
 # Remaining branch queue, 2026-10-07
 
+## Current recovery checkpoint after PR179 merge
+
+PR179 MERGED as `3ddb1680e475e94d43e8036cd3776bc60c87208b`; candidate `92b0b637e2fa25df1962bc9081cbac6809f52219` passed unchanged complete hosted quick `37587806352`. Post-merge main quick `37590128647` is IN_PROGRESS, not yet PASS. Published main board now 205 merged, 1 running, 6 parked (212 unique); these three status corrections were already integrated source, not new product implementations. Manager now owns `codex/resume-manager-postmerge-20261007` in the same isolated manager worktree. Historical queue entries below are retained but superseded by this section.
+
+PR181 closed as superseded after independent AutoBlock equivalence review. Recovery-eight tree equals integrated PR146. Both obsolete remote heads removed with exact SHA leases; recoverable archive refs and `/root/NGFW-github-branches-20261007.bundle` remain.
+
+Operational assignments (observed checkpoints/messages, not board-derived service claims): Beauvoir developing PPPoE lifecycle/security corrections, latest dependency/contract checkpoint `9d63a56a8`; Lagrange and Locke independently review its next frozen source. Kepler published RA failure-only diagnostics `f3ae748601acfc768661c7503cedd0aa2c7092e5`; Mill assigned independent RA review, Kepler assigned bounded read-only causal analysis of default READY failure. Whole RA remains BLOCKED by that real failure, not a lab-only waiver. These chat workers are not a persistent supervisor.
+
+Manager P12 corrective branch `codex/integrate-p12-20261007` published `1ae2c16184f8da21d107a0ad7f689d4f715bf90f`: failed VPP/kernel/rollback reads now fail explicitly rather than falsely reporting empty cleanup. Ten negative/positive race cases PASS1.285s, vet PASS; follow-up focused test PASS0.108s. Jason independently source APPROVED in `0f8ede6fe` and checkpointed one authorized original live attempt in `a8936c1a5`. Assigned slot14/w14 with PRIVATE FRR/VPP only, refreshed read-only prerequisites, unchanged assertions/deadlines/counts, no host privilege/unit/shared VPP mutations. Actual live result pending; do not claim native PASS or retry arbitrarily.
+
+Remaining: observe main CI, original P12 live outcome and final reviewer receipt; consolidate P12 onto current main with preserved reviewed history, unchanged hosted quick, then sequential merge if ready. PPPoE must close actual security/lifecycle failures and disclose unsupported discovery/client transit. RA needs causal evidence/default READY success before whole-feature merge. Exact next checks: `gh run view 37590128647`; await Jason live evidence and final PPPoE freeze. This commit's local/remote SHA is resolved from HEAD/ls-remote after publication.
+
 Base main: `0ec397e327123cadfd5d278a9a1cda37532fdc2c`; actual hosted complete quick run `37583587580` SUCCESS. Manager branch `codex/resume-manager-20261007`; last local/remote published checkpoint `c0922dcd9da509c7ca5b14f9121fb0ed9b6d75aa` (CLI push verified). Owned files: envelope, this WIP, individual board/status/acceptance changes after independent review.
 
 Verified live workers spawned this run:

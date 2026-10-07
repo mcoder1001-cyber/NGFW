@@ -3672,7 +3672,7 @@ tasks:
       - F-startup-gen
     priority: 3
     est_hours: 10
-    state: review
+    state: merged
     parked_on: ''
     wbs:
       - D0.13
@@ -3686,7 +3686,7 @@ tasks:
     owner: Claude (subagent, 2026-10-06)
     started: '2026-10-06'
     finished: ''
-    notes: 'D-125 | 2026-10-06 implemented without host change (no hugepages, 4k pages, MemoryMax 1G, cap 2+CI); slot 20 up/down proven; docs/status/tasks/claude-vpp-per-slot-wip.md'
+    notes: 'D-125 | 2026-10-06 implemented without host change (no hugepages, 4k pages, MemoryMax 1G, cap 2+CI); slot 20 up/down proven; docs/status/tasks/claude-vpp-per-slot-wip.md | source merged PR195 0ec397e32; actual main quick37583587580 SUCCESS; full CI-slot VPP opt-in and remaining harness migration are not claimed passing'
   - template: ''
     parked_on: ''
     branch: ''
@@ -4062,13 +4062,13 @@ tasks:
       SMTP/webhook source merged via PR114/121; Telegram removed. Live delivery/browser/restart acceptance deferred, not PASS.'
     worker_status: source-complete; acceptance deferred
   - template: ''
-    parked_on: lab topology/host acceptance prerequisite; NOTRUN
+    parked_on: ''
     branch: ''
     worktree: ''
     owner: ''
     started: ''
     finished: ''
-    state: parked
+    state: merged
     wbs: []
     prompt: ''
     id: F-srv6-host
@@ -4085,14 +4085,16 @@ tasks:
       steps of F-srv6.md Pending host steps; NRestarts before/after | 2026-09-28 spawned (Agent tool, developer) slot 4, envelope /root/ngfw-wt/F-srv6-host.envelope.md, base main@f1f885a6
       | done 121208c4 CI PASSED; steps 1/2/3/5 on real VPP (before both crashes), step 4 globals = manager window (D-167); docs-only → RV-H3 (R7+R2) | 2026-09-28 review BLOCK (evidence
       not committed) → fix round; globals step TD-H18; screenshots owed to T4 after merge | merged 006a5d5b; globals step TD-H18; screenshots → T4'
+    acceptance_closeout: 'Original bounded H1 evidence integrated PR177; source AutoBlock correction PR195 and actual main quick37583587580 SUCCESS; docs/status/tasks/F-srv6-host-20261005.md'
+    acceptance_limitations: 'Mixed component historical proof; failures retained, later13 replay attempts zero504 but four distinct failed attempts; broader packet/appliance and P12/OSPF cleanup criteria remain open'
   - template: ''
-    parked_on: lab topology/host acceptance prerequisite; NOTRUN
+    parked_on: ''
     branch: ''
     worktree: ''
     owner: ''
     started: ''
     finished: ''
-    state: parked
+    state: merged
     wbs: []
     prompt: ''
     id: F-mpls-srmpls-host
@@ -4112,6 +4114,8 @@ tasks:
       to rerun both halves and merge | 2026-09-28 unparked: S-mtu-linkmtu0 merged; CONTINUE to rerun TestMplsOnHost (slot half + globals half under the globals lock) | 2026-09-28 CONTINUE
       53f7f6a3: slot half PASS on real VPP; globals half FAIL: VPP leaks an mpls ip-bind label when the same (label,prefix) is bound twice (HQ4) → parked on S-mpls-ipbind-idempotent (D-194);
       rerun the globals half after | S-mpls-ipbind-idempotent in review: CONTINUE (globals-half rerun) after it merges'
+    acceptance_closeout: 'Original bounded H1 evidence integrated PR177; source AutoBlock correction PR195 and actual main quick37583587580 SUCCESS; docs/status/tasks/F-mpls-srmpls-host-20261005.md'
+    acceptance_limitations: 'Mixed component historical proof; failures retained, later13 replay attempts zero504 but four distinct failed attempts; broader packet/appliance and P12/OSPF cleanup criteria remain open'
   - id: F-setup-wizard
     title: 'First-boot setup wizard: language/time, admin password, WAN (DHCP/static/PPPoE), LAN + DHCP, safe defaults, one commit'
     prompt: prompts/features/F-setup-wizard.md

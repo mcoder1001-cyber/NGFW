@@ -34,3 +34,5 @@ stage/usr/lib/systemd/system/ngfw-ra-namespace-broker.socket usr/lib/systemd/sys
 stage/usr/lib/systemd/system/ngfw-ra-namespace-broker@.service usr/lib/systemd/system/
 
 assets/provision-system-identity.py usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-wan-probe usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-wan-probe.sha256 usr/lib/ngfw/

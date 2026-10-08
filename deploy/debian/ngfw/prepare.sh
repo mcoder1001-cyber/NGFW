@@ -48,7 +48,7 @@ for helper in ngfw-upgrade-prepare ngfw-upgrade-health; do
   install -m 0644 "$ROOT/deploy/upgrade/$helper.service" "$STAGE/usr/lib/systemd/system/$helper.service"
 done
 # Stage fixed helpers and their installation attestations; never invoke them here.
-for helper in ngfw-ra-daemon ngfw-ra-namespace-broker; do
+for helper in ngfw-ra-daemon ngfw-ra-namespace-broker ngfw-wan-probe; do
   (cd "$ROOT/apps/agent" && CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o "$STAGE/usr/lib/ngfw/$helper" "./cmd/$helper")
   sha256sum "$STAGE/usr/lib/ngfw/$helper" | cut -d ' ' -f 1 > "$STAGE/usr/lib/ngfw/$helper.sha256"
 done

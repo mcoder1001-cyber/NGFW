@@ -12,13 +12,14 @@ import (
 // LearnedGateway is ephemeral, owned runtime state, never persisted configuration.
 // Source is dhcp or pppoe; an absent observation withdraws the forwarding path.
 type LearnedGateway struct {
-	Source  string
-	Address netip.Prefix
-	Gateway netip.Addr
+	Source     string
+	Generation string
+	Address    netip.Prefix
+	Gateway    netip.Addr
 }
 
 func (g LearnedGateway) valid() bool {
-	return (g.Source == "dhcp" || g.Source == "pppoe") && g.Address.IsValid() && g.Address.Addr().Is4() &&
+	return (g.Source == "dhcp" || (g.Source == "pppoe" && g.Generation != "")) && g.Address.IsValid() && g.Address.Addr().Is4() &&
 		!g.Address.Addr().IsUnspecified() && !g.Address.Addr().IsMulticast() && g.Gateway.Is4() &&
 		!g.Gateway.IsUnspecified() && !g.Gateway.IsMulticast()
 }
@@ -35,6 +36,23 @@ func (r *Runtime) SetGateways(groups []*ngfwv1.WanGroup, identity string, observ
 		}
 	}
 	changed := !time.Now().Before(r.gatewayUntil) || identity != r.gatewayIdentity || !equalGroups(groups, r.gatewayGroups) || !reflect.DeepEqual(values, r.gateways)
+	// In-flight probes belong to the old learned egress. Reset hysteresis and
+	// fence their completion whenever a lease/carrier generation changes.
+	expired := !time.Now().Before(r.gatewayUntil)
+	for _, group := range r.groups {
+		for name, member := range group.members {
+			before, had := r.gateways[name]
+			after, has := values[name]
+			if before != after || had != has || (expired && has) {
+				member.egressEpoch++
+				member.up = false
+				member.since = time.Now()
+				for i := range member.samples {
+					member.samples[i] = sample{}
+				}
+			}
+		}
+	}
 	r.gatewayIdentity = identity
 	r.gatewayGroups = make([]*ngfwv1.WanGroup, len(groups))
 	for i, g := range groups {

@@ -28,3 +28,39 @@ when the member recovers. Cleanup cursors reset when protected addresses leave t
 queue. A failed-delete/rebound control preserves the replacement session while
 still removing an unrelated dead-member session. Focused race tests PASS:
 `internal/multiwan` 1.045s, `internal/agent` 1.091s.
+
+## Fixed carrier probe executor checkpoint
+
+Added `cmd/ngfw-wan-probe` and Debian staging/checksum/install entries. The fixed
+executor binds only `ppp0`, accepts only literal unicast IPv4 endpoints and the
+three existing ICMP echo / HTTP HEAD port 80 / DNS root-NS UDP port 53 modes,
+with a maximum three-second deadline. There is no device/namespace selector,
+DNS-name resolution permission, alternate port or arbitrary command execution.
+The carrier helper owns namespace validation, temporary destination-limited
+policy and cleanup. IPv6 and hostname carrier monitors report unavailable.
+
+Focused race executor tests PASS (1.018s); Debian preparation fixture initially
+failed its fixed binary count (6 versus 7), then PASS after extending its existing
+build/checksum/install assertions to cover the new binary (3 tests, 0.621s).
+Carrier runtime gateway/probe dispatch integration awaits its verified API.
+
+## Carrier gateway/probe adapter checkpoint
+
+WAN dispatch now consumes the carrier runtime's `ForwardingGateway` and
+`ProbeForwarding` interfaces. A runtime without both verified methods remains
+unavailable. Logical PPP interface aliases are used for VPP routing; the reported
+next-hop is the carrier transit peer, never the raw WAN or ISP PPP peer. Probe
+results are checked against readiness/generation before and after execution;
+unsupported hostname/IPv6 carrier targets remain unavailable.
+
+Learned gateway generation changes reset member health and increment an egress
+epoch. In-flight results from the previous lease/session cannot establish health
+for a replacement session. This also fences DHCP lease changes. Fake integration
+covers verified-ready -> probe -> route -> withdrawal -> replacement readiness,
+plus an old generation probe completion and restricted target refusal.
+
+Focused race tests: `TestRuntimeLearnedGenerationRejectsInFlightSuccess` PASS
+(multiwan 1.127s), `TestWANPPP*` PASS (agent 1.183s). Existing runtime/learned/DHCP
+focused controls PASS (multiwan 1.713s, agent 1.090s). Real carrier runtime method
+binding and native packet acceptance require the separate carrier branch to be
+integrated; no laboratory execution or final CI pass is claimed.

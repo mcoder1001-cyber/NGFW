@@ -84,7 +84,7 @@ and tmpfiles configuration are inert assets pending package integration/review.
 ## PPP fixed unit and private files
 
 `ngfw-pppoe-carrier@TOKEN.service` binds per-session
-/var/lib/ngfw/pppoe-carrier/TOKEN/ppp read-only at /etc/ppp. Other /etc and /var/lib
+/var/lib/ngfw/agent/pppoe-carrier/TOKEN/ppp read-only at /etc/ppp. Other /etc and /var/lib
 content is hidden by private tmpfs; only non-secret NSS/loader files are exposed.
 /run is private. The ownership ledger and namespace handles are read-only;
 only /run/ngfw/pppoe/TOKEN is writable and shared back to the host. Broker request
@@ -151,3 +151,12 @@ The fixed units also use DevicePolicy=closed. Only the PPP service additionally
 allows /dev/ppp read/write; UID0 does not gain host block-device access merely
 because filesystem mounts are read-only. Standard service API devices remain
 available. This is source hardening, with no installed service/device mutation.
+
+Private-path integration correction: the carrier peer tree now resides under
+`/var/lib/ngfw/agent/pppoe-carrier`, inside the installed agent writable state
+root. The fixed PPP unit binds only its token subtree read-only to `/etc/ppp`;
+tmpfiles creates the new base with mode 0700. No agent unit capabilities or
+write allowlists were expanded. The existing asset control checks both paths
+and rejects the old base. Focused packaging-loader suite: 28 controls passed;
+aggregate CI and native activation remain unexecuted. Prior R4 source approval
+applies to unchanged helper logic; this asset-path delta awaits scoped recheck.

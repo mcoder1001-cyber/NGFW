@@ -1,6 +1,6 @@
 version: 2
 max_workers: 12
-updated: '2026-10-05'
+updated: '2026-10-08'
 tasks:
   - id: P01
     title: Monorepo scaffold
@@ -2244,8 +2244,8 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: running
-    parked_on: ''
+    state: "parked"
+    parked_on: "native supplier/session/identity and EAP TLS acceptance; source integrated, operational negative receipts require diagnosis"
     wbs:
       - D6.9
     scope: remote-access VPN IKEv2+EAP
@@ -2258,9 +2258,10 @@ tasks:
     started: ''
     finished: ''
     notes: ''
-    worker_status: "source developer and independent reviewer completed; native acceptance awaiting resume; no verified live native worker"
+    worker_status: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
+    completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md
@@ -3475,6 +3476,7 @@ tasks:
     finished: '2026-09-25'
     notes: D-125 (review plan id TD-13, renumbered) | 5.4a before the first wave-A merge; 5.1b before P10/P14 | the 5.3 part waits for PENDING-remote-mirror
   - id: TD-19
+    advance_receipt_20261008: "PR208 merged417e8fcd0c82fae7906da0fba1c0622a8de017f7: optional offline dependency lock tooling; 14 focused fixtures and prior mandatory quick37807521261 PASS. Reviewed release pins/upstream artifacts and target install acceptance still outstanding; whole TD19 remains open."
     title: Install & lab provisioning from product artifacts
     prompt: ''
     template: ''
@@ -3483,8 +3485,8 @@ tasks:
       - P10
     priority: 1
     est_hours: 3.5
-    state: running
-    parked_on: ''
+    state: "review"
+    parked_on: ""
     wbs:
       - D0.4
       - D0.13
@@ -3503,11 +3505,12 @@ tasks:
 
       Published reconciliation: D-125 (review plan id TD-14, renumbered) | gate: before any fresh machine is built from docs/09 and before `tools/lab provision vrx-b|vrx-c --apply` | 2026-10-03
       reconciliation: Partial pinned installer/provisioning source integrated. Authoritative FRR fourth signer and Node key-source pins remain source gaps. Real installation/boot NOTRUN.'
-    worker_status: "source and fixture developers/reviewers completed with published checkpoints; remaining release Python dependency closure/native install/boot awaiting resume; no verified live developer"
+    worker_status: "Reviewed complete Python release pins/provenance and offline wheel materialization in PR212; staged in completion PR214. Final aggregate CI/integration pending; real Ubuntu26.04 install/boot remains deferred. No live developer implied."
     completion_evidence: "D-238 trust answered. PR204 merged4fcdc4557: safe-root/dry-run/pinned tool inputs, B1/B2/Python-import/os-release/native symlink/temp staging findings resolved; author46/46 PASS149.121s and independent APPROVE4c50ca949. PR207 mergedaede625c1: old source-fixture adaptation; independent module6PASS0.965s/FRR13PASS25.082s APPROVE5cd6c7cf. Hosted main module37652990531/FRR37652990565 SUCCESS. Release Python closure/native acceptance remain open."
     integration_receipt_20261007: "PR197 merged4a262edb925c5378e007aa6bec3da5f3e0a4be3b: bounded VMware/native installer cleanup. Owner2026-10-07 explicitly requested all PR merges without fresh CI. Repository trust/source gaps and real installation/boot remain open; task state parked retained."
     advance_receipt_20261007: "Trust no longer blocks development. PR204 draft remains unmerged while actual source safety failures are corrected; old parked trust reason was stale. No aggregate CI requested; focused tests/review retained."
     advance_final_20261007: "All bounded source work integrated with archived reviewed history under owner fresh-CI waiver; no whole TD19 completion. Real source faults fixed and reviewed, not deferred; native apply NOTRUN. State running denotes remaining release closure work, not live-worker proof."
+    completion_receipt_20261008: "Reviewed complete Python release pins/provenance and offline wheel materialization in PR212; staged in completion PR214. Final aggregate CI/integration pending; real Ubuntu26.04 install/boot remains deferred. No live developer implied."
   - id: SEC-auth
     title: Auth security review, moved forward from SECURITY-REVIEW (read-only, 3 lenses + adversarial verify)
     prompt: ''
@@ -3931,6 +3934,7 @@ tasks:
     - D0.1
     prompt: ''
     id: P12-fib-proof
+    advance_receipt_20261008: "PR209 reviewed source9e4c78fe29b716cbe8a81d1205e1de759f501d81: retained cleanup handle, owned-lock cleanup and anchored test fixtures. Three focused race regressions PASS with no skips. Original mgmtd30s/200-route proof remains unresolved. Final combined CI deferred by owner2026-10-08; no new full CI requested."
     title: Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP
     stage: S3
     deps:
@@ -4285,16 +4289,17 @@ tasks:
       envelope /root/ngfw-wt/F-global-blocking-host.envelope.md, base main@f1f885a6 | done f6b4aebb CI PASSED after R2/R7 round 1 (all items addressed); docs-only → merge after a quick
       R7 verify | merged 689be665 (squash a901aca3, branch gate green)'
   - template: ''
-    parked_on: lab topology/host acceptance prerequisite; NOTRUN
+    parked_on: ""
     branch: ''
     worktree: ''
     owner: ''
     started: ''
     finished: ''
-    state: parked
+    state: "running"
     wbs: []
     prompt: ''
     id: F-pppoe-client-host
+    advance_receipt_20261008: "PR210 published a939827119cf6645f77fa9555296e6a070df551b: lifecycle admission, immutable parent identity and durable transition/removal/first-install retries; independent source reviews approve; four focused recovery race tests PASS. Proc-dependent lifecycle tests FAIL in independently confirmed inconsistent PID/proc runner, not PASS. Final combined CI deferred by owner2026-10-08. Native discovery/encapsulation/LAN delegated-prefix and packet/browser acceptance still outstanding."
     title: 'PPPoE client on the lab: pppd vs an accel-ppp/rp-pppoe server, VPP FIB mirror, reconnect, MSS clamp, screenshot'
     stage: S4
     deps:
@@ -4314,6 +4319,9 @@ tasks:
       + real-VPP smoke; owed: interfaces.pppoe→Session projection (F-default-vpp-nics files + secret channel), live dial after ppp install; panel RV-H2 | round 1 done 3fc010c5 CI PASSED
       (R4 B1/M1/M2, R2, R7 addressed); verify round R4+R7 | verify MAJOR + MINORs fixed, ff0cf852 CI PASSED (maxPending 15 after igmp merge) → merge queue | merged 990d36bb'
     integration_receipt_20261007: "PR196 merged4ce03004e8a5f7d7a093ab634c5004c9127cce9c: PPPoE IPv6 source. No fresh CI by explicit owner request. Product discovery/encapsulation, LAN delegated-prefix and full host packet/browser acceptance remain open; state parked retained."
+
+    worker_status: "Kernel-carrier, exclusive raw-parent transport, distinct logical transit identity, PD LAN application and WAN readiness integration actively being implemented on published isolated checkpoints. PR210 lifecycle source staged in PR214; not lab-only and not complete."
+    completion_receipt_20261008: "Kernel-carrier, exclusive raw-parent transport, distinct logical transit identity, PD LAN application and WAN readiness integration actively being implemented on published isolated checkpoints. PR210 lifecycle source staged in PR214; not lab-only and not complete."
   - template: ''
     parked_on: ''
     branch: task/F-dashboard-prom-alarms-host-codex

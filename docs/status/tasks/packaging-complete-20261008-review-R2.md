@@ -22,3 +22,11 @@ CAP_CHOWN plus CAP_DAC_OVERRIDE is an explicit powerful privilege expansion docu
 - Earlier complete nine-fixture run on `11dda30e`: seven pass, two ERROR before their assertions because chown to UID65534 returns EINVAL in this restricted UID mapping. Foreign-owned-parent and real capability snapshot/restore fixtures remain enabled; neither is certified PASS here. Those two cases require the final hosted environment.
 
 No CI, package installation, host identity change or live service action was executed. Actual package configure/upgrade, strict-systemd-sandbox daemon mutations/readback/rollback, public identity consumers and reboot persistence remain laboratory acceptance. Manager-owned final combined CI remains deferred under the owner's instruction.
+
+## RA/hardening compatibility delta — independent re-review
+
+Reviewed local `01b649ac` / author-reported remote `0186c80f17e5411b78c63b08ae131e5721e5297b`, atop `0c4760b3`. APPROVE behavioral/source-security scope: source normalization and fixed-agent peer verification now share the same exact reviewed five-capability mask; effective/permitted/bounding equality, empty ambient state and bounded pre-normalization inheritance remain enforced. Broker SYS_ADMIN/SYS_CHROOT and profile-daemon privilege contracts are unchanged. Base-unit and optional-hardening digest attestations match their reviewed fragments. The hardening capability reset preserves the approved mask and dedicated identity paths.
+
+Independent results: three focused RA capability/packaged-fragment tests PASS with race instrumentation in 1.058s. Packaging unit-boundary and hardening permission fixtures both PASS (two tests, 0.001s). The new test derives mask/digest checks from packaged fragments, rejects every single-bit missing/extra change in each of Eff/Prm/Bnd, and rejects source privileges as broker identity. No aggregate CI or installed RA execution occurred.
+
+Minor documentation follow-up resolved in local `e583ba7cc81456c527539fc6a2610ab21236156d`: namespace_broker.go and snapshot_cleanup.go now correctly describe mandatory root ownership/private modes independently of authenticated capabilities. Independently inspected the two-comment-only correction; no behavioral source changed. APPROVE this corrected snapshot as well. No additional behavioral blocker was identified.

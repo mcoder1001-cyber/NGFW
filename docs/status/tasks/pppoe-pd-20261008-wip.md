@@ -91,3 +91,22 @@ configuration adoption cases pass (subsystems race 1.137 s). Static configuratio
 assembly now explicitly excludes all PD descriptor keys, so a full retrieve cannot
 turn operational addresses or advertisements into configured static values. The
 assembly regression covers both interface and neighbors/RA assemblers.
+
+## Independent review and publication correspondence
+
+R1 approved the frozen local source `2e736187` and independently reran full
+address/prefix/RA rollback restoration, static address/RA refusal and assembly
+exclusion. Receipt: `pppoe-pd-20261008-review-R1.md`.
+
+Published source: `94dd307898ce8df2d8a37c2024fe6d4c1ab9ecc7`, tree
+`6e1f5fa0c1a9a80e66e7f7fcee1549f27e814030`. Local full tree
+`26173b9c9ee68a9d4b385a137d050451f665ded4` differs because the remote foundation
+preserves additional lifecycle review receipts. Author independently compared
+GitHub's root tree entries against `git ls-tree 2e736187`: only `docs` differs;
+every other root entry is identical. Entire product subtrees match:
+`apps=61eca51277e7008b71c2fe69465bf52318a98455`,
+`packages=7e49a2fc84cffee9c0c78efa6a560beaeec51fbd`.
+
+Parent integration switches observation to its per-token session renderer and
+implements exact current carrier readiness; retain those changes when integrating
+this branch. Scoped PD implementation approval is not combined carrier acceptance.

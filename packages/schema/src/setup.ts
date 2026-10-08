@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { RootConfig } from './index.js';
 import { hostname, timezone, ipv4Cidr, hostOrIp } from './primitives.js';
+import { InterfacePppoeSchema } from './domains/ext/pppoe.js';
 import { parentInterfaceName } from './domains/interfaces.js';
 import { diff } from './diff.js';
 
@@ -11,7 +12,8 @@ export const SetupInputSchema = z
     ntp: z.array(hostOrIp).min(1).max(16),
     hostname,
     wan: parentInterfaceName,
-    wanMode: z.enum(['dhcp', 'static']),
+    wanMode: z.enum(['dhcp', 'static', 'pppoe']),
+    wanPppoe: InterfacePppoeSchema.pick({ username: true, passwordRef: true }).optional(),
     wanAddress: ipv4Cidr.optional(),
     wanGateway: z.ipv4().optional(),
     lan: parentInterfaceName,
@@ -20,6 +22,10 @@ export const SetupInputSchema = z
     rerun: z.boolean().default(false),
   })
   .superRefine((s, ctx) => {
+    if (s.wanMode === 'pppoe' && !s.wanPppoe)
+      ctx.addIssue({ code: 'custom', path: ['wanPppoe'], message: 'PPPoE username and stored password reference required' });
+    if (s.wanMode !== 'pppoe' && s.wanPppoe)
+      ctx.addIssue({ code: 'custom', path: ['wanPppoe'], message: 'PPPoE credentials require PPPoE WAN mode' });
     if (s.wan === s.lan)
       ctx.addIssue({ code: 'custom', path: ['lan'], message: 'WAN and LAN must differ' });
     if (s.wanMode === 'static' && (!s.wanAddress || !s.wanGateway))

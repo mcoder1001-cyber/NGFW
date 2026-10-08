@@ -425,7 +425,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 	if in["interfaces"] {
 		desired.Lcp(p, boundIfs) // wave-BC: F-default-vpp-nics: no pair on an unbound NIC
 		// wave-BC: F-pppoe-client-wiring
-		desired.Pppoe(p, boundIfs, subsystems.PppoeSupervised())
+		desired.Pppoe(desired.PppoeWANContext(p, ds.GetRouting().GetWanGroups()), boundIfs, subsystems.PppoeSupervised())
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay

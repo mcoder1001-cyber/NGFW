@@ -64,3 +64,17 @@ Focused race tests: `TestRuntimeLearnedGenerationRejectsInFlightSuccess` PASS
 focused controls PASS (multiwan 1.713s, agent 1.090s). Real carrier runtime method
 binding and native packet acceptance require the separate carrier branch to be
 integrated; no laboratory execution or final CI pass is claimed.
+
+## PPP default-route ownership coordination
+
+A PPP automatic default can otherwise bypass WAN health or race the WAN route
+writer. Projection now attaches only WAN group/member references to the private
+PPP client document, retaining the user's `defaultRoute` setting untouched.
+Routing-only commits with PPP context also project interfaces so join/removal
+updates reach the PPP singleton transactionally. Carrier descriptor integration
+uses these references to suppress the session's automatic default for WAN-owned
+members; that descriptor hunk is owned by the carrier worker.
+
+Focused ownership/roundtrip and routing-only join/leave projection tests PASS
+with race detector: desired 1.083s, agent 1.080s. Combined carrier descriptor
+suppression and old-mirror withdrawal must be checked in the integrated tree.

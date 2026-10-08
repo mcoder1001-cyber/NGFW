@@ -113,6 +113,13 @@ func TestPppoeDelegationProductLifecycle(t *testing.T) {
 	if err != nil || len(got) != 1 || got[0].Value.(*core.InterfaceAddress).Prefix != "2001:db8:100:2::1/64" {
 		t.Fatalf("rollback=%v err=%v outcome=%+v", got, err, failed)
 	}
+	// Assert the complete original LAN state before retry, not only its address.
+	for _, expected := range desired.PppoeDelegation(doc, []desired.PppoeDelegationLease{lease}, now) {
+		actual, readErr := restarted.Retrieve(t.Context(), scheduler.Only(expected.Key.Descriptor()))
+		if readErr != nil || len(actual) != 1 || actual[0].Key != expected.Key || !proto.Equal(actual[0].Value, expected.Value) {
+			t.Fatalf("rollback did not restore %s: actual=%v expected=%v err=%v", expected.Key, actual, expected.Value, readErr)
+		}
+	}
 	check(restarted.Apply(t.Context(), plan(next), scope))
 	next.Ready = false
 	check(restarted.Apply(t.Context(), plan(next), scope))
@@ -141,5 +148,42 @@ func TestPppoeDelegationRefusesStaticAdoption(t *testing.T) {
 	got, err := static.Retrieve(t.Context())
 	if err != nil || len(got) != 1 {
 		t.Fatalf("static address lost: %v %v", got, err)
+	}
+}
+
+func TestPppoeDelegationRefusesStaticRAAdoption(t *testing.T) {
+	for _, name := range []string{desired.PppoeDelegationPrefix, desired.PppoeDelegationRA} {
+		t.Run(name, func(t *testing.T) {
+			model := coretest.New()
+			model.AddInterface("loop701", "Loopback", "wpd:loop701")
+			reg, _, _ := pdProduct(t, model, t.TempDir())
+			addr, _ := reg.Get(core.InterfaceAddrName)
+			if _, err := addr.Create(t.Context(), &core.InterfaceAddress{Interface: "loop701", Prefix: "2001:db8:100:2::1/64"}); err != nil {
+				t.Fatal(err)
+			}
+			doc, lease, now := pdDocLease()
+			var expected proto.Message
+			for _, kv := range desired.PppoeDelegation(doc, []desired.PppoeDelegationLease{lease}, now) {
+				if kv.Key.Descriptor() == name {
+					expected = kv.Value
+				}
+			}
+			base := ip6nd.RaConfigName
+			if name == desired.PppoeDelegationPrefix {
+				base = ip6nd.RaPrefixName
+			}
+			static, _ := reg.Get(base)
+			if _, err := static.Create(t.Context(), expected); err != nil {
+				t.Fatal(err)
+			}
+			dynamic, _ := reg.Get(name)
+			if _, err := dynamic.Create(t.Context(), expected); err == nil {
+				t.Fatal("adopted preexisting static RA")
+			}
+			actual, err := static.Retrieve(t.Context())
+			if err != nil || len(actual) != 1 || !proto.Equal(actual[0].Value, expected) {
+				t.Fatalf("static RA changed: %v %v", actual, err)
+			}
+		})
 	}
 }

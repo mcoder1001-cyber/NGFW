@@ -5,7 +5,9 @@ import (
 	"net/netip"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/core"
+	iface "ngfw/agent/internal/descriptors/interface"
 	ip6nd "ngfw/agent/internal/descriptors/ip6_nd"
+	"ngfw/agent/internal/scheduler"
 	"testing"
 	"time"
 )
@@ -90,3 +92,23 @@ func TestPppoeDelegationLifetimeBudgetNeverExtendsLease(t *testing.T) {
 		}
 	}
 }
+
+func TestPppoeDelegationDoesNotBecomeStaticConfiguration(t *testing.T) {
+	doc, lease, now := delegationFixture()
+	dynamic := PppoeDelegation(doc, []PppoeDelegationLease{lease}, now)
+	kvs := append([]scheduler.KV{{Key: iface.AliasKey("lan"), Value: &iface.InterfaceAlias{Name: "lan"}}}, dynamic...)
+	names := func(uint32) string { return "default" }
+	assembled := Assemble(kvs, doc.Interfaces, pdEmptyLive{}, names)
+	if len(assembled["lan"].GetIpv6()) != 0 {
+		t.Fatal("runtime delegated address leaked into static configuration")
+	}
+	output := &ngfwv1.DesiredState{Interfaces: assembled}
+	AssembleNeighborsRa(output, kvs, map[string]bool{"interfaces": true}, doc.Interfaces, names)
+	if output.Interfaces["lan"].GetIpv6Ra() != nil {
+		t.Fatal("runtime delegated RA leaked into static configuration")
+	}
+}
+
+type pdEmptyLive struct{}
+
+func (pdEmptyLive) State(string) (*ngfwv1.InterfaceState, bool) { return nil, false }

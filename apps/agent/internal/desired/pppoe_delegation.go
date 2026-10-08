@@ -168,3 +168,14 @@ func delegationOverlaps(doc *ngfwv1.DesiredState, lease PppoeDelegationLease, as
 	}
 	return false
 }
+
+// IsPppoeDelegationKey excludes operational PD values from static configuration
+// assembly, even when an all-descriptor read supplies both runtime and static KVs.
+func IsPppoeDelegationKey(key scheduler.Key) bool {
+	switch key.Descriptor() {
+	case PppoeDelegationAddress, PppoeDelegationPrefix, PppoeDelegationRA:
+		return true
+	default:
+		return false
+	}
+}

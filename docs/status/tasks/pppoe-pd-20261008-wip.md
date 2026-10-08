@@ -84,3 +84,10 @@ Source checkpoint `fcb90b1f` / published `912c658c`:
 
 Independent R1 review is in progress. Parent integration and combined-carrier tests
 remain explicit prerequisites. No CI run was started.
+
+R1 follow-up: the scheduler rollback regression now asserts the original address,
+prefix/lifetimes and RA configuration before retry; separate static RA prefix and
+configuration adoption cases pass (subsystems race 1.137 s). Static configuration
+assembly now explicitly excludes all PD descriptor keys, so a full retrieve cannot
+turn operational addresses or advertisements into configured static values. The
+assembly regression covers both interface and neighbors/RA assemblers.

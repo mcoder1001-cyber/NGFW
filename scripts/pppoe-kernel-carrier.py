@@ -79,14 +79,20 @@ def boot_id():
         return stream.read().strip()
 
 
-def nft_policy(enabled):
+def link_names(token):
+    if not TOKEN.fullmatch(token):
+        raise ValueError('invalid carrier token')
+    return 'pw' + token[4:], 'pt' + token[4:]
+
+
+def nft_policy(enabled, token):
     # Atomic table replacement: the initial add makes this also work on first use.
     # No NAT table, flow offload, raw-WAN IP or bypass-LAN forwarding is permitted.
     forward = ''
     if enabled:
         forward = ('iifname "ppptransit" oifname "ppp0" accept\n'
                    'iifname "ppp0" oifname "ppptransit" accept\n')
-    return '''add table inet ngfw_ppp
+    policy = '''add table inet ngfw_ppp
 flush table inet ngfw_ppp
 add chain inet ngfw_ppp input { type filter hook input priority 0; policy drop; }
 add chain inet ngfw_ppp output { type filter hook output priority 0; policy drop; }
@@ -95,13 +101,15 @@ add rule inet ngfw_ppp input iifname "lo" accept
 add rule inet ngfw_ppp output oifname "lo" accept
 add rule inet ngfw_ppp input iifname "ppp0" ip6 saddr fe80::/10 meta l4proto ipv6-icmp icmpv6 type { nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
 add rule inet ngfw_ppp input iifname "ppptransit" meta l4proto ipv6-icmp icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
-add rule inet ngfw_ppp input iifname "ppp0" ip6 saddr fe80::/10 udp sport 547 udp dport 546 accept
+add rule inet ngfw_ppp input iifname "ppp0" meta nfproto ipv6 udp sport 547 udp dport 546 accept
 add rule inet ngfw_ppp output oifname { "ppp0", "ppptransit" } meta l4proto ipv6-icmp icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
 add rule inet ngfw_ppp output oifname { "ppp0", "ppptransit" } meta l4proto ipv6-icmp icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } accept
 add rule inet ngfw_ppp output oifname { "ppp0", "ppptransit" } ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
 add rule inet ngfw_ppp output oifname "ppp0" udp sport 546 udp dport 547 accept
 ''' + ''.join('add rule inet ngfw_ppp forward ' + line + '\n'
               for line in forward.splitlines())
+    raw, transit_name = link_names(token)
+    return policy.replace('pppwan', raw).replace('ppptransit', transit_name)
 
 
 class Carrier:
@@ -189,7 +197,7 @@ class Carrier:
                 raise ValueError('carrier specification changed; consumers must be removed before recreation')
             with self.pinned(token, record) as fd:
                 if not record.get('bound'):
-                    self.inside(fd, [NFT, '-f', '-'], nft_policy(False))
+                    self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
                 return record
         if os.path.lexists(os.path.join(self.netns, token)):
             raise ValueError('unowned namespace; explicit recovery required')
@@ -209,17 +217,18 @@ class Carrier:
         # A crash before this save leaves an orphan that is never silently adopted.
         self.save(token, record)
         with self.pinned(token, record) as fd:
-            self.inside(fd, [NFT, '-f', '-'], nft_policy(False))
+            self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
         return record
 
     def links(self, fd, token, record, require_ppp):
+        raw, transit_name = link_names(token)
         links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
         by_name = {link['ifname']: link for link in links}
-        allowed = {'lo', 'pppwan', 'ppptransit', 'ppp0'}
+        allowed = {'lo', raw, transit_name, 'ppp0'}
         if set(by_name) - allowed:
             raise ValueError('foreign interface in carrier namespace')
         expected = {}
-        for name in ('pppwan', 'ppptransit'):
+        for name in (raw, transit_name):
             link = by_name.get(name, {})
             if (link.get('ifalias') != token + ':' + record['generation'] + ':' + name
                     or link.get('linkinfo', {}).get('info_kind') != 'tun'
@@ -228,7 +237,7 @@ class Carrier:
             expected[name] = link['ifindex']
             if record.get('bound', {}).get(name) != link['ifindex']:
                 raise ValueError('carrier TAP binding changed')
-            if name == 'pppwan' and link.get('address') != record.get('physical_mac'):
+            if name == raw and link.get('address') != record.get('physical_mac'):
                 raise ValueError('carrier raw MAC changed')
         if require_ppp:
             ppp = by_name.get('ppp0', {})
@@ -238,6 +247,7 @@ class Carrier:
         return expected
 
     def prepare(self, token, generation, raw_index, transit_index, physical_mac, transit):
+        raw, transit_name = link_names(token)
         if (not MAC.fullmatch(physical_mac) or int(physical_mac[:2], 16) & 1
                 or physical_mac == '00:00:00:00:00:00'
                 or (raw_index is None) != (transit_index is None)
@@ -265,14 +275,14 @@ class Carrier:
         with self.pinned(token, record) as fd:
             links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
             by_name = {link['ifname']: link for link in links}
-            if set(by_name) - {'lo', 'pppwan', 'ppptransit'}:
+            if set(by_name) - {'lo', raw, transit_name}:
                 raise ValueError('stop PPP and remove foreign links before preparation')
             if raw_index is None:
-                raw_index = by_name.get('pppwan', {}).get('ifindex')
-                transit_index = by_name.get('ppptransit', {}).get('ifindex')
+                raw_index = by_name.get(raw, {}).get('ifindex')
+                transit_index = by_name.get(transit_name, {}).get('ifindex')
             if not raw_index or not transit_index or raw_index == transit_index:
                 raise ValueError('missing TAP indices')
-            bound = {'pppwan': raw_index, 'ppptransit': transit_index}
+            bound = {raw: raw_index, transit_name: transit_index}
             if record.get('bound') and (record['bound'] != bound or record['physical_mac'] != physical_mac):
                 raise ValueError('carrier is already bound; recreate generation before rebinding')
             # Validate the entire proposal before changing any TAP identity.
@@ -285,12 +295,12 @@ class Carrier:
                     raise ValueError('unverified newly created TAP')
             for name in bound:
                 self.inside(fd, [IP, 'link', 'set', 'dev', name, 'alias', token + ':' + generation + ':' + name])
-            self.inside(fd, [IP, 'link', 'set', 'dev', 'pppwan', 'address', physical_mac])
+            self.inside(fd, [IP, 'link', 'set', 'dev', raw, 'address', physical_mac])
             # IPv6 autoconfiguration on raw Ethernet must never create a plain-IP bypass.
-            self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv6.conf.pppwan.disable_ipv6=1'])
-            self.inside(fd, [IP, '-4', 'address', 'flush', 'dev', 'pppwan'])
-            self.inside(fd, [IP, 'link', 'set', 'dev', 'pppwan', 'up'])
-            self.inside(fd, [IP, 'link', 'set', 'dev', 'ppptransit', 'up'])
+            self.inside(fd, [SYSCTL, '-q', '-w', f'net.ipv6.conf.{raw}.disable_ipv6=1'])
+            self.inside(fd, [IP, '-4', 'address', 'flush', 'dev', raw])
+            self.inside(fd, [IP, 'link', 'set', 'dev', raw, 'up'])
+            self.inside(fd, [IP, 'link', 'set', 'dev', transit_name, 'up'])
             self.inside(fd, [IP, 'link', 'set', 'dev', 'lo', 'up'])
             record['bound'] = bound
             record['physical_mac'] = physical_mac
@@ -298,6 +308,108 @@ class Carrier:
             self.links(fd, token, record, False)
             self.save(token, record)
         return record
+
+    def nft_digest(self, state, token):
+        objects = state.get('nftables', [])
+        chains = [item['chain'] for item in objects if 'chain' in item]
+        if (len(chains) != 3 or {chain.get('name') for chain in chains} != {'input', 'output', 'forward'}
+                or any(chain.get('policy') != 'drop' or chain.get('hook') != chain['name']
+                       or chain.get('type') != 'filter' or chain.get('prio') != 0 for chain in chains)):
+            raise ValueError('carrier firewall base chains differ')
+        rules = [item['rule'] for item in objects if 'rule' in item]
+        if len(rules) != nft_policy(True, token).count('add rule '):
+            raise ValueError('carrier firewall rule count differs')
+        stable = []
+        for item in objects:
+            if 'metainfo' in item:
+                continue
+            kind, value = next(iter(item.items()))
+            if kind not in ('table', 'chain', 'rule'):
+                raise ValueError('unexpected carrier firewall object')
+            if value.get('family') != 'inet' or (value.get('table', value.get('name')) != 'ngfw_ppp'):
+                raise ValueError('foreign carrier firewall object')
+            stable.append({kind: {key: val for key, val in value.items() if key not in ('handle', 'index')}})
+        return hashlib.sha256(json.dumps(stable, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+    def policy_rules(self, fd, version, token):
+        raw, transit_name = link_names(token)
+        rules = json.loads(self.inside(fd, [IP, '-' + str(version), '-j', 'rule', 'show']))
+        normalized = []
+        for rule in rules:
+            table = rule.get('table')
+            table = {'local': 255, 'main': 254}.get(table, table)
+            try:
+                table = int(table)
+            except (TypeError, ValueError) as error:
+                raise ValueError('unsupported policy rule table') from error
+            extra = set(rule) - {'priority', 'src', 'dst', 'table', 'iif', 'protocol', 'ipproto', 'sport', 'dport'}
+            if extra or rule.get('src', 'all') not in ('all', '0.0.0.0/0', '::/0'):
+                raise ValueError('unexpected policy rule selector')
+            normalized.append((rule.get('priority'), table, rule.get('iif'), rule.get('dst', 'all'),
+                               rule.get('ipproto'), str(rule.get('sport', '')), str(rule.get('dport', ''))))
+        expected = [(10, 100, 'ppp0', 'all', None, '', ''),
+                    (20, 101, transit_name, 'all', None, '', ''),
+                    (100, 255, None, 'all', None, '', ''), (32766, 254, None, 'all', None, '', '')]
+        if version == 6:
+            expected += [(4, 255, 'ppp0', 'all', 'udp', '547', '546'),
+                         (5, 255, None, 'fe80::/10', None, '', ''),
+                         (5, 255, None, 'ff00::/8', None, '', '')]
+        if sorted(normalized, key=repr) != sorted(expected, key=repr):
+            raise ValueError('carrier ingress policy rules differ')
+        return rules
+
+    def verify_state(self, fd, token, record):
+        raw, transit_name = link_names(token)
+        live = self.links(fd, token, record, True)
+        tables = json.loads(self.inside(fd, [NFT, '-j', 'list', 'tables']))
+        for item in tables.get('nftables', []):
+            table = item.get('table')
+            if table and (table['family'], table['name']) != ('inet', 'ngfw_ppp'):
+                raise ValueError('foreign firewall table in carrier namespace')
+        if live != record.get('links'):
+            raise ValueError('PPP session link identity changed')
+        addresses = json.loads(self.inside(fd, [IP, '-j', 'address', 'show']))
+        by_name = {item['ifname']: item for item in addresses}
+        if by_name.get(raw, {}).get('addr_info'):
+            raise ValueError('raw WAN acquired an IP address')
+        ppp_mtu = by_name.get('ppp0', {}).get('mtu', 0)
+        if (not 1280 <= ppp_mtu <= record['spec']['mtu']
+                or by_name.get(transit_name, {}).get('mtu') != ppp_mtu):
+            raise ValueError('carrier MTU does not match negotiated PPP')
+        transit = by_name.get(transit_name, {}).get('addr_info', [])
+        for version in (4, 6):
+            configured = ipaddress.ip_interface(record['transit']['local' + str(version)])
+            if not any(item.get('local') == str(configured.ip) and item.get('prefixlen') == configured.network.prefixlen
+                       and not item.get('tentative') and not item.get('dadfailed') for item in transit):
+                raise ValueError('transit address not ready')
+            self.policy_rules(fd, version, token)
+            for table, interface in ((100, transit_name), (101, 'ppp0')):
+                routes = json.loads(self.inside(fd, [IP, '-' + str(version), '-j', 'route', 'show', 'table', str(table)]))
+                if (len(routes) != 1 or routes[0].get('dst') != 'default' or routes[0].get('dev') != interface
+                        or routes[0].get('type', 'unicast') != 'unicast'
+                        or routes[0].get('gateway') != (record['transit']['peer' + str(version)] if table == 100 else None)
+                        or 'nexthops' in routes[0]):
+                    raise ValueError('carrier default route differs')
+        values = {'net.ipv4.ip_forward': '1', 'net.ipv4.conf.all.rp_filter': '0',
+                  'net.ipv4.conf.ppp0.rp_filter': '0', f'net.ipv4.conf.{transit_name}.rp_filter': '0',
+                  'net.ipv6.conf.all.forwarding': '1', 'net.ipv6.conf.ppp0.accept_ra': '2',
+                  f'net.ipv6.conf.{raw}.disable_ipv6': '1'}
+        for key, expected in values.items():
+            if self.inside(fd, [SYSCTL, '-n', key]).strip() != expected:
+                raise ValueError('carrier forwarding sysctl differs')
+        firewall = json.loads(self.inside(fd, [NFT, '-j', 'list', 'table', 'inet', 'ngfw_ppp']))
+        if (record.get('policy_source') != hashlib.sha256(nft_policy(True, token).encode()).hexdigest()
+                or record.get('firewall_digest') != self.nft_digest(firewall, token)):
+            raise ValueError('carrier firewall changed')
+        return {'verified': True, 'token': token, 'generation': record['generation'], 'boot': record['boot'],
+                'namespace': record['namespace'], 'links': live, 'mtu': ppp_mtu, 'transit': record['transit']}
+
+    def verify(self, token, generation):
+        record = self.load(token, generation)
+        if not record.get('configured'):
+            raise ValueError('carrier has not been configured')
+        with self.pinned(token, record) as fd:
+            return self.verify_state(fd, token, record)
 
     def inspect(self, token, generation):
         record = self.load(token, generation)
@@ -329,60 +441,71 @@ class Carrier:
         record['configured'] = False
         self.save(token, record)  # Withdraw before any fallible network operation.
         with self.pinned(token, record) as fd:
-            self.inside(fd, [NFT, '-f', '-'], nft_policy(False))
+            self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
         return record
 
     def configure(self, token, generation):
+        raw, transit_name = link_names(token)
         record = self.withdraw(token, generation)
         with self.pinned(token, record) as fd:
             before = self.links(fd, token, record, True)
+            link_state = json.loads(self.inside(fd, [IP, '-j', 'address', 'show']))
+            ppp_mtu = next((item.get('mtu', 0) for item in link_state if item['ifname'] == 'ppp0'), 0)
+            if not 1280 <= ppp_mtu <= record['spec']['mtu']:
+                raise ValueError('negotiated PPP MTU unsupported')
+            self.inside(fd, [IP, 'link', 'set', 'dev', transit_name, 'mtu', str(ppp_mtu)])
             tables = json.loads(self.inside(fd, [NFT, '-j', 'list', 'tables']))
             for item in tables.get('nftables', []):
                 table = item.get('table')
                 if table and (table['family'], table['name']) != ('inet', 'ngfw_ppp'):
                     raise ValueError('foreign firewall table in carrier namespace')
             self.inside(fd, [IP, 'link', 'set', 'lo', 'up'])
-            self.inside(fd, [IP, 'link', 'set', 'ppptransit', 'up'])
+            self.inside(fd, [IP, 'link', 'set', transit_name, 'up'])
             for version in (4, 6):
                 family = '-' + str(version)
                 address = record['transit']['local' + str(version)]
                 peer = record['transit']['peer' + str(version)]
-                self.inside(fd, [IP, family, 'address', 'replace', address, 'dev', 'ppptransit'])
+                self.inside(fd, [IP, family, 'address', 'replace', address, 'dev', transit_name])
                 self.inside(fd, [IP, family, 'route', 'replace', 'table', '100', 'default',
-                                 'via', peer, 'dev', 'ppptransit', 'onlink'])
+                                 'via', peer, 'dev', transit_name, 'onlink'])
                 self.inside(fd, [IP, family, 'route', 'replace', 'table', '101', 'default', 'dev', 'ppp0'])
                 # Only an exclusively owned netns is touched. Local priority 0 would
                 # consume NAT replies addressed to the negotiated local PPP address.
                 rules = json.loads(self.inside(fd, [IP, family, '-j', 'rule', 'show']))
                 for rule in rules:
                     priority = rule.get('priority')
-                    if priority not in (0, 5, 10, 20, 100, 32766, 32767):
+                    if priority not in (0, 4, 5, 10, 20, 100, 32766, 32767):
                         raise ValueError('unexpected policy rule in owned namespace')
                 for rule in rules:
                     self.inside(fd, [IP, family, 'rule', 'delete', 'pref', str(rule['priority'])])
                 if family == '-6':
+                    self.inside(fd, [IP, family, 'rule', 'add', 'pref', '4', 'iif', 'ppp0',
+                                     'ipproto', 'udp', 'sport', '547', 'dport', '546', 'lookup', 'local'])
                     for destination in ('fe80::/10', 'ff00::/8'):
                         self.inside(fd, [IP, family, 'rule', 'add', 'pref', '5', 'to', destination,
                                          'lookup', 'local'])
                 self.inside(fd, [IP, family, 'rule', 'add', 'pref', '10', 'iif', 'ppp0', 'lookup', '100'])
-                self.inside(fd, [IP, family, 'rule', 'add', 'pref', '20', 'iif', 'ppptransit', 'lookup', '101'])
+                self.inside(fd, [IP, family, 'rule', 'add', 'pref', '20', 'iif', transit_name, 'lookup', '101'])
                 self.inside(fd, [IP, family, 'rule', 'add', 'pref', '100', 'lookup', 'local'])
                 self.inside(fd, [IP, family, 'rule', 'add', 'pref', '32766', 'lookup', 'main'])
             self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv4.ip_forward=1',
                              'net.ipv4.conf.all.rp_filter=0', 'net.ipv4.conf.default.rp_filter=0',
-                             'net.ipv4.conf.ppp0.rp_filter=0', 'net.ipv4.conf.ppptransit.rp_filter=0',
+                             'net.ipv4.conf.ppp0.rp_filter=0', f'net.ipv4.conf.{transit_name}.rp_filter=0',
                              'net.ipv6.conf.all.forwarding=1', 'net.ipv6.conf.ppp0.accept_ra=2'])
             if self.links(fd, token, record, True) != before:
                 raise ValueError('carrier links changed during configuration')
-            self.inside(fd, [NFT, '-f', '-'], nft_policy(True))
+            self.inside(fd, [NFT, '-f', '-'], nft_policy(True, token))
             record['links'] = before
             # This records only completion of helper operations. Consumer must read
             # back kernel + VPP state and current PPP session before publishing ready.
             record['configured'] = True
             try:
+                record['policy_source'] = hashlib.sha256(nft_policy(True, token).encode()).hexdigest()
+                record['firewall_digest'] = self.nft_digest(json.loads(self.inside(fd, [NFT, '-j', 'list', 'table', 'inet', 'ngfw_ppp'])), token)
+                self.verify_state(fd, token, record)
                 self.save(token, record)
             except Exception:
-                self.inside(fd, [NFT, '-f', '-'], nft_policy(False))
+                self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
                 raise
         return record
 
@@ -411,7 +534,7 @@ class Carrier:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('provision', 'prepare', 'inspect', 'inventory', 'list', 'configure', 'withdraw', 'delete', 'run'))
+    parser.add_argument('action', choices=('provision', 'prepare', 'inspect', 'inventory', 'list', 'verify', 'configure', 'withdraw', 'delete', 'run'))
     parser.add_argument('identity', help='owner for provision; namespace token otherwise')
     parser.add_argument('generation', nargs='?', help='logical interface for provision; generation otherwise')
     parser.add_argument('--raw-index', type=int)

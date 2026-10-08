@@ -5,13 +5,13 @@ Owned: `scripts/pppoe-kernel-carrier.py`, its script test, source assets under
 `scripts/pppoe-carrier-assets`, and this receipt. No deploy file or host changed.
 
 This is opt-in source, not activated functionality or acceptance. Independent R4
-review is in progress. Twelve fake-executor tests pass (0.002 seconds):
+review is in progress. Fourteen fake-executor tests pass (0.005 seconds):
 `python3 scripts/tests/pppoe-kernel-carrier.py -v`. Python compilation and diff
 whitespace checks passed. No native namespace/route/service tests or CI ran.
 
 ## Owner-controller interface
 
-Proposed reviewed installation: `/usr/libexec/ngfw/pppoe-kernel-carrier`.
+Proposed reviewed installation: `/usr/lib/ngfw/pppoe-carrier.py (invoked with /usr/bin/python3 -I)`.
 Root-only, fixed executables and argument vectors, no shell or new sudo/broker
 permission. Parent must invoke through the approved existing privilege boundary.
 
@@ -65,3 +65,19 @@ supplied immutable spec rather than same fixed address pair for every session.
 
 Next: rerun focused script test after independent review fixes. Full CI remains
 deferred by owner; no source completion or lab-only remainder claim is made.
+
+## Follow-up readback and unique Linux identities
+
+Raw/TAP names are now `pw`/`pt` plus token's 12 hex digits, so existing shared
+hook-state filenames remain unique while PPP is always namespace-local ppp0.
+`verify TOKEN GEN` requires persisted configured state AND current pinned netns,
+TAP aliases/indices/MAC, PPP link index, negotiated PPP MTU matching transit MTU,
+configured transit addresses past DAD, exact rule selectors, both default route
+pairs, namespace sysctls, no foreign firewall table, and nft semantic fingerprint.
+The fingerprint is taken from successful live installation, excludes volatile
+handles, and is tied to the current policy source hash. This detects later drift;
+it is not a substitute for native validation of the policy's packet semantics.
+Configure now performs this readback before committing configured=true, reclosing
+forwarding on readback/persistence failure. Generation-aware VPP readiness is
+still a separate mandatory parent check. DHCPv6 UDP547->546 has a dedicated
+priority4 local-delivery exception, including valid non-link-local server replies.

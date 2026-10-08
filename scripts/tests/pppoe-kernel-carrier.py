@@ -9,6 +9,8 @@ import unittest
 spec = importlib.util.spec_from_file_location('carrier', Path(__file__).resolve().parents[1] / 'pppoe-kernel-carrier.py')
 carrier = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(carrier)
+TOKEN = carrier.token_for('ngfw', 'wan1')
+RAW, TRANSIT = carrier.link_names(TOKEN)
 
 
 class MemoryCarrier(carrier.Carrier):
@@ -17,16 +19,22 @@ class MemoryCarrier(carrier.Carrier):
         self.token = carrier.token_for('ngfw', 'wan1')
         self.record = {'owner': 'ngfw', 'logical': 'wan1', 'generation': 'a' * 32,
                        'namespace': [4, 123], 'configured': False,
-                       'bound': {'pppwan': 2, 'ppptransit': 3}, 'physical_mac': '02:00:00:00:00:01',
+                       'bound': {RAW: 2, TRANSIT: 3}, 'physical_mac': '02:00:00:00:00:01',
                        'transit': {'local4': '169.254.254.2/30', 'peer4': '169.254.254.1',
                                    'local6': 'fd00:6e67:6677::2/126', 'peer6': 'fd00:6e67:6677::1'}}
+        self.record['boot'] = 'fake-boot'
+        self.record['spec'] = {'mtu': 1492}
         self.calls = []
+        self.saved_failure = False
+        self.firewall_changed = False
         self.failure = None
         self.extra = []
         self.change_link = False
         self.link_reads = 0
 
     def save(self, token, record):
+        if self.saved_failure and record.get('configured'):
+            raise OSError('injected persistence failure')
         self.record = dict(record)
 
     def load(self, token, generation=None):
@@ -46,13 +54,47 @@ class MemoryCarrier(carrier.Carrier):
             self.link_reads += 1
             links = [{'ifname': 'lo', 'ifindex': 1},
                      {'ifname': 'ppp0', 'ifindex': 4, 'link_type': 'ppp', 'flags': ['UP']}]
-            for name, index in [('pppwan', 2), ('ppptransit', 3)]:
+            for name, index in [(RAW, 2), (TRANSIT, 3)]:
                 links.append({'ifname': name, 'ifindex': index + (10 if self.change_link and self.link_reads > 1 else 0),
                               'address': '02:00:00:00:00:01', 'ifalias': self.token + ':' + self.record['generation'] + ':' + name,
                               'linkinfo': {'info_kind': 'tun', 'info_data': {'type': 'tap'}}})
             return json.dumps(links + self.extra)
         if argv[-3:] == ['-j', 'rule', 'show']:
-            return '[{"priority": 0, "table": "local"}, {"priority": 32766, "table": "main"}]'
+            added = [cmd for cmd, _ in self.calls if cmd[:4] == [carrier.IP, argv[1], 'rule', 'add']]
+            if not added:
+                return '[{"priority": 0, "table": "local"}, {"priority": 32766, "table": "main"}]'
+            rows = []
+            for command in added:
+                row = {'priority': int(command[command.index('pref') + 1]), 'table': command[-1]}
+                for field in ('iif', 'ipproto', 'sport', 'dport'):
+                    if field in command:
+                        row[field] = command[command.index(field) + 1]
+                if 'to' in command:
+                    row['dst'] = command[command.index('to') + 1]
+                rows.append(row)
+            return json.dumps(rows)
+        if argv[-2:] == ['address', 'show']:
+            return json.dumps([{'ifname': RAW, 'addr_info': []}, {'ifname': 'ppp0', 'mtu': 1492},
+                               {'ifname': TRANSIT, 'mtu': 1492, 'addr_info': [
+                                   {'local': '169.254.254.2', 'prefixlen': 30},
+                                   {'local': 'fd00:6e67:6677::2', 'prefixlen': 126}]}])
+        if 'route' in argv and 'show' in argv:
+            table = argv[-1]
+            row = {'dst': 'default', 'dev': TRANSIT if table == '100' else 'ppp0'}
+            if table == '100':
+                row['gateway'] = self.record['transit']['peer' + argv[1][1:]]
+            return json.dumps([row])
+        if argv[:2] == [carrier.SYSCTL, '-n']:
+            return '0' if 'rp_filter' in argv[2] else '2' if 'accept_ra' in argv[2] else '1'
+        if argv == [carrier.NFT, '-j', 'list', 'table', 'inet', 'ngfw_ppp']:
+            objects = [{'table': {'family': 'inet', 'name': 'ngfw_ppp'}}]
+            for name in ('input', 'output', 'forward'):
+                objects.append({'chain': {'family': 'inet', 'table': 'ngfw_ppp', 'name': name,
+                                         'hook': name, 'policy': 'drop', 'type': 'filter', 'prio': 0}})
+            for i in range(carrier.nft_policy(True, TOKEN).count('add rule ')):
+                objects.append({'rule': {'family': 'inet', 'table': 'ngfw_ppp', 'chain': 'input',
+                                        'expr': [{'fixture': i + (100 if self.firewall_changed else 0)}]}})
+            return json.dumps({'nftables': objects})
         if argv == [carrier.NFT, '-j', 'list', 'tables']:
             return '{"nftables": [{"table": {"family": "inet", "name": "ngfw_ppp"}}]}'
         return ''
@@ -77,24 +119,24 @@ class CarrierTests(unittest.TestCase):
         result = c.configure(c.token, 'a' * 32)
         for family in ('-4', '-6'):
             commands = [cmd for cmd, _ in c.calls if cmd[:2] == [carrier.IP, family]]
-            for interface, priority, table in [('ppp0', '10', '100'), ('ppptransit', '20', '101')]:
+            for interface, priority, table in [('ppp0', '10', '100'), (TRANSIT, '20', '101')]:
                 self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', priority, 'iif', interface, 'lookup', table], commands)
             self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', '100', 'lookup', 'local'], commands)
         self.assertTrue(result['configured'])
         self.assertNotIn('ready', result)
-        self.assertEqual(c.calls[0][1], carrier.nft_policy(False))
-        self.assertEqual(c.calls[-1][1], carrier.nft_policy(True))
+        self.assertEqual(c.calls[0][1], carrier.nft_policy(False, TOKEN))
+        self.assertIn(carrier.nft_policy(True, TOKEN), [data for _, data in c.calls])
 
     def test_ipv6_control_is_preserved_but_raw_wan_ip_is_not_allowed(self):
         c = MemoryCarrier()
         c.configure(c.token, 'a' * 32)
         for destination in ('fe80::/10', 'ff00::/8'):
             self.assertIn(([carrier.IP, '-6', 'rule', 'add', 'pref', '5', 'to', destination, 'lookup', 'local'], None), c.calls)
-        policy = carrier.nft_policy(True)
+        policy = carrier.nft_policy(True, TOKEN)
         self.assertIn('udp sport 547 udp dport 546', policy)
         self.assertNotIn('masquerade', policy)
         self.assertNotIn('snat', policy)
-        self.assertNotIn('pppwan', policy)
+        self.assertNotIn(RAW, policy)
         self.assertEqual(policy.count('policy drop'), 3)
 
     def test_partial_failure_keeps_forwarding_closed(self):
@@ -103,7 +145,7 @@ class CarrierTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             c.configure(c.token, 'a' * 32)
         self.assertFalse(c.record['configured'])
-        self.assertFalse(any(data == carrier.nft_policy(True) for _, data in c.calls))
+        self.assertFalse(any(data == carrier.nft_policy(True, TOKEN) for _, data in c.calls))
 
     def test_foreign_links_rejected_before_route_mutation(self):
         c = MemoryCarrier()
@@ -118,7 +160,7 @@ class CarrierTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.configure(c.token, 'a' * 32)
         self.assertFalse(c.record['configured'])
-        self.assertFalse(any(data == carrier.nft_policy(True) for _, data in c.calls))
+        self.assertFalse(any(data == carrier.nft_policy(True, TOKEN) for _, data in c.calls))
 
     def test_delete_refuses_attached_or_live_namespace(self):
         c = MemoryCarrier()
@@ -140,9 +182,9 @@ class CarrierTests(unittest.TestCase):
             carrier.validate_spec('ngfw', 'wan1', {**spec, 'arbitrary_command': 'invalid'})
 
     def test_transit_nd_and_pmtu_errors_are_not_blackholed(self):
-        policy = carrier.nft_policy(True)
+        policy = carrier.nft_policy(True, TOKEN)
         transit_nd = next(line for line in policy.splitlines()
-                          if 'input iifname "ppptransit"' in line)
+                          if 'input iifname "' + TRANSIT + '"' in line)
         self.assertNotIn('saddr fe80', transit_nd)
         self.assertIn('hoplimit 255', transit_nd)
         self.assertIn('packet-too-big', policy)
@@ -155,6 +197,23 @@ class CarrierTests(unittest.TestCase):
             removal = ([carrier.IP, family, 'rule', 'delete', 'pref', '0'], None)
             addition = ([carrier.IP, family, 'rule', 'add', 'pref', '100', 'lookup', 'local'], None)
             self.assertLess(c.calls.index(removal), c.calls.index(addition))
+
+    def test_verify_rejects_firewall_drift_despite_configured_flag(self):
+        c = MemoryCarrier()
+        c.configure(c.token, 'a' * 32)
+        self.assertTrue(c.verify(c.token, 'a' * 32)['verified'])
+        c.firewall_changed = True
+        self.assertTrue(c.record['configured'])
+        with self.assertRaisesRegex(ValueError, 'firewall changed'):
+            c.verify(c.token, 'a' * 32)
+
+    def test_final_persistence_failure_recloses_forwarding(self):
+        c = MemoryCarrier()
+        c.saved_failure = True
+        with self.assertRaises(OSError):
+            c.configure(c.token, 'a' * 32)
+        self.assertFalse(c.record['configured'])
+        self.assertEqual(c.calls[-1][1], carrier.nft_policy(False, TOKEN))
 
     def test_namespace_exec_pins_fd_without_shell(self):
         calls = []

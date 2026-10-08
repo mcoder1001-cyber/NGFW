@@ -12,7 +12,6 @@ import os
 from pathlib import Path
 import platform
 import re
-import shutil
 import stat
 import subprocess
 import sys
@@ -22,6 +21,8 @@ import zipfile
 
 REQUIRED = {'pip', 'robotframework', 'robotframework-sshlibrary', 'scapy', 'pytest', 'requests'}
 LIMIT = 1024 * 1024
+MEMBER_LIMIT = 16 * LIMIT
+WHEEL_EXPANDED_LIMIT = 64 * LIMIT
 
 
 def refuse(message):
@@ -66,6 +67,13 @@ def inspect_wheel(data):
         entries = archive.infolist()
         if len(entries) > 10000:
             refuse('too many wheel members')
+        expanded = sum(entry.file_size for entry in entries)
+        if expanded > WHEEL_EXPANDED_LIMIT:
+            refuse('wheel aggregate decompression bound exceeded')
+        for entry in entries:
+            bound = LIMIT if '.dist-info/' in entry.filename else MEMBER_LIMIT
+            if entry.file_size > bound:
+                refuse('wheel member decompression bound exceeded')
         names = [entry.filename for entry in entries]
         if len(names) != len(set(names)):
             refuse('duplicate wheel members')
@@ -81,6 +89,7 @@ def inspect_wheel(data):
             # no-index does not block direct dependency URLs; refuse before pip.
             if '@' in dependency or '://' in dependency:
                 refuse('direct URL wheel dependency forbidden')
+        return expanded
 
 
 def resolve(wheelhouse, requirements, report, work):
@@ -96,6 +105,74 @@ def resolve(wheelhouse, requirements, report, work):
     if result.returncode:
         refuse('offline wheel resolution failed:\n' + result.stderr[-6000:])
     return json.loads(regular_bytes(report, 16 * LIMIT))
+
+
+def validate_report(report, wheels, artifacts):
+    """Validate every resolver artifact, including independent verification output."""
+    selected = {}
+    try:
+        if not isinstance(report, dict) or not isinstance(report.get('install'), list):
+            refuse('malformed resolver report')
+        for item in report['install']:
+            metadata = item['metadata']
+            raw_name, version = metadata['name'], metadata['version']
+            if (not isinstance(raw_name, str) or
+                    not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', raw_name) or
+                    not isinstance(version, str) or
+                    not re.fullmatch(r'[A-Za-z0-9.!+_-]+', version)):
+                refuse('invalid resolved package identity')
+            name = canonical(raw_name)
+            if name in selected:
+                refuse('duplicate resolved dependency')
+            url = urlparse(item['download_info']['url'])
+            artifact = Path(unquote(url.path))
+            digest = artifacts.get(artifact.name)
+            if (url.scheme != 'file' or url.netloc or url.query or url.fragment or url.params or
+                    artifact.parent != wheels or digest is None):
+                refuse('resolver selected an artifact outside snapshot')
+            if item['download_info']['archive_info']['hashes'].get('sha256') != digest:
+                refuse('resolver artifact digest differs from snapshot')
+            selected[name] = (version, artifact.name, digest)
+    except (KeyError, TypeError, AttributeError) as error:
+        raise ValueError('malformed resolver report') from error
+    return selected
+
+
+def write_output(output, lock_bytes, receipt):
+    # Anchor writes and cleanup to the opened directory; never follow a replaced
+    # pathname, including a parent actor's rename/symlink swap after mkdir.
+    parent_fd = os.open(output.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    directory_fd = None
+    created = []
+    try:
+        os.mkdir(output.name, mode=0o700, dir_fd=parent_fd)
+        directory_fd = os.open(output.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                               dir_fd=parent_fd)
+        info = os.fstat(directory_fd)
+        payloads = {'requirements.lock': lock_bytes,
+                    'provenance.json': (json.dumps(receipt, indent=2, sort_keys=True) + '\n').encode()}
+        for name, data in payloads.items():
+            fd = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         mode=0o600, dir_fd=directory_fd)
+            created.append(name)
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(data)
+        current = os.stat(output.name, dir_fd=parent_fd, follow_symlinks=False)
+        if (current.st_dev, current.st_ino) != (info.st_dev, info.st_ino):
+            refuse('output directory changed during publication')
+    except BaseException:
+        if directory_fd is not None:
+            for name in created:
+                os.unlink(name, dir_fd=directory_fd)
+            current = os.stat(output.name, dir_fd=parent_fd, follow_symlinks=False)
+            info = os.fstat(directory_fd)
+            if (current.st_dev, current.st_ino) == (info.st_dev, info.st_ino):
+                os.rmdir(output.name, dir_fd=parent_fd)
+        raise
+    finally:
+        if directory_fd is not None:
+            os.close(directory_fd)
+        os.close(parent_fd)
 
 
 def generate(args):
@@ -118,6 +195,7 @@ def generate(args):
         wheels.mkdir()
         artifacts = {}
         total = 0
+        expanded_total = 0
         for path in sorted(source.iterdir()):
             if not re.fullmatch(r'[A-Za-z0-9_.+-]+\.whl', path.name):
                 refuse('wheelhouse may contain only wheel files with safe names')
@@ -125,28 +203,18 @@ def generate(args):
             total += len(data)
             if total > 1024 * LIMIT:
                 refuse('wheelhouse exceeds 1 GiB')
-            inspect_wheel(data)
+            expanded_total += inspect_wheel(data)
+            if expanded_total > 512 * LIMIT:
+                refuse('wheelhouse aggregate decompression bound exceeded')
             (wheels / path.name).write_bytes(data)
             artifacts[path.name] = hashlib.sha256(data).hexdigest()
         direct = work / 'direct.txt'
         direct.write_bytes(seed_bytes)
         report = resolve(wheels, direct, work / 'resolve.json', work)
-        entries = {}
-        selected = []
-        for item in report['install']:
-            metadata = item['metadata']
-            name, version = canonical(metadata['name']), metadata['version']
-            if name in entries or not re.fullmatch(r'[A-Za-z0-9.!+_-]+', version):
-                refuse('duplicate or invalid resolved version')
-            url = urlparse(item['download_info']['url'])
-            artifact = Path(unquote(url.path))
-            digest = artifacts.get(artifact.name)
-            if url.scheme != 'file' or url.netloc or artifact.parent != wheels or digest is None:
-                refuse('resolver selected an artifact outside snapshot')
-            if item['download_info']['archive_info']['hashes'].get('sha256') != digest:
-                refuse('resolver artifact digest differs from snapshot')
-            entries[name] = version
-            selected.append({'name': name, 'version': version, 'wheel': artifact.name, 'sha256': digest})
+        closure = validate_report(report, wheels, artifacts)
+        entries = {name: identity[0] for name, identity in closure.items()}
+        selected = [{'name': name, 'version': version, 'wheel': wheel, 'sha256': digest}
+                    for name, (version, wheel, digest) in closure.items()]
         if not REQUIRED <= entries.keys() or any(entries[name] != version for name, version in pins.items()):
             refuse('resolved closure differs from direct pins')
         lock_bytes = ''.join(f"{item['name']}=={item['version']} --hash=sha256:{item['sha256']}\n"
@@ -154,8 +222,7 @@ def generate(args):
         lock = work / 'requirements.lock'
         lock.write_bytes(lock_bytes)
         verification = resolve(wheels, lock, work / 'verify.json', work)
-        if {canonical(item['metadata']['name']): item['metadata']['version']
-                for item in verification['install']} != entries:
+        if validate_report(verification, wheels, artifacts) != closure:
             refuse('hash-verified closure differs from resolution')
         receipt = {'schema': 1, 'status': 'offline-candidate; upstream provenance and target installation unverified',
                    'runtime': runtime, 'python_version': sys.version, 'libc': platform.libc_ver(),
@@ -163,13 +230,7 @@ def generate(args):
                    'direct_sha256': hashlib.sha256(seed_bytes).hexdigest(),
                    'lock_sha256': hashlib.sha256(lock_bytes).hexdigest(),
                    'artifacts': sorted(selected, key=lambda item: item['name'])}
-        args.output.mkdir(mode=0o700)
-        try:
-            (args.output / 'requirements.lock').write_bytes(lock_bytes)
-            (args.output / 'provenance.json').write_text(json.dumps(receipt, indent=2, sort_keys=True) + '\n')
-        except BaseException:
-            shutil.rmtree(args.output)
-            raise
+        write_output(args.output, lock_bytes, receipt)
     print(f'Offline candidate generated: {args.output}; upstream authenticity and installation remain unverified')
 
 

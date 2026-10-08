@@ -1,0 +1,38 @@
+name: Lab Python offline lock fixtures
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/lab-python-lock-fixtures.yml'
+      - 'scripts/lab-python-lock.py'
+      - 'scripts/tests/lab-python-lock.py'
+      - 'scripts/40-install-lab.sh'
+      - 'scripts/install-common.sh'
+  push:
+    paths:
+      - '.github/workflows/lab-python-lock-fixtures.yml'
+      - 'scripts/lab-python-lock.py'
+      - 'scripts/tests/lab-python-lock.py'
+      - 'scripts/40-install-lab.sh'
+      - 'scripts/install-common.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lab-python-lock-fixtures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    name: Offline Python lock closure and adversarial fixtures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Run offline synthetic-wheel fixtures
+        run: python3 -I scripts/tests/lab-python-lock.py -v

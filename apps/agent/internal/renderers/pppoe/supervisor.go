@@ -53,7 +53,10 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		}
 	}
 
-	stale := r.installedHostIfs()
+	stale, err := r.installedHostIfs()
+	if err != nil {
+		return err
+	}
 	unitFilesChanged := false
 	for hostIf := range stale {
 		if want[hostIf] {
@@ -190,11 +193,14 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 }
 
 // installedHostIfs are the host interfaces with a unit file on disk (what a previous Apply left).
-func (r *Renderer) installedHostIfs() map[string]bool {
+func (r *Renderer) installedHostIfs() (map[string]bool, error) {
 	out := map[string]bool{}
 	// Removed units retain pending evidence until daemon-reload succeeds.
 	// Include that inventory even after their unit files have been deleted.
-	pending, _ := os.ReadDir(r.paths.StateDir + "/ipv6-transitions")
+	pending, err := os.ReadDir(r.paths.StateDir + "/ipv6-transitions")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("pppoe: transition inventory unavailable")
+	}
 	for _, e := range pending {
 		if hostIfRe.MatchString(e.Name()) {
 			out[e.Name()] = true
@@ -202,7 +208,10 @@ func (r *Renderer) installedHostIfs() map[string]bool {
 	}
 	entries, err := os.ReadDir(r.paths.UnitDir)
 	if err != nil {
-		return out
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return nil, fmt.Errorf("pppoe: installed unit inventory unavailable")
 	}
 	for _, e := range entries {
 		n := e.Name()
@@ -212,7 +221,7 @@ func (r *Renderer) installedHostIfs() map[string]bool {
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 func sameOnDisk(path string, want renderers.File) bool {

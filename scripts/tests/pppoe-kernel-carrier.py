@@ -456,6 +456,10 @@ class CarrierTests(unittest.TestCase):
         self.assertIn('TemporaryFileSystem=/run:rw /etc:ro /var/lib:ro', daemon)
         self.assertNotIn('BindPaths=/run/ngfw-pppoe-carrier', daemon)
         self.assertNotIn('pppoe-broker', daemon)
+        self.assertIn('DevicePolicy=closed', daemon)
+        self.assertIn('DeviceAllow=/dev/ppp rw', daemon)
+        self.assertIn('DevicePolicy=closed', broker)
+        self.assertNotIn('DeviceAllow=', broker)
         directives = [line for line in broker.splitlines() if not line.startswith('#')]
         for prefix in ('PrivateTmp=', 'ProtectSystem=', 'ProtectHome=', 'BindPaths=', 'ReadWritePaths='):
             self.assertFalse(any(line.startswith(prefix) for line in directives))

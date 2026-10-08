@@ -146,3 +146,8 @@ before a new generation is provisioned. Tests cover total loss, either partial
 loss, a foreign link, changed surviving index and refusal of forwarding readiness.
 The verify receipt also carries actual non-tentative PPP address CIDRs so parent
 can reject stale hook addresses before mirroring them into VPP.
+
+The fixed units also use DevicePolicy=closed. Only the PPP service additionally
+allows /dev/ppp read/write; UID0 does not gain host block-device access merely
+because filesystem mounts are read-only. Standard service API devices remain
+available. This is source hardening, with no installed service/device mutation.

@@ -428,7 +428,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		if subsystems.PppoeSupervised() {
 			desired.PppoeCarriers(p, boundIfs, owner)
 		}
-		desired.Pppoe(p, boundIfs, subsystems.PppoeSupervised(), owner)
+		desired.Pppoe(desired.PppoeWANContext(p, ds.GetRouting().GetWanGroups()), boundIfs, subsystems.PppoeSupervised(), owner)
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay

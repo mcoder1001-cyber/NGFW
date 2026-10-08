@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/scheduler"
 )
@@ -30,8 +31,12 @@ func Pppoe(s Sink, ifs map[string]*ngfwv1.Interface, supervised bool, carrierOwn
 		}
 		p := ifs[parent]
 		if supervised && len(carrierOwner) > 0 && carrierOwner[0] != "" {
-			if parent == name || p == nil {
+			if parent == name {
 				s.Errorf(pt+"/parent", "pppoe.carrier-parent", "kernel PPP requires a distinct existing raw parent")
+				continue
+			}
+			if err := pppoedesc.CopyCarrierParentReference(doc, ifs, parent); err != nil {
+				s.Errorf(pt+"/parent", "pppoe.carrier-parent", "%v", err)
 				continue
 			}
 			doc.Interfaces[name] = &ngfwv1.Interface{Pppoe: proto.Clone(c).(*ngfwv1.Pppoe)}

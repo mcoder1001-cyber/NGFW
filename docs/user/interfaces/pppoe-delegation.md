@@ -53,6 +53,6 @@ to 30 seconds, and assignments are conservatively withdrawn up to 29 seconds bef
 preferred expiry. If VPP refuses a change, the error is reported and retried; a
 failed withdrawal must not be reported as completed.
 
-This source checkpoint requires integration with the current carrier readiness and
-registration paths. Native DHCPv6 renew/rebind, LAN RA/SLAAC, return traffic and
+Carrier readiness and delegated LAN registration are integrated in the source.
+Combined source review and final aggregate CI remain required. Native DHCPv6 renew/rebind, LAN RA/SLAAC, return traffic and
 carrier-loss acceptance remain to be tested on the laboratory topology.

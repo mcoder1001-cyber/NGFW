@@ -101,6 +101,7 @@ func TestCarrierRestartReadbackStopsBeforeSecretReplacement(t *testing.T) {
 	manifest := filepath.Join(t.TempDir(), "applied.pb")
 	fixture := "NGFW_TEST_PSK_F-pppoe-client-wiring"
 	doc := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{"pppwan": {Pppoe: &ngfwv1.Pppoe{Parent: proto.String("wanraw"), Username: proto.String("test"), PasswordRef: proto.String("password/test"), Ipv6: proto.String("off")}}}}
+	doc.Interfaces["wanraw"] = &ngfwv1.Interface{Enabled: proto.Bool(true)}
 	descriptor := func(runtime *PppoeRuntime) *desc.ClientConfig {
 		d := desc.NewClientConfig(runtime, runtime.renderer, manifest)
 		d.SetCarrierOwner(runtime.owner)
@@ -223,5 +224,73 @@ func TestCarrierRegistrationKeepsRATapOwnershipSeparate(t *testing.T) {
 		if !found {
 			t.Fatalf("missing interfaces domain %s", name)
 		}
+	}
+}
+
+func TestCarrierProductFilesFitInstalledAgentWritableScope(t *testing.T) {
+	unit, err := os.ReadFile("../../../../deploy/systemd/ngfw-agent.service")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := &PppoeRuntime{}
+	root := rt.carrierRootDir()
+	allowed := false
+	for _, line := range strings.Split(string(unit), "\n") {
+		if !strings.HasPrefix(line, "ReadWritePaths=") {
+			continue
+		}
+		for _, prefix := range strings.Fields(strings.TrimPrefix(line, "ReadWritePaths=")) {
+			prefix = strings.TrimPrefix(prefix, "-")
+			if root == prefix || strings.HasPrefix(root, prefix+"/") {
+				allowed = true
+			}
+		}
+	}
+	if !allowed {
+		t.Fatalf("carrier configuration root %s is outside packaged agent writable paths", root)
+	}
+}
+
+func TestCarrierResolverPrivateFile(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "resolv.conf")
+	if err := prepareCarrierResolver(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("nameserver 192.0.2.53\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareCarrierResolver(dir); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Stat(path)
+	if err != nil || info.Size() != 0 || info.Mode().Perm() != 0600 {
+		t.Fatalf("resolver was not reset privately: %v %v", info, err)
+	}
+	target := filepath.Join(t.TempDir(), "unrelated")
+	if err := os.WriteFile(target, []byte("preserve"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareCarrierResolver(dir); err == nil {
+		t.Fatal("symlink accepted")
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(target, path); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareCarrierResolver(dir); err == nil {
+		t.Fatal("shared inode accepted")
+	}
+	body, err := os.ReadFile(target)
+	if err != nil || string(body) != "preserve" {
+		t.Fatalf("unrelated file changed: %q %v", body, err)
 	}
 }

@@ -130,3 +130,11 @@ func CheckCarrierPrefixes(specs []CarrierSpec, reserved []netip.Prefix) error {
 	}
 	return nil
 }
+
+// CarrierVLAN binds forwarding readiness to the committed tag classification.
+// It is a session input; namespace geometry remains independently immutable.
+type CarrierVLAN struct {
+	Root                string
+	SubID, Outer, Inner uint32
+	Dot1AD              bool
+}

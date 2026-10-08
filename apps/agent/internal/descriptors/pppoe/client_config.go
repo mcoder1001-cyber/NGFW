@@ -19,6 +19,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"sync"
 )
 
@@ -92,6 +93,9 @@ func (d *ClientConfig) Dependencies(value proto.Message) []scheduler.Dependency 
 				continue
 			}
 			keys = []scheduler.Key{iface.AliasKey(name), CarrierNamespaceKey(spec.Token()), l2.XconnectKey(string(iface.AliasKey(spec.Parent))), l2.XconnectKey(string(iface.AliasKey(spec.RawLogical())))}
+			if key, present, err := CarrierVLANDependency(doc, itf.Pppoe.GetParent()); err == nil && present {
+				keys = append(keys, key)
+			}
 		}
 		for _, key := range keys {
 			if !seen[key] {
@@ -126,9 +130,18 @@ func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict b
 			return nil, redactor, scheduler.InvalidAt(passwordPointer(name), errors.New("PPPoE requires a password reference"))
 		}
 		var carrier *ren.CarrierSpec
+		var vlan *ren.CarrierVLAN
 		var host string
 		var err error
 		if d.carrierOwner != "" {
+			resolved, resolveErr := ResolveCarrierParent(doc.Interfaces, c.GetParent())
+			if resolveErr != nil {
+				return nil, redactor, scheduler.InvalidAt("/interfaces/"+stringReplace(name)+"/pppoe/parent", resolveErr)
+			}
+			if resolved.Sub != nil {
+				id, _ := strconv.ParseUint(resolved.SubID, 10, 32)
+				vlan = &ren.CarrierVLAN{Root: resolved.RootName, SubID: uint32(id), Outer: resolved.Sub.GetVlanId(), Inner: resolved.Sub.GetInnerVlanId(), Dot1AD: resolved.Sub.GetDot1Ad()}
+			}
 			mtu := c.GetMtu()
 			if mtu == 0 {
 				mtu = 1492
@@ -168,7 +181,15 @@ func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict b
 		if c.GetReconnect() != nil && c.GetReconnect().HoldoffSec != nil {
 			holdoff = c.GetReconnect().GetHoldoffSec()
 		}
-		out = append(out, ren.Session{Carrier: carrier, Iface: name, HostIf: host, Username: c.GetUsername(), Password: password, ServiceName: c.GetServiceName(), MTU: mtu, MSSClamp: c.MssClamp == nil || c.GetMssClamp(), DefaultRoute: c.DefaultRoute == nil || c.GetDefaultRoute(), DNSFromPeer: c.GetDnsFromPeer(), IPv6: c.GetIpv6(), HoldoffSec: holdoff, MaxFail: c.GetReconnect().GetMaxFail()})
+		defaultRoute := c.DefaultRoute == nil || c.GetDefaultRoute()
+		for _, group := range doc.GetRouting().GetWanGroups() {
+			for _, member := range group.GetMembers() {
+				if member.GetInterface() == name {
+					defaultRoute = false
+				}
+			}
+		}
+		out = append(out, ren.Session{Carrier: carrier, CarrierVLAN: vlan, Iface: name, HostIf: host, Username: c.GetUsername(), Password: password, ServiceName: c.GetServiceName(), MTU: mtu, MSSClamp: c.MssClamp == nil || c.GetMssClamp(), DefaultRoute: defaultRoute, DNSFromPeer: c.GetDnsFromPeer(), IPv6: c.GetIpv6(), HoldoffSec: holdoff, MaxFail: c.GetReconnect().GetMaxFail()})
 	}
 	return out, redactor, nil
 }

@@ -145,6 +145,10 @@
           "title": "Subnet ID",
           "help": "Stable subnet number within the delegated prefix."
         }
+      },
+      "parent": {
+        "title": "Dial over interface",
+        "help": "Required for enabled PPP: a distinct raw port or explicit VLAN child such as eth0.100. The selected child must be dedicated to PPP; QinQ is supported."
       }
     }
   },

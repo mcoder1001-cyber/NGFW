@@ -61,7 +61,9 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 		return carrierForwarding{}, err
 	}
 	host := &pppoeCarrierHost{runner: rt.runner}
-	if err = host.Configure(ctx, lease, s.DefaultRoute && s.IPv6Enabled()); err != nil {
+	// Kernel link learning is independent of VPP default-route ownership. The
+	// private namespace's transit policy tables remain the forwarding boundary.
+	if err = host.Configure(ctx, lease, s.IPv6Enabled()); err != nil {
 		return carrierForwarding{}, err
 	}
 	verified, err := host.Verify(ctx, lease)
@@ -82,6 +84,12 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	details, ok := ifs.Table().Details(idx)
 	if !ok || len(details.Mtu) == 0 || details.Mtu[0] != s.MTU {
 		return carrierForwarding{}, errors.New("PPP transit MTU differs")
+	}
+	if err = desc.VerifyCarrierVLANConfiguration(ctx, rt.vpp, rt.owner, *s.Carrier, s.CarrierVLAN); err != nil {
+		return carrierForwarding{}, err
+	}
+	if err = desc.VerifyCarrierVLANReadiness(ctx, rt.vpp, rt.owner, *s.Carrier); err != nil {
+		return carrierForwarding{}, err
 	}
 	if err = rt.verifyCarrierVPP(ctx, s, ifs, idx); err != nil {
 		return carrierForwarding{}, err
@@ -181,6 +189,13 @@ func (rt *PppoeRuntime) verifyCarrierVPP(ctx context.Context, s pppoe.Session, i
 	raw, ok := ifs.IndexByTag(s.Carrier.RawLogical())
 	if !ok {
 		return errors.New("owned raw PPP TAP disappeared")
+	}
+	for _, index := range []uint32{uint32(parent), raw, transit} {
+		detail, ok := ifs.Table().Details(index)
+		flags := interface_types.IF_STATUS_API_FLAG_ADMIN_UP | interface_types.IF_STATUS_API_FLAG_LINK_UP
+		if !ok || detail.Flags&flags != flags {
+			return errors.New("PPP forwarding interface is not administratively and operationally up")
+		}
 	}
 	stream, err := l2api.NewServiceClient(rt.vpp).L2XconnectDump(ctx, &l2api.L2XconnectDump{})
 	if err != nil {

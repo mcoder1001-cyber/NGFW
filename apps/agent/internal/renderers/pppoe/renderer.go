@@ -30,7 +30,8 @@ var hostIfRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,15}$`)
 // Session is one resolved PPPoE client (the agent builds it from interfaces.<name>.pppoe).
 type Session struct {
 	// Carrier selects the isolated kernel transport; nil retains render-only legacy fixtures.
-	Carrier *CarrierSpec
+	Carrier     *CarrierSpec
+	CarrierVLAN *CarrierVLAN
 
 	// Iface is the configuration interface name (JSON pointer key); Remotename below is derived from it.
 	Iface string

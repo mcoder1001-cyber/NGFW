@@ -25,6 +25,9 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 	if err := spec.Validate(); err != nil {
 		return err
 	}
+	if err := AdmitCarrierVLAN(ctx, c, owner, spec); err != nil {
+		return err
+	}
 	table, err := iface.Dump(ctx, c, owner)
 	if err != nil {
 		return err
@@ -32,6 +35,14 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 	parent, err := table.IndexByName(spec.Parent)
 	if err != nil {
 		return err
+	}
+	row, _ := table.Details(parent)
+	protected := map[uint32]bool{parent: true, uint32(row.SupSwIfIndex): true}
+	for index := range protected {
+		info, ok := table.Details(index)
+		if !ok || len(info.Mtu) == 0 || info.Mtu[0] < spec.MTU+8 {
+			return errors.New("PPP encapsulation exceeds observed raw parent MTU")
+		}
 	}
 	if _, err := table.IndexByName(spec.Logical); err == nil {
 		return errors.New("PPPoE logical interface already exists outside its carrier")
@@ -67,7 +78,7 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		if e != nil {
 			return e
 		}
-		if uint32(row.SwIfIndex) == parent || uint32(row.IPSwIfIndex) == parent {
+		if protected[uint32(row.SwIfIndex)] || protected[uint32(row.IPSwIfIndex)] {
 			return errors.New("PPPoE raw parent participates in unnumbered addressing")
 		}
 	}
@@ -83,7 +94,7 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		if e != nil {
 			return e
 		}
-		if uint32(bond.SwIfIndex) == parent {
+		if protected[uint32(bond.SwIfIndex)] {
 			return errors.New("PPPoE raw parent is a bond")
 		}
 		members, e := bondapi.NewServiceClient(c).SwMemberInterfaceDump(ctx, &bondapi.SwMemberInterfaceDump{SwIfIndex: bond.SwIfIndex})
@@ -98,7 +109,7 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 			if e != nil {
 				return e
 			}
-			if uint32(member.SwIfIndex) == parent {
+			if protected[uint32(member.SwIfIndex)] {
 				return errors.New("PPPoE raw parent belongs to a bond")
 			}
 		}
@@ -143,7 +154,7 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		return err
 	}
 	for _, pair := range pairs {
-		if uint32(pair.PhySwIfIndex) == parent {
+		if protected[uint32(pair.PhySwIfIndex)] {
 			return errors.New("PPPoE raw parent already belongs to a linux-cp pair")
 		}
 	}
@@ -159,11 +170,11 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		if err != nil {
 			return err
 		}
-		if uint32(row.RxSwIfIndex) == parent || uint32(row.TxSwIfIndex) == parent {
+		if protected[uint32(row.RxSwIfIndex)] || protected[uint32(row.TxSwIfIndex)] {
 			return errors.New("PPPoE raw parent already belongs to a cross-connect")
 		}
 	}
-	bds, err := l2api.NewServiceClient(c).BridgeDomainDump(ctx, &l2api.BridgeDomainDump{BdID: ^uint32(0), SwIfIndex: interface_types.InterfaceIndex(parent)})
+	bds, err := l2api.NewServiceClient(c).BridgeDomainDump(ctx, &l2api.BridgeDomainDump{BdID: ^uint32(0), SwIfIndex: ^interface_types.InterfaceIndex(0)})
 	if err != nil {
 		return err
 	}
@@ -176,7 +187,7 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 			return err
 		}
 		for _, member := range row.SwIfDetails {
-			if uint32(member.SwIfIndex) == parent {
+			if protected[uint32(member.SwIfIndex)] {
 				return errors.New("PPPoE raw parent already belongs to a bridge")
 			}
 		}
@@ -193,16 +204,18 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		if err != nil {
 			return err
 		}
-		if uint32(row.EncapIfIndex) == parent {
+		if protected[uint32(row.EncapIfIndex)] {
 			return errors.New("PPPoE raw parent already carries a server session")
 		}
 	}
-	active, err := cpProbe(ctx, c, interface_types.InterfaceIndex(parent), false)
-	if err != nil {
-		return err
-	}
-	if active {
-		return errors.New("PPPoE raw parent has an existing control-plane attachment")
+	for index := range protected {
+		active, err := cpProbe(ctx, c, interface_types.InterfaceIndex(index), false)
+		if err != nil {
+			return err
+		}
+		if active {
+			return errors.New("PPPoE raw parent has an existing control-plane attachment")
+		}
 	}
 	return nil
 }

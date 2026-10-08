@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"syscall"
 	"time"
 
 	"ngfw/agent/internal/descriptors/df6"
@@ -20,7 +21,7 @@ func (rt *PppoeRuntime) carrierRootDir() string {
 	if rt.carrierRoot != "" {
 		return rt.carrierRoot
 	}
-	return "/var/lib/ngfw/pppoe-carrier"
+	return "/var/lib/ngfw/agent/pppoe-carrier"
 }
 func (rt *PppoeRuntime) carrierHooksDir() string {
 	if rt.carrierHooks != "" {
@@ -50,6 +51,32 @@ func (rt *PppoeRuntime) sessionRenderer(s pppoe.Session) *pppoe.Renderer {
 func (rt *PppoeRuntime) carrierRenderer(s pppoe.Session) *pppoe.Renderer {
 	base := filepath.Join(rt.carrierRootDir(), s.Carrier.Token(), "ppp")
 	return pppoe.New(pppoe.WithPaths(pppoe.CarrierPaths(base, rt.sessionStateDir(s))))
+}
+
+// The fixed unit binds only this file writable beneath its read-only /etc/ppp.
+// Recreate its contents after stopping the old dialer, never follow a link or
+// truncate an unexpected inode supplied by an earlier process.
+func prepareCarrierResolver(stateDir string) error {
+	if err := os.MkdirAll(stateDir, 0700); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(stateDir, "resolv.conf"), os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !info.Mode().IsRegular() || !ok || stat.Nlink != 1 {
+		return errors.New("carrier resolver path is not a private regular file")
+	}
+	if err = f.Chmod(0600); err != nil {
+		return err
+	}
+	return f.Truncate(0)
 }
 func (rt *PppoeRuntime) carrierLease(ctx context.Context, s pppoe.Session) (desc.CarrierLease, error) {
 	if s.Carrier == nil {
@@ -124,6 +151,8 @@ func (rt *PppoeRuntime) CarrierFiles(sessions []pppoe.Session) (renderers.Files,
 		for path, file := range files {
 			out[path] = file
 		}
+		// Mount destination is immutable; pppd writes only the per-session bind.
+		out[filepath.Join(rt.carrierRootDir(), s.Carrier.Token(), "ppp", "resolv.conf")] = renderers.File{Mode: 0600}
 	}
 	return out, nil
 }
@@ -229,6 +258,9 @@ func (rt *PppoeRuntime) applyCarriers(ctx context.Context, sessions []pppoe.Sess
 			}
 		}
 		if err = renderers.WriteFiles(rendered[name]); err != nil {
+			return err
+		}
+		if err = prepareCarrierResolver(rt.sessionStateDir(s)); err != nil {
 			return err
 		}
 		if err = r.ResumeIPv6(s.HostIf); err != nil {

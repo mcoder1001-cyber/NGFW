@@ -149,3 +149,26 @@ passed; carrier recovery/broker/epoch tests passed under race. Latest focused
 results: subsystems 1.188s, descriptors 1.025s, desired 1.064s.
 VLAN parent implementation and multi-WAN automatic-default ownership integration
 are in progress; final combined review and tests remain required.
+
+### Cumulative VLAN, WAN ownership and packaging integration
+
+Explicit VLAN parent metadata now flows through the daemon manifest and is compared
+to live root/sub-ID/outer/inner/802.1ad classification before readiness. Live root
+LCP/L2/bond/unnumbered conflicts and parent/root MTU bounds are checked. Multi-WAN
+reference context suppresses automatic PPP VPP defaults while retaining the stored
+operator setting. Private peer files use the existing agent writable state tree;
+the fixed unit exposes only its per-token resolver output as writable beneath
+read-only /etc/ppp. Resolver precreation rejects symlinks and shared inodes before
+truncation. Peer DNS is reported, not automatically installed as system resolvers.
+
+Focused race command (Go1.26 local toolchain, no CI):
+`go test -race -count=1 ./internal/subsystems ./internal/descriptors/pppoe ./internal/desired ./internal/agent -run 'TestCarrier|TestPppoeWAN|TestWANRoutingOnlyJoinLeaveReprojectsPPPDefaultOwnership'`
+PASS: subsystems1.125s, descriptors1.055s, desired1.119s, agent1.121s.
+The helper unit/bind loader's 28 controls also passed in its isolated worker.
+
+Not yet ready to merge: new actual namespace+scheduler regression found a real
+recovery ordering failure when a raw TAP is absent from descriptor inventory while
+the namespace reports repair-required. Scheduler can recreate the daemon before
+the pending missing-TAP create. Manager notified; separate correction and regression
+are required. Combined carrier review and final aggregate CI remain pending. This
+is a source failure, not laboratory-only acceptance. No native activation occurred.

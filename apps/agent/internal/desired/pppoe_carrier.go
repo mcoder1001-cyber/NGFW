@@ -26,6 +26,7 @@ func KernelPppoeEnabled(itf *ngfwv1.Interface) bool {
 // routing/NAT/firewall descriptor; the raw parent is never shadowed or retagged.
 func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 	var specs []pppoe.CarrierSpec
+	parents := map[string]pppoedesc.CarrierParent{}
 	var reserved []netip.Prefix
 	valid := true
 	for _, name := range sortedKeys(ifs) {
@@ -33,6 +34,13 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		for _, raw := range append(append([]string(nil), itf.GetIpv4()...), itf.GetIpv6()...) {
 			if p, err := netip.ParsePrefix(raw); err == nil {
 				reserved = append(reserved, p)
+			}
+		}
+		for _, sub := range itf.GetSubinterfaces() {
+			for _, raw := range append(append([]string(nil), sub.GetIpv4()...), sub.GetIpv6()...) {
+				if prefix, err := netip.ParsePrefix(raw); err == nil {
+					reserved = append(reserved, prefix)
+				}
 			}
 		}
 		if !KernelPppoeEnabled(itf) {
@@ -45,29 +53,13 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		}
 		p := itf.GetPppoe()
 		pt := Ptr("interfaces", name, "pppoe")
-		parent := ifs[p.GetParent()]
-		if p.GetParent() == "" || p.GetParent() == name || parent == nil {
-			s.Errorf(pt+"/parent", "pppoe.carrier-parent", "kernel PPP requires a distinct logical interface and an explicit existing raw parent; migrate the PPP configuration and its policy references to a logical PPP interface")
+		parent, err := pppoedesc.ResolveCarrierParent(ifs, p.GetParent())
+		if err != nil || p.GetParent() == name {
+			s.Errorf(pt+"/parent", "pppoe.carrier-parent", "kernel PPP requires a distinct exclusive raw parent: %v", err)
 			valid = false
 			continue
 		}
-		if parent.Unnumbered != nil || len(parent.GetSubinterfaces()) != 0 || parent.GetBond() != nil || parent.GetLcp() != nil || parent.GetL2() != nil || parent.GetPppoe() != nil || len(parent.GetIpv4()) != 0 || len(parent.GetIpv6()) != 0 || parent.GetDhcpClient() != nil {
-			s.Errorf(pt+"/parent", "pppoe.carrier-exclusive", "raw PPP parent must have no LCP, L2, PPP, DHCP or static IP configuration")
-			valid = false
-			continue
-		}
-		inBond := false
-		for _, other := range ifs {
-			if _, ok := other.GetBond().GetMembers()[p.GetParent()]; ok {
-				inBond = true
-				break
-			}
-		}
-		if inBond {
-			s.Errorf(pt+"/parent", "pppoe.carrier-exclusive", "raw PPP parent belongs to a bond")
-			valid = false
-			continue
-		}
+		parents[name] = parent
 		if itf.GetPhysical() != nil || itf.GetBond() != nil || itf.GetLcp() != nil || itf.GetL2() != nil || len(itf.GetSubinterfaces()) != 0 || itf.Unnumbered != nil {
 			s.Errorf(pt, "pppoe.carrier-logical", "the PPP logical interface is an owned IP transit, not a physical, bonded, LCP, L2, unnumbered or VLAN parent")
 			valid = false
@@ -84,6 +76,11 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		}
 		if mtu < 1280 && p.GetIpv6() != "" && p.GetIpv6() != "off" {
 			s.Errorf(pt+"/mtu", "pppoe.ipv6-mtu", "IPv6 PPP requires MTU at least1280")
+			valid = false
+			continue
+		}
+		if (parent.Root.Mtu != nil && parent.Root.GetMtu() < mtu+8) || (parent.Config.Mtu != nil && parent.Config.GetMtu() < mtu+8) {
+			s.Errorf(pt+"/mtu", "pppoe.parent-mtu", "PPP MTU plus eight encapsulation bytes must fit the raw parent and physical root")
 			valid = false
 			continue
 		}
@@ -118,6 +115,7 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 	}
 	for _, spec := range specs {
 		pt := Ptr("interfaces", spec.Logical, "pppoe")
+		PppoeCarrierVLAN(s, parents[spec.Logical], pt)
 		s.Add(pppoedesc.CarrierNamespaceKey(spec.Token()), dfkit.Encode(spec), pt)
 		rawID, transitID := spec.TapIDs()
 		rawKey := scheduler.Join(pppoedesc.CarrierTapName, spec.RawLogical())

@@ -272,7 +272,9 @@ class CarrierTests(unittest.TestCase):
     def test_verify_rejects_firewall_drift_despite_configured_flag(self):
         c = MemoryCarrier()
         c.configure(c.token, 'a' * 32)
-        self.assertTrue(c.verify(c.token, 'a' * 32)['verified'])
+        verified = c.verify(c.token, 'a' * 32)
+        self.assertTrue(verified['verified'])
+        self.assertEqual(verified['ppp_addresses'], ['192.0.2.10/32'])
         c.firewall_changed = True
         self.assertTrue(c.record['configured'])
         with self.assertRaisesRegex(ValueError, 'firewall changed'):

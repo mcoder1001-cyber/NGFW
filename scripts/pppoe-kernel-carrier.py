@@ -537,8 +537,12 @@ class Carrier:
         if (record.get('policy_source') != hashlib.sha256(nft_policy(True, token).encode()).hexdigest()
                 or record.get('firewall_digest') != self.nft_digest(firewall, token)):
             raise ValueError('carrier firewall changed')
+        ppp_addresses = sorted({str(ipaddress.ip_interface(str(item['local']) + '/' + str(item['prefixlen'])))
+                                for item in by_name.get('ppp0', {}).get('addr_info', [])
+                                if not item.get('tentative') and not item.get('dadfailed')})
         return {'verified': True, 'token': token, 'generation': record['generation'], 'boot': record['boot'],
-                'namespace': record['namespace'], 'links': live, 'mtu': ppp_mtu, 'transit': record['transit']}
+                'namespace': record['namespace'], 'links': live, 'mtu': ppp_mtu, 'transit': record['transit'],
+                'ppp_addresses': ppp_addresses}
 
     def verify(self, token, generation):
         record = self.load(token, generation)

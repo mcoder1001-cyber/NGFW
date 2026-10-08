@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"syscall"
 )
 
 // Paths is every filesystem location the renderer touches. It is injected so tests (and every agent that is not the
@@ -28,15 +29,16 @@ type Paths struct {
 	FileMode os.FileMode
 }
 
-// ProductPaths are the paths of the Ubuntu 26.04 image.
+// ProductPaths use package-provisioned targets behind fixed public /etc links.
+// Their parent is writable under ProtectSystem=strict; /etc itself remains read-only.
 func ProductPaths() Paths {
 	return Paths{
-		Hostname:          "/etc/hostname",
-		Localtime:         "/etc/localtime",
+		Hostname:          "/var/lib/ngfw-system-identity/hostname",
+		Localtime:         "/var/lib/ngfw-system-identity/localtime",
 		ZoneinfoDir:       "/usr/share/zoneinfo",
-		Issue:             "/etc/issue",
-		IssueNet:          "/etc/issue.net",
-		Motd:              "/etc/motd",
+		Issue:             "/var/lib/ngfw-system-identity/issue",
+		IssueNet:          "/var/lib/ngfw-system-identity/issue.net",
+		Motd:              "/var/lib/ngfw-system-identity/motd",
 		ResolvedDropIn:    "/etc/systemd/resolved.conf.d/ngfw.conf",
 		SetKernelHostname: true,
 		FileMode:          0o644,
@@ -47,6 +49,9 @@ func ProductPaths() Paths {
 // directory stays the host's (read only); the kernel hostname is never set.
 func PathsUnder(base string) Paths {
 	p := ProductPaths()
+	// Preserve the isolated test-slot contract independently of appliance packaging.
+	p.Hostname, p.Localtime = "/etc/hostname", "/etc/localtime"
+	p.Issue, p.IssueNet, p.Motd = "/etc/issue", "/etc/issue.net", "/etc/motd"
 	for _, f := range []*string{&p.Hostname, &p.Localtime, &p.Issue, &p.IssueNet, &p.Motd, &p.ResolvedDropIn} {
 		*f = filepath.Join(base, *f)
 	}
@@ -83,4 +88,26 @@ func (p Paths) Dirs() []string {
 		}
 	}
 	return out
+}
+
+// verifyProductPaths refuses apparently successful writes when the package's
+// public identity links are absent or redirected. It performs no host mutation.
+func verifyProductPaths(root string, uid uint32) error {
+	for _, path := range []string{"/etc", "/var", "/var/lib", "/var/lib/ngfw-system-identity"} {
+		info, err := os.Lstat(filepath.Join(root, path))
+		if err != nil {
+			return fmt.Errorf("sysident: package identity directory: %w", err)
+		}
+		owner, ok := info.Sys().(*syscall.Stat_t)
+		if !info.IsDir() || info.Mode().Perm()&0o022 != 0 || !ok || owner.Uid != uid {
+			return fmt.Errorf("sysident: untrusted package identity directory %s", path)
+		}
+	}
+	for _, name := range []string{"hostname", "localtime", "issue", "issue.net", "motd"} {
+		link, err := os.Readlink(filepath.Join(root, "/etc", name))
+		if err != nil || link != "/var/lib/ngfw-system-identity/"+name {
+			return fmt.Errorf("sysident: package identity link /etc/%s is absent or redirected", name)
+		}
+	}
+	return nil
 }

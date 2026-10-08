@@ -32,3 +32,32 @@ Narrow final source: local `a673d340a7a2b470a033ea96b59e176e579ed094`, tree `9f1
 A pending transition from first-install failure no longer causes a stop against a nonexistent unit: kept pending hosts now verify unit-file existence before stopping. Non-ENOENT evidence errors fail closed. `TestApplyNewSessionRetriesBeforeUnitWasWritten` creates a regular file where a required hook directory must exist, asserts first Apply fails with pending evidence but no installed unit, removes the obstruction, and verifies identical retry emits exactly daemon-reload and restart. Its recording runner explicitly rejects stopping a nonexistent unit. These assertions demonstrate the original retry failure and retain actual pending/file state checks.
 
 Independent `git diff --check`: PASS (exit 0, no output). Narrow source-only R1 verdict: APPROVE. Independent subset execution and unchanged full gate remain pending; no new Go execution pass is claimed in this verification.
+
+## Simulated hook admission fixture repair
+
+Narrow independently reviewed commit `3d03bab61ec5f76d44758d8d97bfb6c45ff4408e` changes only six lines in `apps/agent/internal/subsystems/pppoe_ipv6_test.go`. `globalsOwner=false` runtime Apply intentionally renders without supervision/admission. The test directly invokes the real down hook, so its simulated active session now explicitly obtains the same admission via `ResumeIPv6` that production supervision supplies. This setup does not change production guarded behavior and does not bypass the down hook. IPv6 withdrawal, renumbering, IPv4 preservation, full removal and file cleanup assertions remain unchanged.
+
+Historical hosted run `37812958217` failed this fixture at IPv6 down: old IPv6 addresses/default route remained because the non-admitted hook correctly could not publish state. That prior failure remains archived and does not establish a pass.
+
+Independent command, with Go 1.26.0, readonly modules and the race detector:
+
+```sh
+go -C apps/agent test -race -count=3 -v -run '^TestPppoeIPv6MirrorFollowsHookState$' ./internal/subsystems
+```
+
+Actual execution, exit 0 (application logs omitted):
+
+```text
+=== RUN   TestPppoeIPv6MirrorFollowsHookState
+--- PASS: TestPppoeIPv6MirrorFollowsHookState (0.10s)
+=== RUN   TestPppoeIPv6MirrorFollowsHookState
+--- PASS: TestPppoeIPv6MirrorFollowsHookState (0.09s)
+=== RUN   TestPppoeIPv6MirrorFollowsHookState
+--- PASS: TestPppoeIPv6MirrorFollowsHookState (0.10s)
+PASS
+ok  ngfw/agent/internal/subsystems 1.340s
+```
+
+No skips, production-source edits, real host service/VPP changes or full CI runs by this reviewer. Independent diff check: PASS. This remains a unit fixture using a fake FIB; it supplies no native PPP/VPP integration acceptance.
+
+Narrow R1 verdict: APPROVE the fixture correction and independently reproduced focused race regression. Final complete unchanged CI remains required.

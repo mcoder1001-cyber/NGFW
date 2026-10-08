@@ -65,3 +65,9 @@ A refused value comes back as problem+json with a pointer:
 - The login page reads only `GET /api/v1/auth/banner`, publicly returning the committed pre-login text with a 4096 UTF-16
   code-unit cap. Candidate text and other system/user fields are never returned. Text is escaped and shown literally.
   An unavailable banner does not block signing in. No daemon restart or authentication/session policy is changed.
+
+## Appliance package maintenance
+
+The package preserves the current hostname, time zone and banners while converting their public `/etc` paths to fixed managed links. Initial migration requires the previous `ngfw-agent` service to be stopped during package maintenance; package configuration refuses an active or unverifiable old agent and does not stop it automatically. An unexpected operator-managed symlink or conflicting saved target is preserved and reported for administrator resolution.
+
+Keep these public links intact. If a link is missing or redirected, reconciliation refuses the write and identity state reports `provisioning` with unavailable observations; configured values are not presented as installed host facts. Reconfiguring an already-managed package preserves the current identity without a service command. Package scripts do not activate the service automatically.

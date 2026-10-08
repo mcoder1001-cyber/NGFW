@@ -98,6 +98,12 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	if err := rt.Apply(context.Background(), []pppoe.Session{session}); err != nil {
 		t.Fatal(err)
 	}
+	// The non-owner Apply above only renders files. Explicitly model the
+	// supervisor admitting this simulated session before invoking its hooks;
+	// hooks without a current admission must remain unable to publish state.
+	if err := rt.renderer.ResumeIPv6(session.HostIf); err != nil {
+		t.Fatal(err)
+	}
 	ipup := func() {
 		t.Helper()
 		cmd := exec.Command(filepath.Join(paths.IPUpDir, "ngfw-tap0")) //nolint:gosec // rendered hook in this private test directory

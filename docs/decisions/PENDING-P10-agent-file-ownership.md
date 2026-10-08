@@ -1,29 +1,7 @@
-# PENDING: product agent ownership of daemon configuration files
+# Resolved source decision: agent daemon ownership and identity paths
 
-Status: pending owner decision for affected daemon/system-identity configuration mutations. P10 package installation on172.30.126.250 is verified and complete; this record must not park the whole installation task. No runtime failure on that machine has been established by this source review.
+The manager selected the implementation on 2026-10-08 under the owner's explicit completion instruction after disclosure of these mismatches. See [the complete decision and security rationale](DEC-agent-file-ownership-20261008.md).
 
-## Concrete mismatch
+The source change adds CAP_CHOWN and CAP_DAC_OVERRIDE while retaining the strict mount sandbox and explicit writable paths. Public system-identity files use fixed package-provisioned links into a dedicated public state directory; `/etc` is not made broadly writable.
 
-P10 prescribes the agent capability set `CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK`. The existing atomic file writer (`apps/agent/internal/renderers/helpers_files.go`) creates a new temporary file as the agent and calls `os.Lchown` to the renderer's fixed `File.Owner`. Existing product renderers require daemon UIDs, including FRR `frr:frr`, Kea `_kea:_kea`, and chrony `_chrony:_chrony`. Root with CAP_CHOWN removed cannot assign these different UIDs. Directory SGID or precreated destination files do not solve changing the new temporary file's UID.
-
-No capability was added and no host service changed. Actual sandboxed appliance acceptance is NOT RUN. This is a concrete contract/security decision, not a lab-only waiver.
-
-## Options
-
-1. Recommended for review: explicitly add CAP_CHOWN to the product agent unit while retaining the current narrow writable paths and fixed renderer ownership. Small implementation/reversal cost; changes an agent privilege boundary and requires owner approval.
-2. Introduce a privileged file-writing helper with a narrow authenticated request contract. Larger implementation, review and deployment scope.
-3. Redesign renderer ownership and daemon read permissions so all generated files remain owned by the agent. Requires cross-renderer compatibility proof and changes the current product file contract.
-
-Decision policy: `docs/decisions/decision-policy.md`, always-PENDING item 4 covers deviations to agent privileges. Existing task authority authorizes the three listed capabilities, not an additional one.
-
-Decision: pending. Affected acceptance: P10 appliance daemon configuration installation/reconciliation; no whole-project stop. Record the resolution in the decision log before applying a privilege change.
-
-## Additional strict-filesystem mismatch
-
-System identity product paths include `/etc/hostname`, `/etc/localtime`, `/etc/issue`, `/etc/issue.net`, `/etc/motd` and a resolved drop-in. The shared atomic writer creates a temporary sibling in the parent directory before rename. Under ProtectSystem=strict, granting only a single file as writable does not make `/etc` writable for temporary creation/rename; a file bind mount can also prevent replacement. Existing approved writable daemon directories do not cover these global file parents.
-
-CAP_CHOWN alone does not solve this second issue. Do not add broad writable `/etc` silently. A reviewed narrow privileged file-writer/explicit product-path architecture, or an owner-approved filesystem exception with an assessed security boundary, is required for installed system-identity mutations. Keep readback/banner code and unrelated development moving; only affected appliance acceptance depends on this decision.
-
-## Installation evidence correction, 2026-10-04
-
-The installed agent is active under the same strict unit/capability set. Package installation and firstboot/API checks passed. This proves installation, not a daemon-UID chown or global /etc atomic replacement test. Preserve the source compatibility question without describing the installed appliance as failed or P10 as uninstalled. See docs/status/tasks/P10-250-installation-reconciliation-20261004.md.
+This historical path is retained for existing board/document links. It no longer represents an unanswered architecture choice. Independent review, the final hosted capability/ownership fixtures and actual sandboxed-appliance acceptance must still be recorded before claiming completion. P10's previous installed-development-bundle acceptance remains valid. Product license authority remains separately pending.

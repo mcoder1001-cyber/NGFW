@@ -45,7 +45,7 @@ All live cases below are **NOT RUN**. Package source, fixtures, syntax checks an
 | Firewall and boot | Real nft syntax/readback; early static base policy and exact management/punt interfaces; no unrelated table flush; offline and real distro systemd graph, failure propagation, firstboot/VPP/API/nginx boot sequencing |
 | Runtime renderers | Exercise FRR/Kea/chrony/rsyslog/capture writes under the installed unit's actual capabilities and permissions, reconcile/restart and inspect daemon readback |
 
-Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt synchronization now has source implementation and isolated tests, with target acceptance still NOT RUN; daemon-UID ownership requires the decision in `docs/decisions/PENDING-P10-agent-file-ownership.md`; source licensing metadata is unresolved for release. P10 remains running. Resolve these code/security/release boundaries before claiming full task completion or a releasable appliance.
+Known implementation/decision gaps are not lab-only deferrals: dynamic LCP punt synchronization now has source implementation and isolated tests, with target acceptance still NOT RUN; daemon-UID ownership requires the decision in `docs/decisions/PENDING-P10-agent-file-ownership.md`; source licensing metadata is unresolved for release. P10 is merged for the verified development-package installation. Ownership/identity source followups are addressed by DEC-agent-file-ownership-20261008 in the completion campaign; their final hosted and installed-service acceptance remain separate. Authoritative product-license metadata remains unresolved and is not lab-only.
 
 ### P10 dynamic admission follow-up
 
@@ -58,8 +58,11 @@ default namespace transitions including malformed VPP readback; foreign/same-nam
 devices and orphan cleanup; nft/VPP restart/reboot resync; committed command with
 lost reply, bounded compensation and DEGRADED recovery under installed unit.
 Run them in this single campaign when access returns; source fixture success is
-not traffic or boot acceptance. CAP_CHOWN/global `/etc` ownership decision and
-release license remain unresolved, so P10 stays RUNNING.
+not traffic or boot acceptance. The former CAP_CHOWN/global `/etc` source boundary is addressed by the
+reviewed completion-campaign ownership/identity changes, without broad writable
+`/etc`; final hosted and appliance acceptance remain required. P10 stays merged
+for the verified development installation. Product release-license authority
+remains unresolved and is not a lab-only test.
 
 ### TD-19 provisioning and pinned installers
 
@@ -301,7 +304,7 @@ tracked by P10/F-vpp-debs/P11-host. No historical package install is required.
 | Cross-component offline freeze | PASS: contract build, reachability, commit-engine/service46 and auth11 checks | Rerun on the final merged source via test/acceptance/freeze/run.py |
 | Disposable VPP smoke, slot31 | PASS: af_packet ping/counters and cleanup; two tests, no skips | Does not certify API/browser or full product packet chains |
 | TEST-traffic-B | NOT RUN here | Owned native route-based IPsec/daemon campaign; record exact SHA and packet evidence |
-| TEST-traffic-C | NOT RUN | Complete and independently review driver, then owned quiet window; real MPLS/SRH/VRRP/QoS/riders and rollback |
+| TEST-traffic-C | NOT RUN | Corrected driver and independent reviews already exist; execute in an owned quiet window for real MPLS/SRH/VRRP/QoS/riders and rollback |
 | Final browser | NOT RUN | Owned API/agent stack, en/fa real candidate/commit/rollback and console checks |
 | Appliance install/HA | NOT RUN | Clean target boot/install and authorized two-node failover; never restart shared VPP while handover is pending |
 

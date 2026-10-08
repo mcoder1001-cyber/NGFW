@@ -51,8 +51,22 @@ export class SetupController {
         throw problems.badRequest('Select dataplane interfaces');
       const source = structuredClone(base);
       const missing = selected.filter((name) => !source.interfaces[name]);
-      if (missing.length > 0) {
-        const live = await this.agent.interfaceState(missing);
+      const observed = [
+        ...new Set([...missing, ...(body.input.wanMode === 'pppoe' ? [body.input.wan] : [])]),
+      ];
+      if (observed.length > 0) {
+        const live = await this.agent.interfaceState(observed);
+        if (body.input.wanMode === 'pppoe') {
+          const parent = live.interfaces.find(
+            (item) =>
+              item.name === body.input.wan &&
+              !item.parent &&
+              ['dpdk', 'vmxnet3', 'virtio'].includes(item.type) &&
+              item.swIfIndex !== 0,
+          );
+          if (!parent)
+            throw problems.badRequest('PPPoE requires an observed physical dataplane parent');
+        }
         for (const name of missing) {
           const state = live.interfaces.find(
             (item) =>

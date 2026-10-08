@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { RootConfig } from './index.js';
 import { hostname, timezone, ipv4Cidr, hostOrIp } from './primitives.js';
 import { InterfacePppoeSchema } from './domains/ext/pppoe.js';
-import { parentInterfaceName } from './domains/interfaces.js';
+import { InterfaceSchema, parentInterfaceName } from './domains/interfaces.js';
 import { diff } from './diff.js';
 
 export const SetupInputSchema = z
@@ -23,9 +23,17 @@ export const SetupInputSchema = z
   })
   .superRefine((s, ctx) => {
     if (s.wanMode === 'pppoe' && !s.wanPppoe)
-      ctx.addIssue({ code: 'custom', path: ['wanPppoe'], message: 'PPPoE username and stored password reference required' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['wanPppoe'],
+        message: 'PPPoE username and stored password reference required',
+      });
     if (s.wanMode !== 'pppoe' && s.wanPppoe)
-      ctx.addIssue({ code: 'custom', path: ['wanPppoe'], message: 'PPPoE credentials require PPPoE WAN mode' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['wanPppoe'],
+        message: 'PPPoE credentials require PPPoE WAN mode',
+      });
     if (s.wan === s.lan)
       ctx.addIssue({ code: 'custom', path: ['lan'], message: 'WAN and LAN must differ' });
     if (s.wanMode === 'static' && (!s.wanAddress || !s.wanGateway))
@@ -72,6 +80,53 @@ export function setupPool(cidr: string) {
   };
 }
 
+const SETUP_PPPOE = 'setup-pppoe';
+const SETUP_PPPOE_DESCRIPTION = 'Setup PPPoE WAN (managed by setup)';
+
+function removeSetupPppoe(doc: RootConfig, input: SetupInput) {
+  const previous = doc.interfaces[SETUP_PPPOE];
+  if (!previous) return;
+  const expected = InterfaceSchema.parse({
+    enabled: true,
+    description: SETUP_PPPOE_DESCRIPTION,
+    vrf: previous.vrf,
+    mtu: 1492,
+    pppoe: previous.pppoe,
+  });
+  if (
+    !doc.system.setup.completed ||
+    !previous.pppoe ||
+    previous.description !== SETUP_PPPOE_DESCRIPTION ||
+    JSON.stringify(previous) !== JSON.stringify(expected) ||
+    !doc.nat.outside.includes(SETUP_PPPOE) ||
+    !doc.nat.pools.some(
+      (pool) => pool.name === 'setup-wan' && 'interface' in pool && pool.interface === SETUP_PPPOE,
+    )
+  )
+    throw new Error('The setup-pppoe interface is not an unchanged wizard-owned WAN');
+  if (input.wanMode !== 'pppoe') {
+    const rest = structuredClone(doc);
+    delete rest.interfaces[SETUP_PPPOE];
+    rest.nat.inside = rest.nat.inside.filter((name) => name !== SETUP_PPPOE);
+    rest.nat.outside = rest.nat.outside.filter((name) => name !== SETUP_PPPOE);
+    rest.nat.pools = rest.nat.pools.filter((pool) => pool.name !== 'setup-wan');
+    rest.acl.attachments = rest.acl.attachments.filter(
+      (a) => !['setup-lan-out', 'setup-wan-in'].includes(a.list),
+    );
+    rest.routing.static = rest.routing.static.filter(
+      (route) => route.description !== 'Setup WAN default route',
+    );
+    const references = (value: unknown): boolean =>
+      value === SETUP_PPPOE ||
+      (Array.isArray(value)
+        ? value.some(references)
+        : value !== null && typeof value === 'object' && Object.values(value).some(references));
+    if (references(rest))
+      throw new Error('Remove unrelated references to setup-pppoe before changing WAN mode');
+  }
+  delete doc.interfaces[SETUP_PPPOE];
+}
+
 /** Pure builder: preserve unrelated objects; replace only the named wizard policy and selected interface addressing. */
 export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: string): RootConfig {
   const input = SetupInputSchema.parse(raw);
@@ -81,10 +136,49 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
     throw new Error('Select existing interfaces');
   if (base.interfaces[input.wan]!.vrf !== base.interfaces[input.lan]!.vrf)
     throw new Error('WAN and LAN must use the same VRF');
+  if ([input.wan, input.lan].includes(SETUP_PPPOE))
+    throw new Error('Select physical WAN and LAN interfaces, not the wizard logical WAN');
+  if (base.interfaces[input.wan]!.pppoe || base.interfaces[input.lan]!.pppoe)
+    throw new Error(
+      'Existing PPPoE interfaces require explicit migration outside the setup wizard',
+    );
   const doc = structuredClone(base);
+  removeSetupPppoe(doc, input);
   const wan = doc.interfaces[input.wan]!;
   const lan = doc.interfaces[input.lan]!;
   const pool = setupPool(input.lanAddress);
+  const wanName = input.wanMode === 'pppoe' ? SETUP_PPPOE : input.wan;
+  if (input.wanMode === 'pppoe') {
+    if (
+      wan.lcp ||
+      wan.l2 ||
+      wan.bond ||
+      wan.unnumbered ||
+      Object.keys(wan.subinterfaces).length ||
+      Object.values(doc.interfaces).some(
+        (iface) => iface.bond?.members[input.wan] || iface.pppoe?.parent === input.wan,
+      )
+    )
+      throw new Error(
+        'PPPoE requires an exclusive physical parent without LCP, L2, bonding or subinterfaces',
+      );
+    if (wan.mtu !== undefined && wan.mtu < 1500)
+      throw new Error('PPPoE setup requires a parent MTU of at least 1500');
+    doc.interfaces[SETUP_PPPOE] = InterfaceSchema.parse({
+      enabled: true,
+      description: SETUP_PPPOE_DESCRIPTION,
+      vrf: wan.vrf,
+      mtu: 1492,
+      pppoe: {
+        ...input.wanPppoe!,
+        parent: input.wan,
+        mtu: 1492,
+        defaultRoute: true,
+        mssClamp: true,
+        ipv6: 'off',
+      },
+    });
+  }
   doc.system.hostname = input.hostname;
   doc.system.timezone = input.timezone;
   doc.system.setup = { completed: true, completedAt };
@@ -154,12 +248,12 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
     enabled: true,
     mode: 'ed',
     inside: [input.lan],
-    outside: [input.wan],
+    outside: [wanName],
     insideVrf: lan.vrf,
     outsideVrf: wan.vrf,
     outputFeature: [],
     forwarding: false,
-    pools: [{ name: 'setup-wan', interface: input.wan, twiceNat: false }],
+    pools: [{ name: 'setup-wan', interface: wanName, twiceNat: false }],
   };
   doc.acl.lists['setup-lan-out'] = {
     tags: [],
@@ -196,13 +290,13 @@ export function buildSetup(base: RootConfig, raw: SetupInput, completedAt: strin
       !['setup-lan-out', 'setup-wan-in'].includes(a.list) &&
       !(
         a.target.kind === 'interface' &&
-        [input.wan, input.lan].includes(a.target.interface) &&
+        [wanName, input.lan].includes(a.target.interface) &&
         a.direction === 'in'
       ),
   );
   for (const [iface, list] of [
     [input.lan, 'setup-lan-out'],
-    [input.wan, 'setup-wan-in'],
+    [wanName, 'setup-wan-in'],
   ] as const)
     doc.acl.attachments.push({
       list,

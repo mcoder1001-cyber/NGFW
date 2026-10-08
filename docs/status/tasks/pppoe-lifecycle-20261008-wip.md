@@ -1,7 +1,8 @@
 # PPPoE lifecycle repair WIP
 
 Branch: codex/pppoe-lifecycle-20261008; base 4d4723f.
-Exact local source checkpoint: 6be8034. Remote source SHA: none (unpublished). Publication blocked by automatic review: repository payload/destination authorization
+Exact local source checkpoint: d08aae29b535671e37e5caeae6d1abc590d80101.
+Checkpoint tree: e17623c58d191d9689f18111e4c34ae19fa5a58a. Remote source SHA: none (unpublished). Publication blocked by automatic review: repository payload/destination authorization
 and trust/privacy were not established. No remote publication claimed.
 Owned files: PPPoE renderer lifecycle.go/lifecycle_test.go, supervisor.go/tests,
 templates/hook6.tmpl/ipv6.tmpl, testdata/two-sessions.golden; subsystem

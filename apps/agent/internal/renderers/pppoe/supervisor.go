@@ -63,8 +63,12 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		if err := r.StopIPv6(ctx, hostIf); err != nil {
 			return err
 		}
-		if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
-			return err
+		if _, err := os.Stat(r.paths.UnitDir + "/" + unitName(hostIf)); err == nil {
+			if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("pppoe: removed unit evidence unavailable")
 		}
 		for _, p := range r.sessionFiles(hostIf) {
 			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
@@ -129,6 +133,13 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 			return err
 		}
 	}
+	for hostIf := range stale {
+		if !want[hostIf] {
+			if err := r.CompleteIPv6Transition(hostIf); err != nil {
+				return err
+			}
+		}
+	}
 	// (re)start changed or new sessions, deterministic order
 	for _, hostIf := range sortedKeys(want) {
 		if changed[hostIf] {
@@ -178,6 +189,14 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 // installedHostIfs are the host interfaces with a unit file on disk (what a previous Apply left).
 func (r *Renderer) installedHostIfs() map[string]bool {
 	out := map[string]bool{}
+	// Removed units retain pending evidence until daemon-reload succeeds.
+	// Include that inventory even after their unit files have been deleted.
+	pending, _ := os.ReadDir(r.paths.StateDir)
+	for _, e := range pending {
+		if host, ok := strings.CutSuffix(e.Name(), ".ipv6.pending"); ok && hostIfRe.MatchString(host) {
+			out[host] = true
+		}
+	}
 	entries, err := os.ReadDir(r.paths.UnitDir)
 	if err != nil {
 		return out

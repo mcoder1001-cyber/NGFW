@@ -123,3 +123,36 @@ func TestApplyIdenticalRetryCompletesFailedTransition(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyRemovalRetryReloadsDeletedUnit(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+	s := minimalSession()
+	if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+		t.Fatal(err)
+	}
+	rr.On(SystemctlBin, func(cmd renderers.Command) (renderers.Output, error) {
+		if cmd.Args[0] == "daemon-reload" {
+			return renderers.Output{}, errors.New("controlled removal reload failure")
+		}
+		return renderers.Output{}, nil
+	})
+	if err := r.Apply(t.Context(), rr, nil); err == nil {
+		t.Fatal("controlled reload failure ignored")
+	}
+	rr.Reset()
+	rr.Succeed(SystemctlBin, "")
+	if err := r.Apply(t.Context(), rr, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cmds(rr), "|"); got != "daemon-reload" {
+		t.Fatalf("removed unit retry did not reload: %s", got)
+	}
+	if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + ".ipv6.pending"); !os.IsNotExist(err) {
+		t.Fatal("successful removal retained pending transition")
+	}
+	rr.Reset()
+	if err := r.Apply(t.Context(), rr, nil); err != nil || len(rr.Calls()) != 0 {
+		t.Fatalf("completed removal was not idempotent: %v %v", err, rr.Calls())
+	}
+}

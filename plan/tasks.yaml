@@ -1462,7 +1462,7 @@ tasks:
       - TD-8
     priority: 4
     est_hours: 10
-    state: "running"
+    state: "review"
     parked_on: ''
     wbs:
       - D6.5
@@ -1480,8 +1480,8 @@ tasks:
       ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109) | D-125 envelope: review 3.3b — peer.go must not return meta+error with the peer left in VPP
       (delete it, or best-effort subscription), fake-VPP test (+1 h) | done 0e19dcaf (CI green; e2e secret step waits PENDING-secret-channel); review running | fix round 1 173e49b4; verify
       APPROVE 4797e681; queued | merged 2b78ad1 on the GitHub main (ported from task/F-wireguard), board synced 2026-09-26'
-    worker_status: "Production sealed-generation delivery and WG lifecycle tests implemented in secrets-complete; shared API key-delivery security review found a CA-key boundary defect in syslog selection. Correction and combined integration required; historical fixture-only secret path is not completion."
-    completion_receipt_20261008: "Production sealed-generation delivery and WG lifecycle tests implemented in secrets-complete; shared API key-delivery security review found a CA-key boundary defect in syslog selection. Correction and combined integration required; historical fixture-only secret path is not completion."
+    worker_status: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
+    completion_receipt_20261008: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
   - id: F-tunnels
     title: 'Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE'
     prompt: prompts/features/F-tunnels.md
@@ -1554,7 +1554,7 @@ tasks:
       - TD-8
     priority: 3
     est_hours: 16
-    state: "running"
+    state: "review"
     parked_on: ''
     wbs:
       - D3.1
@@ -1581,8 +1581,8 @@ tasks:
       6 PASS); review running; Q1 linux-nl window = manager decision after review | review APPROVE WITH CHANGES 7931c596; fix round 1 (H1 pair dependency, H2 gitleaks text, mediums); H3
       VPP-FIB proof deferred to row P12-fib-proof (LAB-vpp-per-slot) — manager | fix round 1 e7b374b5; verify APPROVE f16d754c; merge main after F-vrf (M1 + N1–N3), then short re-verify
       | merged b6cc335 on the GitHub main (ported from task/P12), board synced 2026-09-26"
-    worker_status: "BGP MD5 production sealed credentials and historical-generation rollback source followup in secret-consumers. Independent final review/integration/CI pending; native mgmtd/FIB proof remains separate."
-    completion_receipt_20261008: "BGP MD5 production sealed credentials and historical-generation rollback source followup in secret-consumers. Independent final review/integration/CI pending; native mgmtd/FIB proof remains separate."
+    worker_status: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
+    completion_receipt_20261008: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
   - id: F-ospf
     title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
     prompt: prompts/features/F-ospf.md
@@ -1710,7 +1710,7 @@ tasks:
       - W-seed
     priority: 4
     est_hours: 10
-    state: "running"
+    state: "review"
     parked_on: ''
     wbs:
       - D7.3
@@ -1732,8 +1732,8 @@ tasks:
       ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP
       write) | done c94e90d9 (CI green; 04:27 dns crash guarded, D-137); review running | review APPROVE WITH CHANGES b665904f; fix round 1 (H1 IPv6-only cache crash, H2 live readiness,
       M1–M3, M5) — D-139 | fix round 1 06ad0939; verify APPROVE 4507e5ea; rebase round after F-kea + TD-13 + TD-23 (L3 fail closed)'
-    worker_status: "Version-pinned NTP and TLS syslog consumers implemented in secret-consumers; independent review and central startup/projection wiring pending. TLS client-key delivery needs paired leaf-certificate validation before decryption."
-    completion_receipt_20261008: "Version-pinned NTP and TLS syslog consumers implemented in secret-consumers; independent review and central startup/projection wiring pending. TLS client-key delivery needs paired leaf-certificate validation before decryption."
+    worker_status: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
+    completion_receipt_20261008: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
   - id: F-mpls-srmpls
     title: 'Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109)'
     prompt: prompts/features/F-mpls-srmpls.md
@@ -1871,7 +1871,7 @@ tasks:
       - W-seed-BC
     priority: 5
     est_hours: 10
-    state: "running"
+    state: "review"
     parked_on: ''
     wbs:
       - D7.10
@@ -1887,8 +1887,8 @@ tasks:
     started: ''
     finished: '2026-09-25'
     notes: 'prompts-s4: suggested deps +F-startup-gen (TCP/UDP buffer tuning is startup.conf-only) — docs/status/tasks/prompts-s4.md'
-    worker_status: "Namespace secret references now have source binding to existing sealed generations; focused lifecycle checks in progress. Central integration/review/CI pending."
-    completion_receipt_20261008: "Namespace secret references now have source binding to existing sealed generations; focused lifecycle checks in progress. Central integration/review/CI pending."
+    worker_status: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
+    completion_receipt_20261008: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
   - id: F-lb
     title: 'Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev)'
     prompt: prompts/features/F-lb.md
@@ -1953,7 +1953,7 @@ tasks:
       - W-seed-BC
     priority: 5
     est_hours: 10
-    state: "running"
+    state: "review"
     parked_on: ''
     wbs:
       - D7.5
@@ -1969,8 +1969,8 @@ tasks:
     started: ''
     finished: '2026-09-25'
     notes: 'D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
-    worker_status: "Production sealed-generation v2c/v3 bindings and rotation/recovery tests implemented on secrets-complete; final shared selector review, integration and CI pending."
-    completion_receipt_20261008: "Production sealed-generation v2c/v3 bindings and rotation/recovery tests implemented on secrets-complete; final shared selector review, integration and CI pending."
+    worker_status: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
+    completion_receipt_20261008: "Combined sealed credential source9d61005d independently R2-approved; R4 CA-key isolation correction approved. Eight focused race packages and36 API tests PASS. Staged in PR214; final cumulative generation/CI/merge and native consumer acceptance pending."
   - id: F-ipfix-sflow
     title: 'Wave C (day 13-15): IPFIX/flowprobe + sFlow exporters'
     prompt: prompts/features/F-ipfix-sflow.md
@@ -4152,7 +4152,7 @@ tasks:
       - F-host-acl-nftables
     priority: 1
     est_hours: 10
-    state: merged
+    state: running
     parked_on: ''
     wbs: []
     scope: see prompt
@@ -4163,7 +4163,8 @@ tasks:
     started: '2026-10-01T20:33:27.076593+00:00'
     finished: '2026-10-04'
     notes: 'Completed reviewed source on 2026-10-04. Seven-step bilingual staged setup, password and confirmed commit; PPPoE disabled pending real client; live rig/browser acceptance deferred. | 2026-10-07 new product bugfix PR198 merged e74c33ebd2c083ef45d733b8d4494a78eb67edd9: eligible live physical WAN/LAN discovery and translated selection guard, independent reviews and local/hosted quick PASS. Existing merged task state retained; actual appliance acceptance remains deferred.'
-    worker_status: source complete, focused verification and independent APPROVE; remote b496d619b49a5f6f57c377e68c5022c4dcf66a4b; acceptance boundaries documented
+    worker_status: "Accepted wizard prompt includes PPPoE when client source is merged. Reopened to connect additive PPPoE setup input/UI to distinct logical WAN carrier, sealed credential references and safe rerun/collision behavior; source worker assigned. Existing DHCP/static proofs retained; final source review and CI pending."
+    completion_receipt_20261008: "Accepted wizard prompt includes PPPoE when client source is merged. Reopened to connect additive PPPoE setup input/UI to distinct logical WAN carrier, sealed credential references and safe rerun/collision behavior; source worker assigned. Existing DHCP/static proofs retained; final source review and CI pending."
   - id: F-rule-expiry
     title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
     prompt: prompts/features/F-rule-expiry.md

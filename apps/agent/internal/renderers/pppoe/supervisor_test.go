@@ -2,6 +2,7 @@ package pppoe
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -53,7 +54,7 @@ func TestApplySupervisor(t *testing.T) {
 	if err := r.Apply(ctx, rr, []Session{s0b, s1}); err != nil {
 		t.Fatal(err)
 	}
-	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart ngfw-pppoe-wan0.service" {
+	if got := cmds(rr); strings.Join(got, "|") != "stop ngfw-pppoe-wan0.service|daemon-reload|restart ngfw-pppoe-wan0.service" {
 		t.Fatalf("mtu change: %v", got)
 	}
 
@@ -80,5 +81,140 @@ func TestApplySupervisor(t *testing.T) {
 	}
 	if _, err := os.Stat(base + "/etc/ppp/chap-secrets"); !os.IsNotExist(err) {
 		t.Fatal("chap-secrets not removed when no sessions remain")
+	}
+}
+
+func TestApplyIdenticalRetryCompletesFailedTransition(t *testing.T) {
+	for _, failAt := range []string{"daemon-reload", "restart"} {
+		t.Run(failAt, func(t *testing.T) {
+			r := New(WithPaths(PathsUnder(t.TempDir())))
+			rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+			s := minimalSession()
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+				t.Fatal(err)
+			}
+			s.MTU = 1400
+			rr.On(SystemctlBin, func(cmd renderers.Command) (renderers.Output, error) {
+				if cmd.Args[0] == failAt {
+					return renderers.Output{}, errors.New("controlled transition failure")
+				}
+				return renderers.Output{}, nil
+			})
+			if err := r.Apply(t.Context(), rr, []Session{s}); err == nil {
+				t.Fatal("controlled failure was ignored")
+			}
+			rr.Reset()
+			rr.Succeed(SystemctlBin, "")
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(cmds(rr), "|"); got != "stop "+unitName(s.HostIf)+"|daemon-reload|restart "+unitName(s.HostIf) {
+				t.Fatalf("identical retry did not resume transition: %s", got)
+			}
+			for _, path := range []string{r.paths.StateDir + "/" + s.HostIf + ".ipv6.blocked", r.paths.StateDir + "/ipv6-transitions/" + s.HostIf} {
+				if _, err := os.Stat(path); !os.IsNotExist(err) {
+					t.Fatalf("successful retry retained %s", path)
+				}
+			}
+			rr.Reset()
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil || len(rr.Calls()) != 0 {
+				t.Fatalf("completed transition was not idempotent: %v %v", err, rr.Calls())
+			}
+		})
+	}
+}
+
+func TestApplyRemovalRetryReloadsDeletedUnit(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+	s := minimalSession()
+	if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+		t.Fatal(err)
+	}
+	rr.On(SystemctlBin, func(cmd renderers.Command) (renderers.Output, error) {
+		if cmd.Args[0] == "daemon-reload" {
+			return renderers.Output{}, errors.New("controlled removal reload failure")
+		}
+		return renderers.Output{}, nil
+	})
+	if err := r.Apply(t.Context(), rr, nil); err == nil {
+		t.Fatal("controlled reload failure ignored")
+	}
+	rr.Reset()
+	rr.Succeed(SystemctlBin, "")
+	if err := r.Apply(t.Context(), rr, nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(cmds(rr), "|"); got != "daemon-reload" {
+		t.Fatalf("removed unit retry did not reload: %s", got)
+	}
+	if _, err := os.Stat(r.paths.StateDir + "/ipv6-transitions/" + s.HostIf); !os.IsNotExist(err) {
+		t.Fatal("successful removal retained pending transition")
+	}
+	for _, suffix := range []string{".ipv6.blocked", ".ipv6.admission"} {
+		if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + suffix); !os.IsNotExist(err) {
+			t.Fatalf("successful removal retained tombstone %s", suffix)
+		}
+	}
+	rr.Reset()
+	if err := r.Apply(t.Context(), rr, nil); err != nil || len(rr.Calls()) != 0 {
+		t.Fatalf("completed removal was not idempotent: %v %v", err, rr.Calls())
+	}
+}
+
+func TestApplyRefusesUnavailableTransitionInventory(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	if err := os.MkdirAll(r.paths.StateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.paths.StateDir+"/ipv6-transitions", nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+	if err := r.Apply(t.Context(), rr, nil); err == nil {
+		t.Fatal("unavailable transition inventory silently accepted")
+	}
+	if len(rr.Calls()) != 0 {
+		t.Fatal("commands ran despite unavailable recovery evidence")
+	}
+}
+
+func TestApplyNewSessionRetriesBeforeUnitWasWritten(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	s := minimalSession()
+	// Admission/pending is written before renderer directories/files. Make a
+	// required directory a regular file to fail this first installation there.
+	if err := os.MkdirAll(r.paths.PeersDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.paths.IPUpDir, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	rr := renderers.NewRecordingRunner().On(SystemctlBin, func(cmd renderers.Command) (renderers.Output, error) {
+		if cmd.Args[0] == "stop" {
+			if _, err := os.Stat(r.paths.UnitDir + "/" + unitName(s.HostIf)); os.IsNotExist(err) {
+				return renderers.Output{}, errors.New("cannot stop nonexistent unit")
+			}
+		}
+		return renderers.Output{}, nil
+	})
+	if err := r.Apply(t.Context(), rr, []Session{s}); err == nil {
+		t.Fatal("controlled initial file installation failure ignored")
+	}
+	if _, err := os.Stat(r.paths.StateDir + "/ipv6-transitions/" + s.HostIf); err != nil {
+		t.Fatal("failure did not retain pending evidence", err)
+	}
+	if _, err := os.Stat(r.paths.UnitDir + "/" + unitName(s.HostIf)); !os.IsNotExist(err) {
+		t.Fatal("control did not fail before unit installation")
+	}
+	if err := os.Remove(r.paths.IPUpDir); err != nil {
+		t.Fatal(err)
+	}
+	rr.Reset()
+	if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+		t.Fatal("identical retry failed", err)
+	}
+	if got := strings.Join(cmds(rr), "|"); got != "daemon-reload|restart "+unitName(s.HostIf) {
+		t.Fatalf("initial install retry stopped nonexistent unit: %s", got)
 	}
 }

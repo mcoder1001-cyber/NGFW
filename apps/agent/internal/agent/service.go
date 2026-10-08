@@ -1088,7 +1088,11 @@ func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*n
 		if s.wan != nil {
 			health = s.wan.HealthFor(savedWAN.GetRouting().GetWanGroups(), wanIdentity(savedWAN))
 		}
-		multiwan.RestorePBRReferences(ds, savedWAN, health)
+		resolvedWAN := savedWAN
+		if s.wan != nil {
+			resolvedWAN = s.wan.ResolveGateways(savedWAN, wanIdentity(savedWAN), false)
+		}
+		multiwan.RestorePBRReferences(ds, resolvedWAN, health)
 	}
 
 	s.mu.Lock()
@@ -1380,7 +1384,14 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	if s.wan != nil {
 		health = s.wan.HealthFor(effective.GetRouting().GetWanGroups(), wanIdentity(effective))
 	}
-	findings := multiwan.ExpandPBR(effective, health)
+	wanProjection := effective
+	if s.wan != nil {
+		wanProjection = s.wan.ResolveGateways(effective, wanIdentity(effective), false)
+	}
+	findings := multiwan.ExpandPBR(wanProjection, health)
+	if effective.Routing != nil {
+		effective.Routing.Pbr = wanProjection.GetRouting().GetPbr()
+	}
 	projection := projectOwned(effective, projectionDomains, s.resolveVRF, s.netdevKind, s.owner)
 	for _, f := range findings {
 		projection.Errorf(f.Pointer, "multiwan.pbr-group", "%s", f.Message)

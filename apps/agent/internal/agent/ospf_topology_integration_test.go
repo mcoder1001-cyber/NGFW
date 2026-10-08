@@ -215,6 +215,41 @@ func TestRootFRRContendedLockClosesDescriptors(t *testing.T) {
 	}
 }
 
+func TestRootFRRCleanupWithoutSlotPreservesHolderFiles(t *testing.T) {
+	base := t.TempDir()
+	path := filepath.Join(base, "slot.lock")
+	owner, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = owner.Close() }()
+	marker := filepath.Join(base, "holder.pid")
+	if err := os.WriteFile(marker, []byte("holder"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "pathspace")
+	paths := frr.Paths{RunDir: filepath.Join(base, "run")}
+	if err := os.Symlink(paths.SocketDir(), link); err != nil {
+		t.Fatal(err)
+	}
+	h := &rootFRR{Base: base, Paths: paths, symlink: link}
+	if contender, err := acquireRootFRRLock(path); err == nil || contender != nil {
+		if contender != nil {
+			_ = contender.Close()
+		}
+		t.Fatal("contender unexpectedly acquired the holder's slot")
+	}
+	if err := h.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if content, err := os.ReadFile(marker); err != nil || string(content) != "holder" {
+		t.Fatalf("failed contender changed holder files: content=%q error=%v", content, err)
+	}
+	if target, err := os.Readlink(link); err != nil || target != paths.SocketDir() {
+		t.Fatalf("failed contender removed holder symlink: target=%q error=%v", target, err)
+	}
+}
+
 func (h *rootFRR) pidFile(d string) string { return filepath.Join(h.Paths.SocketDir(), d+".pid") }
 
 func (h *rootFRR) args(d string) []string {
@@ -318,6 +353,11 @@ func (h *rootFRR) Renderer() *frr.Renderer {
 // Stop terminates the daemons by the PIDs this test spawned (SIGTERM, SIGKILL after 10 s), removes the symlink and the
 // base directory and releases the slot lock. Idempotent.
 func (h *rootFRR) Stop() error {
+	// Cleanup is registered before startup. A failed acquisition owns neither
+	// the existing holder's daemons nor its pathspace and base directory.
+	if h.lock == nil {
+		return nil
+	}
 	var errs []error
 	for i := len(h.daemons) - 1; i >= 0; i-- {
 		d := h.daemons[i]

@@ -13,6 +13,7 @@ import (
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretvalue"
 )
 
 // The chrony renderer inside the agent (F-unbound-chrony-syslog; D-109 d: one singleton scheduler descriptor):
@@ -74,11 +75,12 @@ func (d *Descriptor) Dependencies(proto.Message) []scheduler.Dependency { return
 
 // Create implements scheduler.Descriptor.
 func (d *Descriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
-	in, ok := obj.(*ngfwv1.NtpService)
-	if !ok {
-		return nil, fmt.Errorf("%w: %s value is %T, want *ngfw.v1.NtpService", ErrInvalid, Name, obj)
+	in := new(ngfwv1.NtpService)
+	bindings, err := secretvalue.Unwrap(obj, in)
+	if err != nil {
+		return nil, err
 	}
-	return nil, d.apply(ctx, in)
+	return nil, d.apply(secretvalue.WithBindings(ctx, bindings), in, bindings)
 }
 
 // Update implements scheduler.Descriptor.
@@ -88,10 +90,10 @@ func (d *Descriptor) Update(ctx context.Context, _, newObj proto.Message, _ any)
 
 // Delete implements scheduler.Descriptor: the disabled rendering.
 func (d *Descriptor) Delete(ctx context.Context, _ proto.Message, _ any) error {
-	return d.apply(ctx, nil)
+	return d.apply(ctx, nil, nil)
 }
 
-func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.NtpService) error {
+func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.NtpService, bindings map[string]string) error {
 	if d.prepare != nil {
 		if err := d.prepare(); err != nil {
 			return err
@@ -105,6 +107,12 @@ func (d *Descriptor) apply(ctx context.Context, in *ngfwv1.NtpService) error {
 	if err != nil {
 		return err
 	}
+	file := files[d.r.paths.Sources()]
+	file.Content, err = secretvalue.AppendMetadata(file.Content, bindings)
+	if err != nil {
+		return err
+	}
+	files[d.r.paths.Sources()] = file
 	if err := d.r.Validate(ctx, files); err != nil {
 		return err
 	}
@@ -139,10 +147,21 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if !ok {
 		return nil, nil
 	}
+	bindings, err := secretvalue.Metadata(src)
+	if err != nil || bindings != nil && secretvalue.Validate(in, bindings) != nil {
+		return []scheduler.KV{{Key: Key, Value: driftValue([]string{"invalid secret generation metadata"})}}, nil
+	}
+	ctx = secretvalue.WithBindings(ctx, bindings)
 	want, err := d.r.Render(ctx, in)
 	if err != nil {
 		return []scheduler.KV{{Key: Key, Value: driftValue([]string{"re-render: " + err.Error()})}}, nil
 	}
+	file := want[d.r.paths.Sources()]
+	file.Content, err = secretvalue.AppendMetadata(file.Content, bindings)
+	if err != nil {
+		return nil, err
+	}
+	want[d.r.paths.Sources()] = file
 	var drift []string
 	for _, p := range want.Paths() {
 		have, err := os.ReadFile(p) //nolint:gosec // own file set
@@ -157,7 +176,11 @@ func (d *Descriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if len(drift) > 0 {
 		return []scheduler.KV{{Key: Key, Value: driftValue(drift)}}, nil
 	}
-	return []scheduler.KV{{Key: Key, Value: in}}, nil
+	value, err := secretvalue.Wrap(in, bindings)
+	if err != nil {
+		return nil, err
+	}
+	return []scheduler.KV{{Key: Key, Value: value}}, nil
 }
 
 func driftValue(diffs []string) *structpb.Struct {

@@ -16,6 +16,7 @@ import (
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/rsyslog"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretvalue"
 )
 
 // ManagementImplemented lists the `management` sub-keys (JSON names) this build projects.
@@ -27,16 +28,15 @@ func ManagementUnsupported(s Sink, m *ngfwv1.ManagementConfig) {
 }
 
 // Syslog projects management.syslog (see the file comment).
-func Syslog(s Sink, ds *ngfwv1.DesiredState) {
+func Syslog(s Sink, ds *ngfwv1.DesiredState, options ...HostSecretOptions) {
 	in := rsyslog.Input(ds)
 	if in == nil {
 		return
 	}
 	bad := false
 	for i, t := range in.GetSyslog() {
-		if t.GetTls() != nil {
-			s.Errorf(Ptr("management", "syslog", strconv.Itoa(i), "tls"), RuleSecretChannel,
-				"TLS syslog export needs its CA/certificate/key references resolved through the API→agent secret channel, which this agent build does not have yet (PENDING-secret-channel); use tcp or udp")
+		if t.GetTls() != nil && (len(options) == 0 || options[0].Ref == nil) {
+			s.Errorf(Ptr("management", "syslog", strconv.Itoa(i), "tls"), RuleSecretChannel, "selected TLS credential generations are unavailable")
 			bad = true
 		}
 		if v := t.GetVrf(); v != "" && v != "default" {
@@ -47,16 +47,20 @@ func Syslog(s Sink, ds *ngfwv1.DesiredState) {
 			t.Vrf = nil
 		}
 	}
-	if !bad {
-		s.Add(rsyslog.Key, in, Ptr("management", "syslog"))
+	if bad {
+		return
+	}
+	if value := bindHostSecrets(s, in, Ptr("management", "syslog"), options); value != nil {
+		s.Add(rsyslog.Key, value, Ptr("management", "syslog"))
 	}
 }
 
 // AssembleSyslog adds the targets of a retrieved rsyslog object to ds.
 func AssembleSyslog(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
-		in, ok := kv.Value.(*ngfwv1.ManagementConfig)
-		if kv.Key != rsyslog.Key || !ok {
+		in := new(ngfwv1.ManagementConfig)
+		_, err := secretvalue.Unwrap(kv.Value, in)
+		if kv.Key != rsyslog.Key || err != nil {
 			continue
 		}
 		if ds.Management == nil {
@@ -69,13 +73,13 @@ func AssembleSyslog(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 // HostServices is the projection of F-unbound-chrony-syslog, one call in agent.project(): services.dns and
 // services.ntp when `services` is authoritative (the agent.unsupported-field notes for the services sub-keys are
 // emitted once by ServicesUnsupported in agent.project), management.syslog when `management` is (notes for its other leaves).
-func HostServices(s Sink, ds *ngfwv1.DesiredState, services, management bool) {
+func HostServices(s Sink, ds *ngfwv1.DesiredState, services, management bool, options ...HostSecretOptions) {
 	if services {
 		DNS(s, ds)
-		NTP(s, ds) // services.ServicesUnsupported runs once per projection in agent.project (F-qos-flat block)
+		NTP(s, ds, options...) // services.ServicesUnsupported runs once per projection in agent.project (F-qos-flat block)
 	}
 	if management {
-		Syslog(s, ds)
+		Syslog(s, ds, options...)
 		ManagementUnsupported(s, ds.GetManagement())
 	}
 }

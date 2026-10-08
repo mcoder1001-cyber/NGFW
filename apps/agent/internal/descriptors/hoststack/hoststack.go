@@ -62,9 +62,10 @@ type Session struct {
 // Namespace is one application namespace. Interface is a logical interface name ("" = none);
 // Vrf is the fib id of both families.
 type Namespace struct {
-	ID        string `json:"id"`
-	Interface string `json:"interface"`
-	Vrf       uint32 `json:"vrf"`
+	ID               string `json:"id"`
+	Interface        string `json:"interface"`
+	Vrf              uint32 `json:"vrf"`
+	SecretGeneration string `json:"secretGeneration,omitempty"`
 }
 
 // Rule is one session rule. Ports 0 = any; AppNamespace "" = the default namespace (index 0).
@@ -188,12 +189,18 @@ func ValidWWWRoot(p string) error {
 // ---- options, registration --------------------------------------------------------------------
 
 type config struct {
+	secrets func(context.Context, string) ([]byte, error)
 	boot    dfkit.BootStore
 	globals dfkit.Globals
 }
 
 // Option configures Register / RegisterGlobals.
 type Option func(*config)
+
+// WithSecrets resolves only keyed historical generations at the VPP boundary.
+func WithSecrets(resolve func(context.Context, string) ([]byte, error)) Option {
+	return func(c *config) { c.secrets = resolve }
+}
 
 // WithBootStore passes the agent's persisted D-076 store (Wiring.BootStore()); the default is an
 // in-memory store (tests only: an agent restart would re-add the TCP source pool once more).
@@ -226,7 +233,7 @@ func Register(r scheduler.Registry, client vpp.Client, owner string, opts ...Opt
 	if !c.globals.Owner() {
 		r.Register(NewSession(client, dfkit.GlobalsOwner(false)))
 	}
-	r.Register(newNamespace(client, owner, st))
+	r.Register(newNamespace(client, owner, st, c.secrets))
 	r.Register(newRule(client, owner, st))
 	r.Register(NewTCPSrc(client, c.boot))
 }

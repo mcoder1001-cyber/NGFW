@@ -7,13 +7,13 @@ package desired
 // (PENDING-secret-channel): refused here with a DryRun error. NTS server certificates are refused (F-ntp).
 
 import (
-	"strconv"
-
 	"google.golang.org/protobuf/proto"
+	"strconv"
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/renderers/chrony"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretvalue"
 )
 
 func init() {
@@ -24,7 +24,7 @@ func init() {
 const RuleSecretChannel = "agent.secret-channel-pending"
 
 // NTP projects services.ntp (see the file comment).
-func NTP(s Sink, ds *ngfwv1.DesiredState) {
+func NTP(s Sink, ds *ngfwv1.DesiredState, options ...HostSecretOptions) {
 	ntp := ds.GetServices().GetNtp()
 	if ntp == nil {
 		return
@@ -38,11 +38,12 @@ func NTP(s Sink, ds *ngfwv1.DesiredState) {
 		return
 	}
 	bad := false
-	for i, srv := range ntp.GetServers() {
-		if srv.KeyRef != nil {
-			s.Errorf(Ptr("services", "ntp", "servers", strconv.Itoa(i), "keyRef"), RuleSecretChannel,
-				"symmetric NTP keys need the API→agent secret channel, which this agent build does not have yet (PENDING-secret-channel); use NTS or no key")
-			bad = true
+	if len(options) == 0 || options[0].Ref == nil {
+		for i, srv := range ntp.GetServers() {
+			if srv.GetKeyRef() != "" {
+				s.Errorf(Ptr("services", "ntp", "servers", strconv.Itoa(i), "keyRef"), RuleSecretChannel, "selected symmetric key generation is unavailable")
+				bad = true
+			}
 		}
 	}
 	if ntp.GetNtsServer() != nil {
@@ -50,15 +51,20 @@ func NTP(s Sink, ds *ngfwv1.DesiredState) {
 		bad = true
 	}
 	if !bad {
-		s.Add(chrony.Key, in, Ptr("services", "ntp"))
+		if value := bindHostSecrets(s, in, Ptr("services", "ntp"), options); value != nil {
+			s.Add(chrony.Key, value, Ptr("services", "ntp"))
+		}
 	}
 }
 
 // AssembleNTP adds the NTP service of a retrieved chrony object to ds.
 func AssembleNTP(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	for _, kv := range kvs {
-		if in, ok := kv.Value.(*ngfwv1.NtpService); ok && kv.Key == chrony.Key {
-			servicesOf(ds).Ntp = in
+		if kv.Key == chrony.Key {
+			in := new(ngfwv1.NtpService)
+			if _, err := secretvalue.Unwrap(kv.Value, in); err == nil {
+				servicesOf(ds).Ntp = in
+			}
 		}
 	}
 }

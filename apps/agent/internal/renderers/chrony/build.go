@@ -1,6 +1,7 @@
 package chrony
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -130,7 +131,7 @@ func host(path, s string) (string, error) {
 	return strings.ToLower(s), nil
 }
 
-func (r *Renderer) build(in input) (*rendered, error) {
+func (r *Renderer) build(ctx context.Context, in input) (*rendered, error) {
 	n := in.ntp
 	out := &rendered{conf: confData{Paths: r.paths, Port: 123, Makestep: "1 3"}}
 	if n == nil || !n.GetEnabled() {
@@ -324,10 +325,16 @@ func (r *Renderer) build(in input) (*rendered, error) {
 		}
 	}
 	for _, ref := range refs {
-		if r.secrets == nil {
+		if r.secrets == nil && r.secretsContext == nil {
 			return nil, fmt.Errorf("%w: %s (no secret resolver configured)", ErrSecret, ref)
 		}
-		val, err := r.secrets(ref)
+		var val []byte
+		var err error
+		if r.secretsContext != nil {
+			val, err = r.secretsContext(ctx, ref)
+		} else {
+			val, err = r.secrets(ref)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%w: %s", ErrSecret, ref) // never wrap err: it might quote the value
 		}
@@ -335,6 +342,9 @@ func (r *Renderer) build(in input) (*rendered, error) {
 			return nil, fmt.Errorf("%w: %s: key must be 1..%d bytes", ErrSecret, ref, MaxKeyBytes)
 		}
 		out.keys = append(out.keys, key{ID: keyIDs[ref], Hex: strings.ToUpper(hex.EncodeToString(val))})
+		if r.secretsContext != nil {
+			clear(val)
+		}
 	}
 	return out, nil
 }

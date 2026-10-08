@@ -11,15 +11,19 @@ package desired
 // Only session rules can be read back, so HostStackAssemble reports only them.
 
 import (
+	"context"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"ngfw/agent/internal/descriptors/dfkit"
 	"ngfw/agent/internal/descriptors/hoststack"
+	"ngfw/agent/internal/descriptors/vpn"
+	"ngfw/agent/internal/renderers/rfkit"
 	"ngfw/agent/internal/scheduler"
 )
 
@@ -30,7 +34,7 @@ func init() { ServicesImplemented["hostStack"] = true }
 const RuleWriteOnly = "agent.write-only-field"
 
 // HostStack projects services.hostStack.
-func HostStack(s Sink, hs *ngfwv1.HostStackService, vrfID func(string) (uint32, bool)) {
+func HostStack(s Sink, hs *ngfwv1.HostStackService, vrfID func(string) (uint32, bool), options ...HostSecretOptions) {
 	if hs == nil {
 		return
 	}
@@ -58,10 +62,18 @@ func HostStack(s Sink, hs *ngfwv1.HostStackService, vrfID func(string) (uint32, 
 	}
 	for _, id := range sortedKeys(hs.GetNamespaces()) {
 		n := hs.GetNamespaces()[id]
-		if n.GetSecretRef() != "" {
-			s.Errorf(pt("namespaces", id, "secretRef"), "services.host-stack-secret-channel",
-				"namespace %q: secretRef cannot be applied yet — no API→agent secret channel exists (PENDING-secret-channel); remove it", id)
-			continue
+		generation := ""
+		if ref := n.GetSecretRef(); ref != "" {
+			if len(options) == 0 || options[0].Ref == nil || rfkit.CheckRef(ref, "key") != nil {
+				s.Errorf(pt("namespaces", id, "secretRef"), "services.host-stack-secret-channel", "namespace secret generation is unavailable")
+				continue
+			}
+			var err error
+			generation, err = options[0].Ref(context.Background(), ref)
+			if err != nil || !strings.HasPrefix(generation, vpn.RefHMAC) || vpn.CheckRef(generation) != nil {
+				s.Errorf(pt("namespaces", id, "secretRef"), "services.host-stack-secret-channel", "namespace secret generation is unavailable")
+				continue
+			}
 		}
 		if err := hoststack.ValidID(id); err != nil {
 			s.Errorf(pt("namespaces", id), "services.host-stack-id", "%v", err)
@@ -72,7 +84,7 @@ func HostStack(s Sink, hs *ngfwv1.HostStackService, vrfID func(string) (uint32, 
 			s.Errorf(pt("namespaces", id, "vrf"), "services.host-stack-vrf", "VRF %q does not exist", n.GetVrf())
 			continue
 		}
-		s.Add(hoststack.KeyNamespace(id), hoststack.Namespace{ID: id, Interface: n.GetInterface(), Vrf: fib}.Proto(), pt("namespaces", id))
+		s.Add(hoststack.KeyNamespace(id), hoststack.Namespace{ID: id, Interface: n.GetInterface(), Vrf: fib, SecretGeneration: generation}.Proto(), pt("namespaces", id))
 	}
 	for i, r := range hs.GetSessionRules() {
 		v := hoststack.Rule{Tag: r.GetTag(), Scope: r.GetScope(), Transport: r.GetTransport(), Local: r.GetLocal(),

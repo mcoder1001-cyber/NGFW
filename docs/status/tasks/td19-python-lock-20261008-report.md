@@ -26,3 +26,46 @@ Synthetic wheels in scripts/tests/lab-python-lock.py are deliberately version 1.
 Initial reviews correctly blocked verification-report artifact bypass, metadata-only decompression bounds and output pathname replacement. Both reports now validate unique canonical package identities, exact snapshot wheel paths and digests, and compare full artifact tuples. Every archive member is bounded (metadata members 1 MiB, other members 16 MiB), with 64 MiB expanded per-wheel and 512 MiB expanded wheelhouse limits before any pip resolution. Output children use directory-fd anchored exclusive/no-follow opens; cleanup never follows a replaced output pathname.
 
 Fourteen focused tests now pass8.114s, zero skips, including corrupted first/second reports, duplicate/malformed reports, actual active/inactive dependency markers, compressed RECORD/aggregate bomb refusal before pip, and deterministic symlink swaps before/after directory open. The separate read-only hosted lab-python-lock-fixtures workflow runs this suite on relevant changes. Existing quick gate remains unchanged. Re-review and hosted checks pending; initial production/target acceptance limits above still apply.
+
+
+## Published source identity and actual command receipts
+
+Product/workflow checkpoint published successfully on PR208:
+
+- Remote source commit: `7eb0f2a205ae7458d71baca4c0c08c6dadea383b`.
+- Local source commit: `720f55ed8c214aca67ad1d77210c9871652a129e`.
+- Both trees: `5c946d851afcd6875dceae67b389fd92f16f03c4`. Connector create-tree returned this same local tree; expected-head branch update returned success. Distinct commit IDs reflect connector-created commit metadata, not a source difference.
+
+Actual developer output from the frozen source checkpoint:
+
+```text
+$ python3 -I scripts/tests/lab-python-lock.py
+..............
+----------------------------------------------------------------------
+Ran 14 tests in 8.114s
+
+OK
+[exit 0]
+
+$ python3 -m py_compile scripts/lab-python-lock.py scripts/tests/lab-python-lock.py
+[exit 0; no output]
+
+$ git diff --check
+[exit 0; no output]
+
+$ tools/ci.sh check --base main
+WARN gitleaks not installed — built-in secret grep only
+check PASSED (0m02s)
+[exit 0; final result shown, unrelated routine checks omitted]
+
+$ git rev-parse HEAD HEAD^{tree}
+720f55ed8c214aca67ad1d77210c9871652a129e
+5c946d851afcd6875dceae67b389fd92f16f03c4
+
+$ sha256sum scripts/lab-python-lock.py scripts/tests/lab-python-lock.py .github/workflows/lab-python-lock-fixtures.yml
+5acdbe962d25130dfd685292ae5f914a7745e220c97d77412f41d3ecb4fcabf6  scripts/lab-python-lock.py
+86c115b627565b85c359e20a674c1aa379a2e3c6f80f70c4351a7bb374a2eb81  scripts/tests/lab-python-lock.py
+617ab1773c658d0ef8d60ff5c1a4bf0fa3610d96e587c83a4dc623c5be443d15  .github/workflows/lab-python-lock-fixtures.yml
+```
+
+R1/R2 source findings have been repaired; independent reviewers reproduced 14 passing tests on these exact source bytes and are finalizing reports. This documentation receipt does not change source/workflow bytes. Full unchanged hosted quick gate and new hosted helper check remain pending; no full gate success claimed. Next action: manager verifies published source identity, collects independent source/workflow approvals and hosted check outcomes before integration. Production upstream pins/provenance and actual target acceptance remain outstanding.

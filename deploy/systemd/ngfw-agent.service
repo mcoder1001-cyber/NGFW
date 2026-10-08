@@ -33,7 +33,9 @@ ProtectKernelModules=yes
 ProtectKernelTunables=yes
 RestrictRealtime=yes
 RestrictNamespaces=~cgroup
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK CAP_CHOWN
+# CHOWN preserves daemon ownership; DAC_OVERRIDE permits private config snapshot/restore.
+# ProtectSystem and the explicit writable paths still constrain filesystem writes.
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK CAP_CHOWN CAP_DAC_OVERRIDE
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 ReadWritePaths=/var/lib/ngfw-system-identity /etc/systemd/resolved.conf.d
 ReadWritePaths=/var/lib/ngfw/agent /var/lib/ngfw/captures /etc/ngfw/rsyslog-tls /run/ngfw

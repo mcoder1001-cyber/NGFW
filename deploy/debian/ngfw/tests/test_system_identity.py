@@ -142,13 +142,72 @@ class Identity(unittest.TestCase):
         self.assertFalse((root / 'etc/hostname').is_symlink())
 
     @root_fixture
+    def test_agent_capabilities_restore_foreign_private_config(self):
+        root = self.fixture()
+        daemon = root / 'daemon-config'
+        daemon.mkdir(mode=0o700)
+        config = daemon / 'secret.conf'
+        config.write_bytes(b'NGFW_TEST_PRIVATE_CONFIG')
+        config.chmod(0o600)
+        os.chown(config, 65534, 65534)
+        os.chown(daemon, 65534, 65534)
+        script = r"""import os, pathlib, sys
+folder = pathlib.Path(sys.argv[1])
+path = folder / 'secret.conf'
+try:
+    content = path.read_bytes()
+    old = path.stat()
+except PermissionError:
+    raise SystemExit(77)
+def atomic(content):
+    temp = folder / '.fixture-next'
+    fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    try:
+        os.write(fd, content)
+        os.fchmod(fd, 0o600)
+        try:
+            os.fchown(fd, old.st_uid, old.st_gid)
+        except PermissionError:
+            raise SystemExit(78)
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(temp, path)
+    directory = os.open(folder, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(directory)
+    finally:
+        os.close(directory)
+atomic(b'changed fixture')
+assert path.read_bytes() == b'changed fixture'
+atomic(content)
+restored = path.stat()
+assert path.read_bytes() == content
+assert (restored.st_uid, restored.st_gid, restored.st_mode) == (old.st_uid, old.st_gid, old.st_mode)
+"""
+        # Prove each added capability is necessary; the old set has neither.
+        for caps, expected in (('chown', 77), ('dac_override', 78), ('chown,+dac_override', 0)):
+            with self.subTest(caps=caps):
+                pending = daemon / '.fixture-next'
+                if pending.exists():
+                    pending.unlink()
+                result = subprocess.run(['setpriv', '--bounding-set=-all,+' + caps,
+                                         sys.executable, '-c', script, str(daemon)],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, expected, result.stdout + result.stderr)
+        self.assertEqual(config.read_bytes(), b'NGFW_TEST_PRIVATE_CONFIG')
+
+    @root_fixture
     def test_packaged_narrow_sandbox_paths(self):
         unit_path = SOURCE.parents[2] / 'deploy/systemd/ngfw-agent.service'
         if not unit_path.is_file():
             unit_path = SOURCE / 'stage/usr/lib/systemd/system/ngfw-agent.service'
         unit = unit_path.read_text()
         self.assertIn('ProtectSystem=strict', unit)
-        self.assertIn('CAP_CHOWN', unit)
+        capabilities = next(line.split('=', 1)[1].split() for line in unit.splitlines()
+                            if line.startswith('CapabilityBoundingSet='))
+        self.assertEqual(set(capabilities), {'CAP_NET_ADMIN', 'CAP_SYS_ADMIN', 'CAP_IPC_LOCK',
+                                             'CAP_CHOWN', 'CAP_DAC_OVERRIDE'})
         self.assertIn('ReadWritePaths=/var/lib/ngfw-system-identity /etc/systemd/resolved.conf.d', unit)
         for line in unit.splitlines():
             if line.startswith('ReadWritePaths='):

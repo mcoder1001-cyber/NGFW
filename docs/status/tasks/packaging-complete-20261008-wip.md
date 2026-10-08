@@ -1,7 +1,7 @@
 # P10 identity/ownership completion checkpoint
 
 Branch: `codex/packaging-complete-20261008`, based on main `417e8fcd`.
-Owner completion direction: 2026-10-08, complete source work and merge; run CI only once at the end. Manager selected narrow managed identity storage and CAP_CHOWN source repair after the previously disclosed mismatch. No live host changes are authorized by this source checkpoint or performed here.
+Owner completion direction: 2026-10-08, complete source work and merge; run CI only once at the end. Manager selected narrow managed identity storage and CAP_CHOWN + CAP_DAC_OVERRIDE source repair after the previously disclosed mismatch. No live host changes are authorized by this source checkpoint or performed here.
 
 Owned paths: sysident paths; agent systemd unit; Debian agent install/postinst/rules; fixed identity provisioning helper and its fixtures; this task record. Board is manager-owned.
 
@@ -9,6 +9,8 @@ Implemented: atomic, fsynced, descriptor-relative migration of five public ident
 
 Verification: 7 focused Python migration/security tests passed. `go test -race -count=1 ./internal/renderers/sysident` passed (1.041s); repeated after provisioning readback guard + negative controls passed (1.055s). Foreign-UID ownership fixture cannot execute in this environment: only UID/GID0 is mapped; chown to UID65534 returns EINVAL. This real test remains in the suite without skip for the final hosted run. Aggregate CI not run by user direction.
 
-Remaining source: CAP_CHOWN repairs ownership assignment but daemon-owned 0600 secret readback and potentially directory access also require a privilege choice or broker. Do not claim full ownership closure from CAP_CHOWN alone. Manager is considering the precise boundary. No authoritative NGFW product license found in LICENSE/COPYING/copyright paths or package.json metadata; no license invented.
+Ownership source: manager selected CAP_CHOWN plus CAP_DAC_OVERRIDE for private daemon snapshot/readback and atomic replacement while preserving existing renderer modes/owners and strict writable paths. Decision and risk recorded in DEC-agent-file-ownership-20261008.md. Real foreign-UID and capability tests remain mandatory in final hosted packaging fixtures, not a lab-only waiver. No authoritative NGFW product license found in LICENSE/COPYING/copyright paths or package.json metadata; no license invented.
 
-Next: finalize ownership boundary with manager, add executable capability/readback regression, independent security review, publish checkpoint, include final source in one combined CI; actual package provisioning/sandboxed daemon acceptance remains laboratory-only.
+Remote checkpoints: 347c5d9e matches local ee82ad0; 4b20e452 matches29d6b1b; bb7da90e matches8689506 (tree10a29e5709f9163258f4103bde80df787aea6c1d). All published with [skip ci].
+
+Next: independent security review, publish final checkpoint, include final source in one combined CI plus packaging fixtures; actual package provisioning/sandboxed daemon acceptance remains laboratory-only.

@@ -44,11 +44,12 @@ var Key = scheduler.Join(Name, ObjectID)
 
 // Descriptor is the scheduler descriptor of the system identity.
 type Descriptor struct {
-	paths    Paths
-	log      *slog.Logger
-	prepare  func() error
-	hostname func() (string, error)
-	sethost  func(string) error
+	paths       Paths
+	log         *slog.Logger
+	prepare     func() error
+	provisioned func() error
+	hostname    func() (string, error)
+	sethost     func(string) error
 }
 
 var (
@@ -68,7 +69,7 @@ func New(p Paths, log *slog.Logger) *Descriptor {
 		sethost:  func(h string) error { return syscall.Sethostname([]byte(h)) },
 	}
 	if p == ProductPaths() {
-		d.prepare = func() error { return verifyProductPaths("/", 0) }
+		d.provisioned = func() error { return verifyProductPaths("/", 0) }
 	}
 	return d
 }
@@ -161,6 +162,11 @@ func (d *Descriptor) apply(in *ngfwv1.SystemConfig) (Changes, error) {
 	if err != nil {
 		return ch, err
 	}
+	if d.provisioned != nil {
+		if err := d.provisioned(); err != nil {
+			return ch, err
+		}
+	}
 	if d.prepare != nil {
 		if err := d.prepare(); err != nil {
 			return ch, err
@@ -252,6 +258,12 @@ func (d *Descriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 
 // Drift lists how the host differs from the rendering of in (nil: in sync).
 func (d *Descriptor) Drift(in *ngfwv1.SystemConfig) []string {
+	if d.provisioned != nil {
+		if err := d.provisioned(); err != nil {
+			return []string{err.Error()}
+		}
+	}
+
 	want, err := Render(in, d.paths)
 	if err != nil {
 		return []string{"re-render: " + err.Error()}

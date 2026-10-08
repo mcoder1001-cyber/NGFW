@@ -37,7 +37,7 @@ func TestProductProvisioningGuard(t *testing.T) {
 	if err := verifyProductPaths(root, uid); err == nil {
 		t.Fatal("redirected public link accepted")
 	}
-	if New(ProductPaths(), nil).prepare == nil {
+	if New(ProductPaths(), nil).provisioned == nil {
 		t.Fatal("product writes lack provisioning guard")
 	}
 }

@@ -143,7 +143,10 @@ class Identity(unittest.TestCase):
 
     @root_fixture
     def test_packaged_narrow_sandbox_paths(self):
-        unit = (SOURCE.parents[2] / 'deploy/systemd/ngfw-agent.service').read_text()
+        unit_path = SOURCE.parents[2] / 'deploy/systemd/ngfw-agent.service'
+        if not unit_path.is_file():
+            unit_path = SOURCE / 'stage/usr/lib/systemd/system/ngfw-agent.service'
+        unit = unit_path.read_text()
         self.assertIn('ProtectSystem=strict', unit)
         self.assertIn('CAP_CHOWN', unit)
         self.assertIn('ReadWritePaths=/var/lib/ngfw-system-identity /etc/systemd/resolved.conf.d', unit)

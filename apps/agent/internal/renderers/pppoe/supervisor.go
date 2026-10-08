@@ -34,6 +34,11 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		peer := r.paths.PeersDir + "/ngfw-" + hostIf
 		unit := r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service"
 		changed[hostIf] = !sameOnDisk(peer, files[peer]) || !sameOnDisk(unit, files[unit])
+		if _, err := os.Stat(r.paths.StateDir + "/ipv6-transitions/" + hostIf); err == nil {
+			changed[hostIf] = true
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("pppoe: transition evidence unavailable")
+		}
 		// dhcpv6 -> slaac leaves +ipv6 in the peer unchanged, but changes
 		// the helper/config. Stop the old generation before replacing them.
 		for _, path := range r.sessionFiles(hostIf) {
@@ -48,7 +53,10 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		}
 	}
 
-	stale := r.installedHostIfs()
+	stale, err := r.installedHostIfs()
+	if err != nil {
+		return err
+	}
 	unitFilesChanged := false
 	for hostIf := range stale {
 		if want[hostIf] {
@@ -58,8 +66,12 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		if err := r.StopIPv6(ctx, hostIf); err != nil {
 			return err
 		}
-		if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
-			return err
+		if _, err := os.Stat(r.paths.UnitDir + "/" + unitName(hostIf)); err == nil {
+			if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("pppoe: removed unit evidence unavailable")
 		}
 		for _, p := range r.sessionFiles(hostIf) {
 			if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
@@ -79,10 +91,24 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	}
 	// A kept session may have dropped an optional file (IPv6 turned off, dhcpv6 → slaac): remove what is no longer
 	// rendered. Hook state files are the hooks' own and stay.
-	for hostIf := range want {
+	for _, hostIf := range sortedKeys(want) {
 		if changed[hostIf] {
 			if err := r.StopIPv6(ctx, hostIf); err != nil {
 				return err
+			}
+			if stale[hostIf] {
+				if _, err := os.Stat(r.paths.UnitDir + "/" + unitName(hostIf)); err == nil {
+					if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
+						return err
+					}
+				} else if !os.IsNotExist(err) {
+					return fmt.Errorf("pppoe: kept unit evidence unavailable")
+				}
+			}
+			for _, suffix := range []string{".state", ".state6", ".pd"} {
+				if err := os.Remove(r.paths.StateDir + "/" + hostIf + suffix); err != nil && !os.IsNotExist(err) {
+					return err
+				}
 			}
 		}
 		for _, p := range r.sessionFiles(hostIf) {
@@ -114,10 +140,26 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 			return err
 		}
 	}
+	for hostIf := range stale {
+		if !want[hostIf] {
+			if err := r.ForgetIPv6Admission(hostIf); err != nil {
+				return err
+			}
+			if err := r.CompleteIPv6Transition(hostIf); err != nil {
+				return err
+			}
+		}
+	}
 	// (re)start changed or new sessions, deterministic order
 	for _, hostIf := range sortedKeys(want) {
 		if changed[hostIf] {
+			if err := r.ResumeIPv6(hostIf); err != nil {
+				return err
+			}
 			if err := r.systemctl(ctx, runner, "restart", unitName(hostIf)); err != nil {
+				return err
+			}
+			if err := r.CompleteIPv6Transition(hostIf); err != nil {
 				return err
 			}
 		}
@@ -155,11 +197,25 @@ func (r *Renderer) sessionFiles(hostIf string) []string {
 }
 
 // installedHostIfs are the host interfaces with a unit file on disk (what a previous Apply left).
-func (r *Renderer) installedHostIfs() map[string]bool {
+func (r *Renderer) installedHostIfs() (map[string]bool, error) {
 	out := map[string]bool{}
+	// Removed units retain pending evidence until daemon-reload succeeds.
+	// Include that inventory even after their unit files have been deleted.
+	pending, err := os.ReadDir(r.paths.StateDir + "/ipv6-transitions")
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("pppoe: transition inventory unavailable")
+	}
+	for _, e := range pending {
+		if hostIfRe.MatchString(e.Name()) {
+			out[e.Name()] = true
+		}
+	}
 	entries, err := os.ReadDir(r.paths.UnitDir)
 	if err != nil {
-		return out
+		if os.IsNotExist(err) {
+			return out, nil
+		}
+		return nil, fmt.Errorf("pppoe: installed unit inventory unavailable")
 	}
 	for _, e := range entries {
 		n := e.Name()
@@ -169,7 +225,7 @@ func (r *Renderer) installedHostIfs() map[string]bool {
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 func sameOnDisk(path string, want renderers.File) bool {

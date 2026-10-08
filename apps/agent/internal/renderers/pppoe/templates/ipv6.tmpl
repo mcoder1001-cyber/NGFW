@@ -27,6 +27,8 @@ STATE = ROOT / (HOST + ".state6")
 PID = ROOT / (HOST + ".ipv6.pid")
 PD = ROOT / (HOST + ".pd")
 LOCK = ROOT / (HOST + ".ipv6.lock")
+BLOCKED = ROOT / (HOST + ".ipv6.blocked")
+ADMISSION = ROOT / (HOST + ".ipv6.admission")
 stopping = False
 
 
@@ -196,7 +198,22 @@ def collect(iface):
     return lines
 
 
-def refresh(generation, iface, ll, peer, pppd):
+def parent_fd(pppd):
+    # Capture once at admission. Never reinterpret a recycled numeric PID.
+    if not pppd or not pppd.isdecimal() or int(pppd) <= 1:
+        raise Failure("ipv6-parent-identity-invalid")
+    try:
+        fd = os.pidfd_open(int(pppd))
+        if identity(int(pppd)) is None or select.select([fd], [], [], 0)[0]:
+            os.close(fd)
+            raise Failure("ipv6-parent-unavailable")
+        return fd
+    except ProcessLookupError as exc:
+        raise Failure("ipv6-parent-unavailable") from exc
+
+
+def refresh(generation, iface, ll, peer, pppd, parent):
+    parent = int(parent)
     signal.signal(signal.SIGTERM, lambda *_: globals().__setitem__("stopping", True))
     signal.signal(signal.SIGINT, lambda *_: globals().__setitem__("stopping", True))
     child, child_fd, error, ready = None, None, "", False
@@ -218,7 +235,7 @@ def refresh(generation, iface, ll, peer, pppd):
                 except OSError as exc:
                     raise Failure("dhcpv6-client-unavailable") from exc
         while not stopping:
-            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or (pppd and identity(int(pppd)) is None):
+            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or select.select([parent], [], [], 0)[0]:
                 break
             if child is not None and child.poll() is not None:
                 raise Failure("dhcpv6-client-exited")
@@ -242,6 +259,7 @@ def refresh(generation, iface, ll, peer, pppd):
         if not ready:
             print("FAIL:" + error, flush=True)
     finally:
+        os.close(parent)
         if child_fd is not None:
             try:
                 terminate(child_fd)
@@ -261,7 +279,26 @@ def refresh(generation, iface, ll, peer, pppd):
                     PD.unlink(missing_ok=True)
 
 
-def up(iface, ll, peer, pppd):
+def up(iface, ll, peer, pppd, admission):
+    # The action lock also covers admission. A stopped transition stays fenced
+    # until the supervisor has stopped pppd and installed the replacement.
+    if BLOCKED.exists() or not admission or ADMISSION.read_text().strip() != admission:
+        return
+    try:
+        parent = parent_fd(pppd)
+    except Failure as exc:
+        if str(exc) == "ipv6-parent-unavailable":
+            # A hook queued until after its old pppd died must not overwrite
+            # replacement operational state with an admission failure.
+            return
+        raise
+    try:
+        start(iface, ll, peer, pppd, parent)
+    finally:
+        os.close(parent)
+
+
+def start(iface, ll, peer, pppd, parent):
     stop()
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
@@ -275,9 +312,9 @@ def up(iface, ll, peer, pppd):
     except (OSError, subprocess.SubprocessError) as exc:
         raise Failure("ipv6-setup-failed") from exc
     generation = uuid.uuid4().hex
-    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd]
+    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd, str(parent)]
     with locked():
-        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, pass_fds=(parent,))
         atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
         PD.unlink(missing_ok=True)
     poll = select.poll()
@@ -315,12 +352,13 @@ def main():
                     return
         return
     if action == "stop":
+        atomic(BLOCKED, "blocked\n")
         stop()
         return
     if action == "refresh":
         refresh(*sys.argv[2:])
         return
-    iface, ll, peer, pppd = sys.argv[2:]
+    iface, ll, peer, pppd, admission = sys.argv[2:]
     if not iface or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in iface):
         raise Failure("ipv6-interface-invalid")
     if pppd and (not pppd.isdecimal() or int(pppd) <= 1):
@@ -330,8 +368,13 @@ def main():
     since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         if action == "up":
-            up(iface, ll, peer, pppd)
+            up(iface, ll, peer, pppd, admission)
         else:
+            if not admission or ADMISSION.read_text().strip() != admission:
+                return
+            old = record()
+            if old and old.get("argv", [])[7:8] != [pppd]:
+                return
             stop()
             with locked():
                 state("down", iface, ll, peer, since)

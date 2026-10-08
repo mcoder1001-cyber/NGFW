@@ -453,6 +453,9 @@ class CarrierTests(unittest.TestCase):
         self.assertIn('BindReadOnlyPaths=/run/ngfw-pppoe-carrier:/run/ngfw-pppoe-carrier', daemon)
         self.assertIn('BindPaths=/run/ngfw/pppoe/%i:/run/ngfw/pppoe/%i', daemon)
         self.assertIn('ReadWritePaths=/run/ngfw/pppoe/%i', daemon)
+        self.assertIn('BindPaths=/run/ngfw/pppoe/%i/resolv.conf:/etc/ppp/resolv.conf', daemon)
+        ppp_writable = [line for line in daemon.splitlines() if line.startswith('BindPaths=') and line.split(':')[-1].startswith('/etc/ppp')]
+        self.assertEqual(ppp_writable, ['BindPaths=/run/ngfw/pppoe/%i/resolv.conf:/etc/ppp/resolv.conf'])
         self.assertIn('TemporaryFileSystem=/run:rw /etc:ro /var/lib:ro', daemon)
         self.assertNotIn('BindPaths=/run/ngfw-pppoe-carrier', daemon)
         self.assertNotIn('pppoe-broker', daemon)

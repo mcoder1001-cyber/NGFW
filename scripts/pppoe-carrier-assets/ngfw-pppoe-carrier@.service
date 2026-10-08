@@ -30,4 +30,5 @@ ProtectControlGroups=true
 RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6 AF_PACKET AF_PPPOX
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN CAP_SETPCAP
 BindReadOnlyPaths=/var/lib/ngfw/agent/pppoe-carrier/%i/ppp:/etc/ppp
+BindPaths=/run/ngfw/pppoe/%i/resolv.conf:/etc/ppp/resolv.conf
 ReadWritePaths=/run/ngfw/pppoe/%i

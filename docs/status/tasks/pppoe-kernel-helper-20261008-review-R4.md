@@ -117,3 +117,22 @@ The raw L2 boundary assumes the fixed packaged PPP daemon is trusted unless VPP
 adds an EtherType filter. CAP_NET_RAW and inet nft policy do not establish
 containment of malicious Ethernet emitted by a compromised PPP descendant; the
 parent must preserve this explicit assumption in the final source contract.
+
+## Installed private peer path correction
+
+APPROVE the narrow source correction at
+`1cc3c4ef44bc664e2de97b7ad7aa0c14c293e383`, tree
+`67226a87b2614db5d55e2efd67386ad2bab292a0`. The tmpfiles private peer root and
+the PPP child's read-only `/etc/ppp` bind source now agree on
+`/var/lib/ngfw/agent/pppoe-carrier`. This lies inside the existing installed agent
+ReadWritePaths allowance; no agent unit widening is introduced. Child ledger,
+capability, device and broker boundaries remain unchanged. Independent packaging
+loader passed 28 controls in 0.017 seconds.
+
+The companion packaging regression at
+`b46d65bcba741d8e94d25e2ac8b8961490531755`, tree
+`4ff872770566041d6ed9300f8eac50828a634109`, verifies this against the actual
+source or staged agent unit and keeps the real unit in the preparation fixture.
+Independent asset and preparation fixtures passed seven tests in 0.966 seconds.
+This validates source/staging agreement, not live systemd enforcement. All earlier
+integration and native acceptance obligations remain.

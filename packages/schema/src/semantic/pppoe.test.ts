@@ -2,7 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { RootConfig, type RootConfigInput } from '../index.js';
 import { pppoeValidators } from './pppoe.js';
 
-const run = (doc: RootConfigInput) => pppoeValidators[0]!.validate(RootConfig.parse(doc));
+const rawRun = (doc: RootConfigInput) => pppoeValidators[0]!.validate(RootConfig.parse(doc));
+// Existing address/MTU cases use the supported explicit raw-parent topology.
+const run = (doc: RootConfigInput) => {
+  const copy = structuredClone(doc);
+  const interfaces = copy.interfaces ?? {};
+  for (const [name, iface] of Object.entries(interfaces)) {
+    if (iface.pppoe && iface.pppoe.parent === undefined) {
+      const parent = `raw_${name}`;
+      iface.pppoe.parent = parent;
+      interfaces[parent] = { enabled: true, mtu: iface.mtu };
+    }
+  }
+  return rawRun({ ...copy, interfaces });
+};
 
 const wan = (over: Record<string, unknown> = {}, pppoe: Record<string, unknown> = {}) => ({
   enabled: true,
@@ -11,7 +24,7 @@ const wan = (over: Record<string, unknown> = {}, pppoe: Record<string, unknown> 
 });
 
 describe('F-pppoe-client semantic rules', () => {
-  it('accepts a valid PPPoE client (no static address, parent implicit)', () => {
+  it('accepts a valid PPPoE client (no static address, explicit raw parent)', () => {
     expect(run({ interfaces: { wan0: wan() } })).toEqual([]);
   });
 
@@ -105,5 +118,32 @@ describe('explicit PPP DHCPv6 delegation', () => {
         RootConfig.parse(config({ delegationTargets: [{ ...target, subnetId }] })),
       ).toThrow();
     }
+  });
+});
+
+describe('kernel PPP carrier topology', () => {
+  it('rejects implicit/same-name parent but permits disabled migration configuration', () => {
+    expect(rawRun({ interfaces: { wan0: wan() } }).length).toBeGreaterThan(0);
+    expect(rawRun({ interfaces: { wan0: wan({}, { parent: 'wan0' }) } }).length).toBeGreaterThan(0);
+    expect(rawRun({ interfaces: { wan0: wan({}, { enabled: false }) } })).toEqual([]);
+  });
+  it('rejects raw parent addressing and shared parent ownership', () => {
+    expect(
+      rawRun({
+        interfaces: {
+          raw0: { enabled: true, ipv4: ['192.0.2.1/24'] },
+          wan0: wan({}, { parent: 'raw0' }),
+        },
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      rawRun({
+        interfaces: {
+          raw0: { enabled: true },
+          wan0: wan({}, { parent: 'raw0' }),
+          wan1: wan({}, { parent: 'raw0' }),
+        },
+      }).some((x) => x.message.includes('already assigned')),
+    ).toBe(true);
   });
 });

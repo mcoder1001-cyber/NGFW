@@ -416,7 +416,7 @@ def collect(iface):
             lines.append("gw=" + parts[2])
             break
     try:
-        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+        lines += [row for row in PD.read_text().splitlines() if row.startswith(("pd=", "pd_valid_until=", "pd_preferred_until=", "pd_generation="))]
     except FileNotFoundError:
         pass
     return lines
@@ -450,7 +450,8 @@ def refresh(generation, iface, ll, peer, pppd, parent):
                 try:
                     args = [DHCPCD, "-B", "-f", CONF, iface]
                     child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation,
+                                                      NGFW_PPPOE_PD_ADMISSION=record().get("admission", "")))
                     child_fd = os.pidfd_open(child.pid)
                     item = record()
                     item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
@@ -517,12 +518,12 @@ def up(iface, ll, peer, pppd, admission):
             return
         raise
     try:
-        start(iface, ll, peer, pppd, parent)
+        start(iface, ll, peer, pppd, parent, admission)
     finally:
         os.close(parent)
 
 
-def start(iface, ll, peer, pppd, parent):
+def start(iface, ll, peer, pppd, parent, admission):
     stop()
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
@@ -539,7 +540,7 @@ def start(iface, ll, peer, pppd, parent):
     args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd, str(parent)]
     with locked():
         child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, pass_fds=(parent,))
-        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation, "admission": admission}))
         PD.unlink(missing_ok=True)
     poll = select.poll()
     poll.register(child.stdout, select.POLLIN | select.POLLHUP)
@@ -558,7 +559,9 @@ def main():
     if action == "event":
         generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
         with locked():
-            if not generation or not current(generation):
+            admission = os.environ.get("NGFW_PPPOE_PD_ADMISSION", "")
+            if (not generation or not current(generation) or not admission or BLOCKED.exists() or
+                    record().get("admission") != admission or ADMISSION.read_text().strip() != admission):
                 return
             reason = os.environ.get("reason", "")
             if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
@@ -569,10 +572,24 @@ def main():
                 length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
                 try:
                     if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        PD.unlink(missing_ok=True)
                         return
                     network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
-                    atomic(PD, "pd=" + str(network) + "\n")
-                except ValueError:
+                    valid = os.environ.get("new_dhcp6_ia_pd1_prefix1_vltime", "")
+                    preferred = os.environ.get("new_dhcp6_ia_pd1_prefix1_pltime", "")
+                    # Admission is inherited from this exact refresher, never rebound at event time.
+                    if (not valid.isdecimal() or not preferred.isdecimal() or
+                            not 0 < int(preferred) <= int(valid) <= 4294967295 or
+                            BLOCKED.exists() or not admission):
+                        PD.unlink(missing_ok=True)
+                        return
+                    now = int(time.time())
+                    atomic(PD, "pd=" + str(network) + "\n" +
+                           "pd_valid_until=" + str(now + int(valid)) + "\n" +
+                           "pd_preferred_until=" + str(now + int(preferred)) + "\n" +
+                           "pd_generation=" + admission + "\n")
+                except (ValueError, OSError):
+                    PD.unlink(missing_ok=True)
                     return
         return
     if action == "stop":
@@ -816,7 +833,7 @@ def collect(iface):
             lines.append("gw=" + parts[2])
             break
     try:
-        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+        lines += [row for row in PD.read_text().splitlines() if row.startswith(("pd=", "pd_valid_until=", "pd_preferred_until=", "pd_generation="))]
     except FileNotFoundError:
         pass
     return lines
@@ -850,7 +867,8 @@ def refresh(generation, iface, ll, peer, pppd, parent):
                 try:
                     args = [DHCPCD, "-B", "-f", CONF, iface]
                     child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation,
+                                                      NGFW_PPPOE_PD_ADMISSION=record().get("admission", "")))
                     child_fd = os.pidfd_open(child.pid)
                     item = record()
                     item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
@@ -917,12 +935,12 @@ def up(iface, ll, peer, pppd, admission):
             return
         raise
     try:
-        start(iface, ll, peer, pppd, parent)
+        start(iface, ll, peer, pppd, parent, admission)
     finally:
         os.close(parent)
 
 
-def start(iface, ll, peer, pppd, parent):
+def start(iface, ll, peer, pppd, parent, admission):
     stop()
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
@@ -939,7 +957,7 @@ def start(iface, ll, peer, pppd, parent):
     args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd, str(parent)]
     with locked():
         child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, pass_fds=(parent,))
-        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation, "admission": admission}))
         PD.unlink(missing_ok=True)
     poll = select.poll()
     poll.register(child.stdout, select.POLLIN | select.POLLHUP)
@@ -958,7 +976,9 @@ def main():
     if action == "event":
         generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
         with locked():
-            if not generation or not current(generation):
+            admission = os.environ.get("NGFW_PPPOE_PD_ADMISSION", "")
+            if (not generation or not current(generation) or not admission or BLOCKED.exists() or
+                    record().get("admission") != admission or ADMISSION.read_text().strip() != admission):
                 return
             reason = os.environ.get("reason", "")
             if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
@@ -969,10 +989,24 @@ def main():
                 length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
                 try:
                     if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        PD.unlink(missing_ok=True)
                         return
                     network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
-                    atomic(PD, "pd=" + str(network) + "\n")
-                except ValueError:
+                    valid = os.environ.get("new_dhcp6_ia_pd1_prefix1_vltime", "")
+                    preferred = os.environ.get("new_dhcp6_ia_pd1_prefix1_pltime", "")
+                    # Admission is inherited from this exact refresher, never rebound at event time.
+                    if (not valid.isdecimal() or not preferred.isdecimal() or
+                            not 0 < int(preferred) <= int(valid) <= 4294967295 or
+                            BLOCKED.exists() or not admission):
+                        PD.unlink(missing_ok=True)
+                        return
+                    now = int(time.time())
+                    atomic(PD, "pd=" + str(network) + "\n" +
+                           "pd_valid_until=" + str(now + int(valid)) + "\n" +
+                           "pd_preferred_until=" + str(now + int(preferred)) + "\n" +
+                           "pd_generation=" + admission + "\n")
+                except (ValueError, OSError):
+                    PD.unlink(missing_ok=True)
                     return
         return
     if action == "stop":

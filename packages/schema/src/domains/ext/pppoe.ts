@@ -55,7 +55,7 @@ export const InterfacePppoeSchema = z.strictObject({
   parent: withUi(z.string().min(1).max(63).optional(), {
     title: 'Dial over interface',
     widget: 'interface-picker',
-    help: 'engine interface the session runs over; default = this interface (set for a VLAN sub-interface WAN)',
+    help: 'Required for enabled clients: a distinct raw WAN parent. Configure PPP on a separate logical interface.',
     order: 2,
   }),
   username: withUi(

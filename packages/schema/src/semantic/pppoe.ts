@@ -20,6 +20,7 @@ const pppoeRules: ValidatorDefinition = {
     const issues: SemanticIssue[] = [];
     const ifaces = config.interfaces;
     const owners = new Map<string, string>();
+    const parents = new Map<string, string>();
     for (const [name, iface] of Object.entries(ifaces)) {
       const pppoe = iface.pppoe;
       if (!pppoe) continue;
@@ -37,6 +38,53 @@ const pppoeRules: ValidatorDefinition = {
           pointer: at('mtu'),
           message: `PPPoE MTU ${pppoe.mtu} is below the IPv6 minimum link MTU ${IPV6_MIN_MTU}; raise it or set ipv6 to off`,
         });
+      }
+
+      if (pppoe.enabled) {
+        const parentName = pppoe.parent;
+        const raw = parentName ? ifaces[parentName] : undefined;
+        if (!parentName || parentName === name) {
+          issues.push({
+            pointer: at('parent'),
+            message:
+              'enabled PPP client requires an explicit distinct raw parent; configure a separate logical PPP interface',
+          });
+        } else if (raw) {
+          if (
+            raw.pppoe ||
+            raw.lcp ||
+            raw.l2 ||
+            raw.ipv4.length ||
+            raw.ipv6.length ||
+            raw.dhcpClient
+          ) {
+            issues.push({
+              pointer: at('parent'),
+              message:
+                'raw PPP parent must not carry PPP, linux-cp, L2, static addresses or DHCP client configuration',
+            });
+          }
+          if (parents.has(parentName)) {
+            issues.push({
+              pointer: at('parent'),
+              message: 'raw PPP parent is already assigned to another enabled PPP client',
+            });
+          }
+          parents.set(parentName, name);
+        }
+        if (
+          iface.physical ||
+          iface.bond ||
+          iface.l2 ||
+          iface.lcp ||
+          Object.keys(iface.subinterfaces).length
+        ) {
+          issues.push({
+            pointer: at(),
+            message:
+              'logical PPP interface must not configure a physical marker, bond, L2, linux-cp or subinterfaces',
+          });
+        }
       }
 
       const targets = pppoe.delegationTargets;
@@ -72,7 +120,12 @@ const pppoeRules: ValidatorDefinition = {
               'delegation target must be an existing enabled LAN, distinct from the PPP client and its parent',
           });
         } else {
-          if (lan.ipv6.length || lan.ipv6Ra !== undefined) {
+          if (
+            lan.ipv6.length ||
+            lan.ipv6Ra !== undefined ||
+            lan.l2 !== undefined ||
+            lan.unnumbered !== undefined
+          ) {
             issues.push({
               pointer,
               message:

@@ -32,15 +32,23 @@ def directory(root, path, create=False):
         for name in pathlib.PurePosixPath(path).parts[1:]:
             if name in ('.', '..'):
                 raise ValueError('invalid fixed path')
+            created = False
             if create:
                 try:
                     os.mkdir(name, 0o755, dir_fd=fd)
+                    created = True
+                    # Persist each ancestor before any public /etc link can
+                    # refer to it; syncing only the leaf is insufficient.
+                    os.fsync(fd)
                 except FileExistsError:
                     pass
             child = os.open(name, FLAGS, dir_fd=fd)
             os.close(fd)
             fd = child
             trusted(fd)
+            if created:
+                os.fchmod(fd, 0o755)
+                os.fsync(fd)
         yield fd
     finally:
         os.close(fd)

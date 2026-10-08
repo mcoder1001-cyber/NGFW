@@ -22,6 +22,6 @@ The renderer operates on the managed targets. Its write and drift checks require
 
 ## Acceptance
 
-Local: seven real isolated Python migration/security fixtures pass; sysident race tests pass including provisioning guard controls. Real foreign-UID and capability fixtures cannot run in this execution environment because its UID map contains only UID0; attempts to use UID65534 return EINVAL. Both tests remain enabled, without skip or expected-failure, in packaging fixtures and the Debian build test target for the final hosted validation.
+Local: ten real isolated Python migration/security fixtures pass; sysident race tests pass including provisioning guard controls. Real foreign-UID and capability fixtures cannot run in this execution environment because its UID map contains only UID0; attempts to use UID65534 return EINVAL. Both tests remain enabled, without skip or expected-failure, in packaging fixtures and the Debian build test target for the final hosted validation.
 
 Laboratory: package configure/upgrade, public identity consumers, actual strict-systemd-sandbox daemon configuration snapshot/reconcile/rollback and reboot persistence are NOT RUN. Prior P10 development installation evidence remains valid and is not reclassified as failed. Product license authority remains a separate unresolved decision.

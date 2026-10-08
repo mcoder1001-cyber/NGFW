@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SOURCE = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('identity', SOURCE / 'assets/provision-system-identity.py')
@@ -113,6 +114,31 @@ class Identity(unittest.TestCase):
         self.assertFalse((root / 'etc/hostname').is_symlink())
 
     @root_fixture
+    def test_new_directory_entries_fsynced_before_public_links(self):
+        root = self.fixture()
+        events = []
+        mkdir, fsync, replace = IDENTITY.os.mkdir, IDENTITY.os.fsync, IDENTITY.os.replace
+        def record_mkdir(path, *args, **kwargs):
+            result = mkdir(path, *args, **kwargs)
+            events.append(('mkdir', kwargs['dir_fd']))
+            return result
+        def record_fsync(fd):
+            events.append(('fsync', fd))
+            return fsync(fd)
+        def record_replace(*args, **kwargs):
+            events.append(('replace', None))
+            return replace(*args, **kwargs)
+        with mock.patch.object(IDENTITY.os, 'mkdir', side_effect=record_mkdir), \
+             mock.patch.object(IDENTITY.os, 'fsync', side_effect=record_fsync), \
+             mock.patch.object(IDENTITY.os, 'replace', side_effect=record_replace):
+            IDENTITY.provision(str(root))
+        self.assertTrue(any(event[0] == 'mkdir' for event in events))
+        self.assertTrue(any(event[0] == 'replace' for event in events))
+        for index, (kind, descriptor) in enumerate(events):
+            if kind == 'mkdir':
+                self.assertEqual(events[index + 1], ('fsync', descriptor))
+
+    @root_fixture
     def test_replay_after_target_written_before_link_replacement(self):
         root = self.fixture()
         state = root / IDENTITY.STATE.lstrip('/')
@@ -140,6 +166,43 @@ class Identity(unittest.TestCase):
         with self.assertRaises(ValueError):
             IDENTITY.provision(str(root))
         self.assertFalse((root / 'etc/hostname').is_symlink())
+
+    @root_fixture
+    def test_initial_migration_requires_inactive_agent(self):
+        directory = IDENTITY.directory
+        for status, allowed in ((0, False), (1, False), (3, True), (4, True)):
+            with self.subTest(status=status):
+                root = self.fixture()
+                with mock.patch.object(IDENTITY, 'directory',
+                        side_effect=lambda ignored, path: directory(str(root), path)), \
+                     mock.patch.object(IDENTITY.os.path, 'exists', return_value=True), \
+                     mock.patch.object(IDENTITY.subprocess, 'run',
+                        return_value=subprocess.CompletedProcess([], status)) as command, \
+                     mock.patch.object(IDENTITY, 'provision') as apply:
+                    if allowed:
+                        IDENTITY.main()
+                        apply.assert_called_once_with()
+                    else:
+                        with self.assertRaises(RuntimeError):
+                            IDENTITY.main()
+                        apply.assert_not_called()
+                    command.assert_called_once_with(
+                        ['/usr/bin/systemctl', 'is-active', '--quiet', 'ngfw-agent.service'],
+                        check=False, timeout=10)
+                self.assertEqual((root / 'etc/hostname').read_bytes(), b'existing hostname')
+
+    @root_fixture
+    def test_reconfigure_has_no_service_command(self):
+        root = self.fixture()
+        IDENTITY.provision(str(root))
+        directory = IDENTITY.directory
+        with mock.patch.object(IDENTITY, 'directory',
+                side_effect=lambda ignored, path: directory(str(root), path)), \
+             mock.patch.object(IDENTITY.subprocess, 'run') as command, \
+             mock.patch.object(IDENTITY, 'provision') as apply:
+            IDENTITY.main()
+            command.assert_not_called()
+            apply.assert_called_once_with()
 
     @root_fixture
     def test_agent_capabilities_restore_foreign_private_config(self):

@@ -39,6 +39,11 @@ func readBounded(path string) (string, error) {
 // shared machine's hostname or resolver configuration as their own identity.
 func (d *Descriptor) State(procRoot, resolvedRuntime string) ObservedState {
 	st := ObservedState{ResolverStatus: "slot-only"}
+	if d.provisioned != nil {
+		if err := d.provisioned(); err != nil {
+			return ObservedState{ResolverStatus: "unavailable", Errors: []string{"provisioning"}}
+		}
+	}
 	if v, err := readBounded(d.paths.Hostname); err == nil {
 		st.Hostname = strings.TrimSpace(v)
 	} else {

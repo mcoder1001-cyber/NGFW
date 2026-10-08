@@ -17,6 +17,8 @@ extended to include the new committed release lock and provenance contracts.
 |---|---|---|
 | FRR slot cleanup | PR209 `64171651` | Three race regressions passed; prior source CI37812533974 passed. Does not resolve native mgmtd deadline or current 200-route proof. |
 | PPP lifecycle | PR210 `baa12c54` | Reviewed fencing, parent lifetime and transition retries; does not implement missing carrier. |
+| PPPoE setup wizard | `6ecc6469`, remote `cf8cddf8` | R2-approved reference-only setup, distinct logical WAN and physical parent, collision guards and safe rerun;39 focused tests PASS under verified Node22.23.2. |
+| PPP carrier packaging | `152cc08f`, remote `f4131162` | R7-approved fixed helper/unit/hook/tmpfiles staging and WAN probe receipt preservation;6 focused fixtures PASS. Requires final helper source integration. |
 | Web navigation | PR206 `0df43e59` | Independent source reviews and earlier full local/hosted quick passed; en/fa navigation source staged unchanged. |
 | TD19 Python release | PR212 `bfe917b6` | Six direct pins,22 runtime wheels,24 upstream artifacts and reproducible derived wheel. Independent source/security approval and offline rebuild. Actual Ubuntu26.04 install/boot/packet remains unverified. |
 | Dynamic Multi-WAN | PR215, product local `edd8d0d1` | R4-approved DHCP renewal/release/error withdrawal, cleanup retry protection, fixed probe executable and egress-generation fencing. Actual PPP runtime binding remains pending. |
@@ -42,10 +44,6 @@ not converted into passing process-lifetime acceptance.
   now have reviewed source staged above. The discovered syslog CA-key alias
   escape is corrected before private-key lookup, independently rechecked.
   NTS server certificates remain outside the accepted chrony feature scope.
-- Setup wizard: the accepted feature prompt explicitly includes PPPoE after
-  client completion. Its disabled option is being replaced with a tested additive
-  setup contract and distinct logical WAN/physical parent configuration, using
-  existing sealed credential references and preserving confirmed-commit safeguards.
 - PPP kernel carrier: exclusive physical L2 transport, distinct logical VPP
   transit interface, owned namespace and pre-local return routing, lifecycle
   readiness/withdrawal, effective policy identity, dynamic WAN probing and PD

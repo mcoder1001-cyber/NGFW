@@ -4152,7 +4152,7 @@ tasks:
       - F-host-acl-nftables
     priority: 1
     est_hours: 10
-    state: running
+    state: "review"
     parked_on: ''
     wbs: []
     scope: see prompt
@@ -4163,8 +4163,8 @@ tasks:
     started: '2026-10-01T20:33:27.076593+00:00'
     finished: '2026-10-04'
     notes: 'Completed reviewed source on 2026-10-04. Seven-step bilingual staged setup, password and confirmed commit; PPPoE disabled pending real client; live rig/browser acceptance deferred. | 2026-10-07 new product bugfix PR198 merged e74c33ebd2c083ef45d733b8d4494a78eb67edd9: eligible live physical WAN/LAN discovery and translated selection guard, independent reviews and local/hosted quick PASS. Existing merged task state retained; actual appliance acceptance remains deferred.'
-    worker_status: "Accepted wizard prompt includes PPPoE when client source is merged. Reopened to connect additive PPPoE setup input/UI to distinct logical WAN carrier, sealed credential references and safe rerun/collision behavior; source worker assigned. Existing DHCP/static proofs retained; final source review and CI pending."
-    completion_receipt_20261008: "Accepted wizard prompt includes PPPoE when client source is merged. Reopened to connect additive PPPoE setup input/UI to distinct logical WAN carrier, sealed credential references and safe rerun/collision behavior; source worker assigned. Existing DHCP/static proofs retained; final source review and CI pending."
+    worker_status: "PPPoE setup6ecc6469 independently R2-approved:12 schema,16 API,11 web tests PASS on Node22.23.2. Reference-only ISP credentials, distinct logicalWAN, live collision guard and safe rerun integrated in PR214. Final combined generation/CI/merge and native firstboot/browser acceptance pending."
+    completion_receipt_20261008: "PPPoE setup6ecc6469 independently R2-approved:12 schema,16 API,11 web tests PASS on Node22.23.2. Reference-only ISP credentials, distinct logicalWAN, live collision guard and safe rerun integrated in PR214. Final combined generation/CI/merge and native firstboot/browser acceptance pending."
   - id: F-rule-expiry
     title: 'Temporary rules: expiry, owner and ticket fields on ACL/host/NAT rules, removed from the dataplane at expiry'
     prompt: prompts/features/F-rule-expiry.md

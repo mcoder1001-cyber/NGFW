@@ -54,3 +54,52 @@ func TestCleanupFiltersAndResumesBoundedPages(t *testing.T) {
 		t.Fatal(complete, len(f.deleted), len(f.rows))
 	}
 }
+
+type cleanupRetryFake struct {
+	cleanupFake
+	fail bool
+}
+
+func (f *cleanupRetryFake) DeleteSession(ctx context.Context, e nat44ed.Endpoint, p string, vrf uint32, ext nat44ed.Endpoint) error {
+	if f.fail {
+		return fmt.Errorf("transient delete failure")
+	}
+	return f.cleanupFake.DeleteSession(ctx, e, p, vrf, ext)
+}
+
+func TestCleanupRetryProtectsReboundLeaseSessions(t *testing.T) {
+	doc := routeDoc()
+	doc.Interfaces["wan1"].Ipv4 = []string{"192.0.2.2/24"}
+	doc.Interfaces["wan2"].Ipv4 = []string{"198.51.100.2/24"}
+	f := &cleanupRetryFake{fail: true, cleanupFake: cleanupFake{rows: []nat44ed.Session{
+		{Inside: nat44ed.Endpoint{IP: "10.0.0.1"}, Outside: nat44ed.Endpoint{IP: "192.0.2.2"}, Protocol: "tcp"},
+		{Inside: nat44ed.Endpoint{IP: "10.0.0.2"}, Outside: nat44ed.Endpoint{IP: "198.51.100.2"}, Protocol: "tcp"},
+	}}}
+	pending := map[string]bool{"192.0.2.2": true, "198.51.100.2": true}
+	retired := map[string]bool{"192.0.2.2": true}
+	progress := &CleanupProgress{}
+	if _, done, err := ClearDeadSessions(context.Background(), f, pending, map[uint32]bool{7: true}, progress); err == nil || done {
+		t.Fatal("failure not retained")
+	}
+	// The ISP reassigns the retired address, before probe hysteresis recovers.
+	// Sessions cannot be distinguished by lease generation, so protect all of them.
+	f.fail = false
+	if !PruneLiveCleanup(pending, retired, doc, health(false, false)) {
+		t.Fatal("rebound not protected")
+	}
+	*progress = CleanupProgress{}
+	if pending["192.0.2.2"] || len(retired) != 0 || !pending["198.51.100.2"] {
+		t.Fatal(pending, retired)
+	}
+	if n, done, err := ClearDeadSessions(context.Background(), f, pending, map[uint32]bool{7: true}, progress); err != nil || !done || n != 1 {
+		t.Fatal(n, done, err)
+	}
+	if len(f.rows) != 1 || f.rows[0].Outside.IP != "192.0.2.2" {
+		t.Fatal("replacement lease session deleted", f.rows)
+	}
+	// Ordinary dead-link cleanup is also cancelled if health recovers on retry.
+	pending = map[string]bool{"198.51.100.2": true}
+	if !PruneLiveCleanup(pending, nil, doc, health(false, true)) || len(pending) != 0 {
+		t.Fatal("recovered member queued", pending)
+	}
+}

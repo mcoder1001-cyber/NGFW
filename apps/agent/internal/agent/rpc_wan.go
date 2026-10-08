@@ -52,7 +52,7 @@ func (g *server) WanState(ctx context.Context, req *ngfwv1.WanStateRequest) (*ng
 			g.svc.unlock()
 			return nil, status.Error(codes.Unavailable, "WAN installed routes unavailable")
 		}
-		active = installedWANActive(saved, installed)
+		active = installedWANActive(g.svc.wan.ResolveGateways(saved, wanIdentity(saved), false), installed)
 		g.svc.unlock()
 	}
 	for _, group := range snapshot {
@@ -91,8 +91,10 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		}
 	}()
 	var previousHealth []*ngfwv1.WanGroupState
+	var previousResolved *ngfwv1.DesiredState
 	previousIdentity := ""
 	pendingDead := map[string]bool{}
+	pendingRetired := map[string]bool{}
 	cleanupProgress := &multiwan.CleanupProgress{}
 	cleaner := nat44ed.New(a.svc.vpp, a.svc.owner)
 	timer := time.NewTicker(time.Second)
@@ -114,12 +116,24 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		})); err != nil && ctx.Err() == nil {
 			a.log.Error("WAN monitor configuration rejected", "reason", err.Error())
 		}
+		observationCtx, observationCancel := context.WithTimeout(ctx, 2*time.Second)
+		observed := a.readWANGateways(observationCtx, saved)
+		observationCancel()
+		if err := a.svc.lock(ctx); err != nil {
+			return
+		}
+		if a.svc.st.wanSaved == saved && runtime.SetGateways(clone, identity, observed) {
+			requestResync(a.resyncs)
+		}
+		a.svc.unlock()
 		health := runtime.HealthFor(clone, identity)
 		generationBytes, _ := (proto.MarshalOptions{Deterministic: true}).Marshal(saved.GetRouting())
 		generation := identity + string(generationBytes)
 		if generation != previousIdentity {
 			previousHealth = nil
+			previousResolved = nil
 			pendingDead = map[string]bool{}
+			pendingRetired = map[string]bool{}
 			previousIdentity = generation
 			*cleanupProgress = multiwan.CleanupProgress{}
 		}
@@ -130,15 +144,28 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 				usable = append(usable, g)
 			}
 		}
-		for addr := range multiwan.DeadAddresses(saved, previousHealth, usable) {
+		resolved := runtime.ResolveGateways(saved, identity, true)
+		for addr := range multiwan.DeadAddresses(previousResolved, previousHealth, usable) {
 			if !pendingDead[addr] {
 				*cleanupProgress = multiwan.CleanupProgress{}
 			}
 			pendingDead[addr] = true
 		}
+		for addr := range multiwan.RetiredAddresses(previousResolved, resolved) {
+			pendingDead[addr] = true
+			pendingRetired[addr] = true
+			*cleanupProgress = multiwan.CleanupProgress{}
+		}
+		previousResolved = resolved
 		if len(pendingDead) > 0 {
 			cleanupCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			current, err := a.svc.withCurrentWAN(cleanupCtx, saved, func(c context.Context) error {
+				if multiwan.PruneLiveCleanup(pendingDead, pendingRetired, resolved, usable) {
+					*cleanupProgress = multiwan.CleanupProgress{}
+				}
+				if len(pendingDead) == 0 {
+					return nil
+				}
 				tables := map[uint32]bool{}
 				for _, g := range saved.GetRouting().GetWanGroups() {
 					for _, m := range g.GetMembers() {
@@ -161,12 +188,14 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 				}
 				if complete {
 					pendingDead = map[string]bool{}
+					pendingRetired = map[string]bool{}
 				}
 				return e
 			})
 			cancel()
 			if !current && err == nil {
 				pendingDead = map[string]bool{}
+				pendingRetired = map[string]bool{}
 				*cleanupProgress = multiwan.CleanupProgress{}
 			}
 			if err != nil {

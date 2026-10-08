@@ -39,11 +39,12 @@ func registerWANRoutes(reg scheduler.Registry, wiring *subsystems.Wiring, client
 	reg.Register(plugin.WANPool(multiwan.NATStaticAddressName, multiwan.NATOutputName))
 	return wiring.AddDynamicSource(subsystems.DynamicSource{Name: "multiwan", Descriptors: []string{multiwan.RouteName, multiwan.NATOutputName, multiwan.NATAddressName, multiwan.NATStaticAddressName}, Desired: func(doc *ngfwv1.DesiredState) []scheduler.KV {
 		health := runtime.HealthFor(doc.GetRouting().GetWanGroups(), wanIdentity(doc))
-		routes, _ := multiwan.Routes(doc, health)
+		resolved := runtime.ResolveGateways(doc, wanIdentity(doc), true)
+		routes, _ := multiwan.Routes(resolved, health)
 		if health == nil {
 			return routes
 		}
-		return append(routes, multiwan.NATObjects(doc)...)
+		return append(routes, multiwan.NATObjects(resolved)...)
 	}, Run: func(ctx context.Context, sync subsystems.SyncFunc) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()

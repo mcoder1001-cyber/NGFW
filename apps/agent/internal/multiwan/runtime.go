@@ -39,16 +39,20 @@ type groupSamples struct {
 // Runtime owns bounded probes and snapshots. Replace drains the previous
 // generation before starting another, including late non-cooperative completions.
 type Runtime struct {
-	replace    sync.Mutex
-	mu         sync.Mutex
-	groups     map[string]*groupSamples
-	config     []*ngfwv1.WanGroup
-	identity   string
-	ready      bool
-	cancel     context.CancelFunc
-	done       chan struct{}
-	generation uint64
-	probe      Probe
+	gatewayIdentity string
+	gatewayGroups   []*ngfwv1.WanGroup
+	gateways        map[string]LearnedGateway
+	gatewayUntil    time.Time
+	replace         sync.Mutex
+	mu              sync.Mutex
+	groups          map[string]*groupSamples
+	config          []*ngfwv1.WanGroup
+	identity        string
+	ready           bool
+	cancel          context.CancelFunc
+	done            chan struct{}
+	generation      uint64
+	probe           Probe
 }
 
 // NewRuntime constructs an inactive runtime; Replace starts probes.

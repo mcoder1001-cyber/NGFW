@@ -88,3 +88,23 @@ foundation, not an implementation of all those components.
 Original product discovery/encapsulation failures remain unresolved. Lab packet
 acceptance must follow completion and independent review of this source. No native
 service, namespace, route, packet test or aggregate CI is run by this checkpoint.
+
+## Namespace and admission checkpoint
+
+Added an immutable carrier specification with distinct logical/raw identities,
+per-session IPv4/IPv6 transit derivation and overlap rejection. The namespace
+descriptor validates exact spec/owner/boot/inode/generation receipts, preserves
+parent dependency, refuses foreign deletion and recreates consumers on spec changes.
+Live VPP admission refuses an existing logical interface, raw-parent addresses,
+LCP pair, bridge/cross-connect or PPP server/control attachment and rejects observed
+transit-address overlaps before calling namespace provision. The helper adapter uses
+only a fixed packaged Python path and fixed subcommands, bounds and parses JSON
+receipts, redacts process errors, and requires actual verification rather than a
+stored configured flag. Its runtime registration/projection are not integrated yet.
+
+Focused Go 1.26.0 race checks for `^TestCarrier(Spec|Namespace)`:
+descriptor package PASS 1.024s; renderer PASS 1.016s. Subsystems compiled with the
+same command (no matching tests). The real VPP admission function compiled but has
+not been executed against VPP. Full CI remains deferred. The initial helper and its
+subsequent actual verification/session-name fixes are preserved as separate source
+commits. These checks do not complete carrier runtime integration or packet proof.

@@ -55,6 +55,16 @@ done
 for unit in ngfw-ra@.service ngfw-ra-openfile.service ngfw-ra-openfile.socket ngfw-ra-targets@.service ngfw-ra-targets@.socket ngfw-ra-observer@.service ngfw-ra-observer@.socket ngfw-ra-namespace-broker.socket ngfw-ra-namespace-broker@.service; do
   install -m 0644 "$ROOT/deploy/systemd/$unit" "$STAGE/usr/lib/systemd/system/"
 done
+# Fixed PPP carrier package assets only. No broker, namespace or service is started.
+mkdir -p "$STAGE/usr/lib/ngfw/pppoe-carrier-hooks" "$STAGE/usr/lib/tmpfiles.d"
+install -m 0644 "$ROOT/scripts/pppoe-kernel-carrier.py" "$STAGE/usr/lib/ngfw/pppoe-carrier.py"
+for unit in ngfw-pppoe-carrier@.service ngfw-pppoe-broker@.service; do
+  install -m 0644 "$ROOT/scripts/pppoe-carrier-assets/$unit" "$STAGE/usr/lib/systemd/system/"
+done
+for hook in ip-up ip-down ipv6-up ipv6-down; do
+  install -m 0755 "$ROOT/scripts/pppoe-carrier-assets/$hook" "$STAGE/usr/lib/ngfw/pppoe-carrier-hooks/$hook"
+done
+install -m 0644 "$ROOT/scripts/pppoe-carrier-assets/ngfw-pppoe-carrier.conf" "$STAGE/usr/lib/tmpfiles.d/"
 (cd "$ROOT" && pnpm --filter @ngfw/api deploy --prod "$STAGE/usr/lib/ngfw/api")
 [[ -f $STAGE/usr/lib/ngfw/api/dist/main.js ]] || { echo 'pnpm deploy omitted compiled API' >&2; exit 1; }
 cp -a "$ROOT/apps/api/migrations" "$STAGE/usr/lib/ngfw/api/"

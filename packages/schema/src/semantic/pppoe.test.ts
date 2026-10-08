@@ -67,3 +67,43 @@ describe('F-pppoe-client semantic rules', () => {
     expect(run({ interfaces: { wan0: wan({}, { ipv6: 'off', mtu: 1279 }) } })).toEqual([]);
   });
 });
+
+describe('explicit PPP DHCPv6 delegation', () => {
+  const target = { interface: 'lan0', subnetId: 1 };
+  const config = (ppp: Record<string, unknown> = {}, lan: Record<string, unknown> = {}) => ({
+    interfaces: {
+      wan0: wan({}, { ipv6: 'dhcpv6', delegationTargets: [target], ...ppp }),
+      lan0: { enabled: true, ...lan },
+    },
+  });
+  it('accepts a same-VRF enabled LAN without static IPv6 or RA', () =>
+    expect(run(config())).toEqual([]));
+  it('rejects non-DHCPv6, missing, disabled, PPP, static and cross-VRF targets', () => {
+    for (const doc of [
+      config({ ipv6: 'slaac' }),
+      config({ delegationTargets: [{ ...target, interface: 'missing' }] }),
+      config({}, { enabled: false }),
+      config({}, { ipv6: ['2001:db8::1/64'] }),
+      config({}, { ipv6Ra: {} }),
+      config({}, { vrf: 'other' }),
+      config({}, { pppoe: { username: 'u', passwordRef: 'password/isp' } }),
+    ]) {
+      expect(run(doc).length).toBeGreaterThan(0);
+    }
+  });
+  it('rejects duplicate target IDs/interfaces and multiple WAN ownership', () => {
+    expect(run(config({ delegationTargets: [target, target] })).length).toBeGreaterThan(0);
+    const doc = config();
+    Object.assign(doc.interfaces, {
+      wan1: wan({}, { ipv6: 'dhcpv6', delegationTargets: [target] }),
+    });
+    expect(run(doc).some((issue) => issue.message.includes('already assigned'))).toBe(true);
+  });
+  it('rejects unrepresentable or negative subnet IDs at parse time', () => {
+    for (const subnetId of [-1, 0.5, 4294967296]) {
+      expect(() =>
+        RootConfig.parse(config({ delegationTargets: [{ ...target, subnetId }] })),
+      ).toThrow();
+    }
+  });
+});

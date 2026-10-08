@@ -8,6 +8,5 @@
 | `hoststack.tcp-src` | `hoststack.tcp-src/<fib>` | `tcp_configure_src_addresses` | write-only | D-076 applied-once record per VPP boot. There is no delete: Delete drops only the record, so a change is irreversible per fib. |
 | `hoststack.http-static` | `hoststack.http-static/global` | `http_static_enable_v5` | write-only | Globals owner only, and only with `NGFW_HOSTSTACK_HTTP_STATIC=1` (D-064/D-077 Q3). Applied once per boot. Update is refused while it runs (no disable exists). `www_root` must be under `/var/lib/ngfw/www/` (D-049, M5). |
 
-Projection: `internal/desired/host_stack.go` (`services.hostStack` → KVs). A namespace `secretRef` is a DryRun error
-(`services.host-stack-secret-channel`) until PENDING-secret-channel lands. `HostStackAssemble` reports only session rules.
+Projection: `internal/desired/host_stack.go` (`services.hostStack` → KVs). A namespace `secretRef` selects a sealed keyed generation. Only its HMAC enters scheduler state; the descriptor resolves and validates a canonical nonzero decimal uint64 immediately before the VPP call. Missing material fails closed; delete does not need the old material. `HostStackAssemble` reports only session rules.
 RPC: `internal/agent/rpc_host_stack.go` (`HostStackState`, read-only).

@@ -146,6 +146,7 @@ func FRRProjection() desired.FRROptions {
 	if rt := activeFRR.Load(); rt != nil {
 		rt.secretMu.RLock()
 		options.SecretRef = rt.secretFingerprint
+		options.Secrets = rt.secretFingerprint != nil && rt.secretHistory != nil
 		rt.secretMu.RUnlock()
 	}
 	return options

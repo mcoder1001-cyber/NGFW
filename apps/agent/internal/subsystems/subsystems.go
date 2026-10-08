@@ -444,7 +444,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := registerUnboundChronySyslog(r, env); err != nil {
 		return nil, err
 	}
-	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
+	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner), hoststack.WithSecrets(hostServiceSecrets(owner).resolveGeneration)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {
 		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static
 	}

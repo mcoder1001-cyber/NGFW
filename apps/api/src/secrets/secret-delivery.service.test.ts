@@ -386,3 +386,181 @@ it('delivers only enabled PPPoE password references through the versioned channe
   expect(result.versions).toEqual({ [ref]: 4 });
   expect(where).toHaveBeenCalledTimes(1);
 });
+
+describe('completed operational consumers', () => {
+  const cases: [string, string, unknown][] = [
+    ['key/wg', 'key', { vpn: { wireguard: { interfaces: { wg0: { privateKeyRef: 'key/wg' } } } } }],
+    [
+      'psk/peer',
+      'psk',
+      {
+        vpn: {
+          wireguard: { interfaces: { wg0: { peers: { peer: { presharedKeyRef: 'psk/peer' } } } } },
+        },
+      },
+    ],
+    [
+      'password/community',
+      'password',
+      {
+        services: {
+          snmp: { enabled: true, communities: { ro: { secretRef: 'password/community' } } },
+        },
+      },
+    ],
+    [
+      'password/auth',
+      'password',
+      { services: { snmp: { enabled: true, v3Users: { user: { authRef: 'password/auth' } } } } },
+    ],
+    [
+      'password/priv',
+      'password',
+      { services: { snmp: { enabled: true, v3Users: { user: { privRef: 'password/priv' } } } } },
+    ],
+    [
+      'password/bgp',
+      'password',
+      { routing: { bgp: { neighbors: { '192.0.2.1': { passwordRef: 'password/bgp' } } } } },
+    ],
+    [
+      'password/group',
+      'password',
+      { routing: { bgp: { peerGroups: { upstream: { passwordRef: 'password/group' } } } } },
+    ],
+    [
+      'key/ntp',
+      'key',
+      {
+        services: {
+          ntp: { enabled: true, servers: [{ address: '192.0.2.1', keyRef: 'key/ntp' }] },
+        },
+      },
+    ],
+    [
+      'cert/syslog',
+      'cert',
+      { management: { syslog: [{ protocol: 'tls', tls: { caRef: 'cert/syslog' } }] } },
+    ],
+    [
+      'key/namespace',
+      'key',
+      { services: { hostStack: { namespaces: { app: { secretRef: 'key/namespace' } } } } },
+    ],
+  ];
+
+  it.each(cases)('delivers %s from the pinned sealed revision', async (selected, kind, doc) => {
+    const { delivery, where, encrypt } = setup([]);
+    where.mockResolvedValueOnce([
+      { ref: selected, kind, version: 2, ciphertext: encrypt('new', selected) },
+    ]);
+    where.mockResolvedValueOnce([
+      { ref: selected, version: 1, ciphertext: encrypt('old', selected) },
+    ]);
+    const got = await delivery.resolveVersioned(DesiredState.fromJSON(doc), { [selected]: 1 });
+    expect(got.versions).toEqual({ [selected]: 1 });
+    expect(got.bundle.values).toEqual({ [selected]: Buffer.from('old') });
+  });
+
+  it('clears disabled SNMP/NTP and non-TLS syslog selection without secret reads', async () => {
+    const { delivery, select } = setup([]);
+    const got = await delivery.resolve(
+      DesiredState.fromJSON({
+        services: {
+          snmp: { enabled: false, communities: { ro: { secretRef: 'password/ro' } } },
+          ntp: { enabled: false, servers: [{ keyRef: 'key/ntp' }] },
+        },
+        management: { syslog: [{ protocol: 'udp', tls: { caRef: 'cert/ca' } }] },
+      }),
+    );
+    expect(got).toEqual({ values: {} });
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('does not deliver a CA signing key through an operational consumer alias', async () => {
+    const { delivery, select } = setup([]);
+    await expect(
+      delivery.resolve(
+        DesiredState.fromJSON({
+          vpn: {
+            pki: { cas: { ca: {} } },
+            wireguard: { interfaces: { wg0: { privateKeyRef: 'key/ca' } } },
+          },
+        }),
+      ),
+    ).rejects.toThrow('operational secret kind is invalid');
+    expect(select).not.toHaveBeenCalled();
+  });
+});
+
+describe('TLS syslog operational private-key boundary', () => {
+  function certificates() {
+    const rootKey = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const ca = selfSignedCa(parseDn('CN=Hidden CA'), rootKey, 365);
+    const key = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const csr = parseCsr(toPem('CERTIFICATE REQUEST', buildCsr(parseDn('CN=Syslog'), [], key)));
+    const leaf = signCsr(csr, { facts: ca.facts, key: rootKey.privateKey }, { days: 30 });
+    return { ca, key, leaf };
+  }
+  const selected = (certRef: string | undefined = 'cert/alias', mixed = false) =>
+    DesiredState.fromJSON({
+      management: { syslog: [{ protocol: 'tls', tls: { certRef, keyRef: 'key/alias' } }] },
+      ...(mixed
+        ? { services: { hostStack: { namespaces: { app: { secretRef: 'key/alias' } } } } }
+        : {}),
+    });
+
+  it.each([false, true])(
+    'rejects undeclared CA alias before private-key lookup (mixed=%s)',
+    async (mixed) => {
+      const { ca } = certificates();
+      const { delivery, where, encrypt } = setup([]);
+      where.mockResolvedValueOnce([
+        { kind: 'cert', ref: 'cert/alias', version: 1, ciphertext: encrypt(ca.pem, 'cert/alias') },
+      ]);
+      await expect(delivery.resolve(selected('cert/alias', mixed))).rejects.toThrow(
+        'operational end-entity certificate',
+      );
+      expect(where).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('rejects a missing paired certificate before private-key lookup', async () => {
+    const { delivery, select } = setup([]);
+    const ds = DesiredState.fromJSON({
+      management: { syslog: [{ protocol: 'tls', tls: { keyRef: 'key/alias' } }] },
+    });
+    await expect(delivery.resolve(ds)).rejects.toThrow('operational end-entity certificate');
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'checks pinned certificate/private-key pairing (mismatch=%s)',
+    async (mismatch) => {
+      const { key, leaf } = certificates();
+      const other = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+      const pem = (mismatch ? other : key).privateKey
+        .export({ type: 'pkcs8', format: 'pem' })
+        .toString();
+      const { delivery, where, encrypt } = setup([]);
+      for (const [ref, kind, text] of [
+        ['cert/alias', 'cert', leaf.pem],
+        ['key/alias', 'key', pem],
+      ]) {
+        where.mockResolvedValueOnce([
+          { ref, kind, version: 2, ciphertext: encrypt('rotated', ref) },
+        ]);
+        where.mockResolvedValueOnce([{ ref, version: 1, ciphertext: encrypt(text!, ref) }]);
+      }
+      const result = delivery.resolveVersioned(selected(), { 'cert/alias': 1, 'key/alias': 1 });
+      if (mismatch)
+        await expect(result).rejects.toThrow('certificate and private key do not match');
+      else {
+        const got = await result;
+        expect(got.versions).toEqual({ 'cert/alias': 1, 'key/alias': 1 });
+        expect(got.bundle.values['key/alias']).toEqual(Buffer.from(pem));
+      }
+      expect(where).toHaveBeenCalledTimes(4);
+    },
+  );
+});

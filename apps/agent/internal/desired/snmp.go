@@ -117,7 +117,12 @@ func Snmp(p Sink, svc *ngfwv1.ServicesConfig) {
 			return
 		}
 	}
-	p.Add(SnmpKey, proto.Clone(snmp), Ptr("services", "snmp"))
+	value, err := snmpValue(snmp)
+	if err != nil {
+		p.Errorf(Ptr("services", "snmp"), "services.snmp.secret", "%v", err)
+		return
+	}
+	p.Add(SnmpKey, value, Ptr("services", "snmp"))
 }
 
 // AssembleSnmp adds the retrieved services.snmp (the applied value, when the live file still matches it).
@@ -126,7 +131,7 @@ func AssembleSnmp(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 		if kv.Key != SnmpKey {
 			continue
 		}
-		if v, ok := kv.Value.(*ngfwv1.SnmpService); ok {
+		if v, _, err := ParseSnmpValue(kv.Value); err == nil {
 			if ds.Services == nil {
 				ds.Services = &ngfwv1.ServicesConfig{}
 			}

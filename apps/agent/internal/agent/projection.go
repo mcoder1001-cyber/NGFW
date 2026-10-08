@@ -437,7 +437,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		desired.Snmp(p, ds.GetServices())
 	}
 	if in["services"] {
-		desired.HostStack(p, ds.GetServices().GetHostStack(), vrfID)
+		desired.HostStack(p, ds.GetServices().GetHostStack(), vrfID, subsystems.HostServiceSecretOptions(owner))
 	} // F-host-stack (unanchored)
 	// wave-BC: F-ipfix-sflow (unanchored)
 	if in["services"] {
@@ -448,7 +448,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		desired.QoS(p, ds.GetServices().GetQos())
 		desired.ServicesUnsupported(p, ds.GetServices()) // once per projection (F-kea-dhcp-relay registers "dhcp" in desired/kea.go)
 	}
-	desired.HostServices(p, ds, in["services"], in["management"])
+	desired.HostServices(p, ds, in["services"], in["management"], subsystems.HostServiceSecretOptions(owner))
 	if in["management"] {
 		desired.Prometheus(p, ds)
 	} // F-dashboard-prom-alarms

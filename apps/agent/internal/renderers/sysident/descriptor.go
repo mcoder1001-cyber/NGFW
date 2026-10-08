@@ -62,11 +62,15 @@ func New(p Paths, log *slog.Logger) *Descriptor {
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Descriptor{
+	d := &Descriptor{
 		paths: p, log: log,
 		hostname: os.Hostname,
 		sethost:  func(h string) error { return syscall.Sethostname([]byte(h)) },
 	}
+	if p == ProductPaths() {
+		d.prepare = func() error { return verifyProductPaths("/", 0) }
+	}
+	return d
 }
 
 // WithPrepare sets a hook run before every write (creates a slot's directories).

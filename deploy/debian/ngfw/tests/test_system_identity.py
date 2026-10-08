@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """Real filesystem migration fixtures, isolated from the host identity."""
+import functools
 import importlib.util
 import os
 import pathlib
@@ -12,6 +13,19 @@ SOURCE = pathlib.Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('identity', SOURCE / 'assets/provision-system-identity.py')
 IDENTITY = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(IDENTITY)
+
+
+def root_fixture(test):
+    @functools.wraps(test)
+    def execute(self):
+        if os.geteuid() == 0:
+            return test(self)
+        result = subprocess.run(['sudo', '-n', sys.executable, __file__,
+                                 'Identity.' + test.__name__], capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Ran 1 test', result.stderr)
+        self.assertNotIn('skipped', result.stderr)
+    return execute
 
 
 class Identity(unittest.TestCase):
@@ -27,6 +41,7 @@ class Identity(unittest.TestCase):
                 (root / 'etc' / name).write_bytes(('existing ' + name).encode())
         return root
 
+    @root_fixture
     def test_migration_preserves_content_and_reconfiguration(self):
         root = self.fixture()
         IDENTITY.provision(str(root))
@@ -44,6 +59,7 @@ class Identity(unittest.TestCase):
         self.assertEqual(state.stat().st_uid, 0)
         self.assertTrue((root / 'etc/systemd/resolved.conf.d').is_dir())
 
+    @root_fixture
     def test_all_sources_preflighted_before_any_replacement(self):
         for kind in ('symlink', 'directory', 'hardlink', 'writable', 'oversize'):
             with self.subTest(kind=kind):
@@ -65,6 +81,7 @@ class Identity(unittest.TestCase):
                 self.assertFalse((root / 'etc/hostname').is_symlink())
                 self.assertEqual((root / 'etc/hostname').read_bytes(), b'existing hostname')
 
+    @root_fixture
     def test_refuses_parent_symlink_or_writable_parent(self):
         for kind in ('symlink', 'writable'):
             with self.subTest(kind=kind):
@@ -85,6 +102,7 @@ class Identity(unittest.TestCase):
                 if kind == 'symlink':
                     self.assertEqual(list(external.iterdir()), [external / 'sentinel'])
 
+    @root_fixture
     def test_refuses_foreign_owned_parent(self):
         root = self.fixture()
         state = root / IDENTITY.STATE.lstrip('/')
@@ -94,6 +112,7 @@ class Identity(unittest.TestCase):
             IDENTITY.provision(str(root))
         self.assertFalse((root / 'etc/hostname').is_symlink())
 
+    @root_fixture
     def test_replay_after_target_written_before_link_replacement(self):
         root = self.fixture()
         state = root / IDENTITY.STATE.lstrip('/')
@@ -102,6 +121,7 @@ class Identity(unittest.TestCase):
         IDENTITY.provision(str(root))
         self.assertTrue((root / 'etc/hostname').is_symlink())
 
+    @root_fixture
     def test_conflicting_target_is_not_overwritten(self):
         root = self.fixture()
         state = root / IDENTITY.STATE.lstrip('/')
@@ -112,6 +132,7 @@ class Identity(unittest.TestCase):
         self.assertEqual((state / 'hostname').read_bytes(), b'other content')
         self.assertFalse((root / 'etc/hostname').is_symlink())
 
+    @root_fixture
     def test_timezone_escape_rejected(self):
         root = self.fixture()
         (root / 'etc/localtime').unlink()
@@ -120,6 +141,7 @@ class Identity(unittest.TestCase):
             IDENTITY.provision(str(root))
         self.assertFalse((root / 'etc/hostname').is_symlink())
 
+    @root_fixture
     def test_packaged_narrow_sandbox_paths(self):
         unit = (SOURCE.parents[2] / 'deploy/systemd/ngfw-agent.service').read_text()
         self.assertIn('ProtectSystem=strict', unit)

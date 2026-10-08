@@ -7,7 +7,10 @@
     "vpn": "VPN",
     "services": "Services",
     "system": "System",
-    "tools": "Tools"
+    "tools": "Tools",
+    "objects": "Objects",
+    "dynamic-routing": "Dynamic routing",
+    "routing-objects": "Routing objects"
   },
   "dashboard": "Dashboard",
   "users": "Users",
@@ -19,15 +22,18 @@
     "dataplane": "Dataplane",
     "interfaces": "Interfaces",
     "vrfs": "VRFs",
-    "routing": "Routing",
+    "routing": "Static routes",
     "nat": "NAT",
     "objects": "Objects",
-    "acl": "ACLs",
+    "acl": "Policies",
     "vpn": "IPsec / WireGuard",
     "tunnels": "Tunnels",
     "services": "Services",
     "ha": "High availability",
     "management": "Management",
     "security": "Security"
+  },
+  "routingObjects": {
+    "usage": "Usage and order"
   }
 }

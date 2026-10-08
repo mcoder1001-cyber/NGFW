@@ -172,7 +172,7 @@ describe('ACL screen', () => {
       await signIn();
       render(app('/firewall/acl'));
       expect(
-        await screen.findByRole('heading', { level: 2, name: 'Access lists' }, { timeout: 15_000 }),
+        await screen.findByRole('heading', { level: 2, name: 'Policies' }, { timeout: 15_000 }),
       ).toBeInTheDocument();
       const table = await screen.findByRole('table', { name: 'Access lists' });
       const web = (await within(table).findByText('web-in')).closest('tr')!;
@@ -487,12 +487,12 @@ describe('ACL screen', () => {
       expect(
         await screen.findByRole(
           'heading',
-          { level: 2, name: 'فهرست‌های دسترسی' },
+          { level: 2, name: 'پالیسی‌ها' },
           { timeout: 15_000 },
         ),
       ).toBeInTheDocument();
       expect(document.documentElement).toHaveAttribute('dir', 'rtl');
-      expect(screen.getByRole('tab', { name: 'فهرست‌ها', selected: true })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'مجموعه‌های پالیسی', selected: true })).toBeInTheDocument();
       const table = await screen.findByRole('table', { name: 'فهرست‌های دسترسی' });
       const web = (await within(table).findByText('web-in')).closest('tr')!;
       expect(within(web).getByText('ACL شمارهٔ ۷')).toBeInTheDocument();

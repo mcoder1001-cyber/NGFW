@@ -55,6 +55,9 @@ func newIPv6Rig(t *testing.T, mode string) *ipv6Rig {
 	body = strings.ReplaceAll(body, `SYSCTL = Path("/proc/sys/net/ipv6/conf")`, "SYSCTL = Path("+strconv.Quote(filepath.Dir(sysctl))+")")
 	body = strings.ReplaceAll(body, `DHCPCD = "/usr/sbin/dhcpcd"`, "DHCPCD = "+strconv.Quote(dhcp))
 	write(helper, body)
+	if err := r.ResumeIPv6(s.HostIf); err != nil {
+		t.Fatal(err)
+	}
 	t.Cleanup(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer cancel()
@@ -71,7 +74,7 @@ func (x *ipv6Rig) command(t *testing.T, action string) error {
 	defer cancel()
 	args := []string{x.paths.ipv6Helper(x.host), action}
 	if action != "stop" {
-		args = append(args, "ppp0", "", "", "")
+		args = append(args, "ppp0", "", "", strconv.Itoa(os.Getpid()), x.admission(t))
 	}
 	cmd := exec.CommandContext(ctx, Python3Bin, args...) //nolint:gosec // rendered private fixture
 	if out, err := cmd.CombinedOutput(); err != nil {
@@ -309,7 +312,7 @@ func TestIPv6AbruptPppdLossStopsChild(t *testing.T) {
 	defer func() { _ = pppd.Process.Kill(); _ = pppd.Wait() }()
 	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, Python3Bin, x.paths.ipv6Helper(x.host), "up", "ppp0", "", "", strconv.Itoa(pppd.Process.Pid)) //nolint:gosec // own private fixture
+	cmd := exec.CommandContext(ctx, Python3Bin, x.paths.ipv6Helper(x.host), "up", "ppp0", "", "", strconv.Itoa(pppd.Process.Pid), x.admission(t)) //nolint:gosec // own private fixture
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("up: %v %s", err, out)
 	}
@@ -376,5 +379,167 @@ func TestIPv6PathsRejectShellExpansion(t *testing.T) {
 	p.StateDir = "/tmp/../other"
 	if err := p.Validate(); err == nil {
 		t.Fatal("unclean custom path accepted")
+	}
+}
+
+func TestIPv6TransitionAdmissionRemainsFenced(t *testing.T) {
+	for _, running := range []bool{false, true} {
+		t.Run(strconv.FormatBool(running), func(t *testing.T) {
+			x := newIPv6Rig(t, "slaac")
+			if running {
+				if err := x.command(t, "up"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := x.r.StopIPv6(t.Context(), x.host); err != nil {
+				t.Fatal(err)
+			}
+			state := filepath.Join(x.paths.StateDir, x.host+".state6")
+			if err := os.Remove(state); err != nil && !os.IsNotExist(err) {
+				t.Fatal(err)
+			}
+			// This late up is the old pppd hook arriving after StopIPv6.
+			if err := x.command(t, "up"); err != nil {
+				t.Fatal(err)
+			}
+			for _, suffix := range []string{".state6", ".ipv6.pid", ".pd"} {
+				if _, err := os.Stat(filepath.Join(x.paths.StateDir, x.host+suffix)); !os.IsNotExist(err) {
+					t.Fatalf("fenced up recreated %s", suffix)
+				}
+			}
+			if err := x.r.ResumeIPv6(x.host); err != nil {
+				t.Fatal(err)
+			}
+			if err := x.command(t, "up"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := os.Stat(state); err != nil {
+				t.Fatal("replacement admission did not reopen", err)
+			}
+		})
+	}
+}
+
+func TestIPv6PinnedParentRejectsRecycledNumericIdentity(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	parent := exec.Command("sleep", "30")
+	if err := parent.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = parent.Process.Kill(); _ = parent.Wait() }()
+	helper := x.paths.ipv6Helper(x.host)
+	body, err := os.ReadFile(helper) //nolint:gosec // private rendered fixture
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Simulate /proc answering for a reused numeric PID after the original
+	// parent dies. The inherited pidfd still names the original process.
+	body = []byte(strings.Replace(string(body), "def identity(pid):", "def identity(pid):\n    if pid == "+strconv.Itoa(parent.Process.Pid)+":\n        return 'recycled-parent-starttime'", 1))
+	if err := os.WriteFile(helper, body, 0600); err != nil { //nolint:gosec // private rendered fixture
+		t.Fatal(err)
+	}
+	cmd := exec.CommandContext(t.Context(), Python3Bin, helper, "up", "ppp0", "", "", strconv.Itoa(parent.Process.Pid), x.admission(t)) //nolint:gosec // private rendered fixture
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("up: %v %s", err, out)
+	}
+	refresher := int(x.record(t)["pid"].(float64))
+	if err := parent.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = parent.Wait()
+	waitIPv6(t, func() bool { return ipv6ProcessGone(refresher) })
+	st, err := x.r.ReadState(x.host, 0, "")
+	if err != nil || st.GetPhase() != "down" {
+		t.Fatalf("recycled numeric identity retained writer: %v %v", st, err)
+	}
+}
+
+func (x *ipv6Rig) admission(t *testing.T) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join(x.paths.StateDir, x.host+".ipv6.admission")) //nolint:gosec // private fixture
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func TestIPv6OldAdmissionRejectedAfterReopen(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	oldAdmission := x.admission(t)
+	if err := x.r.StopIPv6(t.Context(), x.host); err != nil {
+		t.Fatal(err)
+	}
+	if err := x.r.ResumeIPv6(x.host); err != nil {
+		t.Fatal(err)
+	}
+	if x.admission(t) == oldAdmission {
+		t.Fatal("transition reused admission generation")
+	}
+	// An old up captured its token before stop, then waited through reopen.
+	cmd := exec.CommandContext(t.Context(), Python3Bin, x.paths.ipv6Helper(x.host), "up", "ppp0", "", "", strconv.Itoa(os.Getpid()), oldAdmission) //nolint:gosec // private fixture
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("late up: %v %s", err, out)
+	}
+	if _, err := os.Stat(filepath.Join(x.paths.StateDir, x.host+".ipv6.pid")); !os.IsNotExist(err) {
+		t.Fatal("old admission created replacement writer")
+	}
+}
+
+func TestIPv6MissingHelperPreservesProcessEvidence(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	if err := x.command(t, "up"); err != nil {
+		t.Fatal(err)
+	}
+	pid := int(x.record(t)["pid"].(float64))
+	helper := x.paths.ipv6Helper(x.host)
+	body, err := os.ReadFile(helper) //nolint:gosec // private rendered fixture
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(helper); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.WriteFile(helper, body, 0600); err != nil { //nolint:gosec // private rendered fixture
+			t.Error(err)
+		}
+	}()
+	if err := x.r.StopIPv6(t.Context(), x.host); err == nil {
+		t.Fatal("missing helper accepted despite process evidence")
+	}
+	if _, err := os.Stat(filepath.Join(x.paths.StateDir, x.host+".ipv6.pid")); err != nil {
+		t.Fatal("failed stop discarded process evidence", err)
+	}
+	if ipv6ProcessGone(pid) {
+		t.Fatal("control writer exited before fail-closed assertion")
+	}
+}
+
+func TestIPv6DepartedParentHooksPreserveReplacement(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	if err := x.command(t, "up"); err != nil {
+		t.Fatal(err)
+	}
+	writer := int(x.record(t)["pid"].(float64))
+	departed := exec.Command("sleep", "30")
+	if err := departed.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := departed.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = departed.Wait()
+	for _, action := range []string{"up", "down"} {
+		cmd := exec.CommandContext(t.Context(), Python3Bin, x.paths.ipv6Helper(x.host), action, "ppp0", "", "", strconv.Itoa(departed.Process.Pid), x.admission(t)) //nolint:gosec // private fixture
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("departed parent %s: %v %s", action, err, out)
+		}
+		if got := int(x.record(t)["pid"].(float64)); got != writer {
+			t.Fatal("departed parent hook replaced writer")
+		}
+		st, err := x.r.ReadState(x.host, 0, "")
+		if err != nil || st.GetPhase() != "up" {
+			t.Fatalf("departed parent hook overwrote replacement: %v %v", st, err)
+		}
 	}
 }

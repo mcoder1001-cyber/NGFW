@@ -8,7 +8,7 @@
 `GET /api/v1/state/host-acl`.
 
 Host ACLs filter traffic **to and from the appliance's own host stack**: SSH, the HTTPS UI/API, SNMP, BGP/OSPF sessions
-punted to Linux, DNS/NTP the box serves. They are not the data-plane ACLs of the VPP interfaces (*Firewall → ACL*); they
+punted to Linux, DNS/NTP the box serves. They are not the data-plane ACLs of the VPP interfaces (*Firewall → Policies*); they
 are rendered into the Linux kernel's nftables as one table, `table inet ngfw`, which the box owns completely: every
 commit replaces the whole table in one atomic step, and nothing else in the kernel ruleset is touched (the static base
 policy the package installs, and anything else, stays).
@@ -122,7 +122,7 @@ The screen is fully available in Persian (right-to-left):
 
 ## Objects
 
-Sources and destinations can name address objects and groups (*Firewall → Objects*); each becomes a named set in the
+Sources and destinations can name address objects and groups (*Objects → Objects*); each becomes a named set in the
 table (`a4_<object>` for IPv4, `a6_<object>` for IPv6), so editing the object and committing updates every rule that uses
 it. FQDN objects use the addresses the box last resolved; one that has not resolved yet matches nothing (warning).
 Services can be service objects/groups; a service with several protocols becomes one rule per protocol.

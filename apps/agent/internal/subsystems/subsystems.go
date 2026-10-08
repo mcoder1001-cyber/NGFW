@@ -319,6 +319,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// DF-1, in iface.Register's order, with the MTU/rx-mode "value equal to the default" tolerance
 	r.Register(iface.NewSubinterface(c, owner))
 	r.Register(&nativeAdminGuard{Descriptor: iface.NewAdminState(c, owner), owner: owner})
+	r.Register(iface.NewUnnumbered(c, owner))
 	r.Register(newDefaultTolerant(iface.NewMtu(c, owner), iface.ErrMtuDefault, mtuInEffect(c, owner)))
 	r.Register(iface.NewMacAddress(c, owner))
 	r.Register(iface.NewPromisc(c, owner))

@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"google.golang.org/protobuf/proto"
+
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
@@ -96,6 +97,11 @@ func (d *UnnumberedDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	}
 	if _, exists := rel[b]; exists && !t.Owns(b, UnnumberedName) {
 		return nil, fmt.Errorf("unnumbered: refusing existing unclaimed relationship")
+	}
+	for _, liveDonor := range rel {
+		if liveDonor == b {
+			return nil, fmt.Errorf("unnumbered: borrower is already a live donor")
+		}
 	}
 	if _, nested := rel[donor]; nested {
 		return nil, fmt.Errorf("unnumbered: donor must be numbered")

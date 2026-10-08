@@ -2,6 +2,7 @@ package desired
 
 import (
 	"google.golang.org/protobuf/proto"
+
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
 	"ngfw/agent/internal/scheduler"

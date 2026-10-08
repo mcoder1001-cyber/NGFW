@@ -2,13 +2,15 @@ package iface_test
 
 import (
 	"fmt"
+	"testing"
+
 	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
+
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
 	"ngfw/agent/binapi/ip"
 	iface "ngfw/agent/internal/descriptors/interface"
-	"testing"
 )
 
 func unnumberedWorld(t *testing.T) (*world, map[uint32]uint32) {
@@ -118,5 +120,17 @@ func TestUnnumberedFailedWriteReleasesClaim(t *testing.T) {
 	}
 	if iface.Claims(owner).Claimed("tap1", iface.UnnumberedName) {
 		t.Fatal("leaked claim")
+	}
+}
+
+func TestUnnumberedRejectsConvertingLiveDonor(t *testing.T) {
+	w, rel := unnumberedWorld(t)
+	d := iface.NewUnnumbered(w.v, owner)
+	rel[w.other] = w.untagged
+	if _, err := d.Create(ctx, &iface.Unnumbered{Interface: "interface/tap1", Donor: "interface/loop201"}); err == nil {
+		t.Fatal("converted donor of foreign live borrower")
+	}
+	if len(rel) != 1 || rel[w.other] != w.untagged {
+		t.Fatal("modified live foreign relationship")
 	}
 }

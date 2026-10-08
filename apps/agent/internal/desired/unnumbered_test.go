@@ -1,9 +1,11 @@
 package desired
 
 import (
-	"google.golang.org/protobuf/proto"
-	iface "ngfw/agent/internal/descriptors/interface"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	iface "ngfw/agent/internal/descriptors/interface"
 )
 
 func TestUnnumberedProjection(t *testing.T) {

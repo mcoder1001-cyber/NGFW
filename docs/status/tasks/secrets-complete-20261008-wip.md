@@ -17,3 +17,7 @@ Published checkpoint: `7c6eb473a8bf72c0aba49fc5c868d56327031850` (tree matches l
 API focused selector suite: **32 PASS**, including all six consumers, revision pins, disabled selection and CA alias exclusion.
 Go race: actual WireGuard service DryRun, Apply, rotation, confirm revert and restart **PASS** (1.159s); SNMP tests including community/USM auth/privacy rotation and existing regressions **PASS** (1.105s); sealed WireGuard tests **PASS** (1.018s); scheduler binding persistence/malformed metadata **PASS** (1.077s).
 API typecheck initially blocked solely by absent local `@ngfw/yang` build artifact; after building local dependency artifacts, API typecheck and focused ESLint both **PASS**. No CI run triggered.
+
+## R4 security correction
+
+R4 found that an undeclared CA certificate/key alias could be delivered through TLS syslog. Every syslog private-key selection now requires a parsed, non-CA paired certificate before key lookup, independently of other consumers sharing that reference. After decryption the private key must match every selected leaf certificate; failures zero the bundle. Five added controls cover hidden CA, mixed host-stack alias, missing certificate, pinned valid pair and mismatched pair. Focused API suite: **36 PASS**. This closes the documented R4 bypass; independent re-review pending.

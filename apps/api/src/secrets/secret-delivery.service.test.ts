@@ -443,11 +443,6 @@ describe('completed operational consumers', () => {
       { management: { syslog: [{ protocol: 'tls', tls: { caRef: 'cert/syslog' } }] } },
     ],
     [
-      'key/syslog',
-      'key',
-      { management: { syslog: [{ protocol: 'tls', tls: { keyRef: 'key/syslog' } }] } },
-    ],
-    [
       'key/namespace',
       'key',
       { services: { hostStack: { namespaces: { app: { secretRef: 'key/namespace' } } } } },
@@ -496,4 +491,76 @@ describe('completed operational consumers', () => {
     ).rejects.toThrow('operational secret kind is invalid');
     expect(select).not.toHaveBeenCalled();
   });
+});
+
+describe('TLS syslog operational private-key boundary', () => {
+  function certificates() {
+    const rootKey = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const ca = selfSignedCa(parseDn('CN=Hidden CA'), rootKey, 365);
+    const key = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+    const csr = parseCsr(toPem('CERTIFICATE REQUEST', buildCsr(parseDn('CN=Syslog'), [], key)));
+    const leaf = signCsr(csr, { facts: ca.facts, key: rootKey.privateKey }, { days: 30 });
+    return { ca, key, leaf };
+  }
+  const selected = (certRef: string | undefined = 'cert/alias', mixed = false) =>
+    DesiredState.fromJSON({
+      management: { syslog: [{ protocol: 'tls', tls: { certRef, keyRef: 'key/alias' } }] },
+      ...(mixed
+        ? { services: { hostStack: { namespaces: { app: { secretRef: 'key/alias' } } } } }
+        : {}),
+    });
+
+  it.each([false, true])(
+    'rejects undeclared CA alias before private-key lookup (mixed=%s)',
+    async (mixed) => {
+      const { ca } = certificates();
+      const { delivery, where, encrypt } = setup([]);
+      where.mockResolvedValueOnce([
+        { kind: 'cert', ref: 'cert/alias', version: 1, ciphertext: encrypt(ca.pem, 'cert/alias') },
+      ]);
+      await expect(delivery.resolve(selected('cert/alias', mixed))).rejects.toThrow(
+        'operational end-entity certificate',
+      );
+      expect(where).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('rejects a missing paired certificate before private-key lookup', async () => {
+    const { delivery, select } = setup([]);
+    const ds = DesiredState.fromJSON({
+      management: { syslog: [{ protocol: 'tls', tls: { keyRef: 'key/alias' } }] },
+    });
+    await expect(delivery.resolve(ds)).rejects.toThrow('operational end-entity certificate');
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'checks pinned certificate/private-key pairing (mismatch=%s)',
+    async (mismatch) => {
+      const { key, leaf } = certificates();
+      const other = generateKey(normaliseKeySpec({ type: 'ecdsa', curve: 'p256' }));
+      const pem = (mismatch ? other : key).privateKey
+        .export({ type: 'pkcs8', format: 'pem' })
+        .toString();
+      const { delivery, where, encrypt } = setup([]);
+      for (const [ref, kind, text] of [
+        ['cert/alias', 'cert', leaf.pem],
+        ['key/alias', 'key', pem],
+      ]) {
+        where.mockResolvedValueOnce([
+          { ref, kind, version: 2, ciphertext: encrypt('rotated', ref) },
+        ]);
+        where.mockResolvedValueOnce([{ ref, version: 1, ciphertext: encrypt(text!, ref) }]);
+      }
+      const result = delivery.resolveVersioned(selected(), { 'cert/alias': 1, 'key/alias': 1 });
+      if (mismatch)
+        await expect(result).rejects.toThrow('certificate and private key do not match');
+      else {
+        const got = await result;
+        expect(got.versions).toEqual({ 'cert/alias': 1, 'key/alias': 1 });
+        expect(got.bundle.values['key/alias']).toEqual(Buffer.from(pem));
+      }
+      expect(where).toHaveBeenCalledTimes(4);
+    },
+  );
 });

@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { DesiredState } from '@ngfw/proto';
 import { parsePointer } from '@ngfw/schema';
 import { and, eq } from 'drizzle-orm';
-import { createDecipheriv, X509Certificate } from 'node:crypto';
+import { createDecipheriv, createPrivateKey, X509Certificate } from 'node:crypto';
 import { readKeyFileBytes } from '../auth/key-file.js';
 import { problems } from '../common/problem.js';
 import { ENV, type Env } from '../config.js';
@@ -191,6 +191,21 @@ export class SecretDeliveryService {
         const bfdOnly = selections.every(({ pointer }) =>
           pointer.startsWith('/routing/bfd/sessions/'),
         );
+        // Check every syslog use independently of other consumers sharing the key.
+        // Certificates were resolved first; reject CA/missing leaves before key lookup.
+        const syslogLeaves: X509Certificate[] = [];
+        for (const { pointer } of selections) {
+          if (!/^\/management\/syslog\/[0-9]+\/tls\/keyRef$/.test(pointer)) continue;
+          const tls = state.management?.syslog[Number(parsePointer(pointer)[2])]?.tls;
+          try {
+            if (!tls?.certRef) throw new Error('missing certificate');
+            const certificate = new X509Certificate(result.bundle.values[tls.certRef]!);
+            if (certificate.ca) throw new Error('CA signing key');
+            syslogLeaves.push(certificate);
+          } catch {
+            throw problems.unavailable('TLS syslog requires an operational end-entity certificate');
+          }
+        }
         if (
           kind === 'key' &&
           !bfdOnly &&
@@ -262,6 +277,15 @@ export class SecretDeliveryService {
         if (result.bundle.values[ref]!.length > 64 * 1024) {
           result.bundle.values[ref]!.fill(0);
           throw problems.unavailable('operational secret exceeds the agent transport limit');
+        }
+        if (syslogLeaves.length > 0) {
+          try {
+            const privateKey = createPrivateKey(result.bundle.values[ref]!);
+            if (syslogLeaves.some((certificate) => !certificate.checkPrivateKey(privateKey)))
+              throw new Error('key mismatch');
+          } catch {
+            throw problems.unavailable('TLS syslog certificate and private key do not match');
+          }
         }
         const count = ++deliveredCount;
         snapshotBytes +=

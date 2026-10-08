@@ -484,3 +484,33 @@ func TestIPv6OldAdmissionRejectedAfterReopen(t *testing.T) {
 		t.Fatal("old admission created replacement writer")
 	}
 }
+
+func TestIPv6MissingHelperPreservesProcessEvidence(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	if err := x.command(t, "up"); err != nil {
+		t.Fatal(err)
+	}
+	pid := int(x.record(t)["pid"].(float64))
+	helper := x.paths.ipv6Helper(x.host)
+	body, err := os.ReadFile(helper) //nolint:gosec // private rendered fixture
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(helper); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := os.WriteFile(helper, body, 0600); err != nil { //nolint:gosec // private rendered fixture
+			t.Error(err)
+		}
+	}()
+	if err := x.r.StopIPv6(t.Context(), x.host); err == nil {
+		t.Fatal("missing helper accepted despite process evidence")
+	}
+	if _, err := os.Stat(filepath.Join(x.paths.StateDir, x.host+".ipv6.pid")); err != nil {
+		t.Fatal("failed stop discarded process evidence", err)
+	}
+	if ipv6ProcessGone(pid) {
+		t.Fatal("control writer exited before fail-closed assertion")
+	}
+}

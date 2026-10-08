@@ -40,6 +40,7 @@ class Preparation(unittest.TestCase):
             (root / 'deploy/systemd').mkdir()
             for name in ['agent', 'api', 'firstboot', 'firewall-bootstrap']:
                 (root / f'deploy/systemd/ngfw-{name}.service').write_text('[Unit]\n')
+            shutil.copyfile(SOURCE.parents[1] / 'systemd/ngfw-agent.service', root / 'deploy/systemd/ngfw-agent.service')
             for name in ['ngfw-ra@.service', 'ngfw-ra-openfile.service', 'ngfw-ra-openfile.socket', 'ngfw-ra-targets@.service', 'ngfw-ra-targets@.socket', 'ngfw-ra-observer@.service', 'ngfw-ra-observer@.socket', 'ngfw-ra-namespace-broker.socket', 'ngfw-ra-namespace-broker@.service']:
                 shutil.copyfile(SOURCE.parents[1] / 'systemd' / name, root / 'deploy/systemd' / name)
             for directory in ['apps/agent', 'apps/api/dist', 'apps/api/migrations', 'apps/web/dist', 'artifacts', 'stub']:

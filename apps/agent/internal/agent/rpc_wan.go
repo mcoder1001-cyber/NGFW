@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/descriptors/nat44ed"
 	"ngfw/agent/internal/multiwan"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/subsystems"
 )
 
 func (g *server) WanState(ctx context.Context, req *ngfwv1.WanStateRequest) (*ngfwv1.WanStateResponse, error) {
@@ -111,9 +112,8 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		}
 		identity := wanIdentity(saved)
 		a.svc.unlock()
-		if err := runtime.ReplaceWithProbe(ctx, clone, identity, multiwan.DeviceProbe(func(member string) (string, error) {
-			return wanDevice(saved, member)
-		})); err != nil && ctx.Err() == nil {
+		carrier, _ := any(subsystems.PppoeOf(a.svc.owner)).(wanPPPoEForwarding)
+		if err := runtime.ReplaceWithProbe(ctx, clone, identity, wanProbe(saved, carrier)); err != nil && ctx.Err() == nil {
 			a.log.Error("WAN monitor configuration rejected", "reason", err.Error())
 		}
 		observationCtx, observationCancel := context.WithTimeout(ctx, 2*time.Second)

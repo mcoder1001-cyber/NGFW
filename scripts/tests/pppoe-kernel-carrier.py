@@ -3,8 +3,10 @@
 import contextlib
 import importlib.util
 import json
+import tempfile
 from pathlib import Path
 import unittest
+from unittest import mock
 
 spec = importlib.util.spec_from_file_location('carrier', Path(__file__).resolve().parents[1] / 'pppoe-kernel-carrier.py')
 carrier = importlib.util.module_from_spec(spec)
@@ -27,6 +29,7 @@ class MemoryCarrier(carrier.Carrier):
         self.calls = []
         self.saved_failure = False
         self.firewall_changed = False
+        self.ppp_mtu = 1492
         self.failure = None
         self.extra = []
         self.change_link = False
@@ -46,7 +49,7 @@ class MemoryCarrier(carrier.Carrier):
     def pinned(self, token, record):
         yield 42
 
-    def inside(self, fd, argv, data=None):
+    def inside(self, fd, argv, data=None, timeout=20):
         self.calls.append((argv, data))
         if self.failure and self.failure in argv:
             raise RuntimeError('injected command failure')
@@ -74,7 +77,7 @@ class MemoryCarrier(carrier.Carrier):
                 rows.append(row)
             return json.dumps(rows)
         if argv[-2:] == ['address', 'show']:
-            return json.dumps([{'ifname': RAW, 'addr_info': []}, {'ifname': 'ppp0', 'mtu': 1492},
+            return json.dumps([{'ifname': RAW, 'addr_info': []}, {'ifname': 'ppp0', 'mtu': self.ppp_mtu, 'addr_info': [{'local': '192.0.2.10', 'prefixlen': 32}]},
                                {'ifname': TRANSIT, 'mtu': 1492, 'addr_info': [
                                    {'local': '169.254.254.2', 'prefixlen': 30},
                                    {'local': 'fd00:6e67:6677::2', 'prefixlen': 126}]}])
@@ -98,6 +101,39 @@ class MemoryCarrier(carrier.Carrier):
         if argv == [carrier.NFT, '-j', 'list', 'tables']:
             return '{"nftables": [{"table": {"family": "inet", "name": "ngfw_ppp"}}]}'
         return ''
+
+
+class ProbeCarrier(MemoryCarrier):
+    def __init__(self):
+        super().__init__()
+        self.record['configured'] = True
+        self.temporary_rules = []
+        self.probe_fails = False
+        self.cleanup_fails = False
+        self.verified = 0
+
+    def verify_state(self, fd, token, record):
+        self.verified += 1
+        if self.cleanup_fails and self.verified > 1:
+            raise ValueError('injected cleanup readback failure')
+        return {'verified': True}
+
+    def inside(self, fd, argv, data=None, timeout=20):
+        if argv[0] == carrier.SETPRIV:
+            self.calls.append((argv, data))
+            if timeout != 4:
+                raise AssertionError('probe lacks bounded supervisor timeout')
+            if self.probe_fails:
+                raise TimeoutError('injected fixed probe timeout')
+            return '{"Sent":1,"Received":1,"AvgLatencyMs":2,"Unavailable":false}'
+        if argv[:4] == [carrier.IP, '-4', 'rule', 'add']:
+            self.temporary_rules.append(int(argv[argv.index('pref') + 1]))
+        if argv[:4] == [carrier.IP, '-4', 'rule', 'delete']:
+            self.temporary_rules.remove(int(argv[-1]))
+        if argv[-3:] == ['-j', 'rule', 'show']:
+            self.calls.append((argv, data))
+            return json.dumps([{'priority': value} for value in self.temporary_rules])
+        return super().inside(fd, argv, data, timeout)
 
 
 class CarrierTests(unittest.TestCase):
@@ -187,6 +223,10 @@ class CarrierTests(unittest.TestCase):
                           if 'input iifname "' + TRANSIT + '"' in line)
         self.assertNotIn('saddr fe80', transit_nd)
         self.assertIn('hoplimit 255', transit_nd)
+        c = MemoryCarrier()
+        c.configure(c.token, 'a' * 32)
+        self.assertIn(([carrier.IP, '-6', 'rule', 'add', 'pref', '6', 'iif', TRANSIT,
+                        'to', 'fd00:6e67:6677::2/128', 'lookup', 'local'], None), c.calls)
         self.assertIn('packet-too-big', policy)
         self.assertIn('ip protocol icmp icmp type { destination-unreachable', policy)
 
@@ -212,6 +252,100 @@ class CarrierTests(unittest.TestCase):
         c.saved_failure = True
         with self.assertRaises(OSError):
             c.configure(c.token, 'a' * 32)
+        self.assertFalse(c.record['configured'])
+        self.assertEqual(c.calls[-1][1], carrier.nft_policy(False, TOKEN))
+
+    def test_pinned_namespace_rejects_path_replacement_and_non_namespace(self):
+        with tempfile.TemporaryDirectory() as directory:
+            namespace = Path(directory) / TOKEN
+            namespace.write_text('not a namespace')
+            info = namespace.stat()
+            record = {'namespace': [info.st_dev, info.st_ino]}
+            c = carrier.Carrier(netns=directory)
+            with mock.patch.object(carrier.fcntl, 'ioctl', return_value=0), self.assertRaises(ValueError):
+                with c.pinned(TOKEN, record):
+                    self.fail('non-netns accepted')
+            moved = namespace.with_suffix('.old')
+            namespace.rename(moved)
+            namespace.write_text('replacement')
+            with self.assertRaisesRegex(ValueError, 'identity changed'):
+                with c.pinned(TOKEN, record):
+                    self.fail('replaced path accepted')
+            namespace.unlink()
+            namespace.symlink_to(moved)
+            with self.assertRaises(OSError):
+                with c.pinned(TOKEN, record):
+                    self.fail('symlink accepted')
+
+    def test_prepare_rejects_multicast_mac_before_network_mutation(self):
+        c = MemoryCarrier()
+        with self.assertRaises(ValueError):
+            c.prepare(TOKEN, 'a' * 32, 2, 3, '01:00:00:00:00:01', c.record['transit'])
+        self.assertEqual(c.calls, [])
+
+    def test_lower_negotiated_mtu_is_not_silently_ready(self):
+        c = MemoryCarrier()
+        c.ppp_mtu = 1480
+        with self.assertRaisesRegex(ValueError, 'MTU differs'):
+            c.configure(c.token, 'a' * 32)
+        self.assertFalse(c.record['configured'])
+        self.assertFalse(any(data == carrier.nft_policy(True, TOKEN) for _, data in c.calls))
+
+    def test_leaf_capability_and_namespace_checks_fail_closed(self):
+        c = MemoryCarrier()
+        good = {name: hex(carrier.PPP_CAPS) for name in ('CapEff', 'CapPrm', 'CapBnd')}
+        good.update(CapInh='0', CapAmb='0', NoNewPrivs='1')
+        with mock.patch.object(carrier.os, 'geteuid', return_value=0):
+            self.assertEqual(c.check_leaf(TOKEN, 'a' * 32, good, [4, 123]), c.record)
+            for name, value in [('CapEff', hex(carrier.PPP_CAPS | (1 << 21))),
+                                ('CapPrm', '0'), ('CapBnd', 'ffffffff'),
+                                ('CapInh', '1'), ('CapAmb', '1'), ('NoNewPrivs', '0')]:
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    c.check_leaf(TOKEN, 'a' * 32, {**good, name: value}, [4, 123])
+            with self.assertRaisesRegex(ValueError, 'namespace'):
+                c.check_leaf(TOKEN, 'a' * 32, good, [4, 124])
+            with self.assertRaises(ValueError):
+                c.check_leaf(TOKEN, 'b' * 32, good, [4, 123])
+        argv = c.leaf_argv(TOKEN, 'a' * 32, 'ppp-exec')
+        self.assertEqual(argv[0], carrier.SETPRIV)
+        self.assertIn('--bounding-set=-all,+net_admin,+net_raw', argv)
+        self.assertIn('--inh-caps=-all', argv)
+        self.assertIn('--ambient-caps=-all', argv)
+        self.assertNotIn('/usr/sbin/pppd', argv)
+
+    def test_probe_policy_has_expiring_exact_targets_without_forward_exemption(self):
+        for kind in ('icmp', 'dns', 'http'):
+            policy = carrier.probe_policy(TOKEN, kind, '198.51.100.1', ['192.0.2.10'])
+            baseline = carrier.nft_policy(True, TOKEN)
+            delta = policy[len(baseline):]
+            self.assertIn('198.51.100.1 timeout 5s', delta)
+            self.assertIn('192.0.2.10 timeout 5s', delta)
+            self.assertIn('ct state established', delta)
+            self.assertNotIn('forward', delta)
+        for kind, target in [('exec', '198.51.100.1'), ('http', 'example.com'),
+                             ('http', '127.0.0.1'), ('dns', '224.0.0.1'), ('icmp', '2001:db8::1')]:
+            with self.assertRaises(ValueError):
+                carrier.validate_probe(kind, target)
+
+    def test_probe_cleanup_runs_on_success_and_timeout(self):
+        for fails in (False, True):
+            c = ProbeCarrier()
+            c.probe_fails = fails
+            if fails:
+                with self.assertRaises(TimeoutError):
+                    c.probe(TOKEN, 'a' * 32, 'http', '198.51.100.1')
+            else:
+                self.assertEqual(c.probe(TOKEN, 'a' * 32, 'http', '198.51.100.1')['Received'], 1)
+            self.assertEqual(c.temporary_rules, [])
+            self.assertEqual(c.verified, 2)
+            self.assertTrue(c.record['configured'])
+            self.assertIn(carrier.nft_policy(True, TOKEN), [data for _, data in c.calls])
+
+    def test_ambiguous_probe_cleanup_withdraws_carrier(self):
+        c = ProbeCarrier()
+        c.cleanup_fails = True
+        with self.assertRaises(ValueError):
+            c.probe(TOKEN, 'a' * 32, 'dns', '198.51.100.1')
         self.assertFalse(c.record['configured'])
         self.assertEqual(c.calls[-1][1], carrier.nft_policy(False, TOKEN))
 

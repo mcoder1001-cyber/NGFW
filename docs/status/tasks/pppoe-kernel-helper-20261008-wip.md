@@ -5,7 +5,7 @@ Owned: `scripts/pppoe-kernel-carrier.py`, its script test, source assets under
 `scripts/pppoe-carrier-assets`, and this receipt. No deploy file or host changed.
 
 This is opt-in source, not activated functionality or acceptance. Independent R4
-review is in progress. Fourteen fake-executor tests pass (0.005 seconds):
+review is in progress. Twenty-one focused tests pass (0.009 seconds):
 `python3 scripts/tests/pppoe-kernel-carrier.py -v`. Python compilation and diff
 whitespace checks passed. No native namespace/route/service tests or CI ran.
 
@@ -81,3 +81,40 @@ Configure now performs this readback before committing configured=true, reclosin
 forwarding on readback/persistence failure. Generation-aware VPP readiness is
 still a separate mandatory parent check. DHCPv6 UDP547->546 has a dedicated
 priority4 local-delivery exception, including valid non-link-local server replies.
+
+## Restricted descendants and bounded probe source
+
+R4 identified that namespace-entry SYS_ADMIN must not reach network-facing pppd.
+Launch now uses fixed nsenter -> setpriv -> fixed Python leaf verifier -> pppd.
+The launcher needs SETPCAP to irrevocably reduce the bounding set. The leaf
+requires exact NET_ADMIN|NET_RAW effective/permitted/bounding sets, empty
+inheritable/ambient sets, NoNewPrivs=1 and current namespace device/inode plus
+boot/generation. No arbitrary executable or argv is accepted. Negative tests
+cover each mask, stale generation and wrong namespace. Prior configured state
+is withdrawn before every launch. The fixed unit includes SETPCAP only for the
+launcher; PPP descendants cannot regain it or SYS_ADMIN across root exec.
+
+`probe TOKEN GEN --kind icmp|dns|http --target LITERAL_IP` verifies the carrier
+before a maximum four-second supervisor run. A fixed probe binary must support
+`/usr/lib/ngfw/wan-probe --device ppp0 --type KIND --target IP --timeout-ms 3000`
+and emit exactly Sent/Received/AvgLatencyMs/Unavailable JSON. This binary is owned
+by the WAN worker and is NOT implemented in this checkpoint. Unsupported targets
+(hostnames, IPv6 ICMP, multicast, loopback, link-local, mapped IPv6) fail closed.
+Exact target + actual PPP local-address nft sets expire after five seconds; only
+matching local output/established reply input is admitted, with temporary local
+return policy rules. No forward-chain exception is added. Finally cleanup restores
+base nft policy, removes temporary rules, then verifies the original kernel state.
+Ambiguous cleanup persists configured=false and closes forwarding. Tests cover
+success, timeout and cleanup failure; no native packet/probe test was run.
+
+Manager approved bounded control-plane-only probe exceptions. A remaining packaging
+boundary must be resolved: the existing agent lacks NET_RAW and SETPCAP. Direct
+agent-exec of the probe leaf therefore fails closed. A fixed root probe service or
+approved equivalent runner is required; do not silently broaden agent capabilities.
+Also reconcile existing IPv6 hook sysctl writes with fixed-unit
+ProtectKernelTunables before activation. These are source integration requirements,
+not laboratory-only gaps.
+
+Exact MTU agreement is required; lower PPP negotiation is refused pending explicit
+carrier reconfiguration. IPv6 transit local /128 priority6 preserves unicast ND
+replies before the transit-to-PPP rule, while PPP data still returns via VPP.

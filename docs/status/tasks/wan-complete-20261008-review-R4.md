@@ -34,3 +34,26 @@ ok ngfw/agent/internal/agent 1.131s
 No remaining R4 source finding. No full CI, packet forwarding or whole WAN acceptance pass is claimed. PPPoE carrier remains explicit unfinished source work.
 
 Verdict: **APPROVE** for the reviewed DHCP handoff source scope.
+
+## Fixed PPP probe and generation adapter review
+
+Reviewed frozen local `edd8d0d1ee768111ea64df773fd8efe4e29b705d`, tree `82f8933971168f5b673bd20475374c376c96c5ae`, delta after `67bfd031`. Earlier DHCP approval remains applicable.
+
+No new R4 source finding. The fixed probe accepts only ICMP/DNS/HTTP with a literal permitted IPv4 target, fixed `ppp0`, no arbitrary command/device/namespace/port, and a timeout bounded to 1–3000ms. The underlying probe binds sockets, has no proxy/redirect escape, limits HTTP response headers, bounds DNS/ICMP read buffers and observes cancellation/deadlines. Packaging stages the binary and checksum without executing it.
+
+The PPP adapter requires a ready nonempty carrier generation, passes probes only through the carrier interface, and checks readiness/generation again after completion. Runtime egress epochs reset member hysteresis on gateway, carrier generation, withdrawal or expiry changes; old in-flight completions cannot authorize the replacement egress. Existing retired-address cleanup/rebind protection remains intact. Detached route/NAT projections still select the logical PPP transit interface, not the raw physical WAN or ISP peer.
+
+Integration limitation: the actual PPP runtime must implement `ForwardingGateway` and `ProbeForwarding` with independently verified kernel/VPP readiness and generation identity. Without those methods the adapter remains unavailable. Fake carrier tests establish the adapter contract; they do not establish the real implementation or complete PPP readiness.
+
+Independent focused race verification:
+
+```text
+go test -race -count=1 ./cmd/ngfw-wan-probe ./internal/multiwan ./internal/agent -run 'TestFixedProbe|TestRuntimeLearnedGeneration|TestWANPPP|TestCleanupRetryProtects'
+ok ngfw/agent/cmd/ngfw-wan-probe 1.019s
+ok ngfw/agent/internal/multiwan 1.137s
+ok ngfw/agent/internal/agent 1.348s
+```
+
+Independent staged-package fixture `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_prepare.py`: 3 tests passed in 0.454s. `git diff --check` passed. No full CI or native service/forwarding acceptance was run.
+
+Verdict: **APPROVE** for the fixed probe and generation adapter source scope; actual carrier integration requires separate final verification.

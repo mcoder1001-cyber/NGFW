@@ -117,6 +117,25 @@ class SafeRoot(unittest.TestCase):
         self.assertNotEqual(pip[-1], str(self.f.lock))
         self.assertEqual(list((self.f.root / 'tmp').glob('ngfw-lab-lock.*')), [])
 
+    def test_lab_wheelhouse_enforces_offline_wheels(self):
+        wheels = self.f.base / 'wheels'
+        wheels.mkdir()
+        self.f.env['NGFW_LAB_WHEELHOUSE'] = str(wheels)
+        result = self.f.run('40-install-lab.sh')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        pip = next(c for c in self.f.calls() if c[0] == 'pip')
+        self.assertIn('--no-index', pip)
+        self.assertIn('--only-binary=:all:', pip)
+        self.assertEqual(pip[pip.index('--find-links') + 1], str(wheels))
+
+    def test_invalid_lab_wheelhouse_refused_before_apt(self):
+        self.f.env['NGFW_LAB_WHEELHOUSE'] = str(self.f.base / 'absent')
+        result = self.f.run('40-install-lab.sh')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('wheelhouse', result.stderr)
+        self.assertEqual(self.f.calls(), [])
+        self.assertEqual(list(self.f.root.iterdir()), [])
+
     def test_repo_changed_pins_refused_even_in_dry_run(self):
         self.f.env.update(NGFW_VPP_ARTIFACTS=str(self.f.base), NGFW_FRR_KEY_FINGERPRINTS='A'*40)
         result = self.f.run('00-add-repos.sh', ['--dry-run'])

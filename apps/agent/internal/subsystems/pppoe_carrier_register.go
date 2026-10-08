@@ -47,6 +47,9 @@ func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) 
 			}
 			rawID, transitID := spec.TapIDs()
 			expected := &tapv2.Tap{Name: spec.Logical, Id: transitID, HostIfName: spec.TransitHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU, HostIp4Prefix: spec.Host4, HostIp6Prefix: spec.Host6, RxRingSize: 256, TxRingSize: 256}
+			if spec.MTU < 1280 {
+				expected.HostIp6Prefix = ""
+			}
 			if actual.Name == spec.RawLogical() {
 				expected = &tapv2.Tap{Name: spec.RawLogical(), Id: rawID, HostIfName: spec.RawHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU + 8, RxRingSize: 256, TxRingSize: 256}
 			}
@@ -59,4 +62,10 @@ func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) 
 	})
 	reg.Register(d)
 	return nil
+}
+
+// ForKey preserves descriptor lookup through the RA ownership wrapper. Carrier
+// and delegated-prefix registration must bind to the wrapped static descriptor.
+func (r *raFilteringRegistry) ForKey(key scheduler.Key) (scheduler.Descriptor, bool) {
+	return r.Get(key.Descriptor())
 }

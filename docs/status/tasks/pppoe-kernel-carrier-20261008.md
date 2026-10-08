@@ -120,3 +120,19 @@ This checkpoint is not operationally complete: product Apply/poll/teardown,
 forwarding readiness/probe methods, helper broker packaging and live TAP ID
 collision admission still require implementation and review. No target service
 or network namespace was activated.
+
+### Runtime integration checkpoint (review in progress)
+
+The product runtime now uses fixed namespace units, per-token private configuration
+and state trees, finite lifecycle broker requests, carrier-aware manifest readback,
+stop-before-replace recovery, helper verification, VPP transit/MTU/address/xconnect
+readback, expiring WAN readiness, bounded probes and delegated LAN registration.
+WAN epochs include systemd InvocationID, namespace generation and transition
+admission. PD schema/UI/runtime commits and independent PD R1 receipt are integrated.
+Focused carrier recovery/broker and delegated scheduler tests passed under race.
+
+Not final: independent full carrier reviews, exhaustive forwarding/failure tests,
+packaging integration, and remaining readback/admission findings are pending. The
+raw Ethernet path trusts the fixed packaged pppd/plugin: namespace IP filtering
+blocks normal host IP routing but does not contain a malicious NET_RAW daemon
+injecting arbitrary Ethernet frames. No such stronger claim is made.

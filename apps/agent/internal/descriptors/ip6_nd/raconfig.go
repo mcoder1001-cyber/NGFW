@@ -74,9 +74,10 @@ func isDefaultRa(c *RaConfig) bool {
 // suppress to its default (is_no), set the desired flags and timers, then set the suppress
 // state on its own (un-suppressing needs is_no, which must not touch the other fields).
 type RaConfigDescriptor struct {
-	client vpp.Client
-	owner  string
-	opts   df2.Options
+	delegationExclude func(scheduler.Key) bool
+	client            vpp.Client
+	owner             string
+	opts              df2.Options
 }
 
 // NewRaConfig returns the descriptor for the given owner.
@@ -86,6 +87,11 @@ func NewRaConfig(c vpp.Client, owner string, opts ...df2.Option) *RaConfigDescri
 
 // RaMeta is the runtime handle of ra-config and ra-prefix.
 type RaMeta struct{ SwIfIndex uint32 }
+
+// SetDelegationExclusion keeps dynamic PD state outside the static descriptor scope.
+func (d *RaConfigDescriptor) SetDelegationExclusion(exclude func(scheduler.Key) bool) {
+	d.delegationExclude = exclude
+}
 
 // Name implements scheduler.Descriptor.
 func (*RaConfigDescriptor) Name() string { return RaConfigName }
@@ -162,6 +168,9 @@ func (d *RaConfigDescriptor) apply(ctx context.Context, c *RaConfig, idx interfa
 
 // Create implements scheduler.Descriptor.
 func (d *RaConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+	if d.delegationExclude != nil && d.delegationExclude(d.KeyOf(obj)) {
+		return nil, fmt.Errorf("RA object is owned by delegated IPv6")
+	}
 	c := NormalizeRaConfig(obj.(*RaConfig))
 	ifs, err := df2.DumpInterfaces(ctx, d.client, d.owner)
 	if err != nil {
@@ -172,11 +181,12 @@ func (d *RaConfigDescriptor) Create(ctx context.Context, obj proto.Message) (any
 		return nil, err
 	}
 	idx := interface_types.InterfaceIndex(idx32)
-	if err := d.apply(ctx, c, idx); err != nil {
+	undo, err := df2.ClaimFirst(d.opts.Claims, untagged, d.KeyOf(obj))
+	if err != nil {
 		return nil, err
 	}
-	if err := df2.Claim(d.opts.Claims, untagged, d.KeyOf(obj)); err != nil {
-		return nil, err
+	if err := d.apply(ctx, c, idx); err != nil {
+		return raCreateFailure(ctx, d, d.KeyOf(obj), RaMeta{SwIfIndex: idx32}, undo, err)
 	}
 	return RaMeta{SwIfIndex: idx32}, nil
 }
@@ -275,6 +285,15 @@ func (d *RaConfigDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, erro
 			continue
 		}
 		out = append(out, scheduler.KV{Key: d.KeyOf(v), Value: v, Meta: RaMeta{SwIfIndex: uint32(det.SwIfIndex)}})
+	}
+	if d.delegationExclude != nil {
+		kept := out[:0]
+		for _, kv := range out {
+			if !d.delegationExclude(kv.Key) {
+				kept = append(kept, kv)
+			}
+		}
+		out = kept
 	}
 	return out, nil
 }

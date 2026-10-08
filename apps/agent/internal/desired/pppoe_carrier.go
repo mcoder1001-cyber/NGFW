@@ -38,6 +38,11 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		if !KernelPppoeEnabled(itf) {
 			continue
 		}
+		if _, err := PppoeDelegationTargets(&ngfwv1.DesiredState{Interfaces: ifs}, name); err != nil {
+			s.Errorf(Ptr("interfaces", name, "pppoe", "delegation"), "pppoe.delegation-invalid", "%v", err)
+			valid = false
+			continue
+		}
 		p := itf.GetPppoe()
 		pt := Ptr("interfaces", name, "pppoe")
 		parent := ifs[p.GetParent()]
@@ -46,8 +51,20 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 			valid = false
 			continue
 		}
-		if parent.GetLcp() != nil || parent.GetL2() != nil || parent.GetPppoe() != nil || len(parent.GetIpv4()) != 0 || len(parent.GetIpv6()) != 0 || parent.GetDhcpClient() != nil {
+		if parent.Unnumbered != nil || len(parent.GetSubinterfaces()) != 0 || parent.GetBond() != nil || parent.GetLcp() != nil || parent.GetL2() != nil || parent.GetPppoe() != nil || len(parent.GetIpv4()) != 0 || len(parent.GetIpv6()) != 0 || parent.GetDhcpClient() != nil {
 			s.Errorf(pt+"/parent", "pppoe.carrier-exclusive", "raw PPP parent must have no LCP, L2, PPP, DHCP or static IP configuration")
+			valid = false
+			continue
+		}
+		inBond := false
+		for _, other := range ifs {
+			if _, ok := other.GetBond().GetMembers()[p.GetParent()]; ok {
+				inBond = true
+				break
+			}
+		}
+		if inBond {
+			s.Errorf(pt+"/parent", "pppoe.carrier-exclusive", "raw PPP parent belongs to a bond")
 			valid = false
 			continue
 		}
@@ -64,6 +81,11 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		mtu := p.GetMtu()
 		if mtu == 0 {
 			mtu = 1492
+		}
+		if mtu < 1280 && p.GetIpv6() != "" && p.GetIpv6() != "off" {
+			s.Errorf(pt+"/mtu", "pppoe.ipv6-mtu", "IPv6 PPP requires MTU at least1280")
+			valid = false
+			continue
 		}
 		spec, err := pppoe.NewCarrierSpec(owner, name, p.GetParent(), mtu)
 		if err != nil {
@@ -100,14 +122,22 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		rawID, transitID := spec.TapIDs()
 		rawKey := scheduler.Join(tapv2.TapName, spec.RawLogical())
 		s.Add(rawKey, &tapv2.Tap{Name: spec.RawLogical(), Id: rawID, HostIfName: spec.RawHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU + 8, RxRingSize: 256, TxRingSize: 256}, pt)
-		s.Add(scheduler.Join(tapv2.TapName, spec.Logical), &tapv2.Tap{Name: spec.Logical, Id: transitID, HostIfName: spec.TransitHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU, HostIp4Prefix: spec.Host4, HostIp6Prefix: spec.Host6, RxRingSize: 256, TxRingSize: 256}, pt)
+		transit := &tapv2.Tap{Name: spec.Logical, Id: transitID, HostIfName: spec.TransitHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU, HostIp4Prefix: spec.Host4, HostIp6Prefix: spec.Host6, RxRingSize: 256, TxRingSize: 256}
+		if spec.MTU < 1280 {
+			transit.HostIp6Prefix = ""
+		}
+		s.Add(scheduler.Join(tapv2.TapName, spec.Logical), transit, pt)
 		s.Add(iface.AliasKey(spec.RawLogical()), &iface.InterfaceAlias{Name: spec.RawLogical(), Creator: string(rawKey)}, pt)
 		s.Add(scheduler.Join(iface.AdminStateName, spec.RawLogical()), &iface.AdminState{Interface: string(iface.AliasKey(spec.RawLogical()))}, pt)
 		for _, pair := range [][2]string{{spec.Parent, spec.RawLogical()}, {spec.RawLogical(), spec.Parent}} {
 			rx, tx := string(iface.AliasKey(pair[0])), string(iface.AliasKey(pair[1]))
 			s.Add(l2.XconnectKey(rx), &l2.Xconnect{Rx: rx, Tx: tx}, pt)
 		}
-		for _, address := range []string{spec.VPP4(), spec.VPP6()} {
+		addresses := []string{spec.VPP4()}
+		if spec.MTU >= 1280 {
+			addresses = append(addresses, spec.VPP6())
+		}
+		for _, address := range addresses {
 			s.Add(core.InterfaceAddrKey(spec.Logical, address), &core.InterfaceAddress{Interface: spec.Logical, Prefix: address}, pt)
 		}
 		// Advertised/negotiated MTU must match the transit. An absent general MTU

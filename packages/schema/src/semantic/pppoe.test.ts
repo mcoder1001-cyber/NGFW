@@ -2,7 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { RootConfig, type RootConfigInput } from '../index.js';
 import { pppoeValidators } from './pppoe.js';
 
-const run = (doc: RootConfigInput) => pppoeValidators[0]!.validate(RootConfig.parse(doc));
+const rawRun = (doc: RootConfigInput) => pppoeValidators[0]!.validate(RootConfig.parse(doc));
+// Existing address/MTU cases use the supported explicit raw-parent topology.
+const run = (doc: RootConfigInput) => {
+  const copy = structuredClone(doc);
+  const interfaces = copy.interfaces ?? {};
+  for (const [name, iface] of Object.entries(interfaces)) {
+    if (iface.pppoe && iface.pppoe.parent === undefined) {
+      const parent = `raw_${name}`;
+      iface.pppoe.parent = parent;
+      interfaces[parent] = { enabled: true, mtu: iface.mtu };
+    }
+  }
+  return rawRun({ ...copy, interfaces });
+};
 
 const wan = (over: Record<string, unknown> = {}, pppoe: Record<string, unknown> = {}) => ({
   enabled: true,
@@ -11,7 +24,7 @@ const wan = (over: Record<string, unknown> = {}, pppoe: Record<string, unknown> 
 });
 
 describe('F-pppoe-client semantic rules', () => {
-  it('accepts a valid PPPoE client (no static address, parent implicit)', () => {
+  it('accepts a valid PPPoE client (no static address, explicit raw parent)', () => {
     expect(run({ interfaces: { wan0: wan() } })).toEqual([]);
   });
 
@@ -65,5 +78,72 @@ describe('F-pppoe-client semantic rules', () => {
     ]);
     expect(run({ interfaces: { wan0: wan({}, { ipv6: 'dhcpv6', mtu: 1280 }) } })).toEqual([]);
     expect(run({ interfaces: { wan0: wan({}, { ipv6: 'off', mtu: 1279 }) } })).toEqual([]);
+  });
+});
+
+describe('explicit PPP DHCPv6 delegation', () => {
+  const target = { interface: 'lan0', subnetId: 1 };
+  const config = (ppp: Record<string, unknown> = {}, lan: Record<string, unknown> = {}) => ({
+    interfaces: {
+      wan0: wan({}, { ipv6: 'dhcpv6', delegationTargets: [target], ...ppp }),
+      lan0: { enabled: true, ...lan },
+    },
+  });
+  it('accepts a same-VRF enabled LAN without static IPv6 or RA', () =>
+    expect(run(config())).toEqual([]));
+  it('rejects non-DHCPv6, missing, disabled, PPP, static and cross-VRF targets', () => {
+    for (const doc of [
+      config({ ipv6: 'slaac' }),
+      config({ delegationTargets: [{ ...target, interface: 'missing' }] }),
+      config({}, { enabled: false }),
+      config({}, { ipv6: ['2001:db8::1/64'] }),
+      config({}, { ipv6Ra: {} }),
+      config({}, { vrf: 'other' }),
+      config({}, { pppoe: { username: 'u', passwordRef: 'password/isp' } }),
+    ]) {
+      expect(run(doc).length).toBeGreaterThan(0);
+    }
+  });
+  it('rejects duplicate target IDs/interfaces and multiple WAN ownership', () => {
+    expect(run(config({ delegationTargets: [target, target] })).length).toBeGreaterThan(0);
+    const doc = config();
+    Object.assign(doc.interfaces, {
+      wan1: wan({}, { ipv6: 'dhcpv6', delegationTargets: [target] }),
+    });
+    expect(run(doc).some((issue) => issue.message.includes('already assigned'))).toBe(true);
+  });
+  it('rejects unrepresentable or negative subnet IDs at parse time', () => {
+    for (const subnetId of [-1, 0.5, 4294967296]) {
+      expect(() =>
+        RootConfig.parse(config({ delegationTargets: [{ ...target, subnetId }] })),
+      ).toThrow();
+    }
+  });
+});
+
+describe('kernel PPP carrier topology', () => {
+  it('rejects implicit/same-name parent but permits disabled migration configuration', () => {
+    expect(rawRun({ interfaces: { wan0: wan() } }).length).toBeGreaterThan(0);
+    expect(rawRun({ interfaces: { wan0: wan({}, { parent: 'wan0' }) } }).length).toBeGreaterThan(0);
+    expect(rawRun({ interfaces: { wan0: wan({}, { enabled: false }) } })).toEqual([]);
+  });
+  it('rejects raw parent addressing and shared parent ownership', () => {
+    expect(
+      rawRun({
+        interfaces: {
+          raw0: { enabled: true, ipv4: ['192.0.2.1/24'] },
+          wan0: wan({}, { parent: 'raw0' }),
+        },
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      rawRun({
+        interfaces: {
+          raw0: { enabled: true },
+          wan0: wan({}, { parent: 'raw0' }),
+          wan1: wan({}, { parent: 'raw0' }),
+        },
+      }).some((x) => x.message.includes('already assigned')),
+    ).toBe(true);
   });
 });

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -28,6 +29,10 @@ type IPv6State struct {
 	Gateway netip.Addr
 	// Delegated is the DHCPv6-PD prefix (ipv6 "dhcpv6"); invalid = none.
 	Delegated netip.Prefix
+	// PDGeneration binds this lease to the transition admission token.
+	PDGeneration string
+	// Absolute lease deadlines from authoritative DHCPv6 valid/preferred lifetimes.
+	PDValidUntil, PDPreferredUntil time.Time
 	// Since is when IPv6CP came up.
 	Since time.Time
 }
@@ -80,6 +85,18 @@ func (r *Renderer) ReadIPv6(hostIf string) (IPv6State, error) {
 			if p, err := netip.ParsePrefix(v); err == nil && globalV6(p.Addr()) && p.Bits() >= 16 && p.Bits() <= 64 {
 				st.Delegated = p.Masked()
 			}
+		case "pd_generation":
+			if len(v) == 64 && strings.Trim(v, "0123456789abcdef") == "" {
+				st.PDGeneration = v
+			}
+		case "pd_valid_until", "pd_preferred_until":
+			if ts, err := strconv.ParseInt(v, 10, 64); err == nil && ts > 0 && ts <= 253402300799 {
+				if strings.TrimSpace(k) == "pd_valid_until" {
+					st.PDValidUntil = time.Unix(ts, 0)
+				} else {
+					st.PDPreferredUntil = time.Unix(ts, 0)
+				}
+			}
 		case "at":
 			if ts, err := time.Parse(time.RFC3339, v); err == nil {
 				st.Since = ts
@@ -89,6 +106,13 @@ func (r *Renderer) ReadIPv6(hostIf string) (IPv6State, error) {
 	if !st.Up {
 		// Down: nothing negotiated is current any more.
 		return IPv6State{Failure: st.Failure}, nil
+	}
+	// A prefix without complete lease identity/deadlines is display-only legacy state,
+	// never eligible for LAN assignment. Expired/invalid leases withdraw immediately.
+	if st.PDGeneration == "" || st.PDPreferredUntil.IsZero() || st.PDPreferredUntil.After(st.PDValidUntil) || !time.Now().Before(st.PDPreferredUntil) {
+		st.Delegated = netip.Prefix{}
+		st.PDGeneration = ""
+		st.PDValidUntil, st.PDPreferredUntil = time.Time{}, time.Time{}
 	}
 	sort.Slice(st.Addrs, func(i, j int) bool { return st.Addrs[i].Addr().Less(st.Addrs[j].Addr()) })
 	st.Addrs = dedupe(st.Addrs)

@@ -273,6 +273,9 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 	subID := map[string]string{}
 	exists := map[string]bool{}
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *iface.InterfaceAlias:
 			exists[v.GetName()] = true
@@ -301,6 +304,9 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 	mtu := map[string]uint32{}
 	rx := map[string]string{}
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *core.Loopback:
 			get(v.GetName())

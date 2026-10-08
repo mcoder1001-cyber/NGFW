@@ -67,6 +67,9 @@ func (w *Wiring) registerPppoeClient(reg scheduler.Registry) error {
 			}
 		}
 	}
+	if err := w.registerPppoeDelegation(reg, rt.DelegationSnapshot); err != nil {
+		return err
+	}
 	reg.Register(&pppoeObservation{})
 	if err := w.AddDynamicSource(DynamicSource{Name: "pppoe-watch", Descriptors: []string{"pppoe.client.observation"}, Desired: rt.watchDesired, Run: rt.watch}); err != nil {
 		return err

@@ -7,10 +7,12 @@ import (
 	"io"
 	"net/netip"
 
+	bondapi "ngfw/agent/binapi/bond"
 	"ngfw/agent/binapi/interface_types"
 	ipapi "ngfw/agent/binapi/ip"
 	l2api "ngfw/agent/binapi/l2"
 	pppoeapi "ngfw/agent/binapi/pppoe"
+	tapapi "ngfw/agent/binapi/tapv2"
 	iface "ngfw/agent/internal/descriptors/interface"
 	lcpdesc "ngfw/agent/internal/descriptors/lcp"
 	ren "ngfw/agent/internal/renderers/pppoe"
@@ -35,6 +37,77 @@ func AdmitCarrier(ctx context.Context, c vpp.Client, owner string, spec ren.Carr
 		return errors.New("PPPoE logical interface already exists outside its carrier")
 	} else if !errors.Is(err, iface.ErrNotFound) {
 		return err
+	}
+	taps, err := tapapi.NewServiceClient(c).SwInterfaceTapV2Dump(ctx, &tapapi.SwInterfaceTapV2Dump{SwIfIndex: ^interface_types.InterfaceIndex(0)})
+	if err != nil {
+		return err
+	}
+	rawID, transitID := spec.TapIDs()
+	for {
+		row, e := taps.Recv()
+		if errors.Is(e, io.EOF) {
+			break
+		}
+		if e != nil {
+			return e
+		}
+		if row.ID == rawID || row.ID == transitID || row.HostNamespace == spec.Token() {
+			return errors.New("PPPoE TAP identity is already present outside its namespace lease")
+		}
+	}
+	unnumbered, err := ipapi.NewServiceClient(c).IPUnnumberedDump(ctx, &ipapi.IPUnnumberedDump{SwIfIndex: ^interface_types.InterfaceIndex(0)})
+	if err != nil {
+		return err
+	}
+	for {
+		row, e := unnumbered.Recv()
+		if errors.Is(e, io.EOF) {
+			break
+		}
+		if e != nil {
+			return e
+		}
+		if uint32(row.SwIfIndex) == parent || uint32(row.IPSwIfIndex) == parent {
+			return errors.New("PPPoE raw parent participates in unnumbered addressing")
+		}
+	}
+	bonds, err := bondapi.NewServiceClient(c).SwBondInterfaceDump(ctx, &bondapi.SwBondInterfaceDump{SwIfIndex: ^interface_types.InterfaceIndex(0)})
+	if err != nil {
+		return err
+	}
+	for {
+		bond, e := bonds.Recv()
+		if errors.Is(e, io.EOF) {
+			break
+		}
+		if e != nil {
+			return e
+		}
+		if uint32(bond.SwIfIndex) == parent {
+			return errors.New("PPPoE raw parent is a bond")
+		}
+		members, e := bondapi.NewServiceClient(c).SwMemberInterfaceDump(ctx, &bondapi.SwMemberInterfaceDump{SwIfIndex: bond.SwIfIndex})
+		if e != nil {
+			return e
+		}
+		for {
+			member, e := members.Recv()
+			if errors.Is(e, io.EOF) {
+				break
+			}
+			if e != nil {
+				return e
+			}
+			if uint32(member.SwIfIndex) == parent {
+				return errors.New("PPPoE raw parent belongs to a bond")
+			}
+		}
+	}
+	for _, index := range table.Indexes() {
+		details, _ := table.Details(index)
+		if index != parent && uint32(details.SupSwIfIndex) == parent {
+			return errors.New("PPPoE raw parent has live subinterfaces")
+		}
 	}
 	var reserved []netip.Prefix
 	for _, index := range table.Indexes() {

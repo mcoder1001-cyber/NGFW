@@ -289,7 +289,22 @@ func (d *ClientConfig) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if err != nil {
 		return nil, err
 	}
-	files, err := d.renderer.Render(sessions)
+	var files renderers.Files
+	if d.carrierOwner != "" {
+		recovery, ok := d.runtime.(interface {
+			CarrierFiles([]ren.Session) (renderers.Files, error)
+			Remember([]ren.Session)
+		})
+		if !ok {
+			return nil, errors.New("carrier recovery readback is unavailable")
+		}
+		// Retain the last committed sessions even on file drift so Apply can
+		// stop their fixed units before replacing any credential or hook.
+		recovery.Remember(sessions)
+		files, err = recovery.CarrierFiles(sessions)
+	} else {
+		files, err = d.renderer.Render(sessions)
+	}
 	if err != nil {
 		return nil, redactor.Error(err)
 	}

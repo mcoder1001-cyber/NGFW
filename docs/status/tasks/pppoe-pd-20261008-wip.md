@@ -1,0 +1,112 @@
+# PPP DHCPv6 delegated LAN integration
+
+Branch `codex/pppoe-pd-20261008`, base `db7eb9d`.
+
+Contract checkpoint: additive explicit `delegationTargets` with LAN interface and
+uint32 subnet ID; DHCPv6-only, enabled LAN, VRF, static IPv6/RA and duplicate owner
+validation. Generated Go/TS use the repository generator with pinned CI versions.
+A numeric uint64 design failed the JSON roundtrip test (ts-proto correctly emits
+uint64 strings); uint32 preserves the existing numeric configuration contract.
+Schema-driven interface form exposes targets, with nested English/Persian labels.
+
+Focused schema tests: 10 PASS. Wire roundtrip test being rerun after uint32 fix.
+No aggregate CI or host operation. This contract is not operational PD completion.
+
+Remaining: enforce kernel carrier parent topology semantic rules; authoritative
+lease generation/deadline parsing and tests; dynamic desired projection; durable
+separate descriptor ownership/static exclusion; live readiness callback integration;
+withdraw/renewal/rollback/restart regression tests; independent review.
+
+DHCPv6 export names verified from upstream maintainer example:
+https://github.com/NetworkConfiguration/dhcpcd/discussions/309
+`new_dhcp6_ia_pd1_prefix1_pltime` and `_vltime` are used with existing new-event prefix.
+Missing/invalid metadata must remove old PD, not extend an old lease. The existing
+IPv6 admission token is 64 hex characters. The refresh generation alone does not
+identify the configured carrier generation.
+
+## Reviewed recovery and implementation checkpoint
+
+Contract remote `0b68e0c30043cbe64a68dd1ca1cad9fd9b610d05`, tree
+`7e71dfcd87ab18d79de257c50704c6c08072a5b7`, preserves the published carrier
+foundation's extra review receipts. A resumed-turn history gap was resolved by
+read-only preservation and explicit code review; current sole-writer branch is
+`codex/pppoe-pd-recovered-20261008`. No unknown changes were discarded.
+
+Implemented: kernel logical/raw-parent semantic validation; stable LAN desired keys;
+current admission and DHCP lease deadline parsing; rejection/withdrawal of invalid
+renewals and old admission events; pure desired projection; complete assignment
+validation against static IPv6/RA and other live WAN assignments; dedicated dynamic
+address/prefix/RA descriptor instances using existing core/ip6nd operations; durable
+ownership partition and static Retrieve/Create exclusion; dependency ordering;
+verified deletion; cached polling source and fail-closed readiness integration seam.
+RA claims are recorded before mutation; errors with observed/uncertain partial state
+provide rollback handles. Ownership file and parent directory are synchronized.
+
+RA lifetimes round down to 30-second budgets, so they never exceed the DHCP lease.
+Assignments conservatively withdraw up to 29 seconds before preferred expiry,
+rather than using the static RA descriptor's zero-means-default lifetime behavior.
+The snapshot Run loop polls each second; Desired performs no daemon/VPP I/O.
+
+Focused results to this point:
+- Schema semantic: 12 PASS; protobuf/schema JSON+wire roundtrip: 1 PASS.
+- Interface form model: 7 PASS, including editable target array and Persian nested labels.
+- Renderer admission/event/expiry/golden: 4 tests PASS under race, 1.387 s.
+- Real scheduler with stateful fake VPP: product lifecycle and static-adoption refusal
+  PASS under race, 1.147 s. Covers address+RA application, ownership-separated static
+  retrieval, fresh wiring restart, injected renewal failure/rollback and withdrawal.
+- Existing RA configuration/prefix lifecycle plus PD tests after claim-first changes:
+  PASS under race (subsystems 1.121 s, ip6_nd 1.016 s).
+
+Integration seam: parent carrier registers
+`w.registerPppoeDelegation(reg, rt.DelegationSnapshot)` and implements
+`CarrierDelegationReady(logical, admission string) bool`. That method must require a
+supported current Carrier session and verified forwarding readback for this exact
+admission. Until it exists, DelegationSnapshot returns no assignments. The parent
+projection must call `desired.PppoeDelegationTargets(fullDoc, logical)` and return
+its errors before applying a public plan. This branch does not own carrier wiring.
+
+Still required: final claim-failure/overlap tests, final type checks, independent
+review and parent integration. A VPP rejection during withdrawal can retain an
+owned object under the existing dynamic-source retry/quarantine policy; failures
+are reported and retried, not claimed as successful withdrawal. No aggregate CI,
+native DHCP/RA packet acceptance or complete PPP carrier claim is made.
+
+## Final focused verification
+
+Source checkpoint `fcb90b1f` / published `912c658c`:
+- Additional claim-persistence-before-mutation and partial RA config/prefix rollback
+  regressions: 3 tests PASS under race, ip6_nd 1.017 s.
+- Delegation projection lifecycle, cross-interface/WAN overlap rejection and lifetime
+  upper bounds: 3 tests PASS under race, desired 1.081 s.
+- Product scheduler/fake-VPP lifecycle and static-adoption refusal: 2 tests PASS under
+  race, subsystems 1.122 s.
+- Web TypeScript typecheck PASS after schema/proto/UI-kit/API-client targeted builds.
+
+Independent R1 review is in progress. Parent integration and combined-carrier tests
+remain explicit prerequisites. No CI run was started.
+
+R1 follow-up: the scheduler rollback regression now asserts the original address,
+prefix/lifetimes and RA configuration before retry; separate static RA prefix and
+configuration adoption cases pass (subsystems race 1.137 s). Static configuration
+assembly now explicitly excludes all PD descriptor keys, so a full retrieve cannot
+turn operational addresses or advertisements into configured static values. The
+assembly regression covers both interface and neighbors/RA assemblers.
+
+## Independent review and publication correspondence
+
+R1 approved the frozen local source `2e736187` and independently reran full
+address/prefix/RA rollback restoration, static address/RA refusal and assembly
+exclusion. Receipt: `pppoe-pd-20261008-review-R1.md`.
+
+Published source: `94dd307898ce8df2d8a37c2024fe6d4c1ab9ecc7`, tree
+`6e1f5fa0c1a9a80e66e7f7fcee1549f27e814030`. Local full tree
+`26173b9c9ee68a9d4b385a137d050451f665ded4` differs because the remote foundation
+preserves additional lifecycle review receipts. Author independently compared
+GitHub's root tree entries against `git ls-tree 2e736187`: only `docs` differs;
+every other root entry is identical. Entire product subtrees match:
+`apps=61eca51277e7008b71c2fe69465bf52318a98455`,
+`packages=7e49a2fc84cffee9c0c78efa6a560beaeec51fbd`.
+
+Parent integration switches observation to its per-token session renderer and
+implements exact current carrier readiness; retain those changes when integrating
+this branch. Scoped PD implementation approval is not combined carrier acceptance.

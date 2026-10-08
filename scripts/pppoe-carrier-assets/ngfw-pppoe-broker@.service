@@ -1,0 +1,23 @@
+# Inert source asset; install with helper, tmpfiles and reviewed finite adapter.
+# Persistent /run/netns bind mounts must be created in the host mount namespace.
+# Do NOT add PrivateTmp/ProtectSystem/ProtectHome here: those create a private
+# mount namespace. The fixed helper accepts no arbitrary program/path/command.
+[Unit]
+Description=NGFW bounded PPP carrier operation %i
+After=systemd-tmpfiles-setup.service
+Requires=systemd-tmpfiles-setup.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/python3 -I /usr/lib/ngfw/pppoe-carrier.py broker-execute %i
+TimeoutStartSec=12
+TimeoutStopSec=2
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN CAP_SETPCAP
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6 AF_PACKET AF_PPPOX
+RestrictSUIDSGID=true
+LockPersonality=true

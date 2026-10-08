@@ -15,9 +15,9 @@ package subsystems
 // file is written, the request is persisted by the renderer and shown by GET /api/v1/state/snmp
 // (`pendingAction`); the agent never restarts snmpd on its own (unit control is P10's).
 //
-// Secrets: communities and USM passphrases are D-051 refs. No API→agent secret channel exists yet
-// (docs/decisions/PENDING-secret-channel.md); until it does, refs resolve through a slot-local fixture
-// file (NGFW_SNMP_FIXTURE_SECRETS, 0600, values `NGFW_TEST_PSK_F-snmp_*` only) and are refused otherwise.
+// Secrets: communities and USM passphrases use the transaction-selected sealed channel.
+// Scheduler values retain keyed generations for rotation, rollback and restart;
+// the production registration never loads environment fixture credentials.
 
 import (
 	"bytes"

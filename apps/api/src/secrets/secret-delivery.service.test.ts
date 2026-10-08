@@ -386,3 +386,114 @@ it('delivers only enabled PPPoE password references through the versioned channe
   expect(result.versions).toEqual({ [ref]: 4 });
   expect(where).toHaveBeenCalledTimes(1);
 });
+
+describe('completed operational consumers', () => {
+  const cases: [string, string, unknown][] = [
+    ['key/wg', 'key', { vpn: { wireguard: { interfaces: { wg0: { privateKeyRef: 'key/wg' } } } } }],
+    [
+      'psk/peer',
+      'psk',
+      {
+        vpn: {
+          wireguard: { interfaces: { wg0: { peers: { peer: { presharedKeyRef: 'psk/peer' } } } } },
+        },
+      },
+    ],
+    [
+      'password/community',
+      'password',
+      {
+        services: {
+          snmp: { enabled: true, communities: { ro: { secretRef: 'password/community' } } },
+        },
+      },
+    ],
+    [
+      'password/auth',
+      'password',
+      { services: { snmp: { enabled: true, v3Users: { user: { authRef: 'password/auth' } } } } },
+    ],
+    [
+      'password/priv',
+      'password',
+      { services: { snmp: { enabled: true, v3Users: { user: { privRef: 'password/priv' } } } } },
+    ],
+    [
+      'password/bgp',
+      'password',
+      { routing: { bgp: { neighbors: { '192.0.2.1': { passwordRef: 'password/bgp' } } } } },
+    ],
+    [
+      'password/group',
+      'password',
+      { routing: { bgp: { peerGroups: { upstream: { passwordRef: 'password/group' } } } } },
+    ],
+    [
+      'key/ntp',
+      'key',
+      {
+        services: {
+          ntp: { enabled: true, servers: [{ address: '192.0.2.1', keyRef: 'key/ntp' }] },
+        },
+      },
+    ],
+    [
+      'cert/syslog',
+      'cert',
+      { management: { syslog: [{ protocol: 'tls', tls: { caRef: 'cert/syslog' } }] } },
+    ],
+    [
+      'key/syslog',
+      'key',
+      { management: { syslog: [{ protocol: 'tls', tls: { keyRef: 'key/syslog' } }] } },
+    ],
+    [
+      'key/namespace',
+      'key',
+      { services: { hostStack: { namespaces: { app: { secretRef: 'key/namespace' } } } } },
+    ],
+  ];
+
+  it.each(cases)('delivers %s from the pinned sealed revision', async (selected, kind, doc) => {
+    const { delivery, where, encrypt } = setup([]);
+    where.mockResolvedValueOnce([
+      { ref: selected, kind, version: 2, ciphertext: encrypt('new', selected) },
+    ]);
+    where.mockResolvedValueOnce([
+      { ref: selected, version: 1, ciphertext: encrypt('old', selected) },
+    ]);
+    const got = await delivery.resolveVersioned(DesiredState.fromJSON(doc), { [selected]: 1 });
+    expect(got.versions).toEqual({ [selected]: 1 });
+    expect(got.bundle.values).toEqual({ [selected]: Buffer.from('old') });
+  });
+
+  it('clears disabled SNMP/NTP and non-TLS syslog selection without secret reads', async () => {
+    const { delivery, select } = setup([]);
+    const got = await delivery.resolve(
+      DesiredState.fromJSON({
+        services: {
+          snmp: { enabled: false, communities: { ro: { secretRef: 'password/ro' } } },
+          ntp: { enabled: false, servers: [{ keyRef: 'key/ntp' }] },
+        },
+        management: { syslog: [{ protocol: 'udp', tls: { caRef: 'cert/ca' } }] },
+      }),
+    );
+    expect(got).toEqual({ values: {} });
+    expect(select).not.toHaveBeenCalled();
+  });
+
+  it('does not deliver a CA signing key through an operational consumer alias', async () => {
+    const { delivery, select } = setup([]);
+    await expect(
+      delivery.resolve(
+        DesiredState.fromJSON({
+          vpn: {
+            pki: { cas: { ca: {} } },
+            wireguard: { interfaces: { wg0: { privateKeyRef: 'key/ca' } } },
+          },
+        }),
+      ),
+    ).rejects.toThrow('operational secret kind is invalid');
+    expect(select).not.toHaveBeenCalled();
+  });
+});

@@ -82,7 +82,7 @@ func ParseSnmpValue(value proto.Message) (*ngfwv1.SnmpService, map[string]string
 	}
 	bad := errors.New("snmpd.config: malformed secret generation bindings")
 	st, ok := value.(*structpb.Struct)
-	if !ok || st.Fields["config"].GetStructValue() == nil || st.Fields["secretRefs"].GetStructValue() == nil {
+	if !ok || len(st.Fields) != 2 || st.Fields["config"].GetStructValue() == nil || st.Fields["secretRefs"].GetStructValue() == nil {
 		return nil, nil, bad
 	}
 	raw, err := protojson.Marshal(st.Fields["config"].GetStructValue())

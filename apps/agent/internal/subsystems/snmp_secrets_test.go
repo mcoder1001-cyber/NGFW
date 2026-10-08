@@ -26,21 +26,24 @@ func TestSnmpSealedRotationRollbackRestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg := snmpValue()
-	cfg.V3Users = nil
 	makeValue := func(secret string) proto.Message {
 		t.Helper()
-		id, e := cache.Stage(map[string][]byte{"password/snmp-ro": []byte(secret)})
+		id, e := cache.Stage(map[string][]byte{"password/snmp-ro": []byte(secret), "password/noc-auth": []byte(secret + "_AUTH"), "password/noc-priv": []byte(secret + "_PRIV")})
 		if e != nil {
 			t.Fatal(e)
 		}
 		if e = cache.Activate(id); e != nil {
 			t.Fatal(e)
 		}
-		ref, e := cache.Ref(ctx, "password/snmp-ro")
-		if e != nil {
-			t.Fatal(e)
+		bindings := map[string]string{}
+		for _, name := range desired.SnmpSecretRefs(cfg) {
+			ref, e := cache.Ref(ctx, name)
+			if e != nil {
+				t.Fatal(e)
+			}
+			bindings[name] = ref
 		}
-		v, e := desired.SnmpBoundValue(cfg, map[string]string{"password/snmp-ro": ref})
+		v, e := desired.SnmpBoundValue(cfg, bindings)
 		if e != nil {
 			t.Fatal(e)
 		}

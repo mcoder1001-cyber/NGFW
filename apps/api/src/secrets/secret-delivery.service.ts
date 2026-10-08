@@ -34,7 +34,8 @@ export class SecretDeliveryService {
     const refs = secretRefs(DesiredState.toJSON(state)).filter(({ pointer }) => {
       const parts = parsePointer(pointer);
       if (parts[0] === 'routing') {
-        if (/^\/routing\/bgp\/(peerGroups|neighbors)\/[^/]+\/passwordRef$/.test(pointer)) return true;
+        if (/^\/routing\/bgp\/(peerGroups|neighbors)\/[^/]+\/passwordRef$/.test(pointer))
+          return true;
         // wave-BC: F-bfd-redistribution: auth refs use the existing sealed channel.
         if (/^\/routing\/bfd\/sessions\/[0-9]+\/auth\/keyRef$/.test(pointer)) return true;
         if (/^\/routing\/isis\/(areaPasswordRef|domainPasswordRef)$/.test(pointer)) return true;
@@ -58,18 +59,23 @@ export class SecretDeliveryService {
         return state.interfaces[parts[1]!]?.pppoe?.enabled !== false;
       }
       if (/^\/services\/hostStack\/namespaces\/[^/]+\/secretRef$/.test(pointer)) return true;
-      if (/^\/services\/ntp\/servers\/[0-9]+\/keyRef$/.test(pointer)) return state.services?.ntp?.enabled === true;
+      if (/^\/services\/ntp\/servers\/[0-9]+\/keyRef$/.test(pointer))
+        return state.services?.ntp?.enabled === true;
       if (/^\/management\/syslog\/[0-9]+\/tls\/(caRef|certRef|keyRef)$/.test(pointer))
         return state.management?.syslog[Number(parts[2])]?.protocol === 'tls';
       if (parts[0] === 'services' && parts[1] === 'snmp') {
         if (state.services?.snmp?.enabled !== true) return false;
-        return /^\/services\/snmp\/communities\/[^/]+\/secretRef$/.test(pointer) ||
-          /^\/services\/snmp\/v3Users\/[^/]+\/(authRef|privRef)$/.test(pointer);
+        return (
+          /^\/services\/snmp\/communities\/[^/]+\/secretRef$/.test(pointer) ||
+          /^\/services\/snmp\/v3Users\/[^/]+\/(authRef|privRef)$/.test(pointer)
+        );
       }
       if (parts[0] !== 'vpn') return false;
       if (parts[1] === 'wireguard') {
-        return /^\/vpn\/wireguard\/interfaces\/[^/]+\/privateKeyRef$/.test(pointer) ||
-          /^\/vpn\/wireguard\/interfaces\/[^/]+\/peers\/[^/]+\/presharedKeyRef$/.test(pointer);
+        return (
+          /^\/vpn\/wireguard\/interfaces\/[^/]+\/privateKeyRef$/.test(pointer) ||
+          /^\/vpn\/wireguard\/interfaces\/[^/]+\/peers\/[^/]+\/presharedKeyRef$/.test(pointer)
+        );
       }
       if (parts[1] === 'remoteAccess') {
         const profile = state.vpn?.remoteAccess[parts[2]!];
@@ -161,11 +167,13 @@ export class SecretDeliveryService {
                   pointer.startsWith('/services/snmp/') ||
                   /^\/vpn\/remoteAccess\/[^/]+\/users\/[0-9]+\/passwordRef$/.test(pointer)
                 ? 'password'
-                : pointer.startsWith('/management/syslog/') ? 'cert' : pointer.startsWith('/vpn/pki/')
-                  ? pointer.endsWith('/privateKeyRef')
-                    ? 'key'
-                    : 'cert'
-                  : 'psk',
+                : pointer.startsWith('/management/syslog/')
+                  ? 'cert'
+                  : pointer.startsWith('/vpn/pki/')
+                    ? pointer.endsWith('/privateKeyRef')
+                      ? 'key'
+                      : 'cert'
+                    : 'psk',
           ),
         );
         const kind = [...kinds][0]!;
@@ -183,7 +191,17 @@ export class SecretDeliveryService {
         const bfdOnly = selections.every(({ pointer }) =>
           pointer.startsWith('/routing/bfd/sessions/'),
         );
-        if (kind === 'key' && !bfdOnly && !selections.every(({ pointer }) => pointer.startsWith('/vpn/wireguard/') || pointer.startsWith('/services/ntp/') || pointer.startsWith('/services/hostStack/') || pointer.startsWith('/management/syslog/'))) {
+        if (
+          kind === 'key' &&
+          !bfdOnly &&
+          !selections.every(
+            ({ pointer }) =>
+              pointer.startsWith('/vpn/wireguard/') ||
+              pointer.startsWith('/services/ntp/') ||
+              pointer.startsWith('/services/hostStack/') ||
+              pointer.startsWith('/management/syslog/'),
+          )
+        ) {
           const certificates = Object.values(state.vpn?.pki?.certificates ?? {}).filter(
             (c) => c.privateKeyRef === ref,
           );

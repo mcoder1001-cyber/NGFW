@@ -66,6 +66,15 @@ func TestCarrierVLANLiveExactOwnership(t *testing.T) {
 		fail   bool
 	}{
 		{"exact", func(*ifapi.SwInterfaceDetails) {}, false},
+		{"qinq-dot1ad", func(r *ifapi.SwInterfaceDetails) {
+			r.SubNumberOfTags = 2
+			r.SubInnerVlanID = 300
+			r.SubIfFlags = interface_types.SUB_IF_API_FLAG_TWO_TAGS | interface_types.SUB_IF_API_FLAG_EXACT_MATCH | interface_types.SUB_IF_API_FLAG_DOT1AD
+		}, false},
+		{"qinq-missing-inner", func(r *ifapi.SwInterfaceDetails) {
+			r.SubNumberOfTags = 2
+			r.SubIfFlags = interface_types.SUB_IF_API_FLAG_TWO_TAGS | interface_types.SUB_IF_API_FLAG_EXACT_MATCH
+		}, true},
 		{"foreign", func(r *ifapi.SwInterfaceDetails) { r.Tag = "other:eth0.100" }, true},
 		{"wildcard", func(r *ifapi.SwInterfaceDetails) { r.SubIfFlags |= interface_types.SUB_IF_API_FLAG_OUTER_VLAN_ID_ANY }, true},
 		{"wrong-parent-name", func(r *ifapi.SwInterfaceDetails) { r.Tag = "ngfw:other.100" }, true},
@@ -84,6 +93,9 @@ func TestCarrierVLANLiveExactOwnership(t *testing.T) {
 			got, err := carrierLiveVLAN(table, 2)
 			if (err != nil) != tc.fail {
 				t.Fatalf("%+v %v", got, err)
+			}
+			if err == nil && child.SubNumberOfTags == 2 && got.Op != l2.VtrOp_VTR_OP_POP_2 {
+				t.Fatal("QinQ did not require POP_2")
 			}
 		})
 	}

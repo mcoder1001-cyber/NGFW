@@ -2,11 +2,13 @@
 
 Branch: `codex/pppoe-vlan-20261008`. Base local `1b8c55df`, remote `8f6224f936662b35ec1c6b2c815aee7e5fb0c559`.
 
+Published foundation: local `2d5963a6`, remote `0cd6e3186cb17c8dcbfdef100966297d667ded76`, tree `4c973b8f0b58c65c7976467b7783f9df99d91d42`. Follow-up adds explicit live QinQ/dot1ad and missing-inner regression coverage.
+
 Owned changes: new descriptor/desired VLAN helpers and focused tests, semantic parent resolver and narrow PPP semantic changes, en/fa parent help. Existing runtime/projection integration files remain owned by carrier worker.
 
 Completed foundation: explicit configured root/child resolution (canonical sub-ID), enabled/exclusive leaf, sibling isolation, one-tag and QinQ POP projection using existing scheduler-managed l2 descriptor; cloned daemon parent references; explicit VTR dependency; authoritative owned live child/tag validation and VTR readiness, raw TAP rewrite rejection. Schema accepts explicit VLAN/QinQ parents and rejects addressed selected leaf, disabled root, whole port with children. Existing UI interface-picker permits free text; en/fa help explains `eth0.100`.
 
-Tests actually run: descriptor and desired `go test -race ... -run '^TestCarrierVLAN' -count=1` passed (1.039s / 1.061s). Schema focused existing+new PPP tests passed 15/15. Schema typecheck initially found synthetic-leaf missing promiscuous and optional proxyNd; both fixed. A mistaken package-script separator caused a full schema-package test run (not CI): 1685 passed, one duplicate disabled-parent assertion failed; corrected and focused 15/15 rerun passed. Aggregate/hosted CI not run. No native VPP, namespace or lab activation.
+Tests actually run: descriptor and desired `go test -race ... -run '^TestCarrierVLAN' -count=1` passed (1.039s / 1.061s). Schema focused existing+new PPP tests passed 15/15. Schema typecheck passed after fixes. Schema typecheck initially found synthetic-leaf missing promiscuous and optional proxyNd; both fixed. A mistaken package-script separator caused a full schema-package test run (not CI): 1685 passed, one duplicate disabled-parent assertion failed; corrected and focused 15/15 rerun passed. Aggregate/hosted CI not run. No native VPP, namespace or lab activation.
 
 Remaining integration, owned by parent: wire helpers into full desired plan and daemon manifest/dependencies/sessions, admission and verified forwarding; extend live physical-root bond/LCP/L2 guards to VLAN root; combined graph regression and independent review. This checkpoint is not a claim that VLAN product integration is done.
 

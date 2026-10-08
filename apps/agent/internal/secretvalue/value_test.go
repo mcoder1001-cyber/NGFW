@@ -2,6 +2,7 @@ package secretvalue
 
 import (
 	"context"
+	"encoding/base64"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	"strings"
@@ -46,5 +47,12 @@ func TestBoundValueExactCoverageAndRestartMetadata(t *testing.T) {
 	bindings["key/one"] = newer
 	if generation, _ := Binding(ctx, "key/one"); generation != old {
 		t.Fatal("mutable caller changed binding")
+	}
+}
+
+func TestMetadataRejectsDuplicateJSONKeys(t *testing.T) {
+	raw := []byte(`{"key/one":"hmac:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","key/one":"hmac:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}`)
+	if _, err := Metadata([]byte(prefix + base64.RawStdEncoding.EncodeToString(raw) + "\n")); err == nil {
+		t.Fatal("duplicate JSON generation accepted")
 	}
 }

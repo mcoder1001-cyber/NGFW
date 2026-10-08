@@ -7,8 +7,7 @@ package desired
 //	management.syslog (non-empty) → rsyslog.config/ngfw   Value = rsyslog.Input(document) (*ngfwv1.ManagementConfig)
 //
 // Without targets there is no object: the reconciler deletes a previous one (rsyslog gets the empty export). TLS
-// targets need the API→agent secret channel for their certificate and key references (PENDING-secret-channel):
-// refused here with a DryRun error until it lands (the renderer itself is tested with a fixture resolver, D-086).
+// targets require exact selected sealed certificate/key generations; unavailable references fail closed.
 
 import (
 	"strconv"

@@ -336,9 +336,15 @@ func (r *Renderer) build(ctx context.Context, in input) (*rendered, error) {
 			val, err = r.secrets(ref)
 		}
 		if err != nil {
+			if r.secretsContext != nil {
+				clear(val)
+			}
 			return nil, fmt.Errorf("%w: %s", ErrSecret, ref) // never wrap err: it might quote the value
 		}
 		if len(val) == 0 || len(val) > MaxKeyBytes {
+			if r.secretsContext != nil {
+				clear(val)
+			}
 			return nil, fmt.Errorf("%w: %s: key must be 1..%d bytes", ErrSecret, ref, MaxKeyBytes)
 		}
 		out.keys = append(out.keys, key{ID: keyIDs[ref], Hex: strings.ToUpper(hex.EncodeToString(val))})

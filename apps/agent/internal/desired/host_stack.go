@@ -3,7 +3,7 @@ package desired
 // services.hostStack (F-host-stack) ↔ descriptors/hoststack:
 //
 //	hostStack.enabled = true               → hoststack.session/global        (write-only; owner sets, others require)
-//	hostStack.namespaces.<id>              → hoststack.namespace/<id>        (write-only; secretRef refused, no channel yet)
+//	hostStack.namespaces.<id>              → hoststack.namespace/<id>        (write-only; keyed generation resolved at VPP call)
 //	hostStack.sessionRules[] (tag)         → hoststack.session-rule/<tag>    (Retrieve: session_rules_v2_dump)
 //	hostStack.tcpSourceAddresses           → hoststack.tcp-src/<fib>         (write-only, irreversible per fib)
 //	hostStack.httpStatic (enabled)         → hoststack.http-static/global    (globals owner + NGFW_HOSTSTACK_HTTP_STATIC=1)

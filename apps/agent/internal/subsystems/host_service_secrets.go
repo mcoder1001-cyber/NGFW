@@ -19,6 +19,8 @@ func hostServiceSecrets(owner string) *hostSecretSource {
 	source, _ := hostSecretSources.LoadOrStore(owner, &hostSecretSource{})
 	return source.(*hostSecretSource)
 }
+
+// SetHostServiceSecrets installs the transaction-selected sealed cache adapters.
 func SetHostServiceSecrets(owner string, ref func(context.Context, string) (string, error), history func(context.Context, string) ([]byte, error)) error {
 	if ref == nil || history == nil {
 		return secretvalue.ErrInvalid
@@ -29,6 +31,8 @@ func SetHostServiceSecrets(owner string, ref func(context.Context, string) (stri
 	source.mu.Unlock()
 	return nil
 }
+
+// HostServiceSecretOptions provides per-owner fingerprint selection to projection.
 func HostServiceSecretOptions(owner string) desired.HostSecretOptions {
 	source := hostServiceSecrets(owner)
 	return desired.HostSecretOptions{Ref: func(ctx context.Context, ref string) (string, error) {

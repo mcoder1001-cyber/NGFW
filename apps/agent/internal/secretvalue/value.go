@@ -3,6 +3,7 @@
 package secretvalue
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -23,6 +24,7 @@ const prefix = "# ngfw-secret-generations "
 
 type bindingsKey struct{}
 
+// References returns reference leaves from a consumer-trimmed protobuf configuration.
 func References(value proto.Message) []string {
 	refs := map[string]bool{}
 	var walk func(protoreflect.Message)
@@ -64,6 +66,7 @@ func References(value proto.Message) []string {
 	return out
 }
 
+// Validate requires exact reference coverage and only keyed HMAC generations.
 func Validate(value proto.Message, bindings map[string]string) error {
 	refs := References(value)
 	if len(bindings) != len(refs) || len(bindings) > 256 {
@@ -78,6 +81,7 @@ func Validate(value proto.Message, bindings map[string]string) error {
 	return nil
 }
 
+// Wrap preserves ordinary values or wraps configuration with validated keyed generations.
 func Wrap(value proto.Message, bindings map[string]string) (proto.Message, error) {
 	if bindings == nil {
 		return proto.Clone(value), nil
@@ -100,6 +104,7 @@ func Wrap(value proto.Message, bindings map[string]string) (proto.Message, error
 	return structpb.NewStruct(map[string]any{"config": config, "secretRefs": refs})
 }
 
+// Unwrap decodes a bound value, or a legacy typed value with nil bindings.
 func Unwrap(value, dst proto.Message) (map[string]string, error) {
 	proto.Reset(dst)
 	if value == nil {
@@ -131,6 +136,7 @@ func Unwrap(value, dst proto.Message) (map[string]string, error) {
 	return bindings, nil
 }
 
+// WithBindings isolates a render from later selection changes or caller map mutations.
 func WithBindings(ctx context.Context, bindings map[string]string) context.Context {
 	copy := map[string]string{}
 	for k, v := range bindings {
@@ -138,6 +144,8 @@ func WithBindings(ctx context.Context, bindings map[string]string) context.Conte
 	}
 	return context.WithValue(ctx, bindingsKey{}, copy)
 }
+
+// Binding returns only the generation explicitly bound to this render context.
 func Binding(ctx context.Context, ref string) (string, bool) {
 	m, ok := ctx.Value(bindingsKey{}).(map[string]string)
 	if !ok {
@@ -147,6 +155,7 @@ func Binding(ctx context.Context, ref string) (string, bool) {
 	return value, ok
 }
 
+// AppendMetadata appends bounded non-secret generation metadata to a daemon input file.
 func AppendMetadata(content []byte, bindings map[string]string) ([]byte, error) {
 	if bindings == nil {
 		return content, nil
@@ -162,6 +171,8 @@ func AppendMetadata(content []byte, bindings map[string]string) ([]byte, error) 
 	out = append(out, []byte(prefix+base64.RawStdEncoding.EncodeToString(raw)+"\n")...)
 	return out, nil
 }
+
+// Metadata reads canonical generation metadata, refusing duplicates and malformed encoding.
 func Metadata(content []byte) (map[string]string, error) {
 	var result map[string]string
 	found := false
@@ -175,6 +186,10 @@ func Metadata(content []byte) (map[string]string, error) {
 		found = true
 		raw, err := base64.RawStdEncoding.DecodeString(strings.TrimPrefix(line, prefix))
 		if err != nil || len(raw) > 65536 || json.Unmarshal(raw, &result) != nil || result == nil {
+			return nil, ErrInvalid
+		}
+		canonical, err := json.Marshal(result)
+		if err != nil || !bytes.Equal(canonical, raw) {
 			return nil, ErrInvalid
 		}
 	}

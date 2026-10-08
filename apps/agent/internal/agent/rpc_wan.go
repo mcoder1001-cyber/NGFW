@@ -94,6 +94,7 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 	var previousResolved *ngfwv1.DesiredState
 	previousIdentity := ""
 	pendingDead := map[string]bool{}
+	pendingRetired := map[string]bool{}
 	cleanupProgress := &multiwan.CleanupProgress{}
 	cleaner := nat44ed.New(a.svc.vpp, a.svc.owner)
 	timer := time.NewTicker(time.Second)
@@ -132,6 +133,7 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 			previousHealth = nil
 			previousResolved = nil
 			pendingDead = map[string]bool{}
+			pendingRetired = map[string]bool{}
 			previousIdentity = generation
 			*cleanupProgress = multiwan.CleanupProgress{}
 		}
@@ -151,12 +153,19 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 		}
 		for addr := range multiwan.RetiredAddresses(previousResolved, resolved) {
 			pendingDead[addr] = true
+			pendingRetired[addr] = true
 			*cleanupProgress = multiwan.CleanupProgress{}
 		}
 		previousResolved = resolved
 		if len(pendingDead) > 0 {
 			cleanupCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
 			current, err := a.svc.withCurrentWAN(cleanupCtx, saved, func(c context.Context) error {
+				if multiwan.PruneLiveCleanup(pendingDead, pendingRetired, resolved, usable) {
+					*cleanupProgress = multiwan.CleanupProgress{}
+				}
+				if len(pendingDead) == 0 {
+					return nil
+				}
 				tables := map[uint32]bool{}
 				for _, g := range saved.GetRouting().GetWanGroups() {
 					for _, m := range g.GetMembers() {
@@ -179,12 +188,14 @@ func (a *Agent) watchWAN(ctx context.Context, runtime *multiwan.Runtime) {
 				}
 				if complete {
 					pendingDead = map[string]bool{}
+					pendingRetired = map[string]bool{}
 				}
 				return e
 			})
 			cancel()
 			if !current && err == nil {
 				pendingDead = map[string]bool{}
+				pendingRetired = map[string]bool{}
 				*cleanupProgress = multiwan.CleanupProgress{}
 			}
 			if err != nil {

@@ -21,3 +21,10 @@ CI deferred per owner instruction until all source tasks finish. No lab run.
 
 Next: finish focused agent tests, independent review, publish checkpoint. Local
 and remote commit identifiers are recorded by the manager after publication.
+
+R4 review repair: retired-address cleanup now cancels when the address is rebound,
+including before health hysteresis recovers. Ordinary dead-member retries cancel
+when the member recovers. Cleanup cursors reset when protected addresses leave the
+queue. A failed-delete/rebound control preserves the replacement session while
+still removing an unrelated dead-member session. Focused race tests PASS:
+`internal/multiwan` 1.045s, `internal/agent` 1.091s.

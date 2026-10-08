@@ -105,3 +105,40 @@ func RetiredAddresses(before, after *ngfwv1.DesiredState) map[string]bool {
 	}
 	return DeadAddresses(before, healthBefore, healthAfter)
 }
+
+// PruneLiveCleanup cancels queued deletion when an outside address becomes live
+// again before a retry completes. NAT sessions contain no lease-generation ID,
+// so deleting by a retired address after reuse would delete new sessions too.
+// Protect every healthy member, including sticky flows on a non-selected backup.
+// Reassigned retired addresses are protected even before health recovers.
+func PruneLiveCleanup(pending, retired map[string]bool, doc *ngfwv1.DesiredState, health []*ngfwv1.WanGroupState) bool {
+	changed := false
+	healthy := map[string]bool{}
+	for _, group := range health {
+		for _, member := range group.GetMembers() {
+			if member.GetUp() {
+				healthy[member.GetInterface()] = true
+			}
+		}
+	}
+	for _, group := range doc.GetRouting().GetWanGroups() {
+		for _, member := range group.GetMembers() {
+			if member.GetNextHop() != "gateway" {
+				continue
+			}
+			for _, raw := range doc.GetInterfaces()[member.GetInterface()].GetIpv4() {
+				prefix, err := netip.ParsePrefix(raw)
+				if err != nil || !prefix.Addr().Is4() {
+					continue
+				}
+				address := prefix.Addr().String()
+				if pending[address] && (healthy[member.GetInterface()] || retired[address]) {
+					delete(pending, address)
+					delete(retired, address)
+					changed = true
+				}
+			}
+		}
+	}
+	return changed
+}

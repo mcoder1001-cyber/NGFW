@@ -57,3 +57,25 @@ ok ngfw/agent/internal/agent 1.348s
 Independent staged-package fixture `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_prepare.py`: 3 tests passed in 0.454s. `git diff --check` passed. No full CI or native service/forwarding acceptance was run.
 
 Verdict: **APPROVE** for the fixed probe and generation adapter source scope; actual carrier integration requires separate final verification.
+
+## PPP automatic default ownership context
+
+APPROVE the scoped WAN delta after `d31c1b17`, at
+`b92e75b8aa7c1172c4f5b993fca688d6defde142`, tree
+`961d12e9633c33d1499fb0dce456eedcc73721ab`.
+The detached PPP singleton receives only WAN group/member ownership references.
+It preserves the operator's PPP defaultRoute setting and does not expose private
+ownership context through retrieval. Membership removal produces a new singleton
+without the old references. Routing-only changes reproject PPP from the complete
+merged interface context, allowing join/leave to reach the descriptor; adding ACL
+scope now preserves this expanded scope rather than replacing it.
+
+Independent focused race tests for ownership context and routing-only join/leave
+passed desired in 1.109 seconds and agent in 1.117 seconds. No CI or native
+operations ran. This approval covers context delivery, not actual default-route
+suppression. The companion PPP descriptor must suppress automatic defaults for
+WAN-owned members and withdraw previously mirrored defaults before a health
+transition or membership update can expose them. Combined integration must prove
+join/leave, health loss/recovery, stale session observations and rollback never
+leave a PPP automatic default bypassing WAN health selection. That proof remains
+owed by parent integration.

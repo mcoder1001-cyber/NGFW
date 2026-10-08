@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	iface "ngfw/agent/internal/descriptors/interface"
+	"ngfw/agent/internal/descriptors/l2"
 	"ngfw/agent/internal/descriptors/lcp"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/renderers"
@@ -34,11 +35,12 @@ type ClientRuntime interface {
 
 // ClientConfig resolves credentials only at the final renderer boundary.
 type ClientConfig struct {
-	mu       sync.RWMutex
-	secrets  func(string) ([]byte, error)
-	runtime  ClientRuntime
-	renderer *ren.Renderer
-	manifest string
+	mu           sync.RWMutex
+	secrets      func(string) ([]byte, error)
+	runtime      ClientRuntime
+	renderer     *ren.Renderer
+	manifest     string
+	carrierOwner string
 	// Check is the structural checker; pppd has no offline configuration checker.
 	Check func(context.Context, *ren.Renderer, []ren.Session) error
 }
@@ -47,6 +49,10 @@ type ClientConfig struct {
 func NewClientConfig(runtime ClientRuntime, r *ren.Renderer, manifest string) *ClientConfig {
 	return &ClientConfig{runtime: runtime, renderer: r, manifest: manifest}
 }
+
+// SetCarrierOwner selects the product-only isolated kernel carrier contract.
+// Construction-time only, before registering the descriptor.
+func (d *ClientConfig) SetCarrierOwner(owner string) { d.carrierOwner = owner }
 
 // SetSecretSource installs the owner-scoped sealed secret cache lookup (secretchannel.Store.Text), which resolves a
 // literal "password/<name>" reference in the transaction-selected snapshot, as FRR and PKI do. The cache's Resolve
@@ -75,7 +81,19 @@ func (d *ClientConfig) Dependencies(value proto.Message) []scheduler.Dependency 
 		if itf.Pppoe == nil {
 			continue
 		}
-		for _, key := range []scheduler.Key{iface.AliasKey(name), scheduler.Join(lcp.NameItfPair, itf.Pppoe.GetParent())} {
+		keys := []scheduler.Key{iface.AliasKey(name), scheduler.Join(lcp.NameItfPair, itf.Pppoe.GetParent())}
+		if d.carrierOwner != "" {
+			mtu := itf.Pppoe.GetMtu()
+			if mtu == 0 {
+				mtu = 1492
+			}
+			spec, err := ren.NewCarrierSpec(d.carrierOwner, name, itf.Pppoe.GetParent(), mtu)
+			if err != nil {
+				continue
+			}
+			keys = []scheduler.Key{iface.AliasKey(name), CarrierNamespaceKey(spec.Token()), l2.XconnectKey(string(iface.AliasKey(spec.Parent))), l2.XconnectKey(string(iface.AliasKey(spec.RawLogical())))}
+		}
+		for _, key := range keys {
 			if !seen[key] {
 				out = append(out, scheduler.Dependency{Key: key})
 				seen[key] = true
@@ -107,7 +125,22 @@ func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict b
 		if err := rfkit.CheckRef(c.GetPasswordRef(), "password"); err != nil {
 			return nil, redactor, scheduler.InvalidAt(passwordPointer(name), errors.New("PPPoE requires a password reference"))
 		}
-		host, err := lcpmap.HostName(c.GetParent(), doc.Interfaces[c.GetParent()].GetLcp())
+		var carrier *ren.CarrierSpec
+		var host string
+		var err error
+		if d.carrierOwner != "" {
+			mtu := c.GetMtu()
+			if mtu == 0 {
+				mtu = 1492
+			}
+			spec, e := ren.NewCarrierSpec(d.carrierOwner, name, c.GetParent(), mtu)
+			if e != nil {
+				return nil, redactor, scheduler.InvalidAt("/interfaces/"+stringReplace(name)+"/pppoe/parent", e)
+			}
+			carrier, host = &spec, spec.RawHost()
+		} else {
+			host, err = lcpmap.HostName(c.GetParent(), doc.Interfaces[c.GetParent()].GetLcp())
+		}
 		if err != nil {
 			return nil, redactor, err
 		}
@@ -135,7 +168,7 @@ func (d *ClientConfig) sessions(_ context.Context, value proto.Message, strict b
 		if c.GetReconnect() != nil && c.GetReconnect().HoldoffSec != nil {
 			holdoff = c.GetReconnect().GetHoldoffSec()
 		}
-		out = append(out, ren.Session{Iface: name, HostIf: host, Username: c.GetUsername(), Password: password, ServiceName: c.GetServiceName(), MTU: mtu, MSSClamp: c.MssClamp == nil || c.GetMssClamp(), DefaultRoute: c.DefaultRoute == nil || c.GetDefaultRoute(), DNSFromPeer: c.GetDnsFromPeer(), IPv6: c.GetIpv6(), HoldoffSec: holdoff, MaxFail: c.GetReconnect().GetMaxFail()})
+		out = append(out, ren.Session{Carrier: carrier, Iface: name, HostIf: host, Username: c.GetUsername(), Password: password, ServiceName: c.GetServiceName(), MTU: mtu, MSSClamp: c.MssClamp == nil || c.GetMssClamp(), DefaultRoute: c.DefaultRoute == nil || c.GetDefaultRoute(), DNSFromPeer: c.GetDnsFromPeer(), IPv6: c.GetIpv6(), HoldoffSec: holdoff, MaxFail: c.GetReconnect().GetMaxFail()})
 	}
 	return out, redactor, nil
 }

@@ -36,6 +36,12 @@ func (w *Wiring) registerPppoeClient(reg scheduler.Registry) error {
 	rt := PppoeOf(w.env.Owner)
 	pppoeActive.Store(rt)
 	d := pppoe.NewClientConfig(rt, rt.renderer, filepath.Join(w.env.StateDir, "pppoe-"+w.env.Owner+"-applied.pb"))
+	if w.env.GlobalsOwner {
+		d.SetCarrierOwner(w.env.Owner)
+	}
+	if err := w.registerPppoeCarrier(reg, rt); err != nil {
+		return err
+	}
 	reg.Register(d)
 	pppoeMu.Lock()
 	pppoeConfigs[w.env.Owner] = d

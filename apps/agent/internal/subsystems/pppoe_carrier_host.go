@@ -3,6 +3,9 @@ package subsystems
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,7 +22,7 @@ const pppoeCarrierHelper = "/usr/lib/ngfw/pppoe-carrier.py"
 
 type pppoeCarrierHost struct{ runner renderers.Runner }
 
-func (h *pppoeCarrierHost) call(ctx context.Context, target any, args ...string) error {
+func (h *pppoeCarrierHost) direct(ctx context.Context, target any, args ...string) error {
 	if h == nil || h.runner == nil {
 		return errors.New("PPPoE kernel helper is unavailable")
 	}
@@ -45,6 +48,106 @@ func (h *pppoeCarrierHost) call(ctx context.Context, target any, args ...string)
 		return errors.New("PPPoE kernel helper returned trailing receipt data")
 	}
 	return nil
+}
+
+// call crosses the privileged boundary only through the fixed packaged broker.
+// The agent may enqueue a finite validated request; it never enters a namespace.
+func (h *pppoeCarrierHost) call(ctx context.Context, target any, args ...string) error {
+	if len(args) == 0 {
+		return errors.New("empty carrier operation")
+	}
+	request := map[string]any{"op": args[0]}
+	token := ""
+	switch args[0] {
+	case "provision":
+		if len(args) != 5 || args[3] != "--spec-json" {
+			return errors.New("invalid provision request")
+		}
+		var spec pppoe.CarrierSpec
+		if json.Unmarshal([]byte(args[4]), &spec) != nil || spec.Validate() != nil || spec.Owner != args[1] || spec.Logical != args[2] {
+			return errors.New("invalid provision specification")
+		}
+		token = spec.Token()
+		request["owner"], request["logical"], request["spec"] = spec.Owner, spec.Logical, spec
+	case "list":
+		if len(args) != 2 {
+			return errors.New("invalid inventory request")
+		}
+		digest := sha256.Sum256([]byte("inventory\x00" + args[1]))
+		token = "ngp-" + hex.EncodeToString(digest[:6])
+		request["owner"] = args[1]
+	case "verify", "inspect", "delete", "withdraw", "configure", "prepare":
+		if len(args) < 3 {
+			return errors.New("incomplete carrier request")
+		}
+		token = args[1]
+		request["token"], request["generation"] = token, args[2]
+		if args[0] == "prepare" {
+			if len(args) != 13 {
+				return errors.New("invalid prepare request")
+			}
+			request["physical_mac"] = args[4]
+			request["transit"] = map[string]string{"local4": args[6], "peer4": args[8], "local6": args[10], "peer6": args[12]}
+		} else if args[0] == "configure" {
+			if len(args) != 4 {
+				return errors.New("missing carrier default route policy")
+			}
+			request["accept_default_route"] = args[3] == "true"
+		} else if len(args) != 3 {
+			return errors.New("invalid carrier request")
+		}
+	default:
+		return errors.New("unapproved carrier operation")
+	}
+	return h.broker(ctx, target, token, request)
+}
+
+type carrierBrokerReceipt struct {
+	Token   string          `json:"token"`
+	Nonce   string          `json:"nonce"`
+	Boot    string          `json:"boot"`
+	Expires float64         `json:"expires"`
+	Hash    string          `json:"request_sha256"`
+	OK      bool            `json:"ok"`
+	Result  json.RawMessage `json:"result"`
+}
+
+func (h *pppoeCarrierHost) broker(ctx context.Context, target any, token string, request any) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	var nonceBytes [16]byte
+	if _, err := rand.Read(nonceBytes[:]); err != nil {
+		return err
+	}
+	nonce := hex.EncodeToString(nonceBytes[:])
+	body, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	var queued carrierBrokerReceipt
+	if err = h.direct(ctx, &queued, "broker-queue", token, nonce, "--request-json", string(body)); err != nil {
+		return err
+	}
+	if queued.Token != token || queued.Nonce != nonce || queued.Boot == "" || len(queued.Hash) != 64 || queued.Expires <= 0 {
+		return errors.New("invalid carrier broker receipt")
+	}
+	if _, err = h.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"start", "ngfw-pppoe-broker@" + token + ".service"}, Timeout: 10 * time.Second}); err != nil {
+		return errors.New("carrier broker service failed")
+	}
+	var result carrierBrokerReceipt
+	if err = h.direct(ctx, &result, "broker-result", token, nonce); err != nil {
+		return err
+	}
+	if err = ctx.Err(); err != nil {
+		return err
+	}
+	if !result.OK || result.Token != queued.Token || result.Nonce != queued.Nonce || result.Boot != queued.Boot || result.Hash != queued.Hash || result.Expires != queued.Expires {
+		return errors.New("carrier broker result identity or operation failed")
+	}
+	if target == nil {
+		return nil
+	}
+	return json.Unmarshal(result.Result, target)
 }
 
 func (h *pppoeCarrierHost) Provision(ctx context.Context, spec pppoe.CarrierSpec) (pppoedesc.CarrierLease, error) {
@@ -147,11 +250,11 @@ func (h *pppoeCarrierHost) Verify(ctx context.Context, lease pppoedesc.CarrierLe
 	return result, nil
 }
 
-func (h *pppoeCarrierHost) Configure(ctx context.Context, lease pppoedesc.CarrierLease) error {
+func (h *pppoeCarrierHost) Configure(ctx context.Context, lease pppoedesc.CarrierLease, acceptDefault bool) error {
 	if err := lease.Validate(); err != nil {
 		return err
 	}
-	return h.call(ctx, nil, "configure", lease.Token, lease.Generation)
+	return h.call(ctx, nil, "configure", lease.Token, lease.Generation, fmt.Sprint(acceptDefault))
 }
 
 func (h *pppoeCarrierHost) Withdraw(ctx context.Context, lease pppoedesc.CarrierLease) error {

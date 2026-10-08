@@ -303,10 +303,10 @@ def start(iface, ll, peer, pppd, parent):
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
     try:
-        (SYSCTL / iface / "accept_ra").write_text("2\n")
+{{if not .Carrier}}        (SYSCTL / iface / "accept_ra").write_text("2\n")
         (SYSCTL / iface / "autoconf").write_text("1\n")
         (SYSCTL / iface / "accept_ra_defrtr").write_text("1\n" if DEFAULT_ROUTE else "0\n")
-        if ll and peer:
+{{end}}        if ll and peer:
             subprocess.run([IP, "-6", "addr", "del", ll, "peer", peer, "dev", iface], check=True, timeout=2, capture_output=True)
             subprocess.run([IP, "-6", "addr", "add", ll, "peer", peer, "dev", iface, "nodad"], check=True, timeout=2, capture_output=True)
     except (OSError, subprocess.SubprocessError) as exc:

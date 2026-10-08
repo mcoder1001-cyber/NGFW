@@ -66,6 +66,13 @@ func (s CarrierSpec) RawHost() string     { return "pw" + strings.TrimPrefix(s.T
 func (s CarrierSpec) TransitHost() string { return "pt" + strings.TrimPrefix(s.Token(), "ngp-") }
 func (s CarrierSpec) RawLogical() string  { return "pppr-" + strings.TrimPrefix(s.Token(), "ngp-") }
 
+// TapIDs are stable candidates; live admission refuses any existing ID collision.
+func (s CarrierSpec) TapIDs() (raw, transit uint32) {
+	digest := sha256.Sum256([]byte(s.Owner + "\x00" + s.Logical))
+	raw = binary.BigEndian.Uint32(digest[8:12])&0x3ffffffe | 0x40000000
+	return raw, raw + 1
+}
+
 // Token is the fixed namespace/instance name; no caller path is accepted.
 func (s CarrierSpec) Token() string {
 	digest := sha256.Sum256([]byte(s.Owner + "\x00" + s.Logical))

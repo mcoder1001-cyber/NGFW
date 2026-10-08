@@ -108,3 +108,15 @@ same command (no matching tests). The real VPP admission function compiled but h
 not been executed against VPP. Full CI remains deferred. The initial helper and its
 subsequent actual verification/session-name fixes are preserved as separate source
 commits. These checks do not complete carrier runtime integration or packet proof.
+
+### Source checkpoint: projection and broker adapter
+
+Added the logical transit/raw transport projection, immutable TAP ID candidates,
+namespace TAP dependency/admission, explicit daemon session carrier specification,
+private single-peer renderer without generated units, and a finite fixed-service
+broker adapter. Focused race checks passed for carrier projection/spec/namespace
+and renderer, plus agent compile. Aggregate CI remains deferred by owner.
+This checkpoint is not operationally complete: product Apply/poll/teardown,
+forwarding readiness/probe methods, helper broker packaging and live TAP ID
+collision admission still require implementation and review. No target service
+or network namespace was activated.

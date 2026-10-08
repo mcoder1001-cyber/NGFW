@@ -70,3 +70,17 @@ review and parent integration. A VPP rejection during withdrawal can retain an
 owned object under the existing dynamic-source retry/quarantine policy; failures
 are reported and retried, not claimed as successful withdrawal. No aggregate CI,
 native DHCP/RA packet acceptance or complete PPP carrier claim is made.
+
+## Final focused verification
+
+Source checkpoint `fcb90b1f` / published `912c658c`:
+- Additional claim-persistence-before-mutation and partial RA config/prefix rollback
+  regressions: 3 tests PASS under race, ip6_nd 1.017 s.
+- Delegation projection lifecycle, cross-interface/WAN overlap rejection and lifetime
+  upper bounds: 3 tests PASS under race, desired 1.081 s.
+- Product scheduler/fake-VPP lifecycle and static-adoption refusal: 2 tests PASS under
+  race, subsystems 1.122 s.
+- Web TypeScript typecheck PASS after schema/proto/UI-kit/API-client targeted builds.
+
+Independent R1 review is in progress. Parent integration and combined-carrier tests
+remain explicit prerequisites. No CI run was started.

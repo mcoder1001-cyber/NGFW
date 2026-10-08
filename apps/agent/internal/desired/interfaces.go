@@ -20,7 +20,7 @@
 // mac → interface.mac-address, promiscuous → interface.promisc (present ⇔ on), rxMode →
 // interface.rx-mode; vrf → interface-ip.table; ipv4/ipv6 → interface-ip; dhcpClient → dhcp.client.
 // description is not VPP state: the agent keeps it in its stored desired state (D-073b).
-// unnumbered is reported as agent.unsupported-field (no descriptor in this build).
+// unnumbered projects an authoritative interface.unnumbered relationship.
 package desired
 
 import (
@@ -119,6 +119,7 @@ type NetdevKind func(name string) (kind string, exists bool, err error)
 // A netdev that does not exist (yet) is not an error here: a vanished rig veth must not block
 // unrelated commits; the af_packet Create checks again (subsystems' veth guard).
 func Interfaces(s Sink, ifs map[string]*ngfwv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind) {
+	unnumberedInterfaces(s, ifs)
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
 		pt := Ptr("interfaces", name)
@@ -220,9 +221,7 @@ func common(s Sink, name, ref, pt string, f commonFields, vrfID func(string) (ui
 	if f.mtu != nil {
 		s.Add(scheduler.Join(iface.MtuName, name), &iface.Mtu{Interface: ref, Mtu: *f.mtu}, pt+"/mtu")
 	}
-	if f.unnumbered {
-		s.Warnf(pt+"/unnumbered", "agent.unsupported-field", "%s/unnumbered is not implemented by this agent build (P08 wires admin state, MTU, MAC, promiscuous, rx mode, VRF, addresses, sub-interfaces, DHCP client)", pt)
-	}
+
 	if f.vrf != nil {
 		id, ok := vrfID(*f.vrf)
 		switch {
@@ -310,6 +309,8 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 				n.sub.InnerVlanId = proto.Uint32(v.GetInnerVlan())
 			}
 			n.sub.Dot1Ad = proto.Bool(v.GetDot1Ad())
+		case *iface.Unnumbered:
+			get(iface.RefID(v.GetInterface())).setUnnumbered(iface.RefID(v.GetDonor()))
 		case *iface.AdminState:
 			get(iface.RefID(v.GetInterface()))
 			enabled[iface.RefID(v.GetInterface())] = true

@@ -83,8 +83,8 @@ func TestTableKeysAndResolution(t *testing.T) {
 func TestRegisterNamesValidAndUnique(t *testing.T) {
 	r := scheduler.NewRegistry()
 	iface.Register(r, ifacetest.New(), owner)
-	if r.Len() != 8 {
-		t.Fatalf("registered %d descriptors, want 8: %v", r.Len(), r.Names())
+	if r.Len() != 9 {
+		t.Fatalf("registered %d descriptors, want 9: %v", r.Len(), r.Names())
 	}
 	for _, n := range r.Names() {
 		if !scheduler.ValidName(n) {

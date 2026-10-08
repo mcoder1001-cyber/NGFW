@@ -17,7 +17,7 @@ func TestRegisterAllDF1(t *testing.T) {
 		"af-packet.host-interface",
 		"bond.bond", "bond.member",
 		"interface", "interface.admin-state", "interface.mac-address", "interface.mtu", "interface.promisc",
-		"interface.rx-mode", "interface.rx-placement", "interface.subinterface",
+		"interface.rx-mode", "interface.rx-placement", "interface.subinterface", "interface.unnumbered",
 		"l2.bridge-domain", "l2.bridge-domain-member", "l2.fib-entry", "l2.flags", "l2.vlan-tag-rewrite", "l2.xconnect",
 		"l3xc.l3xc",
 		"memif.memif", "memif.socket",

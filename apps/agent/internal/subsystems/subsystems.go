@@ -87,6 +87,7 @@ var Domains = map[string][]string{
 		iface.SubinterfaceName,
 		iface.AliasName,
 		iface.AdminStateName,
+		iface.UnnumberedName,
 		iface.MtuName,
 		iface.MacAddressName,
 		iface.PromiscName,

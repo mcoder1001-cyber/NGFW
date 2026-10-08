@@ -700,7 +700,7 @@ tasks:
       - DF-2
     priority: 1
     est_hours: 16
-    state: merged
+    state: "review"
     parked_on: ''
     wbs:
       - D1.2
@@ -722,6 +722,8 @@ tasks:
       ends; F1/F4 decided D-105 | review BLOCK 6022f0d (N1 hostDoc, F1/F2, N2, F5 …); fix round 1 spawned by ngfw-46, envelope /root/ngfw-wt/P08.fix1.md (D-107) | re-review APPROVE WITH
       CHANGES (T1 guard vs coretest, R1 tolerant/CLI, e2e discrimination) → fix round 2 (last), envelope /root/ngfw-wt/P08.fix2.md (D-118) | fix round 2 done abb6950 (code 1a90988), CI
       green, topology PASSED first run (resync 0.4 s, NRestarts 0→0); focused verify of round 2 | merged c2ca3ed (squash a5cbf58, D-112), main gate green | 2026-10-07 new product bugfix PR199 merged 62325fd4d4e38fd330aa2df9af85a9a06d2d4ef9: read-only host NIC inventory automatically displayed, physical correlation and partial observation diagnostics; independent APPROVE, exact head local quick PASS12m41s and hosted37611599559 SUCCESS. Actual merged-main verification underway; existing merged task state retained, real appliance acceptance deferred.'
+    worker_status: "IP unnumbered source675cd9ea independently R4-approved and staged in PR214 (remote036ca641). Final cumulative CI/merge and native VPP acceptance pending."
+    completion_receipt_20261008: "IP unnumbered source675cd9ea independently R4-approved and staged in PR214 (remote036ca641). Final cumulative CI/merge and native VPP acceptance pending."
   - id: W-seed
     title:
       'Wave-A seed commit: hotspot anchors (A1,A2,A4,C1-C3,C5,P1,P4-P6,W1-W3), one-entry-per-line lists, Env event-publish + Resync hooks (A5), subsystems.SlotIDRange(), vpn/services
@@ -1460,7 +1462,7 @@ tasks:
       - TD-8
     priority: 4
     est_hours: 10
-    state: merged
+    state: "running"
     parked_on: ''
     wbs:
       - D6.5
@@ -1478,6 +1480,8 @@ tasks:
       ' | envelope draft docs/status/tasks/F-wireguard.envelope.md (prep-waveA, D-109) | D-125 envelope: review 3.3b — peer.go must not return meta+error with the peer left in VPP
       (delete it, or best-effort subscription), fake-VPP test (+1 h) | done 0e19dcaf (CI green; e2e secret step waits PENDING-secret-channel); review running | fix round 1 173e49b4; verify
       APPROVE 4797e681; queued | merged 2b78ad1 on the GitHub main (ported from task/F-wireguard), board synced 2026-09-26'
+    worker_status: "Production sealed-generation delivery and WG lifecycle tests implemented in secrets-complete; shared API key-delivery security review found a CA-key boundary defect in syslog selection. Correction and combined integration required; historical fixture-only secret path is not completion."
+    completion_receipt_20261008: "Production sealed-generation delivery and WG lifecycle tests implemented in secrets-complete; shared API key-delivery security review found a CA-key boundary defect in syslog selection. Correction and combined integration required; historical fixture-only secret path is not completion."
   - id: F-tunnels
     title: 'Wave B (day 10-12): GRE, IPIP, VXLAN(-GPE), GTP-U, L2TPv3, PPPoE'
     prompt: prompts/features/F-tunnels.md
@@ -1550,7 +1554,7 @@ tasks:
       - TD-8
     priority: 3
     est_hours: 16
-    state: merged
+    state: "running"
     parked_on: ''
     wbs:
       - D3.1
@@ -1577,6 +1581,8 @@ tasks:
       6 PASS); review running; Q1 linux-nl window = manager decision after review | review APPROVE WITH CHANGES 7931c596; fix round 1 (H1 pair dependency, H2 gitleaks text, mediums); H3
       VPP-FIB proof deferred to row P12-fib-proof (LAB-vpp-per-slot) — manager | fix round 1 e7b374b5; verify APPROVE f16d754c; merge main after F-vrf (M1 + N1–N3), then short re-verify
       | merged b6cc335 on the GitHub main (ported from task/P12), board synced 2026-09-26"
+    worker_status: "BGP MD5 production sealed credentials and historical-generation rollback source followup in secret-consumers. Independent final review/integration/CI pending; native mgmtd/FIB proof remains separate."
+    completion_receipt_20261008: "BGP MD5 production sealed credentials and historical-generation rollback source followup in secret-consumers. Independent final review/integration/CI pending; native mgmtd/FIB proof remains separate."
   - id: F-ospf
     title: 'Wave B (day 10-12): OSPFv2/v3 via FRR'
     prompt: prompts/features/F-ospf.md
@@ -1704,7 +1710,7 @@ tasks:
       - W-seed
     priority: 4
     est_hours: 10
-    state: merged
+    state: "running"
     parked_on: ''
     wbs:
       - D7.3
@@ -1726,6 +1732,8 @@ tasks:
       ' | envelope draft docs/status/tasks/F-unbound-chrony-syslog.envelope.md (prep-waveA, D-109) | D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP
       write) | done c94e90d9 (CI green; 04:27 dns crash guarded, D-137); review running | review APPROVE WITH CHANGES b665904f; fix round 1 (H1 IPv6-only cache crash, H2 live readiness,
       M1–M3, M5) — D-139 | fix round 1 06ad0939; verify APPROVE 4507e5ea; rebase round after F-kea + TD-13 + TD-23 (L3 fail closed)'
+    worker_status: "Version-pinned NTP and TLS syslog consumers implemented in secret-consumers; independent review and central startup/projection wiring pending. TLS client-key delivery needs paired leaf-certificate validation before decryption."
+    completion_receipt_20261008: "Version-pinned NTP and TLS syslog consumers implemented in secret-consumers; independent review and central startup/projection wiring pending. TLS client-key delivery needs paired leaf-certificate validation before decryption."
   - id: F-mpls-srmpls
     title: 'Wave C (day 13-15): static MPLS + SR-MPLS (LDP split to F-mpls-ldp, D-085/D-109)'
     prompt: prompts/features/F-mpls-srmpls.md
@@ -1863,7 +1871,7 @@ tasks:
       - W-seed-BC
     priority: 5
     est_hours: 10
-    state: merged
+    state: "running"
     parked_on: ''
     wbs:
       - D7.10
@@ -1879,6 +1887,8 @@ tasks:
     started: ''
     finished: '2026-09-25'
     notes: 'prompts-s4: suggested deps +F-startup-gen (TCP/UDP buffer tuning is startup.conf-only) — docs/status/tasks/prompts-s4.md'
+    worker_status: "Namespace secret references now have source binding to existing sealed generations; focused lifecycle checks in progress. Central integration/review/CI pending."
+    completion_receipt_20261008: "Namespace secret references now have source binding to existing sealed generations; focused lifecycle checks in progress. Central integration/review/CI pending."
   - id: F-lb
     title: 'Wave C (day 13-15): Load Balancer plugin (GRE/NAT/L3DSR/maglev)'
     prompt: prompts/features/F-lb.md
@@ -1943,7 +1953,7 @@ tasks:
       - W-seed-BC
     priority: 5
     est_hours: 10
-    state: merged
+    state: "running"
     parked_on: ''
     wbs:
       - D7.5
@@ -1959,6 +1969,8 @@ tasks:
     started: ''
     finished: '2026-09-25'
     notes: 'D-125: merge after TD-13 (audit ARCH-02, validate daemon config before any VPP write)'
+    worker_status: "Production sealed-generation v2c/v3 bindings and rotation/recovery tests implemented on secrets-complete; final shared selector review, integration and CI pending."
+    completion_receipt_20261008: "Production sealed-generation v2c/v3 bindings and rotation/recovery tests implemented on secrets-complete; final shared selector review, integration and CI pending."
   - id: F-ipfix-sflow
     title: 'Wave C (day 13-15): IPFIX/flowprobe + sFlow exporters'
     prompt: prompts/features/F-ipfix-sflow.md
@@ -4362,7 +4374,7 @@ tasks:
     owner: dashboard_finish
     started: '2026-10-01T20:33:27.076593+00:00'
     finished: '2026-10-04'
-    state: merged
+    state: "running"
     wbs: []
     prompt: ''
     id: F-multiwan-host
@@ -4387,9 +4399,10 @@ tasks:
       ba683c51 CI PASSED (R7 B1-B4, MAJORs, R2 M1/M2 addressed); verify round R1+R4 (code) + R7 | verify MAJOR-1..3 fixed 712a35c2 (manager spot-check: evidence tracked, wanmon -race ok)
       → merge queue; acl 0/1 deleted, classify reset done | 2026-09-28 merge gate RED on TestTD21Scale (load-timing flake, not this branch) → requeued after S-td21-scale-flake? no: requeued
       as-is after ipclassify | merged 98af9493'
-    worker_status: "source completed; no active developer; PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
+    worker_status: "DHCP learned gateway source independently approved and staged. Worker wan_complete resumed to connect verified PPP carrier gateway and bounded namespace probe; source is not yet lab-only."
     completion_evidence: "PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
     advance_receipt_20261007: "PR201 merged1c3092efbe411566d1ab5815790a47cfd8d62352: agent direct ppp/pppoe package prerequisites; two focused contracts PASS and independent APPROVE. Mandatory transition-admission resurrection and parent numeric PID identity source failures remain; product PADO/LAN encapsulation/PD and real packet/restart/browser acceptance open. These source failures are not lab-only deferrals."
+    completion_receipt_20261008: "DHCP learned gateway source independently approved and staged. Worker wan_complete resumed to connect verified PPP carrier gateway and bounded namespace probe; source is not yet lab-only."
   - id: F-aaa-login
     title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
     stage: S4

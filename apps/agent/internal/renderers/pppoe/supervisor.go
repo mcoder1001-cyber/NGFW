@@ -79,10 +79,20 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	}
 	// A kept session may have dropped an optional file (IPv6 turned off, dhcpv6 → slaac): remove what is no longer
 	// rendered. Hook state files are the hooks' own and stay.
-	for hostIf := range want {
+	for _, hostIf := range sortedKeys(want) {
 		if changed[hostIf] {
 			if err := r.StopIPv6(ctx, hostIf); err != nil {
 				return err
+			}
+			if stale[hostIf] {
+				if err := r.systemctl(ctx, runner, "stop", unitName(hostIf)); err != nil {
+					return err
+				}
+			}
+			for _, suffix := range []string{".state", ".state6", ".pd"} {
+				if err := os.Remove(r.paths.StateDir + "/" + hostIf + suffix); err != nil && !os.IsNotExist(err) {
+					return err
+				}
 			}
 		}
 		for _, p := range r.sessionFiles(hostIf) {
@@ -117,6 +127,9 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	// (re)start changed or new sessions, deterministic order
 	for _, hostIf := range sortedKeys(want) {
 		if changed[hostIf] {
+			if err := r.ResumeIPv6(hostIf); err != nil {
+				return err
+			}
 			if err := r.systemctl(ctx, runner, "restart", unitName(hostIf)); err != nil {
 				return err
 			}

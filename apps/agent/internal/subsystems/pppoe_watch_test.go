@@ -144,7 +144,7 @@ func TestPppoeCredentialRotationRestartsAndInvalidatesHook(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := runner.Calls()[before:]
-	if len(calls) != 1 || calls[0].Args[0] != "restart" || calls[0].Args[1] != "ngfw-pppoe-tap0.service" {
+	if len(calls) != 2 || calls[0].Args[0] != "stop" || calls[1].Args[0] != "restart" || calls[1].Args[1] != "ngfw-pppoe-tap0.service" {
 		t.Fatal("credential rotation did not restart", calls)
 	}
 	if _, err := os.Stat(filepath.Join(rt.stateDir, "tap0.state")); !os.IsNotExist(err) {

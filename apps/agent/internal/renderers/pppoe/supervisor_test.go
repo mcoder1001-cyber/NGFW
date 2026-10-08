@@ -53,7 +53,7 @@ func TestApplySupervisor(t *testing.T) {
 	if err := r.Apply(ctx, rr, []Session{s0b, s1}); err != nil {
 		t.Fatal(err)
 	}
-	if got := cmds(rr); strings.Join(got, "|") != "daemon-reload|restart ngfw-pppoe-wan0.service" {
+	if got := cmds(rr); strings.Join(got, "|") != "stop ngfw-pppoe-wan0.service|daemon-reload|restart ngfw-pppoe-wan0.service" {
 		t.Fatalf("mtu change: %v", got)
 	}
 

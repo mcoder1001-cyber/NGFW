@@ -211,7 +211,6 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 		want[s.Iface] = record
 	}
 	rt.mu.Lock()
-	restarts := []string{}
 	for name, oldSession := range rt.applied {
 		next, exists := want[name]
 		changed := !exists || !reflect.DeepEqual(oldSession, next) || secretsChanged
@@ -251,49 +250,12 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 			}
 		}
 
-		restartHost := ""
-		if exists {
-			restartHost = next.HostIf
-		} else {
-			for _, replacement := range want {
-				if replacement.HostIf == oldSession.HostIf {
-					restartHost = replacement.HostIf
-					break
-				}
-			}
-		}
-		if restartHost != "" {
-			automatic := false
-			for path, file := range files {
-				base := filepath.Base(path)
-				if (base == "ngfw-"+restartHost && filepath.Base(filepath.Dir(path)) == "peers") || base == "ngfw-pppoe-"+restartHost+".service" {
-					existing, e := os.ReadFile(path) //nolint:gosec // renderer-owned fixed peer/unit paths
-					if e != nil || !bytes.Equal(existing, file.Content) {
-						automatic = true
-					}
-				}
-			}
-			if !automatic {
-				restarts = append(restarts, restartHost)
-			}
-		}
 	}
 	rt.mu.Unlock()
 
 	if rt.globalsOwner {
 		if err := rt.renderer.Apply(ctx, rt.runner, sessions); err != nil {
 			return err
-		}
-		for _, host := range restarts {
-			if err := rt.renderer.ResumeIPv6(host); err != nil {
-				return err
-			}
-			if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"restart", "ngfw-pppoe-" + host + ".service"}}); err != nil {
-				return errors.New("PPPoE credential rotation restart failed")
-			}
-			if err := rt.renderer.CompleteIPv6Transition(host); err != nil {
-				return err
-			}
 		}
 
 	} else {

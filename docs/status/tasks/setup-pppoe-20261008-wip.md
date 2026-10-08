@@ -13,3 +13,9 @@ Rebased onto manager's published combined base local `4683b9b6` / remote `fa5740
 Implemented distinct logical WAN, exclusive parent checks, unchanged-wizard ownership/collision guards, safe rerun cleanup and external-reference refusal; observed physical-parent verification in API preview/stage; en/fa reference-only PPPoE form with credential removal when switching modes; updated user guide. Existing atomic staging, current-password check, anti-lockout and confirmed-commit flow are retained.
 
 Schema focused suite **12 PASS**; API setup suite **15 PASS**; schema/API/web typechecks and schema/API focused ESLint PASS. Initial web test execution under local Node24 failed before rendering all existing and new router tests because undici rejects jsdom's cross-realm AbortSignal. This is not a passed test or a waived acceptance. Preparing exact CI Node22 runtime for valid focused rerun; no test assertion or test environment has been weakened. Full CI not run.
+
+## Final focused verification
+
+The exact CI Node22.23.2 runtime resolves the Node24 AbortSignal mismatch: both web suites **11 PASS**, including full DHCP and PPPoE seven-step confirmed commits, Persian/English credential-reference validation, and existing NIC picker regressions. No test assertions or shared test setup were changed to accommodate the mismatch.
+
+Added API inventory collision protection for the reserved logical name. The RPC query explicitly requests `setup-pppoe` as well as the physical WAN; the regression fake honors that names filter, so unconfigured live-name collisions cannot hide behind an overbroad mock. API setup suite **16 PASS**; schema **12 PASS**. All three TypeScript checks and focused schema/API/web ESLint passed. R2 review in progress; generation and the single final CI run remain manager-owned. Laboratory PPP negotiation, LAN traffic and physical management reconnection are not claimed executed.

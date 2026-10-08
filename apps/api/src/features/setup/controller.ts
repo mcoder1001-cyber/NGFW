@@ -52,11 +52,21 @@ export class SetupController {
       const source = structuredClone(base);
       const missing = selected.filter((name) => !source.interfaces[name]);
       const observed = [
-        ...new Set([...missing, ...(body.input.wanMode === 'pppoe' ? [body.input.wan] : [])]),
+        ...new Set([
+          ...missing,
+          ...(body.input.wanMode === 'pppoe' ? [body.input.wan, 'setup-pppoe'] : []),
+        ]),
       ];
       if (observed.length > 0) {
         const live = await this.agent.interfaceState(observed);
         if (body.input.wanMode === 'pppoe') {
+          if (
+            !base.interfaces['setup-pppoe'] &&
+            live.interfaces.some((item) => item.name === 'setup-pppoe')
+          )
+            throw problems.badRequest(
+              'The logical setup-pppoe name is already present in live interface inventory',
+            );
           const parent = live.interfaces.find(
             (item) =>
               item.name === body.input.wan &&

@@ -3475,6 +3475,7 @@ tasks:
     finished: '2026-09-25'
     notes: D-125 (review plan id TD-13, renumbered) | 5.4a before the first wave-A merge; 5.1b before P10/P14 | the 5.3 part waits for PENDING-remote-mirror
   - id: TD-19
+    advance_receipt_20261008: "PR208 merged417e8fcd0c82fae7906da0fba1c0622a8de017f7: optional offline dependency lock tooling; 14 focused fixtures and prior mandatory quick37807521261 PASS. Reviewed release pins/upstream artifacts and target install acceptance still outstanding; whole TD19 remains open."
     title: Install & lab provisioning from product artifacts
     prompt: ''
     template: ''
@@ -3931,6 +3932,7 @@ tasks:
     - D0.1
     prompt: ''
     id: P12-fib-proof
+    advance_receipt_20261008: "PR209 reviewed source9e4c78fe29b716cbe8a81d1205e1de759f501d81: retained cleanup handle, owned-lock cleanup and anchored test fixtures. Three focused race regressions PASS with no skips. Original mgmtd30s/200-route proof remains unresolved. Final combined CI deferred by owner2026-10-08; no new full CI requested."
     title: Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP
     stage: S3
     deps:
@@ -4295,6 +4297,7 @@ tasks:
     wbs: []
     prompt: ''
     id: F-pppoe-client-host
+    advance_receipt_20261008: "PR210 published a939827119cf6645f77fa9555296e6a070df551b: lifecycle admission, immutable parent identity and durable transition/removal/first-install retries; independent source reviews approve; four focused recovery race tests PASS. Proc-dependent lifecycle tests FAIL in independently confirmed inconsistent PID/proc runner, not PASS. Final combined CI deferred by owner2026-10-08. Native discovery/encapsulation/LAN delegated-prefix and packet/browser acceptance still outstanding."
     title: 'PPPoE client on the lab: pppd vs an accel-ppp/rp-pppoe server, VPP FIB mirror, reconnect, MSS clamp, screenshot'
     stage: S4
     deps:

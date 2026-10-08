@@ -136,3 +136,16 @@ packaging integration, and remaining readback/admission findings are pending. Th
 raw Ethernet path trusts the fixed packaged pppd/plugin: namespace IP filtering
 blocks normal host IP routing but does not contain a malicious NET_RAW daemon
 injecting arbitrary Ethernet frames. No such stronger claim is made.
+
+### Reviewed helper and ownership correction
+
+Helper source through 50d3da44 has independent R4 approval (receipt integrated).
+Negotiated addresses now come from live pinned PPP readback; stale hook addresses
+cannot authorize readiness. Missing owned TAPs produce verified repair drift and
+full namespace recreation, never silent rebind. PPP TAPs use a separate
+`pppoe.carrier.tap` descriptor and canonical TAP creator aliases; remote-access
+TAP guards remain unchanged. Registration/domain and actual alias readback tests
+passed; carrier recovery/broker/epoch tests passed under race. Latest focused
+results: subsystems 1.188s, descriptors 1.025s, desired 1.064s.
+VLAN parent implementation and multi-WAN automatic-default ownership integration
+are in progress; final combined review and tests remain required.

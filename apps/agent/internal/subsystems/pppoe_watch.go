@@ -73,6 +73,7 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 			s, exists := rt.applied[name]
 			next, up, err := rt.observe(s)
 			if err != nil && exists {
+				delete(rt.carrierReady, name)
 				return err
 			}
 			if !exists || !up || !reflect.DeepEqual(old, next) {
@@ -86,6 +87,7 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 		for name, s := range rt.applied {
 			next, up, err := rt.observe(s)
 			if err != nil {
+				delete(rt.carrierReady, name)
 				return err
 			}
 			if up {

@@ -35,7 +35,7 @@ func (rt *PppoeRuntime) ForwardingGateway(logical string) (string, string, strin
 	defer rt.mu.Unlock()
 	r, ok := rt.carrierReady[logical]
 	s := rt.applied[logical]
-	if !ok || s.Carrier == nil || !time.Now().Before(r.until) || r.mirror.LocalIPv4 == "" {
+	if !ok || s.Carrier == nil || !time.Now().Before(r.until) || r.epoch == "" || r.mirror.LocalIPv4 == "" {
 		return "", "", "", false
 	}
 	return r.mirror.LocalIPv4, r.mirror.PeerIPv4, r.epoch, true
@@ -64,7 +64,11 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	if err = host.Configure(ctx, lease, s.DefaultRoute && s.IPv6Enabled()); err != nil {
 		return carrierForwarding{}, err
 	}
-	if _, err = host.Verify(ctx, lease); err != nil {
+	verified, err := host.Verify(ctx, lease)
+	if err != nil {
+		return carrierForwarding{}, err
+	}
+	if err = verifyNegotiatedCarrierAddresses(m, verified.PPPAddresses); err != nil {
 		return carrierForwarding{}, err
 	}
 	ifs, err := df6.DumpInterfaces(ctx, rt.vpp, rt.owner)
@@ -281,4 +285,25 @@ func (rt *PppoeRuntime) carrierSessionGeneration(s pppoe.Session) (string, error
 		return "", errors.New("PPP NCP is not up")
 	}
 	return strings.Join(parts, "."), nil
+}
+
+func verifyNegotiatedCarrierAddresses(m desc.Mirror, actual []string) error {
+	live := map[netip.Addr]bool{}
+	for _, raw := range actual {
+		p, err := netip.ParsePrefix(raw)
+		if err != nil {
+			return errors.New("invalid negotiated address readback")
+		}
+		live[p.Addr()] = true
+	}
+	for _, raw := range append([]string{m.LocalIPv4}, m.LocalIPv6...) {
+		if raw == "" {
+			continue
+		}
+		p, err := netip.ParsePrefix(raw)
+		if err != nil || !live[p.Addr()] {
+			return errors.New("PPP hook address is not negotiated on the verified kernel interface")
+		}
+	}
+	return nil
 }

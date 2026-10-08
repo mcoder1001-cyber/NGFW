@@ -15,7 +15,9 @@ import (
 var pppoeActive atomic.Pointer[PppoeRuntime]
 var pppoeConfigs = map[string]*pppoe.ClientConfig{}
 
-func init() { Domains[Interfaces] = append(Domains[Interfaces], pppoe.ClientConfigName) }
+func init() {
+	Domains[Interfaces] = append(Domains[Interfaces], pppoe.ClientConfigName, pppoe.CarrierNamespaceName, pppoe.CarrierTapName)
+}
 
 // PppoeSupervised reports whether this process may supervise host units.
 func PppoeSupervised() bool { rt := pppoeActive.Load(); return rt != nil && rt.globalsOwner }

@@ -120,14 +120,14 @@ func PppoeCarriers(s Sink, ifs map[string]*ngfwv1.Interface, owner string) {
 		pt := Ptr("interfaces", spec.Logical, "pppoe")
 		s.Add(pppoedesc.CarrierNamespaceKey(spec.Token()), dfkit.Encode(spec), pt)
 		rawID, transitID := spec.TapIDs()
-		rawKey := scheduler.Join(tapv2.TapName, spec.RawLogical())
+		rawKey := scheduler.Join(pppoedesc.CarrierTapName, spec.RawLogical())
 		s.Add(rawKey, &tapv2.Tap{Name: spec.RawLogical(), Id: rawID, HostIfName: spec.RawHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU + 8, RxRingSize: 256, TxRingSize: 256}, pt)
 		transit := &tapv2.Tap{Name: spec.Logical, Id: transitID, HostIfName: spec.TransitHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU, HostIp4Prefix: spec.Host4, HostIp6Prefix: spec.Host6, RxRingSize: 256, TxRingSize: 256}
 		if spec.MTU < 1280 {
 			transit.HostIp6Prefix = ""
 		}
-		s.Add(scheduler.Join(tapv2.TapName, spec.Logical), transit, pt)
-		s.Add(iface.AliasKey(spec.RawLogical()), &iface.InterfaceAlias{Name: spec.RawLogical(), Creator: string(rawKey)}, pt)
+		s.Add(scheduler.Join(pppoedesc.CarrierTapName, spec.Logical), transit, pt)
+		s.Add(iface.AliasKey(spec.RawLogical()), &iface.InterfaceAlias{Name: spec.RawLogical(), Creator: string(scheduler.Join(tapv2.TapName, spec.RawLogical()))}, pt)
 		s.Add(scheduler.Join(iface.AdminStateName, spec.RawLogical()), &iface.AdminState{Interface: string(iface.AliasKey(spec.RawLogical()))}, pt)
 		for _, pair := range [][2]string{{spec.Parent, spec.RawLogical()}, {spec.RawLogical(), spec.Parent}} {
 			rx, tx := string(iface.AliasKey(pair[0])), string(iface.AliasKey(pair[1]))

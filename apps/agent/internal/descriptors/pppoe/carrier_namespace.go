@@ -8,6 +8,7 @@ import (
 	"regexp"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"ngfw/agent/internal/descriptors/dfkit"
 	iface "ngfw/agent/internal/descriptors/interface"
 	ren "ngfw/agent/internal/renderers/pppoe"
@@ -20,12 +21,13 @@ const CarrierNamespaceName = "pppoe.carrier.namespace"
 // a ready flag copied from disk. Configured is kernel preparation only; VPP
 // forwarding readiness requires additional policy/route/link verification.
 type CarrierLease struct {
-	Spec       ren.CarrierSpec `json:"spec"`
-	Token      string          `json:"token"`
-	Generation string          `json:"generation"`
-	Boot       string          `json:"boot"`
-	Namespace  []uint64        `json:"namespace"`
-	Configured bool            `json:"configured"`
+	Spec           ren.CarrierSpec `json:"spec"`
+	Token          string          `json:"token"`
+	Generation     string          `json:"generation"`
+	Boot           string          `json:"boot"`
+	Namespace      []uint64        `json:"namespace"`
+	Configured     bool            `json:"configured"`
+	RepairRequired bool            `json:"repair_required"`
 }
 
 // CarrierNamespaceHost is implemented by the packaged namespace helper adapter.
@@ -52,7 +54,7 @@ func NewCarrierNamespace(owner string, host CarrierNamespaceHost) *NamespaceDesc
 func (*NamespaceDescriptor) Name() string { return CarrierNamespaceName }
 func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	var spec ren.CarrierSpec
-	if dfkit.Decode(value, &spec) != nil {
+	if decodeCarrierNamespace(value, &spec) != nil {
 		return ""
 	}
 	return CarrierNamespaceKey(spec.Token())
@@ -62,7 +64,7 @@ func CarrierNamespaceKey(token string) scheduler.Key {
 }
 func (*NamespaceDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
 	var spec ren.CarrierSpec
-	if dfkit.Decode(value, &spec) != nil {
+	if decodeCarrierNamespace(value, &spec) != nil {
 		return nil
 	}
 	return []scheduler.Dependency{{Key: iface.AliasKey(spec.Parent)}}
@@ -70,7 +72,7 @@ func (*NamespaceDescriptor) Dependencies(value proto.Message) []scheduler.Depend
 
 func (d *NamespaceDescriptor) spec(value proto.Message) (ren.CarrierSpec, error) {
 	var spec ren.CarrierSpec
-	if err := dfkit.Decode(value, &spec); err != nil {
+	if err := decodeCarrierNamespace(value, &spec); err != nil {
 		return spec, err
 	}
 	if err := spec.Validate(); err != nil {
@@ -161,7 +163,25 @@ func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, err
 			return nil, fmt.Errorf("PPPoE carrier inventory contains a foreign or duplicate namespace")
 		}
 		seen[lease.Token] = true
-		out = append(out, scheduler.KV{Key: CarrierNamespaceKey(lease.Token), Value: dfkit.Encode(lease.Spec), Meta: lease})
+		value := dfkit.Encode(lease.Spec)
+		if lease.RepairRequired {
+			value.Fields["_repair_required"] = structpb.NewBoolValue(true)
+		}
+		out = append(out, scheduler.KV{Key: CarrierNamespaceKey(lease.Token), Value: value, Meta: lease})
 	}
 	return out, nil
+}
+
+// The retrieved-only repair marker forces a dependency-safe full recreation.
+// It is never part of the immutable helper specification or desired projection.
+func decodeCarrierNamespace(value proto.Message, spec *ren.CarrierSpec) error {
+	if doc, ok := value.(*structpb.Struct); ok && doc.Fields["_repair_required"] != nil {
+		if !doc.Fields["_repair_required"].GetBoolValue() {
+			return errors.New("invalid carrier repair marker")
+		}
+		copy := proto.Clone(doc).(*structpb.Struct)
+		delete(copy.Fields, "_repair_required")
+		return dfkit.Decode(copy, spec)
+	}
+	return dfkit.Decode(value, spec)
 }

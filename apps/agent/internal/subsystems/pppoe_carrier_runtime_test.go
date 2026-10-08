@@ -12,8 +12,10 @@ import (
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	desc "ngfw/agent/internal/descriptors/pppoe"
+	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/renderers"
 	"ngfw/agent/internal/renderers/pppoe"
+	"ngfw/agent/internal/scheduler"
 )
 
 type carrierTestRunner struct {
@@ -149,5 +151,77 @@ func TestCarrierRestartReadbackStopsBeforeSecretReplacement(t *testing.T) {
 	}
 	if rt.applied["pppwan"].Carrier == nil {
 		t.Fatal("drift discarded restart teardown evidence")
+	}
+}
+
+func TestCarrierNegotiatedAddressReadbackRejectsStaleHook(t *testing.T) {
+	m := desc.Mirror{LocalIPv4: "192.0.2.10/32", LocalIPv6: []string{"2001:db8::1/128"}}
+	if err := verifyNegotiatedCarrierAddresses(m, []string{"192.0.2.10/32", "2001:db8::1/64"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := verifyNegotiatedCarrierAddresses(m, []string{"192.0.2.11/32", "2001:db8::1/64"}); err == nil {
+		t.Fatal("stale IPv4 hook admitted")
+	}
+	if err := verifyNegotiatedCarrierAddresses(m, []string{"192.0.2.10/32"}); err == nil {
+		t.Fatal("stale IPv6 hook admitted")
+	}
+}
+func TestCarrierNCPEpochChangesWithinPersistentProcess(t *testing.T) {
+	rt, _, _ := newTestRuntime(t)
+	spec, _ := pppoe.NewCarrierSpec(rt.owner, "pppwan", "wanraw", 1492)
+	s := pppoe.Session{Carrier: &spec, HostIf: spec.RawHost()}
+	dir := rt.sessionStateDir(s)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, s.HostIf+".state")
+	write := func(generation string) {
+		t.Helper()
+		if err := os.WriteFile(path, []byte("phase=up\nsession_generation="+generation+"\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(strings.Repeat("a", 32))
+	first, err := rt.carrierSessionGeneration(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(strings.Repeat("b", 32))
+	second, err := rt.carrierSessionGeneration(s)
+	if err != nil || second == first {
+		t.Fatalf("redial epoch did not change: %v", err)
+	}
+	write("")
+	if _, err = rt.carrierSessionGeneration(s); err == nil {
+		t.Fatal("missing generation accepted")
+	}
+}
+
+func TestCarrierRegistrationKeepsRATapOwnershipSeparate(t *testing.T) {
+	rt, _, fake := newTestRuntime(t)
+	reg := scheduler.NewRegistry()
+	original := tapv2.New(fake, rt.owner)
+	reg.Register(original)
+	w := &Wiring{env: Env{Client: fake, Owner: rt.owner, GlobalsOwner: true}}
+	if err := w.registerPppoeCarrier(reg, rt); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := reg.Get(tapv2.TapName); got != original {
+		t.Fatal("RA TAP descriptor replaced")
+	}
+	if _, ok := reg.Get(desc.CarrierTapName); !ok {
+		t.Fatal("carrier TAP descriptor not registered")
+	}
+	if _, ok := reg.Get(desc.CarrierNamespaceName); !ok {
+		t.Fatal("carrier namespace not registered")
+	}
+	for _, name := range []string{desc.CarrierTapName, desc.CarrierNamespaceName} {
+		found := false
+		for _, member := range Domains[Interfaces] {
+			found = found || member == name
+		}
+		if !found {
+			t.Fatalf("missing interfaces domain %s", name)
+		}
 	}
 }

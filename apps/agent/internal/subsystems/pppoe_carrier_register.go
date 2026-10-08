@@ -19,23 +19,8 @@ func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) 
 	d.Admit = func(ctx context.Context, spec ren.CarrierSpec) error {
 		return pppoedesc.AdmitCarrier(ctx, w.env.Client, w.env.Owner, spec)
 	}
-	lookup, ok := reg.(interface {
-		ForKey(scheduler.Key) (scheduler.Descriptor, bool)
-	})
-	if !ok {
-		return errors.New("PPPoE carrier requires a descriptor lookup registry")
-	}
-	descriptor, ok := lookup.ForKey(scheduler.Join(tapv2.TapName, "pppwan"))
-	if !ok {
-		return errors.New("PPPoE carrier TAP descriptor is unavailable")
-	}
-	tap, ok := descriptor.(interface {
-		SetNamespaceAdmission(func(context.Context, *tapv2.Tap) error)
-	})
-	if !ok {
-		return errors.New("PPPoE carrier TAP admission hook is unavailable")
-	}
-	tap.SetNamespaceAdmission(func(ctx context.Context, actual *tapv2.Tap) error {
+	tap := tapv2.New(w.env.Client, w.env.Owner)
+	admit := func(ctx context.Context, actual *tapv2.Tap) error {
 		leases, err := host.Inventory(ctx, w.env.Owner)
 		if err != nil {
 			return err
@@ -59,7 +44,9 @@ func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) 
 			return nil
 		}
 		return errors.New("PPPoE TAP has no verified namespace lease")
-	})
+	}
+	tap.SetNamespaceAdmission(admit)
+	reg.Register(&pppoedesc.CarrierTapDescriptor{Tap: tap, Admit: admit})
 	reg.Register(d)
 	return nil
 }

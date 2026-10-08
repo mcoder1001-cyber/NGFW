@@ -341,6 +341,18 @@ class Carrier:
             self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
         return record
 
+    def tap_identity(self, token, record, name, link):
+        raw, _ = link_names(token)
+        if (link.get('ifalias') != token + ':' + record['generation'] + ':' + name
+                or link.get('linkinfo', {}).get('info_kind') != 'tun'
+                or link.get('linkinfo', {}).get('info_data', {}).get('type') != 'tap'):
+            raise ValueError('unverified carrier TAP')
+        if record.get('bound', {}).get(name) != link.get('ifindex'):
+            raise ValueError('carrier TAP binding changed')
+        if name == raw and link.get('address') != record.get('physical_mac'):
+            raise ValueError('carrier raw MAC changed')
+        return link['ifindex']
+
     def links(self, fd, token, record, require_ppp):
         raw, transit_name = link_names(token)
         links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
@@ -350,16 +362,7 @@ class Carrier:
             raise ValueError('foreign interface in carrier namespace')
         expected = {}
         for name in (raw, transit_name):
-            link = by_name.get(name, {})
-            if (link.get('ifalias') != token + ':' + record['generation'] + ':' + name
-                    or link.get('linkinfo', {}).get('info_kind') != 'tun'
-                    or link.get('linkinfo', {}).get('info_data', {}).get('type') != 'tap'):
-                raise ValueError('unverified carrier TAP')
-            expected[name] = link['ifindex']
-            if record.get('bound', {}).get(name) != link['ifindex']:
-                raise ValueError('carrier TAP binding changed')
-            if name == raw and link.get('address') != record.get('physical_mac'):
-                raise ValueError('carrier raw MAC changed')
+            expected[name] = self.tap_identity(token, record, name, by_name.get(name, {}))
         if require_ppp:
             ppp = by_name.get('ppp0', {})
             if ppp.get('link_type') != 'ppp' or 'UP' not in ppp.get('flags', []):
@@ -537,8 +540,12 @@ class Carrier:
         if (record.get('policy_source') != hashlib.sha256(nft_policy(True, token).encode()).hexdigest()
                 or record.get('firewall_digest') != self.nft_digest(firewall, token)):
             raise ValueError('carrier firewall changed')
+        ppp_addresses = sorted({str(ipaddress.ip_interface(str(item['local']) + '/' + str(item['prefixlen'])))
+                                for item in by_name.get('ppp0', {}).get('addr_info', [])
+                                if not item.get('tentative') and not item.get('dadfailed')})
         return {'verified': True, 'token': token, 'generation': record['generation'], 'boot': record['boot'],
-                'namespace': record['namespace'], 'links': live, 'mtu': ppp_mtu, 'transit': record['transit']}
+                'namespace': record['namespace'], 'links': live, 'mtu': ppp_mtu, 'transit': record['transit'],
+                'ppp_addresses': ppp_addresses}
 
     def verify(self, token, generation):
         record = self.load(token, generation)
@@ -552,7 +559,26 @@ class Carrier:
         with self.pinned(token, record) as fd:
             result = dict(record)
             if record.get('bound'):
-                result['live_links'] = self.links(fd, token, record, record['configured'])
+                raw, transit_name = link_names(token)
+                actual = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
+                by_name = {item['ifname']: item for item in actual}
+                if raw not in by_name or transit_name not in by_name:
+                    # VPP losing TAP FDs is a recoverable namespace object,
+                    # never an invitation to adopt replacement links or generation.
+                    if set(by_name) - {'lo', 'ppp0', raw, transit_name}:
+                        raise ValueError('foreign link prevents namespace repair')
+                    remaining = {name: self.tap_identity(token, record, name, by_name[name])
+                                 for name in (raw, transit_name) if name in by_name}
+                    ppp = by_name.get('ppp0')
+                    previous = record.get('links', {}).get('ppp0')
+                    if ppp and (ppp.get('link_type') != 'ppp'
+                                or previous is not None and ppp.get('ifindex') != previous):
+                        raise ValueError('PPP identity changed before namespace repair')
+                    result['repair_required'] = True
+                    result['configured'] = False
+                    result['live_links'] = {**remaining, **({'ppp0': ppp['ifindex']} if ppp else {})}
+                else:
+                    result['live_links'] = self.links(fd, token, record, record['configured'])
             result['addresses'] = json.loads(self.inside(fd, [IP, '-j', 'address', 'show']))
             result['rules4'] = json.loads(self.inside(fd, [IP, '-4', '-j', 'rule', 'show']))
             result['rules6'] = json.loads(self.inside(fd, [IP, '-6', '-j', 'rule', 'show']))

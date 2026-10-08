@@ -70,3 +70,24 @@ func TestCarrierNamespaceInventoryAndDeletionRefuseForeignLease(t *testing.T) {
 		t.Fatal("accepted incomplete namespace identity")
 	}
 }
+
+func TestCarrierNamespaceMissingTapForcesFreshGeneration(t *testing.T) {
+	spec, _ := ren.NewCarrierSpec("ngfw", "pppwan", "wan", 1492)
+	lease := namespaceTestLease(spec)
+	lease.RepairRequired = true
+	host := &namespaceHostFake{leases: []CarrierLease{lease}}
+	d := NewCarrierNamespace("ngfw", host)
+	rows, err := d.Retrieve(t.Context())
+	if err != nil || len(rows) != 1 {
+		t.Fatal(rows, err)
+	}
+	if d.KeyOf(rows[0].Value) != CarrierNamespaceKey(spec.Token()) {
+		t.Fatal("repair marker lost namespace identity")
+	}
+	if _, err = d.Update(t.Context(), rows[0].Value, dfkit.Encode(spec), rows[0].Meta); !errors.Is(err, scheduler.ErrRecreate) {
+		t.Fatalf("lost TAP silently rebound: %v", err)
+	}
+	if err = d.Delete(t.Context(), rows[0].Value, rows[0].Meta); err != nil || host.calls != 1 {
+		t.Fatalf("verified old namespace cannot be removed: %v", err)
+	}
+}

@@ -221,13 +221,14 @@ func sameCarrierLease(a, b pppoedesc.CarrierLease) bool {
 }
 
 type carrierVerification struct {
-	Verified   bool              `json:"verified"`
-	Token      string            `json:"token"`
-	Generation string            `json:"generation"`
-	Boot       string            `json:"boot"`
-	Namespace  []uint64          `json:"namespace"`
-	Links      map[string]uint32 `json:"links"`
-	MTU        uint32            `json:"mtu"`
+	PPPAddresses []string          `json:"ppp_addresses"`
+	Verified     bool              `json:"verified"`
+	Token        string            `json:"token"`
+	Generation   string            `json:"generation"`
+	Boot         string            `json:"boot"`
+	Namespace    []uint64          `json:"namespace"`
+	Links        map[string]uint32 `json:"links"`
+	MTU          uint32            `json:"mtu"`
 }
 
 func (h *pppoeCarrierHost) Verify(ctx context.Context, lease pppoedesc.CarrierLease) (carrierVerification, error) {

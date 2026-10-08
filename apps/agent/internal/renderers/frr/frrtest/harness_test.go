@@ -2,6 +2,8 @@ package frrtest
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"syscall"
@@ -11,6 +13,45 @@ import (
 	"ngfw/agent/internal/renderers/frr"
 	"ngfw/agent/internal/vpp/vpptest"
 )
+
+func TestFailedBaseResetRetainsSlotCleanup(t *testing.T) {
+	lockPath := filepath.Join(t.TempDir(), "slot.lock")
+	lock, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = lock.Close() })
+	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatal(err)
+	}
+	// RemoveAll refuses a final dot component, even for a writable empty directory.
+	// This fails before directories, namespaces or daemons can be prepared.
+	base := t.TempDir()
+	h := &Harness{Base: base + "/.", lock: lock,
+		Paths: frr.Paths{RunDir: filepath.Join(base, "run")},
+		symlink: filepath.Join(base, "pathspace")}
+	got, err := startLocked(context.Background(), Options{}, h)
+	if err == nil || got != h {
+		t.Fatalf("failed reset lost cleanup handle: harness=%p want=%p error=%v", got, h, err)
+	}
+	contender, err := os.OpenFile(lockPath, os.O_RDWR, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = contender.Close() }()
+	if err := syscall.Flock(int(contender.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err == nil {
+		t.Fatal("slot was not held before cleanup")
+	}
+	// The deliberately invalid base may still report an error; releasing the lock
+	// must happen even when removing that base fails again during Stop.
+	_ = got.Stop()
+	if got.lock != nil {
+		t.Fatal("cleanup retained the slot descriptor")
+	}
+	if err := syscall.Flock(int(contender.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		t.Fatalf("slot cannot be reused after failed startup cleanup: %v", err)
+	}
+}
 
 func TestHarnessArgvScoped(t *testing.T) {
 	h := &Harness{Paths: frr.TestPaths("w12"), Base: "/run/ngfw-test/w12/frr", prefix: "w12", NetNS: "ns-w12-frr"}

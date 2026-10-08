@@ -106,11 +106,8 @@ func startRootFRR(t *testing.T, prefix string, daemons []string) *rootFRR {
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil { //nolint:gosec // /run/ngfw-test/<prefix>
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file
+	f, err := acquireRootFRRLock(lockPath)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		t.Fatalf("rootFRR: %s is held (another FRR of pathspace %s is running): %v", lockPath, prefix, err)
 	}
 	h.lock = f
@@ -158,6 +155,64 @@ func startRootFRR(t *testing.T, prefix string, daemons []string) *rootFRR {
 	}
 	t.Logf("rootFRR: %v started in the root netns, pathspace %s, base %s, pids %v", daemons, paths.Namespace, h.Base, h.pids)
 	return h
+}
+
+func acquireRootFRRLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+func TestRootFRRContendedLockClosesDescriptors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "slot.lock")
+	owner, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = owner.Close() })
+	count := func() int {
+		entries, err := os.ReadDir("/proc/self/fd")
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, entry := range entries {
+			if target, err := os.Readlink(filepath.Join("/proc/self/fd", entry.Name())); err == nil && target == path {
+				n++
+			}
+		}
+		return n
+	}
+	before := count()
+	for i := 0; i < 16; i++ {
+		f, err := acquireRootFRRLock(path)
+		if f != nil {
+			_ = f.Close()
+			t.Fatal("contended lock returned a descriptor")
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			t.Fatalf("contended lock error: %v", err)
+		}
+	}
+	if after := count(); after != before {
+		t.Fatalf("failed acquisitions leaked slot descriptors: before=%d after=%d", before, after)
+	}
+	if err := owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	next, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatalf("released slot cannot be acquired: %v", err)
+	}
+	if err := next.Close(); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (h *rootFRR) pidFile(d string) string { return filepath.Join(h.Paths.SocketDir(), d+".pid") }

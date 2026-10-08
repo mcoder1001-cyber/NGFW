@@ -29,7 +29,7 @@ import (
 )
 
 // claimHolders are the DF-1 descriptors whose claims make an untagged interface "managed".
-var claimHolders = []string{iface.AdminStateName, iface.MtuName, iface.MacAddressName, iface.PromiscName, iface.RxModeName}
+var claimHolders = []string{iface.UnnumberedName, iface.AdminStateName, iface.MtuName, iface.MacAddressName, iface.PromiscName, iface.RxModeName}
 
 // ifTable is desired.Live over a snapshot of the interface table.
 type ifTable map[string]*ngfwv1.InterfaceState

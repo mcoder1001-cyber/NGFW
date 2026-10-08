@@ -36,6 +36,17 @@ not converted into passing process-lifetime acceptance.
 
 ## Still in progress / unavailable
 
+- A second source-to-task reconciliation found genuine production credential
+  gaps despite merged feature rows: WireGuard, SNMP, BGP MD5, symmetric NTP,
+  TLS syslog and host-stack namespace secrets. The existing versioned sealed
+  delivery/cache is being extended; tagged fixtures are not product delivery.
+  `codex/secrets-complete-20261008` owns central selection and WG/SNMP adapters;
+  the isolated secret-consumers worktree owns the other consumers. Historical
+  TEST-traffic-B WireGuard fixture acceptance does not close this source work.
+- Accepted WBS D1.3 includes IP unnumbered, while the current agent only warns
+  unsupported. A scoped owned descriptor/retrieval/projection implementation is
+  in progress on `codex/unnumbered-complete-20261008`. NTS server certificates
+  are explicitly excluded by the chrony feature prompt and are not added here.
 - PPP kernel carrier: exclusive physical L2 transport, distinct logical VPP
   transit interface, owned namespace and pre-local return routing, lifecycle
   readiness/withdrawal, effective policy identity, dynamic WAN probing and PD

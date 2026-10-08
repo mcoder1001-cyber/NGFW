@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import json
 import tempfile
+from types import SimpleNamespace
 from pathlib import Path
 import unittest
 from unittest import mock
@@ -88,7 +89,8 @@ class MemoryCarrier(carrier.Carrier):
                 row['gateway'] = self.record['transit']['peer' + argv[1][1:]]
             return json.dumps([row])
         if argv[:2] == [carrier.SYSCTL, '-n']:
-            return '0' if 'rp_filter' in argv[2] else '2' if 'accept_ra' in argv[2] else '1'
+            return ('0' if 'rp_filter' in argv[2] or 'accept_ra_defrtr' in argv[2]
+                    else '2' if argv[2].endswith('accept_ra') else '1')
         if argv == [carrier.NFT, '-j', 'list', 'table', 'inet', 'ngfw_ppp']:
             objects = [{'table': {'family': 'inet', 'name': 'ngfw_ppp'}}]
             for name in ('input', 'output', 'forward'):
@@ -125,7 +127,7 @@ class ProbeCarrier(MemoryCarrier):
                 raise AssertionError('probe lacks bounded supervisor timeout')
             if self.probe_fails:
                 raise TimeoutError('injected fixed probe timeout')
-            return '{"Sent":1,"Received":1,"AvgLatencyMs":2,"Unavailable":false}'
+            return '{"sent":1,"received":1,"latencyMs":2,"unavailable":false}'
         if argv[:4] == [carrier.IP, '-4', 'rule', 'add']:
             self.temporary_rules.append(int(argv[argv.index('pref') + 1]))
         if argv[:4] == [carrier.IP, '-4', 'rule', 'delete']:
@@ -134,6 +136,33 @@ class ProbeCarrier(MemoryCarrier):
             self.calls.append((argv, data))
             return json.dumps([{'priority': value} for value in self.temporary_rules])
         return super().inside(fd, argv, data, timeout)
+
+
+class BrokerCarrier(MemoryCarrier):
+    def __init__(self):
+        super().__init__()
+        self.documents = {}
+        self.clock = 100.0
+        self.expire_while_locking = False
+        self.operations = []
+
+    def broker_read(self, token, area):
+        if (token, area) not in self.documents:
+            raise FileNotFoundError()
+        return json.loads(json.dumps(self.documents[token, area]))
+
+    def broker_write(self, token, area, document):
+        self.documents[token, area] = json.loads(json.dumps(document))
+
+    @contextlib.contextmanager
+    def locked(self):
+        if self.expire_while_locking:
+            self.clock += 11
+        yield
+
+    def verify(self, token, generation):
+        self.operations.append((token, generation))
+        return {'verified': True}
 
 
 class CarrierTests(unittest.TestCase):
@@ -320,7 +349,8 @@ class CarrierTests(unittest.TestCase):
             delta = policy[len(baseline):]
             self.assertIn('198.51.100.1 timeout 5s', delta)
             self.assertIn('192.0.2.10 timeout 5s', delta)
-            self.assertIn('ct state established', delta)
+            self.assertIn('ct mark 0x4e47 ct state established', delta)
+            self.assertIn('ct mark set 0x4e47 accept', delta)
             self.assertNotIn('forward', delta)
         for kind, target in [('exec', '198.51.100.1'), ('http', 'example.com'),
                              ('http', '127.0.0.1'), ('dns', '224.0.0.1'), ('icmp', '2001:db8::1')]:
@@ -335,7 +365,7 @@ class CarrierTests(unittest.TestCase):
                 with self.assertRaises(TimeoutError):
                     c.probe(TOKEN, 'a' * 32, 'http', '198.51.100.1')
             else:
-                self.assertEqual(c.probe(TOKEN, 'a' * 32, 'http', '198.51.100.1')['Received'], 1)
+                self.assertEqual(c.probe(TOKEN, 'a' * 32, 'http', '198.51.100.1')['received'], 1)
             self.assertEqual(c.temporary_rules, [])
             self.assertEqual(c.verified, 2)
             self.assertTrue(c.record['configured'])
@@ -348,6 +378,92 @@ class CarrierTests(unittest.TestCase):
             c.probe(TOKEN, 'a' * 32, 'dns', '198.51.100.1')
         self.assertFalse(c.record['configured'])
         self.assertEqual(c.calls[-1][1], carrier.nft_policy(False, TOKEN))
+
+    def test_broker_rejects_unknown_fields_and_nonce_replay(self):
+        request = {'op': 'verify', 'token': TOKEN, 'generation': 'a' * 32}
+        self.assertEqual(carrier.request_token(request), TOKEN)
+        for bad in ({**request, 'command': '/bin/sh'}, {**request, 'op': 'run'},
+                    {**request, 'generation': 'wrong'}):
+            with self.assertRaises(ValueError):
+                carrier.request_token(bad)
+        c = BrokerCarrier()
+        with mock.patch.object(carrier.time, 'monotonic', side_effect=lambda: c.clock), mock.patch.object(carrier.os, 'unlink'):
+            queued = c.broker_queue(TOKEN, 'b' * 32, request)
+            self.assertEqual(set(queued), {'token', 'nonce', 'boot', 'expires', 'request_sha256'})
+            with self.assertRaises(ValueError):
+                c.broker_queue(TOKEN, 'c' * 32, request)
+            c.broker_execute(TOKEN)
+            result = c.broker_result(TOKEN, 'b' * 32)
+            self.assertTrue(result['ok'])
+            self.assertEqual(result['request_sha256'], queued['request_sha256'])
+            with self.assertRaises(ValueError):
+                c.broker_result(TOKEN, 'c' * 32)
+            c.clock += 11
+            with self.assertRaises(ValueError):
+                c.broker_result(TOKEN, 'b' * 32)
+
+    def test_broker_rechecks_expiry_after_lock_before_mutation(self):
+        c = BrokerCarrier()
+        c.expire_while_locking = True
+        with mock.patch.object(carrier.time, 'monotonic', side_effect=lambda: c.clock), mock.patch.object(carrier.os, 'unlink'):
+            c.broker_queue(TOKEN, 'b' * 32, {'op': 'verify', 'token': TOKEN, 'generation': 'a' * 32})
+            result = c.broker_execute(TOKEN)
+        self.assertFalse(result['ok'])
+        self.assertIn('TimeoutError', result['error'])
+        self.assertEqual(c.operations, [])
+
+    def test_probe_binary_digest_and_pinned_inode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            binary = Path(directory) / 'probe'
+            binary.write_bytes(b'ELF fixture, never executed')
+            binary.chmod(0o755)
+            digest = Path(str(binary) + '.sha256')
+            digest.write_text(carrier.hashlib.sha256(binary.read_bytes()).hexdigest() + '\n')
+            digest.chmod(0o644)
+            original_fstat = carrier.os.fstat
+            def root_stat(fd):
+                info = original_fstat(fd)
+                return SimpleNamespace(st_mode=info.st_mode, st_uid=0, st_size=info.st_size)
+            with mock.patch.object(carrier, 'WAN_PROBE', str(binary)), mock.patch.object(carrier, 'protected_directory'), mock.patch.object(carrier.os, 'fstat', side_effect=root_stat):
+                fd = carrier.open_verified_probe()
+                try:
+                    binary.rename(binary.with_suffix('.old'))
+                    binary.write_bytes(b'replacement')
+                    self.assertEqual(carrier.os.read(fd, 100), b'ELF fixture, never executed')
+                finally:
+                    carrier.os.close(fd)
+                binary.chmod(0o755)
+                with self.assertRaisesRegex(ValueError, 'digest mismatch'):
+                    carrier.open_verified_probe()
+                digest.chmod(0o666)
+                with self.assertRaisesRegex(ValueError, 'untrusted probe digest'):
+                    carrier.open_verified_probe()
+
+    def test_unit_assets_keep_ownership_state_out_of_daemon_writes(self):
+        assets = Path(__file__).resolve().parents[1] / 'pppoe-carrier-assets'
+        daemon = (assets / 'ngfw-pppoe-carrier@.service').read_text()
+        broker = (assets / 'ngfw-pppoe-broker@.service').read_text()
+        self.assertIn('BindReadOnlyPaths=/run/ngfw-pppoe-carrier:/run/ngfw-pppoe-carrier', daemon)
+        self.assertIn('BindPaths=/run/ngfw/pppoe/%i:/run/ngfw/pppoe/%i', daemon)
+        self.assertIn('ReadWritePaths=/run/ngfw/pppoe/%i', daemon)
+        self.assertIn('TemporaryFileSystem=/run:rw /etc:ro /var/lib:ro', daemon)
+        self.assertNotIn('BindPaths=/run/ngfw-pppoe-carrier', daemon)
+        self.assertNotIn('pppoe-broker', daemon)
+        directives = [line for line in broker.splitlines() if not line.startswith('#')]
+        for prefix in ('PrivateTmp=', 'ProtectSystem=', 'ProtectHome=', 'BindPaths=', 'ReadWritePaths='):
+            self.assertFalse(any(line.startswith(prefix) for line in directives))
+        self.assertIn('KillMode=control-group', directives)
+        self.assertIn('TimeoutStartSec=12', directives)
+        self.assertIn('ExecStart=/usr/bin/python3 -I /usr/lib/ngfw/pppoe-carrier.py broker-execute %i', directives)
+
+    def test_daemon_start_requires_prior_broker_withdrawal(self):
+        c = MemoryCarrier()
+        c.record['configured'] = True
+        # This is a read-only launcher refusal: no privileged helper writes.
+        c.load = lambda token: dict(c.record)
+        with self.assertRaisesRegex(ValueError, 'broker must withdraw'):
+            c.launch(TOKEN)
+        self.assertEqual(c.calls, [])
 
     def test_namespace_exec_pins_fd_without_shell(self):
         calls = []

@@ -1,120 +1,123 @@
 # PPP kernel carrier helper checkpoint
 
-Branch: `codex/pppoe-kernel-helper-20261008`. Base: `db7eb9d4`.
-Owned: `scripts/pppoe-kernel-carrier.py`, its script test, source assets under
-`scripts/pppoe-carrier-assets`, and this receipt. No deploy file or host changed.
+Branch: `codex/pppoe-kernel-helper-20261008`; initial base `db7eb9d4`.
+Owned source: scripts/pppoe-kernel-carrier.py, its focused tests, inert assets in
+scripts/pppoe-carrier-assets, packaging test loader, and this receipt. Parent owns
+Go controller, renderer, VPP topology, readiness and package integration.
 
-This is opt-in source, not activated functionality or acceptance. Independent R4
-review is in progress. Twenty-one focused tests pass (0.009 seconds):
-`python3 scripts/tests/pppoe-kernel-carrier.py -v`. Python compilation and diff
-whitespace checks passed. No native namespace/route/service tests or CI ran.
+26 focused controls pass through the strict packaging discovery seam:
+`python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_pppoe_carrier.py -v`
+(0.021 seconds). The controls use fake command executors and temporary files;
+there are no skipped cases. No native namespace/service/route/packet test or CI
+was run. These controls are source evidence, not laboratory acceptance.
 
-## Owner-controller interface
+## Namespace and forwarding contract
 
-Proposed reviewed installation: `/usr/lib/ngfw/pppoe-carrier.py (invoked with /usr/bin/python3 -I)`.
-Root-only, fixed executables and argument vectors, no shell or new sudo/broker
-permission. Parent must invoke through the approved existing privilege boundary.
+Token: `ngp-` plus first12 lowercasehex SHA256(UTF8(owner + NUL + logical)).
+Raw/transit Linux names: `pw`/`pt` plus token's12hex; PPP remains namespace-local
+ppp0. Root-only ledger under /run/ngfw-pppoe-carrier records full owner/logical,
+boot, random32hex generation, namespace dev/inode and immutable spec. Spec fields
+are exactly owner, logical, parent, mtu, host4, peer4, host6, peer6. Host addresses
+carry /30 IPv4 or /126 IPv6 prefix; peer addresses are bare IPs. MTU1280..1492.
+Known transit overlap and token collision are refused. Host VPP collision checks
+and unique allocation remain parent responsibilities.
 
-Token: `ngp-` + first 12 lowercase hex SHA256(UTF8(owner + NUL + logical)). Full
-owner/logical comparisons also prevent truncated-hash collision adoption.
+Root-controlled/no-symlink ancestors, generation/boot/dev/inode and NS_GET_NSTYPE
+protect namespace entry. nsenter receives an inherited pinned FD. Foreign links,
+wrong TAP kind/alias/index, wrong raw MAC and unexpected policy state fail closed.
+Preparation binds aliases TOKEN:GEN:NAME, disables raw IPv6, removes raw IPv4,
+and permits no plain-IP raw-WAN forwarding. Configure requires exact negotiated
+PPP MTU agreement, installs separate transit defaults and ingress policy before
+local-address routing. IPv6 control, transit ND and PMTU are explicitly preserved.
+There is no Linux NAT and the forward chain permits only transit/PPP pair.
 
-- `provision OWNER LOGICAL --spec-json JSON`: exact fields owner, logical,
-  parent, mtu, host4, peer4, host6, peer6. MTU1280..1492; distinct usable same
-  /30 IPv4 or /126 IPv6 host/peer. Spec immutable. Known transit overlap rejected.
-- `list OWNER`/`inventory OWNER`: actual verified receipts, immutable spec,
-  generation, boot ID, namespace dev/inode, current links/addresses/rules/firewall.
-- `prepare TOKEN GEN --physical-mac MAC --local4 CIDR --peer4 IP --local6 CIDR
-  --peer6 IP`: endpoint match to spec; optional paired raw-index/transit-index;
-  fixed TAP names/kinds/indices, empty or owned alias, no foreign links. Alias
-  becomes TOKEN:GEN:NAME; raw MAC set; raw IPv6 disabled and IPv4 addresses removed.
-- `configure TOKEN GEN`: bound TAPs plus up PPP required; namespace-only routes,
-  ingress lookups before relocated local rule, scoped IPv6 control exceptions,
-  default-deny nft permitting only transit/PPP data pair and control/PMTU. No NAT.
-- `withdraw TOKEN GEN`: persist configured=false before closing forwarding.
-- `delete TOKEN GEN`: additionally refuses any link other than lo; parent must
-  remove VPP TAPs and stop PPP first. `inspect TOKEN GEN` returns live evidence.
-- `run TOKEN`: verify ledger/namespace/prepare binding then exec fixed
-  `pppd call carrier nodetach unit 0`. Flock descriptor closes on exec while the
-  namespace fd remains inherited by nsenter.
+`verify TOKEN GEN` checks actual links, MTU, ready transit addresses, exact RPDB,
+both default-route tables, namespace sysctls, absence of foreign firewall tables
+and nft semantic fingerprint tied to current policy source. A persisted configured
+flag alone never passes. Configure verifies before committing configured=true.
+Failure after enabling forwarding closes it again. `configured` is not VPP or
+joint forwarding readiness; parent must verify VPP and current PPP generation.
 
-Root-controlled no-symlink ancestor directories protect `/run/ngfw-pppoe-carrier`
-and `/run/netns`. Boot+generation+device/inode and NS_GET_NSTYPE verify netns.
-Commands use pinned FD, not reopened namespace paths. Crash between namespace
-creation and ledger save leaves an orphan refused until explicit recovery.
-`configured` is an operation-completion flag, NEVER forwarding readiness.
+`configure TOKEN GEN --accept-default-route yes|no` owns accept_ra=2, autoconf=1
+and accept_ra_defrtr choice. Carrier IPv6 hooks must skip their own sysctl writes;
+PPP service keeps ProtectKernelTunables. Withdraw durably invalidates configured
+before closing forwarding. Delete additionally refuses all links except loopback.
+A crash between namespace creation and ledger save leaves an unadopted orphan.
 
-## Packaging and remaining integration
+## Fixed privileged broker and agent interface
 
-Fixed unit source `ngfw-pppoe-carrier@TOKEN.service` binds per-session
-`/var/lib/ngfw/pppoe-carrier/TOKEN/ppp` read-only onto private `/etc/ppp`.
-Renderer supplies peers/carrier, options, credentials and hook fragments together
-with four fixed dispatchers. Private /run prevents cross-session ppp0 pidfiles;
-only ledger, namespace handles and dedicated hook state are bound back. No
-writable /etc or generated systemd files. No Install/WantedBy and no package
-activation in this checkpoint.
+Install helper at /usr/lib/ngfw/pppoe-carrier.py; always invoke python3 -I.
+The agent does NOT gain capabilities or writable /etc from this source.
+Requests/results are atomic root0600 files under /run/ngfw/pppoe-broker, inside
+its existing allowed /run/ngfw subtree. Boot,32hex nonce,10-second monotonic expiry
+and SHA256 bind every request and reply; expiry is rechecked after acquiring the
+carrier lock before an operation. Unknown ops/fields and arbitrary paths/executables
+are rejected. Broker service timeout12s and KillMode=control-group bound children.
 
-Parent owns VPP exclusivity/preflight, deterministic unique transit allocation,
-normal logical-interface ACL/NAT ownership, TAP/xconnect rollback, private renderer
-switch, hook session generations and actual joint kernel/VPP readback/readiness.
-Native acceptance must exercise ULA neighbor discovery, DHCPv6/RA, NAT replies
-before local delivery, PMTU, failed steps, replacement, restart and multi-session.
+1. `broker-queue TOKEN NONCE --request-json JSON` returns token, nonce, boot,
+   expires (CLOCK_MONOTONIC seconds, not wall clock), request_sha256.
+2. Start fixed `ngfw-pppoe-broker@TOKEN.service`.
+3. `broker-result TOKEN NONCE` verifies expiry and identity, returns same envelope
+   plus ok and result, or ok=false/error. Caller must compare queue hash and own
+   context; a late/ambiguous reply never establishes readiness. Recover from actual
+   inventory/verify because a timed-out operation can have partially applied.
 
-R4 early findings addressed: transit ND accepts owned-peer ULA sources;
-namespace-origin PMTU errors explicitly allowed; transit allocation is caller
-supplied immutable spec rather than same fixed address pair for every session.
+Exact finite request bodies:
 
-Next: rerun focused script test after independent review fixes. Full CI remains
-deferred by owner; no source completion or lab-only remainder claim is made.
+- provision: op, owner, logical, spec.
+- list: op, owner. Its service token is `ngp-`+first12hex SHA256("inventory"+NUL+owner).
+- prepare: op, token, generation, physical_mac, transit (local4,peer4,local6,peer6).
+- configure: op, token, generation, accept_default_route (boolean).
+- verify/inspect/delete/withdraw: op, token, generation.
+- probe: op, token, generation, kind, target.
 
-## Follow-up readback and unique Linux identities
+The fixed broker deliberately shares the host mount namespace: persistent
+/run/netns bind mounts must be visible to host VPP after its oneshot exits.
+Do not add mount-namespace sandbox directives to that unit. Its root privileges
+serve only the finite validated helper, with no arbitrary argv/path. It has
+NET_ADMIN, NET_RAW, SYS_ADMIN and SETPCAP; PPP/probe leaf executors irrevocably drop
+to NET_ADMIN|NET_RAW only before network-facing execution. The leaf independently
+checks exact effective/permitted/bounding masks, empty inheritable/ambient sets,
+NoNewPrivs=1 and actual namespace dev/inode plus boot/generation. The broker unit
+and tmpfiles configuration are inert assets pending package integration/review.
 
-Raw/TAP names are now `pw`/`pt` plus token's 12 hex digits, so existing shared
-hook-state filenames remain unique while PPP is always namespace-local ppp0.
-`verify TOKEN GEN` requires persisted configured state AND current pinned netns,
-TAP aliases/indices/MAC, PPP link index, negotiated PPP MTU matching transit MTU,
-configured transit addresses past DAD, exact rule selectors, both default route
-pairs, namespace sysctls, no foreign firewall table, and nft semantic fingerprint.
-The fingerprint is taken from successful live installation, excludes volatile
-handles, and is tied to the current policy source hash. This detects later drift;
-it is not a substitute for native validation of the policy's packet semantics.
-Configure now performs this readback before committing configured=true, reclosing
-forwarding on readback/persistence failure. Generation-aware VPP readiness is
-still a separate mandatory parent check. DHCPv6 UDP547->546 has a dedicated
-priority4 local-delivery exception, including valid non-link-local server replies.
+## PPP fixed unit and private files
 
-## Restricted descendants and bounded probe source
+`ngfw-pppoe-carrier@TOKEN.service` binds per-session
+/var/lib/ngfw/pppoe-carrier/TOKEN/ppp read-only at /etc/ppp. Other /etc and /var/lib
+content is hidden by private tmpfs; only non-secret NSS/loader files are exposed.
+/run is private. The ownership ledger and namespace handles are read-only;
+only /run/ngfw/pppoe/TOKEN is writable and shared back to the host. Broker request
+files are absent. Renderer/state observer must use that per-token StateDir.
 
-R4 identified that namespace-entry SYS_ADMIN must not reach network-facing pppd.
-Launch now uses fixed nsenter -> setpriv -> fixed Python leaf verifier -> pppd.
-The launcher needs SETPCAP to irrevocably reduce the bounding set. The leaf
-requires exact NET_ADMIN|NET_RAW effective/permitted/bounding sets, empty
-inheritable/ambient sets, NoNewPrivs=1 and current namespace device/inode plus
-boot/generation. No arbitrary executable or argv is accepted. Negative tests
-cover each mask, stale generation and wrong namespace. Prior configured state
-is withdrawn before every launch. The fixed unit includes SETPCAP only for the
-launcher; PPP descendants cannot regain it or SYS_ADMIN across root exec.
+The launcher reads the ledger under a read-only lock, refuses configured=true,
+and requires a prior broker withdrawal. It cannot write the ledger through this
+unit. Parent must withdraw before initial start and every autorestart repair.
+The four fixed dispatchers install under /usr/lib/ngfw/pppoe-carrier-hooks and are
+copied with peers/carrier, options, credentials and fragments into the private
+PPP tree. No generated /etc/systemd/system writes and no broad writable /etc.
 
-`probe TOKEN GEN --kind icmp|dns|http --target LITERAL_IP` verifies the carrier
-before a maximum four-second supervisor run. A fixed probe binary must support
-`/usr/lib/ngfw/wan-probe --device ppp0 --type KIND --target IP --timeout-ms 3000`
-and emit exactly Sent/Received/AvgLatencyMs/Unavailable JSON. This binary is owned
-by the WAN worker and is NOT implemented in this checkpoint. Unsupported targets
-(hostnames, IPv6 ICMP, multicast, loopback, link-local, mapped IPv6) fail closed.
-Exact target + actual PPP local-address nft sets expire after five seconds; only
-matching local output/established reply input is admitted, with temporary local
-return policy rules. No forward-chain exception is added. Finally cleanup restores
-base nft policy, removes temporary rules, then verifies the original kernel state.
-Ambiguous cleanup persists configured=false and closes forwarding. Tests cover
-success, timeout and cleanup failure; no native packet/probe test was run.
+## Bounded health probes
 
-Manager approved bounded control-plane-only probe exceptions. A remaining packaging
-boundary must be resolved: the existing agent lacks NET_RAW and SETPCAP. Direct
-agent-exec of the probe leaf therefore fails closed. A fixed root probe service or
-approved equivalent runner is required; do not silently broaden agent capabilities.
-Also reconcile existing IPv6 hook sysctl writes with fixed-unit
-ProtectKernelTunables before activation. These are source integration requirements,
-not laboratory-only gaps.
+WAN worker supplies /usr/lib/ngfw/ngfw-wan-probe with --kind icmp|dns|http,
+--target literalIPv4, --timeout-ms3000, device fixed internally to ppp0. Helper
+requires its root-owned, non-writable, no-symlink binary and .sha256 sidecar,
+verifies digest and executes the pinned ELF FD. JSON has exactly sent, received,
+latencyMs, unavailable. Hostnames/IPv6/link-local/multicast/loopback are explicitly
+unavailable for this initial carrier probe path; no ambient resolver is used.
 
-Exact MTU agreement is required; lower PPP negotiation is refused pending explicit
-carrier reconfiguration. IPv6 transit local /128 priority6 preserves unicast ND
-replies before the transit-to-PPP rule, while PPP data still returns via VPP.
+Supervisor timeout4s; exact target and actual PPP-local address nft sets expire
+in5s. Only local OUTPUT-marked probe conntracks have input/return exceptions;
+forwarded LAN connections to the same target do not match. No forward-chain
+exception exists. Finally cleanup restores normal nft policy, deletes temporary
+rules and verifies the original state. Cleanup ambiguity invalidates configured
+and closes forwarding. Tests cover success, timeout and cleanup failure.
+
+## Review and remaining integration
+
+R4 findings addressed in source include transit ULA ND, PMTU, unique transit
+allocation, capdrop before pppd, expiry after lock, immutable ledger mounts and
+per-token writable state. Native acceptance and final source approval remain
+separate. Parent must finish VPP rollback/readback, private renderer/hook switch,
+fixed service packaging and nonce-bound lost-reply handling before claiming source
+completion. No installed host mutation occurred and aggregate CI stays deferred.

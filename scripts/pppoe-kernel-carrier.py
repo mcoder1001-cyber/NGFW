@@ -16,6 +16,7 @@ import re
 import secrets
 import stat
 import subprocess
+import time
 
 IP = '/usr/sbin/ip'
 NFT = '/usr/sbin/nft'
@@ -23,10 +24,11 @@ NSENTER = '/usr/bin/nsenter'
 SYSCTL = '/usr/sbin/sysctl'
 SETPRIV = '/usr/bin/setpriv'
 HELPER = '/usr/lib/ngfw/pppoe-carrier.py'
-WAN_PROBE = '/usr/lib/ngfw/wan-probe'
+WAN_PROBE = '/usr/lib/ngfw/ngfw-wan-probe'
 PPP_CAPS = (1 << 12) | (1 << 13)
 ROOT = '/run/ngfw-pppoe-carrier'
 NETNS = '/run/netns'
+BROKER = '/run/ngfw/pppoe-broker'
 TOKEN = re.compile(r'ngp-[0-9a-f]{12}\Z')
 NAME = re.compile(r'[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}\Z')
 GEN = re.compile(r'[0-9a-f]{32}\Z')
@@ -117,13 +119,83 @@ add rule inet ngfw_ppp output oifname "ppp0" udp sport 546 udp dport 547 accept
     return policy.replace('pppwan', raw).replace('ppptransit', transit_name)
 
 
+def request_digest(request):
+    return hashlib.sha256(json.dumps(request, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
+def request_token(request):
+    if not isinstance(request, dict) or len(json.dumps(request)) > 8192:
+        raise ValueError('invalid bounded broker request')
+    op = request.get('op')
+    fields = {'provision': {'op', 'owner', 'logical', 'spec'}, 'list': {'op', 'owner'},
+              'prepare': {'op', 'token', 'generation', 'physical_mac', 'transit'},
+              'configure': {'op', 'token', 'generation', 'accept_default_route'},
+              'probe': {'op', 'token', 'generation', 'kind', 'target'}}
+    for name in ('verify', 'inspect', 'delete', 'withdraw'):
+        fields[name] = {'op', 'token', 'generation'}
+    if op not in fields or set(request) != fields[op]:
+        raise ValueError('unsupported broker operation or fields')
+    if op == 'provision':
+        validate_spec(request['owner'], request['logical'], request['spec'])
+        return token_for(request['owner'], request['logical'])
+    if op == 'list':
+        if not NAME.fullmatch(request['owner']):
+            raise ValueError('invalid inventory owner')
+        return 'ngp-' + hashlib.sha256(('inventory\0' + request['owner']).encode()).hexdigest()[:12]
+    if not TOKEN.fullmatch(request['token']) or not GEN.fullmatch(request['generation']):
+        raise ValueError('invalid broker generation identity')
+    if op == 'configure' and type(request['accept_default_route']) is not bool:
+        raise ValueError('invalid IPv6 default-route policy')
+    if op == 'prepare':
+        if (not isinstance(request['transit'], dict)
+                or set(request['transit']) != {'local4', 'peer4', 'local6', 'peer6'}
+                or not MAC.fullmatch(request['physical_mac'])):
+            raise ValueError('invalid preparation contract')
+    if op == 'probe':
+        validate_probe(request['kind'], request['target'])
+    return request['token']
+
+
+def open_verified_probe():
+    protected_directory(os.path.dirname(WAN_PROBE))
+    digest_fd = os.open(WAN_PROBE + '.sha256', os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(digest_fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022:
+            raise ValueError('untrusted probe digest file')
+        digest = os.read(digest_fd, 66)
+        if re.fullmatch(rb'[0-9a-f]{64}\n', digest) is None:
+            raise ValueError('invalid probe digest format')
+    finally:
+        os.close(digest_fd)
+    fd = os.open(WAN_PROBE, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o6022
+                or not info.st_mode & 0o111 or info.st_size > 64 * 1024 * 1024):
+            raise ValueError('untrusted probe executable')
+        checksum = hashlib.sha256()
+        while True:
+            chunk = os.read(fd, 65536)
+            if not chunk:
+                break
+            checksum.update(chunk)
+        if checksum.hexdigest().encode() != digest.strip():
+            raise ValueError('probe executable digest mismatch')
+        os.lseek(fd, 0, os.SEEK_SET)
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
 def validate_probe(kind, target):
     if kind not in ('icmp', 'dns', 'http'):
         raise ValueError('unsupported fixed probe kind')
     address = ipaddress.ip_address(target)
     if (address.is_multicast or address.is_unspecified or address.is_loopback or address.is_link_local
             or getattr(address, 'ipv4_mapped', None) is not None or str(address) == '255.255.255.255'
-            or kind == 'icmp' and address.version != 4):
+            or address.version != 4):
         raise ValueError('unsupported literal probe target')
     return address
 
@@ -142,9 +214,9 @@ def probe_policy(token, kind, target, local):
     return nft_policy(True, token) + f"""add set inet ngfw_ppp probe_target {{ type {set_type}; flags timeout; timeout 5s; elements = {{ {address} timeout 5s }}; }}
 add set inet ngfw_ppp probe_local {{ type {set_type}; flags timeout; timeout 5s; elements = {{ {own} }}; }}
 add chain inet ngfw_ppp probe_return {{ type filter hook prerouting priority -150; policy accept; }}
-add rule inet ngfw_ppp probe_return iifname "ppp0" {family} saddr @probe_target {family} daddr @probe_local {incoming} ct state established meta mark set 0x4e47
-add rule inet ngfw_ppp input iifname "ppp0" {family} saddr @probe_target {family} daddr @probe_local {incoming} ct state established accept
-add rule inet ngfw_ppp output oifname "ppp0" {family} daddr @probe_target {family} saddr @probe_local {outgoing} accept
+add rule inet ngfw_ppp probe_return iifname "ppp0" {family} saddr @probe_target {family} daddr @probe_local {incoming} ct mark 0x4e47 ct state established meta mark set 0x4e47
+add rule inet ngfw_ppp input iifname "ppp0" {family} saddr @probe_target {family} daddr @probe_local {incoming} ct mark 0x4e47 ct state established accept
+add rule inet ngfw_ppp output oifname "ppp0" {family} daddr @probe_target {family} saddr @probe_local {outgoing} ct mark set 0x4e47 accept
 """
 
 
@@ -167,6 +239,19 @@ class Carrier:
             os.makedirs(path, mode=0o700, exist_ok=True)
             protected_directory(path)
         fd = os.open(self.root + '/lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
+                raise ValueError('unsafe carrier lock')
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
+
+    @contextlib.contextmanager
+    def readonly_locked(self):
+        protected_directory(self.root)
+        fd = os.open(self.root + '/lock', os.O_RDONLY | os.O_NOFOLLOW)
         try:
             info = os.fstat(fd)
             if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
@@ -433,6 +518,8 @@ class Carrier:
         values = {'net.ipv4.ip_forward': '1', 'net.ipv4.conf.all.rp_filter': '0',
                   'net.ipv4.conf.ppp0.rp_filter': '0', f'net.ipv4.conf.{transit_name}.rp_filter': '0',
                   'net.ipv6.conf.all.forwarding': '1', 'net.ipv6.conf.ppp0.accept_ra': '2',
+                  'net.ipv6.conf.ppp0.autoconf': '1',
+                  'net.ipv6.conf.ppp0.accept_ra_defrtr': '1' if record.get('accept_default_route') else '0',
                   f'net.ipv6.conf.{raw}.disable_ipv6': '1'}
         for key, expected in values.items():
             if self.inside(fd, [SYSCTL, '-n', key]).strip() != expected:
@@ -484,9 +571,12 @@ class Carrier:
             self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
         return record
 
-    def configure(self, token, generation):
+    def configure(self, token, generation, accept_default_route=False):
         raw, transit_name = link_names(token)
+        if type(accept_default_route) is not bool:
+            raise ValueError('accept_default_route must be boolean')
         record = self.withdraw(token, generation)
+        record['accept_default_route'] = accept_default_route
         with self.pinned(token, record) as fd:
             before = self.links(fd, token, record, True)
             link_state = json.loads(self.inside(fd, [IP, '-j', 'address', 'show']))
@@ -533,7 +623,9 @@ class Carrier:
             self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv4.ip_forward=1',
                              'net.ipv4.conf.all.rp_filter=0', 'net.ipv4.conf.default.rp_filter=0',
                              'net.ipv4.conf.ppp0.rp_filter=0', f'net.ipv4.conf.{transit_name}.rp_filter=0',
-                             'net.ipv6.conf.all.forwarding=1', 'net.ipv6.conf.ppp0.accept_ra=2'])
+                             'net.ipv6.conf.all.forwarding=1', 'net.ipv6.conf.ppp0.accept_ra=2',
+                             'net.ipv6.conf.ppp0.autoconf=1',
+                             'net.ipv6.conf.ppp0.accept_ra_defrtr=' + ('1' if accept_default_route else '0')])
             if self.links(fd, token, record, True) != before:
                 raise ValueError('carrier links changed during configuration')
             self.inside(fd, [NFT, '-f', '-'], nft_policy(True, token))
@@ -550,6 +642,116 @@ class Carrier:
                 self.inside(fd, [NFT, '-f', '-'], nft_policy(False, token))
                 raise
         return record
+
+    @contextlib.contextmanager
+    def broker_locked(self):
+        if os.geteuid() != 0:
+            raise PermissionError('root-owned broker requests required')
+        for directory in (BROKER, BROKER + '/requests', BROKER + '/results'):
+            os.makedirs(directory, mode=0o700, exist_ok=True)
+            protected_directory(directory)
+        fd = os.open(BROKER + '/lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            info = os.fstat(fd)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o077:
+                raise ValueError('unsafe broker lock')
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
+
+    def broker_file(self, token, area):
+        if not TOKEN.fullmatch(token) or area not in ('requests', 'results'):
+            raise ValueError('invalid broker identity')
+        return BROKER + '/' + area + '/' + token + '.json'
+
+    def broker_read(self, token, area):
+        fd = os.open(self.broker_file(token, area), os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, 'r', encoding='ascii') as stream:
+            info = os.fstat(stream.fileno())
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0
+                    or info.st_mode & 0o077 or info.st_size > (8192 if area == 'requests' else 1048576)):
+                raise ValueError('unsafe broker document')
+            return json.load(stream)
+
+    def broker_write(self, token, area, document):
+        path = self.broker_file(token, area)
+        temporary = path + '.' + secrets.token_hex(8)
+        fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        try:
+            with os.fdopen(fd, 'w', encoding='ascii') as stream:
+                json.dump(document, stream, sort_keys=True)
+                stream.write('\n')
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+
+    def broker_queue(self, token, nonce, request):
+        if not GEN.fullmatch(nonce) or request_token(request) != token:
+            raise ValueError('broker request identity differs')
+        try:
+            pending = self.broker_read(token, 'requests')
+        except FileNotFoundError:
+            pending = None
+        if pending and pending.get('boot') == boot_id() and pending.get('expires', 0) > time.monotonic():
+            raise ValueError('broker request already pending')
+        document = {'token': token, 'nonce': nonce, 'boot': boot_id(),
+                    'expires': time.monotonic() + 10, 'request': request,
+                    'request_sha256': request_digest(request)}
+        self.broker_write(token, 'requests', document)
+        try:
+            os.unlink(self.broker_file(token, 'results'))
+        except FileNotFoundError:
+            pass
+        return {key: value for key, value in document.items() if key != 'request'}
+
+    def broker_result(self, token, nonce):
+        if not GEN.fullmatch(nonce):
+            raise ValueError('invalid broker nonce')
+        result = self.broker_read(token, 'results')
+        if (result.get('nonce') != nonce or result.get('token') != token
+                or result.get('boot') != boot_id() or result.get('expires', 0) <= time.monotonic()):
+            raise ValueError('stale or mismatched broker result')
+        return result
+
+    def broker_execute(self, token):
+        document = self.broker_read(token, 'requests')
+        request = document.get('request')
+        if (document.get('token') != token or not GEN.fullmatch(document.get('nonce', ''))
+                or document.get('boot') != boot_id() or document.get('expires', 0) <= time.monotonic()
+                or request_token(request) != token or request_digest(request) != document.get('request_sha256')):
+            raise ValueError('stale or mismatched broker request')
+        result = {key: value for key, value in document.items() if key != 'request'}
+        try:
+            with self.locked():
+                if time.monotonic() >= document['expires']:
+                    raise TimeoutError('broker request expired while awaiting carrier lock')
+                op = request['op']
+                if op == 'provision':
+                    value = self.provision(request['owner'], request['logical'], request['spec'])
+                elif op == 'list':
+                    value = self.inventory(request['owner'])
+                elif op == 'prepare':
+                    value = self.prepare(token, request['generation'], None, None,
+                                         request['physical_mac'], request['transit'])
+                elif op == 'configure':
+                    value = self.configure(token, request['generation'], request['accept_default_route'])
+                elif op == 'probe':
+                    value = self.probe(token, request['generation'], request['kind'], request['target'])
+                else:
+                    # request_token already restricts this exact finite method set.
+                    value = getattr(self, op)(token, request['generation'])
+                if time.monotonic() >= document['expires']:
+                    raise TimeoutError('broker request expired during operation')
+                result.update(ok=True, result=value)
+        except Exception as error:
+            result.update(ok=False, error='carrier operation failed: ' + type(error).__name__)
+        self.broker_write(token, 'results', result)
+        os.unlink(self.broker_file(token, 'requests'))
+        return result
 
     def leaf_argv(self, token, generation, action, extra=()):
         # UID0 cannot regain removed bounding capabilities at the subsequent exec.
@@ -585,15 +787,16 @@ class Carrier:
             argv = [executable, 'call', 'carrier', 'nodetach', 'unit', '0']
         elif action == 'probe-exec':
             validate_probe(kind, target)
-            executable = WAN_PROBE
-            argv = [executable, '--device', 'ppp0', '--type', kind, '--target', target, '--timeout-ms', '3000']
+            executable = open_verified_probe()
+            argv = [WAN_PROBE, '--kind', kind, '--target', target, '--timeout-ms', '3000']
         else:
             raise ValueError('unknown fixed leaf')
         os.execve(executable, argv, {'PATH': '/usr/sbin:/usr/bin:/sbin:/bin', 'LC_ALL': 'C'})
 
     def launch(self, token):
         record = self.load(token)
-        record = self.withdraw(token, record['generation'])
+        if record.get('configured'):
+            raise ValueError('broker must withdraw carrier before PPP start')
         if not record.get('bound'):
             raise ValueError('prepare carrier links before starting PPP')
         with self.pinned(token, record) as fd:
@@ -628,11 +831,11 @@ class Carrier:
                 output = self.inside(fd, self.leaf_argv(token, generation, 'probe-exec',
                                                      ('--kind', kind, '--target', str(address))), timeout=4)
                 result = json.loads(output)
-                if (not isinstance(result, dict) or set(result) != {'Sent', 'Received', 'AvgLatencyMs', 'Unavailable'}
-                        or type(result['Sent']) is not int or result['Sent'] != 1
-                        or type(result['Received']) is not int or result['Received'] not in (0, 1)
-                        or type(result['AvgLatencyMs']) is not int or not 0 <= result['AvgLatencyMs'] <= 3000
-                        or type(result['Unavailable']) is not bool):
+                if (not isinstance(result, dict) or set(result) != {'sent', 'received', 'latencyMs', 'unavailable'}
+                        or type(result['sent']) is not int or result['sent'] != 1
+                        or type(result['received']) is not int or result['received'] not in (0, 1)
+                        or type(result['latencyMs']) is not int or not 0 <= result['latencyMs'] <= 3000
+                        or type(result['unavailable']) is not bool):
                     raise ValueError('invalid fixed probe result')
                 return result
             finally:
@@ -666,19 +869,21 @@ class Carrier:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('provision', 'prepare', 'inspect', 'inventory', 'list', 'verify', 'configure', 'withdraw', 'delete', 'run', 'ppp-exec', 'probe', 'probe-exec'))
+    parser.add_argument('action', choices=('provision', 'prepare', 'inspect', 'inventory', 'list', 'verify', 'configure', 'withdraw', 'delete', 'run', 'ppp-exec', 'probe', 'probe-exec', 'broker-queue', 'broker-result', 'broker-execute'))
     parser.add_argument('identity', help='owner for provision; namespace token otherwise')
     parser.add_argument('generation', nargs='?', help='logical interface for provision; generation otherwise')
     parser.add_argument('--raw-index', type=int)
     parser.add_argument('--transit-index', type=int)
     parser.add_argument('--physical-mac')
     parser.add_argument('--spec-json')
+    parser.add_argument('--request-json')
+    parser.add_argument('--accept-default-route', choices=('yes', 'no'), default='no')
     parser.add_argument('--kind')
     parser.add_argument('--target')
     for field in ('local4', 'peer4', 'local6', 'peer6'):
         parser.add_argument('--' + field)
     args = parser.parse_args()
-    if args.action not in ('inventory', 'list', 'run') and args.generation is None:
+    if args.action not in ('inventory', 'list', 'run', 'broker-execute') and args.generation is None:
         parser.error('generation or logical interface required')
     if args.action == 'provision' and args.spec_json is None:
         parser.error('provision requires immutable --spec-json')
@@ -687,14 +892,30 @@ def main():
     if args.action in ('probe', 'probe-exec') and None in (args.kind, args.target):
         parser.error('probe requires --kind and literal --target')
     carrier = Carrier()
+    if args.action.startswith('broker-'):
+        with carrier.broker_locked():
+            if args.action == 'broker-queue':
+                if args.request_json is None:
+                    parser.error('broker-queue requires --request-json')
+                result = carrier.broker_queue(args.identity, args.generation, json.loads(args.request_json))
+            elif args.action == 'broker-result':
+                result = carrier.broker_result(args.identity, args.generation)
+            else:
+                result = carrier.broker_execute(args.identity)
+        print(json.dumps(result, sort_keys=True))
+        return
+    if args.action == 'run':
+        with carrier.readonly_locked():
+            carrier.launch(args.identity)
+        return
     if args.action in ('ppp-exec', 'probe-exec'):
         carrier.exec_leaf(args.identity, args.generation, args.action, args.kind, args.target)
         return
     with carrier.locked():
-        if args.action == 'probe':
+        if args.action == 'configure':
+            record = carrier.configure(args.identity, args.generation, args.accept_default_route == 'yes')
+        elif args.action == 'probe':
             record = carrier.probe(args.identity, args.generation, args.kind, args.target)
-        elif args.action == 'run':
-            record = carrier.launch(args.identity)
         elif args.action == 'provision':
             record = carrier.provision(args.identity, args.generation, json.loads(args.spec_json))
         elif args.action == 'prepare':

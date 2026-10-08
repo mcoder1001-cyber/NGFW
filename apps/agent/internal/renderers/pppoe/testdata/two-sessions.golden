@@ -508,7 +508,14 @@ def up(iface, ll, peer, pppd, admission):
     # until the supervisor has stopped pppd and installed the replacement.
     if BLOCKED.exists() or not admission or ADMISSION.read_text().strip() != admission:
         return
-    parent = parent_fd(pppd)
+    try:
+        parent = parent_fd(pppd)
+    except Failure as exc:
+        if str(exc) == "ipv6-parent-unavailable":
+            # A hook queued until after its old pppd died must not overwrite
+            # replacement operational state with an admission failure.
+            return
+        raise
     try:
         start(iface, ll, peer, pppd, parent)
     finally:
@@ -588,6 +595,9 @@ def main():
             up(iface, ll, peer, pppd, admission)
         else:
             if not admission or ADMISSION.read_text().strip() != admission:
+                return
+            old = record()
+            if old and old.get("argv", [])[7:8] != [pppd]:
                 return
             stop()
             with locked():
@@ -898,7 +908,14 @@ def up(iface, ll, peer, pppd, admission):
     # until the supervisor has stopped pppd and installed the replacement.
     if BLOCKED.exists() or not admission or ADMISSION.read_text().strip() != admission:
         return
-    parent = parent_fd(pppd)
+    try:
+        parent = parent_fd(pppd)
+    except Failure as exc:
+        if str(exc) == "ipv6-parent-unavailable":
+            # A hook queued until after its old pppd died must not overwrite
+            # replacement operational state with an admission failure.
+            return
+        raise
     try:
         start(iface, ll, peer, pppd, parent)
     finally:
@@ -978,6 +995,9 @@ def main():
             up(iface, ll, peer, pppd, admission)
         else:
             if not admission or ADMISSION.read_text().strip() != admission:
+                return
+            old = record()
+            if old and old.get("argv", [])[7:8] != [pppd]:
                 return
             stop()
             with locked():

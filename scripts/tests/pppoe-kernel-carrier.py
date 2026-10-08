@@ -31,6 +31,7 @@ class MemoryCarrier(carrier.Carrier):
         self.saved_failure = False
         self.firewall_changed = False
         self.ppp_mtu = 1492
+        self.missing_taps = set()
         self.failure = None
         self.extra = []
         self.change_link = False
@@ -59,6 +60,8 @@ class MemoryCarrier(carrier.Carrier):
             links = [{'ifname': 'lo', 'ifindex': 1},
                      {'ifname': 'ppp0', 'ifindex': 4, 'link_type': 'ppp', 'flags': ['UP']}]
             for name, index in [(RAW, 2), (TRANSIT, 3)]:
+                if name in self.missing_taps:
+                    continue
                 links.append({'ifname': name, 'ifindex': index + (10 if self.change_link and self.link_reads > 1 else 0),
                               'address': '02:00:00:00:00:01', 'ifalias': self.token + ':' + self.record['generation'] + ':' + name,
                               'linkinfo': {'info_kind': 'tun', 'info_data': {'type': 'tap'}}})
@@ -480,6 +483,29 @@ class CarrierTests(unittest.TestCase):
         self.assertTrue(any('net.ipv6.conf.ppp0.disable_ipv6=1' in cmd for cmd, _ in c.calls))
         with self.assertRaisesRegex(ValueError, 'IPv6 policy'):
             c.configure(TOKEN, 'a' * 32, True)
+
+    def test_lost_owned_taps_report_recreate_without_adoption(self):
+        c = MemoryCarrier()
+        c.configure(TOKEN, 'a' * 32)
+        c.missing_taps = {RAW, TRANSIT}
+        original = dict(c.record)
+        receipt = c.inspect(TOKEN, 'a' * 32)
+        self.assertTrue(receipt['repair_required'])
+        self.assertFalse(receipt['configured'])
+        self.assertEqual(receipt['generation'], original['generation'])
+        self.assertEqual(c.record, original)
+        with self.assertRaises(ValueError):
+            c.verify(TOKEN, 'a' * 32)
+        for missing in ({RAW}, {TRANSIT}):
+            c.missing_taps = missing
+            self.assertTrue(c.inspect(TOKEN, 'a' * 32)['repair_required'])
+        c.extra = [{'ifname': 'foreign0', 'ifindex': 9}]
+        with self.assertRaises(ValueError):
+            c.inspect(TOKEN, 'a' * 32)
+        c.extra = []
+        c.change_link = True
+        with self.assertRaises(ValueError):
+            c.inspect(TOKEN, 'a' * 32)
 
     def test_namespace_exec_pins_fd_without_shell(self):
         calls = []

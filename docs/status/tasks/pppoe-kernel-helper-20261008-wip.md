@@ -5,7 +5,7 @@ Owned source: scripts/pppoe-kernel-carrier.py, its focused tests, inert assets i
 scripts/pppoe-carrier-assets, packaging test loader, and this receipt. Parent owns
 Go controller, renderer, VPP topology, readiness and package integration.
 
-27 focused controls pass through the strict packaging discovery seam:
+28 focused controls pass through the strict packaging discovery seam:
 `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_pppoe_carrier.py -v`
 (0.021 seconds). The controls use fake command executors and temporary files;
 there are no skipped cases. No native namespace/service/route/packet test or CI
@@ -131,3 +131,18 @@ reserved in immutable spec but are not configured. Parent must likewise omit
 VPP IPv6 transit addresses and reject an enabled IPv6 PPP mode below1280. A
 576-byte control passes real helper readback fixtures with no IPv6 route/address
 commands; silent negotiation below the desired MTU still fails closed.
+
+## VPP object-loss recovery receipt
+
+Inventory/inspect now returns repair_required=true and configured=false when any
+formerly bound TAP is absent but every surviving TAP still has the exact owned
+alias/index/type/MAC and no foreign links exist. The pinned namespace, immutable
+spec, boot and generation remain verified. This is a read-only diagnostic: no
+replacement TAP is adopted, no binding/generation is changed, and verify continues
+to fail until full dependency-safe teardown/recreation. Changed PPP identity,
+foreign links and replaced/mismatched TAPs are refused. Parent's retrieved-only
+repair marker must drive stop/withdraw, owned TAP removal and old namespace deletion
+before a new generation is provisioned. Tests cover total loss, either partial
+loss, a foreign link, changed surviving index and refusal of forwarding readiness.
+The verify receipt also carries actual non-tentative PPP address CIDRs so parent
+can reject stale hook addresses before mirroring them into VPP.

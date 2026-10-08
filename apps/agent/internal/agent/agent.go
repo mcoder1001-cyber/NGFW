@@ -279,6 +279,11 @@ func Start(ctx context.Context, cfg Config, version string, log *slog.Logger) (*
 		conn.Close()
 		return nil, err
 	}
+	if err = subsystems.SetHostServiceSecrets(cfg.Owner, cache.Ref, cache.Resolve); err != nil {
+		wiring.Close()
+		conn.Close()
+		return nil, err
+	}
 	// wave-BC: F-bfd-redistribution
 	subsystems.SetBfdSecretSource(cfg.Owner, cache.Text)
 	if err = subsystems.SetFRRSecrets(cfg.Owner, cache.Text); err != nil {

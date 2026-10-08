@@ -1,10 +1,12 @@
 package subsystems
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
 	"ngfw/agent/internal/renderers"
+	"ngfw/agent/internal/renderers/rfkit"
 	"ngfw/agent/internal/renderers/rsyslog"
 )
 
@@ -14,9 +16,17 @@ import (
 // DeferredController: a restart request, never a restart (the slot harness runs the instance with
 // `-i <dir>/rsyslogd.pid`), and the hook that prepares the directories.
 func newRsyslog(env Env) (*rsyslog.Renderer, func() error, error) {
+	resolver := rfkit.SecretResolverFunc(func(ctx context.Context, ref string) (string, error) {
+		raw, err := hostServiceSecrets(env.Owner).resolve(ctx, ref)
+		if err != nil {
+			return "", err
+		}
+		defer clear(raw)
+		return string(raw), nil
+	})
 	runner := renderers.NewSystemRunner(renderers.NewAllowlist(rsyslog.Binaries()...))
 	if env.GlobalsOwner {
-		return rsyslog.New(runner), nil, nil
+		return rsyslog.New(runner, rsyslog.WithSecretResolver(resolver)), nil, nil
 	}
 	dir := filepath.Join(slotRunDir(env.Owner), "rsyslog")
 	p := rsyslog.PathsUnder(dir, 0)
@@ -32,5 +42,5 @@ func newRsyslog(env Env) (*rsyslog.Renderer, func() error, error) {
 		return nil
 	}
 	ctl := &rsyslog.DeferredController{PendingFile: filepath.Join(dir, "ngfw.pending"), PIDFile: filepath.Join(dir, "rsyslogd.pid")}
-	return rsyslog.New(runner, rsyslog.WithPaths(p), rsyslog.WithController(ctl)), prep, nil
+	return rsyslog.New(runner, rsyslog.WithPaths(p), rsyslog.WithController(ctl), rsyslog.WithSecretResolver(resolver)), prep, nil
 }

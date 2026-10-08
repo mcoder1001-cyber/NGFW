@@ -21,3 +21,9 @@ API typecheck initially blocked solely by absent local `@ngfw/yang` build artifa
 ## R4 security correction
 
 R4 found that an undeclared CA certificate/key alias could be delivered through TLS syslog. Every syslog private-key selection now requires a parsed, non-CA paired certificate before key lookup, independently of other consumers sharing that reference. After decryption the private key must match every selected leaf certificate; failures zero the bundle. Five added controls cover hidden CA, mixed host-stack alias, missing certificate, pinned valid pair and mismatched pair. Focused API suite: **36 PASS**. This closes the documented R4 bypass; independent re-review pending.
+
+## Combined consumer integration
+
+Integrated frozen consumer commits `18fb6004`, `5d6fd02a`, `7b193d7e` (remote `fdacca035149f3170e7f8ee9dbd429d01cfc9e62`), preserving their published source and R2 review. Added startup `SetHostServiceSecrets` binding and owner-specific projection options for NTP, TLS syslog and host-stack namespaces. BGP uses the existing FRR generation channel with the consumer's readiness correction.
+
+Focused combined race tests PASS: agent 1.177s, subsystems 1.208s, desired 1.092s, secretchannel 1.019s, hoststack 1.022s, chrony 1.064s, rsyslog 1.055s. These include real FRR scheduler compensation after a later failure and retained-generation daemon restart/removal tests. The selected pattern did not run secretvalue tests; its independent consumer R2 report supplies those results. Dedicated production projection hook test added for three consumers, unchanged-reference rotation, owner isolation and removed selection. Final combined review requested; full CI remains deferred to manager's final gate.

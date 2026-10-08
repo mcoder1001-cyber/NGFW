@@ -25,3 +25,9 @@ The renderer operates on the managed targets. Its write and drift checks require
 Local: ten real isolated Python migration/security fixtures pass; sysident race tests pass including provisioning guard controls. Real foreign-UID and capability fixtures cannot run in this execution environment because its UID map contains only UID0; attempts to use UID65534 return EINVAL. Both tests remain enabled, without skip or expected-failure, in packaging fixtures and the Debian build test target for the final hosted validation.
 
 Laboratory: package configure/upgrade, public identity consumers, actual strict-systemd-sandbox daemon configuration snapshot/reconcile/rollback and reboot persistence are NOT RUN. Prior P10 development installation evidence remains valid and is not reclassified as failed. Product license authority remains a separate unresolved decision.
+
+## Exact remote-access compatibility
+
+Remote-access source authentication must attest the same five-capability product agent. Its canonical source mask and peer process validation share one constant; exact effective, permitted and bounding equality is retained, with no ambient privileges and only the previously bounded pre-normalization SYS_ADMIN inheritance. The optional hardening drop-in preserves this same mask and dedicated identity write paths. Both exact fragment SHA256 attestations track the reviewed source units, with a regression deriving the masks and digests from those packaged files. Every single missing/extra bit in each of the three capability sets is refused. Broker SYS_ADMIN/SYS_CHROOT and profile-daemon capabilities remain separate and unchanged; source privilege sets are not accepted as broker identity.
+
+Changing the agent fragment or optional hardening fragment requires updating the paired RA installation attestation and passing this consistency test. A unit-only packaging edit cannot be declared compatible with RA from isolated sysident tests.

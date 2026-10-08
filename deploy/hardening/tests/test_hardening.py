@@ -88,7 +88,10 @@ class Hardening(unittest.TestCase):
     def test_compatibility_permissions_preserved(self):
         agent = (BASE / 'systemd/ngfw-agent.service.d/10-ngfw-hardening.conf').read_text()
         self.assertIn('AF_NETLINK', agent)
-        self.assertIn('CAP_SYS_ADMIN', agent)
+        bounds = [line.split('=', 1)[1] for line in agent.splitlines()
+                  if line.startswith('CapabilityBoundingSet=')]
+        self.assertEqual(bounds, ['', 'CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK CAP_CHOWN CAP_DAC_OVERRIDE'])
+        self.assertIn('ReadWritePaths=/var/lib/ngfw-system-identity /etc/systemd/resolved.conf.d', agent)
         self.assertIn('/etc/kea', agent)
         self.assertIn('@mount', agent)
         self.assertFalse(list((BASE / 'systemd').glob('vpp*')))

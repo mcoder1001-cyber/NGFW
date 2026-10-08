@@ -69,3 +69,10 @@ $ sha256sum scripts/lab-python-lock.py scripts/tests/lab-python-lock.py .github/
 ```
 
 R1/R2 source findings have been repaired; independent reviewers reproduced 14 passing tests on these exact source bytes and are finalizing reports. This documentation receipt does not change source/workflow bytes. Full unchanged hosted quick gate and new hosted helper check remain pending; no full gate success claimed. Next action: manager verifies published source identity, collects independent source/workflow approvals and hosted check outcomes before integration. Production upstream pins/provenance and actual target acceptance remain outstanding.
+
+
+## Applicable review evidence and open inputs
+
+[R1 correctness/test review](td19-python-lock-20261008-review-R1.md) and [R2 source/security review](td19-python-lock-20261008-review-R2.md) record APPROVE for the frozen helper/test source hashes above. R1 independently ran 14 tests in 7.484s; R2 final independent run passed 14 tests in 7.998s and reproduced refusal of its original archive/output attacks. Their publication/integration is managed separately from developer-owned source/docs. These reviews do not claim an independent remote publication check or replace required hosted checks. Workflow/operations and documentation reviews are separate applicable evidence.
+
+No new architecture or security policy decision is requested: the generator remains an optional candidate tool and installer refusal is unchanged. Open release inputs are approved exact direct versions, independently reviewed upstream wheel authenticity/provenance and target environment acceptance. Runtime compatibility flags assert the generation environment only; hashes prove local byte consistency only; no production lock or real installation/boot result is supplied.

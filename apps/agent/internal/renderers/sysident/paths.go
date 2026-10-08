@@ -28,15 +28,16 @@ type Paths struct {
 	FileMode os.FileMode
 }
 
-// ProductPaths are the paths of the Ubuntu 26.04 image.
+// ProductPaths use package-provisioned targets behind fixed public /etc links.
+// Their parent is writable under ProtectSystem=strict; /etc itself remains read-only.
 func ProductPaths() Paths {
 	return Paths{
-		Hostname:          "/etc/hostname",
-		Localtime:         "/etc/localtime",
+		Hostname:          "/var/lib/ngfw-system-identity/hostname",
+		Localtime:         "/var/lib/ngfw-system-identity/localtime",
 		ZoneinfoDir:       "/usr/share/zoneinfo",
-		Issue:             "/etc/issue",
-		IssueNet:          "/etc/issue.net",
-		Motd:              "/etc/motd",
+		Issue:             "/var/lib/ngfw-system-identity/issue",
+		IssueNet:          "/var/lib/ngfw-system-identity/issue.net",
+		Motd:              "/var/lib/ngfw-system-identity/motd",
 		ResolvedDropIn:    "/etc/systemd/resolved.conf.d/ngfw.conf",
 		SetKernelHostname: true,
 		FileMode:          0o644,
@@ -47,6 +48,9 @@ func ProductPaths() Paths {
 // directory stays the host's (read only); the kernel hostname is never set.
 func PathsUnder(base string) Paths {
 	p := ProductPaths()
+	// Preserve the isolated test-slot contract independently of appliance packaging.
+	p.Hostname, p.Localtime = "/etc/hostname", "/etc/localtime"
+	p.Issue, p.IssueNet, p.Motd = "/etc/issue", "/etc/issue.net", "/etc/motd"
 	for _, f := range []*string{&p.Hostname, &p.Localtime, &p.Issue, &p.IssueNet, &p.Motd, &p.ResolvedDropIn} {
 		*f = filepath.Join(base, *f)
 	}

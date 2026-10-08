@@ -33,8 +33,9 @@ ProtectKernelModules=yes
 ProtectKernelTunables=yes
 RestrictRealtime=yes
 RestrictNamespaces=~cgroup
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK CAP_CHOWN
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+ReadWritePaths=/var/lib/ngfw-system-identity /etc/systemd/resolved.conf.d
 ReadWritePaths=/var/lib/ngfw/agent /var/lib/ngfw/captures /etc/ngfw/rsyslog-tls /run/ngfw
 ReadWritePaths=-/etc/frr -/etc/swanctl -/etc/kea -/etc/unbound -/etc/chrony -/etc/rsyslog.d -/etc/snmp -/etc/keepalived
 

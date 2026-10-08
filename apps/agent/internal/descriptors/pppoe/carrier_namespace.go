@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 	"ngfw/agent/internal/descriptors/dfkit"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	iface "ngfw/agent/internal/descriptors/interface"
 	ren "ngfw/agent/internal/renderers/pppoe"
 	"ngfw/agent/internal/scheduler"
@@ -49,6 +50,13 @@ type NamespaceDescriptor struct {
 
 func NewCarrierNamespace(owner string, host CarrierNamespaceHost) *NamespaceDescriptor {
 	return &NamespaceDescriptor{owner: owner, host: host}
+}
+
+// Namespace ownership must survive an agent restart. The packaged host stores
+// exact boot/inode/generation receipts on disk; an in-memory host is not valid in
+// product wiring. A host reboot destroys the namespace along with its /run ledger.
+func (d *NamespaceDescriptor) CheckPersistent() error {
+	return persist.Require(CarrierNamespaceName, d.host)
 }
 
 func (*NamespaceDescriptor) Name() string { return CarrierNamespaceName }

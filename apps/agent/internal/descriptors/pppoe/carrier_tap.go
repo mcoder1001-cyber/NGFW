@@ -11,6 +11,10 @@ import (
 
 const CarrierTapName = "pppoe.carrier.tap"
 
+// RecordsNoOwnership: VPP carries the TAP owner tag. Namespace claims belong to
+// the separately checked NamespaceDescriptor, never a process-local TAP store.
+func (*CarrierTapDescriptor) RecordsNoOwnership() {}
+
 // CarrierTapDescriptor has a distinct ownership scope from remote-access TAPs.
 // It delegates generated VPP operations to the existing TAP implementation and
 // requires that implementation's verified namespace admission for every write.

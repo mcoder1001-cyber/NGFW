@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"ngfw/agent/internal/descriptors/dfkit"
+	"ngfw/agent/internal/descriptors/dfkit/persist"
 	ren "ngfw/agent/internal/renderers/pppoe"
 	"ngfw/agent/internal/scheduler"
 )
@@ -13,6 +14,26 @@ import (
 type namespaceHostFake struct {
 	leases []CarrierLease
 	calls  int
+}
+
+type persistentNamespaceHostFake struct{ namespaceHostFake }
+
+func (*persistentNamespaceHostFake) Persistent() bool { return true }
+
+func TestCarrierOwnershipPersistenceDeclarations(t *testing.T) {
+	volatile := NewCarrierNamespace("ngfw", &namespaceHostFake{})
+	if err := persist.Declared(volatile); err != nil {
+		t.Fatal(err)
+	}
+	if err := persist.Check(volatile); !errors.Is(err, persist.ErrVolatile) {
+		t.Fatalf("volatile namespace provider admitted: %v", err)
+	}
+	if err := persist.Check(NewCarrierNamespace("ngfw", &persistentNamespaceHostFake{})); err != nil {
+		t.Fatal(err)
+	}
+	if err := persist.Declared(&CarrierTapDescriptor{}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func (h *namespaceHostFake) Provision(_ context.Context, spec ren.CarrierSpec) (CarrierLease, error) {

@@ -8,8 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"go.fd.io/govpp/api"
 	"google.golang.org/protobuf/proto"
+	interfaces "ngfw/agent/binapi/interface"
+	"ngfw/agent/binapi/ip"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
 	desc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/descriptors/tapv2"
@@ -293,4 +297,65 @@ func TestCarrierResolverPrivateFile(t *testing.T) {
 	if err != nil || string(body) != "preserve" {
 		t.Fatalf("unrelated file changed: %q %v", body, err)
 	}
+}
+
+func TestCarrierWANMembershipWithdrawsBeforeRestartAndRollbackRestoresPolicy(t *testing.T) {
+	rt, _, fake := newTestRuntime(t)
+	rt.carrierMode, rt.carrierRoot, rt.carrierHooks = true, t.TempDir(), t.TempDir()
+	for _, kind := range []string{"ip-up", "ip-down", "ipv6-up", "ipv6-down"} {
+		if err := os.WriteFile(filepath.Join(rt.carrierHooks, kind), []byte("#!/usr/bin/python3\n"), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	spec, _ := pppoe.NewCarrierSpec(rt.owner, "pppwan", "wanraw", 1492)
+	fake.AddInterface("wanraw", "")
+	fake.AddInterface("pppwan", "")
+	fake.Reply("sw_interface_get_table", &interfaces.SwInterfaceGetTableReply{VrfID: 9000})
+	withdrawn := false
+	fake.On("ip_route_add_del", func(req api.Message) ([]api.Message, error) {
+		write := req.(*ip.IPRouteAddDel)
+		if write.IsAdd || !write.IsMultipath {
+			t.Fatal("membership transition changed whole route or added old default")
+		}
+		withdrawn = true
+		return []api.Message{&ip.IPRouteAddDelReply{}}, nil
+	})
+	run := &carrierTestRunner{lease: namespaceLeaseForTest(spec)}
+	rt.runner = run
+	d := desc.NewClientConfig(rt, rt.renderer, filepath.Join(t.TempDir(), "applied.pb"))
+	d.SetCarrierOwner(rt.owner)
+	d.SetSecretSource(func(string) ([]byte, error) { return []byte("NGFW_TEST_PSK_F-pppoe-client-wiring"), nil })
+	doc := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
+		"wanraw": {Enabled: proto.Bool(true)},
+		"pppwan": {Pppoe: &ngfwv1.Pppoe{Parent: proto.String("wanraw"), Username: proto.String("test"), PasswordRef: proto.String("password/test"), Ipv6: proto.String("off"), MssClamp: proto.Bool(false)}},
+	}}
+	if _, err := d.Create(t.Context(), doc); err != nil {
+		t.Fatal(err)
+	}
+	rt.mirrored = map[string]desc.Mirror{"pppwan": {Interface: "pppwan", LocalIPv4: "192.0.2.7/32", PeerIPv4: strings.Split(spec.Host4, "/")[0], DefaultRoute: true}}
+	rt.carrierReady["pppwan"] = carrierForwarding{epoch: "old", until: time.Now().Add(time.Minute)}
+	run.onStop = func() {
+		if !withdrawn || len(rt.mirrored) != 0 || len(rt.carrierReady) != 0 {
+			t.Error("unit stopped before automatic default/readiness withdrawal")
+		}
+	}
+	joined := proto.Clone(doc).(*ngfwv1.DesiredState)
+	joined.Routing = &ngfwv1.RoutingConfig{WanGroups: []*ngfwv1.WanGroup{{Name: proto.String("wan"), Members: []*ngfwv1.WanMember{{Interface: proto.String("pppwan")}}}}}
+	if _, err := d.Create(t.Context(), joined); err != nil {
+		t.Fatal(err)
+	}
+	if rt.applied["pppwan"].DefaultRoute {
+		t.Fatal("WAN member retained automatic default")
+	}
+	// Returning to the previous manifest represents leave or transaction rollback.
+	if _, err := d.Create(t.Context(), doc); err != nil {
+		t.Fatal(err)
+	}
+	if !rt.applied["pppwan"].DefaultRoute {
+		t.Fatal("rollback did not restore standalone default policy")
+	}
+}
+
+func namespaceLeaseForTest(spec pppoe.CarrierSpec) desc.CarrierLease {
+	return desc.CarrierLease{Spec: spec, Token: spec.Token(), Generation: strings.Repeat("a", 32), Boot: "boot", Namespace: []uint64{1, 2}}
 }

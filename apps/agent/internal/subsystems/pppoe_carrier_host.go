@@ -22,6 +22,11 @@ const pppoeCarrierHelper = "/usr/lib/ngfw/pppoe-carrier.py"
 
 type pppoeCarrierHost struct{ runner renderers.Runner }
 
+// Persistent reports the fixed helper's disk ledger, which survives agent
+// restarts and is checked against the current boot and held namespace inode on
+// each operation. Namespace ownership never depends on this adapter's memory.
+func (*pppoeCarrierHost) Persistent() bool { return true }
+
 func (h *pppoeCarrierHost) direct(ctx context.Context, target any, args ...string) error {
 	if h == nil || h.runner == nil {
 		return errors.New("PPPoE kernel helper is unavailable")

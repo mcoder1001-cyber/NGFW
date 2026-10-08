@@ -172,3 +172,22 @@ the namespace reports repair-required. Scheduler can recreate the daemon before
 the pending missing-TAP create. Manager notified; separate correction and regression
 are required. Combined carrier review and final aggregate CI remain pending. This
 is a source failure, not laboratory-only acceptance. No native activation occurred.
+
+### Recovery and product startup correction
+
+The isolated scheduler correction now includes pending planned CREATE prerequisites
+in the topological recreation closure, preserving aliases, absent optional behavior,
+create-once accounting and rollback journaling. Actual namespace descriptor + fresh
+scheduler graph controls now pass for both host-only TAP loss and missing raw VPP
+TAP inventory. Child full scheduler package race passed2.241s; two carrier recovery
+controls passed1.046s. Independent review is pending on this correction.
+
+A broader existing globals-owner Register control exposed two missing TD11b
+ownership declarations. The product guard was correctly refusing startup. Carrier
+TAP now declares VPP tag ownership; namespace CheckPersistent requires a persistent
+host provider, and the packaged adapter declares its fixed disk boot/inode/generation
+ledger. A volatile fake provider is rejected. The actual Register+reachability+
+carrier controls now PASS under race: subsystems2.295s, descriptors1.039s. No guard
+was loosened. Additional runtime membership test verifies automatic-default and
+readiness withdrawal before stop, then restored standalone policy on rollback;
+PASS1.100s. Renderer carrier controls PASS1.020s.

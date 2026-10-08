@@ -514,3 +514,32 @@ func TestIPv6MissingHelperPreservesProcessEvidence(t *testing.T) {
 		t.Fatal("control writer exited before fail-closed assertion")
 	}
 }
+
+func TestIPv6DepartedParentHooksPreserveReplacement(t *testing.T) {
+	x := newIPv6Rig(t, "slaac")
+	if err := x.command(t, "up"); err != nil {
+		t.Fatal(err)
+	}
+	writer := int(x.record(t)["pid"].(float64))
+	departed := exec.Command("sleep", "30")
+	if err := departed.Start(); err != nil {
+		t.Fatal(err)
+	}
+	if err := departed.Process.Kill(); err != nil {
+		t.Fatal(err)
+	}
+	_ = departed.Wait()
+	for _, action := range []string{"up", "down"} {
+		cmd := exec.CommandContext(t.Context(), Python3Bin, x.paths.ipv6Helper(x.host), action, "ppp0", "", "", strconv.Itoa(departed.Process.Pid), x.admission(t)) //nolint:gosec // private fixture
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("departed parent %s: %v %s", action, err, out)
+		}
+		if got := int(x.record(t)["pid"].(float64)); got != writer {
+			t.Fatal("departed parent hook replaced writer")
+		}
+		st, err := x.r.ReadState(x.host, 0, "")
+		if err != nil || st.GetPhase() != "up" {
+			t.Fatalf("departed parent hook overwrote replacement: %v %v", st, err)
+		}
+	}
+}

@@ -169,6 +169,9 @@ func (rt *PppoeRuntime) Reconnect(ctx context.Context, iface string) (accepted b
 		if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"restart", unit}}); err != nil {
 			return fmt.Errorf("pppoe reconnect %s: %w", iface, err)
 		}
+		if err := rt.renderer.CompleteIPv6Transition(s.HostIf); err != nil {
+			return err
+		}
 		rt.log.Info("pppoe reconnect", "interface", iface, "unit", unit)
 		accepted, message = true, "redialing "+iface
 		return nil
@@ -287,6 +290,9 @@ func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) err
 			}
 			if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"restart", "ngfw-pppoe-" + host + ".service"}}); err != nil {
 				return errors.New("PPPoE credential rotation restart failed")
+			}
+			if err := rt.renderer.CompleteIPv6Transition(host); err != nil {
+				return err
 			}
 		}
 

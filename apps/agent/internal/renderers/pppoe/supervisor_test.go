@@ -2,6 +2,7 @@ package pppoe
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -80,5 +81,45 @@ func TestApplySupervisor(t *testing.T) {
 	}
 	if _, err := os.Stat(base + "/etc/ppp/chap-secrets"); !os.IsNotExist(err) {
 		t.Fatal("chap-secrets not removed when no sessions remain")
+	}
+}
+
+func TestApplyIdenticalRetryCompletesFailedTransition(t *testing.T) {
+	for _, failAt := range []string{"daemon-reload", "restart"} {
+		t.Run(failAt, func(t *testing.T) {
+			r := New(WithPaths(PathsUnder(t.TempDir())))
+			rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+			s := minimalSession()
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+				t.Fatal(err)
+			}
+			s.MTU = 1400
+			rr.On(SystemctlBin, func(cmd renderers.Command) (renderers.Output, error) {
+				if cmd.Args[0] == failAt {
+					return renderers.Output{}, errors.New("controlled transition failure")
+				}
+				return renderers.Output{}, nil
+			})
+			if err := r.Apply(t.Context(), rr, []Session{s}); err == nil {
+				t.Fatal("controlled failure was ignored")
+			}
+			rr.Reset()
+			rr.Succeed(SystemctlBin, "")
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(cmds(rr), "|"); got != "stop "+unitName(s.HostIf)+"|daemon-reload|restart "+unitName(s.HostIf) {
+				t.Fatalf("identical retry did not resume transition: %s", got)
+			}
+			for _, suffix := range []string{".ipv6.blocked", ".ipv6.pending"} {
+				if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + suffix); !os.IsNotExist(err) {
+					t.Fatalf("successful retry retained %s", suffix)
+				}
+			}
+			rr.Reset()
+			if err := r.Apply(t.Context(), rr, []Session{s}); err != nil || len(rr.Calls()) != 0 {
+				t.Fatalf("completed transition was not idempotent: %v %v", err, rr.Calls())
+			}
+		})
 	}
 }

@@ -34,6 +34,11 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		peer := r.paths.PeersDir + "/ngfw-" + hostIf
 		unit := r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service"
 		changed[hostIf] = !sameOnDisk(peer, files[peer]) || !sameOnDisk(unit, files[unit])
+		if _, err := os.Stat(r.paths.StateDir + "/" + hostIf + ".ipv6.pending"); err == nil {
+			changed[hostIf] = true
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("pppoe: transition evidence unavailable")
+		}
 		// dhcpv6 -> slaac leaves +ipv6 in the peer unchanged, but changes
 		// the helper/config. Stop the old generation before replacing them.
 		for _, path := range r.sessionFiles(hostIf) {
@@ -131,6 +136,9 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 				return err
 			}
 			if err := r.systemctl(ctx, runner, "restart", unitName(hostIf)); err != nil {
+				return err
+			}
+			if err := r.CompleteIPv6Transition(hostIf); err != nil {
 				return err
 			}
 		}

@@ -27,6 +27,9 @@ func (r *Renderer) StopIPv6(ctx context.Context, hostIf string) error {
 	if err := os.MkdirAll(r.paths.StateDir, 0700); err != nil {
 		return err
 	}
+	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".ipv6.pending"), []byte("pending\n"), 0600); err != nil {
+		return err
+	}
 	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".ipv6.blocked"), []byte("blocked\n"), 0600); err != nil {
 		return err
 	}
@@ -70,6 +73,21 @@ func (r *Renderer) ResumeIPv6(hostIf string) error {
 		return err
 	}
 	if err := os.Remove(filepath.Join(r.paths.StateDir, hostIf+".ipv6.blocked")); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// CompleteIPv6Transition acknowledges successful unit startup. Keeping pending
+// across file replacement, daemon reload and restart errors makes retries converge.
+func (r *Renderer) CompleteIPv6Transition(hostIf string) error {
+	if err := r.paths.Validate(); err != nil {
+		return err
+	}
+	if !hostIfRe.MatchString(hostIf) {
+		return fmt.Errorf("%w: invalid IPv6 session", ErrInput)
+	}
+	if err := os.Remove(filepath.Join(r.paths.StateDir, hostIf+".ipv6.pending")); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

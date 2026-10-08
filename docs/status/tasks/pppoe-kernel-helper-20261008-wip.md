@@ -5,7 +5,7 @@ Owned source: scripts/pppoe-kernel-carrier.py, its focused tests, inert assets i
 scripts/pppoe-carrier-assets, packaging test loader, and this receipt. Parent owns
 Go controller, renderer, VPP topology, readiness and package integration.
 
-26 focused controls pass through the strict packaging discovery seam:
+27 focused controls pass through the strict packaging discovery seam:
 `python3 -m unittest discover -s deploy/debian/ngfw/tests -p test_pppoe_carrier.py -v`
 (0.021 seconds). The controls use fake command executors and temporary files;
 there are no skipped cases. No native namespace/service/route/packet test or CI
@@ -18,7 +18,7 @@ Raw/transit Linux names: `pw`/`pt` plus token's12hex; PPP remains namespace-loca
 ppp0. Root-only ledger under /run/ngfw-pppoe-carrier records full owner/logical,
 boot, random32hex generation, namespace dev/inode and immutable spec. Spec fields
 are exactly owner, logical, parent, mtu, host4, peer4, host6, peer6. Host addresses
-carry /30 IPv4 or /126 IPv6 prefix; peer addresses are bare IPs. MTU1280..1492.
+carry /30 IPv4 or /126 IPv6 prefix; peer addresses are bare IPs. MTU128..1492; below1280 is strictly IPv4-only.
 Known transit overlap and token collision are refused. Host VPP collision checks
 and unique allocation remain parent responsibilities.
 
@@ -121,3 +121,13 @@ per-token writable state. Native acceptance and final source approval remain
 separate. Parent must finish VPP rollback/readback, private renderer/hook switch,
 fixed service packaging and nonce-bound lost-reply handling before claiming source
 completion. No installed host mutation occurred and aggregate CI stays deferred.
+
+## IPv4-only lower MTU compatibility
+
+The source now supports the existing128..1492 public MTU range. Below1280 it
+assigns/verifies only IPv4 transit, disables IPv6 on transit and PPP, sets private
+IPv6 forwarding=0, and refuses an IPv6 default-route request. IPv6 addresses stay
+reserved in immutable spec but are not configured. Parent must likewise omit
+VPP IPv6 transit addresses and reject an enabled IPv6 PPP mode below1280. A
+576-byte control passes real helper readback fixtures with no IPv6 route/address
+commands; silent negotiation below the desired MTU still fails closed.

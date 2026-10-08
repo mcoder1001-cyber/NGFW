@@ -45,7 +45,7 @@ def validate_spec(owner, logical, spec):
     required = {'owner', 'logical', 'parent', 'mtu', 'host4', 'peer4', 'host6', 'peer6'}
     if (set(spec) != required or spec['owner'] != owner or spec['logical'] != logical
             or not NAME.fullmatch(spec['parent']) or spec['parent'] == logical
-            or type(spec['mtu']) is not int or not 1280 <= spec['mtu'] <= 1492):
+            or type(spec['mtu']) is not int or not 128 <= spec['mtu'] <= 1492):
         raise ValueError('invalid immutable carrier specification')
     normalized = dict(spec)
     for family in (4, 6):
@@ -421,6 +421,8 @@ class Carrier:
             self.inside(fd, [SYSCTL, '-q', '-w', f'net.ipv6.conf.{raw}.disable_ipv6=1'])
             self.inside(fd, [IP, '-4', 'address', 'flush', 'dev', raw])
             self.inside(fd, [IP, 'link', 'set', 'dev', raw, 'up'])
+            if record['spec']['mtu'] < 1280:
+                self.inside(fd, [SYSCTL, '-q', '-w', f'net.ipv6.conf.{transit_name}.disable_ipv6=1'])
             self.inside(fd, [IP, 'link', 'set', 'dev', transit_name, 'up'])
             self.inside(fd, [IP, 'link', 'set', 'dev', 'lo', 'up'])
             record['bound'] = bound
@@ -502,7 +504,10 @@ class Carrier:
                 or by_name.get(transit_name, {}).get('mtu') != ppp_mtu):
             raise ValueError('carrier MTU does not match negotiated PPP')
         transit = by_name.get(transit_name, {}).get('addr_info', [])
-        for version in (4, 6):
+        versions = (4,) if record['spec']['mtu'] < 1280 else (4, 6)
+        if versions == (4,) and any(item.get('family') == 'inet6' for item in transit):
+            raise ValueError('IPv4-only transit acquired IPv6 address')
+        for version in versions:
             configured = ipaddress.ip_interface(record['transit']['local' + str(version)])
             if not any(item.get('local') == str(configured.ip) and item.get('prefixlen') == configured.network.prefixlen
                        and not item.get('tentative') and not item.get('dadfailed') for item in transit):
@@ -517,10 +522,14 @@ class Carrier:
                     raise ValueError('carrier default route differs')
         values = {'net.ipv4.ip_forward': '1', 'net.ipv4.conf.all.rp_filter': '0',
                   'net.ipv4.conf.ppp0.rp_filter': '0', f'net.ipv4.conf.{transit_name}.rp_filter': '0',
-                  'net.ipv6.conf.all.forwarding': '1', 'net.ipv6.conf.ppp0.accept_ra': '2',
-                  'net.ipv6.conf.ppp0.autoconf': '1',
-                  'net.ipv6.conf.ppp0.accept_ra_defrtr': '1' if record.get('accept_default_route') else '0',
                   f'net.ipv6.conf.{raw}.disable_ipv6': '1'}
+        if record['spec']['mtu'] < 1280:
+            values.update({'net.ipv6.conf.all.forwarding': '0', 'net.ipv6.conf.ppp0.disable_ipv6': '1',
+                           f'net.ipv6.conf.{transit_name}.disable_ipv6': '1'})
+        else:
+            values.update({'net.ipv6.conf.all.forwarding': '1', 'net.ipv6.conf.ppp0.accept_ra': '2',
+                           'net.ipv6.conf.ppp0.autoconf': '1',
+                           'net.ipv6.conf.ppp0.accept_ra_defrtr': '1' if record.get('accept_default_route') else '0'})
         for key, expected in values.items():
             if self.inside(fd, [SYSCTL, '-n', key]).strip() != expected:
                 raise ValueError('carrier forwarding sysctl differs')
@@ -576,6 +585,8 @@ class Carrier:
         if type(accept_default_route) is not bool:
             raise ValueError('accept_default_route must be boolean')
         record = self.withdraw(token, generation)
+        if record['spec']['mtu'] < 1280 and accept_default_route:
+            raise ValueError('IPv6 policy is unsupported below MTU1280')
         record['accept_default_route'] = accept_default_route
         with self.pinned(token, record) as fd:
             before = self.links(fd, token, record, True)
@@ -591,7 +602,7 @@ class Carrier:
                     raise ValueError('foreign firewall table in carrier namespace')
             self.inside(fd, [IP, 'link', 'set', 'lo', 'up'])
             self.inside(fd, [IP, 'link', 'set', transit_name, 'up'])
-            for version in (4, 6):
+            for version in ((4,) if record['spec']['mtu'] < 1280 else (4, 6)):
                 family = '-' + str(version)
                 address = record['transit']['local' + str(version)]
                 peer = record['transit']['peer' + str(version)]
@@ -622,10 +633,14 @@ class Carrier:
                 self.inside(fd, [IP, family, 'rule', 'add', 'pref', '32766', 'lookup', 'main'])
             self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv4.ip_forward=1',
                              'net.ipv4.conf.all.rp_filter=0', 'net.ipv4.conf.default.rp_filter=0',
-                             'net.ipv4.conf.ppp0.rp_filter=0', f'net.ipv4.conf.{transit_name}.rp_filter=0',
-                             'net.ipv6.conf.all.forwarding=1', 'net.ipv6.conf.ppp0.accept_ra=2',
-                             'net.ipv6.conf.ppp0.autoconf=1',
-                             'net.ipv6.conf.ppp0.accept_ra_defrtr=' + ('1' if accept_default_route else '0')])
+                             'net.ipv4.conf.ppp0.rp_filter=0', f'net.ipv4.conf.{transit_name}.rp_filter=0'])
+            if record['spec']['mtu'] < 1280:
+                self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv6.conf.all.forwarding=0',
+                                 'net.ipv6.conf.ppp0.disable_ipv6=1', f'net.ipv6.conf.{transit_name}.disable_ipv6=1'])
+            else:
+                self.inside(fd, [SYSCTL, '-q', '-w', 'net.ipv6.conf.all.forwarding=1',
+                                 'net.ipv6.conf.ppp0.accept_ra=2', 'net.ipv6.conf.ppp0.autoconf=1',
+                                 'net.ipv6.conf.ppp0.accept_ra_defrtr=' + ('1' if accept_default_route else '0')])
             if self.links(fd, token, record, True) != before:
                 raise ValueError('carrier links changed during configuration')
             self.inside(fd, [NFT, '-f', '-'], nft_policy(True, token))

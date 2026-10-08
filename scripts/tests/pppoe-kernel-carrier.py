@@ -79,9 +79,10 @@ class MemoryCarrier(carrier.Carrier):
             return json.dumps(rows)
         if argv[-2:] == ['address', 'show']:
             return json.dumps([{'ifname': RAW, 'addr_info': []}, {'ifname': 'ppp0', 'mtu': self.ppp_mtu, 'addr_info': [{'local': '192.0.2.10', 'prefixlen': 32}]},
-                               {'ifname': TRANSIT, 'mtu': 1492, 'addr_info': [
-                                   {'local': '169.254.254.2', 'prefixlen': 30},
-                                   {'local': 'fd00:6e67:6677::2', 'prefixlen': 126}]}])
+                               {'ifname': TRANSIT, 'mtu': self.record['spec']['mtu'], 'addr_info': [
+                                   {'local': '169.254.254.2', 'prefixlen': 30, 'family': 'inet'},
+                                   *([{'local': 'fd00:6e67:6677::2', 'prefixlen': 126, 'family': 'inet6'}]
+                                     if self.record['spec']['mtu'] >= 1280 else [])]}])
         if 'route' in argv and 'show' in argv:
             table = argv[-1]
             row = {'dst': 'default', 'dev': TRANSIT if table == '100' else 'ppp0'}
@@ -90,6 +91,7 @@ class MemoryCarrier(carrier.Carrier):
             return json.dumps([row])
         if argv[:2] == [carrier.SYSCTL, '-n']:
             return ('0' if 'rp_filter' in argv[2] or 'accept_ra_defrtr' in argv[2]
+                    or self.record['spec']['mtu'] < 1280 and argv[2] == 'net.ipv6.conf.all.forwarding'
                     else '2' if argv[2].endswith('accept_ra') else '1')
         if argv == [carrier.NFT, '-j', 'list', 'table', 'inet', 'ngfw_ppp']:
             objects = [{'table': {'family': 'inet', 'name': 'ngfw_ppp'}}]
@@ -464,6 +466,18 @@ class CarrierTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'broker must withdraw'):
             c.launch(TOKEN)
         self.assertEqual(c.calls, [])
+
+    def test_ipv4_only_low_mtu_disables_all_ipv6_carrier_configuration(self):
+        c = MemoryCarrier()
+        c.ppp_mtu = 576
+        c.record['spec']['mtu'] = 576
+        c.configure(TOKEN, 'a' * 32)
+        self.assertTrue(c.verify(TOKEN, 'a' * 32)['verified'])
+        self.assertFalse(any(cmd[:2] == [carrier.IP, '-6'] for cmd, _ in c.calls))
+        self.assertTrue(any('net.ipv6.conf.all.forwarding=0' in cmd for cmd, _ in c.calls))
+        self.assertTrue(any('net.ipv6.conf.ppp0.disable_ipv6=1' in cmd for cmd, _ in c.calls))
+        with self.assertRaisesRegex(ValueError, 'IPv6 policy'):
+            c.configure(TOKEN, 'a' * 32, True)
 
     def test_namespace_exec_pins_fd_without_shell(self):
         calls = []

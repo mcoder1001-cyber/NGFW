@@ -1,5 +1,12 @@
 # TD19 offline lab Python closure candidate generation
 
+> Release follow-up: [TD19 release closure](td19-release-20261008-wip.md) now
+> supplies exact production pins, official PyPI artifact provenance, a complete
+> 22-distribution hash lock and reproducible offline wheel preparation. The
+> original helper report below is historical; its missing-input statements are
+> superseded by that follow-up. Ubuntu 26.04 native lab acceptance remains open.
+
+
 The lab installer requires a reviewed complete hash lock but no authoritative release lock is available. The optional builder scripts/lab-python-lock.py makes a candidate reviewable from explicitly pinned direct package inputs and an independently reviewed local wheelhouse. It installs nothing and uses no index. Existing installer defaults remain fail-closed.
 
 Input direct file must contain exactly one name==version entry for pip, robotframework, robotframework-sshlibrary, scapy, pytest and requests. No URLs, directives, markers, floating or duplicate pins. Wheelhouse must contain only bounded regular wheels; symlinks, unsafe ZIP members and direct URL Requires-Dist declarations refuse before pip. A private immutable snapshot feeds trusted current-interpreter pip in isolated mode, configuration disabled, cache disabled, no-index, wheel-only, ignore-installed dry-run. Resolved archive digests must match the snapshot. A second dry-run requires every generated hash and verifies the same full closure.

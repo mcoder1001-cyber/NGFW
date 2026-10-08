@@ -103,17 +103,17 @@ fi
                     if line.strip() and not line.lstrip().startswith('#')
                 }
                 go_commands = [json.loads(line) for line in (root / 'go-commands.jsonl').read_text().splitlines()]
-                self.assertEqual(len(go_commands), 6)
+                self.assertEqual(len(go_commands), 7)
                 for command in go_commands:
                     args = command['args']
                     self.assertEqual(command['cgo'], '0')
                     self.assertEqual(args[:2], ['build', '-trimpath'])
-                    if args[-1] in ['./cmd/ngfw-ra-daemon', './cmd/ngfw-ra-namespace-broker']:
+                    if args[-1] in ['./cmd/ngfw-ra-daemon', './cmd/ngfw-ra-namespace-broker', './cmd/ngfw-wan-probe']:
                         self.assertEqual(args[2:5], ['-ldflags=-s -w', '-o', str(root / 'output/stage/usr/lib/ngfw' / args[-1].split('/')[-1])])
                     else:
                         self.assertEqual(args[2], '-o')
                         self.assertFalse(any(arg.startswith('-ldflags') for arg in args))
-                for helper in ['ngfw-ra-daemon', 'ngfw-ra-namespace-broker']:
+                for helper in ['ngfw-ra-daemon', 'ngfw-ra-namespace-broker', 'ngfw-wan-probe']:
                     staged = root / 'output/stage/usr/lib/ngfw' / helper
                     self.assertEqual(staged.read_bytes(), b'binary')
                     self.assertEqual(staged.stat().st_mode & 0o777, 0o755)

@@ -32,3 +32,5 @@ stage/usr/lib/systemd/system/ngfw-ra-observer@.service usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-observer@.socket usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-namespace-broker.socket usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-namespace-broker@.service usr/lib/systemd/system/
+stage/usr/lib/ngfw/ngfw-wan-probe usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-wan-probe.sha256 usr/lib/ngfw/

@@ -161,3 +161,20 @@ func TestApplyRemovalRetryReloadsDeletedUnit(t *testing.T) {
 		t.Fatalf("completed removal was not idempotent: %v %v", err, rr.Calls())
 	}
 }
+
+func TestApplyRefusesUnavailableTransitionInventory(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	if err := os.MkdirAll(r.paths.StateDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(r.paths.StateDir+"/ipv6-transitions", nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	rr := renderers.NewRecordingRunner().Succeed(SystemctlBin, "")
+	if err := r.Apply(t.Context(), rr, nil); err == nil {
+		t.Fatal("unavailable transition inventory silently accepted")
+	}
+	if len(rr.Calls()) != 0 {
+		t.Fatal("commands ran despite unavailable recovery evidence")
+	}
+}

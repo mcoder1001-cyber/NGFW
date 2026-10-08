@@ -111,9 +111,9 @@ func TestApplyIdenticalRetryCompletesFailedTransition(t *testing.T) {
 			if got := strings.Join(cmds(rr), "|"); got != "stop "+unitName(s.HostIf)+"|daemon-reload|restart "+unitName(s.HostIf) {
 				t.Fatalf("identical retry did not resume transition: %s", got)
 			}
-			for _, suffix := range []string{".ipv6.blocked", ".ipv6.pending"} {
-				if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + suffix); !os.IsNotExist(err) {
-					t.Fatalf("successful retry retained %s", suffix)
+			for _, path := range []string{r.paths.StateDir + "/" + s.HostIf + ".ipv6.blocked", r.paths.StateDir + "/ipv6-transitions/" + s.HostIf} {
+				if _, err := os.Stat(path); !os.IsNotExist(err) {
+					t.Fatalf("successful retry retained %s", path)
 				}
 			}
 			rr.Reset()
@@ -148,8 +148,13 @@ func TestApplyRemovalRetryReloadsDeletedUnit(t *testing.T) {
 	if got := strings.Join(cmds(rr), "|"); got != "daemon-reload" {
 		t.Fatalf("removed unit retry did not reload: %s", got)
 	}
-	if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + ".ipv6.pending"); !os.IsNotExist(err) {
+	if _, err := os.Stat(r.paths.StateDir + "/ipv6-transitions/" + s.HostIf); !os.IsNotExist(err) {
 		t.Fatal("successful removal retained pending transition")
+	}
+	for _, suffix := range []string{".ipv6.blocked", ".ipv6.admission"} {
+		if _, err := os.Stat(r.paths.StateDir + "/" + s.HostIf + suffix); !os.IsNotExist(err) {
+			t.Fatalf("successful removal retained tombstone %s", suffix)
+		}
 	}
 	rr.Reset()
 	if err := r.Apply(t.Context(), rr, nil); err != nil || len(rr.Calls()) != 0 {

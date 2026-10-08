@@ -34,7 +34,7 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 		peer := r.paths.PeersDir + "/ngfw-" + hostIf
 		unit := r.paths.UnitDir + "/ngfw-pppoe-" + hostIf + ".service"
 		changed[hostIf] = !sameOnDisk(peer, files[peer]) || !sameOnDisk(unit, files[unit])
-		if _, err := os.Stat(r.paths.StateDir + "/" + hostIf + ".ipv6.pending"); err == nil {
+		if _, err := os.Stat(r.paths.StateDir + "/ipv6-transitions/" + hostIf); err == nil {
 			changed[hostIf] = true
 		} else if !os.IsNotExist(err) {
 			return fmt.Errorf("pppoe: transition evidence unavailable")
@@ -135,6 +135,9 @@ func (r *Renderer) Apply(ctx context.Context, runner renderers.Runner, sessions 
 	}
 	for hostIf := range stale {
 		if !want[hostIf] {
+			if err := r.ForgetIPv6Admission(hostIf); err != nil {
+				return err
+			}
 			if err := r.CompleteIPv6Transition(hostIf); err != nil {
 				return err
 			}
@@ -191,10 +194,10 @@ func (r *Renderer) installedHostIfs() map[string]bool {
 	out := map[string]bool{}
 	// Removed units retain pending evidence until daemon-reload succeeds.
 	// Include that inventory even after their unit files have been deleted.
-	pending, _ := os.ReadDir(r.paths.StateDir)
+	pending, _ := os.ReadDir(r.paths.StateDir + "/ipv6-transitions")
 	for _, e := range pending {
-		if host, ok := strings.CutSuffix(e.Name(), ".ipv6.pending"); ok && hostIfRe.MatchString(host) {
-			out[host] = true
+		if hostIfRe.MatchString(e.Name()) {
+			out[e.Name()] = true
 		}
 	}
 	entries, err := os.ReadDir(r.paths.UnitDir)

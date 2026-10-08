@@ -27,7 +27,10 @@ func (r *Renderer) StopIPv6(ctx context.Context, hostIf string) error {
 	if err := os.MkdirAll(r.paths.StateDir, 0700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".ipv6.pending"), []byte("pending\n"), 0600); err != nil {
+	if err := os.MkdirAll(filepath.Join(r.paths.StateDir, "ipv6-transitions"), 0700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(r.paths.StateDir, "ipv6-transitions", hostIf), []byte("pending\n"), 0600); err != nil {
 		return err
 	}
 	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".ipv6.blocked"), []byte("blocked\n"), 0600); err != nil {
@@ -87,8 +90,26 @@ func (r *Renderer) CompleteIPv6Transition(hostIf string) error {
 	if !hostIfRe.MatchString(hostIf) {
 		return fmt.Errorf("%w: invalid IPv6 session", ErrInput)
 	}
-	if err := os.Remove(filepath.Join(r.paths.StateDir, hostIf+".ipv6.pending")); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(filepath.Join(r.paths.StateDir, "ipv6-transitions", hostIf)); err != nil && !os.IsNotExist(err) {
 		return err
+	}
+	return nil
+}
+
+// ForgetIPv6Admission retires removed-session tombstones only after verified
+// writer shutdown, unit stop, file removal and successful daemon reload. A queued
+// hook then lacks admission; recreating the host allocates a fresh random token.
+func (r *Renderer) ForgetIPv6Admission(hostIf string) error {
+	if err := r.paths.Validate(); err != nil {
+		return err
+	}
+	if !hostIfRe.MatchString(hostIf) {
+		return fmt.Errorf("%w: invalid IPv6 session", ErrInput)
+	}
+	for _, suffix := range []string{".ipv6.admission", ".ipv6.blocked"} {
+		if err := os.Remove(filepath.Join(r.paths.StateDir, hostIf+suffix)); err != nil && !os.IsNotExist(err) {
+			return err
+		}
 	}
 	return nil
 }

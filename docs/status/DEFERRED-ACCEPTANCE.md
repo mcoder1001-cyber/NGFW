@@ -4,14 +4,18 @@ Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without wa
 
 ## Current completion campaign — 2026-10-09
 
-The source inventory below contains historical snapshots. The current source and
-review ledger is [completion-20261008-wip.md](tasks/completion-20261008-wip.md)
-and the reopened rows in `plan/tasks.yaml`. Reviewed credential source is staged in the completion branch. PPP carrier/PD/VLAN
-source has also been consolidated, including corrections to observation-failure withdrawal, NCP evidence binding and
-WAN transaction ordering. Final independent receipts, CI and merge remain required;
-they are not deferred laboratory tests. Final cumulative generation, security review and unchanged
-hosted quick/fixture gates also remain mandatory. Product license authority is
-a separate release input, not laboratory acceptance.
+Accepted source is integrated through [PR214](https://github.com/mcoder1001-cyber/NGFW/pull/214), main `d58db1a673d716ebcf595a9e49847a54991c58da`,
+with complete quick and fixture gates PASS on candidate `30de26ee6a5697a3713fe4375399b86c5588a472`. See
+[final report](2026-10-09-completion.md) and [CI receipt](tasks/completion-ci-20261009.md).
+The board has205 merged/7 parked; source completion does not certify native acceptance.
+Historical TD19 missing pins, disabled wizard PPPoE and absent dynamic DHCP/PPP
+handoff statements below describe older snapshots: their source work is now integrated.
+Historical CI waivers do not describe this campaign: the unchanged final gate passed.
+Product license authority remains a separate release input.
+
+Known prior negative target receipts are not erased: RA supplier/post-ACK identity
+and P12 mgmtd startup at the30-second deadline before200 routes require diagnosis,
+any necessary fixes and rerun. All cumulative-candidate native acceptance remains unverified.
 
 The following additional native cases belong to the final laboratory campaign;
 all are **NOT RUN** on the completion candidate:

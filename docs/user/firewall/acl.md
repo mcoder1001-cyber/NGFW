@@ -1,6 +1,6 @@
 # Access lists — L3/L4 ACLs, MACIP ACLs, attachments, hit counters
 
-**Screen:** *Firewall → ACL* (`/firewall/acl`, tabs `?tab=lists|rules|attachments|macip`, a list's rule editor at
+**Screen:** *Firewall → Policies* (`/firewall/policies`; legacy `/firewall/acl` remains supported; tabs `?tab=lists|rules|attachments|macip`, a list's rule editor at
 `?tab=rules&list=<name>`). **REST:** the generic configuration routes under `/api/v1/config/acl/…`, plus
 `GET /api/v1/state/acl/lists`, `GET /api/v1/state/acl/lists/{name}/rules`, `GET /api/v1/state/acl/attachments`,
 `POST /api/v1/actions/acl/import`, `GET /api/v1/actions/acl/export.csv`, `POST /api/v1/actions/acl/lists/{name}/rules/bulk`.

@@ -1,0 +1,10 @@
+#!/usr/bin/python3
+"""Fixed private PPP hook dispatcher; arguments never enter a shell."""
+import os
+import subprocess
+import sys
+
+subprocess.run(['/usr/bin/run-parts', '--exit-on-error',
+                *['--arg=' + value for value in sys.argv[1:]],
+                '/etc/ppp/ipv6-up.d'], check=True,
+               env={**os.environ, 'PATH': '/usr/sbin:/usr/bin:/sbin:/bin'})

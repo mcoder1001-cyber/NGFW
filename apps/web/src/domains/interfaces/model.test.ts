@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { adminStatus, createMergePatch, dropPhantomOptionals, interfaceFormSchema, linkStatus, subinterfaceSchema, type LiveState } from './model';
+import {
+  adminStatus,
+  createMergePatch,
+  dropPhantomOptionals,
+  interfaceFormSchema,
+  localizeSchema,
+  linkStatus,
+  subinterfaceSchema,
+  type LiveState,
+} from './model';
 import { foldRates, stepRates } from './rates';
 
 describe('interfaces model', () => {
@@ -10,15 +19,32 @@ describe('interfaces model', () => {
 
   it('form schema is the generated interface item without subinterfaces; sub-interface schema has vlanId', () => {
     const f = interfaceFormSchema();
-    expect(Object.keys(f.properties ?? {})).toEqual(expect.arrayContaining(['enabled', 'mtu', 'ipv4', 'ipv6', 'vrf', 'description']));
+    expect(Object.keys(f.properties ?? {})).toEqual(
+      expect.arrayContaining(['enabled', 'mtu', 'ipv4', 'ipv6', 'vrf', 'description']),
+    );
     expect(Object.keys(f.properties ?? {})).not.toContain('subinterfaces');
-    expect(Object.keys(subinterfaceSchema().properties ?? {})).toEqual(expect.arrayContaining(['vlanId', 'enabled', 'ipv4']));
+    expect(Object.keys(subinterfaceSchema().properties ?? {})).toEqual(
+      expect.arrayContaining(['vlanId', 'enabled', 'ipv4']),
+    );
   });
 
   it('createMergePatch removes cleared members with null, recurses into objects, replaces arrays', () => {
-    const from = { enabled: true, mtu: 1400, ipv4: ['10.1.1.1/24'], dhcpClient: { hostname: 'a', setBroadcastFlag: false } };
-    const to = { enabled: true, ipv4: ['10.1.1.1/24', '10.1.3.1/24'], dhcpClient: { setBroadcastFlag: true } };
-    expect(createMergePatch(from, to)).toEqual({ mtu: null, ipv4: ['10.1.1.1/24', '10.1.3.1/24'], dhcpClient: { hostname: null, setBroadcastFlag: true } });
+    const from = {
+      enabled: true,
+      mtu: 1400,
+      ipv4: ['10.1.1.1/24'],
+      dhcpClient: { hostname: 'a', setBroadcastFlag: false },
+    };
+    const to = {
+      enabled: true,
+      ipv4: ['10.1.1.1/24', '10.1.3.1/24'],
+      dhcpClient: { setBroadcastFlag: true },
+    };
+    expect(createMergePatch(from, to)).toEqual({
+      mtu: null,
+      ipv4: ['10.1.1.1/24', '10.1.3.1/24'],
+      dhcpClient: { hostname: null, setBroadcastFlag: true },
+    });
     expect(createMergePatch(from, from)).toEqual({});
     expect(createMergePatch(undefined, { enabled: false })).toEqual({ enabled: false });
   });
@@ -27,25 +53,75 @@ describe('interfaces model', () => {
     const s = (adminUp: boolean, linkUp: boolean) => ({ adminUp, linkUp }) as LiveState;
     expect([adminStatus(s(true, true)), linkStatus(s(true, true))]).toEqual(['up', 'up']);
     expect([adminStatus(s(true, false)), linkStatus(s(true, false))]).toEqual(['up', 'down']);
-    expect([adminStatus(s(false, false)), linkStatus(s(false, true))]).toEqual(['adminDown', 'adminDown']);
+    expect([adminStatus(s(false, false)), linkStatus(s(false, true))]).toEqual([
+      'adminDown',
+      'adminDown',
+    ]);
     expect(linkStatus(null)).toBeUndefined();
   });
 });
 
 describe('rates from iface.counters', () => {
-  const c = (rxP: number, rxB: number) => ({ name: 'host-w1l0', rxPackets: String(rxP), rxBytes: String(rxB), txPackets: '0', txBytes: '0' });
+  const c = (rxP: number, rxB: number) => ({
+    name: 'host-w1l0',
+    rxPackets: String(rxP),
+    rxBytes: String(rxB),
+    txPackets: '0',
+    txBytes: '0',
+  });
 
   it('bits/s and packets/s from consecutive absolute samples; history for the sparkline', () => {
     const last = new Map();
-    let r = foldRates(last, new Map(), { ts: '2026-09-24T00:00:00.000Z', interfaces: [c(100, 10_000)] }, 0);
+    let r = foldRates(
+      last,
+      new Map(),
+      { ts: '2026-09-24T00:00:00.000Z', interfaces: [c(100, 10_000)] },
+      0,
+    );
     expect(r.size).toBe(0); // one sample is no rate
     r = foldRates(last, r, { ts: '2026-09-24T00:00:02.000Z', interfaces: [c(300, 30_000)] }, 0);
-    expect(r.get('host-w1l0')).toMatchObject({ rxPps: 100, rxBps: 80_000, txPps: 0, history: [100] });
+    expect(r.get('host-w1l0')).toMatchObject({
+      rxPps: 100,
+      rxBps: 80_000,
+      txPps: 0,
+      history: [100],
+    });
     r = foldRates(last, r, { ts: '2026-09-24T00:00:03.000Z', interfaces: [c(310, 31_000)] }, 0);
     expect(r.get('host-w1l0')?.history).toEqual([100, 10]);
   });
 
   it('a counter that went backwards (interface re-created) yields no rate', () => {
-    expect(stepRates({ at: 0, rxB: 10, txB: 0, rxP: 5, txP: 0 }, { at: 1000, rxB: 1, txB: 0, rxP: 1, txP: 0 })).toBeUndefined();
+    expect(
+      stepRates(
+        { at: 0, rxB: 10, txB: 0, rxP: 5, txP: 0 },
+        { at: 1000, rxB: 1, txB: 0, rxP: 1, txP: 0 },
+      ),
+    ).toBeUndefined();
+  });
+});
+
+describe('PPP delegated LAN form contract', () => {
+  it('exposes editable target array and localizes nested LAN/subnet fields', () => {
+    const schema = localizeSchema(
+      interfaceFormSchema(),
+      (key, options) =>
+        ({
+          'field.pppoe.delegationTargets.title': 'شبکه‌های محلی IPv6 تفویض‌شده',
+          'field.pppoe.delegationTargets.interface.title': 'رابط شبکه محلی',
+          'field.pppoe.delegationTargets.subnetId.title': 'شناسه زیرشبکه',
+        })[key] ?? String(options?.defaultValue ?? key),
+    );
+    const ppp = schema.properties?.pppoe;
+    const targets = ppp?.properties?.delegationTargets;
+    expect(targets?.type).toBe('array');
+    expect(targets?.title).toBe('شبکه‌های محلی IPv6 تفویض‌شده');
+    expect(targets?.items?.properties?.interface?.title).toBe('رابط شبکه محلی');
+    expect(targets?.items?.properties?.subnetId?.title).toBe('شناسه زیرشبکه');
+    expect(
+      createMergePatch(
+        { pppoe: { delegationTargets: [] } },
+        { pppoe: { delegationTargets: [{ interface: 'lan0', subnetId: 7 }] } },
+      ),
+    ).toEqual({ pppoe: { delegationTargets: [{ interface: 'lan0', subnetId: 7 }] } });
   });
 });

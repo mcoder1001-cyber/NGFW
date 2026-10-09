@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"encoding/base64"
+	"ngfw/agent/internal/subsystems"
 	"os"
 	"path/filepath"
 	"strings"
@@ -101,5 +103,60 @@ func TestDryRunSecretsRestoreConfirmedBindings(t *testing.T) {
 	}
 	if cache.Active() != id || len(req.SecretBundle.Values) != 0 {
 		t.Fatal("validation mutated active secrets or retained plaintext")
+	}
+}
+
+func TestWireguardSecretServiceDryRunApplyRevertRestart(t *testing.T) {
+	dir := t.TempDir()
+	s := newSvc(t, coretest.New(), dir)
+	cache, err := secretchannel.Open(dir, s.owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.secrets = cache
+	if err = subsystems.SetWireguardSecrets(s.owner, cache.WireguardRef, cache.ResolveWireguard); err != nil {
+		t.Fatal(err)
+	}
+	bundle := func(label string) *ngfwv1.SecretBundle {
+		return &ngfwv1.SecretBundle{Values: map[string][]byte{"key/w7-site-a": []byte(base64.StdEncoding.EncodeToString(wgVector(label))), "psk/w7-b1": []byte(base64.StdEncoding.EncodeToString(wgVector("psk" + label)))}}
+	}
+	ds := doc(t, wgDoc(t))
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "wg-sealed-first", DesiredState: ds, Subsystems: allDomains, SecretBundle: bundle("first")}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	old, err := subsystems.WireguardSecretsFor(s.owner).Ref("key/w7-site-a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	dry, err := s.DryRun(context.Background(), &ngfwv1.DryRunRequest{DesiredState: ds, Subsystems: allDomains, SecretBundle: bundle("dry")})
+	if err != nil || !dry.GetOk() {
+		t.Fatal(dry, err)
+	}
+	after, _ := subsystems.WireguardSecretsFor(s.owner).Ref("key/w7-site-a")
+	if after != old {
+		t.Fatal("dry-run changed active WG key")
+	}
+	mustStatus(t, apply(t, s, &ngfwv1.ApplyRequest{TxnId: "wg-sealed-next", DesiredState: ds, Subsystems: allDomains, SecretBundle: bundle("next"), ConfirmTimeoutSec: 600}), ngfwv1.ApplyStatus_APPLY_STATUS_APPLIED)
+	next, _ := subsystems.WireguardSecretsFor(s.owner).Ref("key/w7-site-a")
+	if next == old {
+		t.Fatal("rotation unchanged")
+	}
+	s.revert("wg-sealed-next")
+	after, err = subsystems.WireguardSecretsFor(s.owner).Ref("key/w7-site-a")
+	if err != nil || after != old {
+		t.Fatal("confirm revert did not restore WG key", err)
+	}
+	restored, err := secretchannel.Open(dir, s.owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted, err := NewService(ServiceConfig{Owner: s.owner, VPP: s.vpp, Scheduler: s.sched, StateDir: dir, SecretCache: restored})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = subsystems.SetWireguardSecrets(s.owner, restored.WireguardRef, restored.ResolveWireguard); err != nil {
+		t.Fatal(err)
+	}
+	after, err = subsystems.WireguardSecretsFor(s.owner).Ref("key/w7-site-a")
+	if err != nil || after != old || restarted.secrets.Active() != s.st.meta.SecretBundle {
+		t.Fatal("restart lost WG generation", err)
 	}
 }

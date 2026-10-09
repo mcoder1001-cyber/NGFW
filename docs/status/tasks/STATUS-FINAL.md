@@ -1,4 +1,9 @@
-# STATUS-FINAL — reviewed source reconciliation
+# STATUS-FINAL — historical reviewed source reconciliation
+
+> This report describes the earlier six-task campaign. It is not the final result of
+> the October 8–9 completion campaign. See [current completion ledger](completion-20261008-wip.md)
+> and the current board for source integration, CI and remaining acceptance. References
+> to other workers and open source below are historical, not a live-worker inventory.
 
 The six-task campaign produced the reviewed traffic-C acceptance harness,
 a private freeze runner, deterministic user/source documentation and security

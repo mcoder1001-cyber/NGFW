@@ -174,7 +174,7 @@ for name in ('backups','updates','support'):
         self.assertIn('Requires=vpp.service', agent)
         self.assertIn('Environment=NGFW_VPP_ID_RANGE=all', agent)
         self.assertNotIn('NGFW_VPP_TABLE_BASE=', agent)
-        self.assertIn('CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK', agent)
+        self.assertIn('CapabilityBoundingSet=CAP_NET_ADMIN CAP_SYS_ADMIN CAP_IPC_LOCK CAP_CHOWN CAP_DAC_OVERRIDE\n', agent)
         self.assertIn('AF_NETLINK', agent)
         self.assertIn('/etc/ngfw/rsyslog-tls', agent)
         self.assertIn('/var/lib/ngfw/captures', agent)

@@ -1,0 +1,8 @@
+syntax = "proto3";
+package ngfw.agent.iface;
+option go_package = "ngfw/agent/internal/descriptors/interface;iface";
+// Unnumbered borrows both address families from the donor interface.
+message Unnumbered {
+  string interface = 1;
+  string donor = 2;
+}

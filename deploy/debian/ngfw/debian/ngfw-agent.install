@@ -32,3 +32,14 @@ stage/usr/lib/systemd/system/ngfw-ra-observer@.service usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-observer@.socket usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-namespace-broker.socket usr/lib/systemd/system/
 stage/usr/lib/systemd/system/ngfw-ra-namespace-broker@.service usr/lib/systemd/system/
+
+assets/provision-system-identity.py usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-wan-probe usr/lib/ngfw/
+stage/usr/lib/ngfw/ngfw-wan-probe.sha256 usr/lib/ngfw/
+
+# Fixed PPP carrier; templates are installed without enable/start.
+stage/usr/lib/ngfw/pppoe-carrier.py usr/lib/ngfw/
+stage/usr/lib/ngfw/pppoe-carrier-hooks/* usr/lib/ngfw/pppoe-carrier-hooks/
+stage/usr/lib/systemd/system/ngfw-pppoe-carrier@.service usr/lib/systemd/system/
+stage/usr/lib/systemd/system/ngfw-pppoe-broker@.service usr/lib/systemd/system/
+stage/usr/lib/tmpfiles.d/ngfw-pppoe-carrier.conf usr/lib/tmpfiles.d/

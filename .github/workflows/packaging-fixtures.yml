@@ -12,6 +12,9 @@ on:
       - 'deploy/vpp/**'
       - 'scripts/publish-apt.sh'
       - 'scripts/10-install-runtime.sh'
+      - 'scripts/pppoe-kernel-carrier.py'
+      - 'scripts/pppoe-carrier-assets/**'
+      - 'scripts/tests/pppoe-kernel-carrier.py'
       - 'apps/agent/internal/renderers/rsyslog/paths.go'
       - 'apps/agent/internal/actions/capture-trace/capture.go'
   push:
@@ -25,6 +28,9 @@ on:
       - 'deploy/vpp/**'
       - 'scripts/publish-apt.sh'
       - 'scripts/10-install-runtime.sh'
+      - 'scripts/pppoe-kernel-carrier.py'
+      - 'scripts/pppoe-carrier-assets/**'
+      - 'scripts/tests/pppoe-kernel-carrier.py'
       - 'apps/agent/internal/renderers/rsyslog/paths.go'
       - 'apps/agent/internal/actions/capture-trace/capture.go'
   workflow_dispatch:

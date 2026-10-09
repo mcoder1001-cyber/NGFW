@@ -151,7 +151,11 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
-exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+# Capture admission before waiting for the helper action lock. Reopening a
+# transition rotates this token, so a queued old hook cannot become admitted.
+admission=""
+IFS= read -r admission < "/srv/run/ngfw/pppoe"/wan0.ipv6.admission || exit 0
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}" "$admission"
 
 ### /etc/ppp/ipv6-down.d/ngfw-wan2 mode=-rwxr-xr-x
 #!/bin/sh
@@ -162,7 +166,11 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
-exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+# Capture admission before waiting for the helper action lock. Reopening a
+# transition rotates this token, so a queued old hook cannot become admitted.
+admission=""
+IFS= read -r admission < "/srv/run/ngfw/pppoe"/wan2.ipv6.admission || exit 0
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" down "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}" "$admission"
 
 ### /etc/ppp/ipv6-up.d/ngfw-wan0 mode=-rwxr-xr-x
 #!/bin/sh
@@ -173,7 +181,11 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan0" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
-exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+# Capture admission before waiting for the helper action lock. Reopening a
+# transition rotates this token, so a queued old hook cannot become admitted.
+admission=""
+IFS= read -r admission < "/srv/run/ngfw/pppoe"/wan0.ipv6.admission || exit 0
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan0" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}" "$admission"
 
 ### /etc/ppp/ipv6-up.d/ngfw-wan2 mode=-rwxr-xr-x
 #!/bin/sh
@@ -184,7 +196,11 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = "ngfw-wan2" ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
-exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+# Capture admission before waiting for the helper action lock. Reopening a
+# transition rotates this token, so a queued old hook cannot become admitted.
+admission=""
+IFS= read -r admission < "/srv/run/ngfw/pppoe"/wan2.ipv6.admission || exit 0
+exec /usr/bin/python3 "/srv/etc/ppp/ngfw-ipv6-wan2" up "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}" "$admission"
 
 ### /etc/ppp/ngfw-dhcp6-wan2 mode=-rwxr-xr-x
 #!/bin/sh
@@ -235,6 +251,8 @@ STATE = ROOT / (HOST + ".state6")
 PID = ROOT / (HOST + ".ipv6.pid")
 PD = ROOT / (HOST + ".pd")
 LOCK = ROOT / (HOST + ".ipv6.lock")
+BLOCKED = ROOT / (HOST + ".ipv6.blocked")
+ADMISSION = ROOT / (HOST + ".ipv6.admission")
 stopping = False
 
 
@@ -398,13 +416,28 @@ def collect(iface):
             lines.append("gw=" + parts[2])
             break
     try:
-        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+        lines += [row for row in PD.read_text().splitlines() if row.startswith(("pd=", "pd_valid_until=", "pd_preferred_until=", "pd_generation="))]
     except FileNotFoundError:
         pass
     return lines
 
 
-def refresh(generation, iface, ll, peer, pppd):
+def parent_fd(pppd):
+    # Capture once at admission. Never reinterpret a recycled numeric PID.
+    if not pppd or not pppd.isdecimal() or int(pppd) <= 1:
+        raise Failure("ipv6-parent-identity-invalid")
+    try:
+        fd = os.pidfd_open(int(pppd))
+        if identity(int(pppd)) is None or select.select([fd], [], [], 0)[0]:
+            os.close(fd)
+            raise Failure("ipv6-parent-unavailable")
+        return fd
+    except ProcessLookupError as exc:
+        raise Failure("ipv6-parent-unavailable") from exc
+
+
+def refresh(generation, iface, ll, peer, pppd, parent):
+    parent = int(parent)
     signal.signal(signal.SIGTERM, lambda *_: globals().__setitem__("stopping", True))
     signal.signal(signal.SIGINT, lambda *_: globals().__setitem__("stopping", True))
     child, child_fd, error, ready = None, None, "", False
@@ -417,7 +450,8 @@ def refresh(generation, iface, ll, peer, pppd):
                 try:
                     args = [DHCPCD, "-B", "-f", CONF, iface]
                     child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation,
+                                                      NGFW_PPPOE_PD_ADMISSION=record().get("admission", "")))
                     child_fd = os.pidfd_open(child.pid)
                     item = record()
                     item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
@@ -426,7 +460,7 @@ def refresh(generation, iface, ll, peer, pppd):
                 except OSError as exc:
                     raise Failure("dhcpv6-client-unavailable") from exc
         while not stopping:
-            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or (pppd and identity(int(pppd)) is None):
+            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or select.select([parent], [], [], 0)[0]:
                 break
             if child is not None and child.poll() is not None:
                 raise Failure("dhcpv6-client-exited")
@@ -450,6 +484,7 @@ def refresh(generation, iface, ll, peer, pppd):
         if not ready:
             print("FAIL:" + error, flush=True)
     finally:
+        os.close(parent)
         if child_fd is not None:
             try:
                 terminate(child_fd)
@@ -469,7 +504,26 @@ def refresh(generation, iface, ll, peer, pppd):
                     PD.unlink(missing_ok=True)
 
 
-def up(iface, ll, peer, pppd):
+def up(iface, ll, peer, pppd, admission):
+    # The action lock also covers admission. A stopped transition stays fenced
+    # until the supervisor has stopped pppd and installed the replacement.
+    if BLOCKED.exists() or not admission or ADMISSION.read_text().strip() != admission:
+        return
+    try:
+        parent = parent_fd(pppd)
+    except Failure as exc:
+        if str(exc) == "ipv6-parent-unavailable":
+            # A hook queued until after its old pppd died must not overwrite
+            # replacement operational state with an admission failure.
+            return
+        raise
+    try:
+        start(iface, ll, peer, pppd, parent, admission)
+    finally:
+        os.close(parent)
+
+
+def start(iface, ll, peer, pppd, parent, admission):
     stop()
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
@@ -483,10 +537,10 @@ def up(iface, ll, peer, pppd):
     except (OSError, subprocess.SubprocessError) as exc:
         raise Failure("ipv6-setup-failed") from exc
     generation = uuid.uuid4().hex
-    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd]
+    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd, str(parent)]
     with locked():
-        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, pass_fds=(parent,))
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation, "admission": admission}))
         PD.unlink(missing_ok=True)
     poll = select.poll()
     poll.register(child.stdout, select.POLLIN | select.POLLHUP)
@@ -505,7 +559,9 @@ def main():
     if action == "event":
         generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
         with locked():
-            if not generation or not current(generation):
+            admission = os.environ.get("NGFW_PPPOE_PD_ADMISSION", "")
+            if (not generation or not current(generation) or not admission or BLOCKED.exists() or
+                    record().get("admission") != admission or ADMISSION.read_text().strip() != admission):
                 return
             reason = os.environ.get("reason", "")
             if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
@@ -516,19 +572,34 @@ def main():
                 length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
                 try:
                     if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        PD.unlink(missing_ok=True)
                         return
                     network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
-                    atomic(PD, "pd=" + str(network) + "\n")
-                except ValueError:
+                    valid = os.environ.get("new_dhcp6_ia_pd1_prefix1_vltime", "")
+                    preferred = os.environ.get("new_dhcp6_ia_pd1_prefix1_pltime", "")
+                    # Admission is inherited from this exact refresher, never rebound at event time.
+                    if (not valid.isdecimal() or not preferred.isdecimal() or
+                            not 0 < int(preferred) <= int(valid) <= 4294967295 or
+                            BLOCKED.exists() or not admission):
+                        PD.unlink(missing_ok=True)
+                        return
+                    now = int(time.time())
+                    atomic(PD, "pd=" + str(network) + "\n" +
+                           "pd_valid_until=" + str(now + int(valid)) + "\n" +
+                           "pd_preferred_until=" + str(now + int(preferred)) + "\n" +
+                           "pd_generation=" + admission + "\n")
+                except (ValueError, OSError):
+                    PD.unlink(missing_ok=True)
                     return
         return
     if action == "stop":
+        atomic(BLOCKED, "blocked\n")
         stop()
         return
     if action == "refresh":
         refresh(*sys.argv[2:])
         return
-    iface, ll, peer, pppd = sys.argv[2:]
+    iface, ll, peer, pppd, admission = sys.argv[2:]
     if not iface or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in iface):
         raise Failure("ipv6-interface-invalid")
     if pppd and (not pppd.isdecimal() or int(pppd) <= 1):
@@ -538,8 +609,13 @@ def main():
     since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         if action == "up":
-            up(iface, ll, peer, pppd)
+            up(iface, ll, peer, pppd, admission)
         else:
+            if not admission or ADMISSION.read_text().strip() != admission:
+                return
+            old = record()
+            if old and old.get("argv", [])[7:8] != [pppd]:
+                return
             stop()
             with locked():
                 state("down", iface, ll, peer, since)
@@ -592,6 +668,8 @@ STATE = ROOT / (HOST + ".state6")
 PID = ROOT / (HOST + ".ipv6.pid")
 PD = ROOT / (HOST + ".pd")
 LOCK = ROOT / (HOST + ".ipv6.lock")
+BLOCKED = ROOT / (HOST + ".ipv6.blocked")
+ADMISSION = ROOT / (HOST + ".ipv6.admission")
 stopping = False
 
 
@@ -755,13 +833,28 @@ def collect(iface):
             lines.append("gw=" + parts[2])
             break
     try:
-        lines += [row for row in PD.read_text().splitlines() if row.startswith("pd=")]
+        lines += [row for row in PD.read_text().splitlines() if row.startswith(("pd=", "pd_valid_until=", "pd_preferred_until=", "pd_generation="))]
     except FileNotFoundError:
         pass
     return lines
 
 
-def refresh(generation, iface, ll, peer, pppd):
+def parent_fd(pppd):
+    # Capture once at admission. Never reinterpret a recycled numeric PID.
+    if not pppd or not pppd.isdecimal() or int(pppd) <= 1:
+        raise Failure("ipv6-parent-identity-invalid")
+    try:
+        fd = os.pidfd_open(int(pppd))
+        if identity(int(pppd)) is None or select.select([fd], [], [], 0)[0]:
+            os.close(fd)
+            raise Failure("ipv6-parent-unavailable")
+        return fd
+    except ProcessLookupError as exc:
+        raise Failure("ipv6-parent-unavailable") from exc
+
+
+def refresh(generation, iface, ll, peer, pppd, parent):
+    parent = int(parent)
     signal.signal(signal.SIGTERM, lambda *_: globals().__setitem__("stopping", True))
     signal.signal(signal.SIGINT, lambda *_: globals().__setitem__("stopping", True))
     child, child_fd, error, ready = None, None, "", False
@@ -774,7 +867,8 @@ def refresh(generation, iface, ll, peer, pppd):
                 try:
                     args = [DHCPCD, "-B", "-f", CONF, iface]
                     child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation))
+                                             env=dict(os.environ, NGFW_PPPOE_IPV6_GENERATION=generation,
+                                                      NGFW_PPPOE_PD_ADMISSION=record().get("admission", "")))
                     child_fd = os.pidfd_open(child.pid)
                     item = record()
                     item["child"] = {"pid": child.pid, "start": identity(child.pid), "argv": args,
@@ -783,7 +877,7 @@ def refresh(generation, iface, ll, peer, pppd):
                 except OSError as exc:
                     raise Failure("dhcpv6-client-unavailable") from exc
         while not stopping:
-            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or (pppd and identity(int(pppd)) is None):
+            if not (SYSCTL / iface).is_dir() or not HOOK.exists() or select.select([parent], [], [], 0)[0]:
                 break
             if child is not None and child.poll() is not None:
                 raise Failure("dhcpv6-client-exited")
@@ -807,6 +901,7 @@ def refresh(generation, iface, ll, peer, pppd):
         if not ready:
             print("FAIL:" + error, flush=True)
     finally:
+        os.close(parent)
         if child_fd is not None:
             try:
                 terminate(child_fd)
@@ -826,7 +921,26 @@ def refresh(generation, iface, ll, peer, pppd):
                     PD.unlink(missing_ok=True)
 
 
-def up(iface, ll, peer, pppd):
+def up(iface, ll, peer, pppd, admission):
+    # The action lock also covers admission. A stopped transition stays fenced
+    # until the supervisor has stopped pppd and installed the replacement.
+    if BLOCKED.exists() or not admission or ADMISSION.read_text().strip() != admission:
+        return
+    try:
+        parent = parent_fd(pppd)
+    except Failure as exc:
+        if str(exc) == "ipv6-parent-unavailable":
+            # A hook queued until after its old pppd died must not overwrite
+            # replacement operational state with an admission failure.
+            return
+        raise
+    try:
+        start(iface, ll, peer, pppd, parent, admission)
+    finally:
+        os.close(parent)
+
+
+def start(iface, ll, peer, pppd, parent, admission):
     stop()
     if MODE == "dhcpv6" and not os.access(DHCPCD, os.X_OK):
         raise Failure("dhcpv6-client-unavailable")
@@ -840,10 +954,10 @@ def up(iface, ll, peer, pppd):
     except (OSError, subprocess.SubprocessError) as exc:
         raise Failure("ipv6-setup-failed") from exc
     generation = uuid.uuid4().hex
-    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd]
+    args = [sys.executable, HELPER, "refresh", generation, iface, ll, peer, pppd, str(parent)]
     with locked():
-        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation}))
+        child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, pass_fds=(parent,))
+        atomic(PID, json.dumps({"pid": child.pid, "start": identity(child.pid), "argv": args, "generation": generation, "admission": admission}))
         PD.unlink(missing_ok=True)
     poll = select.poll()
     poll.register(child.stdout, select.POLLIN | select.POLLHUP)
@@ -862,7 +976,9 @@ def main():
     if action == "event":
         generation = os.environ.get("NGFW_PPPOE_IPV6_GENERATION", "")
         with locked():
-            if not generation or not current(generation):
+            admission = os.environ.get("NGFW_PPPOE_PD_ADMISSION", "")
+            if (not generation or not current(generation) or not admission or BLOCKED.exists() or
+                    record().get("admission") != admission or ADMISSION.read_text().strip() != admission):
                 return
             reason = os.environ.get("reason", "")
             if reason in ("EXPIRE6", "RELEASE6", "STOP6", "STOPPED", "DEPARTED", "NOCARRIER"):
@@ -873,19 +989,34 @@ def main():
                 length = os.environ.get("new_dhcp6_ia_pd1_prefix1_length", "")
                 try:
                     if not length.isdecimal() or not 16 <= int(length) <= 64:
+                        PD.unlink(missing_ok=True)
                         return
                     network = ipaddress.IPv6Network(prefix + "/" + length, strict=False)
-                    atomic(PD, "pd=" + str(network) + "\n")
-                except ValueError:
+                    valid = os.environ.get("new_dhcp6_ia_pd1_prefix1_vltime", "")
+                    preferred = os.environ.get("new_dhcp6_ia_pd1_prefix1_pltime", "")
+                    # Admission is inherited from this exact refresher, never rebound at event time.
+                    if (not valid.isdecimal() or not preferred.isdecimal() or
+                            not 0 < int(preferred) <= int(valid) <= 4294967295 or
+                            BLOCKED.exists() or not admission):
+                        PD.unlink(missing_ok=True)
+                        return
+                    now = int(time.time())
+                    atomic(PD, "pd=" + str(network) + "\n" +
+                           "pd_valid_until=" + str(now + int(valid)) + "\n" +
+                           "pd_preferred_until=" + str(now + int(preferred)) + "\n" +
+                           "pd_generation=" + admission + "\n")
+                except (ValueError, OSError):
+                    PD.unlink(missing_ok=True)
                     return
         return
     if action == "stop":
+        atomic(BLOCKED, "blocked\n")
         stop()
         return
     if action == "refresh":
         refresh(*sys.argv[2:])
         return
-    iface, ll, peer, pppd = sys.argv[2:]
+    iface, ll, peer, pppd, admission = sys.argv[2:]
     if not iface or any(c not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-" for c in iface):
         raise Failure("ipv6-interface-invalid")
     if pppd and (not pppd.isdecimal() or int(pppd) <= 1):
@@ -895,8 +1026,13 @@ def main():
     since = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     try:
         if action == "up":
-            up(iface, ll, peer, pppd)
+            up(iface, ll, peer, pppd, admission)
         else:
+            if not admission or ADMISSION.read_text().strip() != admission:
+                return
+            old = record()
+            if old and old.get("argv", [])[7:8] != [pppd]:
+                return
             stop()
             with locked():
                 state("down", iface, ll, peer, since)

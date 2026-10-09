@@ -2,6 +2,7 @@ package subsystems_test
 
 import (
 	"context"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/ra_vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -18,5 +19,8 @@ func registerMock(registry scheduler.Registry, environment subsystems.Env) (*sub
 		options.Inventory = func(context.Context, string) ([]*ravpn.NetworkPlan, error) { return nil, nil }
 	}
 	environment.RA = &options
+	if environment.PppoeCarrierInventory == nil {
+		environment.PppoeCarrierInventory = func(context.Context, string) ([]pppoedesc.CarrierLease, error) { return nil, nil }
+	}
 	return subsystems.Register(registry, environment)
 }

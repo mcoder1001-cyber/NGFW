@@ -6,4 +6,8 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 [ "${PPP_IPPARAM:-}" = {{quoted .Remotename}} ] || exit 0
 iface="${PPP_IFACE:-}"
 case "$iface" in ''|*[!A-Za-z0-9_.-]*) exit 0 ;; esac
-exec /usr/bin/python3 {{quoted .IPv6Helper}} {{.Phase}} "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}"
+# Capture admission before waiting for the helper action lock. Reopening a
+# transition rotates this token, so a queued old hook cannot become admitted.
+admission=""
+IFS= read -r admission < {{quoted .StateDir}}/{{.HostIf}}.ipv6.admission || exit 0
+exec /usr/bin/python3 {{quoted .IPv6Helper}} {{.Phase}} "$iface" "${LLLOCAL:-}" "${LLREMOTE:-}" "${PPPD_PID:-}" "$admission"

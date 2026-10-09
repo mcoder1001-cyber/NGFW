@@ -39,9 +39,11 @@ Reader output larger than 1 MiB is rejected rather than returned unbounded or si
 OSPFv2 MD5 accepts `auth:{"type":"md5","keyId":7,"keyRef":"password/ospf-link"}` under
 an interface. The reference is resolved through the existing FRR secret resolver, never inline in
 configuration. Keys must fit 16 bytes; longer keys fail instead of being truncated. Renderer output,
-diffs, retrieve and diagnostics redact the key. **The production routing-password channel remains
-unavailable until PENDING-secret-channel is approved.** Without an approved resolver, commit fails
-at the auth reference; it never silently runs unauthenticated. Resolver fixtures verify source behavior.
+diffs, retrieve and diagnostics redact the key. The API selects OSPF and RIPv2 password references
+for delivery through the existing versioned sealed channel. The agent binds the applied configuration
+to its secret generation for rotation, rollback and restart. Missing or revoked material fails at the
+auth reference; it never silently runs unauthenticated. Source tests cover these transitions;
+authenticated adjacency and key rotation on the deployed appliance remain laboratory acceptance.
 `auth:{"type":"none"}` explicitly disables v2 authentication. OSPFv3 has no v2 MD5/BFD or NBMA
 controls in this model; unsupported fields are rejected rather than silently ignored.
 

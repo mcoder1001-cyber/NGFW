@@ -1,0 +1,34 @@
+# Source asset only: activation requires matching owner, renderer and packaging.
+[Unit]
+Description=NGFW isolated PPP carrier %i
+After=vpp.service
+Requires=vpp.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/python3 -I /usr/lib/ngfw/pppoe-carrier.py run %i
+Restart=on-failure
+RestartSec=5
+KillMode=control-group
+TimeoutStopSec=20
+UMask=0077
+NoNewPrivileges=true
+DevicePolicy=closed
+DeviceAllow=/dev/ppp rw
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+TemporaryFileSystem=/run:rw /etc:ro /var/lib:ro
+BindReadOnlyPaths=/etc/passwd /etc/group /etc/nsswitch.conf /etc/ld.so.cache
+BindReadOnlyPaths=/run/ngfw-pppoe-carrier:/run/ngfw-pppoe-carrier
+BindPaths=/run/ngfw/pppoe/%i:/run/ngfw/pppoe/%i
+BindReadOnlyPaths=/run/netns:/run/netns
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_NETLINK AF_INET AF_INET6 AF_PACKET AF_PPPOX
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_SYS_ADMIN CAP_SETPCAP
+BindReadOnlyPaths=/var/lib/ngfw/agent/pppoe-carrier/%i/ppp:/etc/ppp
+BindPaths=/run/ngfw/pppoe/%i/resolv.conf:/etc/ppp/resolv.conf
+ReadWritePaths=/run/ngfw/pppoe/%i

@@ -87,8 +87,7 @@ merge services '{"ntp":{"enabled":true,"servers":[{"address":"ntp1.example.net",
 commit
 ```
 
-Symmetric keys (`servers[].keyRef`) and the NTS server (`ntsServer`) are refused at commit time in this release: keys need
-the API→agent secret channel, which is not available yet.
+Symmetric keys (`servers[].keyRef`, `key/<name>`) use the selected sealed credential channel. Missing keys are refused. Rotation keeps the same configuration reference and changes the internal generation; rollback restores the previous sealed generation. Serving NTS (`ntsServer`) remains unsupported.
 
 ## Logging: remote syslog targets and the log explorer
 
@@ -107,8 +106,7 @@ merge management '{"syslog":[{"address":"192.0.2.10","port":514,"protocol":"tcp"
 commit
 ```
 
-TLS targets (`protocol: tls` with `tls.caRef` …) pass the schema (a TLS target needs a CA reference) but are refused
-at commit time in this release, for the same reason as the NTP keys.
+TLS targets (`protocol: tls`) require `tls.caRef` and may provide the paired `tls.certRef`/`tls.keyRef` for client authentication. Credentials resolve from the selected sealed channel; missing material or the required rsyslog TLS driver fails validation. Same-reference rotation, restart readback and rollback preserve exact generations. Removing a target removes its managed TLS material after successful application.
 
 **Log explorer** (administrators only) reads the box's local journal: newest first, filtered by minimum severity, facility, time window
 (1 h … 7 days) and a plain text search (not a pattern), 25–100 rows per page. One query scans at most the 5000 newest
@@ -129,5 +127,4 @@ In Persian the screens are right-to-left:
   DNSSEC, …). Views are rendered only for per-resolver local zones.
 - The daemons run in the host's default network namespace: syslog export ignores a non-default `vrf` (noted at
   commit), and resolver/NTP addresses must be addresses of that namespace.
-- rsyslog's TLS driver (`rsyslog-openssl`) is not installed on the current image; TLS export waits for it and for the
-  secret channel.
+- TLS export requires the installed `rsyslog-openssl` driver. Actual daemon/collector TLS handshake acceptance remains a laboratory check.

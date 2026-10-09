@@ -66,6 +66,10 @@ func Routes(doc *ngfwv1.DesiredState, health []*ngfwv1.WanGroupState) ([]schedul
 			}
 			table, tableSet = t, true
 			if m.GetNextHop() != "gateway" {
+				// Dynamic clients are IPv4 and reserve their route even before binding.
+				if m.GetNextHop() == "dhcp" || m.GetNextHop() == "pppoe" {
+					families[false] = true
+				}
 				continue
 			}
 			a, err := netip.ParseAddr(m.GetGateway())

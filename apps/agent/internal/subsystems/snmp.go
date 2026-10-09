@@ -15,9 +15,9 @@ package subsystems
 // file is written, the request is persisted by the renderer and shown by GET /api/v1/state/snmp
 // (`pendingAction`); the agent never restarts snmpd on its own (unit control is P10's).
 //
-// Secrets: communities and USM passphrases are D-051 refs. No API→agent secret channel exists yet
-// (docs/decisions/PENDING-secret-channel.md); until it does, refs resolve through a slot-local fixture
-// file (NGFW_SNMP_FIXTURE_SECRETS, 0600, values `NGFW_TEST_PSK_F-snmp_*` only) and are refused otherwise.
+// Secrets: communities and USM passphrases use the transaction-selected sealed channel.
+// Scheduler values retain keyed generations for rotation, rollback and restart;
+// the production registration never loads environment fixture credentials.
 
 import (
 	"bytes"
@@ -35,6 +35,8 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+	"ngfw/agent/internal/descriptors/vpn"
 
 	ifapi "ngfw/agent/binapi/interface"
 	"ngfw/agent/binapi/interface_types"
@@ -60,7 +62,7 @@ const (
 )
 
 // ErrNoSecretChannel is returned for every secret ref while no channel exists.
-var ErrNoSecretChannel = errors.New("no API→agent secret channel yet (PENDING-secret-channel): SNMP communities and passphrases cannot be resolved by this agent build")
+var ErrNoSecretChannel = errors.New("selected SNMP secret generation is unavailable")
 
 // SnmpFixtureResolver resolves refs from a 0600 JSON file of fixture values.
 func SnmpFixtureResolver(path string) rfkit.SecretResolver {
@@ -96,11 +98,13 @@ func SnmpFixtureResolver(path string) rfkit.SecretResolver {
 
 // SnmpStage is the snmpd renderer stage: the descriptor plus the state GET /state/snmp reads.
 type SnmpStage struct {
-	r      *snmpd.Renderer
-	owner  string // registration key (registerSnmp); "" = unregistered (tests)
-	record string // applied services.snmp (protojson; refs only, never values)
-	log    *slog.Logger
-	source snmpagent.Source
+	r           *snmpd.Renderer
+	owner       string // registration key (registerSnmp); "" = unregistered (tests)
+	record      string // applied services.snmp (protojson; refs only, never values)
+	log         *slog.Logger
+	source      snmpagent.Source
+	fingerprint func(context.Context, string) (string, error)
+	history     func(context.Context, string) ([]byte, error)
 
 	mu        sync.Mutex
 	validated []byte // content of the last file that passed the parse run
@@ -141,6 +145,17 @@ func docOf(v *ngfwv1.SnmpService) *ngfwv1.DesiredState {
 func (s *SnmpStage) Check(v *ngfwv1.SnmpService) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if s.fingerprint != nil {
+		bindings := map[string]string{}
+		for _, ref := range desired.SnmpSecretRefs(v) {
+			generation, e := s.fingerprint(ctx, ref)
+			if e != nil {
+				return ErrNoSecretChannel
+			}
+			bindings[ref] = generation
+		}
+		ctx = context.WithValue(ctx, snmpBindingKey{}, bindings)
+	}
 	_, err := s.renderValidated(ctx, v)
 	return err
 }
@@ -190,7 +205,7 @@ func (s *SnmpStage) apply(ctx context.Context, v *ngfwv1.SnmpService) error {
 	for _, w := range snmpd.Warnings(files, s.r.Paths()) {
 		s.log.Warn("snmpd", "warning", w)
 	}
-	if err := s.saveRecord(v); err != nil {
+	if err := s.saveValue(v, snmpBindings(ctx)); err != nil {
 		return err
 	}
 	s.subagent(v.GetEnabled() && (v.GetSubagent() == nil || v.GetSubagent().Enabled == nil || v.GetSubagent().GetEnabled()))
@@ -199,11 +214,14 @@ func (s *SnmpStage) apply(ctx context.Context, v *ngfwv1.SnmpService) error {
 
 // Create implements scheduler.Descriptor.
 func (s *SnmpStage) Create(ctx context.Context, obj proto.Message) (any, error) {
-	v, ok := obj.(*ngfwv1.SnmpService)
-	if !ok {
-		return nil, fmt.Errorf("snmpd.config: unexpected value %T", obj)
+	v, bindings, err := desired.ParseSnmpValue(obj)
+	if err != nil {
+		return nil, err
 	}
-	return nil, s.apply(ctx, v)
+	if s.history != nil && len(desired.SnmpSecretRefs(v)) > 0 && bindings == nil {
+		return nil, ErrNoSecretChannel
+	}
+	return nil, s.apply(context.WithValue(ctx, snmpBindingKey{}, bindings), v)
 }
 
 // Update implements scheduler.Descriptor.
@@ -225,11 +243,15 @@ func (s *SnmpStage) Delete(ctx context.Context, _ proto.Message, _ any) error {
 
 // Retrieve implements scheduler.Descriptor.
 func (s *SnmpStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
-	v, err := s.loadRecord()
+	value, err := s.loadValue()
+	if err != nil || value == nil {
+		return nil, err
+	}
+	v, bindings, err := desired.ParseSnmpValue(value)
 	if err != nil || v == nil || !v.GetEnabled() {
 		return nil, err
 	}
-	files, err := s.r.Render(ctx, docOf(v))
+	files, err := s.r.Render(context.WithValue(ctx, snmpBindingKey{}, bindings), docOf(v))
 	if err != nil {
 		s.log.Warn("snmpd: the applied configuration no longer renders; reporting it absent", "err", err)
 		return nil, nil
@@ -239,11 +261,15 @@ func (s *SnmpStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 		s.log.Warn("snmpd.conf differs from the applied configuration (drift); reporting it absent")
 		return nil, nil
 	}
-	return []scheduler.KV{{Key: desired.SnmpKey, Value: v}}, nil
+	return []scheduler.KV{{Key: desired.SnmpKey, Value: value}}, nil
 }
 
-func (s *SnmpStage) saveRecord(v *ngfwv1.SnmpService) error {
-	raw, err := protojson.Marshal(v)
+func (s *SnmpStage) saveValue(v *ngfwv1.SnmpService, bindings map[string]string) error {
+	value, err := desired.SnmpBoundValue(v, bindings)
+	if err != nil {
+		return err
+	}
+	raw, err := protojson.Marshal(value)
 	if err != nil {
 		return err
 	}
@@ -258,6 +284,15 @@ func (s *SnmpStage) saveRecord(v *ngfwv1.SnmpService) error {
 }
 
 func (s *SnmpStage) loadRecord() (*ngfwv1.SnmpService, error) {
+	value, err := s.loadValue()
+	if err != nil || value == nil {
+		return nil, err
+	}
+	v, _, err := desired.ParseSnmpValue(value)
+	return v, err
+}
+
+func (s *SnmpStage) loadValue() (proto.Message, error) {
 	raw, err := os.ReadFile(s.record)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -265,8 +300,12 @@ func (s *SnmpStage) loadRecord() (*ngfwv1.SnmpService, error) {
 	if err != nil {
 		return nil, err
 	}
-	v := &ngfwv1.SnmpService{}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(raw, v); err != nil {
+	var v proto.Message = &ngfwv1.SnmpService{}
+	var envelope map[string]json.RawMessage
+	if json.Unmarshal(raw, &envelope) == nil && envelope["config"] != nil {
+		v = &structpb.Struct{}
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(raw, v); err != nil {
 		return nil, fmt.Errorf("snmpd record %s: %w", s.record, err)
 	}
 	return v, nil
@@ -301,6 +340,7 @@ func (s *SnmpStage) Close() {
 	s.subagent(false)
 	if s.owner != "" {
 		desired.SetSnmpCheck(s.owner, nil)
+		desired.SetSnmpSecretGenerations(s.owner, nil)
 		snmpStages.CompareAndDelete(s.owner, s)
 	}
 }
@@ -362,7 +402,7 @@ func snmpPaths(_ renderers.Runner) (snmpd.Paths, []snmpd.Option) {
 func registerSnmp(r scheduler.Registry, w *Wiring) {
 	runner := renderers.NewSystemRunner(renderers.NewAllowlist(snmpd.Binaries()...))
 	paths, opts := snmpPaths(runner)
-	opts = append(opts, snmpd.WithPaths(paths), snmpd.WithSecretResolver(SnmpFixtureResolver(os.Getenv(EnvSnmpFixtureSecrets))))
+	opts = append(opts, snmpd.WithPaths(paths), snmpd.WithSecretResolver(SnmpFixtureResolver("")))
 	rend := snmpd.New(runner, opts...)
 	src := &snmpagent.ProductSource{
 		StateFile: filepath.Join(w.env.StateDir, "agent-state.json"),
@@ -401,3 +441,35 @@ func ifStatus(name string, d *ifapi.SwInterfaceDetails) snmpagent.IfStatus {
 
 // AgentVersion is reported as ngfwAgentVersion (set by the agent's main through -ldflags when it has one).
 var AgentVersion = "dev"
+
+// snmpBindingKey carries only keyed generation identities, never material.
+type snmpBindingKey struct{}
+
+func snmpBindings(ctx context.Context) map[string]string {
+	v, _ := ctx.Value(snmpBindingKey{}).(map[string]string)
+	return v
+}
+
+// SetSnmpSecrets installs the sealed channel; there is no product fixture fallback.
+func SetSnmpSecrets(owner string, fingerprint func(context.Context, string) (string, error), history func(context.Context, string) ([]byte, error)) error {
+	s, ok := SnmpStageOf(owner)
+	if !ok || fingerprint == nil || history == nil {
+		return ErrNoSecretChannel
+	}
+	s.fingerprint = fingerprint
+	s.history = history
+	snmpd.WithSecretResolver(rfkit.SecretResolverFunc(func(ctx context.Context, ref string) (string, error) {
+		generation, ok := snmpBindings(ctx)[ref]
+		if !ok {
+			return "", ErrNoSecretChannel
+		}
+		raw, err := history(ctx, generation)
+		if err != nil {
+			return "", ErrNoSecretChannel
+		}
+		defer vpn.Zero(raw)
+		return string(raw), nil
+	}))(s.r)
+	desired.SetSnmpSecretGenerations(owner, fingerprint)
+	return nil
+}

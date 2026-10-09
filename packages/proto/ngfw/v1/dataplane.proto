@@ -5668,6 +5668,16 @@ message Pppoe {
   optional string ipv6 = 10;
   // Reconnect policy.
   PppoeReconnect reconnect = 11;
+  // Explicit DHCPv6-PD LAN /64 assignments; empty means no LAN delegation.
+  repeated PppoeDelegationTarget delegation_targets = 12;
+}
+
+// PppoeDelegationTarget selects a stable /64 within the active ISP lease.
+message PppoeDelegationTarget {
+  // Enabled LAN interface in the same VRF, with no static IPv6/RA configuration.
+  optional string interface = 1;
+  // Subnet bits between delegation length and /64; at most 2^32-1 (public configuration bound).
+  optional uint32 subnet_id = 2;
 }
 
 // PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`.

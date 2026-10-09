@@ -3,7 +3,7 @@ import { DEV_ROUTES } from '../build-flags';
 import type { DomainInfo } from '../schema/registry';
 
 /** Left-navigation groups (docs/05-ui-spec.md screen inventory), in display order. */
-export const NAV_GROUPS = ['dashboard', 'interfaces', 'routing', 'firewall', 'vpn', 'services', 'system', 'tools', 'dev'] as const;
+export const NAV_GROUPS = ['dashboard', 'interfaces', 'routing', 'dynamic-routing', 'routing-objects', 'firewall', 'objects', 'vpn', 'services', 'system', 'tools', 'dev'] as const;
 export type NavGroupId = (typeof NAV_GROUPS)[number];
 
 /**
@@ -18,7 +18,7 @@ export const DOMAIN_GROUP: Record<RootKey, NavGroupId> = {
   vrfs: 'routing',
   routing: 'routing',
   nat: 'firewall',
-  objects: 'firewall',
+  objects: 'objects',
   acl: 'firewall',
   vpn: 'vpn',
   tunnels: 'vpn',
@@ -83,6 +83,8 @@ export const BUILT_DOMAINS: ReadonlySet<RootKey> = new Set<RootKey>([
 ]);
 
 export function domainPath(key: RootKey): string {
+  if (key === 'acl') return '/firewall/policies';
+  if (key === 'objects') return '/firewall/objects';
   const group = DOMAIN_GROUP[key] ?? 'system';
   return group === key ? `/${key}` : `/${group}/${key}`;
 }
@@ -113,7 +115,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
       id: d.key,
       path: domainPath(d.key),
       labelKey: `nav:domains.${d.key}`,
-      fallbackLabel: d.title,
+      fallbackLabel: d.key === 'acl' ? 'Policies' : d.key === 'routing' ? 'Static routes' : d.title,
       domain: d.key,
       available: BUILT_DOMAINS.has(d.key),
     });
@@ -121,13 +123,13 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   // Feature screens that are not a schema domain: one `groups.get('<group>')!.push({…})` line under the feature's anchor, labelKey in
   // the feature's namespace (wave-A-hotspots W2).
   // wave-BC: F-ospf
-  groups.get('routing')!.push({ id: 'ospf', path: '/routing/ospf', labelKey: 'routingIgp:ospf.title', fallbackLabel: 'OSPF', available: true });
+  groups.get('dynamic-routing')!.push({ id: 'ospf', path: '/routing/ospf', labelKey: 'routingIgp:ospf.title', fallbackLabel: 'OSPF', available: true });
   // wave-BC: F-isis-rip
-  groups.get('routing')!.push({ id: 'isis-rip', path: '/routing/isis-rip', labelKey: 'routingIgp:isisRip.title', fallbackLabel: 'IS-IS and RIP', available: true });
+  groups.get('dynamic-routing')!.push({ id: 'isis-rip', path: '/routing/isis-rip', labelKey: 'routingIgp:isisRip.title', fallbackLabel: 'IS-IS and RIP', available: true });
   // wave-BC: F-bfd-redistribution
-  groups.get('routing')!.push({ id: 'bfd', path: '/routing/bfd', labelKey: 'bfd-redistribution:nav', fallbackLabel: 'BFD', available: true });
-  groups.get('routing')!.push({ id: 'redistribution', path: '/routing/redistribution', labelKey: 'bfd-redistribution:matrix', fallbackLabel: 'Redistribution matrix', available: true });
-  groups.get('routing')!.push({ id: 'policy', path: '/routing/policy', labelKey: 'bfd-redistribution:policy', fallbackLabel: 'Routing policy', available: true });
+  groups.get('dynamic-routing')!.push({ id: 'bfd', path: '/routing/bfd', labelKey: 'bfd-redistribution:nav', fallbackLabel: 'BFD', available: true });
+  groups.get('dynamic-routing')!.push({ id: 'redistribution', path: '/routing/redistribution', labelKey: 'bfd-redistribution:matrix', fallbackLabel: 'Redistribution matrix', available: true });
+  groups.get('routing-objects')!.push({ id: 'policy', path: '/routing/policy', labelKey: 'nav:routingObjects.usage', fallbackLabel: 'Usage and order', available: true });
   // wave-BC: F-mpls-srmpls
   groups.get('routing')!.push({ id: 'mpls', path: '/routing/mpls', labelKey: 'mpls-srmpls:nav', fallbackLabel: 'MPLS', available: true });
   // wave-BC: F-igmp-mfib
@@ -153,7 +155,7 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
   groups.get('system')!.push({ id: 'alarms', path: '/system/alarms', labelKey: 'dashboard-prom-alarms:nav', fallbackLabel: 'Alarms', available: true }); // wave-BC: F-dashboard-prom-alarms
   groups.get('routing')!.push({ id: 'wan', path: '/routing/wan', labelKey: 'multiwan:nav', fallbackLabel: 'Multi-WAN', available: true }); // F-multiwan (unanchored)
   // wave-A: P12
-  groups.get('routing')!.push({ id: 'bgp', path: '/routing/bgp', labelKey: 'bgp:nav.bgp', fallbackLabel: 'BGP', available: true });
+  groups.get('dynamic-routing')!.push({ id: 'bgp', path: '/routing/bgp', labelKey: 'bgp:nav.bgp', fallbackLabel: 'BGP', available: true });
   // web: WEB-2
   groups.get('system')!.push(
     { id: 'users', path: '/system/users', labelKey: 'nav:users', fallbackLabel: 'Users', available: true },
@@ -174,6 +176,60 @@ export function buildNav(domains: readonly DomainInfo[], { devRoutes = DEV_ROUTE
     // wave-BC: F-licensing (unanchored)
     { id: 'licensing', path: '/system/licensing', labelKey: 'licensing:nav', fallbackLabel: 'Licence', available: true },
   );
+  // Direct links reuse the existing object/routing tab components without changing their data contracts.
+  for (const kind of [
+    'addresses',
+    'addressGroups',
+    'services',
+    'serviceGroups',
+    'schedules',
+    'zones',
+    'tags',
+  ]) {
+    groups.get('objects')!.push({
+      id: `objects-${kind}`,
+      path: `/firewall/objects?tab=${kind}`,
+      labelKey: `object-model:tabs.${kind}`,
+      fallbackLabel: kind,
+      available: BUILT_DOMAINS.has('objects'),
+    });
+  }
+  groups
+    .get('routing')!
+    .push({
+      id: 'fib',
+      path: '/routing?tab=fib',
+      labelKey: 'vrf-static-ecmp:tab.fib',
+      fallbackLabel: 'FIB browser',
+      available: true,
+    });
+  groups
+    .get('tools')!
+    .push({
+      id: 'ping',
+      path: '/routing?tab=ping',
+      labelKey: 'vrf-static-ecmp:tab.ping',
+      fallbackLabel: 'Ping',
+      available: true,
+    });
+  groups
+    .get('routing-objects')!
+    .unshift(
+      {
+        id: 'prefix-lists',
+        path: '/routing/objects?tab=prefix-lists',
+        labelKey: 'bgp:tab.prefixLists',
+        fallbackLabel: 'Prefix lists',
+        available: true,
+      },
+      {
+        id: 'route-maps',
+        path: '/routing/objects?tab=route-maps',
+        labelKey: 'bgp:tab.routeMaps',
+        fallbackLabel: 'Route maps',
+        available: true,
+      },
+    );
   if (devRoutes) groups.get('dev')!.push(...DEV_NAV_ITEMS);
   return NAV_GROUPS.map((id) => ({ id, labelKey: id === 'dev' ? DEV_GROUP_LABEL : `nav:groups.${id}`, items: groups.get(id)! })).filter((g) => g.items.length > 0);
 }
@@ -183,12 +239,29 @@ export function isCollapsible(group: NavGroup): boolean {
   return group.items.length > 1;
 }
 
-/** The single nav path to mark current for `pathname`: the longest item path equal to it or a parent of it. */
-export function currentNavPath(nav: readonly NavGroup[], pathname: string): string | undefined {
+/** The most specific navigation destination, including tab links and the legacy ACL URL. */
+export function currentNavPath(
+  nav: readonly NavGroup[],
+  pathname: string,
+  search = '',
+): string | undefined {
+  const canonical = pathname.replace(/^\/firewall\/acl(?=\/|$)/, '/firewall/policies');
+  const params = new URLSearchParams(search);
+  if (canonical === '/routing/objects' && !['prefix-lists', 'route-maps'].includes(params.get('tab') ?? '')) params.set('tab', 'prefix-lists');
   let best: string | undefined;
+  let bestScore = -1;
   for (const item of nav.flatMap((g) => g.items)) {
-    const hit = item.path === '/' ? pathname === '/' : pathname === item.path || pathname.startsWith(`${item.path}/`);
-    if (hit && (best === undefined || item.path.length > best.length)) best = item.path;
+    const [path, query = ''] = item.path.split('?');
+    if (path === undefined) continue;
+    const hit =
+      path === '/' ? canonical === '/' : canonical === path || canonical.startsWith(`${path}/`);
+    const required = [...new URLSearchParams(query)];
+    if (!hit || !required.every(([key, value]) => params.get(key) === value)) continue;
+    const score = path.length * 100 + required.length;
+    if (score > bestScore) {
+      best = item.path;
+      bestScore = score;
+    }
   }
   return best;
 }

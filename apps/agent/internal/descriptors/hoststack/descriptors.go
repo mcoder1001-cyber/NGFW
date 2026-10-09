@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"go.fd.io/govpp/api"
@@ -17,6 +18,7 @@ import (
 	"ngfw/agent/binapi/session"
 	"ngfw/agent/binapi/tcp"
 	"ngfw/agent/internal/descriptors/dfkit"
+	"ngfw/agent/internal/descriptors/vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/vpp"
 )
@@ -121,15 +123,51 @@ func (d *SessionDescriptor) Retrieve(context.Context) ([]scheduler.KV, error) {
 // namespace dump: write-only, Create is an idempotent add (VPP updates an existing id in place);
 // the returned appns_index is recorded per VPP boot for the session rules and HostStackState.
 type NamespaceDescriptor struct {
-	client vpp.Client
-	owner  string
-	st     *state
+	secrets func(context.Context, string) ([]byte, error)
+	client  vpp.Client
+	owner   string
+	st      *state
 }
 
 var _ scheduler.Descriptor = (*NamespaceDescriptor)(nil)
 
-func newNamespace(c vpp.Client, owner string, st *state) *NamespaceDescriptor {
-	return &NamespaceDescriptor{client: c, owner: owner, st: st}
+func newNamespace(c vpp.Client, owner string, st *state, secrets ...func(context.Context, string) ([]byte, error)) *NamespaceDescriptor {
+	d := &NamespaceDescriptor{client: c, owner: owner, st: st}
+	if len(secrets) > 0 {
+		d.secrets = secrets[0]
+	}
+	return d
+}
+func (d *NamespaceDescriptor) secret(ctx context.Context, generation string) (uint64, error) {
+	if generation == "" {
+		return 0, nil
+	}
+	if d.secrets == nil || !strings.HasPrefix(generation, vpn.RefHMAC) || vpn.CheckRef(generation) != nil {
+		return 0, dfkit.Specf("namespace secret generation unavailable")
+	}
+	raw, err := d.secrets(ctx, generation)
+	if err != nil {
+		return 0, dfkit.Specf("namespace secret generation unavailable")
+	}
+	defer clear(raw)
+	value, err := strconv.ParseUint(string(raw), 10, 64)
+	if err != nil || value == 0 || strconv.FormatUint(value, 10) != string(raw) {
+		return 0, dfkit.Specf("namespace secret must be canonical nonzero decimal uint64")
+	}
+	return value, nil
+}
+
+// Validate rejects invalid configuration before product writes.
+func (d *NamespaceDescriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.Message, _ scheduler.ReadOnlyView) error {
+	var s Namespace
+	if err := dfkit.Decode(value, &s); err != nil {
+		return err
+	}
+	if err := ValidID(s.ID); err != nil {
+		return err
+	}
+	_, err := d.secret(ctx, s.SecretGeneration)
+	return err
 }
 
 // Name implements scheduler.Descriptor.
@@ -163,6 +201,14 @@ func (d *NamespaceDescriptor) set(ctx context.Context, obj proto.Message, add bo
 	}
 	req := &session.AppNamespaceAddDelV4{IsAdd: add, NamespaceID: s.ID, IP4FibID: s.Vrf, IP6FibID: s.Vrf,
 		SwIfIndex: interface_types.InterfaceIndex(^uint32(0))}
+	if add {
+		secret, err := d.secret(ctx, s.SecretGeneration)
+		if err != nil {
+			return 0, err
+		}
+		req.Secret = secret
+		defer func() { req.Secret = 0 }()
+	}
 	if s.Interface != "" && add {
 		idx, err := dfkit.ResolveInterface(ctx, d.client, s.Interface, d.owner)
 		if err != nil {
@@ -172,6 +218,9 @@ func (d *NamespaceDescriptor) set(ctx context.Context, obj proto.Message, add bo
 	}
 	rep, err := session.NewServiceClient(d.client).AppNamespaceAddDelV4(ctx, req)
 	if err != nil {
+		if s.SecretGeneration != "" {
+			return 0, fmt.Errorf("app_namespace_add_del_v4(%s, add=%t): request failed", s.ID, add)
+		}
 		return 0, fmt.Errorf("app_namespace_add_del_v4(%s, add=%t): %w", s.ID, add, dfkit.PluginError("session", err))
 	}
 	return rep.AppnsIndex, nil

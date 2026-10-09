@@ -11,7 +11,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const canonicalSourceCapabilities = uint64(1<<unix.CAP_NET_ADMIN | 1<<unix.CAP_SYS_ADMIN | 1<<unix.CAP_IPC_LOCK)
+const canonicalSourceCapabilities = uint64(1<<unix.CAP_NET_ADMIN | 1<<unix.CAP_SYS_ADMIN | 1<<unix.CAP_IPC_LOCK | 1<<unix.CAP_CHOWN | 1<<unix.CAP_DAC_OVERRIDE)
 const canonicalBrokerCapabilities = uint64(1<<unix.CAP_SYS_ADMIN | 1<<unix.CAP_SYS_CHROOT)
 
 func sourceCapabilityStatus(data []byte, normalized bool) error {

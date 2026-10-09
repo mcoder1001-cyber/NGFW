@@ -75,9 +75,10 @@ func hexKey(s string) (string, error) {
 
 // Renderer implements renderers.Renderer for chrony.
 type Renderer struct {
-	runner  renderers.Runner
-	paths   Paths
-	secrets SecretResolver
+	runner         renderers.Runner
+	paths          Paths
+	secrets        SecretResolver
+	secretsContext func(context.Context, string) ([]byte, error)
 }
 
 var _ renderers.Renderer = (*Renderer)(nil)
@@ -87,6 +88,11 @@ type Option func(*Renderer)
 
 // WithPaths overrides ProductPaths (tests: TestPaths(prefix, instance)).
 func WithPaths(p Paths) Option { return func(r *Renderer) { r.paths = p } }
+
+// WithSecretGenerations resolves context-bound historical material.
+func WithSecretGenerations(s func(context.Context, string) ([]byte, error)) Option {
+	return func(r *Renderer) { r.secretsContext = s }
+}
 
 // WithSecrets sets the resolver for key references (servers[].keyRef).
 func WithSecrets(s SecretResolver) Option { return func(r *Renderer) { r.secrets = s } }
@@ -116,7 +122,7 @@ func (r *Renderer) check() error {
 
 // Render implements renderers.Renderer: chrony.conf, sources.d/ngfw.sources and chrony.keys
 // (Secret, KeyMode). Pure apart from the secret resolver lookup.
-func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.Files, error) {
+func (r *Renderer) Render(ctx context.Context, desired proto.Message) (renderers.Files, error) {
 	if err := r.check(); err != nil {
 		return nil, err
 	}
@@ -124,7 +130,7 @@ func (r *Renderer) Render(_ context.Context, desired proto.Message) (renderers.F
 	if err != nil {
 		return nil, err
 	}
-	rd, err := r.build(in)
+	rd, err := r.build(ctx, in)
 	if err != nil {
 		return nil, err
 	}

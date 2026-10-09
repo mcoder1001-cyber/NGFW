@@ -27,3 +27,21 @@ hosted packaging job; their earlier local environment failure is not relabelled
 as a local PASS. Native appliance, kernel PPP/VPP packets, installed service and
 browser acceptance remain NOT RUN on this candidate. Product license remains a
 separate release input. No merge has occurred at this checkpoint.
+
+## Corrected source prepared for the next exact-head gate
+
+Product `1d7f3d96` (author receipt `c41bc225`) corrects all established source
+findings. Pinned golangci-lint2.13.2 reports **0 issues**, and complete `go vet
+./...` succeeds. Source generation completed13/13. Independent R4 receipts
+approve the bounded lint/path corrections, constructor-only inventory fixture
+injection and explicit SNMP transaction-owner binding. No workflow, linter setting,
+production privilege or safety guard was weakened.
+
+The independent complete local agent run on the first candidate failed:
+128 packages passed,15 failed,166 had no tests. Concrete source/fixture failures
+were corrected: explicit proto scalar presence, fake wiring inventory, SNMP owner
+selection, exact syslog refusal pointer, valid PD lease fixture, and a BFD all-range
+nil dereference found by the corpus. Socket, UID and process namespace failures
+remain actual local failures and must pass unchanged on the hosted runner.
+The original inventory is retained in recovery-20261009-review-R2.md; final delta
+review and the next hosted outcome must be read with it rather than overwriting it.

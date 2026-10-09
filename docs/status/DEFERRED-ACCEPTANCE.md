@@ -6,9 +6,10 @@ Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without wa
 
 The source inventory below contains historical snapshots. The current source and
 review ledger is [completion-20261008-wip.md](tasks/completion-20261008-wip.md)
-and the reopened rows in `plan/tasks.yaml`. At this checkpoint, credential
-integration and PPP carrier/PD/WAN source work remain open. They are not deferred
-laboratory tests. Final cumulative generation, security review and unchanged
+and the reopened rows in `plan/tasks.yaml`. Reviewed credential source is staged in the completion branch. PPP carrier/PD/VLAN
+source has also been consolidated, while cumulative review and corrections to
+observation-failure withdrawal and WAN transaction ordering remain open. These are
+source work, not deferred laboratory tests. Final cumulative generation, security review and unchanged
 hosted quick/fixture gates also remain mandatory. Product license authority is
 a separate release input, not laboratory acceptance.
 

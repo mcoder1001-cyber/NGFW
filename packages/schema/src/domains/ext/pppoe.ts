@@ -55,7 +55,7 @@ export const InterfacePppoeSchema = z.strictObject({
   parent: withUi(z.string().min(1).max(63).optional(), {
     title: 'Dial over interface',
     widget: 'interface-picker',
-    help: 'engine interface the session runs over; default = this interface (set for a VLAN sub-interface WAN)',
+    help: 'Required for enabled clients: a distinct raw WAN parent. Configure PPP on a separate logical interface.',
     order: 2,
   }),
   username: withUi(
@@ -106,6 +106,28 @@ export const InterfacePppoeSchema = z.strictObject({
     help: 'off; slaac (address and IPv6 default route from the ISP router advertisements); dhcpv6 (slaac plus a DHCPv6 address and delegated prefix, IA_NA + IA_PD); needs MTU >= 1280',
     order: 10,
   }),
+  delegationTargets: withUi(
+    z
+      .array(
+        z.strictObject({
+          interface: withUi(z.string().min(1).max(63), {
+            title: 'LAN interface',
+            widget: 'interface-picker',
+          }),
+          subnetId: withUi(z.number().int().min(0).max(4294967295), {
+            title: 'Subnet ID',
+            help: 'Stable /64 subnet number within the ISP delegated prefix',
+          }),
+        }),
+      )
+      .max(1024)
+      .default([]),
+    {
+      title: 'Delegated IPv6 LANs',
+      help: 'Explicit LAN /64 assignments; requires DHCPv6. Addresses and router advertisements follow the active lease.',
+      order: 11,
+    },
+  ),
   reconnect: withUi(PppoeReconnectSchema.default({ holdoffSec: 5, maxFail: 0 }), {
     title: 'Reconnect',
     help: 'what to do when the session drops',

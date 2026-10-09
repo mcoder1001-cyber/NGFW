@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	ravpn "ngfw/agent/internal/ra_vpn"
 	"path/filepath"
 	"sort"
@@ -87,6 +88,7 @@ var Domains = map[string][]string{
 		iface.SubinterfaceName,
 		iface.AliasName,
 		iface.AdminStateName,
+		iface.UnnumberedName,
 		iface.MtuName,
 		iface.MacAddressName,
 		iface.PromiscName,
@@ -239,7 +241,11 @@ type Env struct {
 	// GlobalsOwner is D-071's flag: only the product agent on a real box sets VPP-wide singletons.
 	// This build registers no global descriptor; the flag is recorded for the families that do.
 	GlobalsOwner bool
-	Log          *slog.Logger
+
+	// PppoeCarrierInventory injects an explicit host inventory for isolated wiring.
+	// Nil always uses the fixed packaged broker, even when desired PPP is empty.
+	PppoeCarrierInventory func(context.Context, string) ([]pppoedesc.CarrierLease, error)
+	Log                   *slog.Logger
 	// NetdevKind looks up Linux netdevs for the af_packet veth guard (D-105); nil = LinuxNetdevKind.
 	NetdevKind NetdevKind
 	// Publish is the agent's event sink (A5 seam): families that observe asynchronous changes
@@ -318,6 +324,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	// DF-1, in iface.Register's order, with the MTU/rx-mode "value equal to the default" tolerance
 	r.Register(iface.NewSubinterface(c, owner))
 	r.Register(&nativeAdminGuard{Descriptor: iface.NewAdminState(c, owner), owner: owner})
+	r.Register(iface.NewUnnumbered(c, owner))
 	r.Register(newDefaultTolerant(iface.NewMtu(c, owner), iface.ErrMtuDefault, mtuInEffect(c, owner)))
 	r.Register(iface.NewMacAddress(c, owner))
 	r.Register(iface.NewPromisc(c, owner))
@@ -442,7 +449,7 @@ func register(r scheduler.Registry, env Env) (*Wiring, error) {
 	if err := registerUnboundChronySyslog(r, env); err != nil {
 		return nil, err
 	}
-	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner)) // F-host-stack (unanchored)
+	hoststack.Register(r, c, owner, hoststack.WithBootStore(w.boot), hoststack.WithGlobalsOwner(env.GlobalsOwner), hoststack.WithSecrets(hostServiceSecrets(owner).resolveGeneration)) // F-host-stack (unanchored)
 	if env.GlobalsOwner {
 		hoststack.RegisterGlobals(r, c, hoststack.WithBootStore(w.boot)) // F-host-stack: D-071 session layer, opt-in http_static
 	}

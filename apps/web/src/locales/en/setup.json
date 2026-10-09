@@ -23,7 +23,7 @@
   "pppoe": "PPPoE",
   "wanAddress": "WAN address/prefix",
   "wanGateway": "WAN gateway",
-  "pppoeHelp": "PPPoE setup is currently unavailable.",
+  "pppoeHelp": "Choose a physical WAN port reserved for PPPoE. Enter the ISP username and an existing password/<name> secret reference. Setup creates the logical setup-pppoe WAN for NAT and filtering; the password itself is never entered here.",
   "lanAddress": "LAN address/prefix",
   "dhcpServer": "Enable LAN DHCP server",
   "defaultsHelp": "Enable outbound NAT and stateful LAN forwarding, block unsolicited WAN traffic, and restrict management to LAN. Selected interface addressing, NAT, input ACL attachments and the setup DHCP server are overwritten. Anti-lockout remains enabled.",
@@ -41,5 +41,8 @@
   "loadingInterfaces": "Loading network interfaces…",
   "interfacesFailed": "Some network interfaces could not be loaded. Configured interfaces remain available.",
   "retryInterfaces": "Retry",
-  "noInterfaces": "No dataplane interfaces are available. Check interface ownership and the agent connection, then retry."
+  "noInterfaces": "No dataplane interfaces are available. Check interface ownership and the agent connection, then retry.",
+  "pppoeUsername": "PPPoE username",
+  "pppoePasswordRef": "Stored PPPoE password reference",
+  "pppoeRequired": "Enter the ISP username and a valid password/<name> secret reference."
 }

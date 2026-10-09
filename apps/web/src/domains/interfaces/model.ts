@@ -5,7 +5,9 @@ import type { NgfwStatus } from '@ngfw/ui-kit';
 import { domainSchemas } from '../../schema/registry';
 import { drawerSafeL2 } from './bridge-l2/model'; // wave-A: F-bridge-l2
 
-type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } } ? T : never;
+type Ok<O> = O extends { responses: { 200: { content: { 'application/json': infer T } } } }
+  ? T
+  : never;
 
 /** `GET /api/v1/state/interfaces` as generated from the OpenAPI document (never hand-written). */
 export type InterfacesState = Ok<NonNullable<paths['/api/v1/state/interfaces']['get']>>;
@@ -20,7 +22,8 @@ export type { InterfaceConfig, SubinterfaceConfig };
 /** `interfaces.<name>` item schema — the one schema (00-CONTEXT rule 5), from the generated domain JSON Schema. */
 export function interfaceItemSchema(): JsonSchema {
   const s = domainSchemas.interfaces as { additionalProperties?: JsonSchema };
-  if (!s.additionalProperties || typeof s.additionalProperties !== 'object') throw new Error('interfaces item schema not found');
+  if (!s.additionalProperties || typeof s.additionalProperties !== 'object')
+    throw new Error('interfaces item schema not found');
   return drawerSafeL2(s.additionalProperties); // wave-A: F-bridge-l2: `l2` is an opaque JSON field here (bridge-l2/model.ts)
 }
 
@@ -33,7 +36,9 @@ export function interfaceFormSchema(): JsonSchema {
   // F-default-vpp-nics (review R6-1): the physical-NIC marker is set only by the first-boot seed; the drawer shows pci/owner
   // read-only and Release / Reclaim is the only way to change the owner
   delete props['physical'];
-  const required = Array.isArray(item.required) ? item.required.filter((r) => r !== 'subinterfaces') : undefined;
+  const required = Array.isArray(item.required)
+    ? item.required.filter((r) => r !== 'subinterfaces')
+    : undefined;
   return { ...item, properties: props, ...(required ? { required } : {}) } as JsonSchema;
 }
 
@@ -41,24 +46,38 @@ export function interfaceFormSchema(): JsonSchema {
 export function subinterfaceSchema(): JsonSchema {
   const props = (interfaceItemSchema().properties ?? {}) as Record<string, JsonSchema>;
   const sub = props['subinterfaces'] as { additionalProperties?: JsonSchema } | undefined;
-  if (!sub?.additionalProperties || typeof sub.additionalProperties !== 'object') throw new Error('subinterface schema not found');
+  if (!sub?.additionalProperties || typeof sub.additionalProperties !== 'object')
+    throw new Error('subinterface schema not found');
   return sub.additionalProperties;
 }
 
 type Translate = (key: string, opts?: Record<string, unknown>) => string;
 
 /** Titles and help in the UI language (`interfaces:field.<name>.title|help`); the schema's English text stays the fallback. */
-export function localizeSchema(schema: JsonSchema, t: Translate): JsonSchema {
+export function localizeSchema(schema: JsonSchema, t: Translate, path = ''): JsonSchema {
   const props = (schema.properties ?? {}) as Record<string, JsonSchema>;
   const out: Record<string, JsonSchema> = {};
   for (const [name, prop] of Object.entries(props)) {
+    const key = path ? `${path}.${name}` : name;
+    const nested = prop.properties ? localizeSchema(prop, t, key) : prop;
+    const items =
+      prop.items && typeof prop.items === 'object' && !Array.isArray(prop.items)
+        ? localizeSchema(prop.items as JsonSchema, t, key)
+        : prop.items;
     const hints = (prop['x-ngfw-ui'] ?? {}) as Record<string, unknown>;
-    const help = t(`field.${name}.help`, { defaultValue: '' });
+    const help = t(`field.${key}.help`, { defaultValue: '' });
     out[name] = {
-      ...prop,
-      title: t(`field.${name}.title`, { defaultValue: prop.title ?? name }),
+      ...nested,
+      ...(items ? { items } : {}),
+      title: t(`field.${key}.title`, { defaultValue: prop.title ?? name }),
       // group names are fieldset titles: translate them too (the same key for every member keeps the grouping)
-      'x-ngfw-ui': { ...hints, ...(help ? { help } : {}), ...(typeof hints.group === 'string' ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) } : {}) },
+      'x-ngfw-ui': {
+        ...hints,
+        ...(help ? { help } : {}),
+        ...(typeof hints.group === 'string'
+          ? { group: t(`group.${hints.group}`, { defaultValue: hints.group }) }
+          : {}),
+      },
     } as JsonSchema;
   }
   return { ...schema, properties: out } as JsonSchema;
@@ -117,6 +136,10 @@ export function addressesOf(it: InterfaceItem): string[] {
  * dropping "default-only" objects would delete one the user just enabled (WEB-1 review H1). Kept only so that branches
  * importing it keep compiling (WEB-1 verify C1); remove the calls, then this, in a later TD.
  */
-export function dropPhantomOptionals(_schema: JsonSchema, _before: unknown, after: unknown): unknown {
+export function dropPhantomOptionals(
+  _schema: JsonSchema,
+  _before: unknown,
+  after: unknown,
+): unknown {
   return after;
 }

@@ -1,10 +1,10 @@
 {
-  "title": "Access lists",
+  "title": "Policies",
   "intro": "L3/L4 and MACIP access lists, their rules, and where they are attached. Edits go to the candidate configuration; commit them from the pending-change bar.",
-  "tabsLabel": "ACL sections",
+  "tabsLabel": "Policy sections",
   "tabs": {
-    "lists": "Lists",
-    "rules": "Rule editor",
+    "lists": "Policy sets",
+    "rules": "Policies",
     "attachments": "Attachments",
     "macip": "MACIP"
   },

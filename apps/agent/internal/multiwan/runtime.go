@@ -26,10 +26,11 @@ type sample struct {
 	seen   bool
 }
 type memberSamples struct {
-	member  *ngfwv1.WanMember
-	samples []sample
-	up      bool
-	since   time.Time
+	egressEpoch uint64
+	member      *ngfwv1.WanMember
+	samples     []sample
+	up          bool
+	since       time.Time
 }
 type groupSamples struct {
 	group   *ngfwv1.WanGroup
@@ -39,16 +40,20 @@ type groupSamples struct {
 // Runtime owns bounded probes and snapshots. Replace drains the previous
 // generation before starting another, including late non-cooperative completions.
 type Runtime struct {
-	replace    sync.Mutex
-	mu         sync.Mutex
-	groups     map[string]*groupSamples
-	config     []*ngfwv1.WanGroup
-	identity   string
-	ready      bool
-	cancel     context.CancelFunc
-	done       chan struct{}
-	generation uint64
-	probe      Probe
+	gatewayIdentity string
+	gatewayGroups   []*ngfwv1.WanGroup
+	gateways        map[string]LearnedGateway
+	gatewayUntil    time.Time
+	replace         sync.Mutex
+	mu              sync.Mutex
+	groups          map[string]*groupSamples
+	config          []*ngfwv1.WanGroup
+	identity        string
+	ready           bool
+	cancel          context.CancelFunc
+	done            chan struct{}
+	generation      uint64
+	probe           Probe
 }
 
 // NewRuntime constructs an inactive runtime; Replace starts probes.
@@ -176,6 +181,13 @@ func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, 
 		if ctx.Err() != nil {
 			return
 		}
+		r.mu.Lock()
+		if r.generation != gen {
+			r.mu.Unlock()
+			return
+		}
+		egressEpoch := r.groups[group].members[member].egressEpoch
+		r.mu.Unlock()
 		pctx, cancel := context.WithTimeout(ctx, time.Duration(mon.GetTimeoutMs())*time.Millisecond)
 		result := probe(pctx, member, mon)
 		cancel()
@@ -188,6 +200,9 @@ func (r *Runtime) worker(ctx context.Context, gen uint64, group, member string, 
 			return
 		}
 		ms := r.groups[group].members[member]
+		if ms.egressEpoch != egressEpoch {
+			result = CheckResult{Sent: 1, Unavailable: true}
+		}
 		sm := &ms.samples[index]
 		// Treat malformed probe output as failure, never a negative loss.
 		if result.Sent <= 0 || result.Sent > 1000000 || result.Received < 0 || result.Received > result.Sent || result.AvgLatencyMs < 0 || result.AvgLatencyMs > 60000 {

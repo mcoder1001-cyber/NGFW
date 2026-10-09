@@ -208,10 +208,15 @@ func start(ctx context.Context, opts Options) (*Harness, error) {
 	if err := h.lockSlot(); err != nil {
 		return nil, err
 	}
+	return startLocked(ctx, opts, h)
+}
+
+// startLocked preserves the cleanup handle on every failure after slot acquisition.
+func startLocked(ctx context.Context, opts Options, h *Harness) (*Harness, error) {
 	// Leftovers of a killed earlier run of this harness (same prefix, same paths) go first.
 	h.killStale()
 	if err := os.RemoveAll(h.Base); err != nil {
-		return nil, err
+		return h, err
 	}
 	if err := h.prepareDirs(); err != nil {
 		return h, err

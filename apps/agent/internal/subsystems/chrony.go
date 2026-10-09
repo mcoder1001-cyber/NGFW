@@ -17,7 +17,7 @@ import (
 // _chrony:_chrony 0750 (the RF-3 test layout).
 func newChrony(env Env) (*chrony.Renderer, func() error) {
 	if env.GlobalsOwner {
-		return chrony.New(chrony.NewRunner()), nil
+		return chrony.New(chrony.NewRunner(), chrony.WithSecretGenerations(hostServiceSecrets(env.Owner).resolve)), nil
 	}
 	p := chrony.PathsUnder(filepath.Join(slotRunDir(env.Owner), "chrony", "agent"))
 	// A slot instance never queries port 123 of anything (the host's chronyd): every source line gets the slot's
@@ -49,5 +49,5 @@ func newChrony(env Env) (*chrony.Renderer, func() error) {
 		}
 		return nil
 	}
-	return chrony.New(chrony.NewRunner(), chrony.WithPaths(p)), prep
+	return chrony.New(chrony.NewRunner(), chrony.WithPaths(p), chrony.WithSecretGenerations(hostServiceSecrets(env.Owner).resolve)), prep
 }

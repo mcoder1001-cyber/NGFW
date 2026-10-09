@@ -24,6 +24,9 @@ func BfdIDSpan() (uint32, uint32) {
 	if e != nil {
 		return 1, 0
 	}
+	if ids == nil {
+		return 0, ^uint32(0)
+	}
 	return ids.Lo, ids.Hi
 }
 

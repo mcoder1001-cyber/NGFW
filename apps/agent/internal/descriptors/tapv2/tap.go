@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/netip"
 	"ngfw/agent/internal/descriptors/kit"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 
@@ -28,12 +29,19 @@ var ErrEmptyValue = errors.New("tapv2: nil or wrong desired value type")
 // TapDescriptor implements tapv2.tap (tap_create_v3 / tap_delete_v2). A tap is immutable in VPP →
 // Update is a recreate. The owner tag is passed in tap_create_v3.tag.
 type TapDescriptor struct {
-	client vpp.Client
-	owner  string
+	client             vpp.Client
+	owner              string
+	namespaceAdmission func(context.Context, *Tap) error
 }
 
 // New returns the descriptor for owner.
-func New(c vpp.Client, owner string) *TapDescriptor { return &TapDescriptor{c, owner} }
+func New(c vpp.Client, owner string) *TapDescriptor { return &TapDescriptor{client: c, owner: owner} }
+
+// SetNamespaceAdmission installs the verified owner-namespace check for kernel
+// PPP TAPs. Generic arbitrary namespace names never obtain this authority.
+func (d *TapDescriptor) SetNamespaceAdmission(check func(context.Context, *Tap) error) {
+	d.namespaceAdmission = check
+}
 
 func (d *TapDescriptor) svc() tapapi.RPCService { return tapapi.NewServiceClient(d.client) }
 
@@ -46,7 +54,13 @@ func (*TapDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 }
 
 // Dependencies implements scheduler.Descriptor.
-func (*TapDescriptor) Dependencies(proto.Message) []scheduler.Dependency { return nil }
+func (*TapDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
+	o, ok := value.(*Tap)
+	if ok && strings.HasPrefix(o.GetHostNamespace(), "ngp-") {
+		return []scheduler.Dependency{{Key: scheduler.Join("pppoe.carrier.namespace", o.GetHostNamespace())}}
+	}
+	return nil
+}
 
 func ip4Prefix(s string) (ip_types.IP4AddressWithPrefix, bool, error) {
 	if s == "" {
@@ -89,6 +103,14 @@ func (d *TapDescriptor) Create(ctx context.Context, obj proto.Message) (any, err
 	o, ok := obj.(*Tap)
 	if !ok {
 		return nil, ErrEmptyValue
+	}
+	if strings.HasPrefix(o.GetHostNamespace(), "ngp-") {
+		if d.namespaceAdmission == nil {
+			return nil, errors.New("tapv2: PPP namespace ownership verifier is unavailable")
+		}
+		if err := d.namespaceAdmission(ctx, o); err != nil {
+			return nil, err
+		}
 	}
 	if o.GetName() == "" || o.GetId() == ^uint32(0) {
 		return nil, errors.New("tapv2: name and id are mandatory")

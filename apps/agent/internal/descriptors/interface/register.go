@@ -12,6 +12,7 @@ import (
 func Register(r scheduler.Registry, c vpp.Client, owner string) {
 	kit.Register(r, kit.Env{Client: c, Owner: owner},
 		func(e kit.Env) scheduler.Descriptor { return NewSubinterface(e.Client, e.Owner) },
+		func(e kit.Env) scheduler.Descriptor { return NewUnnumbered(e.Client, e.Owner) },
 		func(e kit.Env) scheduler.Descriptor { return NewAdminState(e.Client, e.Owner) },
 		func(e kit.Env) scheduler.Descriptor { return NewMtu(e.Client, e.Owner) },
 		func(e kit.Env) scheduler.Descriptor { return NewMacAddress(e.Client, e.Owner) },

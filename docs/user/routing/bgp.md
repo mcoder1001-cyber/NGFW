@@ -39,8 +39,7 @@ table refreshes every 30 seconds, at once when a session changes (`routing.event
 a **peer group** inherits what it does not set itself. **Address families**: a family is active for a neighbour only when
 it is listed (IPv4 unicast, IPv6 unicast), with its route maps / prefix lists in and out, next-hop-self,
 soft-reconfiguration, maximum prefixes and default-originate. **MD5 password** takes a secret reference
-(`password/<name>`); until the secret channel between API and agent exists, a neighbour with a password is refused at
-commit (`routing.bgp-password-unavailable`).
+(`password/<name>`) delivered through the selected sealed credential channel. Missing material is refused. Same-reference rotation changes the internal keyed generation; rollback restores the previously applied generation. Password plaintext is never returned in configuration or routing state.
 
 ![BGP neighbours](../../status/tasks/P12-screens/bgp-neighbors-en.png)
 

@@ -116,3 +116,21 @@ See also: [Bridging](bridge-l2.md) — bridge domains, cross-connects, VLAN tag 
 See also: [Loopbacks as BVI, GSO, port mirroring, LLDP and the delay simulator](loopback-bvi-gso-lldp-span.md) — `interfaces.<if>.gso`, `interfaces.<if>.mirror`, `services.lldp`, `services.nsim`.
 See also: [Tunnels](../vpn/tunnels.md) — GRE, VXLAN and IPIP tunnel interfaces (`tunnels.*`).
 See also: [Default data-plane NICs](default-dataplane-nics.md) — built-in physical NICs seeded on first boot, release to / reclaim from the host (`interfaces.<if>.physical`).
+
+### IP unnumbered
+
+Set **IP unnumbered** to another configured interface's logical name to borrow its
+IPv4 and IPv6 addresses. The donor must be numbered and must use the same VRF as
+the borrower. A borrower cannot configure its own addresses or DHCP client; donor
+chains and cycles are rejected. Subinterfaces can borrow from a numbered interface
+using the same field.
+
+Saving to candidate, commit, retrieve and rollback use the normal interfaces
+transaction. Clearing the field removes the VPP borrowing association; it does not
+delete the donor or its addresses. The live association is retrieved from VPP and
+reconciled after restart. An existing unclaimed association on a physical interface
+is refused rather than silently adopted.
+
+CLI equivalent: update the candidate `interfaces.<borrower>.unnumbered` field to
+`<donor>` with the configuration commands, then commit. Clear that candidate field
+and commit to revoke borrowing.

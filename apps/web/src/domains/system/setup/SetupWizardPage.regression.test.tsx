@@ -44,6 +44,46 @@ async function select(label: string, name: string) {
 }
 
 describe('setup wizard independent network-picker regression', () => {
+  it.each(['en', 'fa'])(
+    'offers reference-only PPPoE in %s and clears credentials when changing modes',
+    async (lang) => {
+      const fake = installFakeApi();
+      await signIn();
+      fake.on('GET /api/v1/config', {
+        body: RootConfig.parse({ interfaces: { wan0: {}, lan0: {} } }),
+      });
+      render(app());
+      await screen.findByRole('heading', { name: 'Setup wizard' });
+      if (lang === 'fa') {
+        await select('Language', 'Persian');
+        await waitFor(() => expect(i18n.language).toBe('fa'));
+      }
+      await reachWan();
+      await select(i18n.t('setup:wan'), 'wan0');
+      await select(i18n.t('setup:wanMode'), i18n.t('setup:pppoe'));
+      next();
+      expect(await screen.findByText(i18n.t('setup:pppoeRequired'))).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(i18n.t('setup:pppoeUsername')), {
+        target: { value: 'isp-user' },
+      });
+      fireEvent.change(screen.getByLabelText(i18n.t('setup:pppoePasswordRef')), {
+        target: { value: 'plaintext-password' },
+      });
+      next();
+      expect(await screen.findByText(i18n.t('setup:pppoeRequired'))).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(i18n.t('setup:pppoePasswordRef')), {
+        target: { value: 'password/isp' },
+      });
+      await select(i18n.t('setup:wanMode'), i18n.t('setup:dhcp'));
+      expect(screen.queryByLabelText(i18n.t('setup:pppoePasswordRef'))).not.toBeInTheDocument();
+      await select(i18n.t('setup:wanMode'), i18n.t('setup:pppoe'));
+      expect(screen.getByLabelText(i18n.t('setup:pppoePasswordRef'))).toHaveValue('');
+      expect(
+        fake.calls.some((r) => r.method === 'POST' && r.path.startsWith('/api/v1/config/')),
+      ).toBe(false);
+    },
+  );
+
   it('retains configured choices when live state fails and retry loads new interfaces', async () => {
     const fake = installFakeApi();
     await signIn();

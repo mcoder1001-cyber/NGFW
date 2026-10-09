@@ -1,6 +1,7 @@
 package sysident
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,5 +82,29 @@ func TestObservedStateRejectsOversizeAndInvalidFacts(t *testing.T) {
 	st := New(p, nil).State(filepath.Join(root, "proc"), filepath.Join(root, "missing"))
 	if st.Hostname != "" || st.Timezone != "" || st.UptimeSeconds != nil {
 		t.Fatalf("invalid facts accepted %#v", st)
+	}
+}
+
+func TestObservedStateRefusesDisconnectedManagedTargets(t *testing.T) {
+	root := t.TempDir()
+	p := PathsUnder(root)
+	for _, dir := range p.Dirs() {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(p.Hostname, []byte("configured-private-target"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d := New(p, nil)
+	d.provisioned = func() error { return errors.New("public hostname link redirected") }
+	st := d.State(filepath.Join(root, "proc"), filepath.Join(root, "runtime"))
+	if st.Hostname != "" || st.Timezone != "" || st.KernelHostname != nil || st.UptimeSeconds != nil ||
+		len(st.ConfiguredNameServers) != 0 || len(st.ObservedNameServers) != 0 ||
+		st.ResolverStatus != "unavailable" || len(st.Errors) != 1 || st.Errors[0] != "provisioning" {
+		t.Fatalf("disconnected targets presented as installed host facts: %#v", st)
+	}
+	if got, err := os.ReadFile(p.Hostname); err != nil || string(got) != "configured-private-target" {
+		t.Fatal("read-only state mutated target")
 	}
 }

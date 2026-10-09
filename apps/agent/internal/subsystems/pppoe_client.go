@@ -15,7 +15,9 @@ import (
 var pppoeActive atomic.Pointer[PppoeRuntime]
 var pppoeConfigs = map[string]*pppoe.ClientConfig{}
 
-func init() { Domains[Interfaces] = append(Domains[Interfaces], pppoe.ClientConfigName) }
+func init() {
+	Domains[Interfaces] = append(Domains[Interfaces], pppoe.ClientConfigName, pppoe.CarrierNamespaceName, pppoe.CarrierTapName)
+}
 
 // PppoeSupervised reports whether this process may supervise host units.
 func PppoeSupervised() bool { rt := pppoeActive.Load(); return rt != nil && rt.globalsOwner }
@@ -36,6 +38,12 @@ func (w *Wiring) registerPppoeClient(reg scheduler.Registry) error {
 	rt := PppoeOf(w.env.Owner)
 	pppoeActive.Store(rt)
 	d := pppoe.NewClientConfig(rt, rt.renderer, filepath.Join(w.env.StateDir, "pppoe-"+w.env.Owner+"-applied.pb"))
+	if w.env.GlobalsOwner {
+		d.SetCarrierOwner(w.env.Owner)
+	}
+	if err := w.registerPppoeCarrier(reg, rt); err != nil {
+		return err
+	}
 	reg.Register(d)
 	pppoeMu.Lock()
 	pppoeConfigs[w.env.Owner] = d
@@ -60,6 +68,9 @@ func (w *Wiring) registerPppoeClient(reg scheduler.Registry) error {
 				})
 			}
 		}
+	}
+	if err := w.registerPppoeDelegation(reg, rt.DelegationSnapshot); err != nil {
+		return err
 	}
 	reg.Register(&pppoeObservation{})
 	if err := w.AddDynamicSource(DynamicSource{Name: "pppoe-watch", Descriptors: []string{"pppoe.client.observation"}, Desired: rt.watchDesired, Run: rt.watch}); err != nil {

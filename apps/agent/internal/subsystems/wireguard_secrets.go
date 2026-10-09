@@ -19,24 +19,24 @@ import (
 // state ("x25519:<public key>", "hmac:<hex>" — never material), and Resolve (vpn.Resolver) returns the
 // material behind a DF-5 reference to the descriptors' Create.
 //
-// Nothing fills it in the product agent yet: the API→agent secret channel is PENDING-secret-channel,
-// so every WireGuard interface fails validation at privateKeyRef with agent.secret-unavailable. Tests
-// fill it directly (Put) and test builds (wireguard_fixture.go's build tag) from a slot-local fixture file.
+// Product wiring delegates to the transaction-selected sealed cache; Put is for fixtures.
 //
 // The material sits behind a pointer and the type formats as "subsystems.WireguardSecrets(n
 // secrets)", so %v/%+v/slog of a Config that holds it never print bytes.
 type WireguardSecrets struct{ s *wgSecretStore }
 
 type wgSecretStore struct {
-	mu     sync.RWMutex
-	keys   *vpn.Keyer
-	byName map[string][]byte // D-051 ref → material
-	byRef  map[string][]byte // DF-5 ref → material
-	refOf  map[string]string // D-051 ref → DF-5 ref
+	sourceRef     func(string) (string, error)
+	sourceResolve func(context.Context, string) ([]byte, error)
+	mu            sync.RWMutex
+	keys          *vpn.Keyer
+	byName        map[string][]byte // D-051 ref → material
+	byRef         map[string][]byte // DF-5 ref → material
+	refOf         map[string]string // D-051 ref → DF-5 ref
 }
 
 // ErrSecretUnavailable is returned when the agent holds no material for a reference (PENDING-secret-channel).
-var ErrSecretUnavailable = errors.New("no secret material in the agent (the API→agent secret channel is pending: PENDING-secret-channel)")
+var ErrSecretUnavailable = errors.New("selected WireGuard secret is unavailable")
 
 var d051Ref = regexp.MustCompile(`^(key|psk)/[A-Za-z0-9_.-]{1,64}$`)
 
@@ -95,6 +95,9 @@ func (w *WireguardSecrets) Ref(ref string) (string, error) {
 	}
 	w.s.mu.RLock()
 	defer w.s.mu.RUnlock()
+	if w.s.sourceRef != nil {
+		return w.s.sourceRef(ref)
+	}
 	r, ok := w.s.refOf[ref]
 	if !ok {
 		return "", fmt.Errorf("%s: %w", vpn.Redact(ref), ErrSecretUnavailable)
@@ -103,9 +106,12 @@ func (w *WireguardSecrets) Ref(ref string) (string, error) {
 }
 
 // Resolve implements vpn.Resolver: a copy of the material behind a DF-5 reference.
-func (w *WireguardSecrets) Resolve(_ context.Context, ref string) ([]byte, error) {
+func (w *WireguardSecrets) Resolve(ctx context.Context, ref string) ([]byte, error) {
 	w.s.mu.RLock()
 	defer w.s.mu.RUnlock()
+	if w.s.sourceResolve != nil {
+		return w.s.sourceResolve(ctx, ref)
+	}
 	m, ok := w.s.byRef[ref]
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", vpn.ErrSecretNotFound, vpn.Redact(ref))
@@ -130,3 +136,22 @@ func (w *WireguardSecrets) GoString() string { return w.String() }
 
 // LogValue implements slog.LogValuer.
 func (w *WireguardSecrets) LogValue() slog.Value { return slog.StringValue(w.String()) }
+
+// SetWireguardSecrets binds selected and historical resolvers without copying plaintext.
+func SetWireguardSecrets(owner string, ref func(string) (string, error), resolve func(context.Context, string) ([]byte, error)) error {
+	w := WireguardSecretsFor(owner)
+	if w == nil || ref == nil || resolve == nil {
+		return ErrSecretUnavailable
+	}
+	w.s.mu.Lock()
+	defer w.s.mu.Unlock()
+	for _, v := range w.s.byName {
+		vpn.Zero(v)
+	}
+	w.s.byName = map[string][]byte{}
+	w.s.byRef = map[string][]byte{}
+	w.s.refOf = map[string]string{}
+	w.s.sourceRef = ref
+	w.s.sourceResolve = resolve
+	return nil
+}

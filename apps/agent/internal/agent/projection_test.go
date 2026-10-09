@@ -14,6 +14,7 @@ import (
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/desired"
 	"ngfw/agent/internal/scheduler"
+	"ngfw/agent/internal/secretchannel"
 	"ngfw/agent/internal/subsystems"
 )
 
@@ -29,6 +30,18 @@ func TestProjectSchemaExamples(t *testing.T) {
 	saved := desired.SnapshotSnmpChecks()
 	desired.RestoreSnmpChecks(nil)
 	t.Cleanup(func() { desired.RestoreSnmpChecks(saved) })
+	// Bind reference-only SNMP examples to one sealed fixture owner, just like
+	// production projection; unrelated registered agents must not select its keys.
+	const corpusOwner = "schema-corpus"
+	cache, err := secretchannel.Open(t.TempDir(), corpusOwner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	desired.SetSnmpSecretGenerations(corpusOwner, cache.Ref)
+	t.Cleanup(func() { desired.SetSnmpSecretGenerations(corpusOwner, nil) })
+	projectCorpus := func(ds *ngfwv1.DesiredState, native desired.IKEv2Env) *projected {
+		return projectOwned(ds, implementedDomains(), nil, nil, corpusOwner, native)
+	}
 	files, err := filepath.Glob("../../../../packages/schema/examples/*.json")
 	if err != nil || len(files) == 0 {
 		t.Skipf("no schema examples: %v", err)
@@ -51,7 +64,18 @@ func TestProjectSchemaExamples(t *testing.T) {
 			continue
 		}
 		n++
-		pj := project(ds, implementedDomains(), nil, nil, native)
+		material := map[string][]byte{}
+		for _, ref := range desired.SnmpSecretRefs(ds.GetServices().GetSnmp()) {
+			material[ref] = []byte("NGFW_TEST_PSK_SCHEMA_SNMP")
+		}
+		generation, err := cache.Stage(material)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = cache.Activate(generation); err != nil {
+			t.Fatal(err)
+		}
+		pj := projectCorpus(ds, native)
 		if base == "vpn-remote-access.json" {
 			refused := false
 			for _, issue := range pj.issues {
@@ -60,7 +84,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 				}
 			}
 			if !refused {
-				t.Fatal("ownerless legacy projection accepted an enabled independent engine")
+				t.Fatal("unprovisioned corpus owner accepted an enabled independent engine")
 			}
 			for _, kv := range pj.kvs {
 				if strings.HasPrefix(string(kv.Key), "remote-access.") {
@@ -72,11 +96,11 @@ func TestProjectSchemaExamples(t *testing.T) {
 			for _, profile := range ds.GetVpn().GetRemoteAccess() {
 				profile.Enabled = &disabled
 			}
-			pj = project(ds, implementedDomains(), nil, nil, native)
+			pj = projectCorpus(ds, native)
 		}
 		for _, is := range pj.issues {
-			// F-unbound-chrony-syslog: secret references are refused until PENDING-secret-channel lands (envelope).
-			// TODO(PENDING-secret-channel): remove this exemption when the API→agent secret channel lands (review L9).
+			// Host-service references deliberately have no selected material in this
+			// corpus; owner-bound sealed host credentials have separate coverage.
 			if is.severity == ngfwv1.IssueSeverity_ISSUE_SEVERITY_ERROR && is.rule != "agent.secret-channel-pending" {
 				t.Errorf("%s: %s %s: %s", base, is.pointer, is.rule, is.message)
 			}
@@ -88,7 +112,7 @@ func TestProjectSchemaExamples(t *testing.T) {
 				t.Fatalf("%s: empty kv", base)
 			}
 		}
-		again := project(out, implementedDomains(), nil, nil, native)
+		again := projectCorpus(out, native)
 		if !sameKVs(withoutWriteOnly(pj.kvs), again.kvs) { // write-only objects cannot round-trip (F-loopback-bvi-gso-lldp-span)
 			t.Errorf("%s: project(assemble(project(doc))) != project(doc)", base)
 			wantByKey := map[scheduler.Key]proto.Message{}

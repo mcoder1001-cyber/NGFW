@@ -23,7 +23,7 @@ import { fetchInterfacesState, ifaceKeys } from '../../interfaces/queries';
 import { useUiSettings } from '../../../settings/UiSettings';
 
 const STEP_KEYS = ['time', 'password', 'identity', 'wan', 'lan', 'defaults', 'summary'];
-const WAN_MODES = ['dhcp', 'static'];
+const WAN_MODES = ['dhcp', 'static', 'pppoe'];
 const KEY = {
   time: 'time',
   password: 'password',
@@ -38,8 +38,10 @@ const KEY = {
   ntp: 'ntp',
   hostname: 'hostname',
   wanMode: 'wanMode',
+  wanPppoe: 'wanPppoe',
   dhcp: 'dhcp',
   static: 'static',
+  pppoe: 'pppoe',
   wanAddress: 'wanAddress',
   wanGateway: 'wanGateway',
   lanAddress: 'lanAddress',
@@ -87,7 +89,13 @@ export function SetupWizardPage() {
   const interfaceNames = [
     ...new Set([
       ...Object.entries(running.data?.doc.interfaces ?? {})
-        .filter(([name, config]) => name !== 'local0' && config.physical?.owner !== 'host')
+        .filter(
+          ([name, config]) =>
+            name !== 'local0' &&
+            config.physical?.owner !== 'host' &&
+            !config.pppoe &&
+            name !== 'setup-pppoe',
+        )
         .map(([name]) => name),
       ...(interfaces.data?.items ?? [])
         .filter(
@@ -99,6 +107,8 @@ export function SetupWizardPage() {
                 item.state.vrf === 'default' &&
                 ['dpdk', 'vmxnet3', 'virtio'].includes(item.state.type))) &&
             item.name !== 'local0' &&
+            item.name !== 'setup-pppoe' &&
+            !running.data?.doc.interfaces[item.name]?.pppoe &&
             item.physical?.owner !== 'host' &&
             parentInterfaceName.safeParse(item.name).success &&
             running.data?.doc.interfaces[item.name]?.physical?.owner !== 'host',
@@ -153,6 +163,12 @@ export function SetupWizardPage() {
       if ((step === 3 || step === 4) && !values[step === 3 ? 'wan' : 'lan'])
         throw new Error(t('selectInterface'));
       for (const key of fields[step] ?? []) SetupInputSchema.shape[key].parse(values[key]);
+      if (
+        step === 3 &&
+        values.wanMode === 'pppoe' &&
+        (!values.wanPppoe || !SetupInputSchema.shape.wanPppoe.safeParse(values.wanPppoe).success)
+      )
+        throw new Error(t('pppoeRequired'));
       if (step === 1 && (password.length < 12 || current === '' || current === password))
         throw new Error(t('passwordPolicy'));
       if (step === 5) {
@@ -312,7 +328,15 @@ export function SetupWizardPage() {
             select
             label={t(KEY.wanMode)}
             value={values.wanMode}
-            onChange={(e) => set(KEY.wanMode, e.target.value as SetupInput['wanMode'])}
+            onChange={(e) => {
+              const wanMode = e.target.value as SetupInput['wanMode'];
+              setValues((v) => ({
+                ...v,
+                wanMode,
+                wanPppoe: wanMode === 'pppoe' ? v.wanPppoe : undefined,
+              }));
+              setPreview(undefined);
+            }}
           >
             {WAN_MODES.map((mode) => (
               <MenuItem key={mode} value={mode}>
@@ -326,7 +350,31 @@ export function SetupWizardPage() {
               {field(KEY.wanGateway)}
             </>
           )}
-          <Alert severity="info">{t('pppoeHelp')}</Alert>
+          {values.wanMode === KEY.pppoe && (
+            <>
+              <TextField
+                label={t('pppoeUsername')}
+                value={values.wanPppoe?.username ?? ''}
+                onChange={(e) =>
+                  set(KEY.wanPppoe, {
+                    username: e.target.value,
+                    passwordRef: values.wanPppoe?.passwordRef ?? '',
+                  })
+                }
+              />
+              <TextField
+                label={t('pppoePasswordRef')}
+                value={values.wanPppoe?.passwordRef ?? ''}
+                onChange={(e) =>
+                  set(KEY.wanPppoe, {
+                    username: values.wanPppoe?.username ?? '',
+                    passwordRef: e.target.value,
+                  })
+                }
+              />
+              <Alert severity="info">{t('pppoeHelp')}</Alert>
+            </>
+          )}
         </>
       )}
       {step === 4 && (

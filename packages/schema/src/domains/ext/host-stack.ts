@@ -50,7 +50,7 @@ export const hostStackWwwRootPath = withUi(
 export const HostStackNamespaceSchema = z.strictObject({
   secretRef: withUi(secretRefOf('key').optional(), {
     title: 'Secret',
-    help: 'key/<name>; not applied until the API→agent secret channel exists',
+    help: 'key/<name>; sealed secret material must be a canonical nonzero decimal uint64',
   }),
   interface: withUi(vppInterfaceName.optional(), {
     title: 'Interface',

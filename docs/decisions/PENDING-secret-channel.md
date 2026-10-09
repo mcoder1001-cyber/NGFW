@@ -47,3 +47,28 @@ _Refreshed 2026-09-24 (D-125): the socket wording now matches the code, and the 
 - **نکتهٔ تازه (۲۰۲۶-۰۹-۲۵):** هر گزینه‌ای انتخاب شود، اسرار باید پیش از اولین resync بعد از ری‌استارت ایجنت در دسترس باشند؛ وگرنه تونل‌های WireGuard بدون کلید دوباره ساخته و قطع می‌شوند. برای همین در گزینهٔ ۱ کش مهروموم‌شده الزامی است.
 - **پیشنهاد من، گزینهٔ ۱:** API موقع commit اسرار را در یک فیلد جداگانه که هیچ‌جا ذخیره نمی‌شود به ایجنت می‌فرستد. این کار از راه سوکت ایجنت با دسترسی root:ngfw 0660 انجام می‌شود و فقط API در گروه ngfw است. Retrieve، DryRun و پیام‌های خطا هرگز محتوای اسرار را برنمی‌گردانند. ایجنت آن‌ها را در یک کش محلیِ مهروموم‌شده نگه می‌دارد تا بعد از ری‌استارت هم بدون API کار کند. کلید اصلی فقط پیش API می‌ماند.
 - **چه چیزی منتظر می‌ماند:** تحویل اسرار برای WireGuard، احراز هویت routing، TLS و سایر مصرف‌کنندگان؛ مسیر PSK در native IPsec دیگر منتظر نیست.
+
+## 2026-10-08: WireGuard and SNMP production binding
+
+The version-pinned API push channel now selects WireGuard private/preshared keys,
+SNMP community/auth/privacy references, BGP passwords, NTP symmetric keys, TLS
+syslog credentials and host-stack namespace keys. Selection is limited to exact
+operational leaves; disabled SNMP/NTP and non-TLS syslog credentials are excluded.
+CA signing keys remain forbidden even when aliased by these consumers.
+
+WireGuard decodes canonical standard-base64 32-byte material from the selected
+sealed snapshot. Its existing public-key/HMAC descriptor identities resolve
+retained generations for rollback and restart. SNMP scheduler values and private
+reference-only records bind exact HMAC generations, so rotating an unchanged
+reference causes an update and rollback uses the historical material. Product
+SNMP no longer reads `NGFW_SNMP_FIXTURE_SECRETS`; fixture resolvers remain explicit
+test utilities. Missing, malformed or revoked generations fail closed.
+
+Focused evidence: API selector/version-pin tests; WireGuard real service fixture
+DryRun/Apply/confirm-timeout revert/restart; SNMP community and USM auth/privacy
+rotation/restart/rollback; sealed-cache pruning/revocation; malformed scheduler
+binding rejection. These host-independent proofs do not replace native WireGuard
+handshake or real snmpd acceptance. Full CI is deferred until the combined source
+completion, by owner instruction. The additional BGP/NTP/syslog/host-stack
+consumer adapters are a separate integration checkpoint; API selection alone is
+not their runtime acceptance.

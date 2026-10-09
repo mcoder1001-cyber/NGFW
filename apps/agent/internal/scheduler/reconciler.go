@@ -1138,16 +1138,92 @@ func (x *executor) around(ctx context.Context, key Key, value proto.Message, fn 
 	if err := fn(); err != nil {
 		return err
 	}
+	// A live dependent can also need an absent object scheduled for creation
+	// later in this transaction. Include those prerequisites before restoring the
+	// dependent; rebuilding only the old live graph would bind it too early.
+	rebuild := make(map[Key]KV, len(dependents))
 	for _, k := range dependents {
 		v := x.journalValue(k)
 		if want, ok := x.desired[k]; ok {
 			v = want.Value
 		}
-		if err := x.create(ctx, k, v, depIdx[k]); err != nil {
+		rebuild[k] = KV{Key: k, Value: v}
+	}
+	order, err := x.recreationOrder(rebuild)
+	if err != nil {
+		return err
+	}
+	for _, k := range order {
+		if x.done[k] {
+			if _, present := x.live[k]; present {
+				continue
+			}
+		}
+		if idx, oldDependent := depIdx[k]; oldDependent {
+			if err := x.create(ctx, k, rebuild[k].Value, idx); err != nil {
+				return err
+			}
+		} else if err := x.run(ctx, PlannedOp{Key: k, Op: OpCreate, Value: rebuild[k].Value}); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// recreationOrder extends the restore graph with pending CREATE prerequisites,
+// following aliases and non-mutating intermediate objects. Only admitted plan
+// creates are eligible: an absent optional/observed object is never fabricated.
+func (x *executor) recreationOrder(rebuild map[Key]KV) ([]Key, error) {
+	pending := map[Key]bool{}
+	for _, op := range x.res.Plan.Ops {
+		if op.Op == OpCreate {
+			pending[op.Key] = true
+		}
+	}
+	through := make(map[Key]KV, len(x.live)+len(x.desired))
+	for k, v := range x.live {
+		through[k] = v
+	}
+	for k, v := range x.desired {
+		through[k] = v
+	}
+	aliases := x.s.aliases(through)
+	seen := map[Key]bool{}
+	var visit func(Key)
+	visit = func(k Key) {
+		v, found := through[k]
+		if !found {
+			if target, ok := aliases[k]; ok {
+				k = target
+				v, found = through[k]
+			}
+		}
+		if !found || seen[k] {
+			return
+		}
+		seen[k] = true
+		if _, live := x.live[k]; !live && pending[k] {
+			rebuild[k] = v
+		}
+		if restored, ok := rebuild[k]; ok {
+			v = restored
+		}
+		for _, dep := range x.descriptor(k).Dependencies(v.Value) {
+			visit(dep.Key)
+		}
+	}
+	for _, k := range sortedKeys(rebuild) {
+		// Restore values may be previous live values outside the desired scope.
+		through[k] = rebuild[k]
+	}
+	for _, k := range sortedKeys(rebuild) {
+		visit(k)
+	}
+	order, cycle := x.s.topoThrough(rebuild, through)
+	if len(cycle) != 0 {
+		return nil, fmt.Errorf("recreation prerequisite cycle: %v", cycle)
+	}
+	return order, nil
 }
 
 // journalValue returns the last deleted value of k recorded in the journal.

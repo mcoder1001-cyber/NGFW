@@ -3,6 +3,7 @@ package multiwan
 import (
 	"context"
 	"google.golang.org/protobuf/proto"
+	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -299,5 +300,42 @@ func TestRuntimeSinceTracksAggregateMemberTransitions(t *testing.T) {
 	}
 	if r.Snapshot()[0].Members[0].Since != nil {
 		t.Fatal("new identity retained previous member transition")
+	}
+}
+
+func TestRuntimeLearnedGenerationRejectsInFlightSuccess(t *testing.T) {
+	first := make(chan struct{})
+	release := make(chan struct{})
+	var calls atomic.Int32
+	runtime := NewRuntime(func(context.Context, string, *ngfwv1.WanMonitor) CheckResult {
+		if calls.Add(1) == 1 {
+			close(first)
+			<-release
+			return CheckResult{Sent: 1, Received: 1}
+		}
+		return CheckResult{Sent: 1}
+	})
+	group := runtimeGroup()
+	group.Members[0].NextHop = proto.String("pppoe")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	defer func() {
+		if err := runtime.Close(context.Background()); err != nil {
+			t.Error(err)
+		}
+	}()
+	value := LearnedGateway{Source: "pppoe", Generation: "first", Address: netip.MustParsePrefix("203.0.113.2/32"), Gateway: netip.MustParseAddr("169.254.254.2")}
+	groups := []*ngfwv1.WanGroup{group}
+	runtime.SetGateways(groups, "", map[string]LearnedGateway{"wan0": value})
+	if err := runtime.Replace(ctx, groups); err != nil {
+		t.Fatal(err)
+	}
+	<-first
+	value.Generation = "replacement"
+	runtime.SetGateways(groups, "", map[string]LearnedGateway{"wan0": value})
+	close(release)
+	waitRuntime(t, func() bool { return calls.Load() > 1 })
+	if runtime.Snapshot()[0].Members[0].Up {
+		t.Fatal("in-flight old carrier probe authorized new generation")
 	}
 }

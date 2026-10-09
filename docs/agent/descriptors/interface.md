@@ -192,3 +192,17 @@ before a delete): `ngfw_agent_iface_sanitize_{total,errors_total,inherited_total
 `ngfw_agent_iface_sanitize_{cleared_total,freed_table_total,unclearable_total}{phase,state}`,
 `ngfw_agent_iface_sanitize_capped_total{phase}` (placeholder cap reached; create failed closed), plus the gauge
 `ngfw_agent_iface_quarantined` and the counter `ngfw_agent_iface_quarantine_total`.
+
+## IP unnumbered (`interface.unnumbered`)
+
+The internal `Unnumbered` value contains borrower `interface` and numbered `donor`
+alias references. Both aliases and their optional `interface-ip.table` bindings are
+dependencies. Create checks both IPv4 and IPv6 live tables, claims an untagged borrower
+before mutation, and calls generated `SwInterfaceSetUnnumbered` (donor `SwIfIndex`,
+borrower `UnnumberedSwIfIndex`). Retrieve uses `IPUnnumberedDump`; no memory-only
+association cache is authoritative. Update recreates the association so the scheduler
+can compensate the previous relationship. Delete resolves the borrower again, checks
+its index and ownership, checks the live donor, then removes only that relationship.
+
+Focused fake and unit verification does not replace native VPP packet/restart,
+rollback and browser acceptance; those remain laboratory acceptance.

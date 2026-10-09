@@ -18,8 +18,15 @@ import (
 )
 
 func TestFRRSecretGenerationRotationAndHistoricalRollback(t *testing.T) {
+	testFRRSecretGeneration(t, "password/ospf", `{"interfaces":{"host-w8l0":{"ipv4":["10.8.1.1/24"],"lcp":{"hostIfName":"w8-l0"}}},"routing":{"ospf":{"routerId":"10.8.0.1","areas":{"0":{}},"interfaces":{"host-w8l0":{"area":"0","auth":{"type":"md5","keyId":1,"keyRef":"password/ospf"}}}}}}`)
+}
+func TestBGPSecretGenerationRotationAndHistoricalRollback(t *testing.T) {
+	testFRRSecretGeneration(t, "password/bgp", `{"interfaces":{"host-w8l0":{"ipv4":["10.8.1.1/24"],"lcp":{"hostIfName":"w8-l0"}}},"routing":{"bgp":{"asn":65008,"routerId":"10.8.0.1","neighbors":{"10.8.1.2":{"remoteAs":65009,"passwordRef":"password/bgp"}}}}}`)
+}
+func testFRRSecretGeneration(t *testing.T, reference, document string) {
 	ctx := context.Background()
-	cache, err := secretchannel.Open(t.TempDir(), "generation-test")
+	cacheRoot := t.TempDir()
+	cache, err := secretchannel.Open(cacheRoot, "generation-test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +39,7 @@ func TestFRRSecretGenerationRotationAndHistoricalRollback(t *testing.T) {
 	}
 	oldSecret, newSecret := secret(), secret()
 	activate := func(value []byte) {
-		id, err := cache.Stage(map[string][]byte{"password/ospf": value})
+		id, err := cache.Stage(map[string][]byte{reference: value})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -50,14 +57,14 @@ func TestFRRSecretGenerationRotationAndHistoricalRollback(t *testing.T) {
 	defer rt.Close()
 	rt.secretSource, rt.secretFingerprint, rt.secretHistory = cache.Text, cache.Ref, cache.Resolve
 	descriptor := &frrConfigDescriptor{rt: rt}
-	doc := frrDoc(t, `{"interfaces":{"host-w8l0":{"ipv4":["10.8.1.1/24"],"lcp":{"hostIfName":"w8-l0"}}},"routing":{"ospf":{"routerId":"10.8.0.1","areas":{"0":{}},"interfaces":{"host-w8l0":{"area":"0","auth":{"type":"md5","keyId":1,"keyRef":"password/ospf"}}}}}}`)
+	doc := frrDoc(t, document)
 	original := proto.Clone(doc)
 	value := func() *structpb.Struct {
-		fingerprint, err := cache.Ref(ctx, "password/ospf")
+		fingerprint, err := cache.Ref(ctx, reference)
 		if err != nil {
 			t.Fatal(err)
 		}
-		v, err := desired.FRRValueWithSecretBindings(doc, desired.FRRApplied, map[string]string{"password/ospf": fingerprint})
+		v, err := desired.FRRValueWithSecretBindings(doc, desired.FRRApplied, map[string]string{reference: fingerprint})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -115,6 +122,36 @@ func TestFRRSecretGenerationRotationAndHistoricalRollback(t *testing.T) {
 	kvs, err = descriptor.Retrieve(ctx)
 	if err != nil || len(kvs) != 1 || !proto.Equal(kvs[0].Value, oldValue) {
 		t.Fatal("rollback retrieval lost historical generation")
+	}
+	// Restart the sealed store and renderer, then revoke current selection. Applied
+	// generation readback remains historical; projection cannot select a revoked key.
+	reopened, err := secretchannel.Open(cacheRoot, "generation-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	restarted := newFRRAt(Env{Owner: "generation-test"}, runner, paths, true)
+	defer restarted.Close()
+	restarted.secretSource, restarted.secretFingerprint, restarted.secretHistory = reopened.Text, reopened.Ref, reopened.Resolve
+	restartedDescriptor := &frrConfigDescriptor{rt: restarted}
+	// FRR intentionally reconstructs owned state by reapplying the scheduler
+	// value after restart; it does not infer credentials from running-config.
+	if _, err = restartedDescriptor.Create(ctx, oldValue); err != nil {
+		t.Fatal("restart could not reapply historical generation", err)
+	}
+	assertRendered(oldSecret, newSecret)
+	revoked, err := reopened.Stage(map[string][]byte{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = reopened.Activate(revoked); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = reopened.Ref(ctx, reference); err == nil {
+		t.Fatal("revoked selection accepted")
+	}
+	kvs, err = restartedDescriptor.Retrieve(ctx)
+	if err != nil || len(kvs) != 1 || !proto.Equal(kvs[0].Value, oldValue) {
+		t.Fatal("revocation destroyed rollback history")
 	}
 	// An unavailable bound snapshot cannot fall back to the active candidate.
 	rt.secretHistory = func(context.Context, string) ([]byte, error) { return nil, errors.New("unavailable") }

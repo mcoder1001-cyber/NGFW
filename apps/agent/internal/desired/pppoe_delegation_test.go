@@ -15,7 +15,7 @@ import (
 func delegationFixture() (*ngfwv1.DesiredState, PppoeDelegationLease, time.Time) {
 	now := time.Unix(2000000000, 0)
 	doc := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
-		"wan": {Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: "lan", SubnetId: 2}}}},
+		"wan": {Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: proto.String("lan"), SubnetId: proto.Uint32(2)}}}},
 		"lan": {Enabled: proto.Bool(true)}, "raw": {Enabled: proto.Bool(true)},
 	}}
 	return doc, PppoeDelegationLease{Logical: "wan", Generation: "current", Ready: true, Delegated: netip.MustParsePrefix("2001:db8:100::/56"), ValidUntil: now.Add(time.Hour), PreferredUntil: now.Add(30 * time.Minute)}, now
@@ -71,7 +71,7 @@ func TestPppoeDelegationRejectsCrossInterfaceOverlap(t *testing.T) {
 		t.Fatal("overlapping static LAN accepted", got)
 	}
 	delete(doc.Interfaces, "other")
-	doc.Interfaces["wan2"] = &ngfwv1.Interface{Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw2"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: "lan2", SubnetId: 2}}}}
+	doc.Interfaces["wan2"] = &ngfwv1.Interface{Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw2"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: proto.String("lan2"), SubnetId: proto.Uint32(2)}}}}
 	doc.Interfaces["lan2"] = &ngfwv1.Interface{Enabled: proto.Bool(true)}
 	other := lease
 	other.Logical = "wan2"

@@ -7989,9 +7989,11 @@ export interface Pppoe {
 /** PppoeDelegationTarget selects a stable /64 within the active ISP lease. */
 export interface PppoeDelegationTarget {
   /** Enabled LAN interface in the same VRF, with no static IPv6/RA configuration. */
-  interface: string;
+  interface?:
+    | string
+    | undefined;
   /** Subnet bits between delegation length and /64; at most 2^32-1 (public configuration bound). */
-  subnetId: number;
+  subnetId?: number | undefined;
 }
 
 /** PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`. */
@@ -69867,15 +69869,15 @@ export const Pppoe: MessageFns<Pppoe> = {
 };
 
 function createBasePppoeDelegationTarget(): PppoeDelegationTarget {
-  return { interface: "", subnetId: 0 };
+  return { interface: undefined, subnetId: undefined };
 }
 
 export const PppoeDelegationTarget: MessageFns<PppoeDelegationTarget> = {
   encode(message: PppoeDelegationTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       writer.uint32(10).string(message.interface);
     }
-    if (message.subnetId !== 0) {
+    if (message.subnetId !== undefined) {
       writer.uint32(16).uint32(message.subnetId);
     }
     return writer;
@@ -69924,21 +69926,21 @@ export const PppoeDelegationTarget: MessageFns<PppoeDelegationTarget> = {
 
   fromJSON(object: any): PppoeDelegationTarget {
     return {
-      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : undefined,
       subnetId: isSet(object.subnetId)
         ? globalThis.Number(object.subnetId)
         : isSet(object.subnet_id)
         ? globalThis.Number(object.subnet_id)
-        : 0,
+        : undefined,
     };
   },
 
   toJSON(message: PppoeDelegationTarget): unknown {
     const obj: any = {};
-    if (message.interface !== "") {
+    if (message.interface !== undefined) {
       obj.interface = message.interface;
     }
-    if (message.subnetId !== 0) {
+    if (message.subnetId !== undefined) {
       obj.subnetId = Math.round(message.subnetId);
     }
     return obj;
@@ -69949,8 +69951,8 @@ export const PppoeDelegationTarget: MessageFns<PppoeDelegationTarget> = {
   },
   fromPartial(object: DeepPartial<PppoeDelegationTarget>): PppoeDelegationTarget {
     const message = createBasePppoeDelegationTarget();
-    message.interface = object.interface ?? "";
-    message.subnetId = object.subnetId ?? 0;
+    message.interface = object.interface ?? undefined;
+    message.subnetId = object.subnetId ?? undefined;
     return message;
   },
 };

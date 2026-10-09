@@ -60,7 +60,7 @@ func pdProduct(t *testing.T, c vpp.Client, dir string) (*scheduler.MapRegistry, 
 func pdDocLease() (*ngfwv1.DesiredState, desired.PppoeDelegationLease, time.Time) {
 	now := time.Unix(2000000000, 0)
 	doc := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{
-		"wan": {Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: "loop701", SubnetId: 2}}}},
+		"wan": {Enabled: proto.Bool(true), Pppoe: &ngfwv1.Pppoe{Enabled: proto.Bool(true), Ipv6: proto.String("dhcpv6"), Parent: proto.String("raw"), DelegationTargets: []*ngfwv1.PppoeDelegationTarget{{Interface: proto.String("loop701"), SubnetId: proto.Uint32(2)}}}},
 		"raw": {Enabled: proto.Bool(true)}, "loop701": {Enabled: proto.Bool(true)},
 	}}
 	return doc, desired.PppoeDelegationLease{Logical: "wan", Generation: "current", Ready: true, Delegated: netip.MustParsePrefix("2001:db8:100::/56"), ValidUntil: now.Add(time.Hour), PreferredUntil: now.Add(30 * time.Minute)}, now

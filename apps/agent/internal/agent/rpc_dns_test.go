@@ -119,7 +119,12 @@ func TestHostServicesRefusedAtDryRun(t *testing.T) {
 	if err != nil || rep.GetOk() {
 		t.Fatalf("dry run %v %v", rep, err)
 	}
-	if e := rep.GetErrors()[0]; e.GetPointer() != "/management/syslog/0/tls" || e.GetRule() != "agent.secret-channel-pending" {
+	// The service has a sealed channel, but the requested CA generation is absent.
+	// Binding fails for the complete syslog object before descriptor execution.
+	if len(rep.GetErrors()) != 1 {
+		t.Fatalf("expected one unavailable-generation error: %v", rep.GetErrors())
+	}
+	if e := rep.GetErrors()[0]; e.GetPointer() != "/management/syslog" || e.GetRule() != "agent.secret-channel-pending" {
 		t.Fatalf("issue %v", e)
 	}
 }

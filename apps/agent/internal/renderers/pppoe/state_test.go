@@ -106,7 +106,7 @@ func TestReadStateIncludesIPv6(t *testing.T) {
 	r := New(WithPaths(PathsUnder(t.TempDir())))
 	// dual stack: IPv4 hook up, IPv6 summary filled
 	writeState(t, r, "wan0", "phase=up\nlocal=203.0.113.5\npeer=203.0.113.1\n")
-	writeState6(t, r, "wan0", "phase=up\naddr=2001:db8:9::5/64\ngw=fe80::1\npd=2001:db8:9100::/56\n")
+	writeState6(t, r, "wan0", "phase=up\naddr=2001:db8:9::5/64\ngw=fe80::1\npd=2001:db8:9100::/56\n"+pdLeaseFields(time.Now().Add(time.Hour), time.Now().Add(30*time.Minute)))
 	st, err := r.ReadState("wan0", 0, "")
 	if err != nil || st.GetPhase() != "up" || st.GetIpv6() != "2001:db8:9::5/64, delegated 2001:db8:9100::/56" || st.GetLocalIpv4() != "203.0.113.5/32" {
 		t.Fatalf("%+v %v", st, err)

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	ravpn "ngfw/agent/internal/ra_vpn"
 	"path/filepath"
 	"sort"
@@ -240,7 +241,11 @@ type Env struct {
 	// GlobalsOwner is D-071's flag: only the product agent on a real box sets VPP-wide singletons.
 	// This build registers no global descriptor; the flag is recorded for the families that do.
 	GlobalsOwner bool
-	Log          *slog.Logger
+
+	// PppoeCarrierInventory injects an explicit host inventory for isolated wiring.
+	// Nil always uses the fixed packaged broker, even when desired PPP is empty.
+	PppoeCarrierInventory func(context.Context, string) ([]pppoedesc.CarrierLease, error)
+	Log                   *slog.Logger
 	// NetdevKind looks up Linux netdevs for the af_packet veth guard (D-105); nil = LinuxNetdevKind.
 	NetdevKind NetdevKind
 	// Publish is the agent's event sink (A5 seam): families that observe asynchronous changes

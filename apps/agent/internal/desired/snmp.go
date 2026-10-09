@@ -51,11 +51,14 @@ func SetSnmpCheck(owner string, f SnmpCheck) {
 	snmpChecks[owner] = f
 }
 
-// snmpCheckFor returns the check to run. project() has no owner parameter (agent core), so the lookup
-// uses the only registered owner; with several owners in one process it fails closed (ok=false).
-func snmpCheckFor() (SnmpCheck, bool) {
+// snmpCheckFor selects the explicit owner. Legacy ownerless callers may use
+// the sole registered checker; multiple owners remain a fail-closed error.
+func snmpCheckFor(owner string) (SnmpCheck, bool) {
 	snmpMu.RLock()
 	defer snmpMu.RUnlock()
+	if owner != "" {
+		return snmpChecks[owner], true
+	}
 	switch len(snmpChecks) {
 	case 0:
 		return nil, true
@@ -101,12 +104,16 @@ func SnmpPointer(msg string) string {
 }
 
 // Snmp projects services (the `services` domain is authoritative in this transaction).
-func Snmp(p Sink, svc *ngfwv1.ServicesConfig) {
+func Snmp(p Sink, svc *ngfwv1.ServicesConfig, owners ...string) {
 	snmp := svc.GetSnmp()
 	if !snmp.GetEnabled() {
 		return // no object: an applied configuration is replaced by the disabled rendering (Delete)
 	}
-	check, ok := snmpCheckFor()
+	owner := ""
+	if len(owners) > 0 {
+		owner = owners[0]
+	}
+	check, ok := snmpCheckFor(owner)
 	if !ok {
 		p.Errorf(Ptr("services", "snmp"), "services.snmp.render", "several agent owners registered an snmpd stage in one process; refusing to guess")
 		return
@@ -117,7 +124,7 @@ func Snmp(p Sink, svc *ngfwv1.ServicesConfig) {
 			return
 		}
 	}
-	value, err := snmpValue(snmp)
+	value, err := snmpValue(snmp, owner)
 	if err != nil {
 		p.Errorf(Ptr("services", "snmp"), "services.snmp.secret", "%v", err)
 		return

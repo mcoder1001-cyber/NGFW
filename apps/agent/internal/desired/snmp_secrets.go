@@ -109,19 +109,30 @@ func ParseSnmpValue(value proto.Message) (*ngfwv1.SnmpService, map[string]string
 	return v, bindings, nil
 }
 
-func snmpValue(v *ngfwv1.SnmpService) (proto.Message, error) {
+func snmpValue(v *ngfwv1.SnmpService, owner string) (proto.Message, error) {
 	snmpMu.RLock()
 	defer snmpMu.RUnlock()
-	if len(snmpFingerprints) == 0 {
-		return proto.Clone(v), nil
-	}
-	if len(snmpFingerprints) != 1 {
-		return nil, errors.New("snmpd.config: ambiguous secret owner")
+	var selected func(context.Context, string) (string, error)
+	if owner != "" {
+		selected = snmpFingerprints[owner]
+		if selected == nil && len(SnmpSecretRefs(v)) != 0 {
+			return nil, errors.New("snmpd.config: selected secret owner unavailable")
+		}
+	} else {
+		if len(snmpFingerprints) == 0 {
+			return proto.Clone(v), nil
+		}
+		if len(snmpFingerprints) != 1 {
+			return nil, errors.New("snmpd.config: ambiguous secret owner")
+		}
+		for _, fingerprint := range snmpFingerprints {
+			selected = fingerprint
+		}
 	}
 	bindings := map[string]string{}
-	for _, fingerprint := range snmpFingerprints {
+	if selected != nil {
 		for _, ref := range SnmpSecretRefs(v) {
-			generation, err := fingerprint(context.Background(), ref)
+			generation, err := selected(context.Background(), ref)
 			if err != nil {
 				return nil, errors.New("snmpd.config: selected secret unavailable")
 			}

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/ra_vpn"
 	"ngfw/agent/internal/scheduler"
 	"ngfw/agent/internal/subsystems"
@@ -54,6 +55,9 @@ func registerTestWiring(t *testing.T, reg scheduler.Registry, env subsystems.Env
 		options.Inventory = func(context.Context, string) ([]*ravpn.NetworkPlan, error) { return nil, nil }
 	}
 	env.RA = &options
+	if env.PppoeCarrierInventory == nil {
+		env.PppoeCarrierInventory = func(context.Context, string) ([]pppoedesc.CarrierLease, error) { return nil, nil }
+	}
 	return subsystems.Register(reg, env)
 }
 func trackTestService(t *testing.T, svc *Service, w *subsystems.Wiring) {

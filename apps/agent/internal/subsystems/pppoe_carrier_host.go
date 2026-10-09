@@ -20,7 +20,10 @@ import (
 
 const pppoeCarrierHelper = "/usr/lib/ngfw/pppoe-carrier.py"
 
-type pppoeCarrierHost struct{ runner renderers.Runner }
+type pppoeCarrierHost struct {
+	runner    renderers.Runner
+	inventory func(context.Context, string) ([]pppoedesc.CarrierLease, error)
+}
 
 // Persistent reports the fixed helper's disk ledger, which survives agent
 // restarts and is checked against the current boot and held namespace inode on
@@ -175,6 +178,9 @@ func (h *pppoeCarrierHost) Provision(ctx context.Context, spec pppoe.CarrierSpec
 }
 
 func (h *pppoeCarrierHost) Inventory(ctx context.Context, owner string) ([]pppoedesc.CarrierLease, error) {
+	if h.inventory != nil {
+		return h.inventory(ctx, owner)
+	}
 	var leases []pppoedesc.CarrierLease
 	if err := h.call(ctx, &leases, "list", owner); err != nil {
 		return nil, err

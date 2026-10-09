@@ -25741,9 +25741,9 @@ func (x *Pppoe) GetDelegationTargets() []*PppoeDelegationTarget {
 type PppoeDelegationTarget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Enabled LAN interface in the same VRF, with no static IPv6/RA configuration.
-	Interface string `protobuf:"bytes,1,opt,name=interface,proto3" json:"interface,omitempty"`
+	Interface *string `protobuf:"bytes,1,opt,name=interface,proto3,oneof" json:"interface,omitempty"`
 	// Subnet bits between delegation length and /64; at most 2^32-1 (public configuration bound).
-	SubnetId      uint32 `protobuf:"varint,2,opt,name=subnet_id,json=subnetId,proto3" json:"subnet_id,omitempty"`
+	SubnetId      *uint32 `protobuf:"varint,2,opt,name=subnet_id,json=subnetId,proto3,oneof" json:"subnet_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -25779,15 +25779,15 @@ func (*PppoeDelegationTarget) Descriptor() ([]byte, []int) {
 }
 
 func (x *PppoeDelegationTarget) GetInterface() string {
-	if x != nil {
-		return x.Interface
+	if x != nil && x.Interface != nil {
+		return *x.Interface
 	}
 	return ""
 }
 
 func (x *PppoeDelegationTarget) GetSubnetId() uint32 {
-	if x != nil {
-		return x.SubnetId
+	if x != nil && x.SubnetId != nil {
+		return *x.SubnetId
 	}
 	return 0
 }
@@ -52094,10 +52094,14 @@ const file_ngfw_v1_dataplane_proto_rawDesc = "" +
 	"_mss_clampB\x10\n" +
 	"\x0e_default_routeB\x10\n" +
 	"\x0e_dns_from_peerB\a\n" +
-	"\x05_ipv6\"R\n" +
-	"\x15PppoeDelegationTarget\x12\x1c\n" +
-	"\tinterface\x18\x01 \x01(\tR\tinterface\x12\x1b\n" +
-	"\tsubnet_id\x18\x02 \x01(\rR\bsubnetId\"s\n" +
+	"\x05_ipv6\"x\n" +
+	"\x15PppoeDelegationTarget\x12!\n" +
+	"\tinterface\x18\x01 \x01(\tH\x00R\tinterface\x88\x01\x01\x12 \n" +
+	"\tsubnet_id\x18\x02 \x01(\rH\x01R\bsubnetId\x88\x01\x01B\f\n" +
+	"\n" +
+	"_interfaceB\f\n" +
+	"\n" +
+	"_subnet_id\"s\n" +
 	"\x0ePppoeReconnect\x12$\n" +
 	"\vholdoff_sec\x18\x01 \x01(\rH\x00R\n" +
 	"holdoffSec\x88\x01\x01\x12\x1e\n" +
@@ -55980,6 +55984,7 @@ func file_ngfw_v1_dataplane_proto_init() {
 	file_ngfw_v1_dataplane_proto_msgTypes[275].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[280].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[281].OneofWrappers = []any{}
+	file_ngfw_v1_dataplane_proto_msgTypes[282].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[283].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[301].OneofWrappers = []any{}
 	file_ngfw_v1_dataplane_proto_msgTypes[321].OneofWrappers = []any{}

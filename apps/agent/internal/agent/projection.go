@@ -437,7 +437,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 	}
 	// wave-A: F-unbound-chrony-syslog
 	if in["services"] { // F-snmp (unanchored)
-		desired.Snmp(p, ds.GetServices())
+		desired.Snmp(p, ds.GetServices(), owner)
 	}
 	if in["services"] {
 		desired.HostStack(p, ds.GetServices().GetHostStack(), vrfID, subsystems.HostServiceSecretOptions(owner))

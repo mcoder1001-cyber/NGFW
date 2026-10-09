@@ -14,7 +14,7 @@ func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) 
 	if !w.env.GlobalsOwner {
 		return nil
 	}
-	host := &pppoeCarrierHost{runner: rt.runner}
+	host := &pppoeCarrierHost{runner: rt.runner, inventory: w.env.PppoeCarrierInventory}
 	d := pppoedesc.NewCarrierNamespace(w.env.Owner, host)
 	d.Admit = func(ctx context.Context, spec ren.CarrierSpec) error {
 		return pppoedesc.AdmitCarrier(ctx, w.env.Client, w.env.Owner, spec)

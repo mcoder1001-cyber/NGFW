@@ -5675,9 +5675,9 @@ message Pppoe {
 // PppoeDelegationTarget selects a stable /64 within the active ISP lease.
 message PppoeDelegationTarget {
   // Enabled LAN interface in the same VRF, with no static IPv6/RA configuration.
-  string interface = 1;
+  optional string interface = 1;
   // Subnet bits between delegation length and /64; at most 2^32-1 (public configuration bound).
-  uint32 subnet_id = 2;
+  optional uint32 subnet_id = 2;
 }
 
 // PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`.

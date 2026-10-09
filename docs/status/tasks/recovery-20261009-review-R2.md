@@ -35,3 +35,28 @@ ok  ngfw/agent/internal/subsystems        5.510s
 The carrier recovery graph exercises the actual NamespaceDescriptor and scheduler; TAP transport and daemon operations are recording stand-ins. The subsystem controls exercise actual carrier runtime/registration with fake transport/runner. These are unit-level proofs, not native VPP/kernel/systemd or packet acceptance. No live service or laboratory mutation was performed.
 
 Verdict: **APPROVE** for the specified recovery/ownership delta at `42b0c993`; zero blocker, major or minor findings. Final combined-source gate and native acceptance remain separate requirements.
+
+
+## Combined integration preservation review
+
+Reviewed final candidate `33db7c632c38e72239e8861bcabf23ac0c45a6aa`, tree `bf2e858290a8789321ba92e30cd944fec23ecd0b`, in independent detached worktree `/workspace/scratch/9baf7442ffbf/ngfw-review-integration`. Source is frozen; this supplement changes only the reviewer report.
+
+The resolved `agent/projection.go` and `desired/interfaces.go` retain both owner-bound `HostServiceSecretOptions(owner)` consumers, unnumbered projection/readback, supervised PPP interface treatment, carrier projection and WAN membership context with the carrier owner argument. No credential/unnumbered hook was lost when integrating PPP.
+
+Reviewed `multiwan.RouteDescriptor` and its product registration: an optional PPP client configuration dependency orders WAN route creation after standalone PPP default/readiness withdrawal. The inverse order removes WAN paths before restoring standalone policy; a system without PPP remains valid. The actual scheduler/client/runtime/WAN descriptor test covers injected route failure and rollback, subsequent join, all-down health without fallback bypass, and leave. Native topology and transport remain stand-ins.
+
+The NCP epoch fence now reads the generation before kernel/VPP observations and compares it again before returning verified forwarding. Product forwarding controls reject drift, in-flight process replacement and same-process NCP replacement. The separate observation-failure source review belongs to the carrier security reviewer; it was not silently folded into this review's scope.
+
+Exact frozen-candidate commands, Go 1.26.0, race, count=1:
+
+```text
+go test -race -count=1 ./internal/agent -run 'TestHostCredentialProjectionSelectsOwnerAndRotation|TestUnnumberedDomainApplyRetrieveRevoke|TestWANRoutingOnlyJoinLeaveReprojectsPPPDefaultOwnership'
+ok  ngfw/agent/internal/agent       1.234s
+
+go test -race -count=1 ./internal/subsystems -run 'TestCarrierWANTransactionOrdersRoutesAndRollsBackFailure|TestCarrier.*Forward|TestCarrier.*Epoch'
+ok  ngfw/agent/internal/subsystems  1.282s
+```
+
+Selected controls have no skips. Aggregate/hosted CI remains deferred to the manager's final combined campaign. No native or laboratory acceptance is claimed.
+
+Combined narrow integration verdict: **APPROVE** at `33db7c63`; zero blocker, major or minor findings for the conflict preservation, WAN ordering and NCP fence scope above.

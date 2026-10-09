@@ -70,3 +70,23 @@ Integrated-tree focused check after credential/unnumbered registration merge:
 `go test -race -count=1 ./internal/agent -run
 'TestHostCredentialProjectionSelectsOwnerAndRotation|TestUnnumberedDomainApplyRetrieveRevoke'`
 PASS 1.191s; no skips and no full CI run.
+
+## Recovered cumulative candidate — 2026-10-09
+
+The source candidate `33db7c63` consolidates the previously separately published
+carrier, PD, VLAN, helper, packaging and WAN ownership work. The actual runtime
+now satisfies the WAN forwarding interface. Recovery prerequisite ordering has
+independent R2 approval. Current source tests reproduce and correct WAN route
+write ordering, NCP replacement during verification, and stale forwarding on
+invalid observation; native boundaries in these tests are fakes. Source generation
+completed thirteen tasks. Detailed commands/results are in
+[carrier-finish-20261009-wip.md](carrier-finish-20261009-wip.md) and the final review
+receipts. Earlier pending-source statements above are checkpoint history, not the
+current implementation inventory.
+
+No CI has run on this candidate yet. Final cumulative R2/R4 reviews, the unchanged
+hosted gate and relevant fixture workflows, and exact tested-source merge remain
+required. Product license authority remains a release input; no license is chosen
+by this campaign. All native acceptance listed centrally remains NOT RUN.
+
+Final R2 and R4 source approvals are now recorded for candidate33db7c63, with no unresolved findings in their scopes. Only outcome documentation changed after that product freeze. The final hosted campaign and merge receipt follow in ../2026-10-09-completion.md.

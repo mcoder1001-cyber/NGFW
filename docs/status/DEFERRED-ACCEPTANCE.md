@@ -2,14 +2,14 @@
 
 Owner authorization, 2026-10-02: remove Telegram; merge reviewed code without waiting for laboratory access; collect deferred tests here and continue development. This supersedes historical lab-only BLOCK verdicts. Real code defects and the complete hosted quick CI remain merge blockers. NOT RUN never means PASS. Existing security, secret-channel, shared-host and privilege handover decisions remain applicable.
 
-## Current completion campaign — 2026-10-08
+## Current completion campaign — 2026-10-09
 
 The source inventory below contains historical snapshots. The current source and
 review ledger is [completion-20261008-wip.md](tasks/completion-20261008-wip.md)
 and the reopened rows in `plan/tasks.yaml`. Reviewed credential source is staged in the completion branch. PPP carrier/PD/VLAN
-source has also been consolidated, while cumulative review and corrections to
-observation-failure withdrawal and WAN transaction ordering remain open. These are
-source work, not deferred laboratory tests. Final cumulative generation, security review and unchanged
+source has also been consolidated, including corrections to observation-failure withdrawal, NCP evidence binding and
+WAN transaction ordering. Final independent receipts, CI and merge remain required;
+they are not deferred laboratory tests. Final cumulative generation, security review and unchanged
 hosted quick/fixture gates also remain mandatory. Product license authority is
 a separate release input, not laboratory acceptance.
 
@@ -51,7 +51,7 @@ The exact fourteen-row matrix, implementation SHAs, missing functionality and ac
 | Notifications | SMTP TLS/auth, HMAC webhook DNS/IP filtering, rules/dedup/retry/reload/shutdown, real alarm/commit/link/VPN events, en/fa browser | SMTP/webhook only; Telegram removed by owner instruction |
 | Setup wizard | Real first-boot LAN access/DHCP/NAT, password, one confirmed commit and rollback/session loss, stale candidate/cancel/reopen, browser | No relaxation of management anti-lockout |
 | System identity | Installed readback, DNS facts, bounded public login banner, failure pointers, restart/no rewrite, browser | Restart privilege boundary retained; daemon status unknown unless observed |
-| Multi-WAN | Two WANs traffic failover/restore, weighted flows, NAT session cleanup, queue retry/restart, browser | Static gateway forwarding, owned VRF routes and ABF group expansion are implemented; probes support the default namespace/default VRF. DHCP/PPPoE gateway handoff remains separate code work; non-default probe VRFs/netns refuse unavailable. |
+| Multi-WAN | Two WANs traffic failover/restore, weighted flows, NAT session cleanup, queue retry/restart, browser | Static gateway forwarding, owned VRF routes and ABF group expansion are implemented; probes support the default namespace/default VRF. Completion source adds DHCP lease handoff and verified generation-bound PPP carrier handoff; LCP probes outside the default namespace/VRF remain unavailable. PPP probes use the owned carrier namespace. Final CI/merge are tracked in the current completion ledger. |
 
 ## Remaining host acceptance rows
 

@@ -41,15 +41,19 @@ type PppoeRuntime struct {
 	vpp          vpp.Client
 	owner        string
 	globalsOwner bool
+	carrierMode  bool
+	carrierRoot  string
+	carrierHooks string
 	allowRoute   pppoedesc.RouteTablePolicy
 	log          *slog.Logger
 	stateDir     string
 
-	mu        sync.Mutex
-	exclusive func(context.Context, func(context.Context) error) error
-	mirrored  map[string]pppoedesc.Mirror
-	failures  map[string]pppoeFailure
-	applied   map[string]pppoe.Session // config interface name -> last applied session (reconnect + state)
+	mu           sync.Mutex
+	exclusive    func(context.Context, func(context.Context) error) error
+	mirrored     map[string]pppoedesc.Mirror
+	failures     map[string]pppoeFailure
+	carrierReady map[string]carrierForwarding
+	applied      map[string]pppoe.Session // config interface name -> last applied session (reconnect + state)
 }
 
 var (
@@ -91,6 +95,7 @@ func (w *Wiring) registerPppoe() {
 		vpp:          w.env.Client,
 		owner:        w.env.Owner,
 		globalsOwner: globals,
+		carrierMode:  globals,
 		allowRoute:   w.pppoeRoutePolicy(),
 		exclusive:    w.env.Exclusive,
 		log:          log,
@@ -145,6 +150,23 @@ func (rt *PppoeRuntime) Reconnect(ctx context.Context, iface string) (accepted b
 			message = "no active PPPoE session for interface " + iface
 			return nil
 		}
+		if s.Carrier != nil {
+			if err := rt.stopCarrier(ctx, s); err != nil {
+				return err
+			}
+			r := rt.carrierRenderer(s)
+			if err := r.ResumeIPv6(s.HostIf); err != nil {
+				return err
+			}
+			if _, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"start", carrierUnit(s)}}); err != nil {
+				return errors.New("carrier reconnect failed")
+			}
+			if err := r.CompleteIPv6Transition(s.HostIf); err != nil {
+				return err
+			}
+			accepted, message = true, "redialing "+iface
+			return nil
+		}
 		if err := rt.renderer.StopIPv6(ctx, s.HostIf); err != nil {
 			return err
 		}
@@ -187,6 +209,9 @@ func (rt *PppoeRuntime) Reconnect(ctx context.Context, iface string) (accepted b
 // Apply renders and supervises the resolved sessions and remembers them for Reconnect/State. The caller resolves the
 // sessions (parent tap + password) — see the file comment for the owed projection.
 func (rt *PppoeRuntime) Apply(ctx context.Context, sessions []pppoe.Session) error {
+	if rt.globalsOwner && rt.carrierMode {
+		return rt.applyCarriers(ctx, sessions)
+	}
 	// Renderer compares peer/unit content, so credential-only rotation needs an
 	// explicit restart here. Never retain an earlier negotiated hook after edit.
 	files, err := rt.renderer.Render(sessions)
@@ -323,7 +348,7 @@ func (rt *PppoeRuntime) State(iface string, failCount uint32, lastErr string) (*
 	if !ok {
 		return &ngfwv1.PppoeSessionState{Phase: "down", FailCount: failCount, LastError: lastErr}, nil
 	}
-	return rt.renderer.ReadSessionState(s.HostIf, failCount, lastErr, s.IPv6Enabled())
+	return rt.sessionRenderer(s).ReadSessionState(s.HostIf, failCount, lastErr, s.IPv6Enabled())
 }
 
 // Renderer exposes the pppd renderer (RPC state; tests).

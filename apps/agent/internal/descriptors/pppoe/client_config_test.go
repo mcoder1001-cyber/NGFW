@@ -117,3 +117,23 @@ func TestClientManifestNeverContainsResolvedPassword(t *testing.T) {
 		t.Fatal("proto defaults lost")
 	}
 }
+
+func TestCarrierWanGroupOwnsAutomaticDefaultWithoutConfigMutation(t *testing.T) {
+	doc := clientDocument()
+	doc.Interfaces["parent"] = &ngfwv1.Interface{Enabled: proto.Bool(true)}
+	doc.Routing = &ngfwv1.RoutingConfig{WanGroups: []*ngfwv1.WanGroup{{Name: proto.String("wan"), Members: []*ngfwv1.WanMember{{Interface: proto.String("wan")}}}}}
+	d := NewClientConfig(&clientStub{}, ren.New(ren.WithPaths(ren.PathsUnder(t.TempDir()))), filepath.Join(t.TempDir(), "applied.pb"))
+	d.SetCarrierOwner("ngfw")
+	sessions, _, err := d.sessions(t.Context(), doc, false)
+	if err != nil || len(sessions) != 1 || sessions[0].DefaultRoute {
+		t.Fatalf("PPP bypasses WAN route ownership: %v %v", sessions, err)
+	}
+	if doc.Interfaces["wan"].Pppoe.DefaultRoute != nil {
+		t.Fatal("operator PPP configuration mutated")
+	}
+	doc.Routing = nil
+	sessions, _, err = d.sessions(t.Context(), doc, false)
+	if err != nil || len(sessions) != 1 || !sessions[0].DefaultRoute {
+		t.Fatalf("leaving WAN group did not restore PPP default: %v", err)
+	}
+}

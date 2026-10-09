@@ -1,3 +1,4 @@
+import { resolvePppoeParent } from './pppoe-parent.js';
 import { jsonPointer } from '../pointer.js';
 import type { SemanticIssue, ValidatorDefinition } from './registry.js';
 
@@ -19,6 +20,8 @@ const pppoeRules: ValidatorDefinition = {
   validate(config) {
     const issues: SemanticIssue[] = [];
     const ifaces = config.interfaces;
+    const owners = new Map<string, string>();
+    const parents = new Map<string, string>();
     for (const [name, iface] of Object.entries(ifaces)) {
       const pppoe = iface.pppoe;
       if (!pppoe) continue;
@@ -38,10 +41,144 @@ const pppoeRules: ValidatorDefinition = {
         });
       }
 
+      if (pppoe.enabled) {
+        const parentName = pppoe.parent;
+        const resolved = parentName ? resolvePppoeParent(ifaces, parentName) : undefined;
+        const raw = resolved?.leaf;
+        if (!parentName || parentName === name) {
+          issues.push({
+            pointer: at('parent'),
+            message:
+              'enabled PPP client requires an explicit distinct raw parent; configure a separate logical PPP interface',
+          });
+        } else if (raw) {
+          if (
+            raw.pppoe ||
+            raw.bond ||
+            raw.unnumbered ||
+            raw.ipv6Ra ||
+            raw.proxyArp ||
+            raw.proxyNd?.length ||
+            (!resolved?.vlan && Object.keys(raw.subinterfaces).length) ||
+            raw.lcp ||
+            raw.l2 ||
+            raw.ipv4.length ||
+            raw.ipv6.length ||
+            raw.dhcpClient
+          ) {
+            issues.push({
+              pointer: at('parent'),
+              message:
+                'raw PPP parent must not carry PPP, linux-cp, L2, static addresses or DHCP client configuration',
+            });
+          }
+          if (
+            resolved &&
+            ((resolved.vlan && !resolved.root.enabled) ||
+              resolved.root.pppoe ||
+              resolved.root.bond ||
+              resolved.root.lcp ||
+              resolved.root.l2 ||
+              resolved.root.unnumbered ||
+              Object.values(ifaces).some(
+                (other) => resolved.rootName in (other.bond?.members ?? {}),
+              ))
+          ) {
+            issues.push({
+              pointer: at('parent'),
+              message:
+                'PPP physical root must be enabled and free of PPP, bond, linux-cp, L2 and unnumbered attachments',
+            });
+          }
+          if (parents.has(parentName)) {
+            issues.push({
+              pointer: at('parent'),
+              message: 'raw PPP parent is already assigned to another enabled PPP client',
+            });
+          }
+          parents.set(parentName, name);
+        }
+        if (
+          iface.physical ||
+          iface.bond ||
+          iface.l2 ||
+          iface.lcp ||
+          Object.keys(iface.subinterfaces).length
+        ) {
+          issues.push({
+            pointer: at(),
+            message:
+              'logical PPP interface must not configure a physical marker, bond, L2, linux-cp or subinterfaces',
+          });
+        }
+      }
+
+      const targets = pppoe.delegationTargets;
+      if (targets.length && pppoe.ipv6 !== 'dhcpv6') {
+        issues.push({
+          pointer: at('delegationTargets'),
+          message: 'LAN delegation requires DHCPv6',
+        });
+      }
+      const subnets = new Set<number>();
+      const lans = new Set<string>();
+      targets.forEach((target, index) => {
+        const pointer = at('delegationTargets', index);
+        const lan = ifaces[target.interface];
+        if (lans.has(target.interface) || subnets.has(target.subnetId)) {
+          issues.push({
+            pointer,
+            message: 'delegated LAN interfaces and subnet IDs must be unique',
+          });
+        }
+        lans.add(target.interface);
+        subnets.add(target.subnetId);
+        if (
+          !lan ||
+          !lan.enabled ||
+          lan.pppoe ||
+          target.interface === name ||
+          target.interface === pppoe.parent
+        ) {
+          issues.push({
+            pointer,
+            message:
+              'delegation target must be an existing enabled LAN, distinct from the PPP client and its parent',
+          });
+        } else {
+          if (
+            lan.ipv6.length ||
+            lan.ipv6Ra !== undefined ||
+            lan.l2 !== undefined ||
+            lan.unnumbered !== undefined
+          ) {
+            issues.push({
+              pointer,
+              message:
+                'delegated LAN must not have static IPv6 addresses or router advertisement configuration',
+            });
+          }
+          if (lan.vrf !== iface.vrf) {
+            issues.push({
+              pointer,
+              message: 'delegated LAN and PPP client must belong to the same VRF',
+            });
+          }
+        }
+        const previous = owners.get(target.interface);
+        if (previous && previous !== name) {
+          issues.push({
+            pointer,
+            message: `delegated LAN is already assigned to PPP client '${previous}'`,
+          });
+        }
+        owners.set(target.interface, name);
+      });
+
       const parentName = pppoe.parent;
       let parentMtu = iface.mtu;
       if (parentName !== undefined && parentName !== name) {
-        const parent = ifaces[parentName];
+        const parent = resolvePppoeParent(ifaces, parentName)?.leaf;
         if (parent === undefined) {
           issues.push({
             pointer: at('parent'),

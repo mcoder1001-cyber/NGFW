@@ -60,6 +60,9 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 	run := func(ctx context.Context) error {
 		rt.mu.Lock()
 		defer rt.mu.Unlock()
+		if rt.carrierReady == nil {
+			rt.carrierReady = map[string]carrierForwarding{}
+		}
 		if rt.mirrored == nil {
 			rt.mirrored = map[string]desc.Mirror{}
 		}
@@ -70,9 +73,11 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 			s, exists := rt.applied[name]
 			next, up, err := rt.observe(s)
 			if err != nil && exists {
+				delete(rt.carrierReady, name)
 				return err
 			}
 			if !exists || !up || !reflect.DeepEqual(old, next) {
+				delete(rt.carrierReady, name)
 				if err := rt.Mirror(ctx, old, false); err != nil {
 					return err
 				}
@@ -82,9 +87,23 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 		for name, s := range rt.applied {
 			next, up, err := rt.observe(s)
 			if err != nil {
+				delete(rt.carrierReady, name)
 				return err
 			}
 			if up {
+				var forwarding carrierForwarding
+				if s.Carrier != nil {
+					forwarding, err = rt.prepareCarrierForwarding(ctx, s, next)
+					if err != nil {
+						if old, ok := rt.mirrored[name]; ok {
+							if e := rt.Mirror(ctx, old, false); e != nil {
+								return e
+							}
+							delete(rt.mirrored, name)
+						}
+						return err
+					}
+				}
 				rt.failures[name] = pppoeFailure{}
 				// Reassert on every observation: address addition is dump-idempotent,
 				// route addition updates only this session path. Repairs VPP loss.
@@ -93,8 +112,11 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 				if err := rt.Mirror(ctx, next, true); err != nil {
 					return err
 				}
+				if s.Carrier != nil {
+					rt.carrierReady[name] = forwarding
+				}
 			} else if rt.globalsOwner {
-				output, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"show", "ngfw-pppoe-" + s.HostIf + ".service", "-p", "ExecMainStatus", "-p", "NRestarts"}})
+				output, err := rt.runner.Run(ctx, renderers.Command{Path: pppoe.SystemctlBin, Args: []string{"show", carrierUnit(s), "-p", "ExecMainStatus", "-p", "NRestarts"}})
 				if err != nil {
 					return errors.New("PPPoE unit status unavailable")
 				}
@@ -112,13 +134,13 @@ func (rt *PppoeRuntime) poll(ctx context.Context) error {
 // observe reads a session's hook state (IPv4 ip-up/ip-down and, when IPv6 is on, ipv6-up/ipv6-down) and returns
 // the mirror it implies and whether the session is up (either NCP).
 func (rt *PppoeRuntime) observe(s pppoe.Session) (desc.Mirror, bool, error) {
-	st, err := rt.renderer.ReadSessionState(s.HostIf, 0, "", s.IPv6Enabled())
+	st, err := rt.sessionRenderer(s).ReadSessionState(s.HostIf, 0, "", s.IPv6Enabled())
 	if err != nil {
 		return desc.Mirror{}, false, err
 	}
 	var v6 pppoe.IPv6State
 	if s.IPv6Enabled() {
-		if v6, err = rt.renderer.ReadIPv6(s.HostIf); err != nil {
+		if v6, err = rt.sessionRenderer(s).ReadIPv6(s.HostIf); err != nil {
 			return desc.Mirror{}, false, err
 		}
 	}
@@ -133,6 +155,14 @@ func mirrorFor(s pppoe.Session, st *ngfwv1.PppoeSessionState, v6 pppoe.IPv6State
 		}
 		if v6.Gateway.IsValid() {
 			m.PeerIPv6 = v6.Gateway.String()
+		}
+	}
+	if s.Carrier != nil {
+		if m.LocalIPv4 != "" {
+			m.PeerIPv4 = netip.MustParsePrefix(s.Carrier.Host4).Addr().String()
+		}
+		if len(m.LocalIPv6) > 0 {
+			m.PeerIPv6 = netip.MustParsePrefix(s.Carrier.Host6).Addr().String()
 		}
 	}
 	return m

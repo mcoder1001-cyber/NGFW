@@ -1,9 +1,12 @@
 package pppoe
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func writeState(t *testing.T, r *Renderer, hostIf, body string) {
@@ -71,7 +74,7 @@ func TestReadIPv6(t *testing.T) {
 	// Values come from the network: only well-formed, correctly scoped ones survive.
 	writeState6(t, r, "wan0", "phase=up\nppp_iface=ppp0\nlllocal=fe80::494e:09cd:477c:b51c\nllremote=fe80::940e:fe14:36be:d2f3\n"+
 		"addr=2001:db8:9:0:494e:9cd:477c:b51c/64\naddr=2001:db8:9::100/128\naddr=fe80::1/64\naddr=::ffff:192.0.2.1/128\naddr=junk\n"+
-		"addr=2001:db8:9::100/128\ngw=fe80::940e:fe14:36be:d2f3\npd=2001:db8:9100::1/56\nat=2026-10-07T05:32:35Z\n")
+		"addr=2001:db8:9::100/128\ngw=fe80::940e:fe14:36be:d2f3\npd=2001:db8:9100::1/56\nat=2026-10-07T05:32:35Z\n"+pdLeaseFields(time.Now().Add(time.Hour), time.Now().Add(30*time.Minute)))
 	st, err := r.ReadIPv6("wan0")
 	if err != nil || !st.Up {
 		t.Fatal(st, err)
@@ -120,5 +123,25 @@ func TestReadStateIncludesIPv6(t *testing.T) {
 	st, _ = r.ReadState("wan2", 1, "peer did not respond")
 	if st.GetPhase() != "failed" || st.GetIpv6() != "" {
 		t.Fatalf("down: %+v", st)
+	}
+}
+
+func pdLeaseFields(valid, preferred time.Time) string {
+	return fmt.Sprintf("pd_generation=%s\npd_valid_until=%d\npd_preferred_until=%d\n", strings.Repeat("a", 64), valid.Unix(), preferred.Unix())
+}
+func TestReadIPv6DelegationExpiry(t *testing.T) {
+	r := New(WithPaths(PathsUnder(t.TempDir())))
+	for name, metadata := range map[string]string{
+		"missing": "", "expired": pdLeaseFields(time.Now().Add(-time.Minute), time.Now().Add(-time.Hour)),
+		"reversed":           pdLeaseFields(time.Now().Add(time.Minute), time.Now().Add(time.Hour)),
+		"invalid-generation": "pd_generation=evil\npd_valid_until=9999999999\npd_preferred_until=9999999998\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			writeState6(t, r, "wan0", "phase=up\npd=2001:db8::/56\n"+metadata)
+			st, err := r.ReadIPv6("wan0")
+			if err != nil || st.Delegated.IsValid() {
+				t.Fatalf("stale lease: %+v %v", st, err)
+			}
+		})
 	}
 }

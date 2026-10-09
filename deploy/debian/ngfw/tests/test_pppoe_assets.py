@@ -55,6 +55,22 @@ class CarrierAssets(unittest.TestCase):
         rules = (SOURCE / 'debian/rules').read_text()
         self.assertIn('dh_installsystemd --no-enable --no-start', rules)
 
+    def test_private_peer_root_is_writable_under_actual_agent_sandbox(self):
+        base = '/var/lib/ngfw/agent/pppoe-carrier'
+        staged = (SOURCE / 'stage').is_dir()
+        agent_path = (SOURCE / 'stage/usr/lib/systemd/system/ngfw-agent.service'
+                      if staged else REPO / 'deploy/systemd/ngfw-agent.service')
+        agent = agent_path.read_text()
+        self.assertIn('ProtectSystem=strict', agent.splitlines())
+        writable = [path.lstrip('-+') for line in agent.splitlines()
+                    if line.startswith('ReadWritePaths=') for path in line.split('=', 1)[1].split()]
+        self.assertTrue(any(pathlib.PurePosixPath(base).is_relative_to(path) for path in writable),
+                        'private PPP peer root is read-only in the packaged agent sandbox')
+        carrier = asset('ngfw-pppoe-carrier@.service').read_text().splitlines()
+        self.assertIn('BindReadOnlyPaths=' + base + '/%i/ppp:/etc/ppp', carrier)
+        self.assertIn('d ' + base + ' 0700 root root -',
+                      asset('ngfw-pppoe-carrier.conf').read_text().splitlines())
+
     def test_exact_private_tmpfiles_and_hook_dispatchers(self):
         rows = [line.split() for line in asset('ngfw-pppoe-carrier.conf').read_text().splitlines()
                 if line.strip() and not line.startswith('#')]
@@ -63,7 +79,7 @@ class CarrierAssets(unittest.TestCase):
             ['d', '/run/ngfw-pppoe-carrier', '0700', 'root', 'root', '-'],
             ['d', '/run/ngfw/pppoe', '0700', 'root', 'root', '-'],
             ['d', '/run/ngfw/pppoe-broker', '0700', 'root', 'root', '-'],
-            ['d', '/var/lib/ngfw/pppoe-carrier', '0700', 'root', 'root', '-'],
+            ['d', '/var/lib/ngfw/agent/pppoe-carrier', '0700', 'root', 'root', '-'],
         ])
         for name in ['ip-up', 'ip-down', 'ipv6-up', 'ipv6-down']:
             # Execute the actual hook with its subprocess boundary replaced: prove argv

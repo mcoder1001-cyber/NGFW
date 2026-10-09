@@ -16,7 +16,11 @@ import (
 	"ngfw/agent/internal/descriptors/core"
 	"ngfw/agent/internal/descriptors/core/coretest"
 	"ngfw/agent/internal/multiwan"
+	"ngfw/agent/internal/subsystems"
 )
+
+// Keep the product runtime and WAN adapter contract connected at compile time.
+var _ wanPPPoEForwarding = (*subsystems.PppoeRuntime)(nil)
 
 func TestWANGatewayOwnedDHCPDumpRenewReleaseError(t *testing.T) {
 	ctx := context.Background()

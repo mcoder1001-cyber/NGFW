@@ -248,7 +248,7 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 		for _, name := range releasedNICs {
 			p.Infof(ptr("interfaces", name), "agent.nic-released", "physical NIC %q is released to the host (physical.owner = host): nothing is configured on the data plane for it", name)
 		}
-		desired.Interfaces(p, boundIfs, vrfID, netdev) // P08: aliases, creators, attributes, sub-interfaces
+		desired.Interfaces(p, boundIfs, vrfID, netdev, subsystems.PppoeSupervised()) // P08: aliases, creators, attributes, sub-interfaces
 	}
 
 	for _, k := range rootKeys {
@@ -425,7 +425,10 @@ func projectOwned(ds *ngfwv1.DesiredState, domains []string, resolve vrfResolver
 	if in["interfaces"] {
 		desired.Lcp(p, boundIfs) // wave-BC: F-default-vpp-nics: no pair on an unbound NIC
 		// wave-BC: F-pppoe-client-wiring
-		desired.Pppoe(p, boundIfs, subsystems.PppoeSupervised())
+		if subsystems.PppoeSupervised() {
+			desired.PppoeCarriers(p, boundIfs, owner)
+		}
+		desired.Pppoe(desired.PppoeWANContext(p, ds.GetRouting().GetWanGroups()), boundIfs, subsystems.PppoeSupervised(), owner)
 	}
 	desired.FRR(p, ds, in, subsystems.FRRProjection())
 	// wave-A: F-kea-dhcp-relay

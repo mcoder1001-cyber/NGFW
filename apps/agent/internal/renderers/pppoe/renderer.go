@@ -29,6 +29,10 @@ var hostIfRe = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,15}$`)
 
 // Session is one resolved PPPoE client (the agent builds it from interfaces.<name>.pppoe).
 type Session struct {
+	// Carrier selects the isolated kernel transport; nil retains render-only legacy fixtures.
+	Carrier     *CarrierSpec
+	CarrierVLAN *CarrierVLAN
+
 	// Iface is the configuration interface name (JSON pointer key); Remotename below is derived from it.
 	Iface string
 	// HostIf is the Linux ethernet interface pppd runs PPPoE discovery on (the parent's linux-cp tap).
@@ -56,6 +60,15 @@ func (s Session) Remotename() string { return "ngfw-" + s.HostIf }
 func (s Session) IPv6Enabled() bool { return s.IPv6 == "slaac" || s.IPv6 == "dhcpv6" }
 
 func (s Session) validate() error {
+	if s.Carrier != nil {
+		if err := s.Carrier.Validate(); err != nil {
+			return err
+		}
+		if s.Iface != s.Carrier.Logical || s.HostIf != s.Carrier.RawHost() || s.MTU != s.Carrier.MTU {
+			return fmt.Errorf("%w: carrier session identity differs", ErrInput)
+		}
+	}
+
 	switch {
 	case !hostIfRe.MatchString(s.HostIf):
 		return fmt.Errorf("%w: host interface %q is not a Linux interface name", ErrInput, s.HostIf)

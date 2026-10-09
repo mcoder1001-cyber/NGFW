@@ -133,6 +133,23 @@
     "dot1ad": {
       "title": "802.1ad outer tag",
       "help": "use an 802.1ad (0x88a8) outer tag instead of 802.1Q (0x8100)"
+    },
+    "pppoe": {
+      "delegationTargets": {
+        "title": "Delegated IPv6 LANs",
+        "help": "Explicit LAN /64 assignments from the active DHCPv6 prefix.",
+        "interface": {
+          "title": "LAN interface"
+        },
+        "subnetId": {
+          "title": "Subnet ID",
+          "help": "Stable subnet number within the delegated prefix."
+        }
+      },
+      "parent": {
+        "title": "Dial over interface",
+        "help": "Required for enabled PPP: a distinct raw port or explicit VLAN child such as eth0.100. The selected child must be dedicated to PPP; QinQ is supported."
+      }
     }
   },
   "live": {

@@ -1371,9 +1371,20 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	}
 	view := mergeDomains(s.st.desired, ds, projectionContext)
 	projectionDomains := domains
+	// Routing-only membership edits must update the PPP singleton before its
+	// automatic route can compete with the WAN-owned default. Projection uses
+	// the complete merged interface context, not the routing-only request.
+	if contains(domains, "routing") {
+		for _, iface := range view.GetInterfaces() {
+			if iface.GetPppoe() != nil {
+				projectionDomains = union(projectionDomains, []string{"interfaces"})
+				break
+			}
+		}
+	}
 	if (contains(domains, "security") || contains(domains, "interfaces")) &&
 		(aclProjectionContext(view) || aclProjectionContext(s.st.desired) || len(s.autoBlock.entries) > 0) {
-		projectionDomains = union(domains, []string{"acl"})
+		projectionDomains = union(projectionDomains, []string{"acl"})
 	}
 	effective, overlayErr := autoblock.Overlay(view, s.autoBlock.entries, s.now())
 	if overlayErr != nil {

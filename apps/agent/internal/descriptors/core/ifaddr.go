@@ -193,7 +193,13 @@ type VirtualAddressSource func(context.Context, vpp.Client, string) (map[uint32]
 // through the claim path (Env.Claims, holder AddrHolder(prefix), TD-11c).
 type InterfaceAddrDescriptor struct {
 	Env
-	virtualAddresses VirtualAddressSource
+	virtualAddresses  VirtualAddressSource
+	delegationExclude func(scheduler.Key) bool
+}
+
+// SetDelegationExclusion keeps dynamically owned PD addresses outside static scope.
+func (d *InterfaceAddrDescriptor) SetDelegationExclusion(exclude func(scheduler.Key) bool) {
+	d.delegationExclude = exclude
 }
 
 // SetVirtualAddressSource installs the plugin classifier during registration, before reconciliation starts.
@@ -247,6 +253,9 @@ func (d *InterfaceAddrDescriptor) addDel(ctx context.Context, v *InterfaceAddres
 // Create implements scheduler.Descriptor. On an untagged interface the address's claim is recorded
 // first and released again when VPP refuses the address (e.g. it exists already: never adopted).
 func (d *InterfaceAddrDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+	if d.delegationExclude != nil && d.delegationExclude(d.KeyOf(obj)) {
+		return nil, fmt.Errorf("address is owned by delegated IPv6")
+	}
 	v, ok := obj.(*InterfaceAddress)
 	if !ok {
 		return nil, fmt.Errorf("%w %T", ErrBadValue, obj)
@@ -376,6 +385,9 @@ func (d *InterfaceAddrDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV,
 					if virtual[in.Index][prefix.Addr().String()] {
 						continue
 					}
+				}
+				if d.delegationExclude != nil && d.delegationExclude(InterfaceAddrKey(name, p)) {
+					continue
 				}
 				out = append(out, scheduler.KV{
 					Key:   InterfaceAddrKey(name, p),

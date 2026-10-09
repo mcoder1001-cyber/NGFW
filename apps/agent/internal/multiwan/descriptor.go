@@ -13,6 +13,7 @@ import (
 // WAN paths before rollback or removal can restore standalone PPP policy.
 type RouteDescriptor struct{ *core.RouteDescriptor }
 
+// Dependencies declares prerequisite objects for safe reconciliation.
 func (d *RouteDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
 	return append(d.RouteDescriptor.Dependencies(value), scheduler.Dependency{Key: pppoe.ClientConfigKey, Optional: true})
 }

@@ -13,7 +13,7 @@ func TestCarrierRenderPrivatePeerWithoutUnit(t *testing.T) {
 	}
 	base := filepath.Join(t.TempDir(), "ppp")
 	r := New(WithPaths(CarrierPaths(base, filepath.Join(t.TempDir(), "state"))))
-	files, err := r.RenderCarrier(Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "test", Password: "NGFW_TEST_PSK_F-pppoe-client-wiring", MTU: 1492, IPv6: "dhcpv6"})
+	files, err := r.RenderCarrier(Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "test", Password: "NGFW_TEST_PSK_F-pppoe-client-wiring", MTU: 1492, IPv6: "dhcpv6"}) // #nosec G101 -- Required non-production NGFW_TEST_PSK fixture; never a deployed credential.
 	if err != nil {
 		t.Fatal(err)
 	}

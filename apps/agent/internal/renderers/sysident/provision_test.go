@@ -13,7 +13,7 @@ func TestProductProvisioningGuard(t *testing.T) {
 		t.Fatal("missing provisioning accepted")
 	}
 	for _, path := range []string{"etc", "var/lib/ngfw-system-identity"} {
-		if err := os.MkdirAll(filepath.Join(root, path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(root, path), 0o750); err != nil {
 			t.Fatal(err)
 		}
 	}

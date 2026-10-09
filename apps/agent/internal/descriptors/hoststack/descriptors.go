@@ -156,6 +156,8 @@ func (d *NamespaceDescriptor) secret(ctx context.Context, generation string) (ui
 	}
 	return value, nil
 }
+
+// Validate rejects invalid configuration before product writes.
 func (d *NamespaceDescriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.Message, _ scheduler.ReadOnlyView) error {
 	var s Namespace
 	if err := dfkit.Decode(value, &s); err != nil {

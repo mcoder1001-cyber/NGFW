@@ -122,11 +122,11 @@ func (d *pdDescriptor) KeyOf(v proto.Message) scheduler.Key {
 	}
 	return scheduler.Join(d.name, named.GetInterface())
 }
-func (d *pdDescriptor) Update(ctx context.Context, old, new proto.Message, meta any) (any, error) {
-	if d.Descriptor.KeyOf(old) != d.Descriptor.KeyOf(new) {
+func (d *pdDescriptor) Update(ctx context.Context, old, next proto.Message, meta any) (any, error) {
+	if d.Descriptor.KeyOf(old) != d.Descriptor.KeyOf(next) {
 		return nil, scheduler.ErrRecreate
 	}
-	return d.Descriptor.Update(ctx, old, new, meta)
+	return d.Descriptor.Update(ctx, old, next, meta)
 }
 func (d *pdDescriptor) CheckPersistent() error {
 	if d.owned == nil || d.owned.path == "" {

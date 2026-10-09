@@ -56,15 +56,15 @@ func (rt *PppoeRuntime) carrierRenderer(s pppoe.Session) *pppoe.Renderer {
 // The fixed unit binds only this file writable beneath its read-only /etc/ppp.
 // Recreate its contents after stopping the old dialer, never follow a link or
 // truncate an unexpected inode supplied by an earlier process.
-func prepareCarrierResolver(stateDir string) error {
+func prepareCarrierResolver(stateDir string) (err error) {
 	if err := os.MkdirAll(stateDir, 0700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(filepath.Join(stateDir, "resolv.conf"), os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	f, err := os.OpenFile(filepath.Join(stateDir, "resolv.conf"), os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600) // #nosec G304 -- Fixed resolver basename under product session root; O_NOFOLLOW and single regular inode verified before truncation.
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { err = errors.Join(err, f.Close()) }()
 	info, err := f.Stat()
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func (rt *PppoeRuntime) CarrierFiles(sessions []pppoe.Session) (renderers.Files,
 			return nil, err
 		}
 		for _, kind := range []string{"ip-up", "ip-down", "ipv6-up", "ipv6-down"} {
-			content, err := os.ReadFile(filepath.Join(rt.carrierHooksDir(), kind))
+			content, err := os.ReadFile(filepath.Join(rt.carrierHooksDir(), kind)) // #nosec G304 -- Fixed packaged hook directory and finite literal hook names; no user-provided executable path.
 			if err != nil {
 				return nil, errors.New("packaged PPP hook dispatcher is unavailable")
 			}
@@ -169,9 +169,9 @@ func (rt *PppoeRuntime) applyCarriers(ctx context.Context, sessions []pppoe.Sess
 			return err
 		}
 		rendered[s.Iface] = files
-		copy := s
-		copy.Password = ""
-		want[s.Iface] = copy
+		snapshot := s
+		snapshot.Password = ""
+		want[s.Iface] = snapshot
 	}
 	rt.mu.Lock()
 	defer rt.mu.Unlock()

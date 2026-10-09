@@ -93,7 +93,7 @@ func TestObservedStateRefusesDisconnectedManagedTargets(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(p.Hostname, []byte("configured-private-target"), 0o644); err != nil {
+	if err := os.WriteFile(p.Hostname, []byte("configured-private-target"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	d := New(p, nil)

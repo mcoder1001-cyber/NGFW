@@ -26,13 +26,21 @@ type UnnumberedDescriptor struct{ base }
 func NewUnnumbered(c vpp.Client, owner string) *UnnumberedDescriptor {
 	return &UnnumberedDescriptor{base{c, owner}}
 }
+
+// Name returns the registered descriptor identity.
 func (*UnnumberedDescriptor) Name() string { return UnnumberedName }
+
+// KeyOf returns the stable reconciliation key.
 func (*UnnumberedDescriptor) KeyOf(obj proto.Message) scheduler.Key {
 	return scheduler.Join(UnnumberedName, RefID(obj.(*Unnumbered).Interface))
 }
+
+// Normalize canonicalizes the desired value before comparison.
 func (*UnnumberedDescriptor) Normalize(obj proto.Message) proto.Message {
 	return NormalizeRefs(obj, "interface", "donor")
 }
+
+// Dependencies declares prerequisite objects for safe reconciliation.
 func (*UnnumberedDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
 	o := obj.(*Unnumbered)
 	return []scheduler.Dependency{{Key: scheduler.Key(o.Interface)}, {Key: scheduler.Key(o.Donor)},
@@ -61,6 +69,8 @@ func (d *UnnumberedDescriptor) set(ctx context.Context, borrower, donor uint32, 
 	_, err := d.svc().SwInterfaceSetUnnumbered(ctx, &ifapi.SwInterfaceSetUnnumbered{SwIfIndex: interface_types.InterfaceIndex(donor), UnnumberedSwIfIndex: interface_types.InterfaceIndex(borrower), IsAdd: add})
 	return err
 }
+
+// Create creates the validated owned object.
 func (d *UnnumberedDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
 	o, ok := obj.(*Unnumbered)
 	if !ok {
@@ -116,9 +126,13 @@ func (d *UnnumberedDescriptor) Create(ctx context.Context, obj proto.Message) (a
 	}
 	return Meta{b}, nil
 }
+
+// Update reconciles an existing owned object with the next value.
 func (d *UnnumberedDescriptor) Update(_ context.Context, _, _ proto.Message, _ any) (any, error) {
 	return nil, scheduler.ErrRecreate
 }
+
+// Delete removes only the owned object.
 func (d *UnnumberedDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
 	o, ok := obj.(*Unnumbered)
 	if !ok {
@@ -159,6 +173,8 @@ func (d *UnnumberedDescriptor) Delete(ctx context.Context, obj proto.Message, me
 	d.release(obj, UnnumberedName)
 	return nil
 }
+
+// Retrieve reads actual owned state for reconciliation and recovery.
 func (d *UnnumberedDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	t, err := Dump(ctx, d.client, d.owner)
 	if err != nil {

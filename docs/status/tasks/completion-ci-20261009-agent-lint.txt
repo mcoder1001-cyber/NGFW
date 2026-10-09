@@ -1,0 +1,199 @@
+$ make -C apps/agent lint test build
+make: Entering directory '/home/runner/work/NGFW/NGFW/apps/agent'
+NGFW_TIMING BEGIN agent.vet 2026-10-09T06:55:24.654012775Z
+go vet ./...
+NGFW_TIMING END agent.vet 2026-10-09T06:56:13.237904671Z
+NGFW_TIMING BEGIN agent.lint-dispatch 2026-10-09T06:56:13.239295285Z
+internal/subsystems/pppoe_carrier_runtime.go:67:15: Error return value of `f.Close` is not checked (errcheck)
+	defer f.Close()
+	             ^
+internal/descriptors/pppoe/carrier_recovery_graph_test.go:34:157: G115: integer overflow conversion int -> uint64 (gosec)
+	lease := CarrierLease{Spec: spec, Token: spec.Token(), Generation: fmt.Sprintf("%032x", g.sequence), Boot: "graph-test-boot", Namespace: []uint64{1, uint64(100 + g.sequence)}}
+	                                                                                                                                                           ^
+internal/descriptors/pppoe/carrier_vlan.go:201:20: G115: integer overflow conversion int32 -> uint32 (gosec)
+		expected = uint32(rewrite.Op)
+		                 ^
+internal/desired/pppoe_delegation.go:102:204: G115: integer overflow conversion int64 -> uint32 (gosec)
+				scheduler.KV{Key: scheduler.Join(PppoeDelegationPrefix, a.Interface), Value: &ip6nd.RaPrefix{Interface: a.Interface, Prefix: a.Prefix.String(), ValidLifetime: uint32(valid), PreferredLifetime: uint32(preferred)}},
+				                                                                                                                                                                                                       ^
+internal/renderers/pppoe/carrier_render_test.go:16:32: G101: Potential hardcoded credentials (gosec)
+	files, err := r.RenderCarrier(Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "test", Password: "NGFW_TEST_PSK_F-pppoe-client-wiring", MTU: 1492, IPv6: "dhcpv6"})
+	                              ^
+internal/renderers/pppoe/state_test.go:64:24: G703: Path traversal via taint analysis (gosec)
+	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".state6"), []byte(body), 0o600); err != nil {
+	                      ^
+internal/renderers/sysident/provision_test.go:16:13: G301: Expect directory permissions to be 0750 or less (gosec)
+		if err := os.MkdirAll(filepath.Join(root, path), 0o755); err != nil {
+		          ^
+internal/renderers/sysident/state_test.go:96:12: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+	if err := os.WriteFile(p.Hostname, []byte("configured-private-target"), 0o644); err != nil {
+	          ^
+internal/subsystems/pppoe_carrier_forwarding.go:278:16: G304: Potential file inclusion via variable (gosec)
+		body, err := os.ReadFile(filepath.Join(rt.sessionStateDir(s), s.HostIf+suffix))
+		             ^
+internal/subsystems/pppoe_carrier_runtime.go:63:12: G304: Potential file inclusion via variable (gosec)
+	f, err := os.OpenFile(filepath.Join(stateDir, "resolv.conf"), os.O_CREATE|os.O_WRONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	          ^
+internal/subsystems/pppoe_carrier_runtime.go:144:20: G304: Potential file inclusion via variable (gosec)
+			content, err := os.ReadFile(filepath.Join(rt.carrierHooksDir(), kind))
+			                ^
+internal/subsystems/pppoe_carrier_runtime_test.go:94:13: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+		if err := os.WriteFile(filepath.Join(rt.carrierHooks, kind), []byte("#!/usr/bin/python3\n"), 0755); err != nil {
+		          ^
+internal/subsystems/pppoe_carrier_runtime_test.go:306:13: G306: Expect WriteFile permissions to be 0600 or less (gosec)
+		if err := os.WriteFile(filepath.Join(rt.carrierHooks, kind), []byte("#!/usr/bin/python3\n"), 0755); err != nil {
+		          ^
+internal/subsystems/pppoe_ipv6_test.go:128:25: G703: Path traversal via taint analysis (gosec)
+		if err := os.WriteFile(filepath.Join(paths.StateDir, "tap0.state6"), []byte(body), 0o600); err != nil {
+		                      ^
+internal/descriptors/hoststack/descriptors.go:159:1: exported: exported method NamespaceDescriptor.Validate should have comment or be unexported (revive)
+func (d *NamespaceDescriptor) Validate(ctx context.Context, _ scheduler.Key, value proto.Message, _ scheduler.ReadOnlyView) error {
+^
+internal/descriptors/interface/unnumbered.go:29:1: exported: exported method UnnumberedDescriptor.Name should have comment or be unexported (revive)
+func (*UnnumberedDescriptor) Name() string { return UnnumberedName }
+^
+internal/descriptors/interface/unnumbered.go:30:1: exported: exported method UnnumberedDescriptor.KeyOf should have comment or be unexported (revive)
+func (*UnnumberedDescriptor) KeyOf(obj proto.Message) scheduler.Key {
+^
+internal/descriptors/interface/unnumbered.go:33:1: exported: exported method UnnumberedDescriptor.Normalize should have comment or be unexported (revive)
+func (*UnnumberedDescriptor) Normalize(obj proto.Message) proto.Message {
+^
+internal/descriptors/interface/unnumbered.go:36:1: exported: exported method UnnumberedDescriptor.Dependencies should have comment or be unexported (revive)
+func (*UnnumberedDescriptor) Dependencies(obj proto.Message) []scheduler.Dependency {
+^
+internal/descriptors/interface/unnumbered.go:64:1: exported: exported method UnnumberedDescriptor.Create should have comment or be unexported (revive)
+func (d *UnnumberedDescriptor) Create(ctx context.Context, obj proto.Message) (any, error) {
+^
+internal/descriptors/interface/unnumbered.go:119:1: exported: exported method UnnumberedDescriptor.Update should have comment or be unexported (revive)
+func (d *UnnumberedDescriptor) Update(_ context.Context, _, _ proto.Message, _ any) (any, error) {
+^
+internal/descriptors/interface/unnumbered.go:122:1: exported: exported method UnnumberedDescriptor.Delete should have comment or be unexported (revive)
+func (d *UnnumberedDescriptor) Delete(ctx context.Context, obj proto.Message, meta any) error {
+^
+internal/descriptors/interface/unnumbered.go:162:1: exported: exported method UnnumberedDescriptor.Retrieve should have comment or be unexported (revive)
+func (d *UnnumberedDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+^
+internal/descriptors/pppoe/carrier_namespace.go:19:7: exported: exported const CarrierNamespaceName should have comment or be unexported (revive)
+const CarrierNamespaceName = "pppoe.carrier.namespace"
+      ^
+internal/descriptors/pppoe/carrier_namespace.go:51:1: exported: exported function NewCarrierNamespace should have comment or be unexported (revive)
+func NewCarrierNamespace(owner string, host CarrierNamespaceHost) *NamespaceDescriptor {
+^
+internal/descriptors/pppoe/carrier_namespace.go:55:1: exported: comment on exported method NamespaceDescriptor.CheckPersistent should be of the form "CheckPersistent ..." (revive)
+// Namespace ownership must survive an agent restart. The packaged host stores
+^
+internal/descriptors/pppoe/carrier_namespace.go:62:1: exported: exported method NamespaceDescriptor.Name should have comment or be unexported (revive)
+func (*NamespaceDescriptor) Name() string { return CarrierNamespaceName }
+^
+internal/descriptors/pppoe/carrier_namespace.go:63:1: exported: exported method NamespaceDescriptor.KeyOf should have comment or be unexported (revive)
+func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
+^
+internal/descriptors/pppoe/carrier_namespace.go:70:1: exported: exported function CarrierNamespaceKey should have comment or be unexported (revive)
+func CarrierNamespaceKey(token string) scheduler.Key {
+^
+internal/descriptors/pppoe/carrier_namespace.go:73:1: exported: exported method NamespaceDescriptor.Dependencies should have comment or be unexported (revive)
+func (*NamespaceDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
+^
+internal/descriptors/pppoe/carrier_namespace.go:100:1: exported: exported method CarrierLease.Validate should have comment or be unexported (revive)
+func (l CarrierLease) Validate() error {
+^
+internal/descriptors/pppoe/carrier_namespace.go:110:1: exported: exported method NamespaceDescriptor.Create should have comment or be unexported (revive)
+func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (any, error) {
+^
+internal/descriptors/pppoe/carrier_namespace.go:134:1: exported: exported method NamespaceDescriptor.Update should have comment or be unexported (revive)
+func (d *NamespaceDescriptor) Update(_ context.Context, old, next proto.Message, meta any) (any, error) {
+^
+internal/descriptors/pppoe/carrier_namespace.go:144:1: exported: exported method NamespaceDescriptor.Delete should have comment or be unexported (revive)
+func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, meta any) error {
+^
+internal/descriptors/pppoe/carrier_namespace.go:156:1: exported: exported method NamespaceDescriptor.Retrieve should have comment or be unexported (revive)
+func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+^
+internal/descriptors/pppoe/carrier_namespace.go:190:3: redefines-builtin-id: redefinition of the built-in function copy (revive)
+		copy := proto.Clone(doc).(*structpb.Struct)
+		^
+internal/descriptors/pppoe/carrier_tap.go:12:7: exported: exported const CarrierTapName should have comment or be unexported (revive)
+const CarrierTapName = "pppoe.carrier.tap"
+      ^
+internal/descriptors/pppoe/carrier_tap.go:14:1: exported: comment on exported method CarrierTapDescriptor.RecordsNoOwnership should be of the form "RecordsNoOwnership ..." (revive)
+// RecordsNoOwnership: VPP carries the TAP owner tag. Namespace claims belong to
+^
+internal/descriptors/pppoe/carrier_tap.go:26:1: exported: exported method CarrierTapDescriptor.Name should have comment or be unexported (revive)
+func (*CarrierTapDescriptor) Name() string { return CarrierTapName }
+^
+internal/descriptors/pppoe/carrier_tap.go:27:1: exported: exported method CarrierTapDescriptor.KeyOf should have comment or be unexported (revive)
+func (*CarrierTapDescriptor) KeyOf(v proto.Message) scheduler.Key {
+^
+internal/descriptors/pppoe/carrier_tap.go:34:1: exported: exported method CarrierTapDescriptor.Dependencies should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Dependencies(v proto.Message) []scheduler.Dependency {
+^
+internal/descriptors/pppoe/carrier_tap.go:37:1: exported: exported method CarrierTapDescriptor.Normalize should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Normalize(v proto.Message) proto.Message { return d.Tap.Normalize(v) }
+^
+internal/descriptors/pppoe/carrier_tap.go:45:1: exported: exported method CarrierTapDescriptor.Create should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Create(ctx context.Context, v proto.Message) (any, error) {
+^
+internal/descriptors/pppoe/carrier_tap.go:51:1: exported: exported method CarrierTapDescriptor.Update should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Update(ctx context.Context, old, next proto.Message, meta any) (any, error) {
+^
+internal/descriptors/pppoe/carrier_tap.go:57:1: exported: exported method CarrierTapDescriptor.Delete should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Delete(ctx context.Context, v proto.Message, meta any) error {
+^
+internal/descriptors/pppoe/carrier_tap.go:70:1: exported: exported method CarrierTapDescriptor.Retrieve should have comment or be unexported (revive)
+func (d *CarrierTapDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
+^
+internal/descriptors/pppoe/carrier_vlan.go:31:1: exported: exported function ResolveCarrierParent should have comment or be unexported (revive)
+func ResolveCarrierParent(ifs map[string]*ngfwv1.Interface, name string) (CarrierParent, error) {
+^
+internal/desired/pppoe_carrier_vlan.go:19:1: exported: exported function PppoeCarrierParent should have comment or be unexported (revive)
+func PppoeCarrierParent(ifs map[string]*ngfwv1.Interface, name string) (desc.CarrierParent, error) {
+^
+internal/desired/pppoe_delegation.go:16:2: exported: exported const PppoeDelegationAddress should have comment (or a comment on this block) or be unexported (revive)
+	PppoeDelegationAddress = "pppoe.pd.address"
+	^
+internal/multiwan/descriptor.go:16:1: exported: exported method RouteDescriptor.Dependencies should have comment or be unexported (revive)
+func (d *RouteDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
+^
+internal/renderers/pppoe/carrier_spec.go:62:1: exported: comment on exported method CarrierSpec.VPP4 should be of the form "VPP4 ..." (revive)
+// VPP4/VPP6 are the router-side transit addresses, distinct from the ISP address.
+^
+internal/renderers/pppoe/carrier_spec.go:64:1: exported: exported method CarrierSpec.VPP6 should have comment or be unexported (revive)
+func (s CarrierSpec) VPP6() string        { return s.Peer6 + "/126" }
+^
+internal/renderers/pppoe/carrier_spec.go:65:1: exported: exported method CarrierSpec.RawHost should have comment or be unexported (revive)
+func (s CarrierSpec) RawHost() string     { return "pw" + strings.TrimPrefix(s.Token(), "ngp-") }
+^
+internal/renderers/pppoe/carrier_spec.go:66:1: exported: exported method CarrierSpec.TransitHost should have comment or be unexported (revive)
+func (s CarrierSpec) TransitHost() string { return "pt" + strings.TrimPrefix(s.Token(), "ngp-") }
+^
+internal/renderers/pppoe/carrier_spec.go:67:1: exported: exported method CarrierSpec.RawLogical should have comment or be unexported (revive)
+func (s CarrierSpec) RawLogical() string  { return "pppr-" + strings.TrimPrefix(s.Token(), "ngp-") }
+^
+internal/secretvalue/value.go:21:5: exported: exported var ErrInvalid should have comment or be unexported (revive)
+var ErrInvalid = errors.New("secret generation bindings unavailable or invalid")
+    ^
+internal/secretvalue/value.go:141:2: redefines-builtin-id: redefinition of the built-in function copy (revive)
+	copy := map[string]string{}
+	^
+internal/subsystems/pppoe_carrier_forwarding.go:43:1: exported: exported method PppoeRuntime.CarrierDelegationReady should have comment or be unexported (revive)
+func (rt *PppoeRuntime) CarrierDelegationReady(logical, admission string) bool {
+^
+internal/subsystems/pppoe_carrier_forwarding.go:119:1: exported: exported method PppoeRuntime.ProbeForwarding should have comment or be unexported (revive)
+func (rt *PppoeRuntime) ProbeForwarding(ctx context.Context, logical string, monitor *ngfwv1.WanMonitor) multiwan.CheckResult {
+^
+internal/subsystems/pppoe_carrier_runtime.go:172:3: redefines-builtin-id: redefinition of the built-in function copy (revive)
+		copy := s
+		^
+internal/subsystems/pppoe_delegation.go:125:57: redefines-builtin-id: redefinition of the built-in function new (revive)
+func (d *pdDescriptor) Update(ctx context.Context, old, new proto.Message, meta any) (any, error) {
+                                                        ^
+internal/subsystems/snmp.go:267:21: func (*SnmpStage).saveRecord is unused (unused)
+func (s *SnmpStage) saveRecord(v *ngfwv1.SnmpService) error { return s.saveValue(v, nil) }
+                    ^
+62 issues:
+* errcheck: 1
+* gosec: 13
+* revive: 47
+* unused: 1
+make: *** [Makefile:15: lint] Error 1
+make: Leaving directory '/home/runner/work/NGFW/NGFW/apps/agent'

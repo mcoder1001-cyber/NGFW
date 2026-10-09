@@ -20,7 +20,7 @@ type carrierRecoveryGraph struct {
 	mu       sync.Mutex
 	objects  map[scheduler.Key]scheduler.KV
 	lease    *CarrierLease
-	sequence int
+	sequence uint64
 	events   []string
 }
 
@@ -31,7 +31,7 @@ func (g *carrierRecoveryGraph) Provision(_ context.Context, spec ren.CarrierSpec
 		return CarrierLease{}, fmt.Errorf("old namespace still present")
 	}
 	g.sequence++
-	lease := CarrierLease{Spec: spec, Token: spec.Token(), Generation: fmt.Sprintf("%032x", g.sequence), Boot: "graph-test-boot", Namespace: []uint64{1, uint64(100 + g.sequence)}}
+	lease := CarrierLease{Spec: spec, Token: spec.Token(), Generation: fmt.Sprintf("%032x", g.sequence), Boot: "graph-test-boot", Namespace: []uint64{1, 100 + g.sequence}}
 	g.lease = &lease
 	g.events = append(g.events, "namespace-create:"+lease.Generation)
 	return lease, nil

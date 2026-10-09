@@ -18,6 +18,7 @@ import (
 	"ngfw/agent/internal/descriptors/vpn"
 )
 
+// ErrInvalid reports invalid or unavailable bound secret material.
 var ErrInvalid = errors.New("secret generation bindings unavailable or invalid")
 
 const prefix = "# ngfw-secret-generations "
@@ -138,11 +139,11 @@ func Unwrap(value, dst proto.Message) (map[string]string, error) {
 
 // WithBindings isolates a render from later selection changes or caller map mutations.
 func WithBindings(ctx context.Context, bindings map[string]string) context.Context {
-	copy := map[string]string{}
+	snapshot := map[string]string{}
 	for k, v := range bindings {
-		copy[k] = v
+		snapshot[k] = v
 	}
-	return context.WithValue(ctx, bindingsKey{}, copy)
+	return context.WithValue(ctx, bindingsKey{}, snapshot)
 }
 
 // Binding returns only the generation explicitly bound to this render context.

@@ -61,7 +61,7 @@ func writeState6(t *testing.T, r *Renderer, hostIf, body string) {
 	if err := os.MkdirAll(r.paths.StateDir, 0o750); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".state6"), []byte(body), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(r.paths.StateDir, hostIf+".state6"), []byte(body), 0o600); err != nil { // #nosec G703 -- Test-only private TempDir renderer and literal fixture interface names; no external path input.
 		t.Fatal(err)
 	}
 }

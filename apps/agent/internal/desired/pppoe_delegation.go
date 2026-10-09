@@ -12,6 +12,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// Descriptor identities for dynamically delegated LAN address and RA objects.
 const (
 	PppoeDelegationAddress = "pppoe.pd.address"
 	PppoeDelegationPrefix  = "pppoe.pd.prefix"
@@ -85,7 +86,7 @@ func PppoeDelegation(doc *ngfwv1.DesiredState, leases []PppoeDelegationLease, no
 		// Round down to a 30-second budget so a one-second observation loop does
 		// not rewrite every RA every second. Never advertise beyond the actual lease.
 		valid, preferred = valid/30*30, preferred/30*30
-		if preferred <= 0 || valid <= 0 || valid > 4294967295 {
+		if preferred <= 0 || valid <= 0 || valid > 4294967295 || preferred > 4294967295 {
 			continue
 		}
 		targets, err := PppoeDelegationTargets(doc, lease.Logical)

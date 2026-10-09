@@ -9,9 +9,10 @@ import (
 	"strings"
 )
 
+// CarrierTapName identifies PPP TAPs separately from remote-access TAPs.
 const CarrierTapName = "pppoe.carrier.tap"
 
-// RecordsNoOwnership: VPP carries the TAP owner tag. Namespace claims belong to
+// RecordsNoOwnership declares that VPP carries the TAP owner tag. Namespace claims belong to
 // the separately checked NamespaceDescriptor, never a process-local TAP store.
 func (*CarrierTapDescriptor) RecordsNoOwnership() {}
 
@@ -23,7 +24,10 @@ type CarrierTapDescriptor struct {
 	Admit func(context.Context, *tapv2.Tap) error
 }
 
+// Name returns the registered descriptor identity.
 func (*CarrierTapDescriptor) Name() string { return CarrierTapName }
+
+// KeyOf returns the stable reconciliation key.
 func (*CarrierTapDescriptor) KeyOf(v proto.Message) scheduler.Key {
 	p, ok := v.(*tapv2.Tap)
 	if !ok {
@@ -31,9 +35,13 @@ func (*CarrierTapDescriptor) KeyOf(v proto.Message) scheduler.Key {
 	}
 	return scheduler.Join(CarrierTapName, p.Name)
 }
+
+// Dependencies declares prerequisite objects for safe reconciliation.
 func (d *CarrierTapDescriptor) Dependencies(v proto.Message) []scheduler.Dependency {
 	return d.Tap.Dependencies(v)
 }
+
+// Normalize canonicalizes the desired value before comparison.
 func (d *CarrierTapDescriptor) Normalize(v proto.Message) proto.Message { return d.Tap.Normalize(v) }
 func carrierTap(v proto.Message) (*tapv2.Tap, error) {
 	p, ok := v.(*tapv2.Tap)
@@ -42,18 +50,24 @@ func carrierTap(v proto.Message) (*tapv2.Tap, error) {
 	}
 	return p, nil
 }
+
+// Create creates the validated owned object.
 func (d *CarrierTapDescriptor) Create(ctx context.Context, v proto.Message) (any, error) {
 	if _, err := carrierTap(v); err != nil {
 		return nil, err
 	}
 	return d.Tap.Create(ctx, v)
 }
+
+// Update reconciles an existing owned object with the next value.
 func (d *CarrierTapDescriptor) Update(ctx context.Context, old, next proto.Message, meta any) (any, error) {
 	if _, err := carrierTap(next); err != nil {
 		return nil, err
 	}
 	return d.Tap.Update(ctx, old, next, meta)
 }
+
+// Delete removes only the owned object.
 func (d *CarrierTapDescriptor) Delete(ctx context.Context, v proto.Message, meta any) error {
 	p, err := carrierTap(v)
 	if err != nil {
@@ -67,6 +81,8 @@ func (d *CarrierTapDescriptor) Delete(ctx context.Context, v proto.Message, meta
 	}
 	return d.Tap.Delete(ctx, v, meta)
 }
+
+// Retrieve reads actual owned state for reconciliation and recovery.
 func (d *CarrierTapDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	rows, err := d.Tap.Retrieve(ctx)
 	if err != nil {

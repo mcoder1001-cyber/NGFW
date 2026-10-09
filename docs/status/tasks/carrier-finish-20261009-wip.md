@@ -27,3 +27,9 @@ Verification actually executed:
 - Source generation completed 13/13 tasks via `pnpm exec turbo run gen --env-mode=loose`, preserving the restored toolchain cache variables. Initial strict-env generation failed because Turbo dropped cache environment and network lookup was unavailable; no successful generation was claimed until rerun. Generated API client and YANG changes committed.
 
 Remaining: independent R2/R4 final delta receipts, one final unchanged combined CI campaign and merge by root. Native/lab execution remains NOT RUN. Product license remains an external release input, not a source implementation task. No CI or host activation performed by this worker.
+
+## Final hosted campaign correction, 2026-10-09
+
+The final hosted candidate 69e28859 failed Go lint (62 findings), before Go tests. TS and three fixture workflows passed; root preserved the exact failure log separately. Corrections preserve every enabled gate: exported API documentation, shadowed identifier renames, removal of unused SNMP wrapper, explicit VLAN operation nonnegative bound and PD lifetime upper bound, uint64-only test counter, propagated resolver close errors, tighter test fixture permissions. Six narrowly scoped gosec false-positive comments cover three fixed validated product paths and three private fixture paths/credentials, with per-line rationale; R4 independently reviews these.
+
+Pinned local lint installation initially failed because archive uid/gid ownership cannot map in this environment. Recovery uses tar --no-same-owner only in installer environment, without changing repository scripts or validation. Actual pinned lint result and final test outcomes remain pending at this checkpoint.

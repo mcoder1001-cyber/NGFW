@@ -16,6 +16,7 @@ func PppoeCarrierVLAN(s Sink, parent desc.CarrierParent, pointer string) {
 	}
 }
 
+// PppoeCarrierParent returns the resolved physical parent used by carrier projection.
 func PppoeCarrierParent(ifs map[string]*ngfwv1.Interface, name string) (desc.CarrierParent, error) {
 	return desc.ResolveCarrierParent(ifs, name)
 }

@@ -28,6 +28,7 @@ type CarrierParent struct {
 	Rewrite               *l2.VlanTagRewrite
 }
 
+// ResolveCarrierParent resolves the physical or VLAN parent without adopting unrelated interfaces.
 func ResolveCarrierParent(ifs map[string]*ngfwv1.Interface, name string) (CarrierParent, error) {
 	out := CarrierParent{Name: name, RootName: name, Root: ifs[name], Config: ifs[name]}
 	if out.Root == nil {
@@ -198,6 +199,9 @@ func VerifyCarrierVLANReadiness(ctx context.Context, c vpp.Client, owner string,
 	row, _ := table.Details(parent)
 	expected := uint32(0)
 	if rewrite != nil {
+		if rewrite.Op < 0 {
+			return errors.New("invalid negative VLAN rewrite operation")
+		}
 		expected = uint32(rewrite.Op)
 	}
 	if row.VtrOp != expected || row.VtrPushDot1q != 0 || row.VtrTag1 != 0 || row.VtrTag2 != 0 {

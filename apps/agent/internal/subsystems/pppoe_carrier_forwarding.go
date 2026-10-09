@@ -40,6 +40,8 @@ func (rt *PppoeRuntime) ForwardingGateway(logical string) (string, string, strin
 	}
 	return r.mirror.LocalIPv4, r.mirror.PeerIPv4, r.epoch, true
 }
+
+// CarrierDelegationReady reports whether the current admission has verified, unexpired forwarding.
 func (rt *PppoeRuntime) CarrierDelegationReady(logical, admission string) bool {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
@@ -116,6 +118,7 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	return carrierForwarding{lease: lease, mirror: m, admission: strings.TrimSpace(string(admission)), epoch: epoch, until: time.Now().Add(3 * time.Second)}, nil
 }
 
+// ProbeForwarding runs a bounded probe only against the current verified carrier epoch.
 func (rt *PppoeRuntime) ProbeForwarding(ctx context.Context, logical string, monitor *ngfwv1.WanMonitor) multiwan.CheckResult {
 	fail := multiwan.CheckResult{Unavailable: true}
 	if monitor == nil {
@@ -275,7 +278,7 @@ func (rt *PppoeRuntime) carrierSessionGeneration(s pppoe.Session) (string, error
 		suffixes = append(suffixes, ".state6")
 	}
 	for _, suffix := range suffixes {
-		body, err := os.ReadFile(filepath.Join(rt.sessionStateDir(s), s.HostIf+suffix))
+		body, err := os.ReadFile(filepath.Join(rt.sessionStateDir(s), s.HostIf+suffix)) // #nosec G304 -- Validated carrier-derived interface name, fixed suffix list and product state root; no caller path.
 		if os.IsNotExist(err) {
 			continue
 		}

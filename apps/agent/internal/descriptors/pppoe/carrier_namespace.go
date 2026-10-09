@@ -16,6 +16,7 @@ import (
 	"ngfw/agent/internal/scheduler"
 )
 
+// CarrierNamespaceName identifies isolated PPP namespace objects.
 const CarrierNamespaceName = "pppoe.carrier.namespace"
 
 // CarrierLease is verified by the helper against the pinned live namespace, not
@@ -48,18 +49,22 @@ type NamespaceDescriptor struct {
 	Admit func(context.Context, ren.CarrierSpec) error
 }
 
+// NewCarrierNamespace binds namespace reconciliation to its owner and host provider.
 func NewCarrierNamespace(owner string, host CarrierNamespaceHost) *NamespaceDescriptor {
 	return &NamespaceDescriptor{owner: owner, host: host}
 }
 
-// Namespace ownership must survive an agent restart. The packaged host stores
+// CheckPersistent requires namespace ownership to survive an agent restart. The packaged host stores
 // exact boot/inode/generation receipts on disk; an in-memory host is not valid in
 // product wiring. A host reboot destroys the namespace along with its /run ledger.
 func (d *NamespaceDescriptor) CheckPersistent() error {
 	return persist.Require(CarrierNamespaceName, d.host)
 }
 
+// Name returns the registered descriptor identity.
 func (*NamespaceDescriptor) Name() string { return CarrierNamespaceName }
+
+// KeyOf returns the stable reconciliation key.
 func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	var spec ren.CarrierSpec
 	if decodeCarrierNamespace(value, &spec) != nil {
@@ -67,9 +72,13 @@ func (*NamespaceDescriptor) KeyOf(value proto.Message) scheduler.Key {
 	}
 	return CarrierNamespaceKey(spec.Token())
 }
+
+// CarrierNamespaceKey returns the namespace key for an immutable token.
 func CarrierNamespaceKey(token string) scheduler.Key {
 	return scheduler.Join(CarrierNamespaceName, token)
 }
+
+// Dependencies declares prerequisite objects for safe reconciliation.
 func (*NamespaceDescriptor) Dependencies(value proto.Message) []scheduler.Dependency {
 	var spec ren.CarrierSpec
 	if decodeCarrierNamespace(value, &spec) != nil {
@@ -97,6 +106,7 @@ func (d *NamespaceDescriptor) spec(value proto.Message) (ren.CarrierSpec, error)
 
 var carrierGeneration = regexp.MustCompile(`^[a-f0-9]{32,64}$`)
 
+// Validate rejects invalid configuration before product writes.
 func (l CarrierLease) Validate() error {
 	if err := l.Spec.Validate(); err != nil {
 		return err
@@ -107,6 +117,7 @@ func (l CarrierLease) Validate() error {
 	return nil
 }
 
+// Create creates the validated owned object.
 func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (any, error) {
 	spec, err := d.spec(value)
 	if err != nil {
@@ -131,6 +142,7 @@ func (d *NamespaceDescriptor) Create(ctx context.Context, value proto.Message) (
 	return lease, nil
 }
 
+// Update reconciles an existing owned object with the next value.
 func (d *NamespaceDescriptor) Update(_ context.Context, old, next proto.Message, meta any) (any, error) {
 	if _, err := d.spec(next); err != nil {
 		return nil, err
@@ -141,6 +153,7 @@ func (d *NamespaceDescriptor) Update(_ context.Context, old, next proto.Message,
 	return meta, nil
 }
 
+// Delete removes only the owned object.
 func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, meta any) error {
 	spec, err := d.spec(value)
 	if err != nil {
@@ -153,6 +166,7 @@ func (d *NamespaceDescriptor) Delete(ctx context.Context, value proto.Message, m
 	return d.host.Remove(ctx, lease)
 }
 
+// Retrieve reads actual owned state for reconciliation and recovery.
 func (d *NamespaceDescriptor) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	if d.host == nil {
 		return nil, errors.New("PPPoE carrier namespace helper is unavailable")
@@ -187,9 +201,9 @@ func decodeCarrierNamespace(value proto.Message, spec *ren.CarrierSpec) error {
 		if !doc.Fields["_repair_required"].GetBoolValue() {
 			return errors.New("invalid carrier repair marker")
 		}
-		copy := proto.Clone(doc).(*structpb.Struct)
-		delete(copy.Fields, "_repair_required")
-		return dfkit.Decode(copy, spec)
+		snapshot := proto.Clone(doc).(*structpb.Struct)
+		delete(snapshot.Fields, "_repair_required")
+		return dfkit.Decode(snapshot, spec)
 	}
 	return dfkit.Decode(value, spec)
 }

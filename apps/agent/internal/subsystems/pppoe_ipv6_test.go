@@ -125,7 +125,7 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 			body += "pd_generation=" + strings.TrimSpace(string(admission)) + "\npd_valid_until=" + strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10) + "\npd_preferred_until=" + strconv.FormatInt(time.Now().Add(30*time.Minute).Unix(), 10) + "\n"
 		}
 		// what the ipv6-up hook's refresher writes (the hook itself needs a PPP link: lab-host acceptance)
-		if err := os.WriteFile(filepath.Join(paths.StateDir, "tap0.state6"), []byte(body), 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(paths.StateDir, "tap0.state6"), []byte(body), 0o600); err != nil { // #nosec G703 -- Fixed fixture filename beneath this test private TempDir; no external path input.
 			t.Fatal(err)
 		}
 	}

@@ -264,8 +264,6 @@ func (s *SnmpStage) Retrieve(ctx context.Context) ([]scheduler.KV, error) {
 	return []scheduler.KV{{Key: desired.SnmpKey, Value: value}}, nil
 }
 
-func (s *SnmpStage) saveRecord(v *ngfwv1.SnmpService) error { return s.saveValue(v, nil) }
-
 func (s *SnmpStage) saveValue(v *ngfwv1.SnmpService, bindings map[string]string) error {
 	value, err := desired.SnmpBoundValue(v, bindings)
 	if err != nil {

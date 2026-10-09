@@ -59,12 +59,20 @@ func NewCarrierSpec(owner, logical, parent string, mtu uint32) (CarrierSpec, err
 		Host4: v4(2), Peer4: peer4, Host6: v6(2), Peer6: peer6}, nil
 }
 
-// VPP4/VPP6 are the router-side transit addresses, distinct from the ISP address.
-func (s CarrierSpec) VPP4() string        { return s.Peer4 + "/30" }
-func (s CarrierSpec) VPP6() string        { return s.Peer6 + "/126" }
-func (s CarrierSpec) RawHost() string     { return "pw" + strings.TrimPrefix(s.Token(), "ngp-") }
+// VPP4 returns the IPv4 router-side transit prefix, distinct from the ISP address.
+func (s CarrierSpec) VPP4() string { return s.Peer4 + "/30" }
+
+// VPP6 returns the IPv6 router-side transit prefix.
+func (s CarrierSpec) VPP6() string { return s.Peer6 + "/126" }
+
+// RawHost returns the fixed raw Ethernet TAP name.
+func (s CarrierSpec) RawHost() string { return "pw" + strings.TrimPrefix(s.Token(), "ngp-") }
+
+// TransitHost returns the fixed transit TAP name.
 func (s CarrierSpec) TransitHost() string { return "pt" + strings.TrimPrefix(s.Token(), "ngp-") }
-func (s CarrierSpec) RawLogical() string  { return "pppr-" + strings.TrimPrefix(s.Token(), "ngp-") }
+
+// RawLogical returns the owned raw TAP logical identity.
+func (s CarrierSpec) RawLogical() string { return "pppr-" + strings.TrimPrefix(s.Token(), "ngp-") }
 
 // TapIDs are stable candidates; live admission refuses any existing ID collision.
 func (s CarrierSpec) TapIDs() (raw, transit uint32) {

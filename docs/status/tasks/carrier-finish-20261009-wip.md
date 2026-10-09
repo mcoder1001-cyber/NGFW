@@ -33,3 +33,18 @@ Remaining: independent R2/R4 final delta receipts, one final unchanged combined 
 The final hosted candidate 69e28859 failed Go lint (62 findings), before Go tests. TS and three fixture workflows passed; root preserved the exact failure log separately. Corrections preserve every enabled gate: exported API documentation, shadowed identifier renames, removal of unused SNMP wrapper, explicit VLAN operation nonnegative bound and PD lifetime upper bound, uint64-only test counter, propagated resolver close errors, tighter test fixture permissions. Six narrowly scoped gosec false-positive comments cover three fixed validated product paths and three private fixture paths/credentials, with per-line rationale; R4 independently reviews these.
 
 Pinned local lint installation initially failed because archive uid/gid ownership cannot map in this environment. Recovery uses tar --no-same-owner only in installer environment, without changing repository scripts or validation. Actual pinned lint result and final test outcomes remain pending at this checkpoint.
+
+### Final correction verification
+
+Frozen product `1d7f3d96` resolves all established source failures from the complete baseline agent run:
+- D039 explicit presence for PPP delegation target fields; regenerated Go/TS contracts and API generation completed (13/13 tasks).
+- Generic fake wiring injects an explicitly empty PPP inventory. Production nil injection still uses the packaged broker and discovers orphan namespaces; failures never become empty inventory.
+- PD summary fixture carries unexpired lease evidence; stale lease rejection remains unchanged.
+- SNMP projection selects transaction owner for both checker and sealed fingerprint, preserving fail-closed ambiguity for ownerless callers and refusing foreign fallback.
+- BFD unscoped (`all`) ID range no longer dereferences nil; numbered and invalid ranges remain bounded/fail-closed.
+
+Actual pinned golangci-lint **2.13.2** complete run: exit **0**, `0 issues.` Full `go vet ./...`: exit **0**. First local lint pass found six additional fixed-path/test-mode findings; final correction uses nonexecuted fixture content files at 0600 and three additional precise G304 path rationales. No linter configuration, enabled gate, workflow or security check was weakened.
+
+Corrected original contract/PPP globals-owner/carrier/PD summary controls passed race in five packages: contracttest1.054s, descriptors/pppoe1.094s, subsystems1.507s, agent2.070s, renderers/pppoe1.068s. Final original-agent-failure/SNMP/host-service controls PASS3.140s; final carrier/PD/BFD/IPv6 subsystem controls PASS1.846s. TS protobuf PD roundtrip PASS1 test. BFD direct all/invalid/numbered-range regression PASS1.104s.
+
+The unchanged complete baseline Go suite was executed by independent reviewer. Its remaining process/UID/socket failures correlate with this execution environment's PID/proc namespace mismatch, unmapped foreign UID/GID and denied sockets; they are not waived or labeled passing and must pass the unchanged hosted gate. Initial broader focused selection also encountered those real process fixture restrictions. Native appliance/ISP execution remains NOT RUN. Final hosted campaign rerun and merge remain manager-owned, pending final R2/R4 receipts.

@@ -185,7 +185,7 @@ func (rt *PppoeRuntime) applyCarriers(ctx context.Context, sessions []pppoe.Sess
 		old, ok := rt.applied[name]
 		changed[name] = !ok || !reflect.DeepEqual(old, next)
 		for path, file := range rendered[name] {
-			body, err := os.ReadFile(path)
+			body, err := os.ReadFile(path) // #nosec G304 -- Paths are emitted by CarrierFiles from validated sessions and fixed private product roots.
 			if err != nil || !bytes.Equal(body, file.Content) {
 				changed[name] = true
 			}

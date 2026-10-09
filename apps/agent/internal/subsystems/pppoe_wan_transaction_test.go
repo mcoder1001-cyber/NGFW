@@ -50,7 +50,7 @@ func TestCarrierWANTransactionOrdersRoutesAndRollsBackFailure(t *testing.T) {
 	rt, _, fake := newTestRuntime(t)
 	rt.carrierMode, rt.carrierRoot, rt.carrierHooks = true, t.TempDir(), t.TempDir()
 	for _, kind := range []string{"ip-up", "ip-down", "ipv6-up", "ipv6-down"} {
-		if err := os.WriteFile(filepath.Join(rt.carrierHooks, kind), []byte("#!/usr/bin/python3\n"), 0755); err != nil {
+		if err := os.WriteFile(filepath.Join(rt.carrierHooks, kind), []byte("#!/usr/bin/python3\n"), 0600); err != nil {
 			t.Fatal(err)
 		}
 	}

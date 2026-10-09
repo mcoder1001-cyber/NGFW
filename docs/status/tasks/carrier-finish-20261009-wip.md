@@ -48,3 +48,34 @@ Actual pinned golangci-lint **2.13.2** complete run: exit **0**, `0 issues.` Ful
 Corrected original contract/PPP globals-owner/carrier/PD summary controls passed race in five packages: contracttest1.054s, descriptors/pppoe1.094s, subsystems1.507s, agent2.070s, renderers/pppoe1.068s. Final original-agent-failure/SNMP/host-service controls PASS3.140s; final carrier/PD/BFD/IPv6 subsystem controls PASS1.846s. TS protobuf PD roundtrip PASS1 test. BFD direct all/invalid/numbered-range regression PASS1.104s.
 
 The unchanged complete baseline Go suite was executed by independent reviewer. Its remaining process/UID/socket failures correlate with this execution environment's PID/proc namespace mismatch, unmapped foreign UID/GID and denied sockets; they are not waived or labeled passing and must pass the unchanged hosted gate. Initial broader focused selection also encountered those real process fixture restrictions. Native appliance/ISP execution remains NOT RUN. Final hosted campaign rerun and merge remain manager-owned, pending final R2/R4 receipts.
+
+## Final integrated source receipt — 2026-10-09
+
+Source candidate `30de26ee6a5697a3713fe4375399b86c5588a472` passed the unchanged complete hosted quick gate
+[37903333143](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37903333143) and all applicable fixture workflows.
+[PR214](https://github.com/mcoder1001-cyber/NGFW/pull/214) merged as `d58db1a673d716ebcf595a9e49847a54991c58da`; merge tree equals tested tree
+`d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad`. Reviewed history is preserved at
+`codex/archive-completion-corrected-20261009` (`3f98838119ed8d67aab9c226308829ac49af9def`).
+Final R2/R4 correction receipts approve the scoped source; initial failed CI and
+local environment failures remain historical evidence, not retroactive PASS.
+
+| Final check | Result |
+|---|---|
+| Mandatory quick | PASS, complete unchanged hosted gate |
+| [Packaging37903333245](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37903333245) | 81 fixtures, zero failures/errors/skips; seven gate-policy controls PASS |
+| [Provisioning37903333184](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37903333184) | 46 strict +23 offline Debian +11 trusted installer +18 portable export PASS |
+| [Python37903333309](https://github.com/mcoder1001-cyber/NGFW/actions/runs/37903333309) | 14 synthetic-wheel +5 release-contract tests PASS |
+
+Board: **205 merged,7 parked,0 review,0 running**, total212. The eight reviewed
+source rows are merged. PPP-host and MultiWAN-host source is integrated; their
+native acceptance joins the five already parked rows. No live source worker is
+claimed. All older pending-source/CI statements in this document are historical
+and superseded by this receipt.
+
+Native acceptance of this cumulative source remains **NOT RUN**. Known prior RA
+supplier/post-ACK identity failures and P12 mgmtd startup failure at the unchanged
+30-second deadline before the200-route proof still require diagnosis, any necessary
+fix and rerun on the real target. No unit/fixture result closes these cases.
+Product license text/name/copyright authority remains a separate release input
+under `docs/decisions/PENDING-P10-product-license.md`; no license is invented.
+Plan exclusions remain unchanged. This is source completion, not release certification.

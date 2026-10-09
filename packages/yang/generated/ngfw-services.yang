@@ -1759,7 +1759,7 @@ module ngfw-services {
             pattern "(key)/[A-Za-z0-9][A-Za-z0-9_.-]{0,62}";
             length "1..127";
           }
-          description "key/<name>; not applied until the API→agent secret channel exists";
+          description "key/<name>; sealed secret material must be a canonical nonzero decimal uint64";
         }
         leaf interface {
           type string {

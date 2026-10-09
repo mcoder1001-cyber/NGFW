@@ -52,6 +52,12 @@ func (rt *PppoeRuntime) CarrierDelegationReady(logical, admission string) bool {
 // after the normal VPP mirror has successfully converged.
 func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Session, m desc.Mirror) (carrierForwarding, error) {
 	delete(rt.carrierReady, s.Iface)
+	// NCP can redial inside the same persistent pppd/systemd invocation. Bind
+	// every kernel and VPP observation to one unchanged NCP generation.
+	sessionGeneration, err := rt.carrierSessionGeneration(s)
+	if err != nil {
+		return carrierForwarding{}, err
+	}
 	invocation, err := rt.carrierInvocation(ctx, s)
 	if err != nil {
 		return carrierForwarding{}, err
@@ -102,9 +108,9 @@ func (rt *PppoeRuntime) prepareCarrierForwarding(ctx context.Context, s pppoe.Se
 	if err != nil || after != invocation {
 		return carrierForwarding{}, errors.New("PPP process changed during forwarding verification")
 	}
-	sessionGeneration, err := rt.carrierSessionGeneration(s)
-	if err != nil {
-		return carrierForwarding{}, err
+	afterGeneration, err := rt.carrierSessionGeneration(s)
+	if err != nil || afterGeneration != sessionGeneration {
+		return carrierForwarding{}, errors.New("PPP NCP changed during forwarding verification")
 	}
 	epoch := lease.Generation + ":" + strings.TrimSpace(string(admission)) + ":" + sessionGeneration + ":" + invocation
 	return carrierForwarding{lease: lease, mirror: m, admission: strings.TrimSpace(string(admission)), epoch: epoch, until: time.Now().Add(3 * time.Second)}, nil

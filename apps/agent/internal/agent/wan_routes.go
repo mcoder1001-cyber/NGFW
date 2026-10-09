@@ -27,7 +27,7 @@ func wanIdentity(doc *ngfwv1.DesiredState) string {
 }
 
 func registerWANRoutes(reg scheduler.Registry, wiring *subsystems.Wiring, client vpp.Client, owner string, owned ownertable.Set, runtime *multiwan.Runtime) error {
-	d := &core.RouteDescriptor{Env: core.Env{Client: client, Owner: owner, Owned: owned, IfRef: core.AliasInterfaceRef, RouteInstance: multiwan.RouteName}}
+	d := &multiwan.RouteDescriptor{RouteDescriptor: &core.RouteDescriptor{Env: core.Env{Client: client, Owner: owner, Owned: owned, IfRef: core.AliasInterfaceRef, RouteInstance: multiwan.RouteName}}}
 	reg.Register(d)
 	claims, err := wiring.KeyedClaims("nat")
 	if err != nil {

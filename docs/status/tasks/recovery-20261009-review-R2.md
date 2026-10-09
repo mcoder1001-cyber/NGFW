@@ -60,3 +60,42 @@ ok  ngfw/agent/internal/subsystems  1.282s
 Selected controls have no skips. Aggregate/hosted CI remains deferred to the manager's final combined campaign. No native or laboratory acceptance is claimed.
 
 Combined narrow integration verdict: **APPROVE** at `33db7c63`; zero blocker, major or minor findings for the conflict preservation, WAN ordering and NCP fence scope above.
+
+
+## Final campaign full agent unit run (69e28859)
+
+Manager requested the unchanged agent unit stage after hosted CI stopped at Go lint. Source: `69e28859`; independent worktree `/workspace/scratch/9baf7442ffbf/ngfw-review-integration`; no product edits. Loaded restored toolchain environment, unset `NGFW_INTEGRATION`, set `NGFW_CI_APPLY_SHARDS=2` (the agent Makefile itself does not use that shell-harness setting), then ran `make test` in `apps/agent`, invoking exactly `go test -race -count=1 ./...`.
+
+**Result: FAILED**, make exit 2. Package summary: 128 passed, 15 failed, 166 reported no test files. No data-race warning, panic or compile error appeared. Native opt-in tests remain unexecuted; package pass counts are not native acceptance. Full transient log: `/workspace/scratch/9baf7442ffbf/recovery-final-agent-unit-69e28859.log`.
+
+### Concrete non-environment failures sent to the manager and author
+
+1. `internal/contracttest: TestExplicitPresenceEverywhere`: `delegation_targets.interface` and `delegation_targets.subnet_id` are scalar proto fields without explicit presence required by D-039. Requires contract/generation correction.
+2. Globals-owner `internal/agent` tests for BFD, IPFIX, LISP, loopback/LLDP and MPLS retrieve `pppoe.carrier.namespace` and fail because their fake runner has no carrier-helper inventory response. Must reconcile product registration/test wiring while retaining orphan discovery and fail-closed real helper failures; never suppress inventory merely because the desired document lacks PPP.
+3. `TestProjectSchemaExamples`: ownerless projection of SNMP example returns `services.snmp.secret: snmpd.config: ambiguous secret owner`. Requires proper owner/secret fixture or explicit intended diagnostic; no blanket error exemption.
+4. `TestHostServicesRefusedAtDryRun`: refusal rule remains `agent.secret-channel-pending`, but pointer is `/management/syslog` instead of expected `/management/syslog/0/tls`. Requires precise diagnostic/fixture reconciliation.
+5. `renderers/pppoe: TestReadStateIncludesIPv6`: fixture expects a delegated-prefix summary without current lease metadata; actual summary contains only the address. Reconcile fixture with valid PD lifetime/admission; do not weaken expiry checks.
+
+### Environment failures are still failures, not passes
+
+Unix/Unixgram and netlink socket creation returns EPERM. The user namespace maps only UID/GID 0, so foreign UID/private nonzero group chown returns EINVAL. Independently observed `os.getpid()=3` while `/proc/self` links to host PID `37646`; process identity, child boot, held namespace and renderer process-restart controls therefore cannot establish their required proof. This matches failures in RA boundary tests, PPP IPv6 child lifecycle, rfkit, rsyslog and snmpd. These tests must execute unchanged on the hosted runner before merge; they are not converted into laboratory-only deferrals.
+
+Complete failed test-name inventory (top-level tests; nested cases remain in the full log):
+
+- `ngfw/agent/cmd/ngfw-vppcheck`: `TestHungVPPTimesOut`.
+- `ngfw/agent/internal/actions/capture-trace`: `TestForeignUIDSrcRefused`.
+- `ngfw/agent/internal/agent`: `TestRunStopsOnCancel`, `TestSocketPermissionsAndInUse`, `TestProjectSchemaExamples`, `TestBfdMultihopApplyStateRestartAndRollback`, `TestBfdMultihopFailedApplyRollbackReleasesTuple`, `TestDet44StateOnFake`, `TestCnatStateOnFake`, `TestHostServicesRefusedAtDryRun`, `TestIpfixSflowGlobalsOwnerLifecycle`, `TestIpfixExporterNamesOnlyFromAppliedState`, `TestLispFullExampleApplyRetrieveResyncRollback`, `TestLispGpeEntryReappliedAfterVPPRestart`, `TestLispRequiresGlobalsOnSlotAgents`, `TestLispStateRPC`, `TestLoopbackBviGsoLldpSpanGlobalsOwner`, `TestMplsTableZeroRequired`, `TestNatSessionsSummaryKillOverGRPC`, `TestNatEIAndNat64SessionsOverGRPC`, `TestNatVariantWalksShareTheEDWalkSlot`, `TestAgentStopClosesObjectsRuntimeAndMetrics`, `TestStartWiresFeatureEventsAndResync`, `TestStartIDRangeFailsClosed`, `TestMetricsCollectors`, `TestRequestedResyncsAreRateLimited`, `TestGRPCRoundTrip`, `TestConfigReplyTimeoutAndMetricsOptIn`, `TestOwedResyncTakesTheAgentsResyncPath`, `TestGRPCHandlerPanicAnswersInternal`, `TestConnectHookHasItsOwnDeadline`, `TestInterfaceRemovedDeletesAttributesFirst`.
+- `ngfw/agent/internal/contracttest`: `TestExplicitPresenceEverywhere`.
+- `ngfw/agent/internal/descriptors/af_packet`: `TestNetlinkLookup`.
+- `ngfw/agent/internal/ra_vpn`: `TestPublishSourceGenerationAndForeignPointerRefusal`, `TestSourceAgentReferenceOwnershipAndProcessBinding`, `TestNumericPublisherHeldInstallationRejectsChanges`, `TestNumericPublisherManagerDBusTypesPreserveOriginalPredicates`, `TestNumericPublisherTripletSingleUseAndFreshHeldGuards`, `TestNumericPublisherTripletOriginalManagerPostProofRefusesReplacement`, `TestNumericPublisherValidationDeadlineSeparateFromIPC`, `TestBrokerPlaceholderRootOwnerWithPrivateNonzeroGroup`, `TestStoppedRepairRequiresStableManagerAndGoneGeneration`, `TestTargetsOpenFileReadbackProtectsOwnedFile`, `TestNamespaceTargetsRejectActualSamePIDChanges`, `TestNamespaceTargetsCompareHeldImagesAndCompleteGenerations`, `TestObserverOpenFileReadbackProtectsOwnedFile`, `TestUnitObserverSnapshotRequiresTypedNamespacesAndMatchingIdentity`, `TestUnitObserverFreshCaptureRejectsSamePIDChanges`, `TestSnapshotPrivateGroupDoesNotRequireChown`, `TestRetiredVPPBootRefusesLiveProcessAndUnknownIdentity`.
+- `ngfw/agent/internal/renderers/chrony`: `TestApply`, `TestDescriptorRestartPending`.
+- `ngfw/agent/internal/renderers/pppoe`: `TestIPv6OwnedShutdownAndLateEvent`, `TestIPv6CollectionRevocationBarrier`, `TestIPv6PIDIdentityRefusesForeignSignals`, `TestIPv6SetupAndClientFailures`, `TestIPv6NaturalLossAndGenerationReplacement`, `TestIPv6AbruptPppdLossStopsChild`, `TestIPv6ApplyStopsBeforeReplacingOrRemovingFiles`, `TestIPv6TransitionAdmissionRemainsFenced`, `TestIPv6PinnedParentRejectsRecycledNumericIdentity`, `TestIPv6MissingHelperPreservesProcessEvidence`, `TestIPv6DepartedParentHooksPreserveReplacement`, `TestReadStateIncludesIPv6`.
+- `ngfw/agent/internal/renderers/rfkit`: `TestProcessControllerRefusesForeignPID`.
+- `ngfw/agent/internal/renderers/rsyslog`: `TestDescriptorDeferred`.
+- `ngfw/agent/internal/renderers/snmpd`: `TestApplyConvergesAndRollsBack`.
+- `ngfw/agent/internal/renderers/strongswan`: `TestRASocketRestrictionPinsInodeAndVerifiedPeer`, `TestRAVICISocketRequiresPrivateModeAndExactDaemonPID`.
+- `ngfw/agent/internal/renderers/unbound`: `TestDescriptorRestartPendingUntilActedOn`, `TestApply`.
+- `ngfw/agent/internal/snmpagent`: `TestSubagentWalk`, `TestSubagentReregisters`.
+- `ngfw/agent/internal/subsystems`: `TestLinuxNetdevKindOnThisHost`, `TestActualStopPublicManifestAndPrivateReaderRefuseAmbiguity`, `TestRAMountTargetUsesHeldNSFSAndRejectsProcessReplacement`.
+
+Full-campaign verdict at `69e28859`: **BLOCK pending the real corrections and an unchanged green hosted gate**. Earlier narrow source approvals do not assert full-suite success. No hosted workflow was triggered by this reviewer.

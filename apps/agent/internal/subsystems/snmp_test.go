@@ -3,6 +3,7 @@ package subsystems
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -205,7 +206,7 @@ func TestSnmpProjectionChecksBeforeVPP(t *testing.T) {
 
 func TestSnmpFixtureResolverRefusesRealSecrets(t *testing.T) {
 	ctx := context.Background()
-	if _, err := SnmpFixtureResolver("").Resolve(ctx, "password/x"); err == nil || !strings.Contains(err.Error(), "PENDING-secret-channel") {
+	if _, err := SnmpFixtureResolver("").Resolve(ctx, "password/x"); !errors.Is(err, ErrNoSecretChannel) {
 		t.Fatalf("no channel: %v", err)
 	}
 	f := writeFixtures(t, map[string]string{"password/x": "public-community"})

@@ -1,11 +1,9 @@
 # pppoe descriptors (DF-6, WBS D6.6)
 
-Client limitation: address/route mirroring does not provide PPPoE encapsulation for
-VPP forwarding. IPv4 and IPv6 LAN transit through this client remain unsupported.
-With the product PPPoE plugin loaded, discovery also conflicts with linux-cp's
-EtherType registration; the plugin's global server-side CP setter is not a
-per-client routing solution. Diagnostic plugin-disabled runs are not product acceptance.
-Existing globals-owner, namespace and route-table refusals remain enforced.
+The client uses a private kernel PPP carrier with a separate VPP plain-IP transit.
+VPP's native PPPoE session/CP descriptors below retain their server-side semantics;
+the client does not repurpose the global CP setter or require disabling the plugin.
+Live packet and restart acceptance remains deferred.
 
 Package `apps/agent/internal/descriptors/pppoe`. Messages only from `apps/agent/binapi/pppoe`. Shared rules: [df6.md](df6.md).
 
@@ -24,14 +22,68 @@ PPPoE clients and DF-6 sends no packets, so the host test verifies that typed er
 `pppoe_add_del_cp` sets VPP's single `cp_if_index` (review M2), so it is a global singleton under D-071; its host test is
 opt-in (`NGFW_DF6_PPPOE_CP_HOST=1`) and never runs on the shared VPP.
 
-## Client desired-state descriptor and hook lifetime
+## Client carrier graph and hook lifetime
 
-`pppoe.client.config/ngfw` is a singleton `StageDaemon` object carrying a subset of `DesiredState` with PPPoE references and parent LCP mappings. It depends on the logical client interfaces and parent LCP objects. The `Validator` resolves available secrets, stages mode-safe files in a private temporary tree and runs exactly one renderer structural checker; pppd has no offline checker. Missing material is a projection warning during dry-run and an apply-time `passwordRef` error. Checker output is masked with `rfkit.Redactor`.
+`pppoe.client.config/ngfw` is a `StageDaemon` singleton containing reference-only
+logical PPP settings, selected parent metadata and normalized Multi-WAN membership.
+The descriptor resolves version-pinned password references only for rendering; its
+remembered session registry clears plaintext passwords. Validation stages private
+files and invokes the structural checker once with redacted errors.
 
-`ClientConfig.Retrieve` compares real files against the private reference-only manifest, reports file drift, and hydrates process-local session metadata after restart. The runtime retains no resolved password in its applied session registry. Product supervision uses an allowlisted argv-only runner. Slot apply writes only its own renderer paths and performs no supervision. `SetPppoeSecrets` injects the existing sealed versioned socket cache; no additional secret transport or API secret store was introduced.
+`pppoe.carrier.namespace/<token>` owns an immutable owner/logical/parent/MTU/transit
+specification. The broker returns verified boot, namespace inode and generation
+identity. Namespace creation checks live parent ownership, LCP/L2/bond/unnumbered
+conflicts, MTU and transit/TAP-ID collisions before any namespace mutation.
+`pppoe.carrier.tap` owns the raw and plain-IP TAPs separately from remote-access
+TAP guards. It provides canonical `tapv2.tap` creator keys for the interface index
+resolver. TAPs depend on the namespace; raw xconnects and interface aliases depend
+on the TAPs; the daemon depends on both transport directions and, for VLAN parents,
+the owned POP rewrite. Reverse deletion stops the daemon and withdraws forwarding
+before removing transport and namespace resources.
 
-The `pppoe-watch` source runs a one-second poll under the agent lifetime context. `Env.Exclusive` serializes mirror I/O with config commit/resync/rollback. The combined runtime-address classifier keeps PPPoE-assigned addresses and accepted VRRP VIPs out of static-address reconciliation. Mirroring validates the full negotiated record before writes; additions and withdrawals dump first to remain idempotent. An attempted partial mirror is tracked before I/O, so later down/removal can withdraw it. Route operations carry one path and `IsMultipath=true`; only an exact `api.NO_SUCH_ENTRY` on withdrawal is benign. Globals-owner exit observation deduplicates unit `ExecMainStatus`/`NRestarts` snapshots and resets on up.
+Explicit VLAN parents retain configured root/sub-ID/outer/inner/802.1ad metadata in
+the client manifest. Readiness compares actual classification to those exact values
+and checks POP1/POP2, zero push arguments and an untagged raw TAP. VPP derives the
+inverse egress rewrite from the sub-interface classification. A merely valid but
+wrong live VLAN cannot authorize the session. Missing owned TAPs cause retrieved
+namespace repair drift and complete consumer/namespace recreation with a fresh
+generation; they are not silently rebound to an existing generation.
 
-Exit messages map pppd statuses 1–8, 10, 11, 15, 16 and 19; other nonzero statuses receive a numeric message. Source: [upstream pppd manual, EXIT STATUS](https://github.com/ppp-project/ppp/blob/master/pppd/pppd.8). No daemon output or credential is copied into state errors. Credentials-only edits receive an explicit unit restart when the existing renderer's peer/unit comparison would otherwise miss them. Clamp-only edits preserve hook state; removed/changed dial sessions delete their owned state file.
+Production uses fixed packaged units and finite broker operations. Agent unit
+capability and writable-path contracts remain unchanged. The broker supplies the
+host-visible persistent namespace mount and bounded child privileges; it does not
+accept arbitrary executables or arguments. Peer files are under the agent's existing
+writable `/var/lib/ngfw/agent` tree. The PPP unit sees a private read-only `/etc/ppp`,
+except its per-token resolver output file. It cannot rewrite host `/etc`.
 
-IPv6 (`ipv6` = `slaac` | `dhcpv6`): the poll also reads `<hostif>.state6` (ipv6-up/ipv6-down hook, see the renderer README) and the mirror adds every global IPv6 address as a /128 on the WAN interface and, with `defaultRoute`, the single `::/0` path via the RA router (usually the ISP's link-local, `FIB_API_PATH_NH_PROTO_IP6`) in the interface's own IPv6 table (`sw_interface_get_table` with `is_ipv6`), policy-checked like the IPv4 table before any write. Withdrawal removes the routes before the addresses. An IPv6 down withdraws only the IPv6 part (the poll re-mirrors the remaining IPv4 record), and a renumbering replaces the address. The runtime-address classifier covers the IPv6 addresses too. State for a session with IPv6 off is ignored. The DHCPv6-PD prefix is reported in `PppoeSessionState.ipv6` (`delegated <prefix>`) but not routed or assigned: the schema has no downstream target for it.
+`ClientConfig.Retrieve` compares the exact carrier-rendered peer/hook files and
+remembers recovered sessions before returning file drift. Apply withdraws readiness,
+mirrors and kernel forwarding, fences IPv6 hooks, stops the old unit, then replaces
+files and rotates admission before starting the replacement. Persistent transition
+markers retain retry/rollback evidence after partial failures. Non-supervising slot
+agents retain their isolated renderer paths and never invoke systemctl.
+
+The one-second watcher runs under the agent transaction fence. Forwarding admission
+requires live namespace/link/MTU/PPP-address readback, VPP transit and cross-connect
+readback and the active unit InvocationID. The epoch also includes hook admission
+and NCP session generations, so persistent redials invalidate earlier probes even
+if addresses or the process stay unchanged. WAN readiness expires after three
+seconds; bounded probes recheck generation before and after execution.
+
+Mirrored addresses remain /32 or /128 on the logical PPP interface. Default-route
+paths use the owned Linux transit peer. Multi-WAN membership suppresses the PPP
+daemon's automatic default path without changing the operator's stored setting;
+join/leave reprojects the client manifest transactionally. Route withdrawal remains
+single-path and multipath-safe. NAT/ACL consumers use the logical interface index.
+
+DHCPv6-PD targets are explicit additive configuration. The delegated LAN reconciler
+requires current carrier and lease admission generations, checks overlap and target
+ownership, and manages runtime LAN /64 addresses and bounded RA lifetimes. Lease
+renewal, expiry, carrier loss, disable and rollback reconcile withdrawals. Static
+address/RA reconciliation excludes only the owned dynamic targets.
+
+The fixed pppd/plugin is trusted. Kernel filtering blocks ordinary host IP bypass;
+NET_RAW is not containment against malicious raw Ethernet injection. No unsupported
+VPP classifier readback or stronger isolation claim is made. Combined source review,
+final aggregate CI and native discovery/transit/NAT/ACL/PD/restart evidence remain
+separate acceptance requirements.

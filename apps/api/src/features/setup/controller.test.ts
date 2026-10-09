@@ -63,6 +63,94 @@ describe('setup staging and security', () => {
     );
   });
   const body = () => ({ input, baseRevision: 1, completedAt: new Date().toISOString() });
+  it('previews and atomically stages PPPoE references on a distinct observed WAN', async () => {
+    repo.putSecret('password/isp');
+    interfaceState.mockResolvedValue({
+      interfaces: [
+        InterfaceState.fromPartial({
+          name: 'wan0',
+          swIfIndex: 4,
+          vrf: 'default',
+          type: 'dpdk',
+          managed: true,
+        }),
+      ],
+    });
+    const pppoe = {
+      ...body(),
+      input: {
+        ...input,
+        wanMode: 'pppoe' as const,
+        wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+      },
+    };
+    const req = request();
+    const preview = await c.preview(pppoe, req);
+    expect(preview.changes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ op: 'add', pointer: '/interfaces/setup-pppoe' }),
+      ]),
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+    await c.stage({ ...pppoe, current, password }, req);
+    const candidate = RootConfig.parse((await repo.candidate()).payload);
+    expect(candidate.interfaces['setup-pppoe']?.pppoe).toMatchObject({
+      parent: 'wan0',
+      username: 'isp-user',
+      passwordRef: 'password/isp',
+    });
+    expect(candidate.nat.outside).toEqual(['setup-pppoe']);
+    expect(candidate.interfaces.wan0?.pppoe).toBeUndefined();
+    expect(RootConfig.parse((await ds.getRunning()).doc).interfaces['setup-pppoe']).toBeUndefined();
+    expect(req.audit).toEqual({
+      resource: 'setup/stage',
+      after: { staged: true, passwordStaged: true },
+    });
+    expect(interfaceState).toHaveBeenCalledWith(['wan0', 'setup-pppoe']);
+  });
+  it('refuses a live logical-name collision even when absent from running configuration', async () => {
+    interfaceState.mockImplementation(async (names: string[]) => ({
+      interfaces: [
+        InterfaceState.fromPartial({ name: 'wan0', swIfIndex: 4, vrf: 'default', type: 'dpdk' }),
+        InterfaceState.fromPartial({
+          name: 'setup-pppoe',
+          swIfIndex: 5,
+          vrf: 'default',
+          type: 'dpdk',
+        }),
+      ].filter((item) => names.includes(item.name)),
+    }));
+    const pppoe = {
+      ...body(),
+      input: {
+        ...input,
+        wanMode: 'pppoe' as const,
+        wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+      },
+    };
+    await expect(c.stage({ ...pppoe, current, password }, request())).rejects.toThrow(
+      'already present',
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+  });
+  it('refuses a configured but unobserved or virtual PPPoE parent without editing candidate', async () => {
+    const pppoe = {
+      ...body(),
+      input: {
+        ...input,
+        wanMode: 'pppoe' as const,
+        wanPppoe: { username: 'isp-user', passwordRef: 'password/isp' },
+      },
+    };
+    await expect(c.preview(pppoe, request())).rejects.toThrow('observed physical');
+    interfaceState.mockResolvedValue({
+      interfaces: [InterfaceState.fromPartial({ name: 'wan0', swIfIndex: 4, type: 'loopback' })],
+    });
+    await expect(c.stage({ ...pppoe, current, password }, request())).rejects.toThrow(
+      'observed physical',
+    );
+    expect((await repo.candidate()).payload).toBeNull();
+  });
   it('previews and stages live interfaces absent from running without changing running', async () => {
     interfaceState.mockResolvedValue({
       interfaces: [
@@ -150,7 +238,7 @@ describe('setup staging and security', () => {
     expect(JSON.stringify(req.audit)).not.toContain(password);
     expect(JSON.stringify(await ds.getCandidate())).not.toContain('$argon2id$');
   });
-  it('unsupported PPPoE cannot stage or mark setup complete', async () => {
+  it('incomplete PPPoE cannot stage or mark setup complete', async () => {
     await expect(
       c.stage(
         {

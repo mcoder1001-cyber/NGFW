@@ -339,6 +339,9 @@ func assembleInterfaces(ds *ngfwv1.DesiredState, kvs []scheduler.KV, stored map[
 		return *t.ra
 	}
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *ip6nd.RaConfig:
 			t, _ := target(v.GetInterface(), true)
@@ -420,6 +423,9 @@ func assembleRouting(ds *ngfwv1.DesiredState, kvs []scheduler.KV) {
 	nb := &ngfwv1.NeighborsConfig{}
 	var statics []*ipneighbor.Neighbor
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *ipneighbor.Neighbor:
 			statics = append(statics, v)

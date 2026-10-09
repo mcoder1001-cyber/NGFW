@@ -1,0 +1,58 @@
+package subsystems
+
+import (
+	"context"
+	"errors"
+	"google.golang.org/protobuf/proto"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
+	"ngfw/agent/internal/descriptors/tapv2"
+	ren "ngfw/agent/internal/renderers/pppoe"
+	"ngfw/agent/internal/scheduler"
+)
+
+func (w *Wiring) registerPppoeCarrier(reg scheduler.Registry, rt *PppoeRuntime) error {
+	if !w.env.GlobalsOwner {
+		return nil
+	}
+	host := &pppoeCarrierHost{runner: rt.runner}
+	d := pppoedesc.NewCarrierNamespace(w.env.Owner, host)
+	d.Admit = func(ctx context.Context, spec ren.CarrierSpec) error {
+		return pppoedesc.AdmitCarrier(ctx, w.env.Client, w.env.Owner, spec)
+	}
+	tap := tapv2.New(w.env.Client, w.env.Owner)
+	admit := func(ctx context.Context, actual *tapv2.Tap) error {
+		leases, err := host.Inventory(ctx, w.env.Owner)
+		if err != nil {
+			return err
+		}
+		for _, lease := range leases {
+			spec := lease.Spec
+			if lease.Token != actual.GetHostNamespace() {
+				continue
+			}
+			rawID, transitID := spec.TapIDs()
+			expected := &tapv2.Tap{Name: spec.Logical, Id: transitID, HostIfName: spec.TransitHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU, HostIp4Prefix: spec.Host4, HostIp6Prefix: spec.Host6, RxRingSize: 256, TxRingSize: 256}
+			if spec.MTU < 1280 {
+				expected.HostIp6Prefix = ""
+			}
+			if actual.Name == spec.RawLogical() {
+				expected = &tapv2.Tap{Name: spec.RawLogical(), Id: rawID, HostIfName: spec.RawHost(), HostNamespace: spec.Token(), HostMtu: spec.MTU + 8, RxRingSize: 256, TxRingSize: 256}
+			}
+			if !proto.Equal(actual, expected) {
+				return errors.New("PPPoE TAP differs from immutable namespace specification")
+			}
+			return nil
+		}
+		return errors.New("PPPoE TAP has no verified namespace lease")
+	}
+	tap.SetNamespaceAdmission(admit)
+	reg.Register(&pppoedesc.CarrierTapDescriptor{Tap: tap, Admit: admit})
+	reg.Register(d)
+	return nil
+}
+
+// ForKey preserves descriptor lookup through the RA ownership wrapper. Carrier
+// and delegated-prefix registration must bind to the wrapped static descriptor.
+func (r *raFilteringRegistry) ForKey(key scheduler.Key) (scheduler.Descriptor, bool) {
+	return r.Get(key.Descriptor())
+}

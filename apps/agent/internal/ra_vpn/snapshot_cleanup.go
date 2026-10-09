@@ -40,8 +40,8 @@ func snapshotStat(fd int, name string, directory bool) (snapshotNode, error) {
 	if s.Mode != mode || !directory && s.Nlink != 1 {
 		return snapshotNode{}, ErrBoundary
 	}
-	// Agent-owned material is root:ngfw under its fixed unit. Exact private
-	// modes grant no group access; CAP_CHOWN is neither needed nor permitted.
+	// Agent-owned material must remain root-owned with exact private modes,
+	// independent of its authenticated capabilities; group access is forbidden.
 	return snapshotNode{uint64(s.Dev), s.Ino, s.Mode}, nil
 }
 func writeSnapshotReceipt(fd int, plan *NetworkPlan, files []string, directories []string) error {

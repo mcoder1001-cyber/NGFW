@@ -175,7 +175,7 @@ type FRROptions struct {
 	SecretRef func(context.Context, string) (string, error)
 	// Selector is the D-072 static-route selector (frr.StaticOwnedByFRR).
 	Selector func(i int, sr *ngfwv1.StaticRoute) bool
-	// Secrets reports whether the agent can resolve secret references (false until PENDING-secret-channel).
+	// Secrets reports readiness of both selected fingerprints and sealed historical resolution.
 	Secrets bool
 	// Check renders the document without applying it (the FRR renderer's pure Render); nil = no check.
 	Check func(doc *ngfwv1.DesiredState) error
@@ -225,7 +225,7 @@ func FRR(s Sink, ds *ngfwv1.DesiredState, in map[string]bool, o FRROptions) {
 		sort.Strings(ptrs)
 		for _, p := range ptrs {
 			s.Errorf(p, "routing.bgp-password-unavailable",
-				"BGP MD5 password %s needs the API→agent secret channel (PENDING-secret-channel), which this build does not have yet: remove passwordRef or wait for the channel", refs[p])
+				"BGP MD5 password %s requires a ready selected sealed credential channel", refs[p])
 			bad = true
 		}
 	}

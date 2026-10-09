@@ -9,7 +9,7 @@ only the part VPP's binary API can configure. Screen: **Services → Host stack*
 | Leaf | Meaning | Notes |
 |---|---|---|
 | `enabled` | The session layer must be on (rule-table engine) | Only the **globals owner** agent turns it on, and only when it is off. Other agents only check it. The agent **never** turns the session layer off or changes its engine. |
-| `namespaces.<id>` `{vrf, interface?, secretRef?}` | Application namespace | `secretRef` is a `key/<name>` reference only. It is **refused** until the API→agent secret channel exists, so leave it out. VPP cannot list namespaces: the agent re-adds them on every resync (write-only). |
+| `namespaces.<id>` `{vrf, interface?, secretRef?}` | Application namespace | `secretRef` is a `key/<name>` reference only. The selected sealed generation supplies a canonical nonzero decimal uint64; missing or malformed material is refused. VPP cannot list namespaces: the agent re-adds them on every resync (write-only). |
 | `sessionRules[]` `{tag, scope, transport, local, localPort?, remote, remotePort?, action, redirectAppIndex?, appNamespace?}` | Session rules: the host-stack "firewall" | Prefixes must be canonical and of one family. Tags must be unique. `action: redirect` needs `redirectAppIndex`. These are the only objects the agent can read back from VPP. |
 | `tcpSourceAddresses` `{first, last, vrf}` | TCP source-address pool of one VRF | VPP has **no delete**. The pool stays until VPP restarts. |
 | `httpStatic` `{enabled, wwwRootPath, uri, cacheSizeMb}` | VPP's built-in static web server | This is **opt-in on the agent** (`NGFW_HOSTSTACK_HTTP_STATIC=1`, globals owner only). VPP cannot disable it or change it once it runs, so turning it off takes a VPP restart. `wwwRootPath` must be under `/var/lib/ngfw/www/`, with no `..` and no control characters. |
@@ -41,3 +41,5 @@ http_static listens inside VPP, on the data plane, not behind the management pla
 - SDL and Auto-SDL knobs (F-rpf-adl-pbr), the Prometheus exporter over http_static, and the load balancer (F-lb).
 - Reading namespaces, the TCP pool or http_static back from VPP. VPP has no dump for them, so the live view lists only the
   namespaces this agent applied since the last VPP start.
+
+Namespace `secretRef` uses `key/<name>` whose secret material is a canonical nonzero decimal uint64 (1–18446744073709551615). Missing or malformed credentials are refused without exposing their material. Rotation and rollback use exact sealed generations; namespace removal does not require the revoked credential. VPP exposes no namespace dump, so namespace readback remains explicitly write-only.

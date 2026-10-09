@@ -13,6 +13,10 @@ import (
 	"ngfw/agent/internal/vpp/bootid"
 )
 
+// Pin exact reviewed product source fragments, independently of broker/daemon units.
+const expectedAgentUnitSHA256 = "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f"
+const expectedAgentHardeningSHA256 = "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc"
+
 // verifyFixedAgentPeer authenticates the fixed agent unit and its configured
 // root:ngfw process identity. Actual executable attestation is a separate held
 // manager-opened EXE descriptor requirement, never inferred from ExecStart.
@@ -25,7 +29,7 @@ func fixedAgentUnitProperties(ctx context.Context) (map[string]string, error) {
 }
 
 func verifyFixedAgentPeerUsing(ctx context.Context, peer *unix.Ucred, identity bootid.Identity, properties func(context.Context) (map[string]string, error)) error {
-	if peer == nil || validateNamespaceBrokerProcess(int(peer.Pid), uint64(1<<unix.CAP_NET_ADMIN|1<<unix.CAP_SYS_ADMIN|1<<unix.CAP_IPC_LOCK)) != nil {
+	if peer == nil || validateNamespaceBrokerProcess(int(peer.Pid), canonicalSourceCapabilities) != nil {
 		return ErrBoundary
 	}
 	return verifyFixedAgentIdentityUsing(ctx, peer, identity, properties)
@@ -75,7 +79,7 @@ func verifyFixedAgentIdentityUsing(ctx context.Context, peer *unix.Ucred, identi
 	const fragment = "/usr/lib/systemd/system/ngfw-agent.service"
 	content, err := trustedInstallationFile(fragment, 16384, false)
 	digest := sha256.Sum256(content)
-	if err != nil || hex.EncodeToString(digest[:]) != "a793b8ec82260cc3fb9a0003894cf66634f9dccec2739a4f4ab6a3bad036379d" {
+	if err != nil || hex.EncodeToString(digest[:]) != expectedAgentUnitSHA256 {
 		return ErrBoundary
 	}
 	fields, err := properties(ctx)
@@ -89,7 +93,7 @@ func verifyFixedAgentIdentityUsing(ctx context.Context, peer *unix.Ucred, identi
 		}
 		content, err := trustedInstallationFile(hardening, 16384, false)
 		digest := sha256.Sum256(content)
-		if err != nil || hex.EncodeToString(digest[:]) != "68d47c8d2d793dfbf7cc7314e597cb2e0b2455d7706b125108eac6becf6f4a2a" {
+		if err != nil || hex.EncodeToString(digest[:]) != expectedAgentHardeningSHA256 {
 			return ErrBoundary
 		}
 	}

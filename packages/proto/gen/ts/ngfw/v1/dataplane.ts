@@ -7979,7 +7979,19 @@ export interface Pppoe {
     | string
     | undefined;
   /** Reconnect policy. */
-  reconnect: PppoeReconnect | undefined;
+  reconnect:
+    | PppoeReconnect
+    | undefined;
+  /** Explicit DHCPv6-PD LAN /64 assignments; empty means no LAN delegation. */
+  delegationTargets: PppoeDelegationTarget[];
+}
+
+/** PppoeDelegationTarget selects a stable /64 within the active ISP lease. */
+export interface PppoeDelegationTarget {
+  /** Enabled LAN interface in the same VRF, with no static IPv6/RA configuration. */
+  interface: string;
+  /** Subnet bits between delegation length and /64; at most 2^32-1 (public configuration bound). */
+  subnetId: number;
 }
 
 /** PppoeReconnect mirrors `interfaces.<name>.pppoe.reconnect`. */
@@ -69583,6 +69595,7 @@ function createBasePppoe(): Pppoe {
     dnsFromPeer: undefined,
     ipv6: undefined,
     reconnect: undefined,
+    delegationTargets: [],
   };
 }
 
@@ -69620,6 +69633,9 @@ export const Pppoe: MessageFns<Pppoe> = {
     }
     if (message.reconnect !== undefined) {
       PppoeReconnect.encode(message.reconnect, writer.uint32(90).fork()).join();
+    }
+    for (const v of message.delegationTargets) {
+      PppoeDelegationTarget.encode(v!, writer.uint32(98).fork()).join();
     }
     return writer;
   },
@@ -69725,6 +69741,14 @@ export const Pppoe: MessageFns<Pppoe> = {
             message.reconnect = PppoeReconnect.decode(reader, reader.uint32());
             continue;
           }
+          case 12: {
+            if (tag !== 98) {
+              break;
+            }
+
+            message.delegationTargets.push(PppoeDelegationTarget.decode(reader, reader.uint32()));
+            continue;
+          }
         }
         if ((tag & 7) === 4 || tag === 0) {
           break;
@@ -69770,6 +69794,11 @@ export const Pppoe: MessageFns<Pppoe> = {
         : undefined,
       ipv6: isSet(object.ipv6) ? globalThis.String(object.ipv6) : undefined,
       reconnect: isSet(object.reconnect) ? PppoeReconnect.fromJSON(object.reconnect) : undefined,
+      delegationTargets: globalThis.Array.isArray(object?.delegationTargets)
+        ? object.delegationTargets.map((e: any) => PppoeDelegationTarget.fromJSON(e))
+        : globalThis.Array.isArray(object?.delegation_targets)
+        ? object.delegation_targets.map((e: any) => PppoeDelegationTarget.fromJSON(e))
+        : [],
     };
   },
 
@@ -69808,6 +69837,9 @@ export const Pppoe: MessageFns<Pppoe> = {
     if (message.reconnect !== undefined) {
       obj.reconnect = PppoeReconnect.toJSON(message.reconnect);
     }
+    if (message.delegationTargets?.length) {
+      obj.delegationTargets = message.delegationTargets.map((e) => PppoeDelegationTarget.toJSON(e));
+    }
     return obj;
   },
 
@@ -69829,6 +69861,96 @@ export const Pppoe: MessageFns<Pppoe> = {
     message.reconnect = (object.reconnect !== undefined && object.reconnect !== null)
       ? PppoeReconnect.fromPartial(object.reconnect)
       : undefined;
+    message.delegationTargets = object.delegationTargets?.map((e) => PppoeDelegationTarget.fromPartial(e)) || [];
+    return message;
+  },
+};
+
+function createBasePppoeDelegationTarget(): PppoeDelegationTarget {
+  return { interface: "", subnetId: 0 };
+}
+
+export const PppoeDelegationTarget: MessageFns<PppoeDelegationTarget> = {
+  encode(message: PppoeDelegationTarget, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.interface !== "") {
+      writer.uint32(10).string(message.interface);
+    }
+    if (message.subnetId !== 0) {
+      writer.uint32(16).uint32(message.subnetId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): PppoeDelegationTarget {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const previousRecursionDepth = (reader as any).__tsProtoDecodeDepth ?? 0;
+    if (previousRecursionDepth >= 100) {
+      throw new globalThis.Error("protobuf decode recursion limit exceeded");
+    }
+    (reader as any).__tsProtoDecodeDepth = previousRecursionDepth + 1;
+    try {
+      const end = length === undefined ? reader.len : reader.pos + length;
+      const message = createBasePppoeDelegationTarget();
+      while (reader.pos < end) {
+        const tag = reader.uint32();
+        switch (tag >>> 3) {
+          case 1: {
+            if (tag !== 10) {
+              break;
+            }
+
+            message.interface = reader.string();
+            continue;
+          }
+          case 2: {
+            if (tag !== 16) {
+              break;
+            }
+
+            message.subnetId = reader.uint32();
+            continue;
+          }
+        }
+        if ((tag & 7) === 4 || tag === 0) {
+          break;
+        }
+        reader.skip(tag & 7);
+      }
+      return message;
+    } finally {
+      (reader as any).__tsProtoDecodeDepth = previousRecursionDepth;
+    }
+  },
+
+  fromJSON(object: any): PppoeDelegationTarget {
+    return {
+      interface: isSet(object.interface) ? globalThis.String(object.interface) : "",
+      subnetId: isSet(object.subnetId)
+        ? globalThis.Number(object.subnetId)
+        : isSet(object.subnet_id)
+        ? globalThis.Number(object.subnet_id)
+        : 0,
+    };
+  },
+
+  toJSON(message: PppoeDelegationTarget): unknown {
+    const obj: any = {};
+    if (message.interface !== "") {
+      obj.interface = message.interface;
+    }
+    if (message.subnetId !== 0) {
+      obj.subnetId = Math.round(message.subnetId);
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<PppoeDelegationTarget>): PppoeDelegationTarget {
+    return PppoeDelegationTarget.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<PppoeDelegationTarget>): PppoeDelegationTarget {
+    const message = createBasePppoeDelegationTarget();
+    message.interface = object.interface ?? "";
+    message.subnetId = object.subnetId ?? 0;
     return message;
   },
 };

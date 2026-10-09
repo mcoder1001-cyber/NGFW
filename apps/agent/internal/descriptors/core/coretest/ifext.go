@@ -51,6 +51,7 @@ func (v *VPP) SetMtuFilter(f func(swIfIndex uint32, mtu [4]uint32) [4]uint32) {
 }
 
 func (v *VPP) installIfExt() {
+	v.installUnnumbered()
 	v.On("sw_interface_set_flags", func(m api.Message) ([]api.Message, error) {
 		req := m.(*interfaces.SwInterfaceSetFlags)
 		v.mu.Lock()

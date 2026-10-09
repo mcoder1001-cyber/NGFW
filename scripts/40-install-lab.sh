@@ -49,6 +49,13 @@ if not required <= packages:
 print(data, end='')
 PYLOCK
 )
+wheel_options=()
+if [[ -n ${NGFW_LAB_WHEELHOUSE:-} ]]; then
+  [[ -d $NGFW_LAB_WHEELHOUSE && ! -L $NGFW_LAB_WHEELHOUSE ]] || {
+    echo 'REFUSED: regular lab wheelhouse directory required' >&2; exit 1;
+  }
+  wheel_options=(--no-index --only-binary=:all: --find-links "$NGFW_LAB_WHEELHOUSE")
+fi
 if [[ $NGFW_INSTALL_DRY_RUN == 1 ]]; then
   ngfw_install_plan 'APT native traffic/analysis tools; venv /opt/ngfw-test; supplied version/hash lab lock validated; require-hashes dependency closure during apply'
   exit 0
@@ -69,5 +76,5 @@ python3 -m venv "$venv_dir"
 export TMPDIR="$work_dir"
 pip_command="$venv_dir/bin/pip"
 [[ $NGFW_INSTALL_ROOT == / ]] || pip_command="$NGFW_INSTALL_STUB_DIR/pip"
-"$pip_command" --isolated --cache-dir "$work_dir/pip-cache" install --quiet --upgrade --require-hashes -r "$lock_snapshot"
+"$pip_command" --isolated --cache-dir "$work_dir/pip-cache" install --quiet --upgrade --require-hashes "${wheel_options[@]}" -r "$lock_snapshot"
 echo "Lab tools installed. Activate test env: source $venv_dir/bin/activate"

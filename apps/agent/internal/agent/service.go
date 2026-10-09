@@ -1088,7 +1088,11 @@ func (s *Service) Retrieve(ctx context.Context, req *ngfwv1.RetrieveRequest) (*n
 		if s.wan != nil {
 			health = s.wan.HealthFor(savedWAN.GetRouting().GetWanGroups(), wanIdentity(savedWAN))
 		}
-		multiwan.RestorePBRReferences(ds, savedWAN, health)
+		resolvedWAN := savedWAN
+		if s.wan != nil {
+			resolvedWAN = s.wan.ResolveGateways(savedWAN, wanIdentity(savedWAN), false)
+		}
+		multiwan.RestorePBRReferences(ds, resolvedWAN, health)
 	}
 
 	s.mu.Lock()
@@ -1367,9 +1371,20 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	}
 	view := mergeDomains(s.st.desired, ds, projectionContext)
 	projectionDomains := domains
+	// Routing-only membership edits must update the PPP singleton before its
+	// automatic route can compete with the WAN-owned default. Projection uses
+	// the complete merged interface context, not the routing-only request.
+	if contains(domains, "routing") {
+		for _, iface := range view.GetInterfaces() {
+			if iface.GetPppoe() != nil {
+				projectionDomains = union(projectionDomains, []string{"interfaces"})
+				break
+			}
+		}
+	}
 	if (contains(domains, "security") || contains(domains, "interfaces")) &&
 		(aclProjectionContext(view) || aclProjectionContext(s.st.desired) || len(s.autoBlock.entries) > 0) {
-		projectionDomains = union(domains, []string{"acl"})
+		projectionDomains = union(projectionDomains, []string{"acl"})
 	}
 	effective, overlayErr := autoblock.Overlay(view, s.autoBlock.entries, s.now())
 	if overlayErr != nil {
@@ -1380,7 +1395,14 @@ func (s *Service) projectWithBasePolicy(ctx context.Context, ds *ngfwv1.DesiredS
 	if s.wan != nil {
 		health = s.wan.HealthFor(effective.GetRouting().GetWanGroups(), wanIdentity(effective))
 	}
-	findings := multiwan.ExpandPBR(effective, health)
+	wanProjection := effective
+	if s.wan != nil {
+		wanProjection = s.wan.ResolveGateways(effective, wanIdentity(effective), false)
+	}
+	findings := multiwan.ExpandPBR(wanProjection, health)
+	if effective.Routing != nil {
+		effective.Routing.Pbr = wanProjection.GetRouting().GetPbr()
+	}
 	projection := projectOwned(effective, projectionDomains, s.resolveVRF, s.netdevKind, s.owner)
 	for _, f := range findings {
 		projection.Errorf(f.Pointer, "multiwan.pbr-group", "%s", f.Message)

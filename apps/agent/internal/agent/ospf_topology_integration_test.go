@@ -106,11 +106,8 @@ func startRootFRR(t *testing.T, prefix string, daemons []string) *rootFRR {
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o755); err != nil { //nolint:gosec // /run/ngfw-test/<prefix>
 		t.Fatal(err)
 	}
-	f, err := os.OpenFile(lockPath, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file
+	f, err := acquireRootFRRLock(lockPath)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		t.Fatalf("rootFRR: %s is held (another FRR of pathspace %s is running): %v", lockPath, prefix, err)
 	}
 	h.lock = f
@@ -158,6 +155,103 @@ func startRootFRR(t *testing.T, prefix string, daemons []string) *rootFRR {
 	}
 	t.Logf("rootFRR: %v started in the root netns, pathspace %s, base %s, pids %v", daemons, paths.Namespace, h.Base, h.pids)
 	return h
+}
+
+func acquireRootFRRLock(path string) (*os.File, error) {
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600) //nolint:gosec // slot lock file
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		_ = f.Close()
+		return nil, err
+	}
+	return f, nil
+}
+
+func TestRootFRRContendedLockClosesDescriptors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "slot.lock")
+	owner, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = owner.Close() })
+	count := func() int {
+		entries, err := os.ReadDir("/proc/self/fd")
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, entry := range entries {
+			if target, err := os.Readlink(filepath.Join("/proc/self/fd", entry.Name())); err == nil && target == path {
+				n++
+			}
+		}
+		return n
+	}
+	before := count()
+	for i := 0; i < 16; i++ {
+		f, err := acquireRootFRRLock(path)
+		if f != nil {
+			_ = f.Close()
+			t.Fatal("contended lock returned a descriptor")
+		}
+		if !errors.Is(err, syscall.EWOULDBLOCK) {
+			t.Fatalf("contended lock error: %v", err)
+		}
+	}
+	if after := count(); after != before {
+		t.Fatalf("failed acquisitions leaked slot descriptors: before=%d after=%d", before, after)
+	}
+	if err := owner.Close(); err != nil {
+		t.Fatal(err)
+	}
+	next, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatalf("released slot cannot be acquired: %v", err)
+	}
+	if err := next.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRootFRRCleanupWithoutSlotPreservesHolderFiles(t *testing.T) {
+	base := t.TempDir()
+	root, err := os.OpenRoot(base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = root.Close() }()
+	path := filepath.Join(base, "slot.lock")
+	owner, err := acquireRootFRRLock(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = owner.Close() }()
+	if err := root.WriteFile("holder.pid", []byte("holder"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "pathspace")
+	paths := frr.Paths{RunDir: filepath.Join(base, "run")}
+	if err := os.Symlink(paths.SocketDir(), link); err != nil {
+		t.Fatal(err)
+	}
+	h := &rootFRR{Base: base, Paths: paths, symlink: link}
+	if contender, err := acquireRootFRRLock(path); err == nil || contender != nil {
+		if contender != nil {
+			_ = contender.Close()
+		}
+		t.Fatal("contender unexpectedly acquired the holder's slot")
+	}
+	if err := h.Stop(); err != nil {
+		t.Fatal(err)
+	}
+	if content, err := root.ReadFile("holder.pid"); err != nil || string(content) != "holder" {
+		t.Fatalf("failed contender changed holder files: content=%q error=%v", content, err)
+	}
+	if target, err := os.Readlink(link); err != nil || target != paths.SocketDir() {
+		t.Fatalf("failed contender removed holder symlink: target=%q error=%v", target, err)
+	}
 }
 
 func (h *rootFRR) pidFile(d string) string { return filepath.Join(h.Paths.SocketDir(), d+".pid") }
@@ -263,6 +357,11 @@ func (h *rootFRR) Renderer() *frr.Renderer {
 // Stop terminates the daemons by the PIDs this test spawned (SIGTERM, SIGKILL after 10 s), removes the symlink and the
 // base directory and releases the slot lock. Idempotent.
 func (h *rootFRR) Stop() error {
+	// Cleanup is registered before startup. A failed acquisition owns neither
+	// the existing holder's daemons nor its pathspace and base directory.
+	if h.lock == nil {
+		return nil
+	}
 	var errs []error
 	for i := len(h.daemons) - 1; i >= 0; i-- {
 		d := h.daemons[i]

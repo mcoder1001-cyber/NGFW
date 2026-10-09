@@ -3677,6 +3677,16 @@ export interface components {
            */
           ipv6: 'off' | 'slaac' | 'dhcpv6';
           /**
+           * Delegated IPv6 LANs
+           * @default []
+           */
+          delegationTargets: {
+            /** LAN interface */
+            interface: string;
+            /** Subnet ID */
+            subnetId: number;
+          }[];
+          /**
            * Reconnect
            * @default {
            *       "holdoffSec": 5,
@@ -12998,7 +13008,13 @@ export interface operations {
             /** Interface */
             wan: string;
             /** @enum {string} */
-            wanMode: 'dhcp' | 'static';
+            wanMode: 'dhcp' | 'static' | 'pppoe';
+            wanPppoe?: {
+              /** Username */
+              username: string;
+              /** Password */
+              passwordRef: string;
+            };
             /**
              * IPv4 CIDR
              * Format: cidrv4
@@ -13100,7 +13116,13 @@ export interface operations {
             /** Interface */
             wan: string;
             /** @enum {string} */
-            wanMode: 'dhcp' | 'static';
+            wanMode: 'dhcp' | 'static' | 'pppoe';
+            wanPppoe?: {
+              /** Username */
+              username: string;
+              /** Password */
+              passwordRef: string;
+            };
             /**
              * IPv4 CIDR
              * Format: cidrv4

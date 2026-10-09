@@ -14,8 +14,10 @@ override_dh_auto_build:
 
 override_dh_auto_test:
 	python3 tests/test_packaging.py
+	python3 tests/test_system_identity.py
 	python3 tests/test_firstboot.py
 	python3 tests/test_base_policy.py
+	python3 tests/test_pppoe_assets.py
 
 override_dh_auto_install:
 
@@ -28,8 +30,8 @@ override_dh_installsystemd:
 # CGO_ENABLED=0 Go binaries have compressed DWARF that dwz cannot optimize.
 # Keep dwz processing enabled for all other native package contents.
 override_dh_dwz:
-	dh_dwz -Xngfw-agent -Xngfw-startupgen -Xngfw-vppcheck -Xngfw-ra-daemon -Xngfw-ra-namespace-broker
+	dh_dwz -Xngfw-agent -Xngfw-startupgen -Xngfw-vppcheck -Xngfw-ra-daemon -Xngfw-ra-namespace-broker -Xngfw-wan-probe
 
-# Preserve the executable bytes bound by the prepared RA checksum receipts.
+# Preserve the executable bytes bound by the prepared RA and WAN checksum receipts.
 override_dh_strip:
-	dh_strip -Xngfw-ra-daemon -Xngfw-ra-namespace-broker
+	dh_strip -Xngfw-ra-daemon -Xngfw-ra-namespace-broker -Xngfw-wan-probe

@@ -688,7 +688,7 @@ module ngfw-interfaces {
         type string {
           length "1..63";
         }
-        description "engine interface the session runs over; default = this interface (set for a VLAN sub-interface WAN)";
+        description "Required for enabled clients: a distinct raw WAN parent. Configure PPP on a separate logical interface.";
       }
       leaf username {
         type string {
@@ -743,6 +743,24 @@ module ngfw-interfaces {
         }
         default "off";
         description "off; slaac (address and IPv6 default route from the ISP router advertisements); dhcpv6 (slaac plus a DHCPv6 address and delegated prefix, IA_NA + IA_PD); needs MTU >= 1280";
+      }
+      list delegationTargets {
+        // keyless: no itemKey meta — config lists need a key (documented deviation, RESTCONF orders by index)
+        ordered-by user;
+        description "Explicit LAN /64 assignments; requires DHCPv6. Addresses and router advertisements follow the active lease.";
+        leaf interface {
+          type string {
+            length "1..63";
+          }
+          mandatory true;
+        }
+        leaf subnetId {
+          type uint32 {
+            range "0..4294967295";
+          }
+          mandatory true;
+          description "Stable /64 subnet number within the ISP delegated prefix";
+        }
       }
       container reconnect {
         description "what to do when the session drops";

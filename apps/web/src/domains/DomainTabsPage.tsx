@@ -24,6 +24,8 @@ export interface DomainTabsPageProps {
   /** The page's own i18n namespace (`title`, `tabs`, `loading`). */
   ns: string;
   tabs: readonly DomainTab[];
+  titleKey?: string;
+  tabsLabelKey?: string;
 }
 
 /**
@@ -31,7 +33,7 @@ export interface DomainTabsPageProps {
  * (F-kea-dhcp-relay, F-unbound-chrony-syslog). With no tab registered it renders exactly the domain placeholder, so the route
  * exists without a user-visible change; the feature that registers the first tab also adds the domain to BUILT_DOMAINS.
  */
-export function DomainTabsPage({ domainKey, ns, tabs }: DomainTabsPageProps) {
+export function DomainTabsPage({ domainKey, ns, tabs, titleKey = 'title', tabsLabelKey = 'tabs' }: DomainTabsPageProps) {
   const { t } = useTranslation([ns, 'nav']);
   const [params, setParams] = useSearchParams();
   const first = tabs[0];
@@ -39,11 +41,11 @@ export function DomainTabsPage({ domainKey, ns, tabs }: DomainTabsPageProps) {
   const current = tabs.find((tab) => tab.id === params.get('tab')) ?? first;
   const Current = current.Component;
   return (
-    <PageHeader title={t('title')}>
+    <PageHeader title={t(titleKey)}>
       <Tabs
         value={current.id}
         onChange={(_, id: string) => setParams({ tab: id }, { replace: true })}
-        aria-label={t('tabs')}
+        aria-label={t(tabsLabelKey)}
         variant="scrollable"
         sx={{ mb: 2 }}
       >

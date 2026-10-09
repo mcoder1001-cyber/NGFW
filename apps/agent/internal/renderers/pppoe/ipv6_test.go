@@ -111,7 +111,7 @@ func renderTo(t *testing.T, sessions ...Session) (*Renderer, Paths) {
 func run(t *testing.T, path string, env ...string) {
 	t.Helper()
 	cmd := exec.Command(path) //nolint:gosec // a script this test rendered into its private temp dir
-	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "NGFW_PPPOE_IPV6_GENERATION=" + os.Getenv("NGFW_PPPOE_IPV6_GENERATION")}, env...)
+	cmd.Env = append([]string{"PATH=/usr/sbin:/usr/bin:/sbin:/bin", "NGFW_PPPOE_IPV6_GENERATION=" + os.Getenv("NGFW_PPPOE_IPV6_GENERATION"), "NGFW_PPPOE_PD_ADMISSION=" + os.Getenv("NGFW_PPPOE_PD_ADMISSION")}, env...)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("%s: %v\n%s", path, err, out)
 	}
@@ -133,28 +133,49 @@ func TestDHCP6ScriptRecordsDelegatedPrefix(t *testing.T) {
 	r, paths := renderTo(t, dhcp6Session())
 	script := paths.HelperDir + "/ngfw-dhcp6-wan2"
 	pd := filepath.Join(paths.StateDir, "wan2.pd")
-	if err := os.WriteFile(filepath.Join(paths.StateDir, "wan2.ipv6.pid"), []byte(`{"generation":"test-generation"}`), 0o600); err != nil {
+	admission := strings.Repeat("a", 64)
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "wan2.ipv6.pid"), []byte(`{"generation":"test-generation","admission":"`+admission+`"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(paths.StateDir, "wan2.ipv6.admission"), []byte(admission), 0600); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("NGFW_PPPOE_IPV6_GENERATION", "test-generation")
-	run(t, script, "reason=REBIND6", "interface=ppp0", "new_dhcp6_ia_pd1_prefix1=2001:db8:100::", "new_dhcp6_ia_pd1_prefix1_length=56")
-	if b, _ := os.ReadFile(pd); string(b) != "pd=2001:db8:100::/56\n" { //nolint:gosec // test path
-		t.Fatalf("pd file = %q", b)
+	t.Setenv("NGFW_PPPOE_PD_ADMISSION", admission)
+	bound := func() {
+		run(t, script, "reason=REBIND6", "interface=ppp0", "new_dhcp6_ia_pd1_prefix1=2001:db8:100::", "new_dhcp6_ia_pd1_prefix1_length=56", "new_dhcp6_ia_pd1_prefix1_vltime=3600", "new_dhcp6_ia_pd1_prefix1_pltime=1800")
 	}
-	// hostile values from the network are not recorded
-	run(t, script, "reason=RENEW6", "new_dhcp6_ia_pd1_prefix1=2001:db8::;reboot", "new_dhcp6_ia_pd1_prefix1_length=56")
-	run(t, script, "reason=RENEW6", "new_dhcp6_ia_pd1_prefix1=2001:db8:200::", "new_dhcp6_ia_pd1_prefix1_length=5 6")
-	if b, _ := os.ReadFile(pd); string(b) != "pd=2001:db8:100::/56\n" { //nolint:gosec // test path
-		t.Fatalf("hostile value changed the pd file: %q", b)
+	bound()
+	b, err := os.ReadFile(pd) //nolint:gosec // private rendered test fixture
+	if err != nil || !strings.Contains(string(b), "pd=2001:db8:100::/56\n") || !strings.Contains(string(b), "pd_generation="+admission) {
+		t.Fatalf("lease=%q err=%v", b, err)
 	}
-	// the hook merges it into state6, which ReadIPv6 reports
-	if err := os.WriteFile(filepath.Join(paths.StateDir, "wan2.state6"), []byte("phase=up\nppp_iface=ppp0\naddr=2001:db8:9::100/128\npd=2001:db8:100::/56\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeState6(t, r, "wan2", "phase=up\n"+string(b))
 	v6, err := r.ReadIPv6("wan2")
-	if err != nil || v6.Delegated.String() != "2001:db8:100::/56" {
-		t.Fatalf("delegated %v %v", v6.Delegated, err)
+	if err != nil || !v6.Delegated.IsValid() || v6.PDGeneration != admission || v6.PDPreferredUntil.After(v6.PDValidUntil) {
+		t.Fatalf("state=%+v err=%v", v6, err)
 	}
+	// Old daemon events cannot rebind a lease to a new admission generation.
+	t.Setenv("NGFW_PPPOE_PD_ADMISSION", strings.Repeat("b", 64))
+	run(t, script, "reason=EXPIRE6")
+	after, err := os.ReadFile(pd) //nolint:gosec // private rendered test fixture
+	if err != nil || string(after) != string(b) {
+		t.Fatal("stale event changed current lease")
+	}
+	t.Setenv("NGFW_PPPOE_PD_ADMISSION", admission)
+	// Invalid renewal must withdraw old ownership, never retain the old prefix.
+	for _, fields := range [][]string{
+		{"new_dhcp6_ia_pd1_prefix1=2001:db8::;reboot", "new_dhcp6_ia_pd1_prefix1_length=56"},
+		{"new_dhcp6_ia_pd1_prefix1=2001:db8:200::", "new_dhcp6_ia_pd1_prefix1_length=5 6"},
+		{"new_dhcp6_ia_pd1_prefix1=2001:db8:200::", "new_dhcp6_ia_pd1_prefix1_length=56", "new_dhcp6_ia_pd1_prefix1_vltime=10", "new_dhcp6_ia_pd1_prefix1_pltime=20"},
+	} {
+		bound()
+		run(t, script, append([]string{"reason=RENEW6"}, fields...)...)
+		if _, err := os.Stat(pd); !os.IsNotExist(err) {
+			t.Fatal("invalid renewal kept prefix")
+		}
+	}
+	bound()
 	run(t, script, "reason=EXPIRE6")
 	if _, err := os.Stat(pd); !os.IsNotExist(err) {
 		t.Fatal("expired prefix kept")

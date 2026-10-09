@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"go.fd.io/govpp/api"
 
@@ -98,6 +99,12 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	if err := rt.Apply(context.Background(), []pppoe.Session{session}); err != nil {
 		t.Fatal(err)
 	}
+	// The non-owner Apply above only renders files. Explicitly model the
+	// supervisor admitting this simulated session before invoking its hooks;
+	// hooks without a current admission must remain unable to publish state.
+	if err := rt.renderer.ResumeIPv6(session.HostIf); err != nil {
+		t.Fatal(err)
+	}
 	ipup := func() {
 		t.Helper()
 		cmd := exec.Command(filepath.Join(paths.IPUpDir, "ngfw-tap0")) //nolint:gosec // rendered hook in this private test directory
@@ -108,6 +115,15 @@ func TestPppoeIPv6MirrorFollowsHookState(t *testing.T) {
 	}
 	state6 := func(body string) {
 		t.Helper()
+		// Model the authoritative lease identity and deadlines emitted by the
+		// current refresher; a bare legacy prefix must not be accepted as PD.
+		if strings.Contains(body, "\npd=") {
+			admission, err := os.ReadFile(filepath.Join(paths.StateDir, "tap0.ipv6.admission"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			body += "pd_generation=" + strings.TrimSpace(string(admission)) + "\npd_valid_until=" + strconv.FormatInt(time.Now().Add(time.Hour).Unix(), 10) + "\npd_preferred_until=" + strconv.FormatInt(time.Now().Add(30*time.Minute).Unix(), 10) + "\n"
+		}
 		// what the ipv6-up hook's refresher writes (the hook itself needs a PPP link: lab-host acceptance)
 		if err := os.WriteFile(filepath.Join(paths.StateDir, "tap0.state6"), []byte(body), 0o600); err != nil {
 			t.Fatal(err)

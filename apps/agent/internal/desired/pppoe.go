@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"google.golang.org/protobuf/proto"
 	ngfwv1 "ngfw/agent/gen/ngfw/v1"
+	pppoedesc "ngfw/agent/internal/descriptors/pppoe"
 	"ngfw/agent/internal/lcpmap"
 	"ngfw/agent/internal/scheduler"
 )
@@ -15,7 +16,7 @@ const PppoeClientName = "pppoe.client.config"
 var PppoeClientKey = scheduler.Join(PppoeClientName, "ngfw")
 
 // Pppoe projects references only. Resolution happens inside the daemon descriptor.
-func Pppoe(s Sink, ifs map[string]*ngfwv1.Interface, supervised bool) {
+func Pppoe(s Sink, ifs map[string]*ngfwv1.Interface, supervised bool, carrierOwner ...string) {
 	doc := &ngfwv1.DesiredState{Interfaces: map[string]*ngfwv1.Interface{}}
 	hosts := map[string]string{}
 	for _, name := range sortedKeys(ifs) {
@@ -29,6 +30,20 @@ func Pppoe(s Sink, ifs map[string]*ngfwv1.Interface, supervised bool) {
 			parent = name
 		}
 		p := ifs[parent]
+		if supervised && len(carrierOwner) > 0 && carrierOwner[0] != "" {
+			if parent == name {
+				s.Errorf(pt+"/parent", "pppoe.carrier-parent", "kernel PPP requires a distinct existing raw parent")
+				continue
+			}
+			if err := pppoedesc.CopyCarrierParentReference(doc, ifs, parent); err != nil {
+				s.Errorf(pt+"/parent", "pppoe.carrier-parent", "%v", err)
+				continue
+			}
+			doc.Interfaces[name] = &ngfwv1.Interface{Pppoe: proto.Clone(c).(*ngfwv1.Pppoe)}
+			hosts[parent] = name
+			s.Warnf(pt+"/passwordRef", "pppoe.secret-unavailable", "the password reference must resolve in the agent secret cache before apply")
+			continue
+		}
 		if p.GetLcp() == nil {
 			s.Errorf(pt+"/parent", "pppoe.lcp-required", "parent requires a linux-cp pair")
 			continue

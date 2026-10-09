@@ -20,7 +20,7 @@
 // mac → interface.mac-address, promiscuous → interface.promisc (present ⇔ on), rxMode →
 // interface.rx-mode; vrf → interface-ip.table; ipv4/ipv6 → interface-ip; dhcpClient → dhcp.client.
 // description is not VPP state: the agent keeps it in its stored desired state (D-073b).
-// unnumbered is reported as agent.unsupported-field (no descriptor in this build).
+// unnumbered projects an authoritative interface.unnumbered relationship.
 package desired
 
 import (
@@ -118,39 +118,44 @@ type NetdevKind func(name string) (kind string, exists bool, err error)
 // validation error at /interfaces/<name> — the management NIC can never be taken by configuration.
 // A netdev that does not exist (yet) is not an error here: a vanished rig veth must not block
 // unrelated commits; the af_packet Create checks again (subsystems' veth guard).
-func Interfaces(s Sink, ifs map[string]*ngfwv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind) {
+func Interfaces(s Sink, ifs map[string]*ngfwv1.Interface, vrfID func(string) (uint32, bool), lookup NetdevKind, kernelPPP ...bool) {
+	unnumberedInterfaces(s, ifs)
 	for _, name := range sortedKeys(ifs) {
 		itf := ifs[name]
 		pt := Ptr("interfaces", name)
 		alias := &iface.InterfaceAlias{Name: name}
-		switch kind, netdev := KindOf(name); kind {
-		case KindLoopback:
-			inst, _ := core.LoopbackInstance(name)
-			k := core.LoopbackKey(name)
-			s.Add(k, &core.Loopback{Name: name, Instance: inst}, pt)
-			alias.Creator = string(k)
-		case KindHostInterface:
-			if lookup != nil {
-				switch k, ok, err := lookup(netdev); {
-				case err != nil:
-					s.Errorf(pt, "interfaces.af-packet-veth", "cannot check the Linux netdev %q of %s (af_packet attaches only to a veth): %v", netdev, name, err)
-					continue
-				case ok && k != "veth":
-					what := "a physical (kind-less)"
-					if k != "" {
-						what = "a " + k
+		if len(kernelPPP) > 0 && kernelPPP[0] && KernelPppoeEnabled(itf) {
+			alias.Creator = string(scheduler.Join(iface.TapName, name))
+		} else {
+			switch kind, netdev := KindOf(name); kind {
+			case KindLoopback:
+				inst, _ := core.LoopbackInstance(name)
+				k := core.LoopbackKey(name)
+				s.Add(k, &core.Loopback{Name: name, Instance: inst}, pt)
+				alias.Creator = string(k)
+			case KindHostInterface:
+				if lookup != nil {
+					switch k, ok, err := lookup(netdev); {
+					case err != nil:
+						s.Errorf(pt, "interfaces.af-packet-veth", "cannot check the Linux netdev %q of %s (af_packet attaches only to a veth): %v", netdev, name, err)
+						continue
+					case ok && k != "veth":
+						what := "a physical (kind-less)"
+						if k != "" {
+							what = "a " + k
+						}
+						s.Errorf(pt, "interfaces.af-packet-veth", "%s: af_packet attaches only to a Linux veth (lab data path); %q is %s netdev", name, netdev, what)
+						continue
 					}
-					s.Errorf(pt, "interfaces.af-packet-veth", "%s: af_packet attaches only to a Linux veth (lab data path); %q is %s netdev", name, netdev, what)
-					continue
 				}
-			}
-			hi := &afpacket.HostInterface{Name: name, HostIfName: netdev, Mode: afpacket.Mode_MODE_ETHERNET}
-			k := scheduler.Join(afpacket.HostInterfaceName, name)
-			s.Add(k, hi, pt)
-			alias.Creator = string(k)
-		case KindBond: // wave-A: F-bonding — bond.bond is emitted by Bonds (bond.go); without a bond leaf the bond pre-exists
-			if itf.GetBond() != nil {
-				alias.Creator = string(scheduler.Join(iface.BondName, name))
+				hi := &afpacket.HostInterface{Name: name, HostIfName: netdev, Mode: afpacket.Mode_MODE_ETHERNET}
+				k := scheduler.Join(afpacket.HostInterfaceName, name)
+				s.Add(k, hi, pt)
+				alias.Creator = string(k)
+			case KindBond: // wave-A: F-bonding — bond.bond is emitted by Bonds (bond.go); without a bond leaf the bond pre-exists
+				if itf.GetBond() != nil {
+					alias.Creator = string(scheduler.Join(iface.BondName, name))
+				}
 			}
 		}
 		s.Add(iface.AliasKey(name), alias, pt)
@@ -220,9 +225,7 @@ func common(s Sink, name, ref, pt string, f commonFields, vrfID func(string) (ui
 	if f.mtu != nil {
 		s.Add(scheduler.Join(iface.MtuName, name), &iface.Mtu{Interface: ref, Mtu: *f.mtu}, pt+"/mtu")
 	}
-	if f.unnumbered {
-		s.Warnf(pt+"/unnumbered", "agent.unsupported-field", "%s/unnumbered is not implemented by this agent build (P08 wires admin state, MTU, MAC, promiscuous, rx mode, VRF, addresses, sub-interfaces, DHCP client)", pt)
-	}
+
 	if f.vrf != nil {
 		id, ok := vrfID(*f.vrf)
 		switch {
@@ -269,6 +272,9 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 	subID := map[string]string{}
 	exists := map[string]bool{}
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *iface.InterfaceAlias:
 			exists[v.GetName()] = true
@@ -297,6 +303,9 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 	mtu := map[string]uint32{}
 	rx := map[string]string{}
 	for _, kv := range kvs {
+		if IsPppoeDelegationKey(kv.Key) {
+			continue
+		}
 		switch v := kv.Value.(type) {
 		case *core.Loopback:
 			get(v.GetName())
@@ -310,6 +319,8 @@ func Assemble(kvs []scheduler.KV, stored map[string]*ngfwv1.Interface, live Live
 				n.sub.InnerVlanId = proto.Uint32(v.GetInnerVlan())
 			}
 			n.sub.Dot1Ad = proto.Bool(v.GetDot1Ad())
+		case *iface.Unnumbered:
+			get(iface.RefID(v.GetInterface())).setUnnumbered(iface.RefID(v.GetDonor()))
 		case *iface.AdminState:
 			get(iface.RefID(v.GetInterface()))
 			enabled[iface.RefID(v.GetInterface())] = true

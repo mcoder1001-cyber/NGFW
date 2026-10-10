@@ -2241,23 +2241,24 @@ tasks:
     priority: 6
     est_hours: 10
     state: "parked"
-    parked_on: "native supplier/session/identity and EAP TLS acceptance; source integrated, operational negative receipts require diagnosis"
+    parked_on: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS. 250 genuine artifact ABI preflight FAIL. Supplemental guest5 public Health works but operational=false reason engine-not-ready. Full canonical supplier/session/identity/recovery/API/browser acceptance unverified; underlying initialization stage unresolved. Not Done."
     wbs:
       - D6.9
     scope: remote-access VPN IKEv2+EAP
     files_owned:
       "- NEW files in P11's renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer
       a separate conf.d `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11's templates), apps/agent/internal/renderers/strongswan/testdata/ra-*"
-    branch: ''
-    worktree: ''
-    owner: ''
+    branch: "codex/lab-closeout-195-250-20261010"
+    worktree: "/root/.codex/worktrees/f693/NGFW"
+    owner: "manager acceptance"
     started: ''
     finished: ''
     notes: ''
-    worker_status: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
+    worker_status: "manager completed feasible direct tests; full service acceptance unresolved"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
+    acceptance_receipt_20261010: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS. 250 genuine artifact ABI preflight FAIL. Supplemental guest5 public Health works but operational=false reason engine-not-ready. Full canonical supplier/session/identity/recovery/API/browser acceptance unverified; underlying initialization stage unresolved. Not Done."
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md
@@ -3916,13 +3917,13 @@ tasks:
       a reused sw_if_index silently mirrors nothing / keeps a stray LLDP enable | 2026-09-28 host manager: code already on main (cloud session, branch claude/modest-keller-upaw4m not present
       here); post-merge panel review batch RV-C on main@f1f885a6, reports in /root/ngfw-wt/RV-C (D-161) | RV-C review: fix row S-ifsanitize-lldp-hwindex (RV-C-review-TD.md)'
   - template: ''
-    parked_on: 'PR180 HOLD: current mgmtd startup failed at unchanged 30s deadline before 200-route proof'
-    branch: codex/p12-fib-proof-recovery
-    worktree: ''
-    owner: ''
+    parked_on: ""
+    branch: "codex/lab-routing-20261010"
+    worktree: "/root/ngfw-wt/lab-routing-20261010"
+    owner: "routing_acceptance"
     started: ''
     finished: ''
-    state: parked
+    state: "review"
     wbs:
     - D0.1
     prompt: ''
@@ -3940,9 +3941,10 @@ tasks:
 
       test design in docs/status/tasks/P12.md (fix round 1) | 2026-09-30 rescoped to root mode (F-ospf-host pattern, no lcp default-netns change); LAB-vpp-per-slot dep dropped (D-218) | root-mode PASS 200/100/50
       prefixes; merged 8084739c'
-    worker_status: awaiting resume; acceptance chat stopped; historical PASS does not prove current acceptance
+    worker_status: "acceptance complete; final CI/integration pending"
     integration_receipt_20261007: "PR180 merged668f54244ac96a2c25527e9778f6c5e4ab6502a4: recovery proof source and retained negative receipts. One conflict resolved preserving root-mode and private Wave-B guards; final PR headc7073344350a7ad1239ee05a526a74d03f65fab1. No fresh CI by explicit owner request. Current mgmtd deadline failure/200-route native acceptance remains unresolved; state parked retained."
     advance_receipt_20261007: "PR203 merged188a2ea9835298466e9fc2601add2bfa587204b1: recovered namespace inventory/cleanup guards plus independent PID reuse fix; round2 APPROVE1409c4739. Current-main Python11/11 PASS0.041s and focused race agent1.857s BGP1.128s PASS. Actual mgmtd30s failure cause/200-route proof still open; no lab execution."
+    acceptance_receipt_20261010: "Actual 195/250 BGP 200→100→50→100 FIB, restart recovery 7.2/7.6s within 30s, withdrawal/restore and rollback zero PASS. Independent source review approved. PR218 final exact CI and merge pending."
   - id: F-global-blocking
     title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
     prompt: prompts/features/F-global-blocking.md
@@ -4257,13 +4259,13 @@ tasks:
 
     acceptance_closeout: "Closes with PR161 integration: real API/VPP expiry without candidate commit, actual agent restart and rollback PASS without skips; repeated on latest source, independently reviewed. Evidence closeout-security-host.md and closeout-195-250-evidence/latest-receipts.json. Integration remains conditional on unchanged complete quick green."
   - template: ''
-    parked_on: lab topology/host acceptance prerequisite; NOTRUN
-    branch: ''
-    worktree: ''
-    owner: ''
+    parked_on: ""
+    branch: "codex/lab-global-blocking-20261010"
+    worktree: "/root/ngfw-wt/lab-global-blocking-20261010"
+    owner: "nat46_acceptance"
     started: ''
     finished: ''
-    state: parked
+    state: "running"
     wbs: []
     prompt: ''
     id: F-global-blocking-host
@@ -4283,14 +4285,16 @@ tasks:
       follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 8,
       envelope /root/ngfw-wt/F-global-blocking-host.envelope.md, base main@f1f885a6 | done f6b4aebb CI PASSED after R2/R7 round 1 (all items addressed); docs-only → merge after a quick
       R7 verify | merged 689be665 (squash a901aca3, branch gate green)'
+    worker_status: "active acceptance and verification"
+    acceptance_receipt_20261010: "Actual both-host small policy, counters, real browser, 200k commit and kernel same-list enforcement PASS. Incremental API timeout/cancellation and 250 flood loss retained. Independently reviewed idle-gateway resync fix and paced exact-2000 packet reruns in progress; PR222 not Done."
   - template: ''
-    parked_on: "Source integrated via PR214; native PPP/VPP/ISP topology, packet/reconnect/PD/NAT/failover/rollback/browser acceptance NOT RUN on this source; lab unavailable."
-    branch: ''
-    worktree: ''
-    owner: "source integrated PR214; no active worker"
+    parked_on: ""
+    branch: "codex/lab-wan-20261010"
+    worktree: "/root/ngfw-wt/lab-wan-20261010"
+    owner: "wan_acceptance"
     started: ''
     finished: ''
-    state: "parked"
+    state: "running"
     wbs: []
     prompt: ''
     id: F-pppoe-client-host
@@ -4309,9 +4313,10 @@ tasks:
     notes: "follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here follow-up of F-pppoe-client (cloud session had no kernel PPP or VPP); see docs/status/tasks/F-pppoe-client.md section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 9, envelope /root/ngfw-wt/F-pppoe-client-host.envelope.md, base main@f1f885a6 | 2026-09-28 done d2bc7776 CI PASSED: D-168 wiring (client mirror, runtime subsystem, PppoeReconnect) + real-VPP smoke; owed: interfaces.pppoe→Session projection (F-default-vpp-nics files + secret channel), live dial after ppp install; panel RV-H2 | round 1 done 3fc010c5 CI PASSED (R4 B1/M1/M2, R2, R7 addressed); verify round R4+R7 | verify MAJOR + MINORs fixed, ff0cf852 CI PASSED (maxPending 15 after igmp merge) → merge queue | merged 990d36bb | 2026-10-09 completion candidate33db7c63: accepted non-lab source consolidated, focused regressions and generation recorded in carrier-finish-20261009-wip.md; final cumulative reviews, hosted CI and merge pending. Native acceptance NOT RUN; historical entries above retained. | 2026-10-09 final closeout: Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
     integration_receipt_20261007: "PR196 merged4ce03004e8a5f7d7a093ab634c5004c9127cce9c: PPPoE IPv6 source. No fresh CI by explicit owner request. Product discovery/encapsulation, LAN delegated-prefix and full host packet/browser acceptance remain open; state parked retained."
 
-    worker_status: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
+    worker_status: "active acceptance and verification"
     completion_receipt_20261008: "Kernel-carrier, exclusive raw-parent transport, distinct logical transit identity, PD LAN application and WAN readiness integration actively being implemented on published isolated checkpoints. PR210 lifecycle source staged in PR214; not lab-only and not complete."
     completion_receipt_20261009: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
+    acceptance_receipt_20261010: "Actual both-host PAP/IPCP, state, genuine broker Configure and VPP mirror established after reviewed fixes. LAN forwarding 0/3 FAIL retained and under diagnosis. Full agent Apply, IPv6/MSS/NAT, reconnect/restart, password evidence and browser acceptance remain open. PR221 not Done."
   - template: ''
     parked_on: ''
     branch: task/F-dashboard-prom-alarms-host-codex
@@ -4346,13 +4351,13 @@ tasks:
       for the worker → OWNER ACTION: apply the hunks in F-dashboard-prom-alarms-host-questions.md or grant the permission (not applied by the manager: no permission laundering); alarm/webhook/screenshot
       acceptance waits on them | 2026-09-30 owner granted Q1/Q2 hooks; acceptance done; Q4 API restart loses active-alarm state -> fix row S-alarms-restart-rebuild; merged 97ad50cd (D-218)'
   - template: ''
-    parked_on: "Source integrated via PR214; native PPP/VPP/ISP topology, packet/reconnect/PD/NAT/failover/rollback/browser acceptance NOT RUN on this source; lab unavailable."
-    branch: task/F-multiwan-host-codex
-    worktree: /workspace/scratch/96b8b6fbc8a7/NGFW-multiwan
-    owner: "source integrated PR214; no active worker"
+    parked_on: ""
+    branch: "codex/lab-wan-20261010"
+    worktree: "/root/ngfw-wt/lab-wan-20261010"
+    owner: "wan_acceptance"
     started: '2026-10-01T20:33:27.076593+00:00'
     finished: '2026-10-04'
-    state: "parked"
+    state: "review"
     wbs: []
     prompt: ''
     id: F-multiwan-host
@@ -4368,11 +4373,12 @@ tasks:
       +/-10%'
     files_owned: docs/status/tasks/F-multiwan*
     notes: "follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-10-01: cloud implementation started by owner instruction; live host acceptance remains pending; existing review dependencies used only as code baseline, not certified merged. | 2026-10-02 recovery: assigned dashboard_finish follow-up of F-multiwan (cloud session had no VPP); see docs/status/tasks/F-multiwan.md section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 11, envelope /root/ngfw-wt/F-multiwan-host.envelope.md, base main@f1f885a6 | done 014d45bd CI GATE PASSED; product code (D-174 wanmon + WanState) → panel R1 R2 R4 R7 + T1/T3 | 2026-09-28 R7 BLOCK (4 BLOCKER/8 MAJOR: restore→back fails in its own evidence, wiring not built nor deferred, NRestarts/CI prose, behind main); fix round 1 via CONTINUE; remaining agent wiring → row F-multiwan-wiring (D-176) | round 1 done ba683c51 CI PASSED (R7 B1-B4, MAJORs, R2 M1/M2 addressed); verify round R1+R4 (code) + R7 | verify MAJOR-1..3 fixed 712a35c2 (manager spot-check: evidence tracked, wanmon -race ok) → merge queue; acl 0/1 deleted, classify reset done | 2026-09-28 merge gate RED on TestTD21Scale (load-timing flake, not this branch) → requeued after S-td21-scale-flake? no: requeued as-is after ipclassify | merged 98af9493 | 2026-10-09 completion candidate33db7c63: accepted non-lab source consolidated, focused regressions and generation recorded in carrier-finish-20261009-wip.md; final cumulative reviews, hosted CI and merge pending. Native acceptance NOT RUN; historical entries above retained. | 2026-10-09 final closeout: Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
-    worker_status: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
+    worker_status: "acceptance complete; final CI/integration pending"
     completion_evidence: "PR154 merged9994929bb; independent WAN approval and integrated race/build checks PASS; static gateways/default-namespace/default-VRF probes; DHCP/PPPoE handoff unsupported; static default-VRF IPv4 UDP acceptance PASS: timed failover/restore, 1000 weighted flows, per-member SNAT, restart session retention, dead-only cleanup and PBR; exact proofs821ef578/6364e7f1 and b91edba6/808488bc; dynamic DHCP/PPPoE handoff, nondefault VRFs, IPv6, TCP and browser remain deferred"
     advance_receipt_20261007: "PR201 merged1c3092efbe411566d1ab5815790a47cfd8d62352: agent direct ppp/pppoe package prerequisites; two focused contracts PASS and independent APPROVE. Mandatory transition-admission resurrection and parent numeric PID identity source failures remain; product PADO/LAN encapsulation/PD and real packet/restart/browser acceptance open. These source failures are not lab-only deferrals."
     completion_receipt_20261008: "DHCP learned gateway source independently approved and staged. Worker wan_complete resumed to connect verified PPP carrier gateway and bounded namespace probe; source is not yet lab-only."
     completion_receipt_20261009: "Source integrated via PR214, main merge d58db1a673d716ebcf595a9e49847a54991c58da; exact tested candidate 30de26ee6a5697a3713fe4375399b86c5588a472, tree d1de8b7c01220ce03b311d0a7dcafd5fe12ab1ad. Mandatory quick37903333143 and packaging37903333245/provisioning37903333184/Python37903333309 PASS. Independent R2/R4 approved. Native acceptance remains unverified; prior dated receipts are historical and superseded for current source/CI status. No active source worker."
+    acceptance_receipt_20261010: "Actual 195/250 failover, balance, 1000 native NAT session restart retention, dead-member-only cleanup and PBR PASS. Native NAT resync fix independently approved. PR221 final gate and merge pending."
   - id: F-aaa-login
     title: 'AAA increment 2: external login integration + MFA enforcement + LDAP/OIDC/TACACS+/SAML'
     stage: S4
@@ -4538,20 +4544,22 @@ tasks:
     - F-nat46
     priority: 3
     est_hours: 3
-    state: parked
+    state: "review"
     wbs: []
     scope: 'host evidence owed by F-nat46 (cloud session without VPP): the "Not built (remaining — for the host)" / "Not done / remains" section of docs/status/tasks/F-nat46.md'
     files_owned: docs/status/tasks/F-nat46-host*
-    branch: codex/recover-eight-review-20261004
-    worktree: /root/ngfw-wt/F-nat46-host
-    owner: developer slot 17
+    branch: "codex/lab-nat46-20261010"
+    worktree: "/root/ngfw-wt/lab-nat46-20261010"
+    owner: "nat46_acceptance"
     started: '2026-09-29'
     finished: '2026-09-29'
     notes: 'D-162 | 2026-09-29 spawned slot 17, envelope /root/ngfw-wt/F-nat46-host.envelope.md, base main@4741ff86 | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE after
       the owner restarts VPP | parked at ad49180e: driver host.sh ready, no host evidence yet; CONTINUE = `eval "$(tools/lab env 17)"; docs/status/tasks/F-nat46-host-evidence/host.sh run` after the restart
       + sentinel check | Integration audit: previous completion unverified; host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure
       assertions/preconditions; remaining full host acceptance explicitly deferred, not complete.'
-    parked_on: remaining live packet/FIB/restart/API acceptance
+    parked_on: ""
+    worker_status: "acceptance complete; final CI/integration pending"
+    acceptance_receipt_20261010: "Actual 195/250 packet translation, FIB, counters, restart and rollback PASS; real 195 API and English/Persian browser PASS. PR220 exact hosted CI PASS; final integration and merge pending."
   - id: S-mtu-linkmtu0
     title:
       "interfaces descriptor: defaultMtu treats LinkMtu=0 (mpls_tunnel) as VPP's 9000 fallback so Retrieve stops reporting a stray interface.mtu and MPLS tunnel applies stop rolling
@@ -4689,21 +4697,23 @@ tasks:
     - F-ospf
     priority: 3
     est_hours: 4
-    state: parked
+    state: "review"
     wbs: []
     scope: owed checklist = "Owed on the host" sections of docs/status/tasks/RV-A-review-R7.md, RV-A-review-R4.md and RV-A-review-R1.md for F-ospf; daemon-owner frr; FRR host rows one at a time (launch queue
       §3)
     files_owned: docs/status/tasks/F-ospf-host* test/topology/ospf/**
-    branch: codex/recover-eight-review-20261004
-    worktree: /root/ngfw-wt/F-ospf-host
-    owner: developer slot 11
+    branch: "codex/lab-routing-20261010"
+    worktree: "/root/ngfw-wt/lab-routing-20261010"
+    owner: "routing_acceptance"
     started: '2026-09-28'
     finished: '2026-09-29'
     notes: 'D-173; RV-A | 2026-09-28 spawned slot 11, envelope /root/ngfw-wt/F-ospf-host.envelope.md, base main@79fff64a | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE
       after the owner restarts VPP | parked at 8a1c852a CI PASSED: frrtest live + API 400 done on host; rig/FIB/restart/rollback drivers ready; Q1-Q3 answered | Integration audit: previous completion unverified;
       host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure assertions/preconditions; remaining full host acceptance explicitly
       deferred, not complete.'
-    parked_on: remaining live packet/FIB/restart/API acceptance
+    parked_on: ""
+    worker_status: "acceptance complete; final CI/integration pending"
+    acceptance_receipt_20261010: "Actual 195/250 OSPF Full 100→50→100, restart recovery 6.3/7.2s, postrestart withdrawal/restore and rollback zero PASS. FRR-only and real API400 negative controls PASS. PR218 final exact CI and merge pending."
   - id: F-isis-rip-host
     title: 'F-isis-rip host runs: frrtest isisd/ripd + RIP FIB evidence; IS-IS adjacency only after the OSI punt decision (R7/R4/R1 owed lists)'
     prompt: prompts/features/F-isis-rip-host.md

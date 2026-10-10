@@ -13,7 +13,7 @@ REMOTE=r'''
 import hashlib,json,os,pathlib,re,stat,subprocess,time
 os.umask(0o077)
 START_MONOTONIC=time.monotonic()
-record=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-211-20261010/firstboot')
+record=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-211-20261010-firstboot')
 def run(args,input=None):
  p=subprocess.run(args,input=input,capture_output=True,text=True)
  return {'argv':args,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr}

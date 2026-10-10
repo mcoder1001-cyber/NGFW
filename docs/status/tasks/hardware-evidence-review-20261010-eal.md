@@ -566,3 +566,91 @@ before enable only three owned units without --now, then separate normal reboot.
 No target writes, product edits, retries, service starts or reboot by this reviewer.
 Main exact0c21 complete mandatory quick38062974117 remains independently SUCCESS;
 source/packaging/merge and hardware post-binding reboot/forwarding remain distinct.
+
+
+## Strong native convergence and actual reboot checkpoint, 15:58 UTC
+
+Both stronger preboot native receipts independently PASS. The previous c28
+snapshot remains historical; it does not acquire a convergence claim retroactively.
+Worker source c883ecb20f29cd263a94d0743b76215216e28b6dc4029083c4a4d90af434ad30
+is exact published8eb99c92862ae92ace5dd64a46858bfe9490c125 after preceding contract13fae.
+Independent diff/outer+REMOTE AST/remote readback PASS. Readonly deadline45s,
+unchanged runtime identities on every pass, unique interface names/PCI/builtIn,
+exact bool adminUp==immutable enabled, and independent VPP up/down parser enforce
+all17 rows; stronger postboot input is required. ROOT .37 equivalent e171 source
+and current boot input requirement were independently approved before execution.
+
+Independent Python SHA256/stat/json selected-inspection actual output (private
+hardware parent; each root0600, full paths supplied to parent, no secret output):
+
+```text
+manager-physical-native37-resume-20261010T154632Z.json
+586614 B SHA256 519e2f7825d82d390696444268d5268d9ee49781082de62c2364c1ac2ec57f6a
+48commands exit0;native1/seed/candidateequal/in-sync;one ready readonly poll
+all7 API adminUp==desired;VPP all7up;16784 pool >=7168 RX;fouractive0
+manager-physical-native211-observe-20261010T155100Z.json
+887905 B SHA256 f0521e5283f4379bcba67cd1d96160bd0c36306f3d373cc730f82b66d1010bcb
+56commands exit0;native2/seed1/resource2 retained;one ready readonly poll
+all17 API adminUp==desired and independent VPPup;66297 pool >=17408 RX
+fouractive0/stable;whole protected before==after;new storage errors=[]
+manager-boot37-enable-boot-20261010T154820Z.json
+535594 B SHA256 e69c30c7a4ea7cb82e487b4220d7f34d00898f76ea5cc2e5e9db27c7bd7dccbc
+67commands exit0;ONLY3 enablement changes;no --now/PID or other unit change
+manager-boot37-inspect-20261010T154829Z.json
+534939 B SHA256 24f534717e08b876ef643f73bd6e5d83f9ae06476ba411e6a906bb16ef9eb410
+66commands exit0;enable.after==freshinspect.before==freshinspect.after
+manager-boot211-enable-boot-20261010T155255Z.json
+716705 B SHA256 35ce523a4bd4f9f082670aa5ff699e5cbc73901bc800baf7abcb9ca7b1c4b818
+67commands exit0;ONLY3 enablement changes;all other unit/protection unchanged
+manager-boot211-inspect-20261010T155335Z.json
+716050 B SHA256 09ff1d2d3f16ae04066edffd95e79a449e05241d856508500846e51981ff19ab
+66commands exit0;exact protected identity/equality;strong f052 proof pinned
+manager-boot37-reboot-20261010T154959Z.json
+472601 B SHA256 4eb9e7b5aedd148d31d9e5ab328ee8d4934184f0e1dba6c045dfe5c6b1cfb190
+35commands exit0;one reboot-request0;request is not postboot acceptance
+manager-boot37-observe-boot-20261010T155544Z.json
+536008 B SHA256 090cc5485d8d931dea2212346d228ef357f01610b29aa7161e6c092a1a2bedf7
+68commands exit0;new boot d4b5d7e5-a015-43fc-82b9-9ee066478a59 != originalc8d
+fresh-epoch counter0x6 stable;full new-kernel storage errors=[]
+7persistent VFIO/singletons/binderactive/owned3enabled;four runtimeactive0
+network/sysctls/DNS/startup identical strong preboot;before==after
+canonical Etc/UTC bytes and offset+0000;raw timedated label EMPTY/unsupported
+manager-boot211-reboot-20261010T155605Z.json
+652557 B SHA256 e5d66d12baba6023715c6b038de5359738ee07e0eec9cace9d8b90ccb3cb89b7
+35commands exit0;one reboot-request0;new boot proof still pending
+```
+
+.37 initial observer f34769a4f1b91f230b1cb67b0b4d70d6e42bece8aec2b92983d11887149314e2
+(27131 B) refused the early inactive nginx while its normal network-online boot
+job was waiting. Parent subsequently captured waiting jobs and automatic startup;
+no manual restart or repeated reboot. Second observer43a84138e7abbe4d6f166845f5292c2dc94929c3d2b961f857a72a94c45ab966
+(28027 B) reached timedatectl successfully but refused its empty label. Both failed
+receipts remain retained and are not relabeled PASS.
+
+Pinned [systemd259.5 get_timezone](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/basic/time-util.c)
+reads only the immediate localtime symlink and accepts zoneinfo path prefixes;
+it does not traverse NGFW's fixed state indirection. [timedated context_read_data](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/timedate/timedated.c)
+leaves its label unset after that error. This source inference explains the actual
+blank label, while desired UTC, canonical bytes and fresh libc offset are correct.
+Local DEC-agent-file-ownership and sysident ProductPaths/verifyProductPaths require
+that public managed link; redirecting it directly would violate native guards.
+No service environment, sandbox, state ownership, timezone or privilege mutation.
+
+ROOT contracta5df97f09 precedes exact observer c82be9370bc716d77239f1e5bf73c502d343bfad7cdb64d850dad746484a42d9
+at e3ba426ac88fd188f00d5d67ffc441c8922202bf. Independent diff/outer+REMOTE AST/remote
+readback APPROVE. It admits an empty label ONLY after exact root-owned outer link,
+root/ngfw-group-owned inner link, exact immutable desired zone target, canonical
+bytes and fresh libc/ZoneInfo offset. A wrong nonempty label still refuses.
+Actual090cc explicitly records timedated_managed_indirection_supported=false and
+its compatibility limit. This is actual timezone/native boot persistence evidence,
+not successful timedated label interoperability. No unsupported fresh-label PASS.
+
+Verdicts: both strong native preboot/convergence PASS, exact enablement/fresh
+inspect PASS, owner-authorized one reboot per host applicable. .37 scoped actual
+new-boot persistence PASS; readonly paired postboot native source e171 with actual
+090cc+519e APPROVE, result pending. .211 postboot proof pending. First independent
+controller-only comparison looked for absent preboot37 protection boot_id field;
+corrected to exact immutable originalc8d and reran, no target action or false pass.
+
+Own published389aafa4063e1d89055a5077ae3afd602bcc900f documentation check actually
+PASSED14s, gitleaks360.92KB/no leaks/board212valid. No rule, test or gate waiver.

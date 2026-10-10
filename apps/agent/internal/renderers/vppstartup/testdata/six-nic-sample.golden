@@ -57,8 +57,8 @@ dpdk {
     num-rx-desc 512
     num-tx-desc 512
   }
-  # host management NIC(s): never handed to DPDK
-  blacklist 0000:0b:00.0
+  # host management NIC(s): excluded by the explicit device allowlist
+  # excluded management PCI: 0000:0b:00.0
 }
 
 plugins {

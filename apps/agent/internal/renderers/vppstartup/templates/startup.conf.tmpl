@@ -109,11 +109,20 @@ dpdk {
   dev {{ident .PCI}}
 {{- end}}
 {{- end}}
+{{- if .M.Devices}}
+{{- if .M.Blacklist}}
+  # host management NIC(s): excluded by the explicit device allowlist
+{{- range .M.Blacklist}}
+  # excluded management PCI: {{ident .}}
+{{- end}}
+{{- end}}
+{{- else}}
 {{- if .M.Blacklist}}
   # host management NIC(s): never handed to DPDK
 {{- end}}
 {{- range .M.Blacklist}}
   blacklist {{ident .}}
+{{- end}}
 {{- end}}
 {{- if not .M.Devices}}
   # no DPDK devices configured: probe no PCI device at all

@@ -623,3 +623,15 @@ or .37 firstboot phase. No new tests or product/host edits during pause.
 Actual .211 noPCI preview274716 B/0600 SHA35131df9f0853f2865b197251f067db7762ec664a3dd5cdcd3ca509e234678c6 independently parsed. Exact source4a63 published232ffa3ba remains unchanged: pure in-memory plugin overlay, canonical rendering and product dry-run without --apply. Render0/dryrun0; noPCI/protected04 blacklist/no physical devices; three required enables; L3 equal/counter6 stable/no new storage errors. Nested render/dryrun warnings are nonempty, distinguished from empty outer SSH stderr. Exact document3170 B/0600 SHA3c1ba66789d713ac8c2a8b8fb55b021ba8279c153d5b68a57794f04289419d4b verified. Root-only exact noPCI startup transaction applicability approved with original/render hashes and mandatory native dead-man; no binding approval.
 
 Root-owned product checkpointb1f5bea6bb8a7964165b9ba314d09ecbd238750a introduces the shipped explicit three-plugin bootstrap and native package manifest. Source independently read; focused correctness/packaging evidence review remains underway. Actual .211 seed outcome after correction remains pending; .37 firstboot remains held. Exact next action: classify actual nested preview warnings/read exported original+render hashes, inspect final root source/tests/evidence and manager guarded apply/seed receipts. No operation currently in flight.
+
+
+12:48 UTC follow-up: independent exact b1f5 product-source tests PASS in owned
+private archived scratch (new realCLI noPCI/missing-LCP regression0.073s, six
+firstboot fixtures20.635s). Product-source/management applicability APPROVE;
+final-source R7 documentation/decision/output and complete quick remain pending.
+Actual preview exported608/735/3170B hashes verified; only plugin-block delta;
+nested mainCore warnings classified. Root-only staged API→agent stop/native
+dead-man transaction→agent/API start order approved; actual transaction/seed
+acceptance pending. Full record: hardware-evidence-review-20261010-plugin-seed.md.
+No target/product writes; exact next action read root final source/docs/CI and
+actual noPCI manager apply plus normal seed receipt. Last published195c1a052e79cb8a07699205d77e47a87f1e552b.

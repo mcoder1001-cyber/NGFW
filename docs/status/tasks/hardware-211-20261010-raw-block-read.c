@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
     errno = 0;
     unsigned long long block = strtoull(argv[1], &end, 10);
     if (errno || !*argv[1] || *end || block >= 15505494ULL) return 2;
-    if (block != 15505493ULL && block != 15503361ULL &&
+    if (block != 15505492ULL && block != 15505493ULL && block != 15503361ULL &&
         block != 15503362ULL && block != 15503363ULL &&
         block != 15503874ULL && block != 15503875ULL) return 2;
     int fd = open("/dev/sda2", O_RDONLY | O_CLOEXEC);

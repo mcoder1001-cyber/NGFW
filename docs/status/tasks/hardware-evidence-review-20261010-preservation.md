@@ -417,3 +417,71 @@ one-byte answers; the classified disconnected inodes remain reconnected. This
 does not approve clearing an additional inode or claim the removed journal
 branches' original contents can be restored. Actual final fsck/undo/offhost,
 complete clean readonly pass and normal return remain separately pending.
+
+## Actual .211 completed logical correction and clean validation — 10:37 UTC
+
+Scoped correction and subsequent read-only validation PASS; normal return remains
+held for the separately released original-root/EFI integrity inspection. Private
+repair-final-preservation.json1052 B/0600
+SHA2567f15a9f0fe29b1735b6d0d4253fe20382d263fe47cb191d23349242fbe071c99
+records corrective fsck exit1 (modified), clean readonly fsck exit0, offhost
+transfer0 and source/offhost undo hash equality. Reviewer independently read the
+three persistent regular files, verified0600 and exact bytes/hash:
+
+| Artifact | Bytes | SHA256 |
+| --- | ---: | --- |
+| root-repair.undo | 749568 | 92df3461b98f30de5f52d308f99e152bba598476cda02d10d055726c2a92b477 |
+| repair-interactive-transcript.raw | 3270 | 790f88f2c37f4dad36612ca8912da4ef45a006c92b1b0e4dc2c0f99fac415799 |
+| repair-single-byte-answers.jsonl | 20099 | 716dc358b4f824379290ae5c3d2e2a2ba507fe67564418e334f9a9d252cd70c9 |
+
+Actual transcript has37 answered prompts:35yes/2no. The two zero-length regular
+Clear prompts were declined; three approved damaged-journal extent Clear prompts
+were accepted. The driver bug caused five queued-newline implicit defaults after
+five initial old-driver y inputs; these are preserved and not described as
+manually answered. Independent ledger parsing confirms one0-write probe plus27
+explicit answers (25y/2n), every answer exactly one byte with newline_writtenFalse.
+All transcript inode IDs are known/classified2,31,152,259594/5/6/7/8/9,259600/2/3.
+Pass5 freed-block ranges total3533, exactly matching group11 increase3527 plus
+group473 increase6 and the global free-count increase3533.
+
+Private post-repair-clean-health.json461056 B/0600
+SHA256bb09796a8d02333d5f1f3f9859e6a3f38186bf4c93dc977cfc064ec94dc16906
+independently parsed: exclusive guard0; full e2fsck-f-n exit0 traverses all five
+passes, optional narrowing259597/259816 declined, only27 B version banner on
+stderr. It reports29655/3845088 files and4268770/15505494 blocks. Counter before
+and after is0x12 (18); reviewer independently compares actual kernel strings
+before==after==mid-repairTrue. This sample supports no new observed storage fault,
+not a whole-drive health guarantee.
+
+Private post-repair-offline-audit.json24401 B/0600
+SHA2562b3aa09b0ce690601581be10aff8cd66c001972e92e0d614c6c6e647bcaa4b0c
+independently parsed: SSH0/stderr0,260processes/93FDs/nsfs0/races0/failures0,
+final exclusive guard0 after helpers. Actual fsync/transfer assertions are in the
+operator receipt; reviewer directly corroborates persistent offhost contents and
+hashes. Native image, supplemental blocks and undo remain scoped metadata
+preservation; no full user-data or power-failure recovery claim is made.
+
+Current verdict: APPROVE completed scoped logical correction/clean validation.
+Actual selected original-root/EFI hashes, private auth/config integrity, matching
+RAM shutdown closure/manager viability and post-inspection offline predicate are
+still required for the separate normal-return verdict. Target packages/NIC
+binding/forwarding acceptance have not started. Reviewer performed no target action.
+
+## Actual .37 finite undo tool preparation
+
+Private ram-finite-undo-tools-stage-20261010.json7525 B/0600
+SHA25655b5f250d9fc7ce3bd04c6f287d8734463e417e0e10eea6b3863f9d4bcb16e64
+independently parsed:17 source-package MD5 closure entries verified; missing
+df/tail/sha256sum runtime version checks0; invalid V2 selector2/empty. Wrapper
+preflight3 records actual hard/soft1073741824 B limits,1MiB600 probe+sync and
+expected mounted-device BUSY. Inner Bash locale warning97 B is retained; outer
+stderr0 does not conceal it. Undo/probe absent, originalroot8:2/RAM51,
+MainPID3866/held3940/nextroot absence unchanged; no repair/raw capture.
+
+Exact separate V3 RAM-only staging wrapper
+SHA256f505722458752fcdac8ed003ff09126df743fadae15466a28b72f548289ab146
+independently actual-byte hashed and outer/REMOTE AST2 PASS. Scoped source APPROVE
+after publication: exact reviewed V3 bytes under a separate RAM path with differing
+existing-file refusal; invalid selector2, mounted guard3 and runtime identity
+checks only. Valid raw capture, .37 transition and correction remain unreleased
+until the parent's separate phase release after .211 normal return.

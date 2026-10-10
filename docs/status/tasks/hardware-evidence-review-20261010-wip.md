@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`dce5a27f68300072988fc15d7ebac2bda4f62cb5` (additional directory preservation/reconstruction review; matching
+`8962f434566c5291663cffe311fc1c513ddd48ef` (preserving orphans/allocation accounting review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -394,3 +394,19 @@ pass5 source copies reconstructed block_found_map into on-disk block_map and
 recomputes group/global counts. Consequential bitmap/count corrections APPROVE
 under active bounded undo/nodiscard; no new deletion or physical-data discard
 is authorized. Parent/operator notified; completed repair and clean check pending.
+
+10:37 UTC: independent .211 completed correction/validation PASS. Actual final
+7f15a9f0 shows correctiveexit1/read-onlyexit0/transfer0; reviewer directly checks
+offhost undo749568 B92df3461, transcript3270 B790f88f2 and ledger20099 B716dc358,
+all0600/source equality. Actual37prompts35yes/2no; ledger27single-byte answers
+and0-write probe, old5newline inputs/5implicit defaults retained. All transcript
+inodes classified; bitmap3533 difference exactly group3527+6/global3533. Full
+readonly five-pass fsck0/versionstderr27 B; optimization prompts declined.
+Postaudit2b3aa09b260proc/93FDs/nsfs0/races0/failures0/finalguard0; actual kernel
+before/after/mid independently equal and ioerr18stable. Normal return still held
+for selected original-root/EFI/auth/config, RAM shutdown/manager and postinspection
+offline evidence. .37 actual finite-undo tools55b5f250 verified only prepared,
+expected mountedBUSY3 after cap/probe, localewarning97 B explicit. V3sourcef505
+hash/AST2PASS scoped RAM-only applicability approved after publication; no37crossing.
+Last verified remote8962f434 above. Next actual .211 return-integrity receipt and
+separate return verdict, then actual original boot/management/FS health verification.

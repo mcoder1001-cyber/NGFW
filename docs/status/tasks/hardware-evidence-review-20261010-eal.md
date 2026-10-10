@@ -822,3 +822,57 @@ change, timezone, adjtime, package, network or driver mutation by this procedure
 
 Own published669e4ebc9fd3bd154c89408301d4aec24a0affc5 documentation check actually
 PASSED14s;gitleaks377.66KB/no leaks/board212valid.
+
+
+## Actual UTC repairs and recovered native TLS, 16:27 UTC
+
+Independent exact private receipts rehashed/root0600/selected source and baseline
+assertions PASS. No reviewer target operation.
+
+```text
+Python actual clock inspections/repairs/paired native assertions; exit0
+.37 inspect48329B SHAe28317e9097d8fd9e5089e32ccb66c321ddf5abf6bb70eac6876605ffbb932bb
+.211 inspect50634B SHA4e297b325a40c354f144c621658d845d69074eb3634f4e69e4798dba518b0512
+each59commands0/empty stderr/read_only/PASS/before==after
+exact BOOT source/UUID/L3/sysctls/DNS/all21unitSHA/7or17VFIO/mgmtigc/counter0x6
+RTC0root:clock994/char247:0/LocalRTC=no/adjtimeabsent
+.37 repair50091B SHA949fa67206df93e0a980a3141b2513cbfd5fbbfb5f66b597b4cc99a33628a1c4
+.211 repair52399B SHA26391881adb92419c30c5871594661c9542479916fd3518a2c6d0ed6cfe4c541
+each61commands0/empty stderr/SSH0/PASS/both setters completed
+protected before==after==inspection/RTCidentity exact/sourcec70/no storageerrors
+original private record and repair-complete SHA retained/controller_UTC_verified=true
+.37 systemdelta-.0304s/RTCdelta-.2400s/elapsed1.705s
+.211 systemdelta-.0198s/RTCdelta-1.1044s/elapsed.714s
+RTCfinal2026-10-10UTC/both controller deltas within5s
+```
+
+Actual corrections/readback PASS; exact c70 separate once-only ROOT verification
+reboot applicability APPROVE sequential .37 then .211 after successful peer return.
+Clock correction is not yet RTC persistence across another reboot.
+
+ROOT's readonly paired native repeat after correction independently PASS:
+
+```text
+manager-physical-native37-postboot-20261010T162430Z.json
+587537B0600 SHAc0f620d3831f817b1bd151aeda562de1efc067600db98c49201b7c4cd6dae1f4
+manager-physical-native211-postboot-20261010T162429Z.json
+838892B0600 SHAe4b0b483e4eb6b4cd7b57c02f5bfb3f404839bb0e8fc07b6e55a590be123a026
+.37 observe/native1/7 and.211 observe-postboot/native2parent1/17 PASS
+46/60commands0/readiness401/adminlogin200/nativeRPC/seed1retained
+candidateequal/noPending/in-sync/all24APIadmintrue/independentVPPup
+pool16784>=RX7168 and66297>=RX17408
+fullprotectedbefore==after/fourunitidentitystable/storage[]
+readonly/no systemctl start, no resume or mutation
+```
+
+The earlier TLS failure now clears after actual UTC correction. Two local reviewer
+selector errors (regex match indexing and expecting strings for211 boolean VPP map)
+were corrected to groups/actual boolean schema; the complete selected assertion
+set reran exit0. No target action or premature successful verdict.
+
+Actual .37 verification request e54328839041b1b78c77e8db125bfede056215ce140d0f583bd58975a46a6558
+(48811B/root0600) independently PASS60commands0/empty stderr: exact c70/pinned949f
+repair/before==after==repair/health[]/one private marker/systemctl reboot request0.
+This establishes one request only. Fresh new-boot UUID, authoritative UTC/RTC
+persistence and final paired authenticated native proof remain pending; no repeat
+request or campaign Done claim.

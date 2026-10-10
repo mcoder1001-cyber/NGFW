@@ -3,22 +3,19 @@
 **Current operational status: resumed for the same existing hardware task at the
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
-Current checkpoint, 16:15 UTC: corrected physical application and strong native
-preboot/admin convergence independently PASS on both hosts; both new-boot
-configuration/driver persistence scoped PASS. Actual clock diagnosis0201e proves
-wallclocks reverted to Apr15 despite trusted controllerOct10, old RTC2023/.37 and
-2021/.211, unsynchronised chrony Reach0 and certificates notBeforeOct10. This real
-clock/TLS failure blocks final authenticated postboot native17/7 acceptance. No TLS
-relaxation or service/timezone workaround. Worker prepares closed ROOT-only bounded
-clock/RTC repair source; review exact published consumer next, then actual repair
-and separate persistence reboot/proofs. Root alone executes. Actual external HTTPS30a032 narrowly PASS: controller-time
-web200/protectedAPI401/JS200 with full certificate/localhost hostname verification;
-this does not resolve internal clock/TLS/native proofs. Exact c70cbc8 clock consumer source
-APPROVE at independently published/readback9cf59 after full review and controller
-RTC/framed SSH proof; actual ROOT readonly inspections remain pending. Repair and
-separate verification reboot depend on their phase-specific actual evidence. Packet-only deferral
-28f724 APPROVE: all24admintrue but no carrier, forwarding/loss/throughput NOT RUN;
-clock/TLS/native requirements explicitly remain mandatory. Whole campaign RUNNING.
+Current checkpoint, 16:27 UTC: corrected physical application and strong native
+preboot/admin convergence PASS on both hosts; first new-boot configuration/driver
+persistence scoped PASS. Real wallclock/RTC regression0201e is diagnosed and exact
+c70 ROOT-only consumer approved at published9cf59. Actual inspections e283/4e297
+and UTC+RTC repairs949f/2639 independently PASS with controller readback and all
+protected state unchanged. Readonly authenticated native repeats c0f620/e4b0b48 now
+PASS, confirming actual TLS readiness recovery and native7/17 admin/controlstate.
+Separate once-only verification reboot .37 e543 request PASS; fresh reboot clock/RTC
+persistence and final paired native proof still pending. .211 verification request
+waits successful .37 return. Whole campaign RUNNING until those actual proofs.
+No TLS relaxation/NTP/service/timezone workaround or reviewer target operation.
+Packet-only deferral28f724 APPROVE: all24admintrue/no carrier/forwarding-loss-throughput
+NOT RUN; clock/TLS/native persistence remains mandatory. Root alone executes.
 
 Historical 15:45 checkpoint: both new97ae four-package installations and actual
 guard restores independently PASS. Corrected canonical physical application on
@@ -57,8 +54,8 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`669e4ebc9fd3bd154c89408301d4aec24a0affc5` (matching CLI push/readback;
-actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
+`a5ff7fba32e6870049df3e9422dab7d39904ca83` (matching CLI push/readback;
+prior published669e unchanged documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
 eal.md. The prior source/launch documentation check exited0 (17s); that success

@@ -211,7 +211,11 @@ func TestManagerDBusSignalTransportClosesRightsAtHeaderAndBody(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer file.Close()
+			t.Cleanup(func() {
+				if err := file.Close(); err != nil {
+					t.Error(err)
+				}
+			})
 			before, err := os.ReadDir("/proc/self/fd")
 			if err != nil {
 				t.Fatal(err)

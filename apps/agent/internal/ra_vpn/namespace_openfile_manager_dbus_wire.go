@@ -376,7 +376,7 @@ func managerDBusSignalPath(path string) bool {
 		return false
 	}
 	for _, b := range []byte(path[len(unitPrefix):]) {
-		if !(b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '_') {
+		if (b < 'a' || b > 'z') && (b < 'A' || b > 'Z') && (b < '0' || b > '9') && b != '_' {
 			return false
 		}
 	}

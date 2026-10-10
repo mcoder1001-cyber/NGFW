@@ -1,5 +1,5 @@
 """Real product agent/API consumer in the reviewed private carrier fixture."""
-import hashlib, json, os, pathlib, sys, time, types, subprocess, signal
+import hashlib, json, os, pathlib, sys, time, types, subprocess, signal, re
 ROOT=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_ROOT','/root/ngfw-wt/lab-wan-20261010'))
 BASE=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_BASE','/tmp/ngfw-lab-wan-20261010'))
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -105,9 +105,11 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  config={'host-w20raw':{'enabled':True},'host-w20lan':{'enabled':True,'ipv4':['10.20.1.1/24'],'ipv6':['2001:db8:21::1/64']},'w20ppp':{'enabled':True,'pppoe':{'enabled':True,'parent':'host-w20raw','username':'w20','passwordRef':'password/w20-carrier','mtu':1492,'mssClamp':True,'defaultRoute':True,'ipv6':'slaac','reconnect':{'holdoffSec':1,'maxFail':0}}}}
  api.call('PATCH','/config/interfaces',config)
  extended_api=os.environ.get('NGFW_WAN_API_EXTENDED')=='1'
- if extended_api:
+ nat_api=extended_api and os.environ.get('NGFW_WAN_API_NAT','1')=='1'
+ if extended_api and not nat_api:print('DIAGNOSTIC_SCOPE NAT_EXCLUDED; dynamic-NAT criterion remains FAILED/OPEN',flush=True)
+ if nat_api:
   api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[{'name':'w20-ppp-native','interface':'w20ppp'}]})
- paths=('/interfaces',)+tuple('/nat/'+field for field in ('enabled','mode','sessionLimit','inside','outside','pools')) if extended_api else ('/interfaces',)
+ paths=('/interfaces',)+tuple('/nat/'+field for field in ('enabled','mode','sessionLimit','inside','outside','pools')) if nat_api else ('/interfaces',)
  result,warnings=commit(api,paths)
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
@@ -129,9 +131,10 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
   receipt=subprocess.run([str(BASE/'bin/carrier-live.test'),'-test.v','-test.count=1','-test.timeout=25s','-test.run=^TestWANCurrentCarrierReadback$'],capture_output=True,text=True,timeout=30)
   if receipt.returncode or '=== RUN   TestWANCurrentCarrierReadback' not in receipt.stdout or '--- PASS: TestWANCurrentCarrierReadback' not in receipt.stdout or '--- SKIP:' in receipt.stdout:raise Refused('actual API MSS getter test failed')
   print(receipt.stdout,flush=True)
-  sessions=command('vppctl','show','nat44','sessions')
-  if '10.20.1.2' not in sessions or '100.64.20.10' not in sessions:raise Refused('actual API NAT session tuple missing')
-  print('REAL_API_NAT_LAN_SESSION PASS '+sessions,flush=True)
+  if nat_api:
+   sessions=command('vppctl','show','nat44','sessions')
+   if not re.search(r'i2o 10\.20\.1\.2 proto ICMP[^\n]*\n\s*o2i 100\.64\.20\.10 proto ICMP\b',sessions):raise Refused('actual API paired NAT session tuple missing')
+   print('REAL_API_NAT_LAN_SESSION PASS '+sessions,flush=True)
  reconnect=api.call('POST','/actions/interfaces/w20ppp/pppoe/reconnect')
  assert reconnect.get('accepted') is True
  wait_up(api);print('REAL_API_CURRENT_WIRING_RECONNECT PASS',flush=True)
@@ -145,7 +148,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  if extended_api:
   scope={};exec(compile((ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py').read_text(),str(ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py'),'exec'),scope)
   scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,packets,Refused)
-  api.call('PATCH','/config/nat',baseline['nat'])
+  if nat_api:api.call('PATCH','/config/nat',baseline['nat'])
  api.call('PATCH','/config/interfaces',{name:None for name in config})
  commit(api,paths,warnings)
  print('REAL_API_CURRENT_WIRING_SCOPED_CLEANUP PASS',flush=True)

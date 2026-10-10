@@ -119,3 +119,5 @@ inactive units; no .37 package/firstboot/NIC changes until reviewed actual gates
 2026-10-10 same-campaign root additionally owns hardware-manager-20261010-data-preflight-37.py and its contract. Read-only fixednative generator/protected7 verification, outputs only ROOTprivate parent; no overlapworkerupgrade/retry211.
 
 ROOT same-campaign owns physical-apply-37.py and its contract; worker owns separate211retry. Read originalworker8d4 as source reference only, neverexecuteits obsolete211tuple.
+
+ROOTsamecampaign additionally owns physical-native-37.py+contract fortrue7native1physicalacceptance; worker257native211 remainsREADonlysource reference.

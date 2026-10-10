@@ -11,8 +11,11 @@ failed receipts retained. .37 fixed four-package upgrade now independently PASS;
 actual canonical firstboot now independently PASS; runtime/native seed7 pending.
 .211 actual native confirmed resource2 and readonly data render PASS, finite
 offhost original record/default inspect PASS, all17 VFIO binding independently
-PASS with individual inventory. Old noPCI VPP71250 is active; API/agent held.
-Buffers65536 stored; actual physical startup/resource enforcement still pending.
+PASS with individual inventory. Actual single native physical launch failed
+DPDK EAL initialization; native healthy rollback restored old735B noPCI startup,
+and released its locks. No COMMITTED marker or physical acceptance. Root reports
+VPP72599active and API/agent held; fresh complete post-rollback protection evidence
+is still pending independent review. Buffers65536 stored, runtime enforcement pending.
 The original .37 worker is departed. No forwarding or post-binding reboot
 acceptance. Root alone performs reviewed real startup/binding.
 
@@ -23,14 +26,26 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`a666fbd19c0bd20833fc3e0a0f382da6f76f918e` (matching CLI push/readback;
-actual own documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
+`94aa4a8ecc8dabd2646d2480c60950a9eda3dc21` (matching CLI push/readback;
+actual own documentation check13s PASS). Source approval checkpoint65ca4275 remains historical.
 
-Latest actual review details are in upgrade-four.md, resource.md and physical.md. Own documentation
-check after these source/receipt additions exited0 (18s). Main complete quick
+Latest actual review details are in upgrade-four.md, resource.md, physical.md and
+eal.md. The prior source/launch documentation check exited0 (17s); that success
+does not turn the later physical runtime failure into acceptance. Main complete quick
 38057527122 independently observed completedSUCCESS on exact
 d1f3f19d4837de3f7a36bfffcbd3c70593bea307. Source correction/merge is green; the
 hardware installation/physical acceptance task remains Running.
+
+Current exact failure: native physical work20261010-142900-71835, five VPP starts
+failed rte_eal_init EINVAL22. Actual f64ad15b receipt/healthy rollback and pinned
+VPPc320/DPDK26.03 source cause are independently corroborated in eal.md. Root owns
+the mandatory product correction, unchanged complete quick and corrected native
+artifact. Reviewer has no target process. .37 source-only inputs/guard restoration/
+noPCI runtime pipeline ddfd/fdbb/89fd is APPROVE; actual ordered receipts pending.
+Next independent action: read root's exact published renderer/template/test delta,
+verify management exclusion plus unchanged noPCI output, then review final-tree
+CI/native receipts before any physical retry. No repeat launch or target writes
+by this reviewer.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,

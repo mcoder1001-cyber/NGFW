@@ -103,3 +103,15 @@ exclusive0600 fsynced sources/manifest/backups, preserving startup metadata and
 unit enablement/module facts. The three eventual installed paths must be absent.
 Successful private offhost fsynced receipt must precede a separate binding grant.
 No driver/unit/service/startup mutation is implemented by this record phase.
+
+Actual read-only data preflight then independently PASS: private worker receipt
+`data-preflight-20261010T141314Z.json`,108306B0600,
+SHA74d28620163b7b71addef3efdaafd3270add82ba0f8c107f4345786b3fd29194.
+Canonical render0/product dryrun0; exact1462B render
+b1f977e8e8594f45047c4103c318390bd395cb50078949daa0d0f612572cb179,
+65536 buffers,17 original PCI rows, protected04 excluded/blacklisted and all three
+plugins. Direct assertions matched all17 singleton original kernel driver mappings,
+empty overrides and L3. Effective VFIO module state was not loaded. Optional
+driverctl-list-overrides exits1 retained; nested render/dryrun UTF-8 stderr notes
+are784/729 bytes (782/727 Python characters), outer stderr empty. No all-command
+PASS or target module/binding/apply operation is inferred from this read-only proof.

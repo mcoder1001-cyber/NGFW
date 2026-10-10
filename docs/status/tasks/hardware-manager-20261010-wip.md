@@ -1,3 +1,9 @@
+# Current status: RUNNING — single hardware campaign, 2026-10-10 16:08 UTC
+
+Filesystem repair and clean checks on both targets are DONE. Native package installation, corrective PR225/226 integration with complete green quick, physical import of seven data interfaces on .37 and seventeen on .211, API/VPP admin convergence, and first automatic reboot runtime checks are DONE. Management interfaces and full routing remain protected.
+
+Remaining real failure: postboot clocks revert to an old date, making HTTPS certificates not yet valid. Controller-UTC and RTC correction, persistence reboot and final authenticated native postboot acceptance remain. Chrony is unsynchronised; no NTP success claim. Packet forwarding and throughput are NOT RUN because all24 imported data interfaces have no carrier. Historical checkpoints below retain their original failures and then-current states; this paragraph is the current state.
+
 ## Firstboot correction checkpoint — 2026-10-10 12:38 UTC
 
 Root implemented shipped fixed bootstrap JSON enabling linux_cp/linux_nl/npt66,

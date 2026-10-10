@@ -4,7 +4,9 @@
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.
 
-Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. No published task checkpoint existed at the start. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing this status identifies the next local/remote checkpoint without a self-referential SHA.
+Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `405d581b1239a7a6e79ee3a981f95f3dff4ad599` after successful `git push -u origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
+
+Actual repository verification: `tools/ci.sh check --base origin/main` printed `check PASSED (0m43s)`. Full quick/integration gates have not been run by this worker; no product code has changed and installation acceptance remains NOT RUN.
 
 ## Actual read-only preflight
 
@@ -16,8 +18,8 @@ Commands ran through `ssh -o BatchMode=yes -o ConnectTimeout=15 root@172.30.126.
 - Management `enp12s0`: `172.30.126.37/24`, default gateway `172.30.126.1`, PCI `0000:0c:00.0`, Intel `8086:125c`, kernel driver `igc`, IOMMU group 58, MAC `00:04:e1:e0:00:3e`. This interface/PCI and every existing route are excluded from dataplane ownership.
 - Other physical NICs: `enp10s0` / PCI `0000:0a:00.0` / group 56; `enp11s0` / `0000:0b:00.0` / 57; `enp13s0` / `0000:0d:00.0` / 59; `enp14s0` / `0000:0e:00.0` / 60; `enp15s0` / `0000:0f:00.0` / 61; `enp16s0` / `0000:10:00.0` / 62; `enp17s0` / `0000:11:00.0` / 63. All Intel `8086:125c`, `igc`, currently no carrier; no global IP addresses or IPv4 routes; some have IPv6 link-local addresses/routes.
 - `bridge link` returns no members. Existing br0..br5, br7..br9 have no addresses or route ownership. `/etc/netplan/00-installer-config.yaml` contains stale names for different hardware and `172.30.110.223`; `/etc/netplan/90-ngfw-management.yaml` supplies actual `enp12s0` configuration. Do not apply/replace netplan blindly.
-- DMAR initialized; each of the eight NICs has a different IOMMU group. Group contents still require verification before any VFIO binding.
-- Target clock reports 2026-04-18; this is an observed incorrect clock, not the acceptance date. Check trusted time synchronization before certificate/browser tests.
+- DMAR initialized; each of the eight NICs has a different IOMMU group. Actual `/sys/kernel/iommu_groups/{56..63}/devices/*` inspection confirms each group contains exactly its one listed NIC and no other device. Revalidate this before binding. VFIO is not loaded; no unsafe no-IOMMU setting was enabled.
+- Target clock reports 2026-04-18, `NTP=no`, `NTPSynchronized=no`, timezone Asia/Tehran; this is an observed incorrect clock, not the acceptance date. Check trusted time synchronization before certificate/browser tests.
 - Utilities python3 and apt-get available; lspci, curl, jq and ar absent. No host utility packages were installed merely for discovery.
 
 ## Blocking filesystem evidence

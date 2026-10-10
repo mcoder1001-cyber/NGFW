@@ -1,0 +1,4 @@
+HOST_NETNS=net:[4026531833]
+PRIVATE_FIB_NETNS=net:[4026532607]
+private network namespace is not empty
+SHARED_VPP_UNCHANGED=MainPID=1014,NRestarts=0

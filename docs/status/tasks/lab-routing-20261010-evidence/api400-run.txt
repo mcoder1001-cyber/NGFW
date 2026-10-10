@@ -1,0 +1,21 @@
+09:35:13 === F-ospf-host API 400 evidence: slot 6, owner w6, API :3600, agent socket /run/ngfw-test/w6/ospf-api/agent.sock ===
+09:35:13 VPP NRestarts=0 before
+09:35:29 agent pid 3703963 (NGFW_FRR_PATHSPACE=w6 NGFW_VPP_TABLE_BASE=6000), API pid 3703974 health {"status":"ok"}
+09:35:29 agent log: {"time":"2026-10-10T09:35:15.764055957Z","level":"INFO","msg":"VPP binary API connected","owner":"w6","component":"vpp","socket":"/run/vpp/api.sock"}
+09:35:30 === 1. undefined area: interface host-w6l0 in area 51, areas = {0} → POST /config/validate ===
+09:35:30 PATCH /config/routing (ospf: routerId 10.6.1.1, areas {0}, interfaces {host-w6l0: area 51}) → HTTP 200 application/json; charset=utf-8
+09:35:30 POST /api/v1/config/validate → HTTP 400 application/problem+json; charset=utf-8
+09:35:30 body: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"errors":[{"pointer":"/routing/ospf/interfaces/host-w6l0/area","message":"OSPF area 51 is not defined under /routing/ospf/areas"}]}
+09:35:30 POST /api/v1/config/commit?comment=ospf-host-undefined-area → HTTP 400 application/problem+json; charset=utf-8
+09:35:30 body: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"errors":[{"pointer":"/routing/ospf/interfaces/host-w6l0/area","message":"OSPF area 51 is not defined under /routing/ospf/areas"}]}
+09:35:30 running config after the refused commit: routing.ospf = null
+09:35:31 === 2. backbone stub: areas = {0: stub}, interface host-w6l0 in area 0 → POST /config/validate ===
+09:35:31 PATCH /config/routing (ospf.areas.0.type = stub, interfaces {host-w6l0: area 0}) → HTTP 200 application/json; charset=utf-8
+09:35:31 POST /api/v1/config/validate → HTTP 400 application/problem+json; charset=utf-8
+09:35:31 body: {"type":"https://ngfw.dev/problems/validation","title":"Validation failed","status":400,"detail":"semantic validation failed","errors":[{"pointer":"/routing/ospf/areas/0/type","message":"backbone area cannot be stub or NSSA"}]}
+09:35:31 agent log tail: {"time":"2026-10-10T09:35:29.311848138Z","level":"INFO","msg":"reconcile done","owner":"w6","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0
+09:35:31 === cleanup ===
+09:35:31 candidate discarded
+09:35:31 stopped pids: 3703963 3703974
+09:35:33 database ngfw_w6 dropped
+09:35:33 VPP NRestarts=0 after

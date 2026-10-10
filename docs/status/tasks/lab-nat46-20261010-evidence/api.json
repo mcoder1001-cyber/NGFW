@@ -1,0 +1,81 @@
+[
+  {
+    "case": "baseline",
+    "revision": 1
+  },
+  {
+    "case": "real-commit",
+    "revision": 2,
+    "state": {
+      "configured": true,
+      "clientPrefix": "fd00:11:4646::/96",
+      "interfaces": [
+        "loop1746",
+        "loop1747"
+      ],
+      "mappings": [
+        {
+          "name": "web",
+          "domain": "nat46-web",
+          "ipv4": "10.17.46.10",
+          "ipv6": "fd00:11:46::a11:2e0a",
+          "mtu": null
+        }
+      ]
+    },
+    "client": {
+      "ipv4": "10.17.1.2",
+      "clientPrefix": "fd00:11:4646::/96",
+      "ipv6": "fd00:11:4646::a11:102"
+    },
+    "retrieve": {
+      "nat46": {
+        "clientPrefix": "fd00:11:4646::/96",
+        "interfaces": [
+          "loop1746",
+          "loop1747"
+        ],
+        "mappings": [
+          {
+            "name": "web",
+            "ipv4": "10.17.46.10",
+            "ipv6": "fd00:11:46::a11:2e0a"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "case": "duplicate-http400",
+    "status": 400,
+    "contentType": "application/problem+json; charset=utf-8",
+    "problem": {
+      "type": "https://ngfw.dev/problems/validation",
+      "title": "Validation failed",
+      "status": 400,
+      "detail": "the document does not match the schema",
+      "instance": "/api/v1/config/nat",
+      "errors": [
+        {
+          "pointer": "/nat/nat46/mappings/1/ipv4",
+          "message": "IPv4 service address 10.17.46.10 used twice"
+        }
+      ]
+    }
+  },
+  {
+    "case": "own-agent-restart",
+    "stateUnchanged": true
+  },
+  {
+    "case": "browser-en-fa",
+    "screenshots": [
+      "nat46-en.png",
+      "nat46-fa.png"
+    ]
+  },
+  {
+    "case": "api-revision-rollback",
+    "retrieve": {}
+  }
+]

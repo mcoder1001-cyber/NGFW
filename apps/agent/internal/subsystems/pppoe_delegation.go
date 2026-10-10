@@ -278,23 +278,40 @@ func (w *Wiring) registerPppoeDelegation(reg scheduler.Registry, snapshot func()
 		Run: func(ctx context.Context, apply SyncFunc) {
 			tick := time.NewTicker(time.Second)
 			defer tick.Stop()
-			for {
-				leases := snapshot()
-				sort.Slice(leases, func(i, j int) bool { return leases[i].Logical < leases[j].Logical })
+			runPppoeDelegation(ctx, tick.C, snapshot, func(leases []desired.PppoeDelegationLease) {
 				cacheMu.Lock()
 				cached = append([]desired.PppoeDelegationLease(nil), leases...)
 				cacheMu.Unlock()
-				if err := apply(ctx); err != nil {
-					w.env.Log.Warn("PPPoE delegation reconciliation failed", "error", err)
-				}
-				select {
-				case <-ctx.Done():
-					return
-				case <-tick.C:
-				}
-			}
+			}, apply, func(err error) {
+				w.env.Log.Warn("PPPoE delegation reconciliation failed", "error", err)
+			})
 		},
 	})
+}
+
+// runPppoeDelegation keeps active lease lifetimes and failure retries on every
+// tick. An empty snapshot is reconciled once successfully (including withdrawal),
+// then waits for a lease transition: repeated empty syncs needlessly retrieve
+// unrelated dependencies such as FRR and can prevent startup readiness.
+func runPppoeDelegation(ctx context.Context, ticks <-chan time.Time, snapshot func() []desired.PppoeDelegationLease, publish func([]desired.PppoeDelegationLease), apply SyncFunc, failed func(error)) {
+	emptyApplied := false
+	for {
+		leases := snapshot()
+		sort.Slice(leases, func(i, j int) bool { return leases[i].Logical < leases[j].Logical })
+		publish(leases)
+		if len(leases) != 0 || !emptyApplied {
+			err := apply(ctx)
+			emptyApplied = len(leases) == 0 && err == nil
+			if err != nil {
+				failed(err)
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+		}
+	}
 }
 
 // Preserve PD ownership separation through the remote-access shared-family wrapper.

@@ -1,0 +1,135 @@
+== NGFW CI gate: quick ==
+worktree  /root/ngfw-wt/lab-routing-20261010
+branch    codex/lab-routing-20261010 @ 7bfca6dfe   (base: origin/main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /tmp/ngfw-routing-cache-overlay/merged
+logs      /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-102139-3914075
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+      ?? docs/status/tasks/lab-routing-20261010-evidence/frr-stage-provenance.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick7.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick8.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick9.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-binary-provenance2.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-ospf-run2.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-p12-run2.txt
+      ?? test/topology/frr-linuxcp/__pycache__/
+
+== contract guard: HEAD vs origin/main ==
+no contract files changed in the 16 commit(s) of HEAD since origin/main (ded860762)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 2m 36.3s using pnpm v12.5.1 
+
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go
+
+== forbidden patterns (+ gitleaks) ==
+WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: ngfwtestsecrets only in test code
+ok: gitleaks — scanned ~511066 bytes (511.07 KB) in 11.7s no leaks found 
+
+== packet-trace ban on the shared VPP (D-128) ==
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+
+== ip classify reset after every shell interface create (D-185) ==
+ok: every shell interface create is followed by an ip4/ip6 classify reset
+board valid: 212 tasks; read-only validation
+
+== slot resource scheme (1..32, no collisions) ==
+ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    1m22.173s  
+
+== apps/agent: make lint test build ==
+ok  	ngfw/agent/cmd/ngfw-ra-daemon	1.116s; ok  	ngfw/agent/cmd/ngfw-startupgen	1.942s; ok  	ngfw/agent/cmd/ngfw-vppcheck	1.796s; ok  	ngfw/agent/cmd/ngfw-wan-probe	1.125s; ok  	ngfw/agent/internal/actions/acl	1.185s; ok  	ngfw/agent/internal/actions/backup-restore	1.100s; ok  	ngfw/agent/internal/actions/capture-trace	13.318s; ok  	ngfw/agent/internal/actions/ha-state-sync	1.171s; ok  	ngfw/agent/internal/actions/nat44-ed-sessions	1.405s; ok  	ngfw/agent/internal/actions/nat44-ei-64-66-nptv6	1.088s; ok  	ngfw/agent/internal/actions/neighbors-ra	1.144s; ok  	ngfw/agent/internal/actions/unbound-chrony-syslog	1.139s; 
+
+== apps/cli: make lint test build ==
+ok  	ngfw/cli/internal/api	2.802s; ok  	ngfw/cli/internal/cli	2.076s; ok  	ngfw/cli/internal/cpath	1.079s; ok  	ngfw/cli/internal/jschema	1.180s; ok  	ngfw/cli/internal/render	1.104s; ok  	ngfw/cli/internal/safe	1.101s; ok  	ngfw/cli/test/e2e	1.102s; 
+
+== test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp) ==
+test/integration/reachability: gofmt ok · go vet ok · ok  	ngfw/test/integration/reachability	0.037s; 
+test/integration/smoke: gofmt ok · go vet ok · ok  	ngfw/test/integration/smoke	0.017s; 
+test/topology/ab-upgrade: gofmt ok · go vet ok · ok  	ngfw/test/topology/ab-upgrade	14.835s; 
+test/topology/acl: gofmt ok · go vet ok · ok  	ngfw/test/topology/acl	0.014s; 
+test/topology/backup-restore: gofmt ok · go vet ok · ok  	ngfw/test/backup-restore	0.669s; 
+test/topology/bonding: gofmt ok · go vet ok · ok  	ngfw/test/topology/bonding	0.020s; 
+test/topology/bridge-l2: gofmt ok · go vet ok · ok  	ngfw/test/topology/bridge-l2	0.034s; 
+test/topology/det44: gofmt ok · go vet ok · ok  	ngfw/test/topology/det44	0.015s; 
+test/topology/ha-state-sync: gofmt ok · go vet ok · ok  	ngfw/topology/ha-state-sync	4.154s; 
+test/topology/hardening-lite: gofmt ok · go vet ok · ok  	ngfw/test/topology/hardening-lite	2.771s; 
+test/topology/host-acl-nftables: gofmt ok · go vet ok · ok  	ngfw/test/topology/host-acl-nftables	0.017s; 
+test/topology/images: gofmt ok · go vet ok · ok  	ngfw/test/topology/images	1.421s; 
+test/topology/interfaces: gofmt ok · go vet ok · ok  	ngfw/test/topology/interfaces	0.021s; 
+test/topology/ipfix-sflow: gofmt ok · go vet ok · ok  	ngfw/test/topology/ipfix-sflow	0.125s; 
+test/topology/kea-dhcp-relay: gofmt ok · go vet ok · ok  	ngfw/test/topology/kea-dhcp-relay	0.416s; 
+test/topology/loopback-bvi-gso-lldp-span: gofmt ok · go vet ok · ok  	ngfw/test/topology/loopback-bvi-gso-lldp-span	0.029s; 
+test/topology/nat44-ed-sessions: gofmt ok · go vet ok · ok  	ngfw/test/topology/nat44-ed-sessions	0.026s; 
+test/topology/nat44-ei-64-66-nptv6: gofmt ok · go vet ok · ok  	ngfw/test/topology/nat44-ei-64-66-nptv6	0.028s; 
+test/topology/neighbors-ra: gofmt ok · go vet ok · ok  	ngfw/test/topology/neighbors-ra	0.024s; 
+test/topology/object-model: gofmt ok · go vet ok · ok  	ngfw/test/topology/object-model	0.017s; 
+test/topology/qos-flat: gofmt ok · go vet ok · ok  	ngfw/test/topology/qos-flat	0.032s; 
+test/topology/system-identity: gofmt ok · go vet ok · ok  	ngfw/test/topology/system-identity	0.020s; 
+test/topology/traffic-a/globals: gofmt ok · go vet ok · ok  	ngfw/test/topology/traffic-a/globals	0.016s; 
+test/topology/traffic-c/globals: gofmt ok · go vet ok · ok  	ngfw/test/topology/traffic-c/globals	0.019s; 
+test/topology/unbound-chrony-syslog: gofmt ok · go vet ok · ok  	ngfw/test/topology/unbound-chrony-syslog	0.020s; 
+test/topology/vlan-qinq: gofmt ok · go vet ok · ok  	ngfw/test/topology/vlan-qinq	0.016s; 
+test/topology/vrf-static-ecmp: gofmt ok · go vet ok · ok  	ngfw/test/topology/vrf-static-ecmp	0.017s; 
+integration tests inside these modules skip here (NGFW_INTEGRATION unset); 'tools/ci.sh full' runs them on the CI slot
+
+== deploy/vpp: shellcheck + apply-startup fake-host harness ==
+shellcheck ok: ./apply-startup.sh ./build.sh ./lib.sh ./test-apply-startup.sh ./verify.sh
+apply-startup harness: green (4 shards; 149 checks passed in the parallel run)
+
+== summary (quick) ==
+  contract guard: HEAD vs origin/main                0m00s
+  tools (golangci-lint, gitleaks)                    0m02s
+  install (pnpm --frozen-lockfile --prefer-offline)   2m45s
+  generate + generated-output gate                   5m57s
+  forbidden patterns (+ gitleaks)                    0m36s
+  packet-trace ban on the shared VPP (D-128)         0m02s
+  ip classify reset after every shell interface create (D-185)   0m02s
+  slot resource scheme (1..32, no collisions)        0m05s
+  lint · typecheck · unit tests · build (turbo)   1m23s
+  apps/agent: make lint test build                   4m08s
+  apps/cli: make lint test build                     0m47s
+  test/ Go modules, unit mode (test/integration/reachability test/integration/smoke test/topology/ab-upgrade test/topology/acl test/topology/backup-restore test/topology/bonding test/topology/bridge-l2 test/topology/det44 test/topology/ha-state-sync test/topology/hardening-lite test/topology/host-acl-nftables test/topology/images test/topology/interfaces test/topology/ipfix-sflow test/topology/kea-dhcp-relay test/topology/loopback-bvi-gso-lldp-span test/topology/nat44-ed-sessions test/topology/nat44-ei-64-66-nptv6 test/topology/neighbors-ra test/topology/object-model test/topology/qos-flat test/topology/system-identity test/topology/traffic-a/globals test/topology/traffic-c/globals test/topology/unbound-chrony-syslog test/topology/vlan-qinq test/topology/vrf-static-ecmp)   2m07s
+  deploy/vpp: shellcheck + apply-startup fake-host harness   5m17s
+  warnings:
+    - uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+      ?? docs/status/tasks/lab-routing-20261010-evidence/frr-stage-provenance.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick7.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick8.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick9.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-binary-provenance2.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-ospf-run2.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/remote250-p12-run2.txt
+      ?? test/topology/frr-linuxcp/__pycache__/
+    - control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+  mode quick · wall time 23m19s · logs /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-102139-3914075
+
+CI GATE PASSED

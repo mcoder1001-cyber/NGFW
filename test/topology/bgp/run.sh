@@ -21,4 +21,8 @@ export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
 [[ -d "/run/ngfw-test/$NGFW_TEST_PREFIX" ]] || install -d -m 0755 "/run/ngfw-test/$NGFW_TEST_PREFIX"
 export NGFW_INTEGRATION=1 NGFW_P12_TOPOLOGY=1
 cd "$ROOT/apps/agent"
+if [[ -n "${NGFW_ROUTING_TEST_BIN:-}" ]]; then
+  [[ "$#" == 0 ]] || { echo "precompiled routing mode accepts no extra arguments" >&2; exit 1; }
+  exec "$ROOT/tools/lab" lock shared python3 "$ROOT/test/topology/frr-linuxcp/precompiled-test.py" p12
+fi
 exec "$ROOT/tools/lab" lock shared go test -count=1 -v -timeout 20m -run TestP12TopologyOnHost "$@" ./internal/agent/

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Prepared four-NGFW native upgrade; explicit parent release before execution.
 
-Inspect is read-only. Prepare creates finite reversible start safeguards;
-install consumes a separately reviewed exact four-package simulation. VPP and
-nginx stay running; API/agent remain stopped. No firstboot/driver/cache writes.
+Inspect is read-only. Prepare records the existing installation safeguards;
+install consumes a separately reviewed exact four-package simulation. All
+guarded services remain inactive. No firstboot/driver/cache writes.
 """
 import argparse,datetime,hashlib,json,os,pathlib,re,shlex,stat,subprocess,tarfile
 PRIVATE=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')

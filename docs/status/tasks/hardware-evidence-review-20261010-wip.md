@@ -166,11 +166,12 @@ actual actions/output; target offline proof remains pending.
 
 Independent .211 stage source review: c4027e96 source design approved RAM-only,
 first actual collector attempt safely halted before keys/binds/sshd. Published
-7f8e3426/SHA743272ac flattened ldd fix is applicable; retry BLOCK on newly found
-literal-backslash-n generated NSS files. AST parse succeeded but constant inspection
-proved malformed separators. Notified manager/worker before retry. Owned new
-ram-stage report records immutable source, finding and superseded execution verdict.
-No transition/repair/reboot approval. Next exact command: git show the worker's
-corrected published SHA:docs/status/tasks/hardware-211-20261010-ram-stage.py, then
-AST-inspect generated-file constants before approving reversible retry. Review
-actual stage/auth/global-namespace/process-fd proof after worker publication.
+7f8e3426/SHA743272ac flattened ldd fix is applicable and APPROVE for RAM-only
+owned partial cleanup/retry. Correction after worker challenge: the newline BLOCK
+in publishedccd6581d was incorrect; reviewer misread extra JSON escaping. Direct
+ordinal check proves passwd/group separators length1 ordinal10 and shadow/NSS/hosts
+newline counts1/4/2 with zero backslashes. No source change. Both worker and manager
+notified immediately; owned ram-stage report retracts the finding explicitly.
+No transition/repair/reboot approval. Next exact command: read published actual
+stage/auth/global-namespace/process-fd receipts after worker retry, then independently
+compare units/tree/runtime and network snapshots against source7f8e3426.

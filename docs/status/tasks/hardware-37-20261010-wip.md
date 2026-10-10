@@ -20,7 +20,7 @@ Final preceding checkpoint `00dbea93801932b1b7555ea383c815af803ca99f` published/
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.
 
-Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint before this post-merge update: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `2debe48f2769de473e048544c60261b54f50370c` after successful `git push origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
+Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint before this private-recovery-snapshot update: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `2c991bf989339f1654db2f2c1f2ee2126f6da9f6` after successful `git push origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
 
 Actual repository verification: `tools/ci.sh check --base origin/main` printed `check PASSED (0m43s)` for the first checkpoint and `check PASSED (0m14s)` for subsequent checkpoints. No broad local quick/integration run was duplicated; the exact final PR complete hosted quick was independently verified as described above. No product code has changed in this worker's branch and installation acceptance remains NOT RUN.
 
@@ -61,6 +61,39 @@ Last error err: EFSCORRUPTED
 ```
 
 `dmesg` repeatedly reports directory block checksum failures for `/root/.cache` inode 259599 and `/root/.config` inode 259602; kernel says `Please run e2fsck -D`. Opening a journal file also reports `Input/output error`. The error is broader than missing writable caches. Package installation and persistence/reboot claims cannot be trusted while this remains.
+
+## Private recovery configuration snapshot
+
+Manager authorized one read-only configuration/network snapshot while main CI runs. Private controller path `/root/Documents/Codex/2026-10-10/hardware/recovery-private/host-37` is mode0700; every snapshot, diagnostic and manifest is mode0600. Contents stay outside git and outside the candidate package bundle. Target writes/configuration/service/driver changes: none. This is **configuration backup only, not a full-system backup**. Root-filesystem corruption is unresolved.
+
+Each remote command used exactly `ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@172.30.126.37 <command>`, with stdout streamed directly into its private local file, stderr captured separately into an equally protected file, and actual SSH exit recorded. Commands were:
+
+```sh
+tar -C / -cf - -- etc/netplan etc/systemd/network etc/resolv.conf
+ip -j -details address show
+ip -j -details link show
+ip -j -4 route show table all
+ip -j -6 route show table all
+ip -j -4 rule show
+ip -j -6 rule show
+nft list ruleset
+```
+
+The PCI mapping command was a remote `python3` stdin script, reading only `/sys/class/net/*/device`: resolve each physical device's PCI address, driver and IOMMU-group symlinks; enumerate the full group's `devices` membership; read vendor/device IDs; emit one JSON object per physical interface. Its exact executed script/commands and all exit/hash metadata are preserved privately in `snapshot-manifest.json`; no secrets were requested.
+
+| Private file | Actual exit | Bytes | SHA256 |
+|---|---:|---:|---|
+| network-config.tar | 0 | 10240 | ddfcd92c7df9dc4f67f85445f1793b6280984d1f7acda89cbcbce5c1e4cbce1f |
+| addresses.json | 0 | 22173 | d5ca56087afd73968b4f722c6acb0cc16b2b88f95e81892ad4518028fa7035d5 |
+| links.json | 0 | 21520 | a8c8710f74b2baa0e5e3607d8e111a131be37b691565058e56d15dc211d74b10 |
+| routes-ipv4-all.json | 0 | 899 | 2b8296f4e16250ca95f06f9458856297dd09cd0408a6029d13675ae6be896a05 |
+| routes-ipv6-all.json | 0 | 2016 | 1452733be3168ea2efb95f9885d30f628dbd8127ca7494bfe409a1ba812a567a |
+| rules-ipv4.json | 0 | 140 | e79a76eff86a78de4ce5d38c6277dbafbab227656214e1e116d9ac63597dbb9d |
+| rules-ipv6.json | 0 | 91 | 78fc521d26d8f02af636ce8e1c74bb782cbfd272b8a81529bea0adb9a68ed0ea |
+| nft-ruleset.txt | 127 | 0 | e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 |
+| pci-name-iommu.jsonl | 0 | 1288 | 75502003e9a032bdb3fc7b6d5b583bf683dedaa0a47d71a06f92b43f5a703a2d |
+
+Private manifest SHA256: `147795190a78e36cc0c2ae3d9cb66458ee55525bef37fee4b951156b0b02b26d`. Successful commands had empty stderr. `nft list ruleset` failed exit127 because nft is absent; its37-byte diagnostic was classified privately without printing contents. **Firewall ruleset is not backed up**; no tool was installed to complete it. The readable 5-member archive represents all three requested configuration paths, including a regular resolver file, and every archived regular-file payload was read successfully. All six JSON network snapshots validate; eight PCI/IOMMU mappings validate and management's PCI/igc/group58 identity matches preflight. No configuration contents were printed or committed.
 
 ## Prepared installation and testing plan
 

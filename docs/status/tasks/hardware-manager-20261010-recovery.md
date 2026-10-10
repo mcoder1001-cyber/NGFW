@@ -1,3 +1,53 @@
+# Actual .37 return proof and normal-return release — 2026-10-10 11:51 UTC
+
+Root independently parsed/full-read/hashchecked private638780B0600 receipt
+post-repair-return-readiness-v2-20261010.json SHA
+c147e7cc765582c8d974a1b8a3e5e6a0bd563b46a1e2ae429bab920ecf989b03.
+Actual49 genuine original objects=42regular+6directory+1symlink ALLmatch, both
+synthetic archive root-account records correctly compared to actual /etc/shadow
+and /etc/gshadow selected root-record hashes (no credentials published). Original
+shadow file metadata baseline unavailable, currentrootowned0640 guarded; archive
+artifact0600 is not fabricated as original metadata. All47 RAM runtime hashes,
+all3 manager/executor/shutdown loader closures on RAM51,19 commands0, rootclean/
+UUID/fstab/GRUB/kernel match, currentEFI MZ without false prebaseline equality,
+ordinaryroot+EFIunmounts0, all5L3 exact, protected0cigc58/originalMAC unchanged.
+Two full audits434proc98FD/nsfs0/races0/failures0/exclusive0; sync0/finalguard0;
+counter0x9 stable/newstorageerrors[]. Root independently read actual guard output.
+Actual clean-f-n0/offhost749568B rawundo already PASS; no physicalwear cure claim.
+
+Initial v1 readonly capture refused synthetic /return/root-shadow.record and
+retained failure/corroboration, no disk write/reboot. Both synthetic root-record
+artifacts corrected in final6d9f6168 source; prior root/R7 selected-path oversight
+acknowledged. Exact final source+actual return readiness independently APPROVED
+by R7. Fresh gitlsremote confirms worker82200ec7a359f7fcb2d8318f16e50758431c6ff8,
+reviewer7f4bee6a93186639d082529f4d02feec5c663571 and
+.2118637789d6297e7140fa60f167500fb84bd3eab4a. Root separate NORMAL RETURN RELEASED:
+SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1 SYSTEMCTL_SKIP_AUTO_KEXEC=1 systemctl reboot --force.
+Single force only. Actual reboot/freshoriginal22/newboot/root/fullL3/DNS/PCI/storage
+acceptance pending; return readiness is not actual postboot proof.
+
+.211 final firstboot-only helper ec2c40913f14ee28d9e19fd7b26658c9eea941e4ba1717a66719e4b83f68100e
+published/readback8637789d, R7 exact source/actual15789B b89d2699 applicability
+APPROVE. Final 15remaininginactive+6deps,21beforestates,16sysctls-onlynr1024delta,
+canonical generic dev default excluded while all physicalPCIdevrows forbidden.
+Mutation scope unchanged: explicit1024hugepages with existingpersistent80-vpp
+1024/group0, privatebootstrapcredentials, canonical firstboot sixprerequisites,
+ownednfttable only, safeinitialnoPCI, disable sixunconfiguredrouting/DNSdaemons.
+Keep101policy/VPPmask/ownedmarker; VPP/agent/API/nginx+remaining15inactive; no bind.
+Root conditional FIRSTBOOT release persists, executable immediately AFTER .37
+ACTUALnormalreturn/fresh22/fullmanagement+storagePASS; no manager/user repermission.
+Actual .211 eleven packages configured/dpkg-audit clean already PASS. Firstboot/
+API/seed/physicalNICactivation/runtime/restart/reboot tests remain NOT RUN.
+
+Next exact: worker37 normalreturn now and fulloriginal22 postboot evidence;
+worker211 conditional --firstboot then fullresults. Guard restoration after safe
+firstboot whilekerneldataNICoriginalnames+VPPinactive BEFORE VPP/API/binding.
+PersistentAPIseedflag AFTERfirstboot BEFOREfirstAPI/revision/bind; explicitagent
+managementIF/PCI; actual17/7 persistedoriginalNICnames then guarded async product
+startupapply/TCPmanagementprobe. No management/netplan apply. Root priorcheckpoint
+4f1ec57b005b05768bea839be9836e5e7a43c6f3 push/readbackPASS; this coherent release
+immediately publishes. No new product merge; currentmain CI refreshed next.
+
 # Hardware recovery and installation resume
 
 Current11:27: both logical repairs + complete offline clean checks PASS. .37 actual

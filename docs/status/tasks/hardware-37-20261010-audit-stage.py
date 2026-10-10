@@ -63,9 +63,10 @@ for relative,data,digest in [('usr/bin/nsfs-check',STATIC_DATA,STATIC_DIGEST),
     assert hashlib.sha256(target.read_bytes()).hexdigest()==digest
 run(['/usr/bin/chroot',str(R),'/usr/bin/bash','-n','/usr/bin/offline-audit.sh'])
 run(['/usr/bin/chroot',str(R),'/usr/bin/nsfs-check','/etc/os-release','8','2'],2)
-selector=run(['/usr/bin/chroot',str(R),'/usr/bin/nsfs-check','/proc/self/ns/mnt','8','2'])
+selector=run(['/usr/bin/chroot',str(R),'/usr/bin/nsfs-check','/proc/self/ns/mnt','8','2'],3)
 assert 'type=0x20000' in selector.stdout
-# The RAM-chroot mountinfo is root-filtered: selector0 does not prove no oldroot.
+assert 'oldroot_mounts=1' in selector.stdout and 'malformed=0' in selector.stdout
+# Mounted-negative selector3 is expected; later selector0 alone is insufficient.
 run(['/usr/bin/chroot',str(R),'/usr/bin/block-check','/dev/sda2','8','2'],3)
 assert run(['systemctl','show','ngfw-rescue.service','-p','MainPID','--value']).stdout.strip()==main
 assert pathlib.Path('/proc/3940').exists() and not os.path.lexists('/run/nextroot')
@@ -83,8 +84,8 @@ def digest(data):
 
 def main():
     os.umask(0o077)
-    stdout = PRIVATE / 'ram-audit-stage-20261010.json'
-    stderr = PRIVATE / 'ram-audit-stage-20261010.stderr'
+    stdout = PRIVATE / 'ram-audit-stage-validated-20261010.json'
+    stderr = PRIVATE / 'ram-audit-stage-validated-20261010.stderr'
     assert not stdout.exists() and not stderr.exists(), 'refuse overwrite of previous receipts'
     source = HERE / 'hardware-37-20261010-nsfs-check.c'
     audit = HERE / 'hardware-37-20261010-offline-audit.sh'

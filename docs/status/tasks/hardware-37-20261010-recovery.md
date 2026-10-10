@@ -163,3 +163,20 @@ Important preserved limitation: nsfs helper enters only a short-lived child; its
 Last published/read-back checkpoint before this audit preparation:55e62fd31d168e0dfb8f7d4eadd188f956033512 (installation dependency/suppression/firstboot plan; pre/post-commit check PASS). Exact next command after R7 candidate approval/publication: python3 docs/status/tasks/hardware-37-20261010-audit-stage.py. .37 transition remains held until manager releases a reviewed phase after .211 returns.
 
 Initial audit-source checkpoint0886fee64f7e66f7b755e7e8103e945fb8712859 published/read back successfully with pre/post-commit lightweight check PASS. Final follow-up changes only the controller static-artifact path to its own verified private copy; target behavior unchanged. Candidate remains unexecuted pending exact final applicability review.
+
+### Actual mounted audit-helper staging and negative validation
+
+Final own-path source9b9ba20bf71eefd39d1cc5c05647e13f4e8ef695d9745b3aefa03bef37651ebf independently approved/published/read back at a32e51885df0beaa16c211a78de32be6fc711e41, pre/post-commit check PASS, then executed. Actual SSH exit1 is preserved: all three RAM helpers were copied/hash verified and runtime/Bash syntax/non-nsfs refusal checks passed, then the wrapper incorrectly expected the mounted namespace selector to return0. Actual correct selector result is3 because originalroot remains mounted. This is an overly strict test expectation, not an ext4 check or offline PASS. No target service/network/mount/transition change occurred.
+
+Private initial ram-audit-stage-20261010.json is0bytes/SHAe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; ram-audit-stage-20261010.stderr is160bytes/SHA5fcc7875b4c82a5e27bb1f53c7afd24788fba16b7bf305ab3fed9ee7e72638ef, actual selector assertion traceback. Both0600. Readonly continuation ram-audit-selector-continuation-20261010.json796bytes/SHAefa2601c92ee055eee63d50ac88f6d7fa2b51579a42e75fdbc4ef55b7c4f604a, SSH0/stderr0, independently records literal:
+
+```text
+namespace inode=4026531832 type=0x20000
+mount_entries=47 oldroot_mounts=1 unresolved_nsfs_mounts=0 malformed=0
+selector exit=3
+BUSY: block device still has an exclusive holder; no repair permitted
+block-check exit=3
+ngfw-rescue.service MainPID=3866
+```
+
+New exact wrapper source546f1efb0625094ea0ef24adf9709ef467ded8968a3b61b4d1242151bbe299af changes only mounted-selector expectation to3 plus explicit oldroot1/malformed0 and separate validated receipt filenames. Original failed receipt retained. All helper source/static/guard hashes and target scope unchanged. Candidate awaiting independent exact correction review before rerun; no success is assigned to failed invocation. No full process audit/transition/metadata/undo/repair/install has run; original22/held3940 stay live, nextroot absent.

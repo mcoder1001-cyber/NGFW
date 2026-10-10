@@ -1,0 +1,22 @@
+{
+  "main": "bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3",
+  "ordinary_merge_checkpoint": "73ccd6ad27b7ec3f4731793109982330d0efa012",
+  "full_local_quick_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+  "full_local_quick": "PASS exit0 35m45s; original complete quick unchanged",
+  "compiled_delta_from_local_quick_source": [
+    "apps/agent/internal/multiwan/gateways.go",
+    "apps/agent/internal/multiwan/gateways_test.go"
+  ],
+  "delta_attribution": "Both files are inherited unchanged from main PR222, reviewed GB idle-gateway fix156. The final combined tree is not falsely claimed byte-equal e624.",
+  "own_compiled_delta_vs_main": [
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_pid1_probe_test.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_signals_test.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_transport.go",
+    "apps/agent/internal/ra_vpn/namespace_openfile_manager_dbus_wire.go"
+  ],
+  "final_combined_full_hosted_gate": "required at final D112 exact head, pending",
+  "supplier_loan_source": "e624d05e14ea92d9714fd918bb58b317d512d9ff",
+  "supplier_snapshot": "b1e16141a49a40a38f393cbbdb281d31f3314da9",
+  "supplier_scope": "supplemental readiness only; full canonical RA acceptance remains open",
+  "cleanup": "Own overlay/cache and exec bind unmounted; only own untracked NM/dist/bins removed; protected loan retained; no heavy Go or VPP owned"
+}

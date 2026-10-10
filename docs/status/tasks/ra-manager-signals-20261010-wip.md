@@ -1,5 +1,7 @@
 # RA manager signal repair WIP
 
+Current recovery: ordinary merge checkpoint73ccd6ad27b7ec3f4731793109982330d0efa012 published; integrated main bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3. Complete local quick PASS exit0/35m45s on frozen RA source e624. Main adds only the already reviewed GB gateways.go/gateways_test.go product delta; own four RA source files remain exact tested/reviewed source. Final D112 archival/snapshot and complete exact-head hosted gate remain required. Full canonical RA acceptance stays open. Own cache/exec bind/NM/dist/bins cleaned; protected frozen e624 three-ELF/eleven-asset loan remains for manager supplier readiness. No heavy Go/private VPP owned. Next command: publish final receipts, preserve reviewed history remotely, then D112 single commit on actual main and exact hosted quick.
+
 Branch `codex/ra-manager-signals-20261010`, worktree `/root/ngfw-wt/ra-manager-signals-20261010`, source base `ded860762c81e72fb9f760caec4bd98898c8b6a4`. First local/remote contract checkpoint `d664b2542`. Owned files are listed in envelope.
 
 Completed pure wire contract: strict type4 framing and closed public Manager/PropertiesChanged header whitelist; original reply validator unchanged. Bodies remain opaque and grant no property or pending-serial authority. Manager, escaped unit, and numeric job paths are primary-source backed; systemd v259.5 dbus-job.c:215 explicitly emits PropertiesChanged on job paths. Original 16KiB connection budget and two-second query deadline remain required. Transport consumer has not changed.

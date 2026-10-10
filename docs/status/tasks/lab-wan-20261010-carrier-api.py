@@ -60,7 +60,7 @@ def wait_up(api):
  end=time.monotonic()+75
  while time.monotonic()<end:
   item=state(api)
-  if item.get('phase')=='up' and item.get('localIpv4')=='100.64.20.10':return item
+  if item.get('phase')=='up' and item.get('localIpv4')=='100.64.20.10/32':return item
   time.sleep(.4)
  print('REAL_API_PPP_WAIT_TIMEOUT_STATE '+json.dumps({key:value for key,value in state(api).items() if key in ('phase','localIpv4','ipv6','forwardingReady','defaultReady','memberReady')}),flush=True)
  raise Refused('real API/current Wiring PPP did not become up')

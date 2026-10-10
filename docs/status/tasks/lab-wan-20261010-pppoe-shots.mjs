@@ -25,7 +25,7 @@ try{
   await page.goto('http://127.0.0.1:'+webPort+'/interfaces');
   await page.getByRole('row').filter({has:page.getByText('w20ppp',{exact:true})}).click();
   const table=page.getByRole('table',{name:lang==='en'?'PPPoE session':'نشست PPPoE'});
-  await table.getByText('100.64.20.10',{exact:true}).waitFor();
+  await table.getByText('100.64.20.10/32',{exact:true}).waitFor();
   await table.getByText('100.64.20.1',{exact:true}).waitFor();
   if(errors.length)throw new Error('actual UI errors: '+errors.join('\n'));
   await page.screenshot({path:output+'-'+lang+'.png',fullPage:true});await context.close();

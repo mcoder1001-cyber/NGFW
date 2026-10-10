@@ -233,6 +233,11 @@ try:
       print('OWNED_BROKER_METADATA_REFUSED',flush=True)
    time.sleep(0.1)
  result=child.wait()
+ if env.get('NGFW_WAN_DIAG')=='1':
+  logs=Path('/run/ngfw-test/w20tb').glob('*.private.log')
+  leak=any(env['NGFW_WAN_PEER_PASSWORD'].encode() in path.read_bytes() for path in logs)
+  print('REAL_RAW_DIAGNOSTIC_LOG_PASSWORD_ABSENCE '+('FAIL' if leak else 'PASS'),flush=True)
+  if leak:result=1
 finally:
  if relay:relay.close()
  run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)

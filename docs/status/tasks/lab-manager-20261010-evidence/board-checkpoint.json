@@ -1,0 +1,20 @@
+{
+  "base": "ded860762c81e72fb9f760caec4bd98898c8b6a4",
+  "total_tasks": 212,
+  "unchanged_task_objects": 205,
+  "changed_ids": [
+    "F-ra-vpn",
+    "P12-fib-proof",
+    "F-global-blocking-host",
+    "F-pppoe-client-host",
+    "F-multiwan-host",
+    "F-nat46-host",
+    "F-ospf-host"
+  ],
+  "counts": {
+    "merged": 205,
+    "review": 4,
+    "running": 2,
+    "parked": 1
+  }
+}

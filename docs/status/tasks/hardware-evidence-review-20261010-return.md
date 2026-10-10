@@ -224,3 +224,43 @@ SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1 SYSTEMCTL_SKIP_AUTO_KEXEC=1 systemctl reboot -
 Actual original22/new boot/disk root/full management/PCI/storage confirmation follows
 the parent's separate return release. No physical-wear repair or hardware acceptance
 claim is inferred. Reviewer performed no target operation.
+
+## Actual .37 original boot and classified data-only delta
+
+Original22 reconnect attempt2 independently read:493 B/0600
+SHA2568ff29f2a215d22c57dd69fa96d0d096867445fcb1040efe42c0219800b95ca8a,
+SSH0/empty stderr, new bootc8d66ea9-afab-4228-a293-00c198745040. First bounded
+connectivity failure was retained, with no repeated reboot.
+
+Initial post-return collector2179c329 falsely matched ATA firmware "DRM functions"
+through unbounded unc. Reviewer missed carrying the known earlier211 word-token
+fix into this source review. Initial empty capture/89-byte refusal is retained;
+no disk fault inferred. Focused post-return.py SHA256
+dba1d872b8d932ee57d0970047c49f74cab7374d171e91bdb386ec619ae9b19f
+on operatord1bc4a692bee997347fb0f98b950330f64dbc8b8 changes only word-bounded UNC
+and distinct v2 output filenames. Independent AST2 and exact DRM-benign versus
+literal UNC/reset/EXT4-fault controller classifier tests PASS. Existing read-only
+retry scope applied; no additional reboot or product guard change.
+
+Actual post-normal-return-v2-20261010.json178158 B/0600
+SHA25608cb5c648d082ad6b02ee4cbb202dd12627b200f2c90728cfb844d7e20c17525
+independently parsed:8 actual subprocess commands exit0/empty stderr; all49 real
+objects plus both account-record digests independently compare to verifiedc147
+readiness selectors. DNS file digest exact, clean disk root/new boot/boot fsck
+Result=success/ExecMainStatus=0, protected management PCI0c/igc/group58/MAC preserved,
+within-new-boot ioerr6 stable and filtered storage events0. Counter6 is not compared
+with old-kernel9.
+
+Whole five-section L3 comparison is NOT EXACT. Independent diff is exactly four
+deleted IPv6 link-local addresses on unused data enp14s0/enp15s0/enp16s0/enp17s0,
+plus12 associated kernel IPv6 link-local/local/multicast routes. No additions or
+other removals. IPv4 routes and both rule sets exact; management addresses/routes
+unchanged. These four data interfaces are administratively DOWN in current address
+metadata; no physical-carrier conclusion is inferred solely from those flags.
+Parent accepts this normal-boot data-only scope and does not restore unused data
+link-local state. The equality failure remains recorded; it is not relabeled as
+whole-network equality.
+
+Protected normal-return PASS delivered. This meets existing conditional211
+firstboot prerequisite. Separate .37 install preparation/source/actual assessment
+continues; no .37 package installation or forwarding acceptance is claimed here.

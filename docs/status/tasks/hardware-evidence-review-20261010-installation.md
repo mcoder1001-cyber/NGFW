@@ -280,3 +280,33 @@ Verdict APPROVE exact firstboot-only source applicability under existing conditi
 parent release after actual .37 normal-return/fresh original22/full management and
 storage confirmation PASS. No second permission loop once those conditions pass.
 Actual firstboot results and later activation/seed/binding acceptance remain pending.
+
+## Final firstboot record path and seed ordering
+
+Before execution, operator caught downstream guard-restore contract: a nested
+firstboot evidence directory would prevent removal of the emptied guard task
+directory. Exact firstboot source1989f04b3a616a57e4db98a8737de91689be7fdc102720d08529f70823b5878a
+on independently remote-readbackcf51b3a1cb868f4f3d67c20b0e3efe397666a368
+changes one line to a sibling private evidence directory under the retained
+recovery parent. Focused diff/AST2 PASS, same original-root/private directory/
+collision/fsync gates. Supersededec2c was never executed. Existing conditional
+firstboot phase applies after actual37 protected normal-return PASS, now observed.
+
+Source-only seed-inputs.pye57d855d2e2b2dc56ba4f021ea9078cdb1a375d8d6f8823b5fa19e105f69f32d
+full read/AST2 PASS: explicit root0600 agent.env management inputs matching the
+packaged optional EnvironmentFile, root0644 API unit seed opt-in drop-in, canonical
+api.env unchanged. Private fsynced sibling original-absence evidence/collision
+refusal and management/L3 checks, daemon reload only, no service start/revision/
+binding. Publication and actual passed firstboot proof remain prerequisites to
+the parent's subsequent input phase.
+
+Independent caller-aware source inspection resolves the tentative seed-before-bind
+concern: projection.go241 calls SplitUnboundPhysical before desired.Interfaces.
+desired/hostnics.go18 excludes physical KindExisting rows with successful existing
+Linux-kind-empty lookup, reporting agent.nic-not-bound warnings. Alias/admin
+objects are consequently absent until binding; ordinary validated agent apply can
+promote the canonical seed without missing-VPP aliases. The AliasDescriptor missing
+interface failure applies retained rows, not these filtered unbound NICs. No bypass,
+database shortcut or product change is warranted absent actual failure. Actual
+revision1, original logical names,7/17 data rows and protected management inventory
+remain required before binding.

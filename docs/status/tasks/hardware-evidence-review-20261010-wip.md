@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`43782a245daf70d6718ecf9f2a671f17c8e44195` (verified .211 configured installation and corrected .37 selector scope; matching
+`7f4bee6a93186639d082529f4d02feec5c663571` (verified .37 return readiness and exact firstboot source; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -546,3 +546,18 @@ release executes only after actual .37 normal return. Live collaboration invento
 currently root/host_37/host_211/reviewer all running; no board-based liveness claim.
 Exact next action: independently inspect original .37 postboot proof and .211
 actual firstboot receipt/next activation source. No target action by reviewer.
+
+Current actual .37 protected normal-return PASS from178158-byte08cb5c64:
+8commands0/emptyerr/49objects+2records/DNS exact/newbootclean/fsck0/protected58/
+within-newbootcounter6stable/no storagefaults. Whole5L3NOTEXACT retained honestly:
+only four unused data link-local addresses and12 associated kernel IPv6 routes
+removed, no additions/other removal, IPv4 routes/bothrules/management exact.
+Known unboundedUNC collector false-positive corrected in dba1d872 with controller
+classifier/AST2 PASS; original refusal preserved. .211 final firstboot1989 sibling
+record contract approved/remotecf51 read back, existing firstboot condition now met.
+Future seed inputs e57d855d source-only approved; caller-aware SplitUnboundPhysical
+source resolves seed-before-binding concern. Actual firstboot/seed/runtime/binding
+acceptance pending. .37 guard actual preparation reported9491-byte a429375a and
+new own solver source4cd015b2 await independent review; no inherited peer evidence.
+Exact next action: inspect actual211firstboot, .37 prepare/solver, and future
+runtime source/seed receipts. No reviewer target action or private contents committed.

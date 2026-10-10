@@ -1,0 +1,12 @@
+START baseline
+END baseline 0 ['DISPOSABLE_VPP pid=3719032 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3719029', '=== RUN   TestAgentOnHost', '--- PASS: TestAgentOnHost (13.13s)', '=== RUN   TestDataplaneRuntimeOnHost', '--- PASS: TestDataplaneRuntimeOnHost (1.45s)', '=== RUN   TestHostNicsOnHost', '--- PASS: TestHostNicsOnHost (1.02s)', '=== RUN   TestWireguardOnHost', '--- PASS: TestWireguardOnHost (2.26s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3719032']
+START tunnels
+END tunnels 0 ['DISPOSABLE_VPP pid=3726018 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3726012', '=== RUN   TestTunnelsOnDisposableVPP', '--- PASS: TestTunnelsOnDisposableVPP (6.06s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3726018']
+START mpls
+END mpls 0 ['DISPOSABLE_VPP pid=3726510 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3726485', '=== RUN   TestMplsOnHost', '--- PASS: TestMplsOnHost (4.89s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3726510']
+START srv6
+END srv6 0 ['DISPOSABLE_VPP pid=3728352 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3728349', '=== RUN   TestSrv6OnHost', '--- PASS: TestSrv6OnHost (5.66s)', '=== RUN   TestSrv6GlobalsOnHost', '--- PASS: TestSrv6GlobalsOnHost (1.34s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3728352']
+START lb
+END lb 0 ['DISPOSABLE_VPP pid=3729245 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3729242', '=== RUN   TestLbOnHost', '--- PASS: TestLbOnHost (5.73s)', '=== RUN   TestLbGarbageCollectOnHost', '--- PASS: TestLbGarbageCollectOnHost (65.07s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3729245']
+START wireguard-packets
+END wireguard-packets 0 ['DISPOSABLE_VPP pid=3732421 runtime=/root/.codex/worktrees/f693/NGFW/.scratch/isolated-vpp-3732411', '=== RUN   TestWireguardHandshakeOnHost', '--- PASS: TestWireguardHandshakeOnHost (3.73s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=3732421']

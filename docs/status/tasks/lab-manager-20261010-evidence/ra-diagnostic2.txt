@@ -1,0 +1,14 @@
+=== RUN   TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI
+    daemon_integration_test.go:73: private fixture link name=lo kind=
+    daemon_integration_test.go:73: private fixture link name=ip6tnl0 kind=ip6tnl
+    daemon_integration_test.go:73: private fixture link name=gre0 kind=gre
+    daemon_integration_test.go:73: private fixture link name=gretap0 kind=gretap
+    daemon_integration_test.go:73: private fixture link name=erspan0 kind=erspan
+    daemon_integration_test.go:73: private fixture link name=outer0 kind=dummy
+    daemon_integration_test.go:73: private fixture link name=inner0 kind=dummy
+    daemon_integration_test.go:102: actual guarded private strongSwan6.1 profile load and VICI empty-session readback PASS; packet negotiation remains a separate acceptance
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-695bc1e8819c3311351370f5c5e384a8/46246695fe7dfb2514c5f8cdc3232ad9909ab534e3ba63c02b06b59c6c5d8b94-startup.log
+--- PASS: TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI (1.36s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	1.431s

@@ -1,0 +1,4 @@
+=== RUN   TestIntegrationActualArtifactReadonlyPreflight
+--- PASS: TestIntegrationActualArtifactReadonlyPreflight (0.72s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	0.796s

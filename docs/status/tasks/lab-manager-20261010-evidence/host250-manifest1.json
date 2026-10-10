@@ -1,0 +1,99 @@
+{
+  "host": "172.30.126.250",
+  "source": "4908716b4501312102382e6979b8fc1ded6f9311",
+  "before": "MainPID=8102\nNRestarts=0\n",
+  "after": "MainPID=8102\nNRestarts=0\n",
+  "shared_unchanged": true,
+  "results": [
+    {
+      "case": "baseline",
+      "exit": 1,
+      "elapsed": 0.62,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^Test(AgentOnHost|HostNicsOnHost|DataplaneRuntimeOnHost|WireguardOnHost)$"
+      ]
+    },
+    {
+      "case": "tunnels",
+      "exit": 1,
+      "elapsed": 0.27,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestTunnelsOnDisposableVPP$"
+      ]
+    },
+    {
+      "case": "mpls",
+      "exit": 1,
+      "elapsed": 0.32,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestMplsOnHost$"
+      ]
+    },
+    {
+      "case": "srv6",
+      "exit": 1,
+      "elapsed": 0.32,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestSrv6(OnHost|GlobalsOnHost)$"
+      ]
+    },
+    {
+      "case": "lb",
+      "exit": 1,
+      "elapsed": 0.27,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestLb(OnHost|GarbageCollectOnHost)$"
+      ]
+    },
+    {
+      "case": "wireguard-packets",
+      "exit": 1,
+      "elapsed": 0.27,
+      "outcomes": [],
+      "command": [
+        "python3",
+        "/tmp/ngfw-lab-manager-20261010/source/test/topology/hardware-smoke/isolated-vpp.py",
+        "/tmp/ngfw-lab-manager-20261010/bin/agent-host.test",
+        "-test.v",
+        "-test.count=1",
+        "-test.timeout=8m",
+        "-test.run=^TestWireguardHandshakeOnHost$"
+      ]
+    }
+  ]
+}

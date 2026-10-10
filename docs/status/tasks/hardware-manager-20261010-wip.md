@@ -1,11 +1,11 @@
-# Resumed disk recovery — 2026-10-10 08:51 UTC
+# Resumed disk recovery — 2026-10-10 08:59 UTC
 
 Owner now explicitly asks to fix the disk problem. Root resumed existing host37,
 host211, and evidence_review workers; actual live diagnostic messages received.
 This supersedes the earlier awaiting-resume operational snapshot below. Source
 main remains4908716b; no product code or CI change is required for this recovery.
 Previous resumed checkpoint published/read back14594feca3d7cdc00dddc3ae3581f99923c525d2;
-at this edit local/remote manager HEADfec319edcf84e72f407713d2a77a645854c4a467;
+at this edit local/remote manager HEADb78f87c58a25c92d6720f4eb9f6e84aa8ab93793;
 this coherent checkpoint is immediately committed and published/read back.
 Owned files and private destinations remain as in the task envelope.
 
@@ -55,7 +55,7 @@ Target mounted-negative helper validation remains required before transition. Na
 environment remain additional mandatory checks; positive exclusive open alone
 is not a complete recovery workflow.
 
-Actual staging status08:51: .211 reviewed RAM stage517d789e/c4027e96 stopped
+Actual initial staging status (historical): .211 reviewed RAM stage517d789e/c4027e96 stopped
 safely after dedicated8GiB RAM mount/initial binaries: standalone library ldd
 lost systemd application RUNPATH. Original22 preserved; no credentials, virtual
 mounts, rescue SSH or nextroot at failure. A flattened executable closure fix
@@ -82,9 +82,40 @@ SMART package RAM extraction/read-only health query awaits stage, no hardware
 health result yet. Root controller245MiB and /dev/shm1.9GiB free at08:47; compressed
 metadata actual sizes not yet measured, no full-system image claim.
 
-Current limitation: no tested RAM rescue yet. Next command is read-only geometry,
-auth/runtime dependency/capability assessment by exclusive workers, then concrete
-staging script review. Do not wait for prior console question before useful safe
+Latest08:59: R7 static/behavior receipt ccd6581d, corrected source-review receipt
+31872b92, return-design receipt0da3aefd published/read back. .37 final source
+b9da683b at remote5b9a8e6523e9d072e25a65147a32f9004e55ad42 APPROVE RAM-only
+stage/test; prior public digest-naming detector false-positive checkpoint02329
+remotely archived before expected-head lease replacement, no secret or rule change.
+Auth and boot backups independently metadata/hash/readability verified on both;
+.37 auth archive655360bytes/27members, .21135240bytes/43members, private0600/
+0700 parents, no unsafe paths or content exposure. These are scoped backups.
+.211 retry safely found assumed /usr/sbin/chroot absent; discovered /usr/bin/chroot
+fix approved. Next stop correctly caught host-side exists() following candidate
+BusyBox absolute symlink outside chroot; replace with lexists plus actual chroot
+helper execution. Original22 remained available; RAM virtual mounts/keys remain
+private, no rescue listener/transition/repair yet at that failure. Runtime helper
+oneshot explicitly recreates /run/sshd after switch_root overlays staged /run,
+logs RAM-only; serialized active service coldplug does not create RuntimeDirectory.
+Minimal default target requires helper and SSH; no journald/network/disk boot units.
+
+Independent normal-return design is supportable after actual clean repair and
+verified offhost metadata/undo/logs plus readonly/noload auth/network/boot checks.
+Single systemctl reboot --force uses PID1/systemd-shutdown sync/kill/unmount/reboot;
+double force rejected. Remove only exact owned nextroot symlink and set documented
+skip-auto-soft-reboot and skip-auto-kexec flags. User already authorized necessary
+reboot; no invented universal console requirement. Actual transition/repair/return
+approval remains held pending real staged runtime receipts and offline proof.
+Fresh remote main4908716b unchanged, all three main hosted gates completedSUCCESS,
+no openPR; remote board212=205merged+7parked. Actual live roles verified4: root
+manager, two host operators/testers, independent recovery reviewer. External live
+inventory remains unverifiable; no persistent runner claimed. No new product merge
+in resumed disk-recovery phase. Root~241MiB/devshm1.9GiB free.
+
+Current limitation: no completed authenticated RAM rescue proof yet. Exact next
+commands are exclusive workers' reviewed RAM-only --stage/--test, SMART signed
+package read-only query, then independent artifact/runtime review. Do not transition
+or fsck yet. Do not wait for prior console question before useful safe
 preparation. Do not perform transition or corrective writes before review.
 Root controller filesystem recovered to~175MiB free and /dev/shm1.9GiB free; only redundant task-owned build trees
 were removed to recover staging/backup capacity: own completed package-source and old

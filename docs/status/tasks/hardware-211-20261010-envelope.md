@@ -425,3 +425,8 @@ Own private exports data-render-resource2-20261010T141314Z.conf1462B/b1f977 and 
 ## ROOT physical source preparation after actual scoped binding
 
 Own physical-apply-contract.md and physical-apply.py on existing hardware211 branch only. ROOT record73fd/bindc4ed establish17VFIO/newold-noPCI71250/APIagentheld. ROOT is sole real startup --apply operator; helper defaults readonly inspect and uses exact record/document/render/resource/protected baselines, detached native deadman and separate read-only terminal observer. Output ROOT-owned hardware parent only when ROOT executes; worker source preparation writes only own worktree. Full17native/runtime/reboot/packet acceptance pending. Crosshost37 follow-up helpers will be worker-named OWN source and ROOT-only execution/output, never foreign worktree/private writes.
+
+
+## Scoped hardware campaign checkpoint after EAL rollback and37 source review
+
+211 physical startup did not commit; ROOT native healthy rollback restored original735B367e, currentnoPCI72599/17VFIO/APIagentheld/protectedmanagement. Concrete source-only -a/-b EAL conflict independently confirmed. ROOT owns supported renderer productcorrection/fulltests/quick/nativebuild/newreviewedactualretry. No workerproduct/targetmutation. Exact OWN host37 pipeline e66b three source hashes independently applicable R7; ROOT alone executes later seedinputs→oldguardrestore→orderedFIRSTAPI native7, output ROOTparent, existingprivate37baseline read-only. Actualnative7 remains not yetobserved; sourcecontrollercheckcb3d only. Currentworker live source/readonlyevidence role, one existing campaign, no separatetask.

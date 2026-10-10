@@ -141,16 +141,29 @@ try:
   assert terminal.get('ActiveState')=='inactive' and terminal.get('Result')=='success' and terminal.get('ExecMainStatus')=='0','native run not observed successfully terminal'
   # Existing files only, no create or write; exclusive nonblocking flock
   # proves that the native holder/run/dead-man released both canonical locks.
-  locks=[];result['canonical_lock_checks']=[]
+  locks=[];runfd=lockdirfd=None;result['canonical_lock_checks']=[]
   try:
+   # Ubuntu's canonical /run/lock is root-owned sticky 1777. Open the
+   # directory itself without following links; never require a private mode
+   # or create/chmod any existing canonical mutex path.
+   trusted(pathlib.Path('/run'));runfd=os.open('/run',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC)
+   lockdirfd=os.open('lock',os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW|os.O_CLOEXEC,dir_fd=runfd);parent=os.fstat(lockdirfd)
+   assert stat.S_ISDIR(parent.st_mode) and parent.st_uid==parent.st_gid==0 and stat.S_IMODE(parent.st_mode) in [0o755,0o1777]
+   p=os.stat('lock',dir_fd=runfd,follow_symlinks=False);assert (p.st_dev,p.st_ino)==(parent.st_dev,parent.st_ino)
+   result['canonical_lock_parent']={'path':'/run/lock','dev':parent.st_dev,'inode':parent.st_ino,'mode':stat.S_IMODE(parent.st_mode),'root_owned_sticky_if_writable':True}
    for name in ['/run/lock/ngfw-vpp.lock','/run/lock/ngfw-lab.lock']:
-    trusted(pathlib.Path(name).parent);fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_CLOEXEC);locks.append(fd);s=os.fstat(fd)
+    leaf=pathlib.Path(name).name;fd=os.open(leaf,os.O_RDONLY|os.O_NOFOLLOW|os.O_CLOEXEC,dir_fd=lockdirfd);locks.append(fd);s=os.fstat(fd)
     assert stat.S_ISREG(s.st_mode) and s.st_uid==s.st_gid==0 and s.st_nlink==1 and not s.st_mode&0o022
+    p=os.stat(leaf,dir_fd=lockdirfd,follow_symlinks=False);assert (p.st_dev,p.st_ino)==(s.st_dev,s.st_ino)
     fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+    p=os.stat(leaf,dir_fd=lockdirfd,follow_symlinks=False);assert (p.st_dev,p.st_ino)==(s.st_dev,s.st_ino)
+    p=os.stat('lock',dir_fd=runfd,follow_symlinks=False);assert (p.st_dev,p.st_ino)==(parent.st_dev,parent.st_ino)
     result['canonical_lock_checks'].append({'path':name,'dev':s.st_dev,'inode':s.st_ino,'mode':stat.S_IMODE(s.st_mode),'exclusive_nonblocking_acquired':True,'no_file_create_or_write':True})
    result['canonical_locks_released']=True
   finally:
    for fd in reversed(locks):os.close(fd)
+   if lockdirfd is not None:os.close(lockdirfd)
+   if runfd is not None:os.close(runfd)
   result['native_committed17_PASS']=True
  else:
   result['before']=protected(OLD);assert state('vpp.service')=={'ActiveState':'active','MainPID':'72599','NRestarts':'0'}

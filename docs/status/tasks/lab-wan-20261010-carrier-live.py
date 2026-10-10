@@ -1,8 +1,11 @@
 """Finite current-carrier runtime exercise; exact source assets, owned slot20 only."""
 import fcntl, hashlib, ipaddress, json, os, secrets, shutil, signal, subprocess, sys, tempfile, time
 from pathlib import Path
-ROOT=Path('/root/ngfw-wt/lab-wan-20261010')
-BASE=Path('/tmp/ngfw-lab-wan-20261010')
+ROOT=Path(os.environ.get('NGFW_WAN_NATIVE_ROOT','/root/ngfw-wt/lab-wan-20261010'))
+BASE=Path(os.environ.get('NGFW_WAN_NATIVE_BASE','/tmp/ngfw-lab-wan-20261010'))
+for owned in (ROOT,BASE):
+ assert owned.is_absolute() and owned.is_dir() and not owned.is_symlink()
+ info=owned.stat();assert info.st_uid==0 and info.st_mode&0o022==0
 TOKEN='ngp-'+hashlib.sha256(b'w20\0w20ppp').hexdigest()[:12]
 INVENTORY='ngp-'+hashlib.sha256(b'inventory\0w20').hexdigest()[:12]
 def run(*args,check=True):return subprocess.run(args,check=check,capture_output=True,text=True)
@@ -33,7 +36,7 @@ vppctl set ip6 classify intfc host-w20lan table-index -1
 vppctl set interface tag host-w20lan w20:host-w20lan
 vppctl set interface ip address host-w20lan 10.20.1.1/24
 exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -test.timeout=3m -test.run=^TestWANCurrentCarrierLive$
-''');wrapper.chmod(0o700)
+''');wrapper.write_text(wrapper.read_text().replace('/tmp/ngfw-lab-wan-20261010',str(BASE)));wrapper.chmod(0o700)
    result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
   finally:
    # Original unit has the actual pppd process; stop before removing TAP/namespace names.

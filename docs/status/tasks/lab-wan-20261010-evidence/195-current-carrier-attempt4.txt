@@ -13,7 +13,7 @@ host-w20lan
 2026/10/10 10:28:40 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
 2026/10/10 10:28:43 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
 2026/10/10 10:28:44 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
-    zz_wan_native_carrier_test.go:106: actual native raw=3 transit=4 token=ngp-0ddfe21c298c
+    zz_wan_native_carrier_test.go:106: actual native raw=3 transit=4 namespace=<owned-carrier-namespace>
     zz_wan_native_carrier_test.go:135: native carrier readiness failed: <nil>; unit=ActiveState=active
         ExecMainStatus=0
 2026/10/10 10:29:30 ERROR interface sanitize failed (VPP V19) interface=tap sw_if_index=4 phase=delete err="sw_interface_set_l2_bridge (L3 mode): vpp: not connected" cleared=[] freed=[] unclearable=[] placeholders=0 pops=[] wanted=0 capped=false rereads=0

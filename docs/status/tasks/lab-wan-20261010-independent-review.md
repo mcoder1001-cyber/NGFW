@@ -8,3 +8,5 @@ Reviewer: parent agent /root, separate root worktree. Approvals received before 
 - Bounded PPP TAP proposal: APPROVE raw2..8190 even/transitraw+1<=8191, nozero, existing all-live TAP collision and desired duplicate guards preserved. Final exact diff review and live native acceptance remain required.
 
 Hosted quick and final integrated-head quick remain mandatory. No approval here claims PPP completion.
+
+- fe426eb0c: final independent exact-diff APPROVE. Deterministic candidate raw2..8190 even and transit<=8191/nozero; meaningful100k boundary/determinism + true finite candidate collision refusal before emission; all live collision guards untouched.

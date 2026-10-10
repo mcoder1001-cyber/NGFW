@@ -103,7 +103,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	run("vppctl", "set", "interface", "mtu", "1492", transitName)
 	run("vppctl", "set", "interface", "ip", "address", transitName, spec.VPP4())
 	run("vppctl", "set", "interface", "ip", "address", transitName, spec.VPP6())
-	t.Logf("actual native raw=%d transit=%d token=%s", rawIdx, transitIdx, spec.Token())
+	t.Logf("actual native raw=%d transit=%d namespace=%s", rawIdx, transitIdx, spec.Token())
 	rt := &PppoeRuntime{renderer: pppoe.New(), runner: runner, vpp: conn, owner: "w20", globalsOwner: true, carrierMode: true, allowRoute: func(uint32) bool { return true }, log: slog.Default(), stateDir: "/run/ngfw/pppoe", applied: map[string]pppoe.Session{}}
 	s := pppoe.Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "w20", Password: "NGFW_TEST_PSK_w20", MTU: 1492, DefaultRoute: true, IPv6: "off", HoldoffSec: 1, MaxFail: 0}
 	t.Cleanup(func() {
@@ -132,6 +132,9 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		rt.mu.Unlock()
 		return last == nil && ready
 	}) {
+		diagnostic := exec.CommandContext(ctx, "/usr/bin/python3", "-I", "-c", "import runpy,sys; m=runpy.run_path('/usr/lib/ngfw/pppoe-carrier.py'); c=m['Carrier']();\nwith c.locked():\n c.configure(sys.argv[1],sys.argv[2],True)", spec.Token(), lease.Generation)
+		output, diagnosticError := diagnostic.CombinedOutput()
+		t.Logf("same original configure diagnostic: %v: %s", diagnosticError, output)
 		t.Fatalf("native carrier readiness failed: %v; unit=%s", last, run("systemctl", "show", carrierUnit(s), "-p", "ActiveState", "-p", "ExecMainStatus"))
 	}
 	t.Log("REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS")

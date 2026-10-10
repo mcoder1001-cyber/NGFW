@@ -1,5 +1,5 @@
 """Finite current-carrier runtime exercise; exact source assets, owned slot20 only."""
-import fcntl, hashlib, ipaddress, json, os, secrets, shutil, signal, subprocess, sys, tempfile, time
+import fcntl, hashlib, ipaddress, json, os, runpy, secrets, shutil, signal, subprocess, sys, tempfile, time
 from pathlib import Path
 ROOT=Path(os.environ.get('NGFW_WAN_NATIVE_ROOT','/root/ngfw-wt/lab-wan-20261010'))
 BASE=Path(os.environ.get('NGFW_WAN_NATIVE_BASE','/tmp/ngfw-lab-wan-20261010'))
@@ -14,6 +14,24 @@ if len(sys.argv)>1:
  processes=[]
  with tempfile.TemporaryDirectory(prefix='native-carrier-',dir=BASE) as directory:
   d=Path(directory)
+  if os.environ.get('NGFW_WAN_FULL_API')=='1':
+   assert os.environ.get('NGFW_WAN_EXTENDED')=='1'
+   assert os.readlink('/proc/self/ns/uts')!=os.readlink('/proc/1/ns/uts')
+   run('ip','link','set','lo','up')
+   private_etc=d/'etc';shutil.copytree('/etc',private_etc,symlinks=True)
+   # No pre-existing host-service render record is admitted into this fixture.
+   for name in ('unbound','chrony','rsyslog.d','snmp','kea','frr'):
+    target=private_etc/name
+    if target.is_symlink():target.unlink()
+    elif target.exists():shutil.rmtree(target)
+    target.mkdir(mode=0o755)
+   info=private_etc.stat();assert info.st_uid==0 and info.st_mode&0o022==0
+   run('mount','--bind',str(private_etc),'/etc')
+   run('mount','-t','tmpfs','-o','mode=755,size=8m','tmpfs','/var/lib')
+   # Use the exact package provisioning implementation, within these private mounts.
+   runpy.run_path(str(ROOT/'deploy/debian/ngfw/assets/provision-system-identity.py'))['provision']()
+   os.environ['NGFW_WAN_PRIVATE_ETC_INODE']=str(os.stat('/etc').st_ino)
+   print('PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS',flush=True)
   peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
   secret=d/'secrets';secret.write_text('"w20" * "'+peer_password+'" *\n');secret.chmod(0o600)
   run('mount','-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
@@ -53,6 +71,8 @@ vppctl set interface ip address host-w20lan 10.20.1.1/24
 if [ "${NGFW_WAN_EXTENDED:-0}" = 1 ]; then vppctl set interface ip address host-w20lan 2001:db8:21::1/64; fi
 exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -test.timeout=3m -test.run=^TestWANCurrentCarrierLive$
 ''');wrapper.write_text(wrapper.read_text().replace('/tmp/ngfw-lab-wan-20261010',str(BASE)));wrapper.chmod(0o700)
+   if os.environ.get('NGFW_WAN_FULL_API')=='1':
+    wrapper.write_text('#!/bin/sh\nset -eu\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
    result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
   finally:
    # Original unit has the actual pppd process; stop before removing TAP/namespace names.
@@ -75,6 +95,10 @@ assert all(not p.exists() and not p.is_symlink() for p in assets),'refuse replac
 assert not Path('/run/netns',TOKEN).exists() and not Path('/run/ngfw-pppoe-carrier',TOKEN+'.json').exists(),'owned token already exists'
 before=run('systemctl','show','vpp','-p','MainPID','-p','NRestarts').stdout
 hashes={}
+relay=None
+identity_files=('/etc/hostname','/etc/issue','/etc/issue.net','/etc/motd')
+host_identity={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}
+host_hostname=os.uname().nodename
 try:
  for dest,source in assets.items():
   dest.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,dest);dest.chmod(0o644 if dest.suffix=='.service' else 0o755);hashes[dest]=hashlib.sha256(dest.read_bytes()).hexdigest();print('TEMP_ORIGINAL_ASSET '+str(dest)+' sha256='+hashes[dest],flush=True)
@@ -93,8 +117,16 @@ try:
  assert receipt['ok'] and all(receipt[key]==queued[key] for key in ('token','nonce','boot','expires','request_sha256'))
  print('REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS',flush=True)
  env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
- result=subprocess.call(['unshare','--net','--mount','--propagation','private',sys.executable,__file__,'child'],env=env)
+ command=['unshare','--net','--mount','--propagation','private']
+ if env.get('NGFW_WAN_FULL_API')=='1':
+  sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
+  from pgrelay import Relay
+  relay=Relay(BASE/('carrier-api-pg-relay-'+str(os.getpid())))
+  env.update(NGFW_TRAFFIC_B_REST='1',NGFW_TRAFFIC_PG_PROXY_DIR=str(relay.directory))
+  command+=['--uts']
+ result=subprocess.call(command+[sys.executable,__file__,'child'],env=env)
 finally:
+ if relay:relay.close()
  run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)
  ledger=Path('/run/ngfw-pppoe-carrier')/(TOKEN+'.json')
  if ledger.exists():

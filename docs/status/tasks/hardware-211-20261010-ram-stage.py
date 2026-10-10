@@ -49,6 +49,11 @@ def network_snapshot():
         p = subprocess.run(argv, capture_output=True, check=True)
         # Link statistics may advance; compare only persistent topology fields.
         value = json.loads(p.stdout)
+        if argv[2] == 'address':
+            for item in value:
+                for address in item.get('addr_info', []):
+                    address.pop('valid_life_time', None)
+                    address.pop('preferred_life_time', None)
         if argv[2] == 'link':
             for item in value:
                 item.pop('stats64', None)
@@ -82,7 +87,7 @@ DefaultDependencies=no
 What=tmpfs
 Where=/run/ngfwrescue
 Type=tmpfs
-Options=size=1G,mode=0755,nosuid,nodev,exec
+Options=size=8G,mode=0755,nosuid,nodev,exec
 '''
     unit = pathlib.Path('/run/systemd/system/run-ngfwrescue.mount')
     assert not unit.exists()
@@ -142,7 +147,7 @@ Options=size=1G,mode=0755,nosuid,nodev,exec
                              capture_output=True, text=True, check=True).stdout.splitlines()
     for name in ['cat', 'ls', 'cp', 'mv', 'rm', 'mkdir', 'rmdir', 'readlink',
                  'find', 'du', 'df', 'sleep', 'kill', 'awk', 'sed', 'grep',
-                 'head', 'tail', 'wc', 'touch', 'chmod', 'chown', 'tee']:
+                 'head', 'tail', 'wc', 'touch', 'chmod', 'chown', 'tee', 'tty', 'stty']:
         if name in applets and not (STAGE / 'usr/bin' / name).exists():
             (STAGE / 'usr/bin' / name).symlink_to('/usr/bin/busybox')
     for name, major, minor in [('null', 1, 3), ('zero', 1, 5),
@@ -152,6 +157,8 @@ Options=size=1G,mode=0755,nosuid,nodev,exec
     # use only a devtmpfs bind, never old-root files, for authenticated SSH.
     command(['mount', '--bind', '/dev', str(STAGE / 'dev')])
     command(['mount', '--make-private', str(STAGE / 'dev')])
+    command(['mount', '--bind', '/dev/pts', str(STAGE / 'dev/pts')])
+    command(['mount', '--make-private', str(STAGE / 'dev/pts')])
     command(['mount', '-t', 'proc', '-o', 'nosuid,nodev,noexec', 'proc', str(STAGE / 'proc')])
     command(['mount', '--make-private', str(STAGE / 'proc')])
 
@@ -183,6 +190,8 @@ Options=size=1G,mode=0755,nosuid,nodev,exec
     write('/etc/hosts', '127.0.0.1 localhost\n::1 localhost\n')
     write('/etc/machine-id', '')
     shutil.copyfile('/etc/os-release', STAGE / 'etc/os-release')
+    if pathlib.Path('/etc/ssh/moduli').is_file():
+        shutil.copyfile('/etc/ssh/moduli', STAGE / 'etc/ssh/moduli')
     ssh_config = '''Port 2222
 ListenAddress 172.30.110.211
 HostKey /etc/ssh/ssh_host_ed25519_key
@@ -210,16 +219,20 @@ Subsystem sftp /usr/lib/openssh/sftp-server
 Description=NGFW RAM key-only management rescue SSH
 DefaultDependencies=no
 IgnoreOnIsolate=yes
+SurviveFinalKillSignal=yes
+After=basic.target
+Before=shutdown.target rescue.target emergency.target
+Conflicts=reboot.target kexec.target poweroff.target halt.target rescue.target emergency.target
 
 [Service]
 Type=exec
 KillMode=control-group
-SurviveFinalKillSignal=yes
 Restart=on-failure
 RestartSec=1s
 '''
-    runtime_unit = service_common.replace('IgnoreOnIsolate=yes', 'IgnoreOnIsolate=yes\nAfter=basic.target') + '''WorkingDirectory=/run/ngfwrescue
-ExecStart=/usr/sbin/chroot /run/ngfwrescue /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
+    # chroot itself changes cwd to RAM /. WorkingDirectory adds unwanted
+    # implicit mount dependencies to the surviving bootstrap unit.
+    runtime_unit = service_common + '''ExecStart=/usr/sbin/chroot /run/ngfwrescue /usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
 StandardOutput=append:/run/ngfwrescue/var/log/rescue-ssh.log
 StandardError=inherit
 '''
@@ -231,6 +244,10 @@ StandardOutput=append:/var/log/rescue-ssh.log
 StandardError=inherit
 '''
     write('/etc/systemd/system/ngfw-rescue.service', candidate_unit)
+    write('/etc/systemd/system/basic.target', '''[Unit]
+Description=Minimal inert RAM basic target
+DefaultDependencies=no
+''')
     write('/etc/systemd/system/ngfw-rescue.target', '''[Unit]
 Description=NGFW RAM maintenance target
 DefaultDependencies=no

@@ -1257,3 +1257,28 @@ Exact next command: create fresh-main isolated D112 integration of required
 firstboot+owner persistence corrections, publish PR and run unchanged quick gate.
 Old root-owned reproducible587MBtmpfs build cache removed only after all seven
 retained runtime archive manifest/checksum entries verified SHA256 PASS.
+
+Checkpoint 2026-10-10 13:11 UTC (16:41 Tehran): same-task PR225 created/attached.
+Final D112 single commit321581d1850686070afc9ea08621bd6d405dbb08 preserves exact
+reviewed ba1 treef38fe9c8cbd26ba92f2e3ffb50c700df71658a8d, ten narrowly declared
+product/setup/report/LOG paths. Prior4b6/ba1 history actually published/readback
+in remote archive branches before consolidation; main not rewritten. R7 source
+and docs APPROVE, own allTestAutoBlock PASS0.350s. Final-head hosted quick pending.
+Fresh hourly report PR225#issuecomment-6097863311: board212/205merged/7parked,
+mainbd25, live root+host211+evidence_review verified; host37 departed/awaitingresume
+and no persistent supervisor. No new product merge/task completion this hour.
+Native source prepare actual PASS on immutable ee202500 (14/14 API/web builds,
+all seven Go helpers, exact VPP archive install gate72/0 and clean source).
+Initial required fixtures61/62/69 failures reproduced and retained: root
+umask077 produced DEBIAN directories700 refused by dpkg-deb. Correct normal
+build permissions/private0600 logs, no source/test skip; final prepare0.
+Four same-version native dpkg packages are building with all packaging tests,
+not yet claimed successful. Private build logs and scratch are root-owned
+/dev/shm/ngfw-hardware-root-tmp-20261010; durable logs copied when complete.
+Manager-only known-empty cache script4a5d1313 source/py_compilePASS, review in
+progress, requires exact installed fixed binarySHA/observed stopped services and
+original two-byte{} plus preserved UID0/GID107/mode0600, fsynced private backup
+and atomic normalized owner. Not executed; .211API/agent remain contained.
+Next command: collect actual dpkg-buildpackage completion/artifact hashes, review
+native fixed provenance and operator safe upgrade, then root scoped cache repair
+and ordered healthy runtime/native seed proof. No physical binding yet.

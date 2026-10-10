@@ -103,3 +103,7 @@ apps/agent/internal/agent/rpc_autoblock.go and rpc_autoblock_test.go.
 Actual agent restart fails on an ownerless empty persisted cache. Normalize only
 accepted snapshots to the effective service owner; keep foreign-owner rejection.
 Independent review and restart regression precede native fixed artifact deployment.
+
+Root owns docs/decisions/LOG.md narrow D245 in own final integration worktree.
+Operational root also owns hardware-manager-20261010-normalize-empty-cache-211.py
+manager-only reviewed known-empty legacy cache recovery; no target execution yet.

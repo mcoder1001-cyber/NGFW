@@ -238,3 +238,147 @@ func validateManagerDBusFrame(frame []byte) (uint32, error) {
 	}
 	return reply, nil
 }
+
+// managerDBusSignalFrameSize only recognizes bounded type4 framing. Callers
+// must validate the complete closed signal headers before discarding the body.
+// It does not admit signals to the existing strict reply decoder.
+func managerDBusSignalFrameSize(header []byte) (int, bool) {
+	if len(header) != 16 || header[1] != 4 {
+		return 0, false
+	}
+	var replyHeader [16]byte
+	copy(replyHeader[:], header)
+	replyHeader[1] = 2
+	size, _, ok := managerDBusFrameSize(replyHeader[:])
+	return size, ok
+}
+
+// validateManagerDBusSignalFrame admits only public systemd broadcasts from
+// the already authenticated PID1 peer. Bodies stay opaque: no generic decoder,
+// property interpretation, pending-serial removal or authority is possible.
+// Actual descriptor-bearing control messages are refused by rawRead as before.
+func validateManagerDBusSignalFrame(frame []byte) error {
+	if len(frame) < 16 {
+		return ErrBoundary
+	}
+	size, ok := managerDBusSignalFrameSize(frame[:16])
+	if !ok || size != len(frame) {
+		return ErrBoundary
+	}
+	var byteOrder binary.ByteOrder = binary.LittleEndian
+	if frame[0] == 'B' {
+		byteOrder = binary.BigEndian
+	}
+	headerEnd := 16 + int(byteOrder.Uint32(frame[12:16]))
+	c := managerDBusCursor{data: frame[:headerEnd], pos: 16, order: byteOrder}
+	seen := map[byte]bool{}
+	values := map[byte]string{}
+	for c.pos < headerEnd {
+		if !c.align(8) {
+			return ErrBoundary
+		}
+		raw, ok := c.take(1)
+		if !ok || seen[raw[0]] {
+			return ErrBoundary
+		}
+		key := raw[0]
+		seen[key] = true
+		sig, ok := c.text(true)
+		if !ok {
+			return ErrBoundary
+		}
+		switch key {
+		case 1:
+			if sig != "o" {
+				return ErrBoundary
+			}
+		case 2, 3, 6, 7:
+			if sig != "s" {
+				return ErrBoundary
+			}
+		case 8:
+			if sig != "g" {
+				return ErrBoundary
+			}
+		default:
+			return ErrBoundary // Includes reply serial and UNIX_FDS metadata.
+		}
+		value, ok := c.text(key == 8)
+		if !ok || key != 8 && (value == "" || key != 1 && len(value) > 255) {
+			return ErrBoundary
+		}
+		values[key] = value
+	}
+	if c.pos != headerEnd || !seen[1] || !seen[2] || !seen[3] {
+		return ErrBoundary
+	}
+	c.data = frame
+	if !c.align(8) {
+		return ErrBoundary
+	}
+	path, iface, member, sig := values[1], values[2], values[3], values[8]
+	const managerPath = "/org/freedesktop/systemd1"
+	if iface == "org.freedesktop.DBus.Properties" && member == "PropertiesChanged" {
+		if sig != "sa{sv}as" || !managerDBusSignalPath(path) {
+			return ErrBoundary
+		}
+		return nil
+	}
+	if path != managerPath || iface != "org.freedesktop.systemd1.Manager" {
+		return ErrBoundary
+	}
+	expected := ""
+	switch member {
+	case "UnitNew", "UnitRemoved":
+		expected = "so"
+	case "JobNew":
+		expected = "uos"
+	case "JobRemoved":
+		expected = "uoss"
+	case "Reloading":
+		expected = "b"
+	case "StartupFinished":
+		expected = "tttttt"
+	case "UnitFilesChanged":
+		if sig != "" || byteOrder.Uint32(frame[4:8]) != 0 {
+			return ErrBoundary
+		}
+		return nil
+	default:
+		return ErrBoundary
+	}
+	if !seen[8] || sig != expected {
+		return ErrBoundary
+	}
+	return nil
+}
+
+func managerDBusSignalPath(path string) bool {
+	const managerPath = "/org/freedesktop/systemd1"
+	if path == managerPath {
+		return true
+	}
+	const jobPrefix = managerPath + "/job/"
+	if strings.HasPrefix(path, jobPrefix) {
+		id := path[len(jobPrefix):]
+		if id == "" {
+			return false
+		}
+		for _, b := range []byte(id) {
+			if b < '0' || b > '9' {
+				return false
+			}
+		}
+		return true
+	}
+	const unitPrefix = managerPath + "/unit/"
+	if !strings.HasPrefix(path, unitPrefix) || len(path) == len(unitPrefix) {
+		return false
+	}
+	for _, b := range []byte(path[len(unitPrefix):]) {
+		if !(b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= '0' && b <= '9' || b == '_') {
+			return false
+		}
+	}
+	return true
+}

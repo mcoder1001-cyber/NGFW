@@ -1,11 +1,11 @@
-# Resumed disk recovery — 2026-10-10 08:38 UTC
+# Resumed disk recovery — 2026-10-10 08:51 UTC
 
 Owner now explicitly asks to fix the disk problem. Root resumed existing host37,
 host211, and evidence_review workers; actual live diagnostic messages received.
 This supersedes the earlier awaiting-resume operational snapshot below. Source
 main remains4908716b; no product code or CI change is required for this recovery.
 Previous resumed checkpoint published/read back14594feca3d7cdc00dddc3ae3581f99923c525d2;
-at this edit local/remote manager HEAD14594feca3d7cdc00dddc3ae3581f99923c525d2;
+at this edit local/remote manager HEADfec319edcf84e72f407713d2a77a645854c4a467;
 this coherent checkpoint is immediately committed and published/read back.
 Owned files and private destinations remain as in the task envelope.
 
@@ -46,10 +46,41 @@ owned block-check.c task document, not product code. Binary860432bytes SHA256
 02a2270ad8e0f480efc7464b26d2216fec8a915aa12755da6339015abed0f41c,
 private shared controller path. It validates direct block identity then
 O_RDONLY|O_EXCL|O_CLOEXEC|O_NOFOLLOW, writes no device data; BUSY exit3 prevents
-repair. Independent source/binary review and mounted-negative target validation
-required before adoption. Namespace/reference audit and controlled no-remount
+repair. Independent R7 source/binary review APPROVE; independently rebuilt same static
+binary/hash and six refusal tests PASS. R7 isolated controller Linux behavioral
+5/5 PASS: unmounted exclusive success, mounted BUSY, lazy-detached fd-pinned BUSY,
+released final reference success, ordinary-unmount success. Only tiny owned RAM
+ext4/owned loop/private namespace used, then exact-identity cleanup verified.
+Target mounted-negative helper validation remains required before transition. Namespace/reference audit and controlled no-remount
 environment remain additional mandatory checks; positive exclusive open alone
 is not a complete recovery workflow.
+
+Actual staging status08:51: .211 reviewed RAM stage517d789e/c4027e96 stopped
+safely after dedicated8GiB RAM mount/initial binaries: standalone library ldd
+lost systemd application RUNPATH. Original22 preserved; no credentials, virtual
+mounts, rescue SSH or nextroot at failure. A flattened executable closure fix
+743272ac is under focused independent review before exact owned partial-RAM
+cleanup/rerun. No mounted-root filesystem repair. .37 script still in review.
+Root caught ignored SurviveFinalKillSignal in initial211 [Service] section;
+corrected [Unit] and ordinary shutdown ordering before execution. Removed
+bootstrap WorkingDirectory dependency; .37 explicit Requires mount likewise
+must not stop protected SSH after path reconciliation. PTY needs devpts binding.
+Current remaining transition proof: authenticated command AND PTY, all service
+properties and same global namespace/RAM-only refs, transferred /run/sshd lifetime,
+real positive exclusive/all-namespace checks after pivot, private metadata capacity
+and off-host verification before corrective writes, independently reviewed return.
+
+.211 root geometry matches exactly15505494*4096=63510503424bytes. Invalid extent
+block15505493 is last legal block and zeros; no partition enlargement justified.
+Read-only debugfs identifies invalid inode as user journal, not root home. Original
+auth/config archive captured off-host privately35240bytes/43readablemembers/
+0600 tar exit0; SHA bf00f6dbd3ddcf7177322f8b3d9df3d2bd971221e2cf7e58b9613d59f9e0fccc.
+Original selected binary/library dpkg verification reports no executable/library
+mismatch; missing docs/man assets only. Kernel cmdline has no default-unit override.
+Signed official Ubuntu cached InRelease/Packages index validation PASS .211;
+SMART package RAM extraction/read-only health query awaits stage, no hardware
+health result yet. Root controller245MiB and /dev/shm1.9GiB free at08:47; compressed
+metadata actual sizes not yet measured, no full-system image claim.
 
 Current limitation: no tested RAM rescue yet. Next command is read-only geometry,
 auth/runtime dependency/capability assessment by exclusive workers, then concrete

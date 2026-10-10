@@ -26,6 +26,8 @@ for old,new in reversed(edits):
 assert roundtrip==pristine,'stack modified outside exact fixture edits'
 module=types.ModuleType('wan_private_product_stack');module.__file__=str(ROOT/'test/topology/traffic-b/stack.py')
 exec(compile(source,module.__file__,'exec'),module.__dict__)
+namespace=pathlib.Path('/run/netns/ngp-'+hashlib.sha256(b'w20\0w20ppp').hexdigest()[:12])
+namespace_identity=(namespace.stat().st_dev,namespace.stat().st_ino)
 password=os.environ['NGFW_WAN_PEER_PASSWORD']
 assert len(password)==48
 
@@ -63,6 +65,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  config={'host-w20raw':{'enabled':True},'host-w20lan':{'enabled':True,'ipv4':['10.20.1.1/24'],'ipv6':['2001:db8:21::1/64']},'w20ppp':{'enabled':True,'pppoe':{'enabled':True,'parent':'host-w20raw','username':'w20','passwordRef':'password/w20-carrier','mtu':1492,'mssClamp':True,'defaultRoute':True,'ipv6':'slaac','reconnect':{'holdoffSec':1,'maxFail':0}}}}
  api.call('PATCH','/config/interfaces',config)
  result,warnings=commit(api,('/interfaces',))
+ assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
  command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')
  command('ip','-n','ns-w20-carrier-isp','-6','route','replace','2001:db8:21::/64','dev','ppp0')

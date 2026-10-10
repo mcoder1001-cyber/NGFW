@@ -13,45 +13,51 @@ if len(sys.argv)>1:
  assert os.readlink('/proc/self/ns/net')!=os.environ['NGFW_WAN_HOST_NETNS']
  processes=[]
  with tempfile.TemporaryDirectory(prefix='native-carrier-',dir=BASE) as directory:
-  d=Path(directory)
-  if os.environ.get('NGFW_WAN_FULL_API')=='1':
-   assert os.environ.get('NGFW_WAN_EXTENDED')=='1'
-   child_uts=os.readlink('/proc/self/ns/uts')
-   assert child_uts!=os.readlink('/proc/1/ns/uts') and child_uts!=os.environ['NGFW_WAN_HOST_UTS']
-   print('CHILD_UTS_BEFORE '+json.dumps({'namespace':child_uts,'hostname':os.uname().nodename}),flush=True)
-   run('ip','link','set','lo','up')
-   private_etc=d/'etc';shutil.copytree('/etc',private_etc,symlinks=True)
-   # No pre-existing host-service render record is admitted into this fixture.
-   for name in ('unbound','chrony','rsyslog.d','snmp','kea','frr'):
-    target=private_etc/name
-    if target.is_symlink():target.unlink()
-    elif target.exists():shutil.rmtree(target)
-    target.mkdir(mode=0o755)
-   info=private_etc.stat();assert info.st_uid==0 and info.st_mode&0o022==0
-   run('mount','--bind',str(private_etc),'/etc')
-   run('mount','-t','tmpfs','-o','mode=755,size=8m','tmpfs','/var/lib')
-   # Use the exact package provisioning implementation, within these private mounts.
-   runpy.run_path(str(ROOT/'deploy/debian/ngfw/assets/provision-system-identity.py'))['provision']()
-   assert (os.stat('/etc').st_dev,os.stat('/etc').st_ino)==(info.st_dev,info.st_ino)
-   mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
-   assert any(row[4]=='/var/lib' and row[row.index('-')+1]=='tmpfs' for row in mounts)
-   os.environ['NGFW_WAN_PRIVATE_ETC_IDENTITY']=json.dumps([info.st_dev,info.st_ino])
-   print('PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS',flush=True)
-  peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
-  secret=d/'secrets';secret.write_text('"w20" * "'+peer_password+'" *\n');secret.chmod(0o600)
-  run('mount','-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
-  for name in ('pap-secrets','chap-secrets'):
-   Path('/etc/ppp',name).touch(mode=0o600);run('mount','--bind',str(secret),'/etc/ppp/'+name)
-  options=d/'options';options.write_text('auth\nrequire-pap\n'+('ipv6 ::1,::2\n' if os.environ.get('NGFW_WAN_EXTENDED')=='1' else 'noipv6\n')+'mtu 1492\nmru 1492\nlcp-echo-interval 1\nlcp-echo-failure 2\n')
+  d=Path(directory);owned_mounts=[]
+  def owned_mount(*args):
+   target=args[-1];run('mount',*args)
+   rows=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
+   row=next(row for row in reversed(rows) if row[4]==target)
+   st=os.stat(target);owned_mounts.append((target,row[0],st.st_dev,st.st_ino))
   try:
-   for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):
-    run('ip','netns','add',ns);run('ip','-n',ns,'link','set','lo','up')
-   for dev,peer,ns in [('w20raw','w20is','ns-w20-carrier-isp'),('w20lan','w20lp','ns-w20-carrier-lan')]:
-    run('ip','link','add',dev,'type','veth','peer','name',peer);run('ip','link','set',peer,'netns',ns);run('ip','link','set',dev,'up');run('ip','-n',ns,'link','set',peer,'up')
-   run('ip','-n','ns-w20-carrier-lan','addr','add','10.20.1.2/24','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','route','add','default','via','10.20.1.1')
-   log=(d/'server.log').open('w');p=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','pppoe-server','-F','-k','-I','w20is','-L','100.64.20.1','-R','100.64.20.10','-N','1','-O',str(options)],stdout=log,stderr=log,start_new_session=True);processes.append((p,log));time.sleep(.5)
-   if os.environ.get('NGFW_WAN_EXTENDED')=='1':
-    ra=d/'peer-ra.py';ra.write_text('''import subprocess,time
+   if os.environ.get('NGFW_WAN_FULL_API')=='1':
+    assert os.environ.get('NGFW_WAN_EXTENDED')=='1'
+    child_uts=os.readlink('/proc/self/ns/uts')
+    assert child_uts!=os.readlink('/proc/1/ns/uts') and child_uts!=os.environ['NGFW_WAN_HOST_UTS']
+    print('CHILD_UTS_BEFORE '+json.dumps({'namespace':child_uts,'hostname':os.uname().nodename}),flush=True)
+    run('ip','link','set','lo','up')
+    private_etc=d/'etc';shutil.copytree('/etc',private_etc,symlinks=True)
+    # No pre-existing host-service render record is admitted into this fixture.
+    for name in ('unbound','chrony','rsyslog.d','snmp','kea','frr'):
+     target=private_etc/name
+     if target.is_symlink():target.unlink()
+     elif target.exists():shutil.rmtree(target)
+     target.mkdir(mode=0o755)
+    info=private_etc.stat();assert info.st_uid==0 and info.st_mode&0o022==0
+    owned_mount('--bind',str(private_etc),'/etc')
+    owned_mount('-t','tmpfs','-o','mode=755,size=8m','tmpfs','/var/lib')
+    # Use the exact package provisioning implementation, within these private mounts.
+    runpy.run_path(str(ROOT/'deploy/debian/ngfw/assets/provision-system-identity.py'))['provision']()
+    assert (os.stat('/etc').st_dev,os.stat('/etc').st_ino)==(info.st_dev,info.st_ino)
+    mounts=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
+    assert any(row[4]=='/var/lib' and row[row.index('-')+1]=='tmpfs' for row in mounts)
+    os.environ['NGFW_WAN_PRIVATE_ETC_IDENTITY']=json.dumps([info.st_dev,info.st_ino])
+    print('PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS',flush=True)
+   peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
+   secret=d/'secrets';secret.write_text('"w20" * "'+peer_password+'" *\n');secret.chmod(0o600)
+   owned_mount('-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
+   for name in ('pap-secrets','chap-secrets'):
+    Path('/etc/ppp',name).touch(mode=0o600);owned_mount('--bind',str(secret),'/etc/ppp/'+name)
+   options=d/'options';options.write_text('auth\nrequire-pap\n'+('ipv6 ::1,::2\n' if os.environ.get('NGFW_WAN_EXTENDED')=='1' else 'noipv6\n')+'mtu 1492\nmru 1492\nlcp-echo-interval 1\nlcp-echo-failure 2\n')
+   try:
+    for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):
+     run('ip','netns','add',ns);run('ip','-n',ns,'link','set','lo','up')
+    for dev,peer,ns in [('w20raw','w20is','ns-w20-carrier-isp'),('w20lan','w20lp','ns-w20-carrier-lan')]:
+     run('ip','link','add',dev,'type','veth','peer','name',peer);run('ip','link','set',peer,'netns',ns);run('ip','link','set',dev,'up');run('ip','-n',ns,'link','set',peer,'up')
+    run('ip','-n','ns-w20-carrier-lan','addr','add','10.20.1.2/24','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','route','add','default','via','10.20.1.1')
+    log=(d/'server.log').open('w');p=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','pppoe-server','-F','-k','-I','w20is','-L','100.64.20.1','-R','100.64.20.10','-N','1','-O',str(options)],stdout=log,stderr=log,start_new_session=True);processes.append((p,log));time.sleep(.5)
+    if os.environ.get('NGFW_WAN_EXTENDED')=='1':
+     ra=d/'peer-ra.py';ra.write_text('''import subprocess,time
 for attempt in range(250):
  if subprocess.run(['ip','link','show','ppp0'],capture_output=True).returncode==0:break
  time.sleep(.2)
@@ -60,9 +66,9 @@ subprocess.run(['ip','-6','addr','add','2001:db8:20::1/64','dev','ppp0'],check=T
 subprocess.run(['sysctl','-w','net.ipv6.conf.all.forwarding=1'],check=True,capture_output=True)
 raise SystemExit(subprocess.call(['dnsmasq','--no-daemon','--conf-file=/dev/null','--port=0','--interface=ppp0','--bind-interfaces','--enable-ra','--dhcp-range=2001:db8:20::,ra-only,64','--ra-param=ppp0,5,60']))
 ''')
-    ralog=(d/'ra.log').open('w');rp=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','python3',str(ra)],stdout=ralog,stderr=ralog,start_new_session=True);processes.append((rp,ralog))
-    run('ip','-n','ns-w20-carrier-lan','-6','addr','add','2001:db8:21::2/64','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','-6','route','add','default','via','2001:db8:21::1')
-   wrapper=d/'test.sh';wrapper.write_text('''#!/bin/sh
+     ralog=(d/'ra.log').open('w');rp=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','python3',str(ra)],stdout=ralog,stderr=ralog,start_new_session=True);processes.append((rp,ralog))
+     run('ip','-n','ns-w20-carrier-lan','-6','addr','add','2001:db8:21::2/64','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','-6','route','add','default','via','2001:db8:21::1')
+    wrapper=d/'test.sh';wrapper.write_text('''#!/bin/sh
 set -eu
 vppctl create host-interface name w20raw
 vppctl set ip classify intfc host-w20raw table-index -1
@@ -76,22 +82,36 @@ vppctl set interface ip address host-w20lan 10.20.1.1/24
 if [ "${NGFW_WAN_EXTENDED:-0}" = 1 ]; then vppctl set interface ip address host-w20lan 2001:db8:21::1/64; fi
 exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -test.timeout=3m -test.run=^TestWANCurrentCarrierLive$
 ''');wrapper.write_text(wrapper.read_text().replace('/tmp/ngfw-lab-wan-20261010',str(BASE)));wrapper.chmod(0o700)
-   if os.environ.get('NGFW_WAN_FULL_API')=='1':
-    wrapper.write_text('#!/bin/sh\nset -eu\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
-   result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
-   if os.environ.get('NGFW_WAN_FULL_API')=='1':print('CHILD_UTS_AFTER '+json.dumps({'namespace':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename}),flush=True)
+    if os.environ.get('NGFW_WAN_FULL_API')=='1':
+     native=wrapper.read_text()
+     marker='exec '+str(BASE)+'/bin/carrier-live.test'
+     assert native.count(marker)==1
+     # Actual owned AFPacket ports precede Agent.Start, as physical NICs do.
+     wrapper.write_text(native[:native.index(marker)]+'vppctl show interface\nvppctl show interface tag\nexec python3 '+str(ROOT/'docs/status/tasks/lab-wan-20261010-carrier-api.py')+'\n');wrapper.chmod(0o700)
+    result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
+    if os.environ.get('NGFW_WAN_FULL_API')=='1':print('CHILD_UTS_AFTER '+json.dumps({'namespace':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename}),flush=True)
+   finally:
+    # Original unit has the actual pppd process; stop before removing TAP/namespace names.
+    run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)
+    for p,log in reversed(processes):
+     if p.poll() is None:
+      os.killpg(p.pid,signal.SIGTERM)
+      try:p.wait(timeout=5)
+      except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait()
+     log.close()
+    print('REAL_PEER_LOG\n'+(d/'server.log').read_text(),flush=True)
+    if (d/'ra.log').exists():print('REAL_PEER_RA_LOG\n'+(d/'ra.log').read_text(),flush=True)
+    for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):run('ip','netns','del',ns,check=False)
   finally:
-   # Original unit has the actual pppd process; stop before removing TAP/namespace names.
-   run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)
-   for p,log in reversed(processes):
-    if p.poll() is None:
-     os.killpg(p.pid,signal.SIGTERM)
-     try:p.wait(timeout=5)
-     except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait()
-    log.close()
-   print('REAL_PEER_LOG\n'+(d/'server.log').read_text(),flush=True)
-   if (d/'ra.log').exists():print('REAL_PEER_RA_LOG\n'+(d/'ra.log').read_text(),flush=True)
-   for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):run('ip','netns','del',ns,check=False)
+   # Child-only mounts must be gone before TemporaryDirectory traverses the copied /etc.
+   assert os.readlink('/proc/self/ns/net')!=os.environ['NGFW_WAN_HOST_NETNS']
+   for target,mount_id,device,inode in reversed(owned_mounts):
+    rows=[line.split() for line in Path('/proc/self/mountinfo').read_text().splitlines()]
+    row=next(row for row in reversed(rows) if row[4]==target)
+    st=os.stat(target)
+    assert row[0]==mount_id and (st.st_dev,st.st_ino)==(device,inode),'owned child mount replaced'
+    run('umount',target)
+   print('OWNED_CHILD_MOUNTS_REMOVED PASS',flush=True)
  sys.exit(result)
 lock=open('/run/lock/ngfw-slot-20.lock','a');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 assets={Path('/usr/lib/ngfw/pppoe-carrier.py'):ROOT/'scripts/pppoe-kernel-carrier.py'}

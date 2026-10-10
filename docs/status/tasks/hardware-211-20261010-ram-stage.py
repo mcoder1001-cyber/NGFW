@@ -14,6 +14,7 @@ STAGE = pathlib.Path('/run/ngfwrescue')
 REPORT = {'phase': 'RAM staging', 'commands': []}
 CHROOT = shutil.which('chroot')
 os.umask(0o077)
+os.environ['LC_ALL'] = 'C'
 
 
 def command(argv, check=True, **kwargs):
@@ -133,7 +134,8 @@ Options=size=8G,mode=0755,nosuid,nodev,exec
                 '/usr/lib/systemd/systemd-shutdown', '/usr/sbin/sshd',
                 '/usr/lib/openssh/sshd-session', '/usr/lib/openssh/sshd-auth',
                 '/usr/lib/openssh/sftp-server', '/usr/lib/initramfs-tools/bin/busybox']
-    for name in ['bash', 'sh', 'chroot', 'systemctl', 'journalctl', 'ip', 'mount', 'umount',
+    for name in ['bash', 'sh', 'chroot', 'mkdir', 'chmod', 'chown',
+                 'systemctl', 'journalctl', 'ip', 'mount', 'umount',
                  'findmnt', 'lsblk', 'blkid', 'blockdev', 'e2fsck', 'e2image',
                  'e2undo', 'dumpe2fs', 'gzip', 'sha256sum', 'ps', 'stat', 'sync']:
         path = shutil.which(name)
@@ -214,7 +216,7 @@ UsePAM no
 StrictModes yes
 PermitEmptyPasswords no
 UseDNS no
-SetEnv PATH=/usr/sbin:/usr/bin:/sbin:/bin
+SetEnv PATH=/usr/sbin:/usr/bin:/sbin:/bin LC_ALL=C
 PrintMotd no
 PrintLastLog no
 AllowUsers root
@@ -236,6 +238,7 @@ Type=exec
 KillMode=control-group
 Restart=on-failure
 RestartSec=1s
+Environment=LC_ALL=C
 '''
     # chroot itself changes cwd to RAM /. WorkingDirectory adds unwanted
     # implicit mount dependencies to the surviving bootstrap unit.

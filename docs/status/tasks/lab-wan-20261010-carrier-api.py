@@ -1,5 +1,5 @@
 """Real product agent/API consumer in the reviewed private carrier fixture."""
-import hashlib, json, os, pathlib, sys, time, types, subprocess
+import hashlib, json, os, pathlib, sys, time, types, subprocess, signal
 ROOT=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_ROOT','/root/ngfw-wt/lab-wan-20261010'))
 BASE=pathlib.Path(os.environ.get('NGFW_WAN_NATIVE_BASE','/tmp/ngfw-lab-wan-20261010'))
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -90,8 +90,15 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
  if os.environ.get('NGFW_WAN_BROWSER')=='1':
   admin_password=browser_password(runtime)
-  browser=subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-wan-20261010-pppoe-shots.mjs')],input=json.dumps({'password':admin_password}),text=True,capture_output=True,timeout=90,env=dict(os.environ,NGFW_WAN_BROWSER_OUTPUT=str(ROOT/'docs/status/tasks/lab-wan-20261010-evidence'/'195-pppoe-drawer')))
-  redacted=(browser.stdout+browser.stderr).replace(admin_password,'[redacted]').replace(password,'[redacted]')
+  browser=subprocess.Popen(['node',str(ROOT/'docs/status/tasks/lab-wan-20261010-pppoe-shots.mjs')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True,start_new_session=True,env=dict(os.environ,NGFW_WAN_BROWSER_OUTPUT=str(ROOT/'docs/status/tasks/lab-wan-20261010-evidence'/'195-pppoe-drawer')))
+  try:out,err=browser.communicate(json.dumps({'password':admin_password}),timeout=90)
+  except subprocess.TimeoutExpired:
+   if browser.poll() is None:os.killpg(browser.pid,signal.SIGTERM)
+   try:out,err=browser.communicate(timeout=5)
+   except subprocess.TimeoutExpired:
+    if browser.poll() is None:os.killpg(browser.pid,signal.SIGKILL)
+    out,err=browser.communicate(timeout=5)
+  redacted=(out+err).replace(admin_password,'[redacted]').replace(password,'[redacted]')
   print(redacted,flush=True);del admin_password
   if browser.returncode:raise Refused('real PPPoE browser proof failed')
  command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')

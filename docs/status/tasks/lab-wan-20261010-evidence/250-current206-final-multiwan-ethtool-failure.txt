@@ -1,0 +1,146 @@
+TEMP_ORIGINAL_INVENTORY_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_INVENTORY_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+ngfw-agent sha256=992ce83e8a2b7ed5e65726c72419f726144596b13789e1983ecf1063003f4233
+ngfw-agentctl sha256=b3208c9513a0aaac74ce2ad2659759310cd6ae38272d3a32ee3b42d194c74e31
+ngfw-vpp-preflight sha256=768961fe463470203776403732d67cb7f9da707ab8de46337c7c88cf5834bd17
+DISPOSABLE_VPP pid=518783 runtime=/tmp/ngfw-lab-wan250-20261010/repo/.scratch/isolated-vpp-518781
+=== RUN   TestMultiWANRealAPI
+    acceptance_test.go:88: net.ipv4.ping_group_range = 0 0
+        
+    acceptance_test.go:89: private NAT engine prerequisite; engine enable installation excluded from acceptance
+    acceptance_test.go:91: create role ngfw_w20
+        create database ngfw_w20 (owner ngfw_w20)
+        check  ngfw_w20 as ngfw_w20 · PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu
+        ok     env /run/ngfw-test/w20/pg.env (0600) · DSN postgres://ngfw_w20:<redacted>@127.0.0.1:5432/ngfw_w20
+        
+    acceptance_test.go:91: started ngfw-agent pid 518975 (log /run/ngfw-test/w20/acl/agent.log)
+    acceptance_test.go:91: started ngfw-api pid 518990 (log /run/ngfw-test/w20/acl/api.log)
+    acceptance_test.go:125: ngfw-vpp-preflight: exit 0
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    acceptance_test.go:133: probe device w20c1 readiness: PING 198.18.7.1 (198.18.7.1) from 10.20.2.1 w20c1: 56(84) bytes of data.
+        64 bytes from 198.18.7.1: icmp_seq=1 ttl=64 time=2.21 ms
+        64 bytes from 198.18.7.1: icmp_seq=2 ttl=64 time=0.924 ms
+        
+        --- 198.18.7.1 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+        rtt min/avg/max/mdev = 0.924/1.565/2.206/0.641 ms
+    acceptance_test.go:133: probe device w20c2 readiness: PING 198.18.7.1 (198.18.7.1) from 10.20.3.1 w20c2: 56(84) bytes of data.
+        64 bytes from 198.18.7.1: icmp_seq=1 ttl=65 time=1.79 ms
+        64 bytes from 198.18.7.1: icmp_seq=2 ttl=65 time=0.866 ms
+        
+        --- 198.18.7.1 ping statistics ---
+        2 packets transmitted, 2 received, 0% packet loss, time 1001ms
+        rtt min/avg/max/mdev = 0.866/1.329/1.792/0.463 ms
+    acceptance_test.go:144: real commit={"notApplied":[],"results":[],"revision":{"author":"admin","authorId":1,"comment":"multiwan-live","createdAt":"2026-10-10T14:48:07.296Z","hash":"8b16177abca6515d8655a010d08c9913db69820ba831acf956abe9cf17334e58","id":2,"kind":"commit","parentId":1,"secretChanges":[],"secretVersions":null,"txnId":"547f2b1a-22b0-49f3-bda2-d24e71a1cfd0"},"status":"applied","summary":{"created":0,"deleted":0,"failed":0,"reverted":0,"unchanged":15,"updated":0},"sync":{"reason":"","since":"1970-01-01T00:00:00.000Z","state":"in-sync","txnId":null},"txnId":"547f2b1a-22b0-49f3-bda2-d24e71a1cfd0","warnings":[{"message":"management.aaa is not applied by this agent build","pointer":"/management/aaa","rule":"agent.unsupported-field"},{"message":"management.backup is not applied by this agent build","pointer":"/management/backup","rule":"agent.unsupported-field"},{"message":"management.tls is not applied by this agent build","pointer":"/management/tls","rule":"agent.unsupported-field"},{"message":"nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))","pointer":"/nat/ipfix","rule":"agent.unsupported-field"},{"message":"flowprobe parameters are applied only with at least one monitored interface","pointer":"/services/ipfix/flowprobe","rule":"agent.unsupported-field"},{"message":"services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)","pointer":"/services/lldp","rule":"agent.write-only"},{"message":"services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare","pointer":"/services/ntp","rule":"agent.unsupported-field"}]}
+    acceptance_test.go:145: actual installed active=host-w20m1 state={"agentError":null,"retrievedAt":"2026-10-10T14:48:08.732Z","groups":[{"name":"internet","mode":"failover","active":"host-w20m1","members":[{"interface":"host-w20m1","up":true,"lossPct":0,"latencyMs":1,"weight":1,"priority":10,"since":"2026-10-10T14:48:08.487Z"},{"interface":"host-w20m2","up":true,"lossPct":0,"latencyMs":1,"weight":1,"priority":20,"since":"2026-10-10T14:48:08.487Z"}]}]}
+    acceptance_test.go:147: preferred WAN packets: PING 198.18.7.2 (198.18.7.2) 56(84) bytes of data.
+        64 bytes from 198.18.7.2: icmp_seq=1 ttl=63 time=1.32 ms
+        64 bytes from 198.18.7.2: icmp_seq=2 ttl=63 time=1.58 ms
+        64 bytes from 198.18.7.2: icmp_seq=3 ttl=63 time=1.65 ms
+        
+        --- 198.18.7.2 ping statistics ---
+        3 packets transmitted, 3 received, 0% packet loss, time 402ms
+        rtt min/avg/max/mdev = 1.323/1.515/1.647/0.138 ms
+    extended_test.go:188: extended acceptance requested mode="" (empty means automatic NAT)
+    extended_test.go:193: ip netns exec ns-w20-mw-lan ethtool -K w20p0 tx off: exit status 1
+        exec of "ethtool" failed: No such file or directory
+    acceptance_test.go:95: agent log: {"time":"2026-10-10T18:17:56.45884884+03:30","level":"INFO","msg":"ngfw-agent starting","version":"206dc7349","pid":518975,"owner":"w20","socket":"/run/ngfw-test/w20/agent.sock","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T18:17:56.460483361+03:30","level":"INFO","msg":"VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T18:17:56.460527129+03:30","level":"INFO","msg":"keepalived engine off (NGFW_KEEPALIVED=off, or neither a lab slot prefix nor NGFW_VPP_ID_RANGE=all): ha.vrrp engine=keepalived instances are reported unapplied, never staged","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T18:17:56.461589522+03:30","level":"INFO","msg":"PKI file materialiser wired","owner":"w20","component":"subsystems","root":"/run/ngfw-test/w20/acl/agent-state/pki-w20","source":true}
+        {"time":"2026-10-10T18:17:56.465518458+03:30","level":"INFO","msg":"not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071)","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T18:17:56.465725124+03:30","level":"INFO","msg":"services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071)","owner":"w20","component":"subsystems"}
+        {"time":"2026-10-10T18:17:56.468595006+03:30","level":"INFO","msg":"VPP binary API connected","owner":"w20","component":"vpp","socket":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T18:17:56.473068796+03:30","level":"INFO","msg":"fqdn state reloaded","owner":"w20","component":"subsystems","family":"objects","file":"/run/ngfw-test/w20/acl/agent-state/objects-fqdn-w20.json","hosts":0,"fresh":0,"due":0,"dormant":0,"due_spread_over":"30s"}
+        {"time":"2026-10-10T18:17:56.473785195+03:30","level":"INFO","msg":"objects domain wired","owner":"w20","component":"subsystems","store":"/run/ngfw-test/w20/acl/agent-state/objects-w20.json","fqdn_objects":0,"fqdn_refresh":"1m0s","fqdn_max_stale":"24h0m0s","dns":"127.0.0.1:9"}
+        {"time":"2026-10-10T18:17:56.473851392+03:30","level":"INFO","msg":"acl domain wired","owner":"w20","component":"subsystems","family":"acl","stats":"/run/vpp/stats.sock","reproject_every":"1m0s","globals_owner":false,"resync_hook":true}
+        {"time":"2026-10-10T18:17:56.473978192+03:30","level":"INFO","msg":"host firewall wired","owner":"w20","component":"subsystems","table":"inet ngfw_w20","mode":"check","netns":"","rules_file":"/run/ngfw-test/w20/acl/agent-state/host-acl-w20.nft"}
+        {"time":"2026-10-10T18:17:56.474757024+03:30","level":"INFO","msg":"kea wired","owner":"w20","component":"subsystems","mode":"product","conf":"/etc/kea","sockets":"/run/kea"}
+        {"time":"2026-10-10T18:17:56.475350811+03:30","level":"INFO","msg":"host services wired","owner":"w20","component":"subsystems","feature":"unbound-chrony-syslog","product_paths":false,"unbound_conf":"/run/ngfw-test/w20/unbound/unbound.conf","chrony_conf":"/run/ngfw-test/w20/chrony/agent/chrony.conf","rsyslog_conf":"/run/ngfw-test/w20/rsyslog/rsyslog.conf","vpp_dns_cache":"required only"}
+        {"time":"2026-10-10T18:17:56.47550834+03:30","level":"INFO","msg":"system identity wired","owner":"w20","component":"subsystems","product_paths":false,"hostname_file":"/run/ngfw-test/w20/sysident/etc/hostname"}
+        {"time":"2026-10-10T18:17:56.476189622+03:30","level":"INFO","msg":"pppoe client wired","owner":"w20","component":"subsystems","feature":"pppoe-client","globals_owner":false,"product_paths":false}
+        {"time":"2026-10-10T18:17:56.477320166+03:30","level":"INFO","msg":"subsystems wired","owner":"w20","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"wiring":"stores in /run/ngfw-test/w20/acl/agent-state: claims-iface-w20.json, boot-w20.json; globals owner false","vpp_ids":"20000-20999"}
+        {"time":"2026-10-10T18:17:56.483010358+03:30","level":"INFO","msg":"ngfw-agent listening","owner":"w20","socket":"/run/ngfw-test/w20/agent.sock","metrics":"127.0.0.1:9301","state_dir":"/run/ngfw-test/w20/acl/agent-state","vpp_api":"/run/vpp/api.sock"}
+        {"time":"2026-10-10T18:17:56.484972122+03:30","level":"WARN","msg":"remote-access initialization unavailable","owner":"w20","component":"subsystems","reason":"engine-not-ready"}
+        {"time":"2026-10-10T18:17:56.485937506+03:30","level":"INFO","msg":"VPP boot identity","owner":"w20","component":"subsystems","identity":"4d2689bd-047c-4f36-b9ac-2a28a3450616/518783/54799221","complete":true,"expired_claims":0}
+        {"time":"2026-10-10T18:17:56.48637918+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":null}
+        {"time":"2026-10-10T18:17:56.486557176+03:30","level":"WARN","msg":"neighbour events: interface dump","owner":"w20","component":"subsystems","err":"sw_interface_dump: context canceled"}
+        {"time":"2026-10-10T18:17:56.559370589+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":72812712,"err":""}
+        {"time":"2026-10-10T18:17:56.559489884+03:30","level":"INFO","msg":"resync finished","owner":"w20","why":"connect","status":"APPLY_STATUS_APPLIED","summary":""}
+        {"time":"2026-10-10T18:17:56.559881864+03:30","level":"INFO","msg":"dynamic source started","owner":"w20","source":"pppoe-delegation","descriptors":["pppoe.pd.address","pppoe.pd.prefix","pppoe.pd.ra"]}
+        {"time":"2026-10-10T18:17:56.559940152+03:30","level":"INFO","msg":"dynamic source started","owner":"w20","source":"pppoe-watch","descriptors":["pppoe.client.observation"]}
+        {"time":"2026-10-10T18:17:56.559957061+03:30","level":"INFO","msg":"dynamic source started","owner":"w20","source":"multiwan","descriptors":["ip.route.wan","nat44-ed.output-feature.wan","nat44-ed.interface-address.wan","nat44-ed.static-address.wan"]}
+        {"time":"2026-10-10T18:17:56.560092204+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":null}
+        {"time":"2026-10-10T18:17:56.622053592+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":null,"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":61932003,"err":""}
+        {"time":"2026-10-10T18:17:56.62220149+03:30","level":"INFO","msg":"resync finished","owner":"w20","why":"requested","status":"APPLY_STATUS_APPLIED","summary":""}
+        {"time":"2026-10-10T18:18:02.89832413+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"auto-block","domains":["acl"]}
+        {"time":"2026-10-10T18:18:02.962772449+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"auto-block","domains":["acl"],"status":"APPLY_STATUS_APPLIED","summary":"","reapplied":0,"duration":64364571,"err":""}
+        {"time":"2026-10-10T18:18:03.880044038+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"75e1cd23-b1d7-4ebf-80a5-51ade562bb63","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+        {"time":"2026-10-10T18:18:04.132215554+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m0","sw_if_index":1,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:04.132640869+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m0"}
+        {"time":"2026-10-10T18:18:04.196022981+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m1","sw_if_index":2,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:04.196337167+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m1"}
+        {"time":"2026-10-10T18:18:04.254822802+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m2","sw_if_index":3,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:04.255449624+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m2"}
+        {"time":"2026-10-10T18:18:04.256527135+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface/host-w20m0"}
+        {"time":"2026-10-10T18:18:04.257793644+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m0/10.20.1.1/24"}
+        {"time":"2026-10-10T18:18:04.259576387+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m0"}
+        {"time":"2026-10-10T18:18:04.260229476+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface/host-w20m1"}
+        {"time":"2026-10-10T18:18:04.261056724+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m1/10.20.2.1/24"}
+        {"time":"2026-10-10T18:18:04.262293512+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m1"}
+        {"time":"2026-10-10T18:18:04.26292319+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface/host-w20m2"}
+        {"time":"2026-10-10T18:18:04.264056088+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m2/10.20.3.1/24"}
+        {"time":"2026-10-10T18:18:04.265484998+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m2"}
+        {"time":"2026-10-10T18:18:04.335064963+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"w20c1","sw_if_index":4,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:04.335196244+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"lcp.itf-pair/host-w20m1"}
+        {"time":"2026-10-10T18:18:04.423793992+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"w20c2","sw_if_index":5,"phase":"create","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:04.423858636+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"lcp.itf-pair/host-w20m2"}
+        {"time":"2026-10-10T18:18:04.619815438+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"75e1cd23-b1d7-4ebf-80a5-51ade562bb63","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"created:14 unchanged:1","reapplied":0,"duration":739824726,"err":""}
+        {"time":"2026-10-10T18:18:04.623326181+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+        {"time":"2026-10-10T18:18:04.86867109+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:15","reapplied":9,"duration":245351253,"err":""}
+        {"time":"2026-10-10T18:18:04.86878391+03:30","level":"INFO","msg":"resync finished","owner":"w20","why":"requested","status":"APPLY_STATUS_APPLIED","summary":"unchanged:15"}
+        {"time":"2026-10-10T18:18:07.179507811+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"547f2b1a-22b0-49f3-bda2-d24e71a1cfd0","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+        {"time":"2026-10-10T18:18:07.29030918+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"547f2b1a-22b0-49f3-bda2-d24e71a1cfd0","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:15","reapplied":0,"duration":110825578,"err":""}
+        {"time":"2026-10-10T18:18:07.484145739+03:30","level":"WARN","msg":"resync requested again right after a requested resync: deferred","owner":"w20","in":2385503202}
+        {"time":"2026-10-10T18:18:08.67459457+03:30","level":"INFO","msg":"created","owner":"w20","component":"scheduler","key":"ip.route.wan/0/0.0.0.0/0"}
+        {"time":"2026-10-10T18:18:08.680877849+03:30","level":"INFO","msg":"reconcile done","owner":"w20","mode":"sync","source":"multiwan","status":"APPLY_STATUS_APPLIED","summary":"created:1","duration":120494223,"err":""}
+        {"time":"2026-10-10T18:18:09.870591425+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+        {"time":"2026-10-10T18:18:10.07920082+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"","mode":"resync","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"unchanged:16","reapplied":9,"duration":208594160,"err":""}
+        {"time":"2026-10-10T18:18:10.079260332+03:30","level":"INFO","msg":"resync finished","owner":"w20","why":"requested","status":"APPLY_STATUS_APPLIED","summary":"unchanged:16"}
+        {"time":"2026-10-10T18:18:10.454047012+03:30","level":"INFO","msg":"reconcile start","owner":"w20","txn_id":"02793e35-36cb-4427-9ee4-a8b9b2866dac","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"]}
+        {"time":"2026-10-10T18:18:10.552440462+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"ip.route.wan/0/0.0.0.0/0"}
+        {"time":"2026-10-10T18:18:10.561535494+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"w20c2","sw_if_index":5,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:10.563494987+03:30","level":"INFO","msg":"lcp: host IPv4 addresses flushed, linux-cp removed (*,224.0.0.0/24) Accept","descriptor":"lcp.itf-pair","sw_if_index":3,"host_if":"w20c2","flushed":1}
+        {"time":"2026-10-10T18:18:10.600856333+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"lcp.itf-pair/host-w20m2"}
+        {"time":"2026-10-10T18:18:10.623464551+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"w20c1","sw_if_index":4,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:10.626048011+03:30","level":"INFO","msg":"lcp: host IPv4 addresses flushed, linux-cp removed (*,224.0.0.0/24) Accept","descriptor":"lcp.itf-pair","sw_if_index":2,"host_if":"w20c1","flushed":1}
+        {"time":"2026-10-10T18:18:10.660836104+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"lcp.itf-pair/host-w20m1"}
+        {"time":"2026-10-10T18:18:10.661937485+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m2"}
+        {"time":"2026-10-10T18:18:10.662665488+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m1"}
+        {"time":"2026-10-10T18:18:10.663481185+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface.admin-state/host-w20m0"}
+        {"time":"2026-10-10T18:18:10.664644455+03:30","level":"INFO","msg":"interface-ip: address already absent in VPP on delete; treated as deleted","interface":"host-w20m2","prefix":"10.20.3.1/24","err":"sw_interface_add_del_address host-w20m2 10.20.3.1/24 add=false: VPPApiError: Address not found for interface (-60)"}
+        {"time":"2026-10-10T18:18:10.665019172+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m2/10.20.3.1/24"}
+        {"time":"2026-10-10T18:18:10.668046045+03:30","level":"INFO","msg":"af_packet quiesce: netdev already down (D-101, VPP V24)","netdev":"w20m2","descriptor":"af-packet.host-interface","ifindex":75,"kind":"veth"}
+        {"time":"2026-10-10T18:18:10.677416636+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m2","sw_if_index":3,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:10.717849852+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m2"}
+        {"time":"2026-10-10T18:18:10.7192507+03:30","level":"INFO","msg":"interface-ip: address already absent in VPP on delete; treated as deleted","interface":"host-w20m1","prefix":"10.20.2.1/24","err":"sw_interface_add_del_address host-w20m1 10.20.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"}
+        {"time":"2026-10-10T18:18:10.719588651+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m1/10.20.2.1/24"}
+        {"time":"2026-10-10T18:18:10.720263078+03:30","level":"INFO","msg":"af_packet quiesce: netdev already down (D-101, VPP V24)","netdev":"w20m1","descriptor":"af-packet.host-interface","ifindex":73,"kind":"veth"}
+        {"time":"2026-10-10T18:18:10.727346117+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m1","sw_if_index":2,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:10.760752229+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m1"}
+        {"time":"2026-10-10T18:18:10.762201063+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"interface-ip/host-w20m0/10.20.1.1/24"}
+        {"time":"2026-10-10T18:18:10.762791099+03:30","level":"INFO","msg":"af_packet quiesce: netdev already down (D-101, VPP V24)","netdev":"w20m0","descriptor":"af-packet.host-interface","ifindex":71,"kind":"veth"}
+        {"time":"2026-10-10T18:18:10.76987205+03:30","level":"INFO","msg":"interface sanitized (VPP V19/V21 inherited state)","interface":"host-w20m0","sw_if_index":1,"phase":"delete","cleared":null,"freed":null,"placeholders":1,"pops":[0],"rereads":0,"reset":["l2-mode l3","ip-classify ip4","ip-classify ip6","l2-classify input","l2-classify output","adl adl-input","vxlan-bypass ip4","vxlan-bypass ip6","lldp"],"skipped":null}
+        {"time":"2026-10-10T18:18:10.797760248+03:30","level":"INFO","msg":"deleted","owner":"w20","component":"scheduler","key":"af-packet.host-interface/host-w20m0"}
+        {"time":"2026-10-10T18:18:10.860165796+03:30","level":"INFO","msg":"reconcile done","owner":"w20","txn_id":"02793e35-36cb-4427-9ee4-a8b9b2866dac","mode":"apply","domains":["system","interfaces","vrfs","routing","nat","objects","acl","vpn","tunnels","services","ha","management","security"],"status":"APPLY_STATUS_APPLIED","summary":"deleted:12 unchanged:1","reapplied":0,"duration":406095637,"err":""}
+        {"time":"2026-10-10T18:18:10.925566053+03:30","level":"WARN","msg":"resync requested again right after a requested resync: deferred","owner":"w20","in":4154115159}
+    stack_test.go:199: stopped ngfw-api pid 518990
+    stack_test.go:199: stopped ngfw-agent pid 518975
+    acl_test.go:177: pg-test drop w20: <nil>
+        drop   database ngfw_w20
+        drop   role ngfw_w20
+        ok     nothing named ngfw_w20 / ngfw_w20 remains
+--- FAIL: TestMultiWANRealAPI (17.64s)
+FAIL
+DISPOSABLE_VPP_STOPPED pid=518783
+TEMP_ORIGINAL_INVENTORY_ASSETS_REMOVED_SHARED_VPP_UNCHANGED PASS

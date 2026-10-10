@@ -602,3 +602,39 @@ allocated controller PTY. Operator reports publication/readback
 Scoped retry applicability APPROVE under existing parent correction release after
 durable publication; no new permission or product/driver change. Actual retry
 audit/prompts/undo/clean validation and normal-return proof are forthcoming.
+
+
+## Actual .37 completed correction and clean validation
+
+Completion1011 B/0600 SHA256
+f42f4a2898d0119588769e0246768fc2f460a2abe7541262e9bdc12d2e0b8fbe
+and transcript3381 B/0600 SHA256
+34aca15cb4b2e092368f726e3cf94143b162df7912384fc7e9cdac063fbcdb5e
+independently parsed. Actual fsck1 means modified; transcript37 questions35yes/2no,
+all inode IDs exactly preclassified. Only zero-file Clear259595/600 declined then
+preserving Connect. Parent counts and known directory259602 links3 to counted2
+are consequential accounting.3533 freed blocks match group11+3527/group473+6/
+global+3533. Operator reports37 explicit one-byte responses using unchanged fixed
+driver; no initial EOF-launch answer occurred and archived39 B failure is retained.
+
+Actual post-repair-clean-diagnostic-20261010.json519588 B/0600
+SHA256bd861c40011f96105df2a733731daae7fe72eb0a51bf7d72ac2779be84bb1780
+independently parsed: e2fsck-f-n0/all five passes,27 B version banner on inner
+stderr (outer SSH stderr empty);29655/3845088 files,4268750/15505494 blocks.
+Both complete audits433processes/98FDs/nsfs0/races0/failures0/finalexclusive0.
+Actual before/after kernel strings equal, counter9 unchanged, new fault lines0.
+
+Offhost raw undo749568 B/0600 independently full-byte hashed
+SHA2561e13f7984f445695df2fd22c42874d2686e0522a6c7eda9fc9b6ed76d46f835f
+matches source205 B receiptf089f2d6bb877cb6cd196b4b390c2462c1a87fde60ba4eea116b0f1418b966aa
+and fsynced transfer364 B receipt
+a6f9edb1b23a4b47d56af0f4846b4bd08611cfe8fe29d734633ff5567d1c2b69.
+Transport compression does not imply an offhost gzip archive: stored artifact is
+raw749568 B, confirmed independently.
+
+Verdict APPROVE completed scoped logical correction/clean validation and actual
+scoped offhost undo. Known SSD wear persists; no physical rejuvenation claim.
+Separate original-root/EFI selected integrity, auth/network, RAM shutdown closure,
+ordinary unmount/final offline proof and normal-return result remain pending.
+No additional correction permission/test is imposed; reviewer performs no target
+action and does not commit private payloads.

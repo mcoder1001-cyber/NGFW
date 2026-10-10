@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`5ee4a9a494ed6da520e47f5401a0dc427a97a6cb` (verified exact installation-source applicability; matching
+`dab0893ff8b9866ef2fcaa4de136e5fdd9a215ab` (verified native sysctl scope correction and guarded repair launch; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -507,3 +507,13 @@ possible. Existing conditional install release now executable, actual results
 pending; persistent80-vpp.conf reviewed deliberately before future reboot.
 .37 launchfailure375B corroboration and guarded c9b46 launcher independently PASS;
 unchanged onebyte correction scope, no new permission needed for retry.
+
+
+Current actual outcomes: .37 scoped logical repair and clean-f-n/offline/undo PASS
+(bd861c40/f42f4a28/1e13f798); separate normal-return proof pending. .211 actual
+install partial100 with all21inactive/fullL3/16sysctl/101mask preservation PASS,
+agent/meta unconfigured due relative localtime symlink. Actual1289cef diagnosis
+establishes same1248 B trusted zone target, all5 STATE objects absent; parent
+released exact preserved same-file canonicalization then only agent/meta configure
+under guards, source/actual results pending. No installation/forwarding acceptance
+overclaim. Next commands remain read-only source/receipt review; no targetaction.

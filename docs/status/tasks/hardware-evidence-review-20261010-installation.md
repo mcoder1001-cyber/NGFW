@@ -148,3 +148,53 @@ fullL3/21-state/fresh22/PCI/package integrity evidence pending. Packaged80-vpp.c
 remains persistent and needs deliberate assessment before a later reboot; native
 transaction skip does not change future boot behavior. No hardware acceptance
 claim or service/NIC activation release is inferred.
+
+
+## Actual partial installation and unchanged protection
+
+Actual package-install-20261010T112145Z.json74036 B/0600
+SHA25697db5d7e553881ba6b4847137061bc70196536c4ecfef57a3ec4329a69a27367
+independently parsed: APT100, agent postinst refuses unmanaged identity symlink;
+meta remains unconfigured as a dependency consequence. All21 named services/
+sockets inactive, independent fullL3 before==after and all16 sysctl before==after
+True, exact101 and persistent masked VPP intact. Native sysctl skip prevented
+hugepage/system reapply. Installation acceptance remains withheld until actual
+package configuration/audit succeeds; this is a real configuration failure, not
+deferred hardware acceptance.
+
+Actual private package-install-failure-readonly.json174463 B/0600
+SHA2561289cefbe6ed36f5ef1ca9e9de0f2cbc867185946f8d961ee81c8b7b70469d82
+SSH0/empty stderr, all6 diagnosis commands0, protected04/igc/group28 and unchanged
+boot, counter6. Sole unmanaged source is root-owned /etc/localtime relative link
+../usr/share/zoneinfo/Asia/Tehran, resolving same trusted root regular0644 zonefile
+1248 B SHA2562dbd87f410815edcfcd7d14be84de0040ef0d913a22203e0c7e7f4f17a6a915a.
+Hostname/issue/issue.net regular; motd ABSENT, not fourth regular. All5 identity
+STATE objects absent. Full helper source confirms whole preflight precedes any
+public /etc identity replacement, valid_zone allows only absolute canonical
+zone paths, arbitrary unmanaged symlinks remain refused.
+
+Parent authorizes bounded configuration adoption: preserve/fsync exact original
+link metadata and target hash, verify trusted ancestors/current identity, atomic
+ONLY localtime link normalization to same absolute zonefile and directory fsync;
+dereferenced timezone bytes, current hostname/time/fullL3 must remain preserved.
+Then only dpkg --configure ngfw-agent ngfw-meta under101/mask/native sysctl skip.
+No product guard relaxation or arbitrary target replacement. Exact adoption
+source publication/review and actual result pending at this checkpoint.
+
+## Source-derived next phase ordering
+
+Actual packaged firstboot.service Requires PostgreSQL/valkey/nftables. Nftables
+drop-in requires firewall-bootstrap and replaces ExecStart/Reload with packaged
+ngfw-base.nft, clears ExecStop; effective installed unit inspection matters before
+start. Static renderer owns only inet ngfw_base, allows established traffic and
+management22/443 plus IPv6 neighbor discovery; no foreign-table flush.
+
+Firstboot renders empty dataplane startup, durable provisioning and nginx validation
+before completion marker/credential deletion. Initial api.env allows only three
+canonical database/secret/JWT keys, so seed opt-in belongs in reviewed unit environment
+or a later supported override. Current packaged API unit does not include
+NGFW_SEED_DEFAULT_NICS; source SeedService is fail-closed until explicitly enabled.
+Do not infer automatic seed from a running API. Actual canonical revision1 and
+protected management inventory must precede data-driver binding. HostNics reader
+can enumerate without a connected VPP and never binds/restarts/changes startup.
+These are source facts, not firstboot or NIC acceptance results.

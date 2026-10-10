@@ -13,6 +13,24 @@ VERSION='0.1.0~dev+ee2025007293'
 AGENT_SHA='a909ae56ecee2431921659d0d9d489a14768fb12a4d71628627659fecd463781'
 PACKAGES={'ngfw-agent','ngfw-api','ngfw-web','ngfw-meta'}
 POLICY=b'#!/bin/sh\nexit 101\n'
+UPLOAD_BOOTSTRAP=r'''
+import sys
+source_stream=sys.stdin.buffer
+def read_exact(n):
+ out=bytearray()
+ while len(out)<n:
+  block=source_stream.read(min(n-len(out),65536))
+  if not block:raise EOFError('incomplete framed source')
+  out.extend(block)
+ return bytes(out)
+header=read_exact(16)
+if any(x not in b'0123456789abcdef' for x in header):raise ValueError('invalid source length header')
+length=int(header,16)
+if not 0<length<=8*1024**2:raise ValueError('source length outside bound')
+source=read_exact(length).decode('utf-8')
+# Preserve this same binary stream, including its buffered unread tar bytes.
+exec(compile(source,'<controller-upload>','exec'))
+'''
 REMOTE=r'''
 import grp,hashlib,json,os,pathlib,pwd,re,shutil,socket,stat,subprocess,sys,tarfile,time
 os.umask(0o077)
@@ -226,15 +244,18 @@ def main():
  stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
  paths={key:PRIVATE/('upgrade-four-'+a.mode+'-'+stamp+suffix) for key,suffix in [('stdout','.json'),('stderr','.stderr')]}
  if a.mode=='upload':
-  # The command contains only nonsecret hashes/baselines; stdin is bounded
-  # package tar data. Credential values are never argv/environment inputs.
+  # Only the tiny fixed bootstrap is argv. The bounded source frame can exceed
+  # Linux's per-argument limit; it precedes tar on the SAME binary stdin stream.
+  # Credential values are never argv/environment inputs.
   # Spool directly to private files while streaming stdin. A remote refusal
   # may emit a complete large snapshot before consuming stdin; PIPE output
   # would deadlock if it were drained only after the tar writer completed.
   streams={key:os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600),'wb') for key,path in paths.items()}
   try:
-   q=subprocess.Popen(SSH+['python3 -c '+shlex.quote(code)],stdin=subprocess.PIPE,stdout=streams['stdout'],stderr=streams['stderr'])
+   payload=code.encode('utf-8');assert 0<len(payload)<=8*1024**2
+   q=subprocess.Popen(SSH+['python3 -c '+shlex.quote(UPLOAD_BOOTSTRAP)],stdin=subprocess.PIPE,stdout=streams['stdout'],stderr=streams['stderr'])
    try:
+    q.stdin.write(format(len(payload),'016x').encode('ascii'));q.stdin.write(payload)
     with tarfile.open(fileobj=q.stdin,mode='w|') as archive:
      for x in archives:
       info=tarfile.TarInfo(x['file']);info.size=x['bytes'];info.mode=0o600

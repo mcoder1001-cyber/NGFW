@@ -23,8 +23,11 @@ four unique entries `{Package, file, sha256}`. Files are sibling `.deb` archives
 the helper independently checks every control name/version/architecture and
 archive digest. Streaming upload creates only a new private directory in /run
 tmpfs, validates the exact four regular members and fsyncs their hashes. The
-controller streams upload stdout/stderr directly into private files while
-writing tar stdin, so a large early-refusal snapshot cannot block SSH pipes.
+controller sends a fixed16hex source-length header, at most8MiB of UTF-8
+source with checked exact reads, then tar on the same binary stdin stream.
+Only the small fixed bootstrap enters SSH argv. It streams upload stdout/stderr
+directly into private files while writing stdin, so a large early-refusal
+snapshot cannot block SSH pipes and the source avoids Linux's argv limit.
 manifest must be supplied from the manager's reviewed build receipt; source
 preparation alone does not establish archive identities or full maintscript
 applicability.

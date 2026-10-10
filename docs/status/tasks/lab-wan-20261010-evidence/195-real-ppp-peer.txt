@@ -1,0 +1,6 @@
+REAL_RP_PPPOE_PAP_DIAL_UP PASS
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-wan-20261010/ppp-peer.py", line 40, in <module>
+    assert result.returncode==0,'PPP peer ICMP failed';print('REAL_PPP_IPV4_PING PASS '+result.stdout.splitlines()[-2])
+           ^^^^^^^^^^^^^^^^^^^^
+AssertionError: PPP peer ICMP failed

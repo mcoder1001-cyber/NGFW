@@ -5,13 +5,16 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 PRODUCT=Path(os.environ.get("NGFW_MULTIWAN_PRODUCT_ROOT",str(ROOT)))
 BIN=Path(os.environ["NGFW_MULTIWAN_BIN_DIR"])
-NS="ns-w7-mw-router"
+SLOT=int(os.environ.get("NGFW_MULTIWAN_SLOT", "7"))
+if SLOT not in (*range(1,12), *range(14,33)):
+ raise SystemExit("invalid developer slot")
+NS=f"ns-w{SLOT}-mw-router"
 for name in ("ngfw-agent","ngfw-agentctl","ngfw-vpp-preflight"):
  binary=BIN/name
  if not binary.is_file() or not os.access(binary,os.X_OK):raise SystemExit("missing executable: "+str(binary))
  print(name+" sha256="+hashlib.sha256(binary.read_bytes()).hexdigest(),flush=True)
 env=dict(os.environ)
-for line in subprocess.check_output([ROOT/"tools/lab","env","7"],text=True).splitlines():
+for line in subprocess.check_output([ROOT/"tools/lab","env",str(SLOT)],text=True).splitlines():
  if line.startswith("export "):
   key,value=line[7:].split("=",1);env[key]=shlex.split(value)[0]
 env["NGFW_INTEGRATION"]="1"
@@ -33,9 +36,10 @@ try:
   env["NGFW_ACL_AGENT_BIN"]=str(stage/"ngfw-agent")
   env["NGFW_ACL_PREFLIGHT_BIN"]=str(stage/"ngfw-vpp-preflight")
   env["NGFW_ACL_AGENTCTL_BIN"]=str(BIN/"ngfw-agentctl")
-  shutil.copy2(Path(__file__).with_name("acceptance_test.go"),stage/"acceptance_test.go")
+  acceptance=Path(__file__).with_name("acceptance_test.go")
+  (stage/acceptance.name).write_text(acceptance.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}."))
   extension=Path(__file__).with_name("extended_test.go")
-  if extension.exists():shutil.copy2(extension,stage/"extended_test.go")
+  if extension.exists():(stage/extension.name).write_text(extension.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}."))
   result=subprocess.call([ROOT/"tools/heavy.sh","python3",ROOT/"test/topology/hardware-smoke/isolated-vpp.py","go","-C",tmp,"test","-v","-count=1","-timeout","4m","-run","TestMultiWANRealAPI","."],env=env)
 finally:
  subprocess.run(["ip","netns","del",NS],check=True)

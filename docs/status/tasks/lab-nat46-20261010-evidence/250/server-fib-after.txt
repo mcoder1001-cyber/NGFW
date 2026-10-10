@@ -1,0 +1,11 @@
+ipv6-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, ]
+fd00:11:46::/64 fib:0 index:7 locks:2
+  API refs:1 src-flags:added,contributing,active,
+    path-list:[16] locks:2 flags:shared, uPRF-list:31 len:1 itfs:[1, ]
+      path:[28] pl-index:16 ip6 weight=1 pref=0 attached-nexthop:  oper-flags:resolved,
+        fd00:11:2::46 host-w17w0
+      [@0]: ipv6 via fd00:11:2::46 host-w17w0: mtu:9000 next:5 flags:[] 52b7f7aa700102fee4f6f91686dd
+
+ forwarding:   unicast-ip6-chain
+  [@0]: dpo-load-balance: [proto:ip6 index:9 buckets:1 uRPF:31 to:[8:712]]
+    [0] [@5]: ipv6 via fd00:11:2::46 host-w17w0: mtu:9000 next:5 flags:[] 52b7f7aa700102fee4f6f91686dd

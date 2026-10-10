@@ -39,6 +39,16 @@ Initial API env is canonical and accepts only the three generated database, secr
 and JWT-key fields. Configure optional runtime overrides after provisioning, preserving
 the effective key precedence documented by the API.
 
+The shipped initial dataplane document explicitly enables `linux_cp_plugin.so`,
+`linux_nl_plugin.so` and `npt66_plugin.so` for appliance policy and routing support
+(D-060). These plugins are disabled by default upstream even when their files are
+installed. Firstboot copies this fixed document with mode0600 and renders it using
+the normal host-validated generator. No physical devices are configured: startup
+retains `no-pci` and the management PCI blacklist. A missing required plugin stops
+generation before the firstboot completion marker or credential deletion.
+Provisioning an existing firstboot-complete appliance does not rerun this step;
+correct its startup through the separately guarded product apply procedure below.
+
 The API package provisions `/data`, `/data/backups`, `/data/updates` and
 `/data/support` as `ngfw:ngfw`, mode 0750. Package reconfiguration reapplies these
 directory permissions without changing the ownership, contents or permissions of

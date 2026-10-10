@@ -1,5 +1,5 @@
 """Exact original finite inventory broker assets for current-source MultiWAN acceptance."""
-import fcntl,hashlib,json,os,shutil,stat,subprocess,sys
+import fcntl,hashlib,json,os,shutil,stat,subprocess,sys,time,math
 from pathlib import Path
 ROOT=Path(os.environ.get('NGFW_MULTIWAN_PRODUCT_ROOT','/root/ngfw-wt/lab-wan-20261010'))
 assert os.geteuid()==0 and ROOT.is_absolute() and ROOT.is_dir() and not ROOT.is_symlink()
@@ -13,12 +13,21 @@ asset_lock=os.open('/run/lock/ngfw-wan-w20-inventory-assets.lock',os.O_WRONLY|os
 lock_info=os.fstat(asset_lock);assert stat.S_ISREG(lock_info.st_mode) and lock_info.st_uid==0 and lock_info.st_nlink==1 and not lock_info.st_mode&0o077
 fcntl.flock(asset_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
 assert not Path('/run/netns/ns-w20-mw-router').exists()
+def properties():
+ return dict(line.split('=',1) for line in subprocess.run(['systemctl','show',unit,'-p','MainPID','-p','ActiveState','-p','FragmentPath'],check=True,capture_output=True,text=True).stdout.splitlines())
+before_unit=properties();assert before_unit['MainPID']=='0' and before_unit['ActiveState']=='inactive' and before_unit['FragmentPath']==''
+assert properties()==before_unit
+expected_request={'op':'list','owner':'w20'}
+expected_digest=hashlib.sha256(json.dumps(expected_request,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+baseline_nonces={}
 baseline_frames={}
 for area in ('requests','results'):
  path=Path('/run/ngfw/pppoe-broker')/area/(inventory+'.json')
  if os.path.lexists(path):
   info=path.lstat();assert stat.S_ISREG(info.st_mode) and info.st_uid==0 and info.st_nlink==1 and not info.st_mode&0o077
   baseline_frames[area]=(info.st_dev,info.st_ino,hashlib.sha256(path.read_bytes()).hexdigest())
+  baseline_nonces[area]=json.loads(path.read_bytes()).get('nonce')
 shared=subprocess.run(['systemctl','show','vpp','-p','MainPID','-p','NRestarts'],check=True,capture_output=True,text=True).stdout
 try:
  for dest,source in assets.items():
@@ -34,13 +43,18 @@ try:
   info=dest.lstat();receipts[dest]=(info.st_dev,info.st_ino,hashlib.sha256(body).hexdigest())
   print('TEMP_ORIGINAL_INVENTORY_ASSET '+str(dest)+' sha256='+receipts[dest][2],flush=True)
  subprocess.run(['systemctl','daemon-reload'],check=True);loaded=True
- result=subprocess.call([sys.executable,str(ROOT/'test/topology/multiwan-host-acceptance/run.py')])
+ started=time.monotonic()
+ result=subprocess.call([sys.executable,str(ROOT/'test/topology/multiwan-host-acceptance/run.py')]);finished=time.monotonic()
 finally:
  # Inventory is a finite list operation; only this slot's original broker unit is touched.
  if loaded:
   assert not Path('/run/netns/ns-w20-mw-router').exists()
-  subprocess.run(['systemctl','stop',unit],check=True,capture_output=True)
-  values=dict(line.split('=',1) for line in subprocess.run(['systemctl','show',unit,'-p','MainPID','-p','ActiveState','-p','FragmentPath'],check=True,capture_output=True,text=True).stdout.splitlines())
+  end=time.monotonic()+15
+  while True:
+   values=properties()
+   if values['MainPID']=='0' and values['ActiveState'] in ('inactive','failed'):break
+   assert time.monotonic()<end,'finite owned inventory operation still active'
+   time.sleep(.1)
   assert values['MainPID']=='0' and values['ActiveState'] in ('inactive','failed')
   assert values['FragmentPath']==str(next(p for p in assets if p.suffix=='.service'))
   if values['ActiveState']=='failed':subprocess.run(['systemctl','reset-failed',unit],check=True,capture_output=True)
@@ -57,13 +71,21 @@ finally:
    assert all(c in '0123456789abcdef' for c in record['nonce'])
    frames[area]=(path,info.st_dev,info.st_ino,digest,record)
   if frames:
-   assert 'requests' in frames
-   request=frames['requests'][4];assert request['request']=={'op':'list','owner':'w20'}
-   if 'results' in frames:
-    response=frames['results'][4]
+   for area,(path,device,inode,digest,record) in frames.items():
+    if baseline_frames.get(area)==(device,inode,digest):continue
+    assert record['request_sha256']==expected_digest and record['boot']==boot
+    assert record['nonce']!=baseline_nonces.get(area)
+    expiry=record['expires'];assert type(expiry) in (int,float) and math.isfinite(expiry) and started<=expiry<=finished+10
+    if area=='requests':assert record['request']==expected_request
+   # Successful original broker removes request after writing its result.
+   # Result-only provenance is the new frame + exact finite request digest,
+   # current boot/time interval and previously-inactive owned original unit.
+   if 'requests' in frames and 'results' in frames:
+    response=frames['results'][4];request=frames['requests'][4]
     assert all(response[key]==request[key] for key in ('token','nonce','boot','expires','request_sha256'))
    for area,(path,device,inode,digest,record) in frames.items():
     if baseline_frames.get(area)==(device,inode,digest):continue
+    assert properties()['MainPID']=='0' and properties()['ActiveState']=='inactive'
     current=path.lstat();assert (current.st_dev,current.st_ino)==(device,inode) and hashlib.sha256(path.read_bytes()).hexdigest()==digest
     path.unlink()
  for dest,(device,inode,digest) in reversed(list(receipts.items())):

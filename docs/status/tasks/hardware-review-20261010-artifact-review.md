@@ -136,3 +136,25 @@ Corrected final archive inspection PASS (no installation/execution)
 ```
 
 **R8 verdict: APPROVE corrected final archive integrity, concrete dependency correction and reviewed activation safeguards for the matching product tree.** Old archives remain blocked. This closes the native metadata finding; it does not authorize deploying to corrupt targets or establish hosted CI, licensing/release, reboot persistence or packet-forwarding acceptance. Hardware installation/activation/reboot remains BLOCKED pending clean offline recovery and network prerequisites. The manifest's review/CI status fields were recorded before this review and are not independent evidence of readiness; use the exact receipt and applicable hosted result.
+
+## Final PR217 applicability
+
+Independently verified final amended HEAD `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`. Its diff from integration `bde83bc87ae817a61bbc70e4029f76109ae77c35` modifies only the manager's evidence appendix, review plan and WIP. Read those changes: actual archive evidence is added, full hosted quick remains pending, and targets remain explicitly unchanged/blocked. The compiled source product/build/test/CI tree is still identical to the final PR tree, so no package rebuild is needed for these documentation changes.
+
+Independent commands, each exit zero:
+
+```text
+git diff 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c 5bd7e8b545fc765fd2babd8dda15175d6f33af1b -- apps packages deploy tools .github package.json pnpm-lock.yaml
+(empty output)
+
+git diff --name-status bde83bc87ae817a61bbc70e4029f76109ae77c35 5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+A docs/status/tasks/hardware-manager-20261010-evidence.md
+M docs/status/tasks/hardware-manager-20261010-review-plan.md
+M docs/status/tasks/hardware-manager-20261010-wip.md
+
+git ls-remote --heads origin codex/hardware-manager-20261010 codex/archive-hardware-manager-20261010-integration
+bde83bc87ae817a61bbc70e4029f76109ae77c35 refs/heads/codex/archive-hardware-manager-20261010-integration
+5bd7e8b545fc765fd2babd8dda15175d6f33af1b refs/heads/codex/hardware-manager-20261010
+```
+
+**R8 source and corrected archive approval applies to exact final HEAD `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`.** This is independent applicable review, not a claim that the final hosted quick is already green or that hardware acceptance ran. Preserve the build-time manifest and its checked hashes; its earlier integration-head value is historical provenance, while this receipt establishes final applicability.

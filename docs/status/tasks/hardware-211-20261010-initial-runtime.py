@@ -33,7 +33,10 @@ assert (os.major(os.stat('/').st_dev),os.minor(os.stat('/').st_dev))==(8,2)
 assert not os.path.lexists('/run/nextroot') and not os.path.exists('/run/ngfwrescue')
 assert pathlib.Path('/var/lib/ngfw/firstboot-complete').read_bytes()==b'completed\n' and not os.path.lexists('/etc/ngfw/bootstrap.env')
 assert not os.path.lexists('/usr/sbin/policy-rc.d') and not os.path.lexists('/etc/systemd/system/vpp.service') and not os.path.lexists('/var/lib/ngfw-install-recovery/hardware-211-20261010/state.json')
-assert all(value(u,'ActiveState')=='inactive' for u in units)
+assert all(value(u,'ActiveState')=='inactive' for u in units if u!='vpp.service')
+if RESUME_PID:
+ assert value('vpp.service','ActiveState')=='active' and value('vpp.service','MainPID')==RESUME_PID and value('vpp.service','NRestarts')=='0'
+else:assert value('vpp.service','ActiveState')=='inactive'
 assert pathlib.Path('/etc/ngfw/agent.env').read_bytes()==b'NGFW_MGMT_IF=enp4s0\nNGFW_MGMT_PCI=0000:04:00.0\n'
 assert pathlib.Path('/etc/systemd/system/ngfw-api.service.d/10-hardware-seed.conf').read_bytes()==b'[Service]\nEnvironment=NGFW_SEED_DEFAULT_NICS=1\n'
 assert 'NGFW_SEED_DEFAULT_NICS=1' in value('ngfw-api.service','Environment').split()
@@ -51,9 +54,20 @@ if not APPLY:print(json.dumps(result,indent=2))
 else:
  failed=None
  for unit in units:
-  d=run(['systemctl','start',unit]);result['commands'].append(d)
-  if d['exit']!=0:failed=unit;break
+  if unit=='vpp.service' and RESUME_PID:
+   result['resumed_existing_VPP_PID']=RESUME_PID
+  else:
+   d=run(['systemctl','start',unit]);result['commands'].append(d)
+   if d['exit']!=0:failed=unit;break
   if unit=='vpp.service':
+   expected_pid=value(unit,'MainPID');deadline=time.monotonic()+45;result['VPP_readiness']=[]
+   while True:
+    state={'MainPID':value(unit,'MainPID'),'NRestarts':value(unit,'NRestarts'),'ActiveState':value(unit,'ActiveState'),'api_socket':os.path.exists('/run/vpp/api.sock')};result['VPP_readiness'].append(state)
+    if state['MainPID']!=expected_pid or state['NRestarts']!='0' or state['ActiveState']!='active':failed='VPP identity changed during readiness';break
+    if state['api_socket']:break
+    if time.monotonic()>=deadline:failed='VPP API socket readiness deadline';break
+    time.sleep(0.5)
+   if failed:break
    for args in [['/usr/lib/ngfw/bin/ngfw-vppcheck','--timeout','10s','version'],['/usr/lib/ngfw/bin/ngfw-vppcheck','--timeout','10s','bootid']]:
     q=run(args,15);result['commands'].append(q)
     if q['exit']!=0:failed='VPP binary API';break
@@ -69,6 +83,17 @@ else:
     return {'status':r.status,'revision':r.headers.get('x-ngfw-revision'),'data':json.loads(raw) if r.headers.get('Content-Type','').startswith('application/json') else None,'bytes':len(raw)}
   except urllib.error.HTTPError as e:return {'status':e.code,'bytes':len(e.read(65536))}
  token=None;result['seed_polls']=[]
+ if failed is None:
+  # Type=simple API can return from systemctl before listening. Probe only
+  # an unauthenticated protected GET; no repeated administrator logins.
+  deadline=time.monotonic()+45;result['HTTPS_readiness']=[]
+  while True:
+   try:q=request('/api/v1/state/system');state={'status':q['status']}
+   except (urllib.error.URLError,TimeoutError,OSError) as e:state={'transport_error':type(e).__name__}
+   result['HTTPS_readiness'].append(state)
+   if state.get('status') in [200,401,403]:break
+   if time.monotonic()>=deadline:failed='HTTPS API readiness deadline';break
+   time.sleep(1)
  if failed is None:
   login=request('/api/v1/auth/login','POST',{'username':ADMIN_USER,'password':ADMIN_PASSWORD});body=login.get('data') or {};token=body.get('accessToken');result['login']={'status':login['status'],'role':body.get('user',{}).get('role'),'token_received':isinstance(token,str) and len(token)>0}
   if login['status']!=200 or not token or result['login']['role']!='admin':failed='TLS login'
@@ -103,14 +128,23 @@ def save(p,raw):
  fd=os.open(p.parent,os.O_RDONLY|os.O_DIRECTORY);os.fsync(fd);os.close(fd)
  return {'file':str(p),'bytes':len(raw),'sha256':hashlib.sha256(raw).hexdigest()}
 def main():
- os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--proof',required=True);p.add_argument('--proof-sha256',required=True);p.add_argument('--start-and-seed',action='store_true');a=p.parse_args()
+ os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--proof',required=True);p.add_argument('--proof-sha256',required=True);p.add_argument('--start-and-seed',action='store_true');p.add_argument('--resume-from');p.add_argument('--resume-sha256');a=p.parse_args()
  proof=pathlib.Path(a.proof).resolve();assert proof.parent==PRIVATE and stat.S_IMODE(proof.stat().st_mode)==0o600 and proof.stat().st_uid==0;raw=proof.read_bytes();assert hashlib.sha256(raw).hexdigest()==a.proof_sha256;d=json.loads(raw)
  assert d['firstboot']['exit']==0 and d['network_equal'] and d['safe_initial_noPCI'] and d['owned_table_only'] and d['bootstrap_removed'] and d['guard_error'] is None and d['sysctls_only_expected_nr_change'] and d['new_storage_errors']==[]
  nics=json.loads(pathlib.Path('docs/status/tasks/hardware-211-20261010-pci-groups.json').read_bytes())['physical_nics'];expected={n['netdev']:n['pci'] for n in nics if n['pci']!='0000:04:00.0'};assert len(expected)==17
  credentials={}
+ resume_pid=None
+ if a.resume_from:
+  q=pathlib.Path(a.resume_from).resolve();assert q.parent==PRIVATE and q.stat().st_uid==0 and stat.S_IMODE(q.stat().st_mode)==0o600
+  b=q.read_bytes();assert hashlib.sha256(b).hexdigest()==a.resume_sha256;prior=json.loads(b)
+  assert prior['failure']=='VPP binary API' and prior['firstboot_proof_SHA']==a.proof_sha256 and len(prior['commands'])==2 and prior['commands'][0]['argv']==['systemctl','start','vpp.service'] and prior['commands'][0]['exit']==0
+  assert prior['network_equal'] and prior['all17_still_kernel'] and prior['sysctls_equal'] and prior['DNS_network_files_equal'] and prior['foreign_nft_unchanged'] and prior['new_storage_errors']==[] and prior['ioerr_before']==prior['ioerr_after']
+  states=prior['unit_states'];assert states['vpp.service']['ActiveState']=='active' and states['vpp.service']['NRestarts']=='0' and all(states[u]['ActiveState']=='inactive' for u in ['ngfw-agent.service','ngfw-api.service','nginx.service'])
+  resume_pid=states['vpp.service']['MainPID'];assert resume_pid.isdigit() and int(resume_pid)>1
+ else:assert a.resume_sha256 is None
  if a.start_and_seed:
   c=PRIVATE/'bootstrap-admin-211.json';assert stat.S_IMODE(c.stat().st_mode)==0o600 and c.stat().st_uid==0;credentials=json.loads(c.read_bytes());assert credentials['host']=='172.30.110.211'
- fields={'APPLY':a.start_and_seed,'PROOF_SHA':a.proof_sha256,'NETWORK_BASELINE':d['network_after'],'SYSCTL_BASELINE':d['sysctls_after'],'EXPECTED_NICS':expected,'API_ENV_SHA':d['files']['/etc/ngfw/api.env']['sha256'],'STARTUP_SHA':d['files']['/etc/vpp/startup.conf']['sha256'],'ADMIN_USER':credentials.get('username',''),'ADMIN_PASSWORD':credentials.get('password','')};code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
+ fields={'APPLY':a.start_and_seed,'RESUME_PID':resume_pid,'PROOF_SHA':a.proof_sha256,'NETWORK_BASELINE':d['network_after'],'SYSCTL_BASELINE':d['sysctls_after'],'EXPECTED_NICS':expected,'API_ENV_SHA':d['files']['/etc/ngfw/api.env']['sha256'],'STARTUP_SHA':d['files']['/etc/vpp/startup.conf']['sha256'],'ADMIN_USER':credentials.get('username',''),'ADMIN_PASSWORD':credentials.get('password','')};code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  r=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True);stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='start' if a.start_and_seed else 'inspect'
  out=save(PRIVATE/('initial-runtime-'+mode+'-'+stamp+'.json'),r.stdout);err=save(PRIVATE/('initial-runtime-'+mode+'-'+stamp+'.stderr'),r.stderr)
  print(json.dumps({'SSH_exit':r.returncode,'stdout':out,'stderr':err,'no_startup_apply_driverbind_manualrevision':True}));raise SystemExit(r.returncode)

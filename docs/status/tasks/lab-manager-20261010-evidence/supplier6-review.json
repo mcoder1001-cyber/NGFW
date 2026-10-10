@@ -1,0 +1,9 @@
+{
+  "script_sha256": "fc8cea64269a1596ef52fff99848b02cc283eec6a266b5cf9f88634f79b9120d",
+  "independent_reviewer": "nat46_acceptance",
+  "verdict": "APPROVE subject to fresh three-ELF provenance and observed memory capacity before bounded4GiB noNIC guest",
+  "execution": "not yet executed",
+  "scope": "supplemental supplier readiness only; historical firstboot/nft no-op fixtures preclude full appliance acceptance",
+  "observation": "fixed30s fixture warmup then single original30s Health/Capabilities; no negative capability retry, no product deadline change; canonical automatic restart behavior must be observed honestly",
+  "asset_manifest_sha256": "63ca6a9820dbf23c78bd6b5e8212c625bc9376980f8891488adb61e06e49bc44"
+}

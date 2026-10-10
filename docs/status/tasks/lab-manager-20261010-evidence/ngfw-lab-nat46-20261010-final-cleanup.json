@@ -1,0 +1,68 @@
+[
+  {
+    "path": "/tmp/ngfw-lab-nat46-20261010-250.tar",
+    "sha256": "fa92eac14f48b34be9b0417443db20964aa45d55897996a0eb936dd67c837cbf",
+    "bytes": 97116160,
+    "reason": "own completed transfer archive; binaries/provenance and actual remote receipts retained"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-nat46-20261010/apps/api/dist",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-nat46-20261010/apps/web/dist",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-nat46-20261010/apps/api/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-nat46-20261010/apps/web/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-nat46-20261010/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-global-blocking-20261010/apps/api/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-global-blocking-20261010/apps/web/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/root/ngfw-wt/lab-global-blocking-20261010/node_modules",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/tmp/ngfw-lab-nat46-20261010-bin",
+    "reason": "own inactive generated outputs/links; WAN confirms no loans; symlinks not followed"
+  },
+  {
+    "path": "/tmp/ngfw-lab-global-blocking-20261010-agent",
+    "bytes": 53282920,
+    "sha256": "5683498457c6bb49a05c98951abefa806ee1219a2b2fd3ae4c0e3e9c2c1717fe",
+    "reason": "own inactive artifact; provenance/source/receipts already preserved; WAN released568"
+  },
+  {
+    "path": "/tmp/ngfw-lab-global-blocking-20261010-counters",
+    "bytes": 9247539,
+    "sha256": "59fdaaf2d5bda99f7206edab94ecb0f6c1543c8aedda8eb51c50518f2ec2b625",
+    "reason": "own inactive artifact; provenance/source/receipts already preserved; WAN released568"
+  },
+  {
+    "path": "/tmp/ngfw-lab-global-blocking-20261010-nft.test",
+    "bytes": 21157926,
+    "sha256": "a2484971604e69c52b442afe587648beb1c708a184e776c8d59fc367209d1cd3",
+    "reason": "own inactive artifact; provenance/source/receipts already preserved; WAN released568"
+  },
+  {
+    "path": "/tmp/ngfw-lab-global-blocking-20261010-remote-source.tar",
+    "bytes": 215040,
+    "sha256": "f4fedfc779d0002561617c02f6619b587b4bf229492ba27bd8d6aa495a149864",
+    "reason": "own inactive artifact; provenance/source/receipts already preserved; WAN released568"
+  }
+]

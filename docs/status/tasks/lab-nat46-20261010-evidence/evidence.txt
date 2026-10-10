@@ -1,0 +1,32 @@
+09:15:18 shared lab lock held (fd 9)
+09:15:19 === step 0: host facts (run start 2026-10-10T09:15:18+00:00, slot 17 prefix w17, path: af_packet) ===
+09:15:19 NRestarts before: NRestarts=0
+09:15:19 load: 24.30 13.65 6.19
+09:15:19 vpp: vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+09:15:19 map plugin:  41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+09:15:19 map domains of w17 before: 0
+09:15:19 === step 1: TestNat46OnHost (descriptor level, NGFW_INTEGRATION=1, shared lab lock) ===
+09:15:19 NRestarts before step 1: NRestarts=0
+09:15:20 FAIL: TestNat46OnHost exited 1
+09:15:20 === cleanup ===
+rig down w17
+rig: down
+prefix: w17
+slot: 17
+path: af_packet
+lan_ns: ns-w17-lan
+lan_veth: w17l1
+lan_ip: 10.17.1.2/24
+lan_gw: 10.17.1.1
+vpp_lan_if: host-w17l0
+vpp_lan_addr: -
+wan_ns: ns-w17-wan
+wan_veth: w17w1
+wan_ip: 10.17.2.2/24
+wan_gw: 10.17.2.1
+vpp_wan_if: host-w17w0
+vpp_wan_addr: -
+ping: ip netns exec ns-w17-lan ping -c 3 10.17.2.2
+09:15:22 leftover map domains of w17: 0 · rig: 
+09:15:23 NRestarts after cleanup: NRestarts=0
+09:15:23 run end 2026-10-10T09:15:23+00:00

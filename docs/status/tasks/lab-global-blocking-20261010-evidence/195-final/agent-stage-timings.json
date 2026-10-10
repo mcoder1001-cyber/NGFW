@@ -1,0 +1,163 @@
+[
+  {
+    "time": "2026-10-10T11:06:25.565251419Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 64926019,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:25.565334378Z",
+    "msg": "resync finished",
+    "why": "connect",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": ""
+  },
+  {
+    "time": "2026-10-10T11:06:25.670795864Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 103351353,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:25.670989535Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": ""
+  },
+  {
+    "time": "2026-10-10T11:06:32.819486185Z",
+    "msg": "reconcile done",
+    "mode": "auto-block",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "",
+    "duration": 63204806,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:33.574098584Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:2",
+    "duration": 143921079,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:33.79644256Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2",
+    "duration": 144735030,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:33.79654025Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2"
+  },
+  {
+    "time": "2026-10-10T11:06:34.381326954Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:9  unchanged:2",
+    "duration": 394194241,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:38.983597216Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:11",
+    "duration": 185954617,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:06:38.983739594Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:11"
+  },
+  {
+    "time": "2026-10-10T11:07:02.505920501Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:5  unchanged:11",
+    "duration": 390820910,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:07:33.694908741Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:6  updated:4  unchanged:12",
+    "duration": 1656143481,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:08:27.018308841Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "created:120  updated:10  unchanged:12",
+    "duration": 20793706769,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:10:13.801217965Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "updated:5  unchanged:137",
+    "duration": 31425516602,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:10:43.150434008Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:138  unchanged:2",
+    "duration": 5371655737,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:10:43.492373719Z",
+    "msg": "reconcile done",
+    "mode": "resync",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2",
+    "duration": 171433825,
+    "err": ""
+  },
+  {
+    "time": "2026-10-10T11:10:43.492480398Z",
+    "msg": "resync finished",
+    "why": "requested",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "unchanged:2"
+  },
+  {
+    "time": "2026-10-10T11:10:44.546170573Z",
+    "msg": "reconcile done",
+    "mode": "apply",
+    "status": "APPLY_STATUS_APPLIED",
+    "summary": "deleted:1  unchanged:1",
+    "duration": 206299161,
+    "err": ""
+  }
+]

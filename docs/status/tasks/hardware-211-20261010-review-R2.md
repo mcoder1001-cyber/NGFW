@@ -49,6 +49,27 @@ All commands ran in the review workspace above. No target SSH, package installat
 
 ## Applicability and limits
 
-Verdict applies to source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` and its tree above. Final squash/PR HEAD has not yet been supplied. Reviewer will compare the final product tree and scan any changed task documentation before certifying applicability. This receipt does not claim a completed quick gate, artifact installability, appliance installation or hardware acceptance; those tests were not performed here. The preexisting console/offline filesystem recovery block on both targets remains in force.
+Verdict applies to source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` and final D112 commit `bde83bc87ae817a61bbc70e4029f76109ae77c35`, tree `aeb17e4312cb12714a9c39ca5e7c56b85eda7a54`, on `codex/hardware-manager-20261010`. Reviewer fetched the final published branch and independently verified applicability:
 
-**Verdict: APPROVE** for the reviewed narrow security scope; no security findings.
+```text
+git diff --name-only 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c bde83bc87ae817a61bbc70e4029f76109ae77c35
+docs/status/tasks/hardware-manager-20261010-review-plan.md
+docs/status/tasks/hardware-manager-20261010-wip.md
+
+PASS: entire final product tree matches reviewed source; only two manager task documents differ
+Reviewed/final control blob: dbf2c0d12f880da0c5b4ffde19711c7f1d4fca9e
+Final tree: aeb17e4312cb12714a9c39ca5e7c56b85eda7a54
+```
+
+`git diff --exit-code 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c bde83bc87ae817a61bbc70e4029f76109ae77c35 -- deploy apps packages tools .github` exited 0 with no output. The exact changed-path assertion above proves no product file elsewhere changed either. Final branch has exactly one commit above the reviewed main base. `git diff --check` against that base exited 0. Reviewer read both changed manager task documents; no new security boundary or secrets appear. Targeted final history scan:
+
+```text
+gitleaks git --redact --log-opts='d2d55984d74fa1d06c32e8271886f11f16375407..bde83bc87ae817a61bbc70e4029f76109ae77c35' --config=.github/gitleaks.toml .
+1 commits scanned.
+scanned ~8156 bytes (8.16 KB) in 586ms
+no leaks found
+```
+
+This receipt does not claim a completed quick gate, artifact installability, appliance installation or hardware acceptance; those tests were not performed here. The preexisting console/offline filesystem recovery block on both targets remains in force. Any later product-head change requires renewed applicability comparison.
+
+**Verdict: APPROVE** for final commit `bde83bc87ae817a61bbc70e4029f76109ae77c35` in the reviewed narrow security scope; no security findings.

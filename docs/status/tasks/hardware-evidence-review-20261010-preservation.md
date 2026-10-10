@@ -345,3 +345,75 @@ RAM51 parent checks. Exact wrapper/v2 bytes, expected mounted preflightBUSY3,
 probe/undo absence, held/MainPID/nextroot invariants are checked. Actual runtime
 outcome remains pending. Root holds .37 transition
 until .211 normal return; neither copied source approves a .37 repair.
+
+## Actual reference accounting and classified regular-file reconnection
+
+Actual Pass3 corrected the reconstructed home-user cache259594 parent to31,
+root cache259599/config259602 parents to152, and reconnected classified directory
+259603 to lost+found. The transcript then offered root inode2 reference count
+14->18, parent31 5->4 and parent152 9->7. These consequential metadata corrections
+are APPROVE: matching [pass4](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass4.c)
+PR_4_BAD_REF_COUNT assigns the counted i_links_count and writes the inode; this
+operation does not clear that inode or its contents. Original inode metadata and
+the bounded active undo cover these approved metadata writes.
+
+Private new-inode-259595-readonly.json813 B/0600
+SHA256c06cbc16a58fe547a55814894570d590feccd79d646d3fd9c3589b714456193f
+independently parsed: regular0644, UID/GID1000, size0, links1, blockcount0,
+no extents or recovered original pathname. The operator correctly declined
+zero-length Clear. Preserving Connect to lost+found and its counted-link fix
+are APPROVE for this actual inode, using individual one-byte answers.
+
+Private new-inode-259600-readonly.json1496 B/0600
+SHA256de64762841163fa25daed98938aaa99a3068234d53e6eff22e9f92c75aa1b6c3
+independently parsed: all three queries exit0, regular0644/root-owned, size0,
+links1/blockcount0/no extents. Current and original-native-image stat outputs
+are independently byte-identical. Clear was declined; preserving Connect and
+consequent link-count correction are APPROVE under the same classified regular
+file scope. Unknown destructive clear or special-type changes remain excluded.
+
+Matching [pass4 disconnect_inode](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass4.c)
+offers empty-inode deletion separately from reconnection, while
+[pass3 e2fsck_reconnect_file](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass3.c)
+links the existing inode beneath lost+found and updates reference accounting.
+This preserves the classified inode without claiming its lost original name.
+
+An actual intermediate transcript snapshot2521 B/0600
+SHA256325e6a56af76ba38b7c14d26d01febe2d6bc6db811a068345129c877ba710803
+corroborates root/parent corrections,259595 Clear-no/Connect-yes/count-yes and
+259600 Clear-no followed by its held Connect prompt. This is a snapshot of an
+unfinished fsck, not a final transcript hash or successful clean-check receipt.
+All previous known-scope implicit default responses from the old newline driver
+remain recorded; the old process is now capture-only. Subsequent individual
+inputs use the verified controller one-byte helper.
+
+The .37 unexecuted f855 source was superseded by
+SHA2568cc54c278d7c08848934265ee60d98f0253334519fa3c258850bb1eafc949247.
+Independent actual-byte hash and outer/REMOTE AST2 PASS; its focused change moves
+mandatory installed package MD5 verification before executable ldd inspection.
+RAM-only preparation applicability APPROVE after durable publication. Actual .37
+runtime outcome, .211 completed repair, clean readonly check, offhost undo and
+normal return remain pending; no hardware installation/acceptance is inferred.
+
+## Consequential allocation-map accounting
+
+Actual intermediate Pass5 transcript2880 B/0600
+SHA256ed70b5cc10353b12fc2e2e2d7350ea78e650eea234b3411d77b2830a526ca0a6
+independently corroborates the held block-bitmap differences:
+
+```text
+-(365920--367966) -(370653--371567) -(378770--379334)
+-(15503360--15503362) -15503872 -15504384 -15505493
+Fix<y>?
+```
+
+Matching [pass5 check_block_bitmaps](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass5.c)
+replaces the on-disk allocation map with block_found_map constructed from the
+preceding passes, marks it dirty and recomputes group/global free counts. Under
+the actual nodiscard option this correction does not discard those data blocks.
+These allocation-map/count fixes consequent to the already approved damaged
+journal extent-branch clears are APPROVE with active bounded undo and individual
+one-byte answers; the classified disconnected inodes remain reconnected. This
+does not approve clearing an additional inode or claim the removed journal
+branches' original contents can be restored. Actual final fsck/undo/offhost,
+complete clean readonly pass and normal return remain separately pending.

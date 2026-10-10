@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`9fb51767218a36943609a7b2aa7e00733f5b3363` (input correction/live continuation review; matching
+`dce5a27f68300072988fc15d7ebac2bda4f62cb5` (additional directory preservation/reconstruction review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -370,3 +370,27 @@ full-filebackup requirement. .37 missingtools stagef855 outer/REMOTEAST2PASS/
 actualregexsyntax verified, targeted RAM-only source preparation approved;
 runtime still pending. No completion/return/hardwareacceptance claim. Nextactual
 newpreserving orphan prompt or finished fsck/undo/check; own publication follows.
+
+10:33 UTC: actual Pass3 verified the reconstructed home-cache parent31 and root
+cache/config parent152; classified259603 was reconnected to lost+found. Consequent
+root2/parent31/parent152 reference-count fixes approved against matching pass4.
+Private259595 c06cbc16 (813 B/0600) independently verifies regular0644 UID1000,
+size0/no extents; Clear declined, preserving Connect/count approved. Private259600
+de647628 (1496 B/0600) independently verifies regular0644 root,size0/no extents,
+three query exits0 and byte-identical original-native/current stat outputs;
+preserving Connect/count approved after Clear declined. Existing driver remains
+capture-only; explicit inputs use the reviewed one-byte helper. No completed fsck,
+clean readonly pass or normal return is claimed. .37 revised missing-tool source
+8cc54c27 hash/outer+REMOTE AST2 PASS: package MD5 verification now precedes ldd;
+RAM-only applicability approved after publication, actual stage still pending.
+Last verified remote dce5a27f above; own worktree was clean after readback.
+Next exact reviewer action: inspect next actual repair prompt or completed transcript,
+then actual finite undo/offhost hash, full clean readonly pass, health and selected
+original-root return-integrity receipts before a separate return verdict.
+
+Actual Pass5 transcript snapshot2880 B/0600/ed70b5cc independently verified:
+exact held block-bitmap difference ranges match the operator report. Matching
+pass5 source copies reconstructed block_found_map into on-disk block_map and
+recomputes group/global counts. Consequential bitmap/count corrections APPROVE
+under active bounded undo/nodiscard; no new deletion or physical-data discard
+is authorized. Parent/operator notified; completed repair and clean check pending.

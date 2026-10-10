@@ -46,7 +46,7 @@ def lookup(label):
  vpp(label+'-runtime-clear','clear','runtime')
  before=runtime(label+'-runtime-before')
  started=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
- p=peer('lan','ping','-n','-q','-f','-c','2000','-I','10.17.1.3','10.17.2.2')
+ p=peer('lan','ping','-n','-q','-i','0.01','-c','2000','-I','10.17.1.3','10.17.2.2')
  assert '2000 packets transmitted, 2000 received' in p,p
  (EVID/(label+'-burst.txt')).write_text(p);after=runtime(label+'-runtime-after')
  def node(text,name):
@@ -59,7 +59,7 @@ def lookup(label):
  delta=None if not a or not b else b['vectors']-a['vectors']
  if label!='lookup-0':assert a is not None and b is not None and delta>=2000,(label,a,b)
  else:assert b is not None and b['vectors']==0 and ref is not None and ref['vectors']>=2000,(b,ref)
- record(label,startedUTC=started,packetsTransmitted=2000,packetsReceived=2000,before=a,after=b,vectorsDelta=delta,ip4LookupReference=ref,aclCost=None if label=='lookup-0' else b['clocksPerVector'],scope='own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A')
+ record(label,startedUTC=started,packetIntervalSeconds=0.01,packetsTransmitted=2000,packetsReceived=2000,before=a,after=b,vectorsDelta=delta,ip4LookupReference=ref,aclCost=None if label=='lookup-0' else b['clocksPerVector'],scope='own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A')
 
 private_identity()
 assert os.environ.get('NGFW_TEST_PREFIX')=='w17'

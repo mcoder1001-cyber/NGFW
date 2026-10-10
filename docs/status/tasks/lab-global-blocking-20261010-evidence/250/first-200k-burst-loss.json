@@ -1,0 +1,275 @@
+[
+  {
+    "case": "product-agent-provenance",
+    "atUTC": "2026-10-10T10:41:36Z",
+    "source": "7bfca6dfe",
+    "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca",
+    "binary": "/tmp/ngfw-lab-global-blocking-20261010-250/ngfw-agent"
+  },
+  {
+    "case": "gb-interfaces",
+    "atUTC": "2026-10-10T10:41:49Z",
+    "seconds": 0.7206423620227724,
+    "revision": 2
+  },
+  {
+    "case": "baseline-selected-in",
+    "atUTC": "2026-10-10T10:41:51Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-selected-out",
+    "atUTC": "2026-10-10T10:41:52Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-unselected",
+    "atUTC": "2026-10-10T10:41:54Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-local-in",
+    "atUTC": "2026-10-10T10:41:55Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "lookup-0",
+    "atUTC": "2026-10-10T10:42:00Z",
+    "startedUTC": "2026-10-10T10:41:56Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "vectorsDelta": 0,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 2640.0
+    },
+    "aclCost": null,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "upload-preview",
+    "atUTC": "2026-10-10T10:42:00Z",
+    "preview": {
+      "list": "proof",
+      "dryRun": true,
+      "lines": 3,
+      "entries": 2,
+      "added": 2,
+      "removed": 0,
+      "unchanged": 0,
+      "normalised": 0,
+      "collapsed": 0,
+      "invalidCount": 1,
+      "invalid": [
+        {
+          "line": 2,
+          "text": "invalid-address",
+          "reason": "not an IPv4 or IPv6 address"
+        }
+      ],
+      "addedSample": [
+        "10.17.1.2/32",
+        "198.18.17.2/32"
+      ],
+      "removedSample": [],
+      "staged": false
+    }
+  },
+  {
+    "case": "gb-upload-confirmed",
+    "atUTC": "2026-10-10T10:42:01Z",
+    "seconds": 0.6392569660674781,
+    "revision": 3
+  },
+  {
+    "case": "counter-before",
+    "atUTC": "2026-10-10T10:42:01Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 0,
+            "dataplaneBytes": 0,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "selected-in-drop",
+    "atUTC": "2026-10-10T10:42:05Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-out-drop",
+    "atUTC": "2026-10-10T10:42:09Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-local-in-drop",
+    "atUTC": "2026-10-10T10:42:11Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "unlisted-pass",
+    "atUTC": "2026-10-10T10:42:12Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-pass",
+    "atUTC": "2026-10-10T10:42:13Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-local-pass",
+    "atUTC": "2026-10-10T10:42:14Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "counter-after",
+    "atUTC": "2026-10-10T10:42:14Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 10,
+            "dataplaneBytes": 800,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "remote-browser",
+    "atUTC": "2026-10-10T10:42:36Z",
+    "actualAuthentication": true,
+    "locales": [
+      "en",
+      "fa"
+    ]
+  },
+  {
+    "case": "gb-10000-real-commit",
+    "atUTC": "2026-10-10T10:42:40Z",
+    "seconds": 2.9861726040253416,
+    "revision": 4
+  },
+  {
+    "case": "lookup-10000",
+    "atUTC": "2026-10-10T10:42:45Z",
+    "startedUTC": "2026-10-10T10:42:41Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 2000,
+      "vectors": 2000,
+      "clocksPerVector": 7760.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 2590.0
+    },
+    "aclCost": 7760.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "gb-200000-real-commit",
+    "atUTC": "2026-10-10T10:43:28Z",
+    "seconds": 39.29734508995898,
+    "revision": 5
+  },
+  {
+    "case": "rollback",
+    "atUTC": "2026-10-10T10:44:37Z",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "atUTC": "2026-10-10T10:44:40Z",
+    "sharedIdentityUnchanged": true
+  }
+]

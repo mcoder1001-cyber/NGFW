@@ -1,0 +1,3 @@
+Existing DB7 key names preserved: 28/28
+New own random-prefixed key names: 3
+No FLUSH command in fixture; root authorized DB7 with slot20 random prefix.

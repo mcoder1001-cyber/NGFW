@@ -177,7 +177,10 @@ hashes={}
 relay=None
 carrier_root_identity=None
 identity_files=('/etc/hostname','/etc/issue','/etc/issue.net','/etc/motd')
-host_identity={name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}
+def host_identity_snapshot():
+ # Actual absence is an identity condition, including on hosts without /etc/motd.
+ return {name:hashlib.sha256(Path(name).read_bytes()).hexdigest() if os.path.lexists(name) else None for name in identity_files}
+host_identity=host_identity_snapshot()
 host_hostname=os.uname().nodename
 host_uts=os.readlink('/proc/self/ns/uts')
 print('ROOT_HOST_IDENTITY_BEFORE '+json.dumps({'uts':host_uts,'hostname':host_hostname,'public_file_sha256':host_identity}),flush=True)
@@ -285,8 +288,8 @@ finally:
  after=run('systemctl','show','vpp','-p','MainPID','-p','NRestarts').stdout
  print('SHARED_VPP_BEFORE '+before.replace('\n',','));print('SHARED_VPP_AFTER '+after.replace('\n',','));assert before==after
  print('TEMP_ORIGINAL_ASSETS_REMOVED PASS')
- assert os.uname().nodename==host_hostname and all(hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest for name,digest in host_identity.items()),'shared host identity changed'
- print('ROOT_HOST_IDENTITY_AFTER '+json.dumps({'uts':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename,'public_file_sha256':{name:hashlib.sha256(Path(name).read_bytes()).hexdigest() for name in identity_files}}),flush=True)
+ assert os.uname().nodename==host_hostname and host_identity_snapshot()==host_identity,'shared host identity changed'
+ print('ROOT_HOST_IDENTITY_AFTER '+json.dumps({'uts':os.readlink('/proc/self/ns/uts'),'hostname':os.uname().nodename,'public_file_sha256':host_identity_snapshot()}),flush=True)
  assert os.readlink('/proc/self/ns/uts')==host_uts
  print('SHARED_HOST_IDENTITY_UNCHANGED PASS',flush=True)
 raise SystemExit(result)

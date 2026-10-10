@@ -128,6 +128,18 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		t.Fatal(e)
 	}
 	var last error
+	poll := func() error {
+		bound, cancel := context.WithCancel(ctx)
+		if os.Getenv("NGFW_WAN_WATCH_BUDGET") == "1" {
+			cancel()
+			bound, cancel = context.WithTimeout(ctx, 5*time.Second)
+		}
+		defer cancel()
+		started := time.Now()
+		err := rt.poll(bound)
+		t.Logf("REAL_RUNTIME_POLL elapsed=%s bounded5s=%t error=%v", time.Since(started), os.Getenv("NGFW_WAN_WATCH_BUDGET") == "1", err)
+		return err
+	}
 	wait := func(predicate func() bool) bool {
 		end := time.Now().Add(40 * time.Second)
 		for time.Now().Before(end) {
@@ -139,7 +151,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		return false
 	}
 	if !wait(func() bool {
-		last = rt.poll(ctx)
+		last = poll()
 		rt.mu.Lock()
 		_, ready := rt.carrierReady[s.Iface]
 		rt.mu.Unlock()
@@ -181,7 +193,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	t.Log("REAL_LAN_VPP_TRANSIT_KERNEL_PPP_IPV4_PACKETS PASS")
 	if extended {
 		if !wait(func() bool {
-			last = rt.poll(ctx)
+			last = poll()
 			rt.mu.Lock()
 			ready := rt.carrierReady[s.Iface]
 			rt.mu.Unlock()
@@ -228,7 +240,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		t.Fatalf("reconnect %t %v", accepted, e)
 	}
 	if !wait(func() bool {
-		last = rt.poll(ctx)
+		last = poll()
 		rt.mu.Lock()
 		_, ready := rt.carrierReady[s.Iface]
 		rt.mu.Unlock()
@@ -260,7 +272,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !wait(func() bool {
-			rt.poll(ctx)
+			poll()
 			st, e := rt.State(s.Iface, 0, "")
 			return e == nil && st.GetFailCount() > 0 && strings.Contains(st.GetLastError(), "authentication")
 		}) {
@@ -275,7 +287,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		if !wait(func() bool {
-			last = rt.poll(ctx)
+			last = poll()
 			_, _, _, ready := rt.ForwardingGateway(s.Iface)
 			return last == nil && ready
 		}) {

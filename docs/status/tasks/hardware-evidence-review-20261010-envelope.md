@@ -1,5 +1,11 @@
 # Independent R7 evidence review envelope
 
+Final state: completed independent review of the SAME hardware campaign. Final
+actual acceptance6cb4 and ROOT public completion/WIP/envelopeabe7 independently
+APPROVE, with only carrierless peer packet tests NOT RUN under scoped laboratory
+deferral. No target/product/foreign-worktree writes or unrelated task follow.
+Historical scopes below remain preserved; final exact checks are in eal.md.
+
 Task: inspect PR217 documentation/evidence and scope. Initial final candidate:
 `bde83bc87ae817a61bbc70e4029f76109ae77c35`; base main
 `d2d55984d74fa1d06c32e8271886f11f16375407`.

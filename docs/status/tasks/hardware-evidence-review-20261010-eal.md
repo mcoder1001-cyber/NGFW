@@ -991,3 +991,45 @@ public completion evidence/status publication. No reviewer target operation.
 
 Own published6bb248632c12dfbf18083f5e235bd161d045562e unchanged documentation
 check actually PASSED14s;gitleaks388.37KB/no leaks/board212valid.
+
+## Final public completion review, 16:45 UTC — APPROVE
+
+ROOT's final public completion, top WIP and envelope at exact immutable
+abe7c2f31fb93818028f10d56e97a9ca9fb52c1e independently APPROVE. All three
+changed documentation paths read; no product source or target operation.
+The protected/current routing wording NIT is CLOSED before this publication:
+authorized unused DATA kernel map removals and earlier .37 four carrierless DATA
+IPv6 link-local/twelve associated route removals are explicitly documented.
+Management/global routing/rules/DNS remain protected; raw-original DATA equality
+is not claimed. Final DONE at16:40:13 is scoped to the original single campaign.
+
+Exact independent command/output:
+
+```text
+CWD=/root/ngfw-wt/hardware-manager-20261010
+git status --short
+<empty>
+git rev-parse HEAD
+abe7c2f31fb93818028f10d56e97a9ca9fb52c1e
+git show abe7c2f31fb93818028f10d56e97a9ca9fb52c1e --stat
+3 documentation files changed,59 insertions(+),4 deletions(-)
+sha256sum docs/status/tasks/hardware-manager-20261010-completion.md
+f95dd8915d1b439418b3991c8b7cf81a2dae8e8aceec785f06add96d600aa4c5
+git ls-remote origin refs/heads/codex/hardware-manager-20261010
+abe7c2f31fb93818028f10d56e97a9ca9fb52c1e refs/heads/codex/hardware-manager-20261010
+exit0
+```
+
+The exact final receipt table, 7/17 administrative convergence/native state,
+repeated boot/UTC RTC persistence, certificate verification scope, explicit
+unsynchronised Chrony/timedated compatibility/physical-wear limits, native97ae
+versus final48af/main0c21 provenance, and both complete hosted quick gates agree
+with the independently verified actual evidence. Only physical peer packet
+forwarding/loss/throughput is NOT RUN. No actual code, clock, TLS or authenticated
+native failure is deferred; no unrelated WBS row is closed or new task started.
+
+Own exact published6cb4a6430c4450d1e628de0d1d2f83a4634a9b5d documentation
+check actually PASS13s/gitleaks394.14KB/no leaks/board212valid. ROOT's final
+committed documentation check is still pending observation at this review point;
+the public note correctly promises to report its actual result after publication.
+No further target or broad repeated tests are required for this review.

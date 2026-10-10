@@ -3,7 +3,7 @@
 **Current operational status: resumed for the same existing hardware task at the
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
-Current final checkpoint, 16:39 UTC: independent scoped hardware acceptance
+Current final checkpoint, 16:45 UTC: independent scoped hardware acceptance
 APPROVE. Both repeated normal boots, RTC+absoluteUTC persistence, authenticated
 TLS/native7/.37 and17/.211, admin convergence/pools, complete management/routing
 protection and source/main mandatoryCI independently PASS. Final .37 actual
@@ -11,8 +11,14 @@ protection and source/main mandatoryCI independently PASS. Final .37 actual
 web200/API401/JS20030a032 is an actual rerun. Persistence-source NIT CLOSED2344.
 Only actual carrierless physical-peer forwarding/loss/throughput is explicitly
 NOT RUN and owner-authorized lab deferral28f724; no real code/clock/TLS/native gate
-remains. ROOT final public completion/status receipt is being prepared for readonly
-scope review, after which this independent review is complete. No target operation
+remains. Final ROOT completion/top WIP/envelope at published/read-back
+abe7c2f31fb93818028f10d56e97a9ca9fb52c1e independently APPROVE; exact completion
+SHAf95dd8915d1b439418b3991c8b7cf81a2dae8e8aceec785f06add96d600aa4c5.
+The protected/current L3 wording NIT is CLOSED: unused DATA kernel map changes and
+earlier .37 four IPv6 link-local/twelve route removals are explicit. Existing
+campaign DONE16:40:13 is truthful; no unrelated task or host mutation follows.
+Final ROOT committed documentation check is recorded separately when observed.
+No target operation
 or pending reviewer test; no NTP/SSD-wear/full-userdata/timedated/IP-SAN claim.
 
 Historical 15:45 checkpoint: both new97ae four-package installations and actual
@@ -52,8 +58,9 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`6bb248632c12dfbf18083f5e235bd161d045562e` (matching CLI push/readback;
-actual unchanged documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
+`6cb4a6430c4450d1e628de0d1d2f83a4634a9b5d` (matching CLI push/readback;
+actual unchanged documentation check13s PASS/gitleaks394.14KB/no leaks/board212valid).
+Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
 eal.md. The prior source/launch documentation check exited0 (17s); that success

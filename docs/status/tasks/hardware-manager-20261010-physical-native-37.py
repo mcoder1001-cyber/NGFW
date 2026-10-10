@@ -25,11 +25,11 @@ def digest(b):return hashlib.sha256(b).hexdigest()
 def state(u):return dict(x.split('=',1) for x in checked(['systemctl','show',u,'-p','ActiveState','-p','MainPID','-p','NRestarts']).splitlines())
 def l3():return {'addresses':{x['ifname']:x.get('addr_info',[]) for x in json.loads(checked(['ip','-j','addr']))},'routes4':json.loads(checked(['ip','-j','-4','route','show','table','all'])),'routes6':json.loads(checked(['ip','-j','-6','route','show','table','all'])),'rules4':json.loads(checked(['ip','-j','-4','rule'])),'rules6':json.loads(checked(['ip','-j','-6','rule']))}
 def nft(d):
- if isinstance(d,dict):return {k:nft({a:b for a,b in v.items() if a not in ['packets','bytes']}) if k=='counter' and isinstance(v,dict) else nft(v) for k,v in d.items() if k!='metainfo'}
+ if isinstance(d,dict):return {k:nft({a:b for a,b in v.items() if a not in ['packets','bytes']}) if k=='counter' and isinstance(v,dict) else nft(v) for k,v in d.items() if k!='metainfo' and not (POSTBOOT and k=='handle')}
  if isinstance(d,list):return [nft(x) for x in d if not(isinstance(x,dict) and 'metainfo' in x)]
  return d
 def protect():
- assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()=='c8d66ea9-afab-4228-a293-00c198745040'
+ assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()==(BOOT['after']['boot_id'] if POSTBOOT else 'c8d66ea9-afab-4228-a293-00c198745040')
  assert (os.major(os.stat('/').st_dev),os.minor(os.stat('/').st_dev))==(8,2) and not os.path.lexists('/run/nextroot') and not os.path.exists('/run/ngfwrescue')
  assert not os.path.lexists('/usr/sbin/policy-rc.d') and not os.path.lexists('/etc/systemd/system/vpp.service')
  assert digest(raw('/usr/sbin/ngfw-agent',0o755))==AGENT_SHA and digest(raw('/etc/vpp/startup.conf',0o644))==NEW
@@ -47,9 +47,12 @@ def protect():
  for p,q in RECORD['manifest']['owned_files'].items():assert digest(raw(p,q['mode']))==q['SHA']
  sysctls={k:(pathlib.Path('/proc/sys')/k.replace('.','/')).read_text().strip() for k in BASELINE['sysctls']};assert sysctls==BASELINE['sysctls']
  dns={p:{'SHA':digest(pathlib.Path(p).read_bytes()),'realpath':str(pathlib.Path(p).resolve()),'link':os.readlink(p) if pathlib.Path(p).is_symlink() else None} for p in BASELINE['DNS']};assert dns==BASELINE['DNS']
- rules=json.loads(checked(['nft','-j','list','ruleset']));assert nft(rules)==nft(BASELINE['nft']) and int(pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip(),16)==6
- assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':RECORD['record_before']['expected_unit_PIDs']['nginx.service'],'NRestarts':'0'}
- return {'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':'0x6'}
+ rules=json.loads(checked(['nft','-j','list','ruleset']));assert nft(rules)==nft(BASELINE['nft'])
+ io=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip();assert int(io,16)==(int(BOOT['after']['storage_ioerr'],16) if POSTBOOT else 6)
+ if POSTBOOT:
+  for u in ['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service']:assert state(u)=={k:BOOT['after']['units'][u][k] for k in ['ActiveState','MainPID','NRestarts']}
+ else:assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':RECORD['record_before']['expected_unit_PIDs']['nginx.service'],'NRestarts':'0'}
+ return {'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':io}
 ctx=ssl.create_default_context(cafile='/etc/ngfw/tls/server.crt')
 def request(path,method='GET',data=None,token=None):
  headers={'Content-Type':'application/json'}
@@ -67,6 +70,9 @@ def main():
  h=hashlib.sha256()
  for n in ['settings','doc.json','gen-args','bin/ngfw-startupgen','bin/ngfw-vppcheck','bin/apply-startup.sh','gate']:h.update(raw(w/n))
  assert h.hexdigest()==raw(w/'plan.sha256').decode().strip()==COMMITTED['plan_SHA'];result['native_plan_SHA']=h.hexdigest();result['before']=protect();kernel=checked(['dmesg','--color=never']);result['kernel_before']=kernel;result['stage']='protected-commit-verified'
+ if POSTBOOT:
+  assert kernel.startswith(BOOT['kernel_after']),'fresh boot kernel prefix changed'
+  result['postboot_proof_SHA']=BOOT_SHA;result['preboot_proof_SHA']=PREBOOT_SHA;result['fresh_boot_id']=BOOT['after']['boot_id']
  units=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service'];result['unit_states_before']={u:state(u) for u in units}
  if RESUME:
   assert all(result['unit_states_before'][u]['ActiveState']=='inactive' for u in ['ngfw-agent.service','ngfw-api.service'])
@@ -120,7 +126,14 @@ def save(p,b):
  with os.fdopen(fd,'wb') as f:f.write(b);f.flush();os.fsync(f.fileno())
  fd=os.open(p.parent,os.O_DIRECTORY);os.fsync(fd);os.close(fd);return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
- os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--commit-proof',required=True);p.add_argument('--commit-sha',required=True);p.add_argument('--record-proof',required=True);p.add_argument('--record-sha',required=True);p.add_argument('--expected-startup-sha',required=True);p.add_argument('--expected-agent-sha',required=True);p.add_argument('--expected-version',required=True);p.add_argument('--resume-runtime',action='store_true');a=p.parse_args()
+ os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--commit-proof',required=True);p.add_argument('--commit-sha',required=True);p.add_argument('--record-proof',required=True);p.add_argument('--record-sha',required=True);p.add_argument('--expected-startup-sha',required=True);p.add_argument('--expected-agent-sha',required=True);p.add_argument('--expected-version',required=True);p.add_argument('--resume-runtime',action='store_true');p.add_argument('--postboot-proof');p.add_argument('--postboot-sha');p.add_argument('--preboot-proof');p.add_argument('--preboot-sha');a=p.parse_args()
+ postboot=any([a.postboot_proof,a.postboot_sha,a.preboot_proof,a.preboot_sha]);boot=None
+ if postboot:
+  assert all([a.postboot_proof,a.postboot_sha,a.preboot_proof,a.preboot_sha]) and not a.resume_runtime
+  boot=load(a.postboot_proof,OUTPUT,a.postboot_sha);preboot=load(a.preboot_proof,OUTPUT,a.preboot_sha)
+  assert boot['host']=='37' and boot['mode']=='observe-boot' and boot['PASS'] and boot['stage']=='complete' and boot['new_boot_observed'] and boot['storage_counter_epoch']=='fresh-boot' and boot['new_storage_errors']==[] and boot['native_proof_SHA']==a.preboot_sha
+  assert boot['before']['boot_id']==boot['after']['boot_id']!='c8d66ea9-afab-4228-a293-00c198745040' and int(boot['before']['storage_ioerr'],16)==int(boot['after']['storage_ioerr'],16)
+  assert preboot['native1_physical7_PASS'] and preboot['PASS'] and preboot['stage']=='complete' and preboot['unit_identity_stable'] and preboot['new_storage_errors']==[] and preboot['committed_proof_SHA']==a.commit_sha and preboot['expected_startup_SHA']==a.expected_startup_sha and preboot['expected_agent_SHA']==a.expected_agent_sha and preboot['expected_package_version']==a.expected_version
  for v in [a.expected_startup_sha,a.expected_agent_sha]:assert re.fullmatch('[0-9a-f]{64}',v)
  assert a.expected_startup_sha not in ['b1f977e8e8594f45047c4103c318390bd395cb50078949daa0d0f612572cb179','c1b121e410961cb64869909a2cd82448984c0472ada11ab0a32234897b86b3c8']
  assert re.fullmatch(r'0\.1\.0~dev\+[0-9a-f]{12}',a.expected_version)
@@ -131,7 +144,7 @@ def main():
  doc=seed['running']['data'];doc_sha=hashlib.sha256(json.dumps(doc,separators=(',',':')).encode()).hexdigest();assert doc_sha==record['record_before']['document_SHA']
  cpath=OUTPUT/'manager-bootstrap-admin-37.json';assert not cpath.is_symlink() and cpath.stat().st_uid==0 and stat.S_IMODE(cpath.stat().st_mode)==0o600;c=json.loads(cpath.read_bytes());assert c['host']=='172.30.126.37'
  assert a.expected_agent_sha=='b3c7cc10671abcab6d11c7dce12323f284c64822a15cfda1c46ba78803283744' and a.expected_version=='0.1.0~dev+97ae88ee5b6a'
- fields={'RESUME':a.resume_runtime,'COMMITTED':committed,'COMMIT_SHA':a.commit_sha,'NEW':a.expected_startup_sha,'AGENT_SHA':a.expected_agent_sha,'VERSION':a.expected_version,'RECORD':record,'BASELINE':{'sysctls':seed['sysctls_after'],'DNS':seed['DNS_network_files_after'],'nft':seed['nft_after']},'DOCUMENT':doc,'DOC_SHA':doc_sha,'SEED_DOCUMENT':doc,'SEED_SHA':'ba5439fcb0a7b2ccce59c1cf3b09f177e76e8de8cb1fe4e75d12840743b659ea','ADMIN_USER':c['username'],'ADMIN_PASSWORD':c['password']}
+ fields={'POSTBOOT':postboot,'BOOT':boot,'BOOT_SHA':a.postboot_sha,'PREBOOT_SHA':a.preboot_sha,'RESUME':a.resume_runtime,'COMMITTED':committed,'COMMIT_SHA':a.commit_sha,'NEW':a.expected_startup_sha,'AGENT_SHA':a.expected_agent_sha,'VERSION':a.expected_version,'RECORD':record,'BASELINE':{'sysctls':seed['sysctls_after'],'DNS':seed['DNS_network_files_after'],'nft':seed['nft_after']},'DOCUMENT':doc,'DOC_SHA':doc_sha,'SEED_DOCUMENT':doc,'SEED_SHA':'ba5439fcb0a7b2ccce59c1cf3b09f177e76e8de8cb1fe4e75d12840743b659ea','ADMIN_USER':c['username'],'ADMIN_PASSWORD':c['password']}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE;q=subprocess.run(['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.126.37','python3 -'],input=code.encode(),capture_output=True)
- stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='resume' if a.resume_runtime else 'observe';print(json.dumps({'SSH_exit':q.returncode,'ROOT_only_resume':a.resume_runtime,'stdout':save(OUTPUT/('manager-physical-native37-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(OUTPUT/('manager-physical-native37-'+mode+'-'+stamp+'.stderr'),q.stderr)}));raise SystemExit(q.returncode)
+ stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='postboot' if postboot else 'resume' if a.resume_runtime else 'observe';print(json.dumps({'SSH_exit':q.returncode,'ROOT_only_resume':a.resume_runtime,'stdout':save(OUTPUT/('manager-physical-native37-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(OUTPUT/('manager-physical-native37-'+mode+'-'+stamp+'.stderr'),q.stderr)}));raise SystemExit(q.returncode)
 if __name__=='__main__':main()

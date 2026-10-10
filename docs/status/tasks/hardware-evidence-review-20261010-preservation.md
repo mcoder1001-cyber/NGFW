@@ -577,3 +577,28 @@ actual classification; this does not preauthorize deletion. Owner already accept
 .37 known media wear; actual new read/reset/uncorrectable/CRC faults remain a stop.
 Actual correction/clean validation/offhost undo and normal return are still pending.
 Reviewer executes no target command.
+
+
+## .37 controller EOF launch failure and guarded retry
+
+Initial fixed-driver launch used controller heredoc stdin; EOF caused the driver's
+explicit interrupt path before any fsck prompt/answer/undo. Failed transcript
+39 B/0600 SHA25629e578c3a5e15a1d44d3b9659e0a3344d13bccb7680c63f5fe5a727641efe34a
+independently bytes/hash/mode verified without printing contents. Actual private
+corroboration375 B/0600
+SHA2567bb5b35970f24425809eb5a42d6d51a34da688217cbfd6766cb0e0d530aa3d41
+independently parsed SSH0/empty stderr: e2fsck_pids[],undo/probe/nextroot absent,
+RAM51/held shell present,answers0. Failed launch made no correction.
+
+Exact correction-launch.py SHA256
+c9b46e0a71dbc60c25912f63c92dbad7320d870f61d8e78cb2e6b483ec3b9154
+full source/hash/AST PASS. First guard refuses non-TTY before any target action;
+exact39 B failure is atomically renamed/fsynced to a separate archive. Pins
+unchanged bdb2 preservation and5f45 one-byte driver, performs distinct fresh full
+audit/no-undo/no-probe/counter/kernel gates, then execs unchanged driver under an
+allocated controller PTY. Operator reports publication/readback
+0f4353bc612fbbac03eef6fd632b0424c6dffb59 and non-TTY refusal1 before archive/SSH.
+
+Scoped retry applicability APPROVE under existing parent correction release after
+durable publication; no new permission or product/driver change. Actual retry
+audit/prompts/undo/clean validation and normal-return proof are forthcoming.

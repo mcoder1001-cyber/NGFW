@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`134606437621c2fc282698336413fab2cd695ebe` (verified guarded package simulation; matching
+`5ee4a9a494ed6da520e47f5401a0dc427a97a6cb` (verified exact installation-source applicability; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -497,3 +497,13 @@ installation release and actual results remain separate; no activation/binding.
 operator preserving failure and preparing interactive isatty-guarded launcher.
 Await actual receipt corroboration and fresh audit for retry; fixed one-byte
 driver and correction scope are unchanged.
+
+
+Pre-install VPP sysctl omission caught before execution: previous selected-review
+approval superseded by exact native skip source0f02b584 on independently remote
+065cdcd7. Full postinst, supported skip environment variable and sixteen-key before/after delta reviewed;
+reviewer own exact prefix/stub tests PASS flagunset1call/flag1zero, no real sysctl
+possible. Existing conditional install release now executable, actual results
+pending; persistent80-vpp.conf reviewed deliberately before future reboot.
+.37 launchfailure375B corroboration and guarded c9b46 launcher independently PASS;
+unchanged onebyte correction scope, no new permission needed for retry.

@@ -1,12 +1,15 @@
 # Hardware recovery and installation resume
 
-Current phase, 2026-10-10 10:05UTC: both /dev/sda2 roots have structural ext4 errors
-and failed boot fsck. .211 actually entered RAM rescue, fresh2222 authenticated,
-exact network state matched and full offline/exclusive proof passed. Native
-metadata image plus five affected external blocks are durably preserved offhost;
-targeted interactive correction has started after actual R7 approval and refreshed
-audit262processes/93FDs/nsfs0/races0/failures0/finalguard0. Completion/normal return
-have not yet been observed. .37 remains on original22 plus held RAM rescue PTY;
+Current phase, 2026-10-10 10:43UTC: both /dev/sda2 roots initially had structural
+ext4 errors and failed boot fsck. .211 is in matching RAM rescue, correction
+completed exit1 and subsequent full offline-f-n exits0 through all5passes. Native
+metadata image, seven all-zero affected external blocks, actual749568B undo and
+complete transcript/answer ledger are durably preserved offhost. Full post-audit
+260processes/93FDs/nsfs0/races0/failures0/finalguard0 passed, kernel exactlyequal
+and ioerr18 stable. Selected originalroot/EFI readonly integrity52/52 comparisons
+passed and both ordinaryunmounts0; separate normal-return release awaits finalRAM
+shutdown/manager/freshguard/sync/nextroot and applicable R7 actual verdict.
+.37 remains on original22 plus held RAM rescue PTY;
 its transition waits for .211 normal return. Package installation and hardware
 acceptance remain unexecuted. The owner explicitly requests repair despite .37 SSD wear; wear
 alone is not a replacement or permission blocker. Recover .211 first, then .37.
@@ -88,7 +91,11 @@ new read/media failure or unexpectedly affected user file requires diagnosis.
    NEW_PRIVATE_CAPPED_RAM_UNDO /dev/sda2 on the still-unmounted identified root.
    Actual .211 wrapper inherits verified1GiB soft/hard RLIMIT_FSIZE, measured RAM
    and controller capacity plus512MiB margin, private1MiB write/sync preflight.
-   Explicit individual y/n only: known three journal extent clears/accounting and
+   Controller must write exactlyONE y/n byte without newline: matching e2fsck
+   noncanonical ask_yn consumes onebyte and queued newline accepts the nextdefault.
+   Initial .211 driver violated this;5 implicit known-scope defaults are honestly
+   retained, controller-only verified pipe helper corrected continuation. Future
+   driver is fixed. Explicit individual y/n only: known three journal extent clears/accounting and
    known cache/config salvage/checksum; new objects/prompt effects require concrete
    classification before acceptance. Directory salvage may discard malformed entries.
    No unattended -y, arbitrary directory deletion, format, repartition, SMART reset

@@ -1,3 +1,41 @@
+# Actual .211 correction and clean validation — 2026-10-10 10:43 UTC
+
+Corrective interactive e2fsck completed exit1 (filesystem modified); complete
+3270B transcript790f88f2 and20099B single-byte ledger716dc358 are private/fsynced.
+Original5 newline inputs/5 implicit defaults are honestly retained; later27
+helper answers were exactlyonebyte. Actual35yes/2no prompts include both declined
+unknown zero-length Clear operations: emptyregular259595/259600 and directory259603
+were preserved in lost+found. Pass5 exact reconstructed bitmap3533freedblocks and
+consequential counts corrected, nodiscard leaves physicalbytes. No userdata deletion.
+
+Subsequent complete offline e2fsck-f-n exits0 through all5passes; optimization-only
+259597/259816 declined. FS29655/3845088files,4268770/15505494blocks.
+Full post-audit2b3aa09b PASS260processes/93FDs/nsfs0/races0/failures0/finalguard0.
+Kernel before/after/midrepair exactlyequal, SCSIioerr18->18. Actual undo749568B
+private0600/RAM46/offhost sourceSHA92df3461b98f30de5f52d308f99e152bba598476cda02d10d055726c2a92b477
+is durable, file/directory fsynced. Manager independently reread/hash/mode PASS.
+Final preservation1052B/7f15a9f0 and clean-health461056B/bb09796a remain private.
+R7 independent actual clean/undo/transcript/count review is published/readback
+0437b3fb565330f06e5aebdac44205a3da4059fb; actual correction/clean validation PASS.
+
+Already released readonly integrity actual62147B/14af90cc:52/52 selected boot/auth
+hash+metadata comparisonsTrue,22commandsexit0; originalrootro,noload/noexec andEFIro;
+bothordinaryunmount0. Manager independently inspected this actual evidence.
+Separate normal-return release awaits only incoming matchingRAMshutdown/manager,
+fresh exclusiveguard0/sync/nextrootabsence and applicable R7 actual return review.
+Do not introduce optional fullimage/console/undo-dryrun mandatory gates. Singleforce
+skip-auto-soft/kexec reboot plan remains; .37 original22 stays reachable throughout.
+
+.37 finite1GiB prep actual7525B/55b5f250 and V3stage860B/0fd8ebb3 PASS with expected
+mountedBUSY3, no actualundo/validblockread/repair/transition. Published/readback
+956349f9,a04409b8,320f1e49; future package helperd529 is source/local11hash/control
+validation only, targetmode notrun. Root preceding1c4b94b159a9d23597b06775563929ae8df39d9b
+remote readback PASS; this coherent update immediately publishes. Remaining exact
+next action: complete .211 return gates/release/reboot and prove fresh original22,
+protected NIC/PCI/network/DNS and newbootstorage clean; then release .37 sequence.
+Original packageinstallation/exact7+17NIC addition and service/forwarding acceptance
+remain required and unexecuted. Older entries below are historical checkpoints.
+
 # Actual .211 reference-count/preservation phase — 2026-10-10 10:32 UTC
 
 New259594 user-home cache directory0700/UIDGID1000/4096B/links2/block15505492

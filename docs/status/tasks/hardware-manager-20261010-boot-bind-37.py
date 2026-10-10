@@ -23,7 +23,7 @@ def management():
  assert d.resolve(strict=True).name==MGMT and (d/'driver').resolve(strict=True).name=='igc'
  group(d,58,MGMT)
  addresses=json.loads(checked(['ip','-j','addr','show','dev','enp12s0']))
- assert any(a.get('local')=='172.30.110.37' and a.get('prefixlen')==24 for n in addresses for a in n.get('addr_info',[]))
+ assert any(a.get('local')=='172.30.126.37' and a.get('prefixlen')==24 for n in addresses for a in n.get('addr_info',[]))
  routes=json.loads(checked(['ip','-j','-4','route','show','table','all']))
  assert any(r.get('dst')=='default' and r.get('dev')=='enp12s0' and r.get('gateway')=='172.30.126.1' for r in routes)
 def unsafe_gate():

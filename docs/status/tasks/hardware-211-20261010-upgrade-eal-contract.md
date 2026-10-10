@@ -59,3 +59,21 @@ helper never starts/stops runtime, repairs cache, alters drivers/startup,
 applies configuration, resets failure history or reboots. A separate fresh
 corrected-render retry record/transaction must preserve the original record,
 failed b1f transaction and launch-to-observer kernel proof.
+
+Actual ROOT211 APT attempt exited100 before changes because Debian compares
+ee202 lexically above97ae. This is the reviewed exact-four artifact transition,
+so its same pinned install command may add `--allow-downgrades` only after
+unchanged four-Inst/zero-Remv old/new version/hash and fresh simulation checks.
+No other downgrade or repository package change is admitted.
+
+An explicit ROOT-only `preserve-failed-attempt` phase consumes immutable actual
+7a64 failure: exit100, empty dpkg audit, all four still ee202/agent a909,
+protected state unchanged and no new storage error. Verify each of ONLY two
+owned input log files against that receipt's exact bytes/hash/0600 metadata.
+Copy them into a fresh private0700 disk recovery-record child, fsync and hash
+verify both files and their identity manifest before unlinking only each
+unchanged original RAM log. Do not rename across filesystems, delete evidence
+or accept unrelated input members. Guards, archives and runtime stay intact.
+Future install attempts spool to unique0600 recovery-record filenames rather
+than the four-archive input directory. Retain the failed actual transcript;
+fresh simulation/install remain separate ROOT phases after source review.

@@ -57,3 +57,8 @@ Additional owned per-host phase verdict:
 `hardware-evidence-review-20261010-transition-211.md`. Actual selected receipts,
 source identity and phase gates; .211 transition/read-only approval does not approve
 corrections, return, acceptance or .37 execution.
+
+Additional owned actual audit-tool review:
+`hardware-evidence-review-20261010-audit.md`. Review exact worker C/Bash source,
+independent controller-only static build/refusal behavior and private actual
+mounted-negative/runtime receipts; no target execution or product edits.

@@ -654,3 +654,24 @@ corrected to exact immutable originalc8d and reran, no target action or false pa
 
 Own published389aafa4063e1d89055a5077ae3afd602bcc900f documentation check actually
 PASSED14s, gitleaks360.92KB/no leaks/board212valid. No rule, test or gate waiver.
+
+
+## Actual paired-postboot refusal, 16:02 UTC
+
+Private manager-physical-native37-postboot-20261010T155822Z.json independently
+rehashed/parsed:235987 B/root0600/SHA256
+ebfc58dc7d7a21d42ff6e8dfc9c9182c9eacd4059628998f044814e928cbbb2e.
+Actual mode observe, stage protected-commit-verified, PASS=false;20 commands exit0.
+It pins actual postboot090cc/preboot519e and fresh d4b5 UUID, with runtime
+VPP1311/agent1312/API1314/nginx2298 active/zero restarts. Protected native HTTPS
+readiness refused after46 observations, all URLError; no login or native7 postboot
+acceptance reached. Exact static failure: protected HTTPS endpoint not ready.
+The recorded exception class alone does not establish API crash, certificate
+fault or DNS diagnosis. Parent received the actual failure and narrow requirement
+to inspect underlying transport/SSL cause, fresh host time/certificate validity
+and localhost listener/resolution before any restart or verification relaxation.
+No target operation, TLS bypass, manual state mutation, additional reboot or false
+postboot PASS by reviewer. Paired native7 and .211 postboot proofs remain pending.
+
+Own published e8a574121735980ef707cd104934a4cd3453b056 unchanged documentation
+check --base origin/main actually PASSED14s;gitleaks367.80KB/no leaks/board212valid.

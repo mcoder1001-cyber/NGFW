@@ -20,6 +20,14 @@ ROOT must separately stop only API and agent37 before the read-only inspect.
 The actual native7 receipt ba5439 is immutable evidence of seed1; this upgrade
 does not rerun firstboot, reconstruct cache, invent revisions or seed rows.
 
+The explicit ROOT-only host37 `hold-runtime` preparation phase first proves
+the immutable native7 receipt, exact current four runtime PIDs and complete
+protected snapshot. It stops only API then agent, records each actual result,
+and requires every other21-unit identity and cache/config/network state to
+remain unchanged. Inspect itself never stops a service. This closed phase is
+inapplicable to211 and requires separate ROOT release; a failure preserves
+actual intermediate state and does not retry, restart or reset counters.
+
 Each host obtains its own fresh read-only baseline after intended containment.
 Exactly21 service activation identities, full actual L3/routes/rules, DNS,
 all16 routing/VM sysctls, native nft semantics excluding only packet counters,

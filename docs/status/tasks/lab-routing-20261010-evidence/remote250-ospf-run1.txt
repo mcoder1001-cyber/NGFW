@@ -1,0 +1,20 @@
+HOST_NETNS=net:[4026531833]
+PRIVATE_FIB_NETNS=net:[4026532747]
+OSPF_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}]
+DISPOSABLE_VPP pid=466279 runtime=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-466276
+run.sh: 2026-10-10T13:36:28 VPP NRestarts=0 before, mode root
+=== RUN   TestOSPFTopologyOnHost
+    ospf_topology_integration_test.go:721: waiting for the exclusive globals lock /run/lock/ngfw-globals.lock …
+    ospf_topology_integration_test.go:725: globals window open at 2026-10-10T13:36:29+03:30
+    ospf_topology_integration_test.go:732: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 13:36:29 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    ospf_topology_integration_test.go:752: NGFW_OSPF_FIB=root: cannot verify system frr is inactive: "active\n" (<nil>)
+    ospf_topology_integration_test.go:735: systemctl show vpp -p NRestarts (after) = 0
+    ospf_topology_integration_test.go:727: globals window closed at 2026-10-10T13:36:29+03:30
+--- FAIL: TestOSPFTopologyOnHost (0.15s)
+FAIL
+required routing acceptance did not pass without skips
+run.sh: 2026-10-10T13:36:29 VPP NRestarts=0 after, exit 1
+DISPOSABLE_VPP_STOPPED pid=466279
+PRIVATE_FIB_TEST_EXIT=1
+SHARED_VPP_UNCHANGED=MainPID=8102,NRestarts=0

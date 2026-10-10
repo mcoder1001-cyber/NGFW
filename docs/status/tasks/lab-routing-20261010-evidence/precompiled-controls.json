@@ -1,0 +1,40 @@
+[
+  {
+    "case": "empty",
+    "passed": true,
+    "exit": 1
+  },
+  {
+    "case": "run-only",
+    "passed": true,
+    "exit": 1
+  },
+  {
+    "case": "skip",
+    "passed": true,
+    "exit": 1
+  },
+  {
+    "case": "nested-skip",
+    "passed": true,
+    "exit": 1
+  },
+  {
+    "case": "full-markers",
+    "passed": true,
+    "exit": 0
+  },
+  {
+    "case": "wrong-suite",
+    "passed": true,
+    "exit": 1
+  },
+  {
+    "case": "writable-executable",
+    "passed": true
+  },
+  {
+    "case": "multiply-linked-executable",
+    "passed": true
+  }
+]

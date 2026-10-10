@@ -1,0 +1,74 @@
+[
+  {
+    "pid": 3743417,
+    "starttime": "60650133",
+    "netns": "net:[4026532607]",
+    "exe": "/usr/lib/frr/mgmtd"
+  },
+  {
+    "pid": 3743424,
+    "starttime": "60650152",
+    "netns": "net:[4026532607]",
+    "exe": "/usr/lib/frr/zebra"
+  },
+  {
+    "pid": 3743429,
+    "starttime": "60650163",
+    "netns": "net:[4026532607]",
+    "exe": "/usr/lib/frr/staticd"
+  },
+  {
+    "pid": 3743437,
+    "starttime": "60650173",
+    "netns": "net:[4026532607]",
+    "exe": "/usr/lib/frr/ospfd"
+  },
+  {
+    "pid": 3743449,
+    "starttime": "60650198",
+    "netns": "net:[4026533284]",
+    "exe": "/usr/lib/frr/mgmtd"
+  },
+  {
+    "pid": 3743467,
+    "starttime": "60650413",
+    "netns": "net:[4026533284]",
+    "exe": "/usr/lib/frr/zebra"
+  },
+  {
+    "pid": 3743500,
+    "starttime": "60650620",
+    "netns": "net:[4026533284]",
+    "exe": "/usr/lib/frr/staticd"
+  },
+  {
+    "pid": 3743628,
+    "starttime": "60650832",
+    "netns": "net:[4026533284]",
+    "exe": "/usr/lib/frr/ospfd"
+  },
+  {
+    "pid": 3743653,
+    "starttime": "60651075",
+    "netns": "net:[4026533350]",
+    "exe": "/usr/lib/frr/mgmtd"
+  },
+  {
+    "pid": 3743685,
+    "starttime": "60651292",
+    "netns": "net:[4026533350]",
+    "exe": "/usr/lib/frr/zebra"
+  },
+  {
+    "pid": 3743704,
+    "starttime": "60651499",
+    "netns": "net:[4026533350]",
+    "exe": "/usr/lib/frr/staticd"
+  },
+  {
+    "pid": 3743729,
+    "starttime": "60651708",
+    "netns": "net:[4026533350]",
+    "exe": "/usr/lib/frr/ospfd"
+  }
+]

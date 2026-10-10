@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run unchanged OSPF root-mode FIB proof inside a private network namespace."""
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -34,10 +35,14 @@ def main():
         source.mkdir(mode=0o755, parents=True)
         subprocess.run(['mount', '--bind', str(source), '/run/' + directory], check=True)
     subprocess.run(['ip', 'link', 'set', 'lo', 'up'], check=True)
-    links = json.loads(subprocess.check_output(['ip', '-j', 'link', 'show']))
-    # Loading IPv6 tunnel support can create this down fallback device in every
-    # new namespace; neither it nor loopback connects to any host NIC.
-    if any(link['ifname'] not in {'lo', 'ip6tnl0'} for link in links):
+    links = json.loads(subprocess.check_output(['ip', '-d', '-j', 'address', 'show']))
+    print('OSPF_OUTER_LINK_INVENTORY=' + json.dumps(links, sort_keys=True), flush=True)
+    # Reuse the strict tested ownership guard: immutable down kernel tunnel
+    # fallbacks carry no address, master, active flag or configured endpoint.
+    spec = importlib.util.spec_from_file_location('p12_private_guard', ROOT / 'test/topology/frr-linuxcp/private-fib.py')
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    if not links or any(not guard.empty_outer_link(link) for link in links):
         raise SystemExit('private network namespace is not empty')
     os.environ.update(NGFW_OSPF_FIB='root', NGFW_ISOLATED_TEST_RUN='1')
     rc = subprocess.call([sys.executable, str(ROOT / 'test/topology/hardware-smoke/isolated-vpp.py'),

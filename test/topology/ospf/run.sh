@@ -25,6 +25,11 @@ export PATH="$PATH:$HOME/go/bin:/usr/local/go/bin"
 export NGFW_INTEGRATION=1 NGFW_OSPF_TOPOLOGY=1
 echo "run.sh: $(date +%FT%T) VPP $(systemctl show vpp -p NRestarts) before, mode ${NGFW_OSPF_FIB:-netns}"
 cd "$ROOT/apps/agent"
-if "$ROOT/tools/lab" lock shared go test -count=1 -v -timeout 20m -run TestOSPFTopologyOnHost "$@" ./internal/agent/; then rc=0; else rc=$?; fi
+command=(go test -count=1 -v -timeout 20m -run TestOSPFTopologyOnHost "$@" ./internal/agent/)
+if [[ -n "${NGFW_ROUTING_TEST_BIN:-}" ]]; then
+  [[ "$#" == 0 ]] || { echo "precompiled routing mode accepts no extra arguments" >&2; exit 1; }
+  command=(python3 "$ROOT/test/topology/frr-linuxcp/precompiled-test.py" ospf)
+fi
+if "$ROOT/tools/lab" lock shared "${command[@]}"; then rc=0; else rc=$?; fi
 echo "run.sh: $(date +%FT%T) VPP $(systemctl show vpp -p NRestarts) after, exit $rc"
 exit $rc

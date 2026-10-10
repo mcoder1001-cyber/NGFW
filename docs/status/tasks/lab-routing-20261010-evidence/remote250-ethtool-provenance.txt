@@ -1,0 +1,2 @@
+root 700 1 regular file
+54ee98014cd8813f0a2f13aa2e829f7b5160ab6442e5fed9e0b10fd2c2094bbe  /root/ngfw-routing250-20261010/bin/ethtool

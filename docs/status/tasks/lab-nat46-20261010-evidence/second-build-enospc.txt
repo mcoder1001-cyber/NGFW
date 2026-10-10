@@ -1,0 +1,40 @@
+google.golang.org/protobuf/runtime/protoimpl: mkdir /tmp/g-w17/go-build716617393/b169/: no space left on device
+# ngfw/agent/binapi/ethernet_types
+vet: open $WORK/b177/vet.stdout: no space left on device
+# ngfw/agent/internal/vpp
+vet: open $WORK/b191/vet.stdout: no space left on device
+# ngfw/agent/binapi/ip_types
+vet: open $WORK/b136/vet.stdout: no space left on device
+ngfw/agent/binapi/fib_types: open /tmp/g-w17/go-build716617393/b179/vet.cfg: no space left on device
+ngfw/agent/binapi/mfib_types: open /tmp/g-w17/go-build716617393/b180/vet.cfg: no space left on device
+# ngfw/agent/internal/scheduler
+vet: open $WORK/b182/vet.stdout: no space left on device
+ngfw/agent/internal/descriptors/dfkit/persist: open /tmp/g-w17/go-build716617393/b181/vet.cfg: no space left on device
+ngfw/agent/internal/descriptors/kit: open /tmp/g-w17/go-build716617393/b190/vet.cfg: no space left on device
+# ngfw/agent/binapi/interface_types
+vet: failed to export analysis facts: open $WORK/b134/vet.out: no space left on device
+ngfw/agent/binapi/feature: open /tmp/g-w17/go-build716617393/b130/vet.cfg: no space left on device
+ngfw/agent/binapi/adl: open /tmp/g-w17/go-build716617393/b203/vet.cfg: no space left on device
+ngfw/agent/binapi/tunnel_types: open /tmp/g-w17/go-build716617393/b207/vet.cfg: no space left on device
+ngfw/agent/binapi/lldp: open /tmp/g-w17/go-build716617393/b209/vet.cfg: no space left on device
+ngfw/agent/binapi/ipsec_types: open /tmp/g-w17/go-build716617393/b206/vet.cfg: no space left on device
+# ngfw/agent/binapi/vlib
+vet: failed to export analysis facts: open $WORK/b211/vet.out: no space left on device
+# ngfw/agent/binapi/memclnt
+vet: failed to export analysis facts: open $WORK/b142/vet.out: no space left on device
+ngfw/agent/binapi/map: open /tmp/g-w17/go-build716617393/b135/vet.cfg: no space left on device
+ngfw/agent/binapi/interface: open /tmp/g-w17/go-build716617393/b176/vet.cfg: no space left on device
+ngfw/agent/binapi/ipsec: open /tmp/g-w17/go-build716617393/b205/vet.cfg: no space left on device
+ngfw/agent/internal/vpp/bootid: open /tmp/g-w17/go-build716617393/b201/vet.cfg: no space left on device
+ngfw/agent/binapi/classify: open /tmp/g-w17/go-build716617393/b204/vet.cfg: no space left on device
+ngfw/agent/binapi/span: open /tmp/g-w17/go-build716617393/b210/vet.cfg: no space left on device
+ngfw/agent/binapi/ip: open /tmp/g-w17/go-build716617393/b178/vet.cfg: no space left on device
+ngfw/agent/binapi/vxlan: open /tmp/g-w17/go-build716617393/b212/vet.cfg: no space left on device
+ngfw/agent/binapi/l2: open /tmp/g-w17/go-build716617393/b208/vet.cfg: no space left on device
+ngfw/agent/internal/vpp/ifsanitize: open /tmp/g-w17/go-build716617393/b202/vet.cfg: no space left on device
+# ngfw/agent/internal/vpp/vpptest
+can't create $WORK/b217/_pkg_.a: open $WORK/b217/_pkg_.a: no space left on device
+# ngfw/agent/internal/vpp/fake
+can't create $WORK/b218/_pkg_.a: open $WORK/b218/_pkg_.a: no space left on device
+FAIL	ngfw/agent/internal/descriptors/nat46 [build failed]
+FAIL

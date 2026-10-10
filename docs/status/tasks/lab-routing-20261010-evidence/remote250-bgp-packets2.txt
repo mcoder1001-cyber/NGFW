@@ -1,0 +1,30 @@
+tcpdump: WARNING: any: That device doesn't support promiscuous mode
+(Promiscuous mode not supported on the "any" device)
+tcpdump: listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+14:13:12.297138 w14l1 Out IP (tos 0xc0, ttl 1, id 7321, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.42346 > 10.14.1.1.179: Flags [S], cksum 0x164d (incorrect -> 0x87db), seq 3138504467, win 64240, options [mss 1460,sackOK,TS val 1195261841 ecr 0,nop,wscale 10], length 0
+14:13:13.001129 w14l1 Out IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.179 > 10.14.1.1.42735: Flags [S.], cksum 0x164d (incorrect -> 0xee27), seq 2100217017, ack 1579123259, win 65160, options [mss 1460,sackOK,TS val 1195262545 ecr 2212851139,nop,wscale 10], length 0
+14:13:13.001335 w14l1 In  IP (tos 0xc0, ttl 1, id 54269, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.1.42735 > 10.14.1.2.179: Flags [S], cksum 0xa1f4 (correct), seq 1579123258, win 62720, options [mss 8960,sackOK,TS val 2212852155 ecr 0,nop,wscale 10], length 0
+14:13:13.001347 w14l1 Out IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.179 > 10.14.1.1.42735: Flags [S.], cksum 0x164d (incorrect -> 0xee27), seq 2100217017, ack 1579123259, win 65160, options [mss 1460,sackOK,TS val 1195262545 ecr 2212851139,nop,wscale 10], length 0
+14:13:13.321163 w14l1 Out IP (tos 0xc0, ttl 1, id 7322, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.42346 > 10.14.1.1.179: Flags [S], cksum 0x164d (incorrect -> 0x83db), seq 3138504467, win 64240, options [mss 1460,sackOK,TS val 1195262865 ecr 0,nop,wscale 10], length 0
+14:13:14.029168 w14l1 In  IP (tos 0xc0, ttl 1, id 54270, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.1.42735 > 10.14.1.2.179: Flags [S], cksum 0x9df4 (correct), seq 1579123258, win 62720, options [mss 8960,sackOK,TS val 2212853179 ecr 0,nop,wscale 10], length 0
+14:13:14.029200 w14l1 Out IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.179 > 10.14.1.1.42735: Flags [S.], cksum 0x164d (incorrect -> 0xea23), seq 2100217017, ack 1579123259, win 65160, options [mss 1460,sackOK,TS val 1195263573 ecr 2212851139,nop,wscale 10], length 0
+14:13:14.345153 w14l1 Out IP (tos 0xc0, ttl 1, id 7323, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.42346 > 10.14.1.1.179: Flags [S], cksum 0x164d (incorrect -> 0x7fdb), seq 3138504467, win 64240, options [mss 1460,sackOK,TS val 1195263889 ecr 0,nop,wscale 10], length 0
+14:13:15.055206 w14l1 In  IP (tos 0xc0, ttl 1, id 54271, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.1.42735 > 10.14.1.2.179: Flags [S], cksum 0x99f4 (correct), seq 1579123258, win 62720, options [mss 8960,sackOK,TS val 2212854203 ecr 0,nop,wscale 10], length 0
+14:13:15.055249 w14l1 Out IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.179 > 10.14.1.1.42735: Flags [S.], cksum 0x164d (incorrect -> 0xe621), seq 2100217017, ack 1579123259, win 65160, options [mss 1460,sackOK,TS val 1195264599 ecr 2212851139,nop,wscale 10], length 0
+14:13:16.073266 w14l1 In  IP (tos 0xc0, ttl 1, id 54272, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.1.42735 > 10.14.1.2.179: Flags [S], cksum 0x95f4 (correct), seq 1579123258, win 62720, options [mss 8960,sackOK,TS val 2212855227 ecr 0,nop,wscale 10], length 0
+14:13:16.073303 w14l1 Out IP (tos 0xc0, ttl 255, id 0, offset 0, flags [DF], proto TCP (6), length 60)
+    10.14.1.2.179 > 10.14.1.1.42735: Flags [S.], cksum 0x164d (incorrect -> 0xe227), seq 2100217017, ack 1579123259, win 65160, options [mss 1460,sackOK,TS val 1195265617 ecr 2212851139,nop,wscale 10], length 0
+12 packets captured
+13 packets received by filter
+0 packets dropped by kernel

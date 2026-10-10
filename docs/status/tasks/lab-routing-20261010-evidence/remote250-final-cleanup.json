@@ -1,0 +1,26 @@
+{
+  "owned_processes": [],
+  "namespace_frr_handles": {
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-466270/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-466270/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-469035/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-469035/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-484927/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/ospf-fib-484927/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-481985/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-481985/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-476475/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-476475/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-470736/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-470736/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-471539/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-471539/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-468275/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-468275/frr": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-465967/netns": [],
+    "/root/ngfw-routing250-20261010/source/.scratch/p12-outer-465967/frr": []
+  },
+  "final_private_vpp_present": [],
+  "host_mounts_from_task": [],
+  "shared_units": "MainPID=8102\nNRestarts=0\n\nMainPID=4575\nNRestarts=0\n"
+}

@@ -697,10 +697,12 @@ func (e *ospfEnv) checkRootPreconditions() {
 	}
 	out, serviceErr := e.cmd("systemctl", "is-active", "frr")
 	var serviceExit *exec.ExitError
-	if !errors.As(serviceErr, &serviceExit) || serviceExit.ExitCode() != 3 || (strings.TrimSpace(out) != "inactive" && strings.TrimSpace(out) != "failed") {
+	if serviceErr == nil && strings.TrimSpace(out) == "active" {
+		requireForeignSystemFRR(e.t)
+	} else if !errors.As(serviceErr, &serviceExit) || serviceExit.ExitCode() != 3 || (strings.TrimSpace(out) != "inactive" && strings.TrimSpace(out) != "failed") {
 		e.t.Fatalf("%s=root: cannot verify system frr is inactive: %q (%v)", EnvOSPFFIB, out, serviceErr)
 	}
-	e.t.Logf("%s=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:\n%s", EnvOSPFFIB, lcp)
+	e.t.Logf("%s=root preconditions: no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive or independently foreign; show lcp:\n%s", EnvOSPFFIB, lcp)
 }
 
 func TestOSPFTopologyOnHost(t *testing.T) {
@@ -753,7 +755,13 @@ func TestOSPFTopologyOnHost(t *testing.T) {
 	}
 
 	// V19 preflight (D-095) before any packet crosses the rig
-	pre, err := e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	var pre string
+	var err error
+	if binary := os.Getenv("NGFW_ROUTING_PREFLIGHT_BIN"); binary != "" {
+		pre, err = e.cmd(binary)
+	} else {
+		pre, err = e.cmd("go", "-C", filepath.Join(e.repo, "apps", "agent"), "run", "./cmd/ngfw-vpp-preflight")
+	}
 	t.Logf("ngfw-vpp-preflight: %v\n%s", err, pre)
 	if err != nil {
 		t.Fatal("V19 preflight failed: no packet may cross the rig")

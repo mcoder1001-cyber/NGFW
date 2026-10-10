@@ -1,0 +1,16 @@
+DISPOSABLE_VPP pid=3602278 runtime=/root/ngfw-wt/lab-nat46-20261010/.scratch/isolated-vpp-3602233
+09:16:29 shared lab lock held (fd 9)
+09:16:29 === step 0: host facts (run start 2026-10-10T09:16:29+00:00, slot 17 prefix w17, path: af_packet) ===
+09:16:30 NRestarts before: NRestarts=0
+09:16:30 load: 27.14 16.58 7.74
+09:16:30 vpp: vpp v26.06-release built by root on ubuntu-26.04 at 2026-09-23T08:06:28
+09:16:30 map plugin:  41. map_plugin.so                            26.06-release                    Mapping of Address and Port (MAP)
+09:16:30 map domains of w17 before: 0
+09:16:30 === step 1: TestNat46OnHost (descriptor level, NGFW_INTEGRATION=1, shared lab lock) ===
+09:16:30 NRestarts before step 1: NRestarts=0
+09:16:33 FAIL: TestNat46OnHost exited 1
+09:16:33 === cleanup ===
+09:16:35 leftover map domains of w17: 0 · rig: 
+09:16:35 NRestarts after cleanup: NRestarts=0
+09:16:35 run end 2026-10-10T09:16:35+00:00
+DISPOSABLE_VPP_STOPPED pid=3602278

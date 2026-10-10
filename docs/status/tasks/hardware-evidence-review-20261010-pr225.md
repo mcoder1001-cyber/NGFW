@@ -81,7 +81,7 @@ focused source fixtures do not close required build, hosted gate or target seed.
 Next: inspect the amended documentation/head and its unchanged product blobs,
 then observe the exact final hosted gate. No duplicate complete quick is run here.
 
-## Final exact candidate — 13:17 UTC
+## Final exact candidate
 
 R7 verdict: APPROVE `321581d1850686070afc9ea08621bd6d405dbb08`, tree
 `f38fe9c8cbd26ba92f2e3ffb50c700df71658a8d`. The amended task report now includes both

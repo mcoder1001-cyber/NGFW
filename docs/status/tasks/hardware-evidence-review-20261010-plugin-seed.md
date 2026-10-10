@@ -203,7 +203,7 @@ dryrun without apply. Its modprobe invocation is dry-run only; no module or driv
 mutation. Failed native seed cannot satisfy that prerequisite. Finite rollback
 source93bff522 now has the preparation-only approval below, not execution readiness.
 
-## Finite recovery source review — 13:17 UTC
+## Finite recovery source review
 
 APPROVE manager-only finite rollback source
 93bff522c2dba173c39ac64631b2dbd74e01b986cfe5778986ade1b27cc0cbdf and its contract

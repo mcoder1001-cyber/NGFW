@@ -79,6 +79,9 @@ func (s *Service) AutoBlockSet(ctx context.Context, req *ngfwv1.AutoBlockSetRequ
 		return &ngfwv1.AutoBlockSetResponse{}, nil
 	}
 	snapshot := proto.Clone(req).(*ngfwv1.AutoBlockSetRequest)
+	// An omitted RPC owner is accepted by checkOwner, but persisted snapshots
+	// must carry the effective owner for strict restart validation.
+	snapshot.Owner = s.owner
 	b, err := protojson.Marshal(snapshot)
 	if err != nil {
 		return nil, status.Error(codes.Internal, "cannot encode runtime snapshot")

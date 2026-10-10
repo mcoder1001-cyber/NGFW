@@ -39,7 +39,7 @@ def guard():
   assert (p/'driver_override').read_text()==q['sysfs_override'] and q['sysfs_override'].strip() in ['','(null)'] and not os.path.lexists('/etc/driverctl.d/pci-'+q['PCI'])
   master=pathlib.Path('/sys/class/net')/name/'master';assert (master.resolve().name if master.is_symlink() else None)==q['bridge_master']
  for u,pid in EXPECTED_PIDS.items():
-  assert checked(['systemctl','show',u,'-p','ActiveState','--value'])=='active' and checked(['systemctl','show',u,'-p','MainPID','--value'])==pid and checked(['systemctl','show',u,'-p','NRestarts','--value'])=='0'
+  assert checked(['systemctl','show',u,'-p','ActiveState','--value'])==('inactive' if pid=='0' else 'active') and checked(['systemctl','show',u,'-p','MainPID','--value'])==pid and checked(['systemctl','show',u,'-p','NRestarts','--value'])=='0'
  assert not os.path.lexists('/usr/sbin/policy-rc.d') and not os.path.lexists('/etc/systemd/system/vpp.service')
  assert hashlib.sha256(pathlib.Path('/etc/vpp/startup.conf').read_bytes()).hexdigest()=='c1b121e410961cb64869909a2cd82448984c0472ada11ab0a32234897b86b3c8'
  with socket.create_connection(('172.30.126.195',22),timeout=5):pass
@@ -73,12 +73,16 @@ def save(p,b):
  return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
  os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--preflight',required=True);p.add_argument('--preflight-sha',required=True);p.add_argument('--document',required=True);p.add_argument('--document-sha',required=True);p.add_argument('--seed',required=True);p.add_argument('--seed-sha',required=True);a=p.parse_args()
- b=private(a.preflight,WORKER_PRIVATE);assert hashlib.sha256(b).hexdigest()==a.preflight_sha;pre=json.loads(b)
+ b=private(a.preflight,PRIVATE);assert hashlib.sha256(b).hexdigest()==a.preflight_sha;pre=json.loads(b)
  doc=private(a.document,PRIVATE);assert hashlib.sha256(doc).hexdigest()==a.document_sha==pre['document_SHA']
  sb=private(a.seed,PRIVATE);assert hashlib.sha256(sb).hexdigest()==a.seed_sha;seed=json.loads(sb);assert seed['seeded7_exact'] and seed['all7_still_kernel'] and seed['failure'] is None and seed['network_equal'] and seed['new_storage_errors']==[]
  assert json.loads(doc)==seed['running']['data']
  assert seed['network_after']==pre['network_before']
- states=seed['unit_states'];assert set(states)=={'vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service'} and all(x['ActiveState']=='active' and x['NRestarts']=='0' and x['MainPID'].isdigit() and int(x['MainPID'])>1 for x in states.values());pids={u:x['MainPID'] for u,x in states.items()}
+ states=pre['unit_states'];assert set(states)=={'vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service'}
+ assert all(states[u]['ActiveState']=='active' and states[u]['NRestarts']=='0' and states[u]['MainPID'].isdigit() and int(states[u]['MainPID'])>1 for u in ['vpp.service','nginx.service'])
+ assert all(states[u]=={'ActiveState':'inactive','MainPID':'0','NRestarts':'0'} for u in ['ngfw-agent.service','ngfw-api.service'])
+ assert pre['fixed_native_version']=='0.1.0~dev+97ae88ee5b6a' and pre['new_storage_errors']==[]
+ pids={u:x['MainPID'] for u,x in states.items()}
  files={}
  for key,name,h in [('binder','hardware-manager-20261010-boot-bind-37.py','0de00a7e5f34097fe530fb8ae1dab3b3e541826facda704eb7a4c7511b13086d'),('unit','hardware-manager-20261010-boot-bind-37.service','d537f6c4aa66d74a20e982a06b4c1003f8858367f3c14860df534a468d4dc153'),('rollback','hardware-manager-20261010-driver-rollback-37.py','00bed9a07c13f079eb56c384ce392a16b08083c4d101b872995139b50ae185dd')]:
   b=(SOURCE/name).read_bytes();assert hashlib.sha256(b).hexdigest()==h;files[key]=b

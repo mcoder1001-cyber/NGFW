@@ -3,7 +3,7 @@
 import argparse,datetime,hashlib,json,os,pathlib,re,stat,subprocess
 OUTPUT=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')
 REMOTE=r'''
-import hashlib,json,os,pathlib,re,socket,stat,subprocess,time
+import hashlib,json,os,pathlib,re,socket,stat,subprocess,time,datetime,zoneinfo
 UNITS=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service','ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','snmpd.service','keepalived.service','chrony.service','rsyslog.service','apply-executor.socket','ngfw-ra-openfile.socket','ngfw-ra-namespace-broker.socket']
 OWNED=['vpp.service','ngfw-agent.service','ngfw-api.service']
 RECORD=pathlib.Path('/var/lib/ngfw-install-recovery')/('hardware-manager-20261010-boot-'+HOST)
@@ -56,8 +56,11 @@ def protect(postboot=False):
  assert 'ngfw-hardware-'+HOST+'-bind.service' in units['vpp.service']['Requires'] and 'ngfw-firstboot.service' in units['vpp.service']['Requires']
  assert 'vpp.service' in units['ngfw-agent.service']['Requires'] and 'nftables.service' in units['ngfw-agent.service']['Requires'] and 'ngfw-agent.service' in units['ngfw-api.service']['Requires']
  binder=state('ngfw-hardware-'+HOST+'-bind.service');assert binder['ActiveState']=='active'
- zone=pathlib.Path('/etc/localtime');assert zone.resolve(strict=True)==pathlib.Path('/usr/share/zoneinfo/Asia/Tehran').resolve(strict=True);assert zone.read_bytes()==pathlib.Path('/usr/share/zoneinfo/Asia/Tehran').read_bytes();time.tzset();assert time.strftime('%z')=='+0330'
- if postboot:assert checked(['timedatectl','show','-p','Timezone','--value'])=='Asia/Tehran'
+ desired=NATIVE['running']['data']['system']['timezone'];assert re.fullmatch(r'[A-Za-z0-9_+/-]+',desired) and '..' not in desired and not desired.startswith('/')
+ expected_zone=pathlib.Path('/usr/share/zoneinfo')/desired;zone=pathlib.Path('/etc/localtime');assert zone.resolve(strict=True)==expected_zone.resolve(strict=True) and zone.read_bytes()==expected_zone.read_bytes();time.tzset();assert time.strftime('%z')==datetime.datetime.now(zoneinfo.ZoneInfo(desired)).strftime('%z')
+ if postboot:
+  label=checked(['timedatectl','show','-p','Timezone','--value']);assert re.fullmatch(r'[A-Za-z0-9_+/-]+',label) and '..' not in label and not label.startswith('/')
+  assert (pathlib.Path('/usr/share/zoneinfo')/label).resolve(strict=True)==expected_zone.resolve(strict=True)
  plugins=checked(['vppctl','show','plugins']);assert all(re.search(r'\b'+re.escape(n)+r'\b',plugins) for n in ['linux_cp_plugin.so','linux_nl_plugin.so','npt66_plugin.so'])
  assert checked(['dpkg','--audit'])==''
  return {'boot_id':boot,'network':network,'sysctls':sysctls,'DNS':dns,'nft':rules,'storage_ioerr':io,'units':units,'binder':binder,'VFIO_devices':devices,'startup_SHA':STARTUP,'timezone':str(zone.resolve()),'offset':time.strftime('%z')}

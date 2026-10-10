@@ -1380,3 +1380,37 @@ manager-owned newbootstrapcredential notyetgenerated. Prepared NOTEXECUTED;
 review plus actualfixedupgrade required before readonlypreflight/firstboot.
 Next: actual211guardrestoration, root reviewedexactemptycache recovery, scoped
 agentfailurecounterreset+orderedstart, realnative17seed1 then resource2/config/bind.
+
+Actual 2026-10-10 14:02 UTC: .211 own guard restoration53117200 PASS/SSH0
+private302479B600; R7 independentlyverified allprotected/unit/package fields
+unchanged, originalpolicy/mask absent andrecoveryretained. Worker checkpoint
+8a0ac4f47f0746ba90fe551a99d5b23881e6a74c published, relinquishedhostmutations.
+Root approvedexactemptycache wrapper executed PASSff2e2b7f8452ca2a567df22eef8fd0e95174689a3dedf44d5ab1d1ea71f553ec
+1358B600SSH0/emptyerr, original2B/root:GID107:600/nlink1metadata+privatebackup
+44136 retained; same700backupdiridentity, new16Bownerngfw hashd3d371a7/networkequal,
+no serviceactivation. Root guarded immediate runtime startae77cd39bbf9cc633f356b6fdfca9c2d59432bc2a006d1e9db32a15da0d5cfb6
+29931B600SSH0/emptyerr recordedhistorical151failures, reset-failedONLYagent,
+orderedagent49226→API49230active0; VPP33868/nginx9281identity unchanged/fullL3equal.
+ACTUALnative readonly observer bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138
+386543B600/SSH0/emptyerr TRUErevision1+seed-event/17exactphysicalPCIrows/management04
+excluded/allthreeplugins/candidate==running/noPending/all7HTTP200+agentreachable,
+all4active0stable/fullL3+17origkernel+16sysctl+DNS+foreignNFT/io6+storage[]PASS.
+R7 independently reviewed allthreeactual phasesPASS; operatortrue seed checkpoint
+47d1f5006493007100c0c5a68b0673badcfa6785published. Native17seedphaseDONE;
+overallhardwareRUNNING, physicalbinding/forwarding/reboots remain pending.
+Root37 source originally e5c had predictable socket NRestarts key error caught
+BEFOREtargetmutation by R7; scopedservice-onlyfix90fd4f58 AST3/public946e
+APPROVE. Readonlyinspect6504 actualPASS, existingguards preserved. Approved
+prepare637cc812b81e20e69f7313c59fee2faea7e4532df2f58c706fe69581117566fa
+220442B600 addsONLYprivateguardidentityrecord/no_guard_mutation/fullbefore==after.
+Actual upload8fc8bfcd9ef1e42b2aa31d773b483a6298855ebac90dce80f9fc2883ef78fd56
+219901B600/fourSHAcheckedarchives/protectedbefore==afterPASS. Actualsimulation
+5881fceb6c449e37d54938e1216942d0b2fdb301dc5fd1e9422c611ce1137ad6
+210488B600/SSH0/emptyerr/4Instold2045→ee202/0Remv/guardsretained/storage[]PASS.
+ROOT37INSTALLheld untilindependentactualplanreview; firstboot273source prepared
+only, no bootstrapcredentials yet. Root-ownphysicalrecord211 source95b393aa
+AST2PASS/pinned686binder+93rollback sources, private durablemanifest/startupbefore/
+doc/enablement/modulefacts+offhostreceipt gatebeforephysicalwrites. NOTEXECUTED;
+actualnative resource65536revision2/preflight+R7sourceapproval stillrequired.
+Next: reviewactual37simulation/install; supported211resource2+freshpreflight,
+recordoffhost then boundedoriginaldriverrollback androot-only bind/startupapply.

@@ -23,6 +23,8 @@ four unique entries `{Package, file, sha256}`. Files are sibling `.deb` archives
 the helper independently checks every control name/version/architecture and
 archive digest. Streaming upload creates only a new private directory in /run
 tmpfs, validates the exact four regular members and fsyncs their hashes. The
+controller streams upload stdout/stderr directly into private files while
+writing tar stdin, so a large early-refusal snapshot cannot block SSH pipes.
 manifest must be supplied from the manager's reviewed build receipt; source
 preparation alone does not establish archive identities or full maintscript
 applicability.

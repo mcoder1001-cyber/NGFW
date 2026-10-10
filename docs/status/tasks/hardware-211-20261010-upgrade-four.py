@@ -194,6 +194,9 @@ def save(p,b):
 def private_read(p):
  p=pathlib.Path(p);assert p.parent==PRIVATE and not p.is_symlink() and p.stat().st_uid==0 and stat.S_IMODE(p.stat().st_mode)==0o600
  return p.read_bytes()
+def spool_info(p):
+ b=private_read(p)
+ return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
  os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('mode',choices=['inspect','prepare','upload','simulate','install','restore']);p.add_argument('--baseline');p.add_argument('--baseline-sha256');p.add_argument('--manifest');p.add_argument('--manifest-sha256');p.add_argument('--plan');p.add_argument('--plan-sha256');a=p.parse_args()
  b=private_read(PRIVATE/'initial-runtime-start-20261010T122029Z.json');assert hashlib.sha256(b).hexdigest()=='98b516a17a02cc82a8b6e26b3ac81d3e1ea8b3cf28fb73b1c0a68bd41b9376fe';prior=json.loads(b)
@@ -213,22 +216,33 @@ def main():
   raw=private_read(a.plan);assert hashlib.sha256(raw).hexdigest()==a.plan_sha256;q=json.loads(raw);assert q['mode']=='simulate' and q['simulation']['exit']==0;plan=q['plan_changes']
  fields={'MODE':a.mode,'NETWORK':prior['network_after'],'INVENTORY':prior['inventory_after'],'SYSCTLS':prior['sysctls_after'],'API_ENV_SHA':firstboot['files']['/etc/ngfw/api.env']['sha256'],'POLICY':POLICY,'BASELINE':baseline,'BASELINE_SHA':a.baseline_sha256,'ARCHIVES':archives,'PLAN':plan,'VERSION':VERSION,'CONTROLLER_EPOCH':datetime.datetime.now(datetime.timezone.utc).timestamp()}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
+ stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
+ paths={key:PRIVATE/('upgrade-four-'+a.mode+'-'+stamp+suffix) for key,suffix in [('stdout','.json'),('stderr','.stderr')]}
  if a.mode=='upload':
   # The command contains only nonsecret hashes/baselines; stdin is bounded
   # package tar data. Credential values are never argv/environment inputs.
-  q=subprocess.Popen(SSH+['python3 -c '+shlex.quote(code)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+  # Spool directly to private files while streaming stdin. A remote refusal
+  # may emit a complete large snapshot before consuming stdin; PIPE output
+  # would deadlock if it were drained only after the tar writer completed.
+  streams={key:os.fdopen(os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600),'wb') for key,path in paths.items()}
   try:
-   with tarfile.open(fileobj=q.stdin,mode='w|') as archive:
-    for x in archives:
-     info=tarfile.TarInfo(x['file']);info.size=x['bytes'];info.mode=0o600
-     with (m.parent/x['file']).open('rb') as f:archive.addfile(info,f)
-  except BrokenPipeError:pass
-  finally:
-   try:q.stdin.close()
+   q=subprocess.Popen(SSH+['python3 -c '+shlex.quote(code)],stdin=subprocess.PIPE,stdout=streams['stdout'],stderr=streams['stderr'])
+   try:
+    with tarfile.open(fileobj=q.stdin,mode='w|') as archive:
+     for x in archives:
+      info=tarfile.TarInfo(x['file']);info.size=x['bytes'];info.mode=0o600
+      with (m.parent/x['file']).open('rb') as f:archive.addfile(info,f)
    except BrokenPipeError:pass
-   q.stdin=None
-  out,err=q.communicate();q.stdout=out;q.stderr=err
- else:q=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True)
- stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
- print(json.dumps({'SSH_exit':q.returncode,'stdout':save(PRIVATE/('upgrade-four-'+a.mode+'-'+stamp+'.json'),q.stdout),'stderr':save(PRIVATE/('upgrade-four-'+a.mode+'-'+stamp+'.stderr'),q.stderr),'no_runtime_service_activation_driver_binding_or_cache_repair':True}));raise SystemExit(q.returncode)
+   finally:
+    try:q.stdin.close()
+    except BrokenPipeError:pass
+    q.wait()
+  finally:
+   for stream in streams.values():stream.flush();os.fsync(stream.fileno());stream.close()
+   fd=os.open(PRIVATE,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW);os.fsync(fd);os.close(fd)
+  receipts={key:spool_info(path) for key,path in paths.items()}
+ else:
+  q=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True)
+  receipts={'stdout':save(paths['stdout'],q.stdout),'stderr':save(paths['stderr'],q.stderr)}
+ print(json.dumps({'SSH_exit':q.returncode,**receipts,'no_runtime_service_activation_driver_binding_or_cache_repair':True}));raise SystemExit(q.returncode)
 if __name__=='__main__':main()

@@ -1,0 +1,10 @@
+Guest10 read-only source/evidence diagnosis; source54 compiled paths exact372.
+Actual boot receipt: /tmp/ngfw-lab-manager-20261010/ra-supplier-current-boot10.txt
+Actual checkpoint at12:54:25.705806269Z: publisher-manager-query checkpoint1 deadline_exceeded=true canceled=false elapsed_ms0.
+This is an already-expired caller context before socket/PID1/transport work; it does not demonstrate a DBus2s timeout or signal failure.
+Runtime.Ready starts10s context BEFORE r.mu.Lock. Empty runtime then checks store/inventory; SealedPreparation.Preflight runs EngineInstallation.Verify (daemon15MiB plus engine/plugins reads); r.readiness first runs SystemdUnits.Preflight/SystemdUnitObservation.Preflight.
+That prefix unitObserverInstallation validates broker15MiB SHA, then numericPublisherInstallation validates the same broker15MiB SHA again using context.Background clipped by own20s installation validation. Only after those reads does verifyFixedAgentPeer call fixedAgentUnitProperties/PID1 query.
+53MiB agent executable is not hashed in this prefix: validateSourceAgentExecutable uses actual device/inode equality. Small source unit/hardening fragments are hashed.
+Evidence proves caller deadline expired before query, NOT which preceding check consumed it. Mutex contention and fresh >=30MiB broker hashing plus prior artifact reads remain candidates. Actual timing under TCG needed before causal attribution.
+No source edit, deadline change, cached proof or readiness success claim. Frozen54 hosted38053638488 still in_progress as last verified.
+Proposed explicit-root tagged fixture observer calls ONE actual EngineInstallation.Verify under10s then ONE unitObserverInstallation with actual unchanged semantics, reports numeric phase/elapsed/context/error only, verifies fixed artifact hashes/metadata before-after, never units/namespaces/manager actions. This is cost diagnosis only, never canonical acceptance. Parent review required before implementing observer.

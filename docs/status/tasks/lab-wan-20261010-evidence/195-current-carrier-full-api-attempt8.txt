@@ -1,0 +1,249 @@
+ROOT_HOST_IDENTITY_BEFORE {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 615439.519704424, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+CHILD_UTS_BEFORE {"namespace": "uts:[4026533283]", "hostname": "ngfw"}
+PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS
+DISPOSABLE_VPP pid=110987 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-110985
+host-w20raw
+host-w20lan
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+host-w20lan                       2     down         9000/0/0/0     
+host-w20raw                       1     down         9000/0/0/0     
+local0                            0     down          0/0/0/0       
+host-w20raw: w20:host-w20raw
+host-w20lan: w20:host-w20lan
+OWNED_BROKER_METADATA {"observed_monotonic": 615458.307417079, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615458.712656789, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615459.218855174, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615459.623314267, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615460.129289688, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615460.533824845, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615460.938826196, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615461.343468177, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615461.950911846, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615462.357137944, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615462.864301186, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615463.268985646, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615463.776135005, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615464.079930161, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615464.688579164, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615465.092707168, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615465.599717989, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615466.005360636, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615466.612630256, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615467.017860375, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615467.625847896, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615467.929096155, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615468.436605117, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615468.841555989, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615469.348793697, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615469.75356903, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615470.361500205, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615470.766122921, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615471.273836367, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615471.678573305, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615472.185813929, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615472.591307609, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615473.199460502, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615473.604117264, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615474.212771226, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615474.617193674, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615475.226000232, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615475.631927181, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615476.242207256, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615476.647907639, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615477.257237039, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615477.662207825, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615478.168686711, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615478.573130723, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615479.18090672, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615479.484561623, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615480.092185292, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615480.496803687, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615481.003275322, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615481.408398277, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615482.01762047, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615482.421865088, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615483.031383842, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615483.335411973, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615483.945491529, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615484.2499445, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615484.858470938, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615485.161929961, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615485.870939124, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615486.276090181, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615486.884975137, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615487.291145932, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615487.696967752, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615488.001135072, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615488.508493239, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "prepare"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615489.017425571, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615489.832632505, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615490.237290408, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615490.743888876, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615491.148969025, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615491.554409083, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615492.060310618, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+REAL_API_COMMIT {"revision": 1, "candidate_sha256": "af784c3b06c5d544b8d9d628bdb558491d1098045c64f39438198d412182c2a1", "plan": [{"key": "interface.admin-state/host-w20lan", "op": "create", "pointer": "/interfaces/host-w20lan/enabled", "subsystem": "interfaces"}, {"key": "interface.admin-state/host-w20raw", "op": "create", "pointer": "/interfaces/host-w20raw/enabled", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/host-w20raw", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/169.254.169.57/30", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/fd0d:dfe2:1c29:8c69::1/126", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/enabled", "subsystem": "interfaces"}, {"key": "interface.mtu/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe/mtu", "subsystem": "interfaces"}, {"key": "pppoe.client.config/ngfw", "op": "create", "pointer": "/interfaces", "subsystem": "interfaces"}], "warnings": [{"pointer": "/interfaces/w20ppp/pppoe/passwordRef", "message": "the password reference must resolve in the agent secret cache before apply", "rule": "pppoe.secret-unavailable"}, {"pointer": "/management/aaa", "message": "management.aaa is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/backup", "message": "management.backup is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/tls", "message": "management.tls is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/nat/ipfix", "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))", "rule": "agent.unsupported-field"}, {"pointer": "/services/ipfix/flowprobe", "message": "flowprobe parameters are applied only with at least one monitored interface", "rule": "agent.unsupported-field"}, {"pointer": "/services/lldp", "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)", "rule": "agent.write-only"}, {"pointer": "/services/ntp", "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare", "rule": "agent.unsupported-field"}]}
+OWNED_BROKER_METADATA {"observed_monotonic": 615492.771936776, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615493.075655446, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615493.583527832, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615493.988821387, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615494.496503049, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615494.901204413, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615495.407945779, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615495.812691124, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615496.31954504, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615497.437167467, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615497.944914444, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615498.453781841, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615498.86093576, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615499.367131485, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615499.975680215, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615500.38082815, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615500.888585135, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615501.293999003, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615502.005640776, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615502.309670529, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615502.91863714, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615503.323641862, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615503.831218759, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615504.236176355, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615504.743375098, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615505.148548702, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615505.555156648, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615506.773594341, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615507.281711071, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615507.789836447, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615508.297452172, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615508.804034419, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615509.209436242, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615509.614175223, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615510.121947653, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615510.527284422, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+REAL_AGENT_WIRING_API_PAP_IPCP_STATE {"phase": "up", "sessionId": 0, "acMac": "", "acName": "", "localIpv4": "100.64.20.10/32", "peerIpv4": "100.64.20.1", "ipv6": "2001:db8:20::2/64", "dns": [], "since": "2026-10-10T12:15:37.000Z", "failCount": 0, "lastError": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615511.13681038, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615511.644060566, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615512.151433266, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615512.556814003, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -4 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+OWNED_BROKER_METADATA {"observed_monotonic": 615513.063944753, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615513.569654556, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615514.178473523, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615514.685351845, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -6 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+OWNED_BROKER_METADATA {"observed_monotonic": 615515.296670013, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615516.514384065, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615517.022733186, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615517.631426474, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615518.342770395, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615518.849052093, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615519.358529767, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615519.763805862, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615520.371458688, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615520.776217226, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615521.384970208, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615521.688881773, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615522.196848868, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615522.601899683, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615523.109307097, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615523.514160213, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615524.123757744, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615524.528558656, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615525.037177766, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615525.54314835, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615526.15235579, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615526.660361066, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615527.167263766, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615527.571905344, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615528.078458389, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615528.484335287, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615529.70541389, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615530.109760403, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615530.617530175, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615531.122945498, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615531.731639636, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615532.136245432, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615532.745849705, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615533.151440424, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615533.681822974, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615534.188366472, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615534.696406568, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615535.202101744, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615535.811328179, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615536.319110881, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615536.826768714, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615537.232389189, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615537.739927093, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615538.145796135, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615538.755534676, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615539.261979703, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615539.668183996, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615540.887283021, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615541.497957735, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615542.108901628, "child_pid": 110858, "token": "ngp-0ddfe21c298c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615542.617991512, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615543.02320376, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615543.5305042, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615544.036803936, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615544.646598018, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615545.052554911, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_RECONNECT PASS
+REAL_AGENT_API_CONFIG_LOG_PASSWORD_ABSENCE PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 615545.663503493, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615546.170267656, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615546.677424026, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615547.184121051, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615547.691701803, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615548.096634247, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615548.604255782, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615549.110198708, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615549.617339958, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615550.124545972, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 615550.632641743, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 615550.936857095, "child_pid": 110858, "token": "ngp-83f6c4ae3e5c", "area": "results", "ok": true, "error_class": ""}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-wan-20261010/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 127, in <module>
+    commit(api,('/interfaces',),warnings)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-wan-20261010/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 70, in commit
+    validation=api.call('POST','/config/validate')
+  File "/root/ngfw-wt/lab-wan-20261010/test/topology/traffic-b/tunnels.py", line 67, in call
+    raise Refused(f"API HTTP {error.code} {method} {path}; problem {problem.get('type','unknown')} pointers {[e.get('pointer') for e in problem.get('errors',[])]} title {problem.get('title')} detail {problem.get('detail')}") from None
+scenario.Refused: API HTTP 502 POST /config/validate; problem https://ngfw.dev/problems/agent-error pointers [] title Agent error detail agent: plan: retrieve pppoe.client.config: PPPoE password reference is unavailable
+DISPOSABLE_VPP_STOPPED pid=110987
+CHILD_UTS_AFTER {"namespace": "uts:[4026533283]", "hostname": "ngfw"}
+REAL_PEER_LOG
+
+REAL_PEER_RA_LOG
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+
+OWNED_CHILD_MOUNTS_REMOVED PASS
+REAL_RAW_DIAGNOSTIC_LOG_PASSWORD_ABSENCE PASS
+OWNED_INACTIVE_RUNTIME_TOKEN_REMOVED PASS
+OWNED_RENDER_TOKEN_REMOVED PASS
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+ROOT_HOST_IDENTITY_AFTER {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+SHARED_HOST_IDENTITY_UNCHANGED PASS

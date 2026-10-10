@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Finite real-agent/API global-blocking acceptance in the verified private VPP."""
-import ipaddress,json,os,re,subprocess,sys,time,urllib.request,urllib.error
+import hashlib,importlib.util,ipaddress,json,os,re,subprocess,sys,time,urllib.request,urllib.error
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
-from stack import product_stack
+fixture_spec=importlib.util.spec_from_file_location('gb_owned_stack',ROOT/'docs/status/tasks/lab-global-blocking-20261010-stack.py')
+fixture=importlib.util.module_from_spec(fixture_spec);fixture_spec.loader.exec_module(fixture)
+product_stack=fixture.product_stack
 from tunnels import check_commit
 from probe import stop
 from scenario import private_identity
@@ -78,7 +80,10 @@ try:
  run(str(BIN/'nat46-handoff'),'w17')
  print(run('/tmp/ngfw-lab-global-blocking-20261010-counters'),flush=True)
  vpp('counter-switch','show','acl-plugin','tables')
- with product_stack(17,agent_binary=str(BIN/'ngfw-agent')) as (api,owned,restart):
+ agent=Path(os.environ.get('NGFW_GB_AGENT_BINARY',str(BIN/'ngfw-agent')))
+ actual_sha=hashlib.sha256(agent.read_bytes()).hexdigest();expected=os.environ.get('NGFW_GB_AGENT_SHA256',actual_sha);assert actual_sha==expected
+ record('product-agent-provenance',source=os.environ.get('NGFW_GB_PRODUCT_SOURCE_SHA','4908716b4501312102382e6979b8fc1ded6f9311'),sha256=actual_sha,binary=str(agent))
+ with product_stack(17,agent_binary=str(agent)) as (api,owned,restart):
   api.call('PATCH','/config/vrfs',{'w17-gb-proof':{'id':17040}})
   first=api.call('POST','/config/commit?comment=gb-baseline');warnings=check_commit(first,changed_paths=('/vrfs',));revision=first['revision']['id']
   paths=('/acl/globalBlocking','/interfaces/host-w17l0','/interfaces/host-w17w0','/routing/static')

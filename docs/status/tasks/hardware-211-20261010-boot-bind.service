@@ -1,0 +1,13 @@
+[Unit]
+Description=NGFW reviewed physical data NIC binding (host 211)
+Requires=systemd-networkd.service
+After=systemd-networkd.service
+Before=vpp.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/ngfw-hardware-211-bind
+RemainAfterExit=yes
+TimeoutStartSec=180
+UMask=0077
+

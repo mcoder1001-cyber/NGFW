@@ -4265,7 +4265,7 @@ tasks:
     owner: "nat46_acceptance"
     started: ''
     finished: ''
-    state: "running"
+    state: "review"
     wbs: []
     prompt: ''
     id: F-global-blocking-host
@@ -4285,8 +4285,8 @@ tasks:
       follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 8,
       envelope /root/ngfw-wt/F-global-blocking-host.envelope.md, base main@f1f885a6 | done f6b4aebb CI PASSED after R2/R7 round 1 (all items addressed); docs-only → merge after a quick
       R7 verify | merged 689be665 (squash a901aca3, branch gate green)'
-    worker_status: "active acceptance and verification"
-    acceptance_receipt_20261010: "Actual final250 Global Blocking all packet/API200k/cost/counters/browser/nft/incremental commit/rollback acceptance PASS. Fresh195 incremental API commit PASS89.541s end-to-end, Apply43s with production phase budgets unchanged, but owned agent OOM-killed before rollback; original failure retained and same-source rerun pending after owned build-cache cleanup. PR222 not Done."
+    worker_status: "dual-host acceptance complete; final mandatory CI and integration pending"
+    acceptance_receipt_20261010: "Final exact sourceabaa (ded+391+independently reviewed156) agentSHA5683498457c6: actual195/250 full Global Blocking PASS. Small selected/unselected/local policy, counters, real en/fa UI,200k commit,0/10k/200k fresh ACL runtime windows exactly2000/2000 packets/vectors, same-list kernel enforcement and200k nft PASS. Actual one-entry API69.581s195/53.462s250 with unchanged production phase budgets, exact5updates/noBinding/noCreateDelete PASS. Rollback/DB/role/rig/process cleanup and shared identity PASS. Original flood loss/timeouts/OOM negatives retained. PR222 final mandatory gate and merge pending; not yet Done."
   - template: ''
     parked_on: ""
     branch: "codex/lab-wan-20261010"

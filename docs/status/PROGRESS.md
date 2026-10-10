@@ -7,8 +7,8 @@ Updated 2026-10-10 from plan/tasks.yaml (estimated hours are the plan's, not act
 | state | tasks |
 |---|---|
 | merged | 205 |
-| review | 4 |
-| running | 3 |
+| review | 5 |
+| running | 2 |
 | ready | 0 |
 | parked | 0 |
 | failed | 0 |
@@ -20,7 +20,7 @@ Updated 2026-10-10 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S1 | 73 / 73 | 100.0% | 9/9 | 0 | 0 | 0 |
 | S2 | 274 / 274 | 100.0% | 29/29 | 0 | 0 | 0 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 0 |
-| S4 | 990.0 / 1003.0 | 98.7% | 146/151 | 2 | 0 | 0 |
+| S4 | 990.0 / 1003.0 | 98.7% | 146/151 | 1 | 0 | 0 |
 | S5 | 145.5 / 155.5 | 93.6% | 15/16 | 1 | 0 | 0 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
@@ -30,7 +30,7 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 - F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; active bounded RA signal contract implementation and review)
 - P12-fib-proof — Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP (review, routing_acceptance; acceptance complete; final CI/integration pending)
-- F-global-blocking-host — Global blocking on the lab VPP: topology proof, lookup cost at 200k, real-endpoint screenshot (running, nat46_acceptance; active acceptance and verification)
+- F-global-blocking-host — Global blocking on the lab VPP: topology proof, lookup cost at 200k, real-endpoint screenshot (review, nat46_acceptance; dual-host acceptance complete; final mandatory CI and integration pending)
 - F-pppoe-client-host — PPPoE client on the lab: pppd vs an accel-ppp/rp-pppoe server, VPP FIB mirror, reconnect, MSS clamp, screenshot (running, wan_acceptance; active acceptance and verification)
 - F-multiwan-host — Multi-WAN on the lab: two WAN netns, failover time, balance split, per-member NAT (review, wan_acceptance; acceptance complete; final CI/integration pending)
 - F-nat46-host — F-nat46 host runs: TestNat46OnHost on a slot, vppctl show map domains, rollback, NRestarts, screenshot (review, nat46_acceptance; acceptance complete; final CI/integration pending)

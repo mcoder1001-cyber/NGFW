@@ -1,3 +1,58 @@
+# Current .211 phase release — 2026-10-10 disk recovery
+
+Manager branch codex/hardware-manager-20261010, owned task docs/static guard and
+previously integrated package Depends field; own latest published/readback
+4e4391edd314500df4bb6cfedc4e58fe4f41ff5a. This checkpoint is immediately published.
+Host .211 actual readiness now durable e65e4f86e87664eef20b370f05a31d84036c5fdb;
+.37 latest held-state/direct read durable687b1d9d3f81bcc0aa369906e7611b6b4d5da86d.
+Independent R7 approval/addenda45b08eab/5af876c0/3628f4a9 support transition and
+read-only offline scope. Matching .network.d inventory closure and RAM-only audit
+helper readiness are the last explicit crossing premises; no network reload or
+KeepConfiguration mutation. R7 covers the static IPv4 ACD stop exception: effective
+172.30.110.211 is outside IPv4LL, no explicit DuplicateAddressDetection, matching
+source defaults none. Actual addresses infinite/no dynamic flags, routes static or
+kernel, leases0, no service stop hooks/drop-ins. Final inventory remains recorded
+by worker/reviewer, not fabricated here.
+
+Root issued the following conditional PHASE RELEASE to the exclusive .211 worker:
+after those final premises plus reconfirmed heldRAMPTY71683, fresh .37 original SSH
+and measured controller capacity, create only /run/nextroot -> /run/ngfwrescue and
+invoke ordinary systemctl soft-reboot from original22, without force. Verify RAM
+PID1/executor, new-root helper and /run/sshd, fresh2222 authentication, exact network,
+all process/mount namespaces/nsfs fds/device users and static exclusive guard exit0.
+Remove only the exact owned marker after confirmed transition. ONLY after offline
+proof, e2fsck -f -n and seekable private RAM e2image -Q plus measured private offhost
+compression/hash verification are released. Full exits/output/capacity and actual
+block-read/CRC/kernel baselines required. NO corrections or hardware reboot yet.
+Failed actual gate stops the dependent action; no repeated user permission ask.
+Narrow RAM-only matching nsenter/helper copy/test permitted if required for orphan
+namespace-fd inspection. Preserve original .37 management while .211 is first.
+
+Both actual bounded direct reads PASS268435456bytes with aligned mmap/preadv:
+.2110.599s ioerr12->12/new storage lines0; .37ioerr9->9/new storage lines0.
+Failed .211 uutils0.8.0 dd direct-buffer EINVAL was immediate and is not a media
+read failure or completed read. Repeated SMART query reproduces +3 ioerr while
+CRC1003/media0/errorlogs0 unchanged; classify as query-associated inference, not a
+blanket healthy-disk claim. Observe full metadata reads separately before writes.
+
+Fresh root original .37 SSH proof PASS: management enp12s0/address/default unchanged,
+rescue active and nextroot absent. Latest main readback4908716b unchanged; three
+hosted main gates completedSUCCESS, no openPR. No new product merge this phase.
+Controller df Avail0 reflects unprivileged availability; statvfs actual free
+including privileged reserve7304519680B, private root-owned1MiB write/fsync/unlink
+PASS. Backup /dev/shm1909186560B free. Only obsolete task-owned runtime/ generated
+output moved to0700 /dev/shm/ngfw-hardware-obsolete-runtime-20261010; corrected
+runtime-fixed/, immutable candidate, VPP archives and all private evidence retained.
+No broad build or other task deletion. Measure actual compact metadata/undo size.
+
+Remaining work: actual RAM transition/offline diagnosis, reviewed correction and
+normal return on each host, then original guarded NGFW installation/tests. Root
+has not claimed a completed repair. Exact next command is worker's above released
+ordinary soft-reboot after final actual prerequisites; do not reconstruct the
+stage or run mounted-root fsck. Existing worktrees/branches/PTYs are preserved.
+
+Earlier checkpoints below are historical, not current blockers or execution proof.
+
 # Latest owner steering — 2026-10-10 disk recovery
 
 Owner explicitly accepts .37 SSD wear and says to repair. Root answered that

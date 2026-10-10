@@ -13,7 +13,7 @@ VERSION='0.1.0~dev+ee2025007293'
 PACKAGES={'ngfw-agent','ngfw-api','ngfw-web','ngfw-meta'}
 POLICY=b'#!/bin/sh\nexit 101\n'
 REMOTE=r'''
-import hashlib,json,os,pathlib,re,shutil,socket,stat,subprocess,sys,tarfile,time
+import grp,hashlib,json,os,pathlib,pwd,re,shutil,socket,stat,subprocess,sys,tarfile,time
 os.umask(0o077)
 MONOTONIC_START=time.monotonic()
 RECORD=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-211-20261010-upgrade-ee202500')
@@ -35,7 +35,11 @@ def fresh_file(p,b,mode=0o600):
 def metadata(p):
  p=pathlib.Path(p)
  if not os.path.lexists(p):return {'type':'absent'}
- s=p.lstat();assert s.st_uid==0
+ s=p.lstat()
+ if p==pathlib.Path('/var/lib/ngfw/secret.key'):
+  # Canonical firstboot explicitly owns the 32-byte private key as ngfw.
+  assert s.st_uid==pwd.getpwnam('ngfw').pw_uid and s.st_gid==grp.getgrnam('ngfw').gr_gid and stat.S_ISREG(s.st_mode) and stat.S_IMODE(s.st_mode)==0o600 and s.st_size==32,'canonical secret key metadata'
+ else:assert s.st_uid==0,str(p)
  d={'uid':s.st_uid,'gid':s.st_gid,'mode':stat.S_IMODE(s.st_mode),'inode':s.st_ino}
  if stat.S_ISLNK(s.st_mode):d.update(type='symlink',link=os.readlink(p))
  else:

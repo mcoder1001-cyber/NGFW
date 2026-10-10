@@ -15,7 +15,7 @@ Description: NGFW privileged declarative dataplane agent
 
 Package: ngfw-api
 Architecture: amd64
-Depends: ${misc:Depends}, nodejs (>= 22), nodejs (<< 23), adduser, python3
+Depends: ${misc:Depends}, ${shlibs:Depends}, nodejs (>= 22), nodejs (<< 23), adduser, python3
 Description: NGFW unprivileged management API
  Provides transactional configuration and authenticated management endpoints.
 

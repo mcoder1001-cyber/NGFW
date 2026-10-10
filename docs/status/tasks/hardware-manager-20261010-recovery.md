@@ -1,6 +1,19 @@
 # Hardware recovery and installation resume
 
-Current phase, 2026-10-10 10:56UTC: both /dev/sda2 roots initially had structural
+Latest phase, 2026-10-10 11:27UTC: .211 repair/clean offline/normalboot/fresh22/
+allL3/DNS/52original hashes/PCI28/newstorage PASS. Exact114 Inst/0Remv installation
+released under101+VPPmask+owned original-state marker; before execution actual
+sysctl --system trigger caught. Final source adds native VPP_INSTALL_SKIP_SYSCTL=1
+and16 finite actual sysctl comparisons; conditional release proceeds after remote
+readback and R7 exact delta. No install yet. .37 actual RAM transition/full offline
+proof/native+7raw offhost/nineinode/finiteundo PASS; exact correction released.
+Initial launcher EOF before any fsck/undo/answers preserved; reviewed isatty file
+launcher durably published and fresh fullaudit/PTY repair starting. No repair
+success yet. Separate normal-return actual evidence gates remain. Do not reask
+owner about wear/scoped repair/installation/authorized reboot. Latest WIP is
+current evidence; older narrative below is historical.
+
+Historical phase, 2026-10-10 10:56UTC: both /dev/sda2 roots initially had structural
 ext4 errors and failed boot fsck. .211 correction in matchingRAM rescue completed
 exit1 and subsequent full offline-f-n exits0 through all5passes. Native
 metadata image, seven all-zero affected external blocks, actual749568B undo and

@@ -1,4 +1,20 @@
-# Hardware task status — 2026-10-10 10:56 UTC
+# Hardware task status — 2026-10-10 11:27 UTC
+
+فرسودگی SSD روی172.30.126.37 است؛ مالک تعمیر را تأیید کرده است.
+تعمیر فایل‌سیستم .211 و بوت عادی، SSH22، تمام مسیرها و DNS موفق بوده‌اند.
+.37 در RAM است؛ نسخهٔ متادیتا و هفت بلوک آسیب‌دیده خارج از دستگاه محفوظ‌اند.
+تعمیر هدفمند تأیید شده؛ خطای اجرای اول پیش از هر تغییری متوقف شد و ابزار اصلاح شده است.
+نصب دقیق .211 تأیید شده؛ فراخوانی گستردهٔ sysctl قبل از نصب کشف و با گزینهٔ رسمی بسته مهار می‌شود.
+هنوز نصب یا اتصال NIC داده اجرا نشده؛ پورت و مسیر مدیریت محفوظ‌اند.
+
+Fresh main7c28b192 after unrelated218; main quick38048002335 running, previous
+38044587907 and original hardware38035583209 SUCCESS. Board212=205merged+7parked,
+fca789c5 unchanged. Four chat roles running; external inventory unverifiable.
+Root prior20c35fc1; latest .211 skip-source065cdcd7 push reported/readback pending,
+.37 guarded launcher0f4353bc published/readback reported, R7 source approvals.
+Current actual phase/source hashes/next commands in latest WIP; historical detail below.
+
+# Historical hardware task status — 2026-10-10 10:56 UTC
 
 بسته‌های اصلاح‌شده آماده‌اند؛ CI کامل پیش و پس از ادغام PR217 موفق شد.
 فرسودگی SSD مربوط به172.30.126.37 است؛ مالک تعمیر را با پذیرش آن تأیید کرد.

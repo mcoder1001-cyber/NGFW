@@ -1,3 +1,52 @@
+# Exact installation release and bounded sysctl correction — 2026-10-10 11:27 UTC
+
+Fresh root remote readback: .211936ec02c52982b21ad0a14bfe9de8c8be6ee5a33,
+.37fa13ad8e366d5ae5e79677d8141c7a31f58d9818, R7134606437621c2fc282698336413fab2cd695ebe.
+All4 chat roles observed running; external inventory unverifiable.
+Root full-read final installation helper d47b7759 and R7 final applicability
+APPROVE: exact114 Inst/0Remv immediate simulation, immutable11 archives, clean
+root/trustedtime/fullL3/protectedPCI28, exact101/persistentVPPmask/owned original-
+state marker, no needrestart drift, normal signedAPT/force-confold/private full
+logs/no dpkg kill timeout and21 suppressed units. Root INSTALL phase RELEASED.
+
+Before execution worker caught VPP postinst sysctl --system; INSTALL NOT STARTED.
+Policy101/mask do not suppress it. R7 full read confirms native supported
+VPP_INSTALL_SKIP_SYSCTL. Use value1 in transaction env; no shim or system tool
+mutation. Packaged80-vpp.conf sets nr_hugepages1024/hugetlb_shm_group0; broad
+reapply is outside this phase. Final helper0f02b584d1af6d4a07eae9656fadc7555d17663942337661d2eeb5f039256223
+adds supported flag and16 finite VM/shm/routing sysctl before/after equality.
+Worker push065cdcd7ca071e011138c6ca394a2b9c9dd585b9 succeeded, readback/review pending.
+Isolated exact-header private proof398B/0e11c035: unset calls stub once--system,
+flag1 zero calls, both0/no real sysctl. Conditional installation release persists
+once publication/readback and R7 exact delta pass; no user/manager repermission.
+Root/reviewer earlier selected maintscript inspection missed this actual trigger;
+evidence corrected before execution. Later deliberate persistent sysctl/hugepage
+review remains before firstboot/reboot.
+
+.37 preservation checkpoint fa13 independently remote-confirmed. Initial launcher
+heredoc EOF interrupted before any fsck/undo/prompt/answers. Actual39B/29e578c3
+failure and375B/7bb5b359 no-e2fsck/no-undo/no-probe/RAM51/held3940/no-nextroot
+proof preserved. Exact file/PTY launcher c9b46e0a initial isatty refusal tested,
+source pins/fsynced failure archive/fresh full audit/finalguard before unchanged
+5f45 one-byte driver/0c76 finiteundo wrapper; R7 source+actual closure APPROVE.
+Worker reports published/readback0f4353bc612fbbac03eef6fd632b0424c6dffb59 and
+starting live allocated controller PTY, fresh fullaudit before repair. Existing
+exact9inode correction release persists; no corrective success yet. Actual clean
+-f-n0/offhostundo/readonly boot-auth/network integrity/RAMshutdown/unmount/sync/
+markerabsence/guard still precede separate normal kernel return release.
+
+Fresh main7c28b19203926f7b4d6cadb23b2ae6073a9f70a8 includes unrelated PR218
+agent idle-empty polling/routing acceptance; main quick38048002335 IN_PROGRESS.
+Previous ded860 gate38044587907 SUCCESS; hardware217 main38035583209 SUCCESS.
+Fresh open220/221/222/223. Board blobfca789c569640e62be124bf96620a890a31eec9d,
+212=205merged+7parked, private board-readback-1123.json600/fsynced. No new hardware
+merge; reviewed2045 payload not silently replaced with unrelated latest main.
+Root prior20c35fc18f1b24c6f1e314834f65e64a22fcc960 published/readbackPASS;
+this coherent release/correction immediately publishes. Exact next: worker211
+final skip-knob publication/R7 delta then --install; worker37 guarded PTY fresh
+whole offline proof and interactive fsck. Original7/17 physical NIC addition and
+API/service/packet/restart/reboot acceptance remain; no install/bind/forwarding claim.
+
 # Actual .37 preservation/correction release and .211 solver — 2026-10-10 11:12 UTC
 
 .37 ordinarysofttransition SSH0, heldPTY30565/shell3940 retained; initialfresh2222

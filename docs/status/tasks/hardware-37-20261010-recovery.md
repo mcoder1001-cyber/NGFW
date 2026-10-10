@@ -301,3 +301,31 @@ Actual bdb2 --audit-only SSH0/private offline-audit-first-20261010.json520498B/0
 Readonly --diagnose-after-transition SSH0/private521700B/0600 SHA256851d42ac252b01162b3e1c7d63b808253b96e1beb833612cb155b0bb9187d2ff/emptystderr. Actual e2fsck-f-n exit12, filesystem_consistent=false: invalid extent nodes259596/259597/259598 at15505493/15503361/15503362, directory259599 corrupt at block0/offset0/pass2abort; knownoptional259596/7/8/259816 optimizations all declined under-n. No fixes performed. Counter0x9stable/newstorage0; fullaudits/finalguard0 completed. This is successful diagnostic capture of an inconsistent filesystem, not repair or acceptance PASS.
 
 Released --preserve-after-transition now executing plain native+9actualinode+7allowlistedraw+offhostfsync/fullhash. No correction has started. Native/offhost completeness and actual37objects await result/R7classification; user-data/full-system rollback is not claimed. Exact next corrective command remains held until actualpreservation/health/finiteundo review.
+
+
+## Actual scoped metadata preservation and finite-undo readiness
+
+Reviewed bdb2 --preserve-after-transition completed SSH0/empty stderr; private offline-preservation-20261010.json532992B/0600 SHA256c072d1d30d843375ffa0ed024cbc249eb4fa0a2f04bb2a93110155d052c53290. All20 debugfs/native commands exit0; complete stat+blocks for nineinodes and ncheck retained privately, not plaintextfilepayload. Native root-before-repair.e2i986808320 nominal/10096640 allocated bytes, mode0600/RAM51/fullSHA256822fc9507eb42c47fcd1529e9f0b939511f07d00f04f1b2307768ed367a7ae83. No-Q fallback avoids known bad extent traversal; it is coremetadata preservation, not a fulluser/system image.
+
+Offhost gzip1707875B/0600 SHA256d3b05aa7c3f1e49363acdd5aae4c28d30e76c818bf53aa753c2a6b978c74cda1; complete decompression986808320B and SHA equal source. Each of seven4096B blocks15505493/15503361/15503362/15503363/15503874/15503875/15505492 is actually ALLZERO on .37, source/offhosthashad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7. All8files offhostfullsize/hash/fsync/file+directory sync verified; transferreceipt3108B/0600 SHA256696c0e48e13121bc9da5409eb04c9fcbd8ca83b245b2db538d2283d8e36cc411. Names/rawbytes remain private. Nativeformat excludes directory/extent/EA/journal data blocks/fullfilepayload; selectedrawblocks supplement the affected metadata gap, not alluserdata.
+
+| Actualinode | Type/mode/owner | Size/i_blocks in512B units | Actualmetadata selector |
+| --- | --- | --- | --- |
+| 259594 | directory0700 UID/GID1000 | 4096B/8blocks | only15505492; actualprivate user-cache path |
+| 259595 | regular0644 UID/GID1000 | 0B/0blocks | no data mapping; originalname not recovered |
+| 259596 | regular0640 UID0/GID999 | 8388608B/7336blocks | badETB15505493; actualjournalpath |
+| 259597 | regular0640 UID0/GID999 | 8388608B/12072blocks | badETB15503361; actualjournalpath |
+| 259598 | regular0640 UID0/GID999 | 8388608B/16392blocks | badETB15503362; actualjournalpath |
+| 259599 | directory0700 UID/GID0 | 4096B/8blocks | only15503363; actualroot-cachepath |
+| 259600 | regular0644 UID/GID0 | 0B/0blocks | no data mapping; originalname not recovered |
+| 259602 | directory0700 UID/GID0 | 4096B/8blocks/links3 | only15503874; actualroot-configpath |
+| 259603 | directory0700 UID/GID0 | 4096B/8blocks/links2 | only15503875; originalname not recovered |
+
+Mappings/types are actual37observations, not imported211facts. Root/R7 review these exactobjects before targeted journal invalidnode/accounting repair, allzero directorysalvage/dot reconstruction/verifiedparent or lost+found attachment, preserving validzero-length regularorphan Connect/count operations, and reconstructed bitmap/free counts. No unspecified inode Clear/delete/optimization/discard is implied. Unknownobjects/prompts/mediafailure pause for classification. Matchingfixedonebyte driver5f45 has not run; no queuednewline/default/-y/-D.
+
+Preservation before/after fullaudits0:444then441processes/98FDs/nsfs0/races0/failures0/finalexclusiveguard0. ioerr0x9→0x9/newphysicalstorageevents0. Offline finiteundo --preflight nowactual0/empty stderr/private703B0600 SHA256491fb0240de6de5356a33a13b1b8472194821b30b326e2e86d721d1baf82e608. LiteralPRECHECK_READY/rootRAM51/private0700/undoabsent, soft+hardcap1073741824B, oneMiB0600probe synced/unlinked, exclusiveguard0. No undo or correctivefsck yet. Controlleractualrootfree1916010496B meets retained1610612736B guard; check fresh beforecorrective/offhostundo. Current RAM environment/globalnetwork remain unchanged; ordinarybootreturn and installation NOT RUN. Exact next command AFTER separate root/R7 actualclassification release: python3 docs/status/tasks/hardware-37-20261010-fsck-session.py, inspect private exactprompt and send only singleapprovedy/n bytes. Until then keepRAMPTY30565 and .211normal22.
+
+Latestpublished/readback transitiondiagnostic checkpointa2ac73a472b50038d850c41607ab03a4b79b5f5d, pre/postcheckPASS. Full preservation receipt now pending publication; allprivatepayload remains outsideGit/candidatebundle.
+
+
+R7 independently verified actual c072/696c/sevenraw/fullnominalgzip/491f and fixed5f45/0c76: APPROVE targeted interactive correction after durable receipt publication and freshwholeaudit/finalguard0 immediatelybefore fsck. Root separately releases this exact phase: known259596/7/8invalidETBclear/accounting; actualALLZERO259594/599/602/603salvage/selfdot/temporaryrootdotdot followedby verifiedactualpass3parent/lost+found connection; validzerolengthregular259595/600Clear=n/preservingConnect+counts; consequentialknownparent/bitmap/group/globalcounts individualyes. Optimize=n, no unknowninodeClear/deletion/specialobject, unexpectedprompt/media/undo failure holds for classification. No additionalmanagerroundtrip within these approvedclasses. Full transcript/privatecappedNEWundo fsync/offhosthash retained; freshhealth/audit/completeclean-f-n0 and boot/auth/net/selectedRAMruntime integrity must follow before a separately reviewed normalreturn. No reboot/install in correction release. Exactnextcmd after thischeckpoint publication: freshreleased wholeaudit+guard0, then python3 docs/status/tasks/hardware-37-20261010-fsck-session.py; one explicit approvedbyte perprompt.

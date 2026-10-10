@@ -75,7 +75,7 @@ if len(sys.argv)>1:
      assert original_target.is_relative_to(Path('/usr/share/zoneinfo'))
      assert original_target.is_file() and not original_target.is_symlink()
      original_bytes=Path('/etc/localtime').read_bytes()
-     assert timezone.read_bytes()==original_bytes
+     assert os.readlink('/etc/localtime')==original_link
      timezone.unlink();timezone.symlink_to(str(original_target))
      assert timezone.read_bytes()==original_bytes and os.readlink('/etc/localtime')==original_link
      print('PRIVATE_COPIED_TIMEZONE_CANONICAL_LINK PASS',flush=True)

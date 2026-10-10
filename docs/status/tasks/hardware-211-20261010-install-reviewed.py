@@ -44,6 +44,14 @@ assert stat.S_ISREG(s.st_mode) and s.st_uid==0 and stat.S_IMODE(s.st_mode)==0o60
 assert (os.major(s.st_dev),os.minor(s.st_dev))==(8,2)
 assert hashlib.sha256(marker.read_bytes()).hexdigest()==MARKER_SHA
 before=l3();assert before==EXPECTED_NETWORK
+SYSCTL_KEYS=['vm.nr_hugepages','vm.hugetlb_shm_group','kernel.shmmax',
+ 'net.ipv4.ip_forward','net.ipv6.conf.all.forwarding',
+ 'net.ipv4.conf.all.rp_filter','net.ipv4.conf.default.rp_filter','net.ipv4.conf.enp4s0.rp_filter',
+ 'net.ipv4.conf.enp4s0.forwarding','net.ipv4.conf.all.accept_redirects','net.ipv4.conf.enp4s0.accept_redirects',
+ 'net.ipv6.conf.all.disable_ipv6','net.ipv6.conf.default.disable_ipv6','net.ipv6.conf.enp4s0.disable_ipv6',
+ 'net.ipv6.conf.all.accept_ra','net.ipv6.conf.enp4s0.accept_ra']
+def sysctls():return {key:(pathlib.Path('/proc/sys')/key.replace('.','/')).read_text().strip() for key in SYSCTL_KEYS}
+sysctl_before=sysctls()
 # Actual needrestart is absent and absent from the reviewed plan. Refuse drift.
 hook_refs=[]
 for path in pathlib.Path('/etc/apt/apt.conf.d').iterdir():
@@ -67,14 +75,16 @@ assert simulation.returncode==0 and changes==EXPECTED_PLAN,'APT plan drift; no i
 assert not any(x.startswith('Remv ') for x in changes)
 assert not any(x.split()[1]=='needrestart' for x in changes)
 # Automatic needrestart is absent; standard package starts are denied by exact101.
-env=dict(os.environ,DEBIAN_FRONTEND='noninteractive')
+# Exact packaged VPP postinst supports this native transaction-only skip.
+# Leave80-vpp.conf packaged; deliberate hugepage settings are a separate phase.
+env=dict(os.environ,DEBIAN_FRONTEND='noninteractive',VPP_INSTALL_SKIP_SYSCTL='1')
 logs={}
 for suffix in ['stdout','stderr']:
  path=root/('apt-install.'+suffix);fd=os.open(path,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
  logs[suffix]=(path,os.fdopen(fd,'w'))
 p=subprocess.run(args[:1]+['-y']+args[1:],cwd=root,env=env,stdout=logs['stdout'][1],stderr=logs['stderr'][1])
 for path,f in logs.values():f.flush();os.fsync(f.fileno());f.close()
-after=l3()
+after=l3();sysctl_after=sysctls()
 result={'actual_command':args[:1]+['-y']+args[1:],'install_exit':p.returncode,
         'simulation_exit':simulation.returncode,'plan_exact':True,'plan_changes':changes,
         'stdout':logs['stdout'][0].read_text(),'stderr':logs['stderr'][0].read_text(),
@@ -82,12 +92,14 @@ result={'actual_command':args[:1]+['-y']+args[1:],'install_exit':p.returncode,
         'policy_exact':policy.read_bytes()==POLICY,'persistent_mask':os.readlink(mask)=='/dev/null',
         'vpp_state':output(['systemctl','show','vpp.service','-p','LoadState','-p','ActiveState']),
         'needrestart_hook_refs':hook_refs,'needrestart_installed_before':False,
+        'VPP_INSTALL_SKIP_SYSCTL':'1','sysctl_before':sysctl_before,'sysctl_after':sysctl_after,
+        'sysctl_equal':sysctl_before==sysctl_after,
         'no_firstboot_activation':True,'no_driver_binding':True}
 units=['vpp.service','ngfw-firstboot.service','ngfw-agent.service','ngfw-api.service','nginx.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','chrony.service','postgresql.service','valkey-server.service','nftables.service','snmpd.service','keepalived.service','rsyslog.service','postgresql@18-main.service','ngfw-firewall-bootstrap.service','apply-executor.socket','ngfw-ra-openfile.socket','ngfw-ra-namespace-broker.socket']
 result['service_states']={unit:output(['systemctl','show',unit,'-p','ActiveState','--value']).strip() for unit in units}
 result['all_services_suppressed']=all(value in ['inactive','failed'] for value in result['service_states'].values())
 print(json.dumps(result,indent=2))
-passed=before==after and result['policy_exact'] and result['persistent_mask'] and result['all_services_suppressed'] and 'LoadState=masked' in result['vpp_state']
+passed=before==after and result['sysctl_equal'] and result['policy_exact'] and result['persistent_mask'] and result['all_services_suppressed'] and 'LoadState=masked' in result['vpp_state']
 raise SystemExit(p.returncode if p.returncode else (0 if passed else 2))
 '''
 def save(path,data):

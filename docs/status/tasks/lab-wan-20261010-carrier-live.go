@@ -34,7 +34,7 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		return string(b)
 	}
 	conn := vpp.Dial("/run/vpp/api.sock", vpp.ConnOptions{})
-	defer conn.Close()
+	t.Cleanup(func() { conn.Close() })
 	if e := conn.WaitConnected(ctx); e != nil {
 		t.Fatal(e)
 	}

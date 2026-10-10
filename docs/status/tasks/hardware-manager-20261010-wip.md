@@ -1,3 +1,25 @@
+# Live interactive input correction — 2026-10-10 10:10 UTC
+
+Operator found a real driver defect missed by root/R7 source review: old controller
+driver0186e5ab writes y/n plus newline, while matching e2fsck ask_yn consumes one
+noncanonical byte. Queued newline therefore selected the next prompt default.
+Actual transcript has remained within reviewed known journal accounting/cache dot
+reconstruction; no unknown object accepted. At config259602 missing-dot prompt,
+operator holds all further old-driver input, preserving live fsck/undo/transcript.
+Do not falsely report every correction as an individually entered answer. Root
+and R7 acknowledge the oversight. User was told the concrete issue and correction.
+
+Future source must send exactly one y/n byte. Existing live session cannot be
+restarted without interrupting fsck: narrowly reviewed controller-only helper may
+verify the exact owned driver/SSH PID, PPID/cmdline and outgoing-child-stdin PIPE
+inode before/after open, then write exactly1 byte O_WRONLY|O_NONBLOCK. No arbitrary
+target/PID1 descriptor changes, signals, restart or concurrent manager writes.
+Actual helper source/identity review is pending; old newline path remains held.
+Normal return/.37 transition/package installation remain held. Exact next action:
+R7 concrete helper review, worker approved per-prompt single-byte input, full clean
+follow-up and durable undo/logs. Root prior9e7301943 publication result is pending
+readback; this correction checkpoint is immediately published.
+
 # Actual .211 interactive correction running — 2026-10-10 10:08 UTC
 
 Exclusive worker controller PTYdriver session66248 is responsive, with held RAM

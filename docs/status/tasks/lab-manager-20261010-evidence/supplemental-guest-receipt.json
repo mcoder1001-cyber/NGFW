@@ -1,0 +1,36 @@
+{
+  "source": "4908716b4501312102382e6979b8fc1ded6f9311",
+  "binaries": {
+    "ngfw-agent": "0d59890f67811f08d3602a6936cff6d9eda3e2029d8df78b7b482e43d898ffb9",
+    "ngfw-ra-namespace-broker": "01ce08c1dd2b8d31644a059928978355a1b52a4c3f7fcb62b317f580d7a3deb2",
+    "ngfw-ra-daemon": "e834c5d6e4d49df46e54dcb271fc4c88637a376abda48baf2eb4ad0310d7b135"
+  },
+  "units": {
+    "ngfw-ra@.service": "0ab102d0538360d947e48a437723a67d1abcd602605ed1bfb2974ee4e2ac9246",
+    "ngfw-ra-observer@.socket": "d8bdf79f7767d13c0a6c679f317d7450e8439a5a110ef306f601dd9487f294c4",
+    "ngfw-ra-observer@.service": "0864b67dafc24b2ff3fb1d68ff3bb06cc3cd84c977db59b151daa3bff2455a6a",
+    "ngfw-ra-namespace-broker.socket": "f8b139a683fbcf447304672c085d031cc4fd7d8d0fc36ed137db257b80787308",
+    "ngfw-ra-openfile.socket": "e548b49466216b1254bd41cf9cb04d9d2ae342d1b8b228848a2362ba48b08147",
+    "ngfw-ra-targets@.service": "9acdbfad058b5210977f1327c693b1b656ac6f195a91203068760946ebb1b810",
+    "ngfw-ra-namespace-broker@.service": "62bfab7a525207c8bf89598f687e6a8440fab7c864ae7b76ac7c402788dc7d91",
+    "ngfw-ra-targets@.socket": "2220b219ac28517fa39663f4b991b697757b3a04e585d35257e4e3c0758e2130",
+    "ngfw-ra-openfile.service": "447e0ee2fc549280f3f6dbdc012e85e9430405dae535231d6ff432b7415c6559",
+    "usr/lib/systemd/system/ngfw-agent.service": "0578ae4713eaed060b6b2551633136456c400f8f4a1a980f7624305633bcc54f",
+    "usr/lib/systemd/system/ngfw-agent.service.d/10-ngfw-hardening.conf": "e2895894312a43ff2d60c4ba0e741c5b3276ec3be9b64a8b46e7c6fc65e8f7bc"
+  },
+  "attempt1": "original current units refused absent packaged /etc/systemd/resolved.conf.d; guest paths provisioned for retry, original units unchanged",
+  "attempt2": "private supplier-only TCG boot running; canonical full RA campaign not authorized to run without observed successful supplier",
+  "readiness_probe_sha256": "09b60e3eeb17eed05ca3e43c1fc4ef013e364afc38707c17dc1ea2dfe58505bb",
+  "scope": "Supplemental readiness under unchanged canonical RA/agent units; historical firstboot/nft no-op units preclude full appliance acceptance.",
+  "images": {
+    "current-supplier.gz": "c175a6a4f1f3fad9e2e7d8b119eb3858d35455b7448ed19488c6976e8140ab4f",
+    "current-supplier2.gz": "a909dcf0a18daec0032d51393123079da2ecd479f79c13571ad429a3e8647c0a",
+    "current-supplier3.gz": "481497bcc8f9d01d946cc80a9b20c2f8f4162098508d4f992d20bcdbf1f37295",
+    "current-supplier5.gz": "26c58bc2bbfad08cf62a64a7e296afde441255fb58ac0b0e360e79574acccd79"
+  },
+  "guest-only_ngfw_identity": {
+    "uid": 984,
+    "gid": 984
+  },
+  "actual_result": "Guest5 VPP/Health active; RA operational false engine-not-ready; full canonical acceptance unverified"
+}

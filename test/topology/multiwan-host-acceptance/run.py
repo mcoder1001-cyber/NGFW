@@ -33,7 +33,7 @@ try:
    if path.suffix==".go" or path.name in ("go.mod","go.sum"):shutil.copy2(path,stage/path.name)
   mod=stage/"go.mod";mod.write_text(mod.read_text().replace("../../../apps/agent",str(ROOT/"apps/agent")))
   stack=stage/"stack_test.go";stack.write_text(stack.read_text().replace("dir, err := os.Getwd()",'dir, err := os.Getwd()\n\tdir = '+json.dumps(str(PRODUCT))))
-  if env.get("NGFW_MULTIWAN_EXTENDED")=="1":
+  if env.get("NGFW_MULTIWAN_EXTENDED")=="1" and env.get("NGFW_MULTIWAN_PRIVATE_NAT_PREREQUISITE")!="1":
    acl=stage/"acl_test.go"
    acl.write_text(acl.read_text().replace('"NGFW_GLOBALS_OWNER=0"','"NGFW_GLOBALS_OWNER=1"'))
   for name in ("vpp","ngfw-agent","ngfw-vpp-preflight"):
@@ -44,7 +44,12 @@ try:
   env["NGFW_ACL_PREFLIGHT_BIN"]=str(stage/"ngfw-vpp-preflight")
   env["NGFW_ACL_AGENTCTL_BIN"]=str(BIN/"ngfw-agentctl")
   acceptance=Path(__file__).with_name("acceptance_test.go")
-  (stage/acceptance.name).write_text(acceptance.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}."))
+  acceptance_source=acceptance.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}.")
+  if env.get("NGFW_MULTIWAN_PRIVATE_NAT_PREREQUISITE")=="1":
+   anchor="st := newStack(t, s)"
+   if acceptance_source.count(anchor)!=1:raise SystemExit("private NAT setup anchor changed")
+   acceptance_source=acceptance_source.replace(anchor,'t.Log("private NAT engine prerequisite; engine enable installation excluded from acceptance")\n\tmustRun(t, "flock", "-x", "/run/lock/ngfw-globals.lock", "vppctl", "nat44", "plugin", "enable", "sessions", "4096")\n\t'+anchor)
+  (stage/acceptance.name).write_text(acceptance_source)
   extension=Path(__file__).with_name("extended_test.go")
   if extension.exists():(stage/extension.name).write_text(extension.read_text().replace("w7",f"w{SLOT}").replace("10.7.",f"10.{SLOT}."))
   result=subprocess.call([ROOT/"tools/heavy.sh","python3",ROOT/"test/topology/hardware-smoke/isolated-vpp.py","go","-C",tmp,"test","-v","-count=1","-timeout","4m","-run","TestMultiWANRealAPI","."],env=env)

@@ -1,0 +1,9 @@
+Stats counters enabled for interface ACLs: 1
+Use hash-based lookup for ACLs: 1
+Mask-type entries:
+Mask-ready ACL representations
+Applied lookup entries for lookup contexts
+
+ACL lookup hash table:
+Hash table '(unnamed)'
+    empty, uninitialized

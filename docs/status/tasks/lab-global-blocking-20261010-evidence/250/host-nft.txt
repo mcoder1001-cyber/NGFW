@@ -1,0 +1,75 @@
+=== RUN   TestIntegrationBlockListProtectsHost
+    blocking_test.go:95: root netns `nft list tables` before:
+        table inet ngfw_base
+2026/10/10 14:15:32 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 14:15:32 INFO created key=host-acl.nftables/ngfw
+    blocking_test.go:101: apply: APPLIED summary={Created:1 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 104.522891ms
+    blocking_test.go:102: `nft list table inet ngfw_w17`:
+        table inet ngfw_w17 {
+        	comment "ngfw-agent host firewall"
+        	set b4_bad {
+        		type ipv4_addr
+        		flags interval
+        		elements = { 10.17.77.2, 203.0.113.0/24 }
+        	}
+        
+        	chain in__gb {
+        		type filter hook input priority raw; policy accept;
+        		ip saddr @b4_bad counter packets 0 bytes 0 drop comment "ngfw:@global-blocking/0:c01b901e"
+        	}
+        }
+    blocking_test.go:112: peer 10.17.77.2 dropped; block rule counter 2 packets
+2026/10/10 14:15:34 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 14:15:34 INFO updated key=host-acl.nftables/ngfw
+    blocking_test.go:116: apply: APPLIED summary={Created:0 Updated:1 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 94.525982ms
+2026/10/10 14:15:49 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 14:15:49 INFO updated key=host-acl.nftables/ngfw
+    blocking_test.go:123: apply: APPLIED summary={Created:0 Updated:1 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 20.838281154s
+    blocking_test.go:124: 200 000-entry set applied in 20.838394892s
+    blocking_test.go:129: 200 000-entry Retrieve in 6.128634528s
+2026/10/10 14:16:22 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 14:16:22 INFO updated key=host-acl.nftables/ngfw
+    blocking_test.go:132: apply: APPLIED summary={Created:0 Updated:1 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 26.938423299s
+    blocking_test.go:133: one-entry change applied in 26.938551153s
+2026/10/10 14:16:42 INFO host firewall removed table=ngfw_w17 mode=netns
+2026/10/10 14:16:42 INFO deleted key=host-acl.nftables/ngfw
+    blocking_test.go:137: apply: APPLIED summary={Created:0 Updated:0 Deleted:1 Unchanged:0 Failed:0 Reverted:0} in 6.785105326s
+    harness.go:96: root netns `nft list tables` after:
+        table inet ngfw_base
+--- PASS: TestIntegrationBlockListProtectsHost (70.19s)
+=== RUN   TestLabGlobalBlockingSameListProtectHost
+    lab_global_blocking_test.go:13: root netns `nft list tables` before:
+        table inet ngfw_base
+2026/10/10 14:16:42 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 14:16:42 INFO created key=host-acl.nftables/ngfw
+    lab_global_blocking_test.go:21: apply: APPLIED summary={Created:1 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 98.814299ms
+    lab_global_blocking_test.go:22: same-list actual namespace rules:
+        table inet ngfw_w17 {
+        	comment "ngfw-agent host firewall"
+        	set b4_proof {
+        		type ipv4_addr
+        		flags interval
+        		elements = { 10.17.1.2, 198.18.17.2 }
+        	}
+        
+        	chain in__gb {
+        		type filter hook input priority raw; policy accept;
+        		ip saddr @b4_proof counter packets 0 bytes 0 drop comment "ngfw:@global-blocking/0:955cd58b"
+        	}
+        }
+    lab_global_blocking_test.go:25: listed ping dropped:
+        PING 10.17.1.1 (10.17.1.1) from 10.17.1.2 : 56(84) bytes of data.
+        
+        --- 10.17.1.1 ping statistics ---
+        2 packets transmitted, 0 received, 100% packet loss, time 1038ms
+        
+    lab_global_blocking_test.go:26: actual host drop counter=4
+    lab_global_blocking_test.go:30: unlisted local TCP and ping passed
+2026/10/10 14:16:47 INFO host firewall removed table=ngfw_w17 mode=netns
+2026/10/10 14:16:47 INFO deleted key=host-acl.nftables/ngfw
+    lab_global_blocking_test.go:31: apply: APPLIED summary={Created:0 Updated:0 Deleted:1 Unchanged:0 Failed:0 Reverted:0} in 80.537245ms
+    lab_global_blocking_test.go:33: same-list protectHost rollback restored TCP
+    harness.go:96: root netns `nft list tables` after:
+        table inet ngfw_base
+--- PASS: TestLabGlobalBlockingSameListProtectHost (4.94s)
+PASS

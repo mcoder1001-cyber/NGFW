@@ -1,0 +1,14 @@
+[
+  {
+    "case": "product-agent-provenance",
+    "atUTC": "2026-10-10T10:25:09Z",
+    "source": "7bfca6dfe",
+    "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca",
+    "binary": "/tmp/ngfw-routing250-bin/ngfw-agent"
+  },
+  {
+    "case": "cleanup",
+    "atUTC": "2026-10-10T10:27:02Z",
+    "sharedIdentityUnchanged": true
+  }
+]

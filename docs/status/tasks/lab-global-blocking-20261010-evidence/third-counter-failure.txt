@@ -1,0 +1,24 @@
+DISPOSABLE_VPP pid=3843228 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-3843226
+gb-interfaces {"seconds": 0.5794215589994565, "revision": 2}
+baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
+baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
+baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
+baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
+lookup-0 {"before": null, "after": null, "vectorsDelta": null, "scope": "bounded diagnostic clocks; no throughput claim"}
+upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
+gb-upload-confirmed {"seconds": 0.611537869903259, "revision": 3}
+counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
+selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-local-in-drop {"allowed": false, "icmp": true, "tcp": false}
+unlisted-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
+rollback {"noOwnedACL": true}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 93, in <module>
+    state_after=request(api,'GET','/security/global-blocking');assert state_after['lists'][0]['hits']['dataplanePackets']>state_before['lists'][0]['hits']['dataplanePackets'];record('counter-after',state=state_after)
+                                                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+DISPOSABLE_VPP_STOPPED pid=3843228

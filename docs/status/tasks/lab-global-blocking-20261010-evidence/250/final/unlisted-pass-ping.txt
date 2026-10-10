@@ -1,0 +1,7 @@
+PING 10.17.2.2 (10.17.2.2) from 10.17.1.3 : 56(84) bytes of data.
+64 bytes from 10.17.2.2: icmp_seq=1 ttl=63 time=1.46 ms
+64 bytes from 10.17.2.2: icmp_seq=2 ttl=63 time=0.789 ms
+
+--- 10.17.2.2 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1002ms
+rtt min/avg/max/mdev = 0.789/1.122/1.456/0.333 ms

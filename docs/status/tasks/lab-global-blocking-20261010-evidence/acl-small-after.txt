@@ -1,0 +1,17 @@
+acl-index 0 count 2 tag {w17tb:_gb.pass}
+          0: ipv4 permit src 0.0.0.0/0 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+          1: ipv6 permit src ::/0 dst ::/0 proto 0 sport 0-65535 dport 0-65535
+  applied inbound on sw_if_index: 2
+  applied outbound on sw_if_index: 2
+  used in lookup context index: 0, 1
+acl-index 1 count 2 tag {w17tb:_gb.proof.i00}
+          0: ipv4 deny src 10.17.1.2/32 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+          1: ipv4 deny src 198.18.17.2/32 dst 0.0.0.0/0 proto 0 sport 0-65535 dport 0-65535
+  applied inbound on sw_if_index: 2
+  applied outbound on sw_if_index: 
+  used in lookup context index: 1
+acl-index 2 count 2 tag {w17tb:_gb.proof.o00}
+          0: ipv4 deny src 0.0.0.0/0 dst 10.17.1.2/32 proto 0 sport 0-65535 dport 0-65535
+          1: ipv4 deny src 0.0.0.0/0 dst 198.18.17.2/32 proto 0 sport 0-65535 dport 0-65535
+  applied outbound on sw_if_index: 2
+  used in lookup context index: 0

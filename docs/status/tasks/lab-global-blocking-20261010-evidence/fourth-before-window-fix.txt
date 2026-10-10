@@ -1,0 +1,43 @@
+DISPOSABLE_VPP pid=3855965 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-3855963
+PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
+
+gb-interfaces {"seconds": 0.6269201210234314, "revision": 2}
+baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
+baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
+baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
+baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
+lookup-0 {"before": null, "after": null, "vectorsDelta": null, "scope": "bounded diagnostic clocks; no throughput claim"}
+upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
+gb-upload-confirmed {"seconds": 0.6778987119905651, "revision": 3}
+counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
+selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-local-in-drop {"allowed": false, "icmp": true, "tcp": false}
+unlisted-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
+counter-after {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 12, "dataplaneBytes": 934, "hostPackets": 0}}]}}
+GLOBAL_BLOCKING_BROWSER_EN_FA_PASS
+gb-10000-real-commit {"seconds": 2.514882461982779, "revision": 4}
+lookup-10000 {"before": {"calls": 20, "vectors": 23, "clocksPerVector": 17300.0}, "after": {"calls": 2020, "vectors": 2023, "clocksPerVector": 8620.0}, "vectorsDelta": 2000, "scope": "bounded diagnostic clocks; no throughput claim"}
+gb-200000-real-commit {"seconds": 33.50840564200189, "revision": 5}
+lookup-200000 {"before": {"calls": 2020, "vectors": 2023, "clocksPerVector": 8620.0}, "after": {"calls": 4016, "vectors": 4023, "clocksPerVector": 9120.0}, "vectorsDelta": 2000, "scope": "bounded diagnostic clocks; no throughput claim"}
+rollback {"noOwnedACL": true}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 110, in <module>
+    assert secret
+    
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 16, in run
+    def run(*argv,timeout=40):return subprocess.check_output(argv,text=True,stderr=subprocess.STDOUT,timeout=timeout)
+                                     ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 473, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 578, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '('/tmp/ngfw-lab-nat46-20261010-bin/ngfw-agentctl', '-s', '/run/ngfw-test/w17tb/agent.sock', 'dryrun', '/run/ngfw-test/w17tb/gb-incremental.json', '-subsystems', 'acl')' returned non-zero exit status 1.
+DISPOSABLE_VPP_STOPPED pid=3855965

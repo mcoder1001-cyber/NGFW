@@ -1326,3 +1326,32 @@ Next command: inspect actual four-archive upload/simulation4Inst0Remv receipt,
 release reviewed install only on matching protected baseline; restore owned guards,
 manager normalize exact empty legacy cache after installed a909 agent SHA, then
 ordered agent/API runtime and real native17seed acceptance.
+
+Actual 2026-10-10 13:48 UTC: exact final3b61 mandatory hosted quick
+38056374923 SUCCESS, all packaging fixture checks SUCCESS; final own check
+--baseorigin/main PASS13s/no leaks. Fresh expected mainbd25/head3b61/oneparent
+and tree507477988ae381f05e1e8dc823d8479590b1efa1 verified under controller
+main lock; GitHub merge commit225 ACTUAL d1f3f19d4837de3f7a36bfffcbd3c70593bea307
+with exact two parents and identical reviewed tree. Private fsynced merge receipt
+pr225-merge-receipt.json retained. Remote GitHub hosted gate used without editing
+foreign dirty main worktree; no main rewrite or skipped mandatory gate.
+New actual mainquick38057527122 and fixtures38057527082 IN_PROGRESS, no
+postmerge gate PASS claim yet. PR body rewritten around final implementation,
+original G304 failure/focused fix and explicit ee202 native provenance.
+Independent follow-up report60bad94d1e80c6410e350a39bf57701b27367797 published.
+Actual controller upload precontact argvlimit failure retained0B; reviewed bounded
+stdin framed source281ab413 onpublishedd4e7 APPROVE, upload/sim retry released.
+Root exactcache controller wrapperd8a9bfb8f727aafe8ba0fc2af67fd75900f12b69239f9dbafb017f5458f7f1aa
+source APPROVE/AST2, durable private parent copy; NOTRUN until installeda909
+and ownedguard restoration. Root-owned reproducible587MB ee202 buildcache
+removed ONLY after independent attestation and retainedfourarchive checksumPASS;
+all82MB nativearchives/control/audit/manifest and producer/failurelogs retained.
+Old .37 worker resume again rejected by agent thread limit; remains departed.
+Root-owned readonly fresh37 receipt19ff8f12ef37911af36957aa90fc2c792122aa03726d70708898712145c5b526
+9656B0600/fsynced/SSH0/emptyerr verifiesbootc8d/root8:2/protectedPCI0c/group58,
+original policy+mask, five runtimeunitsinactivePID0/restarts0, old4configured,
+dpkg-auditempty and ioerr0x6. No firstboot/package/device mutation on37.
+Overall same hardware task RUNNING; upload/sim actual acceptance pending,
+physicalports/firstboot37/reboots not complete; no unrelatedboardrow closed.
+Next: actual reviewed4Inst0Remv simulation then install+restore guards, exact
+cache normalization and fresh ordered healthy agent/API/native17seed1 proof.

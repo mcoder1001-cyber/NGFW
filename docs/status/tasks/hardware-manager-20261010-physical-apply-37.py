@@ -3,7 +3,7 @@
 import argparse,datetime,hashlib,json,os,pathlib,re,stat,subprocess
 OUTPUT=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')
 REMOTE=r'''
-import hashlib,json,os,pathlib,re,socket,stat,subprocess,time
+import fcntl,hashlib,json,os,pathlib,re,socket,stat,subprocess,time
 RECORD=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-manager-20261010-data-37')
 OLD='c1b121e410961cb64869909a2cd82448984c0472ada11ab0a32234897b86b3c8'
 NEW=PROOF['manifest']['new_startup_SHA']
@@ -75,11 +75,13 @@ try:
  for name,size,sha in [('startup.before',735,OLD),('physical.doc.json',len(DOCUMENT),DOC),('physical.rendered.conf',len(RENDER),NEW)]:
   b=read(RECORD/name,0o600);assert len(b)==size and digest(b)==sha
  kernel=checked(['dmesg','--color=never']);result['kernel_before']=kernel
+ if WORK:assert kernel.startswith(LAUNCH_KERNEL);result['launch_kernel_before']=LAUNCH_KERNEL;kernel=LAUNCH_KERNEL
  if WORK:
   w=workpath(WORK);result['work']=str(w);result['plan_SHA']=seal(w)
   assert digest(read(w/'doc.json'))==DOC and digest(read(w/'new.conf'))==NEW and digest(read(w/'backup.conf'))==OLD
   unit=read(w/'run-unit').decode().strip();assert unit=='ngfw-startup-apply-'+w.name;result['native_unit']=unit
   result['markers']={n:read(w/n).decode() if os.path.lexists(w/n) else None for n in ['committed','rolled-back','console-needed','superseded','deadman-fired','installed']}
+  result['native_unit_state']=run(['systemctl','show',unit,'-p','ActiveState','-p','Result']);native_props=dict(x.split('=',1) for x in result['native_unit_state']['stdout'].splitlines() if '=' in x);assert native_props.get('ActiveState')=='inactive' and native_props.get('Result')=='success'
   result['native_log']=read(w/'log').decode();result['identity_reads']=read(w/'ident.reads').decode();assert len(result['identity_reads'].splitlines())>=2
   assert result['markers']['committed'] is not None and result['markers']['installed'] is not None and all(result['markers'][n] is None for n in ['rolled-back','console-needed','superseded','deadman-fired'])
   result['before']=protected(NEW);v=state('vpp.service');assert v['ActiveState']=='active' and v['NRestarts']=='0' and v['MainPID']!=BIND['old_noPCI_VPP_started']['MainPID']
@@ -91,6 +93,13 @@ try:
    text=result['hardware'][n];m=re.search(r'address\s+([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2})\.([0-9a-f]{1,2})',text,re.I);assert m and ':'.join(m.group(i).lower() for i in [1,2,3])+'.'+str(int(m.group(4),16))==q['PCI']
   timer=read(w/'deadman-unit').decode().strip();assert re.fullmatch(r'ngfw-startup-apply-deadman-[0-9]{8}-[0-9]{6}-[0-9]+',timer)
   t=run(['systemctl','show',timer+'.timer','-p','LoadState','-p','ActiveState','-p','Result']);props=dict(x.split('=',1) for x in t['stdout'].splitlines() if '=' in x);assert props.get('ActiveState')=='inactive','dead-man timer not observed inactive'
+  fds=[]
+  try:
+   for lock in ['/run/lock/ngfw-vpp.lock','/run/lock/ngfw-lab.lock']:
+    fd=os.open(lock,os.O_RDONLY|os.O_NOFOLLOW|os.O_CLOEXEC);fds.append(fd);st=os.fstat(fd);assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and st.st_nlink==1 and not st.st_mode&0o022;fcntl.flock(fd,fcntl.LOCK_EX|fcntl.LOCK_NB)
+   result['canonical_locks_observed_released']=True
+  finally:
+   for fd in reversed(fds):os.close(fd)
   time.sleep(2);assert state('vpp.service')==v;result['stable_VPP']=v;result['after']=protected(NEW);result['native_committed7_PASS']=True
  else:
   result['before']=protected(OLD);assert state('vpp.service')==BIND['old_noPCI_VPP_started']
@@ -118,7 +127,7 @@ def save(p,b):
  with os.fdopen(fd,'wb') as f:f.write(b);f.flush();os.fsync(f.fileno())
  fd=os.open(p.parent,os.O_DIRECTORY);os.fsync(fd);os.close(fd);return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
- os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--record-proof',required=True);p.add_argument('--record-sha',required=True);p.add_argument('--bind-proof',required=True);p.add_argument('--bind-sha',required=True);p.add_argument('--preflight',required=True);p.add_argument('--preflight-sha',required=True);g=p.add_mutually_exclusive_group();g.add_argument('--launch',action='store_true');g.add_argument('--observe-work');a=p.parse_args()
+ os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--record-proof',required=True);p.add_argument('--record-sha',required=True);p.add_argument('--bind-proof',required=True);p.add_argument('--bind-sha',required=True);p.add_argument('--preflight',required=True);p.add_argument('--preflight-sha',required=True);p.add_argument('--launch-proof');p.add_argument('--launch-sha');g=p.add_mutually_exclusive_group();g.add_argument('--launch',action='store_true');g.add_argument('--observe-work');a=p.parse_args()
  record=private(a.record_proof,a.record_sha);bound=private(a.bind_proof,a.bind_sha)
  seed=private(OUTPUT/'manager-host37-initial-runtime-start-20261010T144323Z.json','ba5439fcb0a7b2ccce59c1cf3b09f177e76e8de8cb1fe4e75d12840743b659ea');assert seed['native_seed7_PASS'] and seed['failure'] is None and seed['running']['revision']=='1'
  assert record['manifest']['task']=='hardware-37-20261010' and set(record['manifest']['data_nics'])==set(seed['inventory_after'])
@@ -126,7 +135,10 @@ def main():
  doc=json.dumps(seed['running']['data'],separators=(',',':')).encode();assert hashlib.sha256(doc).hexdigest()==record['record_before']['document_SHA']
  pre=private(a.preflight,a.preflight_sha);assert pre['dryrun']['exit']==0 and pre['network_equal'] and pre['seeded7_exact'] and pre['fixed_native_version']=='0.1.0~dev+97ae88ee5b6a' and pre['render_SHA']==record['manifest']['new_startup_SHA'] and pre['document_SHA']==hashlib.sha256(doc).hexdigest()
  render=pre['render']['stdout'].encode();assert hashlib.sha256(render).hexdigest()==pre['render_SHA']
- fields={'BASELINE':{'sysctls':seed['sysctls_after'],'DNS':seed['DNS_network_files_after'],'nft':seed['nft_after']},'DOCUMENT':doc,'RENDER':render,'PROOF':record,'BIND':bound,'RECORD_SHA':a.record_sha,'BIND_SHA':a.bind_sha,'LAUNCH':a.launch,'WORK':a.observe_work};code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
+ launch_kernel=None
+ if a.observe_work:
+  launch=private(a.launch_proof,a.launch_sha);assert launch['PASS'] and launch['native_apply_launched'] and launch['work']==a.observe_work and launch['record_proof_SHA']==a.record_sha and launch['bind_proof_SHA']==a.bind_sha and launch['new_storage_errors']==[];launch_kernel=launch['kernel_before']
+ fields={'LAUNCH_KERNEL':launch_kernel,'BASELINE':{'sysctls':seed['sysctls_after'],'DNS':seed['DNS_network_files_after'],'nft':seed['nft_after']},'DOCUMENT':doc,'RENDER':render,'PROOF':record,'BIND':bound,'RECORD_SHA':a.record_sha,'BIND_SHA':a.bind_sha,'LAUNCH':a.launch,'WORK':a.observe_work};code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  q=subprocess.run(['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.126.37','python3 -'],input=code.encode(),capture_output=True)
  stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='observe' if a.observe_work else 'launch' if a.launch else 'inspect';out={'SSH_exit':q.returncode,'ROOT_only_launch':a.launch}
  for k,b in [('stdout',q.stdout),('stderr',q.stderr)]:out[k]=save(OUTPUT/('manager-physical-apply37-'+mode+'-'+stamp+'.'+k),b)

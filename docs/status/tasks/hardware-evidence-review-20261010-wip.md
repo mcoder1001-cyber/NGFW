@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`08d72ec6568523b745ee9867f2417ec094031548` (targeted correction review; matching
+`9fb51767218a36943609a7b2aa7e00733f5b3363` (input correction/live continuation review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -345,3 +345,28 @@ read-only supplemental capture APPROVE after publication/live own-process/no
 other writer checks; known fsck self-held BUSY expected. Actual block/offhost and
 salvage verdict pending. Worker/root informed; reviewer never executed a valid
 target block call or input injection. Own diff check PASS, publication follows.
+
+Actual259603 preservatione8ab1ad9/230597B and source/offhost4096B/0600/ad7facb2
+independently verifiedzero; kernel exactequal/counter18. Sole known livefsck13880
+fd3 writer; failed sysfs pathf4443c20 retained, retry180863d8 success. Specific
+salvage/dots + source-supported temporary root '..' placeholder APPROVE to reach
+pass3, actual final parent/preserving Connect required, no invented originalname.
+Nextnew259594 home-usercache held: metadata7e4dde9c classified UID1000/0700/
+4096B/2links/block15505492; v3 b764 source only allowlist delta, staticd8d8aa83
+and six refusal checks PASS, capture source approved after203ea2a8 publication.
+Actual newblock/health/correction verdict pending. .37 actualtools847e1527
+independentlyPASS prepared-only; copied fixed driver5f45/wrapper0c76 exact small
+identity deltas/AST+Bash PASS, missing-tool stage still pending. Current reviewer
+running read-only coordination; .211 livefsck paused, .37 originalSSH retained.
+Last own verified remote9fb517672 above. Next actual259594 preservation/newprompt,
+then completed undo/offhost/clean-check and separate return review.
+
+Actual259594 a281c91e460615B/offhost4096B0600/ad7facb2 verifiedzero, knownpaused
+fsck onlywriter, exact before/afterkernel equality/counter18. Specific classified
+homecache salvage/dots/temporaryparent then pass3 actuallinkage APPROVE, operator
+informed promptly; no unknown clear permission. Valid regular-orphan preserving
+Connect can be reviewed from concrete stat/nativeoriginal without an unavailable
+full-filebackup requirement. .37 missingtools stagef855 outer/REMOTEAST2PASS/
+actualregexsyntax verified, targeted RAM-only source preparation approved;
+runtime still pending. No completion/return/hardwareacceptance claim. Nextactual
+newpreserving orphan prompt or finished fsck/undo/check; own publication follows.

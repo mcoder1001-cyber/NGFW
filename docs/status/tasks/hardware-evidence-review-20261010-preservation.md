@@ -263,5 +263,85 @@ the parent's live paused-fsck identity/no-other-writer/unchanged-prompt checks.
 The still-offline device is now held by the known live fsck: its self-held BUSY
 is expected, so an exclusive0 prerequisite must not be falsely imposed here.
 No mount, other device writer, fsck restart or repair-scope expansion is approved.
-Actual new block/offhost integrity/classification and salvage verdict remain
-pending at this source checkpoint.
+Actual new block/offhost integrity/classification and salvage verdict were pending
+at that source checkpoint; the subsequent actual check follows.
+
+Private new-directory-259603-supplement.json230597B/0600
+SHA256e8ab1ad9b9ad517105e9a6671f8712b32968eddf147199b1fbafc547373eab83
+independently parsed; persistent offhost root-before-block-15503875.bin4096B/0600
+has exact source SHA256ad7facb2586fc6e966c004d7d1d16b024f5805ff7cb47c7a85dabd8b48892ca7,
+and independent byte classification confirms it is zeroed. Capture/transfer0,
+source_hash_matchesTrue, fsync recorded by operator. Kernel snapshot independently
+exactly equals the previous snapshot; counter remains18. Initial holder preflight
+f4443c20522535b33466e8c7efd7fdbe64c1b92f74b12e2ea7c0f1c8c86a5692
+reported the sole known device writer, paused e2fsck13880 fd3/access2/exact command,
+but exited1 on an incorrect sysfs health path. Preserve that failed invocation.
+Retry180863d8aa73a91bde3c56cb3403b200b652f02b04d0409679d2388f954460d0
+uses the actual /sys/block/sda/device/ioerr_cnt path, exit0/counter18, and records
+the unchanged held259603 prompt.
+
+Specific259603 salvage/self-dot reconstruction APPROVE after this preservation.
+Matching pass2 check_dotdot deliberately installs temporary EXT2_ROOT_INO when
+the parent is unknown; accepting that missing-'..' placeholder is APPROVE to
+reach pass3, which must verify/reparent the actual relationship. It is not an
+assertion of an original path or parent. Preserving lost+found Connect and
+consequent counts for this concretely classified directory are approved if offered.
+Unknown destructive inode clear remains excluded. Operator continued using
+explicit one-byte helper answers and then held the next new object.
+
+## Newly exposed home-user cache259594
+
+New-inode-259594-readonly.json862B/0600
+SHA2567e4dde9cf610e5991da264a3cc9ab4e6ecbb307972d979d5fb58013ec968b96d
+independently classified: UID/GID1000 directory0700,4096B, links2, one block15505492;
+successful ncheck identifies a home-user cache directory. Its full name remains
+private. Actual salvage prompt is held pending this block's preservation.
+Parent authorizes a narrow read-only capture under the same paused-writer checks.
+
+Source v3 SHA256b76411e2c3279fb3b7dc0fdfdc4f64c510491fe585e7a0ad00c0eb3d07facda9
+APPROVE for this scoped capture after publication203ea2a84bf410117ef5a2b354388c0be98d4dd0.
+Independent immutable8d09a644->203ea2a8 diff changes only15505492 allowlist insertion.
+Independent static warning-clean build reproduces821424B
+SHA256d8d8aa8316e7fff7bc568d44979e70e66f12742d1a826c6111d6f109fad1c80e;
+six invalid/missing/extra/out-of-range/nonallowlisted argument refusals2/empty.
+No valid target block execution by reviewer. Actual new block/offhost/health and
+specific259594 correction verdict follow.
+
+New-directory-259594-supplement.json460615B/0600
+SHA256a281c91e2aeda18797a5b218f117fae791004520a426e1266f0cf13f5bec0d2d
+independently parsed: known paused fsck13880 fd3/access2 sole writer,
+preflight/stage/capture/transfer0, exact v3 source/binary digests, source/offhost
+4096B/0600/ad7facb2 match. Persistent root-before-block-15505492.bin independently
+hashed and classifiedzero. Kernel before/after independently exact equal True,
+counter18 before/after; fsync recorded by operator. Specific home-usercache259594
+salvage/self-dot/temporary-'..' reconstruction APPROVE, followed by actual pass3
+parent verification. Original entries in this block are already lost, not intact
+recoverable data erased by a new approval. New unknown objects remain held.
+For concretely classified valid regular-file orphans, preserving Connect plus
+consequent counts can be assessed from actual inode/type/size/ownership and native
+original metadata even when an original name is lost; no unavailable full-data
+backup is imposed. No blanket approval for unknown destructive Clear/special types.
+
+## Separate .37 actual preparation
+
+Preservation-stage.py47da77ec source independently AST2/2 approved RAM-only.
+Actual private ram-preservation-readers-stage-20261010.json5315B/0600
+SHA256847e1527df8335d2ee40faf786d7051b7b315823bf555c464fc6548666ccc167
+independently parsed: exact static readers and existing debugfs/libss digests,
+all four loader checks0, version commands0 with65/76B banners, invalid selectors2,
+mounted guard3, originalroot8:2/RAM51/MainPID3866/held3940/nextroot absent unchanged.
+No valid block/kernel capture or .37 transition occurred.
+The .37 copied future driver5f45bf37db7d5e066165b07f66bbbe55a4e383aadd3f483525ba50222e3ed973
+matches fixeddc321951 with only privatefolder/IP changes, AST PASS.
+Wrapper0c76f5cba2cce5f088cb3485abee0ca45ed1fa2d0cfdae6091be2792c4927e8c
+matches61e40215 with only actual RAM46->51 checks/status, Bash-n0. Source preparation
+APPROVE; a mounted-root RAM preflight must stop at expected self-independent
+BUSY3 after its finite limit/probe checks, not claim full offline readiness.
+Missing-tool stage source f8551f064633014b55ad10ef7b2ac2045a0b17479b97f4633a595d803ac1479a
+independently APPROVE RAM-only after publication: outer/REMOTE AST2PASS, actual
+ldd regular-expression semantics checked, only missing df/tail/sha256sum with
+flattened installed-MD5-verified closure, different existing files refused and
+RAM51 parent checks. Exact wrapper/v2 bytes, expected mounted preflightBUSY3,
+probe/undo absence, held/MainPID/nextroot invariants are checked. Actual runtime
+outcome remains pending. Root holds .37 transition
+until .211 normal return; neither copied source approves a .37 repair.

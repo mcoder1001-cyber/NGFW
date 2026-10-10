@@ -252,4 +252,36 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		t.Logf("REAL_LAN_VPP_NATIVE_NAT_PPP_PACKETS PASS %s", sessions)
 	}
 
+	if os.Getenv("NGFW_WAN_WRONG_PASSWORD") == "1" {
+		bad := s
+		bad.Password = password + "incorrect"
+		bad.MaxFail = 1
+		if err := rt.Apply(ctx, []pppoe.Session{bad}); err != nil {
+			t.Fatal(err)
+		}
+		if !wait(func() bool {
+			rt.poll(ctx)
+			st, e := rt.State(s.Iface, 0, "")
+			return e == nil && st.GetFailCount() > 0 && strings.Contains(st.GetLastError(), "authentication")
+		}) {
+			st, e := rt.State(s.Iface, 0, "")
+			t.Fatalf("real wrong-password clear error absent: %v %v", st, e)
+		}
+		if _, _, _, ready := rt.ForwardingGateway(s.Iface); ready {
+			t.Fatal("wrong password retained forwarding readiness")
+		}
+		t.Log("REAL_CURRENT_RUNTIME_WRONG_PASSWORD_AUTHENTICATION_ERROR_WITHDRAWAL PASS")
+		if err := rt.Apply(ctx, []pppoe.Session{s}); err != nil {
+			t.Fatal(err)
+		}
+		if !wait(func() bool {
+			last = rt.poll(ctx)
+			_, _, _, ready := rt.ForwardingGateway(s.Iface)
+			return last == nil && ready
+		}) {
+			t.Fatalf("restore after wrong password: %v", last)
+		}
+		t.Log("REAL_CURRENT_RUNTIME_CREDENTIAL_RESTORE PASS")
+	}
+
 }

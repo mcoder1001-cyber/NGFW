@@ -625,7 +625,7 @@ Actual .211 noPCI preview274716 B/0600 SHA35131df9f0853f2865b197251f067db7762ec6
 Root-owned product checkpointb1f5bea6bb8a7964165b9ba314d09ecbd238750a introduces the shipped explicit three-plugin bootstrap and native package manifest. Source independently read; focused correctness/packaging evidence review remains underway. Actual .211 seed outcome after correction remains pending; .37 firstboot remains held. Exact next action: classify actual nested preview warnings/read exported original+render hashes, inspect final root source/tests/evidence and manager guarded apply/seed receipts. No operation currently in flight.
 
 
-12:48 UTC follow-up: independent exact b1f5 product-source tests PASS in owned
+12:46 UTC follow-up: independent exact b1f5 product-source tests PASS in owned
 private archived scratch (new realCLI noPCI/missing-LCP regression0.073s, six
 firstboot fixtures20.635s). Product-source/management applicability APPROVE;
 final-source R7 documentation/decision/output and complete quick remain pending.
@@ -635,3 +635,14 @@ dead-man transaction→agent/API start order approved; actual transaction/seed
 acceptance pending. Full record: hardware-evidence-review-20261010-plugin-seed.md.
 No target/product writes; exact next action read root final source/docs/CI and
 actual noPCI manager apply plus normal seed receipt. Last published195c1a052e79cb8a07699205d77e47a87f1e552b.
+
+
+12:52 UTC actual follow-up: root guarded noPCI apply d63451ad/6730B and ordered
+service starts6e45514a/1103B independently PASS (committed/live367e/sealdb9b/all3
+loaded/newVPP33868/fullmanagement+17kernel+DNS/protectedproof/ioerr6/storage0).
+Retained root checker refusal is corrected/read-only, not an extra VPP restart.
+Final readonly native observer402f source/pub40016557 hash+AST2 APPROVE; actual
+revision1/seed17 receipt pending. No binding. Draft VFIO option premise verified
+08a7; finite original-state rollback/final binder source still unapproved. Root
+product R7 final docs/gate remain pending. .37 old firstboot payload remains held.
+Last published6c1b1370d04fd0b0f706be05cde0db5a6df459ba; full owned report plugin-seed.md.

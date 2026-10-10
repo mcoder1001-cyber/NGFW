@@ -31,7 +31,7 @@ APPROVE exact readonly preview/source4a63dcc56bbd7343dd218c5773c2257920a026af427
 Product checkpointb1f5bea6bb8a7964165b9ba314d09ecbd238750a has been read: fixed bootstrap asset enables these three switches without devices; firstboot installs0600 and invokes canonical generator; meta manifest includes asset; real CLI regression tests noPCI/protected management/missing-LCP refusal. Final focused tests/evidence review underway, not a merge approval.
 
 
-## Independent product/management source follow-up — 12:48 UTC
+## Independent product/management source follow-up — 12:46 UTC
 
 Source checkpointb1f5bea6bb8a7964165b9ba314d09ecbd238750a correctness/management
 applicability APPROVE. No API/schema/binapi/privilege change; fixed shipped JSON
@@ -92,3 +92,53 @@ Current manager WIP is an unfinished checkpoint, not a false final gate PASS.
 Focused correctness approval is separate from final-head R7/hosted quick and actual
 post-plugin seed acceptance. Current main has moved tobd25d9b; no stale-tree gate
 claim is made. .37 firstboot remains unexecuted pending .211 real seed resolution.
+
+
+## Actual manager noPCI transaction and native observer — 12:52 UTC
+
+APPROVE/PASS actual root-only guarded transaction, independent read-only private
+receipt parsing. No PCI binding or native seed outcome is inferred. Exact metadata:
+
+```text
+manager-plugin-result-v2-211-20261010T125013Z.json
+6730B mode0600 SHA=d63451ad9d5bb5f19fce04e2d0f30bbaefb5f81444f75017503eea0179207065
+committed=true installed=true
+rolled-back=false console-needed=false superseded=false deadman-fired=false
+live=new=367ead293aefd84d4b3f85f882d3dac33834bda9129467c9a1578f7223a39184
+backup=c892394e36bfc45950407128a81c849fdaa1c66a1fbe64ce9154fa271f215b5e
+recorded=calculated plan seal=db9bbf47907dd236a7dad4e1d731030e711df9037361a73ea426a7a013ee0339
+VPP PID33868 active NRestarts0; agent/API intentionally inactive
+binary bootid/plugins/version exits0/0/0 stderr empty; required3plugins loaded=true
+network_equal=true all17_kernel_equal=true protected_management=true
+ioerr=0x6 nr_hugepages=1024 new_storage_errors=[]
+manager-plugin-services-211-20261010T125039Z.json
+1103B mode0600 SHA=6e45514aff73887848d0e101dc08aa8d86d5fa9f5ca53e5a00afbeb5c50fae96
+systemctl start ngfw-agent.service exit0 stderr0
+systemctl start ngfw-api.service exit0 stderr0
+VPP33868 agent42444 API42449 nginx9281 SSH1033 active NRestarts0
+```
+
+Earlier root readonly checker refusal is retained, not a target transaction failure:
+it incorrectly treated the single concatenated-plan digest as a checksum manifest
+and omitted original IOMMU members from inventory comparison. Corrected v2 uses
+the native recorded/calculated digest and full inventory; no extra restart occurred.
+
+Readonly native-seed-observe source402f0bbc9f1ee534a0809f3b719450729412f513ec1971dec34dd4a01b3f4a99
+APPROVE after full source/outer+remote AST2 and exact published400165574b297ae57a8f9fadf0c4492414086117 readback. It makes no service/startup/driver/config/DB revision writes.
+Private trusted TLS login sends credentials only via SSH stdin and omits bearer
+tokens. Native after mode requires exact367e, actual3 loaded plugins/new VPP PID,
+revision1/system.seed-defaults/seventeen original name+PCI builtIn rows and protected
+management exclusion, candidate equal/noPending/RPC, stable new unit PIDs and full
+network/17kernel/DNS/sysctls/foreignNFT/storage proof. Before capture29c443 already
+exists and need not repeat. Type=simple active alone is not HTTPS readiness; operator
+was reminded to establish bounded unauthenticated protected GET401 before the single
+login, or use actual manager ready proof. Actual seed receipt remains pending.
+
+Draft VFIO configured-option premise independently parsed08a7c393bf0602897ac3345fe2c187073109fb9f69ebc61828cb484c9d5fe583/2702868B0600:
+three commands0/empty stderr, zero effective options/install vfio lines, zero loaded
+VFIO modules, actual unsafe and ids sysfs absent. Draft binder remains unapproved
+pending exact final source/finite original-state rollback. Runtime ids must be empty
+when present before/after load, so persistent boot cannot inherit global-ID matching.
+No module loading/binding by reviewer. .37 installed old2045 firstboot is not changed
+by source merge alone; its fixed-package or explicit canonical noPCI correction
+provenance must be reviewed before initial runtime/seed. No .37 firstboot execution.

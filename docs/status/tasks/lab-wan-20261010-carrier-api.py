@@ -80,6 +80,17 @@ def commit(api,changed,baseline=None):
  if hashlib.sha256(json.dumps(running,sort_keys=True,separators=(',',':')).encode()).hexdigest()!=digest:raise Refused('real running/candidate mismatch')
  print('REAL_API_COMMIT '+json.dumps({'revision':result['revision']['id'],'candidate_sha256':digest,'plan':plan,'warnings':warnings}),flush=True)
  return result,warnings
+def packets():
+  command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')
+  command('ip','-n','ns-w20-carrier-isp','-6','route','replace','2001:db8:21::/64','dev','ppp0')
+  for family,destination in (('-4','100.64.20.1'),('-6','2001:db8:20::1')):
+   end=time.monotonic()+35
+   while True:
+    probe=subprocess.run(['ip','netns','exec','ns-w20-carrier-lan','ping',family,'-n','-c','3','-W','2',destination],capture_output=True,text=True,timeout=12)
+    if probe.returncode==0 and '3 packets transmitted, 3 received, 0% packet loss' in probe.stdout:break
+    if time.monotonic()>end:raise Refused('real API/current Wiring LAN PPP packet failed '+family)
+    time.sleep(.4)
+   print('REAL_API_CURRENT_WIRING_LAN_PACKET '+family+' PASS '+probe.stdout.splitlines()[-2],flush=True)
 with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w20') as (api,runtime,restart):
  baseline=api.call('GET','/config')
  assert baseline['services']['dns']['resolvers']=={} and not baseline['services']['ntp']['enabled'] and baseline['management']['syslog']==[]
@@ -107,16 +118,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
   redacted=(out+err).replace(admin_password,'[redacted]').replace(password,'[redacted]')
   print(redacted,flush=True);del admin_password
   if browser.returncode:raise Refused('real PPPoE browser proof failed')
- command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')
- command('ip','-n','ns-w20-carrier-isp','-6','route','replace','2001:db8:21::/64','dev','ppp0')
- for family,destination in (('-4','100.64.20.1'),('-6','2001:db8:20::1')):
-  end=time.monotonic()+35
-  while True:
-   probe=subprocess.run(['ip','netns','exec','ns-w20-carrier-lan','ping',family,'-n','-c','3','-W','2',destination],capture_output=True,text=True,timeout=12)
-   if probe.returncode==0:break
-   if time.monotonic()>end:raise Refused('real API/current Wiring LAN PPP packet failed '+family)
-   time.sleep(.4)
-  print('REAL_API_CURRENT_WIRING_LAN_PACKET '+family+' PASS '+probe.stdout.splitlines()[-2],flush=True)
+ packets()
  if extended_api:
   receipt=subprocess.run([str(BASE/'bin/carrier-live.test'),'-test.v','-test.count=1','-test.timeout=25s','-test.run=^TestWANCurrentCarrierReadback$'],capture_output=True,text=True,timeout=30)
   if receipt.returncode or '=== RUN   TestWANCurrentCarrierReadback' not in receipt.stdout or '--- PASS: TestWANCurrentCarrierReadback' not in receipt.stdout or '--- SKIP:' in receipt.stdout:raise Refused('actual API MSS getter test failed')
@@ -136,7 +138,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  print('REAL_AGENT_API_CONFIG_LOG_PASSWORD_ABSENCE PASS',flush=True)
  if extended_api:
   scope={};exec(compile((ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py').read_text(),str(ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py'),'exec'),scope)
-  scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,Refused)
+  scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,packets,Refused)
   api.call('PATCH','/config/nat',baseline['nat'])
  api.call('PATCH','/config/interfaces',{name:None for name in config})
  commit(api,paths,warnings)

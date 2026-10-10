@@ -198,3 +198,18 @@ PASS0.092s is pasted in eal.md; actual .37 native seven-NIC seed/runtime ba5439 
 is corroborated in physical.md. Physical .211 failure cannot be marked complete
 or deferred. Final-head full hosted quick and corrected native/runtime evidence
 are still required before physical retry and merge.
+
+## Final PR226 recheck — 14:53 UTC
+
+R7-226-1 CLOSED. Exact final candidate48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9,
+treeeea909008cc78e09b2d4cfabe793291c2955ce44, contains the existing exact Go/check
+commands and pasted output with a truthful explanation of the precommit range.
+Only WIP evidence changed from approved97ae; product/test paths unchanged. Remote
+97ae archive preserved, one integration commit on unchangedd1f3 main independently
+verified. Compiled native source remains97ae; final-head full hosted gate38061529505
+was observed in_progress. Previous97ae gate was cancelled after the head update,
+not claimed PASS. Detailed actual commands/readbacks are in eal.md.
+
+**Final R7 verdict: APPROVE** exact48af; zero open BLOCKER/MAJOR/MINOR. Corrected
+native packaging/installation and actual physical acceptance remain unfinished.
+No laboratory deferral or hardware Done is justified by this source verdict.

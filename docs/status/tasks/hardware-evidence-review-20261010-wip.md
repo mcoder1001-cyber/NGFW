@@ -14,7 +14,8 @@ offhost original record/default inspect PASS, all17 VFIO binding independently
 PASS with individual inventory. Actual single native physical launch failed
 DPDK EAL initialization; native healthy rollback restored old735B noPCI startup,
 and released its locks. No COMMITTED marker or physical acceptance. Root reports
-VPP72599active and API/agent held; fresh complete post-rollback protection evidence
+VPP72599active and API/agent held; a readonly19981B postrollback receipt independently
+confirms that VPP identity. Fresh complete post-rollback protection evidence
 is still pending independent review. Buffers65536 stored, runtime enforcement pending.
 The original .37 worker is departed. No forwarding or post-binding reboot
 acceptance. Root alone performs reviewed real startup/binding.
@@ -26,8 +27,8 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`c09cefafa0ada23021c9aa9470f63b5328ca16bf` (matching CLI push/readback;
-actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
+`e2dfe7b715a59ba739a5dfd5f0c63c3fcba8f958` (matching CLI push/readback;
+actual own post-commit documentation check28s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
 eal.md. The prior source/launch documentation check exited0 (17s); that success
@@ -43,11 +44,13 @@ the mandatory product correction, unchanged complete quick and corrected native
 artifact. Reviewer has no target process. .37 inputs/guard restoration/noPCI runtime
 pipeline ddfd/fdbb/89fd source APPROVE and actual ba5439 native seven-NIC phase PASS.
 PR22697ae product/source applicability APPROVE; own focused renderer protection
-tests0.092s PASS. Formal R7-1 is BLOCK until candidate WIP includes the existing exact
-test/check commands and pasted output; root accepted the finding. Complete hosted
-quick38061027648/native preparation pending. Next action: recheck only that evidence
-appendix/changed final head, then actual full gate/native and fresh protected physical
-phase receipts. No repeat launch or target writes by this reviewer.
+tests0.092s PASS. Formal R7-1 CLOSED on final48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9:
+existing exact test/check command+output appended, source/test paths unchanged,
+remote97ae archive/one-commit integration verified. R7 APPROVE48af; source compiled
+native97ae remains distinct. Final complete hosted quick38061529505 is in_progress;
+older97ae quick cancelled; native preparation PASS, dpkg packaging pending. Next
+action: review actual final gate/native and fresh protected physical phase receipts.
+No repeat launch or target writes by this reviewer.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,

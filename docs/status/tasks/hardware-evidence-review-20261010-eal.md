@@ -85,3 +85,37 @@ BLOCK for this documentation item, separate from the source applicability APPROV
 Pending complete hosted quick/native/runtime results are correctly kept pending.
 Decision D246 records closed allowlist, rejected mixing and retained management
 validation. Scope stays within the owner's existing hardware correction campaign.
+
+## R7 evidence closure on final48af
+
+Final PR22648afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9 /
+treeeea909008cc78e09b2d4cfabe793291c2955ce44: R7-1 CLOSED, **R7 APPROVE**.
+Independent remote/archive/parent/diff assertions:
+
+```text
+git diff --name-only 97ae88ee5b6aaf304f78547abed39e80bbeac5e1 48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9
+docs/status/tasks/hardware-manager-20261010-eal-fix-wip.md
+git rev-list --count d1f3f19d4837de3f7a36bfffcbd3c70593bea307..48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9
+1
+git show --format='%P' --no-patch 48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9
+d1f3f19d4837de3f7a36bfffcbd3c70593bea307
+remote archive codex/archive-hardware-eal-97ae-20261010=97ae88ee5b6aaf304f78547abed39e80bbeac5e1
+remote integration/main=48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9/d1f3f19d4837de3f7a36bfffcbd3c70593bea307
+gh run list --branch codex/hardware-eal-fix-20261010 --limit6
+CI gate38061529505 head48af status=in_progress
+CI gate38061027648 head97ae status=completed conclusion=cancelled
+```
+
+Existing exact Go commands/output0.435/0.274 and lightweight check14s are now pasted
+in the candidate WIP. It explicitly explains the check's precommit range0 and
+does not substitute that check for the mandatory complete final-head gate. No
+product/test delta since the independently approved97ae source; no rerun needed
+for this evidence-only change. The clean native prepare remains truthfully compiled
+from97ae, not relabeled48af. Independently read private prepare log409lines verifies
+VPP26.06-release+ngfw3/all72fixtures and producer state; native dpkg build pending.
+
+Additional actual root postrollback readonly receipt19981B0600,
+SHA2562b3d67696d1c98967f1909c98821454d18bc90e18087513aa129bae88cdd06d5,
+shows VPP72599active/NRestarts0 via systemctl0/empty stderr. A successful logging
+query does not recover full failed EAL argv. R7 source approval does not change
+physical failure status; corrected native/control/runtime/reboot acceptance pending.

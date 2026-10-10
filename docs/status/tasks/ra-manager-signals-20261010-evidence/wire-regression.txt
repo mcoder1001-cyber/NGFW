@@ -1,0 +1,36 @@
+=== RUN   TestManagerDBusSignalClosedPublicWhitelist
+--- PASS: TestManagerDBusSignalClosedPublicWhitelist (0.00s)
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-path
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-interface
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-member
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/wrong-signature
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/signal-reply-serial
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/unix-fd-header
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-property-path
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/version
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/flags
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/zero-serial
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-header
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-body
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/truncated
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/trailing
+=== RUN   TestManagerDBusSignalRejectsForeignMetadataAndFraming/padding
+--- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming (0.01s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-path (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-interface (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-member (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/wrong-signature (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/signal-reply-serial (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/unix-fd-header (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/foreign-property-path (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/version (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/flags (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/zero-serial (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-header (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/huge-body (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/truncated (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/trailing (0.00s)
+    --- PASS: TestManagerDBusSignalRejectsForeignMetadataAndFraming/padding (0.00s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	1.181s

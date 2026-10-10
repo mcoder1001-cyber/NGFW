@@ -167,3 +167,38 @@ root alone owns any containment. No blind service restart, rollback, datastore
 change or binding by reviewer/worker. Earlier committed noPCI transaction was
 actual PASS at its checkpoint; current native agent/runtime is FAIL and remains
 a real failure requiring resolution before hardware acceptance. .37 firstboot held.
+
+## Actual owner-cache cause and contained services — 13:07 UTC
+
+Independent bounded private selectors confirm the actual agent-only journal
+80423B/0600 SHA86c50356cb7c100b81d0659290de4ae180d93b0bc9cf6e0a0ec1455666ba827d
+has four structured startup ERRORs with static literal `auto-block cache owner
+mismatch`. Two readonly commands exited0. Fixed-cache metadata receipt672B/0600
+SHA318a6e694f99b4297ca267d8bf4c654788612d751e42ccb9201f2e8ccdd7b33e
+reports root UID0/GID107,0600,device8:2,size2,empty field inventory, absent owner,
+zero entries. No cache contents/IPs were emitted or changed. Preserve GID107 as
+well as UID/mode in any separately reviewed root-owned finite recovery.
+
+Root containment receipt395B/0600 SHAdc95818ca54d78d3350e3aea64cbd632215add776f5ae14cc2e118ac7d430902
+records explicit API stop then agent stop, exit0/empty stderr. API/agent inactive,
+agent historical NRestarts151; VPP33868/nginx9281 active NRestarts0. No cache,
+startup or NIC writes occurred in that containment. This receipt does not itself
+provide a new complete network snapshot.
+
+Source ee20250072938a46407c5ff541e61e1afb7db2d5 repairs the real persistence bug:
+checkOwner permits omitted RPC owner, while strict load correctly requires the
+service owner. The accepted cloned snapshot now receives that effective owner
+before persistence. Independent whole TestAutoBlock selection PASS0.350s, including
+caller unchanged/restart/foreign RPC unchanged cache/foreign persisted rejection;
+exact command/output and PR225 blob comparisons are in
+[the final-candidate review](hardware-evidence-review-20261010-pr225.md).
+Source applicability APPROVE; live fixed artifact/known-cache recovery/native seed
+remain pending, no .37 firstboot or data binding.
+
+Conditional APPROVE readonly data-preflight source
+f7d067b706e922fcef1dca427b611e7c66df790edbb19e42a2aae041c480a491 only after an
+actual passed native after-observer receipt. It requires real seeded17 rows,
+loaded3plugins and protected kernel management, then canonical render/product
+dryrun without apply. Its modprobe invocation is dry-run only; no module or driver
+mutation. Failed native seed cannot satisfy that prerequisite. Finite rollback
+source93bff522 received but still under review, not execution-ready.

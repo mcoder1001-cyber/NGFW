@@ -1,10 +1,11 @@
-# Resumed disk recovery — 2026-10-10 08:33 UTC
+# Resumed disk recovery — 2026-10-10 08:38 UTC
 
 Owner now explicitly asks to fix the disk problem. Root resumed existing host37,
 host211, and evidence_review workers; actual live diagnostic messages received.
 This supersedes the earlier awaiting-resume operational snapshot below. Source
 main remains4908716b; no product code or CI change is required for this recovery.
-At edit local/remote manager HEAD4f8cc7f40ff23581058643b13458b3b8624299a9;
+Previous resumed checkpoint published/read back14594feca3d7cdc00dddc3ae3581f99923c525d2;
+at this edit local/remote manager HEAD14594feca3d7cdc00dddc3ae3581f99923c525d2;
 this coherent checkpoint is immediately committed and published/read back.
 Owned files and private destinations remain as in the task envelope.
 
@@ -25,12 +26,38 @@ EBUSY; require positive exclusive probe and all-namespace/reference audit after
 transition before any fsck. Prepare metadata backup/undo and an explicit safe
 return path. Full system image has not been taken; config backups are not one.
 
+Reversible RAM-only staging is now authorized to both exclusive host workers,
+independently supported by R7. No transition or repair is authorized yet. Stage
+at /run/ngfwrescue (dedicated exec tmpfs, correct survival mount unit); keep
+/run/nextroot absent until final reviewed readiness. Candidate SSH survivor uses
+regular runtime unit invoking chroot then RAM sshd in the SAME mount namespace
+as PID1, with RAM-only root/cwd/maps/fds, key-only/PAM-off authentication. All
+SSH children remain in the protected service cgroup. RAM /etc unit of same name
+uses direct valid ExecStart and overrides persisted runtime /run bootstrap.
+Copy matching systemd-executor and dependencies as well as PID1; official v259.5
+closes old pinned executor on reexec and reopens from RAM. No blind PID1 fd closure.
+Networkctl reload reconfigures links, so no live KeepConfiguration reload is
+permitted as passive staging. Review exact stop behavior and all network snapshots.
+SMART readonly via signed cached Ubuntu package is being investigated in RAM.
+
+Task-only static offline guard compiled with -static -O2 -Wall -Wextra -Werror;
+three refusal tests PASS (missing args/nonblock/invalid identity). Source is the
+owned block-check.c task document, not product code. Binary860432bytes SHA256
+02a2270ad8e0f480efc7464b26d2216fec8a915aa12755da6339015abed0f41c,
+private shared controller path. It validates direct block identity then
+O_RDONLY|O_EXCL|O_CLOEXEC|O_NOFOLLOW, writes no device data; BUSY exit3 prevents
+repair. Independent source/binary review and mounted-negative target validation
+required before adoption. Namespace/reference audit and controlled no-remount
+environment remain additional mandatory checks; positive exclusive open alone
+is not a complete recovery workflow.
+
 Current limitation: no tested RAM rescue yet. Next command is read-only geometry,
 auth/runtime dependency/capability assessment by exclusive workers, then concrete
 staging script review. Do not wait for prior console question before useful safe
 preparation. Do not perform transition or corrective writes before review.
-Root controller filesystem now31MiB free; only redundant task-owned build trees
-may be removed to recover staging/backup capacity; preserve immutable packages,
+Root controller filesystem recovered to~175MiB free and /dev/shm1.9GiB free; only redundant task-owned build trees
+were removed to recover staging/backup capacity: own completed package-source and old
+ngfw-hardware-package-20261010 tmpfs build only; preserve immutable packages,
 source archive refs, checkpoints, all private evidence and other tasks' work.
 
 Previous durable handoff follows; its awaiting-recovery roles are historical:

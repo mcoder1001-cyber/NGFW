@@ -1,3 +1,27 @@
+# Actual .211 normal-return release — 2026-10-10 10:47 UTC
+
+Worker coherent selected-integrity/return-readiness checkpoint is published and
+fresh remote readback3d1e1a8f1e02f5f921e317699afc8d0515e88167. Manager independently
+parsed private29501B0600/9569441fa385f370b4f65414497324590d35c3a6a23e2234ff62289fc88b37e5:
+all8commands0/empty stderr; RAM46 actualPID1/root/exe and manager/executor/shutdown
+hashes match staged sources;8shutdownloaderpaths allRAM46, responsive259.5manager,
+rescueactive/helperexitedsuccess. Originalroot/EFIordinaryunmounted, nextrootabsent,
+sync0, wholeaudit259processes/93FDs/nsfs0/races0/failures0/guard0 and finalguard0
+afterallhelpers/closurestat. MinimalRAMsystemstate degraded is documented with
+responsive manager, not misreported as an original-system health result.
+
+R7 focused actual return APPROVE received; reviewed52originalboot/auth and6exact
+network sections plus clean-f-n0/durableactualundo alreadyPASS. Root RELEASES the
+exact normal-return command now: SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1
+SYSTEMCTL_SKIP_AUTO_KEXEC=1 systemctl reboot --force (SINGLEforce).
+No actual reboot/reconnect success claimed yet. Exclusive worker retains operation;
+.37 stays on original22/heldRAMPTY. Exact next action: issue reviewedsingleforce,
+bound fresh original22 reconnect, verify newboot/storage-clean/protectedenp4s0 PCIigc
+group28/alladdresses-routes-rules-DNS and originalconfiguration hashes; then release
+.37 ordinaryRAMtransition/read-only offline diagnosis/preservation. No new console,
+fullimage or optional test permission gate. Prior root4916e9b6b70e3a4e43421d0064a708716e683bcb
+publication+remote readbackPASS; this checkpoint immediately publishes.
+
 # Actual .211 correction and clean validation — 2026-10-10 10:43 UTC
 
 Corrective interactive e2fsck completed exit1 (filesystem modified); complete

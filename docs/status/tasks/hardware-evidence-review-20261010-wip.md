@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`4e8e3f136ac1ee3420ebb633ca699b3216dd431e` (verified211 original boot and37 preservation-source review; matching
+`ff6af9a5c2bfaa2152ede025d44402a6d9ad0149` (verified37 preservation and211 safeguard review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -479,3 +479,11 @@ results/clean check/offhost undo and separate normal-return evidence remain pend
 Reviewer performed no target operation and committed no private backup contents.
 Exact next action: inspect actual .211 full solver plan and .37 correction receipts as
 provided; publish this coherent checkpoint and verify remote SHA before handoff.
+
+
+Actual .211 preparation + full dependency simulation independently reviewed in
+hardware-evidence-review-20261010-installation.md: exact101/persistentmask/private
+original-root marker/L3 unchanged corroborated; solver114 Inst/0Remv with only3
+base-perl/OpenSSL security upgrades. Concrete needrestart check confirms package,
+known paths and hooks absent; no hypothetical blocker remains. Actual installation
+source/phase, activation configuration and postinstall management proof pending.

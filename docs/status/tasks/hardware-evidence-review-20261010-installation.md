@@ -1,0 +1,69 @@
+# Independent installation evidence review
+
+Owned reviewer branch codex/hardware-evidence-review-20261010. Product source approval
+and actual filesystem recovery are separate from installation/activation acceptance.
+Reviewer has performed no target operation. Private safeguard snapshots and marker
+contents are not committed here.
+
+## .211 guard source and actual preparation
+
+Operator source checkpoint6bdf80b843d827cf52e12c9bc94ef8a0369d4003:
+start-guards.py SHA2562530bc534fabd6d83712388fc7aad0eb4cf1a71f9a5a02215d2c8c08aeb81fe6
+and package-input.py SHA256e5c7a1c927b03d0298ae122acc7f765edbd5f23b12cc2d8cea03500a91e6b346.
+Full actual source read, actual bytes hashed, outer/embedded Python AST2+3 PASS.
+
+Inspect4905 B/0600 SHA256c45e00dfcdbf10618b06634808eba3445dba088817d413988cb4c6a60de01d82
+independently parsed: original policy and VPP mask both absent, target_mutated=false.
+Prepare source persists a private root-owned0700/0600 original-root8:2 marker with
+original states, baseline digest and exact owned guards before the first safeguard
+rename; marker file and directories fsynced, collisions refused. Exact policy101,
+persistent /dev/null VPP mask, daemon-reload and controller wallclock are the changes.
+Restore accepts only each original or exact guard state, handles partial preparation,
+restores exact originals, checks L3, then removes only owned marker. No RTC/NTP/network
+configuration change, package install, service activation or NIC binding in source.
+
+Actual prepare10002 B/0600
+SHA25649b105010c0329471c62a56cd05cfb4bde9ff330dd909664712e7cac468a316a
+independently parsed: network_before==network_afterTrue, root-owned policy19 B/0755
+SHA256c2bcd9decf63ff2c0d9f473f38bc3607900530aad80f99139855d56678456230,
+root-owned /dev/null symlink and marker present. Fresh readback474 B/0600
+SHA25680f0d37b2c93d3a72da65e496887ba8ccf0672c39c00418590dbf91a80c45fbf
+exit0/empty stderr: marker443 B/0600/dev8:2 under0700,
+SHA256146f46835119cb7341fce3974a40378bf5feab8159e419f962ded1a28d4ec792;
+exact101, VPP masked/inactive, counter6. No marker contents are disclosed.
+
+Verdict APPROVE source applicability and actual guarded preparation/simulation
+only under parent phase release. Installation/activation requires actual plan/source
+review and subsequent management evidence.
+
+## Actual dependency simulation
+
+Full solver21634 B/0600
+SHA25607d88eb379ed4a9a813ac8c5cf6d0be9b31e0446ac9cbd5563afdbc49af035d8
+independently read: exit0/empty stderr, package_install=false. Exact11 local archives
+plus named actual-missing jq,pciutils,driverctl,curl,nftables are simulated with
+apt-get -s --no-remove --no-install-recommends and disabled package-cache outputs.
+All114 Inst lines examined, zero Remv lines,3 upgrades/111 new/33 not upgraded.
+Only upgrades are perl-base and OpenSSL legacy provider/libssl3t64 same-ABI3.5.5
+security updates3.5.5-1ubuntu3 to3.5.5-1ubuntu3.2. No systemd/sshd/netplan/iproute/kernel/
+bootloader replacement. Critical regex is not an exhaustive plan review.
+
+New service dependencies include chrony, keepalived, FRR, snmpd, nginx, PostgreSQL,
+valkey, Kea4/6, unbound and rsyslog plus NGFW/VPP. Exact101 suppresses standard
+invoke-rc.d/deb-systemd-invoke starts; persistent VPP mask independently suppresses
+VPP. Routing/DHCP/DNS configuration and service intent need assessment before
+activation or removal of safeguards. Exact planned OpenSSL update motivated an
+automatic-service-restart hook check to protect SSH.
+
+Actual needrestart-readonly-preflight.json486 B/0600
+SHA256f92b1e0bd1d279b94b3ff5d8b6493d8e08ff3361859a2a619d8bac406c99dd8a
+independently parsed: SSH0/empty stderr; dpkg-query1 confirms absent package, five
+known hook/executable/config paths absent, hook_inventory[]. Needrestart is absent
+from all114 planned Inst lines. Therefore no unsupported needrestart environment
+variable or hypothetical restart blocker is imposed. Operator intends to refuse
+new unknown apt-conf references in the installation source and record actual start
+suppression, fresh authenticated22 and complete L3 proof after installation.
+
+At this checkpoint installation/activation/binding has not been executed or
+accepted. Preserve actual failure receipts and safeguards if any subsequent phase
+fails; do not label simulation as hardware acceptance.

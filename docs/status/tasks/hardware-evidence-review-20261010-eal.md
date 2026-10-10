@@ -119,3 +119,136 @@ SHA2562b3d67696d1c98967f1909c98821454d18bc90e18087513aa129bae88cdd06d5,
 shows VPP72599active/NRestarts0 via systemctl0/empty stderr. A successful logging
 query does not recover full failed EAL argv. R7 source approval does not change
 physical failure status; corrected native/control/runtime/reboot acceptance pending.
+
+## Native97ae archive and actual packaged generator review
+
+Compiled source97ae88ee5b6aaf304f78547abed39e80bbeac5e1/version
+0.1.0~dev+97ae88ee5b6a stays distinct from final48af documentation head.
+Independent archive applicability **APPROVE**; no target installation or physical
+retry is implied. Read-only original manifest4634B0600 SHA256
+b2f3f6a78014ea76995c783919a375f4398ea4bf7ccbf56bfc32b3ae1472b893.
+All four archive SHA/size and Package/Version/Architecture/Depends controls were
+rederived with hashlib and dpkg-deb. Streaming dpkg-deb --ctrl-tarfile and
+--fsys-tarfile checks independently compared all12 maintscripts byte-for-byte to
+previous ee202 archives; all match. Shipped firstboot.sh and initial-dataplane.json
+match pristine97ae source and previous ee202 payload bytes. Native agent
+b3c7cc10671abcab6d11c7dce12323f284c64822a15cfda1c46ba78803283744 and startupgen
+55e490bad1c302505231df105a1d516cb074678b38b85e28740c399020aac619 match manifest.
+The private reviewer-only archive/index receipt1452557B SHA256
+5600110043131c6d11555412c9a139d36f29ac5fbb46b2c7f72755b0278b458c
+is not committed. An initial overstrict payload-path assertion stopped on the
+API's relocated PNPM workspace; no initial complete PASS was claimed. The final
+streaming audit resolves archive hardlinks and normalizes workspace paths for
+content comparison. API dist files and native argon2 bytes are unchanged; remaining
+differences are deployment/workspace metadata, CLI wrappers and changelog. Web and
+meta payload differ only in changelog. Updated compiled Go helper hashes are
+recorded rather than incorrectly asserted byte-identical to prior source.
+
+Actual selected build-log commands/output (read only, not reviewer rerun):
+
+```text
+rg -n '^(Ran |OK$|dpkg-buildpackage:|.*dh_builddeb)' /root/Documents/Codex/2026-10-10/hardware/package-build-eal-97ae.log
+dpkg-buildpackage: info: source version 0.1.0~dev+97ae88ee5b6a
+Ran 16 tests in 0.833s
+OK
+Ran 12 tests in 0.401s
+OK
+Ran 6 tests in 20.517s
+OK
+Ran 3 tests in 0.002s
+OK
+Ran 4 tests in 0.309s
+OK
+dh_builddeb
+dpkg-buildpackage: info: binary-only upload (no source included)
+```
+
+The actual native generator was extracted only into the reviewer's own private
+scratch and executed with the same fixture facts as the real CLI regressions.
+Every command used the exact argument prefix below; JSON document bytes were
+passed on stdin, with `--current none` appended for firstboot:
+
+```text
+/dev/shm/evidence-review-eal-native-20261010/new/usr/lib/ngfw/bin/ngfw-startupgen --no-host --mgmt-pci 0000:0b:00.0 --plugin-dir /dev/shm/evidence-review-eal-native-20261010/plugins --online-cpus 0-31 --numa-nodes 2 --hugepages-mb 2048 --current /dev/shm/ngfw-hardware-firstboot-integration-20261010/apps/agent/internal/renderers/vppstartup/testdata/host-startup.conf
+native six-nic-sample PASS exit0 golden_equal True closed_data_devices 6 blacklist_rows 0
+native whitelist-only PASS exit0 golden_equal True closed_data_devices 2 blacklist_rows 0
+native empty PASS exit0 ee202_bytes_equal True no_pci True management_blacklist_retained True
+native firstboot PASS exit0 ee202_bytes_equal True no_pci True management_blacklist_retained True
+native management-whitelist PASS refusal2 stdout0
+native management-device PASS refusal2 stdout0
+native missing-LCP PASS refusal2 stdout0
+native_receipt 9 commands 2543 88314bf6e2c29b622fcf888f390b06efae91ddb23db030958c0d0803cb7e69d9
+```
+
+Inputs are exact cases/six-nic-sample.json, whitelist-only.json, empty.json and
+the packaged initial-dataplane.json. Positive outputs equal the final corrected
+goldens. Empty/firstboot are compared to the extracted prior ee202 generator
+using the identical argument prefix; firstboot keeps all three policy plugins.
+Negative documents are {"dataplane":{"pciWhitelist":["0000:0b:00.0"]}} and
+{"dataplane":{"devices":{"0000:0b:00.0":{"name":"mgmt"}}}}. Missing-LCP
+temporarily removes only the fake plugin file in the reviewer's scratch; refusal2
+names linux_cp_plugin.so. No controller or target VPP/device/network operation.
+These are offline fixture facts, not live hardware enumeration acceptance.
+
+```text
+readelf -d /dev/shm/evidence-review-eal-native-20261010/argon2.linux-x64-gnu.node
+NEEDED libdl.so.2 libgcc_s.so.1 librt.so.1 libpthread.so.0 libc.so.6 ld-linux-x86-64.so.2
+dpkg-deb -f ngfw-api_0.1.0~dev+97ae88ee5b6a_amd64.deb Depends
+libc6 (>= 2.34), libgcc-s1 (>= 4.2), nodejs (>= 22), nodejs (<< 23), adduser, python3
+```
+
+## Same-campaign four-package phase applicability
+
+Worker source1f29e159ccc4d64ff1554a343208d875bb7805d77c1f6bf11866ae846a9cc40c
+at e98aabdd115373fb5e3d09b24abc2f5ce2980906 and preceding contract read in full.
+ROOT-only source applicability APPROVE for its explicit phase boundaries. It
+checks the immutable source/manifest/four archive identities and pristine current
+native proof, clean root/trusted time/protected singleton management, full L3,
+17 VFIO versus7 original igc, owner-bound cache and tracked private credential
+file metadata, original firstboot state, all21 units and all16 sysctls. Only .37
+hold-runtime stops API then agent. Policy101/persistent mask have finite fsynced
+original/owned identities, actual init-system-helpers1.69 hash; no VPP stop/restart
+in upgrade. Framed stdin and concurrent private spools retain controller argv-limit
+and early-refusal fixes. Native install is only four exact Inst/0Remv after immediate
+plan equality; no dpkg timeout kill. Restore requires actual successful install
+proof and restores original absence while retaining recovery record.
+
+Actual controller-only commands/output:
+
+```text
+python3 docs/status/tasks/hardware-211-20261010-upgrade-eal-four.py --host 211 inspect --validate-inputs-only --manifest /root/Documents/Codex/2026-10-10/hardware/runtime-eal-97ae/manifest.json --manifest-sha256 b2f3f6a78014ea76995c783919a375f4398ea4bf7ccbf56bfc32b3ae1472b893
+host211 modeinspect target_contacted=false generated_AST_PASS=true data_devices17 archives_verified4 generated_source_bytes27833
+python3 docs/status/tasks/hardware-211-20261010-upgrade-eal-four.py --host 37 hold-runtime --validate-inputs-only --manifest /root/Documents/Codex/2026-10-10/hardware/runtime-eal-97ae/manifest.json --manifest-sha256 b2f3f6a78014ea76995c783919a375f4398ea4bf7ccbf56bfc32b3ae1472b893
+host37 modehold-runtime target_contacted=false generated_AST_PASS=true data_devices7 archives_verified4 generated_source_bytes26421
+```
+
+Actual ROOT-parent receipts independently hash/mode/structure verified:
+
+| Receipt | Bytes | SHA256 |
+| --- | ---: | --- |
+| manager-eal-upgrade211-inspect-20261010T150636Z.json | 310484 | 02d145ee91805f4fc1f71275c7473c90ab078f76ce67eaabe81d585c7bce80ae |
+| manager-eal-upgrade37-hold-runtime-20261010T150643Z.json | 240191 | cef25c5e18ce8de14ea7c92fd0b83b984c157dfb920df183882715bc0d00b43f |
+| manager-eal-upgrade37-inspect-20261010T150657Z.json | 218745 | f00385b9a9218779029811865e59900bbb5c4d0185e854ce0c39d613520904a0 |
+
+All0600/root, SSH0/outer stderr0, ioerr0x6 stable/no new storage events. .211
+17VFIO/VPP72599/nginx9281 and .37 sevenigc/VPP7820/nginx9669 match. .37 stop
+commands0 only API/agent; their actual after states inactive/PID0. Fresh inspect
+original policy/mask absent, nr1024 and exact helper1.69. ROOT prepare/upload/sim
+applicability APPROVE after these actual proofs. Installation remains held for
+complete final48af quick green and actual exact four-package plan review. Neither
+artifact/source nor inspection approval is physical/reboot acceptance.
+
+## Historical operational gitleaks classification
+
+Read the REDACTED report from root's failed scan against its historical490871 base,
+then independently read exact public historical line contexts without printing
+private values. Six generic-api-key findings are public operational prose, not
+credentials or checksum findings. Five at b1f5bea6bb8a7964165b9ba314d09ecbd238750a
+and1c149b1a28da457f81e256fdc914e279196a03a6 contain the exact literal
+`3keys unchanged, L3equal/noactivation;`. Sixth at39a77d066cb491c36b7e4b0b4ecc9a29ff5bf2f0,
+hardware-manager WIP1465, contains `APIagentheldinactive, 17VFIOremain;`. An exact
+boolean comparison confirms the latter phrase is the matched public NIC-state
+sentence. This classification retains the failed scan, adds no rule exclusion,
+does not waive any required gate and does not call that historical check clean.
+ROOT separately reports cleaned working-directory wording; final product48af quick
+is unaffected and independently still in_progress at this checkpoint.

@@ -1,0 +1,315 @@
+[
+  {
+    "case": "product-agent-provenance",
+    "atUTC": "2026-10-10T11:06:22Z",
+    "source": "abaa34264b6fb845dc41033d6a0cd098b4a4cafe",
+    "sha256": "5683498457c6bb49a05c98951abefa806ee1219a2b2fd3ae4c0e3e9c2c1717fe",
+    "binary": "/tmp/ngfw-lab-global-blocking-20261010-agent"
+  },
+  {
+    "case": "gb-interfaces",
+    "atUTC": "2026-10-10T11:06:34Z",
+    "seconds": 0.5813142519909889,
+    "revision": 2
+  },
+  {
+    "case": "baseline-selected-in",
+    "atUTC": "2026-10-10T11:06:36Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-selected-out",
+    "atUTC": "2026-10-10T11:06:37Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-unselected",
+    "atUTC": "2026-10-10T11:06:39Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-local-in",
+    "atUTC": "2026-10-10T11:06:40Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "lookup-0",
+    "atUTC": "2026-10-10T11:07:01Z",
+    "startedUTC": "2026-10-10T11:06:41Z",
+    "packetIntervalSeconds": 0.01,
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "vectorsDelta": 0,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 6010.0
+    },
+    "aclCost": null,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "upload-preview",
+    "atUTC": "2026-10-10T11:07:01Z",
+    "preview": {
+      "list": "proof",
+      "dryRun": true,
+      "lines": 3,
+      "entries": 2,
+      "added": 2,
+      "removed": 0,
+      "unchanged": 0,
+      "normalised": 0,
+      "collapsed": 0,
+      "invalidCount": 1,
+      "invalid": [
+        {
+          "line": 2,
+          "text": "invalid-address",
+          "reason": "not an IPv4 or IPv6 address"
+        }
+      ],
+      "addedSample": [
+        "10.17.1.2/32",
+        "198.18.17.2/32"
+      ],
+      "removedSample": [],
+      "staged": false
+    }
+  },
+  {
+    "case": "gb-upload-confirmed",
+    "atUTC": "2026-10-10T11:07:02Z",
+    "seconds": 0.8065714969998226,
+    "revision": 3
+  },
+  {
+    "case": "counter-before",
+    "atUTC": "2026-10-10T11:07:02Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 0,
+            "dataplaneBytes": 0,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "selected-in-drop",
+    "atUTC": "2026-10-10T11:07:07Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-out-drop",
+    "atUTC": "2026-10-10T11:07:11Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-local-in-drop",
+    "atUTC": "2026-10-10T11:07:13Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "unlisted-pass",
+    "atUTC": "2026-10-10T11:07:14Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-pass",
+    "atUTC": "2026-10-10T11:07:15Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-local-pass",
+    "atUTC": "2026-10-10T11:07:16Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "counter-after",
+    "atUTC": "2026-10-10T11:07:16Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 12,
+            "dataplaneBytes": 934,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "gb-10000-real-commit",
+    "atUTC": "2026-10-10T11:07:33Z",
+    "seconds": 2.781479379045777,
+    "revision": 4
+  },
+  {
+    "case": "lookup-10000",
+    "atUTC": "2026-10-10T11:07:54Z",
+    "startedUTC": "2026-10-10T11:07:34Z",
+    "packetIntervalSeconds": 0.01,
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 2000,
+      "vectors": 2000,
+      "clocksPerVector": 11300.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 2370.0
+    },
+    "aclCost": 11300.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "gb-200000-real-commit",
+    "atUTC": "2026-10-10T11:08:30Z",
+    "seconds": 32.910847162944265,
+    "revision": 5
+  },
+  {
+    "case": "lookup-200000",
+    "atUTC": "2026-10-10T11:08:52Z",
+    "startedUTC": "2026-10-10T11:08:31Z",
+    "packetIntervalSeconds": 0.01,
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 1980,
+      "vectors": 2000,
+      "clocksPerVector": 18100.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 3847,
+      "vectors": 4000,
+      "clocksPerVector": 3720.0
+    },
+    "aclCost": 18100.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "gb-one-entry-real-commit",
+    "atUTC": "2026-10-10T11:10:24Z",
+    "seconds": 69.58143457002006,
+    "revision": 6
+  },
+  {
+    "case": "incremental-plan",
+    "atUTC": "2026-10-10T11:10:26Z",
+    "summary": {
+      "updated": 5,
+      "unchanged": 126
+    },
+    "keys": [
+      "acl.config/global-blocking",
+      "acl.acl/_gb.proof.i39",
+      "acl.acl/_gb.proof.i61",
+      "acl.acl/_gb.proof.o39",
+      "acl.acl/_gb.proof.o61"
+    ]
+  },
+  {
+    "case": "rollback",
+    "atUTC": "2026-10-10T11:10:44Z",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "atUTC": "2026-10-10T11:10:54Z",
+    "sharedIdentityUnchanged": true
+  }
+]

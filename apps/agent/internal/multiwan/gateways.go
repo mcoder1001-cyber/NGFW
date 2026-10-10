@@ -35,10 +35,13 @@ func (r *Runtime) SetGateways(groups []*ngfwv1.WanGroup, identity string, observ
 			values[name] = value
 		}
 	}
-	changed := !time.Now().Before(r.gatewayUntil) || identity != r.gatewayIdentity || !equalGroups(groups, r.gatewayGroups) || !reflect.DeepEqual(values, r.gateways)
+	now := time.Now()
+	expired := !now.Before(r.gatewayUntil)
+	// An empty observation has no lease that can expire. Resyncing it after a
+	// slow transaction would keep requesting another equally slow full resync.
+	changed := (expired && (len(r.gateways) != 0 || len(values) != 0)) || identity != r.gatewayIdentity || !equalGroups(groups, r.gatewayGroups) || !reflect.DeepEqual(values, r.gateways)
 	// In-flight probes belong to the old learned egress. Reset hysteresis and
 	// fence their completion whenever a lease/carrier generation changes.
-	expired := !time.Now().Before(r.gatewayUntil)
 	for _, group := range r.groups {
 		for name, member := range group.members {
 			before, had := r.gateways[name]
@@ -46,7 +49,7 @@ func (r *Runtime) SetGateways(groups []*ngfwv1.WanGroup, identity string, observ
 			if before != after || had != has || (expired && has) {
 				member.egressEpoch++
 				member.up = false
-				member.since = time.Now()
+				member.since = now
 				for i := range member.samples {
 					member.samples[i] = sample{}
 				}
@@ -59,7 +62,7 @@ func (r *Runtime) SetGateways(groups []*ngfwv1.WanGroup, identity string, observ
 		r.gatewayGroups[i] = proto.Clone(g).(*ngfwv1.WanGroup)
 	}
 	r.gateways = values
-	r.gatewayUntil = time.Now().Add(5 * time.Second)
+	r.gatewayUntil = now.Add(5 * time.Second)
 	return changed
 }
 

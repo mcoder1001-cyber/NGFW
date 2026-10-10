@@ -1,0 +1,19 @@
+DISPOSABLE_VPP pid=3840624 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-3840622
+gb-interfaces {"seconds": 0.5434011830948293, "revision": 2}
+rollback {"noOwnedACL": true}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 82, in <module>
+    for case,side,src,dst,tcp in [('baseline-selected-in','lan','10.17.1.2','10.17.2.2',True),('baseline-selected-out','wan','10.17.2.2','10.17.1.2',True),('baseline-unselected','wan','198.18.17.2','10.17.1.3',True),('baseline-local-in','lan','10.17.1.2','10.17.1.1',False)]:traffic(case,side,src,dst,True,tcp)
+                                                                                                                                                                                                                                                                                   ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 32, in traffic
+    assert re.search(r'2 packets transmitted, '+('2' if allow else '0')+' received',text),text
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PING 10.17.2.2 (10.17.2.2) from 10.17.1.2 : 56(84) bytes of data.
+64 bytes from 10.17.2.2: icmp_seq=2 ttl=63 time=1.98 ms
+
+--- 10.17.2.2 ping statistics ---
+2 packets transmitted, 1 received, 50% packet loss, time 1055ms
+rtt min/avg/max/mdev = 1.975/1.975/1.975/0.000 ms
+
+DISPOSABLE_VPP_STOPPED pid=3840624

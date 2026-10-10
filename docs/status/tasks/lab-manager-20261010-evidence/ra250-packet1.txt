@@ -1,0 +1,10 @@
+=== RUN   TestIntegrationPrivateVPPPolicyEAP
+    wire_capture_test.go:96: owned underlay ESP-only proof RX=2 TX=4 plaintextICMP=0
+    eap_integration_test.go:249: encrypted packet/reply through owned TAP + selected VPP VRF PASS; denied protected address remained unreachable
+    eap_integration_test.go:268: actual private eap-mschapv2 VIP/session negotiation, observed disconnect, connection/pool empty rollback PASS
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-77255d87b1391727071d1a7d8e4d80ee/18c06d389ed2bcf7f315d788fcd96cd51610b5f1bd9d049dfd5250a70e029ee6-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-f23e4c217a13311176345118240b9d13/3a6db4cab78aba1586435faa6f383a9d4237350083d89db4697c889be692f914-startup.log
+--- PASS: TestIntegrationPrivateVPPPolicyEAP (12.06s)
+PASS

@@ -72,12 +72,25 @@ plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin
                     os.chmod(test_log, 0o600)
                     package, name = ('./internal/agent','^TestIntegrationPrivateProductionRAControllerLifecycle$') if mode=='production' else ('./internal/ra_vpn','^TestIntegrationPrivateVPPPolicyEAP$')
                     command = ['go', 'test', package, '-run', name, '-count=1', '-v']
+                    test_binary = os.environ.get('NGFW_RA_TEST_BIN')
+                    test_cwd = None
+                    if test_binary:
+                        binary = owned(test_binary)
+                        if not binary.is_file() or binary.stat().st_nlink != 1 or not os.access(binary, os.X_OK):
+                            raise SystemExit('private precompiled test binary refused')
+                        command = [str(binary), '-test.run=' + name, '-test.count=1', '-test.v', '-test.timeout=3m']
+                        test_cwd = Path.cwd() / package
                     if mode == 'production':
                         # Match the protected agent unit: its NSFS bind mounts must
                         # be visible to the separately mounted VPP/manager parent.
                         command = ['/usr/bin/unshare', '--mount', '--propagation', 'private', '--'] + command
-                    result = subprocess.call(command, env=env, stdout=test_output, stderr=subprocess.STDOUT)
-                for line in test_log.read_text(errors='replace').splitlines():
+                    result = subprocess.call(command, cwd=test_cwd, env=env, stdout=test_output, stderr=subprocess.STDOUT)
+                lines = test_log.read_text(errors='replace').splitlines()
+                test_name = name.removeprefix('^').removesuffix('$')
+                if not any(line == '=== RUN   ' + test_name for line in lines) or not any(line.startswith('--- PASS: ' + test_name + ' (') for line in lines):
+                    print('required private RA test did not pass', flush=True)
+                    result = result or 1
+                for line in lines:
                     if line.startswith(('=== RUN', '--- PASS', '--- FAIL', 'PASS', 'FAIL', 'ok ')) or '_test.go:' in line:
                         print(line[:400], flush=True)
                 if process.poll() is not None:

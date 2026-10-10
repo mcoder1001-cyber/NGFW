@@ -6,8 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`7f4bee6a93186639d082529f4d02feec5c663571` (verified .37 return readiness and exact firstboot source; matching
-CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`e83c0c5434425d9688b4992c9b640ca304dcc1e2` (actual .37 protected normal return and final firstboot/seed source checkpoint; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -561,3 +560,20 @@ acceptance pending. .37 guard actual preparation reported9491-byte a429375a and
 new own solver source4cd015b2 await independent review; no inherited peer evidence.
 Exact next action: inspect actual211firstboot, .37 prepare/solver, and future
 runtime source/seed receipts. No reviewer target action or private contents committed.
+
+
+2026-10-10 12:12 UTC: independently actual .211 firstboot9134/303028 B PASS,
+seed-inputs fdd412/5313 B and original safeguard restoration eb06/9786 B PASS.
+Fifteen inactive/six dependencies active, only nr1024 change, native owned NFT,
+full L3 exact, no VPP/API/agent/nginx activation or binding. Full exact initial
+runtime010eaacd source/AST2 and readonly0c12/14010 B preflight APPROVE on remote6d8c3574;
+collector native endpoints/response contracts verified. Parent conditional runtime
+release now executable; actual revision1/seventeen-row seed/runtime results pending.
+.37 actual temporary safeguard preparation a429/9491 B independently PASS, both
+original states absent and exact policy/mask/durable marker, L3 unchanged. Exact
+package input4cd015/AST3 and TZ-only38343860/AST2 APPROVE on remote2b481a98 for
+existing bounded simulation and same-zone canonicalization releases. Actual own
+solver/TZ/native-install results pending. No reviewer target operation/private
+contents committed. Exact next action: read actual worker runtime/seed and solver/
+TZ receipts, then source/read-only review manager-owned scoped PCI binding plan.
+Source PR217 approval and product/hardware forwarding acceptance remain separate.

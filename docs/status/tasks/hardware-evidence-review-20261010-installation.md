@@ -310,3 +310,82 @@ interface failure applies retained rows, not these filtered unbound NICs. No byp
 database shortcut or product change is warranted absent actual failure. Actual
 revision1, original logical names,7/17 data rows and protected management inventory
 remain required before binding.
+
+
+## 12:12 UTC actual firstboot and initial runtime applicability
+
+Reviewer controller commands ran in the owned reviewer worktree:
+
+```text
+python3 <focused private JSON/hash/mode/selected-assertion reader>
+firstboot-apply-20261010T120628Z.json: 303028 B,0600,
+ SHA9134aaf1e3fae358d154bb3af6b69cf3602c1bc0e169fc2fcffa9471930045f8
+firstboot.exit=0; fifteen remaining units inactive; six provisioning units active
+network_before==network_after=True; only vm.nr_hugepages changed to1024
+safe_initial_noPCI=True; owned_table_only=True; bootstrap_removed=True
+guard_error=None; new_storage_errors=[]; ioerr_before==ioerr_after=True
+no_VPP_API_agent_nginx_activation_or_binding=True
+firstboot-fresh22-20261010T120704Z.json: 3643 B,0600,
+ SHA1d27ece76d29764f594170656629330ead2c34dea1be40d9bf9f3565eb8b5e9d
+exit=0; stderr empty; structured L3/protected PCI/driver/group/SSH/ioerr receipt
+seed-inputs-20261010T120704Z.json: 5313 B,0600,
+ SHAfdd412f0785b6dabecf8830da49eb005d59cbff49a66e4db694800c2ddd22951
+network_equal=True; no_activation_revision_or_binding=True
+start-guards-restore-20261010T120729Z.json: 9786 B,0600,
+ SHAeb06bcb45e9c41f9f689998f7fdfe581ac8fdd38c2da0b5c571a037c17ef1e3a
+original policy=absent; original mask=absent; recovery_marker_present=False
+network_before==network_after=True; no_service_activation=True
+initial-runtime-inspect-20261010T120858Z.json: 14010 B,0600,
+ SHA0c12a7b95166ab38ae37153a098bc73c888db8095841c76203039ca112475fdf
+preflight=True; no_manual_revision_driver_binding_or_startup_apply=True
+python3 <outer/embedded AST reader>
+initial-runtime SHA010eaacdf7842e983e1b23561c573ed6fe7e447b412dcf202f2bf69b91869cd8
+AST_parse_count=2
+rg -n <collector endpoints/response fields> apps/api/src/{config,state,features/dataplane,audit}
+config GET returns document with x-ngfw-revision header
+candidate GET returns candidate; commit/pending returns pending
+state/system.agent.reachable; events.items; state/dataplane separate feature controller verified
+git ls-remote origin refs/heads/codex/hardware-211-20261010
+6d8c357496b83e618b8f3074b6622678f7012f68
+```
+
+Actual firstboot, seed-input preparation and original guard restoration PASS.
+Credentials, configuration payloads and private backups were not printed or
+committed. Full initial-runtime source and focused DNS/sixteen-sysctl/foreign-NFT
+proof delta reviewed. APPROVE exact010eaacd source on published6d8c3574 for the
+parent's already-released INITIAL RUNTIME phase: VPP, agent, first API, then nginx;
+observe the real revision1 and original seventeen data NIC rows through native
+TLS/RPC. No database bypass, manual revision, driver binding, startup apply or
+reboot. Actual runtime/seed results remain pending at this checkpoint.
+
+## .37 normal-root safeguard and narrow pre-install sources
+
+```text
+python3 <private metadata/assertion reader>
+start-guards-inspect-20261010T120209Z.json: 4652 B,0600,
+ SHAf4378c2af96e669c09836a5183d98529d99e9962b6ea9e35be4c0bb4cd03527a
+original policy=absent; original mask=absent; target_mutated=False
+start-guards-prepare-20261010T120314Z.json: 9491 B,0600,
+ SHAa429375aed4ba95a2c04be11b7c562836cd16eb1c8f44bdf576fe872f8c1a6ec
+policy=19 B,0755,root:root,SHA c2bcd9decf63ff2c0d9f473f38bc3607900530aad80f99139855d56678456230
+mask=root-owned symlink /dev/null; marker_present=True
+marker_SHA=e275e5061a30bb452c7f24537280394459e6d26e70c6b11cece7ae2db64d3e60
+network_before==network_after=True; no_package_install=True; no_service_activation=True
+python3 <outer/embedded AST reader>
+package-input SHA4cd015b2a14e75878bd622b72d2da5b367218f233a9a8fdb40ea7cbdde1a67fd; AST_count=3
+identity-native SHA38343860d344e47654c7d212f75e7d9af97733fa03dd46fa1a48a9f8c6cda528; AST_count=2
+git ls-remote origin refs/heads/codex/hardware-37-20261010
+2b481a9821c8ad8190d142011f304c93d84b5048
+```
+
+Actual .37 temporary safeguards PASS. APPROVE exact4cd015b2 input mirror for the
+already-released eleven verified archive uploads and simulation only: narrow diff
+adds the five actual-missing named tools and exclusive/fsynced private receipts.
+APPROVE exact38343860 timezone-only source: full peer delta removes all package
+configure/product migration assumptions, retains trusted descriptor-based parent
+and same-zone checks, original-link backup before sole atomic canonicalization,
+identity/L3/sixteen-sysctl/hostname/clock checks and existing service suppression.
+Inspect is read-only; the parent's already-released canonicalization requires its
+own matching fsynced baseline. No effective timezone-byte change or security guard
+relaxation. Actual solver, timezone operation and subsequent native installation
+remain pending; no .211 evidence is substituted for .37 actual results.

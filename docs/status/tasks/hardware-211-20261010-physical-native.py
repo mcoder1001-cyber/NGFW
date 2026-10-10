@@ -6,6 +6,9 @@ PRIVATE=OUTPUT/'recovery-private/host-211'
 REMOTE=r'''
 import hashlib,json,os,pathlib,re,socket,ssl,stat,subprocess,time,urllib.error,urllib.request
 result={'mode':'resume-runtime' if RESUME else 'observe','committed_proof_SHA':COMMIT_SHA,'seed1_proof_SHA':SEED_SHA,'resource2_proof_SHA':RESOURCE_SHA,'expected_startup_SHA':NEW,'expected_agent_SHA':AGENT_SHA,'expected_package_version':VERSION,'commands':[],'no_startup_driver_cache_network_sysctl_package_DB_or_reboot_operation':True,'stage':'begin'}
+if POSTBOOT:result.update(mode='observe-postboot',postboot_proof_SHA=BOOT_SHA,preboot_native_proof_SHA=PREBOOT_SHA,storage_counter_epoch='fresh-boot',expected_boot_id=BOOT['after']['boot_id'])
+EXPECTED_BOOT=BOOT['after']['boot_id'] if POSTBOOT else '3a609803-be4e-46eb-bfc6-7dcfe385cf50'
+EXPECTED_IOERR=int(BOOT['after']['storage_ioerr'],16) if POSTBOOT else 6
 def run(a,timeout=30):
  q=subprocess.run(a,capture_output=True,text=True,timeout=timeout);d={'argv':a,'exit':q.returncode,'stdout':q.stdout,'stderr':q.stderr};result['commands'].append(d);return d
 def checked(a,timeout=30):
@@ -25,11 +28,11 @@ def digest(b):return hashlib.sha256(b).hexdigest()
 def state(u):return dict(x.split('=',1) for x in checked(['systemctl','show',u,'-p','ActiveState','-p','MainPID','-p','NRestarts']).splitlines())
 def l3():return {'addresses':{x['ifname']:x.get('addr_info',[]) for x in json.loads(checked(['ip','-j','addr']))},'routes4':json.loads(checked(['ip','-j','-4','route','show','table','all'])),'routes6':json.loads(checked(['ip','-j','-6','route','show','table','all'])),'rules4':json.loads(checked(['ip','-j','-4','rule'])),'rules6':json.loads(checked(['ip','-j','-6','rule']))}
 def nft(d):
- if isinstance(d,dict):return {k:nft({a:b for a,b in v.items() if a not in ['packets','bytes']}) if k=='counter' and isinstance(v,dict) else nft(v) for k,v in d.items() if k!='metainfo'}
+ if isinstance(d,dict):return {k:nft({a:b for a,b in v.items() if a not in ['packets','bytes']}) if k=='counter' and isinstance(v,dict) else nft(v) for k,v in d.items() if k!='metainfo' and not(POSTBOOT and k=='handle')}
  if isinstance(d,list):return [nft(x) for x in d if not(isinstance(x,dict) and 'metainfo' in x)]
  return d
 def protect():
- assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()=='3a609803-be4e-46eb-bfc6-7dcfe385cf50'
+ assert pathlib.Path('/proc/sys/kernel/random/boot_id').read_text().strip()==EXPECTED_BOOT
  assert (os.major(os.stat('/').st_dev),os.minor(os.stat('/').st_dev))==(8,2) and not os.path.lexists('/run/nextroot') and not os.path.exists('/run/ngfwrescue')
  assert not os.path.lexists('/usr/sbin/policy-rc.d') and not os.path.lexists('/etc/systemd/system/vpp.service')
  assert digest(raw('/usr/sbin/ngfw-agent',0o755))==AGENT_SHA and digest(raw('/etc/vpp/startup.conf',0o644))==NEW
@@ -47,9 +50,12 @@ def protect():
  for p,q in RECORD['manifest']['owned_files'].items():assert digest(raw(p,q['mode']))==q['SHA']
  sysctls={k:(pathlib.Path('/proc/sys')/k.replace('.','/')).read_text().strip() for k in BASELINE['sysctls']};assert sysctls==BASELINE['sysctls']
  dns={p:{'SHA':digest(pathlib.Path(p).read_bytes()),'realpath':str(pathlib.Path(p).resolve()),'link':os.readlink(p) if pathlib.Path(p).is_symlink() else None} for p in BASELINE['DNS']};assert dns==BASELINE['DNS']
- rules=json.loads(checked(['nft','-j','list','ruleset']));assert nft(rules)==nft(BASELINE['nft']) and int(pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip(),16)==6
- assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':'9281','NRestarts':'0'}
- return {'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':'0x6'}
+ rules=json.loads(checked(['nft','-j','list','ruleset']));assert nft(rules)==nft(BASELINE['nft']) and int(pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip(),16)==EXPECTED_IOERR
+ if POSTBOOT:
+  for u in ['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service']:
+   expected={k:BOOT['after']['units'][u][k] for k in ['ActiveState','MainPID','NRestarts']};assert state(u)==expected
+ else:assert state('vpp.service')==COMMITTED['stable_VPP'] and state('nginx.service')=={'ActiveState':'active','MainPID':'9281','NRestarts':'0'}
+ return {'boot_id':EXPECTED_BOOT,'network':now,'allowed_empty_data_map_removals':sorted(names-set(now['addresses'])),'VFIO_devices':devices,'global_ids':status,'sysctls':sysctls,'DNS':dns,'nft':rules,'ioerr':hex(EXPECTED_IOERR)}
 ctx=ssl.create_default_context(cafile='/etc/ngfw/tls/server.crt')
 def request(path,method='GET',data=None,token=None):
  headers={'Content-Type':'application/json'}
@@ -67,6 +73,7 @@ def main():
  h=hashlib.sha256()
  for n in ['settings','doc.json','gen-args','bin/ngfw-startupgen','bin/ngfw-vppcheck','bin/apply-startup.sh','gate']:h.update(raw(w/n))
  assert h.hexdigest()==raw(w/'plan.sha256').decode().strip()==COMMITTED['plan_SHA'];result['native_plan_SHA']=h.hexdigest();result['before']=protect();kernel=checked(['dmesg','--color=never']);result['kernel_before']=kernel;result['stage']='protected-commit-verified'
+ if POSTBOOT:assert kernel.startswith(BOOT['kernel_after']),'fresh-boot kernel baseline rotated or changed'
  units=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service'];result['unit_states_before']={u:state(u) for u in units}
  if RESUME:
   assert all(result['unit_states_before'][u]['ActiveState']=='inactive' for u in ['ngfw-agent.service','ngfw-api.service'])
@@ -106,7 +113,10 @@ def main():
   text=checked(['vppctl','show','hardware-interfaces',name]);result['hardware'][name]=text;m=re.search(r'address\s+([0-9a-f]{4}):([0-9a-f]{2}):([0-9a-f]{2})\.([0-9a-f]{1,2})',text,re.I);assert m and ':'.join(m.group(i).lower() for i in [1,2,3])+'.'+str(int(m.group(4),16))==d['PCI']
   r=re.search(r'rx:\s+queues\s+(\d+)\s+\(max\s+\d+\),\s+desc\s+(\d+)',text);assert r;total_rx+=int(r.group(1))*int(r.group(2))
  assert total_rx<=result['actual_pool_total'];result['total_RX_descriptor_requirement']=total_rx;result['after']=protect();time.sleep(2);result['unit_states_after']={u:state(u) for u in units};assert result['unit_states_after']==result['unit_states_after_start'];result['unit_identity_stable']=True
- after=checked(['dmesg','--color=never']);result['kernel_after']=after;new=after.splitlines()[len(kernel.splitlines()):] if after.startswith(kernel) else None;bad=re.compile(r'(EXT4-fs error|Buffer I/O error|I/O error, dev sda|ata\d.*(hard resetting|failed command|error:.*\b(UNC|ICRC)\b))',re.I);result['new_storage_errors']=None if new is None else [x for x in new if bad.search(x)];assert result['new_storage_errors']==[];result.update(native2_physical17_PASS=True,stage='complete',PASS=True)
+ after=checked(['dmesg','--color=never']);result['kernel_after']=after;new=after.splitlines()[len(kernel.splitlines()):] if after.startswith(kernel) else None;bad=re.compile(r'(EXT4-fs error|Buffer I/O error|I/O error, dev sda|ata\d.*(hard resetting|failed command|error:.*\b(UNC|ICRC)\b))',re.I);result['new_storage_errors']=None if new is None else [x for x in new if bad.search(x)];assert result['new_storage_errors']==[]
+ if POSTBOOT:
+  bad_boot=re.compile(r'EXT4-fs error|I/O error|Buffer I/O|blk_update_request|\bUNC\b|hard resetting link|failed command|ata\d.*(?:error|reset)|sd\s+\S+.*(?:error|fail)',re.I);result['fresh_boot_storage_errors']=[x for x in after.splitlines() if bad_boot.search(x)];assert result['fresh_boot_storage_errors']==[];result['native2_physical17_postboot_PASS']=True
+ result.update(native2_physical17_PASS=True,stage='complete',PASS=True)
 try:main()
 except Exception as e:result.update(PASS=False,failure={'type':type(e).__name__,'message':str(e)})
 finally:print(json.dumps(result,indent=2),flush=True)
@@ -121,7 +131,22 @@ def save(p,b):
  with os.fdopen(fd,'wb') as f:f.write(b);f.flush();os.fsync(f.fileno())
  fd=os.open(p.parent,os.O_DIRECTORY);os.fsync(fd);os.close(fd);return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
 def main():
- os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--commit-proof',required=True);p.add_argument('--commit-sha',required=True);p.add_argument('--expected-startup-sha',required=True);p.add_argument('--expected-agent-sha',required=True);p.add_argument('--expected-version',required=True);p.add_argument('--resume-runtime',action='store_true');a=p.parse_args()
+ os.umask(0o077);p=argparse.ArgumentParser();p.add_argument('--commit-proof',required=True);p.add_argument('--commit-sha',required=True);p.add_argument('--expected-startup-sha',required=True);p.add_argument('--expected-agent-sha',required=True);p.add_argument('--expected-version',required=True);p.add_argument('--resume-runtime',action='store_true')
+ for key in ['postboot-proof','postboot-sha','preboot-proof','preboot-sha']:p.add_argument('--'+key)
+ a=p.parse_args();postboot=bool(a.postboot_proof or a.postboot_sha or a.preboot_proof or a.preboot_sha);boot=preboot=None
+ if postboot:
+  assert not a.resume_runtime and all([a.postboot_proof,a.postboot_sha,a.preboot_proof,a.preboot_sha]),'postboot requires four immutable inputs and READONLY mode'
+  preboot=load(a.preboot_proof,OUTPUT,a.preboot_sha);boot=load(a.postboot_proof,OUTPUT,a.postboot_sha)
+  assert preboot['native2_physical17_PASS'] and preboot['PASS'] and preboot['stage']=='complete' and preboot['unit_identity_stable'] and preboot['new_storage_errors']==[]
+  assert preboot.get('mode')!='observe-postboot' and preboot['committed_proof_SHA']==a.commit_sha and preboot['expected_startup_SHA']==a.expected_startup_sha and preboot['expected_agent_SHA']==a.expected_agent_sha and preboot['expected_package_version']==a.expected_version
+  assert preboot['seed1_proof_SHA']=='bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138' and preboot['resource2_proof_SHA']=='b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9'
+  assert boot['mode']=='observe-boot' and boot['host']=='211' and boot['PASS'] and boot['stage']=='complete' and boot['new_boot_observed'] and boot['storage_counter_epoch']=='fresh-boot' and boot['new_storage_errors']==[] and boot['native_proof_SHA']==a.preboot_sha
+  newboot=boot['after']['boot_id'];assert re.fullmatch(r'[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}',newboot) and newboot==boot['before']['boot_id'] and newboot!='3a609803-be4e-46eb-bfc6-7dcfe385cf50'
+  assert boot['before']['units']==boot['after']['units'] and len(boot['after']['units'])==21 and boot['after']['startup_SHA']==a.expected_startup_sha
+  for u in ['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service']:
+   q=boot['after']['units'][u];assert q['ActiveState']=='active' and q['NRestarts']=='0' and int(q['MainPID'])>1
+  assert all(re.fullmatch(r'(?:0x)?[0-9a-fA-F]+',boot[k]['storage_ioerr']) for k in ['before','after']) and int(boot['before']['storage_ioerr'],16)==int(boot['after']['storage_ioerr'],16)
+  assert isinstance(boot['kernel_before'],str) and boot['kernel_before'] and isinstance(boot['kernel_after'],str) and boot['kernel_after'].startswith(boot['kernel_before'])
  for v in [a.expected_startup_sha,a.expected_agent_sha]:assert re.fullmatch('[0-9a-f]{64}',v)
  assert a.expected_startup_sha not in ['b1f977e8e8594f45047c4103c318390bd395cb50078949daa0d0f612572cb179','367ead293aefd84d4b3f85f882d3dac33834bda9129467c9a1578f7223a39184']
  assert re.fullmatch(r'0\.1\.0~dev\+[0-9a-f]{12}',a.expected_version)
@@ -130,7 +155,7 @@ def main():
  resource=load(OUTPUT/'manager-resource211-commit-20261010T141048Z.json',OUTPUT,'b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9');assert resource['native_resource2_PASS'] and resource['PASS']
  seed=load(PRIVATE/'native-seed-after-20261010T135602Z.json',PRIVATE,'bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138');assert seed['observation_PASS'] and seed['seeded17_exact']
  cpath=PRIVATE/'bootstrap-admin-211.json';assert not cpath.is_symlink() and cpath.stat().st_uid==0 and stat.S_IMODE(cpath.stat().st_mode)==0o600;c=json.loads(cpath.read_bytes());assert c['host']=='172.30.110.211'
- fields={'RESUME':a.resume_runtime,'COMMITTED':committed,'COMMIT_SHA':a.commit_sha,'NEW':a.expected_startup_sha,'AGENT_SHA':a.expected_agent_sha,'VERSION':a.expected_version,'RECORD':record,'BASELINE':resource['after'],'DOCUMENT':resource['running']['data'],'SEED_DOCUMENT':seed['running']['data'],'SEED_SHA':'bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138','RESOURCE_SHA':'b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9','ADMIN_USER':c['username'],'ADMIN_PASSWORD':c['password']}
+ fields={'RESUME':a.resume_runtime,'POSTBOOT':postboot,'BOOT':boot,'BOOT_SHA':a.postboot_sha,'PREBOOT_SHA':a.preboot_sha,'COMMITTED':committed,'COMMIT_SHA':a.commit_sha,'NEW':a.expected_startup_sha,'AGENT_SHA':a.expected_agent_sha,'VERSION':a.expected_version,'RECORD':record,'BASELINE':resource['after'],'DOCUMENT':resource['running']['data'],'SEED_DOCUMENT':seed['running']['data'],'SEED_SHA':'bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138','RESOURCE_SHA':'b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9','ADMIN_USER':c['username'],'ADMIN_PASSWORD':c['password']}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE;q=subprocess.run(['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.110.211','python3 -'],input=code.encode(),capture_output=True)
- stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='resume' if a.resume_runtime else 'observe';print(json.dumps({'SSH_exit':q.returncode,'ROOT_only_resume':a.resume_runtime,'stdout':save(OUTPUT/('manager-physical-native211-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(OUTPUT/('manager-physical-native211-'+mode+'-'+stamp+'.stderr'),q.stderr)}));raise SystemExit(q.returncode)
+ stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='postboot' if postboot else 'resume' if a.resume_runtime else 'observe';print(json.dumps({'SSH_exit':q.returncode,'ROOT_only_resume':a.resume_runtime,'postboot_readonly':postboot,'stdout':save(OUTPUT/('manager-physical-native211-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(OUTPUT/('manager-physical-native211-'+mode+'-'+stamp+'.stderr'),q.stderr)}));raise SystemExit(q.returncode)
 if __name__=='__main__':main()

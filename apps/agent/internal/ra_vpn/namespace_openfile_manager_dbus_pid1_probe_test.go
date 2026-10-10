@@ -17,10 +17,20 @@ import (
 // Uses the production protected-socket/PID1/authentication/transport boundary;
 // never Subscribe, Hello, unit loading, activation, reload or subscription.
 func TestManagerDBusActualPID1ReadOnlyVersion(t *testing.T) {
+	managerDBusActualPID1ReadOnlyVersion(t, 40, 5)
+}
+
+// A separate ordinary request proof; never substitutes for the stress40 result.
+func TestManagerDBusActualPID1SingleReadOnlyVersion(t *testing.T) {
+	managerDBusActualPID1ReadOnlyVersion(t, 1, 1)
+}
+
+func managerDBusActualPID1ReadOnlyVersion(t *testing.T, queries, connections int) {
+	t.Helper()
 	if os.Getenv("NGFW_RA_PID1_READONLY_PROBE") != "1" || os.Geteuid() != 0 {
 		t.Fatal("explicit root read-only probe authorization required")
 	}
-	for i := 0; i < 5; i++ {
+	for i := 0; i < connections; i++ {
 		t.Run(time.Now().UTC().Format("150405.000000000"), func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), managerDBusQueryBudget)
 			defer cancel()
@@ -61,7 +71,7 @@ func TestManagerDBusActualPID1ReadOnlyVersion(t *testing.T) {
 				t.Fatal("actual PID1 auth", err)
 			}
 			count := 0
-			for count < 40 {
+			for count < queries {
 				var value dbus.Variant
 				call := bus.Object("org.freedesktop.systemd1", "/org/freedesktop/systemd1").CallWithContext(ctx, "org.freedesktop.DBus.Properties.Get", dbus.FlagNoAutoStart, "org.freedesktop.systemd1.Manager", "Version")
 				err = call.Store(&value)
@@ -74,7 +84,7 @@ func TestManagerDBusActualPID1ReadOnlyVersion(t *testing.T) {
 					break
 				}
 				count++
-				if count < 40 {
+				if count < queries {
 					timer := time.NewTimer(40 * time.Millisecond)
 					select {
 					case <-timer.C:
@@ -97,7 +107,7 @@ func TestManagerDBusActualPID1ReadOnlyVersion(t *testing.T) {
 			if err != nil {
 				t.Fatal("actual read-only query failed under unchanged budgets", err)
 			}
-			if count != 40 {
+			if count != queries {
 				t.Fatal("missing genuine property replies")
 			}
 		})

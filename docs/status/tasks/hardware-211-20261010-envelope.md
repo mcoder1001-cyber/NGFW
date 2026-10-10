@@ -15,3 +15,7 @@
 ## Independent review assignment — 2026-10-10
 
 Manager resumed this worker as R2 security reviewer of metadata candidate `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` on `codex/hardware-manager-20261010`. Own only `hardware-211-20261010-review-R2.md` and own envelope/WIP. No product edits or target operations. Review exact source diff, secrets and security boundaries, confirm unchanged policy/CI, then compare supplied final squash/PR tree and publish applicability. Narrow history scans only; no heavy `node_modules` scan or broad tests.
+
+## Read-only private recovery capture — 2026-10-10
+
+Manager resumed original host task solely for off-host configuration/network-state preservation. Own controller subdirectory `/root/Documents/Codex/2026-10-10/hardware/recovery-private/host-211` (0700), its private files (0600), and public task recovery receipt/WIP/envelope. Only selected `/etc/netplan`, `/etc/systemd/network`, `/etc/resolv.conf` are archived; live addresses/links/all-table routes/rules and PCI/name/IOMMU maps captured read-only. No target backup files, configuration/service/package/FS changes. Existing firewall save binaries may be read as fallback; no installation. Never commit private backup bytes or disclose contents; retain capture failures privately. Configuration backup only, not complete system/data backup or authorization to repair mounted root. Independent R7 checks metadata/completeness; offline recovery remains gated.

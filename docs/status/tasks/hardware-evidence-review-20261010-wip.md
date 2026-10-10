@@ -3,6 +3,19 @@
 **Current operational status: resumed for the same existing hardware task at the
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
+Current checkpoint, 15:45 UTC: both new97ae four-package installations and actual
+guard restores independently PASS. Corrected canonical physical application on
+.211 COMMITTED17 and .37 COMMITTED7 independently PASS with hardware inventory,
+pool capacity, protected management, native terminal success and free locks.
+.211 native revision2/control17 scoped PASS; its first observation has asynchronous
+admin-state reconciliation and does not establish all17 admin convergence.
+Stronger readonly convergence proof is required before boot. .37 exact e171
+native source and actual1aac terminal approve one ROOT agent/API resume; actual
+native7 result pending. Boot desired timezone derives from immutable native
+running configuration UTC; old hardcoded Tehran readonly refusal retained.
+No post-binding reboot or wire forwarding acceptance yet. Root alone executes.
+
+Historical milestones below precede the current checkpoint:
 Both logical filesystems/normal protected boot and original native installations
 PASS. .211 firstboot and canonical noPCI plugin correction PASS; actual four-package
 fixed upgrade, exact empty-cache recovery, stable runtime and native revision1 seed
@@ -27,7 +40,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`8005bd09e072180165804e3f3e531b84bf9470b7` (matching CLI push/readback;
+`17024e65528ffaeb9c8e6fe3a5a26e19a7e9ffb0` (matching CLI push/readback;
 actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
@@ -37,7 +50,7 @@ does not turn the later physical runtime failure into acceptance. Main complete 
 d1f3f19d4837de3f7a36bfffcbd3c70593bea307. Source correction/merge is green; the
 hardware installation/physical acceptance task remains Running.
 
-Current exact failure: native physical work20261010-142900-71835, five VPP starts
+Historical exact failure: native physical work20261010-142900-71835, five VPP starts
 failed rte_eal_init EINVAL22. Actual f64ad15b receipt/healthy rollback and pinned
 VPPc320/DPDK26.03 source cause are independently corroborated in eal.md. Root owns
 the mandatory product correction, unchanged complete quick and corrected native

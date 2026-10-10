@@ -485,3 +485,84 @@ old6 must remain only same-boot precondition, not a postboot equality assertion.
 ROOT notified for narrow correction before observer acceptance. Fresh timezone
 metadata, full protected management/runtime/PCI/native control after reboot remain
 actual checks, with no extra console/full-image prerequisite introduced.
+
+
+## Corrected physical application and control checkpoint, 15:45 UTC
+
+The historical EAL failure and lexical-version refusal above remain preserved.
+Both actual four-package97ae installations and exact original-guard restoration
+PASS. Restore receipts7c550cbc34662cb22adda5dc992657e7002790034dfa39be5c4ede0833732a74
+(335378 B, .211) and1f0c4b55107a9fd3406dc81e56dd4fd994f4142ad9c997f842cf2a3081e4c486
+(239877 B, .37) were independently rehashed/parsed: original policy/mask absent,
+private recovery records retained, all protected sections unchanged, no new
+storage errors. Bounded readonly/stage/bind/one-launch phase verdicts were sent
+only after their respective actual receipts. Finite original hardware manifests,
+old startup and failed attempts remain immutable; no reviewer target operation.
+
+Worker retry observer f6f36b30136cd065ae0091bdd404679e3e2b1a85e800923e00fe7de4aa047975
+at e2959651ba2bfd3b82980bf538462049193a4f88 closes the sticky-parent finding.
+It validates actual root-owned /run/lock1777, opens existing canonical locks by
+trusted directory descriptor, checks regular root-owned single-link nonwritable
+inode/path identity before/after nonblocking exclusive flock and closes only own
+FDs. No chmod, file creation or lock write. Native-unit terminal success and both
+released locks are now actual evidence, rather than source-only checks.
+
+New actual receipt files below are in the private hardware parent, each root0600.
+The independent command was Python read_bytes/json.loads/SHA256/stat followed by
+selected proof/command/identity inspection; no configuration or credential values
+were emitted. Output:
+
+```text
+manager-physical-retry211-observe-20261010T153736Z.stdout
+737575 B SHA256 1fc16adf15b23cb2e3301805b087a3c7272a4edced005e8b3c83f8f354ae08ae
+COMMITTED+installed; no rollback/console/deadman;89commands exit0
+17 hardware PCI entries; pool66297; VPP75177 active/0 restarts
+native unit inactive/Resultsuccess/ExecMainStatus0; two canonical locks free
+whole immutable launch-kernel window/storage[]; protected sections equal
+manager-physical-apply37-observe-20261010T153951Z.stdout
+597768 B SHA256 1aac6775ef71e46c59ca760e14e7ef028650cf4533bb177b82606e329daa9044
+COMMITTED+installed; no rollback/console/deadman;40commands exit0
+18 identity reads;7 hardware entries;pool16784;VPP31714 active/0 restarts
+native unit inactive/Resultsuccess; canonical locks released=true
+protected before==after;whole launch-kernel storage errors=[]
+manager-physical-native211-resume-20261010T153923Z.json
+883208 B SHA256 c28ea4fc50af2d6951d64f8edb8f7c4bc4aabe5dd09f29b43cf09524bef85cf0
+57commands exit0;native revision2;candidateequal;17accepted PCI names
+pool66297 >= RX17408; four runtime units active/0 restarts
+VPP75177 agent86362 API86394 nginx9281; unit identity stable=true
+full protected before==after;new storage errors=[]
+manager-boot211-inspect-20261010T154112Z.json
+715610 B SHA256 6410734a930b156781752bac8f0ad53fe7c04f0e56775cc95c8e9eb16c14bd01
+66commands exit0;readonly PASS;before==after;new storage errors=[]
+desired native timezone UTC;actual canonical zone Etc/UTC;offset+0000
+```
+
+Physical COMMITTED17/7 verdict APPROVE. .211 c28 scoped native/control17 PASS does
+not prove all17 administrative state convergence: early snapshot had only three
+adminUp true while all17 desired enabled. Root subsequently reported all17 VPP up;
+stronger readonly native receipt remains required. Link/carrier/counters are
+recorded; no packet-throughput claim. This is an asynchronous observation limit,
+not a blanket hardware acceptance claim.
+
+Exact ROOT .37 native source e1716ea37d0d8672ff66c179d82d7ba24bb2019c03138ba107b68837e0711965
+is independently diff/outer+REMOTE AST APPROVE:45-second bounded readonly native
+API poll requires all7 adminUp equal immutable enabled rows, followed by independent
+VPP up/down parse, while prior native/management protection checks remain. ROOT
+may perform one previously released agent/API resume with actual1aac and this
+source; actual native7 control/convergence receipt remains pending.
+
+The readonly boot preflight first refused hardcoded Tehran before any mutation.
+Confirmed native running revision2 actually desires UTC and canonical identity
+already points to Etc/UTC. Source correction f2c69f07f17fd08266c7dd63279ef5af3af5fd5731274cdc2ac1d266261f7acd
+reads immutable desired system timezone and checks canonical zone bytes, ZoneInfo
+UTC offset and fresh postboot timedated canonical alias; no timezone write or
+override. Latest f3ee3da932425cbabcad0411a097503f038bf21736b48f787c9d91bac2e5ef68
+at f814744d6092d04e4640c67f45ecaedc727327cd additionally refuses native proofs
+without physical_admin_converged. Both exact source/outer+REMOTE AST APPROVE.
+Old c28/641 receipts remain historical scoped proof and cannot satisfy this new
+boot input requirement. New strong native/readonly boot predicates are pending
+before enable only three owned units without --now, then separate normal reboot.
+
+No target writes, product edits, retries, service starts or reboot by this reviewer.
+Main exact0c21 complete mandatory quick38062974117 remains independently SUCCESS;
+source/packaging/merge and hardware post-binding reboot/forwarding remain distinct.

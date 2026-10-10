@@ -4,8 +4,8 @@
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
 Both logical filesystems/normal protected boot and native installations PASS;
-.211 firstboot PASS, real NIC seed still FAIL at revision0 pending canonical
-required-plugin correction; .37 firstboot NOT RUN. No PCI binding or forwarding
+.211 firstboot PASS, canonical noPCI plugin correction COMMITTED, but native
+agent startup now FAIL/auto-restart and NIC seed not accepted; .37 firstboot NOT RUN. No PCI binding or forwarding
 acceptance. Root alone performs any separately reviewed real startup/binding.
 
 
@@ -646,3 +646,12 @@ revision1/seed17 receipt pending. No binding. Draft VFIO option premise verified
 08a7; finite original-state rollback/final binder source still unapproved. Root
 product R7 final docs/gate remain pending. .37 old firstboot payload remains held.
 Last published6c1b1370d04fd0b0f706be05cde0db5a6df459ba; full owned report plugin-seed.md.
+
+
+12:53 UTC actual native runtime failure: observer after-mode refused at unit gate
+(0BJSON/89Bstderr) before auth/seed. Independent4fd9/30653B protected readonly
+diagnostic confirms agent auto-restart29/exit1/PID0; VPP33868/API43592/nginx9281
+active0, live367e/io6. No seedPASS. Mixed journal only establishes missing agent
+socket; exit cause awaits agent-only diagnostics. Root owns containment; no blind
+restart/rollback/bind. Last publishedebc957734e06b5731051dd4092c11167f25e20ac;
+exact next action read actual agent cause and root fix, then recheck native seed.

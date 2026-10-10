@@ -142,3 +142,28 @@ when present before/after load, so persistent boot cannot inherit global-ID matc
 No module loading/binding by reviewer. .37 installed old2045 firstboot is not changed
 by source merge alone; its fixed-package or explicit canonical noPCI correction
 provenance must be reviewed before initial runtime/seed. No .37 firstboot execution.
+
+
+## Actual postapply agent startup failure — 12:53 UTC
+
+Native after-observer stopped at its unit-state gate before authentication/seed.
+Actual zero-byte JSON and89-byte stderr retained by operator; this is not a seed
+acceptance or a changed-datastore claim. Independently parsed protected readonly
+postapply-units-diagnostic-20261010T125214Z.json30653B/0600 SHA4fd9aa4da68fcdf15d6ac8d0d3ab3b05238b47008298fc60276345b15d9f0c59:
+
+```text
+4 readonly commands exits0/0/0/0 stderr0
+VPP active PID33868 NRestarts0
+agent activating/auto-restart PID0 Result=exit-code ExecMainStatus1 NRestarts29
+API active PID43592 NRestarts0; nginx active PID9281 NRestarts0
+live startup367ead293aefd84d4b3f85f882d3dac33834bda9129467c9a1578f7223a39184
+ioerr0x6
+```
+
+Mixed120-line journal selected actual API warnings report agent.sock ENOENT;
+these explain unavailable agent RPC but do not establish the cause of agent exit.
+Bounded agent-only startup diagnostics requested under existing readonly scope;
+root alone owns any containment. No blind service restart, rollback, datastore
+change or binding by reviewer/worker. Earlier committed noPCI transaction was
+actual PASS at its checkpoint; current native agent/runtime is FAIL and remains
+a real failure requiring resolution before hardware acceptance. .37 firstboot held.

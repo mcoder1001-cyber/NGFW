@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: this task's envelope/WIP/R7 report only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`6d6a07fbebea39935799d7f391bda8f501e28751` (initial review handoff; matching CLI
+`65ca4275cd7bdf161d88b4b9d34fc4c9b94f7427` (focused source approval; matching CLI
 push/readback). Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -70,3 +70,33 @@ Operational handoff: focused R7 recheck complete; reviewer is **awaiting resume*
 for a later changed head or evidence question after publication. No reviewer-owned
 process remains running and no target actions occurred. The earlier live-agent
 snapshot is historical evidence, not current active-worker status.
+
+## Postmerge/private recovery evidence follow-up — 07:56 UTC
+
+Resumed independently for manager public925703c2/final0f3ab280 recovery docs and
+ready private configuration backup metadata only. Current follow-up verdict:
+APPROVE0f3ab280f3d3941b21e2580d584bdaddc614822c. Addendum
+`hardware-evidence-review-20261010-postmerge.md` preserves exact commands/output,
+published worker links and privacy/recovery limitations. Original5bd7 source
+APPROVE remains separate; no product or target writes occurred.
+
+Actual observed merge4908716b exact parents/treea0d7b7 match GitHub's tested
+integration8a15d644 tree. PR quick38033766837 completed success; bare main
+38035583209 observed in_progress on4908716b. No main quick PASS claimed.
+Private parent and both host dirs0700; all24/.37 and26/.211 regular artifacts0600;
+valid manifests, two readable5-member config archives with management netplan;
+all5 checked public receipt hashes match. Contents were never printed/committed.
+Native nft capture exit127 remains explicit; empty successful compatibility exports
+do not prove no native nft rules. Config snapshots are not full system/data backup.
+Candidate23-member tar includes0private-directory or private-artifact names and
+0unsafe paths. Public runbook preserves console/fullbackup/unmounted repair gates;
+install/API/forwarding/reboot acceptance remains NOT RUN.
+
+Remaining: manager/main tester confirms actual bare main completion and publishes
+its new status; any refreshed candidate needs exclusion recheck. Hardware recovery
+awaits owner input. Exact next command on later status change:
+`gh run view 38035583209 --json headSha,status,conclusion`, then fetch and compare
+manager docs SHA before extending this scoped approval. Reviewer ends this follow-up
+after publication and is awaiting resume; no persistent worker service is claimed.
+Own-doc check before publication: `tools/ci.sh check --base origin/main` exited0,
+`check PASSED (0m14s)`; no duplicate full quick ran.

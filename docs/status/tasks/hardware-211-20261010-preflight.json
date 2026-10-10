@@ -1,0 +1,275 @@
+{
+  "host": "172.30.110.211",
+  "session_date": "2026-10-10",
+  "target_time": {
+    "exit": 0,
+    "stdout": "2026-04-18T09:15:42+00:00",
+    "stderr": ""
+  },
+  "physical_and_virtual_interfaces": [
+    {
+      "name": "br0",
+      "address": "ba:0c:12:6d:36:b8",
+      "operstate": "down"
+    },
+    {
+      "name": "br1",
+      "address": "1a:32:4b:3e:a9:01",
+      "operstate": "down"
+    },
+    {
+      "name": "br2",
+      "address": "42:02:dc:41:50:b0",
+      "operstate": "down"
+    },
+    {
+      "name": "br3",
+      "address": "ae:2a:49:8c:86:5a",
+      "operstate": "down"
+    },
+    {
+      "name": "br4",
+      "address": "9e:d2:6c:c7:0a:79",
+      "operstate": "down"
+    },
+    {
+      "name": "br5",
+      "address": "62:fc:df:81:34:c7",
+      "operstate": "down"
+    },
+    {
+      "name": "br7",
+      "address": "d6:73:8e:48:0c:01",
+      "operstate": "down"
+    },
+    {
+      "name": "br8",
+      "address": "4a:88:8d:a3:93:07",
+      "operstate": "down"
+    },
+    {
+      "name": "br9",
+      "address": "d2:ff:de:c0:da:78",
+      "operstate": "down"
+    },
+    {
+      "name": "enp1s0f0np0",
+      "address": "28:b1:33:30:82:ac",
+      "operstate": "down",
+      "pci": "0000:01:00.0",
+      "driver": "i40e",
+      "iommu_group": "16"
+    },
+    {
+      "name": "enp1s0f1np1",
+      "address": "28:b1:33:30:82:ad",
+      "operstate": "down",
+      "pci": "0000:01:00.1",
+      "driver": "i40e",
+      "iommu_group": "17"
+    },
+    {
+      "name": "enp1s0f2np2",
+      "address": "28:b1:33:30:82:ae",
+      "operstate": "down",
+      "pci": "0000:01:00.2",
+      "driver": "i40e",
+      "iommu_group": "18",
+      "master": "br9"
+    },
+    {
+      "name": "enp1s0f3np3",
+      "address": "28:b1:33:30:82:af",
+      "operstate": "down",
+      "pci": "0000:01:00.3",
+      "driver": "i40e",
+      "iommu_group": "19",
+      "master": "br9"
+    },
+    {
+      "name": "enp2s0f0np0",
+      "address": "28:b1:33:30:82:98",
+      "operstate": "down",
+      "pci": "0000:02:00.0",
+      "driver": "i40e",
+      "iommu_group": "20",
+      "master": "br2"
+    },
+    {
+      "name": "enp2s0f1np1",
+      "address": "28:b1:33:30:82:99",
+      "operstate": "down",
+      "pci": "0000:02:00.1",
+      "driver": "i40e",
+      "iommu_group": "21",
+      "master": "br2"
+    },
+    {
+      "name": "enp2s0f2np2",
+      "address": "28:b1:33:30:82:9a",
+      "operstate": "down",
+      "pci": "0000:02:00.2",
+      "driver": "i40e",
+      "iommu_group": "22",
+      "master": "br3"
+    },
+    {
+      "name": "enp2s0f3np3",
+      "address": "28:b1:33:30:82:9b",
+      "operstate": "down",
+      "pci": "0000:02:00.3",
+      "driver": "i40e",
+      "iommu_group": "23",
+      "master": "br3"
+    },
+    {
+      "name": "enp3s0f0np0",
+      "address": "28:b1:33:20:94:bb",
+      "operstate": "down",
+      "pci": "0000:03:00.0",
+      "driver": "i40e",
+      "iommu_group": "24",
+      "master": "br4"
+    },
+    {
+      "name": "enp3s0f1np1",
+      "address": "28:b1:33:20:94:bc",
+      "operstate": "down",
+      "pci": "0000:03:00.1",
+      "driver": "i40e",
+      "iommu_group": "25",
+      "master": "br5"
+    },
+    {
+      "name": "enp3s0f2np2",
+      "address": "28:b1:33:20:94:bd",
+      "operstate": "down",
+      "pci": "0000:03:00.2",
+      "driver": "i40e",
+      "iommu_group": "26",
+      "master": "br4"
+    },
+    {
+      "name": "enp3s0f3np3",
+      "address": "28:b1:33:20:94:be",
+      "operstate": "down",
+      "pci": "0000:03:00.3",
+      "driver": "i40e",
+      "iommu_group": "27",
+      "master": "br5"
+    },
+    {
+      "name": "enp4s0",
+      "address": "28:b1:33:20:94:bf",
+      "operstate": "up",
+      "pci": "0000:04:00.0",
+      "driver": "igc",
+      "iommu_group": "28"
+    },
+    {
+      "name": "enp5s0",
+      "address": "28:b1:33:20:94:c0",
+      "operstate": "down",
+      "pci": "0000:05:00.0",
+      "driver": "igc",
+      "iommu_group": "29"
+    },
+    {
+      "name": "enp6s0",
+      "address": "28:b1:33:20:94:c1",
+      "operstate": "down",
+      "pci": "0000:06:00.0",
+      "driver": "igc",
+      "iommu_group": "30"
+    },
+    {
+      "name": "enp7s0",
+      "address": "28:b1:33:20:94:c2",
+      "operstate": "down",
+      "pci": "0000:07:00.0",
+      "driver": "igc",
+      "iommu_group": "31"
+    },
+    {
+      "name": "enp8s0",
+      "address": "28:b1:33:20:94:c3",
+      "operstate": "down",
+      "pci": "0000:08:00.0",
+      "driver": "igc",
+      "iommu_group": "32"
+    },
+    {
+      "name": "enp9s0",
+      "address": "28:b1:33:20:94:c4",
+      "operstate": "down",
+      "pci": "0000:09:00.0",
+      "driver": "igc",
+      "iommu_group": "33"
+    },
+    {
+      "name": "lo",
+      "address": "00:00:00:00:00:00",
+      "operstate": "unknown"
+    }
+  ],
+  "addresses": {
+    "exit": 0,
+    "stdout": "[{\"ifindex\":1,\"ifname\":\"lo\",\"flags\":[\"LOOPBACK\",\"UP\",\"LOWER_UP\"],\"mtu\":65536,\"qdisc\":\"noqueue\",\"operstate\":\"UNKNOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"loopback\",\"address\":\"00:00:00:00:00:00\",\"broadcast\":\"00:00:00:00:00:00\",\"addr_info\":[{\"family\":\"inet\",\"local\":\"127.0.0.1\",\"prefixlen\":8,\"scope\":\"host\",\"label\":\"lo\",\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295},{\"family\":\"inet6\",\"local\":\"::1\",\"prefixlen\":128,\"scope\":\"host\",\"noprefixroute\":true,\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295}]},{\"ifindex\":2,\"ifname\":\"enp4s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\",\"UP\",\"LOWER_UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"operstate\":\"UP\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:bf\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094bf\"],\"addr_info\":[{\"family\":\"inet\",\"local\":\"172.30.110.211\",\"prefixlen\":24,\"broadcast\":\"172.30.110.255\",\"scope\":\"global\",\"label\":\"enp4s0\",\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295},{\"family\":\"inet6\",\"local\":\"fe80::2ab1:33ff:fe20:94bf\",\"prefixlen\":64,\"scope\":\"link\",\"protocol\":\"kernel_ll\",\"valid_life_time\":4294967295,\"preferred_life_time\":4294967295}]},{\"ifindex\":3,\"ifname\":\"enp5s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:c0\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094c0\"],\"addr_info\":[]},{\"ifindex\":4,\"ifname\":\"enp6s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:c1\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094c1\"],\"addr_info\":[]},{\"ifindex\":5,\"ifname\":\"enp1s0f0np0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:ac\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1333082ac\"],\"addr_info\":[]},{\"ifindex\":6,\"ifname\":\"enp7s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:c2\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094c2\"],\"addr_info\":[]},{\"ifindex\":7,\"ifname\":\"enp8s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:c3\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094c3\"],\"addr_info\":[]},{\"ifindex\":8,\"ifname\":\"enp9s0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:c4\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094c4\"],\"addr_info\":[]},{\"ifindex\":9,\"ifname\":\"enp1s0f1np1\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"qdisc\":\"noop\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:ad\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1333082ad\"],\"addr_info\":[]},{\"ifindex\":10,\"ifname\":\"enp1s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br9\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:ae\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1333082ae\"],\"addr_info\":[]},{\"ifindex\":11,\"ifname\":\"enp1s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br9\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:af\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1333082af\"],\"addr_info\":[]},{\"ifindex\":12,\"ifname\":\"enp2s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br2\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:98\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b133308298\"],\"addr_info\":[]},{\"ifindex\":13,\"ifname\":\"enp2s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br2\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:99\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b133308299\"],\"addr_info\":[]},{\"ifindex\":14,\"ifname\":\"enp2s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br3\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:9a\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b13330829a\"],\"addr_info\":[]},{\"ifindex\":15,\"ifname\":\"enp2s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br3\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:30:82:9b\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b13330829b\"],\"addr_info\":[]},{\"ifindex\":16,\"ifname\":\"enp3s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br4\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:bb\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094bb\"],\"addr_info\":[]},{\"ifindex\":17,\"ifname\":\"enp3s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br5\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:bc\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094bc\"],\"addr_info\":[]},{\"ifindex\":18,\"ifname\":\"enp3s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br4\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:bd\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094bd\"],\"addr_info\":[]},{\"ifindex\":19,\"ifname\":\"enp3s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"mq\",\"master\":\"br5\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"28:b1:33:20:94:be\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"altnames\":[\"enx28b1332094be\"],\"addr_info\":[]},{\"ifindex\":20,\"ifname\":\"br0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"ba:0c:12:6d:36:b8\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":21,\"ifname\":\"br1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"1a:32:4b:3e:a9:01\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":22,\"ifname\":\"br2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"42:02:dc:41:50:b0\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":23,\"ifname\":\"br3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"ae:2a:49:8c:86:5a\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":24,\"ifname\":\"br4\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"9e:d2:6c:c7:0a:79\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":25,\"ifname\":\"br5\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"62:fc:df:81:34:c7\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":26,\"ifname\":\"br7\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"d6:73:8e:48:0c:01\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":27,\"ifname\":\"br8\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"4a:88:8d:a3:93:07\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]},{\"ifindex\":28,\"ifname\":\"br9\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"qdisc\":\"noqueue\",\"operstate\":\"DOWN\",\"group\":\"default\",\"txqlen\":1000,\"link_type\":\"ether\",\"address\":\"d2:ff:de:c0:da:78\",\"broadcast\":\"ff:ff:ff:ff:ff:ff\",\"addr_info\":[]}]",
+    "stderr": ""
+  },
+  "routes": {
+    "exit": 0,
+    "stdout": "[{\"dst\":\"default\",\"gateway\":\"172.30.110.1\",\"dev\":\"enp4s0\",\"protocol\":\"static\",\"flags\":[]},{\"dst\":\"172.30.110.0/24\",\"dev\":\"enp4s0\",\"protocol\":\"kernel\",\"scope\":\"link\",\"prefsrc\":\"172.30.110.211\",\"flags\":[]},{\"type\":\"local\",\"dst\":\"127.0.0.0/8\",\"dev\":\"lo\",\"table\":\"local\",\"protocol\":\"kernel\",\"scope\":\"host\",\"prefsrc\":\"127.0.0.1\",\"flags\":[]},{\"type\":\"local\",\"dst\":\"127.0.0.1\",\"dev\":\"lo\",\"table\":\"local\",\"protocol\":\"kernel\",\"scope\":\"host\",\"prefsrc\":\"127.0.0.1\",\"flags\":[]},{\"type\":\"broadcast\",\"dst\":\"127.255.255.255\",\"dev\":\"lo\",\"table\":\"local\",\"protocol\":\"kernel\",\"scope\":\"link\",\"prefsrc\":\"127.0.0.1\",\"flags\":[]},{\"type\":\"local\",\"dst\":\"172.30.110.211\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"scope\":\"host\",\"prefsrc\":\"172.30.110.211\",\"flags\":[]},{\"type\":\"broadcast\",\"dst\":\"172.30.110.255\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"scope\":\"link\",\"prefsrc\":\"172.30.110.211\",\"flags\":[]},{\"dst\":\"fe80::/64\",\"dev\":\"enp4s0\",\"protocol\":\"kernel\",\"metric\":256,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"local\",\"dst\":\"::1\",\"dev\":\"lo\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":0,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"local\",\"dst\":\"fe80::2ab1:33ff:fe20:94bf\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":0,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"multicast\",\"dst\":\"ff00::/8\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":256,\"flags\":[],\"pref\":\"medium\"}]",
+    "stderr": ""
+  },
+  "ipv6_routes": {
+    "exit": 0,
+    "stdout": "[{\"dst\":\"fe80::/64\",\"dev\":\"enp4s0\",\"protocol\":\"kernel\",\"metric\":256,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"local\",\"dst\":\"::1\",\"dev\":\"lo\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":0,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"local\",\"dst\":\"fe80::2ab1:33ff:fe20:94bf\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":0,\"flags\":[],\"pref\":\"medium\"},{\"type\":\"multicast\",\"dst\":\"ff00::/8\",\"dev\":\"enp4s0\",\"table\":\"local\",\"protocol\":\"kernel\",\"metric\":256,\"flags\":[],\"pref\":\"medium\"}]",
+    "stderr": ""
+  },
+  "route_to_controller": {
+    "exit": 0,
+    "stdout": "[{\"dst\":\"172.30.126.195\",\"gateway\":\"172.30.110.1\",\"dev\":\"enp4s0\",\"prefsrc\":\"172.30.110.211\",\"flags\":[],\"uid\":0,\"cache\":[]}]",
+    "stderr": ""
+  },
+  "rules": {
+    "exit": 0,
+    "stdout": "[{\"priority\":0,\"src\":\"all\",\"table\":\"local\"},{\"priority\":32766,\"src\":\"all\",\"table\":\"main\"},{\"priority\":32767,\"src\":\"all\",\"table\":\"default\"}]",
+    "stderr": ""
+  },
+  "bridge_membership": {
+    "exit": 0,
+    "stdout": "[{\"ifindex\":5,\"ifname\":\"enp1s0f0np0\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"hwmode\":\"VEPA\"},{\"ifindex\":9,\"ifname\":\"enp1s0f1np1\",\"flags\":[\"BROADCAST\",\"MULTICAST\"],\"mtu\":1500,\"hwmode\":\"VEPA\"},{\"ifindex\":10,\"ifname\":\"enp1s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br9\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":10,\"ifname\":\"enp1s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br9\",\"hwmode\":\"VEPA\"},{\"ifindex\":11,\"ifname\":\"enp1s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br9\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":11,\"ifname\":\"enp1s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br9\",\"hwmode\":\"VEPA\"},{\"ifindex\":12,\"ifname\":\"enp2s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br2\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":12,\"ifname\":\"enp2s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br2\",\"hwmode\":\"VEPA\"},{\"ifindex\":13,\"ifname\":\"enp2s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br2\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":13,\"ifname\":\"enp2s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br2\",\"hwmode\":\"VEPA\"},{\"ifindex\":14,\"ifname\":\"enp2s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br3\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":14,\"ifname\":\"enp2s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br3\",\"hwmode\":\"VEPA\"},{\"ifindex\":15,\"ifname\":\"enp2s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br3\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":15,\"ifname\":\"enp2s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br3\",\"hwmode\":\"VEPA\"},{\"ifindex\":16,\"ifname\":\"enp3s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br4\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":16,\"ifname\":\"enp3s0f0np0\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br4\",\"hwmode\":\"VEPA\"},{\"ifindex\":17,\"ifname\":\"enp3s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br5\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":17,\"ifname\":\"enp3s0f1np1\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br5\",\"hwmode\":\"VEPA\"},{\"ifindex\":18,\"ifname\":\"enp3s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br4\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":18,\"ifname\":\"enp3s0f2np2\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br4\",\"hwmode\":\"VEPA\"},{\"ifindex\":19,\"ifname\":\"enp3s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br5\",\"state\":\"disabled\",\"priority\":32,\"cost\":100},{\"ifindex\":19,\"ifname\":\"enp3s0f3np3\",\"flags\":[\"NO-CARRIER\",\"BROADCAST\",\"MULTICAST\",\"UP\"],\"mtu\":1500,\"master\":\"br5\",\"hwmode\":\"VEPA\"}]",
+    "stderr": ""
+  },
+  "netplan": {
+    "00-installer-config.yaml": "network:\n  version: 2\n  renderer: networkd\n\n  ethernets:\n    ens9f0np0: {}\n    ens9f1np1: {}\n    ens4f0np0: {}\n    ens4f1np1: {}\n    enp1s0f2np2: {}\n    enp1s0f3np3: {}\n    ens7f1np1: {}\n    ens7f0np0: {}\n    ens2f0np0: {}\n    ens2f1np1: {}\n\n    enp2s0f0np0: {}\n    enp2s0f1np1: {}\n    enp2s0f2np2: {}\n    enp2s0f3np3: {}\n\n    enp3s0f0np0: {}\n    enp3s0f1np1: {}\n    enp3s0f2np2: {}\n    enp3s0f3np3: {}\n\n    enp1s0:\n      addresses:\n        - 172.30.110.223/24\n      routes:\n        - to: 172.30.126.0/24\n          via: 172.30.110.1\n\n  bridges:\n    br0:\n      interfaces:\n        - ens9f0np0\n        - ens9f1np1\n      dhcp4: false\n      dhcp6: false\n\n    br1:\n      interfaces:\n        - ens4f0np0\n        - ens4f1np1\n      dhcp4: false\n      dhcp6: false\n\n    br9:\n      interfaces:\n        - enp1s0f2np2\n        - enp1s0f3np3\n      dhcp4: false\n      dhcp6: false\n  \n    br2:\n      interfaces:\n        - enp2s0f0np0\n        - enp2s0f1np1\n      dhcp4: false\n      dhcp6: false\n  \n    br3:\n      interfaces:\n        - enp2s0f2np2\n        - enp2s0f3np3\n      dhcp4: false\n      dhcp6: false\n  \n    br4:\n      interfaces:\n        - enp3s0f0np0\n        - enp3s0f2np2\n      dhcp4: false\n      dhcp6: false\n  \n    br5:\n      interfaces:\n        - enp3s0f1np1\n        - enp3s0f3np3\n      dhcp4: false\n      dhcp6: false\n    br7:\n      interfaces:\n        - ens7f1np1\n        - ens7f0np0\n      dhcp4: false\n      dhcp6: false\n    br8:\n      interfaces:\n        - ens2f0np0\n        - ens2f1np1\n      dhcp4: false\n      dhcp6: false\n",
+    "90-ngfw-management.yaml": "network:\n  version: 2\n  renderer: networkd\n  ethernets:\n    enp4s0:\n      dhcp4: false\n      dhcp6: false\n      addresses: [172.30.110.211/24]\n      routes:\n        - to: default\n          via: 172.30.110.1\n      nameservers:\n        addresses: [172.30.18.4]\n        search: [Amnafzar.local]\n"
+  },
+  "fstab": "# UNCONFIGURED FSTAB FOR BASE SYSTEM\nUUID=\"343f6a24-1c79-4177-b7d0-52c8582914fb\" / auto defaults 0 1\nUUID=\"9804-C768\" /boot/efi auto defaults 0 1\n",
+  "root_mount": {
+    "exit": 0,
+    "stdout": "{\n   \"filesystems\": [\n      {\n         \"target\": \"/\",\n         \"source\": \"/dev/sda2\",\n         \"fstype\": \"ext4\",\n         \"options\": \"rw,relatime\"\n      }\n   ]\n}",
+    "stderr": ""
+  },
+  "fsck_boot": {
+    "exit": 0,
+    "stdout": "Apr 15 22:02:53 ubuntu-26.04 systemd-fsck[399]: /dev/sda2 contains a file system with errors, check forced.\nApr 15 22:02:53 ubuntu-26.04 systemd-fsck[399]: /dev/sda2: Inode 259596 has an invalid extent node (blk 15505493, lblk 0)\nApr 15 22:02:53 ubuntu-26.04 systemd-fsck[399]: /dev/sda2: UNEXPECTED INCONSISTENCY; RUN fsck MANUALLY.\nApr 15 22:02:53 ubuntu-26.04 systemd-fsck[399]:         (i.e., without -a or -p options)\nApr 18 10:44:15 ubuntu-26.04 systemd[1]: systemd-fsck-root.service - File System Check on Root Device skipped, unmet condition check ConditionPathIsReadWrite=!/",
+    "stderr": "An error was encountered while opening journal file or directory /var/log/journal/7999f604d9534b6ab4bfc0db9f933f8f/system@df38a51c7c7c4b1c8ee1dd6ce1e74307-0000000000000d4b-00065457cb06fb12.journal, ignoring file: Input/output error"
+  },
+  "root_superblock": {
+    "exit": 0,
+    "stdout": "Filesystem volume name:   <none>\nLast mounted on:          /\nFilesystem UUID:          343f6a24-1c79-4177-b7d0-52c8582914fb\nFilesystem magic number:  0xEF53\nFilesystem revision #:    1 (dynamic)\nFilesystem features:      has_journal ext_attr resize_inode dir_index filetype needs_recovery extent 64bit flex_bg sparse_super large_file huge_file dir_nlink extra_isize metadata_csum\nFilesystem flags:         signed_directory_hash \nDefault mount options:    user_xattr acl\nFilesystem state:         clean with errors\nErrors behavior:          Continue\nFilesystem OS type:       Linux\nInode count:              3845088\nBlock count:              15505494\nReserved block count:     775260\nFree blocks:              11233189\nFree inodes:              3815431\nFirst block:              0\nBlock size:               4096\nFragment size:            4096\nGroup descriptor size:    64\nReserved GDT blocks:      420\nBlocks per group:         32768\nFragments per group:      32768\nInodes per group:         8112\nInode blocks per group:   507\nFlex block group size:    16\nFilesystem created:       Mon Jun  8 10:32:07 2026\nLast mount time:          Wed Apr 15 22:02:53 2026\nLast write time:          Sat Apr 18 12:45:42 2026\nMount count:              46\nMaximum mount count:      -1\nLast checked:             Mon Jun  8 10:32:07 2026\nCheck interval:           0 (<none>)\nLifetime writes:          85 GB\nReserved blocks uid:      0 (user root)\nReserved blocks gid:      0 (group root)\nFirst inode:              11\nInode size:               256\nRequired extra isize:     32\nDesired extra isize:      32\nJournal inode:            8\nDefault directory hash:   half_md4\nDirectory Hash Seed:      ff202951-ce74-442c-bf9e-a5f142477535\nJournal backup:           inode blocks\nFS Error count:           1203\nFirst error time:         Wed Jul 22 00:25:24 2026\nFirst error function:     ext4_find_extent\nFirst error line #:       939\nFirst error inode #:      259597\nFirst error err:          EFSCORRUPTED\nLast error time:          Sat Apr 18 12:45:42 2026\nLast error function:      ext4_find_extent\nLast error line #:        939\nLast error inode #:       259596\nLast error err:           EFSCORRUPTED\nChecksum type:            crc32c\nChecksum:                 0x43ad2c4e\nJournal features:         journal_incompat_revoke journal_64bit journal_checksum_v3\nTotal journal size:       64M\nTotal journal blocks:     16384\nMax transaction length:   16384\nFast commit length:       0\nJournal sequence:         0x00004a79\nJournal start:            12743\nJournal checksum type:    crc32c\nJournal checksum:         0x3d18a817",
+    "stderr": "dumpe2fs 1.47.2 (1-Jan-2025)"
+  },
+  "failed_units": {
+    "exit": 0,
+    "stdout": "UNIT                      LOAD   ACTIVE SUB    DESCRIPTION\n\u25cf systemd-fsck-root.service loaded failed failed File System Check on Root Device\n\nLegend: LOAD   \u2192 Reflects whether the unit definition was properly loaded.\n        ACTIVE \u2192 The high-level unit activation state, i.e. generalization of SUB.\n        SUB    \u2192 The low-level unit activation state, values depend on unit type.\n\n1 loaded units listed.",
+    "stderr": ""
+  },
+  "package_audit": {
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  }
+}

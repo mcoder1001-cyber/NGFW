@@ -28,6 +28,8 @@ SSH = ['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes',
        '-o','ConnectTimeout=15','root@172.30.110.211']
 REMOTE_DIRECTORY = '/run/ngfw-hardware-211-install-input'
 POLICY = b'#!/bin/sh\nexit 101\n'
+# Actual post-return tool preflight found these required commands absent.
+EXTRA_PACKAGES = ['jq','pciutils','driverctl','curl','nftables']
 
 PREFLIGHT = r'''
 import hashlib,json,os,pathlib,stat,subprocess,time
@@ -75,11 +77,11 @@ assert pathlib.Path('/usr/sbin/policy-rc.d').read_bytes()==POLICY
 assert os.readlink('/etc/systemd/system/vpp.service')=='/dev/null'
 args=['apt-get','-s','--no-remove','--no-install-recommends',
       '-o','Dir::Cache::pkgcache=','-o','Dir::Cache::srcpkgcache=',
-      'install']+['./'+item['file'] for item in EXPECTED_ARCHIVES]
+      'install']+['./'+item['file'] for item in EXPECTED_ARCHIVES]+EXTRA_PACKAGES
 p=subprocess.run(args,cwd=root,capture_output=True,text=True,timeout=180)
 print(json.dumps({'command':args,'exit':p.returncode,'stdout':p.stdout,'stderr':p.stderr,
                   'package_install':False,'service_activation':False,
-                  'requires_plan_review_before_install':True},indent=2))
+                  'requires_plan_review_before_install':True,'additional_named_packages':EXTRA_PACKAGES},indent=2))
 raise SystemExit(p.returncode)
 '''
 
@@ -135,7 +137,8 @@ def main():
     stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     archives=local_archives()
     receipt=save('install-input-local-'+stamp+'.json',json.dumps(archives,indent=2).encode())
-    report={'local_archives':11,'local_receipt':receipt,'target_contacted':False}
+    report={'local_archives':11,'local_receipt':receipt,'target_contacted':False,
+            'additional_named_packages':EXTRA_PACKAGES}
     if mode.check_local:
         print(json.dumps(report));return
     # Manager-reviewed recovery/return and start-policy/mask setup are external prerequisites.
@@ -157,7 +160,8 @@ def main():
     if p.returncode:
         print(json.dumps(report));raise SystemExit(p.returncode)
     p=remote(SIMULATE,{'REMOTE_DIRECTORY':REMOTE_DIRECTORY,'POLICY':POLICY,
-                       'EXPECTED_ARCHIVES':[{k:x[k] for k in ['file','sha256','bytes']} for x in archives]})
+                       'EXPECTED_ARCHIVES':[{k:x[k] for k in ['file','sha256','bytes']} for x in archives],
+                       'EXTRA_PACKAGES':EXTRA_PACKAGES})
     report['solver_exit']=p.returncode
     report['solver_stdout']=save('install-input-solver-'+stamp+'.json',p.stdout)
     report['solver_stderr']=save('install-input-solver-'+stamp+'.stderr',p.stderr)

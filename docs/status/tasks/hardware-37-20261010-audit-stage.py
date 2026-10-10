@@ -13,7 +13,7 @@ import subprocess
 
 HERE = pathlib.Path(__file__).resolve().parent
 PRIVATE = pathlib.Path('/root/Documents/Codex/2026-10-10/hardware/recovery-private/host-37')
-STATIC = pathlib.Path('/dev/shm/ngfw-recovery-host-211/nsfs-check')
+STATIC = PRIVATE / 'nsfs-check-static'
 STATIC_DIGEST = '2907bb0345fb9dad199e48b2539ce9038b24fbafa00fa9672b4074239a6ac681'
 SOURCE_DIGEST = '36e12485aa4e1ca3a85e0a1760fff89604c0d4b3f9b5b190aeee873bc45a66ee'
 AUDIT_DIGEST = 'e5608afb712bd86251395800a4e27d9d7f1d8df75d75d0f2c41d827ada89affc'

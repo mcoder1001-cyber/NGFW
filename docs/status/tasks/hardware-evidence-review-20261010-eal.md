@@ -1,12 +1,14 @@
 # Independent EAL failure review — same hardware campaign
 
 Scope: docs/source/private receipt inspection only. Reviewer performs no target or
-product mutation. Current checkpoint: corrected source/native physical application and strong
-preboot control/admin convergence independently PASS on both hosts. New-boot
-configuration/driver persistence and recovered authenticated native proof PASS.
-Actual wallclock/RTC regression is corrected; separate repeat-boot clock and final
-native acceptance PASS on .37, pending on .211. These checks remain mandatory. The initial EAL failure below is historical and its correction is
-verified in the later appendices.
+product mutation. Current final verdict: APPROVE the same hardware campaign's scoped installation,
+control/admin state, management/routing protection, corrected source/native artifact,
+clock/RTC persistence and authenticated native acceptance after repeated normal boot
+on both hosts. Only actual peer packet forwarding/loss/throughput is NOT RUN and
+explicitly deferred under owner laboratory policy because all24 data links lack
+carrier. No real code, mandatory quick, clock, TLS or postboot native blocker remains.
+Historical failures and their corrections below remain preserved.
+
 
 Actual root-owned failure receipt f64ad15bd241d4bbed2e3219900b6836138dcaf13be17ce2f916df2bc9559de1
 is18019B0600. Independent selected JSON assertions confirm no COMMITTED, rolled-back
@@ -918,3 +920,74 @@ not a .211 phase blocker or new target test.
 
 Own publishede5c5c54f802318615bbcc3a1a91323c7e73d512d documentation check actually
 PASSED14s;gitleaks384.47KB/no leaks/board212valid.
+
+
+## Final independent scoped acceptance, 16:39 UTC — APPROVE
+
+.211 second normal boot and final authenticated native17 independently PASS.
+The persistence-source evidence NIT is CLOSED at published/read-back
+2344b2b5a00bbad0bb2c3be95db66893718efb04: exact .37 stdin source b47991600ee441c003a54a3b0d3602a358738c977087ca36dee50323726df666
+is truthfully archived after execution; .211 source24009768a9bf907b79c7cfecb79d5a91f41e0d0499cecd56dd190c38ff7ce3c6
+is published before execution and carries actual sourceSHA/command in its receipt.
+Both outer/remote ASTs PASS and only RTC_RD_TIME is called; no setter.
+
+```text
+Python private exactSHA/root0600/source/boot/UTC/native assertions; exit0
+manager-clock211-verification-reboot-20261010T163246Z-48e58170.json51115B
+SHA28086efe41cded187827f17a1047063373be04bd10a8e5650d87191c9709ed0a
+60commands0/empty stderr/request0/one marker/exact2639repair/protection unchanged
+manager-clock-fresh-SSH211-20261010T163356Z.json425B
+SHAc0f4d03d4a38f494d616e1e90942069743261e72059a5ae7e56e7dd1a1a6b6d9
+newUUIDa0915f60-2978-4c1d-af5f-4aa3c96e2703/system+RTC Oct10
+manager-clock-persistence211-20261010T163501Z.json1053B
+SHA29aeab7ef2af148acb5216a625a14cda8d773c883403c11523a65f489a3b4744
+read-only/SSH0/publishedsourceSHA+command/exactnewUUID/2639repair/UTCcontext
+controller monotonic window.222s/systemdelta-.137s/RTCdelta-1.148s within5s
+manager-boot211-observe-boot-20261010T163630Z.json660975B
+SHAd424d176728a2b1e78332142363ac768bd81e0e097daccdca412f1d749d7f2be
+68commands0/empty stderr/newa091/fresh-epoch/all4active0/nojobs
+protectedbefore==after/fullnewkernel storage[]
+manager-physical-native211-postboot-20261010T163709Z.json833945B
+SHAa7d36be76ee27e1c05287c569a7f6a485e0a995cf00e94afeb1601316505627b
+60commands0/PASS/observe-postboot/TLSadmin200/readiness401/native2parent1
+seed1retained/candidateequal/noPending/in-sync/all17APIadmintrue+VPPup
+pool66297>=RX17408/fullprotected/fourunitstable/storage[]/readonly
+manager-external-HTTPS-20261010T163628Z.json2539B
+SHA30a032a2f88f798fe9952931ba6b397eb428e270c6b2b4154bdde6dd60e31bf4
+actual rerun bothweb200/API401/referencedJS200/full certificate+hostname verification
+identical contentSHA earlier, distinct OEXCL filename; no stale-execution claim
+```
+
+Early nginx wait-online queue completed normally; no manual restart or extra
+reboot. Final native proof pins exact fresh d424 BOOT and immutable strong f052
+preboot; final .37 proof89b2/66f3/18ea is independently verified above. Both all24
+physical desired administrative states and independent VPP state converge with
+adequate actual RX pools, protected kernel management/IOMMU and complete L3/DNS/
+sysctl/foreign NFT invariants. Verified normal boot includes persistent scoped VFIO
+binder and only three owned product service enablements. No packet throughput claim.
+
+Fresh independent source/mandatory main-gate evidence:
+
+```text
+git ls-remote origin refs/heads/main
+0c21e65eea8b2d2cfb61f57ec9f6b57a0e6c55f3
+gh api repos/mcoder1001-cyber/NGFW/actions/runs/38062974117 --jq '{head_sha,status,conclusion}'
+{"conclusion":"success","head_sha":"0c21e65eea8b2d2cfb61f57ec9f6b57a0e6c55f3","status":"completed"}
+exit0
+```
+
+Native compiled source97ae and final docs-only integration48af remain truthfully
+distinct from mergedmain0c21. Native archive/control/helper/maintscript and unchanged
+complete branch/main quick reviews PASS; no failure log, review history, security
+guard or gate was waived. Initial filesystem, missing-plugin, owner-cache, EAL,
+framing, lexical-version and RTC/TLS failures have concrete actual corrected proofs.
+
+Final scoped hardware acceptance APPROVE. Only actual physical-peer packet loss/
+forwarding/throughput remains owner-authorized laboratory deferral28f724, explicitly
+NOT RUN due no data carrier. This verdict does not claim NTP synchronisation, physical
+SSD wear repair, full-userdata backup, timedated managed-indirection compatibility,
+management-IP SAN or browser trust. ROOT may close this scoped campaign after final
+public completion evidence/status publication. No reviewer target operation.
+
+Own published6bb248632c12dfbf18083f5e235bd161d045562e unchanged documentation
+check actually PASSED14s;gitleaks388.37KB/no leaks/board212valid.

@@ -1355,3 +1355,28 @@ Overall same hardware task RUNNING; upload/sim actual acceptance pending,
 physicalports/firstboot37/reboots not complete; no unrelatedboardrow closed.
 Next: actual reviewed4Inst0Remv simulation then install+restore guards, exact
 cache normalization and fresh ordered healthy agent/API/native17seed1 proof.
+
+Actual 2026-10-10 13:53 UTC: reviewed281 framing upload8646204e and actual
+simulation953996a5 PASS (both SSH0/emptyerr), actual four remote archive hash
+readback701a7725 PASS; 4Inst old2045→ee202/0Remv/nootherInst. Root and R7
+independently parsed full private receipts; exact INSTALL phase released.
+ACTUAL four-package upgrade receipt7cb4fbef8dbafa6a50c9da3075e69c5604594aeac1cbfb6c5ba3203e42254e4c
+308099B0600fsynced/SSH0/outererr0/nativeAPT0/dpkg-audit0empty; all4configured
+ee202 and installedagent SHAa909ae56ecee2431921659d0d9d489a14768fb12a4d71628627659fecd463781
+37049584B0755 MATCH. Full21units/L3/17originaldrivers/files/DNS/16sysctls/NFT/io6
+unchanged/newstorageerrors[]. Rootfullreceipt PASS; independentactualreview
+requested, own unchangedguard RESTORE-only released tooperator. No cache/start/
+resource/device write yet. Workerpublished actualuploadcheckpoint9b394def99e0bb23a4899360c3b0d966a5ead1c5.
+Root .37 four-upgrade preparation published71e8f6df8f2e74557418ef40a1db381607b38637
+sourcee5c0785f AST3PASS preservesexistingguards/all21inactive0/bootstrapabsent
+withpinnedoldbaseline6cf/protect0c58/7originaligcgroups/cleanroot/io6 and exact
+helper1.69wrapperSHA; no targetexecute pending independentreview.
+Root-own firstboot37 adaptation27328b7c27bce7cf31972cfdbb85e8f45c7e0937febb6b43d5da257d7865d13c
+AST2PASS, consumes original37 baseline read-only; native packagedhelper/assets
+hashes extracted from allfourchecksumverified archives, assertsinstalledee202
+fourversions/a909 and allthreeplugins. Keeps existingpolicy+mask/management,
+noVPP/agent/API/nginx start/binding. Outputs exclusively rootprivateparent;
+manager-owned newbootstrapcredential notyetgenerated. Prepared NOTEXECUTED;
+review plus actualfixedupgrade required before readonlypreflight/firstboot.
+Next: actual211guardrestoration, root reviewedexactemptycache recovery, scoped
+agentfailurecounterreset+orderedstart, realnative17seed1 then resource2/config/bind.

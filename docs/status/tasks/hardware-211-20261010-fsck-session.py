@@ -52,7 +52,9 @@ with TRANSCRIPT.open('xb') as transcript:
                 continue
             answer = line.strip()
             if answer in ('y', 'n'):
-                child.stdin.write((answer + '\n').encode())
+                # e2fsck ask_yn reads one byte with ICANON disabled. A newline
+                # would accept the following prompt's default unintentionally.
+                child.stdin.write(answer.encode())
                 child.stdin.flush()
                 print('SINGLE_ANSWER_SENT ' + answer, flush=True)
             elif answer == 'stop':

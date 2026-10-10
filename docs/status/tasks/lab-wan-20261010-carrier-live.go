@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"ngfw/agent/binapi/interface_types"
+	mssapi "ngfw/agent/binapi/mss_clamp"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/renderers"
@@ -111,7 +113,12 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	if password == "" {
 		t.Fatal("ephemeral peer credential missing")
 	}
+	extended := os.Getenv("NGFW_WAN_EXTENDED") == "1"
 	s := pppoe.Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "w20", Password: password, MTU: 1492, DefaultRoute: true, IPv6: "off", HoldoffSec: 1, MaxFail: 0}
+	if extended {
+		s.IPv6 = "slaac"
+		s.MSSClamp = true
+	}
 	t.Cleanup(func() {
 		if e := rt.Apply(context.Background(), nil); e != nil {
 			t.Errorf("runtime cleanup: %v", e)
@@ -172,6 +179,50 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		t.Fatal(packet)
 	}
 	t.Log("REAL_LAN_VPP_TRANSIT_KERNEL_PPP_IPV4_PACKETS PASS")
+	if extended {
+		if !wait(func() bool {
+			last = rt.poll(ctx)
+			rt.mu.Lock()
+			ready := rt.carrierReady[s.Iface]
+			rt.mu.Unlock()
+			return last == nil && len(ready.mirror.LocalIPv6) > 0
+		}) {
+			t.Fatalf("actual IPv6 RA/mirror not ready: %v; peer=%s; carrier=%s", last, run("ip", "-n", "ns-w20-carrier-isp", "-6", "addr", "show"), run("ip", "-n", spec.Token(), "-6", "addr", "show"))
+		}
+		run("ip", "-n", "ns-w20-carrier-isp", "-6", "route", "replace", "2001:db8:21::/64", "dev", "ppp0")
+		packet6 := run("ip", "netns", "exec", "ns-w20-carrier-lan", "ping", "-6", "-n", "-c", "3", "-W", "2", "2001:db8:20::1")
+		if !strings.Contains(packet6, "3 received") {
+			t.Fatal(packet6)
+		}
+		t.Log("REAL_CURRENT_RUNTIME_IPV6_RA_MIRROR_LAN_PACKETS PASS")
+		stream, err := mssapi.NewServiceClient(conn).MssClampGet(ctx, &mssapi.MssClampGet{SwIfIndex: interface_types.InterfaceIndex(transitIdx)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		row, _, err := stream.Recv()
+		if err != nil || row == nil || row.IPv4Mss != 1452 || row.IPv6Mss != 1432 || row.IPv4Direction != 3 || row.IPv6Direction != 3 {
+			t.Fatalf("actual MSS clamp readback: %+v %v", row, err)
+		}
+		t.Logf("REAL_MSS_CLAMP_READBACK IPv4=%d IPv6=%d RX_TX=3 PASS", row.IPv4Mss, row.IPv6Mss)
+		tcpCtx, tcpCancel := context.WithTimeout(ctx, 5*time.Second)
+		tcp := exec.CommandContext(tcpCtx, "ip", "netns", "exec", "ns-w20-carrier-isp", "tcpdump", "-nn", "-l", "-v", "-i", "ppp0", "-c", "1", "tcp and dst port 20020 and tcp[tcpflags] & tcp-syn != 0")
+		var tcpOutput bytes.Buffer
+		tcp.Stdout = &tcpOutput
+		tcp.Stderr = &tcpOutput
+		if err := tcp.Start(); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(300 * time.Millisecond)
+		exec.CommandContext(ctx, "ip", "netns", "exec", "ns-w20-carrier-lan", "python3", "-c", "import socket; s=socket.socket();s.settimeout(2);s.connect(('100.64.20.1',20020))").Run()
+		tcp.Wait()
+		tcpCancel()
+		if !strings.Contains(tcpOutput.String(), "mss 1452") {
+			t.Fatalf("real IPv4 TCP MSS packet: %s", tcpOutput.String())
+		}
+		t.Logf("REAL_TCP_SYN_MSS_1452_PACKET PASS %s", tcpOutput.String())
+
+	}
+
 	accepted, _, e := rt.Reconnect(ctx, s.Iface)
 	if e != nil || !accepted {
 		t.Fatalf("reconnect %t %v", accepted, e)
@@ -186,4 +237,19 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 		t.Fatalf("reconnect readiness: %v", last)
 	}
 	t.Log("REAL_CURRENT_RUNTIME_RECONNECT PASS")
+	if extended {
+		run("flock", "-x", "/run/lock/ngfw-globals.lock", "vppctl", "nat44", "plugin", "enable", "sessions", "4096")
+		run("vppctl", "nat44", "add", "address", "100.64.20.10")
+		run("vppctl", "set", "interface", "nat44", "in", "host-w20lan", "out", transitName)
+		natPacket := run("ip", "netns", "exec", "ns-w20-carrier-lan", "ping", "-n", "-c", "3", "-W", "2", "100.64.20.1")
+		if !strings.Contains(natPacket, "3 received") {
+			t.Fatal(natPacket)
+		}
+		sessions := run("vppctl", "show", "nat44", "sessions")
+		if !strings.Contains(sessions, "10.20.1.2") || !strings.Contains(sessions, "100.64.20.10") {
+			t.Fatalf("real NAT session evidence: %s", sessions)
+		}
+		t.Logf("REAL_LAN_VPP_NATIVE_NAT_PPP_PACKETS PASS %s", sessions)
+	}
+
 }

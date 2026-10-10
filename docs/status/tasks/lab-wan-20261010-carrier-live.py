@@ -19,7 +19,7 @@ if len(sys.argv)>1:
   run('mount','-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
   for name in ('pap-secrets','chap-secrets'):
    Path('/etc/ppp',name).touch(mode=0o600);run('mount','--bind',str(secret),'/etc/ppp/'+name)
-  options=d/'options';options.write_text('auth\nrequire-pap\nnoipv6\nmtu 1492\nmru 1492\nlcp-echo-interval 1\nlcp-echo-failure 2\n')
+  options=d/'options';options.write_text('auth\nrequire-pap\n'+('ipv6 ::1,::2\n' if os.environ.get('NGFW_WAN_EXTENDED')=='1' else 'noipv6\n')+'mtu 1492\nmru 1492\nlcp-echo-interval 1\nlcp-echo-failure 2\n')
   try:
    for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):
     run('ip','netns','add',ns);run('ip','-n',ns,'link','set','lo','up')
@@ -27,6 +27,18 @@ if len(sys.argv)>1:
     run('ip','link','add',dev,'type','veth','peer','name',peer);run('ip','link','set',peer,'netns',ns);run('ip','link','set',dev,'up');run('ip','-n',ns,'link','set',peer,'up')
    run('ip','-n','ns-w20-carrier-lan','addr','add','10.20.1.2/24','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','route','add','default','via','10.20.1.1')
    log=(d/'server.log').open('w');p=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','pppoe-server','-F','-k','-I','w20is','-L','100.64.20.1','-R','100.64.20.10','-N','1','-O',str(options)],stdout=log,stderr=log,start_new_session=True);processes.append((p,log));time.sleep(.5)
+   if os.environ.get('NGFW_WAN_EXTENDED')=='1':
+    ra=d/'peer-ra.py';ra.write_text('''import subprocess,time
+for attempt in range(250):
+ if subprocess.run(['ip','link','show','ppp0'],capture_output=True).returncode==0:break
+ time.sleep(.2)
+else:raise SystemExit('real peer PPP did not appear')
+subprocess.run(['ip','-6','addr','add','2001:db8:20::1/64','dev','ppp0'],check=True)
+subprocess.run(['sysctl','-w','net.ipv6.conf.all.forwarding=1'],check=True,capture_output=True)
+raise SystemExit(subprocess.call(['dnsmasq','--no-daemon','--conf-file=/dev/null','--port=0','--interface=ppp0','--bind-interfaces','--enable-ra','--dhcp-range=2001:db8:20::,ra-only,64','--ra-param=ppp0,5,60']))
+''')
+    ralog=(d/'ra.log').open('w');rp=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','python3',str(ra)],stdout=ralog,stderr=ralog,start_new_session=True);processes.append((rp,ralog))
+    run('ip','-n','ns-w20-carrier-lan','-6','addr','add','2001:db8:21::2/64','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','-6','route','add','default','via','2001:db8:21::1')
    wrapper=d/'test.sh';wrapper.write_text('''#!/bin/sh
 set -eu
 vppctl create host-interface name w20raw
@@ -38,6 +50,7 @@ vppctl set ip classify intfc host-w20lan table-index -1
 vppctl set ip6 classify intfc host-w20lan table-index -1
 vppctl set interface tag host-w20lan w20:host-w20lan
 vppctl set interface ip address host-w20lan 10.20.1.1/24
+if [ "${NGFW_WAN_EXTENDED:-0}" = 1 ]; then vppctl set interface ip address host-w20lan 2001:db8:21::1/64; fi
 exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -test.timeout=3m -test.run=^TestWANCurrentCarrierLive$
 ''');wrapper.write_text(wrapper.read_text().replace('/tmp/ngfw-lab-wan-20261010',str(BASE)));wrapper.chmod(0o700)
    result=subprocess.call(['python3',str(ROOT/'test/topology/hardware-smoke/isolated-vpp.py'),str(wrapper)])
@@ -51,6 +64,7 @@ exec /tmp/ngfw-lab-wan-20261010/bin/carrier-live.test -test.v -test.count=1 -tes
      except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait()
     log.close()
    print('REAL_PEER_LOG\n'+(d/'server.log').read_text(),flush=True)
+   if (d/'ra.log').exists():print('REAL_PEER_RA_LOG\n'+(d/'ra.log').read_text(),flush=True)
    for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):run('ip','netns','del',ns,check=False)
  sys.exit(result)
 lock=open('/run/lock/ngfw-slot-20.lock','a');fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)

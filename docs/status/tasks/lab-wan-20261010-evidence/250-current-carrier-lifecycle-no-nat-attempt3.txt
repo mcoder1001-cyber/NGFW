@@ -1,0 +1,530 @@
+TEMP_GENUINE_RUNTIME /usr/sbin/pppd da4500bda31e7944ba279cf52ba5c296ea30523343abecb76c97fddf7c125f9a
+TEMP_GENUINE_RUNTIME /usr/sbin/pppoe-server 42434e28c7b95bacbe562caeed09ca1a071f547d8d008b650872e5ef0feb64de
+TEMP_GENUINE_RUNTIME /usr/lib/pppd/2.5.2/pppoe.so 9db46149c218bcd55617a6baf9deaa71fde1329af2a27c4e0a82d0f965f138cf
+TEMP_GENUINE_ALIAS /usr/lib/pppd/2.5.2/rp-pppoe.so pppoe.so
+ROOT_HOST_IDENTITY_BEFORE {"uts": "uts:[4026531838]", "hostname": "ubuntu-26.04", "public_file_sha256": {"/etc/hostname": "91e8f72cfdd6cf195b59851f18cac3017f06b5d9f09df7065acb14c248f7d8ee", "/etc/issue": "e85bb444a8161d318169acc97382e991922264c2f7ed528d11fd0a8589665ef7", "/etc/issue.net": "49f7748c8124765d5055c7d7f7eb739a8c06c226950bcbf746d5d11dc6fcdf58", "/etc/motd": null}}
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=e68ae70a16ab55a3338df7b9ede984f06b9819f735527b59dad6bbaf9d699d41
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543711.188159667, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+CHILD_UTS_BEFORE {"namespace": "uts:[4026533088]", "hostname": "ubuntu-26.04"}
+PRIVATE_COPIED_TIMEZONE_CANONICAL_LINK PASS
+PRIVATE_UTS_ETC_VARLIB_ORIGINAL_IDENTITY_PROVISION PASS
+DISPOSABLE_VPP pid=501963 runtime=/tmp/ngfw-lab-wan250-20261010/repo/.scratch/isolated-vpp-501961
+host-w20raw
+host-w20lan
+              Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+host-w20lan                       2     down         9000/0/0/0     
+host-w20raw                       1     down         9000/0/0/0     
+local0                            0     down          0/0/0/0       
+host-w20raw: w20:host-w20raw
+host-w20lan: w20:host-w20lan
+OWNED_BROKER_METADATA {"observed_monotonic": 543720.28627678, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543720.590973959, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543721.098405211, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543721.401569864, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543721.807308915, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543722.213579935, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543722.820872569, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543723.124467283, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543723.529946433, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543723.833650053, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543727.893481395, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543728.197772004, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+DIAGNOSTIC_SCOPE NAT_EXCLUDED; dynamic-NAT criterion remains FAILED/OPEN
+OWNED_BROKER_METADATA {"observed_monotonic": 543729.011809755, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543729.316215891, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543729.924608534, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543730.227968234, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543730.734346106, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543730.937140284, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543731.445590902, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543731.74998697, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543732.256861891, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543732.662953507, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543733.069468173, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543733.373508622, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543733.778844997, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543733.982378304, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543734.388142503, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "prepare"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543734.794146342, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543735.403299893, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543735.706792435, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543736.113641534, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543736.518606622, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543736.823905458, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543737.128106889, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+REAL_API_COMMIT {"revision": 1, "candidate_sha256": "af784c3b06c5d544b8d9d628bdb558491d1098045c64f39438198d412182c2a1", "plan": [{"key": "interface.admin-state/host-w20lan", "op": "create", "pointer": "/interfaces/host-w20lan/enabled", "subsystem": "interfaces"}, {"key": "interface.admin-state/host-w20raw", "op": "create", "pointer": "/interfaces/host-w20raw/enabled", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/host-w20raw", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "l2.xconnect/pppr-0ddfe21c298c", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "pppoe.carrier.tap/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/169.254.169.57/30", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface-ip/w20ppp/fd0d:dfe2:1c29:8c69::1/126", "op": "create", "pointer": "/interfaces/w20ppp/pppoe", "subsystem": "interfaces"}, {"key": "interface.admin-state/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/enabled", "subsystem": "interfaces"}, {"key": "interface.mtu/w20ppp", "op": "create", "pointer": "/interfaces/w20ppp/pppoe/mtu", "subsystem": "interfaces"}, {"key": "system.identity/ngfw", "op": "create", "pointer": "/system", "subsystem": "system"}, {"key": "pppoe.client.config/ngfw", "op": "create", "pointer": "/interfaces", "subsystem": "interfaces"}], "warnings": [{"pointer": "/interfaces/w20ppp/pppoe/passwordRef", "message": "the password reference must resolve in the agent secret cache before apply", "rule": "pppoe.secret-unavailable"}, {"pointer": "/management/aaa", "message": "management.aaa is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/backup", "message": "management.backup is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/tls", "message": "management.tls is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/nat/ipfix", "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))", "rule": "agent.unsupported-field"}, {"pointer": "/services/ipfix/flowprobe", "message": "flowprobe parameters are applied only with at least one monitored interface", "rule": "agent.unsupported-field"}, {"pointer": "/services/lldp", "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)", "rule": "agent.write-only"}, {"pointer": "/services/ntp", "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare", "rule": "agent.unsupported-field"}]}
+OWNED_BROKER_METADATA {"observed_monotonic": 543737.839757614, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543738.143541009, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543738.448907677, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543738.855072307, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543739.260421154, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543739.565743146, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543740.073289141, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543740.377538249, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543740.785381875, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543741.089847824, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543741.496861741, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543741.801071349, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543742.308931347, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543742.613208771, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543743.020384091, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543743.325359065, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543743.833200969, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543744.03599969, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+REAL_AGENT_WIRING_API_PAP_IPCP_STATE {"phase": "up", "sessionId": 0, "acMac": "", "acName": "", "localIpv4": "100.64.20.10/32", "peerIpv4": "100.64.20.1", "ipv6": "2001:db8:20::2/64", "dns": [], "since": "2026-10-10T13:36:59.000Z", "failCount": 0, "lastError": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543744.543173169, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543744.847145901, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543745.252178424, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543746.165254938, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543746.571999873, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543746.977938546, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543747.486566706, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543747.790867621, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543748.299315365, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543749.314457874, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543749.7209334, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543750.128190327, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543750.636768039, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543750.940339052, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543751.346321101, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543752.364156799, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543752.769909377, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543753.177156515, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543753.685843781, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543753.989657281, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543754.395397063, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+REAL_API_CURRENT_WIRING_LAN_PACKET -4 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+OWNED_BROKER_METADATA {"observed_monotonic": 543755.40962893, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543755.714489202, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543756.22241871, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -6 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+=== RUN   TestWANCurrentCarrierReadback
+    zz_wan_native_carrier_test.go:329: REAL_API_MSS_CLAMP_1452_1432_RX_TX PASS
+--- PASS: TestWANCurrentCarrierReadback (0.05s)
+PASS
+
+OWNED_BROKER_METADATA {"observed_monotonic": 543756.731099718, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543757.034960159, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543757.440875905, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543758.456658747, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543758.862896245, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543759.269232373, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543759.777102441, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543760.081739684, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543760.487587153, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543760.792879605, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543761.811669955, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543762.1173083, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543762.523520382, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543762.929216667, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543763.335869669, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543763.640204569, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543764.554953529, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543764.858691959, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543765.265807563, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543765.569219319, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543766.077452365, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543766.381030603, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543766.583839655, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543766.887438901, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543767.29506015, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543768.209319139, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543768.61497675, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543769.123179391, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543769.52926502, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543769.833149529, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543770.13677018, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543771.151629776, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543771.456670024, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543771.963631194, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543772.47258081, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543772.776378031, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543773.18445663, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543774.20127833, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543774.607537604, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543775.014370127, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543775.523796541, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543775.929919647, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543776.335456941, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543777.353134472, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543777.75928294, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543778.266841563, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543778.67357398, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543778.97757097, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543779.383862203, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543779.68828363, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543780.094447613, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543780.398583817, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543780.499602007, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+REAL_API_CURRENT_WIRING_RECONNECT PASS
+REAL_AGENT_API_CONFIG_LOG_PASSWORD_ABSENCE PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543780.802410535, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543781.207092946, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543781.409577396, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543781.914687806, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543782.217991736, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+REAL_API_PEER_LOSS_STATE_AND_PACKET_WITHDRAWAL PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543785.659885759, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543785.963351664, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543786.773157727, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543787.076735825, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543787.886403088, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543788.190508073, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543788.998925025, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543789.403432778, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543789.504874342, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543789.809143687, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543790.214435601, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543791.127423105, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543791.533728521, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543791.940524662, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543792.44794377, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543792.751237125, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+REAL_API_SERVER_RESTART_HOLDOFF_1_PLUS_10 PASS elapsed=7.546
+OWNED_BROKER_METADATA {"observed_monotonic": 543793.055290029, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543793.460690175, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543794.477774366, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543794.885383722, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543795.393573782, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543795.799783591, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543796.103861781, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543796.612632112, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543797.527245325, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543798.034872153, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543798.441181691, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543798.952032861, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543799.255968182, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543799.661733837, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543800.679970449, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543801.087557979, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543801.493431446, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543801.899813792, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543802.20349348, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543802.609764193, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543803.626943842, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543803.93171146, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543804.338085615, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543804.745461651, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543805.150286277, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543805.454752119, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543806.469678273, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543806.875641087, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543807.282347901, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -4 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+OWNED_BROKER_METADATA {"observed_monotonic": 543807.790671776, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543808.095866805, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543808.501308749, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+REAL_API_CURRENT_WIRING_LAN_PACKET -6 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+REAL_API_SERVER_RESTART_PACKET_RECOVERY PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543809.518483918, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543809.823849208, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543810.331136854, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543810.840805321, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543811.043794058, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543811.551688296, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543811.857159608, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543812.263414306, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543812.567387871, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543813.075321591, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543813.379102938, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543813.68343953, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543814.699084833, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543815.003633314, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543815.409627647, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543815.816659177, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543816.221185468, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543816.525639977, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543816.829254059, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543817.133629347, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543817.537837623, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543817.944082109, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543818.248114039, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543818.755499831, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543819.670136344, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543820.076850487, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543820.584615518, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543820.890049321, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543821.193603067, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543821.599250292, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543822.004683372, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543822.309144662, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543822.715861803, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543823.122671846, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543823.426643402, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543823.831974341, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543824.035473165, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543825.152971324, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543825.457252569, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543825.862672971, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543826.167990876, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543826.575428153, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "prepare"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543826.879865355, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543827.388872627, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543827.692279444, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543828.097901632, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543828.402067495, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543828.807349176, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543829.11151444, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+REAL_API_COMMIT {"revision": 2, "candidate_sha256": "182476fd7e4dd42634824af1b3da552b5371f80997b9949cd982f7539a500db7", "plan": [{"key": "pppoe.client.config/ngfw", "op": "update", "pointer": "/interfaces", "subsystem": "interfaces"}], "warnings": [{"pointer": "/interfaces/w20ppp/pppoe/passwordRef", "message": "the password reference must resolve in the agent secret cache before apply", "rule": "pppoe.secret-unavailable"}, {"pointer": "/management/aaa", "message": "management.aaa is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/backup", "message": "management.backup is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/tls", "message": "management.tls is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/nat/ipfix", "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))", "rule": "agent.unsupported-field"}, {"pointer": "/services/ipfix/flowprobe", "message": "flowprobe parameters are applied only with at least one monitored interface", "rule": "agent.unsupported-field"}, {"pointer": "/services/lldp", "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)", "rule": "agent.write-only"}, {"pointer": "/services/ntp", "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare", "rule": "agent.unsupported-field"}]}
+OWNED_BROKER_METADATA {"observed_monotonic": 543829.721496236, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543830.026122703, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543830.330479156, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543830.735723784, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543831.141840336, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543831.445726533, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543831.851858236, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543832.155529638, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543832.460176246, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543832.865359701, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543833.271957459, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543833.576656314, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543834.08368778, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543834.387645158, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543834.692473151, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543834.996332231, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543835.401733454, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543835.807770608, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543836.214567308, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543836.518558187, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543836.925635744, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543837.23013942, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543837.63616554, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543837.94036469, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543838.651381656, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543838.954520427, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543839.359207455, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543839.664166932, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543840.069142853, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543840.474625671, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543841.184559337, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543841.489295232, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543841.894894874, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543842.300886118, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543842.707799578, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543843.012036274, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+REAL_API_WRONG_PASSWORD_AUTHENTICATION_ERROR PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543843.620372165, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543844.025891492, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543844.431742136, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543844.739692844, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543845.145911026, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543845.552069973, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543846.161494597, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543846.46598083, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543846.872314105, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543847.278477457, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543847.685357035, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543847.990508133, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543848.598950661, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543849.004514269, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543849.30923578, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543849.714897462, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543850.122380391, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543850.42661025, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543850.833520793, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543851.137949319, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543851.543476298, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543851.848196217, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543852.459235049, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543852.763558734, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543853.271179685, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "withdraw"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543853.576139432, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543853.880808532, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "prepare"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543854.287356373, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543854.998114657, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543855.403817135, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543855.70788801, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543856.01261651, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543856.418570489, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543856.723958658, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+REAL_API_COMMIT {"revision": 3, "candidate_sha256": "af784c3b06c5d544b8d9d628bdb558491d1098045c64f39438198d412182c2a1", "plan": [{"key": "pppoe.client.config/ngfw", "op": "update", "pointer": "/interfaces", "subsystem": "interfaces"}], "warnings": [{"pointer": "/interfaces/w20ppp/pppoe/passwordRef", "message": "the password reference must resolve in the agent secret cache before apply", "rule": "pppoe.secret-unavailable"}, {"pointer": "/management/aaa", "message": "management.aaa is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/backup", "message": "management.backup is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/management/tls", "message": "management.tls is not applied by this agent build", "rule": "agent.unsupported-field"}, {"pointer": "/nat/ipfix", "message": "nat.ipfix is not applied by this agent build (NAT IPFIX logging (F-ipfix-sflow))", "rule": "agent.unsupported-field"}, {"pointer": "/services/ipfix/flowprobe", "message": "flowprobe parameters are applied only with at least one monitored interface", "rule": "agent.unsupported-field"}, {"pointer": "/services/lldp", "message": "services.lldp is disabled: nothing is applied (VPP has no getter for LLDP either way; D-063)", "rule": "agent.write-only"}, {"pointer": "/services/ntp", "message": "services.ntp is disabled: chrony gets no sources and no server (the disabled rendering); nothing else to compare", "rule": "agent.unsupported-field"}]}
+OWNED_BROKER_METADATA {"observed_monotonic": 543857.436768222, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543857.741260815, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543858.1477583, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543858.452475406, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543858.858469036, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543859.163109997, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543859.56962016, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543859.974497804, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543860.379294365, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543860.683956741, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543861.09055573, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543861.394202421, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543861.901992041, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543862.207177799, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543862.613697003, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543863.018456534, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543863.32216585, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543863.626448764, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543864.032736033, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543864.335758518, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543874.56510053, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543874.869449726, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543875.275133323, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543876.189921766, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543876.595602703, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543877.001785801, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543877.51083575, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543877.814886539, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543878.220946049, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543879.237805845, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543879.645325883, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543880.153185234, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543880.560589155, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543880.966144266, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543881.372194721, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543881.675599969, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543882.082596552, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543882.487951178, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543882.589181955, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543882.893617712, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543883.299559631, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543884.317634322, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543884.724927612, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543885.232586494, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543885.741426413, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543886.045572341, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543886.349895495, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543887.366100428, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543887.772579556, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543888.178873779, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543888.686718546, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543888.990452962, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543889.395886067, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543890.411742262, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543890.819670904, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543891.227735954, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543891.737544527, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543892.041225053, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543892.24354576, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543893.260139561, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543893.667310215, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543894.074405713, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543894.58441363, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543894.989979287, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543895.497577816, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543896.41225892, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543896.920563389, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543897.326759586, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543897.834532623, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543898.138337674, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543898.54449886, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543899.561776132, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543900.070178113, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543900.375549457, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -4 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+OWNED_BROKER_METADATA {"observed_monotonic": 543900.783394512, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543901.087245448, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543901.392196525, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543902.406721028, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543902.813228681, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543903.219245855, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543903.72814624, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543904.033101088, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543904.43916674, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543905.456466985, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543905.86398097, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543906.271132953, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543906.77985306, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543907.084415823, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543907.490590826, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "configure"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543908.508501631, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+OWNED_BROKER_METADATA {"observed_monotonic": 543908.916727126, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "requests", "op": "verify"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543909.322879158, "child_pid": 501929, "owned_namespace_scope": "carrier", "area": "results", "ok": true, "error_class": ""}
+REAL_API_CURRENT_WIRING_LAN_PACKET -6 PASS 3 packets transmitted, 3 received, 0% packet loss, time 2020ms
+REAL_API_CORRECT_PASSWORD_RECOVERY_CLEARS_ERROR_AND_PACKETS PASS
+REAL_API_CORRECT_AND_WRONG_PASSWORD_LOG_CONFIG_AUDIT_ABSENCE PASS
+OWNED_BROKER_METADATA {"observed_monotonic": 543909.831928749, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543910.135820447, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543910.540672855, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "requests", "op": "list"}
+OWNED_BROKER_METADATA {"observed_monotonic": 543910.844374943, "child_pid": 501929, "owned_namespace_scope": "inventory", "area": "results", "ok": false, "error_class": "ValueError"}
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-wan250-20261010/repo/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 154, in <module>
+    commit(api,paths,warnings)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/ngfw-lab-wan250-20261010/repo/docs/status/tasks/lab-wan-20261010-carrier-api.py", line 70, in commit
+    validation=api.call('POST','/config/validate')
+  File "/tmp/ngfw-lab-wan250-20261010/repo/test/topology/traffic-b/tunnels.py", line 67, in call
+    raise Refused(f"API HTTP {error.code} {method} {path}; problem {problem.get('type','unknown')} pointers {[e.get('pointer') for e in problem.get('errors',[])]} title {problem.get('title')} detail {problem.get('detail')}") from None
+scenario.Refused: API HTTP 502 POST /config/validate; problem https://ngfw.dev/problems/agent-error pointers [] title Agent error detail agent: plan: retrieve pppoe.carrier.tap: carrier broker result identity or operation failed
+DISPOSABLE_VPP_STOPPED pid=501963
+CHILD_UTS_AFTER {"namespace": "uts:[4026533088]", "hostname": "ngfw"}
+REAL_PEER_LOG
+
+REAL_PEER_RA_LOG
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-SOLICIT(ppp0) 
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+dnsmasq: started, version 2.92 DNS disabled
+dnsmasq: compile time options: IPv6 GNU-getopt DBus no-UBus i18n IDN2 DHCP DHCPv6 no-Lua TFTP conntrack ipset nftset auth DNSSEC loop-detect inotify dumpfile
+dnsmasq-dhcp: router advertisement on 2001:db8:20::
+dnsmasq-dhcp: IPv6 router advertisement enabled
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq-dhcp: RTR-ADVERT(ppp0) 2001:db8:20::
+dnsmasq: exiting on receipt of SIGTERM
+
+OWNED_CHILD_MOUNTS_REMOVED PASS
+REAL_RAW_DIAGNOSTIC_LOG_PASSWORD_ABSENCE PASS
+OWNED_INACTIVE_RUNTIME_TOKEN_REMOVED PASS
+OWNED_RENDER_TOKEN_REMOVED PASS
+SHARED_VPP_BEFORE MainPID=8102,NRestarts=0,
+SHARED_VPP_AFTER MainPID=8102,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+ROOT_HOST_IDENTITY_AFTER {"uts": "uts:[4026531838]", "hostname": "ubuntu-26.04", "public_file_sha256": {"/etc/hostname": "91e8f72cfdd6cf195b59851f18cac3017f06b5d9f09df7065acb14c248f7d8ee", "/etc/issue": "e85bb444a8161d318169acc97382e991922264c2f7ed528d11fd0a8589665ef7", "/etc/issue.net": "49f7748c8124765d5055c7d7f7eb739a8c06c226950bcbf746d5d11dc6fcdf58", "/etc/motd": null}}
+SHARED_HOST_IDENTITY_UNCHANGED PASS
+TEMP_GENUINE_RUNTIME_REMOVED PASS
+
+PUBLIC_NAMESPACE_METADATA_SANITIZED count=398; deterministic namespace labels omitted; credential-absence controls used original raw logs.

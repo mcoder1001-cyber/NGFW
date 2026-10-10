@@ -48,18 +48,30 @@ func registerWANRoutes(reg scheduler.Registry, wiring *subsystems.Wiring, client
 	}, Run: func(ctx context.Context, sync subsystems.SyncFunc) {
 		ticker := time.NewTicker(time.Second)
 		defer ticker.Stop()
-		for {
-			if ctx.Err() != nil {
-				return
-			}
-			_ = sync(ctx)
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			}
-		}
+		runWANRoutes(ctx, ticker.C, runtime.HasConfiguredGroups, sync)
 	}})
+}
+
+// runWANRoutes retains periodic repair for every configured group, including
+// all-down groups. A successfully empty projection needs no repeated retrieval
+// of unrelated dependencies; startup and the last withdrawal still reconcile.
+func runWANRoutes(ctx context.Context, ticks <-chan time.Time, configured func() bool, apply subsystems.SyncFunc) {
+	emptyApplied := false
+	for {
+		if ctx.Err() != nil {
+			return
+		}
+		active := configured()
+		if active || !emptyApplied {
+			err := apply(ctx)
+			emptyApplied = !active && err == nil
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+		}
+	}
 }
 
 // installedWANActive only reports a member after an owned FIB Retrieve confirms

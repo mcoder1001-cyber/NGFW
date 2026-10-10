@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`ff6af9a5c2bfaa2152ede025d44402a6d9ad0149` (verified37 preservation and211 safeguard review; matching
+`134606437621c2fc282698336413fab2cd695ebe` (verified guarded package simulation; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -487,3 +487,13 @@ original-root marker/L3 unchanged corroborated; solver114 Inst/0Remv with only3
 base-perl/OpenSSL security upgrades. Concrete needrestart check confirms package,
 known paths and hooks absent; no hypothetical blocker remains. Actual installation
 source/phase, activation configuration and postinstall management proof pending.
+
+
+Final .211 installation-source applicability APPROVE: d47b7759eead7459ade5bdc889f7bec4f4ea839a5613d28f66814f5422de2c9d
+on independently remote-readback936ec02c52982b21ad0a14bfe9de8c8be6ee5a33; AST2 PASS,
+exact plan/11 hashes/guard/L3 checks and corrected21-state assertions. Parent
+installation release and actual results remain separate; no activation/binding.
+.37 initial controller EOF-launch failure reported39 B/255 before fsck/undo;
+operator preserving failure and preparing interactive isatty-guarded launcher.
+Await actual receipt corroboration and fresh audit for retry; fixed one-byte
+driver and correction scope are unchanged.

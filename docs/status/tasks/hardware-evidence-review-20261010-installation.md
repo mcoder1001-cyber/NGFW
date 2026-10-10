@@ -67,3 +67,39 @@ suppression, fresh authenticated22 and complete L3 proof after installation.
 At this checkpoint installation/activation/binding has not been executed or
 accepted. Preserve actual failure receipts and safeguards if any subsequent phase
 fails; do not label simulation as hardware acceptance.
+
+
+## Exact installation source applicability
+
+Final operator checkpoint936ec02c52982b21ad0a14bfe9de8c8be6ee5a33 independently
+remote-read back via git ls-remote. Exact install-reviewed.py actual bytes
+SHA256d47b7759eead7459ade5bdc889f7bec4f4ea839a5613d28f66814f5422de2c9d,
+outer/REMOTE AST2 PASS; full source and focused delta inspected. Immediately
+re-simulates and requires byte-exact ordered114 Inst lines/zero removals matching
+immutable solver07d88eb3, verifies11 archive hashes, original cleanroot8:2,
+protected PCI/driver/IOMMU28 and complete L3, trusted time, exact101policy, masked
+inactive VPP and durable marker146f4683. Refuses actual new needrestart hooks/tool.
+
+APT installation command uses --no-remove/--no-install-recommends, --force-confold,
+DEBIAN_FRONTEND=noninteractive and named archives/dependencies only. No timeout
+kills dpkg. Private target RAM logs and controller fsynced receipts retain outputs;
+partial failure must retain marker/guards and must not be blindly rerun over
+existing logs. No firstboot/service activation/NIC binding/hugepage/reboot action
+is requested by this script.
+
+Review found a concrete completeness omission in the initial15-unit postinstall
+assertion: planned routing daemon keepalived, enabled firewall-bootstrap and
+privileged namespace-broker socket were not included. Corrected before execution.
+Final21-unit list explicitly asserts those plus snmpd, rsyslog, PostgreSQL cluster
+and existing product/runtime services/socket suppression. Exact11 control archives
+were independently streamed and inspected: product postinst enables/updates helper
+state without direct start or NIC/network commands; VPP uses standard policy-aware
+deb-systemd-invoke/invoke-rc.d start. Meta enables firstboot/firewall-bootstrap for
+future boot, reinforcing configured seed/service assessment before reboot. No
+archive maintainer script was executed by reviewer.
+
+Verdict APPROVE exact source applicability under parent's installation phase
+release, retaining safeguards. Actual installation exit/package integrity,21-state
+suppression, fresh authenticated22, protected PCI and full L3 evidence remain
+required for actual installation acceptance. Forwarding/service activation and
+interface-binding acceptance are still later work, not inferred from simulation.

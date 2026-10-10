@@ -260,3 +260,19 @@ Last verified own remote cb7ed8d7a41648d5e807b002591a937f80884617. Next exact co
 read worker immutable published helper checkpoint, then private actual posttransition
 RAM PID1/runtime/auth/network and conclusive offline audit/positive guard receipts.
 No correction, normal return or .37 transition approval implied.
+
+09:45 actual .211 transition/offline PASS within read-only phase: independently
+readback f5018b57 exact helper sources; private first auth255 de8c preserved, fresh
+auth0/empty8d8935 with RAM PID1/helper/sshd runtime. Private1dffaa network/runtime
+all11 sections0; allsix network JSON sections exactly equal without normalization.
+Private b74d offline audit267processes/93FDs/8userspace globalNS,oldrefs0/nsfs0/
+races0/failures0,finalexclusive0. Read-only fsck03190e6c confirms invalid extents
+259596/7/8 + directory259599 and aborted12 with every correction declined. Kernel
+and df option gaps preserved; image held for baseline. New tiny kernel reader78f74c
+independently rebuilt exact3ebe/856288B; argument refusal2 and controller readonly
+snapshot0, contents never printed. RAM stage applicability approved, actual target
+baseline still pending. .37 wrapper9b9ba20b APPROVE RAM-only after publication,
+AST2/2 and copied helpers exact, no transition release. Last verified own remote
+bc7b67d917f7a3c80c2c08f7ccd664b27327462d. Next: inspect actual kernel baseline,
+read-only affected inode names/types, measured metadata image/compression/offhost
+verification and undo capacity before separate correction review.

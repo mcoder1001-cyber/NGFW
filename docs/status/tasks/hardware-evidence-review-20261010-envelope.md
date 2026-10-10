@@ -62,3 +62,8 @@ Additional owned actual audit-tool review:
 `hardware-evidence-review-20261010-audit.md`. Review exact worker C/Bash source,
 independent controller-only static build/refusal behavior and private actual
 mounted-negative/runtime receipts; no target execution or product edits.
+
+Additional owned actual transition/diagnostic follow-up:
+`hardware-evidence-review-20261010-post-transition.md`. Verify private selected
+actual runtime/auth/network/reference/guard results and subsequent read-only
+diagnostic/preservation outputs; review narrow operational reader source.

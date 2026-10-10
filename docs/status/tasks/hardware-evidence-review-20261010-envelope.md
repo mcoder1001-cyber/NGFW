@@ -22,7 +22,9 @@ claim, recovery boundary, separate observed live roles versus board task states.
 Output: precise findings/verdict with commands and selected actual output in an
 owned R7 report; commit/push each coherent checkpoint and verify remote SHA.
 
-Current issue: manager WIP contains prose PASS claims without command/output
-selections in repository evidence. Manager is asked to add a committed appendix;
-follow-up review must use the actual updated final SHA. CI and fixed archive review
-are independently pending gates, not false completion claims.
+Initial issue: prose PASS claims lacked committed command/output selections.
+Manager published linked evidence appendix on amended final candidate
+`5bd7e8b545fc765fd2babd8dda15175d6f33af1b`; focused docs-delta recheck closes R7-1.
+No new product or target operations are assigned. Final hosted quick/hardware
+acceptance are not established by this R7 review. Current verdict/report is owned
+in `hardware-evidence-review-20261010-review-R7.md`.

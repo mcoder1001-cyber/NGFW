@@ -6,8 +6,8 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: this task's envelope/WIP/R7 report only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`0e9211dc05bd6d34c5f4b2892f9704918a746aa9` (report plus WIP; matching CLI push
-and remote readback). Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
+`6d6a07fbebea39935799d7f391bda8f501e28751` (initial review handoff; matching CLI
+push/readback). Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
 archive ref, historical hosted gate and current pending hosted gate inspected.
@@ -15,7 +15,7 @@ Remote worker/reviewer receipts and external build log selections corroborate
 the ext4 blocker, protected management ports, seven/seventeen data NIC inventories,
 no target installation/acceptance and the narrow one-line packaging correction.
 
-Commands run in this worktree and actual output:
+Initial review commands run in this worktree and actual output:
 
 ```text
 git diff --stat origin/main...bde83bc87ae817a61bbc70e4029f76109ae77c35
@@ -37,8 +37,8 @@ check PASSED (0m14s)
 
 The board tool prints validation rather than help; no board file was changed.
 Historical gate success is not final-head gate success. Fixed native build log
-contains 16+12+6+3+4=41 successful fixtures, but the build/archive inspection is
-still pending; this reviewer did not rerun those tests and does not claim them as
+contained 16+12+6+3+4=41 successful fixtures, while build/archive inspection was
+pending at that initial snapshot; this reviewer did not rerun those tests or claim them as
 its own test execution. External old runtime manifest explicitly blocks installation.
 
 Observed operational roles via collaboration inventory: root, host_37 (R1/T1),
@@ -46,19 +46,27 @@ install_review (R8) and this R7 reviewer running; host_211 not listed after its 
 handoff. This is a transient inventory, not proof of persistent developers or a
 service. Hardware installation roles remain awaiting offline recovery.
 
-Current verdict: BLOCK only for R7-1, missing committed command/output evidence in
-manager WIP lines34–47. Full report is `hardware-evidence-review-20261010-review-R7.md`.
-The manager WIP needs committed commands/pasted output or
-a linked committed evidence appendix for its completed PASS claims. Manager agrees
-to add evidence; any revised R7 verdict awaits that limited docs recheck. No product code
-changes are assigned. Final quick/native archives/hardware acceptance remain pending.
+Current verdict: APPROVE final candidate
+`5bd7e8b545fc765fd2babd8dda15175d6f33af1b`. R7-1 closed: WIP links a committed
+evidence appendix with exact commands, real output and immutable receipt links.
+Full focused command/output record is `hardware-evidence-review-20261010-review-R7.md`.
+Product/control/test/build/CI unchanged from approved compiled2045ab8; D112 count1,
+remote integration archivebde verified. R8 final archive receipt at1e31b4ae is
+published and matches four actual package controls/hashes and unchanged safeguards.
+One optional NIT: quoted gitleaks trailing blank at evidence.md:129 makes
+`git diff --check` exit2; manager notified, not a blocking evidence issue.
+Complete hosted quick run38033766837 was independently observed in_progress on
+exact5bd7 head. No final quick/T1 or hardware acceptance PASS is claimed here.
+Reviewer docs check before this checkpoint: `tools/ci.sh check --base origin/main`
+exited0 and printed `check PASSED (0m15s)`.
 
-Exact next command: `git fetch origin codex/hardware-manager-20261010`, then inspect
-the new HEAD and committed evidence appendix; compare product/control blobs against
-the reviewed source before writing the final R7 report. Run
-`tools/ci.sh check --base origin/main` before committing reviewer documents.
+Exact next command if manager supplies a later changed head:
+`git fetch origin codex/hardware-manager-20261010`, then compare docs/product delta
+against approved5bd7e8b before any revised verdict. Manager must complete mandatory
+final-head gate/T1 and verify expected main/PR heads before merge. Hardware recovery
+requires owner console/rescue information and clean offline filesystem repair.
 
-Operational handoff: initial R7 review and publication complete; reviewer is
-**awaiting resume** for the manager's appendix/new final HEAD. No reviewer-owned
+Operational handoff: focused R7 recheck complete; reviewer is **awaiting resume**
+for a later changed head or evidence question after publication. No reviewer-owned
 process remains running and no target actions occurred. The earlier live-agent
 snapshot is historical evidence, not current active-worker status.

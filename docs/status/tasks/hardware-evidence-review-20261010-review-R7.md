@@ -7,9 +7,14 @@ Independent reviewer `/root/evidence_review`, own worktree
 `d2d55984d74fa1d06c32e8271886f11f16375407`. No product, other worktree, board,
 shared VPP or target was modified by this reviewer.
 
+**Current verdict: APPROVE** for amended final candidate
+`5bd7e8b545fc765fd2babd8dda15175d6f33af1b`. Focused recheck below closes R7-1.
+Initial findings/evidence are retained as history, not the current blocking verdict.
+
 ## Findings
 
-**BLOCKER R7-1 — completed check claims lack committed command/output evidence.**
+**Initial BLOCKER R7-1 — closed by focused recheck at5bd7e8b.** Completed check
+claims lacked committed command/output evidence in the original candidate.
 Location: `docs/status/tasks/hardware-manager-20261010-wip.md:34`, continuing
 through corrected-build evidence at lines43–47. The WIP asserts completed VPP72
 tests, frozen install, 14 build tasks, seven helpers, API deployment and 41 package
@@ -106,6 +111,64 @@ R8 and this R7 reviewer running; host_211 had ended its R2 handoff. Those roles
 are separate from board counts and hardware installers awaiting offline recovery.
 Transient chat-agent presence proves no persistent runner/service.
 
-**Verdict: BLOCK** for candidate `bde83bc87ae817a61bbc70e4029f76109ae77c35`, solely
+**Initial verdict: BLOCK** for candidate `bde83bc87ae817a61bbc70e4029f76109ae77c35`, solely
 for R7-1. Final quick/native archive reviews remain separate merge prerequisites;
 their pending status is honestly described, not an additional R7 defect.
+
+## Focused R7-1 recheck — final5bd7e8b
+
+Manager published amended single-commit HEAD
+`5bd7e8b545fc765fd2babd8dda15175d6f33af1b`. Independently fetched and read its
+committed `hardware-manager-20261010-evidence.md`, linked from WIP. It carries the
+exact preparation/build/install/source-check commands, observed exit0, selected
+real VPP72/build14/package41 output, final API dependency metadata and archive
+hashes, and immutable host/R1/R2/R8 receipts. Selections match inspected external
+logs/manifest. Output is clearly preparation, not target acceptance. The source
+script's completed prepared-source marker follows all seven fail-fast helper builds.
+
+The documentation delta honestly records completed native build and reported
+independent R8 archive inspection, with final quick pending on amended HEAD.
+R8's [published final artifact receipt](https://github.com/mcoder1001-cyber/NGFW/blob/1e31b4ae33f1a5af199b2ee18d71f744d9c3a71a/docs/status/tasks/hardware-review-20261010-artifact-review.md)
+was independently fetched/read: exact four hashes/dependencies/units/helper bytes
+and its exited-zero output agree with the appendix. Its approval is explicitly
+integrity/metadata only. Old archives remain blocked; no target transfer/install,
+seed, physical forwarding, API/TLS, reboot persistence or release PASS is asserted.
+Source-derived seed-before-binding ordering is explicitly NOT live-tested.
+
+Actual commands/output in own reviewer worktree:
+
+```text
+gh pr view 217 --json headRefOid,title
+headRefOid=5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+git diff --name-only bde83bc87ae817a61bbc70e4029f76109ae77c35 5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+docs/status/tasks/hardware-manager-20261010-evidence.md
+docs/status/tasks/hardware-manager-20261010-review-plan.md
+docs/status/tasks/hardware-manager-20261010-wip.md
+git diff --exit-code 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c 5bd7e8b545fc765fd2babd8dda15175d6f33af1b -- apps packages deploy tools .github package.json pnpm-lock.yaml
+[empty output; exit0]
+git rev-list --count origin/main..5bd7e8b545fc765fd2babd8dda15175d6f33af1b
+1
+git ls-remote origin refs/heads/main refs/heads/codex/archive-hardware-manager-20261010-integration refs/heads/codex/hardware-manager-20261010
+bde83bc87ae817a61bbc70e4029f76109ae77c35 refs/heads/codex/archive-hardware-manager-20261010-integration
+5bd7e8b545fc765fd2babd8dda15175d6f33af1b refs/heads/codex/hardware-manager-20261010
+d2d55984d74fa1d06c32e8271886f11f16375407 refs/heads/main
+git rev-parse 5bd7e8b545fc765fd2babd8dda15175d6f33af1b:deploy/debian/ngfw/debian/control
+dbf2c0d12f880da0c5b4ffde19711c7f1d4fca9e
+gh run view 38033766837 --json headSha,status,conclusion
+{"conclusion":"","headSha":"5bd7e8b545fc765fd2babd8dda15175d6f33af1b","status":"in_progress"}
+tools/ci.sh check --base origin/main
+check PASSED (0m15s)
+```
+
+**NIT R7-2 (optional):** `hardware-manager-20261010-evidence.md:129` preserves a
+trailing space from the quoted gitleaks output. `git diff --check origin/main...5bd7`
+exits2 and identifies only that line. Removing the trailing blank is optional;
+this does not change the evidence or block R7 approval. Manager was notified; no
+product/test/build/CI change or additional package build is warranted for this nit.
+
+**Final R7 verdict: APPROVE** for exact
+`5bd7e8b545fc765fd2babd8dda15175d6f33af1b`; zero open BLOCKER/MAJOR/MINOR and one
+optional NIT. R7-1 is closed. Mandatory final-head quick/T1 and other applicable
+review receipts remain required before merge; this reviewer does not claim their
+PASS. Both hardware targets remain blocked on offline recovery with acceptance
+NOT RUN. Any later product/docs change needs applicable review of its delta.

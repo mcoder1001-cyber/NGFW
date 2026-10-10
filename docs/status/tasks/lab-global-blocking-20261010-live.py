@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Finite real-agent/API global-blocking acceptance in the verified private VPP."""
-import ipaddress,json,os,re,subprocess,sys,time,urllib.request
+import ipaddress,json,os,re,subprocess,sys,time,urllib.request,urllib.error
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -21,9 +21,13 @@ def vpp(label,*argv):
 def request(api,method,path,body=None,ctype='application/json'):
  if body is not None and ctype!='text/plain':body=json.dumps(body)
  req=urllib.request.Request(api.base+path,method=method,data=None if body is None else body.encode(),headers={'Authorization':'Bearer '+api.token,'Content-Type':ctype})
- with urllib.request.urlopen(req,timeout=180) as response:return json.load(response)
+ try:
+  with urllib.request.urlopen(req,timeout=180) as response:return json.load(response)
+ except urllib.error.HTTPError as error:
+  problem=json.load(error);record('api-error',status=error.code,problem=problem);raise
 
 def traffic(case,side,src,dst,allow,tcp=True):
+ if allow:subprocess.run(['ip','netns','exec','ns-w17-'+side,'ping','-n','-I',src,'-c','1','-W','1',dst],capture_output=True,timeout=5)
  p=subprocess.run(['ip','netns','exec','ns-w17-'+side,'ping','-n','-I',src,'-c','2','-W','1',dst],text=True,capture_output=True,timeout=10)
  text=p.stdout+p.stderr;(EVID/(case+'-ping.txt')).write_text(text)
  assert re.search(r'2 packets transmitted, '+('2' if allow else '0')+' received',text),text
@@ -63,6 +67,7 @@ try:
  for side,address in [('lan','10.17.1.2'),('lan','10.17.1.3'),('wan','10.17.2.2')]:
   code='import socket; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(("'+address+'",18443)); s.listen(); print("ready",flush=True)\nwhile True:\n c,a=s.accept(); c.sendall(c.recv(99)); c.close()'
   server=subprocess.Popen(['ip','netns','exec','ns-w17-'+side,'python3','-u','-c',code],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True);servers.append(server);assert server.stdout.readline().strip()=='ready'
+ run(str(BIN/'nat46-handoff'),'w17')
  with product_stack(17,agent_binary=str(BIN/'ngfw-agent')) as (api,owned,restart):
   api.call('PATCH','/config/vrfs',{'w17-gb-proof':{'id':17040}})
   first=api.call('POST','/config/commit?comment=gb-baseline');warnings=check_commit(first,changed_paths=('/vrfs',));revision=first['revision']['id']
@@ -101,8 +106,11 @@ try:
    changed=entries.copy();changed[777]='100.127.255.254/32';list_entries(changed)
    candidate=request(api,'GET','/config/candidate');path=owned/'gb-incremental.json';path.write_text(json.dumps(candidate));path.chmod(0o600)
    plan=json.loads(run(str(BIN/'ngfw-agentctl'),'-s',str(owned/'agent.sock'),'dryrun',str(path),'-subsystems','acl',timeout=90));(EVID/'incremental-dryrun.json').write_text(json.dumps(plan,indent=2)+'\n')
+   assert plan['ok'] and not plan.get('errors')
+   assert plan.get('summary',{}).get('created',0)==0 and plan.get('summary',{}).get('deleted',0)==0 and 1<=plan['summary']['updated']<=5,plan
+   assert not any('interface-binding' in item.get('key','') for item in plan.get('plan',[])),plan
    commit('gb-one-entry-real-commit');assert request(api,'GET','/security/global-blocking')['lists'][0]['runningEntries']==200000
-   record('incremental-plan',plan=plan)
+   record('incremental-plan',summary=plan['summary'],keys=[item['key'] for item in plan['plan']])
   finally:
    api.call('POST','/config/discard');result=request(api,'POST',f'/config/rollback/{revision}?comment=gb-rollback',{});check_commit(result,baseline_warnings=warnings,changed_paths=paths)
    text=vpp('acl-rollback','show','acl-plugin','acl');assert '_gb.' not in text

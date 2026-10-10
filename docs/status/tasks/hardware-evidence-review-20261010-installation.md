@@ -245,3 +245,38 @@ reads that helper and clears the label on EINVAL. Preserved dereferenced zone by
 support libc timezone behavior; current cached-label equality is explicitly not
 proof of fresh timedated label compatibility. Root/operator were informed without
 blocking the authorized same-file adoption or weakening security guards.
+
+## Firstboot-only exact source and read-only preflight
+
+Actual installed inspection30fb509a independently parsed:13 commands exit0/empty
+stderr, native nft snapshot has zero tables. Effective nft Start/Reload use solely
+ngfw-base.nft and require firewall-bootstrap; actual drop-in clears ExecStop and
+effective show omits the empty property. Hugepages/shmgroup remain0. Active persistent
+80-vpp.conf has1024/group0 and is explicitly accounted for before future boot.
+
+Firstboot-only source SHA256
+ec2c40913f14ee28d9e19fd7b26658c9eea941e4ba1717a66719e4b83f68100e
+on independently remote-readback8637789d6297e7140fa60f167500fb84bd3eab4a:
+full initial source/canonical firstboot, firewall, DB and TLS bootstrap reviewed,
+focused final deltas read, outer/remote AST2 PASS. Fifteen remaining service/socket
+states must stay inactive; only six canonical provisioning dependencies become
+active. Sixteen sysctl keys compare with only explicit nr_hugepages=1024 expected;
+no global sysctl reapply. Existing1024 setting,2MiB pages,NUMA0 and sufficient RAM
+checked. Controller-only canonical generic dev-default exclusion and actual PCI
+row refusal tests PASS, matching startup template distinction. No VPP/agent/API/
+nginx activation or binding. Native firstboot uses private credentials over stdin/
+private files, DB/valkey loopback, owned-table renderer preserving management22,
+durable completion, and empty dataplane/noPCI management blacklist.
+
+Actual final preflight15789 B/0600
+SHA256b89d26998d6707a5af02f326f5007e30d5c22475bd35b4f3ed3c4a941601dd83
+independently parsed: read_only=true,21 actual states inactive,16 sysctl values,
+PostgreSQL effective listen_addresses localhost, zero hugepages,2MiB page size,
+MemAvailable31332168 KiB,NUMA0, zero native nft tables, ioerr6. Original startup
+bytes/metadata retained privately for recovery; no secret or configuration contents
+committed. Earlier14183-byte72bdab3e preflight remains historical.
+
+Verdict APPROVE exact firstboot-only source applicability under existing conditional
+parent release after actual .37 normal-return/fresh original22/full management and
+storage confirmation PASS. No second permission loop once those conditions pass.
+Actual firstboot results and later activation/seed/binding acceptance remain pending.

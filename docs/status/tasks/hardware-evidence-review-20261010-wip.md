@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`bdb887306e5b8c52ba663329b19a139212cc8068` (verified .37 repair and .211 configure-failure classification; matching
+`43782a245daf70d6718ecf9f2a671f17c8e44195` (verified .211 configured installation and corrected .37 selector scope; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -531,3 +531,18 @@ unmount occurred; source correction maps selected account-record digests while
 avoiding invented original shadow mode. Reviewer classification miss acknowledged;
 no normal reboot verdict. Exact next action: review published narrow source fix,
 then actual .37 return receipt and .211 firstboot-only source/effective evidence.
+
+2026-10-10 11:49 UTC: exact .37 selector correction6d9f6168 publishedb5670af9
+independently source/AST2/remote PASS. Actual638780-byte c147e7cc v2 return proof
+independently PASS: rebuilt42 real files+6dirs+1symlink+2 account-record selectors,
+47 RAM hashes, five full L3 sections, matching shutdown closure, ordinary unmount,
+both434/98/noNS/races/failures/exclusive0 and finalguard0/counter9stable. Normal-return
+technical APPROVE delivered for exact reviewed single-force command; fresh original
+boot/SSH/L3/storage proof remains next. .37 guard adaptation0da1fe78 source-only
+APPROVE, own actual policy/mask inspect and parent install phase remain separate.
+.211 exact firstboot-only ec2c4091 on remote8637789d source APPROVE/AST2; actual
+b89d2699 preflight21inactive/16sysctls/PGlocalhost/pages0 PASS. Existing firstboot
+release executes only after actual .37 normal return. Live collaboration inventory
+currently root/host_37/host_211/reviewer all running; no board-based liveness claim.
+Exact next action: independently inspect original .37 postboot proof and .211
+actual firstboot receipt/next activation source. No target action by reviewer.

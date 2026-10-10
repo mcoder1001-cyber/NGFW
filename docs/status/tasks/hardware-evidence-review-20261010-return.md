@@ -171,3 +171,56 @@ prove original /etc/shadow metadata. Failure remains retained; authorized read-o
 retry follows exact focused correction publication/applicability. No new owner
 or manager permission loop is required. Actual successful capture and separate
 normal-return verdict remain pending.
+
+## .37 corrected selector capture and normal-return verdict
+
+Exact correction SHA2566d9f61680f5325dfcf2df53a18ebbcc4950384a6263f0f06bcd84d98fd8018db
+on independently remote-readbackb5670af9f05c6cb0797434c9d664ba35fc1275b4;
+focused diff and outer/remote AST2 PASS. Both generated selectors map to sole
+root: records in original /etc/shadow and /etc/gshadow, not passwd. Their content
+digests compare independently; current account-file ownership/mode is recorded
+without inventing a baseline from synthetic0600 artifact mode. Unknown generated
+selectors refuse. Only exact empty/root0700/RAM51 owned mountpoints may be reused,
+distinct v2 receipts preserve first failure, structured REFUSE follows cleanup.
+
+Reviewer independently enumerated pinned auth archive:20 genuine regular files,
+two generated records, four directories, one symlink; network archive:three genuine
+regular files and two directories. Together with19 boot selectors, actual original
+comparison is42 regular files, six directories, one symlink and two account records.
+These counts describe actual available provenance, not additional acceptance gates.
+
+Actual post-repair-return-readiness-v2-20261010.json638780 B/0600
+SHA256c147e7cc765582c8d974a1b8a3e5e6a0bd563b46a1e2ae429bab920ecf989b03
+independently parsed. Reviewer rebuilt expected metadata/digests from pinned
+archives and boot baseline: all49 real objects and both selected account records
+match exactly; independently compares47 RAM file hashes/size and all five complete
+L3 sections. Matching manager/executor/shutdown loader closures resolve RAM51,
+original UUID/fstab/GRUB/current kernel match, protected management PCI/driver/
+group58/MAC preserved. Current EFI executable/MZ is recorded without historical
+equality claim. Selected actual output:
+
+```text
+19 commands exit0; dumpe2fs stderr29-byte version banner only
+ordinary original-root/EFI unmount complete; nextroot absent enforced
+rescue active/running PID3866 Result=success
+runtime helper active/exited Result=success
+both audits: processes434 fds98 nsfs0 races0 failures0
+both audits exclusive-open0; sync0; final block-check0
+Filesystem state: clean
+ioerr_counter before=after=0x9; new storage error lines0
+```
+
+Actual conclusions322 B/0600
+SHA256e6b0242ba8d37bf9b2e4d764048185f9986d6c7eca56a00f238d813a7f2ba003
+records all selected/account/runtime/network comparisons true. Prior five-pass
+clean readonly check and independently full-byte verified offhost749568-byte undo
+are in preservation appendix. Normal-return technical APPROVE delivered to parent
+and operator immediately after actual review; exact approved single-force command:
+
+```text
+SYSTEMCTL_SKIP_AUTO_SOFT_REBOOT=1 SYSTEMCTL_SKIP_AUTO_KEXEC=1 systemctl reboot --force
+```
+
+Actual original22/new boot/disk root/full management/PCI/storage confirmation follows
+the parent's separate return release. No physical-wear repair or hardware acceptance
+claim is inferred. Reviewer performed no target operation.

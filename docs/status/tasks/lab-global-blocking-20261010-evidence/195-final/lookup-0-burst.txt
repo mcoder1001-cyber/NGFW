@@ -1,0 +1,5 @@
+PING 10.17.2.2 (10.17.2.2) from 10.17.1.3 : 56(84) bytes of data.
+
+--- 10.17.2.2 ping statistics ---
+2000 packets transmitted, 2000 received, 0% packet loss, time 20108ms
+rtt min/avg/max/mdev = 0.257/1.270/9.149/0.683 ms

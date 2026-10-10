@@ -1,0 +1,304 @@
+[
+  {
+    "case": "product-agent-provenance",
+    "atUTC": "2026-10-10T10:36:32Z",
+    "source": "7bfca6dfe",
+    "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca",
+    "binary": "/tmp/ngfw-routing250-bin/ngfw-agent"
+  },
+  {
+    "case": "gb-interfaces",
+    "atUTC": "2026-10-10T10:38:00Z",
+    "seconds": 0.801671624998562,
+    "revision": 2
+  },
+  {
+    "case": "baseline-selected-in",
+    "atUTC": "2026-10-10T10:38:02Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-selected-out",
+    "atUTC": "2026-10-10T10:38:03Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-unselected",
+    "atUTC": "2026-10-10T10:38:05Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-local-in",
+    "atUTC": "2026-10-10T10:38:06Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "lookup-0",
+    "atUTC": "2026-10-10T10:38:10Z",
+    "startedUTC": "2026-10-10T10:38:07Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "vectorsDelta": 0,
+    "ip4LookupReference": {
+      "calls": 3998,
+      "vectors": 4000,
+      "clocksPerVector": 1980.0
+    },
+    "aclCost": null,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "upload-preview",
+    "atUTC": "2026-10-10T10:38:10Z",
+    "preview": {
+      "list": "proof",
+      "dryRun": true,
+      "lines": 3,
+      "entries": 2,
+      "added": 2,
+      "removed": 0,
+      "unchanged": 0,
+      "normalised": 0,
+      "collapsed": 0,
+      "invalidCount": 1,
+      "invalid": [
+        {
+          "line": 2,
+          "text": "invalid-address",
+          "reason": "not an IPv4 or IPv6 address"
+        }
+      ],
+      "addedSample": [
+        "10.17.1.2/32",
+        "198.18.17.2/32"
+      ],
+      "removedSample": [],
+      "staged": false
+    }
+  },
+  {
+    "case": "gb-upload-confirmed",
+    "atUTC": "2026-10-10T10:38:11Z",
+    "seconds": 0.7477404609089717,
+    "revision": 3
+  },
+  {
+    "case": "counter-before",
+    "atUTC": "2026-10-10T10:38:11Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 0,
+            "dataplaneBytes": 0,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "selected-in-drop",
+    "atUTC": "2026-10-10T10:38:15Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-out-drop",
+    "atUTC": "2026-10-10T10:38:19Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-local-in-drop",
+    "atUTC": "2026-10-10T10:38:22Z",
+    "allowed": false,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "unlisted-pass",
+    "atUTC": "2026-10-10T10:38:23Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-pass",
+    "atUTC": "2026-10-10T10:38:24Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-local-pass",
+    "atUTC": "2026-10-10T10:38:25Z",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "counter-after",
+    "atUTC": "2026-10-10T10:38:25Z",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 12,
+            "dataplaneBytes": 934,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "gb-10000-real-commit",
+    "atUTC": "2026-10-10T10:38:46Z",
+    "seconds": 3.1116312330123037,
+    "revision": 4
+  },
+  {
+    "case": "lookup-10000",
+    "atUTC": "2026-10-10T10:38:49Z",
+    "startedUTC": "2026-10-10T10:38:46Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 2000,
+      "vectors": 2000,
+      "clocksPerVector": 4820.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 4000,
+      "vectors": 4000,
+      "clocksPerVector": 1920.0
+    },
+    "aclCost": 4820.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "gb-200000-real-commit",
+    "atUTC": "2026-10-10T10:39:29Z",
+    "seconds": 36.431857552030124,
+    "revision": 5
+  },
+  {
+    "case": "lookup-200000",
+    "atUTC": "2026-10-10T10:39:33Z",
+    "startedUTC": "2026-10-10T10:39:30Z",
+    "packetsTransmitted": 2000,
+    "packetsReceived": 2000,
+    "before": {
+      "calls": 0,
+      "vectors": 0,
+      "clocksPerVector": 0.0
+    },
+    "after": {
+      "calls": 1998,
+      "vectors": 2000,
+      "clocksPerVector": 9120.0
+    },
+    "vectorsDelta": 2000,
+    "ip4LookupReference": {
+      "calls": 3988,
+      "vectors": 4000,
+      "clocksPerVector": 2680.0
+    },
+    "aclCost": 9120.0,
+    "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"
+  },
+  {
+    "case": "api-error",
+    "atUTC": "2026-10-10T10:40:48Z",
+    "status": 502,
+    "problem": {
+      "type": "https://ngfw.dev/problems/agent-error",
+      "title": "Agent error",
+      "status": 502,
+      "grpcCode": "CANCELLED",
+      "detail": "agent: Call cancelled",
+      "instance": "/api/v1/config/commit"
+    }
+  },
+  {
+    "case": "rollback",
+    "atUTC": "2026-10-10T10:41:32Z",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "atUTC": "2026-10-10T10:41:52Z",
+    "sharedIdentityUnchanged": true
+  }
+]

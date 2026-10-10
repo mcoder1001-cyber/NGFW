@@ -1,0 +1,16 @@
+DISPOSABLE_VPP pid=4009964 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-4009281
+PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
+
+product-agent-provenance {"source": "7bfca6dfe", "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca", "binary": "/tmp/ngfw-routing250-bin/ngfw-agent"}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 84, in <module>
+    with product_stack(17,agent_binary=str(agent)) as (api,owned,restart):
+         ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/contextlib.py", line 141, in __enter__
+    return next(self.gen)
+  File "/root/ngfw-wt/lab-global-blocking-20261010/test/topology/traffic-b/stack.py", line 130, in product_stack
+    if time.monotonic()>deadline:raise Refused('stack readiness deadline')
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scenario.Refused: stack readiness deadline
+DISPOSABLE_VPP_STOPPED pid=4009964

@@ -1,0 +1,1 @@
+ngfw-agentctl: /run/ngfw-test/w17tb/gb-incremental.json: proto: (line 1:4026765): unknown field "setup"

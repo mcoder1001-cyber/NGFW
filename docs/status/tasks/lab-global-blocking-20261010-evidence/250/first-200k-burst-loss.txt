@@ -1,0 +1,40 @@
+DISPOSABLE_VPP pid=475061 runtime=/tmp/ngfw-lab-global-blocking-20261010-250/repo/.scratch/isolated-vpp-475058
+PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
+
+product-agent-provenance {"source": "7bfca6dfe", "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca", "binary": "/tmp/ngfw-lab-global-blocking-20261010-250/ngfw-agent"}
+gb-interfaces {"seconds": 0.7206423620227724, "revision": 2}
+baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
+baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
+baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
+baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
+lookup-0 {"startedUTC": "2026-10-10T10:41:56Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "vectorsDelta": 0, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 2640.0}, "aclCost": null, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
+gb-upload-confirmed {"seconds": 0.6392569660674781, "revision": 3}
+counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
+selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-local-in-drop {"allowed": false, "icmp": true, "tcp": false}
+unlisted-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
+counter-after {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 10, "dataplaneBytes": 800, "hostPackets": 0}}]}}
+remote-browser {"actualAuthentication": true, "locales": ["en", "fa"]}
+gb-10000-real-commit {"seconds": 2.9861726040253416, "revision": 4}
+lookup-10000 {"startedUTC": "2026-10-10T10:42:41Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 2000, "vectors": 2000, "clocksPerVector": 7760.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 2590.0}, "aclCost": 7760.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+gb-200000-real-commit {"seconds": 39.29734508995898, "revision": 5}
+rollback {"noOwnedACL": true}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/tmp/ngfw-lab-global-blocking-20261010-250/repo/docs/status/tasks/lab-global-blocking-20261010-live.py", line 152, in <module>
+    lookup('lookup-'+str(n));vpp('bindings-'+str(n),'show','acl-plugin','interface')
+    ~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/tmp/ngfw-lab-global-blocking-20261010-250/repo/docs/status/tasks/lab-global-blocking-20261010-live.py", line 50, in lookup
+    assert '2000 packets transmitted, 2000 received' in p,p
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: PING 10.17.2.2 (10.17.2.2) from 10.17.1.3 : 56(84) bytes of data.
+
+--- 10.17.2.2 ping statistics ---
+2000 packets transmitted, 1992 received, 0.4% packet loss, time 6684ms
+rtt min/avg/max/mdev = 1.006/8.390/234.146/27.132 ms, pipe 22, ipg/ewma 3.343/38.027 ms
+
+DISPOSABLE_VPP_STOPPED pid=475061

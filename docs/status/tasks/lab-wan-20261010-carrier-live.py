@@ -214,7 +214,7 @@ try:
     for area in ('requests','results'):
      path=Path('/run/ngfw/pppoe-broker')/area/(token+'.json')
      try:
-      info=path.lstat();assert path.is_file() and not path.is_symlink() and info.st_uid==0 and info.st_nlink==1 and info.st_mode&0o077==0
+      info=path.lstat();assert path.is_file() and not path.is_symlink() and info.st_uid==0 and info.st_nlink==1 and info.st_mode&0o077==0 and info.st_size<=1048576
       record=json.loads(path.read_bytes());assert record['token']==token
       signature=(info.st_ino,record['nonce'])
       if seen.get((token,area))==signature:continue
@@ -224,7 +224,9 @@ try:
        metadata={'op':operation}
       else:
        error=record.get('error','');assert error=='' or error.startswith('carrier operation failed: ')
-       metadata={'ok':record['ok'],'error_class':error.removeprefix('carrier operation failed: ')}
+       error_class=error.removeprefix('carrier operation failed: ')
+       assert type(record['ok'])is bool and type(error_class)is str and len(error_class)<=64 and (not error_class or error_class.isascii() and error_class.isidentifier())
+       metadata={'ok':record['ok'],'error_class':error_class}
       print('OWNED_BROKER_METADATA '+json.dumps({'observed_monotonic':time.monotonic(),'child_pid':child.pid,'token':token,'area':area,**metadata}),flush=True)
      except FileNotFoundError:pass
      except (AssertionError,ValueError,KeyError,TypeError):

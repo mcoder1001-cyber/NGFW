@@ -89,7 +89,11 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
  if os.environ.get('NGFW_WAN_BROWSER')=='1':
-  subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-wan-20261010-pppoe-shots.mjs')],input=json.dumps({'password':browser_password(runtime)}),text=True,check=True,timeout=90,env=dict(os.environ,NGFW_WAN_BROWSER_OUTPUT=str(ROOT/'docs/status/tasks/lab-wan-20261010-evidence'/'195-pppoe-drawer')))
+  admin_password=browser_password(runtime)
+  browser=subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-wan-20261010-pppoe-shots.mjs')],input=json.dumps({'password':admin_password}),text=True,capture_output=True,timeout=90,env=dict(os.environ,NGFW_WAN_BROWSER_OUTPUT=str(ROOT/'docs/status/tasks/lab-wan-20261010-evidence'/'195-pppoe-drawer')))
+  redacted=(browser.stdout+browser.stderr).replace(admin_password,'[redacted]').replace(password,'[redacted]')
+  print(redacted,flush=True);del admin_password
+  if browser.returncode:raise Refused('real PPPoE browser proof failed')
  command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')
  command('ip','-n','ns-w20-carrier-isp','-6','route','replace','2001:db8:21::/64','dev','ppp0')
  for family,destination in (('-4','100.64.20.1'),('-6','2001:db8:20::1')):

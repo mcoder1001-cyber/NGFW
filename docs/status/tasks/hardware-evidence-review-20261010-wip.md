@@ -17,7 +17,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`7102872054925c67611adac26258f43571f9d37f` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`da5d35c70fff86557611c3f8a7f7358688baae39` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -657,3 +657,27 @@ active0, live367e/io6. No seedPASS. Mixed journal only establishes missing agent
 socket; exit cause awaits agent-only diagnostics. Root owns containment; no blind
 restart/rollback/bind. Last publishedebc957734e06b5731051dd4092c11167f25e20ac;
 exact next action read actual agent cause and root fix, then recheck native seed.
+
+
+## Final PR225 source review handoff
+
+Current independent source/documentation phase complete: R7 APPROVE exact
+321581d1850686070afc9ea08621bd6d405dbb08/treef38fe9c8cbd26ba92f2e3ffb50c700df71658a8d.
+Full evidence/closed initial findings/archive/count1/actual focused output are in
+hardware-evidence-review-20261010-pr225.md. Own docs check PASS14s; subsequent
+heading-only normalization and this handoff use diff-check0, no duplicate tests.
+Native fixed artifact and complete hosted quick remain pending. Cache and finite
+rollback source applicability approvals are bounded in plugin-seed.md; no target
+cache mutation/seed/binding/forwarding/reboot acceptance is claimed.
+
+Operational reviewer status after this handoff: awaiting resume on actual
+artifact/gate evidence. No reviewer-owned test/build/target operation is in flight.
+Root and installers retain their assigned work; this is not an owner pause or
+hardware completion.
+
+Exact next commands on resume:
+`gh run view 38055103197 --json headSha,status,conclusion,jobs` and
+`git ls-remote origin refs/heads/main refs/heads/codex/hardware-firstboot-fix-20261010`.
+Then verify supplied fixed-package source/hash/control/helper receipts before
+root-only known-empty-cache recovery or live native seed acceptance. Never treat
+ee202 artifacts as byte-identical321 payload; source difference remains recorded.

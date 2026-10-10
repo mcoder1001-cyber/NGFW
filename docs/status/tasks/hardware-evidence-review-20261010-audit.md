@@ -17,9 +17,10 @@ and for mount namespaces forks a short-lived child which alone calls setns. It
 reads /proc/self/mountinfo without executing an original-root program. Malformed
 input, unreadable/empty mountinfo, original8:2 mounts and unexamined nested nsfs
 mounts refuse. The parent waits for child exit and closes its reference.
-The helper retains its RAM filesystem root, so mountinfo may filter mounts outside
-that root. Its output is namespace-reference inspection, not standalone proof
-of every orphan-namespace mount. The independently behavior-tested exclusive
+Matching Linux7.0 mntns_install resets the short-lived child pwd/root to the
+destination namespace root. Its static code still executes from RAM and invokes
+no original-root executable. Mount visibility remains insufficient for lazy-detached
+references; namespace inspection does not replace the separate exclusive guard. The independently behavior-tested exclusive
 block guard remains required after all helper references close.
 
 Bash scans each process root/cwd/executable, mapping devices, file/directory FDs,
@@ -89,3 +90,39 @@ After transition require real /sys API availability, RAM PID1/executor and rescu
 runtime, fresh/held authenticated SSH, management baseline equality, conclusive
 audit and final exact block guard0 before read-only e2fsck/image. Refusal or missing
 evidence stops the phase; no mounted-root fsck or arbitrary PID1-FD closure.
+
+## Child-root source clarification and actual .37 mounted-negative test
+
+The earlier reviewer/manager retained-RAM-root interpretation was inaccurate.
+Independent matching upstream mntns_install explicitly calls set_fs_pwd and
+set_fs_root after switching the child namespace.
+[Linux7.0 namespace implementation](https://raw.githubusercontent.com/torvalds/linux/v7.0/fs/namespace.c).
+This explains actual mounted-negative helper3 on both hosts. Parent/global
+namespace remains unchanged, only static RAM code runs, and all inspection children
+exit before the final guard. .211 actual posttransition audit had nsfs0 and guard0;
+this clarification does not invalidate its independent offline proof.
+
+Initial .37 staging wrapper expected namespace selector0 and exitedSSH1 on the
+correct helper3. The reviewer had approved that incorrect expectation; initial
+failure is preserved, not relabeled PASS. Focused final wrapper
+SHA256546f1efb0625094ea0ef24adf9709ef467ded8968a3b61b4d1242151bbe299af
+changes only expected mounted3/oldroot1/malformed0 and new receipt names.
+Published4f841797361a5fda0b7512e59e4c678f8609accc, outer/REMOTE AST2 PASS.
+Independent actual private validated receipt3047B/0600
+SHA2566e883d97a5ff278d0a6e87fa5336e948202e2865888e9586cbd4ae44cdc0d19a:
+
+```text
+outer SSH0; outer capture stderr0bytes
+RAM runtime tools/version checks0; Bash syntax0
+inner Bash syntax stderr101B: C.UTF-8 locale unavailable warning
+non-nsfs regular file refusal2,47B diagnostic
+mounted namespace helper3:47entries/oldroot1/nsfs0/malformed0
+mounted block guard3 BUSY; rescue PID3866 unchanged
+root8:2/RAM0:51,held shell3940 exists,nextroot absent
+full offline audit/transition: NOT RUN
+```
+
+Inner locale warning is distinct from empty outer SSH stderr. LC_ALL=C on future
+audit invocation avoids it; final reviewed audit already exports C. No rerun is
+needed solely for this warning. This is RAM tooling readiness, not .37 offline or
+repair acceptance.

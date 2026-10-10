@@ -46,8 +46,8 @@ refusal records0; FINAL_BLOCK_GUARD exit0 after helper exit
 ```
 
 This satisfies the phase's actual fresh-auth/runtime/network/strong offline
-prerequisites. Root-filtered mountinfo and the separate exclusive guard remain
-distinct evidence; no orphan namespace reference was observed in this snapshot.
+prerequisites. Process mount visibility and the separate exclusive guard remain
+distinct evidence; the C helper child-root interpretation is corrected in the audit report; no orphan namespace reference was observed in this snapshot.
 The host operator proceeded within the released read-only diagnostic scope.
 
 Actual e2fsck -f -n declined every proposed write and aborted during pass2:
@@ -103,3 +103,25 @@ Candidate restricts writes to existing RAM usr/bin, refuses different existing
 helpers, verifies original8:2/8:0 identities, RAM device/live rescue/held shell and
 nextroot absence. Approval covers RAM-only staging after publication, not a .37
 transition or repair. Parent keeps .37 reachable while .211 recovery completes.
+
+## Minimal read-only inode diagnostic runtime
+
+Parent-provided private debugfs-minimal.tar independently inspected276480B/0600,
+SHA256f9ded4be20815967c33b26074f15617406e8863c19ba3edcd7812d85e1ce4647.
+Exactly two safe regular members, no absolute/traversal/link members:
+usr/sbin/debugfs231368B SHA256864e1d7b445e7b5bfc831da78330dbcafc590fa82b89ea9de60b7527f989954f;
+usr/lib/x86_64-linux-gnu/libss.so.230880B
+SHA256c8ecc8838857db598fd959bd2623730e9614e547a4f771f56f3a815a6b3ec251.
+Manifest records dpkg MD5 matches/version1.47.2-3ubuntu4. Independently parsed
+controller provenance7ccef60d and full-closure refusal1bcbf0 receipts show package
+query/verification0; existing RAM ext2fs/e2p/com_err hashes match, while generic
+loader/libc/blkid/uuid differ. Full overwrite was correctly refused before writes.
+Hash differences alone do not demonstrate ABI incompatibility.
+
+Narrow missing-path-only RAM copy of debugfs/libss APPROVE, using lexists to refuse
+any existing member path, RAM-parent/device checks and exact member hashes. Then
+require actual existing RAM loader --list plus LD_BIND_NOW=1 debugfs -V success
+before default-read-only -R stat/ncheck. Existing libraries must remain unchanged.
+No debugfs-w, file-content dump or filesystem correction is approved. A fallback
+isolated closure requires concrete additional review if actual compatibility fails.
+Actual target binding/diagnostic evidence is still pending at this checkpoint.

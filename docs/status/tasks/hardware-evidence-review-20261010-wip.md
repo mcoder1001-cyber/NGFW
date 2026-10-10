@@ -261,7 +261,7 @@ read worker immutable published helper checkpoint, then private actual posttrans
 RAM PID1/runtime/auth/network and conclusive offline audit/positive guard receipts.
 No correction, normal return or .37 transition approval implied.
 
-09:45 actual .211 transition/offline PASS within read-only phase: independently
+09:43 actual .211 transition/offline PASS within read-only phase: independently
 readback f5018b57 exact helper sources; private first auth255 de8c preserved, fresh
 auth0/empty8d8935 with RAM PID1/helper/sshd runtime. Private1dffaa network/runtime
 all11 sections0; allsix network JSON sections exactly equal without normalization.
@@ -276,3 +276,18 @@ AST2/2 and copied helpers exact, no transition release. Last verified own remote
 bc7b67d917f7a3c80c2c08f7ccd664b27327462d. Next: inspect actual kernel baseline,
 read-only affected inode names/types, measured metadata image/compression/offhost
 verification and undo capacity before separate correction review.
+
+09:49 source clarification: Linux7.0 mntns_install resets child pwd/root to
+destination namespace root; previous retained-RAM-root interpretation was wrong.
+Reviewer/manager notified and owned audit report corrected explicitly; static RAM
+code/no old-root execution/child release and final exclusive guard remain unchanged.
+.37 initial wrapper expected0 incorrectly; corrected546f expectedmounted3 independently
+reviewed AST2/2, actual6e883d validated receipt matches mounted3/guard3/currentRAM
+rescue/session/nextrootabsence. Inner Bash parser locale warning101B preserved
+separately from outer stderr0; no .37 transition. Minimal debugfs archivef9ded4
+276480B/two safe regular members independently inspected; package/corelibrary
+provenance/refused overwrite corroborated. Narrow missing-path-only RAM copy and
+actual loader --list/LD_BIND_NOW-V validation design APPROVE; diagnostic binding
+still pending. Last own verified remote7a6b11eeaefe4dfd65523a103fcbbfe7961a2839.
+Next: actual metadata/health/runtime binding/affected inode receipts; corrections
+and normal return remain separate reviews.

@@ -1,3 +1,37 @@
+# Actual single-byte continuation and classified new directory — 2026-10-10 10:18 UTC
+
+Controller-only helper e6b6d00e is published worker87cc97e7, R7 focused APPROVE;
+actual probe162de6b4 wrote0bytes. Exact driver3850996/SSH3851087, outgoing FIFO
+21573919/PPID/cmdline/cwd/UID/exe/startticks/transcript identity checked before+after
+open. Only helper's own fd is closed; ONE y/n byte, no newline. Future driver
+dc321951 is fixed. Actual two answers for config259602 dot/dotdot each1byte are
+recorded privately; no unknown prompt accepted. R7 honest driver oversight/fix
+checkpoint9fb51767218a36943609a7b2aa7e00733f5b3363 published/read back.
+
+New prompt259603 corrupted directory was held and classified: original name
+unknown (readonly ncheck0 but checksum diagnostics/no path), root0700 directory
+4096B/links2/blockcount8/single block15503875. Original native image preserves its
+inode. R7 inspected raw-readerV2 c5c0649f/050316c8 adding ONLY this explicit block.
+Worker published/readback8d09a644c62def73d6d6f4fb89d7295b31a72db6 before stage.
+Actual paused fsck13880/fd3 was sole identified devicewriter, so guardBUSY from
+that known live writer is expected for supplementary READONLY capture; do not
+restart live fsck or demand a falseguard0. Private raw4096B/0600/file+directory
+fsync/source-offhostSHAad7facb2 PASS, ALLZERO. Supplement e8ab1ad9 privately
+preserves health/actual capture; ioerr18 stable and kernel before/after identical.
+Initial counter-path mistake failed/retained, narrow retry PASS. R7/root explicit
+APPROVE259603 salvage/selfdot/actual-parent-dotdot or preserving lost+found Connect
+and consequent counts. Do not invent its unknown original pathname. Other new
+objects still held for concrete classification; arbitrary unknown clears prohibited.
+Controller actualfree2244972544B still exceeds1GiB undo cap+512MiB margin.
+
+.37 reader staging actuallyPASS847e1527/5315B, RAM51/original22+heldPTY intact;
+worker4d249ca6 published/read back. Correct future one-byte/undo templates shared
+by exact existing source paths for own .37 adaptation; no transition yet.
+Root prior36036af94b1a54ba02030aded1b8b2aec4512fdc remote readback PASS.
+This coherent checkpoint immediately publishes. Next exact action: exclusive211
+classified single-byte prompts, clean offline-f-n0, actual durable undo/transcript
+and read-only/noload boot/auth/network integrity before separate normal return.
+
 # Live interactive input correction — 2026-10-10 10:10 UTC
 
 Operator found a real driver defect missed by root/R7 source review: old controller

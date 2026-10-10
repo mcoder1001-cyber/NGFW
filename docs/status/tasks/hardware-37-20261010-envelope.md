@@ -11,3 +11,4 @@
 - Dependency: manager supplies reviewed current package payload; independent reviewer approves concrete management-preservation installation plan.
 - Current stop condition: root filesystem `/dev/sda2` has real corruption. Do not install, reboot, or repair a mounted filesystem. Manager has requested console/recovery availability from the owner.
 - Durable evidence must contain no credentials, secret files, authentication tokens or password hashes.
+- 2026-10-10 additional manager-assigned role: independent R1 correctness/tests and T1 CI inspection for source `2045ab8` (sole product change API `${shlibs:Depends}`). Own `hardware-37-20261010-review-R1.md` and `hardware-37-20261010-test-T1.md`; no product fixes or target operations. Inspect manager's external fixed build log/artifacts and exact final PR hosted quick; do not duplicate a broad local quick build on the nearly full root disk. Publish receipts to this same branch.

@@ -1,6 +1,8 @@
 # Hardware .37 WIP — 2026-10-10
 
-Task state: **blocked on offline root-filesystem recovery**. Installation and hardware acceptance: **NOT RUN**. Management, routing, netplan, SSH and target disk contents were left unchanged. Worker is handing off and is **awaiting resume**, not a live developer after this turn ends. Manager will resume the same branch/worktree when recovery is available.
+Installation task state: **blocked on offline root-filesystem recovery**. Installation and hardware acceptance: **NOT RUN**. Management, routing, netplan, SSH and target disk contents were left unchanged. Hardware deployment role remains **awaiting resume**. Manager will resume the same branch/worktree when recovery is available.
+
+Separate verified live role resumed by manager on 2026-10-10: independent R1 reviewer/T1 tester for the API native shared-library dependency correction `2045ab8`, with no target operations. Actual20 unchanged packaging/PPPoE fixtures, slot-check and exact-source assertion pass; staged Argon2 native dependencies independently inspected. Final archive/build and final-PR mandatory hosted quick are pending. Review/test receipts are owned in this worktree; no product code changes.
 
 ## Ownership and checkpoints
 

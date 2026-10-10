@@ -101,17 +101,18 @@ if len(sys.argv)>1:
      run('ip','link','add',dev,'type','veth','peer','name',peer);run('ip','link','set',peer,'netns',ns);run('ip','link','set',dev,'up');run('ip','-n',ns,'link','set',peer,'up')
     run('ip','-n','ns-w20-carrier-lan','addr','add','10.20.1.2/24','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','route','add','default','via','10.20.1.1')
     log=(d/'server.log').open('w');p=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','pppoe-server','-F','-k','-I','w20is','-L','100.64.20.1','-R','100.64.20.10','-N','1','-O',str(options)],stdout=log,stderr=log,start_new_session=True);processes.append((p,log));time.sleep(.5)
+    peer_proc=Path('/proc')/str(p.pid)
+    peer_stat=(peer_proc/'stat').read_text().split(') ',1)[1].split()
+    peer_ns=(peer_proc/'ns/net').stat();expected_ns=Path('/run/netns/ns-w20-carrier-isp').stat()
+    assert [peer_ns.st_dev,peer_ns.st_ino]==[expected_ns.st_dev,expected_ns.st_ino] and os.getpgid(p.pid)==p.pid
+    peer_record={'pid':p.pid,'start':peer_stat[19],'argv':[arg.decode() for arg in (peer_proc/'cmdline').read_bytes().split(b'\0') if arg],'exe':os.readlink(peer_proc/'exe'),'namespace':[peer_ns.st_dev,peer_ns.st_ino],'launch':p.args}
+    assert Path(peer_record['exe']).name=='pppoe-server'
+    os.environ['NGFW_WAN_PEER_RECORD']=json.dumps(peer_record)
     if os.environ.get('NGFW_WAN_EXTENDED')=='1':
-     ra=d/'peer-ra.py';ra.write_text('''import subprocess,time
-for attempt in range(250):
- if subprocess.run(['ip','link','show','ppp0'],capture_output=True).returncode==0:break
- time.sleep(.2)
-else:raise SystemExit('real peer PPP did not appear')
-subprocess.run(['ip','-6','addr','add','2001:db8:20::1/64','dev','ppp0'],check=True)
-subprocess.run(['sysctl','-w','net.ipv6.conf.all.forwarding=1'],check=True,capture_output=True)
-raise SystemExit(subprocess.call(['dnsmasq','--no-daemon','--conf-file=/dev/null','--port=0','--interface=ppp0','--bind-interfaces','--enable-ra','--dhcp-range=2001:db8:20::,ra-only,64','--ra-param=ppp0,5,60']))
-''')
-     ralog=(d/'ra.log').open('w');rp=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','python3',str(ra)],stdout=ralog,stderr=ralog,start_new_session=True);processes.append((rp,ralog))
+     ra=ROOT/'docs/status/tasks/lab-wan-20261010-peer-ra.py'
+     ns=Path('/run/netns/ns-w20-carrier-isp').stat()
+     peer_env=dict(os.environ,NGFW_WAN_ISP_NAMESPACE=json.dumps([ns.st_dev,ns.st_ino]))
+     ralog=(d/'ra.log').open('w');rp=subprocess.Popen(['ip','netns','exec','ns-w20-carrier-isp','python3',str(ra)],stdout=ralog,stderr=ralog,start_new_session=True,env=peer_env);processes.append((rp,ralog))
      run('ip','-n','ns-w20-carrier-lan','-6','addr','add','2001:db8:21::2/64','dev','w20lp');run('ip','-n','ns-w20-carrier-lan','-6','route','add','default','via','2001:db8:21::1')
     wrapper=d/'test.sh';wrapper.write_text('''#!/bin/sh
 set -eu

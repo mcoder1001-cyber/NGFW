@@ -58,11 +58,11 @@ def state(api):
  for item in api.call('GET','/state/interfaces').get('items',[]):
   if item.get('name')=='w20ppp':return item.get('state',{}).get('pppoe') or {}
  return {}
-def wait_up(api):
- end=time.monotonic()+75
+def wait_up(api,budget=75):
+ end=time.monotonic()+budget
  while time.monotonic()<end:
   item=state(api)
-  if item.get('phase')=='up' and item.get('localIpv4')=='100.64.20.10/32':return item
+  if item.get('phase')=='up' and item.get('localIpv4')=='100.64.20.10/32' and time.monotonic()<=end:return item
   time.sleep(.4)
  print('REAL_API_PPP_WAIT_TIMEOUT_STATE '+json.dumps({key:value for key,value in state(api).items() if key in ('phase','localIpv4','ipv6','forwardingReady','defaultReady','memberReady')}),flush=True)
  raise Refused('real API/current Wiring PPP did not become up')
@@ -87,7 +87,11 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  assert secret.get('ref')=='password/w20-carrier'
  config={'host-w20raw':{'enabled':True},'host-w20lan':{'enabled':True,'ipv4':['10.20.1.1/24'],'ipv6':['2001:db8:21::1/64']},'w20ppp':{'enabled':True,'pppoe':{'enabled':True,'parent':'host-w20raw','username':'w20','passwordRef':'password/w20-carrier','mtu':1492,'mssClamp':True,'defaultRoute':True,'ipv6':'slaac','reconnect':{'holdoffSec':1,'maxFail':0}}}}
  api.call('PATCH','/config/interfaces',config)
- result,warnings=commit(api,('/interfaces',))
+ extended_api=os.environ.get('NGFW_WAN_API_EXTENDED')=='1'
+ if extended_api:
+  api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[{'name':'w20-ppp-native','range':'100.64.20.10'}]})
+ paths=('/interfaces',)+tuple('/nat/'+field for field in ('enabled','mode','sessionLimit','inside','outside','pools')) if extended_api else ('/interfaces',)
+ result,warnings=commit(api,paths)
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
  if os.environ.get('NGFW_WAN_BROWSER')=='1':
@@ -113,6 +117,13 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
    if time.monotonic()>end:raise Refused('real API/current Wiring LAN PPP packet failed '+family)
    time.sleep(.4)
   print('REAL_API_CURRENT_WIRING_LAN_PACKET '+family+' PASS '+probe.stdout.splitlines()[-2],flush=True)
+ if extended_api:
+  receipt=subprocess.run([str(BASE/'bin/carrier-live.test'),'-test.v','-test.count=1','-test.timeout=25s','-test.run=^TestWANCurrentCarrierReadback$'],capture_output=True,text=True,timeout=30)
+  if receipt.returncode or '=== RUN   TestWANCurrentCarrierReadback' not in receipt.stdout or '--- PASS: TestWANCurrentCarrierReadback' not in receipt.stdout or '--- SKIP:' in receipt.stdout:raise Refused('actual API MSS getter test failed')
+  print(receipt.stdout,flush=True)
+  sessions=command('vppctl','show','nat44','sessions')
+  if '10.20.1.2' not in sessions or '100.64.20.10' not in sessions:raise Refused('actual API NAT session tuple missing')
+  print('REAL_API_NAT_LAN_SESSION PASS '+sessions,flush=True)
  reconnect=api.call('POST','/actions/interfaces/w20ppp/pppoe/reconnect')
  assert reconnect.get('accepted') is True
  wait_up(api);print('REAL_API_CURRENT_WIRING_RECONNECT PASS',flush=True)
@@ -123,6 +134,10 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  for route in ('/config','/config/candidate','/config/diff'):
   if password in json.dumps(api.call('GET',route)):raise Refused('plaintext in config response')
  print('REAL_AGENT_API_CONFIG_LOG_PASSWORD_ABSENCE PASS',flush=True)
+ if extended_api:
+  scope={};exec(compile((ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py').read_text(),str(ROOT/'docs/status/tasks/lab-wan-20261010-api-lifecycle.py'),'exec'),scope)
+  scope['lifecycle'](api,runtime,config,password,state,wait_up,commit,command,Refused)
+  api.call('PATCH','/config/nat',baseline['nat'])
  api.call('PATCH','/config/interfaces',{name:None for name in config})
- commit(api,('/interfaces',),warnings)
+ commit(api,paths,warnings)
  print('REAL_API_CURRENT_WIRING_SCOPED_CLEANUP PASS',flush=True)

@@ -1,3 +1,25 @@
+# Conditional targeted correction release — 2026-10-10 10:02 UTC
+
+Manager released known-scope interactive correction CONDITIONALLY to exclusive211
+operator. Required actual R7 finite-undo/write-path, offhost five-block and current
+read/kernel/reset/UNC/CRC health PASS, then refreshed full offline audit/finalguard0.
+Exact command: LC_ALL=C e2fsck -f -E fixes_only,nodiscard -z NEW_PRIVATE_CAPPED_RAM_UNDO
+/dev/sda2. Explicit y allowed for invalid journal extent259596/259597/259598 Clear
+and consequent same-inode accounting, known directory259599/259602 salvage/checksum.
+No a/default/-y/-D or valid optimization259816. Newly exposed inode, unexpected
+directory/user-file deletion/clear or health/undo failure holds that exact prompt
+for concrete root/R7 classification. Known-scope execution needs no redundant
+second permission/release after the named actual prerequisites pass. No correction
+has yet been observed. Clean subsequent offline-f-n0, durable offhost undo/full
+transcript and readonly boot/auth/network integrity are still required before
+separate normal-return release. .37 remains on original22, transition held.
+
+Own latest published/readback d196a83e36009a306273e5e5fa0cad19a9aba889; this
+coherent phase authorization is immediately published. Actual fresh remote board
+blob fca789c569640e62be124bf96620a890a31eec9d:212=205merged+7parked.
+Next exact action: worker finite-undo/health preflight plus R7 actual verdict,
+then above conditional command; do not misreport approval as execution.
+
 # Actual .211 native preservation — 2026-10-10 09:58 UTC
 
 Native e2image (plain mode) succeeded after recorded Q-mode failure on corrupt

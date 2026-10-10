@@ -754,6 +754,7 @@ func TestOSPFTopologyOnHost(t *testing.T) {
 
 	// V19 preflight (D-095) before any packet crosses the rig
 	var pre string
+	var err error
 	if binary := os.Getenv("NGFW_ROUTING_PREFLIGHT_BIN"); binary != "" {
 		pre, err = e.cmd(binary)
 	} else {

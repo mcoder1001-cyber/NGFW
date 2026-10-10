@@ -103,3 +103,42 @@ no leaks found
 Ancillary whitespace check: `git diff --check` for amended head exited 2 on trailing whitespace in `hardware-manager-20261010-evidence.md:129`, a copied gitleaks output line. Reported to manager as a cosmetic R7 observation outside R2's security grading; no security impact. No false PASS is claimed for that whitespace check. No heavy tests, target operations or product edits occurred. Complete hosted quick and appliance acceptance remain outside this receipt.
 
 **Verdict: APPROVE** for amended PR 217 head `5bd7e8b545fc765fd2babd8dda15175d6f33af1b` in the reviewed narrow security scope; no security findings.
+
+## Premerge whole-worktree scan addendum
+
+Manager's unconfigured `gitleaks detect --no-git` reported 10 `generic-api-key` matches. Reviewer inspected the redacted report metadata and original match spans locally without emitting any Secret, Match or placeholder value. Every span contains exactly one sanctioned synthetic/redaction marker covered by the existing `.github/gitleaks.toml` conventions. Eight findings are in tracked test source files byte-for-byte identical to main `d2d55984d74fa1d06c32e8271886f11f16375407`; two are generated JavaScript copies whose matched markers equal the corresponding unchanged TypeScript source markers.
+
+| Rule | File and line | Independent classification |
+|---|---|---|
+| generic-api-key | apps/agent/internal/renderers/rfkit/fixround_test.go:20 | Existing allowed test marker; whole file equals main |
+| generic-api-key | apps/agent/internal/renderers/strongswan/apply_test.go:375 | Existing allowed test marker; whole file equals main |
+| generic-api-key | apps/agent/internal/renderers/rsyslog/rsyslog_test.go:31 | Existing allowed test marker; whole file equals main |
+| generic-api-key | apps/agent/internal/scheduler/validator_test.go:371 | Existing allowed test marker; whole file equals main |
+| generic-api-key | apps/agent/internal/scheduler/validator_test.go:372 | Existing allowed test marker; whole file equals main |
+| generic-api-key | apps/cli/internal/api/transport_test.go:82 | Existing allowed test marker; whole file equals main |
+| generic-api-key | packages/schema/src/domains/vpn.test.ts:197 | Existing allowed test marker; whole file equals main |
+| generic-api-key | packages/schema/src/domains/vpn.test.ts:265 | Existing allowed test marker; whole file equals main |
+| generic-api-key | packages/schema/dist/domains/vpn.test.js:154 | Generated test marker equals unchanged TS source line 197 |
+| generic-api-key | packages/schema/dist/domains/vpn.test.js:220 | Generated test marker equals unchanged TS source line 265 |
+
+Canonical CI `tools/ci.sh:389–397` invokes gitleaks with `--config .github/gitleaks.toml` when present. The current configuration extends default rules and allowlists the existing test-placeholder/redaction conventions; it is byte-for-byte identical to main. No allowlist, test, product file or scanning rule was changed. The unconfigured standalone command omitted those repository conventions.
+
+Reviewer independently repeated the whole-worktree no-git scan with that exact unchanged configuration, using installed gitleaks 8.30.1, and stored only a redacted report in the reviewer's ignored scratch directory:
+
+```text
+GOMAXPROCS=2 gitleaks detect --no-git -s /root/ngfw-wt/hardware-manager-20261010 --config /root/ngfw-wt/hardware-manager-20261010/.github/gitleaks.toml --redact --no-banner --report-format json --report-path /root/ngfw-wt/hardware-211-20261010/.scratch/hardware-211-r2-gitleaks/configured.json
+scanned ~114800082 bytes (114.80 MB) in 15.7s
+no leaks found
+exit 0
+```
+
+Additional safe assertion output:
+
+```text
+PASS: generated test finding at JS line 154 matches sanctioned marker in unchanged main TS source line 197
+PASS: generated test finding at JS line 220 matches sanctioned marker in unchanged main TS source line 265
+PASS: existing allowlist identical to main; no config change or new exemption
+Finding summary: 8 tracked findings in main-identical sources; 2 identical generated test copies; no real credentials identified
+```
+
+The 10 unconfigured findings are existing allowed fixtures, not confirmed credential leaks. **R2 APPROVE remains applicable to PR 217 head `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`.** No target operations or product/configuration edits occurred. This addendum does not replace the mandatory complete quick gate or the outstanding hardware recovery and acceptance work.

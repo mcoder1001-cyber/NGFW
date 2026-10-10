@@ -1301,3 +1301,28 @@ change or prepare/upload/install occurred. R7 reviewing exact bounded repair.
 Next: focused corrected-test lint/test, publish preserved-history final single
 integration commit/fullhostedquick, independent native artifact approval,
 readonly inspect then bounded suppression/4archive simulation/install.
+
+Checkpoint 2026-10-10 13:39 UTC: independent R7 report actually published/readback
+4a65b89453f4955249ab1f1836fa6ffa4021091d APPROVE exact four native archives
+manifest5739/sourceee202, all12maintscripts, target init-system-helpers1.69
+policy101 returns0 before stop/start, and final upgrade source
+24d2561d9e6893aa070ccb3b1920801ef5745ed8d1b441482ae865d4b5834295.
+Actual readonly inspect d4d864ac and prepare ff5f22cf PASS; private fsynced
+original-absence record before owned policy101 +persistent VPPmask; all21unit
+states/active VPP33868/nginx9281 and stopped API/agent151, fullL3/storage unchanged.
+Upload+simulate ONLY released to existing host211 operator; install not released.
+Final PR225 singlecommit3b61a8ce529c68ae2bb39e2cea2f77ea13602595/tree50747798
+on bd25 main preserves prior321/ba1/4b6 remote archives. R7 final bounded test
+DirFS fix APPROVE; root allTestAutoBlock PASS0.312s and golangci-lint0issues.
+Unchanged mandatory hostedquick38056374923 still IN_PROGRESS; offlinepack gate
+38056374912SUCCESS. Old321 mandatoryquick38055103197 G304failure retained.
+Concrete read-only matching VPP c3200b88 source +actual cpu0L3/pool16784 proves
+17ports x1024RX require larger pool; no auto-downsize. Supported native
+buffersPerNuma65536 commit needed AFTER real initial17seed revision1 proof.
+No manual startup/datastore rewrite or physical binding performed.
+Private resource receipt f3850e97,1213B0600 SSH0; no device mutation.
+Overall hardware task remains RUNNING; .37 departed/awaiting resume and inactive.
+Next command: inspect actual four-archive upload/simulation4Inst0Remv receipt,
+release reviewed install only on matching protected baseline; restore owned guards,
+manager normalize exact empty legacy cache after installed a909 agent SHA, then
+ordered agent/API runtime and real native17seed acceptance.

@@ -63,5 +63,17 @@ Expected-head GH merge, without admin/bypass, completed. Actual remote main
 and treea0d7b7 equal to the completely tested PR integration tree. PR217 merged
 2026-10-10T07:46:33Z. No local main/user worktree was edited; the manager's own
 branch was fast-forwarded to published main. Main push bare quick38035583209
-is IN PROGRESS; packaging38035583240 and provisioning38035583210 were also
-observed IN PROGRESS. Main-CI PASS is not yet claimed.
+is IN PROGRESS; packaging38035583240 and provisioning38035583210 subsequently completedSUCCESS. Main-CI PASS is not yet claimed.
+
+## Configuration recovery preparation
+
+Both read-only configuration snapshots are stored privately outside Git and the
+candidate bundle. Published receipts: .37at0b96a5ff51aca239e2b1492456c37e2052f139ed,
+.211at269d455f6aee29cc89007bbac4aa93d00c0fad7f. Independent R7 checked actual archive
+readability, management-netplan presence, permissions and candidate exclusion;
+no new blocker. Root parent permission0755 was tightened to0700 immediately; nested
+host directories were0700 throughout, so no content exposure was observed.
+Native nft gap remains explicit despite successful empty compatibility exports.
+[Recovery runbook](hardware-manager-20261010-recovery.md) keeps full-data backup and
+console/unmounted offline diagnosis/repair prerequisites separate from these
+configuration snapshots. No filesystem repair/target mutation or hardware PASS.

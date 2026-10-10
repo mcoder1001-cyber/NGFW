@@ -218,3 +218,20 @@ FS Error count:1248
 
 Storage errors remain active; no target mutation/install/reboot. Package/API/live
 physical inventory/forwarding/throughput/reboot acceptance all remain NOT RUN.
+
+## Private configuration backup evidence
+
+Host37 published readback0b96a5ff51aca239e2b1492456c37e2052f139ed; host211 published
+readback269d455f6aee29cc89007bbac4aa93d00c0fad7f. Their public receipts record actual
+commands/exits/hashes without configuration values. Network configtar and address/
+link/all-table IPv4+IPv6 routes/rules/PCI maps captured read-only to controller,
+not to target disks. Native nft list ruleset exits127 (utilitymissing);
+iptables-save/ip6tables-save each exit0/empty on both hosts. No native nft emptiness
+claim. Configuration snapshots alone are not full-data/systembackup.
+
+Root command `chmod0700 <task-owned recovery-private>` then `stat -c '%a %n'`
+verified parent and both host dirs0700. Independent R7 metadata-only checks exit0:
+24/.37 and26/.211 regular files with zero unsafe permission bits; each5-member
+configarchive includes management netplan and all regular payload lengths readable.
+Candidate tar23members has0private-backup members and0unsafepaths. No privatebackup
+content is committed/published. See recovery runbook/publichostreceipts.

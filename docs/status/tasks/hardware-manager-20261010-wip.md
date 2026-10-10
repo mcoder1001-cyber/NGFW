@@ -1,9 +1,9 @@
-# Hardware installation WIP — 2026-10-10 07:42 UTC
+# Hardware installation WIP — 2026-10-10 07:54 UTC
 
 Branch: codex/hardware-manager-20261010.
 Worktree: /root/ngfw-wt/hardware-manager-20261010.
-At this status edit localHEAD/origin-main:4908716b4501312102382e6979b8fc1ded6f9311;
-last published own-branch checkpoint:5bd7e8b545fc765fd2babd8dda15175d6f33af1b.
+At this status edit localHEAD/remote ownbranch:925703c2a02c2b7e15e28e0ddbbd4534bca19de3;
+origin/main:4908716b4501312102382e6979b8fc1ded6f9311.
 This status checkpoint will be committed/pushed immediately; discover its current
 local/remote SHA with `git rev-parse HEAD` and
 `git ls-remote origin refs/heads/codex/hardware-manager-20261010`. Publication is
@@ -34,6 +34,17 @@ Premerge default full gitleaks found10 preexisting sanctioned test placeholders;
 independent R2 triage confirmed no real secret. Unchanged canonical-config full
 no-git scans both exit0/noleaks. No allowlist/test was modified to hide findings.
 Main push quick38035583209 IN PROGRESS; post-merge PASS still unverified.
+Main packaging38035583240 and provisioning38035583210 completedSUCCESS on4908716b.
+Public925703c checkpoint checkPASS13s; scanned15040bytes/no leaks; clean afterpush.
+Private network/config snapshots completed on both hosts; configtar/allroute-rules/
+addresses-links/PCI maps captured with actual exits/hash receipts. Native nft tool
+unavailable(exit127); existing iptables-save/ip6tables-save exports both exit0/empty
+on each host, but do not prove native nft rules empty. Configurationbackuponly, NOT
+fullsystem/data backup. All files0600/dirs0700, nevercommitted or included in candidate
+archive. Independent R7 metadata/readability/exclusion checksPASS; no new blocker.
+Backup receipts .37=0b96a5ff51aca239e2b1492456c37e2052f139ed;
+.211=269d455f6aee29cc89007bbac4aa93d00c0fad7f. See
+[recovery runbook](hardware-manager-20261010-recovery.md).
 
 Hardware task: BLOCKED, installation and hardware acceptance NOT RUN. Both ext4
 /dev/sda2 roots have structural checksum/extent/journal errors and failed boot fsck:
@@ -64,8 +75,8 @@ offline dependency closure or release acceptance claimed.
 
 Remote preflight .37=86a2f06eafc6406e3e5395769d923a09bbfa60aa;
 .211=a4059c73b4a2e3346b7cf1cf705c0a5b908c317d. Resume existing owned host branches,
-never silently rebuild. Live roles at07:42:rootmanager,host_37independentmainT1;
-R2/R7/R8 finished awaitingresume; no active installers/persistent supervisor.
+never silently rebuild. Live roles at07:54:rootmanager,host_37independentmainT1,R7recoveryevidence;
+host_211 backup/R2 andR8 finished awaitingresume; no active installers/persistent supervisor.
 Board212tasks:205merged,7parked,0running/ready/review. Adhoc hardware request has no
 invented WBS state. This cycle has one new product merge(PR217), no stale-row fixes.
 Root disk~500MiB available; do not duplicate broad local builds or delete others' work.

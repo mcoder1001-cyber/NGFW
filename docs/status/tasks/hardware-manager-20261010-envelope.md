@@ -7,7 +7,9 @@ physical interfaces, reboot if necessary.
 Base: origin/main d2d55984d. Branch: codex/hardware-manager-20261010.
 Worktree: /root/ngfw-wt/hardware-manager-20261010.
 Owned files: docs/status/tasks/hardware-manager-20261010*,
-deploy/debian/ngfw/debian/control (native API dependency correction), and external build output.
+deploy/debian/ngfw/debian/control (native API dependency correction), and external build output/status plus task-private recovery backup parent.
+Host workers exclusively own recovery-private/host-37 and recovery-private/host-211.
+Configuration snapshots remain0600/private and outside Git/downloadable artifacts.
 Do not edit main, another agent's worktree, shared development host VPP or secrets.
 
 Workers: host_37 owns its isolated hardware-37-20261010 branch/worktree and .37;

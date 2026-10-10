@@ -1,0 +1,15 @@
+=== RUN   TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI
+    daemon_integration_test.go:73: private fixture link name=lo kind=
+    daemon_integration_test.go:73: private fixture link name=ip6tnl0 kind=ip6tnl
+    daemon_integration_test.go:73: private fixture link name=gre0 kind=gre
+    daemon_integration_test.go:73: private fixture link name=gretap0 kind=gretap
+    daemon_integration_test.go:73: private fixture link name=erspan0 kind=erspan
+    daemon_integration_test.go:73: private fixture link name=outer0 kind=dummy
+    daemon_integration_test.go:73: private fixture link name=inner0 kind=dummy
+    daemon_integration_test.go:93: private verified engine socket did not become ready; raw diagnostics remain private
+    daemon_integration_test.go:154: private RA fixture sandbox refused phase=22
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-dc412e7965d7739148438504be8ed8e0/7996ba1169117e95e2d9a3340fff19dde9b5bc9951c08f6fb1ff618d1e8aee51-startup.log
+--- FAIL: TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI (15.24s)
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	15.298s
+FAIL

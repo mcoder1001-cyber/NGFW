@@ -1,0 +1,12 @@
+[
+  {
+    "source": "scripts/pppoe-kernel-carrier.py",
+    "path": "/usr/lib/ngfw/pppoe-carrier.py",
+    "sha256": "1391eb3a8d6b4b1d06dd1c5b3583ce3921253e0924ac594f84901e5a4f6c449b"
+  },
+  {
+    "source": "scripts/pppoe-carrier-assets/ngfw-pppoe-broker@.service",
+    "path": "/run/systemd/system/ngfw-pppoe-broker@.service",
+    "sha256": "00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e"
+  }
+]

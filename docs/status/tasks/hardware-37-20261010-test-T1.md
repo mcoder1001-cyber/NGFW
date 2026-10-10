@@ -106,7 +106,7 @@ No complete local quick gate was run: manager envelope directs hosted final-HEAD
 
 Verdict: **PASS** on final source `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, actual hosted integration checkout `8a15d644c53cc3ef4abde339efd3b2a0331221a5`, tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`. No failing test was waived. Hardware installation/forwarding/reboot acceptance remains NOT RUN pending offline disk recovery.
 
-## Post-merge main verification — gate pending
+## Post-merge main verification — completed PASS
 
 Manager extended T1 after merging PR217. Independent `gh api repos/mcoder1001-cyber/NGFW/git/commits/4908716b4501312102382e6979b8fc1ded6f9311`, `git rev-parse 5bd7e8b^{tree}` and `git ls-remote origin refs/heads/main` assertions completed successfully in this tester's own worktree. Actual output:
 
@@ -117,4 +117,35 @@ Parents d2d55984d74fa1d06c32e8271886f11f16375407, 5bd7e8b545fc765fd2babd8dda1517
 
 PR217 metadata independently reports `state=MERGED`, expected `headRefOid=5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, actual `mergeCommit=4908716b4501312102382e6979b8fc1ded6f9311`, `mergedAt=2026-10-10T07:46:33Z`.
 
-`gh run view 38035583209 --repo mcoder1001-cyber/NGFW --json headSha,status,conclusion,event,jobs,url` independently reports main push `headSha=4908716b4501312102382e6979b8fc1ded6f9311`, `status=in_progress`, empty conclusion; [Mandatory quick gate job114165198295](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38035583209/job/114165198295) is executing `Run repository gate`. Its workflow/source is the unchanged reviewed tree. Tree/parent identity is PASS; completed post-merge main CI is **pending**, not yet PASS. Keep PR PASS distinct from this new run. Next: retrieve completed actual job log, verify main checkout and complete quick summary/literal gate pass, then publish the final receipt. No target operations.
+Final independent `gh run view 38035583209 --repo mcoder1001-cyber/NGFW --json headSha,status,conclusion,jobs,url` reports `headSha=4908716b4501312102382e6979b8fc1ded6f9311`, `status=completed`, `conclusion=success`; [Mandatory quick gate job114165198295](https://github.com/mcoder1001-cyber/NGFW/actions/runs/38035583209/job/114165198295) and every job step completed success. GitHub API timestamps: `startedAt=2026-10-10T07:46:38Z`, `completedAt=2026-10-10T08:07:08Z`. These are actual API fields; no elapsed duration is inferred from another clock source.
+
+Actual `gh api repos/mcoder1001-cyber/NGFW/actions/jobs/114165198295/logs` download exit0;58932bytes, SHA256 `9c957c9fe1c469f1acbde3f434b2b021ba21e6a09a6c666c0d10f3503df2fb12`, protected mode0600 in `/tmp/hardware-37-20261010-ci/job-114165198295.log`. Run metadata is preserved mode0600 at `/tmp/hardware-37-20261010-ci/main-run-38035583209.json`. The main branch checkout prints its full SHA directly, rather than the detached PR checkout banner. Actual excerpts:
+
+```text
+PASS completed main run38035583209/job114165198295 exact head 4908716b4501312102382e6979b8fc1ded6f9311; all job steps success
+2026-10-10T07:46:44.0287371Z 4908716b4501312102382e6979b8fc1ded6f9311
+2026-10-10T07:46:44.7152157Z 4908716b4501312102382e6979b8fc1ded6f9311
+2026-10-10T07:47:20.4628275Z branch    main @ 4908716b
+2026-10-10T07:56:54.7441123Z Tasks:    35 successful, 35 total Cached:    6 cached, 35 total Time:    8m25.917s
+2026-10-10T08:07:02.2831543Z apply-startup harness: green (2 shards; 149 checks passed in the parallel run)
+2026-10-10T08:07:02.2843662Z == summary (quick) ==
+2026-10-10T08:07:02.2844677Z   tools (golangci-lint, gitleaks)                    0m01s
+2026-10-10T08:07:02.2845205Z   install (pnpm --frozen-lockfile --prefer-offline)   0m05s
+2026-10-10T08:07:02.2845917Z   generate + generated-output gate                   0m52s
+2026-10-10T08:07:02.2846655Z   forbidden patterns (+ gitleaks)                    0m08s
+2026-10-10T08:07:02.2847237Z   packet-trace ban on the shared VPP (D-128)         0m01s
+2026-10-10T08:07:02.2847819Z   ip classify reset after every shell interface create (D-185)   0m01s
+2026-10-10T08:07:02.2848321Z   slot resource scheme (1..32, no collisions)        0m00s
+2026-10-10T08:07:02.2849014Z   lint · typecheck · unit tests · build (turbo)   8m26s
+2026-10-10T08:07:02.2849472Z   apps/agent: make lint test build                   7m45s
+2026-10-10T08:07:02.2849935Z   apps/cli: make lint test build                     0m14s
+…
+2026-10-10T08:07:02.2857710Z   deploy/vpp: shellcheck + apply-startup fake-host harness   1m41s
+…
+2026-10-10T08:07:02.2874218Z CI GATE PASSED
+PASS final remote main readback 4908716b4501312102382e6979b8fc1ded6f9311; actual merge parents and tree match reviewed/tested integration
+```
+
+The omitted modules line lists the same unit-mode test/Go modules as the PR gate and completes in0m28s; existing test-only OpenSSL ALLOW warnings follow. Complete actual log was inspected. Workflow/source/gate remain unchanged; no broad duplicate local test was run. Final GitHub merge API and `git ls-remote origin refs/heads/main` assertions passed again after completed log verification.
+
+Final post-merge verdict: **T1 PASS** on actual current main `4908716b4501312102382e6979b8fc1ded6f9311`, reviewed/tested tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`. PR source R1 APPROVE/T1 PASS remain applicable. No failing test was waived. Hardware installation/forwarding/reboot acceptance remains **NOT RUN**, awaiting offline disk recovery. No target installation or configuration mutation was performed.

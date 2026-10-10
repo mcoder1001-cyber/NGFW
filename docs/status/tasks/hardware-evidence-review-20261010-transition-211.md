@@ -141,3 +141,49 @@ and bounded-read evidence, not proof that every counter increase is harmless.
 [ATA pass-through completion](https://raw.githubusercontent.com/torvalds/linux/v7.0/drivers/ata/libata-scsi.c).
 The transition/read-only verdict is unchanged; use the latest actual0xc baseline
 and continue monitoring the full metadata read before any correction review.
+
+## Public receipt and networkd shutdown premise
+
+Independent `git ls-remote` readback confirms the actual coherent worker receipt
+[e65e4f86e87664eef20b370f05a31d84036c5fdb](https://github.com/mcoder1001-cyber/NGFW/blob/e65e4f86e87664eef20b370f05a31d84036c5fdb/docs/status/tasks/hardware-211-20261010-maintenance-preflight.md).
+`git show e65e4f86:docs/status/tasks/hardware-211-20261010-ram-stage.py | sha256sum`
+returns unchanged source e33b95eacf965361d2dc3ba05866e3ee80d9eb1cd6259679fa7d3582a34166d6.
+The earlier publication prerequisite is satisfied; no target transition is claimed.
+
+Reviewer independently parsed private network-stop-preflight.json, 93954 bytes,
+mode0600, SHA2565803a360e3aa124a54b3aeb7e0fe52d18ecaa88a6dec2470c85424cb25bd1c2f.
+Nine read-only commands exit0; effective management .network content hash agrees
+with its recorded digest. Selected conclusions, without printing configuration:
+
+```text
+nextroot absent: True; DHCP lease files: 0
+addresses4: dynamic0; valid/preferred lifetimes all4294967295
+management IPv4: static172.30.110.211/24, outside169.254/16
+management IPv6: kernel_ll, link scope, infinite lifetime
+IPv4 routes7: protocols kernel/static; IPv6 routes4: kernel
+DHCP/RA/expiring routes: 0; rules IPv4=3, IPv6=2
+effective explicit DHCP/IPv6AcceptRA/KeepConfiguration/DuplicateAddressDetection: absent
+LinkLocalAddressing=ipv6; explicit BindCarrier/ActivationPolicy: absent
+networkd active/running; unit fragment count1; DropInPaths empty
+ExecStop/ExecStopPost absent; KillSignal=15; KillMode=control-group
+PrivateMounts=no; RootDirectory empty; SendSIGHUP=no
+```
+
+Pinned v259.5 SIGTERM invokes manager_stop and link_stop_engines. The ordinary
+termination path stops dynamic engines; it has no general static-address/route
+flush. The ACD STOP callback can remove a static IPv4 address when IPv4 DAD is
+enabled. Here address_section_verify assigns ADDRESS_FAMILY_NO for an unset DAD
+value on non-link-local IPv4; address_ipv4acd_enabled then rejects that address.
+NDISC expiry/removal filters NDISC-derived objects, rather than the observed
+kernel/static objects. This conclusion is specific to these observed conditions.
+[Manager stop](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-manager.c),
+[Link engine stop](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-link.c),
+[Address default verification](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-address.c),
+[ACD enable/STOP handling](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-ipv4acd.c),
+[NDISC source filtering](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-ndisc.c).
+
+Possible matching .network.d override inventory is requested read-only before the
+final network premise closes. No KeepConfiguration edit or networkctl reload is
+approved or needed for the established static-state case. Preserve exact baseline
+comparison after transition; source-supported expectations are not an actual
+posttransition management PASS.

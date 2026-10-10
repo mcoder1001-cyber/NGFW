@@ -3,7 +3,7 @@
 Branch/worktree: `codex/hardware-evidence-review-20261010`,
 `/root/ngfw-wt/hardware-evidence-review-20261010`.
 Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
-Owned files: this task's envelope/WIP/R7 report only. This checkpoint's local SHA
+Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
 `65ca4275cd7bdf161d88b4b9d34fc4c9b94f7427` (focused source approval; matching CLI
@@ -222,3 +222,16 @@ CHECK_CONDITION query association; exact command causality/downstream equivalenc
 not claimed. Transition/read-only approval unchanged; full metadata read still
 monitored before correction review. Next command: fetch worker's actual public
 receipt and inspect posttransition RAM/runtime/offline guard evidence once ready.
+
+09:24 independent public readback: worker actual .211 e65e4f86e87664eef20b370f05a31d84036c5fdb
+confirmed remotely; exact stage source e33b95 unchanged. Publication prerequisite
+closed. Private network-stop receipt5803a360 independently hash/mode/selector checked:
+static infinite management IPv4/kernel IPv6LL, no dynamic/expiring routes or leases,
+no stop hooks/unit overrides. Matching259.5 source confirms ordinary termination
+preserves these static objects; static ACD removal exception is inapplicable under
+the observed unset non-link-local IPv4 DAD default. Matching .network.d inventory
+requested to exclude a merged DAD override before final network-premise closure.
+No live network edit/reload requested. Last verified own remote5af876c00bc7f93366dd1f1806b3eb3d485bb933.
+Current operational role: reviewer running this read-only follow-up; prior awaiting-resume
+notes and worker inventories are historical. Next: read ready override inventory,
+then actual transition PID1/runtime/SSH/network/offline proof from the operator.

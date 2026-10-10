@@ -1,3 +1,5 @@
+Final task state: DONE at 2026-10-10T16:40:13+00:00. Existing single hardware campaign mandatory repair/install/persistent interfaces/management/UTC RTC reboot/native acceptance completed and independently approved. Sole laboratory-only carrierless peer packet deferral is documented; no active host mutation or new task is authorized by this closeout. Historical scope below retained.
+
 Current authorized scope, 2026-10-10 16:08 UTC: ROOT remains sole host mutation owner on both targets. Existing host211 worker resumes source-only clock correction and R7 independently reviews; no unrelated task. Clock/RTC persistence and repeat normal reboot are necessary acceptance within the original installation/testing/reboot authorization. Preserve management/routing, TLS verification, desired timezone, existing chrony configuration and all original recovery records. ROOT also owns the narrow same-campaign addition to docs/status/DEFERRED-ACCEPTANCE.md for physical packet/throughput tests lacking carrier/peers; real clock/native failures cannot be deferred.
 
 # Hardware installation task envelope

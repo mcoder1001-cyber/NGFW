@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Finite real-agent/API global-blocking acceptance in the verified private VPP."""
-import hashlib,importlib.util,ipaddress,json,os,re,subprocess,sys,time,urllib.request,urllib.error
+import hashlib,importlib.util,ipaddress,json,os,re,secrets,select,subprocess,sys,time,urllib.request,urllib.error
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[3]
 sys.path.insert(0,str(ROOT/'test/topology/traffic-b'))
@@ -11,7 +11,7 @@ from tunnels import check_commit
 from probe import stop
 from scenario import private_identity
 EVID=ROOT/'docs/status/tasks/lab-global-blocking-20261010-evidence'
-BIN=Path('/tmp/ngfw-lab-nat46-20261010-bin')
+BIN=Path(os.environ.get('NGFW_GB_BIN','/tmp/ngfw-lab-nat46-20261010-bin'))
 events=[]
 def record(case,**data):
  events.append(dict(case=case,atUTC=time.strftime("%Y-%m-%dT%H:%M:%SZ",time.gmtime()),**data));(EVID/'live.json').write_text(json.dumps(events,indent=2)+'\n');print(case,json.dumps(data),flush=True)
@@ -78,7 +78,7 @@ try:
   code='import socket; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(("'+address+'",18443)); s.listen(); print("ready",flush=True)\nwhile True:\n c,a=s.accept(); c.sendall(c.recv(99)); c.close()'
   server=subprocess.Popen(['ip','netns','exec','ns-w17-'+side,'python3','-u','-c',code],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True);servers.append(server);assert server.stdout.readline().strip()=='ready'
  run(str(BIN/'nat46-handoff'),'w17')
- print(run('/tmp/ngfw-lab-global-blocking-20261010-counters'),flush=True)
+ print(run(os.environ.get('NGFW_GB_COUNTERS','/tmp/ngfw-lab-global-blocking-20261010-counters')),flush=True)
  vpp('counter-switch','show','acl-plugin','tables')
  agent=Path(os.environ.get('NGFW_GB_AGENT_BINARY',str(BIN/'ngfw-agent')))
  actual_sha=hashlib.sha256(agent.read_bytes()).hexdigest();expected=os.environ.get('NGFW_GB_AGENT_SHA256',actual_sha);assert actual_sha==expected
@@ -113,7 +113,39 @@ try:
     if str(ROOT/'apps/api/dist/main.js').encode() in Path('/proc/'+child+'/cmdline').read_bytes().split(b'\0'):
      env=dict(p.split(b'=',1) for p in Path('/proc/'+child+'/environ').read_bytes().split(b'\0') if b'=' in p);secret=env[b'NGFW_BOOTSTRAP_ADMIN_PASSWORD'].decode()
    assert secret
-   subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-global-blocking-20261010-shots.mjs')],input=json.dumps({'password':secret}),text=True,check=True)
+   if os.environ.get('NGFW_GB_BROWSER_FIFO')=='1':
+    # Root-only named pipes carry the secret in kernel memory to the real browser.
+    transport=owned/'browser-transfer';transport.mkdir(mode=0o700)
+    incoming,outgoing=transport/'input',transport/'result'
+    for pipe in (incoming,outgoing):os.mkfifo(pipe,0o600)
+    nonce=secrets.token_hex(24)
+    try:
+     deadline=time.monotonic()+180
+     while True:
+      try:fd=os.open(incoming,os.O_WRONLY|os.O_NONBLOCK);break
+      except OSError:
+       if time.monotonic()>deadline:raise TimeoutError('owned browser reader deadline')
+       time.sleep(.1)
+     with os.fdopen(fd,'w') as stream:stream.write(json.dumps({'password':secret,'nonce':nonce}))
+     fd=os.open(outgoing,os.O_RDONLY|os.O_NONBLOCK)
+     try:
+      data=b''
+      while time.monotonic()<deadline:
+       ready,_,_=select.select([fd],[],[],.2)
+       if ready:
+        chunk=os.read(fd,4096)
+        if chunk:data+=chunk
+        if b'\n' in data:break
+        time.sleep(.1)
+      reply=json.loads(data)
+      assert reply=={'status':'pass','nonce':nonce},'actual remote browser failed'
+     finally:os.close(fd)
+     record('remote-browser',actualAuthentication=True,locales=['en','fa'])
+    finally:
+     for pipe in (incoming,outgoing):pipe.unlink(missing_ok=True)
+     transport.rmdir()
+   else:
+    subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-global-blocking-20261010-shots.mjs')],input=json.dumps({'password':secret}),text=True,check=True)
    base=int(ipaddress.IPv4Address('100.64.0.0'));entries=[str(ipaddress.IPv4Address(base+2*i))+'/32' for i in range(200000)]
    for n in [10000,200000]:
     list_entries(entries[:n]);commit('gb-'+str(n)+'-real-commit');status=request(api,'GET','/security/global-blocking');assert status['lists'][0]['runningEntries']==n

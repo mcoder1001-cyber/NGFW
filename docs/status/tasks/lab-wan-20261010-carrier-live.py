@@ -10,6 +10,43 @@ TOKEN='ngp-'+hashlib.sha256(b'w20\0w20ppp').hexdigest()[:12]
 CARRIER_ROOT=Path('/var/lib/ngfw/agent/pppoe-carrier')/TOKEN
 INVENTORY='ngp-'+hashlib.sha256(b'inventory\0w20').hexdigest()[:12]
 def run(*args,check=True):return subprocess.run(args,check=check,capture_output=True,text=True)
+def cleanup_owned_runtime():
+ root=Path('/run/ngfw/pppoe')/TOKEN
+ if not os.path.lexists(root):return
+ assert os.geteuid()==0 and not Path('/run/netns',TOKEN).exists()
+ assert run('systemctl','is-active','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False).stdout.strip()=='inactive'
+ for parent in (root, *root.parents):
+  info=parent.lstat();assert parent.is_dir() and not parent.is_symlink() and info.st_uid==0 and info.st_mode&0o022==0
+ info=root.stat();identity=(info.st_dev,info.st_ino)
+ leaf='pw'+TOKEN.removeprefix('ngp-')
+ names={leaf+suffix for suffix in ('.state','.state6','.ipv6.pid','.ipv6.lock','.ipv6.action.lock','.ipv6.admission','.ipv6.blocked')}
+ names|={'resolv.conf','ipv6-transitions/'+leaf}
+ snapshots=[]
+ for path in root.rglob('*'):
+  rel=str(path.relative_to(root));info=path.lstat()
+  assert info.st_uid==0 and not path.is_symlink() and info.st_mode&0o022==0
+  if path.is_dir():assert rel=='ipv6-transitions';digest=None
+  else:
+   assert path.is_file() and info.st_nlink==1 and rel in names
+   content=path.read_bytes();digest=hashlib.sha256(content).hexdigest()
+   if rel==leaf+'.ipv6.pid':
+    record=json.loads(content);pid=record['pid'];assert type(pid)is int and pid>1
+    assert type(record['start'])is str and record['start'].isdigit()
+    argv=record['argv'];assert type(argv)is list and len(argv)==9 and all(type(arg)is str for arg in argv)
+    assert argv[:3]==['/usr/bin/python3','/etc/ppp/ngfw-ipv6-'+leaf,'refresh']
+    assert argv[3]==record['generation'] and len(argv[3])==32 and all(c in '0123456789abcdef' for c in argv[3])
+    assert argv[4]=='ppp0' and ipaddress.IPv6Address(argv[5])==ipaddress.IPv6Address('fe80::2') and ipaddress.IPv6Address(argv[6])==ipaddress.IPv6Address('fe80::1')
+    assert argv[7].isdigit() and int(argv[7])>1 and argv[8].isdigit() and int(argv[8])>0
+    stat=Path('/proc')/str(pid)/'stat'
+    if stat.exists():assert stat.read_text().split(') ',1)[1].split()[19]!=record['start'],'referenced helper still active'
+    parent=record['argv'][-2];assert parent.isdigit() and not Path('/proc',parent).exists(),'referenced pppd still active'
+  snapshots.append((path,info.st_dev,info.st_ino,digest))
+ for path,device,inode,digest in sorted(snapshots,key=lambda item:(item[3] is None,-len(item[0].parts))):
+  info=path.lstat();assert not path.is_symlink() and (info.st_dev,info.st_ino)==(device,inode)
+  if digest is None:path.rmdir()
+  else:assert hashlib.sha256(path.read_bytes()).hexdigest()==digest;path.unlink()
+ assert (root.stat().st_dev,root.stat().st_ino)==identity;root.rmdir()
+ print('OWNED_INACTIVE_RUNTIME_TOKEN_REMOVED PASS',flush=True)
 if len(sys.argv)>1:
  assert os.readlink('/proc/self/ns/net')!=os.environ['NGFW_WAN_HOST_NETNS']
  assert os.readlink('/proc/self/ns/mnt') not in (os.environ['NGFW_WAN_HOST_MNT'],os.readlink('/proc/1/ns/mnt'))
@@ -183,6 +220,7 @@ finally:
   for area in ('requests','results'):
    p=Path('/run/ngfw/pppoe-broker')/area/(token+'.json')
    if p.exists():assert json.loads(p.read_text())['token']==token;p.unlink()
+ cleanup_owned_runtime()
  if carrier_root_identity is not None:
   assert run('systemctl','is-active','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False).stdout.strip()!='active'
   assert [CARRIER_ROOT.stat().st_dev,CARRIER_ROOT.stat().st_ino]==carrier_root_identity

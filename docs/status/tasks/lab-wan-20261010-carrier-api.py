@@ -31,6 +31,26 @@ namespace_identity=(namespace.stat().st_dev,namespace.stat().st_ino)
 password=os.environ['NGFW_WAN_PEER_PASSWORD']
 assert len(password)==48
 
+def browser_password(runtime):
+ found=[]
+ for proc in pathlib.Path('/proc').iterdir():
+  if not proc.name.isdigit():continue
+  try:
+   if pathlib.Path(os.readlink(proc/'exe')).name!='node':continue
+   argv=(proc/'cmdline').read_bytes().split(b'\0')
+   if argv[:2]!=[b'node',str(ROOT/'apps/api/dist/main.js').encode()]:continue
+   if pathlib.Path(os.readlink(proc/'cwd'))!=ROOT:continue
+   start=(proc/'stat').read_text().split(') ',1)[1].split()[19]
+   env=dict(item.split(b'=',1) for item in (proc/'environ').read_bytes().split(b'\0') if b'=' in item)
+   if env.get(b'NGFW_AGENT_SOCKET')!=str(runtime/'agent.sock').encode():continue
+   assert env[b'NGFW_AGENT_OWNER']==b'w20' and env[b'NGFW_HTTP_PORT']==b'12000'
+   value=env[b'NGFW_BOOTSTRAP_ADMIN_PASSWORD'].decode()
+   assert (proc/'stat').read_text().split(') ',1)[1].split()[19]==start
+   assert pathlib.Path(os.readlink(proc/'cwd'))==ROOT and pathlib.Path(os.readlink(proc/'exe')).name=='node'
+   found.append(value)
+  except (FileNotFoundError,ProcessLookupError,PermissionError):continue
+ assert len(found)==1,'exact own stable API process required'
+ return found[0]
 def command(*args):return subprocess.check_output(args,stderr=subprocess.STDOUT,text=True,timeout=15)
 def state(api):
  for item in api.call('GET','/state/interfaces').get('items',[]):
@@ -42,6 +62,7 @@ def wait_up(api):
   item=state(api)
   if item.get('phase')=='up' and item.get('localIpv4')=='100.64.20.10':return item
   time.sleep(.4)
+ print('REAL_API_PPP_WAIT_TIMEOUT_STATE '+json.dumps({key:value for key,value in state(api).items() if key in ('phase','localIpv4','ipv6','forwardingReady','defaultReady','memberReady')}),flush=True)
  raise Refused('real API/current Wiring PPP did not become up')
 def commit(api,changed,baseline=None):
  validation=api.call('POST','/config/validate')
@@ -67,6 +88,8 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  result,warnings=commit(api,('/interfaces',))
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'
  live=wait_up(api);print('REAL_AGENT_WIRING_API_PAP_IPCP_STATE '+json.dumps(live),flush=True)
+ if os.environ.get('NGFW_WAN_BROWSER')=='1':
+  subprocess.run(['node',str(ROOT/'docs/status/tasks/lab-wan-20261010-pppoe-shots.mjs')],input=json.dumps({'password':browser_password(runtime)}),text=True,check=True,timeout=90,env=dict(os.environ,NGFW_WAN_BROWSER_OUTPUT=str(ROOT/'docs/status/tasks/lab-wan-20261010-evidence'/'195-pppoe-drawer')))
  command('ip','-n','ns-w20-carrier-isp','route','replace','10.20.1.0/24','dev','ppp0')
  command('ip','-n','ns-w20-carrier-isp','-6','route','replace','2001:db8:21::/64','dev','ppp0')
  for family,destination in (('-4','100.64.20.1'),('-6','2001:db8:20::1')):

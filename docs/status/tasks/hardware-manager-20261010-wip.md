@@ -1,3 +1,31 @@
+# Actual .211 normal boot and conditional .37 phase — 2026-10-10 10:52 UTC
+
+Actual singleforce commandSSH0/empty d13748e3; first3 normal22 probes255 during
+boot, fourth10:48:16 SSH0/newboot3a609803/root/devsda2ext4/protectedcontrollerroute.
+Private900B7b216000 records the full bounded reconnect sequence.
+Manager independently executed freshnormal22 boundedSSH:1197B0600/e30e3b595bb12cdd6adf2f2b1e6d0b2c9d24348cba4f4522dedaae925c314cc6,
+SSH0/stderr0, same NEWboot, actualrootext4FilesystemstateCLEAN; ssh.service and
+systemd-fsck-root.service active/Resultsuccess/ExecMainStatus0. Protectedenp4s0
+PCI0000:04:00.0/igc/group28 unchanged, exactroutevia110.1/src211; rescue+nextrootabsent.
+This is actual independent normalboot evidence. Full worker allL3/DNS/confighash/
+newkernel-storage conclusion pending: initial reader failed missingoptional
+resolvectl, classified as toolabsence; bounded directresolv.conf retry underway.
+No network/storage failure inferred from absent optional binary.
+
+R7 actual return review published/readback7ca7c4edc206130a4b5436a7a59e8ef73fc42f5d.
+Root CONDITIONALLY releases .37 ordinaryRAMtransition and readonly offline phase,
+requiring211actualremainingALLL3/DNS/protectednet/bootstoragePASS plus .37 exact
+offline-preservebdb2a28a publication/readback, actualRAMimports0 and R7 applicability
+alreadyAPPROVE. Once actualconditionsPASS, worker fresh21122check, ownednextroot,
+ordinary37systemctlsoft-reboot, heldPTY/newRAMPID1/fresh2222/helper/networkproof,
+ownedmarkerremoval/fullnamespace-process-fd audit/exclusiveguard0; then reviewed
+readonly-f-n diagnostic, plainnative/nineinode/sevenraw/offhosthash-fsync/health.
+No redundant manager roundtrip once these actualconditionsPASS; no correctivefsck
+release implied. .37 facts must be measured, no cloned-image assumptions substitute.
+Later211 clock/startpolicy101/persistentVPPmask/exact11apt-s sourceprep permitted;
+installation/activation remain pending real solver review. Rootprior5e29d552b026c5cac78aa9c7bc396a10e3657494
+push/readbackPASS; this conditionalphasecheckpoint immediately publishes.
+
 # Actual .211 normal-return release — 2026-10-10 10:47 UTC
 
 Worker coherent selected-integrity/return-readiness checkpoint is published and

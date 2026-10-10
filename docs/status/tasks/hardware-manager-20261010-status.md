@@ -1,18 +1,21 @@
-# Hardware task status — 2026-10-10 10:43 UTC
+# Hardware task status — 2026-10-10 10:52 UTC
 
 بسته‌های اصلاح‌شده آماده‌اند؛ CI کامل پیش و پس از ادغام PR217 موفق شد.
 فرسودگی SSD مربوط به172.30.126.37 است؛ مالک تعمیر را با پذیرش آن تأیید کرد.
 خرابی اولیه فایل‌سیستم روی هر دو دستگاه تأیید شد؛ تعمیر .211 تمام شده است.
 بررسی کامل آفلاین بعد از تعمیر .211 بدون خطا گذشت؛ undo و مدارک خارج از دستگاه محفوظ‌اند.
-مدیریت و روتینگ حفظ شده؛ بررسی فایل‌های بوت و ورود52/52 موفق بود و بازگشت عادی در حال آماده‌سازی است.
+بررسی فایل‌های بوت و ورود52/52 موفق بود؛ .211 به بوت عادی و SSH22 برگشت و فایل‌سیستم clean است.
+مقایسهٔ نهایی DNS و تمام مسیرها در حال انجام است؛ مرحلهٔ آفلاین .37 پس از موفقیت آن اجرا می‌شود.
 
 Fresh main4908716b unchanged; main quick38035583209 and both fixtures SUCCESS.
 Unrelated concurrent laboratory PRs218/219/220 are open; no new hardware product merge.
 Fresh remote board212:205merged,7parked; hourly report6096451111 successfully posted.
 Verified live roles: manager, two exclusive host operators/testers, one recovery reviewer;
 external live inventory unverifiable, no persistent runner claim.
-Root remote1c4b94b1; .211203ea2a8 before actual milestone publication;
-.37a04409b8/320f1e49; R70437b3fb before next immediate updates.
+Fresh10:43 observed main ded860762c81e72fb9f760caec4bd98898c8b6a4 after unrelated
+test-onlyPR219; its mainCI38044587907SUCCESS. Immutablehardwarepayload remains
+reviewed2045ab8; no silent installation of unmerged218/221product changes.
+Root remote5e29d552; .2113d1e1a8f; .3724a5859d; R77ca7c4ed before next updates.
 .211 ordinary RAM transition/heldPTY71683/fresh2222 auth PASS; full offline audit
 267processes/93FDs/nsfs0/races0/failures0/finalguard0; six network sections identical.
 Native e2image PASS986808320B apparent/10096640B sparse; offhost gzip1727953B
@@ -25,12 +28,16 @@ verified/fsynced, complete private transcript3270B/ledger20099B preserved.
 Emptyregular259595/259600 and directory259603 preserved in lost+found;
 postaudit260processes/93FDs/nsfs0/races0/failures0/finalguard0; kernel equal/ioerr18stable.
 Selected originalroot/EFI readonly boot/auth integrity52/52True and ordinaryunmount0;
-matchingRAMshutdown/manager/finalguard/sync and separate R7 normal-return verdict pending.
-.37 original22 and RAM2222/heldPTY retained; transition held until .211 normal return.
+matchingRAMshutdown/manager/finalguard/sync PASS9569441f, R7 normal-returnAPPROVE.
+ActualsingleforceSSH0/reconnectfourthprobeSSH0/newboot3a609803/rootclean;
+managerindependentfresh22/protectedenp4s0PCI04igcgroup28/fsckrootsuccess0 PASS.
+WorkerallL3/DNS/newkernelproofremaining; absentoptionalresolvectl narrowretry underway.
+.37 original22 and RAM2222/heldPTY retained; conditionalordinaryRAMtransition/readonly
+phase released only after211remainingPASS andpublished ownreviewedpreservesource/imports0.
 Both bounded256MiB aligned direct reads PASS, stable counters/no new read-storage errors;
 .211 historicalCRC1003/query-associated counter increments retained; .37wear126%/2remaps.
 Protected .37enp12s0/.211enp4s0 exact network preserved; no dataPCI binding/install yet.
 Package hash/direct-dependency prep done; hugepages0 and NIC-seed opt-in require setup.
-Remaining: verified .211 normal return, .37 repair/clean offline check/normal return, install
+Remaining: final .211 allnetwork/bootstorage verification, .37 repair/clean offline check/normal return, install
 and exact7/17 physical-row activation, API/TLS/forwarding/restart/reboot actual tests.
 Read hardware-manager-20261010-wip.md and recovery.md for current gates/next commands.

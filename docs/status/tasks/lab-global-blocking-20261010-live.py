@@ -68,6 +68,8 @@ try:
   code='import socket; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1); s.bind(("'+address+'",18443)); s.listen(); print("ready",flush=True)\nwhile True:\n c,a=s.accept(); c.sendall(c.recv(99)); c.close()'
   server=subprocess.Popen(['ip','netns','exec','ns-w17-'+side,'python3','-u','-c',code],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL,text=True);servers.append(server);assert server.stdout.readline().strip()=='ready'
  run(str(BIN/'nat46-handoff'),'w17')
+ print(run('/tmp/ngfw-lab-global-blocking-20261010-counters'),flush=True)
+ vpp('counter-switch','show','acl-plugin','tables')
  with product_stack(17,agent_binary=str(BIN/'ngfw-agent')) as (api,owned,restart):
   api.call('PATCH','/config/vrfs',{'w17-gb-proof':{'id':17040}})
   first=api.call('POST','/config/commit?comment=gb-baseline');warnings=check_commit(first,changed_paths=('/vrfs',));revision=first['revision']['id']

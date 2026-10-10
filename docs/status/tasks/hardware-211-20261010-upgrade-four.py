@@ -10,6 +10,7 @@ PRIVATE=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware/recovery-private
 SSH=['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.110.211']
 SOURCE='ee20250072938a46407c5ff541e61e1afb7db2d5'
 VERSION='0.1.0~dev+ee2025007293'
+AGENT_SHA='a909ae56ecee2431921659d0d9d489a14768fb12a4d71628627659fecd463781'
 PACKAGES={'ngfw-agent','ngfw-api','ngfw-web','ngfw-meta'}
 POLICY=b'#!/bin/sh\nexit 101\n'
 REMOTE=r'''
@@ -186,7 +187,8 @@ else:
   expected={x['Package']:[VERSION,'installed'] for x in ARCHIVES}
   actual={line.split('\t')[0]:line.split('\t')[1:] for line in result['packages']['stdout'].splitlines()}
   result['exact_four_configured']=result['packages']['exit']==0 and actual==expected
-  after=observe();guards(d);result.update(after=after,protected_unchanged=equivalent(before,after),**kernel_health(kernel_before));print(json.dumps(result,indent=2));raise SystemExit(q.returncode if q.returncode else (0 if result['protected_unchanged'] and result['exact_four_configured'] and result['dpkg_audit']['exit']==0 and result['dpkg_audit']['stdout']=='' and result['no_new_storage_errors'] else 2))
+  result['installed_agent_binary']=metadata('/usr/sbin/ngfw-agent');result['fixed_agent_binary_matches']=result['installed_agent_binary']['SHA']==AGENT_SHA
+  after=observe();guards(d);result.update(after=after,protected_unchanged=equivalent(before,after),**kernel_health(kernel_before));print(json.dumps(result,indent=2));raise SystemExit(q.returncode if q.returncode else (0 if result['protected_unchanged'] and result['exact_four_configured'] and result['fixed_agent_binary_matches'] and result['dpkg_audit']['exit']==0 and result['dpkg_audit']['stdout']=='' and result['no_new_storage_errors'] else 2))
 result.update(**kernel_health(kernel_before));assert result['no_new_storage_errors']
 print(json.dumps(result,indent=2))
 '''
@@ -211,6 +213,7 @@ def main():
  if a.mode in ['upload','simulate','install']:
   m=pathlib.Path(a.manifest);assert not m.is_symlink() and m.stat().st_uid==0;raw=m.read_bytes();assert hashlib.sha256(raw).hexdigest()==a.manifest_sha256;j=json.loads(raw)
   assert j['source_sha']==SOURCE and j['version']==VERSION and len(j['packages'])==4 and {x['Package'] for x in j['packages']}==PACKAGES
+  assert j['agent_binary_sha256']==AGENT_SHA
   assert len({x['file'] for x in j['packages']})==4
   for x in j['packages']:
    assert re.fullmatch(r'[A-Za-z0-9.+~_-]+\.deb',x['file']);f=m.parent/x['file'];assert f.is_file() and not f.is_symlink();b=f.read_bytes();assert hashlib.sha256(b).hexdigest()==x['sha256']
@@ -218,7 +221,7 @@ def main():
    archives.append({'file':x['file'],'sha256':x['sha256'],'bytes':len(b),**fields})
  if a.mode=='install':
   raw=private_read(a.plan);assert hashlib.sha256(raw).hexdigest()==a.plan_sha256;q=json.loads(raw);assert q['mode']=='simulate' and q['simulation']['exit']==0;plan=q['plan_changes']
- fields={'MODE':a.mode,'NETWORK':prior['network_after'],'INVENTORY':prior['inventory_after'],'SYSCTLS':prior['sysctls_after'],'API_ENV_SHA':firstboot['files']['/etc/ngfw/api.env']['sha256'],'POLICY':POLICY,'BASELINE':baseline,'BASELINE_SHA':a.baseline_sha256,'ARCHIVES':archives,'PLAN':plan,'VERSION':VERSION,'CONTROLLER_EPOCH':datetime.datetime.now(datetime.timezone.utc).timestamp()}
+ fields={'MODE':a.mode,'NETWORK':prior['network_after'],'INVENTORY':prior['inventory_after'],'SYSCTLS':prior['sysctls_after'],'API_ENV_SHA':firstboot['files']['/etc/ngfw/api.env']['sha256'],'POLICY':POLICY,'BASELINE':baseline,'BASELINE_SHA':a.baseline_sha256,'ARCHIVES':archives,'PLAN':plan,'VERSION':VERSION,'AGENT_SHA':AGENT_SHA,'CONTROLLER_EPOCH':datetime.datetime.now(datetime.timezone.utc).timestamp()}
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
  paths={key:PRIVATE/('upgrade-four-'+a.mode+'-'+stamp+suffix) for key,suffix in [('stdout','.json'),('stderr','.stderr')]}

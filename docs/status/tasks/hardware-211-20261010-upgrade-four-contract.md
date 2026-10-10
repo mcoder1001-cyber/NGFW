@@ -35,8 +35,10 @@ resimulates the same plan before a transaction with policy101, persistent VPP
 mask, `DEBIAN_FRONTEND=noninteractive`, `NEEDRESTART_MODE=l`, and supported
 `VPP_INSTALL_SKIP_SYSCTL=1`; it refuses detected needrestart hooks, does not
 timeout dpkg, preserves existing conffiles, and captures complete private apt
-output. Exact four configured versions plus empty successful dpkg audit are
-required afterward. These controls do not authorize a broader dependency or
+output. Exact four configured versions, fixed agent executable SHA256
+`a909ae56ecee2431921659d0d9d489a14768fb12a4d71628627659fecd463781`
+and empty successful dpkg audit are required afterward. The manager's compiled
+manifest must attest that same executable digest. These controls do not authorize a broader dependency or
 OS upgrade.
 
 All modes pin management enp4s0/PCI04/igc/group28 and controller TCP22, all17

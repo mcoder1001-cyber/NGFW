@@ -1,0 +1,12 @@
+START baseline
+END baseline 1 ['DISPOSABLE_VPP pid=457485 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457482', '=== RUN   TestAgentOnHost', '--- PASS: TestAgentOnHost (11.72s)', '=== RUN   TestDataplaneRuntimeOnHost', '--- PASS: TestDataplaneRuntimeOnHost (1.31s)', '=== RUN   TestHostNicsOnHost', '--- FAIL: TestHostNicsOnHost (1.01s)', '=== RUN   TestWireguardOnHost', '--- FAIL: TestWireguardOnHost (1.16s)', 'FAIL', 'DISPOSABLE_VPP_STOPPED pid=457485']
+START tunnels
+END tunnels 1 ['DISPOSABLE_VPP pid=457526 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457523', '=== RUN   TestTunnelsOnDisposableVPP', '--- FAIL: TestTunnelsOnDisposableVPP (0.08s)', 'FAIL', 'DISPOSABLE_VPP_STOPPED pid=457526']
+START mpls
+END mpls 0 ['DISPOSABLE_VPP pid=457548 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457545', '=== RUN   TestMplsOnHost', '--- PASS: TestMplsOnHost (5.00s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=457548']
+START srv6
+END srv6 0 ['DISPOSABLE_VPP pid=457588 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457585', '=== RUN   TestSrv6OnHost', '--- PASS: TestSrv6OnHost (5.29s)', '=== RUN   TestSrv6GlobalsOnHost', '--- PASS: TestSrv6GlobalsOnHost (2.14s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=457588']
+START lb
+END lb 0 ['DISPOSABLE_VPP pid=457646 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457643', '=== RUN   TestLbOnHost', '--- PASS: TestLbOnHost (4.84s)', '=== RUN   TestLbGarbageCollectOnHost', '--- PASS: TestLbGarbageCollectOnHost (65.07s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=457646']
+START wireguard-packets
+END wireguard-packets 0 ['DISPOSABLE_VPP pid=457761 runtime=/tmp/ngfw-lab-manager-20261010/source/.scratch/isolated-vpp-457758', '=== RUN   TestWireguardHandshakeOnHost', '--- SKIP: TestWireguardHandshakeOnHost (0.00s)', 'PASS', 'DISPOSABLE_VPP_STOPPED pid=457761']

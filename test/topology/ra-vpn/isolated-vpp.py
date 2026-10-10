@@ -85,7 +85,12 @@ plugins {{ plugin default {{ disable }} plugin tap_plugin.so {{ enable }} plugin
                         # be visible to the separately mounted VPP/manager parent.
                         command = ['/usr/bin/unshare', '--mount', '--propagation', 'private', '--'] + command
                     result = subprocess.call(command, cwd=test_cwd, env=env, stdout=test_output, stderr=subprocess.STDOUT)
-                for line in test_log.read_text(errors='replace').splitlines():
+                lines = test_log.read_text(errors='replace').splitlines()
+                test_name = name.removeprefix('^').removesuffix('$')
+                if not any(line == '=== RUN   ' + test_name for line in lines) or not any(line.startswith('--- PASS: ' + test_name + ' (') for line in lines):
+                    print('required private RA test did not pass', flush=True)
+                    result = result or 1
+                for line in lines:
                     if line.startswith(('=== RUN', '--- PASS', '--- FAIL', 'PASS', 'FAIL', 'ok ')) or '_test.go:' in line:
                         print(line[:400], flush=True)
                 if process.poll() is not None:

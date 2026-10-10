@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
     if (errno || !*argv[1] || *end || block >= 15505494ULL) return 2;
     if (block != 15505493ULL && block != 15503361ULL &&
         block != 15503362ULL && block != 15503363ULL &&
-        block != 15503874ULL) return 2;
+        block != 15503874ULL && block != 15503875ULL) return 2;
     int fd = open("/dev/sda2", O_RDONLY | O_CLOEXEC);
     struct stat st;
     unsigned long long bytes = 0;

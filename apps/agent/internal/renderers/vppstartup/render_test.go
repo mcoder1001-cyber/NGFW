@@ -124,7 +124,7 @@ func TestGolden(t *testing.T) {
 }
 
 // TestSixNICSample pins the acceptance shape: each data NIC as `dev <pci> { name <logical> }`,
-// the management NIC blacklisted and never a dev, no no-pci.
+// the management NIC excluded from the closed device allowlist, no no-pci.
 func TestSixNICSample(t *testing.T) {
 	out, m, err := Generate(loadDoc(t, "testdata/cases/six-nic-sample.json"), ngfwA(t), DefaultSettings())
 	if err != nil {
@@ -138,7 +138,7 @@ func TestSixNICSample(t *testing.T) {
 		"  dev 0000:14:00.0 {\n    name p2p\n  }",
 		"  dev 0000:1b:00.0 {\n    name lan2\n    num-rx-queues 1\n  }",
 		"  dev 0000:1c:00.0 {\n    name sync\n    num-rx-desc 512\n    num-tx-desc 512\n  }",
-		"  blacklist 0000:0b:00.0\n",
+		"  # excluded management PCI: 0000:0b:00.0\n",
 		"  corelist-workers 2-3\n",
 	} {
 		if !strings.Contains(s, want) {
@@ -148,8 +148,44 @@ func TestSixNICSample(t *testing.T) {
 	if strings.Contains(s, "dev 0000:0b:00.0") || strings.Contains(s, "no-pci") {
 		t.Error("management NIC listed as a device, or no-pci with devices")
 	}
-	if len(m.Devices) != 6 || len(m.Warnings) != 0 || strings.Count(s, "blacklist") != 1 {
+	if len(m.Devices) != 6 || len(m.Warnings) != 0 || strings.Contains(s, "blacklist") {
 		t.Errorf("devices %d warnings %v", len(m.Devices), m.Warnings)
+	}
+}
+
+// DPDK rejects EAL allow (-a, VPP dev) and block (-b, VPP blacklist)
+// options together. Management protection must not make a device configuration
+// unbootable; no-device configurations must still prevent PCI probing.
+func TestDPDKDeviceSelectionDoesNotMixEALAllowAndBlockLists(t *testing.T) {
+	for _, name := range []string{"empty", "whitelist-only", "six-nic-sample", "single-core", "two-worker"} {
+		t.Run(name, func(t *testing.T) {
+			out, model, err := Generate(loadDoc(t, "testdata/cases/"+name+".json"), ngfwA(t), DefaultSettings())
+			if err != nil {
+				t.Fatal(err)
+			}
+			parsed, err := Parse(out)
+			if err != nil {
+				t.Fatal(err)
+			}
+			allow, block, noPCI := false, false, false
+			for _, entry := range parsed.Canonical() {
+				allow = allow || strings.HasPrefix(entry, "dpdk > dev 0000:")
+				block = block || strings.HasPrefix(entry, "dpdk > blacklist ")
+				noPCI = noPCI || entry == "dpdk > no-pci"
+				if strings.HasPrefix(entry, "dpdk > dev 0000:0b:00.0") {
+					t.Fatal("management NIC was admitted to DPDK")
+				}
+			}
+			if allow && block {
+				t.Fatal("DPDK EAL rejects simultaneous allow and block lists")
+			}
+			if len(model.Devices) > 0 && (!allow || noPCI) {
+				t.Fatal("configured data devices are not admitted exclusively")
+			}
+			if len(model.Devices) == 0 && (!block || !noPCI || allow) {
+				t.Fatal("empty configuration permits PCI probing")
+			}
+		})
 	}
 }
 

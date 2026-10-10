@@ -35,8 +35,8 @@ dpdk {
   dev 0000:0c:00.0 {
     name lan
   }
-  # host management NIC(s): never handed to DPDK
-  blacklist 0000:0b:00.0
+  # host management NIC(s): excluded by the explicit device allowlist
+  # excluded management PCI: 0000:0b:00.0
 }
 
 plugins {

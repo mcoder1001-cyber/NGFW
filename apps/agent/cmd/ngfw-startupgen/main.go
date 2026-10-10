@@ -158,7 +158,7 @@ func generate(o options, visited map[string]bool, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: lab slot %d instance in %s (api %s, cli %s, stats %s, api-segment prefix %s)\n",
 			o.labSlot, settings.RuntimeDir, settings.APISocket, settings.CLISocket, settings.StatsSocket, settings.APIPrefix)
 	}
-	_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: host management NIC(s) %s (always blacklisted)\n", strings.Join(host.ManagementPCI, ","))
+	_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: host management NIC(s) %s (always excluded from DPDK)\n", strings.Join(host.ManagementPCI, ","))
 	for _, n := range host.ManagementNotes {
 		_, _ = fmt.Fprintf(stderr, "ngfw-startupgen: management: %s\n", n)
 	}

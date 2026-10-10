@@ -4559,7 +4559,7 @@ tasks:
       assertions/preconditions; remaining full host acceptance explicitly deferred, not complete.'
     parked_on: ""
     worker_status: "acceptance complete; final CI/integration pending"
-    acceptance_receipt_20261010: "Actual 195/250 packet translation, FIB, counters, restart and rollback PASS; real 195 API and English/Persian browser PASS. PR220 exact hosted CI PASS; final integration and merge pending."
+    acceptance_receipt_20261010: "Actual195/250 native packet translation, FIB/counters/restart/refusal/rollback PASS. Actual authenticated API/candidate/commit/directRetrieve/duplicateHTTP400 exactpointer/agentrestart/revisionrollback and normal English/Persian browser now PASS on BOTHhosts. Supplemental250 current protected076agent, reviewed runtime-only adapters and nonceACK SSHtransport; actualprivateVPP494108/DB/role/tunnel cleanup PASS, shared8102 NRestarts0. PR220 final D112522886d195 parentmain7c28, exacthosted38048420443 pending; not yet Done."
   - id: S-mtu-linkmtu0
     title:
       "interfaces descriptor: defaultMtu treats LinkMtu=0 (mpls_tunnel) as VPP's 9000 fallback so Retrieve stops reporting a stray interface.mtu and MPLS tunnel applies stop rolling

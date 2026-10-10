@@ -8,7 +8,7 @@
 - Owned remote target: `root@172.30.110.211`; no changes to the other target or shared development host.
 - Authorization: owner requests package installation, tests, all interfaces except management/routing, and reboot if necessary. Management access and routing must remain functional.
 - Constraints: exact manager-provided product payload; independent installation review; no replacing OS, mounted filesystem repair, blind nftables baseline/flush, management PCI rebinding, unsafe VFIO/no-IOMMU, secrets in evidence, or developer-host VPP changes.
-- Current phase: explicitly authorized reversible RAM staging complete, key-only management SSH2222/PTY tested; originalSSH22/network preserved. Formal transition-only review and exact manager authorization pending; no root handover, repair, reboot or installation yet.
+- Current phase: RAM staging/SSH2222 persistent PTY and static management stop premise verified. Manager phase release86c0ba96 conditionally authorizes ordinary soft-reboot into RAM, then positive offline proof and read-only diagnosis/metadata capture; final audit source applicability/publication/live checks precede transition. No root handover, diagnosis, repair, reboot or installation has run yet.
 - Runtime publication: commit coherent evidence and publish immediately to own branch; report actual remote SHA to manager.
 - Acceptance: SSH and exact management routes preserved; packages installed from verified payload; firstboot/services/HTTPS/auth; 17 data interfaces persisted through API and present in VPP; routing/NAT/ACL/FRR and recovery/reboot tests with actual evidence where hardware links allow.
 
@@ -28,3 +28,7 @@ Owner now explicitly requests fixing disk/root filesystem; original installation
 ## Reversible RAM staging authorization
 
 Manager authorizes only dedicated executable RAM tmpfs `/run/ngfwrescue`, isolated key-only management listener2222 and complete matching minimal rescue tree/runtime tests. Keep `/run/nextroot` absent. Original SSH/network/boot/disk configuration remains unchanged. SMART package may be downloaded/extracted exclusively into RAM only after official cached signature/index/package hash verification, with read-only smartctl -x only. No apt update/install, SMART test/enable/write control, soft-reboot, KeepConfiguration application, transition or fsck is authorized. Independent reviewer receives concrete tree/unit/procedure hashes before manager coordinates next action.
+
+## Released phase — transition and read-only diagnosis only
+
+Manager durably releases exact owned `/run/nextroot -> /run/ngfwrescue` and ordinary original22 soft-reboot after final independently applicable RAM audit helper, durable checkpoint, persistentPTY/otherhostSSH/controllercapacity gates. Keep PTY71683. After actual newRAMPID1/runtimehelper/SSH/network proof, enumerate process/device/namespace references and require exact guard0; only then read-only `e2fsck -f -n` and measured privateRAM e2image-Q plus verified compressed durable offhost metadata. No corrections/returnreboot/packageactivation/original-filedeletion. Namespace helper child-only setns reference inspection does not substitute for exclusive guard. Never commit confidential archives/logs.

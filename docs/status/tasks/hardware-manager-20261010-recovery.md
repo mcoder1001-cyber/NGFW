@@ -1,10 +1,14 @@
 # Hardware recovery and installation resume
 
-Current recovery record: both /dev/sda2 roots have structural ext4 errors and failed
-boot fsck. Authenticated RAM rescue SSH and persistent PTYs are now staged and
-tested on both hosts, with original management SSH retained. No root transition,
-filesystem repair, normal reboot, package installation or hardware acceptance has
-yet occurred. The owner explicitly requests repair despite .37 SSD wear; wear
+Current phase, 2026-10-10 10:05UTC: both /dev/sda2 roots have structural ext4 errors
+and failed boot fsck. .211 actually entered RAM rescue, fresh2222 authenticated,
+exact network state matched and full offline/exclusive proof passed. Native
+metadata image plus five affected external blocks are durably preserved offhost;
+targeted interactive correction has started after actual R7 approval and refreshed
+audit262processes/93FDs/nsfs0/races0/failures0/finalguard0. Completion/normal return
+have not yet been observed. .37 remains on original22 plus held RAM rescue PTY;
+its transition waits for .211 normal return. Package installation and hardware
+acceptance remain unexecuted. The owner explicitly requests repair despite .37 SSD wear; wear
 alone is not a replacement or permission blocker. Recover .211 first, then .37.
 The earlier console-only plan is superseded by the reviewed matching-systemd RAM
 rescue design and actual readiness evidence, not by an unverified rescue assumption.
@@ -66,15 +70,27 @@ new read/media failure or unexpectedly affected user file requires diagnosis.
    SHA02a2270ad8e0f480efc7464b26d2216fec8a915aa12755da6339015abed0f41c
    must positively open the actual /dev/sda2 identity8:2 O_RDONLY|O_EXCL (exit0).
    If BUSY, identify the holder; never close arbitrary descriptors or force fsck.
-4. Only after that offline proof, run e2fsck -f -n with full private output/exit,
-   and e2image -Q to a seekable private regular RAM file. A diagnostic exit4 means
-   uncorrected errors. Measure actual capacity and image size, compress privately
+4. Only after that offline proof, run e2fsck -f -n with full private output/exit.
+   Actual .211 diagnostic exited12 (uncorrected4 plus aborted8). Its e2image -Q
+   failed on corrupt extent traversal and retained0B; do not repeat or claim it
+   as preservation. Reviewed plain e2image /dev/sda2 NEW_PRIVATE_RAM_FILE succeeds
+   without extent traversal. It saves super/group descriptors/inode tables/bitmaps,
+   omitting external directory/extent/EA/journal blocks and user data. Supplement
+   affected blocks15505493/15503361/15503362/15503363/15503874 using reviewed
+   static read-only allowlisted helper; .211 actual five4096B blocks are all zero.
+   Measure actual capacity and image size, compress privately
    offhost, verify compressed and decompressed source hashes, and keep both pipeline
    exits. Record block-read/SCSI/CRC/kernel baselines before and after reads. Do not
-   use a -Q output pipe or modify the mounted original root. Both filesystem and
+   use a nonseekable image output or modify the mounted original root. Both filesystem and
    partition are exactly63510503424bytes; no partition enlargement is justified.
 5. Review actual inode/path findings and prompts plus verified metadata and undo
-   capacity before interactive e2fsck -f -z on the still-unmounted identified root.
+   capacity before interactive LC_ALL=C e2fsck -f -E fixes_only,nodiscard -z
+   NEW_PRIVATE_CAPPED_RAM_UNDO /dev/sda2 on the still-unmounted identified root.
+   Actual .211 wrapper inherits verified1GiB soft/hard RLIMIT_FSIZE, measured RAM
+   and controller capacity plus512MiB margin, private1MiB write/sync preflight.
+   Explicit individual y/n only: known three journal extent clears/accounting and
+   known cache/config salvage/checksum; new objects/prompt effects require concrete
+   classification before acceptance. Directory salvage may discard malformed entries.
    No unattended -y, arbitrary directory deletion, format, repartition, SMART reset
    or generic -D repair. Known inode259596 is a damaged regular journal file, not
    /root; do not infer all reported corruption is confined to that file. Undo is

@@ -97,3 +97,9 @@ request above was superseded by observed/reviewed matchingRAM recovery; owner
 authorizes repair/install/test/reboot and accepts37wear without repeated approval.
 Active chat workers:host37+host211; R7evidence_review independent reviewer.
 Departed install_review is not counted live; no persistent supervisor claimed.
+
+Same hardware runtime correction ownership (2026-10-10 12:58 UTC): root also owns
+apps/agent/internal/agent/rpc_autoblock.go and rpc_autoblock_test.go.
+Actual agent restart fails on an ownerless empty persisted cache. Normalize only
+accepted snapshots to the effective service owner; keep foreign-owner rejection.
+Independent review and restart regression precede native fixed artifact deployment.

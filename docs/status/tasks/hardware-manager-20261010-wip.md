@@ -1237,3 +1237,23 @@ Exact next read-only command AFTER owner reports offline recovery complete:
 Repeat for172.30.110.211; compare private backed-up state. Read recovery runbook first.
 Checkpointpublication/actual remote SHA is reported onPR217 after successful push
 and readback. Preserve current source/history/artifacts; resume existing task branches.
+
+Actual checkpoint 2026-10-10 12:59 UTC (16:29 Tehran): root canonical guarded
+noPCI three-plugin startup transaction COMMITTED; exact live367ead29, newVPP33868
+stable0, management/fullL3/original17drivers/groups/TCP22/ioerr6 PASS. Actual
+result receipt d63451ad9d5bb5f19fce04e2d0f30bbaefb5f81444f75017503eea0179207065
+6730B0600 independently PASS. Initial checker refused due to omitted inventory
+members/incorrect plan-seal parsing; preserved702cf0, corrected readonly only.
+Root ordered agent/API starts returned0 (6e45514a,1103B), but later agent
+crashed: actual journal86c50356,80423B, cache classification318a6e69,672B
+show ownerless empty2B cache. Native17 seed NOT PASS; no data binding applied.
+Root contained known crash loop API then agent STOPPED, no cache/NIC/startup
+writes: dc95818ca54d78d3350e3aea64cbd632215add776f5ae14cc2e118ac7d430902,395B0600,
+SSH0/emptyerr, agent151restarts retained; VPP33868/nginx9281 stillactive0.
+Same-task source correction normalizes accepted snapshot owner and preserves
+strict foreign-owner rejection; Go allTestAutoBlock PASS0.337s. Native fixed
+artifact deployment/fullmandatoryquick/finalreview still required.
+Exact next command: create fresh-main isolated D112 integration of required
+firstboot+owner persistence corrections, publish PR and run unchanged quick gate.
+Old root-owned reproducible587MBtmpfs build cache removed only after all seven
+retained runtime archive manifest/checksum entries verified SHA256 PASS.

@@ -38,6 +38,7 @@ def lifecycle(api,runtime,config,password,state,wait_up,commit,command,Refused):
    time.sleep(.02)
   peer_ns=(proc/'ns/net').stat()
   new={'pid':peer.pid,'start':(proc/'stat').read_text().split(') ',1)[1].split()[19],'argv':[item.decode() for item in (proc/'cmdline').read_bytes().split(b'\0') if item],'exe':os.readlink(proc/'exe'),'namespace':[peer_ns.st_dev,peer_ns.st_ino]}
+  assert new['argv']==record['argv'] and new['exe']==record['exe']
   guarded_peer(new)
   wait_up(api,budget=11)
   elapsed=time.monotonic()-started

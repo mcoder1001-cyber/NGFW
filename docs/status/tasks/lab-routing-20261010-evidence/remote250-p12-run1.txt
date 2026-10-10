@@ -1,0 +1,22 @@
+P12_SLOT14_EXCLUSIVE=ACQUIRED
+P12_SHARED_BEFORE=["MainPID=8102\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+P12_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}]
+P12_PRIVATE_NETNS=net:[4026533088]
+DISPOSABLE_VPP pid=465976 runtime=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-465973
+P12_PRIVATE_VPP={"pid": "465976", "starttime": "53108899", "netns": "net:[4026533088]"}
+P12_PRIVATE_API=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-465973/api.sock
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:626: P12 private root verified: host=net:[4026531833] current=net:[4026533088] owned API=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-465973/api.sock
+    p12_topology_integration_test.go:634: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 13:36:12 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    p12_topology_integration_test.go:654: NGFW_P12_FIB=root: the system frr unit is active
+    p12_topology_integration_test.go:637: systemctl show vpp -p NRestarts (after) = 0
+--- FAIL: TestP12TopologyOnHost (0.16s)
+FAIL
+required routing acceptance did not pass without skips
+DISPOSABLE_VPP_STOPPED pid=465976
+P12_RETAINED_NAMESPACES=[]
+P12_PRIVATE_REMAINING={}
+P12_PRIVATE_PROCESSES_AFTER={}
+P12_OUTER_CLEANUP=PASS
+P12_SHARED_AFTER=["MainPID=8102\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]

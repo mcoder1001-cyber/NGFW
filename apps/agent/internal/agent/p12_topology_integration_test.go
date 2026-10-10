@@ -512,9 +512,9 @@ func (e *p12Env) checkRootFIB() {
 		}
 	}
 	if out, _ := e.cmd("systemctl", "is-active", "frr"); strings.TrimSpace(out) == "active" {
-		e.t.Fatalf("%s=root: the system frr unit is active", EnvP12FIB)
+		requireForeignSystemFRR(e.t)
 	}
-	e.t.Logf("%s=root preconditions: VPP %s, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:\n%s", EnvP12FIB, vppSocket(), lcp)
+	e.t.Logf("%s=root preconditions: VPP %s, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive or independently foreign; show lcp:\n%s", EnvP12FIB, vppSocket(), lcp)
 }
 
 // requirePrivateP12Root independently verifies the runner's namespace and private

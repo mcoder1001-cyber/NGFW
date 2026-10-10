@@ -8,7 +8,7 @@
 - Owned remote target: `root@172.30.110.211`; no changes to the other target or shared development host.
 - Authorization: owner requests package installation, tests, all interfaces except management/routing, and reboot if necessary. Management access and routing must remain functional.
 - Constraints: exact manager-provided product payload; independent installation review; no replacing OS, mounted filesystem repair, blind nftables baseline/flush, management PCI rebinding, unsafe VFIO/no-IOMMU, secrets in evidence, or developer-host VPP changes.
-- Current phase: targeted correction, clean readonly fsck0, durable undo/transcript, selected52 integrity and final RAM shutdown/manager/offlineguard readiness PASS. Normal return awaits applicable actual verdict/release; installation and hardware tests pending.
+- Current phase: original filesystem repaired, clean normal boot verified, exact11 immutable packages installed/configured and all21 new services suppressed. Preparing reviewed firstboot-only/NFT/2GiB/privatecredentials phase; no service activation/dataPCI binding yet.
 - Runtime publication: commit coherent evidence and publish immediately to own branch; report actual remote SHA to manager.
 - Acceptance: SSH and exact management routes preserved; packages installed from verified payload; firstboot/services/HTTPS/auth; 17 data interfaces persisted through API and present in VPP; routing/NAT/ACL/FRR and recovery/reboot tests with actual evidence where hardware links allow.
 

@@ -1,9 +1,11 @@
 package subsystems
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
+	"net/netip"
 	"ngfw/agent/internal/descriptors/df6"
 	"ngfw/agent/internal/descriptors/tapv2"
 	"ngfw/agent/internal/renderers"
@@ -143,7 +145,29 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	}
 	t.Log("REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS")
 	run("ip", "-n", "ns-w20-carrier-isp", "route", "replace", "10.20.1.0/24", "dev", "ppp0")
-	packet := run("ip", "netns", "exec", "ns-w20-carrier-lan", "ping", "-n", "-c", "3", "-W", "2", "100.64.20.1")
+	localTransit := netip.MustParsePrefix(spec.Host4).Addr().String()
+	routeOutput, routeError := exec.CommandContext(ctx, "ip", "-n", spec.Token(), "route", "get", localTransit, "from", spec.Peer4, "iif", spec.TransitHost()).CombinedOutput()
+	t.Logf("OWNED_TRANSIT_LOCAL_ROUTE %v: %s", routeError, routeOutput)
+	captureCtx, captureCancel := context.WithTimeout(ctx, 8*time.Second)
+	capture := exec.CommandContext(captureCtx, "ip", "netns", "exec", spec.Token(), "tcpdump", "-nn", "-l", "-i", "any", "icmp and host 100.64.20.1")
+	var captureOutput bytes.Buffer
+	capture.Stdout = &captureOutput
+	capture.Stderr = &captureOutput
+	captureStarted := capture.Start() == nil
+	ping := exec.CommandContext(ctx, "ip", "netns", "exec", "ns-w20-carrier-lan", "ping", "-n", "-c", "3", "-W", "2", "100.64.20.1")
+	packetBytes, packetError := ping.CombinedOutput()
+	packet := string(packetBytes)
+	captureCancel()
+	if captureStarted {
+		capture.Wait()
+	}
+	t.Logf("BOUNDED_FILTERED_ICMP_CAPTURE %s", captureOutput.String())
+	if packetError != nil {
+		for _, args := range [][]string{{"vppctl", "show", "interface"}, {"vppctl", "show", "ip", "fib"}, {"vppctl", "show", "ip", "neighbors"}, {"vppctl", "show", "errors"}, {"ip", "-n", spec.Token(), "-j", "address", "show"}, {"ip", "-n", spec.Token(), "-4", "rule", "show"}, {"ip", "netns", "exec", spec.Token(), "nft", "list", "table", "inet", "ngfw_ppp"}} {
+			output, error := exec.CommandContext(ctx, args[0], args[1:]...).CombinedOutput()
+			t.Logf("packet diagnostic %v: %v: %s", args, error, output)
+		}
+	}
 	if !strings.Contains(packet, "3 received") {
 		t.Fatal(packet)
 	}

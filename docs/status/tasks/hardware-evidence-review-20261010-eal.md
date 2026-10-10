@@ -784,3 +784,41 @@ corrected static shlex.quote bootstrap passed the independent framing check.
 
 Own published9733e5b99af5ee3e7e5fba6713b10d4c3ea6649a unchanged documentation
 check --base origin/main actually PASSED14s;gitleaks374.21KB/no leaks/board212valid.
+
+
+## Exact published clock consumer source verdict, 16:24 UTC
+
+Formal source APPROVE c70cbc8cc97810b80ba26e08efb96cff531a693dcc1a9afbe14122252a105fbf
+at independently published/read-back9cf59ecc30bd7f83075f778787ae8beed28a6ccb.
+Contract9137e40d precedes consumer. Default closed ROOT-only readonly inspections
+of exact successful boot proofs are applicable now. Repair requires those actual
+inspection results and exact unchanged protection/RTC context. Separate verification
+reboot requires successful offhost repair/control readback proof and one private
+request marker; source approval does not establish execution or persistence.
+
+```text
+git ls-remote origin refs/heads/codex/hardware-211-20261010
+9cf59ecc30bd7f83075f778787ae8beed28a6ccb
+git show9cf59:docs/status/tasks/hardware-211-20261010-clock-repair.py | sha256sum
+c70cbc8cc97810b80ba26e08efb96cff531a693dcc1a9afbe14122252a105fbf
+Python private proof SHA/mode/schema checks; exit0
+clock-controller-20261010T161757Z.json586B/root0600
+SHAbde7dcd8eb5ce73ba0632376707c1359788ef2db465f4aab010759233e56f6fa
+assembled exact quoted remote shell,680193-byte UTF8source/shared framed stdin PASS
+six invalid/zero/overbound/short-header/short-code/UTF8 refusals PASS
+36-byte RTC UTC field mapping PASS;29saccepted/31srefused
+target_contacted=false/real_clock_settime_or_RTC_ioctl_called=false
+```
+
+Full review confirms authoritative beacon is requested only after protected
+preflight and fsynced original private record; root-owned RTC0 character247:0,
+matching sysfs/UTC convention and ABI are rechecked before write. UTC setters only:
+CLOCK_REALTIME and RTC_SET_TIME. Original facts/actual partial write flags survive
+refusals, without resetting to old incorrect time or killing an in-flight operation.
+Device/system samples are compared to controller monotonic-derived UTC. Complete
+protected state, native package/helper identities, both NIC inventories, kernel
+health and storage epoch are rechecked. No credentials, TLS relaxation, NTP/service
+change, timezone, adjtime, package, network or driver mutation by this procedure.
+
+Own published669e4ebc9fd3bd154c89408301d4aec24a0affc5 documentation check actually
+PASSED14s;gitleaks377.66KB/no leaks/board212valid.

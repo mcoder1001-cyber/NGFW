@@ -67,3 +67,9 @@ Additional owned actual transition/diagnostic follow-up:
 `hardware-evidence-review-20261010-post-transition.md`. Verify private selected
 actual runtime/auth/network/reference/guard results and subsequent read-only
 diagnostic/preservation outputs; review narrow operational reader source.
+
+Additional owned preservation/correction review:
+`hardware-evidence-review-20261010-preservation.md`. Verify native metadata
+fallback scope and actual offhost integrity, affected inode/external-block
+evidence and finite undo preparation before a targeted correction verdict.
+Never print/commit private payload or execute target corrections.

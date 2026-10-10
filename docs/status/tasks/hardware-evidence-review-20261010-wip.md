@@ -6,8 +6,9 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`65ca4275cd7bdf161d88b4b9d34fc4c9b94f7427` (focused source approval; matching CLI
-push/readback). Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
+`e47affb55f1de8e1f7c71511ddf4a7d18feed4bf` (read-only recovery follow-up; matching
+CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
 archive ref, historical hosted gate and current pending hosted gate inspected.
@@ -291,3 +292,17 @@ actual loader --list/LD_BIND_NOW-V validation design APPROVE; diagnostic binding
 still pending. Last own verified remote7a6b11eeaefe4dfd65523a103fcbbfe7961a2839.
 Next: actual metadata/health/runtime binding/affected inode receipts; corrections
 and normal return remain separate reviews.
+
+09:54 actual .211 preservation: native read-only image/source40aa6783 and
+offhost transfer3d5fa0ed independently verified. Controller gzip1727953B/0600,
+complete986808320B decompression exact b324a9c0 source hash matched; native
+excludes external extent/directory/EA/journal and user data. Actual ioerr15
+stable and captured kernel storage events unchanged. Minimal debugfs runtime
+519686c3 passed loader/-V; affected70964aa2 confirms three8MiB journal files
+and cache/config directories at five external blocks. Proposed targeted
+interactive e2fsck -f -E fixes_only,nodiscard -z reviewed against matching1.47.2
+sources; write-phase verdict awaits actual five-block offhost supplement and
+finite undo path/budget/preflight. Current live role reviewer running this
+independent read-only follow-up; .211 operator in RAM, .37 original SSH held.
+No correction/return/acceptance claim. Last own verified remotee47affb55 above.
+Next: read those two actual private receipts, review exact first repair prompt.

@@ -23,7 +23,8 @@ readback3643B1d27ece7 workerPASS. Native credentials remainprivate0600, notprint
 Actual inputs5313B0600/fdd412f0785b6dabecf8830da49eb005d59cbff49a66e4db694800c2ddd22951
 and restore9786B0600/eb06bcb45e9c41f9f689998f7fdfe581ac8fdd38c2da0b5c571a037c17ef1e3a
 ROOTfullparsed PASS: managementagent.env +persistent APIseedflag, canonicalapi.env
-3keys unchanged, L3equal/noactivation; originalpolicy+mask ABSENT/ownedmarker
+Three API environment entries remain unchanged. Network matches; services did
+not start. Original policy and mask ABSENT; owned marker
 removed/siblingfirstboot+seedrecords retained. All17 originalkerneldataNICs remain.
 
 Finalinitialruntime010eaacdf7842e983e1b23561c573ed6fe7e447b412dcf202f2bf69b91869cd8

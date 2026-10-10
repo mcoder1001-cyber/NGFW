@@ -1,4 +1,5 @@
 assets/firstboot.sh usr/lib/ngfw/
+assets/initial-dataplane.json usr/lib/ngfw/
 stage/usr/lib/systemd/system/ngfw-firstboot.service usr/lib/systemd/system/
 assets/vpp-firstboot.conf usr/lib/systemd/system/vpp.service.d/
 assets/render-base-policy.py usr/lib/ngfw/

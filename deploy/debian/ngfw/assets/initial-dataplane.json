@@ -1,0 +1,11 @@
+{
+  "dataplane": {
+    "plugins": {
+      "switches": {
+        "linux_cp_plugin.so": true,
+        "linux_nl_plugin.so": true,
+        "npt66_plugin.so": true
+      }
+    }
+  }
+}

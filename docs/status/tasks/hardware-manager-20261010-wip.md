@@ -1,3 +1,26 @@
+## Firstboot correction checkpoint — 2026-10-10 12:38 UTC
+
+Root implemented shipped fixed bootstrap JSON enabling linux_cp/linux_nl/npt66,
+without physical PCI devices, consumed by native firstboot install0600 and the
+canonical generator. Meta ships the new asset; Python fixture redirects it.
+Real Go CLI regression reads that shipped asset with no current startup, requires
+all3 plugins/noPCI/managementblacklist and refuses a missingLCP dependency.
+Actual GoCLI tests exit0 (0.272s); six firstboot fixture tests exit0 (20.220s).
+Independent applicable review and full mandatory quick/integration remain pending.
+
+Actual check exit1:3 historical gitleaks generic-api-key findings in the prior
+1c149b1 checkpoint prose '3keys unchanged, L3equal/noactivation;'. Redacted match
+identifies prose, not credentials; wording corrected in all3 owned root documents.
+No scanner/config weakening. History will be preserved on a published archive,
+then D112 final single clean commit rebased onto fresh main before gate/merge.
+This historical check failure is retained and is not reported PASS.
+
+Operator actual readonly noPCI preview35131df9 PASS reported, livec892394e /
+render367ead29; only3 required-plugin semantic delta. Root manager realapply
+not executed; independent actual applicability review and finite sealed document
+staging/backup/readback required. Data ports remain kernel-owned; no bypass.
+
+
 # RESUMED: one hardware task — 2026-10-10 12:34 UTC / 16:04 Asia/Tehran
 
 Owner resumed this task, requests complete acceptance then Done, and only one
@@ -143,7 +166,8 @@ readback3643B1d27ece7 workerPASS. Native credentials remainprivate0600, notprint
 Actual inputs5313B0600/fdd412f0785b6dabecf8830da49eb005d59cbff49a66e4db694800c2ddd22951
 and restore9786B0600/eb06bcb45e9c41f9f689998f7fdfe581ac8fdd38c2da0b5c571a037c17ef1e3a
 ROOTfullparsed PASS: managementagent.env +persistent APIseedflag, canonicalapi.env
-3keys unchanged, L3equal/noactivation; originalpolicy+mask ABSENT/ownedmarker
+Three API environment entries remain unchanged. Network matches; services did
+not start. Original policy and mask ABSENT; owned marker
 removed/siblingfirstboot+seedrecords retained. All17 originalkerneldataNICs remain.
 
 Finalinitialruntime010eaacdf7842e983e1b23561c573ed6fe7e447b412dcf202f2bf69b91869cd8

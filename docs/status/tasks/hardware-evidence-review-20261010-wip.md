@@ -3,12 +3,13 @@
 **Current operational status: resumed for the same existing hardware task at the
 owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
 review only; no target or product writes. The prior pause below remains historical.
-Both logical filesystems/normal protected boot and native installations PASS;
-.211 firstboot PASS, canonical noPCI plugin correction COMMITTED, but native
-agent startup FAIL from an omitted-owner cache; root has contained API/agent and
-published a source correction, independently tested here. Live fixed artifact and
-NIC seed remain pending; .37 firstboot NOT RUN. No PCI binding or forwarding
-acceptance. Root alone performs any separately reviewed real startup/binding.
+Both logical filesystems/normal protected boot and original native installations
+PASS. .211 firstboot and canonical noPCI plugin correction PASS; actual four-package
+fixed upgrade, exact empty-cache recovery, stable runtime and native revision1 seed
+of17 original data NICs PASS. The earlier owner-cache crash was corrected and its
+failed receipts retained. .37 firstboot NOT RUN; root now owns its fixed-upgrade
+preparation while its original worker is departed. No PCI binding, forwarding or
+post-binding reboot acceptance. Root alone performs reviewed real startup/binding.
 
 
 Branch/worktree: `codex/hardware-evidence-review-20261010`,
@@ -17,7 +18,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`8ef882e9ec120ddcaa0e00ca660c00c7077917ad` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`60bad94d1e80c6410e350a39bf57701b27367797` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -738,3 +739,36 @@ target/product write or owned controller process remains running.
 
 Follow-up own-documentation check `tools/ci.sh check --base origin/main` exited0,
 `check PASSED (0m13s)`; diff-check0. No duplicate full quick or product test run.
+
+## Actual fixed runtime and native seed phase completion
+
+Independent .211 upload8646204e/simulation953996a5 PASS actual4Inst/0Remv;
+installation7cb4fbef PASS exactfour configuredee202/a909/audit0/protectedstate;
+restore53117200 PASS originalpolicy/maskabsent/recordretained. Root cacheff2e2b7f
+and ordered-runtime ae77cd39 independently corroborated original backup, unchanged
+private metadata, onlyagent failure-counter reset and new49226/49230 stableunits.
+Native readonly afterbc1262d1 manually verifies real revision1/system.seed-defaults,
+17 exact original data names/PCIs/builtIn mappings, protectedmanagement04,
+candidateequal/noPending/7HTTP200+agentreachable/threeplugins/all17kernel,
+unchanged L3/16sysctls/DNS/unitidentities/io6/storage0. Native seed phase PASS;
+physical binding/forwarding/post-binding reboot remain pending. Full immutable
+receipt sizes/hashes and exact selectors are in upgrade-four.md.
+
+PR225 final3b61 mandatorycompletequick38056374923 independently SUCCESS.
+GitHub actual merge d1f3f19d4837de3f7a36bfffcbd3c70593bea307 has originalbd25/final3b61
+parents and exact testedtree507477988ae381f05e1e8dc823d8479590b1efa1. Main
+quick38057527122 independently IN_PROGRESS on d1f3; no mainquick PASS inferred.
+
+Root-owned .37 upgrade adaptation e5c078 exposed service-only NRestarts lookup on
+socketunits; independent actual socket metadata proved absentproperty. Root fixed
+exact90fd4f58 source/publication946e34695; AST3 and actual readonly6504eb4f208862B
+metadata PASS/all21inactive/nr0/io6/pre-firstbootfilesabsent/protected7context.
+Prepare/upload/simulation applicability APPROVE preserving existing e275
+safeguards/newprivateidentityrecord only. No37install or firstboot acceptance
+claimed. Initial reviewer TLS selector used the wrong directory; corrected to
+/etc/ngfw/tls and PASS, no target failure. Generic copiedheader wording is a
+nonblocking documentation NIT, already sent to root.
+
+Exact next action: read actual37prepare/upload/simulation and root/211physical
+resource/binding source/evidence under the existing phase scopes. No reviewer
+product/target write; no owned subprocess remains running.

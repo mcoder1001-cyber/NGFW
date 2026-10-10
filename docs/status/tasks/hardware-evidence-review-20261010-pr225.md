@@ -166,3 +166,22 @@ New native artifacts completed on distinctee202 source, as precisely reviewed in
 [the four-package report](hardware-evidence-review-20261010-upgrade-four.md).
 The test-only correction does not relabel their producer source or claim current
 target seed/physical NIC/forwarding/reboot acceptance.
+
+## Observed green gate and exact merge
+
+```text
+gh run view 38056374923 --json headSha,status,conclusion
+headSha=3b61a8ce529c68ae2bb39e2cea2f77ea13602595 status=completed conclusion=success
+gh pr view 225 --json state,mergeCommit,mergedAt,headRefOid,url
+state=MERGED headRefOid=3b61a8ce529c68ae2bb39e2cea2f77ea13602595
+mergeCommit=d1f3f19d4837de3f7a36bfffcbd3c70593bea307
+gh api repos/mcoder1001-cyber/NGFW/git/commits/d1f3f19d4837de3f7a36bfffcbd3c70593bea307 --jq '{sha:.sha,tree:.tree.sha,parents:[.parents[].sha]}'
+parents=bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3,3b61a8ce529c68ae2bb39e2cea2f77ea13602595
+tree=507477988ae381f05e1e8dc823d8479590b1efa1 # exact approved/tested candidate
+gh run view 38057527122 --json headSha,status,conclusion
+headSha=d1f3f19d4837de3f7a36bfffcbd3c70593bea307 status=in_progress conclusion=""
+```
+
+Actual final-head gate and merge PASS; postmerge main gate remains pending
+separately. Native sourceee202 actual upgrade/cache/runtime/seed17 now PASS in
+the four-package report; physical NIC/forwarding/reboot acceptance is still open.

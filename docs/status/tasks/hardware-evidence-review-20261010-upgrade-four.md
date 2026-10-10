@@ -212,3 +212,85 @@ The underlying exact known-empty-cache operation and strict ownership/security
 guards remain unchanged; no service start is introduced. Execution remains after
 actual installeda909 identity, guard restoration and root's phase prerequisites.
 No target/cache action occurred in this independent review.
+
+## Actual .211 upgrade, restoration and native seed
+
+Independent selected private receipts, all0600 with empty outer stderr:
+
+| Phase | Bytes | SHA256 |
+| --- | ---: | --- |
+| upload | 302479 | 8646204e9d7094d92079a6ac939aac306d4e378aabe116b875f8ba05f3511a00 |
+| simulate | 285283 | 953996a5045a2ef8ba69aecbbad90cd2fcd37d32dce740c98c49a7184e41a37a |
+| install | 308099 | 7cb4fbef8dbafa6a50c9da3075e69c5604594aeac1cbfb6c5ba3203e42254e4c |
+| restore | 302479 | 53117200eb33e76739a0b56e3f55db9d8f31fa7f5ccc9106225fe4f416ad5e18 |
+| root cache normalization | 1358 | ff2e2b7f8452ca2a567df22eef8fd0e95174689a3dedf44d5ab1d1ea71f553ec |
+| root ordered runtime start | 29931 | ae77cd39bbf9cc633f356b6fdfca9c2d59432bc2a006d1e9db32a15da0d5cfb6 |
+| native seed after observation | 386543 | bc1262d1f2d5b35cb21a7e2ff2b007d6faacc33ab13fe286f684d8f7ca19f138 |
+
+Actual plan command in simulation is apt-get-s with reviewed local archives,
+--no-remove/--no-install-recommends/--only-upgrade/--force-confold. Selected
+output contains exactly4 Inst rows, meta/api/web/agent, each old
+0.1.0~dev+2045ab8b3d2f→0.1.0~dev+ee2025007293, zero Remv. Simulation exited0
+with empty stderr. Independent direct comparison proved upload after equals
+simulation before for all eight unchanged tracked sections; all21 unit states,
+16 sysctls/nr1024, private file identities/DNS/L3/io6 stayed exact.
+This justified actual install applicability, not an already executed install.
+
+Subsequent actual installation PASS: apt0/empty stderr, exact four configured
+versions, dpkg--audit0/empty, installed agent37049584B/root0755/a909. Before-after
+network/units/files/API environment metadata/sysctls/DNS/ioerr matched directly;
+NFT snapshots also matched exactly. Root restored only its exact owned temporary
+policy/mask to their original absence. Restore nine sections remain identical,
+record retained, cache2B/root:GID107:0600 untouched, VPP33868/nginx9281active0,
+API/agent inactive. Persistent guard record identity:
+`19779120f573695b4e31475ef6b1fc4478593fad26a90bef72530e80a0f5b65e`.
+
+Root cache source4a5d/wrapperd8a9 then executed the reviewed exact recovery:
+original2B/root:GID107:0600/nlink1, private root700 backup directory unchanged
+inode/device,2B0600 backup hash44136fa3…aff8a, new16B owner-normalized cache hash
+d3d371a7…ee2cf with original UID/GID/mode. Network equal; no services started by
+normalization. The separate ordered start recorded only the known agent151
+failure-counter reset, then agent49226/API49230active0; VPP33868/nginx9281 stayed
+unchanged. That immediate start receipt explicitly did not claim seed acceptance.
+
+Readonly native after observer402f source then produced actual acceptance. This
+reviewer independently parsed/hash-checked the private receipt and manually
+checked document/event and original NIC mappings, not only the reported boolean:
+
+```text
+native revision=1 event=system.seed-defaults
+physical rows=17; exact original names/PCI/owner=dataplane/builtIn=true
+whitelist/devices exactly original17; managementPCI only0000:04:00.0
+candidate==running; pending=null; seven API/state HTTP responses200
+agentreachable=true; three required plugins loaded
+all17 still kernel; network/inventory/sysctls/DNS/units before==after
+ioerr before==after=0x6; new_storage_errors=[]; outerstderr=0
+observation_PASS=true
+```
+
+Native seed phase verdict PASS. Root/operator immutable actual checkpoint47d1f500
+is published. No PCI binding, physical forwarding or post-binding reboot PASS is
+claimed; those remain subsequent hardware acceptance work. Neither known cache
+recovery nor observer manually edited a revision/database document.
+
+## Root-owned .37 preparation source
+
+Root adaptatione5c078 used service-only NRestarts on socket units. Independent
+actual259.5 socket metadata has only ActiveState/ActiveEnterTimestampMonotonic;
+the predictable KeyError was reported before a mutation phase. Root fixed the
+socket exemption in exact source
+`90fd4f58c257475459183a92b65db0acccece75ea579d587953443a5f1e0fd74`, published
+`946e34695bf8e6cb728758a6381fa63ad35bee7b`. Outer/bootstrap/REMOTE AST PASS3.
+Read-only actual .37 inspect208862B/0600 SHA
+`6504eb4fce177ab49731c2b79d945c88474f9a150b9ac359b6a20f4056a4ced2`
+independently confirms all21 inactive/service restarts0/nr0/io6, expected absent
+firstboot runtime files, existing regular policy/symlink mask, empty stderr and
+no new storage errors. Readonly protected7/management0c58 preconditions passed.
+
+Source applicability APPROVE prepare/upload/simulate after actual inspect; create
+only new root-owned private guard identity record and preserve original e275
+safeguards. Four-package install remains dependent on actual37 plan; firstboot
+separate. An initial reviewer metadata selector used /var/lib/ngfw/tls; corrected
+to actual /etc/ngfw/tls and passed. No target failure or gate relaxation follows.
+Copied generic header still describes the211 active runtime; root has the
+nonblocking documentation NIT. No37 worker is claimed live; root owns this phase.

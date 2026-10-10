@@ -1,0 +1,121 @@
+== NGFW CI gate: quick ==
+worktree  /root/ngfw-wt/lab-routing-20261010
+branch    codex/lab-routing-20261010 @ 9731f80e9   (base: origin/main)
+tools     node v22.23.2 · pnpm 12.5.1 · go1.26.0 · buf 1.73.0 · golangci-lint 2.13.2 (pinned) · gitleaks 8.30.1 (pinned)
+caches    pnpm store /root/.local/share/pnpm/store/v11 · turbo /root/.cache/ngfw-turbo · go /root/.cache/go-build
+logs      /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-095151-3769721
+WARN uncommitted changes in the worktree — the gate checks the working tree, but only commits get merged:
+      ?? docs/status/tasks/lab-routing-20261010-evidence/install.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick.txt
+      ?? docs/status/tasks/lab-routing-20261010-evidence/quick2.txt
+      ?? test/topology/frr-linuxcp/__pycache__/
+      ?? test/topology/ospf/__pycache__/
+
+== contract guard: HEAD vs origin/main ==
+no contract files changed in the 11 commit(s) of HEAD since origin/main (4908716b4)
+
+== tools (golangci-lint, gitleaks) ==
+golangci-lint 2.13.2
+gitleaks 8.30.1
+
+== install (pnpm --frozen-lockfile --prefer-offline) ==
+Lockfile is up to date, resolution step is skipped Done in 1.1s using pnpm v12.5.1 
+
+== generate + generated-output gate ==
+clean: packages/proto/gen apps/agent/gen packages/schema/dist packages/api-client/src/generated packages/yang/generated apps/cli/internal/api/operations_gen.go
+
+== forbidden patterns (+ gitleaks) ==
+WARN control-plane lines exempted with 'ALLOW:' — reviewer, check each justification:
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:5:import { execFileSync } from 'node:child_process'; // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:19:    execFileSync('openssl', ['version'], { stdio: 'ignore' }); // ALLOW: test-only openssl cert
+      apps/api/src/features/mgmt-tls/mgmt-tls.test.ts:26:const openssl = (args: string[]) => execFileSync('openssl', args, { stdio: 'ignore' }); // ALLOW: test cert
+      apps/api/src/features/notifications/sinks.test.ts:1:import { execFileSync } from 'node:child_process'; // ALLOW: fixed-argument openssl creates temporary test-only TLS certificate; no runtime exec, shell or committed key
+      apps/api/src/features/notifications/sinks.test.ts:103:  execFileSync( // ALLOW: fixed-argv test-only OpenSSL generates a temporary SMTP TLS certificate; no runtime shell
+      apps/api/src/features/pki/testkit.test.ts:3:import { execFileSync, spawnSync } from 'node:child_process'; // ALLOW: test-only verifier (openssl), never product code
+      apps/api/src/features/pki/testkit.test.ts:32:  const result = spawnSync('openssl', args, options); // ALLOW: test-only fixed-argv verifier
+      apps/api/src/features/pki/testkit.test.ts:44:  return execFileSync('openssl', args, { input, stdio: ['pipe', 'pipe', 'pipe'] }); // ALLOW: test-only verifier
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no Dockerfile/compose files
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: ngfwtestsecrets only in test code
+ok: gitleaks — scanned ~476119 bytes (476.12 KB) in 645ms no leaks found 
+
+== packet-trace ban on the shared VPP (D-128) ==
+ok: no packet trace (trace add / show trace / clear trace / tracedump API) outside docs and the generated bindings
+
+== ip classify reset after every shell interface create (D-185) ==
+ok: every shell interface create is followed by an ip4/ip6 classify reset
+board valid: 212 tasks; read-only validation
+
+== slot resource scheme (1..32, no collisions) ==
+ok: 30 developer slots + CI slot 12; 964 ports, 32 id ranges, no collision; tools/lab env verified for 31 slots
+
+== lint · typecheck · unit tests · build (turbo) ==
+Tasks:    35 successful, 35 total Cached:    28 cached, 35 total Time:    1m22.389s  
+
+== apps/agent: make lint test build ==
+
+CI GATE FAILED — apps/agent lint/test/build failed
+--- last 60 lines of /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-095151-3769721/10-agent.log ---
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=2 deadline_exceeded=false canceled=false elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+2026/10/10 09:58:21 remote-access publisher-manager-query checkpoint=1 deadline_exceeded=false canceled=true elapsed_ms=0
+--- FAIL: TestTargetsOpenFileReadbackProtectsOwnedFile (0.00s)
+    namespace_target_config_test.go:57: remote-access: verified engine lifecycle unavailable
+--- FAIL: TestObserverOpenFileReadbackProtectsOwnedFile (0.00s)
+    namespace_unit_observer_config_test.go:86: remote-access: verified engine lifecycle unavailable
+FAIL
+FAIL	ngfw/agent/internal/ra_vpn	3.349s
+ok  	ngfw/agent/internal/renderers	3.102s
+ok  	ngfw/agent/internal/renderers/basepolicy	1.284s
+ok  	ngfw/agent/internal/renderers/chrony	2.670s
+ok  	ngfw/agent/internal/renderers/frr	3.265s
+ok  	ngfw/agent/internal/renderers/frr/bfd	1.090s
+ok  	ngfw/agent/internal/renderers/frr/bgp	1.525s
+ok  	ngfw/agent/internal/renderers/frr/frrtest	1.157s
+ok  	ngfw/agent/internal/renderers/frr/isis	1.243s
+ok  	ngfw/agent/internal/renderers/frr/ldp	1.163s
+ok  	ngfw/agent/internal/renderers/frr/ospf	1.353s
+ok  	ngfw/agent/internal/renderers/frr/pim	1.181s
+?   	ngfw/agent/internal/renderers/frr/policy	[no test files]
+ok  	ngfw/agent/internal/renderers/frr/redistribute	1.150s
+ok  	ngfw/agent/internal/renderers/frr/rip	1.329s
+ok  	ngfw/agent/internal/renderers/frr/ripng	1.158s
+ok  	ngfw/agent/internal/renderers/kea	4.279s
+ok  	ngfw/agent/internal/renderers/keepalived	3.313s
+ok  	ngfw/agent/internal/renderers/keepalived/cmd/ngfw-keepalived-notify	1.098s
+ok  	ngfw/agent/internal/renderers/nftables	5.664s
+?   	ngfw/agent/internal/renderers/nftables/nftest	[no test files]
+ok  	ngfw/agent/internal/renderers/pppoe	46.959s
+ok  	ngfw/agent/internal/renderers/rfkit	1.308s
+ok  	ngfw/agent/internal/renderers/rsyslog	12.020s
+ok  	ngfw/agent/internal/renderers/snmpd	4.041s
+ok  	ngfw/agent/internal/renderers/strongswan	6.866s
+?   	ngfw/agent/internal/renderers/strongswan/swantest	[no test files]
+ok  	ngfw/agent/internal/renderers/sysident	1.648s
+ok  	ngfw/agent/internal/renderers/unbound	2.097s
+ok  	ngfw/agent/internal/renderers/vppstartup	3.831s
+ok  	ngfw/agent/internal/scheduler	4.310s
+ok  	ngfw/agent/internal/secretchannel	1.191s
+ok  	ngfw/agent/internal/secretvalue	1.168s
+ok  	ngfw/agent/internal/snmpagent	1.644s
+ok  	ngfw/agent/internal/subsystems	34.846s
+ok  	ngfw/agent/internal/subsystems/ruleexpiry	1.396s
+?   	ngfw/agent/internal/testpeer/strongswan	[no test files]
+?   	ngfw/agent/internal/testpeer/strongswan/swantest	[no test files]
+?   	ngfw/agent/internal/trafficbtest	[no test files]
+ok  	ngfw/agent/internal/vpp	3.158s
+ok  	ngfw/agent/internal/vpp/bootid	1.095s
+ok  	ngfw/agent/internal/vpp/fake	1.074s
+ok  	ngfw/agent/internal/vpp/ifsanitize	31.657s
+?   	ngfw/agent/internal/vpp/ifsanitize/sanitizetest	[no test files]
+ok  	ngfw/agent/internal/vpp/vpptest	1.069s
+FAIL
+make: *** [Makefile:19: test] Error 1
+make: Leaving directory '/root/ngfw-wt/lab-routing-20261010/apps/agent'
+logs: /root/ngfw-wt/logs/ci/lab-routing-20261010-20261010-095151-3769721

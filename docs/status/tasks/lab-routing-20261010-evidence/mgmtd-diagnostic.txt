@@ -1,0 +1,3 @@
+.scratch/isolated-vpp-3649170/test-run/w6/frr/run/w6/mgmtd.launch.log
+
+.scratch/isolated-vpp-3649170/test-run/w6/frr/run/w6/mgmtd.log

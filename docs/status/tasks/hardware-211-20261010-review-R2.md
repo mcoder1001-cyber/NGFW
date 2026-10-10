@@ -49,7 +49,7 @@ All commands ran in the review workspace above. No target SSH, package installat
 
 ## Applicability and limits
 
-Verdict applies to source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` and final D112 commit `bde83bc87ae817a61bbc70e4029f76109ae77c35`, tree `aeb17e4312cb12714a9c39ca5e7c56b85eda7a54`, on `codex/hardware-manager-20261010`. Reviewer fetched the final published branch and independently verified applicability:
+Verdict currently applies to source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c` and amended PR 217 D112 head `5bd7e8b545fc765fd2babd8dda15175d6f33af1b`, tree `a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2`, on `codex/hardware-manager-20261010`. The prior final commit `bde83bc87ae817a61bbc70e4029f76109ae77c35`, tree `aeb17e4312cb12714a9c39ca5e7c56b85eda7a54`, was independently compared first; its evidence remains below. Reviewer subsequently fetched and verified the amended head as recorded in the focused recheck below.
 
 ```text
 git diff --name-only 2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c bde83bc87ae817a61bbc70e4029f76109ae77c35
@@ -72,4 +72,34 @@ no leaks found
 
 This receipt does not claim a completed quick gate, artifact installability, appliance installation or hardware acceptance; those tests were not performed here. The preexisting console/offline filesystem recovery block on both targets remains in force. Any later product-head change requires renewed applicability comparison.
 
-**Verdict: APPROVE** for final commit `bde83bc87ae817a61bbc70e4029f76109ae77c35` in the reviewed narrow security scope; no security findings.
+## Focused applicability recheck — amended PR 217
+
+Reviewer fetched `codex/hardware-manager-20261010` and read the complete changed documentation against previously approved `bde83bc87ae817a61bbc70e4029f76109ae77c35`. Exact changed paths:
+
+```text
+docs/status/tasks/hardware-manager-20261010-evidence.md
+docs/status/tasks/hardware-manager-20261010-review-plan.md
+docs/status/tasks/hardware-manager-20261010-wip.md
+```
+
+Exact assertions required this three-path set, identical control blobs and no non-task-document changes from compiled source `2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c`:
+
+```text
+PASS: all product/build/test/CI content unchanged; only three manager evidence documents differ
+Compiled/reviewed/final control blob: dbf2c0d12f880da0c5b4ffde19711c7f1d4fca9e
+Final tree: a0d7b7cbc7f37dc2fadd9a93d41ce486dcda50d2
+Final commits above main: 1
+```
+
+`git diff --exit-code bde83bc87ae817a61bbc70e4029f76109ae77c35 5bd7e8b545fc765fd2babd8dda15175d6f33af1b -- deploy apps packages tools .github` exited 0, empty output. Added selected build/control/hash excerpts and immutable receipt links contain no secrets or changed security boundary. The product-only approval remains applicable. Final one-commit history secret scan:
+
+```text
+gitleaks git --redact --log-opts='d2d55984d74fa1d06c32e8271886f11f16375407..5bd7e8b545fc765fd2babd8dda15175d6f33af1b' --config=.github/gitleaks.toml .
+1 commits scanned.
+scanned ~17453 bytes (17.45 KB) in 674ms
+no leaks found
+```
+
+Ancillary whitespace check: `git diff --check` for amended head exited 2 on trailing whitespace in `hardware-manager-20261010-evidence.md:129`, a copied gitleaks output line. Reported to manager as a cosmetic R7 observation outside R2's security grading; no security impact. No false PASS is claimed for that whitespace check. No heavy tests, target operations or product edits occurred. Complete hosted quick and appliance acceptance remain outside this receipt.
+
+**Verdict: APPROVE** for amended PR 217 head `5bd7e8b545fc765fd2babd8dda15175d6f33af1b` in the reviewed narrow security scope; no security findings.

@@ -1,4 +1,51 @@
-# Exact installation release and bounded sysctl correction — 2026-10-10 11:27 UTC
+# Actual .37 clean repair and .211 bounded configuration recovery — 2026-10-10 11:27 UTC
+
+.37 actual correction completed exit1. Root independently reread full3381B private
+0600 transcript SHA34aca15cb4b2e092368f726e3cf94143b162df7912384fc7e9cdac063fbcdb5e:
+all5passes, exact37 actual replies=35yes+2no, allapproved9inode classes, emptyregular
+259595/600 Clear=no then preservingLFConnect/counts=yes. No unknown/defaultnewline
+or broadyes. Actual bitmap3533free correction,4268750/15505494usedblocks.
+Root independently parsed full519588B0600/bd861c40011f96105df2a733731daae7fe72eb0a51bf7d72ac2779be84bb1780:
+complete e2fsck-f-n0/all5passes, optimization259597/259816 declined, consistenttrue;
+both fullaudits433processes/98FDs/nsfs0/races0/failures0/finalguard0, kernel exact
+before/after hash a6565149 equal, counter0x9 stable/newstorageerrors[].
+Actual undo749568B/0600/RAM51 source+offhost SHA1e13f7984f445695df2fd22c42874d2686e0522a6c7eda9fc9b6ed76d46f835f
+independently fully reread/hash byroot. Transfer364B/a6f9edb1 file+dirfsyncedtrue;
+completion1011B/f42f4a28 preserves original launcherEOFfailure separately. Repair
+and completecleancheckPASS; selectedreadonly boot/auth/network and matchingRAM
+return-readiness preparing. No normalreturn yet; separate actual return verdict.
+
+.211 actual native-skip installation100 partial failure: private74036B0600/SHA
+97db5d7e553881ba6b4847137061bc70196536c4ecfef57a3ec4329a69a27367 rootindependently
+parsed fullL3equal/all16sysctlequal/exact101+mask/all21namedunitinactivePASS.
+Only agent halfconfigured/meta unpacked; other9 approved archives installed.
+Failure exact provision-system-identity.py rejects unmanagedsymlink. Whole preflight
+prevented any public identity replacement. Actual readonly174463B0600/SHA
+1289cefbe6ed36f5ef1ca9e9de0f2cbc867185946f8d961ee81c8b7b70469d82 independentlyparsed:
+ONLY /etc/localtime rootowned relative ../usr/share/zoneinfo/Asia/Tehran, resolved
+EXACT /usr/share/zoneinfo/Asia/Tehran rootregular0644/1248B/SHA
+2dbd87f410815edcfcd7d14be84de0040ef0d913a22203e0c7e7f4f17a6a915a.
+Hostname/issue/issue.net THREE regularsources, motd ABSENT (corrects initialfour-
+regular summary), all5STATEtargetsabsent. ProtectedPCI04/igc/group28/boot/counter6
+unchanged. Package helper absolute-only timezone guard remains unchanged.
+
+Root releases native-compatible bounded administrator setup: privatefsynced exact
+link metadata+targethash; sourceidentity/trustedparent guards; atomicallyONLYlocaltime
+link to same exact absoluteTZfile/fsyncetc; prove dereferenced bytes/clock/hostname/
+L3 unchanged. Then ONLY dpkg--configure ngfw-agent ngfw-meta under101/VPPmask/native
+skip. Sourcepublication/readback+R7 exact applicability allows execution without
+new manager/user question. No arbitrary symlink adoption/guard relaxation/apt rerun.
+Capture actual all21states/11packages/dpkg-audit/fullL3/sysctl/fresh22/kernel result
+before firstboot. .211 ownrootfreshSSH readreceipt15726B/f3d682cd confirms current
+boot3a609803/rootext4/protectedPCI04igc28/controllerroute110.1/sshSUCCESS/maskedVPP/
+hugepages0/ioerr0x6. Filename1130 is nominal label, not claimed capturetime.
+Earlier rootcheckpoint future heading11:27 corrected to observed clock11:22;
+actual output identity/hashes unchanged, no target effect. Prior root6fdbc4ac79baeac44bb29a817a01598f266348cb
+push/readbackPASS; this actualrepair/failure milestone immediately publishes.
+Exact next: worker37 selected-integrity/returnproof; worker211 boundedtimezone
+source/R7 then configure-only recovery. Original7/17 NIC and runtime tests remain.
+
+# Exact installation release and bounded sysctl correction — 2026-10-10 11:22 UTC
 
 Fresh root remote readback: .211936ec02c52982b21ad0a14bfe9de8c8be6ee5a33,
 .37fa13ad8e366d5ae5e79677d8141c7a31f58d9818, R7134606437621c2fc282698336413fab2cd695ebe.

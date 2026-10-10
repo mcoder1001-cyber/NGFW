@@ -1,6 +1,14 @@
 # Hardware recovery and installation resume
 
-Latest phase, 2026-10-10 11:27UTC: .211 repair/clean offline/normalboot/fresh22/
+Current11:27: both logical repairs + complete offline clean checks PASS. .37 actual
+undo/full37response transcript offhost verified; readonly boot/auth/network and RAM
+returnproof pending before normalreturn. .211 installpartial100 ONLY relativeTZlink
+configuration refusal; no network/sysctl/startguard/service changes. Exact same-file
+absoluteTZlink adoption plus configure-only agent/meta released after published
+bounded source/R7 applicability, product security guard unchanged. Latest WIP has
+actual receipt hashes and next commands; original7+17 NIC/runtime work remains.
+
+Latest phase, 2026-10-10 11:22UTC: .211 repair/clean offline/normalboot/fresh22/
 allL3/DNS/52original hashes/PCI28/newstorage PASS. Exact114 Inst/0Remv installation
 released under101+VPPmask+owned original-state marker; before execution actual
 sysctl --system trigger caught. Final source adds native VPP_INSTALL_SKIP_SYSCTL=1

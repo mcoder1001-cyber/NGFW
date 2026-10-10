@@ -86,7 +86,7 @@ go test ./internal/renderers/vppstartup -run 'TestHostNICs|TestHostFacts|TestMan
 ok ngfw/agent/internal/renderers/vppstartup 0.138s
 ```
 
-The selected Go tests use isolated filesystem fixtures and generated config; they are not real hardware forwarding tests. The Go test subprocess printed the successful result above, but the parent Go command remained alive in post-test processing with no child test process: its final exit is not verified and the result is explicitly output-only. The three Python commands exited zero. Full hosted quick and target installation tests have not been independently executed by this reviewer; no merge is proposed.
+The selected Go tests use isolated filesystem fixtures and generated config; they are not real hardware forwarding tests. The Go test subprocess printed the successful result above, but the parent Go command remained alive in post-test processing with no child test process for over seven minutes. The reviewer stopped only their own exact spawned Go PID 3445343; session 19521 exited 143. The result is explicitly output-only, not an exited-zero Go command. The three Python commands exited zero. Full hosted quick and target installation tests have not been independently executed by this reviewer; no merge is proposed.
 
 `tools/ci.sh check --base origin/main` independently exited zero with `check PASSED (0m21s)`: no new forbidden patterns, secrets, contract changes or board/slot validation failures.
 

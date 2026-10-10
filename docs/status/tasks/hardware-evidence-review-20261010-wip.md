@@ -1,12 +1,23 @@
 # R7 evidence review WIP — 2026-10-10
 
+**Current operational status: PAUSED at the owner’s explicit request on 2026-10-10.**
+No reviewer operation is in flight. Stop all new review/testing/development/target
+operations until explicit resume. This final checkpoint records existing actual
+results only; its own commit ID is the local SHA and will be claimed remotely only
+after push/readback. Original source approval remains separate from pending actual
+hardware acceptance. Both filesystems/normal protected boot and native installations
+PASS; .211 firstboot PASS, real NIC seed FAIL at revision0; .37 firstboot NOT RUN.
+No PCI binding or forwarding acceptance on either host. Root/worker process states
+at pause must be reported from their actual receipts, not stale board/live snapshots.
+
+
 Branch/worktree: `codex/hardware-evidence-review-20261010`,
 `/root/ngfw-wt/hardware-evidence-review-20261010`.
 Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`27be6d0a038ceb5a231ae7da671a40a1bf2b9796` (actual .211 firstboot/input/restore and initial-runtime source; .37 guard/source approvals; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`20fc08ade9ea6a62de959ebf1afe7852d398336d` (configured .37 installation and actual .211 seed failure; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -594,3 +605,16 @@ acceptance or bind early. Draft scoped binder option premise sent separately,
 not a runtime gate. Exact next action: inspect actual seed diagnosis and .37
 firstboot source/publication/results, then reviewed manager binding plan. No target
 operation by reviewer, no private payloads committed.
+
+
+Owner pause checkpoint: existing .211 readonly41dcec49788 B diagnosis independently
+confirms downstream agent validation failed; operator observed missing loaded
+required plugins despite files present. Preview4a63 source/AST/publication reviewed
+before pause, target dry-run NEVERexecuted; draft binding and later module-option
+inputs await independent review after resume. Existing .37 c1ea source published
+ff0c verified; readonly9d07015519 B proof metadata verified, no firstboot execution.
+All reviewer work paused; no controller/target operation running. Exact next command
+only after explicit resume: `git fetch origin codex/hardware-manager-20261010
+codex/hardware-211-20261010 codex/hardware-37-20261010`, then read current actual
+receipts and worker state before continuing the unexecuted canonical plugin preview
+or .37 firstboot phase. No new tests or product/host edits during pause.

@@ -482,3 +482,49 @@ turns nonempty ids into pci_add_dynid at module initialization.
 confirms those option inputs. Actual effective-option evidence or explicit
 empty-ID/load-command handling requested. This is separate from initial runtime
 and is not a claim of an observed target global-ID configuration.
+
+
+## Owner-requested pause — 2026-10-10
+
+Owner explicitly requested immediate pause. No new review, test, render, target
+operation or development is authorized while paused. Reviewer has no in-flight
+controller operation and never held a target mutation process.
+
+Existing findings recorded before the pause: .211 API-only readonly diagnostic
+49788 B/0600 SHA41dcecbe3e9f47e96a8ab9d9ecd5c0e5ca2b5e0668cd1e112f728fa6e932f383
+contains four commands exit0/empty stderr. The independently selected API journal
+line states `SeedDefaultNics: seed commit failed, will retry: agent validation failed`.
+Installed-but-unloaded linux_cp/linux_nl/npt66 capabilities were reported by the
+operator from this plugin inventory. Normal validated seed remains failed at
+revision0; no manual revision/database bypass or early PCI binding occurred.
+Canonical plugin rendering/dry-run has NOT RUN and no correction outcome is claimed.
+
+NoPCI plugin preview4a63dcc56bbd7343dd218c5773c2257920a026af427bd2d5175ca553c45b9856
+was read and outer/remote AST2/source publication232ffa3ba29a368a5e9fe8fcd120a271e6bde107
+verified before pause. Target preview was never executed and no new final phase
+verdict is issued during the pause. Binder remains draft/unexecuted; operator's
+subsequent configured-options receipt08a7c393 and updated draft are reported inputs,
+not an independent completed binder review.
+
+Existing .37 firstboot sourcec1ea9741622ad6e8fbc78ce564432b2e52f33590afa745e53aaddabc066e6145
+publicationff0c1a0ec7103b45b00de5f185a45b6c8dc81b79 was independently verified
+before pause. Readonly preflight15519 B/0600
+SHA9d070142142c2997c77c2094688e032f17eae75886babcc181cb74b9e8c49d94
+was recorded and hash/mode verified; worker reports its exact assertions passed.
+No firstboot/page write/runtime start or PCI binding is claimed on .37.
+
+Completed scope remains: both logical filesystems repaired and clean on normal
+boot, protected management retained, both native eleven-package installations
+configured and audit clean. .211 canonical firstboot and private seed inputs/
+original temporary-guard restoration passed; four runtime services active with
+TLS administrator login, but NIC seed failed. .37 retains temporary installation
+safeguards with provisioning not executed. Hardware forwarding/reboot-after-binding
+acceptance remains undone. Known .37 physical wear was accepted for logical repair;
+no physical rejuvenation or full-userdata backup is claimed.
+
+On explicit resume only: first inspect current published parent/worker/private
+receipts and verify actual live roles; diagnose structured .211 validation findings
+and review its canonical noPCI required-plugin preview/manager-only transaction;
+continue .37 already-published firstboot contract only within resumed parent phase.
+Then review actual seed and scoped manager binder before any data NIC handoff.
+Existing source approvals are historical evidence, not permission to override pause.

@@ -73,3 +73,11 @@ Additional owned preservation/correction review:
 fallback scope and actual offhost integrity, affected inode/external-block
 evidence and finite undo preparation before a targeted correction verdict.
 Never print/commit private payload or execute target corrections.
+
+
+Operational owner pause, 2026-10-10: independent reviewer is paused. No new
+review/test/development/target operation until explicit resume. Allowed final
+activity is only durable publication of existing findings and exact pending steps;
+no action in flight. Latest installation/WIP appendix carries actual source/results
+and does not treat previous applicability approvals as execution permission while
+paused. Reviewer may resume this same branch/owned documentation only when requested.

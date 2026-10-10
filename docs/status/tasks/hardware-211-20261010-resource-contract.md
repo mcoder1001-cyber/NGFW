@@ -77,3 +77,13 @@ the initial seed1 path/SHA under host211. Resource target_document_SHA uses
 sorted-key JSON for semantic identity; it is not the physical generator's
 serialized input SHA. The later preflight computes its exact unsorted compact
 JSON document bytes/SHA and manager seals those same actual bytes.
+
+The data-preflight consumer keeps `--proof/--proof-sha256` for immutable seed1
+and adds required `--resource-proof/--resource-sha256` for ROOT's actual commit
+receipt. It refuses read-only inspect/failed/pending proofs, mismatched seedSHA,
+anything beyond the one buffersPerNuma65536 change, lost seed1 or non-native
+revision2/parent1/kindcommit, altered protected state and runtime-enforcement
+claims. It serializes the exact confirmed running document, not a newly edited
+or reconstructed API document; canonical render must contain exactly65536
+buffers and all17 dataPCI rows/protected04 blacklist/required3 plugins. This
+is read-only render/product dry-run only; no device binding/apply occurs.

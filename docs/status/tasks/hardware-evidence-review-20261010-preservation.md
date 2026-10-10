@@ -485,3 +485,39 @@ after publication: exact reviewed V3 bytes under a separate RAM path with differ
 existing-file refusal; invalid selector2, mounted guard3 and runtime identity
 checks only. Valid raw capture, .37 transition and correction remain unreleased
 until the parent's separate phase release after .211 normal return.
+
+## Further .37 prepared-only review
+
+Actual ram-v3-reader-stage-20261010.json860 B/0600
+SHA2560fd8ebb3789d10eac379b6edd3e3b197517f793c5b2eea1c3e72d079c085aeaf
+independently parsed: exact V3static821424 B/d8d8aa83, invalidselector2/empty,
+mountedguard3, originalroot2050/RAM51/MainPID3866/held3940/nextrootabsence
+unchanged; valid_block_captureFalse/repair_startedFalse. Published operator
+checkpoint24a5859daa3f89e1330eec9ef75a12a80c05fe1f; this remains RAM preparation.
+
+Future package-input.py
+SHA256d5294674a9eede245900d54240c58ce8c88ed8e96282b39e19ab0532c1c21def
+source-only scoped APPROVE after publicationa04409b860487aa0e26473f31675d80ef996ce74.
+Reviewer independently hashes actual bytes and outer/PREFLIGHT/SIMULATE AST3 PASS;
+POLICY literal19 B has two newline bytes and no escaped backslash-n. Future target
+mode guards originalroot, absent RAM/nextroot, clean state/trusted time, management
+route/PCI/driver, exact root-owned101start policy and persistent inactive VPP mask.
+Exact11 archive hashes/controls and RAM upload checks precede apt simulation
+-s/--no-remove/--no-install-recommends with disabled package-cache outputs. No
+install, service activation or NIC binding is performed by this source. All actual
+Inst/Remv output needs manager assessment; critical-package regex is an aid, not
+an exhaustive safety proof. Target mode is not authorized during recovery.
+
+Future offline-preserve.py
+SHA256bdb2a28a5235142dc60c3ce72f2577acdee7ead4667f19b3733c22acef4c4301
+source-only applicability APPROVE after publication and parent's phase release.
+Actual-byte hash and outer/IDENTITY/REMOTE/STREAM AST4 PASS; full source inspected.
+Only audit, readonly-f-n capture, plain native plus seven allowlisted raw blocks,
+actual inode classification and private offhost size/hash/fsync/readback are
+included. ExactRAM51/PID1/master3866/held3940/device8:2/geometry/tool digests,
+fresh full audits/guard0, RAM/controller budgets, new-file refusal and actual
+kernel/counter health comparison are enforced. Diagnostic4/12 is capture, not
+filesystem acceptance. No correction/mount/reboot/SMART action. Existing .37 stage
+copies Python/full stdlib/extensions; operator asked to prove actual -B imports
+of required modules before crossing. These are source reviews, not peer facts
+substituted for actual .37 preservation or transition outcomes.

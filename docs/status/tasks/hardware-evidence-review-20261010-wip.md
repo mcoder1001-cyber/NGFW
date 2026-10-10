@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`0437b3fb565330f06e5aebdac44205a3da4059fb` (completed211 repair/clean validation review; matching
+`7ca7c4edc206130a4b5436a7a59e8ef73fc42f5d` (verified211 normal-return readiness review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -425,3 +425,17 @@ guarantee or optional new gate. Exact bothSKIPenv/singleforce reboot approved;
 actual original boot22/network/FShealth still pending, install/acceptance NOTRUN.
 Last verified remote0437b3fb above; next reviewer action inspect actual normal
 boot receipt and .37 applicability/phase evidence after parent's release.
+
+10:53 UTC: actual manager independent normal21122 receipt e30e3b59/1197 B/0600
+independently verified by reviewer: set-eu/absence assertions, SSH0/empty, new
+boot3a609803, normaldiskext4, originalmgmt/gateway/PCI/igc/group28, FS clean,
+ssh and rootfsck success/status0. Actual original boot/management PASS; worker
+full postboot/DNS/kernel and installation/acceptance still pending. .37 actual
+V3stage0fd8ebb3 verified only prepared; future inputd529 hash/AST3/guard source
+APPROVE, future preservationbdb2 hash/AST4/fullcode source APPROVE after publication
+and parent phase release, actual RAM Python imports requested. No37transition
+or userdata/fullbackup inference. Actual .37 effective static/DAD/drop-in/stop
+premises requested before upcoming transition review; no KeepCfg reload required
+if matching source and this host's actual properties establish preservation.
+Last verified remote7ca7c4edc above; next worker actual postboot211/final37preflight
+receipts and parent's specific phase release, then actual37offline preservation.

@@ -118,3 +118,27 @@ No double-force or second userspace return is approved here. Required next actua
 check is authenticated original22 SSH, normal disk root/boot ID, management and
 routing, filesystem/kernel health and private backup durability. Package
 installation/activation/NIC-binding/hardware acceptance remain pending.
+
+## Actual original .211 boot and management confirmation
+
+Manager independently authenticated fresh original22 after normal reboot.
+Reviewer independently reads manager-postboot-211.json1197 B/0600
+SHA256e30e3b595bb12cdd6adf2f2b1e6d0b2c9d24348cba4f4522dedaae925c314cc6:
+SSH exit0/stderr empty. Its actual script uses set-eu and explicit absent rescue/
+nextroot tests, so the absence assertions are enforced. Selected output:
+
+```text
+boot_id 3a609803-be4e-46eb-bfc6-7dcfe385cf50
+/dev/sda2 ext4
+management enp4s0 source172.30.110.211 gateway172.30.110.1
+PCI0000:04:00.0 driverigc IOMMUgroup28
+Filesystem state: clean
+ssh.service active / Result=success / ExecMainStatus=0
+systemd-fsck-root.service active / Result=success / ExecMainStatus=0
+```
+
+Actual normal return and management confirmation PASS. This is stronger than the
+earlier readiness verdict: original disk boot/SSH have now been observed. Worker
+full postboot L3/DNS/current-kernel receipt and later NGFW installation/binding/
+forwarding acceptance remain pending. The new boot resets kernel/device counters;
+do not equate a counter after kernel reboot with the old-kernel18 baseline.

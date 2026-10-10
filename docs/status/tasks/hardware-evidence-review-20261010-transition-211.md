@@ -182,8 +182,31 @@ kernel/static objects. This conclusion is specific to these observed conditions.
 [ACD enable/STOP handling](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-ipv4acd.c),
 [NDISC source filtering](https://raw.githubusercontent.com/systemd/systemd/v259.5/src/network/networkd-ndisc.c).
 
-Possible matching .network.d override inventory is requested read-only before the
-final network premise closes. No KeepConfiguration edit or networkctl reload is
+Matching .network.d override inventory was subsequently independently checked
+as recorded below; the network premise is closed. No KeepConfiguration edit or networkctl reload is
 approved or needed for the established static-state case. Preserve exact baseline
 comparison after transition; source-supported expectations are not an actual
 posttransition management PASS.
+
+Final override receipt: private network-acd-preflight.json, 13208 bytes,
+mode0600/parent0700, SHA25684a51a1ee4239981d1af06c8499a42328398ae29ea7e210d0295354d43ebe54c.
+Independent selected result: 24 inventory entries cover matching file plus exact,
+generic and name-prefix .d paths in /etc,/run,/usr/lib,/usr/local/lib; all .d paths
+absent, only matching /run file present. Successful networkctl JSON has
+NetworkFileDropins=[] and expected NetworkFile, management IPv4 ConfigSource=static
+and ConfigState=configured; observed IPv6/connected routes are foreign kernel
+objects. The supplementary journal selector returned0 and no ACD/conflict lines;
+log absence is not the main proof. The attempted networkctl cat enp4s0 returned1
+invalid-config-name and remains a failed diagnostic, not a PASS. Successful JSON
+and explicit inventory close the effective-override premise.
+
+**Final network-preservation design verdict: APPROVE** ordinary supported soft reboot
+with the already tested RAM SSH survivor, owned /run/nextroot pointing exactly at
+/run/ngfwrescue, and no network edits/reload. This phase remains conditional on
+actual RAM audit-helper readiness and the parent-required immediate live-session
+reconfirmations. It remains limited to transition, positive offline proof and
+read-only diagnosis/preservation. The manager observed fresh original .37 SSH
+management success and controller root-owned reserved-block write/fsync/unlink
+success; these worker/manager observations supplement, rather than replace, the
+reviewer's actual receipt checks. Use current measured image/undo sizes before
+extending to corrections. No target operation was performed by this reviewer.

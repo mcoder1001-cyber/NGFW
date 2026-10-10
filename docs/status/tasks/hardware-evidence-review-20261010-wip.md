@@ -235,3 +235,14 @@ No live network edit/reload requested. Last verified own remote5af876c00bc7f9336
 Current operational role: reviewer running this read-only follow-up; prior awaiting-resume
 notes and worker inventories are historical. Next: read ready override inventory,
 then actual transition PID1/runtime/SSH/network/offline proof from the operator.
+
+09:29 final network premise closed: independently parsed84a51a1e private ACD/drop-in
+receipt13208B/0600/0700, matching/generic/prefix overrides absent at allfour roots,
+actual networkd JSON dropins[] and static/configured IPv4. Preserved networkctl-cat
+exit1; successful JSON/inventory are proof. Source-supported normal-stop static
+management retention APPROVE without KeepConfiguration mutation/reload. Parent
+conditional transition/read-only release still requires actual copied RAM audit
+helper readiness, live PTY/.37 checks and posttransition offline proof. Last own
+verified remote3628f4a93f0c139a9ad0a042e7c726e8a994e7ff. Next exact operation: read
+worker's staged audit-helper source/receipt, then actual phase results; reviewer
+never executes target changes. No corrections or normal-return approval.

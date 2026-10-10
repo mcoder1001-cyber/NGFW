@@ -1,3 +1,41 @@
+# Actual .211 native preservation — 2026-10-10 09:58 UTC
+
+Native e2image (plain mode) succeeded after recorded Q-mode failure on corrupt
+extent traversal. Source986808320B, sparse allocated10096640B; guard0 and ioerr15
+stable through capture. Private offhost gzip1727953B/0600/file+directory fsync,
+SHA55ede2b7720d1e8a1e0d3e319857566824c24305d9106cef85ca54d554ec495e;
+full decompressed source size/SHA b324a9c0ebefd45e2336b8a5bc946adc1a942ccd177eb940c709decee37c7a8d
+independently verified by R7. Manager read actual transfer receipt3d5fa0ed and
+five private4096B/0600 supplements:15505493,15503361,15503362,15503363,15503874,
+all hashad7facb2 (all-zero bytes). Native image covers super/group descriptors/
+inode tables/bitmaps; supplements cover the three damaged journal extent nodes
+and two cache/config directory blocks. Neither is a complete user-data backup.
+Trimmed RAM dd missing127 was recorded before any read artifact; R7 approved
+static read-only allowlisted raw reader1a6e5a23/32567980, actual five reads succeeded.
+Minimal debugfs exact missing-path copy and actual loader/bind/V checks passed;
+three affected regular8MiB journals and root cache/config0700 directories identified.
+Matching .37 mounted-live map independently matches five inode/block pairs; not
+an offline .37 snapshot. Its worker remains on original22 and held RAM PTY.
+
+Correction is still held pending final independent actual supplement/health and
+finite undo/write-path preflight. Proposed exact targeted command:
+e2fsck -f -E fixes_only,nodiscard -z NEW_PRIVATE_RAM_UNDO /dev/sda2.
+Prompt-by-prompt classification; no blind-y/-D or incidental259816 optimization.
+Known directory salvage may discard entries, undo is not a full file-data backup
+or protection from a power loss. Owner explicitly authorized repair despite wear;
+no new replacement/full-image approval requirement. Clean subsequent offline-n0,
+private durable undo/logs and readonly boot/auth/network integrity precede normal
+singleforce return. Installation remains unexecuted; original task continues.
+
+Own latest remote6205db41e1ce52a1725049e03c0de2052db1cc4a before this immediate
+published checkpoint; host21113f9d005, host37bd8f4ce2, R740315bab verified publications.
+Fresh GitHub main4908716b unchanged; three newly observed unrelated openPRs218/219/220
+belong to concurrent laboratory work. Earlier no-openPR snapshots are historical.
+Exact next action: R7 actual finite-undo verdict, root targeted repair release,
+exclusive211 interactive fsck, clean check/preservation/integrity, reviewed return.
+
+Earlier phase entries below are historical.
+
 # Actual .211 read-only diagnosis and tool readiness — 2026-10-10
 
 Actual e2fsck -f -n exit12(4|8: uncorrected plus aborted), full private1878B receipt

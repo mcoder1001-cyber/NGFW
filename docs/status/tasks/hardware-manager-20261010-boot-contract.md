@@ -12,3 +12,19 @@ native running document, compare ultimate zone path/bytes and glibc offset again
 that desired zone, then require fresh timedated label resolves to the same zone
 (alias spelling allowed). No manual timezone mutation or desired-state override.
 Retain initial readonly hardcoded-Tehran refusal0d1b as failed, not accepted.
+
+Fresh systemd metadata compatibility, actual newboot37 d4b5 /15:54 UTC:
+After normal network-online wait, nginx started automatically; initialf347 was
+early runtime wait. Second readonly43a841 refusal is only blank timedated label.
+Actual desiredUTC canonical managed chain/zonebytes/new-process offset are correct.
+Pinned systemd259.5 get_timezone reads only the immediate /etc/localtime target:
+https://raw.githubusercontent.com/systemd/systemd/v259.5/src/basic/time-util.c
+It rejects /var/lib state indirection; timedated consequently reports an empty
+label. This is a metadata-utility compatibility limit, not wrong native UTC.
+Observer may accept an EMPTY label ONLY with exact canonical NGFW managed chain
+/etc/localtime→/var/lib/ngfw-system-identity/localtime→/usr/share/zoneinfo/<native
+desiredzone>, root-owned outerlink and ngfw-group-owned managedlink, plus already
+required full resolvedzone bytes and fresh glibc/ZoneInfo offset match. Record raw
+label and explicit unsupported managed-indirection metadata status; never claim
+fresh timedated label PASS. A nonempty wrong label still refuses. No target unit,
+sandbox, timezone, environment or permission change; preserve both old refusals.

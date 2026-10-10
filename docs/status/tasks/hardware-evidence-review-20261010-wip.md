@@ -5,7 +5,8 @@ Branch/worktree: `codex/hardware-evidence-review-20261010`,
 Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: this task's envelope/WIP/R7 report only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
-readback and is sent to the manager. No previous reviewer checkpoint exists.
+readback and is sent to the manager. Last verified published checkpoint:
+`df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
 archive ref, historical hosted gate and current pending hosted gate inspected.
@@ -44,7 +45,9 @@ install_review (R8) and this R7 reviewer running; host_211 not listed after its 
 handoff. This is a transient inventory, not proof of persistent developers or a
 service. Hardware installation roles remain awaiting offline recovery.
 
-Current finding: manager WIP lines36–49 needs committed commands/pasted output or
+Current verdict: BLOCK only for R7-1, missing committed command/output evidence in
+manager WIP lines34–47. Full report is `hardware-evidence-review-20261010-review-R7.md`.
+The manager WIP needs committed commands/pasted output or
 a linked committed evidence appendix for its completed PASS claims. Manager agrees
 to add evidence; final R7 verdict awaits that limited docs recheck. No product code
 changes are assigned. Final quick/native archives/hardware acceptance remain pending.

@@ -19,7 +19,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 
 | fact | source (`ReadHost`) | used for |
 |---|---|---|
-| management NIC(s) | every interface with an IPv4/IPv6 default route (`/proc/net/route`, `/proc/net/ipv6_route`) **plus** the interface the route lookup picks for the peer of every established control connection (`/proc/net/tcp{,6}`, local port in `--control-ports`, default 22 = sshd — so a management subnet that is only directly connected is covered), plus `--mgmt-if` / `--mgmt-pci`; each resolved via `/sys/class/net/<if>/device`, bonds/VLANs via their `lower_*` members. A tun/tap without a device (a **linux-cp tap, VPP-owned**) and unreachable/blackhole defaults (`*`) are skipped with a note, never an error; an interface that cannot be resolved is an error unless `--mgmt-pci` names the NIC(s). The CLI prints every NIC found and why | always `blacklist`ed; never a DPDK device, **whatever the document says** |
+| management NIC(s) | every interface with an IPv4/IPv6 default route (`/proc/net/route`, `/proc/net/ipv6_route`) **plus** the interface the route lookup picks for the peer of every established control connection (`/proc/net/tcp{,6}`, local port in `--control-ports`, default 22 = sshd — so a management subnet that is only directly connected is covered), plus `--mgmt-if` / `--mgmt-pci`; each resolved via `/sys/class/net/<if>/device`, bonds/VLANs via their `lower_*` members. A tun/tap without a device (a **linux-cp tap, VPP-owned**) and unreachable/blackhole defaults (`*`) are skipped with a note, never an error; an interface that cannot be resolved is an error unless `--mgmt-pci` names the NIC(s). The CLI prints every NIC found and why | excluded from the explicit data-device allowlist; `blacklist`ed only with `no-pci` when no devices are configured; never a DPDK device, **whatever the document says** |
 | online / isolated CPUs | `/sys/devices/system/cpu/{online,isolated}` | core placement |
 | NUMA nodes | `/sys/devices/system/node/node*` | buffer budget |
 | hugepage reservation | `/proc/meminfo` HugePages_Total × Hugepagesize (0 ⇒ refused) | buffer budget |
@@ -36,7 +36,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | `statseg { socket-name /run/vpp/stats.sock }` | explicit VPP default | product constants |
 | `cpu { }` | **always** `main-core N`; `corelist-workers …` whenever there are workers (never VPP's own placement) | `dataplane` + host CPUs |
 | `buffers { }` | `buffers-per-numa` (only when set) | `dataplane.buffersPerNuma` |
-| `dpdk { }` | `dev default { … }`, `dev <pci> { name … }`, `blacklist <host mgmt pci>` (always), `no-pci` when there are no devices; **omitted** when `dpdk_plugin.so` is disabled (VPP rejects the section of an unloaded plugin) | `dataplane` + host |
+| `dpdk { }` | `dev default { … }`, `dev <pci> { name … }`, only explicit data-device allow entries when devices are configured; `blacklist <host mgmt pci>` + `no-pci` when there are no devices; **omitted** when `dpdk_plugin.so` is disabled (VPP rejects the section of an unloaded plugin) | `dataplane` + host |
 | `plugins { }` | `plugin <file> { enable|disable }`, sorted: exactly `dataplane.plugins.switches` when `plugins` is present; the current file's switches when it is absent (D-084) | `dataplane.plugins` or current file |
 
 ## Mapping
@@ -52,7 +52,7 @@ Host = ReadHost(/sys, /proc, plugin dir, current startup.conf)  — required, ne
 | `dataplane.hugepagesGb` | comment only — hugepages are reserved by `vm.nr_hugepages` (`/etc/sysctl.d/80-vpp.conf`) | 1–1024 (0 is an error, not "unknown"); warning when above the host reservation |
 | `dataplane.buffersPerNuma` | `buffers { buffers-per-numa N }` | 1024–4194304; budget below |
 | `dataplane.pciWhitelist[i]` | `dpdk { dev <pci> }` (merged with `devices`) | ≤ 64; canonical `dddd:bb:dd.f` (lower-cased), device ≤ 1f, function ≤ 7; unique after canonicalisation; never a host management NIC |
-| `dataplane.managementPci[i]` | nothing extra — the blacklist comes from the **host** | ≤ 4, PCI as above, unique; when set it must **equal** the host's management NIC set (mismatch = error, e.g. a swapped entry) |
+| `dataplane.managementPci[i]` | nothing extra — management exclusion comes from the **host** | ≤ 4, PCI as above, unique; when set it must **equal** the host's management NIC set (mismatch = error, e.g. a swapped entry) |
 | `dataplane.devices.<pci>` | `dpdk { dev <pci> { … } }`, sorted by PCI | ≤ 64; key: PCI as above, unique after canonicalisation (`0000:0C:00.0` = `0000:0c:00.0`); never a host management NIC |
 | `dataplane.devices.<pci>.name` | `name <logical>` — the logical interface name (D-069: equals the `interface/<name>` key) | `[a-z][a-z0-9_-]{0,14}` (15 = Linux IFNAMSIZ−1), not ending in `-`/`_`; not `local0`/`default`/`none`/`any`/`all`; not a VPP-created stem followed by digit/`_`/`-` (`loop0`, `gre1`, `host-x`, `tap0`, `vxlan_tunnel0`, …); unique. A device without a name gets a warning |
 | `dataplane.devices.<pci>.rxQueues` / `.txQueues` | `num-rx-queues` / `num-tx-queues` | 1–256; rxQueues ≤ max(workers, 1) |
@@ -242,3 +242,10 @@ the data NICs under their logical names; the `interface/<name>` alias keys (D-06
   jump host is protected only via the NIC its jump-host session arrives on.
 - `tools/lab provision` still renders remote startup.conf files with its own shell template (tech-debt, D-081).
 - NIC driver binding for DPDK (vfio-pci / `driverctl set-override`) is outside the file and the generator.
+
+DPDK EAL rejects simultaneous allow (`-a`, produced by VPP `dev`) and block
+(`-b`, produced by VPP `blacklist`) options. A configured device list is closed:
+only those validated data PCI functions are admitted, and every detected
+management function is rejected from it. The empty-device bootstrap keeps its
+existing management blocklist and `no-pci`. This applies to both the agent
+preview and the packaged `ngfw-startupgen` used by the native startup executor.

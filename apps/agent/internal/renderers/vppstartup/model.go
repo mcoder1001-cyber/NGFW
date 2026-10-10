@@ -72,7 +72,7 @@ const gib = uint64(1) << 30
 // (Check); ReadHost collects them from a running system.
 type Host struct {
 	// ManagementPCI are the PCI addresses of the NIC(s) the host is managed through (default route
-	// / the address the agent is reached on). They are always blacklisted and can never be a DPDK
+	// / the address the agent is reached on). They are always excluded and can never be a DPDK
 	// device, whatever the document says.
 	ManagementPCI []string
 	// ManagementNotes explain ManagementPCI (which interface, why) and list skipped VPP-owned taps;
@@ -135,7 +135,8 @@ type Model struct {
 	TxQueues uint32
 	// Devices are the DPDK devices sorted by PCI address.
 	Devices []Device
-	// Blacklist are the host's management PCI addresses, sorted.
+	// Blacklist are the host's management PCI addresses, sorted. Rendering uses
+	// a blocklist only without devices; an explicit device allowlist excludes them.
 	Blacklist []string
 	// Plugins are the effective plugin switches (current file overlaid by the document), sorted.
 	Plugins []Plugin

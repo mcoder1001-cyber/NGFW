@@ -1,0 +1,33 @@
+# Hardware campaign EAL correction — RUNNING
+
+Same owner-requested two-host hardware campaign; no unrelated WBS task started.
+Branch codex/hardware-eal-fix-20261010; own isolated worktree /dev/shm/ngfw-hardware-firstboot-integration-20261010; base main d1f3f19d4837de3f7a36bfffcbd3c70593bea307. Root owns vppstartup template/model/tests/two positive golden fixtures, startupgen CLI wording, renderer documentation and narrow D246 decision. Reviewer does not write product/target state.
+
+Actual .211 physical native startup failed: five EAL processes exited with Invalid argument22; native rollback completed14:30:10 and locks released14:30:11. Original735-byte startup restored; noPCI VPP72599 active, management protected, API/agent held inactive, all17 VFIO bindings retained. Actual failure receipt18019B0600 SHA f64ad15bd241d4bbed2e3219900b6836138dcaf13be17ce2f916df2bc9559de1. Native unit Result=success reflects successful rollback; physical acceptance FAILED. No blind retry and no lab-only deferral.
+
+Pinned VPP c3200b88 raw PCI blacklist becomes EAL -b, while dev entries become -a. Pinned DPDK26.03 rejects simultaneous nonempty allow/block lists before device probing, yielding EINVAL22. This is a source-supported diagnosis matching actual failure; live failed EAL argv was not captured. Generator now admits only the explicit validated data devices, excludes detected management from that closed allowlist, and retains unchanged blacklist+no-pci when empty. Management model rejection, contracts, auth, privileges, VPP version, native apply/deadman remain unchanged.
+
+Completed tests: Go vppstartup0.435s and startupgen0.274s PASS after meaningful EAL-selection regression and management/control-connection assertions. Existing test expectations/goldens updated only for device configurations; empty/noPCI output unchanged. Earlier initial command used incorrect working directory for writer/gofmt; no write occurred, but fixture-update test subsequently found two expected old blocklist assertions, both corrected. Unscoped -update passed to CLI package was rejected; no test skip or code waiver. Actual full mandatory hosted quick, independent review and fixed native packaging/install remain required before physical retry. Exact next command: tools/ci.sh check --base origin/main, then coherent product checkpoint/push and small PR; run canonical clean prepare against verified VPP26.06+ngfw3 after successful publication.
+
+Actual command/output evidence (existing runs; no rerun claimed):
+
+Working directory `/dev/shm/ngfw-hardware-firstboot-integration-20261010/apps/agent`:
+```text
+$ go test ./internal/renderers/vppstartup ./cmd/ngfw-startupgen
+ok  	ngfw/agent/internal/renderers/vppstartup	0.435s
+ok  	ngfw/agent/cmd/ngfw-startupgen	0.274s
+```
+Working directory `/dev/shm/ngfw-hardware-firstboot-integration-20261010`:
+```text
+$ tools/ci.sh check --base origin/main
+no contract files changed in the 0 commit(s) of HEAD since origin/main (d1f3f19d4)
+ok: no shell/VPP/FFI access in apps/api/src apps/web/src packages/*/src
+ok: no kill-by-pattern in scripts
+ok: no secret-shaped strings
+ok: gitleaks — scanned ~0 bytes (0) in 768ms no leaks found
+board valid: 212 tasks; read-only validation
+check PASSED (0m14s)
+```
+The check preceded the coherent commit, so the range had0commits; forbidden patterns were checked on the tree, and complete hosted quick is still required on the final integration head.
+
+14:46 UTC canonical clean prepare completed exit0 for native compiled source97ae88ee5b6aaf304f78547abed39e80bbeac5e1, retained600/fsync package-prepare-eal-97ae.log. Verified unchanged VPP26.06-release+ngfw3, all72verifierfixtures and14TSbuilds/7Gohelpers; staged source /dev/shm/ngfw-hardware-eal-package-20261010 version0.1.0~dev+97ae88ee5b6a. Native dpkg-buildpackage is now running; no fixed EAL package installed or physical retry performed. Archive actual97ae checkpoint remotely before final one-commit evidence integration. Final documentation-only head may differ from compiled97ae; payload provenance must retain97ae and unchanged product trees must be independently verified.

@@ -193,9 +193,9 @@ func TestManagementFromHost(t *testing.T) {
 	if !strings.Contains(string(out), "  blacklist 0000:0b:00.0\n") || !strings.Contains(string(out), "  no-pci\n") {
 		t.Fatalf("empty document lost the blacklist:\n%s", out)
 	}
-	// document agrees with the host: fine, and still exactly one blacklist line
+	// document agrees with the host: only the data device is allowed, no EAL blocklist
 	out, _, err = Generate(parseDoc(t, `{"dataplane":{"managementPci":["0000:0B:00.0"],"devices":{"0000:04:00.0":{"name":"wan"}}}}`), ngfwA(t), DefaultSettings())
-	if err != nil || strings.Count(string(out), "blacklist") != 1 {
+	if err != nil || strings.Contains(string(out), "blacklist") || strings.Contains(string(out), "dev 0000:0b:00.0") || !strings.Contains(string(out), "dev 0000:04:00.0") {
 		t.Fatalf("%v\n%s", err, out)
 	}
 	// a second host management NIC is protected even though the document never names it
@@ -359,7 +359,7 @@ func TestManagementPaths(t *testing.T) {
 		t.Fatalf("ssh NIC accepted as a DPDK device: %v", err)
 	}
 	out, _, err := Generate(parseDoc(t, `{"dataplane":{"devices":{"0000:04:00.0":{"name":"wan0"}}}}`), h, DefaultSettings())
-	if err != nil || !strings.Contains(string(out), "blacklist 0000:0c:00.0") || !strings.Contains(string(out), "blacklist 0000:13:00.0") {
+	if err != nil || strings.Contains(string(out), "blacklist") || strings.Contains(string(out), "dev 0000:0c:00.0") || strings.Contains(string(out), "dev 0000:13:00.0") || !strings.Contains(string(out), "dev 0000:04:00.0") {
 		t.Fatalf("%v\n%s", err, out)
 	}
 

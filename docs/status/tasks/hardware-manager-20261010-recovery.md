@@ -1,16 +1,22 @@
 # Hardware recovery and installation resume
 
-Current phase, 2026-10-10 10:43UTC: both /dev/sda2 roots initially had structural
-ext4 errors and failed boot fsck. .211 is in matching RAM rescue, correction
-completed exit1 and subsequent full offline-f-n exits0 through all5passes. Native
+Current phase, 2026-10-10 10:56UTC: both /dev/sda2 roots initially had structural
+ext4 errors and failed boot fsck. .211 correction in matchingRAM rescue completed
+exit1 and subsequent full offline-f-n exits0 through all5passes. Native
 metadata image, seven all-zero affected external blocks, actual749568B undo and
 complete transcript/answer ledger are durably preserved offhost. Full post-audit
 260processes/93FDs/nsfs0/races0/failures0/finalguard0 passed, kernel exactlyequal
-and ioerr18 stable. Selected originalroot/EFI readonly integrity52/52 comparisons
-passed and both ordinaryunmounts0; separate normal-return release awaits finalRAM
-shutdown/manager/freshguard/sync/nextroot and applicable R7 actual verdict.
-.37 remains on original22 plus held RAM rescue PTY;
-its transition waits for .211 normal return. Package installation and hardware
+and ioerr18 stable. Selected originalroot/EFI readonly integrity52/52 comparisons,
+ordinaryunmounts, matchingRAMshutdown/manager/finalguard/sync/nextrootabsent allPASS;
+R7/root approved singleforce normalreturn, executedSSH0 and freshoriginal22 returned.
+Actual newboot3a609803/root8:2CLEAN/fscksuccess0/protectedenp4s0PCI04igcgroup28,
+ALLL3address/routes/rules/DNS and52selectedhashes unchanged, newkernelstorageerrors0.
+Manager independentlyverified fresh22/rootclean/fsck/PCI; .211 normalreturnPASS.
+.37 matchingnetd/actualstaticaddress stop applicability and ownpublished corrected
+source/RAMimports plus fresh211check PASS; ordinaryRAMtransition/readonlyoffline
+diagnosis/native+sevenraw preservation is now released. Correction remains gated
+on .37 actualoffline proof/preservation/inode classification/health/finiteundo.
+Package installation and hardware
 acceptance remain unexecuted. The owner explicitly requests repair despite .37 SSD wear; wear
 alone is not a replacement or permission blocker. Recover .211 first, then .37.
 The earlier console-only plan is superseded by the reviewed matching-systemd RAM

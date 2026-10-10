@@ -1,11 +1,11 @@
-# Hardware task status — 2026-10-10 10:52 UTC
+# Hardware task status — 2026-10-10 10:56 UTC
 
 بسته‌های اصلاح‌شده آماده‌اند؛ CI کامل پیش و پس از ادغام PR217 موفق شد.
 فرسودگی SSD مربوط به172.30.126.37 است؛ مالک تعمیر را با پذیرش آن تأیید کرد.
 خرابی اولیه فایل‌سیستم روی هر دو دستگاه تأیید شد؛ تعمیر .211 تمام شده است.
 بررسی کامل آفلاین بعد از تعمیر .211 بدون خطا گذشت؛ undo و مدارک خارج از دستگاه محفوظ‌اند.
 بررسی فایل‌های بوت و ورود52/52 موفق بود؛ .211 به بوت عادی و SSH22 برگشت و فایل‌سیستم clean است.
-مقایسهٔ نهایی DNS و تمام مسیرها در حال انجام است؛ مرحلهٔ آفلاین .37 پس از موفقیت آن اجرا می‌شود.
+مقایسهٔ نهایی DNS، تمام آدرس‌ها و مسیرها و لاگ بوت .211 موفق بود؛ آغاز مرحلهٔ آفلاین .37 تأیید شده است.
 
 Reviewed hardware merge4908716b main quick38035583209 and both fixtures SUCCESS.
 Later unrelated laboratory PR219 merged;218/220/221/222 open at latest readback.
@@ -31,13 +31,14 @@ Selected originalroot/EFI readonly boot/auth integrity52/52True and ordinaryunmo
 matchingRAMshutdown/manager/finalguard/sync PASS9569441f, R7 normal-returnAPPROVE.
 ActualsingleforceSSH0/reconnectfourthprobeSSH0/newboot3a609803/rootclean;
 managerindependentfresh22/protectedenp4s0PCI04igcgroup28/fsckrootsuccess0 PASS.
-WorkerallL3/DNS/newkernelproofremaining; absentoptionalresolvectl narrowretry underway.
-.37 original22 and RAM2222/heldPTY retained; conditionalordinaryRAMtransition/readonly
-phase released only after211remainingPASS andpublished ownreviewedpreservesource/imports0.
+WorkerallL3/DNS/newkernelproofPASSbaf2/e2d563; absentoptionalresolvectl retained,
+directDNSfallbackPASS. .37 actualnetdstop applicability3dd7 R7APPROVE;
+ownreviewed bdb2sourcepublishedf1f9/imports0 andfresh211checkPASS. Ordinary37RAM
+transition/readonlyphase fullyreleased; actualtransition/preservation notyetobserved.
 Both bounded256MiB aligned direct reads PASS, stable counters/no new read-storage errors;
 .211 historicalCRC1003/query-associated counter increments retained; .37wear126%/2remaps.
 Protected .37enp12s0/.211enp4s0 exact network preserved; no dataPCI binding/install yet.
 Package hash/direct-dependency prep done; hugepages0 and NIC-seed opt-in require setup.
-Remaining: final .211 allnetwork/bootstorage verification, .37 repair/clean offline check/normal return, install
+Remaining: .37 actualoffline repair/clean check/normal return, install
 and exact7/17 physical-row activation, API/TLS/forwarding/restart/reboot actual tests.
 Read hardware-manager-20261010-wip.md and recovery.md for current gates/next commands.

@@ -1,3 +1,33 @@
+# Actual .211 full return PASS and .37 transition release — 2026-10-10 10:56 UTC
+
+Root independently inspected complete .211 postreturn152238B/baf2aad81531abdd0af13ed223d976de4aefb483d36473476e436c86148a1f51
+and conclusions864B/e2d563d1267d78326de044cc21f50aeb92dc338cd105640c2c0f54f93c23df24:
+all12readonlycommands0, newnormalboot/root8:2/CLEAN/fscksuccess0, original52of52
+boot/auth/config hashes match, protectedenp4s0/PCI04/igc/group28/MACoriginal;
+ALLL3addresses+v4/v6alltableroutes+rules exactTrue and originalDNSconfighashTrue.
+Currentbootkernelstorageerrorlines0; ioerr0x6 is NEWbootbaseline, not18 comparison.
+RAMstage/nextrootabsent. Initial missingoptionalresolvectl capture failure retained;
+directresolverconfig v2 succeeds. Manager own fresh22e30e3b independentlyPASS.
+.211 actual repair+normalreturn complete; original package/NIC/task acceptance remain.
+
+.37 exact reviewed offline-preservebdb2a28a published/readbackf1f9a9653659123102c94bb6d811db664dc17d8c,
+actualRAM51Pythonimports0 and worker ownfresh211normal22/rootclean/protectedroutePASS.
+Actual .37 netd30572B0600/3dd7f9811518e823ba617d5e142b627dae4b25c40fff9770c37aeb5f766bf104:
+effective mgmt staticIPv4/foreignlinklocalIPv6 infinite, matchingnetworkfile/noDAD
+orIPv4LLoverride, no networkdstop hooks/dropins. Optionalnetworkctlcat1 is retained;
+effectiveJSON/directfiles prove actual configuration. R7 focused transition technical
+applicability APPROVE received: matching259.5 nonIPv4LL default DADnone addresses
+the known ACDstop exception. Root conditionalrelease now fullyACTUALPASS, directs
+worker ordinary37RAMtransition then actualRAMPID1/auth/helper/network/fulloffline
+audit+guard0 and reviewed readonlydiagnostic/native/nineinode/sevenraw preservation.
+No further permission roundtrip; no correctivefsck/rebootreturn release implied.
+Worker211 next prepares trustedclock/preservedpolicy101/persistentVPPmask and own
+exact11apt-s input source; actualinstallation still awaits reviewedsolverplan.
+Root priorf0a93b0683ba8ac5e4582da7621caa3dd9454492 push/readbackPASS; this update
+immediatelypublishes. Exactnext: observe37transition/preservation receipts, independently
+classify actual damaged inodes and preservation/health/finiteundo, then release
+targeted interactive repair through correctedonebyte driver, before clean/return.
+
 # Actual .211 normal boot and conditional .37 phase — 2026-10-10 10:52 UTC
 
 Actual singleforce commandSSH0/empty d13748e3; first3 normal22 probes255 during

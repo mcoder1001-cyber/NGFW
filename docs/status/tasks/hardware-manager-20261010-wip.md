@@ -1,3 +1,56 @@
+# Actual protected normal boots and .211 firstboot PASS — 2026-10-10 12:10 UTC
+
+Root independently full-parsed .37 actual178158B0600 post-normal-return-v2 receipt
+08cb5c648d082ad6b02ee4cbb202dd12627b200f2c90728cfb844d7e20c17525: exactly8
+subprocesses0/emptyerr,49originalobjects(42regular/6dirs/1symlink)+2root-record
+hashes match, DNS/protectedPCI0cigc58/MAC/cleanroot/newbootc8d66ea9/bootfsck0,
+within-newboot ioerr0x6 stable/no newstorageerrors. Root earlier message19commands
+corrected to8 (19 belonged offline readiness); receipt unaffected. Root actual
+baseline diff EXACT ONLY4unused DATA kernel_ll fe80 addresses onenp14..17 and
+12matching kernel local/linkdown/multicast IPv6 routes removed; no additions or
+other removal, IPv4routes/bothrules exact, management addresses/routes unchanged.
+WHOLE5L3 NOTEXACT, protected normal-return PASS accepted byroot and independentlyR7.
+No unuseddataLL restoration or false carrier inference from adminflags. .211
+firstboot condition met. .37 actual fresh4652Bf437originalguardinspection bothabsent,
+9491Ba429 guardprepare SSH0/L3same/durableownmarkere275e506/root101policy+VPPmask/
+trustedUTC PASS; ownsolver/native-compatible sameTZ setup next, no install yet.
+
+.211 actual firstboot303028B0600/SHA9134aaf1e3fae358d154bb3af6b69cf3602c1bc0e169fc2fcffa9471930045f8
+ROOTfullparsed PASS: nativefirstboot0/privatebootstrapremoved/safeinitialnoPCI/
+ownedNFTonly/fullL3equal/only nr0to1024 among16sysctls/all15nonprerequnitinactive/
+guardsintact/no newstorageerrors/ioerr6stable. Actual freshoriginal22 protected
+readback3643B1d27ece7 workerPASS. Native credentials remainprivate0600, notprinted.
+Actual inputs5313B0600/fdd412f0785b6dabecf8830da49eb005d59cbff49a66e4db694800c2ddd22951
+and restore9786B0600/eb06bcb45e9c41f9f689998f7fdfe581ac8fdd38c2da0b5c571a037c17ef1e3a
+ROOTfullparsed PASS: managementagent.env +persistent APIseedflag, canonicalapi.env
+3keys unchanged, L3equal/noactivation; originalpolicy+mask ABSENT/ownedmarker
+removed/siblingfirstboot+seedrecords retained. All17 originalkerneldataNICs remain.
+
+Finalinitialruntime010eaacdf7842e983e1b23561c573ed6fe7e447b412dcf202f2bf69b91869cd8
+full-read byroot includes DNS/16sysctl/foreignNFT guards. Earlier rootfullread
+message used prior5783hash; currentactualread/hash confirmed010, correction sent.
+Publication/readback6d8c357496b83e618b8f3074b6622678f7012f68 workerPASS; readonly
+actual14010B0c12a7b9 preflightPASS. ROOTconditional INITIALRUNTIME+REALFIRSTAPISEED
+release: exactpublication/readback/R7applicability and actualprecedingPASS allow
+VPP-agent-FIRSTAPI-nginx start/noPCI and realrev1/system.seed-defaults/exact17rows,
+privateTLSlogin/agentRPC/candidateequal/nopending/NRestarts0/protectednet/storage
+capture. No bind/startupapply/DBshortcut/manualrevision/enable/reboot. Actual seed/
+service tests pending. 37 mirrors ownfacts; nativecompatibleTZ normalization before
+installation authorized narrowly same absoluteoriginalzonefile/bytes withfsynced
+backup/securityguards/noRTC/NTP/restart, sourcepublication/R7 precede mutation.
+
+Hourly12:05 actually posted:
+https://github.com/mcoder1001-cyber/NGFW/pull/217#issuecomment-6097377639
+Privatebody3335B0600/fsynced/SHA3efa065e9f3e157776d8b94d2dfedef0e8d9b33afb5a82175f37398176aa2007.
+Freshboard212=205merged+7parked/fca789c5; main4cda4687completequick38049694822SUCCESS;
+otherPR221/222/223/224 open. Fourchatrolesrunning; widerinventoryunverifiable,
+no persistentserviceclaim. No newhardwareproductmerge; immutable2045payload.
+Rootprior4f3e6e8b591cf45f83fc382761440897d595fd68 push/readbackPASS; this coherent
+actualnormalboot/firstboot/inputrestore milestone immediately publishes.
+Next exact:211 reviewed010 native runtime+seed;37 reviewedownTZ/input thenactual
+signedAPTsolver/native-skip installation. Manageronly7/17VFIO+asyncguardedapply,
+actualruntime/reconcile/restart/reboot tests remain; no wiretrafficPASS claimed.
+
 # Actual .37 kernel return and ordered runtime preparation — 2026-10-10 12:01 UTC
 
 .37 exact single-force skip-auto-soft/kexec normal return actually executed:

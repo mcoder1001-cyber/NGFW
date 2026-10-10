@@ -220,6 +220,45 @@ add rule inet ngfw_ppp output oifname "ppp0" {family} daddr @probe_target {famil
 """
 
 
+def pristine_kernel_fallback(link):
+    """Accept only strictly unconfigured immutable kernel fallback devices."""
+    flags = link.get('flags')
+    if not isinstance(flags, list) or any(not isinstance(flag, str) for flag in flags):
+        return False
+    defaults = {
+        'gre0': ('gre', 'gre', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+        'gretap0': ('gretap', 'ether', {'remote': 'any', 'local': 'any', 'ttl': 0, 'pmtudisc': False}),
+        'erspan0': ('erspan', 'ether', {'remote': 'any', 'local': 'any', 'ttl': 0,
+                                      'pmtudisc': False, 'okey': '0.0.0.0',
+                                      'erspan_index': 0, 'erspan_ver': 1}),
+        'ip6tnl0': ('ip6tnl', 'tunnel6', {'proto': 'ip6ip6', 'remote': 'any', 'local': 'any',
+                                        'ttl': 0, 'encap_limit': 0, 'tclass': '0x00',
+                                        'flowlabel': '0x00000'}),
+    }
+    expected = defaults.get(link.get('ifname'))
+    if expected is None:
+        return False
+    kind, link_type, data = expected
+    mtu = {'gre0': 1476, 'gretap0': 1462, 'erspan0': 1450, 'ip6tnl0': 1452}[link['ifname']]
+    info = link.get('linkinfo', {})
+    actual_data = info.get('info_data')
+    if not isinstance(actual_data, dict) or set(actual_data) != set(data):
+        return False
+    if any(type(actual_data[key]) is not type(value) for key, value in data.items()):
+        return False
+    expected_flags = {'NOARP'} if link_type in ('gre', 'tunnel6') else {'BROADCAST', 'MULTICAST'}
+    return (set(flags) == expected_flags
+            and link.get('netns-immutable') is True and link.get('operstate') == 'DOWN'
+            and not {'UP', 'LOWER_UP', 'MASTER'}.intersection(flags)
+            and link.get('link') is None and 'master' not in link
+            and link.get('mtu') == mtu and not link.get('ifalias', '')
+            and link.get('group') == 'default' and link.get('promiscuity') == 0
+            and type(link.get('promiscuity')) is int and type(link.get('allmulti')) is int
+            and link.get('allmulti') == 0 and link.get('addr_info') == []
+            and link.get('link_type') == link_type and info.get('info_kind') == kind
+            and info.get('info_data') == data)
+
+
 class Carrier:
     def __init__(self, runner=run, root=ROOT, netns=NETNS):
         self.run = runner
@@ -353,9 +392,27 @@ class Carrier:
             raise ValueError('carrier raw MAC changed')
         return link['ifindex']
 
+    def owned_links(self, fd):
+        links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
+        addresses = None
+        result = []
+        for link in links:
+            if link.get('ifname') in ('gre0', 'gretap0', 'erspan0', 'ip6tnl0'):
+                if addresses is None:
+                    addresses = json.loads(self.inside(fd, [IP, '-j', 'address', 'show']))
+                rows = [row for row in addresses if row.get('ifname') == link.get('ifname')
+                        and row.get('ifindex') == link.get('ifindex')]
+                observed = dict(link)
+                if len(rows) == 1:
+                    observed['addr_info'] = rows[0].get('addr_info')
+                if pristine_kernel_fallback(observed):
+                    continue
+            result.append(link)
+        return result
+
     def links(self, fd, token, record, require_ppp):
         raw, transit_name = link_names(token)
-        links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
+        links = self.owned_links(fd)
         by_name = {link['ifname']: link for link in links}
         allowed = {'lo', raw, transit_name, 'ppp0'}
         if set(by_name) - allowed:
@@ -397,7 +454,7 @@ class Carrier:
         if record.get('transit') and record['transit'] != normalized:
             raise ValueError('transit allocation is immutable within a generation')
         with self.pinned(token, record) as fd:
-            links = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
+            links = self.owned_links(fd)
             by_name = {link['ifname']: link for link in links}
             if set(by_name) - {'lo', raw, transit_name}:
                 raise ValueError('stop PPP and remove foreign links before preparation')
@@ -560,7 +617,7 @@ class Carrier:
             result = dict(record)
             if record.get('bound'):
                 raw, transit_name = link_names(token)
-                actual = json.loads(self.inside(fd, [IP, '-j', '-d', 'link', 'show']))
+                actual = self.owned_links(fd)
                 by_name = {item['ifname']: item for item in actual}
                 if raw not in by_name or transit_name not in by_name:
                     # VPP losing TAP FDs is a recoverable namespace object,
@@ -901,7 +958,7 @@ class Carrier:
     def delete(self, token, generation):
         record = self.withdraw(token, generation)
         with self.pinned(token, record) as fd:
-            links = json.loads(self.inside(fd, [IP, '-j', 'link', 'show']))
+            links = self.owned_links(fd)
             if any(link['ifname'] != 'lo' for link in links):
                 raise ValueError('remove owned VPP TAPs and stop PPP before namespace deletion')
         self.run([IP, 'netns', 'delete', token])

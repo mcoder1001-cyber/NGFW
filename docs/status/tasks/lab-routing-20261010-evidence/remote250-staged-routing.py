@@ -95,6 +95,22 @@ def main():
                 import shlex
                 key, value = line[7:].split('=', 1)
                 env[key] = shlex.split(value)[0]
+        # Existing tools/lab rig fixture disables TX checksum offload on its
+        # disposable peers. Supply its missing genuine tool without installing it.
+        tool = TASK / 'bin/ethtool'
+        info = tool.lstat()
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_nlink != 1
+                or info.st_mode & 0o022 or not info.st_mode & 0o111
+                or tool != tool.resolve(strict=True)
+                or hashlib.sha256(tool.read_bytes()).hexdigest() !=
+                '54ee98014cd8813f0a2f13aa2e829f7b5160ab6442e5fed9e0b10fd2c2094bbe'):
+            raise SystemExit('genuine protected private ethtool refused')
+        info = tool.parent.lstat()
+        if (not stat.S_ISDIR(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022
+                or tool.parent != tool.parent.resolve(strict=True)):
+            raise SystemExit('private executable directory refused')
+        env['PATH'] = str(tool.parent) + ':' + env['PATH']
+        print('PRIVATE_RIG_ETHTOOL_SHA256=54ee98014cd8813f0a2f13aa2e829f7b5160ab6442e5fed9e0b10fd2c2094bbe', flush=True)
         env.update(NGFW_ROUTING_TEST_BIN=str(TASK / 'bin/agent.test'),
                    NGFW_ROUTING_PREFLIGHT_BIN=str(TASK / 'bin/ngfw-vpp-preflight'),
                    TMPDIR='/run/w' + slot, GOTMPDIR='/run/w' + slot)

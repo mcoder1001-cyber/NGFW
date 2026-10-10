@@ -7,9 +7,9 @@
 بررسی فایل‌های بوت و ورود52/52 موفق بود؛ .211 به بوت عادی و SSH22 برگشت و فایل‌سیستم clean است.
 مقایسهٔ نهایی DNS و تمام مسیرها در حال انجام است؛ مرحلهٔ آفلاین .37 پس از موفقیت آن اجرا می‌شود.
 
-Fresh main4908716b unchanged; main quick38035583209 and both fixtures SUCCESS.
-Unrelated concurrent laboratory PRs218/219/220 are open; no new hardware product merge.
-Fresh remote board212:205merged,7parked; hourly report6096451111 successfully posted.
+Reviewed hardware merge4908716b main quick38035583209 and both fixtures SUCCESS.
+Later unrelated laboratory PR219 merged;218/220/221/222 open at latest readback.
+10:05 remote board snapshot212:205merged,7parked; hourly6096451111 successfully posted.
 Verified live roles: manager, two exclusive host operators/testers, one recovery reviewer;
 external live inventory unverifiable, no persistent runner claim.
 Fresh10:43 observed main ded860762c81e72fb9f760caec4bd98898c8b6a4 after unrelated

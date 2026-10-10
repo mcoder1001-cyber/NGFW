@@ -43,3 +43,9 @@ Helper e37b47c0f published+independentlyapproved. NativePPP retry2/3 originalbro
 250current-sourcefullAPIbase/nativepreferredpacketPASS; packagingtransferprereq retries(noGo/pnpm installation): /runnoexecwrappers movedTMPDIR/tmp; owncurrentproto/yang/migrations copied. Extended firstfailsmissingethtool; privateoriginalethtoolbinary transferredwithownPATH, retry6running. Allfailedprivates stoppedandownDB/rolecleaned.
 
 Go1.26testing.TempDirusesGOTMPDIR first; /runTMPDIR with/tmpGOTMPDIR stillrootRAprotectedancestorrefuses. BothTMPDIR/GOTMPDIRnowowned /run/w20 bindmountedowned/tmp/w20 andexecflagonlyownedmount. Direct2RAreadbacktests PASS; unchangedfullquickretry5running. Nativecurrentfixture, precompiledexactMultiWANhook reviewed (rootowned/singlelink/nonwritable/protectedprivateancestor/count1/4m/exactRUN+PASS/noSKIP). No completegateclaimuntil actualexit0.
+
+## 250 completed supplemental acceptance and bounded TAP correction
+
+Remote current-source full native MultiWAN acceptance EXIT0, TestMultiWANRealAPI52.13s: 1000weighted flows270/730, native1000sessions237/763 preserved across agentrestart, deadWAN removes only237 leaving763, PBR1000flows252/748; actual API, packets, rollback and DB/role cleanup PASS. InstalledVPP8102 active NRestarts0 unchanged. DB7 baseline empty (CLI blankline filtered), only ownprefix keys removed with UNLINK, original keys preserved. Ettool copied originalhostbinary into ownedremotePATH only, SHA in preservation receipt.
+
+Official FDio stable/2606 src/plugins/tap/tap.c TAP_MAX_INSTANCE8192 rejects largerID with exact native error. Parent approves bounded deterministic candidate raw2..8190 even/transitraw+1<=8191, no0; liveallTAPcollision admission anddesiredduplicatefailclosed unchanged. Ownedproductionfile carrier_spec.go; regressionfiles carrier_spec_test.go anddesired/pppoe_carrier_test.go. NativePPP rerun stillpending and rowopen.

@@ -88,7 +88,13 @@ def packets():
    while True:
     probe=subprocess.run(['ip','netns','exec','ns-w20-carrier-lan','ping',family,'-n','-c','3','-W','2',destination],capture_output=True,text=True,timeout=12)
     if probe.returncode==0 and '3 packets transmitted, 3 received, 0% packet loss' in probe.stdout:break
-    if time.monotonic()>end:raise Refused('real API/current Wiring LAN PPP packet failed '+family)
+    if time.monotonic()>end:
+     # Ordinary bounded readback only; never VPP packet trace or authentication capture.
+     private_identity()
+     for words in (('show','nat44','addresses'),('show','nat44','interfaces'),('show','nat44','sessions'),('show','interface','address'),('show','errors')):
+      diagnostic=subprocess.run(['vppctl',*words],capture_output=True,text=True,timeout=5)
+      print('OWNED_PACKET_FAILURE_READBACK '+repr(words)+' rc='+str(diagnostic.returncode)+' '+diagnostic.stdout[:4096],flush=True)
+     raise Refused('real API/current Wiring LAN PPP packet failed '+family)
     time.sleep(.4)
    print('REAL_API_CURRENT_WIRING_LAN_PACKET '+family+' PASS '+probe.stdout.splitlines()[-2],flush=True)
 with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w20') as (api,runtime,restart):
@@ -100,7 +106,7 @@ with module.product_stack(20,agent_binary=BASE/'bin/ngfw-agent',target_owner='w2
  api.call('PATCH','/config/interfaces',config)
  extended_api=os.environ.get('NGFW_WAN_API_EXTENDED')=='1'
  if extended_api:
-  api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[]})
+  api.call('PATCH','/config/nat',{'enabled':True,'mode':'ed','sessionLimit':4096,'inside':['host-w20lan'],'outside':['w20ppp'],'pools':[{'name':'w20-ppp-native','interface':'w20ppp'}]})
  paths=('/interfaces',)+tuple('/nat/'+field for field in ('enabled','mode','sessionLimit','inside','outside','pools')) if extended_api else ('/interfaces',)
  result,warnings=commit(api,paths)
  assert (namespace.stat().st_dev,namespace.stat().st_ino)==namespace_identity,'pre-existing carrier namespace was replaced'

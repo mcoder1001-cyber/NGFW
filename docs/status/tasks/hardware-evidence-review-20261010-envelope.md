@@ -81,3 +81,12 @@ activity is only durable publication of existing findings and exact pending step
 no action in flight. Latest installation/WIP appendix carries actual source/results
 and does not treat previous applicability approvals as execution permission while
 paused. Reviewer may resume this same branch/owned documentation only when requested.
+
+
+Owner explicitly resumed ONE existing hardware installation/acceptance task at
+12:33 UTC. Review already published noPCI plugin preview and real missing-capability
+seed failure, root-owned bootstrap source correction, actual manager startup/seed
+and later scoped binding. No unrelated work, product/host writes or secret output.
+Own additional report: hardware-evidence-review-20261010-plugin-seed.md. The prior
+pause remains historical. .37 firstboot stays unexecuted until .211 real seed
+resolution; root alone executes actual startup/binding after exact evidence review.

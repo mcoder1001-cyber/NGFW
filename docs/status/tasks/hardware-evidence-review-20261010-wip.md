@@ -1,14 +1,12 @@
 # R7 evidence review WIP — 2026-10-10
 
-**Current operational status: PAUSED at the owner’s explicit request on 2026-10-10.**
-No reviewer operation is in flight. Stop all new review/testing/development/target
-operations until explicit resume. This final checkpoint records existing actual
-results only; its own commit ID is the local SHA and will be claimed remotely only
-after push/readback. Original source approval remains separate from pending actual
-hardware acceptance. Both filesystems/normal protected boot and native installations
-PASS; .211 firstboot PASS, real NIC seed FAIL at revision0; .37 firstboot NOT RUN.
-No PCI binding or forwarding acceptance on either host. Root/worker process states
-at pause must be reported from their actual receipts, not stale board/live snapshots.
+**Current operational status: resumed for the same existing hardware task at the
+owner's explicit request, 2026-10-10 12:33 UTC.** Independent source/actual-evidence
+review only; no target or product writes. The prior pause below remains historical.
+Both logical filesystems/normal protected boot and native installations PASS;
+.211 firstboot PASS, real NIC seed still FAIL at revision0 pending canonical
+required-plugin correction; .37 firstboot NOT RUN. No PCI binding or forwarding
+acceptance. Root alone performs any separately reviewed real startup/binding.
 
 
 Branch/worktree: `codex/hardware-evidence-review-20261010`,
@@ -17,7 +15,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`20fc08ade9ea6a62de959ebf1afe7852d398336d` (configured .37 installation and actual .211 seed failure; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`f6c5e8e1d9129dafdfbf2b14ffc15fb4f3ae9e8d` (owner pause checkpoint; matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -618,3 +616,10 @@ only after explicit resume: `git fetch origin codex/hardware-manager-20261010
 codex/hardware-211-20261010 codex/hardware-37-20261010`, then read current actual
 receipts and worker state before continuing the unexecuted canonical plugin preview
 or .37 firstboot phase. No new tests or product/host edits during pause.
+
+
+## Resumed same hardware task — 12:41 UTC
+
+Actual .211 noPCI preview274716 B/0600 SHA35131df9f0853f2865b197251f067db7762ec664a3dd5cdcd3ca509e234678c6 independently parsed. Exact source4a63 published232ffa3ba remains unchanged: pure in-memory plugin overlay, canonical rendering and product dry-run without --apply. Render0/dryrun0; noPCI/protected04 blacklist/no physical devices; three required enables; L3 equal/counter6 stable/no new storage errors. Nested render/dryrun warnings are nonempty, distinguished from empty outer SSH stderr. Exact document3170 B/0600 SHA3c1ba66789d713ac8c2a8b8fb55b021ba8279c153d5b68a57794f04289419d4b verified. Root-only exact noPCI startup transaction applicability approved with original/render hashes and mandatory native dead-man; no binding approval.
+
+Root-owned product checkpointb1f5bea6bb8a7964165b9ba314d09ecbd238750a introduces the shipped explicit three-plugin bootstrap and native package manifest. Source independently read; focused correctness/packaging evidence review remains underway. Actual .211 seed outcome after correction remains pending; .37 firstboot remains held. Exact next action: classify actual nested preview warnings/read exported original+render hashes, inspect final root source/tests/evidence and manager guarded apply/seed receipts. No operation currently in flight.

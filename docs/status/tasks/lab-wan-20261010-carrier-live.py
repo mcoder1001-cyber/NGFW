@@ -144,4 +144,6 @@ finally:
  after=run('systemctl','show','vpp','-p','MainPID','-p','NRestarts').stdout
  print('SHARED_VPP_BEFORE '+before.replace('\n',','));print('SHARED_VPP_AFTER '+after.replace('\n',','));assert before==after
  print('TEMP_ORIGINAL_ASSETS_REMOVED PASS')
+ assert os.uname().nodename==host_hostname and all(hashlib.sha256(Path(name).read_bytes()).hexdigest()==digest for name,digest in host_identity.items()),'shared host identity changed'
+ print('SHARED_HOST_IDENTITY_UNCHANGED PASS',flush=True)
 raise SystemExit(result)

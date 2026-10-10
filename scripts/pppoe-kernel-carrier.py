@@ -534,6 +534,8 @@ class Carrier:
                         (type(mask) is str and mask == '0xffff' or type(mask) is int and mask == 65535)):
                     raise ValueError('unsupported policy port mask')
             destination = rule.get('dst', 'all')
+            if type(destination) is not str:
+                raise ValueError('unsupported policy destination type')
             prefixlen = rule.get('dstlen')
             if 'dstlen' in rule:
                 if (type(prefixlen) is not int or not 0 <= prefixlen <= (32 if version == 4 else 128)

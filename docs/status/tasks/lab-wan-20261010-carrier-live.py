@@ -14,7 +14,8 @@ if len(sys.argv)>1:
  processes=[]
  with tempfile.TemporaryDirectory(prefix='native-carrier-',dir=BASE) as directory:
   d=Path(directory)
-  secret=d/'secrets';secret.write_text('"w20" * "NGFW_TEST_PSK_w20" *\n');secret.chmod(0o600)
+  peer_password=os.environ['NGFW_WAN_PEER_PASSWORD'];assert len(peer_password)==48 and all(c in '0123456789abcdef' for c in peer_password)
+  secret=d/'secrets';secret.write_text('"w20" * "'+peer_password+'" *\n');secret.chmod(0o600)
   run('mount','-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
   for name in ('pap-secrets','chap-secrets'):
    Path('/etc/ppp',name).touch(mode=0o600);run('mount','--bind',str(secret),'/etc/ppp/'+name)
@@ -77,7 +78,7 @@ try:
  receipt=json.loads(run('python3','-I','/usr/lib/ngfw/pppoe-carrier.py','broker-result',TOKEN,nonce).stdout)
  assert receipt['ok'] and all(receipt[key]==queued[key] for key in ('token','nonce','boot','expires','request_sha256'))
  print('REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS',flush=True)
- env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
+ env=dict(os.environ,NGFW_WAN_HOST_NETNS=os.readlink('/proc/self/ns/net'),NGFW_WAN_PEER_PASSWORD=secrets.token_hex(24),NGFW_WAN_NATIVE_CARRIER='1',NGFW_INTEGRATION='1',NGFW_OWNER='w20',NGFW_TEST_PREFIX='w20',NGFW_SLOT='20',NGFW_VPP_ID_RANGE='all')
  result=subprocess.call(['unshare','--net','--mount','--propagation','private',sys.executable,__file__,'child'],env=env)
 finally:
  run('systemctl','stop','ngfw-pppoe-carrier@'+TOKEN+'.service',check=False)

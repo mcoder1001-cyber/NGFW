@@ -105,7 +105,11 @@ func TestWANCurrentCarrierLive(t *testing.T) {
 	run("vppctl", "set", "interface", "ip", "address", transitName, spec.VPP6())
 	t.Logf("actual native raw=%d transit=%d namespace=%s", rawIdx, transitIdx, spec.Token())
 	rt := &PppoeRuntime{renderer: pppoe.New(), runner: runner, vpp: conn, owner: "w20", globalsOwner: true, carrierMode: true, allowRoute: func(uint32) bool { return true }, log: slog.Default(), stateDir: "/run/ngfw/pppoe", applied: map[string]pppoe.Session{}}
-	s := pppoe.Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "w20", Password: "NGFW_TEST_PSK_w20", MTU: 1492, DefaultRoute: true, IPv6: "off", HoldoffSec: 1, MaxFail: 0}
+	password := os.Getenv("NGFW_WAN_PEER_PASSWORD")
+	if password == "" {
+		t.Fatal("ephemeral peer credential missing")
+	}
+	s := pppoe.Session{Carrier: &spec, Iface: spec.Logical, HostIf: spec.RawHost(), Username: "w20", Password: password, MTU: 1492, DefaultRoute: true, IPv6: "off", HoldoffSec: 1, MaxFail: 0}
 	t.Cleanup(func() {
 		if e := rt.Apply(context.Background(), nil); e != nil {
 			t.Errorf("runtime cleanup: %v", e)

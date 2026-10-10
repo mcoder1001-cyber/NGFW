@@ -10,3 +10,5 @@ Reviewer: parent agent /root, separate root worktree. Approvals received before 
 Hosted quick and final integrated-head quick remain mandatory. No approval here claims PPP completion.
 
 - fe426eb0c: final independent exact-diff APPROVE. Deterministic candidate raw2..8190 even and transit<=8191/nozero; meaningful100k boundary/determinism + true finite candidate collision refusal before emission; all live collision guards untouched.
+- 9809b0ad2 and d7cff4846: final independent APPROVE actual pppd six-argument ABI with unchanged session/identifier/admission guards and Carrier-only rendered ipparam identity; original unit/helper invocation retained, legacy CLI unchanged.
+- ab8ad629c: independent APPROVE typed full paired port masks and destination prefix length normalization with unchanged expected policy tuples; requested destination type checks and positive integer/matching-prefix controls added before rerun.

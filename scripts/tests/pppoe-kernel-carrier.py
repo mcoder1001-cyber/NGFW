@@ -600,6 +600,7 @@ class PolicyReadbackControls(unittest.TestCase):
 
     def test_actual_iproute_full_masks_and_separate_prefix_lengths(self):
         self.check(self.rows())
+        rows=self.rows();rows[0].update(sport_mask=65535,dport_mask=65535);rows[1].update(dst='fe80::/10',dstlen=10);self.check(rows)
 
     def test_partial_masks_and_unknown_destination_selectors_fail_closed(self):
         for label,mutate in {
@@ -607,6 +608,8 @@ class PolicyReadbackControls(unittest.TestCase):
             'boolean-mask':lambda rows:rows[0].update(sport_mask=True),
             'null-mask':lambda rows:rows[0].update(sport_mask=None),
             'orphan-mask':lambda rows:rows[4].update(sport_mask='0xffff'),
+            'null-destination':lambda rows:rows[1].update(dst=None),
+            'boolean-destination':lambda rows:rows[1].update(dst=True),
             'boolean-length':lambda rows:rows[1].update(dstlen=True),
             'null-length':lambda rows:rows[1].update(dstlen=None),
             'negative-length':lambda rows:rows[1].update(dstlen=-1),

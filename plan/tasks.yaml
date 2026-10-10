@@ -2240,25 +2240,25 @@ tasks:
       - W-seed-BC
     priority: 6
     est_hours: 10
-    state: "parked"
-    parked_on: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS. 250 genuine artifact ABI preflight FAIL. Supplemental guest5 public Health works but operational=false reason engine-not-ready. Full canonical supplier/session/identity/recovery/API/browser acceptance unverified; underlying initialization stage unresolved. Not Done."
+    state: "running"
+    parked_on: ""
     wbs:
       - D6.9
     scope: remote-access VPN IKEv2+EAP
     files_owned:
       "- NEW files in P11's renderer: apps/agent/internal/renderers/strongswan/ra*.go (+ ra*_test.go), apps/agent/internal/renderers/strongswan/templates/ngfw-ra*.tmpl (prefer
       a separate conf.d `ngfw-ra.conf`, a 0600 `ngfw-ra-secrets.conf` and a strongswan.d `eap-radius.conf` over editing P11's templates), apps/agent/internal/renderers/strongswan/testdata/ra-*"
-    branch: "codex/lab-closeout-195-250-20261010"
-    worktree: "/root/.codex/worktrees/f693/NGFW"
-    owner: "manager acceptance"
+    branch: "codex/ra-manager-signals-20261010"
+    worktree: "/root/ngfw-wt/ra-manager-signals-20261010"
+    owner: "routing_acceptance"
     started: ''
     finished: ''
     notes: ''
-    worker_status: "manager completed feasible direct tests; full service acceptance unresolved"
+    worker_status: "active bounded RA signal contract implementation and review"
     integration_receipt_20261007: "PR193 mergeddb46e75ae16b5d5b16cc1f64a161e1e65c596192: exact open PR headb0367efb. Later union711e18e mentioned in old PR body was not implicitly merged. Final union/source closure and real acceptance remain explicit; no verified live author. Owner requested all PR merges without fresh CI; state running retained as remaining work, not live-worker proof."
     advance_receipt_20261007: "PR202 merged19052bb130ab46977dc5b7aa7be25e976fb5aaf9: exact reviewed45-path union recovery, canonical PID1 decision preserved via203. Current-main race runtime3.341s renderer7.145s agent74.701s PASS; preparation3/3 PASS2.632s; author UI11/11 and typecheck/scoped lint PASS; independent source APPROVE. Native EAP/TLS/runtime/API/browser/restart remains unverified; no whole-task completion."
     completion_receipt_20261008: "PR202 source integrated; source audit found no bounded new omission. Native supplier readiness/post-ACK identity, session/packet/restart/API/browser acceptance unresolved. No active native worker."
-    acceptance_receipt_20261010: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS. 250 genuine artifact ABI preflight FAIL. Supplemental guest5 public Health works but operational=false reason engine-not-ready. Full canonical supplier/session/identity/recovery/API/browser acceptance unverified; underlying initialization stage unresolved. Not Done."
+    acceptance_receipt_20261010: "Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS; 250 genuine artifact ABI preflight FAIL. Supplemental guest5 Health works but operational=false engine-not-ready; specific underlying cause unproven. New authenticated read-only PID1 probe during already-authorized PPP unit lifecycle observed actual type4 signals mixed with replies, rejected by current source. Narrow bounded signal-handling fix under implementation/review, original budgets retained. Full canonical supplier/session/identity/recovery/API/browser acceptance remains open; not Done."
   - id: P10
     title: Debian packaging + systemd + install (26.04, our VPP debs)
     prompt: prompts/P10-packaging-deb.md

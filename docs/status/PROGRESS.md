@@ -8,9 +8,9 @@ Updated 2026-10-10 from plan/tasks.yaml (estimated hours are the plan's, not act
 |---|---|
 | merged | 205 |
 | review | 4 |
-| running | 2 |
+| running | 3 |
 | ready | 0 |
-| parked | 1 |
+| parked | 0 |
 | failed | 0 |
 | todo | 0 |
 
@@ -21,13 +21,14 @@ Updated 2026-10-10 from plan/tasks.yaml (estimated hours are the plan's, not act
 | S2 | 274 / 274 | 100.0% | 29/29 | 0 | 0 | 0 |
 | S3 | 16 / 19 | 84.2% | 1/2 | 0 | 0 | 0 |
 | S4 | 990.0 / 1003.0 | 98.7% | 146/151 | 2 | 0 | 0 |
-| S5 | 145.5 / 155.5 | 93.6% | 15/16 | 0 | 0 | 1 |
+| S5 | 145.5 / 155.5 | 93.6% | 15/16 | 1 | 0 | 0 |
 | S6 | 48 / 48 | 100.0% | 4/4 | 0 | 0 | 0 |
 
 Merged measures reviewed source completion; deferred lab acceptance is not PASS. Running describes remaining implementation, not verified worker activity.
 
 ## Remaining implementation / review
 
+- F-ra-vpn — remote-access VPN IKEv2+EAP (running, routing_acceptance; active bounded RA signal contract implementation and review)
 - P12-fib-proof — Prove BGP routes reach the VPP FIB through linux-nl on a private per-slot VPP (review, routing_acceptance; acceptance complete; final CI/integration pending)
 - F-global-blocking-host — Global blocking on the lab VPP: topology proof, lookup cost at 200k, real-endpoint screenshot (running, nat46_acceptance; active acceptance and verification)
 - F-pppoe-client-host — PPPoE client on the lab: pppd vs an accel-ppp/rp-pppoe server, VPP FIB mirror, reconnect, MSS clamp, screenshot (running, wan_acceptance; active acceptance and verification)
@@ -37,4 +38,4 @@ Merged measures reviewed source completion; deferred lab acceptance is not PASS.
 
 ## Parked
 
-- F-ra-vpn — parked_on: Actual both-host private EAP/TLS/VICI/ESP/VRF/ACL tests PASS. 250 genuine artifact ABI preflight FAIL. Supplemental guest5 public Health works but operational=false reason engine-not-ready. Full canonical supplier/session/identity/recovery/API/browser acceptance unverified; underlying initialization stage unresolved. Not Done.
+- none

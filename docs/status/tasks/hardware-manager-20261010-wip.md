@@ -1,3 +1,27 @@
+# Actual .211 interactive correction running — 2026-10-10 10:08 UTC
+
+Exclusive worker controller PTYdriver session66248 is responsive, with held RAM
+PTY71683 retained. Refreshed complete offline audit cbfebefb4c3c1f6dd6f5a0974ae81a84c8f391bc64390fd40012109d06fecd20
+PASS262processes/93FDs/nsfs0/races0/failures0/finalguard0. Actual targeted fsck
+started with reviewed1GiB undo cap, and first explicit y accepted known inode259596
+invalid extent15505493 Clear; consequent same-inode accounting corrected. Worker
+continues individually approved known prompts; manager must not concurrently write
+that PTY. Full transcript stays private, fsynced under host211 recovery-private.
+New-object prompts still held for concrete classification. R7 source inspection
+establishes orphan Connect-to-lost+found and link-count corrections preserve existing
+inodes/content; unknown zero-length Clear is not preapproved. Completion, clean
+follow-up, durable actual undo and normal-return integrity remain pending.
+R7 formal actual verdict published/readback08d72ec6568523b745ee9867f2417ec094031548.
+
+Hourly fresh actual report was posted successfully at
+https://github.com/mcoder1001-cyber/NGFW/pull/217#issuecomment-6096451111.
+At10:05 root remote e171017f10fb026ee09395e0036a2617fc07abb4, worker74a0db35,
+.37c34b2e64, R708d72ec6; main4908716b unchanged/three gatesSUCCESS; board212=
+205merged+7parked. Three unrelated concurrent lab PRs218/219/220 open/gatesrunning;
+no new hardware product merge. Four live chat roles independently observed; wider
+inventory unverifiable. Next exact action: worker known-scope single answers,
+classify any newly exposed object, then offline-f-n0 and durable undo/transcript.
+
 # Actual targeted prerequisites approved — 2026-10-10 10:04 UTC
 
 R7 formal actual APPROVE received for wrapper61e40215/PTYdriver0186e5ab and

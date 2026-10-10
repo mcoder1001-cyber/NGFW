@@ -8,6 +8,7 @@ review exact source before installing this script and the VPP dependency.
 import json,os,pathlib,re,stat,subprocess,time
 MGMT='0000:04:00.0'
 NICS=[('0000:01:00.0',16,'i40e'),('0000:01:00.1',17,'i40e'),('0000:01:00.2',18,'i40e'),('0000:01:00.3',19,'i40e'),('0000:02:00.0',20,'i40e'),('0000:02:00.1',21,'i40e'),('0000:02:00.2',22,'i40e'),('0000:02:00.3',23,'i40e'),('0000:03:00.0',24,'i40e'),('0000:03:00.1',25,'i40e'),('0000:03:00.2',26,'i40e'),('0000:03:00.3',27,'i40e'),('0000:05:00.0',29,'igc'),('0000:06:00.0',30,'igc'),('0000:07:00.0',31,'igc'),('0000:08:00.0',32,'igc'),('0000:09:00.0',33,'igc')]
+IDS_OBSERVATIONS=[]
 def checked(args):
  p=subprocess.run(args,capture_output=True,text=True,timeout=30)
  if p.returncode:raise RuntimeError('command failed: '+repr(args)+' exit '+str(p.returncode))
@@ -28,6 +29,16 @@ def management():
 def unsafe_gate():
  p=pathlib.Path('/sys/module/vfio/parameters/enable_unsafe_noiommu_mode')
  assert not p.exists() or p.read_text().strip()=='N'
+def ids_gate(phase):
+ p=pathlib.Path('/sys/module/vfio_pci/parameters/ids')
+ if p.exists():
+  value=p.read_text().strip();assert not value,'exposed global VFIO IDs must be empty'
+  status='exposed_empty'
+ else:
+  # Linux can make this parameter unexposed. Its absence is not a measured
+  # empty value; option/cmdline refusal and explicit empty load remain gates.
+  status='loaded_parameter_unexposed' if p.parents[1].exists() else 'module_not_loaded'
+ IDS_OBSERVATIONS.append({'phase':phase,'status':status,'empty_value_observed':status=='exposed_empty'})
 def module_options_gate():
  # Fail closed on configured install hooks or module options rather than
  # silently accepting vfio_pci.ids global registration at module load.
@@ -43,7 +54,7 @@ def main():
   except (AssertionError,FileNotFoundError,RuntimeError):
    if attempt==29:raise
    time.sleep(1)
- unsafe_gate();module_options_gate()
+ unsafe_gate();ids_gate('before_module_load');module_options_gate()
  before_addr=json.loads(checked(['ip','-j','addr']))
  before_routes=json.loads(checked(['ip','-j','-4','route','show','table','all']))+json.loads(checked(['ip','-j','-6','route','show','table','all']))
  # Validate the complete scope before the first module/network/driver write.
@@ -65,10 +76,10 @@ def main():
     assert all(r.get('dev')!=bridge for r in before_routes)
   inventory.append((pci,p,drv,names))
  checked(['modprobe','--ignore-install','vfio','enable_unsafe_noiommu_mode=0'])
- checked(['modprobe','--ignore-install','vfio-pci','ids=']);unsafe_gate()
+ checked(['modprobe','--ignore-install','vfio-pci','ids=']);unsafe_gate();ids_gate('after_module_load')
  for pci,p,drv,names in inventory:
-  management();unsafe_gate()
-  if drv=='vfio-pci':continue
+  management();unsafe_gate();ids_gate('before_device_'+pci)
+  if drv=='vfio-pci':ids_gate('after_device_'+pci);continue
   for name in names:
    master=pathlib.Path('/sys/class/net')/name/'master'
    if master.is_symlink():checked(['ip','link','set','dev',name,'nomaster'])
@@ -77,10 +88,10 @@ def main():
   write(p/'driver/unbind',pci)
   write(pathlib.Path('/sys/bus/pci/drivers_probe'),pci)
   assert (p/'driver').resolve(strict=True).name=='vfio-pci'
-  management();group(p,next(g for x,g,d in NICS if x==pci),pci);unsafe_gate()
+  management();group(p,next(g for x,g,d in NICS if x==pci),pci);unsafe_gate();ids_gate('after_device_'+pci)
  for pci,want,original in NICS:
   p=pathlib.Path('/sys/bus/pci/devices')/pci
   assert (p/'driver').resolve(strict=True).name=='vfio-pci' and (p/'driver_override').read_text().strip()=='vfio-pci'
   assert stat.S_ISCHR(pathlib.Path('/dev/vfio/'+str(want)).stat().st_mode)
- management();unsafe_gate();print(json.dumps({'bound_count':17,'protected_management':True,'unsafe_noiommu':False,'global_new_id_or_driverctl_persistence':False}))
+ management();unsafe_gate();ids_gate('final');print(json.dumps({'bound_count':17,'protected_management':True,'unsafe_noiommu':False,'global_new_id_or_driverctl_persistence':False,'ids_parameter_observations':IDS_OBSERVATIONS}))
 if __name__=='__main__':main()

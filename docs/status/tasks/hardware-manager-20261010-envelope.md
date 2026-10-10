@@ -107,3 +107,11 @@ Independent review and restart regression precede native fixed artifact deployme
 Root owns docs/decisions/LOG.md narrow D245 in own final integration worktree.
 Operational root also owns hardware-manager-20261010-normalize-empty-cache-211.py
 manager-only reviewed known-empty legacy cache recovery; no target execution yet.
+
+2026-10-10 13:51 UTC: departed host37 worker cannot resume (agent thread limit).
+Root assumes later .37 operational phase in OWN existing manager worktree,
+owned hardware-manager-20261010-upgrade-four-37.py and later manager37-prefixed
+source/evidence. Writes only task-private ROOT parent, never departed worker
+worktree/private child. Existing37 evidence is read-only consumed by exact SHA.
+Prepare adapted same four-archive upgrade preserving original policy+mask/all21
+inactive units; no .37 package/firstboot/NIC changes until reviewed actual gates.

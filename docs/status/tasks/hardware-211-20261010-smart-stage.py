@@ -11,6 +11,7 @@ os.umask(0o077)
 ROOT = pathlib.Path('/run/ngfwrescue')
 PRIVATE = ROOT / 'root/recovery-private/smart'
 REPORT = {'commands': []}
+CHROOT = shutil.which('chroot')
 
 
 def run(argv, **kwargs):
@@ -30,6 +31,7 @@ def sha256(path):
 
 def main():
     assert not os.path.lexists('/run/nextroot')
+    assert CHROOT in ['/usr/bin/chroot', '/usr/sbin/chroot']
     mount = run(['findmnt', '-J', '--target', str(ROOT)])
     fs = json.loads(mount.stdout)['filesystems'][0]
     assert fs['fstype'] == 'tmpfs' and fs['target'] == str(ROOT)
@@ -103,7 +105,7 @@ def main():
         shutil.copy2(database, destination)
     REPORT['binary_sha256'] = sha256(target)
     # -x is a read-only information query; never enable or start SMART tests.
-    result = run(['/usr/sbin/chroot', str(ROOT), '/usr/sbin/smartctl', '-x', '-j', '/dev/sda'])
+    result = run([CHROOT, str(ROOT), '/usr/sbin/smartctl', '-x', '-j', '/dev/sda'])
     REPORT['smartctl_exit'] = result.returncode
     REPORT['smartctl_json'] = json.loads(result.stdout)
     assert not os.path.lexists('/run/nextroot')

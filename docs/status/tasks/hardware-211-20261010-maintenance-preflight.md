@@ -135,3 +135,14 @@ Read-only debugfs ncheck exited0: invalid extent inode259596 is a user journal f
 
 
 Focused R7 raised a possible literal backslash-n separator concern before retry. Independent local AST inspection does not reproduce it: both join separators are one character ordinal10; shadow/NSS/hosts constants contain real ordinal10 newlines and zero literal backslash-n; SMART stanza separator is two characters ordinals10,10. Source hashes are unchanged by the attempted normalization because the actual files already contain correct escape constants. Reviewer receives this concrete evidence for reconciliation before retry; no target NSS files were created by the first early failure.
+
+
+Second attempt: reviewed owned-partial cleanup exited0. Corrected collector completed tree/dependencies/private keys/virtual mounts, but failed before daemon/unit activation because the implementation used `/usr/sbin/chroot`, which is absent on this target. Source now discovers and validates `/usr/bin/chroot` or `/usr/sbin/chroot` before mutation and uses that exact path for checks/bootstrap and SMART execution. Rescue session PATH is explicitly local sbin/bin. Second private ram-stage-retry.json3496bytes SHA256 `d1d86702ff95fe9c9851d4888e9c5ff09a5b647f6777ae71dc9f8d269976ee60`, SSH exit1/empty stderr. No rescue listener passed yet; no transition. Virtual mounts/private tree cleanup and exact corrected-source retry require focused reviewer applicability.
+
+
+Reviewed design adds an inert RAM-only runtime preparation oneshot to the new root: mkdir/chmod/chown `/run/sshd` with explicitly validated RAM tool paths, DefaultDependencies=no, Before=rescueSSH and RemainAfterExit=yes. Candidate default target Requires/After both preparation and SSH; candidate SSH After preparation. It addresses the later coldplug case where transferred old `/run` hides staged `/run` and original ssh.service shutdown removes its RuntimeDirectory. No original ssh unit override or network change is applied. Staging unit verification includes this new helper; transition remains separately gated.
+
+
+Read-only original boot/config baseline captured9 existing files successfully, no read failure; private4925bytes SHA256 `2e3af5ef6c75edbbadcbb4467e798da93adff516ca9a4e3257d3cddb70a38958`, empty stderr. Expected paths absent from glob are not automatically a complete baseline; EFI/GRUB scope needs explicit presence assessment before return-boot claims. Original ssh.service has RuntimeDirectory=sshd, RuntimeDirectoryPreserve=no, KillMode=process, no ExecStop/ExecStopPost reported, confirming runtime-directory lifetime risk. Kernel command line has no default-unit override.
+
+R7 focused runtime-helper review approves the RAM staging design, with explicit private append log for oneshot added to avoid a default journald socket dependency. Both logs are0600 inside RAM. Actual helper commands will be exercised in the chroot during runtime tests; no transition follows staging approval.

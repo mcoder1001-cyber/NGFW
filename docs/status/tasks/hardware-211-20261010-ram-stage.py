@@ -12,6 +12,7 @@ import subprocess
 
 STAGE = pathlib.Path('/run/ngfwrescue')
 REPORT = {'phase': 'RAM staging', 'commands': []}
+CHROOT = shutil.which('chroot')
 os.umask(0o077)
 
 
@@ -66,6 +67,7 @@ def main():
     assert not os.path.lexists('/run/nextroot'), 'nextroot must remain absent'
     assert not STAGE.exists(), 'refusing to overwrite an existing candidate'
     assert os.geteuid() == 0
+    assert CHROOT in ['/usr/bin/chroot', '/usr/sbin/chroot']
     assert '259.5-0ubuntu3' in command(['dpkg-query', '-W', '-f=${Version}', 'systemd']).stdout
     assert command(['findmnt', '-no', 'SOURCE,FSTYPE', '/']).stdout.strip() == '/dev/sda2 ext4'
     assert command(['ip', '-j', 'address', 'show', 'enp4s0']).stdout.find('172.30.110.211') >= 0
@@ -131,7 +133,7 @@ Options=size=8G,mode=0755,nosuid,nodev,exec
                 '/usr/lib/systemd/systemd-shutdown', '/usr/sbin/sshd',
                 '/usr/lib/openssh/sshd-session', '/usr/lib/openssh/sshd-auth',
                 '/usr/lib/openssh/sftp-server', '/usr/lib/initramfs-tools/bin/busybox']
-    for name in ['bash', 'sh', 'systemctl', 'journalctl', 'ip', 'mount', 'umount',
+    for name in ['bash', 'sh', 'chroot', 'systemctl', 'journalctl', 'ip', 'mount', 'umount',
                  'findmnt', 'lsblk', 'blkid', 'blockdev', 'e2fsck', 'e2image',
                  'e2undo', 'dumpe2fs', 'gzip', 'sha256sum', 'ps', 'stat', 'sync']:
         path = shutil.which(name)
@@ -212,6 +214,7 @@ UsePAM no
 StrictModes yes
 PermitEmptyPasswords no
 UseDNS no
+SetEnv PATH=/usr/sbin:/usr/bin:/sbin:/bin
 PrintMotd no
 PrintLastLog no
 AllowUsers root
@@ -240,6 +243,7 @@ RestartSec=1s
 StandardOutput=append:/run/ngfwrescue/var/log/rescue-ssh.log
 StandardError=inherit
 '''
+    runtime_unit = runtime_unit.replace('/usr/sbin/chroot', CHROOT)
     candidate_unit = service_common + '''WorkingDirectory=/
 RuntimeDirectory=sshd
 RuntimeDirectoryMode=0755
@@ -247,7 +251,26 @@ ExecStart=/usr/sbin/sshd -D -e -f /etc/ssh/sshd_config
 StandardOutput=append:/var/log/rescue-ssh.log
 StandardError=inherit
 '''
+    candidate_unit = candidate_unit.replace('After=basic.target',
+                                           'After=basic.target ngfw-runtime-prepare.service')
     write('/etc/systemd/system/ngfw-rescue.service', candidate_unit)
+    runtime_prepare = '''[Unit]
+Description=Create OpenSSH runtime after original run transfer
+DefaultDependencies=no
+Before=ngfw-rescue.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mkdir -p /run/sshd
+ExecStart=/usr/bin/chmod 0755 /run/sshd
+ExecStart=/usr/bin/chown 0:0 /run/sshd
+StandardOutput=append:/var/log/runtime-prepare.log
+StandardError=inherit
+'''
+    for name in ['mkdir', 'chmod', 'chown']:
+        assert (STAGE / 'usr/bin' / name).exists()
+    write('/etc/systemd/system/ngfw-runtime-prepare.service', runtime_prepare)
     write('/etc/systemd/system/basic.target', '''[Unit]
 Description=Minimal inert RAM basic target
 DefaultDependencies=no
@@ -255,16 +278,17 @@ DefaultDependencies=no
     write('/etc/systemd/system/ngfw-rescue.target', '''[Unit]
 Description=NGFW RAM maintenance target
 DefaultDependencies=no
-Requires=ngfw-rescue.service
-After=ngfw-rescue.service
+Requires=ngfw-runtime-prepare.service ngfw-rescue.service
+After=ngfw-runtime-prepare.service ngfw-rescue.service
 AllowIsolate=yes
 ''')
     (STAGE / 'etc/systemd/system/default.target').symlink_to('ngfw-rescue.target')
     write('/var/log/rescue-ssh.log', '', 0o600)
-    command(['/usr/sbin/chroot', str(STAGE), '/usr/sbin/sshd', '-t', '-f', '/etc/ssh/sshd_config'])
-    command(['/usr/sbin/chroot', str(STAGE), '/usr/lib/systemd/systemd', '--version'])
+    write('/var/log/runtime-prepare.log', '', 0o600)
+    command([CHROOT, str(STAGE), '/usr/sbin/sshd', '-t', '-f', '/etc/ssh/sshd_config'])
+    command([CHROOT, str(STAGE), '/usr/lib/systemd/systemd', '--version'])
     command(['systemd-analyze', 'verify', '--man=no', '--root=' + str(STAGE),
-             'ngfw-rescue.target', 'ngfw-rescue.service'])
+             'ngfw-rescue.target', 'ngfw-runtime-prepare.service', 'ngfw-rescue.service'])
     path = pathlib.Path('/run/systemd/system/ngfw-rescue.service')
     path.write_text(runtime_unit)
     path.chmod(0o644)
@@ -276,7 +300,8 @@ AllowIsolate=yes
         '-p', 'DropInPaths', '-p', 'PrivateMounts', '-p', 'PrivateTmp', '-p', 'RootDirectory',
         '-p', 'ProtectSystem', '-p', 'SurviveFinalKillSignal', '-p', 'DefaultDependencies',
         '-p', 'Conflicts', '-p', 'Before', '-p', 'After']).stdout
-    REPORT['units'] = {'mount': mount_unit, 'runtime': runtime_unit, 'candidate': candidate_unit}
+    REPORT['units'] = {'mount': mount_unit, 'runtime': runtime_unit,
+                       'candidate': candidate_unit, 'runtime_prepare': runtime_prepare}
     REPORT['credential_files_copied_on_target_only'] = credential_count
     REPORT['default_target'] = os.readlink(STAGE / 'etc/systemd/system/default.target')
     REPORT['generator_paths'] = [str(p) for pattern in ['usr/lib/systemd/system-generators/*',

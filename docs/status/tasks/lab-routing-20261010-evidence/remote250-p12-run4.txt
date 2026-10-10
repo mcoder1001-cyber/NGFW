@@ -1,0 +1,96 @@
+SOURCE_PAIRED_FRR_ARTIFACTS=48
+HOST_BEFORE=["MainPID=8102\nNRestarts=0\n\nMainPID=4575\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\nlcp lcp-auto-subint off\nlcp lcp-sync off\nlcp lcp-sync-unnumbered on\nlcp del-static-on-link-down off\nlcp del-dynamic-on-link-down off\n", "e7cec152f09a6c9a1c7feeb070daf82e93ad9b1722fd34863b5a317da2e80587  /usr/lib/frr/zebra\n224ce79050b23a19ed3eb62f63f29c3c24156c19b1b7b4c767ec67286a03a239  /usr/bin/vtysh\nddf04a0ba15d70cf0b7c9250435d9179d2f698ec4e601be1c12ad7756468a2b3  /usr/lib/x86_64-linux-gnu/frr/libfrr.so.0\n"]
+SOURCE_PAIRED_FRR_ARTIFACTS=48
+zebra version 10.7.1
+P12_SLOT14_EXCLUSIVE=ACQUIRED
+P12_SHARED_BEFORE=["MainPID=8102\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+P12_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}]
+P12_PRIVATE_NETNS=net:[4026532748]
+DISPOSABLE_VPP pid=470745 runtime=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-470742
+P12_PRIVATE_VPP={"pid": "470745", "starttime": "53272437", "netns": "net:[4026532748]"}
+P12_PRIVATE_API=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-470742/api.sock
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:626: P12 private root verified: host=net:[4026531833] current=net:[4026532748] owned API=/root/ngfw-routing250-20261010/source/.scratch/isolated-vpp-470742/api.sock
+    p12_topology_integration_test.go:634: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 14:03:27 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    p12_topology_integration_test.go:654: system FRR remains foreign: cgroup=/system.slice/frr.service main=4575 members=4 host=net:[4026531833] private=net:[4026532748]
+    p12_topology_integration_test.go:654: NGFW_P12_FIB=root preconditions: VPP /run/vpp/api.sock, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive or independently foreign; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    p12_topology_integration_test.go:665: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    p12_topology_integration_test.go:670: rig up w14 (slot 14, path af_packet, VPP /run/vpp/cli.sock)
+          create netns ns-w14-lan
+          create veth w14l0 <-> ns-w14-lan:w14l1
+        warning: rig: could not disable tx offload on ns-w14-lan:w14l1
+          create vpp host-w14l0 (af_packet on w14l0)
+          reset  ip/ip6 classify host-w14l0 (table-index ~0)
+          set    addr host-w14l0 10.14.1.1/24
+          create netns ns-w14-wan
+          create veth w14w0 <-> ns-w14-wan:w14w1
+        warning: rig: could not disable tx offload on ns-w14-wan:w14w1
+          create vpp host-w14w0 (af_packet on w14w0)
+          reset  ip/ip6 classify host-w14w0 (table-index ~0)
+          set    addr host-w14w0 10.14.2.1/24
+        rig: up
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: 10.14.1.1/24 
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: 10.14.2.1/24 
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+        
+    p12_topology_integration_test.go:676: rig VPP side handed to the agent: af_packet_delete w14l0 (veth down)
+    p12_topology_integration_test.go:676: rig VPP side handed to the agent: af_packet_delete w14w0 (veth down)
+    p12_topology_integration_test.go:681: rootFRR: [mgmtd zebra staticd bgpd] started in the root netns, pathspace w14, base /run/ngfw-test/w14/frr, pids map[bgpd:470993 mgmtd:470982 staticd:470989 zebra:470984]
+    p12_topology_integration_test.go:685: frrtest: start mgmtd: renderers: /usr/bin/ip exited 127: /usr/lib/frr/mgmtd: error while loading shared libraries: libpcre2-posix.so.3: cannot open shared object file: No such file or directory: /usr/lib/frr/mgmtd: error while loading shared libraries: libpcre2-posix.so.3: cannot open shared object file: No such file or directory
+    p12_topology_integration_test.go:673: rig down: <nil>
+        rig down w14
+          delete netns ns-w14-lan (and its veth peer)
+          delete veth w14l0
+          delete netns ns-w14-wan (and its veth peer)
+          delete veth w14w0
+        rig: down
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: -
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+    p12_topology_integration_test.go:637: systemctl show vpp -p NRestarts (after) = 0
+--- FAIL: TestP12TopologyOnHost (5.86s)
+FAIL
+required routing acceptance did not pass without skips
+DISPOSABLE_VPP_STOPPED pid=470745
+P12_RETAINED_NAMESPACES=["net:[4026533089]", "net:[4026533143]"]
+P12_PRIVATE_REMAINING={}
+P12_PRIVATE_PROCESSES_AFTER={}
+P12_OUTER_CLEANUP=PASS
+P12_SHARED_AFTER=["MainPID=8102\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+SOURCE_PAIRED_FRR_ARTIFACTS=48
+HOST_AFTER=["MainPID=8102\nNRestarts=0\n\nMainPID=4575\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\nlcp lcp-auto-subint off\nlcp lcp-sync off\nlcp lcp-sync-unnumbered on\nlcp del-static-on-link-down off\nlcp del-dynamic-on-link-down off\n", "e7cec152f09a6c9a1c7feeb070daf82e93ad9b1722fd34863b5a317da2e80587  /usr/lib/frr/zebra\n224ce79050b23a19ed3eb62f63f29c3c24156c19b1b7b4c767ec67286a03a239  /usr/bin/vtysh\nddf04a0ba15d70cf0b7c9250435d9179d2f698ec4e601be1c12ad7756468a2b3  /usr/lib/x86_64-linux-gnu/frr/libfrr.so.0\n"]
+HOST_INSTALLED_FRR_VPP_UNCHANGED=PASS

@@ -119,7 +119,9 @@ func TestOSPFLive(t *testing.T) {
 	prefix := vpptest.Prefix(t)
 	slot := vpptest.Slot(t)
 	ctx := context.Background()
-	daemons := []string{"mgmtd", "zebra", "staticd", "ospfd"}
+	// The shared poller reads both OSPF versions; give its optional v3 reader
+	// an owned empty daemon alongside the v2 topology.
+	daemons := []string{"mgmtd", "zebra", "staticd", "ospfd", "ospf6d"}
 
 	// the NGFW side carries a dummy link (passive stub-area interface, redistributed as connected)
 	dummy, dummyNet := prefix+"d0", fmt.Sprintf("10.%d.8.0/24", slot)

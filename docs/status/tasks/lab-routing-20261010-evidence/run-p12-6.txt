@@ -1,0 +1,438 @@
+P12_SLOT14_EXCLUSIVE=ACQUIRED
+P12_SHARED_BEFORE=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]
+P12_OUTER_LINK_INVENTORY=[{"addr_info": [{"family": "inet", "label": "lo", "local": "127.0.0.1", "preferred_life_time": 4294967295, "prefixlen": 8, "scope": "host", "valid_life_time": 4294967295}, {"family": "inet6", "local": "::1", "preferred_life_time": 4294967295, "prefixlen": 128, "protocol": "kernel_lo", "scope": "host", "valid_life_time": 4294967295}], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "00:00:00:00:00:00", "flags": ["LOOPBACK", "UP", "LOWER_UP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 1, "ifname": "lo", "link_type": "loopback", "max_mtu": 0, "min_mtu": 0, "mtu": 65536, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "UNKNOWN", "promiscuity": 0, "qdisc": "noqueue", "tso_max_segs": 65535, "tso_max_size": 524280, "txqlen": 1000}, {"addr_info": [], "address": "::", "allmulti": 0, "broadcast": "::", "flags": ["NOARP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 2, "ifname": "ip6tnl0", "link": null, "link_type": "tunnel6", "linkinfo": {"info_data": {"encap_limit": 0, "flowlabel": "0x00000", "local": "any", "proto": "ip6ip6", "remote": "any", "tclass": "0x00", "ttl": 0}, "info_kind": "ip6tnl"}, "max_mtu": 65535, "min_mtu": 68, "mtu": 1452, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "permaddr": "b206:a106:134f::", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "0.0.0.0", "allmulti": 0, "broadcast": "0.0.0.0", "flags": ["NOARP"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 3, "ifname": "gre0", "link": null, "link_type": "gre", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gre"}, "max_mtu": 0, "min_mtu": 0, "mtu": 1476, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 4, "ifname": "gretap0", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"local": "any", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "gretap"}, "max_mtu": 0, "min_mtu": 68, "mtu": 1462, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}, {"addr_info": [], "address": "00:00:00:00:00:00", "allmulti": 0, "broadcast": "ff:ff:ff:ff:ff:ff", "flags": ["BROADCAST", "MULTICAST"], "gro_ipv4_max_size": 65536, "gro_max_size": 65536, "group": "default", "gso_ipv4_max_size": 65536, "gso_max_segs": 65535, "gso_max_size": 65536, "ifindex": 5, "ifname": "erspan0", "link": null, "link_type": "ether", "linkinfo": {"info_data": {"erspan_index": 0, "erspan_ver": 1, "local": "any", "okey": "0.0.0.0", "pmtudisc": false, "remote": "any", "ttl": 0}, "info_kind": "erspan"}, "max_mtu": 0, "min_mtu": 68, "mtu": 1450, "netns-immutable": true, "num_rx_queues": 1, "num_tx_queues": 1, "operstate": "DOWN", "promiscuity": 0, "qdisc": "noop", "tso_max_segs": 65535, "tso_max_size": 65536, "txqlen": 1000}]
+P12_PRIVATE_NETNS=net:[4026532607]
+DISPOSABLE_VPP pid=3732947 runtime=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3732944
+P12_PRIVATE_VPP={"pid": "3732947", "starttime": "60634555", "netns": "net:[4026532607]"}
+P12_PRIVATE_API=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3732944/api.sock
+=== RUN   TestP12TopologyOnHost
+    p12_topology_integration_test.go:626: P12 private root verified: host=net:[4026531833] current=net:[4026532607] owned API=/root/ngfw-wt/lab-routing-20261010/.scratch/isolated-vpp-3732944/api.sock
+    p12_topology_integration_test.go:634: systemctl show vpp -p NRestarts (before) = 0
+2026/10/10 09:43:29 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    p12_topology_integration_test.go:654: NGFW_P12_FIB=root preconditions: VPP /run/vpp/api.sock, no LCP pair, default netns unset, no FRR-protocol kernel route, system frr inactive; show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+    p12_topology_integration_test.go:659: ngfw-vpp-preflight: <nil>
+        V19 pre-flight ok: no classify binding or classify DPO points at a missing table (0 warning(s))
+    p12_topology_integration_test.go:664: rig up w14 (slot 14, path af_packet, VPP /run/vpp/cli.sock)
+          create netns ns-w14-lan
+          create veth w14l0 <-> ns-w14-lan:w14l1
+          create vpp host-w14l0 (af_packet on w14l0)
+          reset  ip/ip6 classify host-w14l0 (table-index ~0)
+          set    addr host-w14l0 10.14.1.1/24
+          create netns ns-w14-wan
+          create veth w14w0 <-> ns-w14-wan:w14w1
+          create vpp host-w14w0 (af_packet on w14w0)
+          reset  ip/ip6 classify host-w14w0 (table-index ~0)
+          set    addr host-w14w0 10.14.2.1/24
+        rig: up
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: 10.14.1.1/24 
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: 10.14.2.1/24 
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+        
+    p12_topology_integration_test.go:670: rig VPP side handed to the agent: af_packet_delete w14l0 (veth down)
+    p12_topology_integration_test.go:670: rig VPP side handed to the agent: af_packet_delete w14w0 (veth down)
+    p12_topology_integration_test.go:675: rootFRR: [mgmtd zebra staticd bgpd] started in the root netns, pathspace w14, base /run/ngfw-test/w14/frr, pids map[bgpd:3733751 mgmtd:3733733 staticd:3733744 zebra:3733737]
+2026/10/10 09:43:59 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w14 component=subsystems
+2026/10/10 09:43:59 INFO PKI file materialiser wired owner=w14 component=subsystems root=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/pki-w14 source=true
+2026/10/10 09:43:59 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w14 component=subsystems
+2026/10/10 09:43:59 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w14 component=subsystems
+2026/10/10 09:43:59 INFO fqdn state reloaded owner=w14 component=subsystems family=objects file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/objects-fqdn-w14.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/10 09:43:59 INFO objects domain wired owner=w14 component=subsystems store=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/objects-w14.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/10 09:43:59 INFO acl domain wired owner=w14 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/10 09:43:59 INFO host firewall wired owner=w14 component=subsystems table="inet ngfw_w14" mode=check netns="" rules_file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/host-acl-w14.nft
+2026/10/10 09:43:59 INFO kea wired owner=w14 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/10 09:43:59 INFO host services wired owner=w14 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/unbound/unbound.conf chrony_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/10 09:43:59 INFO system identity wired owner=w14 component=subsystems product_paths=false hostname_file=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/sysident/etc/hostname
+2026/10/10 09:43:59 INFO VPP binary API connected owner=w14 component=vpp socket=/run/vpp/api.sock
+2026/10/10 09:43:59 INFO pppoe client wired owner=w14 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/10 09:43:59 INFO subsystems wired owner=w14 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state: claims-iface-w14.json, boot-w14.json; globals owner false" vpp_ids=14000-14999
+2026/10/10 09:43:59 INFO ngfw-agent listening owner=w14 socket=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/agent.sock metrics=off state_dir=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state vpp_api=/run/vpp/api.sock
+2026/10/10 09:43:59 WARN remote-access initialization unavailable owner=w14 component=subsystems reason=engine-not-ready
+2026/10/10 09:43:59 INFO VPP boot identity owner=w14 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3732947/60634555 complete=true expired_claims=0
+2026/10/10 09:43:59 INFO reconcile start owner=w14 txn_id="" mode=resync domains=[]
+2026/10/10 09:43:59 WARN neighbour events: interface dump owner=w14 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/10 09:43:59 INFO reconcile done owner=w14 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=158.581127ms err=""
+2026/10/10 09:43:59 INFO resync finished owner=w14 why=connect status=APPLY_STATUS_APPLIED summary=""
+2026/10/10 09:43:59 INFO dynamic source started owner=w14 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/10 09:43:59 INFO dynamic source started owner=w14 source=pppoe-delegation descriptors="[pppoe.pd.address pppoe.pd.prefix pppoe.pd.ra]"
+2026/10/10 09:43:59 INFO dynamic source started owner=w14 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/10 09:43:59 INFO dynamic source started owner=w14 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/10 09:43:59 INFO reconcile start owner=w14 txn_id="" mode=resync domains=[]
+2026/10/10 09:43:59 INFO reconcile done owner=w14 txn_id="" mode=resync domains=[] status=APPLY_STATUS_APPLIED summary="" reapplied=0 duration=179.693414ms err=""
+2026/10/10 09:43:59 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=""
+2026/10/10 09:44:00 INFO reconcile start owner=w14 txn_id=w14-p12-commit mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14l0 sw_if_index=2 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=af-packet.host-interface/host-w14l0
+2026/10/10 09:44:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14w0 sw_if_index=1 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=af-packet.host-interface/host-w14w0
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface/host-w14l0
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface-ip/host-w14l0/10.14.1.1/24
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface.admin-state/host-w14l0
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface/host-w14w0
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface-ip/host-w14w0/10.14.2.1/24
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=interface.admin-state/host-w14w0
+2026/10/10 09:44:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:44:00 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:00 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:44:02 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:44:02 INFO created owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:44:03 INFO reconcile done owner=w14 txn_id=w14-p12-commit mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=created:11 reapplied=0 duration=3.062892829s err=""
+    p12_topology_integration_test.go:759: apply commit: {
+          "created":  11
+        }
+2026/10/10 09:44:04 WARN resync requested again right after a requested resync: deferred owner=w14 in=86.816599ms
+2026/10/10 09:44:04 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:44:06 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=1.116097215s err=""
+2026/10/10 09:44:06 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+    p12_topology_integration_test.go:761: both sessions Established after 3.5s: 10.14.1.2 Established rx=0; 10.14.2.2 Established rx=0
+    p12_topology_integration_test.go:762: 200 routes after commit: FRR RIB bgp=200, VPP lcp-rt-dynamic=200, neighbours=10.14.2.2 Established rx=100; 10.14.1.2 Established rx=100 after 1s
+    p12_topology_integration_test.go:763: [after commit] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w14l0 tap4096 w14-l0 10 type tap
+        itf-pair: [1] host-w14w0 tap4097 w14-w0 11 type tap
+    p12_topology_integration_test.go:763: [after commit] ip -br addr show dev w14-l0 / w14-w0 (taps):
+        w14-l0           UNKNOWN        10.14.1.1/24 fe80::fe:9eff:fe33:a967/64 
+        w14-w0           UNKNOWN        10.14.2.1/24 fe80::fe:fbff:fe26:dd68/64 
+    p12_topology_integration_test.go:763: [after commit] vtysh -N w14 -c "show bgp summary":
+        
+        IPv4 Unicast Summary:
+        BGP router identifier 10.14.1.1, local AS number 65080 VRF default vrf-id 0
+        BGP table version 200
+        RIB entries 200, using 31 KiB of memory
+        Peers 2, using 60 KiB of memory
+        Peer groups 1, using 72 bytes of memory
+        
+        Neighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+        10.14.1.2       4      65081         5         5      200    0    0 00:00:01          100      200 peer one
+        10.14.2.2       4      65082         5         5      200    0    0 00:00:01          100      200 peer two
+        
+        Total number of neighbors 2
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          25             200
+                          32              10
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib 10.14.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.14.64.0/25 fib:0 index:23 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[36] locks:200 flags:shared,popular, uPRF-list:30 len:1 itfs:[2, ]
+              path:[52] pl-index:36 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.14.1.2 host-w14l0
+              [@0]: ipv4 via 10.14.1.2 host-w14l0: mtu:9000 next:7 flags:[] 4ea9d9a0177a02fe9e33a9670800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:25 buckets:1 uRPF:30 to:[0:0]]
+            [0] [@5]: ipv4 via 10.14.1.2 host-w14l0: mtu:9000 next:7 flags:[] 4ea9d9a0177a02fe9e33a9670800
+    p12_topology_integration_test.go:763: [after commit] vppctl show ip fib 10.14.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.14.163.128/25 fib:0 index:222 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:200 flags:shared,popular, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.14.2.2 host-w14w0
+              [@0]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] 7a193223141802fefb26dd680800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:224 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@5]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] 7a193223141802fefb26dd680800
+    p12_topology_integration_test.go:763: [after commit] ip -4 route show proto bgp (root netns): 200 routes
+        10.14.64.0/25 nhid 11 via 10.14.1.2 dev w14-l0 metric 20 
+        10.14.64.128/25 nhid 12 via 10.14.2.2 dev w14-w0 metric 20 
+        10.14.65.0/25 nhid 11 via 10.14.1.2 dev w14-l0 metric 20 
+        … (197 more)
+2026/10/10 09:44:09 INFO reconcile start owner=w14 txn_id=w14-p12-idempotent mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:09 INFO reconcile done owner=w14 txn_id=w14-p12-idempotent mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=512.055273ms err=""
+    p12_topology_integration_test.go:780: apply idempotent: {
+          "unchanged":  11
+        }
+2026/10/10 09:44:10 INFO reconcile start owner=w14 txn_id=w14-p12-deny-half mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:12 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:44:12 INFO updated owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:44:12 INFO reconcile done owner=w14 txn_id=w14-p12-deny-half mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:10" reapplied=0 duration=2.624311829s err=""
+    p12_topology_integration_test.go:787: apply deny-half: {
+          "updated":  1,
+          "unchanged":  10
+        }
+    p12_topology_integration_test.go:788: route map denies half: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 400ms
+    p12_topology_integration_test.go:795: peer 1 withdrew: FRR RIB bgp=50, VPP lcp-rt-dynamic=50, neighbours=10.14.1.2 Established rx=0; 10.14.2.2 Established rx=50 after 300ms
+    p12_topology_integration_test.go:799: peer 1 announces again: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 400ms
+2026/10/10 09:44:27 INFO dynamic source stopped owner=w14 source=pppoe-delegation
+2026/10/10 09:44:27 INFO dynamic source stopped owner=w14 source=multiwan
+2026/10/10 09:44:27 INFO dynamic source stopped owner=w14 source=pppoe-watch
+2026/10/10 09:44:27 INFO dynamic source stopped owner=w14 source=mpls-ldp
+2026/10/10 09:44:27 INFO ngfw-agent stopped owner=w14
+    p12_topology_integration_test.go:811: simulated loss: lcp_itf_pair_add_del_v3 del host-w14l0 (sw_if_index 2) with the agent stopped
+    p12_topology_integration_test.go:811: simulated loss: lcp_itf_pair_add_del_v3 del host-w14w0 (sw_if_index 1) with the agent stopped
+2026/10/10 09:44:27 INFO VPP VRRP engine off (NGFW_VRRP_VPP=off, or unset without NGFW_VPP_ID_RANGE=all): ha.vrrp engine=vpp instances are reported unapplied, never written to VPP owner=w14 component=subsystems
+2026/10/10 09:44:27 INFO PKI file materialiser wired owner=w14 component=subsystems root=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/pki-w14 source=true
+2026/10/10 09:44:27 INFO not the globals owner: lldp.global and nsim are not registered; services.lldp globals and services.nsim are reported as unsupported (D-071) owner=w14 component=subsystems
+2026/10/10 09:44:27 INFO services.autoSdl is not applied by this agent: auto_sdl_config is a VPP-global and this agent is not the globals owner (D-071) owner=w14 component=subsystems
+2026/10/10 09:44:27 INFO fqdn state reloaded owner=w14 component=subsystems family=objects file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/objects-fqdn-w14.json hosts=0 fresh=0 due=0 dormant=0 due_spread_over=30s
+2026/10/10 09:44:27 INFO objects domain wired owner=w14 component=subsystems store=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/objects-w14.json fqdn_objects=0 fqdn_refresh=1m0s fqdn_max_stale=24h0m0s dns="system (/etc/resolv.conf)"
+2026/10/10 09:44:27 INFO acl domain wired owner=w14 component=subsystems family=acl stats=/run/vpp/stats.sock reproject_every=1m0s globals_owner=false resync_hook=true
+2026/10/10 09:44:27 INFO host firewall wired owner=w14 component=subsystems table="inet ngfw_w14" mode=check netns="" rules_file=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state/host-acl-w14.nft
+2026/10/10 09:44:27 INFO kea wired owner=w14 component=subsystems mode=product conf=/etc/kea sockets=/run/kea
+2026/10/10 09:44:27 INFO VPP binary API connected owner=w14 component=vpp socket=/run/vpp/api.sock
+2026/10/10 09:44:27 INFO host services wired owner=w14 component=subsystems feature=unbound-chrony-syslog product_paths=false unbound_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/unbound/unbound.conf chrony_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/chrony/agent/chrony.conf rsyslog_conf=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/rsyslog/rsyslog.conf vpp_dns_cache="required only"
+2026/10/10 09:44:27 INFO system identity wired owner=w14 component=subsystems product_paths=false hostname_file=/tmp/ngfw-lab-routing-tmp/ngfw-agent-test-2510649166/sysident/etc/hostname
+2026/10/10 09:44:27 INFO pppoe client wired owner=w14 component=subsystems feature=pppoe-client globals_owner=false product_paths=false
+2026/10/10 09:44:27 INFO subsystems wired owner=w14 domains="[system interfaces vrfs routing nat objects acl vpn tunnels services ha management security]" wiring="stores in /tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state: claims-iface-w14.json, boot-w14.json; globals owner false" vpp_ids=14000-14999
+2026/10/10 09:44:27 INFO ngfw-agent listening owner=w14 socket=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/agent.sock metrics=off state_dir=/tmp/ngfw-lab-routing-tmp/TestP12TopologyOnHost3843185291/001/state vpp_api=/run/vpp/api.sock
+2026/10/10 09:44:27 WARN remote-access initialization unavailable owner=w14 component=subsystems reason=engine-not-ready
+2026/10/10 09:44:27 INFO VPP boot identity owner=w14 component=subsystems identity=cdbcc8df-1608-41b3-a0b2-e0e20923bb56/3732947/60634555 complete=true expired_claims=0
+2026/10/10 09:44:27 WARN neighbour events: interface dump owner=w14 component=subsystems err="sw_interface_dump: context canceled"
+2026/10/10 09:44:27 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:44:27 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:27 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:44:27 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:27 INFO created owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:44:29 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=true
+2026/10/10 09:44:29 INFO updated owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:44:29 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:8" reapplied=6 duration=2.556113881s err=""
+2026/10/10 09:44:29 INFO resync finished owner=w14 why=connect status=APPLY_STATUS_APPLIED summary="created:2  updated:1  unchanged:8"
+2026/10/10 09:44:29 INFO dynamic source started owner=w14 source=mpls-ldp descriptors=[mpls-route.ldp]
+2026/10/10 09:44:29 INFO dynamic source started owner=w14 source=pppoe-delegation descriptors="[pppoe.pd.address pppoe.pd.prefix pppoe.pd.ra]"
+2026/10/10 09:44:29 INFO dynamic source started owner=w14 source=pppoe-watch descriptors=[pppoe.client.observation]
+2026/10/10 09:44:29 INFO dynamic source started owner=w14 source=multiwan descriptors="[ip.route.wan nat44-ed.output-feature.wan nat44-ed.interface-address.wan nat44-ed.static-address.wan]"
+2026/10/10 09:44:29 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+2026/10/10 09:44:30 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=6 duration=478.683269ms err=""
+2026/10/10 09:44:30 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_APPLIED summary=unchanged:11
+    p12_topology_integration_test.go:815: both sessions Established after 400ms: 10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50
+    p12_topology_integration_test.go:816: after agent restart + pair loss: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 300ms
+    p12_topology_integration_test.go:817: recovered 7.2s after the agent restart
+    p12_topology_integration_test.go:822: peer 1 withdrew after the restart: FRR RIB bgp=50, VPP lcp-rt-dynamic=50, neighbours=10.14.1.2 Established rx=0; 10.14.2.2 Established rx=50 after 300ms
+    p12_topology_integration_test.go:824: peer 1 announces again after the restart: FRR RIB bgp=100, VPP lcp-rt-dynamic=100, neighbours=10.14.1.2 Established rx=50; 10.14.2.2 Established rx=50 after 500ms
+    p12_topology_integration_test.go:826: [after restart] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w14w0 tap4097 w14-w0 13 type tap
+        itf-pair: [1] host-w14l0 tap4096 w14-l0 12 type tap
+    p12_topology_integration_test.go:826: [after restart] ip -br addr show dev w14-l0 / w14-w0 (taps):
+        w14-l0           UNKNOWN        10.14.1.1/24 fe80::409e:c4ff:fee3:15d5/64 
+        w14-w0           UNKNOWN        10.14.2.1/24 fe80::b432:9ff:fe13:ff45/64 
+    p12_topology_integration_test.go:826: [after restart] vtysh -N w14 -c "show bgp summary":
+        
+        IPv4 Unicast Summary:
+        BGP router identifier 10.14.1.1, local AS number 65080 VRF default vrf-id 0
+        BGP table version 700
+        RIB entries 100, using 16 KiB of memory
+        Peers 2, using 60 KiB of memory
+        Peer groups 1, using 72 bytes of memory
+        
+        Neighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ  Up/Down State/PfxRcd   PfxSnt Desc
+        10.14.1.2       4      65081       231       127      700    0    0 00:00:19           50      100 peer one
+        10.14.2.2       4      65082       130       128      700    0    0 00:00:18           50      100 peer two
+        
+        Total number of neighbors 2
+    p12_topology_integration_test.go:826: [after restart] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          25             100
+                          32              10
+    p12_topology_integration_test.go:826: [after restart] vppctl show ip fib 10.14.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:826: [after restart] vppctl show ip fib 10.14.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        10.14.163.128/25 fib:0 index:222 locks:2
+          lcp-rt-dynamic refs:1 src-flags:added,contributing,active,
+            path-list:[37] locks:100 flags:shared,popular, uPRF-list:31 len:1 itfs:[1, ]
+              path:[53] pl-index:37 ip4 weight=1 pref=20 attached-nexthop:  oper-flags:resolved,
+                10.14.2.2 host-w14w0
+              [@0]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] 7a193223141802fefb26dd680800
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:224 buckets:1 uRPF:31 to:[0:0]]
+            [0] [@5]: ipv4 via 10.14.2.2 host-w14w0: mtu:9000 next:8 flags:[] 7a193223141802fefb26dd680800
+    p12_topology_integration_test.go:826: [after restart] ip -4 route show proto bgp (root netns): 100 routes
+        10.14.114.0/25 nhid 23 via 10.14.1.2 dev w14-l0 metric 20 
+        10.14.114.128/25 nhid 25 via 10.14.2.2 dev w14-w0 metric 20 
+        10.14.115.0/25 nhid 23 via 10.14.1.2 dev w14-l0 metric 20 
+        … (97 more)
+2026/10/10 09:44:47 INFO reconcile start owner=w14 txn_id=w14-p12-lan-down mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:48 INFO deleted owner=w14 component=scheduler key=interface.admin-state/host-w14l0
+2026/10/10 09:44:48 INFO reconcile done owner=w14 txn_id=w14-p12-lan-down mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="deleted:1  unchanged:10" reapplied=0 duration=1.175685931s err=""
+    p12_topology_integration_test.go:829: apply lan-down: {
+          "deleted":  1,
+          "unchanged":  10
+        }
+    p12_topology_integration_test.go:839: link down on host-w14l0: BGP noticed after 300ms (state Idle); tap: carrier down after 300ms
+2026/10/10 09:44:49 INFO reconcile start owner=w14 txn_id=w14-p12-lan-up mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:49 INFO reconcile done owner=w14 txn_id=w14-p12-lan-up mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=unchanged:11 reapplied=0 duration=541.850168ms err=""
+    p12_topology_integration_test.go:844: apply lan-up: {
+          "unchanged":  11
+        }
+    p12_topology_integration_test.go:845: both sessions Established after 300ms: 10.14.1.2 Established rx=0; 10.14.2.2 Established rx=50
+2026/10/10 09:44:50 INFO reconcile start owner=w14 txn_id=w14-p12-rollback mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:53 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=false
+2026/10/10 09:44:53 INFO updated owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:44:53 INFO reconcile done owner=w14 txn_id=w14-p12-rollback mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary="updated:1  unchanged:10" reapplied=0 duration=3.258310251s err=""
+    p12_topology_integration_test.go:848: apply rollback: {
+          "updated":  1,
+          "unchanged":  10
+        }
+    p12_topology_integration_test.go:849: after rollback: FRR RIB bgp=0, VPP lcp-rt-dynamic=0, neighbours= after 300ms
+    p12_topology_integration_test.go:863: [after rollback] vppctl show lcp:
+        lcp default netns '<unset>'
+        lcp lcp-auto-subint off
+        lcp lcp-sync off
+        lcp lcp-sync-unnumbered on
+        lcp del-static-on-link-down off
+        lcp del-dynamic-on-link-down off
+        itf-pair: [0] host-w14w0 tap4097 w14-w0 13 type tap
+        itf-pair: [1] host-w14l0 tap4096 w14-l0 12 type tap
+    p12_topology_integration_test.go:863: [after rollback] ip -br addr show dev w14-l0 / w14-w0 (taps):
+        w14-l0           UP             10.14.1.1/24 fe80::409e:c4ff:fee3:15d5/64 
+        w14-w0           UNKNOWN        10.14.2.1/24 fe80::b432:9ff:fe13:ff45/64 
+    p12_topology_integration_test.go:863: [after rollback] vtysh -N w14 -c "show bgp summary":
+        % BGP instance not found
+    p12_topology_integration_test.go:863: [after rollback] vppctl show ip fib summary:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+            Prefix length         Count     
+                           0               1
+                           4               2
+                          24               2
+                          32              10
+    p12_topology_integration_test.go:863: [after rollback] vppctl show ip fib 10.14.64.0/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:863: [after rollback] vppctl show ip fib 10.14.163.128/25:
+        ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+        0.0.0.0/0 fib:0 index:0 locks:2
+          default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+            path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+              path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+                [@0]: dpo-drop ip4
+        
+         forwarding:   unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    p12_topology_integration_test.go:863: [after rollback] ip -4 route show proto bgp (root netns): 0 routes
+2026/10/10 09:44:54 INFO reconcile start owner=w14 txn_id=w14-p12-cleanup mode=apply domains="[interfaces routing]"
+2026/10/10 09:44:56 INFO FRR configuration applied owner=w14 component=subsystems component=frr conf=/run/ngfw-test/w14/frr/etc/w14/frr.conf bgp=false
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=frr.config/ngfw
+2026/10/10 09:44:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-w0 sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=lcp.itf-pair/host-w14w0
+2026/10/10 09:44:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=w14-l0 sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=lcp.itf-pair/host-w14l0
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=interface.admin-state/host-w14w0
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=interface.admin-state/host-w14l0
+2026/10/10 09:44:56 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w14w0 prefix=10.14.2.1/24 err="sw_interface_add_del_address host-w14w0 10.14.2.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=interface-ip/host-w14w0/10.14.2.1/24
+2026/10/10 09:44:56 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w14w0 descriptor=af-packet.host-interface ifindex=9 kind=veth
+2026/10/10 09:44:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14w0 sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=af-packet.host-interface/host-w14w0
+2026/10/10 09:44:56 INFO interface-ip: address already absent in VPP on delete; treated as deleted interface=host-w14l0 prefix=10.14.1.1/24 err="sw_interface_add_del_address host-w14l0 10.14.1.1/24 add=false: VPPApiError: Address not found for interface (-60)"
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=interface-ip/host-w14l0/10.14.1.1/24
+2026/10/10 09:44:56 INFO af_packet quiesce: netdev already down (D-101, VPP V24) netdev=w14l0 descriptor=af-packet.host-interface ifindex=7 kind=veth
+2026/10/10 09:44:56 INFO interface sanitized (VPP V19/V21 inherited state) interface=host-w14l0 sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:44:56 INFO deleted owner=w14 component=scheduler key=af-packet.host-interface/host-w14l0
+2026/10/10 09:44:56 INFO reconcile done owner=w14 txn_id=w14-p12-cleanup mode=apply domains="[interfaces routing]" status=APPLY_STATUS_APPLIED summary=deleted:9 reapplied=0 duration=2.145593076s err=""
+2026/10/10 09:44:56 INFO reconcile start owner=w14 txn_id="" mode=resync domains="[interfaces routing]"
+    p12_topology_integration_test.go:715: cleanup apply: <nil> {
+          "deleted":  9
+        }
+    p12_topology_integration_test.go:724: cleanup: zero lcp-rt-dynamic routes of 10.14/16 left in VPP table 0
+2026/10/10 09:44:56 INFO dynamic source stopped owner=w14 source=mpls-ldp
+2026/10/10 09:44:56 INFO dynamic source stopped owner=w14 source=pppoe-delegation
+2026/10/10 09:44:56 INFO dynamic source stopped owner=w14 source=pppoe-watch
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ipip.tunnel err="ipip.tunnel: context canceled"
+2026/10/10 09:44:56 INFO dynamic source stopped owner=w14 source=multiwan
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=vxlan.tunnel err="vxlan.tunnel: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=vxlan-gpe.tunnel err="vxlan-gpe.tunnel: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=gtpu.tunnel err="gtpu.tunnel: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=l2tp.tunnel err="l2tp.tunnel: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=pppoe.session err="pppoe.session: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ra.namespace err="context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=tapv2.tap err="sw_interface_dump: context canceled"
+2026/10/10 09:44:56 WARN retrieve of out-of-scope descriptor failed; its objects cannot satisfy dependencies owner=w14 component=scheduler descriptor=ikev2.profile err="ikev2_profile_dump: context canceled"
+2026/10/10 09:44:56 INFO reconcile done owner=w14 txn_id="" mode=resync domains="[interfaces routing]" status=APPLY_STATUS_FAILED summary="" reapplied=0 duration=12.80198ms err="retrieve mpls-table: mpls-table: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:44:56 ERROR agent degraded owner=w14 why="resync failed: retrieve mpls-table: mpls-table: retrieve: mpls_table_dump: context canceled"
+2026/10/10 09:44:56 WARN resync owed while degraded owner=w14 in=5s
+2026/10/10 09:44:56 INFO resync finished owner=w14 why=requested status=APPLY_STATUS_FAILED summary=""
+2026/10/10 09:44:56 WARN quarantine release after resync (VPP V19) owner=w14 component=subsystems released=0 err="sw_interface_dump: context canceled"
+2026/10/10 09:44:56 INFO ngfw-agent stopped owner=w14
+    p12_topology_integration_test.go:667: rig down: <nil>
+        rig down w14
+          delete netns ns-w14-lan (and its veth peer)
+          delete veth w14l0
+          delete netns ns-w14-wan (and its veth peer)
+          delete veth w14w0
+        rig: down
+        prefix: w14
+        slot: 14
+        path: af_packet
+        lan_ns: ns-w14-lan
+        lan_veth: w14l1
+        lan_ip: 10.14.1.2/24
+        lan_gw: 10.14.1.1
+        vpp_lan_if: host-w14l0
+        vpp_lan_addr: -
+        wan_ns: ns-w14-wan
+        wan_veth: w14w1
+        wan_ip: 10.14.2.2/24
+        wan_gw: 10.14.2.1
+        vpp_wan_if: host-w14w0
+        vpp_wan_addr: -
+        ping: ip netns exec ns-w14-lan ping -c 3 10.14.2.2
+    p12_topology_integration_test.go:637: systemctl show vpp -p NRestarts (after) = 0
+--- PASS: TestP12TopologyOnHost (89.86s)
+PASS
+ok  	ngfw/agent/internal/agent	89.988s
+DISPOSABLE_VPP_STOPPED pid=3732947
+P12_RETAINED_NAMESPACES=["net:[4026533284]", "net:[4026533350]"]
+P12_PRIVATE_REMAINING={}
+P12_PRIVATE_PROCESSES_AFTER={}
+P12_OUTER_CLEANUP=PASS
+P12_SHARED_AFTER=["MainPID=1014\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 onlink \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.195 \n192.168.122.0/24 dev virbr0 proto kernel scope link src 192.168.122.1 linkdown \n", "lcp default netns '<unset>'\r\nlcp lcp-auto-subint off\r\nlcp lcp-sync off\r\nlcp lcp-sync-unnumbered on\r\nlcp del-static-on-link-down off\r\nlcp del-dynamic-on-link-down off\r\n"]

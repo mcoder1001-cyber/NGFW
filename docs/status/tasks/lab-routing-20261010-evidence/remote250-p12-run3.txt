@@ -1,0 +1,22 @@
+SOURCE_PAIRED_FRR_ARTIFACTS=43
+HOST_BEFORE=["MainPID=8102\nNRestarts=0\n\nMainPID=4575\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\nlcp lcp-auto-subint off\nlcp lcp-sync off\nlcp lcp-sync-unnumbered on\nlcp del-static-on-link-down off\nlcp del-dynamic-on-link-down off\n", "e7cec152f09a6c9a1c7feeb070daf82e93ad9b1722fd34863b5a317da2e80587  /usr/lib/frr/zebra\n224ce79050b23a19ed3eb62f63f29c3c24156c19b1b7b4c767ec67286a03a239  /usr/bin/vtysh\nddf04a0ba15d70cf0b7c9250435d9179d2f698ec4e601be1c12ad7756468a2b3  /usr/lib/x86_64-linux-gnu/frr/libfrr.so.0\n"]
+SOURCE_PAIRED_FRR_ARTIFACTS=43
+/usr/lib/frr/zebra: error while loading shared libraries: libpcre2-posix.so.3: cannot open shared object file: No such file or directory
+Traceback (most recent call last):
+  File "/root/ngfw-routing250-20261010/remote250-staged-routing.py", line 113, in <module>
+    main()
+    ~~~~^^
+  File "/root/ngfw-routing250-20261010/remote250-staged-routing.py", line 75, in main
+    print(subprocess.check_output(['/usr/lib/frr/zebra', '--version'], text=True).splitlines()[0], flush=True)
+          ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 472, in check_output
+    return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+               **kwargs).stdout
+               ^^^^^^^^^
+  File "/usr/lib/python3.13/subprocess.py", line 577, in run
+    raise CalledProcessError(retcode, process.args,
+                             output=stdout, stderr=stderr)
+subprocess.CalledProcessError: Command '['/usr/lib/frr/zebra', '--version']' returned non-zero exit status 127.
+HOST_AFTER=["MainPID=8102\nNRestarts=0\n\nMainPID=4575\nNRestarts=0\n", "default via 172.30.126.1 dev ens192 \n172.30.126.0/24 dev ens192 proto kernel scope link src 172.30.126.250 \n", "lcp default netns '<unset>'\nlcp lcp-auto-subint off\nlcp lcp-sync off\nlcp lcp-sync-unnumbered on\nlcp del-static-on-link-down off\nlcp del-dynamic-on-link-down off\n", "e7cec152f09a6c9a1c7feeb070daf82e93ad9b1722fd34863b5a317da2e80587  /usr/lib/frr/zebra\n224ce79050b23a19ed3eb62f63f29c3c24156c19b1b7b4c767ec67286a03a239  /usr/bin/vtysh\nddf04a0ba15d70cf0b7c9250435d9179d2f698ec4e601be1c12ad7756468a2b3  /usr/lib/x86_64-linux-gnu/frr/libfrr.so.0\n"]
+HOST_INSTALLED_FRR_VPP_UNCHANGED=PASS

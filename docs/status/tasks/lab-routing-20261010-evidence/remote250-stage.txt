@@ -1,0 +1,8 @@
+ospfd version 10.5.1
+Copyright 1996-2005 Kunihiro Ishiguro, et al.
+   4575 /usr/lib/frr/watchfrr -d mgmtd zebra staticd
+   4584 /usr/lib/frr/mgmtd -d -F traditional -A 127.0.0.1
+   4586 /usr/lib/frr/zebra -d -F traditional -A 127.0.0.1 -s 90000000
+   4591 /usr/lib/frr/staticd -d -F traditional -A 127.0.0.1
+   8102 /usr/bin/vpp -c /etc/vpp/startup.conf
+ 465666 bash -c mkdir -m 700 /root/ngfw-routing250-20261010/source; tar -x -C /root/ngfw-routing250-20261010/source; mkdir -m 700 /root/ngfw-routing250-20261010/bin /root/ngfw-routing250-20261010/evidence; mkdir -m 700 /run/w14 /run/w6; /usr/lib/frr/ospfd --version | head -2; ps -eo pid,args | grep -E "[/]usr/lib/frr|[/]usr/bin/vpp"

@@ -1,0 +1,6 @@
+6d7015825d6577fe551f5027e733f3ff9fcc4c0b3be7164aa0730ee6ce65ce9d  /tmp/ngfw-routing-frr-stage/frr-10.7.1.tar
+frr 10.7.1-0~ubuntu26.1
+6d7015825d6577fe551f5027e733f3ff9fcc4c0b3be7164aa0730ee6ce65ce9d  /root/ngfw-routing250-20261010/frr-10.7.1.tar
+e7cec152f09a6c9a1c7feeb070daf82e93ad9b1722fd34863b5a317da2e80587  /usr/lib/frr/zebra
+224ce79050b23a19ed3eb62f63f29c3c24156c19b1b7b4c767ec67286a03a239  /usr/bin/vtysh
+ddf04a0ba15d70cf0b7c9250435d9179d2f698ec4e601be1c12ad7756468a2b3  /usr/lib/x86_64-linux-gnu/frr/libfrr.so.0

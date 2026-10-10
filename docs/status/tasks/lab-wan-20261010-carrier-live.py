@@ -66,6 +66,19 @@ if len(sys.argv)>1:
     print('CHILD_UTS_BEFORE '+json.dumps({'namespace':child_uts,'hostname':os.uname().nodename}),flush=True)
     run('ip','link','set','lo','up')
     private_etc=d/'etc';shutil.copytree('/etc',private_etc,symlinks=True)
+    # Canonicalize only the copied distribution timezone link for the genuine
+    # package provisioner; the shared /etc link remains unchanged.
+    timezone=private_etc/'localtime'
+    if timezone.is_symlink():
+     original_link=os.readlink(timezone)
+     original_target=Path('/etc/localtime').resolve(strict=True)
+     assert original_target.is_relative_to(Path('/usr/share/zoneinfo'))
+     assert original_target.is_file() and not original_target.is_symlink()
+     original_bytes=Path('/etc/localtime').read_bytes()
+     assert timezone.read_bytes()==original_bytes
+     timezone.unlink();timezone.symlink_to(str(original_target))
+     assert timezone.read_bytes()==original_bytes and os.readlink('/etc/localtime')==original_link
+     print('PRIVATE_COPIED_TIMEZONE_CANONICAL_LINK PASS',flush=True)
     # No pre-existing host-service render record is admitted into this fixture.
     for name in ('unbound','chrony','rsyslog.d','snmp','kea','frr'):
      target=private_etc/name

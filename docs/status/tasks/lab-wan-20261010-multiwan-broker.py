@@ -8,7 +8,7 @@ inventory='ngp-'+hashlib.sha256(b'inventory\0w20').hexdigest()[:12]
 unit='ngfw-pppoe-broker@'+inventory+'.service'
 assets={Path('/usr/lib/ngfw/pppoe-carrier.py'):ROOT/'scripts/pppoe-kernel-carrier.py',Path('/run/systemd/system/ngfw-pppoe-broker@.service'):ROOT/'scripts/pppoe-carrier-assets/ngfw-pppoe-broker@.service'}
 assert all(not os.path.lexists(p) for p in assets)
-receipts={};created_dirs=[];loaded=False
+receipts={};created_dirs=[];loaded=False;started=None;finished=None
 asset_lock=os.open('/run/lock/ngfw-wan-w20-inventory-assets.lock',os.O_WRONLY|os.O_CREAT|os.O_NOFOLLOW,0o600)
 lock_info=os.fstat(asset_lock);assert stat.S_ISREG(lock_info.st_mode) and lock_info.st_uid==0 and lock_info.st_nlink==1 and not lock_info.st_mode&0o077
 fcntl.flock(asset_lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
@@ -46,6 +46,7 @@ try:
  started=time.monotonic()
  result=subprocess.call([sys.executable,str(ROOT/'test/topology/multiwan-host-acceptance/run.py')]);finished=time.monotonic()
 finally:
+ if started is not None and finished is None:finished=time.monotonic()
  # Inventory is a finite list operation; only this slot's original broker unit is touched.
  if loaded:
   assert not Path('/run/netns/ns-w20-mw-router').exists()
@@ -75,6 +76,7 @@ finally:
     if baseline_frames.get(area)==(device,inode,digest):continue
     assert record['request_sha256']==expected_digest and record['boot']==boot
     assert record['nonce']!=baseline_nonces.get(area)
+    assert started is not None and finished is not None
     expiry=record['expires'];assert type(expiry) in (int,float) and math.isfinite(expiry) and started<=expiry<=finished+10
     if area=='requests':assert record['request']==expected_request
    # Successful original broker removes request after writing its result.

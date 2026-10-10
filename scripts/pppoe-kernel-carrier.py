@@ -525,12 +525,30 @@ class Carrier:
                 table = int(table)
             except (TypeError, ValueError) as error:
                 raise ValueError('unsupported policy rule table') from error
-            extra = set(rule) - {'priority', 'src', 'dst', 'table', 'iif', 'protocol', 'ipproto', 'sport', 'dport'}
+            extra = set(rule) - {'priority', 'src', 'dst', 'table', 'iif', 'protocol', 'ipproto', 'sport', 'dport', 'sport_mask', 'dport_mask', 'dstlen'}
             if extra or rule.get('src', 'all') not in ('all', '0.0.0.0/0', '::/0'):
                 raise ValueError('unexpected policy rule selector')
+            for field in ('sport', 'dport'):
+                mask = rule.get(field + '_mask')
+                if field + '_mask' in rule and (field not in rule or not
+                        (type(mask) is str and mask == '0xffff' or type(mask) is int and mask == 65535)):
+                    raise ValueError('unsupported policy port mask')
             destination = rule.get('dst', 'all')
+            prefixlen = rule.get('dstlen')
+            if 'dstlen' in rule:
+                if (type(prefixlen) is not int or not 0 <= prefixlen <= (32 if version == 4 else 128)
+                        or destination == 'all'):
+                    raise ValueError('unsupported policy destination length')
+                if '/' in destination:
+                    if ipaddress.ip_network(destination, strict=False).prefixlen != prefixlen:
+                        raise ValueError('policy destination lengths disagree')
+                else:
+                    destination += '/' + str(prefixlen)
             if destination != 'all':
-                destination = str(ipaddress.ip_network(destination, strict=False))
+                network = ipaddress.ip_network(destination, strict=False)
+                if network.version != version:
+                    raise ValueError('policy destination family differs')
+                destination = str(network)
             normalized.append((rule.get('priority'), table, rule.get('iif'), destination,
                                rule.get('ipproto'), str(rule.get('sport', '')), str(rule.get('dport', ''))))
         expected = [(10, 100, 'ppp0', 'all', None, '', ''),

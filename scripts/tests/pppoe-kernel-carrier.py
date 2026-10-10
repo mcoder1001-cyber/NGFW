@@ -583,5 +583,43 @@ class KernelFallbackControls(unittest.TestCase):
             c.links(42, TOKEN, c.record, True)
 
 
+class PolicyReadbackControls(unittest.TestCase):
+    def rows(self):
+        return [dict(priority=4,src='all',iif='ppp0',ipproto='udp',sport=547,sport_mask='0xffff',dport=546,dport_mask='0xffff',table='local'),
+                dict(priority=5,src='all',dst='fe80::',dstlen=10,table='local'),
+                dict(priority=5,src='all',dst='ff00::',dstlen=8,table='local'),
+                dict(priority=6,src='all',dst='fd00:6e67:6677::2',iif=TRANSIT,table='local'),
+                dict(priority=10,src='all',iif='ppp0',table='100'),
+                dict(priority=20,src='all',iif=TRANSIT,table='101'),
+                dict(priority=100,src='all',table='local'),dict(priority=32766,src='all',table='main')]
+
+    def check(self, rows):
+        c=MemoryCarrier()
+        with mock.patch.object(c,'inside',return_value=json.dumps(rows)):
+            c.policy_rules(42,6,TOKEN,c.record)
+
+    def test_actual_iproute_full_masks_and_separate_prefix_lengths(self):
+        self.check(self.rows())
+
+    def test_partial_masks_and_unknown_destination_selectors_fail_closed(self):
+        for label,mutate in {
+            'partial-mask':lambda rows:rows[0].update(sport_mask='0xfffe'),
+            'boolean-mask':lambda rows:rows[0].update(sport_mask=True),
+            'null-mask':lambda rows:rows[0].update(sport_mask=None),
+            'orphan-mask':lambda rows:rows[4].update(sport_mask='0xffff'),
+            'boolean-length':lambda rows:rows[1].update(dstlen=True),
+            'null-length':lambda rows:rows[1].update(dstlen=None),
+            'negative-length':lambda rows:rows[1].update(dstlen=-1),
+            'oversized-length':lambda rows:rows[1].update(dstlen=129),
+            'mismatch-length':lambda rows:rows[1].update(dst='fe80::/10',dstlen=11),
+            'orphan-length':lambda rows:rows[4].update(dstlen=10),
+            'foreign-selector':lambda rows:rows[1].update(oif='foreign'),
+            'wrong-family':lambda rows:rows[1].update(dst='192.0.2.0',dstlen=24),
+        }.items():
+            with self.subTest(label=label):
+                rows=self.rows();mutate(rows)
+                with self.assertRaises(ValueError):self.check(rows)
+
+
 if __name__ == '__main__':
     unittest.main()

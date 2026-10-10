@@ -15,7 +15,9 @@ if len(sys.argv)>1:
  with tempfile.TemporaryDirectory(prefix='native-carrier-',dir=BASE) as directory:
   d=Path(directory)
   secret=d/'secrets';secret.write_text('"w20" * "NGFW_TEST_PSK_w20" *\n');secret.chmod(0o600)
-  for name in ('pap-secrets','chap-secrets'):run('mount','--bind',str(secret),'/etc/ppp/'+name)
+  run('mount','-t','tmpfs','-o','mode=700,size=1m','tmpfs','/etc/ppp')
+  for name in ('pap-secrets','chap-secrets'):
+   Path('/etc/ppp',name).touch(mode=0o600);run('mount','--bind',str(secret),'/etc/ppp/'+name)
   options=d/'options';options.write_text('auth\nrequire-pap\nnoipv6\nmtu 1492\nmru 1492\nlcp-echo-interval 1\nlcp-echo-failure 2\n')
   try:
    for ns in ('ns-w20-carrier-isp','ns-w20-carrier-lan'):

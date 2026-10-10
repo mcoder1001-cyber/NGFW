@@ -17,7 +17,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`da5d35c70fff86557611c3f8a7f7358688baae39` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
+`8ef882e9ec120ddcaa0e00ca660c00c7077917ad` (matching CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,
@@ -681,3 +681,35 @@ Exact next commands on resume:
 Then verify supplied fixed-package source/hash/control/helper receipts before
 root-only known-empty-cache recovery or live native seed acceptance. Never treat
 ee202 artifacts as byte-identical321 payload; source difference remains recorded.
+
+## Resumed native artifact and four-package review
+
+Independent review operationally resumed for this same hardware task. Actual full
+native producer build completed0/41required packaging fixtures, no waiver; four
+whole archives/controls/all12 full maintscripts and nested fixed helpers reviewed.
+Independent exactee202 raw Go rebuild matches producer stage2e8386; packaged
+agenta909ae has identical Go buildID and11/12 ALLOC sections, sole GNU build-ID
+metadata differs. Firstboot/input payloads equal source. Complete artifact
+applicability APPROVE; target installation/native seed acceptance remain pending.
+Full commands, real selected output, earlier bounded reviewer/controller failures
+and precise provenance are in hardware-evidence-review-20261010-upgrade-four.md.
+
+Final operational source24d2561d source/AST2 APPROVE; actual readonly inspectd4d864
+and prepareff5f22cf independently corroborated. All21state invariants remain;
+VPP33868/nginx9281 active0, API/agent intentionally inactive. Actual installed
+deb-systemd-invoke1.69 public wrapper92eada proves executablepolicy101 returns0
+before stop as well as start, covering meta preinst active-unit stops. Root/operator
+notified: artifact/maintscript upload hold can close; installation still consumes
+actual matching4Inst/0Remv simulation under existing root phase release. Cache2B
+remains untouched; physical NIC/forwarding acceptance NOT RUN. .37 firstboot held.
+
+Final PR225 R7 APPROVE replacement3b61a8ce529c68ae2bb39e2cea2f77ea13602595,
+tree507477988ae381f05e1e8dc823d8479590b1efa1/count1. Old321 mandatory gate failed
+two new-test G304 findings; retained archive3215 and bounded test-only DirFS fix
+plus truthful report reviewed. New exact-head fullquick38056374923 IN_PROGRESS;
+offline fixture38056374912 SUCCESS. No merge-green claim or duplicate full quick.
+
+Remaining exact next action: read actual four-package upload/simulate/install
+receipt metadata and root known-empty-cache/native runtime acceptance; query
+`gh run view 38056374923 --json headSha,status,conclusion,jobs` on gate change.
+Reviewer performed no product/target changes; no review-owned operation in flight.

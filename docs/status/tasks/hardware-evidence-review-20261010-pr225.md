@@ -129,3 +129,40 @@ TMPDIR all72 VPP fixtures passed. Later private0700 TMPDIR denied an intentional
 foreign-UID fixture; normal1777 scratch retry is in progress. No skip/waiver or
 successful fixed native archive is inferred. These are root-attributed build
 reports, not independent reviewer build execution.
+
+## Mandatory G304 correction and final replacement candidate
+
+The historical pending gate above completed FAILURE on321: mandatory quick
+38055103197 found two G304 findings in the new regression's variable-path
+os.ReadFile calls. Real gate failure was retained and corrected, without a
+linter suppression or test waiver. R7 APPROVE exact replacement
+`3b61a8ce529c68ae2bb39e2cea2f77ea13602595`, tree
+`507477988ae381f05e1e8dc823d8479590b1efa1`, single parentbd25d9b24.
+
+Independent fetched diff321→3b61 contains only the regression's fixed-leaf
+`fs.ReadFile(os.DirFS(ownTempDir), "auto-block.json")` reads and truthful task
+report of failed quick/focused correction outputs. Production is unchanged.
+Root-attributed corrected TestAutoBlock output0.312s and golangci-lint agent
+selection0issues appear in the report; this reviewer did not duplicate those
+tests. Reviewed321 history was preserved in the exact remote archive first.
+
+```text
+git show --no-patch --format='%H%n%P%n%T' 3b61a8ce529c68ae2bb39e2cea2f77ea13602595
+3b61a8ce529c68ae2bb39e2cea2f77ea13602595
+bd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3
+507477988ae381f05e1e8dc823d8479590b1efa1
+git diff --stat 321581d1850686070afc9ea08621bd6d405dbb08 3b61a8ce529c68ae2bb39e2cea2f77ea13602595
+2 files changed,24 insertions(+),2 deletions(-)
+git ls-remote origin refs/heads/codex/archive-hardware-firstboot-3215-20261010
+321581d1850686070afc9ea08621bd6d405dbb08 refs/heads/codex/archive-hardware-firstboot-3215-20261010
+gh pr view 225 --json headRefOid,state,mergeStateStatus,statusCheckRollup,url
+headRefOid=3b61a8ce529c68ae2bb39e2cea2f77ea13602595 state=OPEN mergeStateStatus=UNSTABLE
+Mandatory quick38056374923 IN_PROGRESS
+Offline packaging/signing38056374912 SUCCESS
+```
+
+Fresh complete quick and expected-head/main checks remain required before merge.
+New native artifacts completed on distinctee202 source, as precisely reviewed in
+[the four-package report](hardware-evidence-review-20261010-upgrade-four.md).
+The test-only correction does not relabel their producer source or claim current
+target seed/physical NIC/forwarding/reboot acceptance.

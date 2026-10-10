@@ -36,7 +36,7 @@ Final preceding checkpoint `00dbea93801932b1b7555ea383c815af803ca99f` published/
 
 Branch `codex/hardware-37-20261010`; worktree `/root/ngfw-wt/hardware-37-20261010`; remote host `root@172.30.126.37`. Owned files are `docs/status/tasks/hardware-37-20261010*`.
 
-Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint before this recovery-resume update: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `acc50f0a4c9aeda10edd15246a09b2cc4bd540cd` after successful `git push origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
+Starting local SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`. Last verified published checkpoint before this recovery-resume update: local HEAD and remote `refs/heads/codex/hardware-37-20261010` both `bd8f4ce214bc78ab517d3b59ba8c8cec6603fcb5` after successful `git push origin codex/hardware-37-20261010`. Each subsequent checkpoint publication is verified with `git ls-remote origin refs/heads/codex/hardware-37-20261010`; the output SHA, rather than an unverified promise, is publication evidence. The commit containing a subsequent status update identifies the next checkpoint without a self-referential SHA.
 
 Actual repository verification: `tools/ci.sh check --base origin/main` printed `check PASSED (0m43s)` for the first checkpoint and `check PASSED (0m14s)` for subsequent checkpoints. No broad local quick/integration run was duplicated; the exact final PR complete hosted quick was independently verified as described above. No product code has changed in this worker's branch and installation acceptance remains NOT RUN.
 
@@ -115,7 +115,7 @@ Manager subsequently authorized read-only fallback commands through the same str
 
 ## Prepared installation and testing plan
 
-1. Owner/manager provides console or recovery access. Export protected network configuration and routes without secrets; ensure data backup/recovery is agreed before offline repair. Reboot alone is insufficient because automatic fsck already refused the filesystem; arbitrary repair while root is mounted is prohibited.
+1. Use the manager-reviewed RAM soft transition only after .211 normal return and explicit .37 phase release. Preserve held authenticated RAMPTY and original22 until transfer. Prove all namespaces/process references/block holders clear and exact exclusive guard0; preserve measured metadata, affected raw blocks and undo/logs privately/offhost before corrective writes. Full userdata backup is unavailable and not claimed. User already authorizes logical repair despite wear; mounted-root repair remains prohibited.
 2. Once filesystem is repaired offline and management returns, repeat root-filesystem/dmesg/fsck preflight. Compare management IP/routes/driver/netplan to above. Verify disk health with available approved tooling and synchronize clock.
 3. Receive manager's current-main payload, verify provenance, version, sha256 and supported Ubuntu/architecture. Inspect final package maintainer scripts and unit enable/start behavior with independent reviewer. Snapshot existing route/rule/address/firewall/netplan/service state and make protected configuration backup; arm an explicit management recovery mechanism before changing services.
 4. Install using verified local payload and a service-start policy boundary. Preserve root SSH, exact netplan and every management route; do not load appliance firewall blindly. Complete firstboot with secure generated credentials stored only in mode0600 target files; never report them in evidence. Start services in verified order and test SSH from a second session.
@@ -126,12 +126,20 @@ Manager subsequently authorized read-only fallback commands through the same str
 
 ## Remaining work and exact next command
 
-No installation or dataplane tests have run. Blocked by root filesystem corruption and pending manager payload/reviewer verdict. Continue preparing reviewed payload and recovery instructions without target mutations.
+Original installation/dataplane acceptance is NOT RUN; root filesystem corruption remains. User already authorizes logical offline repair despite known wear. No further user permission/console input is required merely to continue preparing the reviewed RAM route. Manager sequences .211 first and has not released .37 transition; retain original22 and held RAMPTY30565/shell3940. Candidate RAM stage/runtime/authentication and narrow audit tooling are reviewed/tested as above. Full .37 offline reference/device proof, metadata/affected-block/undo preservation, actual repair/clean recheck, verified original boot/auth/network return and installation still remain. Live mounted inode/SMART/read samples do not substitute for those gates.
 
-Required recovery input is either (a) owner-provided usable physical/serial/IPMI/KVM console or recovery-boot access, with the root filesystem unmounted for an agreed offline repair, or (b) owner/operator confirmation that offline repair has completed, including the actual filesystem-check result and restored management reachability. Merely authorizing a reboot does not provide console recovery from the existing manual-fsck failure. No console/recovery path has been supplied at handoff.
-
-After manager reports offline recovery complete, exact first command:
+Exact immediate read-only command if manager asks a fresh management readiness check (do not transition):
 
 ```sh
-ssh -o BatchMode=yes -o ConnectTimeout=15 root@172.30.126.37 'findmnt -no SOURCE,FSTYPE,OPTIONS /; systemctl status systemd-fsck-root.service --no-pager; tune2fs -l /dev/sda2 | sed -n "/Filesystem state/p;/FS Error count/p;/Last error/p"; dmesg | tail -60; ip -br addr; ip route show table all; ip route get 172.30.126.195'
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@172.30.126.37 'test -d /proc/3940 && test ! -e /run/nextroot && systemctl is-active ngfw-rescue.service && ip route get 172.30.126.195'
 ```
+
+Do not rerun --stage over the existing RAM root or run fsck on mountedroot. After manager releases a reviewed .37 phase, use the exact published transition procedure and live heldPTY; then all-user-process/namespace audit plus exclusive block-check0 must precede preservation and corrective writes. No recovery command is inferred from .211 status alone. Native metadata/affected-block/undo plan must account for e2image-Q's actual failure on .211 invalid extents and .37's three mapped invalid ETB0 nodes.
+
+After repaired filesystem/normal originalSSH return, exact first installation preflight command:
+
+```sh
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@172.30.126.37 'findmnt -no SOURCE,FSTYPE,OPTIONS /; systemctl status systemd-fsck-root.service --no-pager; tune2fs -l /dev/sda2 | sed -n "/Filesystem state/p;/FS Error count/p;/Last error/p"; dmesg | tail -60; ip -br addr; ip route show table all; ip route get 172.30.126.195'
+```
+
+Then follow owned install-plan.md: verify actual cleanFS/management/nativefirewall; reviewed resolver simulation/critical-upgrade inspection; preserve originalstartpolicy/masks; HugePages reservation; canonical firstboot/noPCI; explicit seed opt-in before firstoperatorrevision/bind; persist exact seven data NICs with management excluded; manager-reviewed guarded DPDK ownership and actual acceptance. Previous console-only recovery handoff is historical and superseded by the reviewed RAM route/user repair authorization.

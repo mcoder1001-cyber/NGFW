@@ -1,0 +1,55 @@
+=== RUN   TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI
+    daemon_integration_test.go:73: private fixture link name=lo kind=
+    daemon_integration_test.go:73: private fixture link name=ip6tnl0 kind=ip6tnl
+    daemon_integration_test.go:73: private fixture link name=gre0 kind=gre
+    daemon_integration_test.go:73: private fixture link name=gretap0 kind=gretap
+    daemon_integration_test.go:73: private fixture link name=erspan0 kind=erspan
+    daemon_integration_test.go:73: private fixture link name=outer0 kind=dummy
+    daemon_integration_test.go:73: private fixture link name=inner0 kind=dummy
+    daemon_integration_test.go:102: actual guarded private strongSwan6.1 profile load and VICI empty-session readback PASS; packet negotiation remains a separate acceptance
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-4d97bf0bbc443a66034cb4361e0a0c76/031cbcc3d2d6865c037ae1408ce8d33318e5b84a0afc0926bf9c5b26a1b83b97-startup.log
+--- PASS: TestIntegrationPrivateEngineLoadsProfileThroughVerifiedVICI (1.09s)
+=== RUN   TestIntegrationPrivateEAPNegotiationAndObservedDisconnect
+    eap_integration_test.go:268: actual private eap-mschapv2 VIP/session negotiation, observed disconnect, connection/pool empty rollback PASS
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-2316799351f165861e70cbec733ade30/ee9464cca6f37a45d80fa967c3a4fe2817d912485d7100bc7a1c1eecc5d8e874-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-0046dc7a7859526ec5748485f6020bf5/d55338faf96be2f3f7eab1c449e55fdf8ee093fbe3d9ef0f8be27815a5802a28-startup.log
+--- PASS: TestIntegrationPrivateEAPNegotiationAndObservedDisconnect (2.16s)
+=== RUN   TestIntegrationPrivateEAPBadPasswordRefused
+    eap_integration_test.go:203: bounded authentication rejection marker: EAP method EAP_MSCHAPV2 failed
+    eap_integration_test.go:215: actual private authentication refused: bad-password
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-9f7dbd493a97e9a6fabf35e5866b8b1c/ee9464cca6f37a45d80fa967c3a4fe2817d912485d7100bc7a1c1eecc5d8e874-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-c863077d896827efea4645fe16249a24/d55338faf96be2f3f7eab1c449e55fdf8ee093fbe3d9ef0f8be27815a5802a28-startup.log
+--- PASS: TestIntegrationPrivateEAPBadPasswordRefused (2.15s)
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/valid
+    eap_integration_test.go:268: actual private eap-tls VIP/session negotiation, observed disconnect, connection/pool empty rollback PASS
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-b18ab5c0ea5218fe04610b9c3388bd94/ee9464cca6f37a45d80fa967c3a4fe2817d912485d7100bc7a1c1eecc5d8e874-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-7d38c733d6520bb92739148ebbd9241b/d55338faf96be2f3f7eab1c449e55fdf8ee093fbe3d9ef0f8be27815a5802a28-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked
+    eap_integration_test.go:203: bounded authentication rejection marker: certificate was revoked
+    eap_integration_test.go:203: bounded authentication rejection marker: revoked
+    eap_integration_test.go:215: actual private authentication refused: revoked
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-da10e5ba7a661352cba2da86646f9d5b/ee9464cca6f37a45d80fa967c3a4fe2817d912485d7100bc7a1c1eecc5d8e874-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-0a8fcc66148a5714fb46c44f61ec197f/d55338faf96be2f3f7eab1c449e55fdf8ee093fbe3d9ef0f8be27815a5802a28-startup.log
+=== RUN   TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign
+    eap_integration_test.go:203: bounded authentication rejection marker: no trusted
+    eap_integration_test.go:215: actual private authentication refused: foreign
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-2dda45c28433bee2157a2a47d24eea72/ee9464cca6f37a45d80fa967c3a4fe2817d912485d7100bc7a1c1eecc5d8e874-startup.log
+    daemon_integration_test.go:154: RA_FIXTURE_PHASE=8
+    daemon_integration_test.go:161: private startup evidence /dev/shm/ngfw-ra-lab-20261010/evidence/launch-d1a865727c409565ce72de95a1608b64/d55338faf96be2f3f7eab1c449e55fdf8ee093fbe3d9ef0f8be27815a5802a28-startup.log
+--- PASS: TestIntegrationPrivateEAPTLSCertificateAcceptance (6.14s)
+    --- PASS: TestIntegrationPrivateEAPTLSCertificateAcceptance/valid (2.08s)
+    --- PASS: TestIntegrationPrivateEAPTLSCertificateAcceptance/revoked (2.02s)
+    --- PASS: TestIntegrationPrivateEAPTLSCertificateAcceptance/foreign (2.04s)
+PASS
+ok  	ngfw/agent/internal/ra_vpn	11.605s

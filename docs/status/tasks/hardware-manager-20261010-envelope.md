@@ -121,3 +121,5 @@ inactive units; no .37 package/firstboot/NIC changes until reviewed actual gates
 ROOT same-campaign owns physical-apply-37.py and its contract; worker owns separate211retry. Read originalworker8d4 as source reference only, neverexecuteits obsolete211tuple.
 
 ROOTsamecampaign additionally owns physical-native-37.py+contract fortrue7native1physicalacceptance; worker257native211 remainsREADonlysource reference.
+
+ROOTsamecampaign owns boot.py+contract for3ownedunitenablement(no--now), ownerauthorizedreboot andpostbootreadonlyacceptance, plusnarrowpostboot-nativeproof selectorsinROOTphysical-native37/workerphysical-native211 afteractualbootproof. No foreignenablement orsharedcontrollerVPP change.

@@ -21,6 +21,8 @@ def checked(args,input=None):
  p=run(args,input);assert p['exit']==0,(args,p['exit']);return p['stdout']
 def value(unit,property):return checked(['systemctl','show',unit,'-p',property,'--value']).strip()
 def l3():return {'addresses':{x['ifname']:x.get('addr_info',[]) for x in json.loads(checked(['ip','-j','addr']))},'routes4':json.loads(checked(['ip','-j','-4','route','show','table','all'])),'routes6':json.loads(checked(['ip','-j','-6','route','show','table','all'])),'rules4':json.loads(checked(['ip','-j','-4','rule'])),'rules6':json.loads(checked(['ip','-j','-6','rule']))}
+KEYS=['vm.nr_hugepages','vm.hugetlb_shm_group','kernel.shmmax','net.ipv4.ip_forward','net.ipv6.conf.all.forwarding','net.ipv4.conf.all.rp_filter','net.ipv4.conf.default.rp_filter','net.ipv4.conf.enp4s0.rp_filter','net.ipv4.conf.enp4s0.forwarding','net.ipv4.conf.all.accept_redirects','net.ipv4.conf.enp4s0.accept_redirects','net.ipv6.conf.all.disable_ipv6','net.ipv6.conf.default.disable_ipv6','net.ipv6.conf.enp4s0.disable_ipv6','net.ipv6.conf.all.accept_ra','net.ipv6.conf.enp4s0.accept_ra']
+def sysctls():return {k:(pathlib.Path('/proc/sys')/k.replace('.','/')).read_text().strip() for k in KEYS}
 def nft():return json.loads(checked(['nft','-j','list','ruleset']))
 def objects(doc):return [x for x in doc['nftables'] if 'metainfo' not in x]
 def write_new(p,raw,mode=0o600):
@@ -40,9 +42,11 @@ def guards():
  marker=pathlib.Path('/var/lib/ngfw-install-recovery/hardware-211-20261010/state.json');assert hashlib.sha256(marker.read_bytes()).hexdigest()=='146f46835119cb7341fce3974a40378bf5feab8159e419f962ded1a28d4ec792'
  dev=pathlib.Path('/sys/class/net/enp4s0/device');assert dev.resolve().name=='0000:04:00.0' and (dev/'driver').resolve().name=='igc' and (dev/'iommu_group').resolve().name=='28'
  route=json.loads(checked(['ip','-j','route','get','172.30.126.195']))[0];assert route.get('dev')=='enp4s0' and route.get('prefsrc')=='172.30.110.211'
-guarded=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','snmpd.service','keepalived.service']
+guarded=['vpp.service','ngfw-agent.service','ngfw-api.service','nginx.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','snmpd.service','keepalived.service','chrony.service','rsyslog.service','apply-executor.socket','ngfw-ra-openfile.socket','ngfw-ra-namespace-broker.socket']
 guards();before=l3();assert before==L3_BASELINE
-assert all(value(u,'ActiveState')=='inactive' for u in guarded+['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service'])
+before_states={u:value(u,'ActiveState') for u in guarded+['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']}
+assert all(v=='inactive' for v in before_states.values())
+sys_before=sysctls()
 assert all(not os.path.lexists(p) for p in ['/etc/ngfw/bootstrap.env','/etc/ngfw/api.env','/etc/ngfw/base-policy.env','/var/lib/ngfw/firstboot-complete','/var/lib/ngfw/secret.key','/etc/ngfw/tls/server.key','/etc/ngfw/tls/server.crt',str(record)])
 for path,digest in SCRIPT_HASHES.items():
  p=pathlib.Path(path);s=p.lstat();assert stat.S_ISREG(s.st_mode) and s.st_uid==0 and not s.st_mode&0o022 and hashlib.sha256(p.read_bytes()).hexdigest()==digest
@@ -72,7 +76,7 @@ assert active==[['/etc/sysctl.d/80-vpp.conf','vm.nr_hugepages=1024'],['/etc/sysc
 kernel_before=checked(['dmesg','--color=never']);ioerr_before=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip()
 audit=run(['dpkg','--audit']);assert audit['exit']==0 and not audit['stdout'] and not audit['stderr']
 startup=pathlib.Path('/etc/vpp/startup.conf');st=startup.lstat();assert stat.S_ISREG(st.st_mode) and st.st_uid==0 and hashlib.sha256(startup.read_bytes()).hexdigest()==STARTUP_SHA
-pre={'network':before,'nft':nft_before,'VM_nr_hugepages':0,'VM_hugetlb_shm_group':0,'80_vpp_sha256':hashlib.sha256(pathlib.Path('/etc/sysctl.d/80-vpp.conf').read_bytes()).hexdigest(),'startup_conf_before':startup.read_text(),'startup_metadata':{'uid':st.st_uid,'gid':st.st_gid,'mode':stat.S_IMODE(st.st_mode),'sha256':STARTUP_SHA},'pg_listen':pg_listen,'ioerr':ioerr_before,'meminfo':mem,'unit_baseline_sha256':hashlib.sha256(UNIT_BASELINE.encode()).hexdigest()}
+pre={'states':before_states,'sysctls':sys_before,'network':before,'nft':nft_before,'VM_nr_hugepages':0,'VM_hugetlb_shm_group':0,'80_vpp_sha256':hashlib.sha256(pathlib.Path('/etc/sysctl.d/80-vpp.conf').read_bytes()).hexdigest(),'startup_conf_before':startup.read_text(),'startup_metadata':{'uid':st.st_uid,'gid':st.st_gid,'mode':stat.S_IMODE(st.st_mode),'sha256':STARTUP_SHA},'pg_listen':pg_listen,'ioerr':ioerr_before,'meminfo':mem,'unit_baseline_sha256':hashlib.sha256(UNIT_BASELINE.encode()).hexdigest()}
 if not APPLY:print(json.dumps({'preflight':pre,'read_only':True},indent=2))
 else:
  for directory in [record.parent,pathlib.Path('/etc/ngfw'),pathlib.Path('/etc/vpp')]:
@@ -87,14 +91,14 @@ else:
  disable=run(['systemctl','disable','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','snmpd.service','keepalived.service'])
  if disable['exit']!=0:print(json.dumps({'preflight':pre,'disable':disable,'partial':True},indent=2));raise SystemExit(disable['exit'])
  firstboot=run(['systemctl','start','ngfw-firstboot.service'])
- after=l3();nft_after=nft();states={u:value(u,'ActiveState') for u in guarded+['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']}
+ after=l3();nft_after=nft();sys_after=sysctls();sys_expected=dict(sys_before,**{'vm.nr_hugepages':'1024'});states={u:value(u,'ActiveState') for u in guarded+['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']}
  files={}
  for name in ['/etc/ngfw/api.env','/var/lib/ngfw/secret.key','/etc/ngfw/tls/server.key','/etc/ngfw/tls/server.crt','/var/lib/ngfw/firstboot-complete','/etc/vpp/startup.conf']:
   p=pathlib.Path(name)
   if not p.exists():files[name]={'exists':False};continue
   s=p.lstat();files[name]={'exists':True,'regular':stat.S_ISREG(s.st_mode),'uid':s.st_uid,'gid':s.st_gid,'mode':stat.S_IMODE(s.st_mode),'bytes':s.st_size,'sha256':hashlib.sha256(p.read_bytes()).hexdigest()}
  env=pathlib.Path('/etc/ngfw/api.env');keys=[line.split('=',1)[0] for line in env.read_text().splitlines()] if env.is_file() else []
- startup_text=startup.read_text();device_lines=[x for x in startup_text.splitlines() if re.match(r'\s*dev\s',x)];safe_no_pci=not device_lines and ('  no-pci\n' in startup_text or 'plugin dpdk_plugin.so { disable }' in startup_text) and ('blacklist 0000:04:00.0' in startup_text or 'plugin dpdk_plugin.so { disable }' in startup_text)
+ startup_text=startup.read_text();device_lines=[x for x in startup_text.splitlines() if re.match(r'\s*dev\s+(?!default(?:\s|\{))',x)];safe_no_pci=not device_lines and ('  no-pci\n' in startup_text or 'plugin dpdk_plugin.so { disable }' in startup_text) and ('blacklist 0000:04:00.0' in startup_text or 'plugin dpdk_plugin.so { disable }' in startup_text)
  other_objects=[x for x in objects(nft_after) if not any(isinstance(v,dict) and ((k=='table' and v.get('name')=='ngfw_base' and v.get('family')=='inet') or (k!='table' and v.get('table')=='ngfw_base' and v.get('family')=='inet')) for k,v in x.items())]
  table=[v['table'] for v in objects(nft_after) if 'table' in v];owned_table_only=len(table)==1 and table[0].get('family')=='inet' and table[0].get('name')=='ngfw_base' and other_objects==NFT_BASELINE
  guard_error=None
@@ -102,9 +106,9 @@ else:
  except BaseException as e:guard_error=type(e).__name__+': '+str(e)
  ioerr_after=pathlib.Path('/sys/block/sda/device/ioerr_cnt').read_text().strip();kernel_after=checked(['dmesg','--color=never']);new_lines=kernel_after.splitlines()[len(kernel_before.splitlines()):] if kernel_after.startswith(kernel_before) else None
  bad=re.compile(r'(EXT4-fs error|Buffer I/O error|I/O error, dev sda|ata\d.*(hard resetting|failed command|error:.*(UNC|ICRC)))',re.I);new_storage=None if new_lines is None else [x for x in new_lines if bad.search(x)]
- result={'preflight':pre,'disable':disable,'firstboot':firstboot,'journal':run(['journalctl','--no-pager','-u','ngfw-firstboot.service','-u','ngfw-firewall-bootstrap.service','-n','200']),'network_before':before,'network_after':after,'network_equal':before==after,'nft_before':nft_before,'nft_after':nft_after,'owned_table_only':owned_table_only,'states':states,'files':files,'api_env_keys':keys,'safe_initial_noPCI':safe_no_pci,'startup_conf':startup_text,'bootstrap_removed':not os.path.lexists('/etc/ngfw/bootstrap.env'),'guard_error':guard_error,'VM_nr_hugepages':pathlib.Path('/proc/sys/vm/nr_hugepages').read_text().strip(),'ioerr_before':ioerr_before,'ioerr_after':ioerr_after,'kernel_before':kernel_before,'kernel_after':kernel_after,'new_storage_errors':new_storage,'no_VPP_API_agent_nginx_activation_or_binding':all(states[u]=='inactive' for u in guarded)}
+ result={'sysctls_after':sys_after,'sysctls_only_expected_nr_change':sys_after==sys_expected,'preflight':pre,'disable':disable,'firstboot':firstboot,'journal':run(['journalctl','--no-pager','-u','ngfw-firstboot.service','-u','ngfw-firewall-bootstrap.service','-n','200']),'network_before':before,'network_after':after,'network_equal':before==after,'nft_before':nft_before,'nft_after':nft_after,'owned_table_only':owned_table_only,'states':states,'files':files,'api_env_keys':keys,'safe_initial_noPCI':safe_no_pci,'startup_conf':startup_text,'bootstrap_removed':not os.path.lexists('/etc/ngfw/bootstrap.env'),'guard_error':guard_error,'VM_nr_hugepages':pathlib.Path('/proc/sys/vm/nr_hugepages').read_text().strip(),'ioerr_before':ioerr_before,'ioerr_after':ioerr_after,'kernel_before':kernel_before,'kernel_after':kernel_after,'new_storage_errors':new_storage,'no_VPP_API_agent_nginx_activation_or_binding':all(states[u]=='inactive' for u in guarded)}
  print(json.dumps(result,indent=2))
- success=firstboot['exit']==0 and before==after and owned_table_only and safe_no_pci and guard_error is None and result['bootstrap_removed'] and set(keys)=={'NGFW_DATABASE_URL','NGFW_SECRET_KEY_FILE','NGFW_JWT_SECRET'} and len(keys)==3 and ioerr_before==ioerr_after and new_storage==[] and all(states[u]=='inactive' for u in guarded) and all(states[u]=='active' for u in ['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']) and files['/etc/ngfw/api.env'].get('mode')==0o600 and files['/etc/ngfw/api.env'].get('uid')==0 and files['/var/lib/ngfw/secret.key'].get('bytes')==32 and files['/var/lib/ngfw/secret.key'].get('mode')==0o600
+ success=firstboot['exit']==0 and sys_after==sys_expected and before==after and owned_table_only and safe_no_pci and guard_error is None and result['bootstrap_removed'] and set(keys)=={'NGFW_DATABASE_URL','NGFW_SECRET_KEY_FILE','NGFW_JWT_SECRET'} and len(keys)==3 and ioerr_before==ioerr_after and new_storage==[] and all(states[u]=='inactive' for u in guarded) and all(states[u]=='active' for u in ['ngfw-firstboot.service','ngfw-firewall-bootstrap.service','nftables.service','postgresql.service','postgresql@18-main.service','valkey-server.service']) and files['/etc/ngfw/api.env'].get('mode')==0o600 and files['/etc/ngfw/api.env'].get('uid')==0 and files['/var/lib/ngfw/secret.key'].get('bytes')==32 and files['/var/lib/ngfw/secret.key'].get('mode')==0o600
  raise SystemExit(0 if success else (firstboot['exit'] or 2))
 '''
 def save(path,raw):

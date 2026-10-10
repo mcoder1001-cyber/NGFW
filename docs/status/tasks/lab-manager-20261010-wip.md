@@ -9,3 +9,5 @@ Own builds and logs /tmp/ngfw-lab-manager-20261010, own private RA helper and se
 Current own agent built, race agent test binary compiling. RA first run fails sandbox phase2 because test workspace TMPDIR outside /dev/shm; failures retained. Next retry with protected /dev/shm/ngfw-ra-lab-20261010/tmp. Broker capability/SCM_RIGHTS boundary test PASS. No RA acceptance/task closure claimed.
 
 Next: tail docs/status/tasks/lab-manager-20261010-evidence/ra-private-run1.txt; await race build session42855; run six current-source host groups with existing test-closeout runner after private VPP budget available, then run same exact test artifacts on250 privately where feasible. Reconcile worker full criteria, publish independent review and receipts, update board only for complete acceptance.
+
+Temporary filesystem prerequisite: ext4 /dev/sda2 original reserved2099368blocks,4096bytes. Root had1768795freeblocks but0unreserved; FRR/PG uid writes failed ENOSPC. Temporarily set reserve2percent (1046072blocks), freeing unreserved ~2.7GiB without deleting any files. Restore exact original count with tune2fs -r2099368 /dev/sda2 after all test databases and artifacts clean up.

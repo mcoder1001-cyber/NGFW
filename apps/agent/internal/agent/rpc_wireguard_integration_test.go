@@ -52,9 +52,10 @@ import (
 
 // wgHost is one in-process agent (wiring + service) over the host VPP.
 type wgHost struct {
-	svc    *Service
-	cancel context.CancelFunc
-	events chan *ngfwv1.Event
+	svc         *Service
+	cancel      context.CancelFunc
+	closeWiring func()
+	events      chan *ngfwv1.Event
 }
 
 func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[string][]byte) *wgHost {
@@ -76,6 +77,7 @@ func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[strin
 		t.Fatal(err)
 	}
 	t.Cleanup(w.Close)
+	h.closeWiring = w.Close
 	for ref, m := range secrets {
 		if err := subsystems.WireguardSecretsFor(owner).Put(ref, m); err != nil {
 			t.Fatal(err)
@@ -94,6 +96,7 @@ func startWgHost(t *testing.T, c *vpp.Conn, owner, dir string, secrets map[strin
 func (h *wgHost) stop() {
 	h.svc.Close()
 	h.cancel()
+	h.closeWiring()
 }
 
 func nrestarts(t *testing.T) string {

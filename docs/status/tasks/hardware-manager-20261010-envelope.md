@@ -56,3 +56,16 @@ ask again for replacement/repair permission or park .37 for wear alone. Preserve
 scoped backups/metadata/undo and verify offline root as planned. New actual media
 read/uncorrectable/reset failures still require diagnosis before corrective writes.
 Original package installation/testing objective remains active after both repairs.
+
+Current coordination update (2026-10-10 12:01 UTC): actual offline logical repairs/completeclean
+checks and durable rawundos bothPASS, both kernels returned withoriginal22. Whole
+37normalacceptance pending;211packages configuredPASS. Root manager exclusively
+owns real physicaldriverbinding plus guarded async startup --apply, coordinated
+with the host worker and reviewed exact whitelist/rendering/rollback evidence.
+Workers retain ownhost recovery/install/runtime/seed/readiness/acceptance work and
+ownprivate receipt directories. Rootmanager writes only ownprivate parent receipts
+and ownedtaskfiles; never edits foreign worktrees. Historical initial console
+request above was superseded by observed/reviewed matchingRAM recovery; owner
+authorizes repair/install/test/reboot and accepts37wear without repeated approval.
+Active chat workers:host37+host211; R7evidence_review independent reviewer.
+Departed install_review is not counted live; no persistent supervisor claimed.

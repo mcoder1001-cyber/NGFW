@@ -1,3 +1,58 @@
+# Actual .37 kernel return and ordered runtime preparation — 2026-10-10 12:01 UTC
+
+.37 exact single-force skip-auto-soft/kexec normal return actually executed:
+private634B receipt SHA935efd04374d04c20439ce77173d46cda02cada0ca580c1beacc0c69aeae192c,
+SSH0/request marker. Freshoriginal22 reconnect attempt2 SSH0/newkernelboot
+c8d66ea9-afab-4228-a293-00c198745040. Root independent fresh22 receipt
+manager-postboot-37.json3268B0600/fsynced/SHA46de7bdfdda694b03f8ca5b7a78ffdef421d7751e1e52adaf395410d541eccb8
+confirms original/dev/sda2ext4rw/clean, bootfsckResultsuccess/ExecMainStatus0,
+SSHactive, controllerroute enp12s0/source37, protected0cigc/group58, nextrootabsent.
+Worker wholepostboot49objects+2records/all5L3/DNS/PCI/storage capture pending.
+Readonly first capture refused ATA DRMfunctions banner because broad unc regex;
+no real media error; newkernel counter0x6 distinct from old0x9. Known .211 token
+boundary correction carried into dba1d872, focused R7 sourceAPPROVE; preservev1
+refusal, publish/readback and already-authorized distinctv2capture. No duplicate
+reboot or extra manager question. Fullnormalacceptance still pending actualreceipt.
+
+.211 firstboot final source1989f04b3a616a57e4db98a8737de91689be7fdc102720d08529f70823b5878a
+moves private original-state record to sibling task-firstboot directory. This fixes
+actual downstream startguardrestore emptytaskdir contract before execution; old
+nested-record candidate never executed. Published/readbackcf51b3a1cb868f4f3d67c20b0e3efe397666a368,
+R7 focusedAPPROVE; same conditional firstboot release after actualfull37normalPASS.
+Seed inputse57d855d source independently full-read byroot/R7; fresh remotebranch
+8cfdea5a6c7ecd3b7171a79774b34eabd7a73eb0. Root conditional INPUTS+GUARDRESTORE
+release after actualfirstboot PASS: exactroot600 agent.env managementenp4/04,
+root644 API unitseedflag, canonical secret-bearingapi.env stays3keys, private
+fsynced sibling originals; no service/revision/bind. Then identitychecked original
+2530bc53 guardrestore whileVPPinactive+all17kernel names/fullL3 intact, restore
+original policy+mask ABSENT and remove onlyownedtaskmarker, retain siblingrecords.
+
+Initialruntime/actualSeedService acceptance remains upcoming. Caller-aware source
+resolves suspected missing-VPP seed concern: projection.go SplitUnboundPhysical
+filters stillkernel seededphysical rows before alias/admin descriptors, emits
+agent.nic-not-bound warnings and allows native normalcommit of revision1 before
+binding. No productfix/DBbypass needed; actual17/7seededrows stillmandatory.
+Root read projection+physical_nics_test and R7 independently corroborated.
+
+Real physicalbinding+startupapply is MANAGER ONLY. Workers prepare actualseeded
+runningdoc/dryrun/originaldriver+override+bridge/IOMMU/protectedgroup/rollback facts;
+root alone executes coordinated realVFIO plus async product --apply with exact
+live/render/approve hashes and managementTCPprobe. If binding precedes apply,
+apply's snapshot baseline is alreadyVFIO; explicit finite originalkernel-driver/
+override restoration on failedstartup is required, withVPPstopped beforeunbind.
+No sharedhostVPP or management/netplan apply. Workers make no concurrent writes
+while rootmanager applies. Realpacket traffic unavailable until actualdata carrier.
+
+Fresh main4cda4687584ff6e18aff659b5d2c562704ed4fe5 includes unrelatedPR220testmerge;
+unchanged complete main gate38049694822 SUCCESS, prior218 gate38048002335 SUCCESS.
+Hardware217 merge/main gate previouslyPASS, immutable2045payload unchanged.
+Fresh boardfca789c5:212=205merged+7parked; wider live inventory unverifiable.
+Root previous9bb96712bdacd5047e330bbf0756ec0cb38143b2 push/readbackPASS; coherent
+currentnormal-return and ordered phase contract immediately publishes.
+Exact next: worker37 fullreadonlyv2normalproof, then211firstboot/inputs/guardrestore;
+37 normalguardprep/actualsolver+native-skip installation; runtime/seed evidence,
+manager physicalapply and actualacceptance/reboot remain required.
+
 # Actual .37 return proof and normal-return release — 2026-10-10 11:51 UTC
 
 Root independently parsed/full-read/hashchecked private638780B0600 receipt

@@ -1,3 +1,15 @@
+## Current — 2026-10-10 15:39 UTC — ONE hardware campaign RUNNING
+
+تعمیر منطقی فایل‌سیستم هر دو ماشین و نصب بسته‌های اصلاح‌شده کامل شده است.
+اصلاحات PR225 و PR226 ادغام شده‌اند و CI کامل main موفق است.
+راه‌اندازی واقعی ۱۷ رابط ماشین ۲۱۱ تأیید شد؛ بررسی API و ریبوت باقی است.
+۷ رابط ماشین ۳۷ متصل شده‌اند و راه‌اندازی آن‌ها در بررسی سلامت است.
+پورت مدیریت و مسیرهای محافظت‌شده محفوظ‌اند؛ تسک کلی هنوز Done نیست.
+
+PR226 expected-head merge0c21e65eea8b2d2cfb61f57ec9f6b57a0e6c55f3/mainquick38062974117 SUCCESS is DONE source phase. Both exact four97ae installs and owned guard restores independently PASS. Current211 physical COMMITTED17 actual1fc16adf15b23cb2e3301805b087a3c7272a4edced005e8b3c83f8f354ae08ae: real17PCI, pool66297, VPP75177active0, nativeunitterminalsuccess, canonicallocksreleased, wholelaunchkernelwindow no storageerrors; independentreview before native API/agent resume pending. Actual37record e183/7VFIO bind6e1/oncecanonicallaunch f2b391c2a0f94012788cb0583f2125a92069a76e4f1e8ac2bd7c5d5d4b429825 work153748-31399; currentlynativeunitactive/VPP31714active0, no terminalPASS/relaunch. All original records/failure logs retained. Root sole target mutation owner, source worker211 and independent reviewer verified alive; departed37/installreview inactive. No persistent runner. Board212=205merged/7parked; no unrelated task started or markedDone. Next actualterminal37 and independentlyreviewed native runtime17/7, enableONLY3ownedunits without--now, sequential authorized reboot/freshSSH/newUUID/fullstorage/timezone/L3 and repeated nativephysical acceptance. Actual unwired packet forwarding/throughput must remain explicit; no claim until a peer exists.
+
+---
+
 ## Current — 2026-10-10 15:11 UTC — same ONE hardware campaign RUNNING
 
 Disk logical repairs and firstboot correction PR225 are DONE with actual bothhost/runtime evidence. New EALsource PR226 independentlyreviewed48af and unchangedcompletequick38061529505 SUCCESS/actualCI GATE PASSED; expectedhead/freshmain/d112singlecommit merge succeededundercanonicalmainlock:0c21e65eea8b2d2cfb61f57ec9f6b57a0e6c55f3 exactparentsd1f3+48af/treeeea909. Newmainquick38062974117IN_PROGRESS; source integration notfullyDoneuntilmainCIgreen. Nativecompiled97ae(productpathsidentical48af,docs-onlydelta) full41packagingfixtures/independentarchivesandpackagedgeneratorchecksPASS. Bothfourarchives uploaded and independentlyreviewed actualsimulatedplans4Inst/0Remv. Actual211INSTALL failedAPT100 beforechanges becauseGit-suffixversionorderingrequiresboundedallow-downgrades; workerexact4/logretentionfixpendingR7review/freshsim before retry. .37INSTALL notrun. Currentinstallednativeversionstillee202onBOTH, new97ae NOTinstalled.

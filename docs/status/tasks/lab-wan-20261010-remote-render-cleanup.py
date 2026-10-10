@@ -10,6 +10,24 @@ for parent in (root,*root.parents):
 identity=(root.stat().st_dev,root.stat().st_ino)
 assert identity==(2050,268536),'previously recorded remote token replaced'
 assert not os.path.lexists('/run/netns/'+TOKEN) and not os.path.lexists('/run/ngfw-pppoe-carrier/'+TOKEN+'.json')
+def no_live_references():
+ roots=(str(root),'/run/netns/'+TOKEN)
+ def references(value):return any(value==owned or value.startswith(owned+'/') for owned in roots)
+ for proc in Path('/proc').iterdir():
+  if not proc.name.isdigit() or int(proc.name)==os.getpid():continue
+  try:
+   before=(proc/'stat').read_text().split(') ',1)[1].split()
+   if before[0]=='Z':continue
+   cwd=os.readlink(proc/'cwd').removesuffix(' (deleted)')
+   argv=[item.decode() for item in (proc/'cmdline').read_bytes().split(b'\0') if item]
+   assert not references(cwd) and not any(references(arg) for arg in argv),'live process references owned token'
+   assert not any(references(row.split()[4]) for row in (proc/'mountinfo').read_text().splitlines()),'live process retains owned token mount'
+   after=(proc/'stat').read_text().split(') ',1)[1].split()
+   assert after[19]==before[19],'PID changed during admission'
+  except (FileNotFoundError,ProcessLookupError):
+   assert not proc.exists(),'unreadable live process reference'
+ assert not any(references(row.split()[4]) for row in Path('/proc/self/mountinfo').read_text().splitlines())
+no_live_references()
 unit='ngfw-pppoe-carrier@'+TOKEN+'.service'
 def properties():
  out=subprocess.run(['systemctl','show',unit,'-p','MainPID','-p','ActiveState','-p','FragmentPath'],check=True,capture_output=True,text=True).stdout
@@ -34,8 +52,10 @@ for path in root.rglob('*'):
  snapshots.append((path,info.st_dev,info.st_ino,digest))
 print('REMOTE_OWNED_RENDER_LEFTOVERS '+json.dumps([{'relative':str(p.relative_to(root)),'dev':d,'ino':i,'sha256':h} for p,d,i,h in snapshots]),flush=True)
 for path,device,inode,digest in sorted(snapshots,key=lambda row:(row[3] is None,-len(row[0].parts))):
+ no_live_references()
  info=path.lstat();assert not path.is_symlink() and (info.st_dev,info.st_ino)==(device,inode)
  if digest is None:path.rmdir()
  else:assert hashlib.sha256(path.read_bytes()).hexdigest()==digest;path.unlink()
+no_live_references()
 assert (root.stat().st_dev,root.stat().st_ino)==identity and properties()['MainPID']=='0' and not os.path.lexists('/run/netns/'+TOKEN)
 root.rmdir();print('REMOTE_OWNED_RENDER_LEFTOVERS_REMOVED PASS',flush=True)

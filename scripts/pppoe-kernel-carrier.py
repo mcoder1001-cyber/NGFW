@@ -556,6 +556,8 @@ class Carrier:
         expected = [(10, 100, 'ppp0', 'all', None, '', ''),
                     (20, 101, transit_name, 'all', None, '', ''),
                     (100, 255, None, 'all', None, '', ''), (32766, 254, None, 'all', None, '', '')]
+        if version == 4:
+            expected += [(6, 255, transit_name, str(ipaddress.ip_interface(record['transit']['local4']).ip) + '/32', None, '', '')]
         if version == 6:
             expected += [(4, 255, 'ppp0', 'all', 'udp', '547', '546'),
                          (6, 255, transit_name, str(ipaddress.ip_interface(record['transit']['local6']).ip) + '/128', None, '', ''),
@@ -722,6 +724,9 @@ class Carrier:
                         raise ValueError('unexpected policy rule in owned namespace')
                 for rule in rules:
                     self.inside(fd, [IP, family, 'rule', 'delete', 'pref', str(rule['priority'])])
+                if family == '-4':
+                    self.inside(fd, [IP, family, 'rule', 'add', 'pref', '6', 'iif', transit_name,
+                                     'to', str(ipaddress.ip_interface(record['transit']['local4']).ip) + '/32', 'lookup', 'local'])
                 if family == '-6':
                     self.inside(fd, [IP, family, 'rule', 'add', 'pref', '4', 'iif', 'ppp0',
                                      'ipproto', 'udp', 'sport', '547', 'dport', '546', 'lookup', 'local'])

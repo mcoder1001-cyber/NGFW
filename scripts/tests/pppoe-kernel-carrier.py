@@ -192,6 +192,8 @@ class CarrierTests(unittest.TestCase):
             for interface, priority, table in [('ppp0', '10', '100'), (TRANSIT, '20', '101')]:
                 self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', priority, 'iif', interface, 'lookup', table], commands)
             self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', '100', 'lookup', 'local'], commands)
+            local = c.record['transit']['local' + family[1:]].split('/')[0] + ('/32' if family == '-4' else '/128')
+            self.assertIn([carrier.IP, family, 'rule', 'add', 'pref', '6', 'iif', TRANSIT, 'to', local, 'lookup', 'local'], commands)
         self.assertTrue(result['configured'])
         self.assertNotIn('ready', result)
         self.assertEqual(c.calls[0][1], carrier.nft_policy(False, TOKEN))
@@ -601,6 +603,19 @@ class PolicyReadbackControls(unittest.TestCase):
     def test_actual_iproute_full_masks_and_separate_prefix_lengths(self):
         self.check(self.rows())
         rows=self.rows();rows[0].update(sport_mask=65535,dport_mask=65535);rows[1].update(dst='fe80::/10',dstlen=10);self.check(rows)
+
+    def test_ipv4_transit_local_exception_is_exact_and_required(self):
+        c=MemoryCarrier()
+        rows=[dict(priority=6,src='all',dst='169.254.254.2/32',iif=TRANSIT,table='local'),
+              dict(priority=10,src='all',iif='ppp0',table='100'),dict(priority=20,src='all',iif=TRANSIT,table='101'),
+              dict(priority=100,src='all',table='local'),dict(priority=32766,src='all',table='main')]
+        with mock.patch.object(c,'inside',return_value=json.dumps(rows)):
+            c.policy_rules(42,4,TOKEN,c.record)
+        for label,changed in [('missing',rows[1:]),('broader',[dict(rows[0],dst='169.254.254.0/30'),*rows[1:]]),
+                              ('foreign-interface',[dict(rows[0],iif='foreign'),*rows[1:]]),
+                              ('negotiated-address',[dict(rows[0],dst='192.0.2.10/32'),*rows[1:]])]:
+            with self.subTest(label=label),mock.patch.object(c,'inside',return_value=json.dumps(changed)):
+                with self.assertRaises(ValueError):c.policy_rules(42,4,TOKEN,c.record)
 
     def test_partial_masks_and_unknown_destination_selectors_fail_closed(self):
         for label,mutate in {

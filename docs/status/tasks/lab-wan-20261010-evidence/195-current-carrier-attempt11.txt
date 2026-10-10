@@ -1,0 +1,167 @@
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=79ea45eb061d739046da22adb142aceb35e60b570f9fc10102bf125c7601571f
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=4140075 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-4140073
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 10:57:25 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+2026/10/10 10:57:27 INFO interface sanitized (VPP V19/V21 inherited state) interface=pppr-0ddfe21c298c sw_if_index=3 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 10:57:28 INFO interface sanitized (VPP V19/V21 inherited state) interface=w20ppp sw_if_index=4 phase=create cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+    zz_wan_native_carrier_test.go:108: actual native raw=3 transit=4 namespace=ngp-0ddfe21c298c
+2026/10/10 10:57:41 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=true local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+    zz_wan_native_carrier_test.go:146: REAL_CURRENT_RUNTIME_PAP_IPCP_MIRROR_FORWARDING_READY PASS
+    zz_wan_native_carrier_test.go:150: OWNED_TRANSIT_LOCAL_ROUTE <nil>: 169.254.169.58 from 169.254.169.57 dev ppp0 table 101 
+            cache iif pt0ddfe21c298c 
+    zz_wan_native_carrier_test.go:164: BOUNDED_FILTERED_ICMP_CAPTURE tcpdump: WARNING: any: That device doesn't support promiscuous mode
+        (Promiscuous mode not supported on the "any" device)
+        tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+        listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+    zz_wan_native_carrier_test.go:168: packet diagnostic [vppctl show interface]: <nil>:               Name               Idx    State  MTU (L3/IP4/IP6/MPLS)     Counter          Count     
+        host-w20lan                       2      up          9000/0/0/0     rx packets                     6
+                                                                            rx bytes                     476
+                                                                            tx packets                     1
+                                                                            tx bytes                      42
+                                                                            drops                          5
+                                                                            ip4                            3
+                                                                            ip6                            2
+        host-w20raw                       1      up          9000/0/0/0     rx packets                    20
+                                                                            rx bytes                     743
+                                                                            tx packets                    19
+                                                                            tx bytes                     675
+        local0                            0     down          0/0/0/0       
+        tap1344                           3      up          9000/0/0/0     rx packets                    19
+                                                                            rx bytes                     675
+                                                                            tx packets                    20
+                                                                            tx bytes                     743
+        tap1345                           4      up          1492/0/0/0     rx packets                     4
+                                                                            rx bytes                     312
+                                                                            tx packets                     5
+                                                                            tx bytes                     338
+                                                                            drops                          2
+                                                                            punt                           2
+                                                                            ip6                            4
+    zz_wan_native_carrier_test.go:168: packet diagnostic [vppctl show ip fib]: <nil>: ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, ]
+        0.0.0.0/0
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:22 to:[3:252]]
+            [0] [@3]: arp-ipv4: via 169.254.169.58 tap1345
+        0.0.0.0/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:2 buckets:1 uRPF:1 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        10.20.1.0/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:11 buckets:1 uRPF:12 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        10.20.1.0/24
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:10 buckets:1 uRPF:11 to:[0:0]]
+            [0] [@4]: ipv4-glean: [src:10.20.1.0/24] host-w20lan: mtu:9000 next:1 flags:[] ffffffffffff02fedc45fc980806
+        10.20.1.1/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:9 buckets:1 uRPF:10 to:[0:0]]
+            [0] [@12]: dpo-receive: 10.20.1.1 on host-w20lan
+        10.20.1.2/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:23 buckets:1 uRPF:28 to:[0:0]]
+            [0] [@5]: ipv4 via 10.20.1.2 host-w20lan: mtu:9000 next:5 flags:[] 16ee30b782ad02fedc45fc980800
+        10.20.1.255/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:12 buckets:1 uRPF:14 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        100.64.20.10/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:22 buckets:1 uRPF:27 to:[0:0]]
+            [0] [@12]: dpo-receive: 100.64.20.10 on tap1345
+        169.254.169.56/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:15 buckets:1 uRPF:18 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        169.254.169.56/30
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:14 buckets:1 uRPF:17 to:[0:0]]
+            [0] [@4]: ipv4-glean: [src:169.254.169.56/30] tap1345: mtu:1492 next:2 flags:[] ffffffffffff02feaba5b6d30806
+        169.254.169.57/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:16 to:[0:0]]
+            [0] [@12]: dpo-receive: 169.254.169.57 on tap1345
+        169.254.169.59/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:16 buckets:1 uRPF:20 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        224.0.0.0/4
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:4 buckets:1 uRPF:3 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        240.0.0.0/4
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:3 buckets:1 uRPF:2 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+        255.255.255.255/32
+          unicast-ip4-chain
+          [@0]: dpo-load-balance: [proto:ip4 index:5 buckets:1 uRPF:4 to:[0:0]]
+            [0] [@0]: dpo-drop ip4
+    zz_wan_native_carrier_test.go:168: packet diagnostic [vppctl show ip neighbors]: <nil>:      Age                       IP                    Flags      Ethernet              Interface       
+              4.0727                10.20.1.2                  D    16:ee:30:b7:82:ad host-w20lan
+    zz_wan_native_carrier_test.go:168: packet diagnostic [vppctl show errors]: <nil>:    Count                  Node                              Reason               Severity 
+                24          af-packet-input                    timed out block             error  
+                24          af-packet-input                  total received block          error  
+                 1             arp-reply                       ARP replies sent            info   
+                 3              ip4-arp                       ARP requests sent            info   
+                 2           ip6-icmp-input          neighbor solicitations for unknown    error  
+                 2           ip6-icmp-input           neighbor discovery not configured    error  
+                39             l2-output                      L2 output packets            error  
+                39              l2-input                       L2 input packets            error  
+                 2           ethernet-input                        no error                error  
+    zz_wan_native_carrier_test.go:168: packet diagnostic [ip -n ngp-0ddfe21c298c -j address show]: <nil>: [{"ifindex":1,"ifname":"lo","flags":["LOOPBACK","UP","LOWER_UP"],"mtu":65536,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"loopback","address":"00:00:00:00:00:00","broadcast":"00:00:00:00:00:00","addr_info":[{"family":"inet","local":"127.0.0.1","prefixlen":8,"scope":"host","label":"lo","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"::1","prefixlen":128,"scope":"host","protocol":"kernel_lo","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":2,"link":null,"ifname":"ip6tnl0","flags":["NOARP"],"mtu":1452,"qdisc":"noop","operstate":"DOWN","group":"default","txqlen":1000,"link_type":"tunnel6","address":"::","broadcast":"::","permaddr":"4a8a:31c4:f69f::","addr_info":[]},{"ifindex":3,"link":null,"ifname":"gre0","flags":["NOARP"],"mtu":1476,"qdisc":"noop","operstate":"DOWN","group":"default","txqlen":1000,"link_type":"gre","address":"0.0.0.0","broadcast":"0.0.0.0","addr_info":[]},{"ifindex":4,"link":null,"ifname":"gretap0","flags":["BROADCAST","MULTICAST"],"mtu":1462,"qdisc":"noop","operstate":"DOWN","group":"default","txqlen":1000,"link_type":"ether","address":"00:00:00:00:00:00","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[]},{"ifindex":5,"link":null,"ifname":"erspan0","flags":["BROADCAST","MULTICAST"],"mtu":1450,"qdisc":"noop","operstate":"DOWN","group":"default","txqlen":1000,"link_type":"ether","address":"00:00:00:00:00:00","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[]},{"ifindex":6,"ifname":"pw0ddfe21c298c","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1500,"qdisc":"mq","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"ether","address":"02:fe:57:06:10:96","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[]},{"ifindex":7,"ifname":"pt0ddfe21c298c","flags":["BROADCAST","MULTICAST","UP","LOWER_UP"],"mtu":1492,"qdisc":"mq","operstate":"UNKNOWN","group":"default","txqlen":1000,"link_type":"ether","address":"02:fe:05:52:1e:f7","broadcast":"ff:ff:ff:ff:ff:ff","addr_info":[{"family":"inet","local":"169.254.169.58","prefixlen":30,"scope":"global","label":"pt0ddfe21c298c","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fd0d:dfe2:1c29:8c69::2","prefixlen":126,"scope":"global","valid_life_time":4294967295,"preferred_life_time":4294967295},{"family":"inet6","local":"fe80::fe:5ff:fe52:1ef7","prefixlen":64,"scope":"link","protocol":"kernel_ll","valid_life_time":4294967295,"preferred_life_time":4294967295}]},{"ifindex":8,"ifname":"ppp0","flags":["POINTOPOINT","MULTICAST","NOARP","UP","LOWER_UP"],"mtu":1492,"qdisc":"noqueue","operstate":"UNKNOWN","group":"default","txqlen":3,"link_type":"ppp","addr_info":[{"family":"inet","local":"100.64.20.10","address":"100.64.20.1","prefixlen":32,"scope":"global","label":"ppp0","valid_life_time":4294967295,"preferred_life_time":4294967295}]}]
+    zz_wan_native_carrier_test.go:168: packet diagnostic [ip -n ngp-0ddfe21c298c -4 rule show]: <nil>: 10:	from all iif ppp0 lookup 100
+        20:	from all iif pt0ddfe21c298c lookup 101
+        100:	from all lookup local
+        32766:	from all lookup main
+    zz_wan_native_carrier_test.go:168: packet diagnostic [ip netns exec ngp-0ddfe21c298c nft list table inet ngfw_ppp]: <nil>: table inet ngfw_ppp {
+        	chain input {
+        		type filter hook input priority filter; policy drop;
+        		iifname "lo" accept
+        		iifname "ppp0" ip6 saddr fe80::/10 icmpv6 type { nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
+        		iifname "pt0ddfe21c298c" icmpv6 type { nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
+        		iifname "ppp0" meta nfproto ipv6 udp sport 547 udp dport 546 accept
+        	}
+        
+        	chain output {
+        		type filter hook output priority filter; policy drop;
+        		oifname "lo" accept
+        		oifname { "ppp0", "pt0ddfe21c298c" } icmpv6 type { nd-router-solicit, nd-neighbor-solicit, nd-neighbor-advert } ip6 hoplimit 255 accept
+        		oifname { "ppp0", "pt0ddfe21c298c" } icmpv6 type { destination-unreachable, packet-too-big, time-exceeded, parameter-problem } accept
+        		oifname { "ppp0", "pt0ddfe21c298c" } ip protocol icmp icmp type { destination-unreachable, time-exceeded, parameter-problem } accept
+        		oifname "ppp0" udp sport 546 udp dport 547 accept
+        	}
+        
+        	chain forward {
+        		type filter hook forward priority filter; policy drop;
+        		iifname "pt0ddfe21c298c" oifname "ppp0" accept
+        		iifname "ppp0" oifname "pt0ddfe21c298c" accept
+        	}
+        }
+    zz_wan_native_carrier_test.go:172: PING 100.64.20.1 (100.64.20.1) 56(84) bytes of data.
+        
+        --- 100.64.20.1 ping statistics ---
+        3 packets transmitted, 0 received, 100% packet loss, time 2028ms
+        
+        
+2026/10/10 10:57:45 INFO pppoe mirror interface=w20ppp sw_if_index=4 up=false local4=100.64.20.10/32 local6=[] router6="" default_route=true mss_clamp=false
+2026/10/10 10:57:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=4 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 10:57:47 INFO interface sanitized (VPP V19/V21 inherited state) interface=tap sw_if_index=3 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- FAIL: TestWANCurrentCarrierLive (23.14s)
+FAIL
+DISPOSABLE_VPP_STOPPED pid=4140075
+REAL_PEER_LOG
+
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS

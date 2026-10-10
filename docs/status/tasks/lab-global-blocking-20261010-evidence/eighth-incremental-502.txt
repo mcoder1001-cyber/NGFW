@@ -1,0 +1,55 @@
+DISPOSABLE_VPP pid=4053422 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-4053419
+PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
+
+product-agent-provenance {"source": "7bfca6dfe", "sha256": "076256ca14471521d2209cb40018d0f75c671e493db9cfbc2de656775df4b6ca", "binary": "/tmp/ngfw-routing250-bin/ngfw-agent"}
+gb-interfaces {"seconds": 0.801671624998562, "revision": 2}
+baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
+baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
+baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
+baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
+lookup-0 {"startedUTC": "2026-10-10T10:38:07Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "vectorsDelta": 0, "ip4LookupReference": {"calls": 3998, "vectors": 4000, "clocksPerVector": 1980.0}, "aclCost": null, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
+gb-upload-confirmed {"seconds": 0.7477404609089717, "revision": 3}
+counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
+selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-local-in-drop {"allowed": false, "icmp": true, "tcp": false}
+unlisted-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
+counter-after {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 12, "dataplaneBytes": 934, "hostPackets": 0}}]}}
+GLOBAL_BLOCKING_BROWSER_EN_FA_PASS
+gb-10000-real-commit {"seconds": 3.1116312330123037, "revision": 4}
+lookup-10000 {"startedUTC": "2026-10-10T10:38:46Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 2000, "vectors": 2000, "clocksPerVector": 4820.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 1920.0}, "aclCost": 4820.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+gb-200000-real-commit {"seconds": 36.431857552030124, "revision": 5}
+lookup-200000 {"startedUTC": "2026-10-10T10:39:30Z", "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 1998, "vectors": 2000, "clocksPerVector": 9120.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 3988, "vectors": 4000, "clocksPerVector": 2680.0}, "aclCost": 9120.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+api-error {"status": 502, "problem": {"type": "https://ngfw.dev/problems/agent-error", "title": "Agent error", "status": 502, "grpcCode": "CANCELLED", "detail": "agent: Call cancelled", "instance": "/api/v1/config/commit"}}
+rollback {"noOwnedACL": true}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 127, in <module>
+    if time.monotonic()>deadline:raise TimeoutError('owned browser reader deadline')
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 91, in commit
+    start=time.monotonic();result=request(api,'POST','/config/commit?comment='+label,{})
+                                  ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 27, in request
+    with urllib.request.urlopen(req,timeout=180) as response:return json.load(response)
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 502: Bad Gateway
+DISPOSABLE_VPP_STOPPED pid=4053422

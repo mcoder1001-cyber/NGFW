@@ -1,0 +1,227 @@
+[
+  {
+    "case": "gb-interfaces",
+    "seconds": 0.6269201210234314,
+    "revision": 2
+  },
+  {
+    "case": "baseline-selected-in",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-selected-out",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-unselected",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "baseline-local-in",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "lookup-0",
+    "before": null,
+    "after": null,
+    "vectorsDelta": null,
+    "scope": "bounded diagnostic clocks; no throughput claim"
+  },
+  {
+    "case": "upload-preview",
+    "preview": {
+      "list": "proof",
+      "dryRun": true,
+      "lines": 3,
+      "entries": 2,
+      "added": 2,
+      "removed": 0,
+      "unchanged": 0,
+      "normalised": 0,
+      "collapsed": 0,
+      "invalidCount": 1,
+      "invalid": [
+        {
+          "line": 2,
+          "text": "invalid-address",
+          "reason": "not an IPv4 or IPv6 address"
+        }
+      ],
+      "addedSample": [
+        "10.17.1.2/32",
+        "198.18.17.2/32"
+      ],
+      "removedSample": [],
+      "staged": false
+    }
+  },
+  {
+    "case": "gb-upload-confirmed",
+    "seconds": 0.6778987119905651,
+    "revision": 3
+  },
+  {
+    "case": "counter-before",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 0,
+            "dataplaneBytes": 0,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "selected-in-drop",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-out-drop",
+    "allowed": false,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "selected-local-in-drop",
+    "allowed": false,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "unlisted-pass",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-pass",
+    "allowed": true,
+    "icmp": true,
+    "tcp": true
+  },
+  {
+    "case": "listed-unselected-local-pass",
+    "allowed": true,
+    "icmp": true,
+    "tcp": false
+  },
+  {
+    "case": "counter-after",
+    "state": {
+      "maxEntries": 200000,
+      "totalEntries": 2,
+      "countersError": null,
+      "lists": [
+        {
+          "name": "proof",
+          "description": null,
+          "enabled": true,
+          "pending": null,
+          "source": {
+            "kind": "upload",
+            "url": null,
+            "refreshSec": null
+          },
+          "allInterfaces": false,
+          "interfaces": [
+            "host-w17l0"
+          ],
+          "direction": "both",
+          "protectHost": false,
+          "entries": 2,
+          "runningEntries": 2,
+          "fetch": null,
+          "nextRefreshAt": null,
+          "hits": {
+            "dataplanePackets": 12,
+            "dataplaneBytes": 934,
+            "hostPackets": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "case": "gb-10000-real-commit",
+    "seconds": 2.514882461982779,
+    "revision": 4
+  },
+  {
+    "case": "lookup-10000",
+    "before": {
+      "calls": 20,
+      "vectors": 23,
+      "clocksPerVector": 17300.0
+    },
+    "after": {
+      "calls": 2020,
+      "vectors": 2023,
+      "clocksPerVector": 8620.0
+    },
+    "vectorsDelta": 2000,
+    "scope": "bounded diagnostic clocks; no throughput claim"
+  },
+  {
+    "case": "gb-200000-real-commit",
+    "seconds": 33.50840564200189,
+    "revision": 5
+  },
+  {
+    "case": "lookup-200000",
+    "before": {
+      "calls": 2020,
+      "vectors": 2023,
+      "clocksPerVector": 8620.0
+    },
+    "after": {
+      "calls": 4016,
+      "vectors": 4023,
+      "clocksPerVector": 9120.0
+    },
+    "vectorsDelta": 2000,
+    "scope": "bounded diagnostic clocks; no throughput claim"
+  },
+  {
+    "case": "rollback",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "sharedIdentityUnchanged": true
+  }
+]

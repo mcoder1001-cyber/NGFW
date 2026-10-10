@@ -1,0 +1,15 @@
+[
+  {
+    "case": "gb-interfaces",
+    "seconds": 0.5434011830948293,
+    "revision": 2
+  },
+  {
+    "case": "rollback",
+    "noOwnedACL": true
+  },
+  {
+    "case": "cleanup",
+    "sharedIdentityUnchanged": true
+  }
+]

@@ -1,0 +1,53 @@
+DISPOSABLE_VPP pid=4133636 runtime=/root/ngfw-wt/lab-global-blocking-20261010/.scratch/isolated-vpp-4133631
+PRODUCT_COUNTERS_ENABLE_PRIVATE_ONLY_PASS
+
+product-agent-provenance {"source": "abaa34264b6fb845dc41033d6a0cd098b4a4cafe", "sha256": "5683498457c6bb49a05c98951abefa806ee1219a2b2fd3ae4c0e3e9c2c1717fe", "binary": "/tmp/ngfw-lab-global-blocking-20261010-agent"}
+gb-interfaces {"seconds": 0.9587503960356116, "revision": 2}
+baseline-selected-in {"allowed": true, "icmp": true, "tcp": true}
+baseline-selected-out {"allowed": true, "icmp": true, "tcp": true}
+baseline-unselected {"allowed": true, "icmp": true, "tcp": true}
+baseline-local-in {"allowed": true, "icmp": true, "tcp": false}
+lookup-0 {"startedUTC": "2026-10-10T10:52:35Z", "packetIntervalSeconds": 0.01, "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "vectorsDelta": 0, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 5070.0}, "aclCost": null, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+upload-preview {"preview": {"list": "proof", "dryRun": true, "lines": 3, "entries": 2, "added": 2, "removed": 0, "unchanged": 0, "normalised": 0, "collapsed": 0, "invalidCount": 1, "invalid": [{"line": 2, "text": "invalid-address", "reason": "not an IPv4 or IPv6 address"}], "addedSample": ["10.17.1.2/32", "198.18.17.2/32"], "removedSample": [], "staged": false}}
+gb-upload-confirmed {"seconds": 0.7357690409990028, "revision": 3}
+counter-before {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 0, "dataplaneBytes": 0, "hostPackets": 0}}]}}
+selected-in-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-out-drop {"allowed": false, "icmp": true, "tcp": true}
+selected-local-in-drop {"allowed": false, "icmp": true, "tcp": false}
+unlisted-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-pass {"allowed": true, "icmp": true, "tcp": true}
+listed-unselected-local-pass {"allowed": true, "icmp": true, "tcp": false}
+counter-after {"state": {"maxEntries": 200000, "totalEntries": 2, "countersError": null, "lists": [{"name": "proof", "description": null, "enabled": true, "pending": null, "source": {"kind": "upload", "url": null, "refreshSec": null}, "allInterfaces": false, "interfaces": ["host-w17l0"], "direction": "both", "protectHost": false, "entries": 2, "runningEntries": 2, "fetch": null, "nextRefreshAt": null, "hits": {"dataplanePackets": 12, "dataplaneBytes": 934, "hostPackets": 0}}]}}
+GLOBAL_BLOCKING_BROWSER_EN_FA_PASS
+gb-10000-real-commit {"seconds": 3.232798801967874, "revision": 4}
+lookup-10000 {"startedUTC": "2026-10-10T10:53:25Z", "packetIntervalSeconds": 0.01, "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 2000, "vectors": 2000, "clocksPerVector": 18200.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 4000, "vectors": 4000, "clocksPerVector": 6010.0}, "aclCost": 18200.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+gb-200000-real-commit {"seconds": 40.19527896703221, "revision": 5}
+lookup-200000 {"startedUTC": "2026-10-10T10:54:36Z", "packetIntervalSeconds": 0.01, "packetsTransmitted": 2000, "packetsReceived": 2000, "before": {"calls": 0, "vectors": 0, "clocksPerVector": 0.0}, "after": {"calls": 1980, "vectors": 2000, "clocksPerVector": 17300.0}, "vectorsDelta": 2000, "ip4LookupReference": {"calls": 3781, "vectors": 4000, "clocksPerVector": 4730.0}, "aclCost": 17300.0, "scope": "own runtime reset; bounded window clocks/vector, no throughput claim; zero-entry ACL feature absent/cost N/A"}
+gb-one-entry-real-commit {"seconds": 89.54121948592365, "revision": 6}
+incremental-plan {"summary": {"updated": 5, "unchanged": 126}, "keys": ["acl.config/global-blocking", "acl.acl/_gb.proof.i39", "acl.acl/_gb.proof.i61", "acl.acl/_gb.proof.o39", "acl.acl/_gb.proof.o61"]}
+api-error {"status": 503, "problem": {"type": "https://ngfw.dev/problems/agent-unavailable", "title": "Agent unavailable", "status": 503, "grpcCode": "UNAVAILABLE", "detail": "agent: No connection established. Last error: Error: connect ECONNREFUSED /run/ngfw-test/w17tb/agent.sock. Resolution note: ", "instance": "/api/v1/config/rollback/1"}}
+cleanup {"sharedIdentityUnchanged": true}
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 162, in <module>
+    api.call('POST','/config/discard');result=request(api,'POST',f'/config/rollback/{revision}?comment=gb-rollback',{});check_commit(result,baseline_warnings=warnings,changed_paths=paths)
+                                              ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/root/ngfw-wt/lab-global-blocking-20261010/docs/status/tasks/lab-global-blocking-20261010-live.py", line 27, in request
+    with urllib.request.urlopen(req,timeout=180) as response:return json.load(response)
+         ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 503: Service Unavailable
+DISPOSABLE_VPP_STOPPED pid=4133636

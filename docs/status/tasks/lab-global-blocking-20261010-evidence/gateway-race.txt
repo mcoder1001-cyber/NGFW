@@ -1,0 +1,141 @@
+=== RUN   TestCleanupFiltersAndResumesBoundedPages
+--- PASS: TestCleanupFiltersAndResumesBoundedPages (0.11s)
+=== RUN   TestCleanupRetryProtectsReboundLeaseSessions
+--- PASS: TestCleanupRetryProtectsReboundLeaseSessions (0.00s)
+=== RUN   TestLearnedGatewayConvergenceWithdrawalAndGeneration
+--- PASS: TestLearnedGatewayConvergenceWithdrawalAndGeneration (0.07s)
+=== RUN   TestLearnedGatewayRejectsInvalidOrWrongSource
+--- PASS: TestLearnedGatewayRejectsInvalidOrWrongSource (0.00s)
+=== RUN   TestDynamicUnboundReservesDefaultOwnership
+--- PASS: TestDynamicUnboundReservesDefaultOwnership (0.00s)
+=== RUN   TestRetiredLeaseNATCleanupAndPBR
+--- PASS: TestRetiredLeaseNATCleanupAndPBR (0.01s)
+=== RUN   TestExpiredEmptyGatewayObservationDoesNotRequestResync
+--- PASS: TestExpiredEmptyGatewayObservationDoesNotRequestResync (0.00s)
+=== RUN   TestExpiredLearnedGatewayRefreshAndWithdrawalStillRequestResync
+--- PASS: TestExpiredLearnedGatewayRefreshAndWithdrawalStillRequestResync (0.00s)
+=== RUN   TestHealthy
+--- PASS: TestHealthy (0.00s)
+=== RUN   TestHysteresis
+--- PASS: TestHysteresis (0.00s)
+=== RUN   TestFailoverActive
+--- PASS: TestFailoverActive (0.00s)
+=== RUN   TestBalancePaths
+--- PASS: TestBalancePaths (0.00s)
+=== RUN   TestStaticWANPoolUsesInterfaceFIBAndPreservesDynamicTracking
+--- PASS: TestStaticWANPoolUsesInterfaceFIBAndPreservesDynamicTracking (0.00s)
+=== RUN   TestHTTPProbeHEADAndNoRedirect
+=== RUN   TestHTTPProbeHEADAndNoRedirect/200
+=== RUN   TestHTTPProbeHEADAndNoRedirect/302
+=== RUN   TestHTTPProbeHEADAndNoRedirect/500
+--- PASS: TestHTTPProbeHEADAndNoRedirect (0.01s)
+    --- PASS: TestHTTPProbeHEADAndNoRedirect/200 (0.00s)
+    --- PASS: TestHTTPProbeHEADAndNoRedirect/302 (0.00s)
+    --- PASS: TestHTTPProbeHEADAndNoRedirect/500 (0.00s)
+=== RUN   TestDNSProbeValidatesExchange
+=== RUN   TestDNSProbeValidatesExchange/false
+=== RUN   TestDNSProbeValidatesExchange/true
+--- PASS: TestDNSProbeValidatesExchange (0.00s)
+    --- PASS: TestDNSProbeValidatesExchange/false (0.00s)
+    --- PASS: TestDNSProbeValidatesExchange/true (0.00s)
+=== RUN   TestICMPProbeMatchesEchoAndCancellation
+--- PASS: TestICMPProbeMatchesEchoAndCancellation (0.02s)
+=== RUN   TestDeviceProbeNeverFallsBackWithoutLCP
+--- PASS: TestDeviceProbeNeverFallsBackWithoutLCP (0.00s)
+=== RUN   TestICMPPolicyFailureIsUnavailableNotPacketLoss
+--- PASS: TestICMPPolicyFailureIsUnavailableNotPacketLoss (0.00s)
+=== RUN   TestPingSocketSetupUsesDatagramOrExplicitPolicyError
+    probe_linux_test.go:206: host policy denies ping socket; explicit unavailable path verified, positive socket path NOT EXERCISED
+--- PASS: TestPingSocketSetupUsesDatagramOrExplicitPolicyError (0.00s)
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/operation_not_permitted
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/permission_denied
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/no_such_device
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/no_such_device_or_address
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/network_is_unreachable
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/connection_refused
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/context_deadline_exceeded
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/operation_not_permitted
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/permission_denied
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/no_such_device
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/no_such_device_or_address
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/network_is_unreachable
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/connection_refused
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/context_deadline_exceeded
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/operation_not_permitted
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/permission_denied
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/no_such_device
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/no_such_device_or_address
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/network_is_unreachable
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/connection_refused
+=== RUN   TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/context_deadline_exceeded
+--- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols (0.01s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/operation_not_permitted (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/permission_denied (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/no_such_device (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/no_such_device_or_address (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/network_is_unreachable (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/connection_refused (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/http/context_deadline_exceeded (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/operation_not_permitted (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/permission_denied (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/no_such_device (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/no_such_device_or_address (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/network_is_unreachable (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/connection_refused (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/dns/context_deadline_exceeded (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/operation_not_permitted (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/permission_denied (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/no_such_device (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/no_such_device_or_address (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/network_is_unreachable (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/connection_refused (0.00s)
+    --- PASS: TestLocalProbeFailuresAreUnavailableAcrossProtocols/icmp/context_deadline_exceeded (0.00s)
+=== RUN   TestUnsupportedDeviceAndAddressFamilyNeverBecomeLinkLoss
+--- PASS: TestUnsupportedDeviceAndAddressFamilyNeverBecomeLinkLoss (0.00s)
+=== RUN   TestICMPIPv6OnlyResolutionIsUnavailableAndMixedUsesIPv4
+--- PASS: TestICMPIPv6OnlyResolutionIsUnavailableAndMixedUsesIPv4 (0.00s)
+=== RUN   TestHTTPAndDNSIPv6LiteralRemainDeviceDialed
+--- PASS: TestHTTPAndDNSIPv6LiteralRemainDeviceDialed (0.00s)
+=== RUN   TestRoutesHealthLifecycle
+=== RUN   TestRoutesHealthLifecycle/primary
+=== RUN   TestRoutesHealthLifecycle/failover
+=== RUN   TestRoutesHealthLifecycle/restore
+=== RUN   TestRoutesHealthLifecycle/all-down
+--- PASS: TestRoutesHealthLifecycle (0.00s)
+    --- PASS: TestRoutesHealthLifecycle/primary (0.00s)
+    --- PASS: TestRoutesHealthLifecycle/failover (0.00s)
+    --- PASS: TestRoutesHealthLifecycle/restore (0.00s)
+    --- PASS: TestRoutesHealthLifecycle/all-down (0.00s)
+=== RUN   TestRoutesRejectOwnershipConflictEvenAllDown
+--- PASS: TestRoutesRejectOwnershipConflictEvenAllDown (0.00s)
+=== RUN   TestRoutesRejectVRFAndUnsupportedGateway
+--- PASS: TestRoutesRejectVRFAndUnsupportedGateway (0.00s)
+=== RUN   TestExpandPBRUsesSelectedGroupAndAllDownLookup
+--- PASS: TestExpandPBRUsesSelectedGroupAndAllDownLookup (0.00s)
+=== RUN   TestNATObjectsRequireExplicitEDAndAvoidConfigWriters
+--- PASS: TestNATObjectsRequireExplicitEDAndAvoidConfigWriters (0.00s)
+=== RUN   TestDeadAddressesOnlyHealthyDownStickyConfiguredMembers
+--- PASS: TestDeadAddressesOnlyHealthyDownStickyConfiguredMembers (0.00s)
+=== RUN   TestRestorePBRReferencesDoesNotHideForwardingDrift
+--- PASS: TestRestorePBRReferencesDoesNotHideForwardingDrift (0.00s)
+=== RUN   TestRoutesOptionalPriorityUsesSchemaDefault
+--- PASS: TestRoutesOptionalPriorityUsesSchemaDefault (0.00s)
+=== RUN   TestExpandPBRSharedMemberDoesNotCrossAddressFamily
+--- PASS: TestExpandPBRSharedMemberDoesNotCrossAddressFamily (0.00s)
+=== RUN   TestRoutesWeightWidthBounds
+--- PASS: TestRoutesWeightWidthBounds (0.00s)
+=== RUN   TestRuntimeReplaceDrainsAndDiscardsLateResult
+--- PASS: TestRuntimeReplaceDrainsAndDiscardsLateResult (0.02s)
+=== RUN   TestRuntimeMonitorIndependenceAndNoOverlap
+--- PASS: TestRuntimeMonitorIndependenceAndNoOverlap (0.10s)
+=== RUN   TestRuntimeBoundsInvalidConfigurationDoesNotReplace
+--- PASS: TestRuntimeBoundsInvalidConfigurationDoesNotReplace (0.13s)
+=== RUN   TestRuntimeDeviceIdentityChangeInvalidatesHealth
+--- PASS: TestRuntimeDeviceIdentityChangeInvalidatesHealth (0.00s)
+=== RUN   TestRuntimeSinceTracksAggregateMemberTransitions
+--- PASS: TestRuntimeSinceTracksAggregateMemberTransitions (0.41s)
+=== RUN   TestRuntimeLearnedGenerationRejectsInFlightSuccess
+--- PASS: TestRuntimeLearnedGenerationRejectsInFlightSuccess (0.10s)
+PASS
+ok  	ngfw/agent/internal/multiwan	2.165s

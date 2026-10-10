@@ -1,0 +1,46 @@
+=== RUN   TestLabGlobalBlockingSameListProtectHost
+    lab_global_blocking_test.go:13: root netns `nft list tables` before:
+        table ip filter
+        table ip nat
+        table ip mangle
+        table ip6 filter
+        table ip6 nat
+        table ip6 mangle
+2026/10/10 10:03:34 INFO host firewall rendered table=ngfw_w17 mode=netns chains=1 sets=1
+2026/10/10 10:03:34 INFO created key=host-acl.nftables/ngfw
+    lab_global_blocking_test.go:21: apply: APPLIED summary={Created:1 Updated:0 Deleted:0 Unchanged:0 Failed:0 Reverted:0} in 115.093533ms
+    lab_global_blocking_test.go:22: same-list actual namespace rules:
+        table inet ngfw_w17 {
+        	comment "ngfw-agent host firewall"
+        	set b4_proof {
+        		type ipv4_addr
+        		flags interval
+        		elements = { 10.17.1.2, 198.18.17.2 }
+        	}
+        
+        	chain in__gb {
+        		type filter hook input priority raw; policy accept;
+        		ip saddr @b4_proof counter packets 0 bytes 0 drop comment "ngfw:@global-blocking/0:955cd58b"
+        	}
+        }
+    lab_global_blocking_test.go:25: listed ping dropped:
+        PING 10.17.1.1 (10.17.1.1) from 10.17.1.2 : 56(84) bytes of data.
+        
+        --- 10.17.1.1 ping statistics ---
+        2 packets transmitted, 0 received, 100% packet loss, time 1005ms
+        
+    lab_global_blocking_test.go:26: actual host drop counter=4
+    lab_global_blocking_test.go:30: unlisted local TCP and ping passed
+2026/10/10 10:03:38 INFO host firewall removed table=ngfw_w17 mode=netns
+2026/10/10 10:03:38 INFO deleted key=host-acl.nftables/ngfw
+    lab_global_blocking_test.go:31: apply: APPLIED summary={Created:0 Updated:0 Deleted:1 Unchanged:0 Failed:0 Reverted:0} in 93.109428ms
+    lab_global_blocking_test.go:33: same-list protectHost rollback restored TCP
+    harness.go:96: root netns `nft list tables` after:
+        table ip filter
+        table ip nat
+        table ip mangle
+        table ip6 filter
+        table ip6 nat
+        table ip6 mangle
+--- PASS: TestLabGlobalBlockingSameListProtectHost (5.07s)
+PASS

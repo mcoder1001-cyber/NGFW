@@ -1,0 +1,6 @@
+=== RUN   TestExpiredEmptyGatewayObservationDoesNotRequestResync
+    gateways_test.go:135: empty expired observation requested resync
+--- FAIL: TestExpiredEmptyGatewayObservationDoesNotRequestResync (0.00s)
+FAIL
+FAIL	ngfw/agent/internal/multiwan	0.035s
+FAIL

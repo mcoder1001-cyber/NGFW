@@ -130,8 +130,15 @@ step1_test() {
   say "=== step 1: TestNat46OnHost (descriptor level, NGFW_INTEGRATION=1, shared lab lock) ==="
   nres "before step 1"
   local ev=$RUN/ev; rm -rf "$ev"; mkdir -p "$ev"
-  ( cd "$ROOT/apps/agent" && NGFW_INTEGRATION=1 NGFW_EVIDENCE_DIR="$ev" TMPDIR=/tmp/g-$P \
-      go test -count=1 -v -run 'TestNat46OnHost$' ./internal/descriptors/nat46 ) > "$RUN/step1.txt" 2>&1 9>&- &
+  (
+    if [[ -n "${NGFW_NAT46_HOST_TEST_BINARY:-}" ]]; then
+      [[ -x "$NGFW_NAT46_HOST_TEST_BINARY" ]] || die "host test binary is not executable"
+      NGFW_INTEGRATION=1 NGFW_EVIDENCE_DIR="$ev" "$NGFW_NAT46_HOST_TEST_BINARY" -test.v -test.run 'TestNat46OnHost$'
+    else
+      cd "$ROOT/apps/agent" && NGFW_INTEGRATION=1 NGFW_EVIDENCE_DIR="$ev" TMPDIR=/tmp/g-$P \
+        go test -count=1 -v -run 'TestNat46OnHost$' ./internal/descriptors/nat46
+    fi
+  ) > "$RUN/step1.txt" 2>&1 9>&- &
   local tpid=$!
   local i; for i in $(seq 1 600); do [[ -f $ev/nat46.ready ]] && break; kill -0 $tpid 2>/dev/null || break; sleep 0.5; done
   if [[ -f $ev/nat46.ready ]]; then
@@ -167,6 +174,24 @@ step2_rig() {
   ip -n "$NS_WAN" -6 route replace "$CPFX" via "$WAN6_GW"
   say "ns $NS_WAN: $(ip -n "$NS_WAN" -6 addr show dev "$WAN_PEER" | grep -E 'inet6 fd00' | xargs) · route: $(ip -n "$NS_WAN" -6 route show "$CPFX" | xargs)"
   say "ns $NS_LAN: $(ip -n "$NS_LAN" -4 addr show dev "$LAN_PEER" | grep -E 'inet ' | xargs) · route: $(ip -n "$NS_LAN" route show default | xargs)"
+  if [[ "${NGFW_NAT46_DISABLE_FIXTURE_OFFLOAD:-}" == 1 ]]; then
+    # Older af_packet builds do not complete a veth's partial TCP checksum.
+    # Change only the disposable peer devices, never host/production NICs.
+    command -v ethtool >/dev/null || die "ethtool required for fixture offload correction"
+    ip netns exec "$NS_LAN" ethtool -K "$LAN_PEER" tx off || die "LAN peer TX offload correction failed"
+    ip netns exec "$NS_WAN" ethtool -K "$WAN_PEER" tx off || die "WAN peer TX offload correction failed"
+    local side_features
+    for side in lan wan; do
+      if [[ "$side" == lan ]]; then
+        side_features=$(ip netns exec "$NS_LAN" ethtool -k "$LAN_PEER")
+      else
+        side_features=$(ip netns exec "$NS_WAN" ethtool -k "$WAN_PEER")
+      fi
+      grep -Eq '^tx-checksumming: off' <<< "$side_features" || die "$side peer still has TX checksum offload"
+      printf '%s\n' "$side_features" > "$EVID/fixture-$side-features.txt"
+    done
+    say "disposable LAN/WAN peer TX checksum offload disabled and read back"
+  fi
   # The rig creates unowned VPP ports; the declarative agent must create its
   # own tagged ports. Quiesce the Linux peers before handing over VPP sides.
   ip -n "$NS_LAN" link set "$LAN_PEER" down || return 1
@@ -205,7 +230,12 @@ func main() {
  for _,n:=range names {idx:=targets[n];if _,e:=client.SwInterfaceAddDelAddress(ctx,&interfaces.SwInterfaceAddDelAddress{SwIfIndex:idx,DelAll:true});e!=nil{panic(e)};if _,e:=af_packet.NewServiceClient(c).AfPacketDelete(ctx,&af_packet.AfPacketDelete{HostIfName:n});e!=nil{panic(e)};fmt.Printf("handoff: removed unowned VPP host-%s index%d; Linux veth retained\n",n,idx)}
 }
 GO
-  go -C "$ROOT/apps/agent" run "$RUN/handoff.go" "$P" 9>&- | tee -a "$LOG" || return 1
+  if [[ -n "${NGFW_NAT46_HANDOFF_BINARY:-}" ]]; then
+    [[ -x "$NGFW_NAT46_HANDOFF_BINARY" ]] || die "handoff binary is not executable"
+    "$NGFW_NAT46_HANDOFF_BINARY" "$P" 9>&- | tee -a "$LOG" || return 1
+  else
+    go -C "$ROOT/apps/agent" run "$RUN/handoff.go" "$P" 9>&- | tee -a "$LOG" || return 1
+  fi
   nres "after step 2"
 }
 
@@ -238,6 +268,11 @@ step3_agent() {
   ip -n "$NS_WAN" -6 route replace "$CPFX" via "$WAN6_GW" || return 1
   "$BIN/ngfw-vpp-preflight" | tee -a "$LOG" || die "V19 preflight failed"
   say "vppctl show map domain (ours):"; show_domains | tee -a "$LOG"
+  local server_fib; server_fib=$(V show ip6 fib "$SRV64") || die "server FIB readback failed"
+  grep -Fq "$SRV64" <<< "$server_fib" || die "owned server route missing before packets"
+  say "vppctl show ip6 fib $SRV64 (owned server route before packets):"
+  printf '%s\n' "$server_fib" | tee -a "$LOG"
+  printf '%s\n' "$server_fib" > "$EVID/server-fib-before.txt"
   say "vppctl show interface features $LAN_IF / $WAN_IF (map-t):"
   V show interface features "$LAN_IF" | grep -E 'map-t' | sed "s/^/  $LAN_IF /" | tee -a "$LOG"
   V show interface features "$WAN_IF" | grep -E 'map-t' | sed "s/^/  $WAN_IF /" | tee -a "$LOG"
@@ -255,6 +290,7 @@ s = socket.socket(socket.AF_INET6)
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((sys.argv[1], int(sys.argv[2])))
 s.listen(16)
+print("server6: listening", flush=True)
 while True:
     c, peer = s.accept()
     print("server6: connection from", peer[0], peer[1], flush=True)
@@ -280,9 +316,37 @@ assert data==b"ngfw-nat46-ok\n",repr(data)
 print("client4: verified exact payload", data.decode().strip(), flush=True)
 c.close()
 EOF
-  ip netns exec "$NS_WAN" python3 "$srv" "$SERVER6" "$PORT" > "$RUN/server6.txt" 2>&1 9>&- & PIDS+=("$!")
-  ip netns exec "$NS_WAN" tcpdump -lni "$WAN_PEER" -c 6 "ip6 and tcp port $PORT" > "$RUN/tcpdump6.txt" 2>&1 9>&- & local td=$!; PIDS+=("$td")
-  sleep 1
+  ip netns exec "$NS_WAN" python3 "$srv" "$SERVER6" "$PORT" > "$RUN/server6.txt" 2>&1 9>&- & local srvpid=$!; PIDS+=("$srvpid")
+  local server_ready=0
+  for i in $(seq 1 120); do
+    if grep -q 'server6: listening' "$RUN/server6.txt"; then server_ready=1; break; fi
+    kill -0 "$srvpid" 2>/dev/null || die "IPv6 server exited before readiness: $(cat "$RUN/server6.txt")"
+    sleep 0.25
+  done
+  [[ "$server_ready" == 1 ]] || die "IPv6 server did not become ready within 30 seconds"
+  # Prove the IPv6-only endpoint works before testing the translated path.
+  ip netns exec "$NS_WAN" python3 - "$SERVER6" "$PORT" <<'PYCONTROL' || die "IPv6 server control connection failed"
+import socket, sys
+with socket.create_connection((sys.argv[1], int(sys.argv[2])), timeout=5) as c:
+    data = b""
+    while len(data) < len(b"ngfw-nat46-ok\n"):
+        part = c.recv(64)
+        if not part:
+            break
+        data += part
+    assert data == b"ngfw-nat46-ok\n", repr(data)
+print("IPv6-only server control: exact payload verified", flush=True)
+PYCONTROL
+  ip netns exec "$NS_WAN" tcpdump -lvvni "$WAN_PEER" -c 6 "ip6 and tcp port $PORT" > "$RUN/tcpdump6.txt" 2>&1 9>&- & local td=$!; PIDS+=("$td")
+  # Wait for capture readiness: a fixed sleep can miss all packets when the
+  # shared host is busy loading tcpdump. An early exit must fail explicitly.
+  local capture_ready=0
+  for i in $(seq 1 120); do
+    if grep -q 'listening on' "$RUN/tcpdump6.txt"; then capture_ready=1; break; fi
+    kill -0 "$td" 2>/dev/null || die "IPv6 capture exited before readiness: $(cat "$RUN/tcpdump6.txt")"
+    sleep 0.25
+  done
+  [[ "$capture_ready" == 1 ]] || die "IPv6 capture did not become ready within 30 seconds"
   local rx0 tx0
   rx0=$(V show interface "$LAN_IF" | awk '/rx packets/ {print $NF}' | head -1); tx0=$(V show interface "$WAN_IF" | awk '/tx packets/ {print $NF}' | head -1)
   say "ping $SVC4 from $NS_LAN (ICMP → ICMPv6 → ICMP):"
@@ -307,6 +371,8 @@ EOF
   local idx; idx=$(show_domains | sed -nE 's/^\[([0-9]+)\].*/\1/p' | head -1)
   [[ -n $idx ]] && V show map domain index "$idx" counters | tee -a "$LOG"
   cp "$RUN/tcpdump6.txt" "$EVID/step4-tcpdump-wan6.txt"
+  say "vppctl show ip6 fib $SRV64 (owned route after packets):"
+  V show ip6 fib "$SRV64" | tee "$EVID/server-fib-after.txt" | tee -a "$LOG"
   nres "after step 4"
 }
 

@@ -1,0 +1,10 @@
+tcpdump: listening on w17w1, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+13:18:09.724235 IP6 (hlim 63, next-header TCP (6) payload length: 40) fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [S], cksum 0x5550 (correct), seq 2222449788, win 64240, options [mss 1460,sackOK,TS val 4099683577 ecr 0,nop,wscale 10], length 0
+13:18:09.724324 IP6 (flowlabel 0xc826b, hlim 64, next-header TCP (6) payload length: 40) fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [S.], cksum 0x52be (correct), seq 1113826538, ack 2222449789, win 64260, options [mss 1440,sackOK,TS val 253496343 ecr 4099683577,nop,wscale 10], length 0
+13:18:09.726199 IP6 (hlim 63, next-header TCP (6) payload length: 32) fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], cksum 0x7c3d (correct), seq 1, ack 1, win 63, options [nop,nop,TS val 4099683579 ecr 253496343], length 0
+13:18:09.726670 IP6 (flowlabel 0xc826b, hlim 64, next-header TCP (6) payload length: 46) fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [P.], cksum 0x4bb4 (correct), seq 1:15, ack 1, win 63, options [nop,nop,TS val 253496345 ecr 4099683579], length 14
+13:18:09.726731 IP6 (flowlabel 0xc826b, hlim 64, next-header TCP (6) payload length: 32) fd00:11:46::a11:2e0a.11746 > fd00:11:4646::a11:102.46001: Flags [F.], cksum 0x7c2c (correct), seq 15, ack 1, win 63, options [nop,nop,TS val 253496345 ecr 4099683579], length 0
+13:18:09.728171 IP6 (hlim 63, next-header TCP (6) payload length: 32) fd00:11:4646::a11:102.46001 > fd00:11:46::a11:2e0a.11746: Flags [.], cksum 0x7c2b (correct), seq 1, ack 15, win 63, options [nop,nop,TS val 4099683581 ecr 253496345], length 0
+6 packets captured
+8 packets received by filter
+0 packets dropped by kernel

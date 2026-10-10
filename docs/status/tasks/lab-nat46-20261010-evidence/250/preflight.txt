@@ -1,0 +1,8 @@
+ubuntu-26.04
+uid=0(root) gid=0(root) groups=0(root)
+/usr/bin/vpp
+/usr/bin/vppctl
+/usr/bin/python3
+/usr/bin/unshare
+NRestarts=0
+vpp v26.06-release+ngfw3 built by root on ubuntu-26.04 at 2026-06-21T14:02:56

@@ -1,0 +1,11 @@
+=== RUN   TestNat46OnHost
+    nat46_integration_test.go:46: plan for map.domain after re-apply: empty (1 objects converged)
+    nat46_integration_test.go:48: plan for map.interface after re-apply: empty (2 objects converged)
+    nat46_integration_test.go:50: NAT46 domain accepted: 10.17.46.10 → fd00:11::4610 (IPv4 client 192.0.2.33 appears as fd00:11:4646::c000:221)
+    nat46_integration_test.go:55: plan for map.domain after re-apply: empty (0 objects converged)
+    nat46_integration_test.go:56: plan for map.interface after re-apply: empty (0 objects converged)
+2026/10/10 09:31:02 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=2 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+2026/10/10 09:31:02 INFO interface sanitized (VPP V19/V21 inherited state) interface="test cleanup" sw_if_index=1 phase=delete cleared=[] freed=[] placeholders=1 pops=[0] rereads=0 reset="[l2-mode l3 ip-classify ip4 ip-classify ip6 l2-classify input l2-classify output adl adl-input vxlan-bypass ip4 vxlan-bypass ip6 lldp]" skipped=[]
+--- PASS: TestNat46OnHost (0.86s)
+PASS
+ok  	ngfw/agent/internal/descriptors/nat46	0.887s

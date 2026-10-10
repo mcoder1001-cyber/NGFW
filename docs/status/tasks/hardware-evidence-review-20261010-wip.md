@@ -6,7 +6,7 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`e47affb55f1de8e1f7c71511ddf4a7d18feed4bf` (read-only recovery follow-up; matching
+`08d72ec6568523b745ee9867f2417ec094031548` (targeted correction review; matching
 CLI push/readback). Source approval checkpoint65ca4275 remains historical.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
@@ -319,3 +319,29 @@ salvage/checksum approved, newobjects held. Worker/root informed actual phase
 verdict; completion/clean-check/return still pending. Last own verified remote
 40315bab82301a7a686fe8b7ac4147361ac5438a. Next read refreshed audit and private
 repair transcript's first prompts, then actual undo/offhost/clean-check receipts.
+
+10:11 live response bug correction: worker discovered old driver0186 y+newline
+caused subsequent default acceptance under actual one-byte noncanonical ask_yn;
+reviewer missed it. All actual responses remained known scope, held at config
+259602 dot. Old driver capture-only now, no more old input. Matching util.c
+behavior verified. Future driverdc321951 and scoped live single-byte helpere6b6d00e
+AST PASS; actual probe162de6b4/722B/0600 records0 writes and exact owned driver/
+SSH/FIFO identity. Helper one-byte continuation APPROVE after worker publication
+87cc97e7; owner process identity/fd rechecks and no foreign descriptor close.
+Fresh pre-correction auditcbfebefb262processes/93FDs/nsfs0/failures0/guard0
+independently verified. Pass3/4 preservation reconnect source ready for concrete
+new objects; unknown destructive Clear held. .37 wrapper47da77ec AST2PASS,
+RAM-only missing-tool preparation approved, worker actual receipt reported pending
+independent parsing. Last own verified remote08d72ec65 above. Next inspect actual
+single-byte continuation/new orphan prompt; record no false individually-manual
+response claim and no completed repair/return/acceptance claim.
+
+New259603 directory prompt held for concrete classification: independently
+private4a2409d4 shows root0700/4096B/links2/single15503875; ncheck0 with checksum
+diagnostics/no original name, no fabricated config path. Narrow raw-reader v2
+c5c0649f exact one-line allowlist extension reviewed, independent static build
+050316c8/821424B and six refusal checks PASS. Parent-authorized paused-fsck
+read-only supplemental capture APPROVE after publication/live own-process/no
+other writer checks; known fsck self-held BUSY expected. Actual block/offhost and
+salvage verdict pending. Worker/root informed; reviewer never executed a valid
+target block call or input injection. Own diff check PASS, publication follows.

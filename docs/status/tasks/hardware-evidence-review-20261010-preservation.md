@@ -1,6 +1,6 @@
 # Independent .211 preservation and targeted correction review
 
-10:04UTC verdict: **APPROVE the targeted interactive correction phase** after
+10:04UTC verdict, with10:11 input correction below: **APPROVE the targeted interactive correction phase** after
 the parent's required refreshed full offline audit/final exclusive guard0 and
 publication. Actual preservation and finite undo preparation passed as recorded
 below. Correction completion, clean verification and return remain pending.
@@ -155,7 +155,9 @@ both actual locations. Controller PTY driver fsck-session.py
 SHA2560186e5abf5862bb6f3d7689d8aa2c6fc11d40412a3e39a0aa358588fd03df752
 checks private path/capacity, refuses an existing transcript, fsyncs received bytes,
 and sends only individually provided y/n or interrupt. It prints prompt markers
-instead of the full private transcript and has no automatic answers. Independent
+instead of the full private transcript. The initial review wrongly concluded its
+newline-terminated answers could not accept another default; actual behavior and
+the corrected one-byte input path are recorded below. Independent
 Bash syntax check exited0/empty; driver AST parsed successfully. Reviewer did not
 execute either repair entry point.
 
@@ -183,5 +185,83 @@ the complete check is clean and review boot/auth/network integrity separately.
 This verdict is not completed repair, return approval, .37 transition approval,
 package installation or hardware acceptance.
 
-Next exact reviewer action: inspect the refreshed offline audit and private first
-repair prompts/answers, then actual completed undo/clean-check evidence.
+## Actual input bug and scoped live recovery
+
+Fresh pre-correction-offline-audit.json independently parsed24506B/0600,
+SHA256cbfebefb4c3c1f6dd6f5a0974ae81a84c8f391bc64390fd40012109d06fecd20:
+exit0/stderr0,262 processes/93FDs/nsfs0/races0/failures0, final exclusive0.
+Repair then began. The private transcript showed known journal extent/accounting
+and cache directory reconstruction answers, but they were not all individually
+sent: old driver0186 wrote y plus newline. The newline accepted the next default.
+The reviewer missed this interaction when approving that input path.
+
+[Matching ask_yn implementation](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/util.c)
+clears ICANON/ECHO, reads one character at a time and accepts newline as the
+default answer. Worker identified the bug before any unknown object was accepted;
+input was held at known config259602 missing-dot repair. The original driver
+remains private capture-only. Its answer entry point must not be used again.
+Known directories' missing '.' and '..' metadata reconstruction is in scope,
+with actual valid /root parent linkage checked by pass3.
+
+Exact future driver source
+SHA256dc3219514cc7be54a07d83120b704811dfe3d8c6a0566a06c158ac545ab939d7
+replaces answer-plus-newline with answer.encode(), one byte. This does not change
+the already running driver's code. Narrow live helper fsck-single-byte.py
+SHA256e6b6d00e27f6c86ba53679c33b0f708c4d02fa133458738dc0afce6584de34e0
+independently APPROVE for this task's existing owned controller process only:
+unique exact driver argv/cwd/root UID/Python executable/open private transcript;
+unique exact SSH child argv/PPID/root UID/executable/start time; writer FIFO
+device/inode matching the child's stdin; O_WRONLY|CLOEXEC|NONBLOCK own descriptor,
+fstat and process/pipe identity rechecks; exactly one y/n byte and no newline.
+Only the helper's own opened descriptor is closed. No PID1 or arbitrary process
+descriptor manipulation, driver restart or live fsck interruption is requested.
+
+Independent AST parsing of both exact sources passed. Literal cmdline separators
+were independently evaluated as single NUL bytes, avoiding escaped-output ambiguity.
+Actual initial private probe ledger722B/0600
+SHA256162de6b45b9c177fa254baa32e189e86668836e7ea51d85fab314a6aeaca8e4d
+records0 writes, driver3850996/SSH3851087, FIFO21573919 and newlineFalse.
+Worker published/read back87cc97e7be2ff7fa1e3cb8725f43a01c13d5b0bb before
+resuming known-scope single-byte answers. Preserve the old implicit responses;
+do not relabel them as individual manual answers.
+
+For concrete newly exposed orphans, matching
+[pass3 reconnect](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass3.c)
+links an existing inode under lost+found/#<inode> and adjusts its reference count;
+directory reconnect also repairs '..'.
+[Pass4](https://raw.githubusercontent.com/tytso/e2fsprogs/v1.47.2/e2fsck/pass4.c)
+uses that preservation path and repairs counted link references. Classify the
+actual inode/type/path before accepting a new object's prompt. Unknown no-block
+inode Clear is destructive and remains unapproved; declining it can lead to a
+preserving Connect choice. No arbitrary complete file-data image prerequisite is
+added to the owner's authorized logical repair.
+
+Next exact reviewer action: inspect actual one-byte input outcomes and classify
+any newly exposed orphan prompt, then actual completed undo/clean-check evidence.
+
+## Newly exposed directory259603
+
+Actual prompt is held, not answered: directory259603 block0/offset0 Salvage.
+Private new-inode-259603-readonly.json1120B/0600
+SHA2564a2409d4de11c01a88109c9526b9c9802444dfcc433823656d9499e7def6fd04
+independently parsed: root-owned directory0700,4096B, links2, one block15503875.
+Ncheck exit0 emitted directory-checksum diagnostics and returned no pathname;
+it does not establish an original name or a successful complete scan.
+Original inode metadata is already in the native preservation file. Parent
+authorizes this additional block's private read-only preservation before deciding
+whether to rebuild the directory.
+
+Exact raw reader v2 source
+SHA256c5c0649f6150b869042e8890977bc84f5d2e8f18f736451cfe833cd0e5355216
+adds only15503875 to the prior allowlist. Independent controller-only static
+warning-clean build reproduces821424B
+SHA256050316c810573137bd76d313415d9e5877d5dd92f841cdbcbbc09d671905d4e5;
+six invalid/nonallowlisted/missing/extra argument checks refuse2/empty output.
+No valid block call was executed by the reviewer; temporary resources cleaned.
+Focused RAM staging/read-only capture APPROVE after operator publication and
+the parent's live paused-fsck identity/no-other-writer/unchanged-prompt checks.
+The still-offline device is now held by the known live fsck: its self-held BUSY
+is expected, so an exclusive0 prerequisite must not be falsely imposed here.
+No mount, other device writer, fsck restart or repair-scope expansion is approved.
+Actual new block/offhost integrity/classification and salvage verdict remain
+pending at this source checkpoint.

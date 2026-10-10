@@ -160,3 +160,55 @@ tools/ci.sh check --base origin/main
 check PASSED (0m16s)
 # exit0; unchanged own-documentation check, not full hosted quick
 ```
+
+## Actual upload framing failure and narrow correction
+
+Root resumed this reviewer for actual upload/simulation evidence. Released24d
+upload failed on the controller before SSH execution: OSError7, argument list too
+long. The283KB inspect baseline expanded one python-c argument beyond Linux's
+per-argument limit. No target contact, upload directory, simulation or installation
+occurred. Private0B output spools and failure metadata were retained. This
+reviewer missed that controller argv limit in the earlier source review and
+acknowledged it to the manager/operator; archive/maintscript identity is unaffected.
+
+Source correction
+`281ab41313bc95b9eeaee0389f0367946963f46cc375a98abcc73fccb44b2977`, published at
+`d4e7b44d3b20a9972f145c40617b970aaf38bed8`, is APPROVE for the already released
+upload/simulate retry. It puts only a tiny fixed bootstrap in argv, then sends a
+checked16-lowercase-hex length, positive code length bounded8MiB, exact UTF-8
+source bytes and tar on stdin. Exact-read loops reject incomplete input. The
+bootstrap and tar consumer retain the same sys.stdin.buffer, preserving unread
+prefetched tar data. Concurrent private file output spools remain unchanged.
+
+Independent public source diff and outer/bootstrap/REMOTE AST checks passed;
+REMOTE bytes are identical to reviewed24d. Independent controller-only subprocess
+tests executed the exact bootstrap via python-c with synthetic nonsecret data:
+
+```text
+source_SHA=281ab41313bc95b9eeaee0389f0367946963f46cc375a98abcc73fccb44b2977
+AST_PASS=3 REMOTE_byte_equal_previous=true
+framed_source_bytes=270271 # including non-ASCII UTF-8 comment
+tar_member_bytes=4096 tar_exact_hash_PASS=true
+invalid_frame_refusals=6 # short header, nonhex, zero, overbound, short code, bad UTF-8
+early_refusal_exit=2 early_refusal_output_bytes=1048576
+private_spooling_no_deadlock=true target_contacted=false
+```
+
+The test created only owned0700 controller scratch and0600 output files, then
+removed them. Actual upload/simulation/install acceptance remains pending; this
+framing proof is not a successful host transaction. No repeat complete quick.
+
+## Root cache controller wrapper source preparation
+
+Manager-only cache wrapper exact SHA
+`d8a9bfb8f727aafe8ba0fc2af67fd75900f12b69239f9dbafb017f5458f7f1aa` source
+applicability APPROVE. Full wrapper and unchanged approved normalization source
+`4a5d13130963c24ed54e164e8d6304d08347a63f153a67f5f251ce9de9373717` were read.
+Independent AST parses of wrapper and reconstructed embedded code PASS2, without
+executing either. It pins exact source and fixed packaged agent identity, checks
+trusted directory parents/private700 stage, records original cache/backup-directory
+metadata before and after, and fsyncs exclusive private0600 offhost stdout/stderr.
+The underlying exact known-empty-cache operation and strict ownership/security
+guards remain unchanged; no service start is introduced. Execution remains after
+actual installeda909 identity, guard restoration and root's phase prerequisites.
+No target/cache action occurred in this independent review.

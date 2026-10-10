@@ -713,3 +713,28 @@ Remaining exact next action: read actual four-package upload/simulate/install
 receipt metadata and root known-empty-cache/native runtime acceptance; query
 `gh run view 38056374923 --json headSha,status,conclusion,jobs` on gate change.
 Reviewer performed no product/target changes; no review-owned operation in flight.
+
+## Actual upgrade phase follow-up
+
+Last durable own checkpoint4a65b89453f4955249ab1f1836fa6ffa4021091d. Root resumed
+independent actual receipt review. Released24d upload failed controller-only with
+OSError7/oversized python-c argument before target contact. No upload/simulation/
+installation PASS. Source281ab413 correction publishedd4e7 APPROVE after exact
+diff/AST3/unchangedREMOTE and meaningful controller270271B UTF-8 frame+4096B tar
+hash, six malformed-input refusals and1MiB early-refusal private-spool tests PASS.
+Original failure retained; reviewer acknowledged missing argv-limit concern.
+
+Root cache wrapperd8a9 source-only APPROVE with unchanged4a5d, independent
+wrapper/embedded AST2 and private-directory/before-after metadata proof design.
+Actual installedfixedagent/guardsrestore/cache/root-start/native17seed remain
+pending separate receipts. Full record in upgrade-four.md. Root reported .37
+worker departed/awaiting resume and owns subsequent37phase; no active37tester is
+claimed here. Actual exact3b61 fullquick still IN_PROGRESS at last independent
+query, repository-gate step running; no merge PASS.
+
+Exact next action: read operator immutable upload/simulation receipts and actual
+4Inst/0Remv/protected/storage proof before install applicability. No reviewer
+target/product write or owned controller process remains running.
+
+Follow-up own-documentation check `tools/ci.sh check --base origin/main` exited0,
+`check PASSED (0m13s)`; diff-check0. No duplicate full quick or product test run.

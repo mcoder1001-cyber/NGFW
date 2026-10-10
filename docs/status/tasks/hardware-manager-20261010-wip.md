@@ -1414,3 +1414,32 @@ doc/enablement/modulefacts+offhostreceipt gatebeforephysicalwrites. NOTEXECUTED;
 actualnative resource65536revision2/preflight+R7sourceapproval stillrequired.
 Next: reviewactual37simulation/install; supported211resource2+freshpreflight,
 recordoffhost then boundedoriginaldriverrollback androot-only bind/startupapply.
+
+Actual 2026-10-10 14:12 UTC: source correction DONE/mainquick38057527122
+SUCCESS/mainpack38057527082SUCCESS; exactmergedtree507477. Fresh board212=205/7
+unchanged. Actual hourlyPR225comment6098376825 at14:06/17:36 reportsverified3roles
+and one new productmerge, distinguishes overallhardwareRUNNING/phaseDone.
+.37 exact90 fourupgradeINSTALL aafb9fb0256262e200cdf7f8728f970adb37bd04a79010caeebbf70b8cc9c819
+225576B600SSH0/emptyerr/nativeAPT0/all4ee202configured/a909/dpkgempty/all21inactive
+originalguards+nr0/fullL3+7kernel/io6/storage[] independentlyR7PASS. Fixed273
+firstboot READONLYpreflight b20cb8c92afede242bc92fb51018feee2d00d9b6854eaab5222afafc6d69e714
+15519B600SSH0/emptyerrPASS, actualreviewbeforefirstboot pending; no credentials
+generated/firstboot/service/deviceactivation yet.
+ROOT211 source020ad ownershipfixedOUTPUTROOTparent, readonlyinspect107acf6494b5f01b058057b4530e0eb8d9645dcb4fe0cd1431953857905d318b
+364463B600SSH0/emptyerrPASS independentlyreviewed; native commit sourceAPPROVE.
+Actual supportedconfirmedresource2 b3fcfa09afc1d79bd0c76ca237015fb18bf61802cc88cdc642646c7ff835c8f9
+546393B600SSH0/emptyerrPASS/native2parent1/seed1retained/only65536/candidateequal
+noPending/in-sync/protected/storage[], dataplaneNotApplied warning retained;
+current367e/noPCI/livepool16784stillUNCHANGED. Canonicalnative runningdocument
+extractedOWNROOTprivate manager-physical-document-211-resource2.json6930B600
+unsortedcompactSHAff37ed3cb8fc297915d2d85fbc68614dfcf651405b026d9e807e7b3d9d0d552d.
+Readonlyresource-awarepreflight2f4a sourceAPPROVE, releasedoperator withimmutable
+seed1 +actualROOTresource2 proof; current resultpending. Rootphysicalrecord95b
+sourceAPPROVE preparation only after actualpreflight, requires durableoffhost
+receipt beforebinding. Root-ownphysical-bind211 sourcee262a9824a71c9796779f6cee05d25a8a095c8a1a73400c003d2ffa20cc73f7a
+AST2ONLYNOTRUN: consumesoffhostrecord/pinnedbinder+finiteold-driverrollback,
+inspectsbydefault; root--bind holds canonicalVPP/lablocks, stopsAPIagentVPP,
+installsONLY3absentownedfiles, finiteexact17binder, startsOLDcorrectednoPCI VPP
+withAPIagentheld; no nativeapply/automaticrollback/race/retry. Independent source
+review required before any physicalmutation. Next: actualpreflight→rootprivate
+record/offhostproof→reviewedbind+guardedphysicalapply, separate37firstboot.

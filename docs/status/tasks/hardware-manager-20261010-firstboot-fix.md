@@ -1,3 +1,11 @@
+# Source correction DONE — 2026-10-10 14:12 UTC
+
+PR225 merged d1f3f19d4837de3f7a36bfffcbd3c70593bea307; one final commit3b61 on freshbd25, exact reviewed tree507477. Required final unchanged hosted quick38056374923 SUCCESS and postmerge mainquick38057527122 SUCCESS; packaging gates SUCCESS, independent source/final-delta review APPROVE. Historical321G304failure was fixed in the test, not waived. Reviewed predecessor histories preserved on remote archive refs. Native ee202 artifacts passed all41 packaging fixtures and independent fullarchive/12maintscript/reproduced-agent review; installedfixeda909 on both hosts.
+
+This closes only the appliance source prerequisite; the one hardware campaign remains RUNNING until physical/reboot acceptance. Previous pending statements below describe historical checkpoints.
+
+---
+
 # Appliance firstboot policy-plugin correction
 
 This is a prerequisite of the one owner-requested hardware installation task,

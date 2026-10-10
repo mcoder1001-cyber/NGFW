@@ -1,3 +1,17 @@
+# Current hardware task — 2026-10-10 14:12 UTC / 17:42 Asia/Tehran
+
+Overall: RUNNING, exactly the existing owner-requested two-host campaign.
+DONE phases: both offline logical repairs/full clean checks; all original native packages; all four corrected NGFW packages on both hosts; .211 known-empty legacy cache recovery/healthy runtime/native revision1 and seventeen data NIC rows. The appliance source correction is DONE: PR225 merged d1f3f19d4837de3f7a36bfffcbd3c70593bea307, exact tree507477, finalhead3b61 mandatory quick38056374923 SUCCESS, mainquick38057527122 SUCCESS/mainpack38057527082 SUCCESS, independent applicable reviews APPROVE.
+
+.211 actual supported confirmed revision2 adds only buffersPerNuma65536, retains seed1 and protected management/routes/storage, and explicitly remains stored rather than enforced in the live16784-buffer/noPCI runtime. Actual receipt b3fcfa09,546393B600/SSH0/emptyerr. Physical17 binding/startup/traffic/reboot remain pending; do not infer them from native rows.
+.37 corrected four-package install aafb9fb0 PASS and independent actual review PASS; all21units remaininactive/nr0/originalpolicy+mask preserved. Fixed firstboot readonlypreflight b20cb8c9 PASS; firstboot/runtime/native7seed not yet executed.
+
+Verified live: root manager/operator, host211 read-only/preparation, R7 independent reviewer/tester. Old37 worker departed and resume rejected by thread limit; root owns later37phase in own branch/privateparent. No persistent supervisor is claimed. Board212=205merged/7parked, no unrelated row changed. Next: actual resource-aware physicalpreflight and durable offhost finite17 recovery record, root-only reviewed binding/canonicalapply; reviewed37firstboot phase. Source/hardware failure history below is preserved as historical evidence, not the current acceptance state.
+
+---
+
+# Historical checkpoints (superseded by the current status above)
+
 ## Firstboot correction checkpoint — 2026-10-10 12:38 UTC
 
 Root implemented shipped fixed bootstrap JSON enabling linux_cp/linux_nl/npt66,

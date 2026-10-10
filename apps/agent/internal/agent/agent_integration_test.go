@@ -316,7 +316,9 @@ func TestAgentOnHost(t *testing.T) {
 	_ = ifsBefore
 
 	// 5. confirm timeout reverts on its own (rollback removes what the pending txn added).
-	evs, err := c.StreamEvents(ctx, &ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
+	eventCtx, cancelEvents := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelEvents()
+	evs, err := c.StreamEvents(eventCtx, &ngfwv1.StreamEventsRequest{Kinds: []ngfwv1.EventKind{ngfwv1.EventKind_EVENT_KIND_CONFIRM_REVERTED, ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,6 +338,12 @@ func TestAgentOnHost(t *testing.T) {
 		e, err := evs.Recv()
 		if err != nil {
 			t.Fatal(err)
+		}
+		// An unrelated connect/request resync can finish before this transaction
+		// reverts. Only the empty DONE following its CONFIRM_REVERTED belongs
+		// to the required rollback sequence.
+		if e.GetTxnId() != owner+"-it-3" && !(len(seen) == 2 && e.GetTxnId() == "" && e.GetKind() == ngfwv1.EventKind_EVENT_KIND_RECONCILE_DONE) {
+			continue
 		}
 		seen = append(seen, e.GetKind().String()+":"+e.GetTxnId())
 	}

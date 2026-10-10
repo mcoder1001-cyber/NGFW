@@ -83,7 +83,7 @@ result={'actual_command':args[:1]+['-y']+args[1:],'install_exit':p.returncode,
         'vpp_state':output(['systemctl','show','vpp.service','-p','LoadState','-p','ActiveState']),
         'needrestart_hook_refs':hook_refs,'needrestart_installed_before':False,
         'no_firstboot_activation':True,'no_driver_binding':True}
-units=['vpp.service','ngfw-firstboot.service','ngfw-agent.service','ngfw-api.service','nginx.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','chrony.service','postgresql.service','valkey-server.service','nftables.service','snmpd.service','keepalived.service','rsyslog.service','postgresql@18-main.service','apply-executor.socket','ngfw-ra-openfile.socket']
+units=['vpp.service','ngfw-firstboot.service','ngfw-agent.service','ngfw-api.service','nginx.service','frr.service','kea-dhcp4-server.service','kea-dhcp6-server.service','unbound.service','chrony.service','postgresql.service','valkey-server.service','nftables.service','snmpd.service','keepalived.service','rsyslog.service','postgresql@18-main.service','ngfw-firewall-bootstrap.service','apply-executor.socket','ngfw-ra-openfile.socket','ngfw-ra-namespace-broker.socket']
 result['service_states']={unit:output(['systemctl','show',unit,'-p','ActiveState','--value']).strip() for unit in units}
 result['all_services_suppressed']=all(value in ['inactive','failed'] for value in result['service_states'].values())
 print(json.dumps(result,indent=2))

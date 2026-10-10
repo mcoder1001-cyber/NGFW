@@ -6,6 +6,7 @@ Default is read-only inspect. Worker prepares source; ROOT alone may execute
 """
 import argparse,datetime,hashlib,json,os,pathlib,stat,subprocess
 PRIVATE=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware/recovery-private/host-211')
+OUTPUT=pathlib.Path('/root/Documents/Codex/2026-10-10/hardware')
 SSH=['ssh','-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-o','ConnectTimeout=15','root@172.30.110.211']
 REMOTE=r'''
 import copy,hashlib,json,os,pathlib,re,socket,ssl,stat,subprocess,urllib.error,urllib.request
@@ -107,6 +108,7 @@ def private_read(p):
  p=pathlib.Path(p);assert p.parent==PRIVATE and not p.is_symlink();s=p.stat();assert stat.S_ISREG(s.st_mode) and s.st_uid==0 and stat.S_IMODE(s.st_mode)==0o600
  return p.read_bytes()
 def save(p,b):
+ assert p.parent==OUTPUT and not p.parent.is_symlink() and p.parent.stat().st_uid==0 and not p.parent.stat().st_mode&0o022
  fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|os.O_NOFOLLOW,0o600)
  with os.fdopen(fd,'wb') as f:f.write(b);f.flush();os.fsync(f.fileno())
  d=os.open(p.parent,os.O_RDONLY|os.O_DIRECTORY);os.fsync(d);os.close(d);return {'file':str(p),'bytes':len(b),'SHA':hashlib.sha256(b).hexdigest()}
@@ -120,5 +122,5 @@ def main():
  assert baseline['firstboot_proof_SHA']==hashlib.sha256(private_read(PRIVATE/'firstboot-apply-20261010T120628Z.json')).hexdigest()
  code='\n'.join(k+'='+repr(v) for k,v in fields.items())+'\n'+REMOTE
  q=subprocess.run(SSH+['python3 -'],input=code.encode(),capture_output=True);stamp=datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ');mode='commit' if a.commit else 'inspect'
- print(json.dumps({'SSH_exit':q.returncode,'stdout':save(PRIVATE/('resource-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(PRIVATE/('resource-'+mode+'-'+stamp+'.stderr'),q.stderr),'manager_only_commit':a.commit}));raise SystemExit(q.returncode)
+ print(json.dumps({'SSH_exit':q.returncode,'stdout':save(OUTPUT/('manager-resource211-'+mode+'-'+stamp+'.json'),q.stdout),'stderr':save(OUTPUT/('manager-resource211-'+mode+'-'+stamp+'.stderr'),q.stderr),'manager_only_commit':a.commit}));raise SystemExit(q.returncode)
 if __name__=='__main__':main()

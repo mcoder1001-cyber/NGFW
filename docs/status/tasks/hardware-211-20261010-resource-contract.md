@@ -65,3 +65,15 @@ failure after pending commit leaves native timed rollback in force and never
 blindly retries/confirms/discards. Manager resolves actual native state using
 GET config/candidate/pending/lock before any further action. No success or
 revision2 is claimed from a timed-out/lost answer.
+
+
+Controller evidence ownership: ROOT executing this manager-only script writes
+only root-owned0600/O_EXCL/fsynced `manager-resource211-*` output files in ROOT's
+owned `/root/Documents/Codex/2026-10-10/hardware` parent. It reads worker-owned
+host211 private seed/credential inputs without modifying them. Worker source
+preparation does not write to the manager's output directory. Resource-aware
+read-only data preflight must consume ROOT's exact output path/SHA there plus
+the initial seed1 path/SHA under host211. Resource target_document_SHA uses
+sorted-key JSON for semantic identity; it is not the physical generator's
+serialized input SHA. The later preflight computes its exact unsorted compact
+JSON document bytes/SHA and manager seals those same actual bytes.

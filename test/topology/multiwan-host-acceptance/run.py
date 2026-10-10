@@ -20,6 +20,11 @@ for line in subprocess.check_output([ROOT/"tools/lab","env",str(SLOT)],text=True
  if line.startswith("export "):
   key,value=line[7:].split("=",1);env[key]=shlex.split(value)[0]
 env["NGFW_INTEGRATION"]="1"
+# A random per-stack key prefix isolates keys when the host has only 16 DBs.
+if "NGFW_MULTIWAN_VALKEY_DB" in env:
+ db=int(env["NGFW_MULTIWAN_VALKEY_DB"])
+ if db not in range(16):raise SystemExit("invalid laboratory Valkey DB")
+ env["NGFW_VALKEY_DB"]=str(db)
 subprocess.run(["ip","netns","add",NS],check=True)
 try:
  with tempfile.TemporaryDirectory(prefix="multiwan-host-") as tmp:

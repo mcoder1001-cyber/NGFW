@@ -4265,7 +4265,7 @@ tasks:
     owner: "nat46_acceptance"
     started: ''
     finished: ''
-    state: "review"
+    state: "merged"
     wbs: []
     prompt: ''
     id: F-global-blocking-host
@@ -4285,8 +4285,8 @@ tasks:
       follow-up of F-global-blocking (cloud session had no VPP); see docs/status/tasks/F-global-blocking.md, section Not done here | 2026-09-28 spawned (Agent tool, developer) slot 8,
       envelope /root/ngfw-wt/F-global-blocking-host.envelope.md, base main@f1f885a6 | done f6b4aebb CI PASSED after R2/R7 round 1 (all items addressed); docs-only → merge after a quick
       R7 verify | merged 689be665 (squash a901aca3, branch gate green)'
-    worker_status: "dual-host acceptance complete; final mandatory CI and integration pending"
-    acceptance_receipt_20261010: "Final exact sourceabaa (ded+391+independently reviewed156) agentSHA5683498457c6: actual195/250 full Global Blocking PASS. Small selected/unselected/local policy, counters, real en/fa UI,200k commit,0/10k/200k fresh ACL runtime windows exactly2000/2000 packets/vectors, same-list kernel enforcement and200k nft PASS. Actual one-entry API69.581s195/53.462s250 with unchanged production phase budgets, exact5updates/noBinding/noCreateDelete PASS. Rollback/DB/role/rig/process cleanup and shared identity PASS. Original flood loss/timeouts/OOM negatives retained. PR222 final mandatory gate and merge pending; not yet Done."
+    worker_status: "dual-host acceptance complete; independently reviewed, merged and main CI passed"
+    acceptance_receipt_20261010: "Final exact sourceabaa (ded+391+independently reviewed156) agentSHA5683498457c6: actual195/250 full Global Blocking PASS. Small selected/unselected/local policy, counters, real en/fa UI,200k commit,0/10k/200k fresh ACL runtime windows exactly2000/2000 packets/vectors, same-list kernel enforcement and200k nft PASS. Actual one-entry API69.581s195/53.462s250 with unchanged production phase budgets, exact5updates/noBinding/noCreateDelete PASS. Rollback/DB/role/rig/process cleanup and shared identity PASS. Original flood loss/timeouts/OOM negatives retained. Done: PR222 exact0df21e16fd95bd05b8e570a827a05bb553dcb59a hosted38050024691SUCCESS; complete unchanged local777 quick PASS24m53s; compiled paths0df=777. Expected-head mergebd25d9b24cb64912f7fdcb76bcf4d5a3c2d7c7b3 and main38051133842SUCCESS."
   - template: ''
     parked_on: ""
     branch: "codex/lab-wan-20261010"

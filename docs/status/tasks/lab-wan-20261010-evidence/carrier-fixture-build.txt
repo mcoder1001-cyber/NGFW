@@ -1,0 +1,4 @@
+# ngfw/agent/internal/subsystems
+internal/subsystems/acl.go:20:2: package ngfw/agent/gen/ngfw/v1 is not in std (/usr/lib/go-1.26/src/ngfw/agent/gen/ngfw/v1)
+FAIL	ngfw/agent/internal/subsystems [setup failed]
+FAIL

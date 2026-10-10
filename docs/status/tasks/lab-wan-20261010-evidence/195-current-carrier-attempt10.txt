@@ -1,0 +1,22 @@
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier.py sha256=79ea45eb061d739046da22adb142aceb35e60b570f9fc10102bf125c7601571f
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-carrier@.service sha256=4499216d6d6fb9382fc8eef9853e6fc6a01ac5edc5a6deebc14f35216b358dee
+TEMP_ORIGINAL_ASSET /run/systemd/system/ngfw-pppoe-broker@.service sha256=00d09565b64c7726e5645020a55ecb7b08d337e7de6be38f214b8916167eab7e
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-up sha256=81b3271808ece3402b49fe24c812bc651f059b9cd0b404c76aa3a450336de771
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ip-down sha256=7316f07be9f7fd7ee5dfec8981bec443359caefd69665d1c7b5243b9e7190796
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-up sha256=569318c3835ef007bd92fcdf880b278d0440060787804d9c5d688bca98fb9677
+TEMP_ORIGINAL_ASSET /usr/lib/ngfw/pppoe-carrier-hooks/ipv6-down sha256=8dca2573a8cba63b73ef7876901e9561cf662942157f154bf5a3fd7c30a42e83
+REAL_BROKER_PREPROVISION_BEFORE_PRIVATE_MOUNT PASS
+DISPOSABLE_VPP pid=4138172 runtime=/root/ngfw-wt/lab-wan-20261010/.scratch/isolated-vpp-4138170
+host-w20raw
+host-w20lan
+=== RUN   TestWANCurrentCarrierLive
+2026/10/10 10:54:46 INFO VPP binary API connected component=vpp socket=/run/vpp/api.sock
+    zz_wan_native_carrier_test.go:51: carrier broker service failed
+--- FAIL: TestWANCurrentCarrierLive (10.06s)
+FAIL
+DISPOSABLE_VPP_STOPPED pid=4138172
+REAL_PEER_LOG
+
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS

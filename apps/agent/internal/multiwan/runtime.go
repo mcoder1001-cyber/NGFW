@@ -61,6 +61,14 @@ func NewRuntime(probe Probe) *Runtime {
 	return &Runtime{probe: probe, groups: map[string]*groupSamples{}}
 }
 
+// HasConfiguredGroups reports the committed monitor configuration, independent
+// of gateway availability, probe results or all members being down.
+func (r *Runtime) HasConfiguredGroups() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return len(r.config) != 0
+}
+
 // Replace is all-or-nothing for configuration validation. An identical config
 // preserves hysteresis; the caller owns ctx for the lifetime of these probes.
 func (r *Runtime) Replace(ctx context.Context, groups []*ngfwv1.WanGroup) error {

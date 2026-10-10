@@ -1,0 +1,7 @@
+/usr/sbin/pppd False
+/usr/sbin/pppoe-server False
+/usr/lib/pppd False
+/etc/ppp True
+/usr/sbin/nft True
+/usr/bin/setpriv True
+glibc 2.43

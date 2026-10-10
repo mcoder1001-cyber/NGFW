@@ -1,0 +1,11 @@
+ROOT_HOST_IDENTITY_BEFORE {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+SHARED_VPP_BEFORE MainPID=1014,NRestarts=0,
+SHARED_VPP_AFTER MainPID=1014,NRestarts=0,
+TEMP_ORIGINAL_ASSETS_REMOVED PASS
+ROOT_HOST_IDENTITY_AFTER {"uts": "uts:[4026531838]", "hostname": "ngfw", "public_file_sha256": {"/etc/hostname": "06632d43588754b20a0ec54941b61cd84ed61f1d0e59e8bbd870fd1a416847eb", "/etc/issue": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/issue.net": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "/etc/motd": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}}
+SHARED_HOST_IDENTITY_UNCHANGED PASS
+Traceback (most recent call last):
+  File "/root/ngfw-wt/lab-wan-20261010/docs/status/tasks/lab-wan-20261010-carrier-live.py", line 181, in <module>
+    assert not os.path.lexists(CARRIER_ROOT),'refuse existing carrier render token'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: refuse existing carrier render token

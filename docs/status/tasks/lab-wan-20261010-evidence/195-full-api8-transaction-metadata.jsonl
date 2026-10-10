@@ -1,0 +1,61 @@
+{"level": "INFO", "mode": "resync", "msg": "reconcile start", "time": "2026-10-10T12:15:01.960052556Z"}
+{"duration": 952343043, "level": "INFO", "mode": "resync", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T12:15:02.911966653Z"}
+{"level": "INFO", "msg": "resync finished", "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T12:15:02.912030731Z", "why": "connect"}
+{"level": "INFO", "msg": "dynamic source started", "source": "pppoe-delegation", "time": "2026-10-10T12:15:02.912302762Z"}
+{"level": "INFO", "msg": "dynamic source started", "source": "pppoe-watch", "time": "2026-10-10T12:15:02.91235508Z"}
+{"level": "INFO", "msg": "dynamic source started", "source": "multiwan", "time": "2026-10-10T12:15:02.912384113Z"}
+{"level": "INFO", "mode": "resync", "msg": "reconcile start", "time": "2026-10-10T12:15:02.912542049Z"}
+{"duration": 896124081, "level": "INFO", "mode": "resync", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T12:15:03.808784161Z"}
+{"level": "INFO", "msg": "resync finished", "status": "APPLY_STATUS_APPLIED", "summary": "", "time": "2026-10-10T12:15:03.808911318Z", "why": "requested"}
+{"duration": 852133439, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "pppoe-watch", "time": "2026-10-10T12:15:04.661353969Z"}
+{"duration": 955873936, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "pppoe-delegation", "time": "2026-10-10T12:15:05.617422816Z"}
+{"duration": 945600864, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:06.563172315Z"}
+{"duration": 890872040, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:07.454669835Z"}
+{"duration": 923567461, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:08.378870897Z"}
+{"duration": 933283133, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:09.312808137Z"}
+{"duration": 948717425, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:10.262139865Z"}
+{"duration": 1033030599, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:11.29584618Z"}
+{"duration": 876204126, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:12.172688307Z"}
+{"duration": 880087103, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:13.053420456Z"}
+{"duration": 991583927, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:14.045633064Z"}
+{"duration": 922436497, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:14.968930497Z"}
+{"duration": 933474775, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:15.9029892Z"}
+{"duration": 852121151, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:16.765053519Z"}
+{"duration": 940585073, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:17.854897474Z"}
+{"duration": 992613973, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:18.906623463Z"}
+{"duration": 925470881, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:19.838819768Z"}
+{"duration": 994813637, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:20.90817592Z"}
+{"duration": 982246371, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:21.895212731Z"}
+{"level": "INFO", "mode": "auto-block", "msg": "reconcile start", "time": "2026-10-10T12:15:21.896249257Z"}
+{"duration": 893635099, "level": "INFO", "mode": "auto-block", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "created:1", "time": "2026-10-10T12:15:22.789855532Z"}
+{"duration": 978033522, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:23.768392626Z"}
+{"duration": 880454965, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:25.586908934Z"}
+{"duration": 892447071, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:27.570832045Z"}
+{"level": "INFO", "mode": "apply", "msg": "reconcile start", "time": "2026-10-10T12:15:27.572390879Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:15:32.572404461Z"}
+{"duration": 8753960241, "level": "INFO", "mode": "apply", "msg": "reconcile done", "reapplied": 0, "status": "APPLY_STATUS_APPLIED", "summary": "created:14 unchanged:11", "time": "2026-10-10T12:15:36.326356274Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:15:37.573079075Z"}
+{"duration": 2765556304, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:39.094739148Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "PPPoE kernel helper operation failed", "time": "2026-10-10T12:15:42.580130118Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:15:47.580598527Z"}
+{"duration": 5853165386, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:48.433872786Z"}
+{"level": "INFO", "msg": "pppoe mirror", "time": "2026-10-10T12:15:52.002668808Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:15:57.004120705Z"}
+{"duration": 5853311459, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:15:57.856666854Z"}
+{"level": "INFO", "msg": "pppoe mirror", "time": "2026-10-10T12:16:01.938936Z"}
+{"duration": 3026428691, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:16:04.965884126Z"}
+{"level": "INFO", "mode": "resync", "msg": "reconcile start", "time": "2026-10-10T12:16:04.966297106Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:16:06.939505879Z"}
+{"duration": 5939095929, "level": "INFO", "mode": "resync", "msg": "reconcile done", "reapplied": 12, "status": "APPLY_STATUS_APPLIED", "summary": "unchanged:25", "time": "2026-10-10T12:16:10.905406133Z"}
+{"level": "INFO", "msg": "resync finished", "status": "APPLY_STATUS_APPLIED", "summary": "unchanged:25", "time": "2026-10-10T12:16:10.905476881Z", "why": "requested"}
+{"level": "INFO", "msg": "pppoe mirror", "time": "2026-10-10T12:16:10.908979622Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:16:11.94015435Z"}
+{"duration": 3035077448, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:16:16.327400082Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:16:21.362046214Z"}
+{"duration": 6073256889, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:16:22.434702775Z"}
+{"level": "INFO", "msg": "pppoe mirror", "time": "2026-10-10T12:16:26.312140432Z"}
+{"level": "WARN", "msg": "PPPoE hook convergence pending", "reason": "rpc error: code = DeadlineExceeded desc = context deadline exceeded", "time": "2026-10-10T12:16:31.31270001Z"}
+{"duration": 6014127476, "level": "DEBUG", "mode": "sync", "msg": "sync: nothing to do", "source": "multiwan", "time": "2026-10-10T12:16:32.32645377Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "multiwan", "time": "2026-10-10T12:16:35.418055102Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "pppoe-delegation", "time": "2026-10-10T12:16:35.418135345Z"}
+{"level": "INFO", "msg": "dynamic source stopped", "source": "pppoe-watch", "time": "2026-10-10T12:16:35.426469374Z"}

@@ -50,7 +50,8 @@ type Ops[T any] struct {
 // Descriptor adapts Ops[T] to scheduler.Descriptor: it decodes the *structpb.Struct
 // carrier into T, routes to the typed closure and re-encodes on Retrieve.
 type Descriptor[T any] struct {
-	ops Ops[T]
+	ops                 Ops[T]
+	readOnlyRequirement bool
 }
 
 var _ scheduler.Descriptor = (*Descriptor[struct{}])(nil)
@@ -72,6 +73,10 @@ func New[T any](ops Ops[T]) *Descriptor[T] {
 
 // Name implements scheduler.Descriptor.
 func (d *Descriptor[T]) Name() string { return d.ops.Name }
+
+// CreateIsReadOnly is true only for the non-owner Global requirement adapter.
+// All object creators and mutable global owners retain dependency cascades.
+func (d *Descriptor[T]) CreateIsReadOnly() bool { return d.readOnlyRequirement }
 
 // Key returns the key of a typed spec.
 func (d *Descriptor[T]) Key(spec T) scheduler.Key {

@@ -30,3 +30,9 @@ Acceptance: package install/configuration; protected management/default routes a
 fresh SSH; service/API/TLS health; persistent data-interface inventory and real
 forwarding tests; restart/reboot only with recovery available. Record actual failures
 and unexecuted tests accurately. No throughput or aggregate release claim.
+
+Final preparation: PR217 merged4908716b/treea0d7b7, fullunchanged mandatory source
+and baremain gates PASS; all applicable independent reviews APPROVE. FinalT1remote
+4a8a82205d490068d865a1344d86afcaf93b8502; R7recovery0eb7036450d410b7540e05a786205c72bd814acf.
+Hardware goal unfinished/awaiting verified recovery input; source packaging work
+complete. All workers awaitresume after durable receipts, no persistent installer.

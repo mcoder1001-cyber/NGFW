@@ -1,22 +1,22 @@
-# Hardware task status — 2026-10-10 07:54 UTC
+# Hardware task status — 2026-10-10 08:06 UTC
 
 بسته‌های اصلاح‌شده ساخته و مستقل بازبینی شدند.
-CI کامل نسخهٔ نهایی موفق شد و PR217 ادغام شد.
-فایل‌سیستم ریشهٔ هر دو دستگاه خراب است؛ نصب هنوز انجام نشده است.
-پورت مدیریت، روتینگ و SSH هر دو دستگاه برقرار است.
+CI کامل قبل و بعد از ادغام PR217 موفق شد.
+فایل‌سیستم ریشهٔ هر دو دستگاه خراب است؛ نصب انجام نشده است.
+SSH، پورت مدیریت و مسیر پیش‌فرض هر دو دستگاه برقرار است.
 ادامهٔ نصب به کنسول بازیابی و تعمیر آفلاین نیاز دارد.
 
-Board:212 total,205merged,7parked,0running/ready/review; no invented adhoc WBS row.
-New product merges:1(PR217),no stale-row corrections. Main4908716b/treea0d7b7.
-PR gate38033766837SUCCESS; bare main quick38035583209IN PROGRESS.
-R1/R2/R7/R8APPROVE,T1PASS; applicable source metadata review complete.
-Live roles:rootmanager,host_37mainT1,R7evidence; others awaitingresume,no installers.
-Targets .37enp12s0/.211enp4s0 management/default routes/SSH intact.
-Data interfaces7/17 inventoried; import/binding NOT RUN.
-Blocker:active ext4 /dev/sda2 corruption and failed boot fsck on both hosts.
-Required input:verified console/rescue or actual completed offline repair evidence.
-Private off-host configbackup done/independently checked; notfullsystem/data backup.
-Native nft snapshot unavailable; compatibility exports captured, noemptinessclaim.
-No package transfer/install, service/route/config change, filesystem repair or reboot.
-Next:verify full bare main gate, publish final checkpoint; then safe offline recovery.
-Host acceptance/API/TLS/forwarding/reboot/throughput NOT RUN.
+Freshboard212total:205merged,7parked,0running/ready/review;no invented adhoc WBSrow.
+Newproductmerges:1(PR217),nostalerowcorrection;main4908716b/treea0d7b7.
+PRquick38033766837SUCCESS;baremainquick38035583209SUCCESS;mainfixturesbothSUCCESS.
+R1/R2/R7/R8APPROVE,T1PASS;finalT1remote4a8a82205d490068d865a1344d86afcaf93b8502.
+Verifiedrolesbeforehandoff:rootmanagerfinishing;otherworkersfinished/awaitingresume.
+No livedevelopers/testers/reviewers/installers/persistentsupervisorclaimed.
+.37enp12s0/.211enp4s0management/default routes/SSH rechecked08:03PASS.
+Data7/17inventoried;import/binding NOTRUN. Rootext4/bootfsck failure stillblocks.
+Privateoffhostconfigbackup independentlychecked;notfullsystem/data backup.
+Nativenftsnapshotunavailable;compatibilityexports captured,noemptinessclaim.
+No package transfer/install,service/route/configchange,repairor reboot.
+Requiredinput:verifiedconsole/rescue+dataprotection,oractualcleanoffline-repair evidence.
+Next:resumeexistinghostbranches forofflinerecovery/cleanpreflight,theninstall/test.
+HostAPI/TLS/physicalforwarding/reboot/throughput acceptance NOTRUN;taskunfinished.

@@ -1,8 +1,8 @@
-# Hardware installation WIP — 2026-10-10 07:54 UTC
+# Hardware installation WIP — 2026-10-10 08:06 UTC
 
 Branch: codex/hardware-manager-20261010.
 Worktree: /root/ngfw-wt/hardware-manager-20261010.
-At this status edit localHEAD/remote ownbranch:925703c2a02c2b7e15e28e0ddbbd4534bca19de3;
+At this status edit localHEAD/remote ownbranch:0f3ab280f3d3941b21e2580d584bdaddc614822c;
 origin/main:4908716b4501312102382e6979b8fc1ded6f9311.
 This status checkpoint will be committed/pushed immediately; discover its current
 local/remote SHA with `git rev-parse HEAD` and
@@ -33,7 +33,16 @@ hosted fixture gates success. All R1/R2/R7/R8 APPROVE, T1PASS; immutable receipt
 Premerge default full gitleaks found10 preexisting sanctioned test placeholders;
 independent R2 triage confirmed no real secret. Unchanged canonical-config full
 no-git scans both exit0/noleaks. No allowlist/test was modified to hide findings.
-Main push quick38035583209 IN PROGRESS; post-merge PASS still unverified.
+Main bare quick38035583209/job114165198295 COMPLETED SUCCESS on exact4908716b.
+ActualAPI completedAt2026-10-10T08:07:08Z; independent T1full58932-byte log shows
+checkout4908716b,35/35tasks,149harnesschecks and literal CI GATE PASSED.
+LogSHA2569c957c9fe1c469f1acbde3f434b2b021ba21e6a09a6c666c0d10f3503df2fb12.
+Final postmergeT1PASS published/readback4a8a82205d490068d865a1344d86afcaf93b8502.
+R7recoverydocs/metadataAPPROVE published/readback0eb7036450d410b7540e05a786205c72bd814acf.
+Fresh main/head/tree and board counts readback08:03 confirms exact490/treea0;
+noopenPR. Source metadata correction and all mandatory code gates are complete.
+Fresh08:03readonlySSH bothPASS; protected addresses/default routes unchanged,
+bootfsckunitsstillfailed. No targetinstall/repair/reboot or live acceptance.
 Main packaging38035583240 and provisioning38035583210 completedSUCCESS on4908716b.
 Public925703c checkpoint checkPASS13s; scanned15040bytes/no leaks; clean afterpush.
 Private network/config snapshots completed on both hosts; configtar/allroute-rules/
@@ -75,14 +84,21 @@ offline dependency closure or release acceptance claimed.
 
 Remote preflight .37=86a2f06eafc6406e3e5395769d923a09bbfa60aa;
 .211=a4059c73b4a2e3346b7cf1cf705c0a5b908c317d. Resume existing owned host branches,
-never silently rebuild. Live roles at07:54:rootmanager,host_37independentmainT1,R7recoveryevidence;
-host_211 backup/R2 andR8 finished awaitingresume; no active installers/persistent supervisor.
+never silently rebuild. Live roles before08:06handoff:rootmanager finishes status/artifact publication;
+all host/reviewer/tester workers finished awaitingresume. No live installer/developer/
+tester/reviewer is claimed; root also awaits required recovery input after handoff; no active installers/persistent supervisor.
 Board212tasks:205merged,7parked,0running/ready/review. Adhoc hardware request has no
 invented WBS state. This cycle has one new product merge(PR217), no stale-row fixes.
 Root disk~500MiB available; do not duplicate broad local builds or delete others' work.
 Outputs/logs:/root/Documents/Codex/2026-10-10/hardware/.
 
 Current failure: active target root-filesystem errors; verified rescue input missing.
-Remaining: main bare quick completion/readback; final docs checkpoint/publication;
-then offline recovery and actual installation/hardware testing when inputs arrive.
-Exact next command: `gh run view 38035583209 --json headSha,status,conclusion,jobs,url`.
+Remaining hardware work: verified console/rescue/full-data backup or agreed recovery
+plan, offline root diagnosis/repair and clean preflight; guarded package installation,
+physical rows/import and actual API/TLS/forwarding/restart/reboot tests. No code/gate
+failure remains in the packaging correction. This hardware task is not complete.
+Exact next read-only command AFTER owner reports offline recovery complete:
+`ssh -o BatchMode=yes -o StrictHostKeyChecking=yes root@172.30.126.37 'findmnt -no SOURCE,FSTYPE,OPTIONS /; systemctl status systemd-fsck-root.service --no-pager; ip -br addr; ip route show table all'`
+Repeat for172.30.110.211; compare private backed-up state. Read recovery runbook first.
+Checkpointpublication/actual remote SHA is reported onPR217 after successful push
+and readback. Preserve current source/history/artifacts; resume existing task branches.

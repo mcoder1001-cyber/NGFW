@@ -63,7 +63,7 @@ Expected-head GH merge, without admin/bypass, completed. Actual remote main
 and treea0d7b7 equal to the completely tested PR integration tree. PR217 merged
 2026-10-10T07:46:33Z. No local main/user worktree was edited; the manager's own
 branch was fast-forwarded to published main. Main push bare quick38035583209
-is IN PROGRESS; packaging38035583240 and provisioning38035583210 subsequently completedSUCCESS. Main-CI PASS is not yet claimed.
+subsequently COMPLETED SUCCESS; packaging38035583240 and provisioning38035583210 subsequently completedSUCCESS. Main-CI PASS independently confirmed in final receipt below.
 
 ## Configuration recovery preparation
 
@@ -77,3 +77,20 @@ Native nft gap remains explicit despite successful empty compatibility exports.
 [Recovery runbook](hardware-manager-20261010-recovery.md) keeps full-data backup and
 console/unmounted offline diagnosis/repair prerequisites separate from these
 configuration snapshots. No filesystem repair/target mutation or hardware PASS.
+
+## Final independent main-gate receipt
+
+T1 final PASS published/read back
+[4a8a82205d490068d865a1344d86afcaf93b8502](https://github.com/mcoder1001-cyber/NGFW/blob/4a8a82205d490068d865a1344d86afcaf93b8502/docs/status/tasks/hardware-37-20261010-test-T1.md).
+Main38035583209/job114165198295 completedSUCCESS on4908716b,allstepssuccess,
+completedAt2026-10-10T08:07:08Z(API timestamp). Independent58932-byte log has
+actualcheckout4908716b/mainbranch,35/35tasks,149harnesschecks and
+`CI GATE PASSED` at2026-10-10T08:07:02.2874218Z. SHA256
+9c957c9fe1c469f1acbde3f434b2b021ba21e6a09a6c666c0d10f3503df2fb12.
+Fresh remote main parents/tree independently reasserted unchanged.
+Root also read exactmainSUCCESS/allstepsmetadata and both mainfixtureSUCCESS.
+[Recovery R7 addendum](https://github.com/mcoder1001-cyber/NGFW/blob/0eb7036450d410b7540e05a786205c72bd814acf/docs/status/tasks/hardware-evidence-review-20261010-postmerge.md) APPROVE on0f3ab280f,
+with privatebackup metadata/readability/hash and bundle exclusion evidence.
+
+Combined final package/source verdict APPROVE; T1 PASS before and after merge.
+Actual hardware installation/acceptance remains NOT RUN, blocked offline recovery.

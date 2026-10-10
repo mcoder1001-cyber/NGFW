@@ -6,7 +6,7 @@ Source2045ab8b3d2f477bb23446fb5e58b7d9d3abea3c is preserved in remote
 subsequent changes address task documentation only. Outputs below are selected actual
 log lines; omitted output is retained outside the repository in the task-owned directory
 `/root/Documents/Codex/2026-10-10/hardware/`. All completed process commands listed here
-were observed exit0. The final PR hosted quick completed SUCCESS; post-merge main quick remains in progress. Fixed native archive integrity/metadata
+were observed exit0. The final PR hosted quick completed SUCCESS; post-merge bare main quick also completed SUCCESS. Fixed native archive integrity/metadata
 passed independent R8 inspection; its durable receipt is linked below when published.
 
 ## Source preparation
@@ -178,7 +178,7 @@ Merge pull request #217 from mcoder1001-cyber/codex/hardware-manager-20261010
 
 Actual merged tree equals independently tested integration tree. Main bare quick
 38035583209,packaging38035583240,provisioning38035583210 observed IN PROGRESS;
-post-merge PASS not yet claimed.
+This original in-progress snapshot was superseded by final main PASS below.
 
 Premerge entire-worktree canonical-config scan command:
 `gitleaks detect --no-git -s /root/ngfw-wt/hardware-manager-20261010 --config .github/gitleaks.toml --redact --no-banner`
@@ -235,3 +235,39 @@ verified parent and both host dirs0700. Independent R7 metadata-only checks exit
 configarchive includes management netplan and all regular payload lengths readable.
 Candidate tar23members has0private-backup members and0unsafepaths. No privatebackup
 content is committed/published. See recovery runbook/publichostreceipts.
+
+## Completed bare main gate and final route check
+
+Root command `gh run view38035583209 --json status,conclusion,headSha,url,jobs`
+actual readback: completed,success,headSha4908716b4501312102382e6979b8fc1ded6f9311;
+job114165198295 completed2026-10-10T08:07:08Z,allstepssuccess. Independent T1
+downloaded full58932-byte log/SHA2569c957c9fe1c469f1acbde3f434b2b021ba21e6a09a6c666c0d10f3503df2fb12
+and published actual excerpts in immutable final receipt4a8a82205d490068d865a1344d86afcaf93b8502:
+
+```text
+HEAD is now at 4908716b Merge pull request #217 from mcoder1001-cyber/codex/hardware-manager-20261010
+CI GATE PASSED
+```
+
+Main bare quick, without PR base argument, ran unchanged complete gate. All35turbo
+tasks and149fake-host checks passed; actual physical integration NOT RUN. Both
+main packaging38035583240/provisioning38035583210 readbackcompletedSUCCESS/exact490.
+Fresh gitfetch/lsremote/show and productdiff2045→originmain confirmed exactmerge/
+parents/tree and product equality. `gh pr list --state open` returned[]. Fresh
+board YAML count212,statesmerged205/parked7; no otherstate.
+
+Final08:03readonlySSH command for each address:
+`ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=15 root@<address> 'ip -br -4 addr; ip -4 route show default; systemctl is-failed systemd-fsck-root.service'`
+Both exits0,actualoutputs:
+
+```text
+enp12s0 UP 172.30.126.37/24
+default via 172.30.126.1 dev enp12s0 proto static
+failed
+enp4s0 UP 172.30.110.211/24
+default via 172.30.110.1 dev enp4s0 proto static
+failed
+```
+
+No targetmutation/install/reboot or liveacceptance. Rootfilesystem recovery remains
+required; configuration backups do not replace fullsystem/data protection.

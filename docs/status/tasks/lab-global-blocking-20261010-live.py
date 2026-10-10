@@ -114,7 +114,7 @@ try:
     list_entries(entries[:n]);commit('gb-'+str(n)+'-real-commit');status=request(api,'GET','/security/global-blocking');assert status['lists'][0]['runningEntries']==n
     lookup('lookup-'+str(n));vpp('bindings-'+str(n),'show','acl-plugin','interface')
    changed=entries.copy();changed[777]='100.127.255.254/32';list_entries(changed)
-   candidate=request(api,'GET','/config/candidate');path=owned/'gb-incremental.json';path.write_text(json.dumps(candidate));path.chmod(0o600)
+   candidate=request(api,'GET','/config/candidate');path=owned/'gb-incremental.json';path.write_text(json.dumps({'acl':candidate['acl']}));path.chmod(0o600)
    plan=json.loads(run(str(BIN/'ngfw-agentctl'),'-s',str(owned/'agent.sock'),'dryrun',str(path),'-subsystems','acl',timeout=90));(EVID/'incremental-dryrun.json').write_text(json.dumps(plan,indent=2)+'\n')
    assert plan['ok'] and not plan.get('errors')
    assert plan.get('summary',{}).get('created',0)==0 and plan.get('summary',{}).get('deleted',0)==0 and 1<=plan['summary']['updated']<=5,plan

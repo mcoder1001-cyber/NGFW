@@ -1,80 +1,815 @@
-Time 21.8, 10.000000 sec internal node vector rate 1.00 loops/sec 61864.48
-  vector rates in 2.9825e0, out 2.2943e0, drop 7.8009e-1, punt 0.0000e0
+Time .1, 10.000000 sec internal node vector rate 1.17 loops/sec 122969.64
+  vector rates in 0.0000e0, out 0.0000e0, drop 0.0000e0, punt 0.0000e0
              Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
-acl-plugin-fa-cleaner-process "event wait"               0               0               5          2.08e4            0.00
-acl-plugin-fa-worker-cleaner-pinterrupt wa               4               0               0          2.44e4            0.00
-admin-up-down-process         "event wait"               0               0               1          2.97e4            0.00
-af-packet-input               interrupt wa           28428              65               0          8.00e6            0.00
-api-rx-from-ring               "any wait"                0               0           10217          1.63e5            0.00
-arp-input                        active                  3               3               0          8.54e3            1.00
-arp-reply                        active                  3               3               0          6.49e5            1.00
-bfd-process                   "event wait"               0               0               1          2.50e4            0.00
-bond-process                  "event wait"               0               0               1          2.32e4            0.00
-cnat-scanner-process          "event wait"               0               0               1          3.09e4            0.00
-deleted-792                   "not started               1               0               0          6.25e4            0.00
-dhcp-client-process            "any wait"                0               0               1          2.62e4            0.00
-dhcp6-client-cp-process        "any wait"                0               0               1          2.13e4            0.00
-dhcp6-pd-client-cp-process     "any wait"                0               0               1          2.23e4            0.00
-dhcp6-pd-reply-publisher-proce"event wait"               0               0               1          2.09e4            0.00
-dhcp6-reply-publisher-process "event wait"               0               0               1          2.22e4            0.00
-dpdk-process                   "any wait"                0               0               7          1.26e5            0.00
-drop                             active                 15              17               0          6.89e3            1.13
-error-drop                       active                 15              17               0          9.08e3            1.13
-ethernet-input                   active                 55              65               0          1.36e4            1.18
-fib-walk                       "any wait"                0               0              11          1.96e4            0.00
-flow-report-process            "any wait"                0               0               1          2.48e4            0.00
-flowprobe-timer-process        "any wait"                0               0               1          3.31e4            0.00
-host-w17l0-output                active                 24              27               0          6.95e3            1.13
-host-w17l0-tx                    active                 24              27               0          1.96e5            1.13
-host-w17w0-output                active                 18              23               0          6.51e3            1.28
-host-w17w0-tx                    active                 18              23               0          1.78e5            1.28
-igmp-timer-process            "event wait"               0               0               1          2.85e4            0.00
-ikev2-manager-process         "event wait"               0               0               1          3.07e4            0.00
-interface-output                 active                  1               1               0          1.13e4            1.00
-ioam-export-process            "any wait"                0               0               1          2.14e4            0.00
-ip-neighbor-event             "event wait"               0               0               1          2.14e4            0.00
-ip4-drop                         active                  2               2               0          6.16e3            1.00
-ip4-full-reassembly-expire-wal "any wait"                0               0             410          8.59e3            0.00
-ip4-glean                        active                  2               2               0          2.84e4            1.00
-ip4-icmp-echo-request            active                  3               3               0          2.58e4            1.00
-ip4-icmp-input                   active                  3               3               0          6.66e3            1.00
-ip4-input                        active                 41              49               0          8.73e3            1.20
-ip4-load-balance                 active                  3               3               0          5.75e3            1.00
-ip4-lookup                       active                 41              49               0          6.62e3            1.20
-ip4-neighbor-age-process      "event wait"               0               0               1          2.17e4            0.00
-ip4-receive                      active                  3               3               0          2.40e4            1.00
-ip4-rewrite                      active                 39              47               0          6.15e3            1.21
-ip4-sv-reassembly-expire-walk  "any wait"                0               0               3          1.57e4            0.00
-ip6-dad-process                "any wait"                0               0               1          2.29e4            0.00
-ip6-full-reassembly-expire-wal "any wait"                0               0             410          1.78e4            0.00
-ip6-input                        active                 11              13               0          9.96e3            1.18
-ip6-mld-process                "any wait"                0               0              21          8.85e3            0.00
-ip6-neighbor-age-process      "event wait"               0               0               1          7.19e4            0.00
-ip6-not-enabled                  active                 11              13               0          2.80e3            1.18
-ip6-ra-process                 "any wait"                0               0              21          7.82e3            0.00
-ip6-rs-process                 "any wait"                0               0               1          2.55e4            0.00
-ip6-sv-reassembly-expire-walk  "any wait"                0               0               3          1.88e4            0.00
-l2-arp-term-publisher         "event wait"               0               0               1          2.15e4            0.00
-l2fib-mac-age-scanner-process "event wait"               0               0               1          2.25e4            0.00
-linux-cp-netlink-process       "any wait"                0               0               1          4.20e4            0.00
-lldp-process                  "event wait"               0               0               1          2.77e5            0.00
-memif-process                 "event wait"               0               0               1          3.47e4            0.00
-nat44-ei-ha-process           "event wait"               0               0               1          3.20e4            0.00
-nsh-md2-ioam-export-process    "any wait"                0               0               1          8.39e4            0.00
-rd-cp-process                  "any wait"                0               0               1          2.97e4            0.00
-sasc-session-expiry            "suspended"               0               0              21          3.06e4            0.00
+abf-input-ip4                    active                  0               0               0          0.00e0            0.00
+abf-input-ip6                    active                  0               0               0          0.00e0            0.00
+acl-plugin-fa-cleaner-process "event wait"               0               0               0          0.00e0            0.00
+acl-plugin-fa-worker-cleaner-pinterrupt wa               0               0               0          0.00e0            0.00
+acl-plugin-in-ip4-fa             active                  0               0               0          0.00e0            0.00
+acl-plugin-in-ip4-l2             active                  0               0               0          0.00e0            0.00
+acl-plugin-in-ip6-fa             active                  0               0               0          0.00e0            0.00
+acl-plugin-in-ip6-l2             active                  0               0               0          0.00e0            0.00
+acl-plugin-in-nonip-l2           active                  0               0               0          0.00e0            0.00
+acl-plugin-out-ip4-fa            active                  0               0               0          0.00e0            0.00
+acl-plugin-out-ip4-l2            active                  0               0               0          0.00e0            0.00
+acl-plugin-out-ip6-fa            active                  0               0               0          0.00e0            0.00
+acl-plugin-out-ip6-l2            active                  0               0               0          0.00e0            0.00
+acl-plugin-out-nonip-l2          active                  0               0               0          0.00e0            0.00
+adj-l2-midchain                  active                  0               0               0          0.00e0            0.00
+adj-l2-rewrite                   active                  0               0               0          0.00e0            0.00
+adj-midchain-tx                  active                  0               0               0          0.00e0            0.00
+adj-nsh-midchain                 active                  0               0               0          0.00e0            0.00
+adj-nsh-rewrite                  active                  0               0               0          0.00e0            0.00
+adl-input                        active                  0               0               0          0.00e0            0.00
+admin-up-down-process         "event wait"               0               0               0          0.00e0            0.00
+af-packet-input               interrupt wa               0               0               0          0.00e0            0.00
+af_xdp-input                    disabled                 0               0               0          0.00e0            0.00
+ah4-decrypt-handoff              active                  0               0               0          0.00e0            0.00
+ah4-decrypt                      active                  0               0               0          0.00e0            0.00
+ah4-encrypt-handoff              active                  0               0               0          0.00e0            0.00
+ah4-encrypt                      active                  0               0               0          0.00e0            0.00
+ah6-decrypt-handoff              active                  0               0               0          0.00e0            0.00
+ah6-decrypt                      active                  0               0               0          0.00e0            0.00
+ah6-encrypt-handoff              active                  0               0               0          0.00e0            0.00
+ah6-encrypt                      active                  0               0               0          0.00e0            0.00
+api-rx-from-node                 active                  0               0               0          0.00e0            0.00
+api-rx-from-ring               "any wait"                0               0               1          7.52e4            0.00
+appsl-rx-mqs-input              disabled                 0               0               0          0.00e0            0.00
+arp-disabled                     active                  0               0               0          0.00e0            0.00
+arp-input                        active                  0               0               0          0.00e0            0.00
+arp-proxy                        active                  0               0               0          0.00e0            0.00
+arp-reply                        active                  0               0               0          0.00e0            0.00
+arp-term-l2bd                    active                  0               0               0          0.00e0            0.00
+arping-input                     active                  0               0               0          0.00e0            0.00
+arping6-input                    active                  0               0               0          0.00e0            0.00
+bfd-process                   "event wait"               0               0               0          0.00e0            0.00
+bfd-udp-echo4-input              active                  0               0               0          0.00e0            0.00
+bfd-udp-echo6-input              active                  0               0               0          0.00e0            0.00
+bfd-udp4-input                   active                  0               0               0          0.00e0            0.00
+bfd-udp6-input                   active                  0               0               0          0.00e0            0.00
+bier-bift-input                  active                  0               0               0          0.00e0            0.00
+bier-disp-dispatch               active                  0               0               0          0.00e0            0.00
+bier-disp-lookup                 active                  0               0               0          0.00e0            0.00
+bier-drop                        active                  0               0               0          0.00e0            0.00
+bier-imp-ip4                     active                  0               0               0          0.00e0            0.00
+bier-imp-ip6                     active                  0               0               0          0.00e0            0.00
+bier-input                       active                  0               0               0          0.00e0            0.00
+bier-load-balance                active                  0               0               0          0.00e0            0.00
+bier-lookup                      active                  0               0               0          0.00e0            0.00
+bier-output                      active                  0               0               0          0.00e0            0.00
+bond-input                       active                  0               0               0          0.00e0            0.00
+bond-process                  "event wait"               0               0               0          0.00e0            0.00
+cdp-input                        active                  0               0               0          0.00e0            0.00
+cnat-input-ip4                   active                  0               0               0          0.00e0            0.00
+cnat-input-ip6                   active                  0               0               0          0.00e0            0.00
+cnat-lookup-ip4                  active                  0               0               0          0.00e0            0.00
+cnat-lookup-ip6                  active                  0               0               0          0.00e0            0.00
+cnat-output-ip4                  active                  0               0               0          0.00e0            0.00
+cnat-output-ip6                  active                  0               0               0          0.00e0            0.00
+cnat-scanner-process          "event wait"               0               0               0          0.00e0            0.00
+cnat-snat-ip4                    active                  0               0               0          0.00e0            0.00
+cnat-snat-ip4-client             active                  0               0               0          0.00e0            0.00
+cnat-snat-ip4-return             active                  0               0               0          0.00e0            0.00
+cnat-snat-ip6                    active                  0               0               0          0.00e0            0.00
+cnat-snat-ip6-client             active                  0               0               0          0.00e0            0.00
+cnat-snat-ip6-return             active                  0               0               0          0.00e0            0.00
+cnat-writeback-ip4               active                  0               0               0          0.00e0            0.00
+cnat-writeback-ip6               active                  0               0               0          0.00e0            0.00
+crypto-deq                    interrupt wa               0               0               0          0.00e0            0.00
+crypto-enq                       active                  0               0               0          0.00e0            0.00
+ct6-in2out                       active                  0               0               0          0.00e0            0.00
+ct6-out2in                       active                  0               0               0          0.00e0            0.00
+default-adl-allowlist            active                  0               0               0          0.00e0            0.00
+deleted-792                   "not started               0               0               0          0.00e0            0.00
+det44-in2out                     active                  0               0               0          0.00e0            0.00
+det44-out2in                     active                  0               0               0          0.00e0            0.00
+dev-rt-mgmt                   interrupt wa               0               0               0          0.00e0            0.00
+device-input                    disabled                 0               0               0          0.00e0            0.00
+dhcp-client-process            "any wait"                0               0               0          0.00e0            0.00
+dhcp-proxy-to-client             active                  0               0               0          0.00e0            0.00
+dhcp-proxy-to-server             active                  0               0               0          0.00e0            0.00
+dhcp6-client-cp-process        "any wait"                0               0               0          0.00e0            0.00
+dhcp6-pd-client-cp-process     "any wait"                0               0               0          0.00e0            0.00
+dhcp6-pd-reply-publisher-proce"event wait"               0               0               0          0.00e0            0.00
+dhcp6-reply-publisher-process "event wait"               0               0               0          0.00e0            0.00
+dhcpv6-client                    active                  0               0               0          0.00e0            0.00
+dhcpv6-proxy-to-client           active                  0               0               0          0.00e0            0.00
+dhcpv6-proxy-to-server           active                  0               0               0          0.00e0            0.00
+dns4-request                     active                  0               0               0          0.00e0            0.00
+dns46_reply                      active                  0               0               0          0.00e0            0.00
+dns6-request                     active                  0               0               0          0.00e0            0.00
+dpdk-input                      disabled                 0               0               0          0.00e0            0.00
+dpdk-process                   "any wait"                0               0               0          0.00e0            0.00
+drop                             active                  0               0               0          0.00e0            0.00
+dslite-ce-decap                  active                  0               0               0          0.00e0            0.00
+dslite-ce-encap                  active                  0               0               0          0.00e0            0.00
+dslite-in2out                    active                  0               0               0          0.00e0            0.00
+dslite-in2out-slowpath           active                  0               0               0          0.00e0            0.00
+dslite-out2in                    active                  0               0               0          0.00e0            0.00
+echo-clients                    disabled                 0               0               0          0.00e0            0.00
+error-drop                       active                  0               0               0          0.00e0            0.00
+error-punt                       active                  0               0               0          0.00e0            0.00
+esp-mpls-encrypt-tun-handoff     active                  0               0               0          0.00e0            0.00
+esp-mpls-encrypt-tun             active                  0               0               0          0.00e0            0.00
+esp-mpls-encrypt-tun-post        active                  0               0               0          0.00e0            0.00
+esp4-decrypt-handoff             active                  0               0               0          0.00e0            0.00
+esp4-decrypt-tun-handoff         active                  0               0               0          0.00e0            0.00
+esp4-decrypt                     active                  0               0               0          0.00e0            0.00
+esp4-decrypt-post                active                  0               0               0          0.00e0            0.00
+esp4-decrypt-tun                 active                  0               0               0          0.00e0            0.00
+esp4-decrypt-tun-post            active                  0               0               0          0.00e0            0.00
+esp4-encrypt-handoff             active                  0               0               0          0.00e0            0.00
+esp4-encrypt-tun-handoff         active                  0               0               0          0.00e0            0.00
+esp4-encrypt                     active                  0               0               0          0.00e0            0.00
+esp4-encrypt-post                active                  0               0               0          0.00e0            0.00
+esp4-encrypt-tun                 active                  0               0               0          0.00e0            0.00
+esp4-encrypt-tun-post            active                  0               0               0          0.00e0            0.00
+esp6-decrypt-handoff             active                  0               0               0          0.00e0            0.00
+esp6-decrypt-tun-handoff         active                  0               0               0          0.00e0            0.00
+esp6-decrypt                     active                  0               0               0          0.00e0            0.00
+esp6-decrypt-post                active                  0               0               0          0.00e0            0.00
+esp6-decrypt-tun                 active                  0               0               0          0.00e0            0.00
+esp6-decrypt-tun-post            active                  0               0               0          0.00e0            0.00
+esp6-encrypt-handoff             active                  0               0               0          0.00e0            0.00
+esp6-encrypt-post                active                  0               0               0          0.00e0            0.00
+esp6-encrypt-tun-handoff         active                  0               0               0          0.00e0            0.00
+esp6-encrypt                     active                  0               0               0          0.00e0            0.00
+esp6-encrypt-tun                 active                  0               0               0          0.00e0            0.00
+esp6-encrypt-tun-post            active                  0               0               0          0.00e0            0.00
+ethernet-input                   active                  0               0               0          0.00e0            0.00
+ethernet-input-not-l2            active                  0               0               0          0.00e0            0.00
+ethernet-input-type              active                  0               0               0          0.00e0            0.00
+ethernet-mpls-label-imposition   active                  0               0               0          0.00e0            0.00
+ethernet-mpls-label-imposition   active                  0               0               0          0.00e0            0.00
+exception-punt-socket            active                  0               0               0          0.00e0            0.00
+feature-bitmap-drop              active                  0               0               0          0.00e0            0.00
+fib-walk                       "any wait"                0               0               0          0.00e0            0.00
+flow-report-process            "any wait"                0               0               0          0.00e0            0.00
+flowprobe-flush-ip4           interrupt wa               0               0               0          0.00e0            0.00
+flowprobe-flush-ip6           interrupt wa               0               0               0          0.00e0            0.00
+flowprobe-flush-l2            interrupt wa               0               0               0          0.00e0            0.00
+flowprobe-input-ip4              active                  0               0               0          0.00e0            0.00
+flowprobe-input-ip6              active                  0               0               0          0.00e0            0.00
+flowprobe-input-l2               active                  0               0               0          0.00e0            0.00
+flowprobe-output-ip4             active                  0               0               0          0.00e0            0.00
+flowprobe-output-ip6             active                  0               0               0          0.00e0            0.00
+flowprobe-output-l2              active                  0               0               0          0.00e0            0.00
+flowprobe-timer-process        "any wait"                0               0               0          0.00e0            0.00
+flowprobe-walker              interrupt wa               0               0               0          0.00e0            0.00
+geneve4-encap                    active                  0               0               0          0.00e0            0.00
+geneve4-input                    active                  0               0               0          0.00e0            0.00
+geneve6-encap                    active                  0               0               0          0.00e0            0.00
+geneve6-input                    active                  0               0               0          0.00e0            0.00
+gre-erspan-encap                 active                  0               0               0          0.00e0            0.00
+gre-teb-encap                    active                  0               0               0          0.00e0            0.00
+gre4-input                       active                  0               0               0          0.00e0            0.00
+gre6-input                       active                  0               0               0          0.00e0            0.00
+gso-ip4                          active                  0               0               0          0.00e0            0.00
+gso-ip6                          active                  0               0               0          0.00e0            0.00
+gso-l2-ip4                       active                  0               0               0          0.00e0            0.00
+gso-l2-ip6                       active                  0               0               0          0.00e0            0.00
+gtpu4-encap                      active                  0               0               0          0.00e0            0.00
+gtpu4-flow-input                 active                  0               0               0          0.00e0            0.00
+gtpu4-input                      active                  0               0               0          0.00e0            0.00
+gtpu6-encap                      active                  0               0               0          0.00e0            0.00
+gtpu6-input                      active                  0               0               0          0.00e0            0.00
+handoff_trace                    active                  0               0               0          0.00e0            0.00
+hdlc-input                       active                  0               0               0          0.00e0            0.00
+host-w17l0-output                active                  0               0               0          0.00e0            0.00
+host-w17l0-tx                    active                  0               0               0          0.00e0            0.00
+host-w17w0-output                active                  0               0               0          0.00e0            0.00
+host-w17w0-tx                    active                  0               0               0          0.00e0            0.00
+hsi4-in                          active                  0               0               0          0.00e0            0.00
+hsi4-out                         active                  0               0               0          0.00e0            0.00
+hsi6-in                          active                  0               0               0          0.00e0            0.00
+hsi6-out                         active                  0               0               0          0.00e0            0.00
+http-timer-process            "not started               0               0               0          0.00e0            0.00
+icmp6-neighbor-advertisement     active                  0               0               0          0.00e0            0.00
+icmp6-neighbor-solicitation      active                  0               0               0          0.00e0            0.00
+icmp6-router-advertisement       active                  0               0               0          0.00e0            0.00
+icmp6-router-solicitation        active                  0               0               0          0.00e0            0.00
+igmp-input                       active                  0               0               0          0.00e0            0.00
+igmp-parse-query                 active                  0               0               0          0.00e0            0.00
+igmp-parse-report                active                  0               0               0          0.00e0            0.00
+igmp-timer-process            "event wait"               0               0               0          0.00e0            0.00
+ikev2-ip4                        active                  0               0               0          0.00e0            0.00
+ikev2-ip4-natt                   active                  0               0               0          0.00e0            0.00
+ikev2-ip6                        active                  0               0               0          0.00e0            0.00
+ikev2-manager-process         "event wait"               0               0               0          0.00e0            0.00
+ila-to-sir                       active                  0               0               0          0.00e0            0.00
+intel-dsa                     interrupt wa               0               0               0          0.00e0            0.00
+interface-output-template        active                  0               0               0          0.00e0            0.00
+interface-output                 active                  0               0               0          0.00e0            0.00
+interface-output-arc-end         active                  0               0               0          0.00e0            0.00
+interface-rx-dpo-ip4             active                  0               0               0          0.00e0            0.00
+interface-rx-dpo-ip6             active                  0               0               0          0.00e0            0.00
+interface-rx-dpo-l2              active                  0               0               0          0.00e0            0.00
+ioam-cache-ts-timer-tick        disabled                 0               0               0          0.00e0            0.00
+ioam-export-process            "any wait"                0               0               0          0.00e0            0.00
+ip-neighbor-event             "event wait"               0               0               0          0.00e0            0.00
+ip4-adl-allowlist                active                  0               0               0          0.00e0            0.00
+ip4-arp                          active                  0               0               0          0.00e0            0.00
+ip4-classify                     active                  0               0               0          0.00e0            0.00
+ip4-cnat-return                  active                  0               0               0          0.00e0            0.00
+ip4-cnat-tx                      active                  0               0               0          0.00e0            0.00
+ip4-dhcp-client-detect           active                  0               0               0          0.00e0            0.00
+ip4-drop                         active                  0               0               0          0.00e0            0.00
+ip4-dvr-dpo                      active                  0               0               0          0.00e0            0.00
+ip4-dvr-reinject                 active                  0               0               0          0.00e0            0.00
+ip4-flow-classify                active                  0               0               0          0.00e0            0.00
+ip4-frag                         active                  0               0               0          0.00e0            0.00
+ip4-full-reass-custom-hoff       active                  0               0               0          0.00e0            0.00
+ip4-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
+ip4-full-reassembly              active                  0               0               0          0.00e0            0.00
+ip4-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
+ip4-full-reassembly-expire-wal "any wait"                0               0               3          8.03e3            0.00
+ip4-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
+ip4-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
+ip4-geneve-bypass                active                  0               0               0          0.00e0            0.00
+ip4-glean                        active                  0               0               0          0.00e0            0.00
+ip4-gtpu-bypass                  active                  0               0               0          0.00e0            0.00
+ip4-icmp-echo-reply              active                  0               0               0          0.00e0            0.00
+ip4-icmp-echo-request            active                  0               0               0          0.00e0            0.00
+ip4-icmp-error                   active                  0               0               0          0.00e0            0.00
+ip4-icmp-input                   active                  0               0               0          0.00e0            0.00
+ip4-inacl                        active                  0               0               0          0.00e0            0.00
+ip4-input                        active                  0               0               0          0.00e0            0.00
+ip4-input-no-checksum            active                  0               0               0          0.00e0            0.00
+ip4-load-balance                 active                  0               0               0          0.00e0            0.00
+ip4-local                        active                  0               0               0          0.00e0            0.00
+ip4-local-end-of-arc             active                  0               0               0          0.00e0            0.00
+ip4-local-full-reassembly        active                  0               0               0          0.00e0            0.00
+ip4-local-full-reassembly-hand   active                  0               0               0          0.00e0            0.00
+ip4-lookup                       active                  0               0               0          0.00e0            0.00
+ip4-map                          active                  0               0               0          0.00e0            0.00
+ip4-map-t-fragmented             active                  0               0               0          0.00e0            0.00
+ip4-map-t-icmp                   active                  0               0               0          0.00e0            0.00
+ip4-map-t-tcp-udp                active                  0               0               0          0.00e0            0.00
+ip4-map-t                        active                  0               0               0          0.00e0            0.00
+ip4-mcast-midchain               active                  0               0               0          0.00e0            0.00
+ip4-mfib-forward-lookup          active                  0               0               0          0.00e0            0.00
+ip4-mfib-forward-rpf             active                  0               0               0          0.00e0            0.00
+ip4-midchain                     active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-disposition-pip   active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-disposition-uni   active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-imposition-pipe   active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-imposition-pipe   active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-imposition-unif   active                  0               0               0          0.00e0            0.00
+ip4-mpls-label-imposition-unif   active                  0               0               0          0.00e0            0.00
+ip4-neighbor-age-process      "event wait"               0               0               0          0.00e0            0.00
+ip4-not-enabled                  active                  0               0               0          0.00e0            0.00
+ip4-null                         active                  0               0               0          0.00e0            0.00
+ip4-options                      active                  0               0               0          0.00e0            0.00
+ip4-outacl                       active                  0               0               0          0.00e0            0.00
+ip4-pmtu-dpo                     active                  0               0               0          0.00e0            0.00
+ip4-policer-classify             active                  0               0               0          0.00e0            0.00
+ip4-proto-punt-socket            active                  0               0               0          0.00e0            0.00
+ip4-punt-acl                     active                  0               0               0          0.00e0            0.00
+ip4-punt-policer-handoff         active                  0               0               0          0.00e0            0.00
+ip4-punt-policer                 active                  0               0               0          0.00e0            0.00
+ip4-punt-redirect                active                  0               0               0          0.00e0            0.00
+ip4-punt                         active                  0               0               0          0.00e0            0.00
+ip4-pvti-bypass                  active                  0               0               0          0.00e0            0.00
+ip4-qos-mark                     active                  0               0               0          0.00e0            0.00
+ip4-qos-record                   active                  0               0               0          0.00e0            0.00
+ip4-qos-store                    active                  0               0               0          0.00e0            0.00
+ip4-receive                      active                  0               0               0          0.00e0            0.00
+ip4-replicate                    active                  0               0               0          0.00e0            0.00
+ip4-rewrite                      active                  0               0               0          0.00e0            0.00
+ip4-rewrite-bcast                active                  0               0               0          0.00e0            0.00
+ip4-rewrite-mcast                active                  0               0               0          0.00e0            0.00
+ip4-rx-urpf-loose                active                  0               0               0          0.00e0            0.00
+ip4-rx-urpf-strict               active                  0               0               0          0.00e0            0.00
+ip4-source-and-port-range-chec   active                  0               0               0          0.00e0            0.00
+ip4-source-and-port-range-chec   active                  0               0               0          0.00e0            0.00
+ip4-sv-reass-feature-hoff        active                  0               0               0          0.00e0            0.00
+ip4-sv-reass-mcast-feature-hof   active                  0               0               0          0.00e0            0.00
+ip4-sv-reass-output-feature-ho   active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly                active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-custom-conte   active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-custom-conte   active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-custom-next    active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-expire-walk  "any wait"                0               0               0          0.00e0            0.00
+ip4-sv-reassembly-feature        active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-handoff        active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-mcast-featur   active                  0               0               0          0.00e0            0.00
+ip4-sv-reassembly-output-featu   active                  0               0               0          0.00e0            0.00
+ip4-tx-urpf-loose                active                  0               0               0          0.00e0            0.00
+ip4-tx-urpf-strict               active                  0               0               0          0.00e0            0.00
+ip4-udp-lookup                   active                  0               0               0          0.00e0            0.00
+ip4-udp-punt                     active                  0               0               0          0.00e0            0.00
+ip4-udp-punt-socket              active                  0               0               0          0.00e0            0.00
+ip4-vxlan-bypass                 active                  0               0               0          0.00e0            0.00
+ip4-vxlan-gpe-bypass             active                  0               0               0          0.00e0            0.00
+ip6-add-from-cache-hop-by-hop    active                  0               0               0          0.00e0            0.00
+ip6-add-hop-by-hop               active                  0               0               0          0.00e0            0.00
+ip6-add-syn-hop-by-hop           active                  0               0               0          0.00e0            0.00
+ip6-adl-allowlist                active                  0               0               0          0.00e0            0.00
+ip6-classify                     active                  0               0               0          0.00e0            0.00
+ip6-cnat-return                  active                  0               0               0          0.00e0            0.00
+ip6-cnat-tx                      active                  0               0               0          0.00e0            0.00
+ip6-dad-process                "any wait"                0               0               0          0.00e0            0.00
+ip6-discover-neighbor            active                  0               0               0          0.00e0            0.00
+ip6-drop                         active                  0               0               0          0.00e0            0.00
+ip6-dvr-dpo                      active                  0               0               0          0.00e0            0.00
+ip6-dvr-reinject                 active                  0               0               0          0.00e0            0.00
+ip6-export                       active                  0               0               0          0.00e0            0.00
+ip6-flow-classify                active                  0               0               0          0.00e0            0.00
+ip6-frag                         active                  0               0               0          0.00e0            0.00
+ip6-full-reass-custom-hoff       active                  0               0               0          0.00e0            0.00
+ip6-full-reass-feature-hoff      active                  0               0               0          0.00e0            0.00
+ip6-full-reassembly              active                  0               0               0          0.00e0            0.00
+ip6-full-reassembly-custom       active                  0               0               0          0.00e0            0.00
+ip6-full-reassembly-expire-wal "any wait"                0               0               3          1.77e4            0.00
+ip6-full-reassembly-feature      active                  0               0               0          0.00e0            0.00
+ip6-full-reassembly-handoff      active                  0               0               0          0.00e0            0.00
+ip6-geneve-bypass                active                  0               0               0          0.00e0            0.00
+ip6-glean                        active                  0               0               0          0.00e0            0.00
+ip6-gtpu-bypass                  active                  0               0               0          0.00e0            0.00
+ip6-hbh-analyse-local            active                  0               0               0          0.00e0            0.00
+ip6-hbh-analyse-remote           active                  0               0               0          0.00e0            0.00
+ip6-hop-by-hop                   active                  0               0               0          0.00e0            0.00
+ip6-icmp-echo-reply              active                  0               0               0          0.00e0            0.00
+ip6-icmp-echo-request            active                  0               0               0          0.00e0            0.00
+ip6-icmp-error                   active                  0               0               0          0.00e0            0.00
+ip6-icmp-input                   active                  0               0               0          0.00e0            0.00
+ip6-icmp-punt-socket             active                  0               0               0          0.00e0            0.00
+ip6-inacl                        active                  0               0               0          0.00e0            0.00
+ip6-input                        active                  0               0               0          0.00e0            0.00
+ip6-ioam-cache                   active                  0               0               0          0.00e0            0.00
+ip6-ioam-tunnel-select           active                  0               0               0          0.00e0            0.00
+ip6-link-local                   active                  0               0               0          0.00e0            0.00
+ip6-load-balance                 active                  0               0               0          0.00e0            0.00
+ip6-local                        active                  0               0               0          0.00e0            0.00
+ip6-local-end-of-arc             active                  0               0               0          0.00e0            0.00
+ip6-local-full-reassembly        active                  0               0               0          0.00e0            0.00
+ip6-local-full-reassembly-hand   active                  0               0               0          0.00e0            0.00
+ip6-local-hop-by-hop             active                  0               0               0          0.00e0            0.00
+ip6-lookup                       active                  0               0               0          0.00e0            0.00
+ip6-map                          active                  0               0               0          0.00e0            0.00
+ip6-map-icmp-relay               active                  0               0               0          0.00e0            0.00
+ip6-map-post-ip4-reass           active                  0               0               0          0.00e0            0.00
+ip6-map-t-fragmented             active                  0               0               0          0.00e0            0.00
+ip6-map-t-icmp                   active                  0               0               0          0.00e0            0.00
+ip6-map-t-tcp-udp                active                  0               0               0          0.00e0            0.00
+ip6-map-t                        active                  0               0               0          0.00e0            0.00
+ip6-mcast-midchain               active                  0               0               0          0.00e0            0.00
+ip6-mfib-forward-lookup          active                  0               0               0          0.00e0            0.00
+ip6-mfib-forward-rpf             active                  0               0               0          0.00e0            0.00
+ip6-midchain                     active                  0               0               0          0.00e0            0.00
+ip6-mld-process                "any wait"                0               0               1          1.27e4            0.00
+ip6-mpls-label-disposition-pip   active                  0               0               0          0.00e0            0.00
+ip6-mpls-label-disposition-uni   active                  0               0               0          0.00e0            0.00
+ip6-mpls-label-imposition-pipe   active                  0               0               0          0.00e0            0.00
+ip6-mpls-label-imposition-pipe   active                  0               0               0          0.00e0            0.00
+ip6-mpls-label-imposition-unif   active                  0               0               0          0.00e0            0.00
+ip6-mpls-label-imposition-unif   active                  0               0               0          0.00e0            0.00
+ip6-multicast-nd-proxy           active                  0               0               0          0.00e0            0.00
+ip6-neighbor-age-process      "event wait"               0               0               0          0.00e0            0.00
+ip6-not-enabled                  active                  0               0               0          0.00e0            0.00
+ip6-null                         active                  0               0               0          0.00e0            0.00
+ip6-outacl                       active                  0               0               0          0.00e0            0.00
+ip6-pmtu-dpo                     active                  0               0               0          0.00e0            0.00
+ip6-policer-classify             active                  0               0               0          0.00e0            0.00
+ip6-pop-hop-by-hop               active                  0               0               0          0.00e0            0.00
+ip6-proto-punt-socket            active                  0               0               0          0.00e0            0.00
+ip6-punt                         active                  0               0               0          0.00e0            0.00
+ip6-punt-acl                     active                  0               0               0          0.00e0            0.00
+ip6-punt-policer-handoff         active                  0               0               0          0.00e0            0.00
+ip6-punt-policer                 active                  0               0               0          0.00e0            0.00
+ip6-punt-redirect                active                  0               0               0          0.00e0            0.00
+ip6-pvti-bypass                  active                  0               0               0          0.00e0            0.00
+ip6-qos-mark                     active                  0               0               0          0.00e0            0.00
+ip6-qos-record                   active                  0               0               0          0.00e0            0.00
+ip6-qos-store                    active                  0               0               0          0.00e0            0.00
+ip6-ra-process                 "any wait"                0               0               1          5.20e3            0.00
+ip6-receive                      active                  0               0               0          0.00e0            0.00
+ip6-replicate                    active                  0               0               0          0.00e0            0.00
+ip6-rewrite                      active                  0               0               0          0.00e0            0.00
+ip6-rewrite-bcast                active                  0               0               0          0.00e0            0.00
+ip6-rewrite-mcast                active                  0               0               0          0.00e0            0.00
+ip6-rs-process                 "any wait"                0               0               0          0.00e0            0.00
+ip6-rx-urpf-loose                active                  0               0               0          0.00e0            0.00
+ip6-rx-urpf-strict               active                  0               0               0          0.00e0            0.00
+ip6-sv-reass-feature-hoff        active                  0               0               0          0.00e0            0.00
+ip6-sv-reass-mcast-feature-hof   active                  0               0               0          0.00e0            0.00
+ip6-sv-reass-output-feature-ho   active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly                active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-custom-conte   active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-custom-conte   active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-expire-walk  "any wait"                0               0               0          0.00e0            0.00
+ip6-sv-reassembly-feature        active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-handoff        active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-mcast-featur   active                  0               0               0          0.00e0            0.00
+ip6-sv-reassembly-output-featu   active                  0               0               0          0.00e0            0.00
+ip6-tx-urpf-loose                active                  0               0               0          0.00e0            0.00
+ip6-tx-urpf-strict               active                  0               0               0          0.00e0            0.00
+ip6-udp-lookup                   active                  0               0               0          0.00e0            0.00
+ip6-udp-punt                     active                  0               0               0          0.00e0            0.00
+ip6-udp-punt-socket              active                  0               0               0          0.00e0            0.00
+ip6-unicast-nd-proxy             active                  0               0               0          0.00e0            0.00
+ip6-vxlan-bypass                 active                  0               0               0          0.00e0            0.00
+ip6-vxlan-gpe-bypass             active                  0               0               0          0.00e0            0.00
+ipfix-collector                  active                  0               0               0          0.00e0            0.00
+ipip4-input                      active                  0               0               0          0.00e0            0.00
+ipip6-input                      active                  0               0               0          0.00e0            0.00
+ipsec4-input-feature             active                  0               0               0          0.00e0            0.00
+ipsec4-output-feature            active                  0               0               0          0.00e0            0.00
+ipsec4-tun-input                 active                  0               0               0          0.00e0            0.00
+ipsec6-input-feature             active                  0               0               0          0.00e0            0.00
+ipsec6-output-feature            active                  0               0               0          0.00e0            0.00
+ipsec6-tun-input                 active                  0               0               0          0.00e0            0.00
+l2-arp-term-publisher         "event wait"               0               0               0          0.00e0            0.00
+l2-efp-filter                    active                  0               0               0          0.00e0            0.00
+l2-flood                         active                  0               0               0          0.00e0            0.00
+l2-fwd                           active                  0               0               0          0.00e0            0.00
+l2-input-classify                active                  0               0               0          0.00e0            0.00
+l2-input                         active                  0               0               0          0.00e0            0.00
+l2-input-acl                     active                  0               0               0          0.00e0            0.00
+l2-input-feat-arc                active                  0               0               0          0.00e0            0.00
+l2-input-feat-arc-end            active                  0               0               0          0.00e0            0.00
+l2-input-vtr                     active                  0               0               0          0.00e0            0.00
+l2-ip-qos-record                 active                  0               0               0          0.00e0            0.00
+l2-learn                         active                  0               0               0          0.00e0            0.00
+l2-load-balance                  active                  0               0               0          0.00e0            0.00
+l2-output-classify               active                  0               0               0          0.00e0            0.00
+l2-output                        active                  0               0               0          0.00e0            0.00
+l2-output-acl                    active                  0               0               0          0.00e0            0.00
+l2-output-bad-intf               active                  0               0               0          0.00e0            0.00
+l2-output-feat-arc               active                  0               0               0          0.00e0            0.00
+l2-output-feat-arc-end           active                  0               0               0          0.00e0            0.00
+l2-patch                         active                  0               0               0          0.00e0            0.00
+l2-policer-classify              active                  0               0               0          0.00e0            0.00
+l2-policer-input                 active                  0               0               0          0.00e0            0.00
+l2-policer-output                active                  0               0               0          0.00e0            0.00
+l2-rw                            active                  0               0               0          0.00e0            0.00
+l2-uu-fwd                        active                  0               0               0          0.00e0            0.00
+l2-xcrw                          active                  0               0               0          0.00e0            0.00
+l2fib-mac-age-scanner-process "event wait"               0               0               0          0.00e0            0.00
+l2tp-decap                       active                  0               0               0          0.00e0            0.00
+l2tp-decap-local                 active                  0               0               0          0.00e0            0.00
+l2tp-encap                       active                  0               0               0          0.00e0            0.00
+l3xc-input-ip4                   active                  0               0               0          0.00e0            0.00
+l3xc-input-ip6                   active                  0               0               0          0.00e0            0.00
+lacp-input                       active                  0               0               0          0.00e0            0.00
+lb-nat4-in2out                   active                  0               0               0          0.00e0            0.00
+lb-nat6-in2out                   active                  0               0               0          0.00e0            0.00
+lb4-gre4                         active                  0               0               0          0.00e0            0.00
+lb4-gre4-port                    active                  0               0               0          0.00e0            0.00
+lb4-gre6                         active                  0               0               0          0.00e0            0.00
+lb4-gre6-port                    active                  0               0               0          0.00e0            0.00
+lb4-l3dsr-port                   active                  0               0               0          0.00e0            0.00
+lb4-l3dsr                        active                  0               0               0          0.00e0            0.00
+lb4-nat4-port                    active                  0               0               0          0.00e0            0.00
+lb4-nodeport                     active                  0               0               0          0.00e0            0.00
+lb6-gre4                         active                  0               0               0          0.00e0            0.00
+lb6-gre4-port                    active                  0               0               0          0.00e0            0.00
+lb6-gre6                         active                  0               0               0          0.00e0            0.00
+lb6-gre6-port                    active                  0               0               0          0.00e0            0.00
+lb6-nat6-port                    active                  0               0               0          0.00e0            0.00
+lb6-nodeport                     active                  0               0               0          0.00e0            0.00
+linux-cp-arp-host                active                  0               0               0          0.00e0            0.00
+linux-cp-arp-phy                 active                  0               0               0          0.00e0            0.00
+linux-cp-netlink-process       "any wait"                0               0               0          0.00e0            0.00
+linux-cp-punt                    active                  0               0               0          0.00e0            0.00
+linux-cp-punt-l3                 active                  0               0               0          0.00e0            0.00
+linux-cp-punt-xc                 active                  0               0               0          0.00e0            0.00
+linux-cp-xc-ip4                  active                  0               0               0          0.00e0            0.00
+linux-cp-xc-ip6                  active                  0               0               0          0.00e0            0.00
+linux-cp-xc-l3-ip4               active                  0               0               0          0.00e0            0.00
+linux-cp-xc-l3-ip6               active                  0               0               0          0.00e0            0.00
+linux-cp-xc-mpls                 active                  0               0               0          0.00e0            0.00
+lisp-cp-input                    active                  0               0               0          0.00e0            0.00
+lisp-cp-lookup-ip4               active                  0               0               0          0.00e0            0.00
+lisp-cp-lookup-ip6               active                  0               0               0          0.00e0            0.00
+lisp-cp-lookup-l2                active                  0               0               0          0.00e0            0.00
+lisp-cp-lookup-nsh               active                  0               0               0          0.00e0            0.00
+lisp-cp-output                   active                  0               0               0          0.00e0            0.00
+lisp-gpe-ip4-input               active                  0               0               0          0.00e0            0.00
+lisp-gpe-ip6-input               active                  0               0               0          0.00e0            0.00
+lisp-gpe-nsh-placeholder-input   active                  0               0               0          0.00e0            0.00
+lisp-tunnel-output               active                  0               0               0          0.00e0            0.00
+llc-input                        active                  0               0               0          0.00e0            0.00
+lldp-input                       active                  0               0               0          0.00e0            0.00
+lldp-process                  "event wait"               0               0               0          0.00e0            0.00
+local0-output                    active                  0               0               0          0.00e0            0.00
+local0-tx                        active                  0               0               0          0.00e0            0.00
+lookup-ip4-dst                   active                  0               0               0          0.00e0            0.00
+lookup-ip4-dst-itf               active                  0               0               0          0.00e0            0.00
+lookup-ip4-dst-mcast             active                  0               0               0          0.00e0            0.00
+lookup-ip4-src                   active                  0               0               0          0.00e0            0.00
+lookup-ip6-dst                   active                  0               0               0          0.00e0            0.00
+lookup-ip6-dst-itf               active                  0               0               0          0.00e0            0.00
+lookup-ip6-dst-mcast             active                  0               0               0          0.00e0            0.00
+lookup-ip6-src                   active                  0               0               0          0.00e0            0.00
+lookup-mpls-dst                  active                  0               0               0          0.00e0            0.00
+lookup-mpls-dst-itf              active                  0               0               0          0.00e0            0.00
+mactime                          active                  0               0               0          0.00e0            0.00
+mactime-tx                       active                  0               0               0          0.00e0            0.00
+memif-input                   interrupt wa               0               0               0          0.00e0            0.00
+memif-process                 "event wait"               0               0               0          0.00e0            0.00
+mpls-adj-incomplete              active                  0               0               0          0.00e0            0.00
+mpls-drop                        active                  0               0               0          0.00e0            0.00
+mpls-frag                        active                  0               0               0          0.00e0            0.00
+mpls-input                       active                  0               0               0          0.00e0            0.00
+mpls-label-imposition-pipe       active                  0               0               0          0.00e0            0.00
+mpls-label-imposition-uniform    active                  0               0               0          0.00e0            0.00
+mpls-load-balance                active                  0               0               0          0.00e0            0.00
+mpls-lookup                      active                  0               0               0          0.00e0            0.00
+mpls-midchain                    active                  0               0               0          0.00e0            0.00
+mpls-not-enabled                 active                  0               0               0          0.00e0            0.00
+mpls-output                      active                  0               0               0          0.00e0            0.00
+mpls-punt                        active                  0               0               0          0.00e0            0.00
+mpls-qos-mark                    active                  0               0               0          0.00e0            0.00
+mpls-qos-record                  active                  0               0               0          0.00e0            0.00
+mpls-replicate                   active                  0               0               0          0.00e0            0.00
+mpls-tunnel-tx                   active                  0               0               0          0.00e0            0.00
+nat-default                      active                  0               0               0          0.00e0            0.00
+nat-external-input               active                  0               0               0          0.00e0            0.00
+nat-ipfix-flush               interrupt wa               0               0               0          0.00e0            0.00
+nat-pre-in2out                   active                  0               0               0          0.00e0            0.00
+nat-pre-in2out-output            active                  0               0               0          0.00e0            0.00
+nat-pre-out2in                   active                  0               0               0          0.00e0            0.00
+nat44-ed-classify                active                  0               0               0          0.00e0            0.00
+nat44-ed-in2out                  active                  0               0               0          0.00e0            0.00
+nat44-ed-in2out-output           active                  0               0               0          0.00e0            0.00
+nat44-ed-in2out-output-slowpat   active                  0               0               0          0.00e0            0.00
+nat44-ed-in2out-slowpath         active                  0               0               0          0.00e0            0.00
+nat44-ed-out2in                  active                  0               0               0          0.00e0            0.00
+nat44-ed-out2in-slowpath         active                  0               0               0          0.00e0            0.00
+nat44-ei-classify                active                  0               0               0          0.00e0            0.00
+nat44-ei-ha-handoff              active                  0               0               0          0.00e0            0.00
+nat44-ei-ha-process           "event wait"               0               0               0          0.00e0            0.00
+nat44-ei-ha-worker            interrupt wa               0               0               0          0.00e0            0.00
+nat44-ei-hairpinning-handoff     active                  0               0               0          0.00e0            0.00
+nat44-ei-hairpinning             active                  0               0               0          0.00e0            0.00
+nat44-ei-handoff-classify        active                  0               0               0          0.00e0            0.00
+nat44-ei-ha                      active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out                  active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-hairpinning-fi   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-hairpinning-fi   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-hairpinning-ha   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-hairpinning-ha   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-output           active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-output-slowpat   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-output-worker-   active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-slowpath         active                  0               0               0          0.00e0            0.00
+nat44-ei-in2out-worker-handoff   active                  0               0               0          0.00e0            0.00
+nat44-ei-out2in                  active                  0               0               0          0.00e0            0.00
+nat44-ei-out2in-worker-handoff   active                  0               0               0          0.00e0            0.00
+nat44-handoff-classify           active                  0               0               0          0.00e0            0.00
+nat44-in2out-output-worker-han   active                  0               0               0          0.00e0            0.00
+nat44-in2out-worker-handoff      active                  0               0               0          0.00e0            0.00
+nat44-out2in-worker-handoff      active                  0               0               0          0.00e0            0.00
+nat64-expire-worker-walk      interrupt wa               0               0               0          0.00e0            0.00
+nat64-in2out                     active                  0               0               0          0.00e0            0.00
+nat64-in2out-handoff             active                  0               0               0          0.00e0            0.00
+nat64-in2out-slowpath            active                  0               0               0          0.00e0            0.00
+nat64-out2in                     active                  0               0               0          0.00e0            0.00
+nat64-out2in-handoff             active                  0               0               0          0.00e0            0.00
+nat64-static-bib-worker       interrupt wa               0               0               0          0.00e0            0.00
+nat66-in2out                     active                  0               0               0          0.00e0            0.00
+nat66-out2in                     active                  0               0               0          0.00e0            0.00
+npt66-input                      active                  0               0               0          0.00e0            0.00
+npt66-output                     active                  0               0               0          0.00e0            0.00
+nsh-adj-incomplete               active                  0               0               0          0.00e0            0.00
+nsh-aware-vnf-proxy              active                  0               0               0          0.00e0            0.00
+nsh-classifier                   active                  0               0               0          0.00e0            0.00
+nsh-eth-output                   active                  0               0               0          0.00e0            0.00
+nsh-input                        active                  0               0               0          0.00e0            0.00
+nsh-load-balance                 active                  0               0               0          0.00e0            0.00
+nsh-md2-ioam-encap-transit       active                  0               0               0          0.00e0            0.00
+nsh-md2-ioam-export-process    "any wait"                0               0               0          0.00e0            0.00
+nsh-md2-ioam-export              active                  0               0               0          0.00e0            0.00
+nsh-midchain                     active                  0               0               0          0.00e0            0.00
+nsh-pop                          active                  0               0               0          0.00e0            0.00
+nsh-proxy                        active                  0               0               0          0.00e0            0.00
+nsim                             active                  0               0               0          0.00e0            0.00
+nsim-output-feature              active                  0               0               0          0.00e0            0.00
+nsim-wheel                      disabled                 0               0               0          0.00e0            0.00
+null-node                        active                  0               0               0          0.00e0            0.00
+osi-input                        active                  0               0               0          0.00e0            0.00
+p2p-ethernet-input               active                  0               0               0          0.00e0            0.00
+pg-input                        disabled                 0               0               0          0.00e0            0.00
+pg-input-mac-filter              active                  0               0               0          0.00e0            0.00
+pipe-rx                          active                  0               0               0          0.00e0            0.00
+pnat-input                       active                  0               0               0          0.00e0            0.00
+pnat-output                      active                  0               0               0          0.00e0            0.00
+policer-input                    active                  0               0               0          0.00e0            0.00
+policer-input-handoff            active                  0               0               0          0.00e0            0.00
+policer-output                   active                  0               0               0          0.00e0            0.00
+policer-output-handoff           active                  0               0               0          0.00e0            0.00
+port-rx-eth                     disabled                 0               0               0          0.00e0            0.00
+ppp-input                        active                  0               0               0          0.00e0            0.00
+pppoe-cp-dispatch                active                  0               0               0          0.00e0            0.00
+pppoe-input                      active                  0               0               0          0.00e0            0.00
+prom-scraper-process          "not started               0               0               0          0.00e0            0.00
+pt                               active                  0               0               0          0.00e0            0.00
+punt                             active                  0               0               0          0.00e0            0.00
+punt-dispatch                    active                  0               0               0          0.00e0            0.00
+punt-socket-rx                interrupt wa               0               0               0          0.00e0            0.00
+pvti4-input                      active                  0               0               0          0.00e0            0.00
+pvti4-output                     active                  0               0               0          0.00e0            0.00
+pvti6-input                      active                  0               0               0          0.00e0            0.00
+pvti6-output                     active                  0               0               0          0.00e0            0.00
+pw-cw-pop                        active                  0               0               0          0.00e0            0.00
+quic-input                       active                  0               0               0          0.00e0            0.00
+rd-cp-process                  "any wait"                0               0               0          0.00e0            0.00
+rdma-input                      disabled                 0               0               0          0.00e0            0.00
+sample-non-terminal              active                  0               0               0          0.00e0            0.00
+sample-terminal                  active                  0               0               0          0.00e0            0.00
+sasc-create                      active                  0               0               0          0.00e0            0.00
+sasc-create-ip6                  active                  0               0               0          0.00e0            0.00
+sasc-feature-arc-return          active                  0               0               0          0.00e0            0.00
+sasc-icmp-error                  active                  0               0               0          0.00e0            0.00
+sasc-input                       active                  0               0               0          0.00e0            0.00
+sasc-input-out                   active                  0               0               0          0.00e0            0.00
+sasc-l4-lifecycle                active                  0               0               0          0.00e0            0.00
+sasc-lookup-ip4                  active                  0               0               0          0.00e0            0.00
+sasc-lookup-ip4-1tuple           active                  0               0               0          0.00e0            0.00
+sasc-lookup-ip4-3tuple           active                  0               0               0          0.00e0            0.00
+sasc-lookup-ip4-4tuple           active                  0               0               0          0.00e0            0.00
+sasc-lookup-ip6                  active                  0               0               0          0.00e0            0.00
+sasc-packet-stats                active                  0               0               0          0.00e0            0.00
+sasc-pcap                        active                  0               0               0          0.00e0            0.00
+sasc-session-expiry            "suspended"               0               0               1          2.06e4            0.00
     events pending, 
-send-dhcp6-client-message-proc "any wait"                0               0               1          2.18e4            0.00
-send-dhcp6-pd-client-message-p "any wait"                0               0               1          3.25e4            0.00
-sflow-process-samples          "any wait"                0               0              21          1.13e5            0.00
-startup-config-process        "not started               1               0               1          3.72e4            0.00
-statseg-collector-process      "suspended"               0               0               3          7.21e6            0.00
-udp-ping-process               "any wait"                0               0               1          8.69e4            0.00
-unix-cli-new-session           "any wait"                0               0              78          1.15e4            0.00
-unix-cli-process-0              "running"               25               0              52          1.09e7            0.00
-vhost-user-process             "any wait"                0               0               1          3.95e4            0.00
-vhost-user-send-interrupt-proc "any wait"                0               0               1          2.51e4            0.00
-vpe-link-state-process        "event wait"               0               0              11          2.05e4            0.00
-vrrp-periodic-process         "event wait"               0               0               1          3.32e4            0.00
-vxlan-gpe-ioam-export-process  "any wait"                0               0               1          2.23e4            0.00
-wg-timer-manager               "any wait"                0               0            1286          1.13e4            0.00
+send-dhcp6-client-message-proc "any wait"                0               0               0          0.00e0            0.00
+send-dhcp6-pd-client-message-p "any wait"                0               0               0          0.00e0            0.00
+session-input                   disabled                 0               0               0          0.00e0            0.00
+session-queue                   disabled                 0               0               0          0.00e0            0.00
+session-queue-main              disabled                 0               0               0          0.00e0            0.00
+session-queue-process         "not started               0               0               0          0.00e0            0.00
+sfdp-acl-sample                  active                  0               0               0          0.00e0            0.00
+sfdp-drop                        active                  0               0               0          0.00e0            0.00
+sfdp-dummy-dot1q-input           active                  0               0               0          0.00e0            0.00
+sfdp-dummy-dot1q-output          active                  0               0               0          0.00e0            0.00
+sfdp-expire                     disabled                 0               0               0          0.00e0            0.00
+sfdp-geneve-input                active                  0               0               0          0.00e0            0.00
+sfdp-geneve-output               active                  0               0               0          0.00e0            0.00
+sfdp-handoff                     active                  0               0               0          0.00e0            0.00
+sfdp-interface-input-ip4         active                  0               0               0          0.00e0            0.00
+sfdp-interface-input-ip6         active                  0               0               0          0.00e0            0.00
+sfdp-l4-lifecycle                active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip4                  active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip4-icmp             active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip4-sp-sv-reass      active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip6                  active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip6-icmp             active                  0               0               0          0.00e0            0.00
+sfdp-lookup-ip6-sp-sv-reass      active                  0               0               0          0.00e0            0.00
+sfdp-nat-early-rewrite           active                  0               0               0          0.00e0            0.00
+sfdp-nat-late-rewrite            active                  0               0               0          0.00e0            0.00
+sfdp-nat-output                  active                  0               0               0          0.00e0            0.00
+sfdp-snort-input                 active                  0               0               0          0.00e0            0.00
+sfdp-snort-output                active                  0               0               0          0.00e0            0.00
+sfdp-tcp-check                   active                  0               0               0          0.00e0            0.00
+sflow-drop                       active                  0               0               0          0.00e0            0.00
+sflow-egress                     active                  0               0               0          0.00e0            0.00
+sflow-process-samples          "any wait"                0               0               1          4.67e3            0.00
+sflow                            active                  0               0               0          0.00e0            0.00
+sir-to-ila                       active                  0               0               0          0.00e0            0.00
+snap-input                       active                  0               0               0          0.00e0            0.00
+soft-rss                         active                  0               0               0          0.00e0            0.00
+soft-rss-handoff                 active                  0               0               0          0.00e0            0.00
+span-input                       active                  0               0               0          0.00e0            0.00
+span-l2-input                    active                  0               0               0          0.00e0            0.00
+span-l2-output                   active                  0               0               0          0.00e0            0.00
+span-output                      active                  0               0               0          0.00e0            0.00
+sr-localsid-d                    active                  0               0               0          0.00e0            0.00
+sr-localsid                      active                  0               0               0          0.00e0            0.00
+sr-localsid-un                   active                  0               0               0          0.00e0            0.00
+sr-localsid-un-perf              active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-b-encaps           active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-b-insert           active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-encaps             active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-encaps-l2          active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-encaps-v4          active                  0               0               0          0.00e0            0.00
+sr-pl-rewrite-insert             active                  0               0               0          0.00e0            0.00
+srv6-ad-flow-localsid            active                  0               0               0          0.00e0            0.00
+srv6-ad-localsid                 active                  0               0               0          0.00e0            0.00
+srv6-ad2-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-ad4-flow-rewrite            active                  0               0               0          0.00e0            0.00
+srv6-ad4-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-ad6-flow-rewrite            active                  0               0               0          0.00e0            0.00
+srv6-ad6-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-am-localsid                 active                  0               0               0          0.00e0            0.00
+srv6-am-rewrite                  active                  0               0               0          0.00e0            0.00
+srv6-as-localsid                 active                  0               0               0          0.00e0            0.00
+srv6-as2-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-as4-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-as6-rewrite                 active                  0               0               0          0.00e0            0.00
+srv6-end-m-gtp4-e                active                  0               0               0          0.00e0            0.00
+srv6-end-m-gtp6-d                active                  0               0               0          0.00e0            0.00
+srv6-end-m-gtp6-d-di             active                  0               0               0          0.00e0            0.00
+srv6-end-m-gtp6-dt               active                  0               0               0          0.00e0            0.00
+srv6-end-m-gtp6-e                active                  0               0               0          0.00e0            0.00
+srv6-t-m-gtp4-d                  active                  0               0               0          0.00e0            0.00
+srv6-t-m-gtp4-dt                 active                  0               0               0          0.00e0            0.00
+startup-config-process        "not started               0               0               0          0.00e0            0.00
+stats-collect-rx                 active                  0               0               0          0.00e0            0.00
+stats-collect-tx                 active                  0               0               0          0.00e0            0.00
+statseg-collector-process      "suspended"               0               0               0          0.00e0            0.00
+stn-ip4-punt                     active                  0               0               0          0.00e0            0.00
+stn-ip6-punt                     active                  0               0               0          0.00e0            0.00
+svs-ip4                          active                  0               0               0          0.00e0            0.00
+svs-ip6                          active                  0               0               0          0.00e0            0.00
+syn-filter-4                     active                  0               0               0          0.00e0            0.00
+tap-input                     interrupt wa               0               0               0          0.00e0            0.00
+tap-pre-input                   disabled                 0               0               0          0.00e0            0.00
+tcp-mss-clamping-ip4-in          active                  0               0               0          0.00e0            0.00
+tcp-mss-clamping-ip4-out         active                  0               0               0          0.00e0            0.00
+tcp-mss-clamping-ip6-in          active                  0               0               0          0.00e0            0.00
+tcp-mss-clamping-ip6-out         active                  0               0               0          0.00e0            0.00
+tcp4-drop                        active                  0               0               0          0.00e0            0.00
+tcp4-established                 active                  0               0               0          0.00e0            0.00
+tcp4-input-nolookup              active                  0               0               0          0.00e0            0.00
+tcp4-input                       active                  0               0               0          0.00e0            0.00
+tcp4-listen                      active                  0               0               0          0.00e0            0.00
+tcp4-output                      active                  0               0               0          0.00e0            0.00
+tcp4-rcv-process                 active                  0               0               0          0.00e0            0.00
+tcp4-reset                       active                  0               0               0          0.00e0            0.00
+tcp4-syn-sent                    active                  0               0               0          0.00e0            0.00
+tcp6-drop                        active                  0               0               0          0.00e0            0.00
+tcp6-established                 active                  0               0               0          0.00e0            0.00
+tcp6-input-nolookup              active                  0               0               0          0.00e0            0.00
+tcp6-input                       active                  0               0               0          0.00e0            0.00
+tcp6-listen                      active                  0               0               0          0.00e0            0.00
+tcp6-output                      active                  0               0               0          0.00e0            0.00
+tcp6-rcv-process                 active                  0               0               0          0.00e0            0.00
+tcp6-reset                       active                  0               0               0          0.00e0            0.00
+tcp6-syn-sent                    active                  0               0               0          0.00e0            0.00
+test-builtins-timer-process   "not started               0               0               0          0.00e0            0.00
+tls-async-process               disabled                 0               0               0          0.00e0            0.00
+transport-icmp-dest-unreachabl   active                  0               0               0          0.00e0            0.00
+tunnel-output                    active                  0               0               0          0.00e0            0.00
+tunnel-output-no-count           active                  0               0               0          0.00e0            0.00
+tuntap-rx                     interrupt wa               0               0               0          0.00e0            0.00
+tuntap-tx                        active                  0               0               0          0.00e0            0.00
+udp-echo                         active                  0               0               0          0.00e0            0.00
+udp-ping-local                   active                  0               0               0          0.00e0            0.00
+udp-ping-process               "any wait"                0               0               0          0.00e0            0.00
+udp4-encap                       active                  0               0               0          0.00e0            0.00
+udp4-input                       active                  0               0               0          0.00e0            0.00
+udp4-input-nolookup              active                  0               0               0          0.00e0            0.00
+udp4-output                      active                  0               0               0          0.00e0            0.00
+udp4o4-encap                     active                  0               0               0          0.00e0            0.00
+udp4o6-encap                     active                  0               0               0          0.00e0            0.00
+udp6-encap                       active                  0               0               0          0.00e0            0.00
+udp6-input                       active                  0               0               0          0.00e0            0.00
+udp6-input-nolookup              active                  0               0               0          0.00e0            0.00
+udp6-output                      active                  0               0               0          0.00e0            0.00
+udp6o4-encap                     active                  0               0               0          0.00e0            0.00
+udp6o6-encap                     active                  0               0               0          0.00e0            0.00
+unix-cli-new-session           "any wait"                0               0               2          9.39e3            0.00
+unix-cli-process-0              "running"                1               0               2          1.45e6            0.00
+vhost-user-input                disabled                 0               0               0          0.00e0            0.00
+vhost-user-process             "any wait"                0               0               0          0.00e0            0.00
+vhost-user-send-interrupt-proc "any wait"                0               0               0          0.00e0            0.00
+virtio-input                  interrupt wa               0               0               0          0.00e0            0.00
+virtio-pre-input                disabled                 0               0               0          0.00e0            0.00
+virtual-time-input              disabled                 0               0               0          0.00e0            0.00
+vlan-ip4-qos-mark                active                  0               0               0          0.00e0            0.00
+vlan-ip4-qos-record              active                  0               0               0          0.00e0            0.00
+vlan-ip6-qos-mark                active                  0               0               0          0.00e0            0.00
+vlan-ip6-qos-record              active                  0               0               0          0.00e0            0.00
+vlan-mpls-qos-mark               active                  0               0               0          0.00e0            0.00
+vlan-mpls-qos-record             active                  0               0               0          0.00e0            0.00
+vmxnet3-input                   disabled                 0               0               0          0.00e0            0.00
+vpe-link-state-process        "event wait"               0               0               0          0.00e0            0.00
+vrrp-periodic-process         "event wait"               0               0               0          0.00e0            0.00
+vrrp4-accept-owner-input         active                  0               0               0          0.00e0            0.00
+vrrp4-arp-input                  active                  0               0               0          0.00e0            0.00
+vrrp4-input                      active                  0               0               0          0.00e0            0.00
+vrrp6-accept-owner-input         active                  0               0               0          0.00e0            0.00
+vrrp6-input                      active                  0               0               0          0.00e0            0.00
+vrrp6-nd-input                   active                  0               0               0          0.00e0            0.00
+vxlan-flow-input                 active                  0               0               0          0.00e0            0.00
+vxlan-gpe-decap-ioam-v4          active                  0               0               0          0.00e0            0.00
+vxlan-gpe-encap-ioam-v4          active                  0               0               0          0.00e0            0.00
+vxlan-gpe-encap                  active                  0               0               0          0.00e0            0.00
+vxlan-gpe-ioam-export            active                  0               0               0          0.00e0            0.00
+vxlan-gpe-ioam-export-process  "any wait"                0               0               0          0.00e0            0.00
+vxlan-gpe-pop-ioam-v4            active                  0               0               0          0.00e0            0.00
+vxlan-gpe-transit-ioam           active                  0               0               0          0.00e0            0.00
+vxlan4-encap                     active                  0               0               0          0.00e0            0.00
+vxlan4-gpe-input                 active                  0               0               0          0.00e0            0.00
+vxlan4-input                     active                  0               0               0          0.00e0            0.00
+vxlan6-encap                     active                  0               0               0          0.00e0            0.00
+vxlan6-gpe-input                 active                  0               0               0          0.00e0            0.00
+vxlan6-input                     active                  0               0               0          0.00e0            0.00
+wg-timer-manager               "any wait"                0               0              13          1.07e4            0.00
+wg4-handshake-handoff            active                  0               0               0          0.00e0            0.00
+wg4-input                        active                  0               0               0          0.00e0            0.00
+wg4-input-data-handoff           active                  0               0               0          0.00e0            0.00
+wg4-input-post-node              active                  0               0               0          0.00e0            0.00
+wg4-output-tun-handoff           active                  0               0               0          0.00e0            0.00
+wg4-output-tun-post-node         active                  0               0               0          0.00e0            0.00
+wg4-output-tun                   active                  0               0               0          0.00e0            0.00
+wg6-handshake-handoff            active                  0               0               0          0.00e0            0.00
+wg6-input                        active                  0               0               0          0.00e0            0.00
+wg6-input-data-handoff           active                  0               0               0          0.00e0            0.00
+wg6-input-post-node              active                  0               0               0          0.00e0            0.00
+wg6-output-tun-handoff           active                  0               0               0          0.00e0            0.00
+wg6-output-tun-post-node         active                  0               0               0          0.00e0            0.00
+wg6-output-tun                   active                  0               0               0          0.00e0            0.00
+worker-handoff                   active                  0               0               0          0.00e0            0.00

@@ -1,0 +1,82 @@
+Time 146.5, 10.000000 sec internal node vector rate 1.00 loops/sec 171307.96
+  vector rates in 2.8080e1, out 2.7889e1, drop 2.0486e-1, punt 0.0000e0
+             Name                 State         Calls          Vectors        Suspends      Packet-Clocks   Vectors/Call  
+acl-plugin-fa-cleaner-process  "any wait"                0               0             164          9.31e3            0.00
+acl-plugin-fa-worker-cleaner-pinterrupt wa              86               0               0          2.12e4            0.00
+acl-plugin-in-ip4-fa             active                 20              23               0          1.73e4            1.15
+acl-plugin-out-ip4-fa            active                 18              21               0          1.53e4            1.17
+admin-up-down-process         "event wait"               0               0               1          3.93e4            0.00
+af-packet-input               interrupt wa           84546            4113               0          1.94e6             .05
+api-rx-from-ring               "any wait"                0               0           71217          1.74e5            0.00
+arp-input                        active                  3               3               0          8.78e3            1.00
+arp-reply                        active                  3               3               0          5.91e5            1.00
+bfd-process                   "event wait"               0               0               1          2.26e4            0.00
+bond-process                  "event wait"               0               0               1          2.22e4            0.00
+cnat-scanner-process          "event wait"               0               0               1          4.86e4            0.00
+deleted-792                   "not started               1               0               0          6.34e4            0.00
+dhcp-client-process            "any wait"                0               0               1          3.11e4            0.00
+dhcp6-client-cp-process        "any wait"                0               0               1          2.66e4            0.00
+dhcp6-pd-client-cp-process     "any wait"                0               0               1          2.81e4            0.00
+dhcp6-pd-reply-publisher-proce"event wait"               0               0               1          2.85e4            0.00
+dhcp6-reply-publisher-process "event wait"               0               0               1          3.31e4            0.00
+dpdk-process                   "any wait"                0               0              48          3.19e4            0.00
+drop                             active                 28              30               0          7.27e3            1.07
+error-drop                       active                 28              30               0          8.12e3            1.07
+ethernet-input                   active               4095            4113               0          8.86e3            1.00
+fib-walk                       "any wait"                0               0              72          2.14e4            0.00
+flow-report-process            "any wait"                0               0               1          6.82e4            0.00
+flowprobe-timer-process        "any wait"                0               0               1          3.17e4            0.00
+host-w17l0-output                active               2036            2043               0          3.25e3            1.00
+host-w17l0-tx                    active               2036            2043               0          1.51e5            1.00
+host-w17w0-output                active               2034            2042               0          3.20e3            1.00
+host-w17w0-tx                    active               2034            2042               0          1.37e5            1.00
+igmp-timer-process            "event wait"               0               0               1          3.13e4            0.00
+ikev2-manager-process         "event wait"               0               0               1          3.02e4            0.00
+interface-output                 active                 14              17               0          2.46e3            1.21
+ioam-export-process            "any wait"                0               0               1          2.21e4            0.00
+ip-neighbor-event             "event wait"               0               0               1          2.26e4            0.00
+ip4-drop                         active                  2               2               0          7.71e3            1.00
+ip4-full-reassembly-expire-wal "any wait"                0               0            2839          1.23e4            0.00
+ip4-glean                        active                  2               2               0          6.25e4            1.00
+ip4-icmp-echo-request            active                  6               6               0          1.28e4            1.00
+ip4-icmp-input                   active                  6               6               0          4.84e3            1.00
+ip4-input                        active               4080            4096               0          5.12e3            1.00
+ip4-load-balance                 active                  6               6               0          5.50e3            1.00
+ip4-lookup                       active               4073            4089               0          3.43e3            1.00
+ip4-neighbor-age-process      "event wait"               0               0               1          1.89e4            0.00
+ip4-receive                      active                  6               6               0          8.54e3            1.00
+ip4-rewrite                      active               4071            4087               0          2.58e3            1.00
+ip4-sv-reassembly-expire-walk  "any wait"                0               0              15          1.18e4            0.00
+ip6-dad-process                "any wait"                0               0               1          1.97e4            0.00
+ip6-full-reassembly-expire-wal "any wait"                0               0            2839          1.51e4            0.00
+ip6-input                        active                 12              14               0          9.40e3            1.17
+ip6-mld-process                "any wait"                0               0             143          7.52e3            0.00
+ip6-neighbor-age-process      "event wait"               0               0               1          2.13e4            0.00
+ip6-not-enabled                  active                 12              14               0          2.88e3            1.17
+ip6-ra-process                 "any wait"                0               0             143          7.68e3            0.00
+ip6-rs-process                 "any wait"                0               0               1          2.30e4            0.00
+ip6-sv-reassembly-expire-walk  "any wait"                0               0              15          1.33e4            0.00
+l2-arp-term-publisher         "event wait"               0               0               1          1.97e4            0.00
+l2fib-mac-age-scanner-process "event wait"               0               0               1          2.18e4            0.00
+linux-cp-netlink-process       "any wait"                0               0               1          4.29e4            0.00
+lldp-process                  "event wait"               0               0               1          3.02e5            0.00
+memif-process                 "event wait"               0               0               1          3.82e4            0.00
+nat44-ei-ha-process           "event wait"               0               0               1          3.32e4            0.00
+nsh-md2-ioam-export-process    "any wait"                0               0               1          3.47e4            0.00
+rd-cp-process                  "any wait"                0               0               1          3.72e4            0.00
+sasc-session-expiry            "suspended"               0               0             143          2.47e4            0.00
+    events pending, 
+send-dhcp6-client-message-proc "any wait"                0               0               1          3.06e4            0.00
+send-dhcp6-pd-client-message-p "any wait"                0               0               1          4.07e4            0.00
+sflow-process-samples          "any wait"                0               0             143          2.37e4            0.00
+startup-config-process        "not started               1               0               1          2.42e4            0.00
+statseg-collector-process      "suspended"               0               0              15          9.06e6            0.00
+udp-ping-process               "any wait"                0               0               1          3.06e4            0.00
+unix-cli-new-session           "any wait"                0               0              86          9.81e3            0.00
+unix-cli-process-0              "running"               30               0              67          3.57e7            0.00
+vhost-user-process             "any wait"                0               0               1          3.88e4            0.00
+vhost-user-send-interrupt-proc "any wait"                0               0               1          9.26e4            0.00
+vpe-link-state-process        "event wait"               0               0              11          2.12e4            0.00
+vrrp-periodic-process         "event wait"               0               0               1          3.20e4            0.00
+vxlan-gpe-ioam-export-process  "any wait"                0               0               1          2.14e4            0.00
+wg-timer-manager               "any wait"                0               0           12872          1.13e4            0.00

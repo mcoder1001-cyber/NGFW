@@ -16,7 +16,7 @@ DPDK EAL initialization; native healthy rollback restored old735B noPCI startup,
 and released its locks. No COMMITTED marker or physical acceptance. Root reports
 VPP72599active and API/agent held; a readonly19981B postrollback receipt independently
 confirms that VPP identity. Fresh complete post-rollback protection evidence
-is still pending independent review. Buffers65536 stored, runtime enforcement pending.
+independently PASS in .211 pre-upgrade inspect02d145. Buffers65536 stored, runtime enforcement pending.
 The original .37 worker is departed. No forwarding or post-binding reboot
 acceptance. Root alone performs reviewed real startup/binding.
 
@@ -27,8 +27,8 @@ Starting local/base SHA: `d2d55984d74fa1d06c32e8271886f11f16375407`.
 Owned files: docs/status/tasks/hardware-evidence-review-20261010-* only. This checkpoint's local SHA
 is its commit ID; publication is claimed only after successful push and remote
 readback and is sent to the manager. Last verified published checkpoint:
-`e2dfe7b715a59ba739a5dfd5f0c63c3fcba8f958` (matching CLI push/readback;
-actual own post-commit documentation check28s PASS). Source approval checkpoint65ca4275 remains historical.
+`15e65f67ca5970b051412388e7bc5404d92eb53a` (matching CLI push/readback;
+actual own post-commit documentation check14s PASS). Source approval checkpoint65ca4275 remains historical.
 
 Latest actual review details are in upgrade-four.md, resource.md, physical.md and
 eal.md. The prior source/launch documentation check exited0 (17s); that success
@@ -47,10 +47,26 @@ PR22697ae product/source applicability APPROVE; own focused renderer protection
 tests0.092s PASS. Formal R7-1 CLOSED on final48afba4adfcfe7f0ef0d8585d7c1afc9ed5edde9:
 existing exact test/check command+output appended, source/test paths unchanged,
 remote97ae archive/one-commit integration verified. R7 APPROVE48af; source compiled
-native97ae remains distinct. Final complete hosted quick38061529505 is in_progress;
-older97ae quick cancelled; native preparation PASS, dpkg packaging pending. Next
-action: review actual final gate/native and fresh protected physical phase receipts.
+native97ae remains distinct. Final complete hosted quick38061529505 independently SUCCESS;
+older97ae quick cancelled. Native97ae packaging exit0/41fixtures and independent
+four-archive/control/12-maintscript/native-generator review PASS. Native firstboot
+and noPCI bytes remain unchanged; actual packaged data rendering has a closed
+allowlist and rejects management inputs. Both-host upgrade source1f29 independently
+APPROVE. Fresh .211 readonly inspect02d145 and .37 only API/agent holdcef25c then
+readonly inspectf00385 PASS, so scoped ROOT prepare/upload/simulate applicability
+APPROVE is conditional on exact actual phase evidence. Both actual four-package
+plans71377/2ad25 and complete final48af gate green independently PASS. Actual
+.211 INSTALL then APT100 before package changes because ee202 sorts above97ae;
+all four still ee202, dpkg-audit empty, guards/protection retained. Bounded exact
+four-artifact flag/log-preservation correction awaits focused review. No corrected
+physical retry has occurred. Next action: review final gate and actual upgrade
+phase receipts, then fresh native physical render/guarded apply.
 No repeat launch or target writes by this reviewer.
+Published542bf docs checkpoint post-check FAILED on two historical prose strings
+copied into this report; no credential/config change. Remote archive542bf preserved
+and exact readback verified before this own latest amendment, replacing only
+those prose descriptions and adding real gate/plan/failure/source findings. Prior15e65
+check14s PASS remains historical. Amended unchanged check result still pending.
 Initial checkpoint was `df276e94a1d12febc95b64c9232e609029c10620`.
 
 Completed: mandatory instructions read; PR217 actual HEAD, changed paths,

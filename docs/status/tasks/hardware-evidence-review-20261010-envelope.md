@@ -90,3 +90,12 @@ and later scoped binding. No unrelated work, product/host writes or secret outpu
 Own additional report: hardware-evidence-review-20261010-plugin-seed.md. The prior
 pause remains historical. .37 firstboot stays unexecuted until .211 real seed
 resolution; root alone executes actual startup/binding after exact evidence review.
+
+Same-campaign EAL correction follow-up: own eal.md carries exact97ae native
+archive/control/maintscript/generator checks and final48af R7/CI distinction.
+Review worker's ROOT-only both-host four-package upgrade1f29, fresh private actual
+inspections/hold and later finite phase receipts. No target writes, secret output,
+foreign worktree edits or product changes. Root owns .37 after its worker departed.
+Source-only ROOT .37 preflight/record/apply and future .211 corrected physical
+acceptance reviews remain conditional on fresh artifact/actual proof; prior failed
+physical launch and native healthy rollback remain historical failed evidence.

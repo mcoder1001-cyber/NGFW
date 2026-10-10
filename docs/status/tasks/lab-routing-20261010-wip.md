@@ -1,0 +1,5 @@
+# Routing acceptance WIP
+
+Source base4908716b4; branch codex/lab-routing-20261010. Envelope declares owned paths. Main hosted CI38035583209 success verified. No live private FRR processes or netns observed. P12 slot14 and OSPF slot6 manager assigned; NAT46 independently uses17, total private budget2. No execution yet. Next command: eval tools/lab env14 and run private-fib.py, evidence run-p12.txt. Remote/local checkpoint pending first receipt.
+
+Attempt1 aborted in namespace-inventory guard while transient compiler PID exited; no topology test started. Owned private VPP3581706 stopped; PROCESSES_AFTER={} and shared snapshot exact equality (PID1014/NRestarts0/routes/LCP). Actual raw retained. Narrow runner fix skips only vanished producer (process_identity None) while any live starttime/netns mismatch remains fatal; descriptor cleanup and retention preserved. Actual12 self-controls PASS0.050s; check--base origin/main PASS15s. Independent manager exact safety review requested before live retry. Current rootdisk full; task.scratch28M. Next command after review: rerun assigned14 using task-specific /tmp TMPDIR/GOTMPDIR.

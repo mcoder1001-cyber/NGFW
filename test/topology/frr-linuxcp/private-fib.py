@@ -73,6 +73,10 @@ def members(namespaces):
     return found
 
 
+class ProducerExited(Exception):
+    """An inventoried process exited before its namespace handles were read."""
+
+
 def retain_namespaces(current, retained, handles, observed):
     # The outer mount sees placeholder files. Inspect /run/netns through each
     # actual outer-netns process's root, including the inner mount launcher.
@@ -83,47 +87,53 @@ def retain_namespaces(current, retained, handles, observed):
     forbidden = {os.environ['NGFW_P12_HOST_NETNS'], os.readlink('/proc/1/ns/net')}
     for pid, identity in processes.items():
         def require_producer_identity():
+            actual = process_identity(pid)
+            if actual is None:
+                raise ProducerExited()
             if (identity is None or identity[1] != current
-                    or process_identity(pid) != identity):
+                    or actual != identity):
                 raise RuntimeError('P12 namespace inventory process identity changed')
-        require_producer_identity()
-        directory = Path(f'/proc/{pid}/root/run/netns')
         try:
-            entries = list(directory.iterdir())
-        except FileNotFoundError:
-            if process_identity(pid) != identity:
-                continue
-            raise
-        require_producer_identity()
-        for handle in entries:
             require_producer_identity()
-            if handle.name not in {'ns-w14-lan', 'ns-w14-wan', 'ns-w14-frr'}:
-                raise RuntimeError('unexpected P12 namespace handle: ' + handle.name)
+            directory = Path(f'/proc/{pid}/root/run/netns')
             try:
-                fd = os.open(handle, os.O_RDONLY | os.O_CLOEXEC)
+                entries = list(directory.iterdir())
             except FileNotFoundError:
-                continue  # handle concurrently removed; retained fds survive
-            try:
-                try:
-                    kind = fcntl.ioctl(fd, 0xb703)  # NS_GET_NSTYPE
-                except OSError as error:
-                    if error.errno == errno.ENOTTY:
-                        continue  # outer mount's ordinary placeholder file
-                    raise
-                if kind != 0x40000000:  # CLONE_NEWNET
-                    raise RuntimeError('P12 handle is not a network namespace')
-                namespace = 'net:[' + str(os.fstat(fd).st_ino) + ']'
-                if namespace in forbidden or namespace == current:
-                    raise RuntimeError('P12 peer handle points to shared host')
+                if process_identity(pid) != identity:
+                    continue
+                raise
+            require_producer_identity()
+            for handle in entries:
                 require_producer_identity()
-                observed.add(handle.name)
-                if namespace not in retained:
-                    retained[namespace] = fd
-                    handles.callback(os.close, fd)
-                    fd = None
-            finally:
-                if fd is not None:
-                    os.close(fd)
+                if handle.name not in {'ns-w14-lan', 'ns-w14-wan', 'ns-w14-frr'}:
+                    raise RuntimeError('unexpected P12 namespace handle: ' + handle.name)
+                try:
+                    fd = os.open(handle, os.O_RDONLY | os.O_CLOEXEC)
+                except FileNotFoundError:
+                    continue  # handle concurrently removed; retained fds survive
+                try:
+                    try:
+                        kind = fcntl.ioctl(fd, 0xb703)  # NS_GET_NSTYPE
+                    except OSError as error:
+                        if error.errno == errno.ENOTTY:
+                            continue  # outer mount's ordinary placeholder file
+                        raise
+                    if kind != 0x40000000:  # CLONE_NEWNET
+                        raise RuntimeError('P12 handle is not a network namespace')
+                    namespace = 'net:[' + str(os.fstat(fd).st_ino) + ']'
+                    if namespace in forbidden or namespace == current:
+                        raise RuntimeError('P12 peer handle points to shared host')
+                    require_producer_identity()
+                    observed.add(handle.name)
+                    if namespace not in retained:
+                        retained[namespace] = fd
+                        handles.callback(os.close, fd)
+                        fd = None
+                finally:
+                    if fd is not None:
+                        os.close(fd)
+        except ProducerExited:
+            continue  # no live producer remains; retained namespace fds survive
 
 
 def private_run(command, runtime, current):
@@ -298,6 +308,49 @@ def self_test():
                             mocks.enter_context(patch.object(fcntl, 'ioctl', side_effect=namespace_kind))
                             closed = mocks.enter_context(patch.object(os, 'close'))
                             with ExitStack() as handles, self.assertRaisesRegex(RuntimeError, 'identity changed'):
+                                retain_namespaces('private', retained, handles, observed)
+                            self.assertEqual(retained, {})
+                            self.assertEqual(observed, set())
+                            if phase == 'after open':
+                                closed.assert_called_once_with(42)
+                            else:
+                                opened.assert_not_called()
+
+        def test_exited_inventory_producer_is_skipped(self):
+            for phase in ['before inventory', 'during inventory', 'after open']:
+                for replacement in [None]:
+                    with self.subTest(phase=phase, replacement=replacement):
+                        state = {'changed': phase == 'before inventory'}
+                        directory = MagicMock()
+                        self_directory = MagicMock()
+                        self_directory.iterdir.return_value = []
+                        handle = SimpleNamespace(name='ns-w14-lan')
+                        def identity(pid):
+                            if pid == 999:
+                                return ('self-start', 'private')
+                            return replacement if state['changed'] else ('start', 'private')
+                        def entries():
+                            if phase == 'during inventory':
+                                state['changed'] = True
+                            return [handle]
+                        def namespace_kind(fd, command):
+                            if phase == 'after open':
+                                state['changed'] = True
+                            return 0x40000000
+                        directory.iterdir.side_effect = entries
+                        retained, observed = {}, set()
+                        with ExitStack() as mocks:
+                            mocks.enter_context(patch(__name__ + '.members', return_value={123: ('start', 'private')}))
+                            mocks.enter_context(patch(__name__ + '.process_identity', side_effect=identity))
+                            mocks.enter_context(patch(__name__ + '.Path', side_effect=lambda path: self_directory if '/999/' in path else directory))
+                            mocks.enter_context(patch.dict(os.environ, NGFW_P12_HOST_NETNS='net:[1]'))
+                            mocks.enter_context(patch.object(os, 'getpid', return_value=999))
+                            mocks.enter_context(patch.object(os, 'readlink', return_value='net:[1]'))
+                            opened = mocks.enter_context(patch.object(os, 'open', return_value=42))
+                            mocks.enter_context(patch.object(os, 'fstat', return_value=SimpleNamespace(st_ino=777)))
+                            mocks.enter_context(patch.object(fcntl, 'ioctl', side_effect=namespace_kind))
+                            closed = mocks.enter_context(patch.object(os, 'close'))
+                            with ExitStack() as handles:
                                 retain_namespaces('private', retained, handles, observed)
                             self.assertEqual(retained, {})
                             self.assertEqual(observed, set())

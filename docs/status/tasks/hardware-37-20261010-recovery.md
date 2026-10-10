@@ -190,3 +190,21 @@ Independent reviewer corrected the earlier root-filter assumption for the exact 
 Private key backup metadata revalidated without printing contents: network10240B/ddfcd92c7df9dc4f67f85445f1793b6280984d1f7acda89cbcbce5c1e4cbce1f; auth655360B/2a57558ae6a6c7c2694b2034249e301d209bb0b5b8bc69076e77710725cd45c9; boot3120B/c76678897876dcd36b5d5254a9af0d399b6c9efaf80451e1e5ebbb09656a141d; own static1014992B/2907bb0345fb9dad199e48b2539ce9038b24fbafa00fa9672b4074239a6ac681. Every own private regular file lacks group/other access. Held controllerPTY30565 again responds shell3940. No management/network/service/disk configuration changed.
 
 Exact next action: keep held RAMPTY and original22 available; await manager .37 transition phase release after .211 normal return. Do not rerun existing stage or execute full offline audit/repair on current mounted root.
+
+## Live mounted inode mapping for later offline preservation
+
+Manager reports .211 transition/freshSSH/network/global-reference audit/exclusive guard0 PASS; readonly fsck12 found additional corrupt extent nodes and e2image-Q failed on invalid extents. No .37 transition release; manager requested narrow original .37 debugfs stat/blocks/ncheck. Own readonly-inodes.py sourceSHA256d4405cd95134c5ed25d068c53cb3e57c74872088c42e3a288651d4b38aff724f executes exactly `debugfs -R 'stat <inode>' /dev/sda2` and `debugfs -R 'blocks <inode>' /dev/sda2` for259596/7/8/9/259602, then `debugfs -R 'ncheck 259596 259597 259598 259599 259602' /dev/sda2`. No -w, data dump, target writes/configuration/mount/service change or ext4 repair.
+
+ActualSSH0 and all11debugfs commands0, each stderr only debugfs version banner. Private readonly-inode-mappings-20261010.json7100bytes/SHA25616514fe36fd851e453992a0095a953c31d052db652cfdeab77dc251b152c8504,0600; outerstderr0bytes/emptySHA. Full ncheck names and exact inode metadata/xattrs/block lists are private. Public classification:
+
+| Inode | Type/size | Private path class | Mapped block | Mapping kind |
+|---|---|---|---:|---|
+|259596 |regular8388608bytes |journal file |15505493 |ETB0 |
+|259597 |regular8388608bytes |journal file |15503361 |ETB0 |
+|259598 |regular8388608bytes |journal file |15503362 |ETB0 |
+|259599 |directory4096bytes |root cache |15503363 |logical0 |
+|259602 |directory4096bytes |root config |15503874 |logical0 |
+
+All five mapped blocks lie within the actual15505494×4096-byte root partition;15505493 is its final legal block. Extent-bearing regular-file `blocks` output names only its invalid extent-tree block; it is not a complete data-extent mapping or proof that file payloads are recoverable. Diagnostic exit0 does not make corrupt extents/filesystem consistent. These are **live mounted readonly metadata observations, not an offline snapshot**. No affected-block bytes were dumped/copied now; after reviewed offline .37 transition, revalidate mapping/geometry and preserve the relevant raw blocks privately alongside measured native core metadata/undo before corrective writes. Original22 and heldPTY remain, nextroot absent.
+
+Fresh originalSSH22 at controller2026-10-10T09:50:17Z completed0 with rescue active/shell3940 present/nextroot absent and route controllerviaenp12s0/src172.30.126.37; heldcontrollerPTY30565 responded3940. Actual earliercheck belongs its own controller time, no duration inferred against target/GitHub clocks. Lastpublished/readback checkpoint before this map extension:acc50f0a4c9aeda10edd15246a09b2cc4bd540cd, pre/post check PASS. Exact next step remains .37 held until manager's reviewed phase after .211 normal return.

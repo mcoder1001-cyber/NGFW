@@ -3922,8 +3922,8 @@ tasks:
     worktree: "/root/ngfw-wt/lab-routing-20261010"
     owner: "routing_acceptance"
     started: ''
-    finished: ''
-    state: "review"
+    finished: '2026-10-10'
+    state: "merged"
     wbs:
     - D0.1
     prompt: ''
@@ -3941,10 +3941,10 @@ tasks:
 
       test design in docs/status/tasks/P12.md (fix round 1) | 2026-09-30 rescoped to root mode (F-ospf-host pattern, no lcp default-netns change); LAB-vpp-per-slot dep dropped (D-218) | root-mode PASS 200/100/50
       prefixes; merged 8084739c'
-    worker_status: "acceptance complete; final CI/integration pending"
+    worker_status: "completed; dual-host acceptance, independent review and main CI PASS"
     integration_receipt_20261007: "PR180 merged668f54244ac96a2c25527e9778f6c5e4ab6502a4: recovery proof source and retained negative receipts. One conflict resolved preserving root-mode and private Wave-B guards; final PR headc7073344350a7ad1239ee05a526a74d03f65fab1. No fresh CI by explicit owner request. Current mgmtd deadline failure/200-route native acceptance remains unresolved; state parked retained."
     advance_receipt_20261007: "PR203 merged188a2ea9835298466e9fc2601add2bfa587204b1: recovered namespace inventory/cleanup guards plus independent PID reuse fix; round2 APPROVE1409c4739. Current-main Python11/11 PASS0.041s and focused race agent1.857s BGP1.128s PASS. Actual mgmtd30s failure cause/200-route proof still open; no lab execution."
-    acceptance_receipt_20261010: "Actual 195/250 BGP 200→100→50→100 FIB, restart recovery 7.2/7.6s within 30s, withdrawal/restore and rollback zero PASS. Independent source review approved. PR218 final exact CI and merge pending."
+    acceptance_receipt_20261010: "Actual 195/250 BGP 200→100→50→100 FIB, restart recovery 7.2/7.6s within 30s, withdrawal/restore and rollback zero PASS. Independent source review approved. PR218 exact head13ad83af6d6bb77a32f4d8a8ef2155e32c31c637 hosted38046695361 PASS; merged7c28b19203926f7b4d6cadb23b2ae6073a9f70a8; main CI38048002335 SUCCESS. Acceptance completed2026-10-10."
   - id: F-global-blocking
     title: 'Global Blocking: IP list file (upload or download from a server URL with scheduled refresh), enforced on chosen interfaces'
     prompt: prompts/features/F-global-blocking.md
@@ -4697,7 +4697,7 @@ tasks:
     - F-ospf
     priority: 3
     est_hours: 4
-    state: "review"
+    state: "merged"
     wbs: []
     scope: owed checklist = "Owed on the host" sections of docs/status/tasks/RV-A-review-R7.md, RV-A-review-R4.md and RV-A-review-R1.md for F-ospf; daemon-owner frr; FRR host rows one at a time (launch queue
       §3)
@@ -4706,14 +4706,14 @@ tasks:
     worktree: "/root/ngfw-wt/lab-routing-20261010"
     owner: "routing_acceptance"
     started: '2026-09-28'
-    finished: '2026-09-29'
+    finished: '2026-10-10'
     notes: 'D-173; RV-A | 2026-09-28 spawned slot 11, envelope /root/ngfw-wt/F-ospf-host.envelope.md, base main@79fff64a | 2026-09-29 parked: shared VPP hung since 19:13 (INC-vpp-hang-20260928); CONTINUE
       after the owner restarts VPP | parked at 8a1c852a CI PASSED: frrtest live + API 400 done on host; rig/FIB/restart/rollback drivers ready; Q1-Q3 answered | Integration audit: previous completion unverified;
       host evidence must be reconciled before merge/completion. | 2026-10-04 recovered current NGFW drivers and OSPF tests; fixed failure assertions/preconditions; remaining full host acceptance explicitly
       deferred, not complete.'
     parked_on: ""
-    worker_status: "acceptance complete; final CI/integration pending"
-    acceptance_receipt_20261010: "Actual 195/250 OSPF Full 100→50→100, restart recovery 6.3/7.2s, postrestart withdrawal/restore and rollback zero PASS. FRR-only and real API400 negative controls PASS. PR218 final exact CI and merge pending."
+    worker_status: "completed; dual-host acceptance, independent review and main CI PASS"
+    acceptance_receipt_20261010: "Actual 195/250 OSPF Full 100→50→100, restart recovery 6.3/7.2s, postrestart withdrawal/restore and rollback zero PASS. FRR-only and real API400 negative controls PASS. PR218 exact head13ad83af6d6bb77a32f4d8a8ef2155e32c31c637 hosted38046695361 PASS; merged7c28b19203926f7b4d6cadb23b2ae6073a9f70a8; main CI38048002335 SUCCESS. Acceptance completed2026-10-10."
   - id: F-isis-rip-host
     title: 'F-isis-rip host runs: frrtest isisd/ripd + RIP FIB evidence; IS-IS adjacency only after the OSI punt decision (R7/R4/R1 owed lists)'
     prompt: prompts/features/F-isis-rip-host.md
